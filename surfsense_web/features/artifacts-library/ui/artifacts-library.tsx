@@ -60,7 +60,8 @@ function EmptyState() {
 	);
 }
 
-export function ArtifactsLibrary({ searchSpaceId }: { searchSpaceId: number }) {
+export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
+	const searchSpaceId = workspaceId;
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(searchSpaceId);
 	const openReportPanel = useSetAtom(openReportPanelAtom);
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);

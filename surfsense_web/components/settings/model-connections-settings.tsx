@@ -50,7 +50,8 @@ function renderAutoModeOption() {
 	);
 }
 
-export function ModelConnectionsSettings({ searchSpaceId }: { searchSpaceId: number }) {
+export function ModelConnectionsSettings({ workspaceId }: { workspaceId: number }) {
+	const searchSpaceId = workspaceId;
 	const [{ data: globalConnections = [] }] = useAtom(globalModelConnectionsAtom);
 	const [{ data: connections = [] }] = useAtom(modelConnectionsAtom);
 	const [{ data: roles }] = useAtom(modelRolesAtom);

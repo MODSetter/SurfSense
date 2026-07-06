@@ -14,11 +14,11 @@ import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.ty
 import { PublicChatSnapshotsList } from "./public-chat-snapshots-list";
 
 interface PublicChatSnapshotsManagerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 }
 
 export function PublicChatSnapshotsManager({
-	searchSpaceId: _searchSpaceId,
+	workspaceId: _workspaceId,
 }: PublicChatSnapshotsManagerProps) {
 	const [deletingId, setDeletingId] = useState<number | undefined>();
 

@@ -284,7 +284,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 					<div className="px-5 py-4">
 						<p className="mb-3 text-xs font-medium text-foreground">Models</p>
 						<AutomationModelFields
-							searchSpaceId={Number(searchSpaceId)}
+							workspaceId={Number(searchSpaceId)}
 							value={resolvedModels}
 							onChange={(patch) => setModelSelection((prev) => ({ ...prev, ...patch }))}
 						/>

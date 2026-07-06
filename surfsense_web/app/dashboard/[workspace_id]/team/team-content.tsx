@@ -139,7 +139,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleRevokeInvite = useCallback(
 		async (inviteId: number): Promise<boolean> => {
 			const request: DeleteInviteRequest = {
-				workspace_id: workspaceId,
+				search_space_id: workspaceId,
 				invite_id: inviteId,
 			};
 			await revokeInvite(request);
@@ -151,7 +151,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleCreateInvite = useCallback(
 		async (inviteData: CreateInviteRequest["data"]) => {
 			const request: CreateInviteRequest = {
-				workspace_id: workspaceId,
+				search_space_id: workspaceId,
 				data: inviteData,
 			};
 			return await createInvite(request);
@@ -162,7 +162,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleUpdateMember = useCallback(
 		async (membershipId: number, roleId: number | null): Promise<Membership> => {
 			const request: UpdateMembershipRequest = {
-				workspace_id: workspaceId,
+				search_space_id: workspaceId,
 				membership_id: membershipId,
 				data: { role_id: roleId },
 			};
@@ -174,7 +174,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleRemoveMember = useCallback(
 		async (membershipId: number) => {
 			const request: DeleteMembershipRequest = {
-				workspace_id: workspaceId,
+				search_space_id: workspaceId,
 				membership_id: membershipId,
 			};
 			await deleteMember(request);
@@ -185,13 +185,13 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 
 	const { data: roles = [], isLoading: rolesLoading } = useQuery({
 		queryKey: cacheKeys.roles.all(workspaceId.toString()),
-		queryFn: () => rolesApiService.getRoles({ workspace_id: workspaceId }),
+		queryFn: () => rolesApiService.getRoles({ search_space_id: workspaceId }),
 		enabled: !!workspaceId,
 	});
 
 	const { data: invites = [], isLoading: invitesLoading } = useQuery({
 		queryKey: cacheKeys.invites.all(workspaceId.toString()),
-		queryFn: () => invitesApiService.getInvites({ workspace_id: workspaceId }),
+		queryFn: () => invitesApiService.getInvites({ search_space_id: workspaceId }),
 		staleTime: 5 * 60 * 1000,
 	});
 

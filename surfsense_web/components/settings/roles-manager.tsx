@@ -269,7 +269,8 @@ type PermissionWithDescription = PermissionInfo;
 
 // ============ Roles Manager (for Settings page) ============
 
-export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
+export function RolesManager({ workspaceId }: { workspaceId: number }) {
+	const searchSpaceId = workspaceId;
 	const { data: access = null } = useAtomValue(myAccessAtom);
 
 	const hasPermission = useCallback(

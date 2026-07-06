@@ -16,10 +16,11 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
 interface PromptConfigManagerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 }
 
-export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps) {
+export function PromptConfigManager({ workspaceId }: PromptConfigManagerProps) {
+	const searchSpaceId = workspaceId;
 	const { data: searchSpace, isLoading: loading } = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),

@@ -579,7 +579,7 @@ export default function NewChatPage() {
 				error,
 				flow,
 				context: {
-					workspaceId,
+					searchSpaceId: workspaceId,
 					threadId,
 				},
 			});
@@ -754,8 +754,8 @@ export default function NewChatPage() {
 			syncChatTab({
 				chatId: thread.id,
 				title: thread.title,
-				chatUrl: `/dashboard/${thread.workspace_id ?? workspaceId}/new-chat/${thread.id}`,
-				workspaceId: thread.workspace_id ?? workspaceId,
+				chatUrl: `/dashboard/${thread.search_space_id ?? workspaceId}/new-chat/${thread.id}`,
+				searchSpaceId: thread.search_space_id ?? workspaceId,
 				visibility: thread.visibility,
 				hasComments: thread.has_comments ?? false,
 			});
@@ -892,7 +892,7 @@ export default function NewChatPage() {
 			}
 			setCurrentThreadMetadata({
 				id: null,
-				workspaceId: null,
+				searchSpaceId: null,
 				visibility: null,
 				hasComments: false,
 			});
@@ -906,7 +906,7 @@ export default function NewChatPage() {
 
 		setCurrentThreadMetadata({
 			id: currentThread.id,
-			workspaceId: currentThread.workspace_id ?? workspaceId,
+			searchSpaceId: currentThread.search_space_id ?? workspaceId,
 			visibility,
 			hasComments: currentThread.has_comments ?? false,
 		});

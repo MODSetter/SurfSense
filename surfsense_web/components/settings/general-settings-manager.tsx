@@ -21,10 +21,11 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
 interface GeneralSettingsManagerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 }
 
-export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManagerProps) {
+export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerProps) {
+	const searchSpaceId = workspaceId;
 	const t = useTranslations("searchSpaceSettings");
 	const tCommon = useTranslations("common");
 	const {

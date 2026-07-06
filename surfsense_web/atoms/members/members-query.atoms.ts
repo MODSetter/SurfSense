@@ -1,3 +1,4 @@
+import { useAtomValue } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { membersApiService } from "@/lib/apis/members-api.service";
@@ -71,6 +72,6 @@ export function canPerform(
  * const canManageMembers = usePermissionGate('manage_members');
  */
 export function usePermissionGate(permission: string): boolean {
-	const access = useAtomValue(myAccessAtom);
+	const { data: access } = useAtomValue(myAccessAtom);
 	return canPerform(access, permission);
 }
