@@ -27,7 +27,6 @@ import {
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
 import {
-	AllChatsSidebarContent,
 	DocumentsSidebar,
 	InboxSidebarContent,
 	MobileSidebar,
@@ -93,7 +92,7 @@ interface TabDataSource {
 	markAllAsRead: () => Promise<boolean>;
 }
 
-export type ActiveSlideoutPanel = "inbox" | "chats" | null;
+export type ActiveSlideoutPanel = "inbox" | null;
 
 // Inbox-related props — per-tab data sources with independent loading/pagination
 interface InboxProps {
@@ -134,6 +133,7 @@ interface LayoutShellProps {
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
+	isAllChatsPage?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
@@ -145,10 +145,6 @@ interface LayoutShellProps {
 	// Inbox props
 	inbox?: InboxProps;
 	isLoadingChats?: boolean;
-	// All chats panel props
-	allChatsPanel?: {
-		searchSpaceId: string;
-	};
 	documentsPanel?: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
@@ -245,6 +241,7 @@ export function LayoutShell({
 	setTheme,
 	defaultCollapsed = false,
 	isChatPage = false,
+	isAllChatsPage = false,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
@@ -254,7 +251,6 @@ export function LayoutShell({
 	onSlideoutPanelChange,
 	inbox,
 	isLoadingChats = false,
-	allChatsPanel,
 	documentsPanel,
 	onTabSwitch,
 	onTabPrefetch,
@@ -285,8 +281,7 @@ export function LayoutShell({
 
 	const anySlideOutOpen = activeSlideoutPanel !== null;
 
-	const panelAriaLabel =
-		activeSlideoutPanel === "inbox" ? "Inbox" : activeSlideoutPanel === "chats" ? "Chats" : "Panel";
+	const panelAriaLabel = activeSlideoutPanel === "inbox" ? "Inbox" : "Panel";
 
 	// Mobile layout
 	if (isMobile) {
@@ -317,7 +312,7 @@ export function LayoutShell({
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
 							onViewAllChats={onViewAllChats}
-							isChatsPanelOpen={activeSlideoutPanel === "chats"}
+							isAllChatsActive={isAllChatsPage}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -365,22 +360,6 @@ export function LayoutShell({
 											comments={inbox.comments}
 											status={inbox.status}
 											totalUnreadCount={inbox.totalUnreadCount}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
-								{activeSlideoutPanel === "chats" && allChatsPanel && (
-									<motion.div
-										key="chats"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<AllChatsSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-											searchSpaceId={allChatsPanel.searchSpaceId}
 											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 										/>
 									</motion.div>
@@ -460,7 +439,7 @@ export function LayoutShell({
 								onChatDelete={onChatDelete}
 								onChatArchive={onChatArchive}
 								onViewAllChats={onViewAllChats}
-								isChatsPanelOpen={activeSlideoutPanel === "chats"}
+								isAllChatsActive={isAllChatsPage}
 								user={user}
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}
@@ -523,21 +502,6 @@ export function LayoutShell({
 												comments={inbox.comments}
 												status={inbox.status}
 												totalUnreadCount={inbox.totalUnreadCount}
-											/>
-										</motion.div>
-									)}
-									{activeSlideoutPanel === "chats" && allChatsPanel && (
-										<motion.div
-											key="chats"
-											className="h-full flex flex-col"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.15 }}
-										>
-											<AllChatsSidebarContent
-												onOpenChange={(open) => closeSlideout(open)}
-												searchSpaceId={allChatsPanel.searchSpaceId}
 											/>
 										</motion.div>
 									)}

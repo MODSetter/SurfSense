@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
-	ChevronLeft,
 	MessageCircleMore,
 	MoreHorizontal,
 	Pencil,
@@ -48,23 +47,13 @@ import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-
 import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
 import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
-import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-export interface AllChatsSidebarContentProps {
-	onOpenChange: (open: boolean) => void;
+interface AllChatsContentProps {
 	searchSpaceId: string;
-	onCloseMobileSidebar?: () => void;
+	className?: string;
 }
 
-interface AllChatsSidebarProps extends AllChatsSidebarContentProps {
-	open: boolean;
-}
-
-export function AllChatsSidebarContent({
-	onOpenChange,
-	searchSpaceId,
-	onCloseMobileSidebar,
-}: AllChatsSidebarContentProps) {
+function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -150,10 +139,8 @@ export function AllChatsSidebarContent({
 				searchSpaceId,
 				visibility: thread.visibility,
 			});
-			onOpenChange(false);
-			onCloseMobileSidebar?.();
 		},
-		[activateChatThread, onOpenChange, searchSpaceId, onCloseMobileSidebar]
+		[activateChatThread, searchSpaceId]
 	);
 
 	const handleDeleteThread = useCallback(
@@ -165,7 +152,6 @@ export function AllChatsSidebarContent({
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 
 				if (currentChatId === threadId) {
-					onOpenChange(false);
 					setTimeout(() => {
 						if (
 							fallbackTab?.type === "chat" &&
@@ -196,16 +182,7 @@ export function AllChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[
-			activateChatThread,
-			deleteThread,
-			t,
-			currentChatId,
-			router,
-			onOpenChange,
-			removeChatTab,
-			searchSpaceId,
-		]
+		[activateChatThread, deleteThread, t, currentChatId, router, removeChatTab, searchSpaceId]
 	);
 
 	const handleToggleArchive = useCallback(
@@ -266,20 +243,9 @@ export function AllChatsSidebarContent({
 	const archivedCount = archivedChats.length;
 
 	return (
-		<>
+		<div className={cn("flex h-full min-h-0 flex-col", className)}>
 			<div className="shrink-0 p-3 pb-1.5 space-y-2">
 				<div className="flex items-center gap-2">
-					{isMobile && (
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-							onClick={() => onOpenChange(false)}
-						>
-							<ChevronLeft className="h-4 w-4" />
-							<span className="sr-only">{t("close") || "Close"}</span>
-						</Button>
-					)}
 					<h2 className="text-lg font-semibold">{t("chats") || "Chats"}</h2>
 				</div>
 
@@ -584,25 +550,14 @@ export function AllChatsSidebarContent({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</>
+		</div>
 	);
 }
 
-export function AllChatsSidebar({
-	open,
-	onOpenChange,
-	searchSpaceId,
-	onCloseMobileSidebar,
-}: AllChatsSidebarProps) {
-	const t = useTranslations("sidebar");
-
+export function AllChatsWorkspaceContent({ searchSpaceId }: { searchSpaceId: string }) {
 	return (
-		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("chats") || "Chats"}>
-			<AllChatsSidebarContent
-				onOpenChange={onOpenChange}
-				searchSpaceId={searchSpaceId}
-				onCloseMobileSidebar={onCloseMobileSidebar}
-			/>
-		</SidebarSlideOutPanel>
+		<div className="flex h-[min(760px,calc(100vh-8rem))] w-full overflow-hidden rounded-xl border bg-sidebar text-sidebar-foreground shadow-sm">
+			<AllChatsContent searchSpaceId={searchSpaceId} />
+		</div>
 	);
 }

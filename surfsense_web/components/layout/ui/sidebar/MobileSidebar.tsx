@@ -27,7 +27,7 @@ interface MobileSidebarProps {
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
-	isChatsPanelOpen?: boolean;
+	isAllChatsActive?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -75,7 +75,7 @@ export function MobileSidebar({
 	onChatDelete,
 	onChatArchive,
 	onViewAllChats,
-	isChatsPanelOpen = false,
+	isAllChatsActive = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -166,7 +166,7 @@ export function MobileSidebar({
 									}
 								: undefined
 						}
-						isChatsPanelOpen={isChatsPanelOpen}
+						isAllChatsActive={isAllChatsActive}
 						user={user}
 						onSettings={
 							onSettings

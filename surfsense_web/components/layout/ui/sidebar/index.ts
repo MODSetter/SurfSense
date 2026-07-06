@@ -1,4 +1,4 @@
-export { AllChatsSidebar, AllChatsSidebarContent } from "./AllChatsSidebar";
+export { AllChatsWorkspaceContent } from "./AllChatsSidebar";
 export { ChatListItem } from "./ChatListItem";
 export { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 export { DocumentsSidebar } from "./DocumentsSidebar";

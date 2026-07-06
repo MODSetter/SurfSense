@@ -75,7 +75,7 @@ interface SidebarProps {
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
-	isChatsPanelOpen?: boolean;
+	isAllChatsActive?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -112,7 +112,7 @@ export function Sidebar({
 	onChatDelete,
 	onChatArchive,
 	onViewAllChats,
-	isChatsPanelOpen = false,
+	isAllChatsActive = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -281,7 +281,7 @@ export function Sidebar({
 						title={t("recents")}
 						defaultOpen={true}
 						fillHeight={true}
-						alwaysShowAction={!disableTooltips && isChatsPanelOpen}
+						alwaysShowAction={!disableTooltips && isAllChatsActive}
 						action={
 							onViewAllChats ? (
 								<Button
@@ -290,7 +290,7 @@ export function Sidebar({
 									onClick={onViewAllChats}
 									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
 								>
-									{!disableTooltips && isChatsPanelOpen ? t("hide") : t("show_all")}
+									{!disableTooltips && isAllChatsActive ? t("hide") : t("show_all")}
 								</Button>
 							) : undefined
 						}

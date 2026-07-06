@@ -126,7 +126,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	});
 
 	// Unified slide-out panel state (only one can be open at a time)
-	type SlideoutPanel = "inbox" | "chats" | null;
+	type SlideoutPanel = "inbox" | null;
 	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
 
 	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
@@ -631,10 +631,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [router]);
 
-	const handleViewAllChats = useCallback(() => {
-		setActiveSlideoutPanel((prev) => (prev === "chats" ? null : "chats"));
-	}, []);
-
 	// Delete handlers
 	const confirmDeleteChat = useCallback(async () => {
 		if (!chatToDelete) return;
@@ -713,6 +709,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const isSearchSpaceSettingsPage = pathname?.includes("/search-space-settings") === true;
 	const isTeamPage = pathname?.endsWith("/team") === true;
 	const isAutomationsPage = pathname?.includes("/automations") === true;
+	const isAllChatsPage = pathname?.endsWith("/chats") === true;
+	const handleViewAllChats = useCallback(() => {
+		setActiveSlideoutPanel(null);
+		router.push(
+			isAllChatsPage ? `/dashboard/${searchSpaceId}/new-chat` : `/dashboard/${searchSpaceId}/chats`
+		);
+	}, [isAllChatsPage, router, searchSpaceId]);
 	const useWorkspacePanel =
 		pathname?.endsWith("/buy-more") === true ||
 		pathname?.endsWith("/earn-credits") === true ||
@@ -720,7 +723,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		isUserSettingsPage ||
 		isSearchSpaceSettingsPage ||
 		isTeamPage ||
-		isAutomationsPage;
+		isAutomationsPage ||
+		isAllChatsPage;
 
 	return (
 		<>
@@ -757,18 +761,25 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
+				isAllChatsPage={isAllChatsPage}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
-					isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage || isAutomationsPage
+					isUserSettingsPage ||
+					isSearchSpaceSettingsPage ||
+					isTeamPage ||
+					isAutomationsPage ||
+					isAllChatsPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:py-10"
 						: undefined
 				}
 				workspacePanelContentClassName={
 					isAutomationsPage
 						? "max-w-none select-none"
-						: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
-							? "max-w-5xl"
-							: undefined
+						: isAllChatsPage
+							? "max-w-3xl"
+							: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
+								? "max-w-5xl"
+								: undefined
 				}
 				isLoadingChats={isLoadingThreads}
 				activeSlideoutPanel={activeSlideoutPanel}
@@ -796,9 +807,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAsRead: statusInbox.markAsRead,
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
-				}}
-				allChatsPanel={{
-					searchSpaceId,
 				}}
 				documentsPanel={{
 					open: isDocumentsSidebarOpen,
