@@ -148,6 +148,135 @@ export const googleMaps: ConnectorPageContent = {
 		},
 	},
 
+	schema: {
+		requestNote:
+			"Provide at least one source: search_queries, urls, or place_ids. Up to 20 sources per call.",
+		request: [
+			{
+				name: "search_queries",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Google Maps search terms, e.g. 'coffee shops', 'dentist'. Each returns up to max_places. Pair with location to scope the search. Max 20.",
+			},
+			{
+				name: "urls",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Google Maps URLs: a place page (/maps/place/...) or a search results URL. Max 20.",
+			},
+			{
+				name: "place_ids",
+				type: "string[]",
+				defaultValue: "[]",
+				description: "Known Google place IDs (ChIJ...) to fetch directly. Max 20.",
+			},
+			{
+				name: "location",
+				type: "string",
+				description: "Location to scope search_queries to, e.g. 'New York, USA'.",
+			},
+			{
+				name: "max_places",
+				type: "integer",
+				defaultValue: "10",
+				description: "Max places to return per search query. 1 to 1,000.",
+			},
+			{
+				name: "language",
+				type: "string",
+				defaultValue: '"en"',
+				description: "Result language code, e.g. 'en', 'fr'.",
+			},
+			{
+				name: "include_details",
+				type: "boolean",
+				defaultValue: "false",
+				description:
+					"Also fetch each place's detail page: opening hours, popular times, and extra contact info. Slower.",
+			},
+			{
+				name: "max_reviews",
+				type: "integer",
+				defaultValue: "0",
+				description: "Reviews to attach per place, up to 100,000. 0 disables reviews.",
+			},
+			{
+				name: "max_images",
+				type: "integer",
+				defaultValue: "0",
+				description: "Images to attach per place. 0 disables images.",
+			},
+		],
+		responseNote:
+			"The response is { items: [...] } with one item per place. One returned place is one billable unit; attached reviews are metered separately.",
+		response: [
+			{
+				name: "title / categoryName / categories",
+				type: "string / string[]",
+				description: "Business name and its Google Maps categories.",
+			},
+			{
+				name: "placeId / cid / url",
+				type: "string",
+				description: "Stable Google identifiers and the place's Maps URL.",
+			},
+			{
+				name: "address / street / city / state / postalCode / countryCode",
+				type: "string",
+				description: "Full and structured address components.",
+			},
+			{
+				name: "location",
+				type: "object",
+				description: "Coordinates: { lat, lng }.",
+			},
+			{
+				name: "website / phone",
+				type: "string",
+				description:
+					"Contact details as listed on the profile. Null website is a classic lead-gen signal.",
+			},
+			{
+				name: "totalScore / reviewsCount / reviewsDistribution",
+				type: "number / integer / object",
+				description: "Average rating, review count, and the one-to-five-star breakdown.",
+			},
+			{
+				name: "permanentlyClosed / temporarilyClosed",
+				type: "boolean",
+				description: "Business status flags.",
+			},
+			{
+				name: "openingHours",
+				type: "object[]",
+				description: "Day-by-day hours. Populated when include_details is true.",
+			},
+			{
+				name: "reviews",
+				type: "object[]",
+				description:
+					"Attached reviews when max_reviews > 0: text, stars, publishedAtDate, likesCount, reviewer info, and the owner's response.",
+			},
+			{
+				name: "images / imageUrl / imagesCount",
+				type: "object[] / string / integer",
+				description: "Photos attached when max_images > 0, plus the cover image and count.",
+			},
+			{
+				name: "searchString / rank",
+				type: "string / integer",
+				description: "Provenance: which query found this place and its position in the results.",
+			},
+			{
+				name: "scrapedAt",
+				type: "string",
+				description: "ISO timestamp for when the place was scraped.",
+			},
+		],
+	},
+
 	faq: [
 		{
 			question: "Is scraping Google Maps legal?",

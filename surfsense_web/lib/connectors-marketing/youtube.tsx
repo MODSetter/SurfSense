@@ -150,6 +150,101 @@ export const youtube: ConnectorPageContent = {
 		},
 	},
 
+	schema: {
+		requestNote: "Provide at least one source: urls or search_queries. Up to 20 of each per call.",
+		request: [
+			{
+				name: "urls",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"YouTube URLs to scrape: a video, channel (/@handle or /channel/UC...), playlist (?list=...), shorts, or hashtag page. Max 20.",
+			},
+			{
+				name: "search_queries",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Search terms to run on YouTube. Each returns up to max_results videos. Max 20.",
+			},
+			{
+				name: "max_results",
+				type: "integer",
+				defaultValue: "10",
+				description:
+					"Max items per source and per content type, 1 to 1,000. For a channel, videos, shorts, and streams are capped independently.",
+			},
+			{
+				name: "download_subtitles",
+				type: "boolean",
+				defaultValue: "false",
+				description: "Also fetch each video's subtitle track. Slower.",
+			},
+			{
+				name: "subtitles_language",
+				type: "string",
+				defaultValue: '"en"',
+				description:
+					"Subtitle language code, e.g. 'en', 'fr'. Used when download_subtitles is true.",
+			},
+		],
+		responseNote:
+			"The response is { items: [...] } with one item per video, short, or stream. One returned item is one billable unit.",
+		response: [
+			{
+				name: "title / id / url",
+				type: "string",
+				description: "Video title, YouTube ID, and watch URL.",
+			},
+			{
+				name: "type",
+				type: "string",
+				description: "What this item is: video, short, or stream.",
+			},
+			{
+				name: "viewCount / likes / commentsCount",
+				type: "integer",
+				description: "Engagement metrics for ranking what resonates.",
+			},
+			{
+				name: "date / duration",
+				type: "string",
+				description: "Publish date and video length.",
+			},
+			{
+				name: "text / descriptionLinks / hashtags",
+				type: "string / object[] / string[]",
+				description: "Full description, the links it contains, and its hashtags.",
+			},
+			{
+				name: "subtitles",
+				type: "object[]",
+				description:
+					"Full transcript tracks with SRT content when download_subtitles is true. The raw material for content analysis.",
+			},
+			{
+				name: "thumbnailUrl",
+				type: "string",
+				description: "The video's thumbnail image.",
+			},
+			{
+				name: "channelName / channelUrl / channelId",
+				type: "string",
+				description: "The publishing channel's name, URL, and ID.",
+			},
+			{
+				name: "numberOfSubscribers / isChannelVerified",
+				type: "integer / boolean",
+				description: "Channel reach and verification status.",
+			},
+			{
+				name: "input / fromYTUrl / order",
+				type: "string / integer",
+				description: "Provenance: which source produced this item and its position.",
+			},
+		],
+	},
+
 	faq: [
 		{
 			question: "Is scraping YouTube legal?",

@@ -6,13 +6,53 @@ import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { ConnectorPageContent } from "@/lib/connectors-marketing/types";
+import type { ConnectorPageContent, SchemaField } from "@/lib/connectors-marketing/types";
 import { AgentTranscript } from "./agent-transcript";
 import { ApiMcpTabs } from "./api-mcp-tabs";
 import { ConnectorFaq } from "./connector-faq";
 import { Reveal } from "./reveal";
 
 const GITHUB_URL = "https://github.com/MODSetter/SurfSense";
+
+function SchemaTable({ caption, fields }: { caption: string; fields: SchemaField[] }) {
+	return (
+		<div className="overflow-x-auto rounded-xl border bg-card">
+			<table className="w-full min-w-xl text-sm">
+				<caption className="sr-only">{caption}</caption>
+				<thead>
+					<tr className="border-b bg-muted/40 text-left">
+						<th className="p-4 font-medium">Field</th>
+						<th className="p-4 font-medium">Type</th>
+						<th className="p-4 font-medium">Description</th>
+					</tr>
+				</thead>
+				<tbody>
+					{fields.map((field) => (
+						<tr key={field.name} className="border-b align-top last:border-b-0">
+							<th scope="row" className="p-4 text-left">
+								<code className="font-mono text-[13px] font-semibold">{field.name}</code>
+							</th>
+							<td className="whitespace-nowrap p-4">
+								<code className="font-mono text-[13px] text-muted-foreground">{field.type}</code>
+								{field.required ? (
+									<span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+										required
+									</span>
+								) : null}
+								{field.defaultValue !== undefined ? (
+									<div className="mt-1 text-xs text-muted-foreground">
+										default <code className="font-mono">{field.defaultValue}</code>
+									</div>
+								) : null}
+							</td>
+							<td className="p-4 text-muted-foreground leading-relaxed">{field.description}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	);
+}
 
 export function ConnectorPage({ content }: { content: ConnectorPageContent }) {
 	const Icon = content.icon;
@@ -132,6 +172,44 @@ export function ConnectorPage({ content }: { content: ConnectorPageContent }) {
 					{/* Code capped at a readable measure; left edge stays on the page grid. */}
 					<div className="mt-8 max-w-4xl">
 						<ApiMcpTabs api={content.api} />
+					</div>
+				</Reveal>
+			</MarketingSection>
+
+			{/* Request / response schema */}
+			<MarketingSection>
+				<Reveal>
+					<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+						{content.name} API request and response schema
+					</h2>
+					<p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
+						The exact contract behind{" "}
+						<code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+							POST /workspaces/{"{workspace_id}"}/scrapers/{content.api.platform}/{content.api.verb}
+						</code>
+						. The same fields power the{" "}
+						<code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+							{content.api.mcpTool}
+						</code>{" "}
+						MCP tool.
+					</p>
+				</Reveal>
+				<Reveal>
+					<h3 className="mt-8 text-lg font-semibold">Request parameters</h3>
+					<p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+						{content.schema.requestNote}
+					</p>
+					<div className="mt-4">
+						<SchemaTable caption="Request parameters" fields={content.schema.request} />
+					</div>
+				</Reveal>
+				<Reveal>
+					<h3 className="mt-10 text-lg font-semibold">Response fields</h3>
+					<p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+						{content.schema.responseNote}
+					</p>
+					<div className="mt-4">
+						<SchemaTable caption="Response fields" fields={content.schema.response} />
 					</div>
 				</Reveal>
 			</MarketingSection>
