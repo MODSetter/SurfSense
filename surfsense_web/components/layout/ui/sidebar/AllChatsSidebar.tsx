@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
-	MessageCircleMore,
+	Check,
+	ChevronDown,
 	MoreHorizontal,
 	Pencil,
 	RotateCcwIcon,
@@ -19,7 +20,6 @@ import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -239,14 +239,48 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
 	const error = isSearchMode ? searchError : threadsError;
 
-	const activeCount = activeChats.length;
-	const archivedCount = archivedChats.length;
+	const selectedFilterLabel = showArchived ? "Archived" : "Active";
 
 	return (
-		<div className={cn("flex h-full min-h-0 flex-col", className)}>
-			<div className="shrink-0 p-3 pb-1.5 space-y-2">
-				<div className="flex items-center gap-2">
+		<div className={cn("flex h-full min-h-0 w-full flex-1 flex-col", className)}>
+			<div className="shrink-0 space-y-4 px-3 pb-3 pt-3">
+				<div className="flex items-center justify-between gap-4">
 					<h2 className="text-lg font-semibold">{t("chats") || "Chats"}</h2>
+					{!isSearchMode && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									type="button"
+									variant="secondary"
+									className="h-7 gap-1.5 rounded-md px-2.5 text-xs font-medium"
+								>
+									<span className="text-muted-foreground">Filter by</span>
+									<span>{selectedFilterLabel}</span>
+									<ChevronDown className="h-3 w-3 text-muted-foreground" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-32">
+								<DropdownMenuItem onClick={() => setShowArchived(false)}>
+									<span className="flex-1">Active</span>
+									<Check
+										className={cn(
+											"h-4 w-4 text-primary",
+											showArchived ? "opacity-0" : "opacity-100"
+										)}
+									/>
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setShowArchived(true)}>
+									<span className="flex-1">Archived</span>
+									<Check
+										className={cn(
+											"h-4 w-4 text-primary",
+											showArchived ? "opacity-100" : "opacity-0"
+										)}
+									/>
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 				</div>
 
 				<div className="relative">
@@ -271,35 +305,6 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 					)}
 				</div>
 			</div>
-
-			{!isSearchMode && (
-				<Tabs
-					value={showArchived ? "archived" : "active"}
-					onValueChange={(value) => setShowArchived(value === "archived")}
-					className="shrink-0 mx-3 mt-1.5"
-				>
-					<TabsList stretch showBottomBorder size="sm">
-						<TabsTrigger value="active">
-							<span className="inline-flex items-center gap-1.5">
-								<MessageCircleMore className="h-3.5 w-3.5" />
-								<span>Active</span>
-								<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
-									{activeCount}
-								</span>
-							</span>
-						</TabsTrigger>
-						<TabsTrigger value="archived">
-							<span className="inline-flex items-center gap-1.5">
-								<ArchiveIcon className="h-3.5 w-3.5" />
-								<span>Archived</span>
-								<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
-									{archivedCount}
-								</span>
-							</span>
-						</TabsTrigger>
-					</TabsList>
-				</Tabs>
-			)}
 
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-1.5">
 				{isLoading ? (
@@ -556,7 +561,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 
 export function AllChatsWorkspaceContent({ searchSpaceId }: { searchSpaceId: string }) {
 	return (
-		<div className="flex h-[min(760px,calc(100vh-8rem))] w-full overflow-hidden rounded-xl border bg-sidebar text-sidebar-foreground shadow-sm">
+		<div className="flex h-[calc(100vh-8rem)] min-h-0 w-full overflow-hidden text-sidebar-foreground">
 			<AllChatsContent searchSpaceId={searchSpaceId} />
 		</div>
 	);
