@@ -44,7 +44,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	isConnecting = false,
 	addButtonText,
 }) => {
-	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
 	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
 	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);
@@ -58,13 +58,13 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	const handleReauth = useCallback(
 		async (connector: SearchSourceConnector) => {
 			const endpoint = getReauthEndpoint(connector);
-			if (!searchSpaceId || !endpoint) return;
+			if (!workspaceId || !endpoint) return;
 			setReauthingId(connector.id);
 			try {
 				const response = await authenticatedFetch(
 					buildBackendUrl(endpoint, {
 						connector_id: connector.id,
-						space_id: searchSpaceId,
+						space_id: workspaceId,
 						return_url: window.location.pathname,
 					})
 				);
@@ -86,7 +86,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				setReauthingId(null);
 			}
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	// Filter connectors to only show those of this type

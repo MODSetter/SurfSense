@@ -6,8 +6,8 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { searchSpacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
-import { CreateSearchSpaceDialog } from "@/components/layout";
+import { workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { CreateWorkspaceDialog } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
@@ -42,7 +42,7 @@ function ErrorScreen({ message }: { message: string }) {
 }
 
 function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
-	const t = useTranslations("searchSpace");
+	const t = useTranslations("workspace");
 
 	return (
 		<div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
@@ -74,26 +74,26 @@ export default function DashboardPage() {
 	const router = useRouter();
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-	const { data: searchSpaces = [], isLoading, error } = useAtomValue(searchSpacesAtom);
+	const { data: workspaces = [], isLoading, error } = useAtomValue(workspacesAtom);
 
 	useEffect(() => {
 		if (isLoading) return;
 
-		if (searchSpaces.length > 0) {
+		if (workspaces.length > 0) {
 			// Read the query string at the time of redirect — no subscription needed.
 			// (Vercel Best Practice: rerender-defer-reads 5.2)
 			const query = window.location.search;
-			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat${query}`);
+			router.replace(`/dashboard/${workspaces[0].id}/new-chat${query}`);
 		}
-	}, [isLoading, searchSpaces, router]);
+	}, [isLoading, workspaces, router]);
 
 	// Show loading while fetching or while we have spaces and are about to redirect
-	const shouldShowLoading = isLoading || searchSpaces.length > 0;
+	const shouldShowLoading = isLoading || workspaces.length > 0;
 
 	// Use global loading screen - spinner animation won't reset
 	useGlobalLoadingEffect(shouldShowLoading);
 
-	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
+	if (error) return <ErrorScreen message={error?.message || "Failed to load workspaces"} />;
 
 	if (shouldShowLoading) {
 		return null;
@@ -102,7 +102,7 @@ export default function DashboardPage() {
 	return (
 		<>
 			<EmptyState onCreateClick={() => setShowCreateDialog(true)} />
-			<CreateSearchSpaceDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+			<CreateWorkspaceDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
 		</>
 	);
 }

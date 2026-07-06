@@ -76,33 +76,33 @@ const UserTextPart: FC = () => {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const router = useRouter();
 	const params = useParams();
-	const resolvedSearchSpaceId = getWorkspaceIdNumber(params);
+	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
 
 	const handleOpenDoc = useCallback(
 		(docId: number, title: string) => {
-			if (!resolvedSearchSpaceId) {
-				toast.error("Cannot open document outside a search space.");
+			if (!resolvedWorkspaceId) {
+				toast.error("Cannot open document outside a workspace.");
 				return;
 			}
 			openEditorPanel({
 				kind: "document",
 				documentId: docId,
-				searchSpaceId: resolvedSearchSpaceId,
+				workspaceId: resolvedWorkspaceId,
 				title,
 			});
 		},
-		[openEditorPanel, resolvedSearchSpaceId]
+		[openEditorPanel, resolvedWorkspaceId]
 	);
 
 	const handleOpenThread = useCallback(
 		(threadId: number) => {
-			if (!resolvedSearchSpaceId) {
-				toast.error("Cannot open chat outside a search space.");
+			if (!resolvedWorkspaceId) {
+				toast.error("Cannot open chat outside a workspace.");
 				return;
 			}
-			router.push(`/dashboard/${resolvedSearchSpaceId}/new-chat/${threadId}`);
+			router.push(`/dashboard/${resolvedWorkspaceId}/new-chat/${threadId}`);
 		},
-		[resolvedSearchSpaceId, router]
+		[resolvedWorkspaceId, router]
 	);
 
 	const segments = parseMentionSegments(text, mentionedDocs);

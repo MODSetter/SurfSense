@@ -18,7 +18,7 @@ import {
 	SIDEBAR_MIN_WIDTH,
 	useSidebarResize,
 } from "../../hooks/useSidebarResize";
-import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import {
@@ -102,13 +102,13 @@ interface InboxProps {
 }
 
 interface LayoutShellProps {
-	searchSpaces: SearchSpace[];
-	activeSearchSpaceId: number | null;
-	onSearchSpaceSelect: (id: number) => void;
-	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
-	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
-	onAddSearchSpace: () => void;
-	searchSpace: SearchSpace | null;
+	workspaces: Workspace[];
+	activeWorkspaceId: number | null;
+	onWorkspaceSelect: (id: number) => void;
+	onWorkspaceDelete?: (workspace: Workspace) => void;
+	onWorkspaceSettings?: (workspace: Workspace) => void;
+	onAddWorkspace: () => void;
+	workspace: Workspace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
@@ -186,12 +186,12 @@ function MainContentPanel({
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
 
-				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
+				{isDocumentTab && activeTab.documentId && activeTab.workspaceId ? (
 					<div className="flex-1 overflow-hidden">
 						<DocumentTabContent
 							key={activeTab.documentId}
 							documentId={activeTab.documentId}
-							searchSpaceId={activeTab.searchSpaceId}
+							workspaceId={activeTab.workspaceId}
 							title={activeTab.title}
 						/>
 					</div>
@@ -210,13 +210,13 @@ function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
 }
 
 export function LayoutShell({
-	searchSpaces,
-	activeSearchSpaceId,
-	onSearchSpaceSelect,
-	onSearchSpaceDelete,
-	onSearchSpaceSettings,
-	onAddSearchSpace,
-	searchSpace,
+	workspaces,
+	activeWorkspaceId,
+	onWorkspaceSelect,
+	onWorkspaceDelete,
+	onWorkspaceSettings,
+	onAddWorkspace,
+	workspace,
 	navItems,
 	onNavItemClick,
 	chats,
@@ -295,11 +295,11 @@ export function LayoutShell({
 						<MobileSidebar
 							isOpen={mobileMenuOpen}
 							onOpenChange={setMobileMenuOpen}
-							searchSpaces={searchSpaces}
-							activeSearchSpaceId={activeSearchSpaceId}
-							onSearchSpaceSelect={onSearchSpaceSelect}
-							onAddSearchSpace={onAddSearchSpace}
-							searchSpace={searchSpace}
+							workspaces={workspaces}
+							activeWorkspaceId={activeWorkspaceId}
+							onWorkspaceSelect={onWorkspaceSelect}
+							onAddWorkspace={onAddWorkspace}
+							workspace={workspace}
 							navItems={navItems}
 							onNavItemClick={onNavItemClick}
 							chats={chats}
@@ -392,12 +392,12 @@ export function LayoutShell({
 							)}
 						>
 							<IconRail
-								searchSpaces={searchSpaces}
-								activeSearchSpaceId={activeSearchSpaceId}
-								onSearchSpaceSelect={onSearchSpaceSelect}
-								onSearchSpaceDelete={onSearchSpaceDelete}
-								onSearchSpaceSettings={onSearchSpaceSettings}
-								onAddSearchSpace={onAddSearchSpace}
+								workspaces={workspaces}
+								activeWorkspaceId={activeWorkspaceId}
+								onWorkspaceSelect={onWorkspaceSelect}
+								onWorkspaceDelete={onWorkspaceDelete}
+								onWorkspaceSettings={onWorkspaceSettings}
+								onAddWorkspace={onAddWorkspace}
 								isSingleRailMode={false}
 								user={user}
 								onUserSettings={onUserSettings}
@@ -417,7 +417,7 @@ export function LayoutShell({
 							)}
 						>
 							<Sidebar
-								searchSpace={searchSpace}
+								workspace={workspace}
 								isCollapsed={isCollapsed}
 								onToggleCollapse={toggleCollapsed}
 								navItems={navItems}

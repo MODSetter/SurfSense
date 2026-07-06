@@ -19,12 +19,12 @@ function videoStatus(status: string): LibraryArtifactStatus {
 
 // Each list is fetched independently; one failing source shouldn't blank the
 // whole library, so failures degrade to an empty slice.
-async function fetchLibraryArtifacts(searchSpaceId: number): Promise<LibraryArtifact[]> {
+async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
 	const [reports, podcasts, videos, images] = await Promise.all([
-		reportsApiService.list(searchSpaceId).catch(() => []),
-		podcastsApiService.list(searchSpaceId).catch(() => []),
-		videoPresentationsApiService.list(searchSpaceId).catch(() => []),
-		imageGenerationsApiService.list(searchSpaceId).catch(() => []),
+		reportsApiService.list(workspaceId).catch(() => []),
+		podcastsApiService.list(workspaceId).catch(() => []),
+		videoPresentationsApiService.list(workspaceId).catch(() => []),
+		imageGenerationsApiService.list(workspaceId).catch(() => []),
 	]);
 
 	const artifacts: LibraryArtifact[] = [];
@@ -86,11 +86,11 @@ async function fetchLibraryArtifacts(searchSpaceId: number): Promise<LibraryArti
 	);
 }
 
-export function useLibraryArtifacts(searchSpaceId: number) {
+export function useLibraryArtifacts(workspaceId: number) {
 	const { data, isLoading, error, refetch } = useQuery({
-		queryKey: ["artifacts-library", searchSpaceId],
-		queryFn: () => fetchLibraryArtifacts(searchSpaceId),
-		enabled: Number.isFinite(searchSpaceId) && searchSpaceId > 0,
+		queryKey: ["artifacts-library", workspaceId],
+		queryFn: () => fetchLibraryArtifacts(workspaceId),
+		enabled: Number.isFinite(workspaceId) && workspaceId > 0,
 		staleTime: 60 * 1000,
 	});
 

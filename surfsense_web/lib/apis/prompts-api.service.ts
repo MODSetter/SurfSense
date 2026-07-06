@@ -12,10 +12,10 @@ import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";
 
 class PromptsApiService {
-	list = async (searchSpaceId?: number) => {
+	list = async (workspaceId?: number) => {
 		const params = new URLSearchParams();
-		if (searchSpaceId !== undefined) {
-			params.set("workspace_id", String(searchSpaceId));
+		if (workspaceId !== undefined) {
+			params.set("workspace_id", String(workspaceId));
 		}
 		const queryString = params.toString();
 		const url = queryString ? `/api/v1/prompts?${queryString}` : "/api/v1/prompts";

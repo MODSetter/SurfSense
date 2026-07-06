@@ -21,7 +21,7 @@ import {
 	updateThreadVisibility,
 } from "@/lib/chat/thread-persistence";
 
-type SearchSpaceKey = number | string;
+type WorkspaceKey = number | string;
 
 interface VisibilityVariables {
 	thread: ThreadRecord;
@@ -58,7 +58,7 @@ interface ArchiveRollback {
 	archived: boolean;
 }
 
-export function useUpdateThreadVisibility(searchSpaceId: SearchSpaceKey) {
+export function useUpdateThreadVisibility(workspaceId: WorkspaceKey) {
 	const queryClient = useQueryClient();
 	const currentThread = useAtomValue(currentThreadAtom);
 	const patchCurrentThreadMetadata = useSetAtom(patchCurrentThreadMetadataAtom);
@@ -68,7 +68,7 @@ export function useUpdateThreadVisibility(searchSpaceId: SearchSpaceKey) {
 		onMutate: ({ thread, visibility }) => {
 			const previousVisibility = thread.visibility ?? "PRIVATE";
 
-			patchThreadEverywhere(queryClient, searchSpaceId, thread.id, { visibility });
+			patchThreadEverywhere(queryClient, workspaceId, thread.id, { visibility });
 			if (currentThread.id === thread.id) {
 				patchCurrentThreadMetadata({ id: thread.id, visibility });
 			}
@@ -77,7 +77,7 @@ export function useUpdateThreadVisibility(searchSpaceId: SearchSpaceKey) {
 		},
 		onError: (_error, _variables, rollback) => {
 			if (!rollback) return;
-			patchThreadEverywhere(queryClient, searchSpaceId, rollback.threadId, {
+			patchThreadEverywhere(queryClient, workspaceId, rollback.threadId, {
 				visibility: rollback.visibility,
 			});
 			if (currentThread.id === rollback.threadId) {
@@ -88,7 +88,7 @@ export function useUpdateThreadVisibility(searchSpaceId: SearchSpaceKey) {
 			}
 		},
 		onSuccess: (thread) => {
-			replaceThreadEverywhere(queryClient, searchSpaceId, thread);
+			replaceThreadEverywhere(queryClient, workspaceId, thread);
 			if (currentThread.id === thread.id) {
 				patchCurrentThreadMetadata({
 					id: thread.id,
@@ -100,48 +100,48 @@ export function useUpdateThreadVisibility(searchSpaceId: SearchSpaceKey) {
 	});
 }
 
-export function useRenameThread(searchSpaceId: SearchSpaceKey) {
+export function useRenameThread(workspaceId: WorkspaceKey) {
 	const queryClient = useQueryClient();
 
 	return useMutation<ThreadRecord, Error, RenameVariables, RenameRollback>({
 		mutationFn: ({ threadId, title }) => updateThread(threadId, { title }),
 		onMutate: ({ threadId, title, previousTitle }) => {
-			patchThreadEverywhere(queryClient, searchSpaceId, threadId, { title });
+			patchThreadEverywhere(queryClient, workspaceId, threadId, { title });
 			return { threadId, title: previousTitle };
 		},
 		onError: (_error, _variables, rollback) => {
 			if (!rollback || rollback.title === undefined) return;
-			patchThreadEverywhere(queryClient, searchSpaceId, rollback.threadId, {
+			patchThreadEverywhere(queryClient, workspaceId, rollback.threadId, {
 				title: rollback.title,
 			});
 		},
 		onSuccess: (thread) => {
-			replaceThreadEverywhere(queryClient, searchSpaceId, thread);
+			replaceThreadEverywhere(queryClient, workspaceId, thread);
 		},
 	});
 }
 
-export function useArchiveThread(searchSpaceId: SearchSpaceKey) {
+export function useArchiveThread(workspaceId: WorkspaceKey) {
 	const queryClient = useQueryClient();
 
 	return useMutation<ThreadRecord, Error, ArchiveVariables, ArchiveRollback>({
 		mutationFn: ({ threadId, archived }) => updateThread(threadId, { archived }),
 		onMutate: ({ threadId, archived }) => {
-			moveThreadArchiveState(queryClient, searchSpaceId, threadId, archived);
+			moveThreadArchiveState(queryClient, workspaceId, threadId, archived);
 			return { threadId, archived: !archived };
 		},
 		onError: (_error, _variables, rollback) => {
 			if (!rollback) return;
-			moveThreadArchiveState(queryClient, searchSpaceId, rollback.threadId, rollback.archived);
+			moveThreadArchiveState(queryClient, workspaceId, rollback.threadId, rollback.archived);
 		},
 		onSuccess: (thread) => {
-			replaceThreadEverywhere(queryClient, searchSpaceId, thread);
-			moveThreadArchiveState(queryClient, searchSpaceId, thread.id, thread.archived);
+			replaceThreadEverywhere(queryClient, workspaceId, thread);
+			moveThreadArchiveState(queryClient, workspaceId, thread.id, thread.archived);
 		},
 	});
 }
 
-export function useDeleteThread(searchSpaceId: SearchSpaceKey) {
+export function useDeleteThread(workspaceId: WorkspaceKey) {
 	const queryClient = useQueryClient();
 	const currentThread = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
@@ -149,7 +149,7 @@ export function useDeleteThread(searchSpaceId: SearchSpaceKey) {
 	return useMutation<void, Error, DeleteVariables>({
 		mutationFn: ({ threadId }) => deleteThread(threadId),
 		onSuccess: (_data, { threadId }) => {
-			removeThreadEverywhere(queryClient, searchSpaceId, threadId);
+			removeThreadEverywhere(queryClient, workspaceId, threadId);
 			if (currentThread.id === threadId) {
 				resetCurrentThread();
 			}

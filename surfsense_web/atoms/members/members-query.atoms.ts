@@ -5,37 +5,37 @@ import { membersApiService } from "@/lib/apis/members-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export const membersAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		queryKey: cacheKeys.members.all(searchSpaceId?.toString() ?? ""),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.members.all(workspaceId?.toString() ?? ""),
+		enabled: !!workspaceId,
 		staleTime: 3 * 1000, // 3 seconds - short staleness for live collaboration
 		refetchInterval: 2 * 60 * 1000, // 2 minutes
 		queryFn: async () => {
-			if (!searchSpaceId) {
+			if (!workspaceId) {
 				return [];
 			}
 			return membersApiService.getMembers({
-				workspace_id: Number(searchSpaceId),
+				workspace_id: Number(workspaceId),
 			});
 		},
 	};
 });
 
 export const myAccessAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		queryKey: cacheKeys.members.myAccess(searchSpaceId?.toString() ?? ""),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.members.myAccess(workspaceId?.toString() ?? ""),
+		enabled: !!workspaceId,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		queryFn: async () => {
-			if (!searchSpaceId) {
+			if (!workspaceId) {
 				return null;
 			}
 			return membersApiService.getMyAccess({
-				workspace_id: Number(searchSpaceId),
+				workspace_id: Number(workspaceId),
 			});
 		},
 	};

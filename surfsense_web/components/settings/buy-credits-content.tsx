@@ -38,7 +38,7 @@ const formatUsd = (micros: number) => {
 
 export function BuyCreditsContent() {
 	const params = useParams();
-	const searchSpaceId = getWorkspaceIdNumber(params) ?? 0;
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const [quantity, setQuantity] = useState(1);
 	// Raw text of the amount field so the user can clear it while typing;
 	// committed back to a clamped integer on blur.
@@ -177,7 +177,7 @@ export function BuyCreditsContent() {
 				<Button
 					className="w-full"
 					disabled={purchaseMutation.isPending}
-					onClick={() => purchaseMutation.mutate({ quantity, workspace_id: searchSpaceId })}
+					onClick={() => purchaseMutation.mutate({ quantity, workspace_id: workspaceId })}
 				>
 					{purchaseMutation.isPending ? (
 						<>

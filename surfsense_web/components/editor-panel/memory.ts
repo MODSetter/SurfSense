@@ -24,10 +24,10 @@ interface MemoryReadResponse {
 	limits?: MemoryLimits;
 }
 
-function getMemoryPath(scope: MemoryScope, searchSpaceId?: number | null) {
+function getMemoryPath(scope: MemoryScope, workspaceId?: number | null) {
 	if (scope === "user") return "/api/v1/users/me/memory";
-	if (!searchSpaceId) throw new Error("Missing search space context");
-	return `/api/v1/workspaces/${searchSpaceId}/memory`;
+	if (!workspaceId) throw new Error("Missing workspace context");
+	return `/api/v1/workspaces/${workspaceId}/memory`;
 }
 
 export function getMemoryLimitState(length: number, limits?: MemoryLimits | null) {
@@ -53,16 +53,16 @@ export function getMemoryLimitState(length: number, limits?: MemoryLimits | null
 
 export async function fetchMemoryEditorDocument({
 	scope,
-	searchSpaceId,
+	workspaceId,
 	title,
 	signal,
 }: {
 	scope: MemoryScope;
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	title?: string | null;
 	signal?: AbortSignal;
 }) {
-	const response = await authenticatedFetch(buildBackendUrl(getMemoryPath(scope, searchSpaceId)), {
+	const response = await authenticatedFetch(buildBackendUrl(getMemoryPath(scope, workspaceId)), {
 		method: "GET",
 		signal,
 	});
@@ -87,14 +87,14 @@ export async function fetchMemoryEditorDocument({
 
 export async function saveMemoryMarkdown({
 	scope,
-	searchSpaceId,
+	workspaceId,
 	markdown,
 }: {
 	scope: MemoryScope;
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	markdown: string;
 }) {
-	const response = await authenticatedFetch(buildBackendUrl(getMemoryPath(scope, searchSpaceId)), {
+	const response = await authenticatedFetch(buildBackendUrl(getMemoryPath(scope, workspaceId)), {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ memory_md: markdown }),

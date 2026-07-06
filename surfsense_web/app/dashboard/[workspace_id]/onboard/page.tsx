@@ -74,7 +74,7 @@ export default function OnboardPage() {
 					</p>
 				</div>
 				<ModelProviderConnectionsPanel
-					searchSpaceId={workspaceId}
+					workspaceId={workspaceId}
 					connections={connections}
 					className="flex flex-col gap-6 text-left"
 					footerAction={

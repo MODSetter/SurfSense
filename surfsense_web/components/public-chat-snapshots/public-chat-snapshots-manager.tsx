@@ -125,7 +125,7 @@ export function PublicChatSnapshotsManager({
 			<Alert>
 				<Info />
 				<AlertDescription>
-					You don't have permission to view public chats in this search space.
+					You don't have permission to view public chats in this workspace.
 				</AlertDescription>
 			</Alert>
 		);

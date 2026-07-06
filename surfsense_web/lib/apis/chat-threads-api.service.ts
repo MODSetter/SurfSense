@@ -75,7 +75,7 @@ class ChatThreadsApiService {
 	/**
 	 * List all public chat snapshots for a workspace.
 	 */
-	listPublicChatSnapshotsForSearchSpace = async (
+	listPublicChatSnapshotsForWorkspace = async (
 		request: PublicChatSnapshotsBySpaceRequest
 	): Promise<PublicChatSnapshotsBySpaceResponse> => {
 		const parsed = publicChatSnapshotsBySpaceRequest.safeParse(request);

@@ -18,7 +18,7 @@ interface UseDocumentsProcessingOptions {
 }
 
 /**
- * Returns the processing status of documents in the search space:
+ * Returns the processing status of documents in the workspace:
  *   - "processing"      — docs are queued or actively being prepared for search
  *   - "background_sync" — existing docs are being refreshed in the background
  *   - "error"      — nothing processing, but failed docs exist (show red icon)
@@ -26,17 +26,17 @@ interface UseDocumentsProcessingOptions {
  *   - "idle"       — nothing noteworthy (show normal icon)
  */
 export function useDocumentsProcessing(
-	searchSpaceId: number | null,
+	workspaceId: number | null,
 	{ hasPeriodicSyncEnabled = false }: UseDocumentsProcessingOptions = {}
 ): DocumentsProcessingStatus {
 	const [status, setStatus] = useState<DocumentsProcessingStatus>("idle");
 	const wasProcessingRef = useRef(false);
 	const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const [documents] = useQuery(queries.documents.bySpace({ searchSpaceId: searchSpaceId ?? -1 }));
+	const [documents] = useQuery(queries.documents.bySpace({ workspaceId: workspaceId ?? -1 }));
 
 	useEffect(() => {
-		if (!searchSpaceId || !documents) return;
+		if (!workspaceId || !documents) return;
 
 		const clearSuccessTimer = () => {
 			if (successTimerRef.current) {
@@ -95,7 +95,7 @@ export function useDocumentsProcessing(
 		} else {
 			setStatus("idle");
 		}
-	}, [searchSpaceId, documents, hasPeriodicSyncEnabled]);
+	}, [workspaceId, documents, hasPeriodicSyncEnabled]);
 
 	useEffect(() => {
 		return () => {

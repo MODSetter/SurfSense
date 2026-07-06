@@ -33,8 +33,8 @@ class FoldersApiService {
 		});
 	};
 
-	listFolders = async (searchSpaceId: number) => {
-		return baseApiService.get(`/api/v1/folders?workspace_id=${searchSpaceId}`, folderListResponse);
+	listFolders = async (workspaceId: number) => {
+		return baseApiService.get(`/api/v1/folders?workspace_id=${workspaceId}`, folderListResponse);
 	};
 
 	getFolder = async (folderId: number) => {

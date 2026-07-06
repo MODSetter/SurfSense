@@ -5,7 +5,7 @@ export default async function ChatsPage({ params }: { params: Promise<{ workspac
 
 	return (
 		<div className="w-full select-none">
-			<AllChatsWorkspaceContent searchSpaceId={workspace_id} />
+			<AllChatsWorkspaceContent workspaceId={workspace_id} />
 		</div>
 	);
 }

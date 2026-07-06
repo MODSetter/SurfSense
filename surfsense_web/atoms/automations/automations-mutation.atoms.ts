@@ -26,15 +26,15 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 
 // Cache invalidation strategy:
-// - Automation writes invalidate the search-space list + the touched detail.
+// - Automation writes invalidate the workspace list + the touched detail.
 // - Trigger writes only invalidate the parent automation detail (triggers
 //   come back inline in AutomationDetail).
 // We deliberately invalidate the whole "automations" prefix on the list side
-// because list is keyed by (searchSpaceId, limit, offset) and we don't track
+// because list is keyed by (workspaceId, limit, offset) and we don't track
 // the active pagination in this layer.
 
-function invalidateList(searchSpaceId: number) {
-	queryClient.invalidateQueries({ queryKey: ["automations", "list", searchSpaceId] });
+function invalidateList(workspaceId: number) {
+	queryClient.invalidateQueries({ queryKey: ["automations", "list", workspaceId] });
 }
 
 function invalidateDetail(automationId: number) {
@@ -113,17 +113,17 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 
 export const deleteAutomationMutationAtom = atomWithMutation(() => ({
 	meta: { suppressGlobalErrorToast: true },
-	mutationFn: async (vars: { automationId: number; searchSpaceId: number }) => {
+	mutationFn: async (vars: { automationId: number; workspaceId: number }) => {
 		await automationsApiService.deleteAutomation(vars.automationId);
 		return vars;
 	},
 	onSuccess: (vars) => {
-		invalidateList(vars.searchSpaceId);
+		invalidateList(vars.workspaceId);
 		invalidateDetail(vars.automationId);
 		toast.success("Automation deleted");
 		trackAutomationDeleted({
 			automation_id: vars.automationId,
-			workspace_id: vars.searchSpaceId,
+			workspace_id: vars.workspaceId,
 		});
 	},
 	onError: (error: Error, vars) => {

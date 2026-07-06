@@ -38,8 +38,8 @@ const visibilityOptions: {
 	},
 	{
 		value: "SEARCH_SPACE",
-		label: "Search Space",
-		description: "All members of this search space can access",
+		label: "Workspace",
+		description: "All members of this workspace can access",
 		icon: Users,
 	},
 ];
@@ -96,7 +96,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 				onVisibilityChange?.(updatedThread.visibility);
 				toast.success(
-					newVisibility === "SEARCH_SPACE" ? "Chat shared with search space" : "Chat is now private"
+					newVisibility === "SEARCH_SPACE" ? "Chat shared with workspace" : "Chat is now private"
 				);
 				setOpen(false);
 			} catch (error) {

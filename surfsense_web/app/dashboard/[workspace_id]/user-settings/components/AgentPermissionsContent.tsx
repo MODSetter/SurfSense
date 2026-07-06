@@ -226,9 +226,7 @@ export function AgentPermissionsContent() {
 	}
 
 	if (!workspaceId) {
-		return (
-			<p className="text-sm text-muted-foreground">Open a search space to manage agent rules.</p>
-		);
+		return <p className="text-sm text-muted-foreground">Open a workspace to manage agent rules.</p>;
 	}
 
 	return (

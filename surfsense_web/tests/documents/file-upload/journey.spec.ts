@@ -14,7 +14,7 @@ type UploadFixture = {
 	chatQuery: string;
 };
 
-type SearchSpace = {
+type Workspace = {
 	id: number;
 };
 
@@ -36,18 +36,18 @@ async function uploadAndAssert({
 	page,
 	request,
 	apiToken,
-	searchSpace,
+	workspace,
 	chatThread,
 	file,
 }: {
 	page: Page;
 	request: APIRequestContext;
 	apiToken: string;
-	searchSpace: SearchSpace;
+	workspace: Workspace;
 	chatThread: ChatThreadRow;
 	file: UploadFixture;
 }) {
-	await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+	await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 		waitUntil: "domcontentloaded",
 	});
 
@@ -62,22 +62,22 @@ async function uploadAndAssert({
 		timeout: 15_000,
 	});
 
-	await waitForDocumentByTitle(request, apiToken, searchSpace.id, file.name, {
+	await waitForDocumentByTitle(request, apiToken, workspace.id, file.name, {
 		timeoutMs: 200_000,
 	});
 
-	const docs = await listDocuments(request, apiToken, searchSpace.id);
+	const docs = await listDocuments(request, apiToken, workspace.id);
 	const uploaded = docs.find((d) => d.title === file.name);
 	expect(uploaded, `${file.name} must exist after indexing`).toBeDefined();
 	if (!uploaded) throw new Error("unreachable: uploaded asserted defined above");
 	expect(uploaded.document_type).toBe("FILE");
 
-	const editor = await getEditorContent(request, apiToken, searchSpace.id, uploaded.id);
+	const editor = await getEditorContent(request, apiToken, workspace.id, uploaded.id);
 	expect(editor.source_markdown).toContain(file.canary);
 	expect(editor.chunk_count).toBeGreaterThan(0);
 
 	const chat = await streamChatToCompletion(request, apiToken, {
-		searchSpaceId: searchSpace.id,
+		workspaceId: workspace.id,
 		threadId: chatThread.id,
 		query: file.chatQuery,
 	});
@@ -92,7 +92,7 @@ test.describe("Manual file upload journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		chatThread,
 	}) => {
 		test.setTimeout(180_000);
@@ -101,7 +101,7 @@ test.describe("Manual file upload journey", () => {
 			page,
 			request,
 			apiToken,
-			searchSpace,
+			workspace,
 			chatThread,
 			file: MD_FILE,
 		});
@@ -111,7 +111,7 @@ test.describe("Manual file upload journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		chatThread,
 	}) => {
 		test.setTimeout(180_000);
@@ -120,7 +120,7 @@ test.describe("Manual file upload journey", () => {
 			page,
 			request,
 			apiToken,
-			searchSpace,
+			workspace,
 			chatThread,
 			file: PDF_FILE,
 		});

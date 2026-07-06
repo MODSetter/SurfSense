@@ -17,11 +17,11 @@ type Paginated<T> = {
 export async function listDocuments(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number,
+	workspaceId: number,
 	limit = 100
 ): Promise<DocumentRow[]> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/documents?workspace_id=${searchSpaceId}&limit=${limit}`,
+		`${BACKEND_URL}/api/v1/documents?workspace_id=${workspaceId}&limit=${limit}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
@@ -51,11 +51,11 @@ export type EditorContent = {
 export async function getEditorContent(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number,
+	workspaceId: number,
 	documentId: number
 ): Promise<EditorContent> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/editor-content`,
+		`${BACKEND_URL}/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {

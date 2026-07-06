@@ -8,7 +8,7 @@ const SAFETY_POLL_MS = 60_000;
 const EVENT_DEBOUNCE_MS = 700;
 
 export type AgentFilesystemTreeWatchOptions = {
-  searchSpaceId?: number | null;
+  workspaceId?: number | null;
   rootPaths: string[];
   excludePatterns?: string[] | null;
   fileExtensions?: string[] | null;
@@ -17,7 +17,7 @@ export type AgentFilesystemTreeWatchOptions = {
 type TreeDirtyReason = 'watcher_event' | 'safety_poll';
 
 type TreeDirtyEvent = {
-  searchSpaceId: number | null;
+  workspaceId: number | null;
   reason: TreeDirtyReason;
   rootPath: string;
   changedPath: string | null;
@@ -25,7 +25,7 @@ type TreeDirtyEvent = {
 };
 
 type WatchSession = {
-  searchSpaceId: number | null;
+  workspaceId: number | null;
   optionsSignature: string;
   rootPaths: string[];
   excludePatterns: string[];
@@ -40,15 +40,15 @@ type WatchSession = {
 
 const sessions = new Map<string, WatchSession>();
 
-function normalizeSearchSpaceId(searchSpaceId?: number | null): number | null {
-  if (typeof searchSpaceId === 'number' && Number.isFinite(searchSpaceId) && searchSpaceId > 0) {
-    return searchSpaceId;
+function normalizeWorkspaceId(workspaceId?: number | null): number | null {
+  if (typeof workspaceId === 'number' && Number.isFinite(workspaceId) && workspaceId > 0) {
+    return workspaceId;
   }
   return null;
 }
 
-function getSessionKey(searchSpaceId?: number | null): string {
-  const normalized = normalizeSearchSpaceId(searchSpaceId);
+function getSessionKey(workspaceId?: number | null): string {
+  const normalized = normalizeWorkspaceId(workspaceId);
   return normalized === null ? 'default' : String(normalized);
 }
 
@@ -71,13 +71,13 @@ function normalizeExtensions(value: string[] | null | undefined): string[] | nul
 }
 
 function buildOptionsSignature(
-  searchSpaceId: number | null,
+  workspaceId: number | null,
   rootPaths: string[],
   excludePatterns: string[],
   fileExtensions: string[] | null
 ): string {
   return JSON.stringify({
-    searchSpaceId,
+    workspaceId,
     rootPaths: [...rootPaths].sort(),
     excludePatterns: [...excludePatterns].sort(),
     fileExtensions: fileExtensions ? [...fileExtensions].sort() : null,
@@ -99,10 +99,10 @@ async function buildRootSnapshotSignature(
   rootPath: string
 ): Promise<string> {
   let hash = 2166136261;
-  hash = hashText(`space:${session.searchSpaceId ?? 'default'}|root:${rootPath}`, hash);
+  hash = hashText(`space:${session.workspaceId ?? 'default'}|root:${rootPath}`, hash);
   const files = await listAgentFilesystemFiles({
     rootPath,
-    searchSpaceId: session.searchSpaceId,
+    workspaceId: session.workspaceId,
     excludePatterns: session.excludePatterns,
     fileExtensions: session.fileExtensions,
   });
@@ -118,13 +118,13 @@ async function buildRootSnapshotSignature(
 }
 
 function sendTreeDirtyEvent(
-  searchSpaceId: number | null,
+  workspaceId: number | null,
   reason: TreeDirtyReason,
   rootPath: string,
   changedPath: string | null
 ): void {
   const payload: TreeDirtyEvent = {
-    searchSpaceId,
+    workspaceId,
     reason,
     rootPath,
     changedPath,
@@ -158,7 +158,7 @@ function scheduleDirtyEmit(
     session.pendingDirtyByRoot.clear();
     for (const [pendingRootPath, payload] of pending) {
       sendTreeDirtyEvent(
-        session.searchSpaceId,
+        session.workspaceId,
         payload.reason,
         pendingRootPath,
         payload.changedPath
@@ -183,21 +183,21 @@ async function closeSession(session: WatchSession): Promise<void> {
 export async function startAgentFilesystemTreeWatch(
   options: AgentFilesystemTreeWatchOptions
 ): Promise<{ ok: true }> {
-  const searchSpaceId = normalizeSearchSpaceId(options.searchSpaceId);
+  const workspaceId = normalizeWorkspaceId(options.workspaceId);
   const rootPaths = Array.from(
     new Set(normalizeList(options.rootPaths).map((rootPath) => normalizeRootPath(rootPath)))
   );
   const excludePatterns = Array.from(new Set(normalizeList(options.excludePatterns)));
   const fileExtensions = normalizeExtensions(options.fileExtensions);
-  const sessionKey = getSessionKey(searchSpaceId);
+  const sessionKey = getSessionKey(workspaceId);
 
   if (rootPaths.length === 0) {
-    await stopAgentFilesystemTreeWatch(searchSpaceId);
+    await stopAgentFilesystemTreeWatch(workspaceId);
     return { ok: true };
   }
 
   const optionsSignature = buildOptionsSignature(
-    searchSpaceId,
+    workspaceId,
     rootPaths,
     excludePatterns,
     fileExtensions
@@ -228,7 +228,7 @@ export async function startAgentFilesystemTreeWatch(
   );
 
   const session: WatchSession = {
-    searchSpaceId,
+    workspaceId,
     optionsSignature,
     rootPaths,
     excludePatterns,
@@ -291,9 +291,9 @@ export async function startAgentFilesystemTreeWatch(
 }
 
 export async function stopAgentFilesystemTreeWatch(
-  searchSpaceId?: number | null
+  workspaceId?: number | null
 ): Promise<{ ok: true }> {
-  const sessionKey = getSessionKey(searchSpaceId);
+  const sessionKey = getSessionKey(workspaceId);
   const session = sessions.get(sessionKey);
   if (!session) return { ok: true };
   sessions.delete(sessionKey);

@@ -235,7 +235,7 @@ export function MentionTaskInput({
 						<ComposerSuggestionPopoverContent side="bottom">
 							<DocumentMentionPicker
 								ref={pickerRef}
-								searchSpaceId={workspaceId}
+								workspaceId={workspaceId}
 								onSelectionChange={handleSelection}
 								onDone={closePopover}
 								initialSelectedDocuments={mentions}

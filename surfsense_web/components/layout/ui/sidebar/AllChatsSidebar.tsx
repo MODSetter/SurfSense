@@ -48,11 +48,11 @@ import { formatThreadTimestamp } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 interface AllChatsContentProps {
-	searchSpaceId: string;
+	workspaceId: string;
 	className?: string;
 }
 
-function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
+function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -60,9 +60,9 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 	const isMobile = useIsMobile();
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const { activateChatThread, prefetchChatThread } = useActivateChatThread();
-	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
-	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
-	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
+	const { mutateAsync: deleteThread } = useDeleteThread(workspaceId);
+	const { mutateAsync: archiveThread } = useArchiveThread(workspaceId);
+	const { mutateAsync: renameThread } = useRenameThread(workspaceId);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -96,10 +96,10 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 		error: threadsError,
 		isLoading: isLoadingThreads,
 	} = useQuery({
-		queryKey: ["all-threads", searchSpaceId],
-		queryFn: () => fetchThreads(Number(searchSpaceId)),
-		enabled: !!searchSpaceId && !isSearchMode,
-		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
+		queryKey: ["all-threads", workspaceId],
+		queryFn: () => fetchThreads(Number(workspaceId)),
+		enabled: !!workspaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", workspaceId, { limit: 40 }]),
 	});
 
 	const {
@@ -107,9 +107,9 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 		error: searchError,
 		isLoading: isLoadingSearch,
 	} = useQuery({
-		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
-		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
-		enabled: !!searchSpaceId && isSearchMode,
+		queryKey: ["search-threads", workspaceId, debouncedSearchQuery],
+		queryFn: () => searchThreads(Number(workspaceId), debouncedSearchQuery.trim()),
+		enabled: !!workspaceId && isSearchMode,
 	});
 
 	const threads = useMemo(() => {
@@ -127,11 +127,11 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 			activateChatThread({
 				id: thread.id,
 				title: thread.title || "New Chat",
-				searchSpaceId,
+				workspaceId,
 				visibility: thread.visibility,
 			});
 		},
-		[activateChatThread, searchSpaceId]
+		[activateChatThread, workspaceId]
 	);
 
 	const handleDeleteThread = useCallback(
@@ -153,7 +153,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 								id: fallbackTab.chatId ?? null,
 								title: fallbackTab.title,
 								url: fallbackTab.chatUrl,
-								searchSpaceId: fallbackTab.searchSpaceId ?? searchSpaceId,
+								workspaceId: fallbackTab.workspaceId ?? workspaceId,
 								...(fallbackTab.visibility !== undefined
 									? { visibility: fallbackTab.visibility }
 									: {}),
@@ -163,7 +163,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 							});
 							return;
 						}
-						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+						router.push(`/dashboard/${workspaceId}/new-chat`);
 					}, 250);
 				}
 			} catch (error) {
@@ -173,7 +173,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 				setDeletingThreadId(null);
 			}
 		},
-		[activateChatThread, deleteThread, t, currentChatId, router, removeChatTab, searchSpaceId]
+		[activateChatThread, deleteThread, t, currentChatId, router, removeChatTab, workspaceId]
 	);
 
 	const handleToggleArchive = useCallback(
@@ -548,10 +548,10 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 	);
 }
 
-export function AllChatsWorkspaceContent({ searchSpaceId }: { searchSpaceId: string }) {
+export function AllChatsWorkspaceContent({ workspaceId }: { workspaceId: string }) {
 	return (
 		<div className="flex h-full min-h-0 w-full overflow-hidden text-sidebar-foreground">
-			<AllChatsContent searchSpaceId={searchSpaceId} />
+			<AllChatsContent workspaceId={workspaceId} />
 		</div>
 	);
 }

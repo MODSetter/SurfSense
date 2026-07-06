@@ -9,25 +9,20 @@ import { useCallback, useMemo, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-export type SearchSpaceSettingsTab =
-	| "general"
-	| "models"
-	| "team-roles"
-	| "prompts"
-	| "public-links";
+export type WorkspaceSettingsTab = "general" | "models" | "team-roles" | "prompts" | "public-links";
 
-const DEFAULT_TAB: SearchSpaceSettingsTab = "general";
+const DEFAULT_TAB: WorkspaceSettingsTab = "general";
 
-interface SearchSpaceSettingsLayoutShellProps {
+interface WorkspaceSettingsLayoutShellProps {
 	workspaceId: string;
 	children: React.ReactNode;
 }
 
-export function SearchSpaceSettingsLayoutShell({
+export function WorkspaceSettingsLayoutShell({
 	workspaceId,
 	children,
-}: SearchSpaceSettingsLayoutShellProps) {
-	const t = useTranslations("searchSpaceSettings");
+}: WorkspaceSettingsLayoutShellProps) {
+	const t = useTranslations("workspaceSettings");
 	const segment = useSelectedLayoutSegment();
 	const [tabScrollPos, setTabScrollPos] = useState<"start" | "middle" | "end">("start");
 
@@ -69,13 +64,13 @@ export function SearchSpaceSettingsLayoutShell({
 		[t]
 	);
 
-	const activeTab: SearchSpaceSettingsTab =
+	const activeTab: WorkspaceSettingsTab =
 		segment && navItems.some((item) => item.value === segment)
-			? (segment as SearchSpaceSettingsTab)
+			? (segment as WorkspaceSettingsTab)
 			: DEFAULT_TAB;
 	const selectedLabel = navItems.find((item) => item.value === activeTab)?.label ?? t("title");
 
-	const hrefFor = (tab: SearchSpaceSettingsTab) =>
+	const hrefFor = (tab: WorkspaceSettingsTab) =>
 		`/dashboard/${workspaceId}/workspace-settings/${tab}`;
 
 	return (

@@ -18,18 +18,18 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
-function invalidateModelConnections(searchSpaceId: number) {
+function invalidateModelConnections(workspaceId: number) {
 	queryClient.invalidateQueries({
-		queryKey: cacheKeys.modelConnections.all(searchSpaceId),
+		queryKey: cacheKeys.modelConnections.all(workspaceId),
 	});
 	queryClient.invalidateQueries({
-		queryKey: cacheKeys.modelConnections.roles(searchSpaceId),
+		queryKey: cacheKeys.modelConnections.roles(workspaceId),
 	});
 }
 
-function upsertModelConnection(searchSpaceId: number, connection: ConnectionRead) {
+function upsertModelConnection(workspaceId: number, connection: ConnectionRead) {
 	queryClient.setQueryData<ConnectionRead[]>(
-		cacheKeys.modelConnections.all(searchSpaceId),
+		cacheKeys.modelConnections.all(workspaceId),
 		(current = []) => {
 			if (current.some((item) => item.id === connection.id)) {
 				return current.map((item) => (item.id === connection.id ? connection : item));
@@ -40,19 +40,19 @@ function upsertModelConnection(searchSpaceId: number, connection: ConnectionRead
 }
 
 export const createModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "create"],
 		mutationFn: (request: ConnectionCreateRequest) =>
 			modelConnectionsApiService.createConnection(request),
 		onSuccess: (connection: ConnectionRead, request: ConnectionCreateRequest) => {
-			const resolvedSearchSpaceId = Number(
-				request.workspace_id ?? connection.workspace_id ?? searchSpaceId
+			const resolvedWorkspaceId = Number(
+				request.workspace_id ?? connection.workspace_id ?? workspaceId
 			);
 			toast.success("Connection created");
-			if (resolvedSearchSpaceId > 0) {
-				upsertModelConnection(resolvedSearchSpaceId, connection);
-				invalidateModelConnections(resolvedSearchSpaceId);
+			if (resolvedWorkspaceId > 0) {
+				upsertModelConnection(resolvedWorkspaceId, connection);
+				invalidateModelConnections(resolvedWorkspaceId);
 			}
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to create connection"),
@@ -60,34 +60,34 @@ export const createModelConnectionMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "update"],
 		mutationFn: ({ id, data }: { id: number; data: ConnectionUpdateRequest }) =>
 			modelConnectionsApiService.updateConnection(id, data),
 		onSuccess: () => {
 			toast.success("Connection updated");
-			invalidateModelConnections(searchSpaceId);
+			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to update connection"),
 	};
 });
 
 export const deleteModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "delete"],
 		mutationFn: (id: number) => modelConnectionsApiService.deleteConnection(id),
 		onSuccess: () => {
 			toast.success("Connection deleted");
-			invalidateModelConnections(searchSpaceId);
+			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to delete connection"),
 	};
 });
 
 export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "verify"],
 		mutationFn: (id: number) => modelConnectionsApiService.verifyConnection(id),
@@ -103,14 +103,14 @@ export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
 						: "Couldn't list models. Chat may still work — add model IDs manually."
 				);
 			}
-			invalidateModelConnections(searchSpaceId);
+			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to verify connection"),
 	};
 });
 
 export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "discover"],
 		mutationFn: (id: number) => modelConnectionsApiService.discoverModels(id),
@@ -118,7 +118,7 @@ export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
 			toast.success(
 				models.length ? `${models.length} models discovered` : "No models found for this connection"
 			);
-			invalidateModelConnections(searchSpaceId);
+			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to discover models"),
 	};
@@ -149,64 +149,64 @@ export const testPreviewModelMutationAtom = atomWithMutation(() => {
 });
 
 export const addManualModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "add-manual"],
 		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelCreateRequest }) =>
 			modelConnectionsApiService.addManualModel(connectionId, data),
 		onSuccess: () => {
 			toast.success("Model added");
-			invalidateModelConnections(searchSpaceId);
+			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to add model"),
 	};
 });
 
 export const updateModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "update"],
 		mutationFn: ({ id, data }: { id: number; data: ModelUpdateRequest }) =>
 			modelConnectionsApiService.updateModel(id, data),
-		onSuccess: () => invalidateModelConnections(searchSpaceId),
+		onSuccess: () => invalidateModelConnections(workspaceId),
 		onError: (error: Error) => toast.error(error.message || "Failed to update model"),
 	};
 });
 
 export const bulkUpdateModelsMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "bulk-update"],
 		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelsBulkUpdateRequest }) =>
 			modelConnectionsApiService.bulkUpdateModels(connectionId, data),
-		onSuccess: () => invalidateModelConnections(searchSpaceId),
+		onSuccess: () => invalidateModelConnections(workspaceId),
 		onError: (error: Error) => toast.error(error.message || "Failed to update models"),
 	};
 });
 
 export const testModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "test"],
 		mutationFn: (id: number) => modelConnectionsApiService.testModel(id),
 		onSuccess: (result: VerifyConnectionResponse) => {
 			if (result.ok) toast.success("Model test succeeded");
 			else toast.error(result.message || "Model test failed");
-			invalidateModelConnections(searchSpaceId);
+			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to test model"),
 	};
 });
 
 export const updateModelRolesMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
+	const workspaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-roles", "update"],
 		mutationFn: (roles: ModelRoles) =>
-			modelConnectionsApiService.updateModelRoles(searchSpaceId, roles),
+			modelConnectionsApiService.updateModelRoles(workspaceId, roles),
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.modelConnections.roles(searchSpaceId),
+				queryKey: cacheKeys.modelConnections.roles(workspaceId),
 			});
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to update model roles"),

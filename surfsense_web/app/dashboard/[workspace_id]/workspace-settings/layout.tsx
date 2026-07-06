@@ -1,8 +1,8 @@
 import type React from "react";
 import { use } from "react";
-import { SearchSpaceSettingsLayoutShell } from "./layout-shell";
+import { WorkspaceSettingsLayoutShell } from "./layout-shell";
 
-export default function SearchSpaceSettingsLayout({
+export default function WorkspaceSettingsLayout({
 	params,
 	children,
 }: {
@@ -12,8 +12,8 @@ export default function SearchSpaceSettingsLayout({
 	const { workspace_id } = use(params);
 
 	return (
-		<SearchSpaceSettingsLayoutShell workspaceId={workspace_id}>
+		<WorkspaceSettingsLayoutShell workspaceId={workspace_id}>
 			{children}
-		</SearchSpaceSettingsLayoutShell>
+		</WorkspaceSettingsLayoutShell>
 	);
 }

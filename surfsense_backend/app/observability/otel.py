@@ -261,7 +261,7 @@ def kb_search_span(
     """Span around knowledge-base search routines."""
     attrs: dict[str, Any] = {}
     if workspace_id is not None:
-        attrs["search_space.id"] = int(workspace_id)
+        attrs["workspace.id"] = int(workspace_id)
     if query_chars is not None:
         attrs["query.chars"] = int(query_chars)
     if extra:
@@ -303,7 +303,7 @@ def chat_request_span(
     if chat_id is not None:
         attrs["chat.id"] = int(chat_id)
     if workspace_id is not None:
-        attrs["search_space.id"] = int(workspace_id)
+        attrs["workspace.id"] = int(workspace_id)
     if flow:
         attrs["chat.flow"] = flow
     if request_id:

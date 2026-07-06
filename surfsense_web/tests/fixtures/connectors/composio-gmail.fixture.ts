@@ -1,18 +1,18 @@
 import { type ConnectorRow, deleteConnector, runComposioOAuth } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../workspace.fixture";
+import { workspaceFixtures } from "../workspace.fixture";
 
 export type ComposioGmailFixtures = {
 	/**
 	 * A pre-connected Composio Gmail connector inside the fixture's
-	 * `searchSpace`. OAuth happens against the strict fake (no real
+	 * `workspace`. OAuth happens against the strict fake (no real
 	 * network). Cleaned up automatically after the test.
 	 */
 	composioGmailConnector: ConnectorRow;
 };
 
-export const composioGmailFixtures = searchSpaceFixtures.extend<ComposioGmailFixtures>({
-	composioGmailConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runComposioOAuth(request, apiToken, searchSpace.id, "gmail");
+export const composioGmailFixtures = workspaceFixtures.extend<ComposioGmailFixtures>({
+	composioGmailConnector: async ({ request, apiToken, workspace }, use) => {
+		const { connector } = await runComposioOAuth(request, apiToken, workspace.id, "gmail");
 		if (!connector) {
 			throw new Error(
 				"composioGmailConnector fixture: OAuth completed but no connector was created. " +

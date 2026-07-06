@@ -579,7 +579,7 @@ export default function NewChatPage() {
 				error,
 				flow,
 				context: {
-					searchSpaceId: workspaceId,
+					workspaceId: workspaceId,
 					threadId,
 				},
 			});
@@ -717,7 +717,7 @@ export default function NewChatPage() {
 		data: typeof threadMessagesQuery.data;
 	}>({ threadId: null, data: undefined });
 
-	// Reset thread-local runtime state on route/search-space changes. Data fetching
+	// Reset thread-local runtime state on route/workspace changes. Data fetching
 	// is handled by React Query below so the chat shell can render immediately.
 	useEffect(() => {
 		const nextThreadId = urlChatId > 0 ? urlChatId : null;
@@ -755,7 +755,7 @@ export default function NewChatPage() {
 				chatId: thread.id,
 				title: thread.title,
 				chatUrl: `/dashboard/${thread.workspace_id ?? workspaceId}/new-chat/${thread.id}`,
-				searchSpaceId: thread.workspace_id ?? workspaceId,
+				workspaceId: thread.workspace_id ?? workspaceId,
 				visibility: thread.visibility,
 				hasComments: thread.has_comments ?? false,
 			});
@@ -892,7 +892,7 @@ export default function NewChatPage() {
 			}
 			setCurrentThreadMetadata({
 				id: null,
-				searchSpaceId: null,
+				workspaceId: null,
 				visibility: null,
 				hasComments: false,
 			});
@@ -906,7 +906,7 @@ export default function NewChatPage() {
 
 		setCurrentThreadMetadata({
 			id: currentThread.id,
-			searchSpaceId: currentThread.workspace_id ?? workspaceId,
+			workspaceId: currentThread.workspace_id ?? workspaceId,
 			visibility,
 			hasComments: currentThread.has_comments ?? false,
 		});

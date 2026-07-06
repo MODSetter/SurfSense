@@ -159,17 +159,17 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onBack }) => {
 
 					<div className="h-px bg-border/60" />
 
-					{/* Step 4 — Pick search space */}
+					{/* Step 4 — Pick workspace */}
 					<article>
 						<header className="mb-3 flex items-center gap-2">
 							<div className="flex size-7 items-center justify-center rounded-md border border-slate-400/30 text-xs font-medium">
 								4
 							</div>
-							<h3 className="text-sm font-medium sm:text-base">Pick this search space</h3>
+							<h3 className="text-sm font-medium sm:text-base">Pick this workspace</h3>
 						</header>
 						<p className="text-[11px] text-muted-foreground sm:text-xs">
 							In the plugin's <span className="font-medium">Search space</span> setting, choose the
-							search space you want this vault to sync into. The connector will appear here
+							workspace you want this vault to sync into. The connector will appear here
 							automatically once the plugin makes its first sync.
 						</p>
 					</article>

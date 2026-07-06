@@ -5,15 +5,15 @@ import type {
 	ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 
-type SearchSpaceKey = number | string;
+type WorkspaceKey = number | string;
 
 type ThreadMetadataPatch = Partial<ThreadRecord> &
 	Partial<ThreadListItem> & {
 		has_comments?: boolean;
 	};
 
-function isSameSearchSpace(keyValue: unknown, searchSpaceId: SearchSpaceKey): boolean {
-	return String(keyValue) === String(searchSpaceId);
+function isSameWorkspace(keyValue: unknown, workspaceId: WorkspaceKey): boolean {
+	return String(keyValue) === String(workspaceId);
 }
 
 function isThreadListResponse(value: unknown): value is ThreadListResponse {
@@ -88,30 +88,30 @@ function patchThreadRecord(
 	};
 }
 
-function threadListQueryFilter(searchSpaceId: SearchSpaceKey) {
+function threadListQueryFilter(workspaceId: WorkspaceKey) {
 	return {
 		predicate: ({ queryKey }: { queryKey: QueryKey }) =>
 			Array.isArray(queryKey) &&
 			queryKey[0] === "threads" &&
-			isSameSearchSpace(queryKey[1], searchSpaceId),
+			isSameWorkspace(queryKey[1], workspaceId),
 	};
 }
 
-function allThreadsQueryFilter(searchSpaceId: SearchSpaceKey) {
+function allThreadsQueryFilter(workspaceId: WorkspaceKey) {
 	return {
 		predicate: ({ queryKey }: { queryKey: QueryKey }) =>
 			Array.isArray(queryKey) &&
 			queryKey[0] === "all-threads" &&
-			isSameSearchSpace(queryKey[1], searchSpaceId),
+			isSameWorkspace(queryKey[1], workspaceId),
 	};
 }
 
-function searchThreadsQueryFilter(searchSpaceId: SearchSpaceKey) {
+function searchThreadsQueryFilter(workspaceId: WorkspaceKey) {
 	return {
 		predicate: ({ queryKey }: { queryKey: QueryKey }) =>
 			Array.isArray(queryKey) &&
 			queryKey[0] === "search-threads" &&
-			isSameSearchSpace(queryKey[1], searchSpaceId),
+			isSameWorkspace(queryKey[1], workspaceId),
 	};
 }
 
@@ -149,14 +149,14 @@ function updateThreadListResponse(
 
 export function patchThreadEverywhere(
 	queryClient: QueryClient,
-	searchSpaceId: SearchSpaceKey,
+	workspaceId: WorkspaceKey,
 	threadId: number,
 	patch: ThreadMetadataPatch
 ): void {
-	updateThreadListResponse(queryClient, threadListQueryFilter(searchSpaceId), threadId, patch);
-	updateThreadListResponse(queryClient, allThreadsQueryFilter(searchSpaceId), threadId, patch);
+	updateThreadListResponse(queryClient, threadListQueryFilter(workspaceId), threadId, patch);
+	updateThreadListResponse(queryClient, allThreadsQueryFilter(workspaceId), threadId, patch);
 
-	queryClient.setQueriesData<ThreadListItem[]>(searchThreadsQueryFilter(searchSpaceId), (old) => {
+	queryClient.setQueriesData<ThreadListItem[]>(searchThreadsQueryFilter(workspaceId), (old) => {
 		if (!isThreadListItemArray(old)) return old;
 		return patchThreadListItems(old, threadId, patch);
 	});
@@ -169,15 +169,15 @@ export function patchThreadEverywhere(
 
 export function replaceThreadEverywhere(
 	queryClient: QueryClient,
-	searchSpaceId: SearchSpaceKey,
+	workspaceId: WorkspaceKey,
 	thread: ThreadRecord
 ): void {
-	patchThreadEverywhere(queryClient, searchSpaceId, thread.id, thread);
+	patchThreadEverywhere(queryClient, workspaceId, thread.id, thread);
 }
 
 export function removeThreadEverywhere(
 	queryClient: QueryClient,
-	searchSpaceId: SearchSpaceKey,
+	workspaceId: WorkspaceKey,
 	threadId: number
 ): void {
 	const removeFromListResponse = (old: ThreadListResponse | undefined) => {
@@ -190,14 +190,14 @@ export function removeThreadEverywhere(
 	};
 
 	queryClient.setQueriesData<ThreadListResponse>(
-		threadListQueryFilter(searchSpaceId),
+		threadListQueryFilter(workspaceId),
 		removeFromListResponse
 	);
 	queryClient.setQueriesData<ThreadListResponse>(
-		allThreadsQueryFilter(searchSpaceId),
+		allThreadsQueryFilter(workspaceId),
 		removeFromListResponse
 	);
-	queryClient.setQueriesData<ThreadListItem[]>(searchThreadsQueryFilter(searchSpaceId), (old) => {
+	queryClient.setQueriesData<ThreadListItem[]>(searchThreadsQueryFilter(workspaceId), (old) => {
 		if (!isThreadListItemArray(old)) return old;
 		return old.filter((thread) => thread.id !== threadId);
 	});
@@ -207,7 +207,7 @@ export function removeThreadEverywhere(
 
 export function moveThreadArchiveState(
 	queryClient: QueryClient,
-	searchSpaceId: SearchSpaceKey,
+	workspaceId: WorkspaceKey,
 	threadId: number,
 	archived: boolean
 ): void {
@@ -232,14 +232,14 @@ export function moveThreadArchiveState(
 	};
 
 	queryClient.setQueriesData<ThreadListResponse>(
-		threadListQueryFilter(searchSpaceId),
+		threadListQueryFilter(workspaceId),
 		moveInListResponse
 	);
 	queryClient.setQueriesData<ThreadListResponse>(
-		allThreadsQueryFilter(searchSpaceId),
+		allThreadsQueryFilter(workspaceId),
 		moveInListResponse
 	);
-	queryClient.setQueriesData<ThreadListItem[]>(searchThreadsQueryFilter(searchSpaceId), (old) => {
+	queryClient.setQueriesData<ThreadListItem[]>(searchThreadsQueryFilter(workspaceId), (old) => {
 		if (!isThreadListItemArray(old)) return old;
 		return old.map((thread) => (thread.id === threadId ? { ...thread, archived } : thread));
 	});

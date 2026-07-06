@@ -59,7 +59,7 @@ export const publicChatSnapshotDetail = z.object({
 });
 
 /**
- * List public chat snapshots for search space
+ * List public chat snapshots for workspace
  */
 export const publicChatSnapshotsBySpaceRequest = z.object({
 	workspace_id: z.number(),

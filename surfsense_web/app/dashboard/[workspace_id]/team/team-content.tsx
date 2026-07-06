@@ -96,7 +96,7 @@ import type { Role } from "@/contracts/types/roles.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { formatRelativeDate } from "@/lib/format-date";
-import { trackSearchSpaceInviteSent, trackSearchSpaceUsersViewed } from "@/lib/posthog/events";
+import { trackWorkspaceInviteSent, trackWorkspaceUsersViewed } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
@@ -229,7 +229,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	useEffect(() => {
 		if (members.length > 0 && !membersLoading) {
 			const ownerCount = members.filter((m) => m.is_owner).length;
-			trackSearchSpaceUsersViewed(workspaceId, members.length, ownerCount);
+			trackWorkspaceUsersViewed(workspaceId, members.length, ownerCount);
 		}
 	}, [members, membersLoading, workspaceId]);
 
@@ -654,7 +654,7 @@ function CreateInviteDialog({
 			setCreatedInvite(invite);
 
 			const roleName = roleId ? roles.find((r) => r.id.toString() === roleId)?.name : undefined;
-			trackSearchSpaceInviteSent(workspaceId, {
+			trackWorkspaceInviteSent(workspaceId, {
 				roleName,
 				hasExpiry: !!expiresAt,
 				hasMaxUses: !!maxUses,

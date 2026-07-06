@@ -4,7 +4,7 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
 /**
- * Set of folder IDs that are currently expanded in the tree, keyed by search space ID.
+ * Set of folder IDs that are currently expanded in the tree, keyed by workspace ID.
  * Persisted to localStorage so expand/collapse state survives page refreshes.
  */
 export const expandedFolderIdsAtom = atomWithStorage<Record<number, number[]>>(
@@ -13,7 +13,7 @@ export const expandedFolderIdsAtom = atomWithStorage<Record<number, number[]>>(
 );
 
 /**
- * Expanded folder keys for Local filesystem tree, keyed by search space ID.
+ * Expanded folder keys for Local filesystem tree, keyed by workspace ID.
  * Persisted so local tree expansion survives remounts/reloads.
  */
 export const localExpandedFolderKeysAtom = atomWithStorage<Record<number, string[]>>(

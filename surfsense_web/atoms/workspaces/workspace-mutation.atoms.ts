@@ -1,96 +1,96 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type {
-	CreateSearchSpaceRequest,
-	DeleteSearchSpaceRequest,
-	UpdateSearchSpaceApiAccessRequest,
-	UpdateSearchSpaceRequest,
+	CreateWorkspaceRequest,
+	DeleteWorkspaceRequest,
+	UpdateWorkspaceApiAccessRequest,
+	UpdateWorkspaceRequest,
 } from "@/contracts/types/workspace.types";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import { activeWorkspaceIdAtom } from "./workspace-query.atoms";
 
-export const createSearchSpaceMutationAtom = atomWithMutation(() => {
+export const createWorkspaceMutationAtom = atomWithMutation(() => {
 	return {
-		mutationKey: ["create-search-space"],
-		mutationFn: async (request: CreateSearchSpaceRequest) => {
-			return searchSpacesApiService.createSearchSpace(request);
+		mutationKey: ["create-workspace"],
+		mutationFn: async (request: CreateWorkspaceRequest) => {
+			return workspacesApiService.createWorkspace(request);
 		},
 
 		onSuccess: () => {
 			toast.success("Search space created successfully");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.searchSpaces.all,
+				queryKey: cacheKeys.workspaces.all,
 			});
 		},
 	};
 });
 
-export const updateSearchSpaceMutationAtom = atomWithMutation((get) => {
-	const activeSearchSpaceId = get(activeWorkspaceIdAtom);
+export const updateWorkspaceMutationAtom = atomWithMutation((get) => {
+	const activeWorkspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		mutationKey: ["update-search-space", activeSearchSpaceId],
-		enabled: !!activeSearchSpaceId,
-		mutationFn: async (request: UpdateSearchSpaceRequest) => {
-			return searchSpacesApiService.updateSearchSpace(request);
+		mutationKey: ["update-workspace", activeWorkspaceId],
+		enabled: !!activeWorkspaceId,
+		mutationFn: async (request: UpdateWorkspaceRequest) => {
+			return workspacesApiService.updateWorkspace(request);
 		},
 
-		onSuccess: (_, request: UpdateSearchSpaceRequest) => {
+		onSuccess: (_, request: UpdateWorkspaceRequest) => {
 			toast.success("Search space updated successfully");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.searchSpaces.all,
+				queryKey: cacheKeys.workspaces.all,
 			});
 			if (request.id) {
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.searchSpaces.detail(String(request.id)),
+					queryKey: cacheKeys.workspaces.detail(String(request.id)),
 				});
 			}
 		},
 	};
 });
 
-export const updateSearchSpaceApiAccessMutationAtom = atomWithMutation((get) => {
-	const activeSearchSpaceId = get(activeWorkspaceIdAtom);
+export const updateWorkspaceApiAccessMutationAtom = atomWithMutation((get) => {
+	const activeWorkspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		mutationKey: ["update-search-space-api-access", activeSearchSpaceId],
-		enabled: !!activeSearchSpaceId,
-		mutationFn: async (request: UpdateSearchSpaceApiAccessRequest) => {
-			return searchSpacesApiService.updateSearchSpaceApiAccess(request);
+		mutationKey: ["update-workspace-api-access", activeWorkspaceId],
+		enabled: !!activeWorkspaceId,
+		mutationFn: async (request: UpdateWorkspaceApiAccessRequest) => {
+			return workspacesApiService.updateWorkspaceApiAccess(request);
 		},
 
-		onSuccess: (_, request: UpdateSearchSpaceApiAccessRequest) => {
+		onSuccess: (_, request: UpdateWorkspaceApiAccessRequest) => {
 			toast.success("API access updated successfully");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.searchSpaces.all,
+				queryKey: cacheKeys.workspaces.all,
 			});
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.searchSpaces.detail(String(request.id)),
+				queryKey: cacheKeys.workspaces.detail(String(request.id)),
 			});
 		},
 	};
 });
 
-export const deleteSearchSpaceMutationAtom = atomWithMutation((get) => {
-	const activeSearchSpaceId = get(activeWorkspaceIdAtom);
+export const deleteWorkspaceMutationAtom = atomWithMutation((get) => {
+	const activeWorkspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		mutationKey: ["delete-search-space", activeSearchSpaceId],
-		enabled: !!activeSearchSpaceId,
-		mutationFn: async (request: DeleteSearchSpaceRequest) => {
-			return searchSpacesApiService.deleteSearchSpace(request);
+		mutationKey: ["delete-workspace", activeWorkspaceId],
+		enabled: !!activeWorkspaceId,
+		mutationFn: async (request: DeleteWorkspaceRequest) => {
+			return workspacesApiService.deleteWorkspace(request);
 		},
 
-		onSuccess: (_, request: DeleteSearchSpaceRequest) => {
+		onSuccess: (_, request: DeleteWorkspaceRequest) => {
 			toast.success("Search space deleted successfully");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.searchSpaces.all,
+				queryKey: cacheKeys.workspaces.all,
 			});
 			if (request.id) {
 				queryClient.removeQueries({
-					queryKey: cacheKeys.searchSpaces.detail(String(request.id)),
+					queryKey: cacheKeys.workspaces.detail(String(request.id)),
 				});
 			}
 		},

@@ -4,18 +4,18 @@ import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export const invitesAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		queryKey: cacheKeys.invites.all(searchSpaceId?.toString() ?? ""),
-		enabled: !!searchSpaceId,
+		queryKey: cacheKeys.invites.all(workspaceId?.toString() ?? ""),
+		enabled: !!workspaceId,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		queryFn: async () => {
-			if (!searchSpaceId) {
+			if (!workspaceId) {
 				return [];
 			}
 			return invitesApiService.getInvites({
-				workspace_id: Number(searchSpaceId),
+				workspace_id: Number(workspaceId),
 			});
 		},
 	};

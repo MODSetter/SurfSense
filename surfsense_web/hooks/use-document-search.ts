@@ -15,13 +15,13 @@ const SEARCH_SCROLL_SIZE = 5;
  * pagination via skip/page_size, and staleness detection
  * so fast typing never renders stale results.
  *
- * @param searchSpaceId - The search space to search within
+ * @param workspaceId - The workspace to search within
  * @param query - The debounced search query
  * @param activeTypes - Document types to filter by
  * @param enabled - When false the hook resets and stops fetching
  */
 export function useDocumentSearch(
-	searchSpaceId: number,
+	workspaceId: number,
 	query: string,
 	activeTypes: DocumentTypeEnum[],
 	enabled: boolean
@@ -40,7 +40,7 @@ export function useDocumentSearch(
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTypesKey serializes activeTypes
 	useEffect(() => {
-		if (!isActive || !searchSpaceId) {
+		if (!isActive || !workspaceId) {
 			setDocuments([]);
 			setHasMore(false);
 			setError(false);
@@ -56,7 +56,7 @@ export function useDocumentSearch(
 		documentsApiService
 			.searchDocuments({
 				queryParams: {
-					workspace_id: searchSpaceId,
+					workspace_id: workspaceId,
 					page: 0,
 					page_size: SEARCH_INITIAL_SIZE,
 					title: query.trim(),
@@ -81,7 +81,7 @@ export function useDocumentSearch(
 		return () => {
 			cancelled = true;
 		};
-	}, [query, searchSpaceId, isActive, activeTypesKey]);
+	}, [query, workspaceId, isActive, activeTypesKey]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: activeTypesKey serializes activeTypes
 	const loadMore = useCallback(async () => {
@@ -91,7 +91,7 @@ export function useDocumentSearch(
 		try {
 			const response = await documentsApiService.searchDocuments({
 				queryParams: {
-					workspace_id: searchSpaceId,
+					workspace_id: workspaceId,
 					skip: apiLoadedRef.current,
 					page_size: SEARCH_SCROLL_SIZE,
 					title: query.trim(),
@@ -108,7 +108,7 @@ export function useDocumentSearch(
 		} finally {
 			setLoadingMore(false);
 		}
-	}, [loadingMore, isActive, hasMore, searchSpaceId, query, activeTypesKey]);
+	}, [loadingMore, isActive, hasMore, workspaceId, query, activeTypesKey]);
 
 	const removeItems = useCallback((ids: number[]) => {
 		const idSet = new Set(ids);

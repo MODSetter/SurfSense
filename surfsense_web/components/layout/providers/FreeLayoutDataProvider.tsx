@@ -9,14 +9,14 @@ import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
-import type { ChatItem, NavItem, PageUsage, SearchSpace } from "../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, Workspace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
 
 interface FreeLayoutDataProviderProps {
 	children: ReactNode;
 }
 
-const GUEST_SPACE: SearchSpace = {
+const GUEST_SPACE: Workspace = {
 	id: 0,
 	name: "SurfSense Free",
 	description: "Free AI chat without login",
@@ -94,19 +94,16 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 
 	const handleAnnouncements = useCallback(() => gate("see what's new"), [gate]);
 
-	const handleSearchSpaceSelect = useCallback(
-		(_id: number) => gate("switch search spaces"),
-		[gate]
-	);
+	const handleWorkspaceSelect = useCallback((_id: number) => gate("switch workspaces"), [gate]);
 
 	return (
 		<LayoutShell
-			searchSpaces={[GUEST_SPACE]}
-			activeSearchSpaceId={0}
-			onSearchSpaceSelect={handleSearchSpaceSelect}
-			onSearchSpaceSettings={gatedAction("search space settings")}
-			onAddSearchSpace={gatedAction("create search spaces")}
-			searchSpace={GUEST_SPACE}
+			workspaces={[GUEST_SPACE]}
+			activeWorkspaceId={0}
+			onWorkspaceSelect={handleWorkspaceSelect}
+			onWorkspaceSettings={gatedAction("workspace settings")}
+			onAddWorkspace={gatedAction("create workspaces")}
+			workspace={GUEST_SPACE}
 			navItems={navItems}
 			onNavItemClick={handleNavItemClick}
 			chats={[]}
@@ -121,7 +118,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 				email: "Guest",
 				name: "Guest",
 			}}
-			onSettings={gatedAction("search space settings")}
+			onSettings={gatedAction("workspace settings")}
 			onManageMembers={gatedAction("team management")}
 			onUserSettings={gatedAction("account settings")}
 			onAnnouncements={handleAnnouncements}

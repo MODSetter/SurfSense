@@ -22,13 +22,13 @@ test.describe("Composio Drive journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		composioDriveConnector,
 		chatThread,
 	}) => {
 		test.setTimeout(240_000); // worker cold-start + Docling + summarize + embed + chunk
 
-		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
@@ -60,29 +60,29 @@ test.describe("Composio Drive journey", () => {
 			indexing_options: indexingOptions,
 		});
 
-		await triggerIndex(request, apiToken, composioDriveConnector.id, searchSpace.id, {
+		await triggerIndex(request, apiToken, composioDriveConnector.id, workspace.id, {
 			files: selectedFiles,
 			indexing_options: indexingOptions,
 		});
 
-		await waitForIndexingComplete(request, apiToken, composioDriveConnector.id, searchSpace.id, {
+		await waitForIndexingComplete(request, apiToken, composioDriveConnector.id, workspace.id, {
 			timeoutMs: 240_000,
 			intervalMs: 1_500,
 			minDocuments: 2,
 		});
 
-		await waitForDocumentByTitle(request, apiToken, searchSpace.id, FAKE_DRIVE_FILES.canary.name, {
+		await waitForDocumentByTitle(request, apiToken, workspace.id, FAKE_DRIVE_FILES.canary.name, {
 			timeoutMs: 30_000,
 		});
 		await waitForDocumentByTitle(
 			request,
 			apiToken,
-			searchSpace.id,
+			workspace.id,
 			FAKE_DRIVE_FILES.pdfComposio.name,
 			{ timeoutMs: 60_000 }
 		);
 
-		const docs = await listDocuments(request, apiToken, searchSpace.id);
+		const docs = await listDocuments(request, apiToken, workspace.id);
 		const canaryDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.canary.name);
 		const pdfDoc = docs.find((d) => d.title === FAKE_DRIVE_FILES.pdfComposio.name);
 
@@ -95,7 +95,7 @@ test.describe("Composio Drive journey", () => {
 
 		// content holds the LLM summary; the raw file body lives in source_markdown.
 		// editor-content is the same endpoint the UI hits when opening a document.
-		const editor = await getEditorContent(request, apiToken, searchSpace.id, canaryDoc.id);
+		const editor = await getEditorContent(request, apiToken, workspace.id, canaryDoc.id);
 		expect(
 			editor.source_markdown,
 			`canary token ${CANARY_TOKENS.driveCanaryFile} should appear in editor source_markdown; ` +
@@ -104,7 +104,7 @@ test.describe("Composio Drive journey", () => {
 		expect(editor.document_type).toBe("GOOGLE_DRIVE_FILE");
 		expect(editor.chunk_count).toBeGreaterThan(0);
 
-		const pdfEditor = await getEditorContent(request, apiToken, searchSpace.id, pdfDoc.id);
+		const pdfEditor = await getEditorContent(request, apiToken, workspace.id, pdfDoc.id);
 		expect(
 			pdfEditor.source_markdown,
 			`PDF canary token ${CANARY_TOKENS.composioDrivePdfCanary} should appear in editor source_markdown; ` +
@@ -113,12 +113,12 @@ test.describe("Composio Drive journey", () => {
 		expect(pdfEditor.document_type).toBe("GOOGLE_DRIVE_FILE");
 		expect(pdfEditor.chunk_count).toBeGreaterThan(0);
 
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshedConnectors = await listConnectors(request, apiToken, workspace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === composioDriveConnector.id);
 		expect(refreshed?.last_indexed_at).not.toBeNull();
 
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: "What is in my e2e-canary.txt Drive file?",
 		});
@@ -128,7 +128,7 @@ test.describe("Composio Drive journey", () => {
 		).toContain(CANARY_TOKENS.driveCanaryFile);
 
 		const pdfChat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: "What is in my e2e-composio-canary.pdf Drive file?",
 		});

@@ -274,7 +274,7 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 							documentId={editorState.documentId ?? undefined}
 							localFilePath={editorState.localFilePath ?? undefined}
 							memoryScope={editorState.memoryScope ?? undefined}
-							searchSpaceId={editorState.searchSpaceId ?? undefined}
+							workspaceId={editorState.workspaceId ?? undefined}
 							title={editorState.title}
 							onClose={closeEditor}
 						/>

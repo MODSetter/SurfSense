@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { paginationQueryParams } from ".";
 
-export const searchSpace = z.object({
+export const workspace = z.object({
 	id: z.number(),
 	name: z.string(),
 	description: z.string().nullable(),
@@ -16,9 +16,9 @@ export const searchSpace = z.object({
 });
 
 /**
- * Get search spaces
+ * Get workspaces
  */
-export const getSearchSpacesRequest = z.object({
+export const getWorkspacesRequest = z.object({
 	queryParams: paginationQueryParams
 		.extend({
 			owned_only: z.boolean().optional(),
@@ -26,31 +26,31 @@ export const getSearchSpacesRequest = z.object({
 		.nullish(),
 });
 
-export const getSearchSpacesResponse = z.array(searchSpace);
+export const getWorkspacesResponse = z.array(workspace);
 
 /**
- * Create search space
+ * Create workspace
  */
-export const createSearchSpaceRequest = searchSpace.pick({ name: true, description: true }).extend({
+export const createWorkspaceRequest = workspace.pick({ name: true, description: true }).extend({
 	citations_enabled: z.boolean().prefault(true).optional(),
 	qna_custom_instructions: z.string().nullable().optional(),
 });
 
-export const createSearchSpaceResponse = searchSpace.omit({ member_count: true, is_owner: true });
+export const createWorkspaceResponse = workspace.omit({ member_count: true, is_owner: true });
 
 /**
- * Get search space
+ * Get workspace
  */
-export const getSearchSpaceRequest = searchSpace.pick({ id: true });
+export const getWorkspaceRequest = workspace.pick({ id: true });
 
-export const getSearchSpaceResponse = searchSpace.omit({ member_count: true, is_owner: true });
+export const getWorkspaceResponse = workspace.omit({ member_count: true, is_owner: true });
 
 /**
- * Update search space
+ * Update workspace
  */
-export const updateSearchSpaceRequest = z.object({
+export const updateWorkspaceRequest = z.object({
 	id: z.number(),
-	data: searchSpace
+	data: workspace
 		.pick({
 			name: true,
 			description: true,
@@ -61,45 +61,45 @@ export const updateSearchSpaceRequest = z.object({
 		.partial(),
 });
 
-export const updateSearchSpaceResponse = searchSpace.omit({ member_count: true, is_owner: true });
+export const updateWorkspaceResponse = workspace.omit({ member_count: true, is_owner: true });
 
-export const updateSearchSpaceApiAccessRequest = z.object({
+export const updateWorkspaceApiAccessRequest = z.object({
 	id: z.number(),
 	api_access_enabled: z.boolean(),
 });
 
-export const updateSearchSpaceApiAccessResponse = searchSpace.omit({
+export const updateWorkspaceApiAccessResponse = workspace.omit({
 	member_count: true,
 	is_owner: true,
 });
 
 /**
- * Delete search space
+ * Delete workspace
  */
-export const deleteSearchSpaceRequest = searchSpace.pick({ id: true });
+export const deleteWorkspaceRequest = workspace.pick({ id: true });
 
-export const deleteSearchSpaceResponse = z.object({
+export const deleteWorkspaceResponse = z.object({
 	message: z.literal("Workspace deleted successfully"),
 });
 
 /**
- * Leave search space (for non-owners)
+ * Leave workspace (for non-owners)
  */
-export const leaveSearchSpaceResponse = z.object({
+export const leaveWorkspaceResponse = z.object({
 	message: z.literal("Successfully left the workspace"),
 });
 
 // Inferred types
-export type SearchSpace = z.infer<typeof searchSpace>;
-export type GetSearchSpacesRequest = z.infer<typeof getSearchSpacesRequest>;
-export type GetSearchSpacesResponse = z.infer<typeof getSearchSpacesResponse>;
-export type CreateSearchSpaceRequest = z.infer<typeof createSearchSpaceRequest>;
-export type CreateSearchSpaceResponse = z.infer<typeof createSearchSpaceResponse>;
-export type GetSearchSpaceRequest = z.infer<typeof getSearchSpaceRequest>;
-export type GetSearchSpaceResponse = z.infer<typeof getSearchSpaceResponse>;
-export type UpdateSearchSpaceRequest = z.infer<typeof updateSearchSpaceRequest>;
-export type UpdateSearchSpaceResponse = z.infer<typeof updateSearchSpaceResponse>;
-export type UpdateSearchSpaceApiAccessRequest = z.infer<typeof updateSearchSpaceApiAccessRequest>;
-export type UpdateSearchSpaceApiAccessResponse = z.infer<typeof updateSearchSpaceApiAccessResponse>;
-export type DeleteSearchSpaceRequest = z.infer<typeof deleteSearchSpaceRequest>;
-export type DeleteSearchSpaceResponse = z.infer<typeof deleteSearchSpaceResponse>;
+export type Workspace = z.infer<typeof workspace>;
+export type GetWorkspacesRequest = z.infer<typeof getWorkspacesRequest>;
+export type GetWorkspacesResponse = z.infer<typeof getWorkspacesResponse>;
+export type CreateWorkspaceRequest = z.infer<typeof createWorkspaceRequest>;
+export type CreateWorkspaceResponse = z.infer<typeof createWorkspaceResponse>;
+export type GetWorkspaceRequest = z.infer<typeof getWorkspaceRequest>;
+export type GetWorkspaceResponse = z.infer<typeof getWorkspaceResponse>;
+export type UpdateWorkspaceRequest = z.infer<typeof updateWorkspaceRequest>;
+export type UpdateWorkspaceResponse = z.infer<typeof updateWorkspaceResponse>;
+export type UpdateWorkspaceApiAccessRequest = z.infer<typeof updateWorkspaceApiAccessRequest>;
+export type UpdateWorkspaceApiAccessResponse = z.infer<typeof updateWorkspaceApiAccessResponse>;
+export type DeleteWorkspaceRequest = z.infer<typeof deleteWorkspaceRequest>;
+export type DeleteWorkspaceResponse = z.infer<typeof deleteWorkspaceResponse>;

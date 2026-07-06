@@ -189,7 +189,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const params = useParams();
 	const electronAPI = useElectronAPI();
-	const resolvedSearchSpaceId = getWorkspaceIdNumber(params);
+	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
 
 	const { displayName, isFolder } = getVirtualPathDisplay(path);
 	const icon = isFolder ? <FolderIcon className="size-3.5" /> : <FileIcon className="size-3.5" />;
@@ -204,7 +204,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 					if (electronAPI.getAgentFilesystemMounts) {
 						try {
 							const mounts = (await electronAPI.getAgentFilesystemMounts(
-								resolvedSearchSpaceId
+								resolvedWorkspaceId
 							)) as AgentFilesystemMount[];
 							resolvedLocalPath = normalizeLocalVirtualPathForEditor(path, mounts);
 						} catch {
@@ -215,21 +215,21 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 						kind: "local_file",
 						localFilePath: resolvedLocalPath,
 						title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
-						searchSpaceId: resolvedSearchSpaceId,
+						workspaceId: resolvedWorkspaceId,
 					});
 					return;
 				}
 
-				if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
+				if (!resolvedWorkspaceId || !path.startsWith("/documents/")) return;
 				try {
 					const doc = await documentsApiService.getDocumentByVirtualPath({
-						workspace_id: resolvedSearchSpaceId,
+						workspace_id: resolvedWorkspaceId,
 						virtual_path: path,
 					});
 					openEditorPanel({
 						kind: "document",
 						documentId: doc.id,
-						searchSpaceId: resolvedSearchSpaceId,
+						workspaceId: resolvedWorkspaceId,
 						title: doc.title,
 					});
 				} catch {
@@ -237,7 +237,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 				}
 			})();
 		},
-		[electronAPI, openEditorPanel, path, resolvedSearchSpaceId]
+		[electronAPI, openEditorPanel, path, resolvedWorkspaceId]
 	);
 
 	// Folders cannot open in the editor panel — keep them as visual chips.

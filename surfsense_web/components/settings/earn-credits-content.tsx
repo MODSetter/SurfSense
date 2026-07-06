@@ -33,7 +33,7 @@ const formatRewardUsd = (micros: number) => {
 export function EarnCreditsContent() {
 	const params = useParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = getWorkspaceIdParam(params) ?? "";
+	const workspaceId = getWorkspaceIdParam(params) ?? "";
 
 	useEffect(() => {
 		trackIncentivePageViewed();
@@ -163,7 +163,7 @@ export function EarnCreditsContent() {
 				<p className="text-sm text-muted-foreground">Need more?</p>
 				{creditBuyingEnabled ? (
 					<Button asChild variant="link" className="text-emerald-600 dark:text-emerald-400">
-						<Link href={`/dashboard/${searchSpaceId}/buy-more`}>Buy credits at $1 per $1</Link>
+						<Link href={`/dashboard/${workspaceId}/buy-more`}>Buy credits at $1 per $1</Link>
 					</Button>
 				) : (
 					<p className="text-xs text-muted-foreground">

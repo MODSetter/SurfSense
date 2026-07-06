@@ -80,7 +80,7 @@ export const announcements: Announcement[] = [
 	// 	id: "2026-02-10-podcast-improvements",
 	// 	title: "Podcast Generation Improvements",
 	// 	description:
-	// 		"We've improved podcast generation with faster processing, better audio quality, and support for longer documents. Try it out in any search space.",
+	// 		"We've improved podcast generation with faster processing, better audio quality, and support for longer documents. Try it out in any workspace.",
 	// 	category: "update",
 	// 	date: "2026-02-10T00:00:00Z",
 	// 	startTime: "2026-02-10T00:00:00Z",
@@ -120,7 +120,7 @@ export const announcements: Announcement[] = [
 	// 	id: "2026-01-28-team-collaboration",
 	// 	title: "Enhanced Team Collaboration",
 	// 	description:
-	// 		"Shared search spaces now support real-time mentions, comment threads, and role-based access control. Invite your team and collaborate more effectively.",
+	// 		"Shared workspaces now support real-time mentions, comment threads, and role-based access control. Invite your team and collaborate more effectively.",
 	// 	category: "feature",
 	// 	date: "2026-01-28T00:00:00Z",
 	// 	startTime: "2026-01-28T00:00:00Z",

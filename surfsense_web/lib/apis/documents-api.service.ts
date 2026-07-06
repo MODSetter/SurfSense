@@ -257,10 +257,7 @@ class DocumentsApiService {
 		const transformedQueryParams = Object.fromEntries(
 			Object.entries(parsedRequest.data.queryParams)
 				.filter(([, v]) => v !== undefined)
-				.map(([k, v]) => [
-					k,
-					String(v),
-				])
+				.map(([k, v]) => [k, String(v)])
 		);
 
 		const queryParams = new URLSearchParams(transformedQueryParams).toString();
@@ -301,10 +298,7 @@ class DocumentsApiService {
 		// Transform query params to be string values
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
-					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [
-						k,
-						String(v),
-					])
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
 				)
 			: undefined;
 
@@ -491,9 +485,9 @@ class DocumentsApiService {
 		}) as unknown as { deleted_count: number };
 	};
 
-	getWatchedFolders = async (searchSpaceId: number) => {
+	getWatchedFolders = async (workspaceId: number) => {
 		return baseApiService.get(
-			`/api/v1/documents/watched-folders?workspace_id=${searchSpaceId}`,
+			`/api/v1/documents/watched-folders?workspace_id=${workspaceId}`,
 			folderListResponse
 		);
 	};

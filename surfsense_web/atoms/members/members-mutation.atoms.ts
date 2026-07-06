@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import type {
 	DeleteMembershipRequest,
 	DeleteMembershipResponse,
-	LeaveSearchSpaceRequest,
-	LeaveSearchSpaceResponse,
+	LeaveWorkspaceRequest,
+	LeaveWorkspaceResponse,
 	UpdateMembershipRequest,
 	UpdateMembershipResponse,
 } from "@/contracts/types/members.types";
@@ -48,20 +48,20 @@ export const deleteMemberMutationAtom = atomWithMutation(() => {
 	};
 });
 
-export const leaveSearchSpaceMutationAtom = atomWithMutation(() => {
+export const leaveWorkspaceMutationAtom = atomWithMutation(() => {
 	return {
 		meta: { suppressGlobalErrorToast: true },
-		mutationFn: async (request: LeaveSearchSpaceRequest) => {
-			return membersApiService.leaveSearchSpace(request);
+		mutationFn: async (request: LeaveWorkspaceRequest) => {
+			return membersApiService.leaveWorkspace(request);
 		},
-		onSuccess: (_: LeaveSearchSpaceResponse, request: LeaveSearchSpaceRequest) => {
-			toast.success("Successfully left the search space");
+		onSuccess: (_: LeaveWorkspaceResponse, request: LeaveWorkspaceRequest) => {
+			toast.success("Successfully left the workspace");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.members.all(request.workspace_id.toString()),
 			});
 		},
 		onError: () => {
-			toast.error("Failed to leave search space");
+			toast.error("Failed to leave workspace");
 		},
 	};
 });

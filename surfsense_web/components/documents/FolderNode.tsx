@@ -49,7 +49,7 @@ export interface FolderDisplay {
 	name: string;
 	position: string;
 	parentId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	metadata?: Record<string, unknown> | null;
 }
 

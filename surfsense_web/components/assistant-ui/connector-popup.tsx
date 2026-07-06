@@ -36,10 +36,10 @@ interface ConnectorIndicatorProps {
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	(_props, ref) => {
-		const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
+		const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 
 		// Real-time document type counts via Zero (updates instantly as docs are indexed)
-		const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
+		const documentTypeCounts = useZeroDocumentTypeCounts(workspaceId);
 		// Read status inbox items from shared atom (populated by LayoutDataProvider)
 		// instead of creating a duplicate useInbox("status") hook.
 		const statusInboxItems = useAtomValue(statusInboxItemsAtom);
@@ -124,7 +124,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			loading: connectorsLoading,
 			error: connectorsError,
 			refreshConnectors: refreshConnectorsSync,
-		} = useConnectorsSync(searchSpaceId);
+		} = useConnectorsSync(workspaceId);
 
 		const useSyncData = connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
 		const connectors = useSyncData ? connectorsFromSync : allConnectors || [];
@@ -142,7 +142,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			inboxItems
 		);
 
-		// Get document types that have documents in the search space
+		// Get document types that have documents in the workspace
 		const activeDocumentTypes = documentTypeCounts
 			? Object.entries(documentTypeCounts).filter(([, count]) => count > 0)
 			: [];
@@ -163,7 +163,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			open: () => handleOpenChange(true),
 		}));
 
-		if (!searchSpaceId) return null;
+		if (!workspaceId) return null;
 
 		return (
 			<Dialog open={isOpen} modal={false} onOpenChange={handleOpenChange}>
@@ -191,8 +191,8 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 				>
 					<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 					{/* YouTube Crawler View - shown when adding YouTube videos */}
-					{isYouTubeView && searchSpaceId ? (
-						<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+					{isYouTubeView && workspaceId ? (
+						<YouTubeCrawlerView workspaceId={workspaceId} onBack={handleBackFromYouTube} />
 					) : viewingMCPList ? (
 						<ConnectorAccountsListView
 							connectorType="MCP_CONNECTOR"
@@ -253,7 +253,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							isSaving={isSaving}
 							isDisconnecting={isDisconnecting}
 							isIndexing={indexingConnectorIds.has(editingConnector.id)}
-							searchSpaceId={searchSpaceId?.toString()}
+							workspaceId={workspaceId?.toString()}
 							onStartDateChange={setStartDate}
 							onEndDateChange={setEndDate}
 							onPeriodicEnabledChange={setPeriodicEnabled}
@@ -346,7 +346,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 										<TabsContent value="all" className="m-0">
 											<AllConnectorsTab
 												searchQuery={searchQuery}
-												searchSpaceId={searchSpaceId}
+												workspaceId={workspaceId}
 												connectedTypes={connectedTypes}
 												connectingId={connectingId}
 												allConnectors={connectors}

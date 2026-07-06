@@ -13,7 +13,7 @@ import { useIsAnonymous } from "@/contexts/anonymous-mode";
 import { getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
-import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 import { DocumentsSidebar } from "./DocumentsSidebar";
@@ -62,7 +62,7 @@ function CollapsedInboxIcon({ item }: { item: NavItem }) {
 }
 
 interface SidebarProps {
-	searchSpace: SearchSpace | null;
+	workspace: Workspace | null;
 	isCollapsed?: boolean;
 	onToggleCollapse?: () => void;
 	navItems: NavItem[];
@@ -103,7 +103,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-	searchSpace,
+	workspace,
 	isCollapsed = false,
 	onToggleCollapse,
 	navItems,
@@ -192,7 +192,7 @@ export function Sidebar({
 					aria-hidden={isCollapsed}
 				>
 					<SidebarHeader
-						searchSpace={searchSpace}
+						workspace={workspace}
 						isCollapsed={false}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
@@ -400,7 +400,7 @@ function SidebarUsageFooter({
 	onNavigate?: () => void;
 }) {
 	const params = useParams();
-	const searchSpaceId = getWorkspaceIdParam(params) ?? "";
+	const workspaceId = getWorkspaceIdParam(params) ?? "";
 	const isAnonymous = useIsAnonymous();
 
 	if (isCollapsed) return null;
@@ -446,7 +446,7 @@ function SidebarUsageFooter({
 			<CreditBalanceDisplay />
 			<div className="space-y-0.5">
 				<Link
-					href={`/dashboard/${searchSpaceId}/earn-credits`}
+					href={`/dashboard/${workspaceId}/earn-credits`}
 					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
@@ -459,7 +459,7 @@ function SidebarUsageFooter({
 					</Badge>
 				</Link>
 				<Link
-					href={`/dashboard/${searchSpaceId}/buy-more`}
+					href={`/dashboard/${workspaceId}/buy-more`}
 					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>

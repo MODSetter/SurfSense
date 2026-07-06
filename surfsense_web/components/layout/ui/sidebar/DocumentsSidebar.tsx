@@ -17,7 +17,7 @@ import {
 	folderWatchDialogOpenAtom,
 	folderWatchInitialFolderAtom,
 } from "@/atoms/folder-sync/folder-sync.atoms";
-import { searchSpacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
@@ -57,7 +57,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
@@ -202,7 +202,7 @@ interface WatchedFolderEntry {
 	excludePatterns: string[];
 	fileExtensions: string[] | null;
 	rootFolderId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	active: boolean;
 }
 
@@ -264,7 +264,7 @@ function AuthenticatedDocumentsSidebarBase({
 						path: meta.folder_path as string,
 						name: bf.name,
 						rootFolderId: bf.id,
-						searchSpaceId: bf.workspace_id,
+						workspaceId: bf.workspace_id,
 						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
 						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
 						active: true,
@@ -322,10 +322,10 @@ function AuthenticatedDocumentsSidebarBase({
 
 	// Zero queries for tree data
 	const [zeroFolders, zeroFoldersResult] = useQuery(
-		queries.folders.bySpace({ searchSpaceId: workspaceId })
+		queries.folders.bySpace({ workspaceId: workspaceId })
 	);
 	const [zeroAllDocs, zeroAllDocsResult] = useQuery(
-		queries.documents.bySpace({ searchSpaceId: workspaceId })
+		queries.documents.bySpace({ workspaceId: workspaceId })
 	);
 	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
 
@@ -336,7 +336,7 @@ function AuthenticatedDocumentsSidebarBase({
 				name: f.name,
 				position: f.position,
 				parentId: f.parentId ?? null,
-				searchSpaceId: f.searchSpaceId,
+				workspaceId: f.workspaceId,
 				metadata: f.metadata as Record<string, unknown> | null | undefined,
 			})),
 		[zeroFolders]
@@ -361,7 +361,7 @@ function AuthenticatedDocumentsSidebarBase({
 		const zeroIds = new Set(zeroDocs.map((d) => d.id));
 
 		const pendingAgentDocs = agentCreatedDocs
-			.filter((d) => d.searchSpaceId === workspaceId && !zeroIds.has(d.id))
+			.filter((d) => d.workspaceId === workspaceId && !zeroIds.has(d.id))
 			.map((d) => ({
 				id: d.id,
 				title: d.title,
@@ -456,7 +456,7 @@ function AuthenticatedDocumentsSidebarBase({
 				await uploadFolderScan({
 					folderPath: matched.path,
 					folderName: matched.name,
-					searchSpaceId: workspaceId,
+					workspaceId: workspaceId,
 					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
 					fileExtensions:
 						matched.fileExtensions ?? Array.from(getSupportedExtensionsSet(undefined, etlService)),
@@ -842,7 +842,7 @@ function AuthenticatedDocumentsSidebarBase({
 				openEditorPanel({
 					kind: "memory",
 					memoryScope: "user",
-					searchSpaceId: workspaceId,
+					workspaceId: workspaceId,
 					title: doc.title,
 				});
 				return true;
@@ -851,7 +851,7 @@ function AuthenticatedDocumentsSidebarBase({
 				openEditorPanel({
 					kind: "memory",
 					memoryScope: "team",
-					searchSpaceId: workspaceId,
+					workspaceId: workspaceId,
 					title: doc.title,
 				});
 				return true;
@@ -1020,7 +1020,7 @@ function AuthenticatedDocumentsSidebarBase({
 						if (openMemoryDocument(doc)) return;
 						openEditorPanel({
 							documentId: doc.id,
-							searchSpaceId: workspaceId,
+							workspaceId: workspaceId,
 							title: doc.title,
 						});
 					}}
@@ -1028,7 +1028,7 @@ function AuthenticatedDocumentsSidebarBase({
 						if (openMemoryDocument(doc)) return;
 						openEditorPanel({
 							documentId: doc.id,
-							searchSpaceId: workspaceId,
+							workspaceId: workspaceId,
 							title: doc.title,
 						});
 					}}

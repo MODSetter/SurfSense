@@ -33,7 +33,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 			<div>
 				<p className="font-medium text-foreground">Couldn't load artifacts</p>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Something went wrong fetching this search space's deliverables.
+					Something went wrong fetching this workspace's deliverables.
 				</p>
 			</div>
 			<Button variant="outline" size="sm" onClick={onRetry}>
@@ -53,8 +53,7 @@ function EmptyState() {
 }
 
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
-	const searchSpaceId = workspaceId;
-	const { artifacts, loading, error, refresh } = useLibraryArtifacts(searchSpaceId);
+	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
 	const openReportPanel = useSetAtom(openReportPanelAtom);
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
 
@@ -114,7 +113,7 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 										<ArtifactCard
 											key={artifact.key}
 											artifact={artifact}
-											searchSpaceId={searchSpaceId}
+											workspaceId={workspaceId}
 											onOpen={handleOpen}
 										/>
 									))}

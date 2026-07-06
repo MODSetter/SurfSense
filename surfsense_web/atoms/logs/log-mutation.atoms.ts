@@ -13,10 +13,10 @@ import { queryClient } from "@/lib/query-client/client";
  * Create Log Mutation
  */
 export const createLogMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	return {
-		mutationKey: cacheKeys.logs.list(searchSpaceId ?? undefined),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.logs.list(workspaceId ?? undefined),
+		enabled: !!workspaceId,
 		mutationFn: async (request: CreateLogRequest) => logsApiService.createLog(request),
 		onSuccess: () => {
 			// Invalidate all log-related queries (list, summary, detail, withQueryParams)
@@ -29,10 +29,10 @@ export const createLogMutationAtom = atomWithMutation((get) => {
  * Update Log Mutation
  */
 export const updateLogMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	return {
-		mutationKey: cacheKeys.logs.list(searchSpaceId ?? undefined),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.logs.list(workspaceId ?? undefined),
+		enabled: !!workspaceId,
 		mutationFn: async ({ logId, data }: { logId: number; data: UpdateLogRequest }) =>
 			logsApiService.updateLog(logId, data),
 		onSuccess: (_data, variables) => {
@@ -45,10 +45,10 @@ export const updateLogMutationAtom = atomWithMutation((get) => {
  * Delete Log Mutation
  */
 export const deleteLogMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	return {
-		mutationKey: cacheKeys.logs.list(searchSpaceId ?? undefined),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.logs.list(workspaceId ?? undefined),
+		enabled: !!workspaceId,
 		mutationFn: async (request: DeleteLogRequest) => logsApiService.deleteLog(request),
 		onSuccess: (_data, request) => {
 			queryClient.invalidateQueries({ queryKey: ["logs"] });

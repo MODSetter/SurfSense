@@ -7,7 +7,7 @@ import type {
 	NotePayload,
 	RenameAck,
 	RenameItem,
-	SearchSpace,
+	Workspace,
 	SyncAck,
 } from "./types";
 
@@ -94,14 +94,14 @@ export class SurfSenseApiClient {
 		return await this.request<HealthResponse>("GET", "/api/v1/obsidian/health");
 	}
 
-	async listSearchSpaces(): Promise<SearchSpace[]> {
-		const resp = await this.request<SearchSpace[] | { items: SearchSpace[] }>(
+	async listWorkspaces(): Promise<Workspace[]> {
+		const resp = await this.request<Workspace[] | { items: Workspace[] }>(
 			"GET",
-			"/api/v1/searchspaces/"
+			"/api/v1/workspaces/"
 		);
 		if (Array.isArray(resp)) return resp;
-		if (resp && Array.isArray((resp as { items?: SearchSpace[] }).items)) {
-			return (resp as { items: SearchSpace[] }).items;
+		if (resp && Array.isArray((resp as { items?: Workspace[] }).items)) {
+			return (resp as { items: Workspace[] }).items;
 		}
 		return [];
 	}
@@ -114,7 +114,7 @@ export class SurfSenseApiClient {
 	}
 
 	async connect(input: {
-		searchSpaceId: number;
+		workspaceId: number;
 		vaultId: string;
 		vaultName: string;
 		vaultFingerprint: string;
@@ -125,7 +125,7 @@ export class SurfSenseApiClient {
 			{
 				vault_id: input.vaultId,
 				vault_name: input.vaultName,
-				search_space_id: input.searchSpaceId,
+				workspace_id: input.workspaceId,
 				vault_fingerprint: input.vaultFingerprint,
 			}
 		);

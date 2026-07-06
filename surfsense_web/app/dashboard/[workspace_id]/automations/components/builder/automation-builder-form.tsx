@@ -120,7 +120,7 @@ export function AutomationBuilderForm({
 
 	const [submitting, setSubmitting] = useState(false);
 
-	// Eligible models + the search-space-seeded defaults. Models are chosen per
+	// Eligible models + the workspace-seeded defaults. Models are chosen per
 	// automation on create; in edit mode the backend preserves the captured
 	// snapshot, so the picker is create-only.
 	const eligibleModels = useAutomationEligibleModels();

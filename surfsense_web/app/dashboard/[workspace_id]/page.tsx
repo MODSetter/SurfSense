@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-export default async function SearchSpaceDashboardPage({
+export default async function WorkspaceDashboardPage({
 	params,
 }: {
 	params: Promise<{ workspace_id: string }>;

@@ -17,7 +17,7 @@ test.describe("Notion connector journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		notionConnector,
 		chatThread,
 	}) => {
@@ -35,13 +35,11 @@ test.describe("Notion connector journey", () => {
 			client_id: "fake-notion-mcp-client-id",
 			token_endpoint: "https://mcp.notion.com/token",
 		});
-		expect(
-			(notionConnector.config.mcp_oauth as Record<string, unknown>).access_token
-		).toBeTruthy();
+		expect((notionConnector.config.mcp_oauth as Record<string, unknown>).access_token).toBeTruthy();
 		expect(notionConnector.config.access_token).toBeUndefined();
 		expect(notionConnector.config.refresh_token).toBeUndefined();
 
-		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
@@ -50,20 +48,20 @@ test.describe("Notion connector journey", () => {
 		await connectorDialog.getByPlaceholder("Search").fill("Notion");
 		await expect(connectorDialog.getByText("Notion", { exact: true })).toBeVisible();
 
-		const beforeDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const beforeDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(beforeDocs).toHaveLength(0);
 
 		const disabledIndex = await triggerIndexExpectDisabled(
 			request,
 			apiToken,
 			notionConnector.id,
-			searchSpace.id
+			workspace.id
 		);
 		expect(disabledIndex.message ?? "").toContain("real-time agent tools");
 		expect(disabledIndex.message ?? "").toContain("background indexing is disabled");
 
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: `What is in my Notion page titled "${FAKE_NOTION_PAGES.canary.title}"?`,
 		});
@@ -75,13 +73,13 @@ test.describe("Notion connector journey", () => {
 		const eventText = JSON.stringify(chat.events);
 		expect(eventText).toContain(FAKE_NOTION_PAGES.canary.id);
 
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshedConnectors = await listConnectors(request, apiToken, workspace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === notionConnector.id);
 		expect(refreshed?.connector_type).toBe("NOTION_CONNECTOR");
 		expect(refreshed?.is_indexable).toBe(false);
 		expect(refreshed?.last_indexed_at).toBeNull();
 
-		const afterDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const afterDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(afterDocs).toHaveLength(0);
 	});
 });

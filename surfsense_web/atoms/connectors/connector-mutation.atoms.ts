@@ -13,38 +13,38 @@ import { queryClient } from "@/lib/query-client/client";
 import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
 export const createConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.connectors.all(workspaceId ?? ""),
+		enabled: !!workspaceId,
 		mutationFn: async (request: CreateConnectorRequest) => {
 			return connectorsApiService.createConnector(request);
 		},
 
 		onSuccess: () => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.connectors.all(searchSpaceId),
+				queryKey: cacheKeys.connectors.all(workspaceId),
 			});
 		},
 	};
 });
 
 export const updateConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.connectors.all(workspaceId ?? ""),
+		enabled: !!workspaceId,
 		mutationFn: async (request: UpdateConnectorRequest) => {
 			return connectorsApiService.updateConnector(request);
 		},
 
 		onSuccess: (_, request: UpdateConnectorRequest) => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.connectors.all(searchSpaceId),
+				queryKey: cacheKeys.connectors.all(workspaceId),
 			});
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.connectors.byId(String(request.id)),
@@ -54,19 +54,19 @@ export const updateConnectorMutationAtom = atomWithMutation((get) => {
 });
 
 export const deleteConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
-		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.connectors.all(workspaceId ?? ""),
+		enabled: !!workspaceId,
 		mutationFn: async (request: DeleteConnectorRequest) => {
 			return connectorsApiService.deleteConnector(request);
 		},
 
 		onSuccess: (_, request: DeleteConnectorRequest) => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 			queryClient.setQueryData(
-				cacheKeys.connectors.all(searchSpaceId),
+				cacheKeys.connectors.all(workspaceId),
 				(oldData: GetConnectorsResponse | undefined) => {
 					if (!oldData) return oldData;
 					return oldData.filter((connector) => connector.id !== request.id);
@@ -80,19 +80,19 @@ export const deleteConnectorMutationAtom = atomWithMutation((get) => {
 });
 
 export const indexConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: cacheKeys.connectors.index(),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		mutationFn: async (request: IndexConnectorRequest) => {
 			return connectorsApiService.indexConnector(request);
 		},
 
 		onSuccess: (response: IndexConnectorResponse) => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.connectors.all(searchSpaceId),
+				queryKey: cacheKeys.connectors.all(workspaceId),
 			});
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.connectors.byId(String(response.connector_id)),

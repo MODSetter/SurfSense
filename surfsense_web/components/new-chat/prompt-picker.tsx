@@ -70,14 +70,14 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 
 	const createPromptIndex = filtered.length;
 	const totalItems = filtered.length + 1;
-	const searchSpaceId = getWorkspaceIdParam(params);
+	const workspaceId = getWorkspaceIdParam(params);
 
 	const handleSelect = useCallback(
 		(index: number) => {
 			if (index === createPromptIndex) {
 				onDone();
-				if (searchSpaceId) {
-					router.push(`/dashboard/${searchSpaceId}/user-settings/prompts`);
+				if (workspaceId) {
+					router.push(`/dashboard/${workspaceId}/user-settings/prompts`);
 				}
 				return;
 			}
@@ -85,7 +85,7 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 			if (!action) return;
 			onSelect({ name: action.name, prompt: action.prompt, mode: action.mode });
 		},
-		[filtered, onSelect, createPromptIndex, onDone, router, searchSpaceId]
+		[filtered, onSelect, createPromptIndex, onDone, router, workspaceId]
 	);
 
 	useEffect(() => {

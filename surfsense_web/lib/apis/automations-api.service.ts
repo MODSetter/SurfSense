@@ -68,8 +68,8 @@ class AutomationsApiService {
 
 	// Whether the workspace's models are billable for automations (premium
 	// global or BYOK). Used to gate creation surfaces before submit.
-	getModelEligibility = async (searchSpaceId: number) => {
-		const qs = new URLSearchParams({ workspace_id: String(searchSpaceId) });
+	getModelEligibility = async (workspaceId: number) => {
+		const qs = new URLSearchParams({ workspace_id: String(workspaceId) });
 		return baseApiService.get(`${BASE}/model-eligibility?${qs.toString()}`, modelEligibility);
 	};
 

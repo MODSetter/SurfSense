@@ -44,7 +44,7 @@ export function getConnectorDisplayName(fullName: string): string {
 
 interface AllConnectorsTabProps {
 	searchQuery: string;
-	searchSpaceId: string;
+	workspaceId: string;
 	connectedTypes: Set<string>;
 	connectingId: string | null;
 	allConnectors: SearchSourceConnector[] | undefined;

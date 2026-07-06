@@ -23,7 +23,7 @@ export const newChatMessageTable = table("new_chat_messages")
 export const newChatThreadTable = table("new_chat_threads")
 	.columns({
 		id: number(),
-		searchSpaceId: number().from("workspace_id"),
+		workspaceId: number().from("workspace_id"),
 	})
 	.primaryKey("id");
 

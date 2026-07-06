@@ -5,13 +5,13 @@ import { useAtomValue } from "jotai";
 import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { updateSearchSpaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
+import { updateWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
@@ -20,36 +20,35 @@ interface PromptConfigManagerProps {
 }
 
 export function PromptConfigManager({ workspaceId }: PromptConfigManagerProps) {
-	const searchSpaceId = workspaceId;
-	const { data: searchSpace, isLoading: loading } = useQuery({
-		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
-		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
-		enabled: !!searchSpaceId,
+	const { data: workspace, isLoading: loading } = useQuery({
+		queryKey: cacheKeys.workspaces.detail(workspaceId.toString()),
+		queryFn: () => workspacesApiService.getWorkspace({ id: workspaceId }),
+		enabled: !!workspaceId,
 	});
 
-	const { mutateAsync: updateSearchSpace, isPending: isSaving } = useAtomValue(
-		updateSearchSpaceMutationAtom
+	const { mutateAsync: updateWorkspace, isPending: isSaving } = useAtomValue(
+		updateWorkspaceMutationAtom
 	);
 
 	const [customInstructions, setCustomInstructions] = useState("");
-	const hasSearchSpace = !!searchSpace;
-	const searchSpaceInstructions = searchSpace?.qna_custom_instructions;
+	const hasWorkspace = !!workspace;
+	const workspaceInstructions = workspace?.qna_custom_instructions;
 
-	// Initialize state from fetched search space
+	// Initialize state from fetched workspace
 	useEffect(() => {
-		if (hasSearchSpace) {
-			setCustomInstructions(searchSpaceInstructions || "");
+		if (hasWorkspace) {
+			setCustomInstructions(workspaceInstructions || "");
 		}
-	}, [hasSearchSpace, searchSpaceInstructions]);
+	}, [hasWorkspace, workspaceInstructions]);
 
 	// Derive hasChanges during render
 	const hasChanges =
-		!!searchSpace && (searchSpace.qna_custom_instructions || "") !== customInstructions;
+		!!workspace && (workspace.qna_custom_instructions || "") !== customInstructions;
 
 	const handleSave = async () => {
 		try {
-			await updateSearchSpace({
-				id: searchSpaceId,
+			await updateWorkspace({
+				id: workspaceId,
 				data: { qna_custom_instructions: customInstructions.trim() || "" },
 			});
 			toast.success("System instructions saved successfully");
@@ -98,8 +97,8 @@ export function PromptConfigManager({ workspaceId }: PromptConfigManagerProps) {
 			<Alert>
 				<Info />
 				<AlertDescription>
-					System instructions apply to all AI interactions in this search space. They guide how the
-					AI responds, its tone, focus areas, and behavior patterns.
+					System instructions apply to all AI interactions in this workspace. They guide how the AI
+					responds, its tone, focus areas, and behavior patterns.
 				</AlertDescription>
 			</Alert>
 
@@ -112,7 +111,7 @@ export function PromptConfigManager({ workspaceId }: PromptConfigManagerProps) {
 						</h3>
 						<p className="text-xs md:text-sm text-muted-foreground">
 							Provide specific guidelines for how you want the AI to respond. These instructions
-							will be applied to all answers in this search space.
+							will be applied to all answers in this workspace.
 						</p>
 					</div>
 					<div className="space-y-3 md:space-y-4">

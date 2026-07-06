@@ -895,7 +895,7 @@ const Composer: FC = () => {
 						<ComposerSuggestionPopoverContent side="top">
 							<DocumentMentionPicker
 								ref={documentPickerRef}
-								searchSpaceId={workspaceId ?? 0}
+								workspaceId={workspaceId ?? 0}
 								enableChatMentions
 								currentChatId={threadId}
 								onSelectionChange={handleDocumentsMention}
@@ -961,7 +961,7 @@ const Composer: FC = () => {
 					</div>
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
-						searchSpaceId={workspaceId ?? 0}
+						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>
 					<ConnectorIndicator showTrigger={false} />
@@ -982,13 +982,13 @@ const Composer: FC = () => {
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
-	searchSpaceId: number;
+	workspaceId: number;
 	onChatModelSelected?: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
 	isBlockedByOtherUser = false,
-	searchSpaceId,
+	workspaceId,
 	onChatModelSelected,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
@@ -1564,7 +1564,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 			)}
 			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
 				<ChatHeader
-					searchSpaceId={searchSpaceId}
+					workspaceId={workspaceId}
 					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
 					onChatModelSelected={onChatModelSelected}
 				/>

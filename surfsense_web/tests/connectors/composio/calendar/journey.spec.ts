@@ -17,24 +17,24 @@ test.describe("Composio Calendar journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		composioCalendarConnector,
 		chatThread,
 	}) => {
 		test.setTimeout(90_000); // worker cold-start + live tool chat
 
-		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
 		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
 		await expect(connectorDialog).toBeVisible();
 
-		const beforeChatDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const beforeChatDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(beforeChatDocs).toHaveLength(0);
 
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query:
 				`What Calendar event mentions ${CANARY_TOKENS.calendarCanary} next week? ` +
@@ -48,11 +48,11 @@ test.describe("Composio Calendar journey", () => {
 		const eventText = JSON.stringify(chat.events);
 		expect(eventText).toContain("search_calendar_events");
 
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshedConnectors = await listConnectors(request, apiToken, workspace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === composioCalendarConnector.id);
 		expect(refreshed?.last_indexed_at).toBeNull();
 
-		const afterChatDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const afterChatDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(afterChatDocs).toHaveLength(0);
 	});
 });

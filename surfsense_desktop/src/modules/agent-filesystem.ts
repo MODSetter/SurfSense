@@ -119,9 +119,9 @@ async function normalizeLocalRootPathsCanonical(paths: unknown): Promise<string[
 	return [...uniquePaths];
 }
 
-function normalizeSearchSpaceKey(searchSpaceId?: number | null): string {
-	if (typeof searchSpaceId === "number" && Number.isFinite(searchSpaceId) && searchSpaceId > 0) {
-		return String(searchSpaceId);
+function normalizeWorkspaceKey(workspaceId?: number | null): string {
+	if (typeof workspaceId === "number" && Number.isFinite(workspaceId) && workspaceId > 0) {
+		return String(workspaceId);
 	}
 	return DEFAULT_SPACE_KEY;
 }
@@ -147,9 +147,9 @@ function getDefaultStore(): AgentFilesystemSettingsStore {
 
 function getSettingsFromStore(
 	store: AgentFilesystemSettingsStore,
-	searchSpaceId?: number | null
+	workspaceId?: number | null
 ): AgentFilesystemSettings {
-	const key = normalizeSearchSpaceKey(searchSpaceId);
+	const key = normalizeWorkspaceKey(workspaceId);
 	return store.spaces[key] ?? getDefaultSettings();
 }
 
@@ -194,22 +194,22 @@ async function loadAgentFilesystemSettingsStore(): Promise<AgentFilesystemSettin
 }
 
 export async function getAgentFilesystemSettings(
-	searchSpaceId?: number | null
+	workspaceId?: number | null
 ): Promise<AgentFilesystemSettings> {
 	const store = await loadAgentFilesystemSettingsStore();
-	return getSettingsFromStore(store, searchSpaceId);
+	return getSettingsFromStore(store, workspaceId);
 }
 
 export async function setAgentFilesystemSettings(
-	searchSpaceId: number | null | undefined,
+	workspaceId: number | null | undefined,
 	settings: {
 		mode?: AgentFilesystemMode;
 		localRootPaths?: string[] | null;
 	}
 ): Promise<AgentFilesystemSettings> {
 	const store = await loadAgentFilesystemSettingsStore();
-	const key = normalizeSearchSpaceKey(searchSpaceId);
-	const current = getSettingsFromStore(store, searchSpaceId);
+	const key = normalizeWorkspaceKey(workspaceId);
+	const current = getSettingsFromStore(store, workspaceId);
 	const nextMode =
 		settings.mode === "cloud" || settings.mode === "desktop_local_folder"
 			? settings.mode
@@ -291,7 +291,7 @@ export type LocalRootMount = {
 
 export type AgentFilesystemListOptions = {
 	rootPath: string;
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	excludePatterns?: string[] | null;
 	fileExtensions?: string[] | null;
 };
@@ -332,9 +332,9 @@ function buildRootMounts(rootPaths: string[]): LocalRootMount[] {
 }
 
 export async function getAgentFilesystemMounts(
-	searchSpaceId?: number | null
+	workspaceId?: number | null
 ): Promise<LocalRootMount[]> {
-	const rootPaths = await resolveCurrentRootPaths(searchSpaceId);
+	const rootPaths = await resolveCurrentRootPaths(workspaceId);
 	return buildRootMounts(rootPaths);
 }
 
@@ -371,7 +371,7 @@ function normalizeExcludeSet(excludePatterns: string[] | null | undefined): Set<
 export async function listAgentFilesystemFiles(
 	options: AgentFilesystemListOptions
 ): Promise<AgentFilesystemFileEntry[]> {
-	const allowedRootPaths = await resolveCurrentRootPaths(options.searchSpaceId);
+	const allowedRootPaths = await resolveCurrentRootPaths(options.workspaceId);
 	const requestedRootPath = await canonicalizeRootPath(options.rootPath);
 	const normalizedRequestedRoot = normalizeComparablePath(requestedRootPath);
 	const allowedRoots = new Set(
@@ -474,8 +474,8 @@ function toMountedVirtualPath(mount: string, rootPath: string, absolutePath: str
 	return `/${mount}${relativePath}`;
 }
 
-async function resolveCurrentRootPaths(searchSpaceId?: number | null): Promise<string[]> {
-	const settings = await getAgentFilesystemSettings(searchSpaceId);
+async function resolveCurrentRootPaths(workspaceId?: number | null): Promise<string[]> {
+	const settings = await getAgentFilesystemSettings(workspaceId);
 	if (settings.localRootPaths.length === 0) {
 		throw new Error("No local filesystem roots selected");
 	}
@@ -484,9 +484,9 @@ async function resolveCurrentRootPaths(searchSpaceId?: number | null): Promise<s
 
 export async function readAgentLocalFileText(
 	virtualPath: string,
-	searchSpaceId?: number | null
+	workspaceId?: number | null
 ): Promise<{ path: string; content: string }> {
-	const rootPaths = await resolveCurrentRootPaths(searchSpaceId);
+	const rootPaths = await resolveCurrentRootPaths(workspaceId);
 	const mounts = buildRootMounts(rootPaths);
 	const { mount, subPath } = parseMountedVirtualPath(virtualPath, mounts);
 	const rootMount = findMountByName(mounts, mount);
@@ -507,9 +507,9 @@ export async function readAgentLocalFileText(
 export async function writeAgentLocalFileText(
 	virtualPath: string,
 	content: string,
-	searchSpaceId?: number | null
+	workspaceId?: number | null
 ): Promise<{ path: string }> {
-	const rootPaths = await resolveCurrentRootPaths(searchSpaceId);
+	const rootPaths = await resolveCurrentRootPaths(workspaceId);
 	const mounts = buildRootMounts(rootPaths);
 	const { mount, subPath } = parseMountedVirtualPath(virtualPath, mounts);
 	const rootMount = findMountByName(mounts, mount);

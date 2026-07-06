@@ -14,12 +14,12 @@ import { queryClient } from "@/lib/query-client/client";
 import { globalDocumentsQueryParamsAtom } from "./ui.atoms";
 
 export const createDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
 		mutationKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		mutationFn: async (request: CreateDocumentRequest) => {
 			return documentsApiService.createDocument(request);
 		},
@@ -34,12 +34,12 @@ export const createDocumentMutationAtom = atomWithMutation((get) => {
 });
 
 export const uploadDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
 		mutationKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		mutationFn: async (request: UploadDocumentRequest) => {
 			return documentsApiService.uploadDocument(request);
 		},
@@ -47,19 +47,19 @@ export const uploadDocumentMutationAtom = atomWithMutation((get) => {
 		onSuccess: () => {
 			// Note: Toast notification is handled by the caller (DocumentUploadTab) to use i18n
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.logs.summary(searchSpaceId ?? undefined),
+				queryKey: cacheKeys.logs.summary(workspaceId ?? undefined),
 			});
 		},
 	};
 });
 
 export const updateDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
 		mutationKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		mutationFn: async (request: UpdateDocumentRequest) => {
 			return documentsApiService.updateDocument(request);
 		},
@@ -77,12 +77,12 @@ export const updateDocumentMutationAtom = atomWithMutation((get) => {
 });
 
 export const deleteDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeWorkspaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
 		mutationKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		mutationFn: async (request: DeleteDocumentRequest) => {
 			return documentsApiService.deleteDocument(request);
 		},

@@ -8,7 +8,7 @@ export interface ConnectorConfigProps {
 	connector: SearchSourceConnector;
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onNameChange?: (name: string) => void;
-	searchSpaceId?: string;
+	workspaceId?: string;
 }
 
 export type ConnectorConfigComponent = FC<ConnectorConfigProps>;

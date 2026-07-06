@@ -8,9 +8,9 @@ import {
 	getMembersResponse,
 	getMyAccessRequest,
 	getMyAccessResponse,
-	type LeaveSearchSpaceRequest,
-	leaveSearchSpaceRequest,
-	leaveSearchSpaceResponse,
+	type LeaveWorkspaceRequest,
+	leaveWorkspaceRequest,
+	leaveWorkspaceResponse,
 	type UpdateMembershipRequest,
 	updateMembershipRequest,
 	updateMembershipResponse,
@@ -82,8 +82,8 @@ class MembersApiService {
 	/**
 	 * Leave a workspace (remove self)
 	 */
-	leaveSearchSpace = async (request: LeaveSearchSpaceRequest) => {
-		const parsedRequest = leaveSearchSpaceRequest.safeParse(request);
+	leaveWorkspace = async (request: LeaveWorkspaceRequest) => {
+		const parsedRequest = leaveWorkspaceRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -94,7 +94,7 @@ class MembersApiService {
 
 		return baseApiService.delete(
 			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/members/me`,
-			leaveSearchSpaceResponse
+			leaveWorkspaceResponse
 		);
 	};
 

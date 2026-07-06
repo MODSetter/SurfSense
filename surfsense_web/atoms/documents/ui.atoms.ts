@@ -12,7 +12,7 @@ export interface AgentCreatedDocument {
 	id: number;
 	title: string;
 	documentType: string;
-	searchSpaceId: number;
+	workspaceId: number;
 	folderId: number | null;
 	createdById: string | null;
 }

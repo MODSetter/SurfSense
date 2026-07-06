@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { providerDisplay } from "../settings/model-connections/provider-metadata";
 
 interface ImageModelSelectorProps {
-	searchSpaceId: number;
+	workspaceId: number;
 	className?: string;
 	mobileIconOnly?: boolean;
 }
@@ -97,7 +97,7 @@ function groupedModels(models: ImageModel[]) {
 }
 
 export function ImageModelSelector({
-	searchSpaceId,
+	workspaceId,
 	className,
 	mobileIconOnly = false,
 }: ImageModelSelectorProps) {
@@ -146,7 +146,7 @@ export function ImageModelSelector({
 
 	function manageModelConnections() {
 		setOpen(false);
-		router.push(`/dashboard/${searchSpaceId}/workspace-settings/models`);
+		router.push(`/dashboard/${workspaceId}/workspace-settings/models`);
 	}
 
 	const handleScroll = useCallback((event: UIEvent<HTMLDivElement>) => {

@@ -3,16 +3,12 @@ import { authHeaders, BACKEND_URL } from "../helpers/api/auth";
 import { streamChatToCompletion } from "../helpers/api/chat";
 
 test.describe("Smoke", () => {
-	test("chat stream completes for an unrelated query", async ({
-		request,
-		apiToken,
-		searchSpace,
-	}) => {
+	test("chat stream completes for an unrelated query", async ({ request, apiToken, workspace }) => {
 		const threadResponse = await request.post(`${BACKEND_URL}/api/v1/threads`, {
 			headers: authHeaders(apiToken),
 			data: {
 				title: "e2e-chat-stream-smoke",
-				workspace_id: searchSpace.id,
+				workspace_id: workspace.id,
 				visibility: "PRIVATE",
 			},
 		});
@@ -20,7 +16,7 @@ test.describe("Smoke", () => {
 
 		const thread = (await threadResponse.json()) as { id: number };
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: thread.id,
 			query: "E2E_NO_RELEVANT_CONTENT_SMOKE",
 		});

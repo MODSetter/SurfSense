@@ -13,10 +13,10 @@ export type ConnectorRow = {
 export async function listConnectors(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<ConnectorRow[]> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/search-source-connectors?workspace_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors?workspace_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
@@ -111,11 +111,11 @@ export async function triggerIndex(
 	request: APIRequestContext,
 	token: string,
 	connectorId: number,
-	searchSpaceId: number,
+	workspaceId: number,
 	body: IndexBody
 ): Promise<{ ok: true }> {
 	const response = await request.post(
-		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${workspaceId}`,
 		{ headers: authHeaders(token), data: body }
 	);
 	if (!response.ok()) {
@@ -130,11 +130,11 @@ export async function triggerIndexExpectDisabled(
 	request: APIRequestContext,
 	token: string,
 	connectorId: number,
-	searchSpaceId: number,
+	workspaceId: number,
 	body: IndexBody = {}
 ): Promise<{ indexing_started: false; message?: string }> {
 	const response = await request.post(
-		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${workspaceId}`,
 		{ headers: authHeaders(token), data: body }
 	);
 	if (!response.ok()) {
@@ -166,7 +166,7 @@ export async function triggerIndexExpectDisabled(
 export async function runComposioOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number,
+	workspaceId: number,
 	toolkitId: "googledrive" | "gmail" | "googlecalendar" = "googledrive"
 ): Promise<{
 	authUrl: string;
@@ -175,7 +175,7 @@ export async function runComposioOAuth(
 }> {
 	// Step 1: kick off OAuth, get auth_url.
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/composio/connector/add?space_id=${searchSpaceId}&toolkit_id=${toolkitId}`,
+		`${BACKEND_URL}/api/v1/auth/composio/connector/add?space_id=${workspaceId}&toolkit_id=${toolkitId}`,
 		{
 			headers: authHeaders(token),
 		}
@@ -202,7 +202,7 @@ export async function runComposioOAuth(
 	const location = callbackResp.headers().location ?? auth_url;
 
 	// Step 3: look up the resulting connector (if any).
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const composioType =
 		toolkitId === "googledrive"
 			? "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
@@ -223,14 +223,14 @@ export async function runComposioOAuth(
 export async function runNativeGoogleDriveOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/google/drive/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/google/drive/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -250,7 +250,7 @@ export async function runNativeGoogleDriveOAuth(
 	});
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "GOOGLE_DRIVE_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -266,14 +266,14 @@ export async function runNativeGoogleDriveOAuth(
 export async function runNativeOneDriveOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/onedrive/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/onedrive/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -306,7 +306,7 @@ export async function runNativeOneDriveOAuth(
 	}
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "ONEDRIVE_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -322,14 +322,14 @@ export async function runNativeOneDriveOAuth(
 export async function runNativeDropboxOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/dropbox/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/dropbox/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -362,7 +362,7 @@ export async function runNativeDropboxOAuth(
 	}
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "DROPBOX_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -377,14 +377,14 @@ export async function runNativeDropboxOAuth(
 export async function runNativeGoogleGmailOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/google/gmail/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/google/gmail/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -404,7 +404,7 @@ export async function runNativeGoogleGmailOAuth(
 	});
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "GOOGLE_GMAIL_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -419,14 +419,14 @@ export async function runNativeGoogleGmailOAuth(
 export async function runNativeGoogleCalendarOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/google/calendar/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/google/calendar/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -446,7 +446,7 @@ export async function runNativeGoogleCalendarOAuth(
 	});
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector =
 		connectors.find((c) => c.connector_type === "GOOGLE_CALENDAR_CONNECTOR") ?? null;
 
@@ -464,14 +464,14 @@ export async function runNativeGoogleCalendarOAuth(
 export async function runNotionOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/notion/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/notion/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -499,7 +499,7 @@ export async function runNotionOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "NOTION_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -518,14 +518,14 @@ export async function runNotionOAuth(
 export async function runConfluenceOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/confluence/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/confluence/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -553,7 +553,7 @@ export async function runConfluenceOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "CONFLUENCE_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -568,14 +568,14 @@ export async function runConfluenceOAuth(
 export async function runLinearOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/linear/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/linear/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -603,7 +603,7 @@ export async function runLinearOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "LINEAR_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -618,14 +618,14 @@ export async function runLinearOAuth(
 export async function runJiraOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/jira/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/jira/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -653,7 +653,7 @@ export async function runJiraOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "JIRA_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -668,14 +668,14 @@ export async function runJiraOAuth(
 export async function runClickupOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/clickup/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/clickup/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -703,7 +703,7 @@ export async function runClickupOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "CLICKUP_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -718,14 +718,14 @@ export async function runClickupOAuth(
 export async function runSlackOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/slack/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/slack/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -758,7 +758,7 @@ export async function runSlackOAuth(
 	}
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "SLACK_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };

@@ -38,11 +38,11 @@ function extractYoutubeUrls(text: string): string[] {
 }
 
 interface YouTubeCrawlerViewProps {
-	searchSpaceId: string;
+	workspaceId: string;
 	onBack: () => void;
 }
 
-export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId, onBack }) => {
+export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ workspaceId, onBack }) => {
 	const t = useTranslations("add_youtube");
 	const [videoTags, setVideoTags] = useState<TagType[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
@@ -165,7 +165,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			{
 				document_type: "YOUTUBE_VIDEO",
 				content: videoUrls,
-				workspace_id: parseInt(searchSpaceId, 10),
+				workspace_id: parseInt(workspaceId, 10),
 			},
 			{
 				onSuccess: () => {

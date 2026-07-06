@@ -32,7 +32,7 @@ export function AutomationEditContent({ workspaceId, automationId }: AutomationE
 				<ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden />
 				<h2 className="mt-3 text-base font-semibold text-foreground">Access denied</h2>
 				<p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-					You don't have permission to edit automations in this search space.
+					You don't have permission to edit automations in this workspace.
 				</p>
 			</div>
 		);
