@@ -1556,22 +1556,31 @@ function AuthenticatedDocumentsSidebarBase({
 
 	if (embedded) {
 		return (
-			<SidebarSection
-				title={t("title") || "Documents"}
-				defaultOpen={true}
-				fillHeight
-				contentClassName="px-0"
-				persistentAction={
-					<EmbeddedDocumentsMenu
-						typeCounts={typeCounts}
-						activeTypes={activeTypes}
-						onToggleType={onToggleType}
-						onCreateFolder={() => handleCreateFolder(null)}
-					/>
-				}
-			>
-				{renderDocumentTree()}
-			</SidebarSection>
+			<>
+				<SidebarSection
+					title={t("title") || "Documents"}
+					defaultOpen={true}
+					fillHeight
+					contentClassName="px-0"
+					persistentAction={
+						<EmbeddedDocumentsMenu
+							typeCounts={typeCounts}
+							activeTypes={activeTypes}
+							onToggleType={onToggleType}
+							onCreateFolder={() => handleCreateFolder(null)}
+						/>
+					}
+				>
+					{renderDocumentTree()}
+				</SidebarSection>
+
+				<CreateFolderDialog
+					open={createFolderOpen}
+					onOpenChange={setCreateFolderOpen}
+					parentFolderName={createFolderParentName}
+					onConfirm={handleCreateFolderConfirm}
+				/>
+			</>
 		);
 	}
 

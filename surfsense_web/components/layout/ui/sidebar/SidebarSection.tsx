@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 interface SidebarSectionProps {
@@ -78,11 +78,21 @@ export function SidebarSection({
 				)}
 			</div>
 
-			<CollapsibleContent className={cn("overflow-hidden flex-1 flex flex-col min-h-0")}>
-				<div className={cn("px-2 flex-1 flex flex-col min-h-0 overflow-hidden", contentClassName)}>
-					{children}
+			<div
+				className={cn(
+					"grid flex-1 overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out",
+					isOpen ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
+				)}
+				aria-hidden={!isOpen}
+			>
+				<div className="min-h-0 overflow-hidden">
+					<div
+						className={cn("px-2 flex h-full min-h-0 flex-col overflow-hidden", contentClassName)}
+					>
+						{children}
+					</div>
 				</div>
-			</CollapsibleContent>
+			</div>
 		</Collapsible>
 	);
 }

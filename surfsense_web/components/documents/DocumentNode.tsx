@@ -40,6 +40,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
+import { SidebarListItem } from "../layout/ui/sidebar/SidebarListItem";
 import { DND_TYPES } from "./FolderNode";
 import { isVersionableType } from "./version-history";
 
@@ -165,13 +166,11 @@ export const DocumentNode = React.memo(function DocumentNode({
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				<div
+				<SidebarListItem
 					ref={attachRef}
-					className={cn(
-						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer select-none text-left",
-						isMentioned && "bg-accent text-accent-foreground",
-						isDragging && "opacity-40"
-					)}
+					active={isMentioned}
+					dragging={isDragging}
+					className="gap-2.5 px-1"
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 				>
 					{(() => {
@@ -358,7 +357,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</span>
-				</div>
+				</SidebarListItem>
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (
