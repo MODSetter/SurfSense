@@ -2,6 +2,7 @@
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
@@ -161,6 +162,11 @@ const PANEL_WIDTHS = {
 	artifacts: 420,
 } as const;
 
+const PANEL_SLIDE_TRANSITION = {
+	duration: 0.2,
+	ease: [0.22, 1, 0.36, 1],
+} as const;
+
 /**
  * Priority order used to fall back to another open surface when the active
  * tab's content closes. The neutral "sources" tab is kept as the closed state.
@@ -195,6 +201,7 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
 	const closeArtifacts = useSetAtom(closeArtifactsPanelAtom);
 	const [collapsed] = useAtom(rightPanelCollapsedAtom);
+	const reduceMotion = useReducedMotion();
 
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
@@ -246,64 +253,73 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 	});
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
-	if (!isVisible) return null;
 
 	return (
-		<aside
-			style={{ width: targetWidth }}
-			className={cn(
-				"flex h-full shrink-0 flex-col border-l bg-panel text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out",
-				showTopBorder && "border-t"
-			)}
-		>
-			<div className="relative flex-1 min-h-0 overflow-hidden">
-				{effectiveTab === "report" && reportOpen && (
-					<div className="h-full flex flex-col">
-						<ReportPanelContent
-							reportId={reportState.reportId as number}
-							title={reportState.title || "Report"}
-							onClose={closeReport}
-							shareToken={reportState.shareToken}
-						/>
+		<AnimatePresence initial={false}>
+			{isVisible ? (
+				<motion.aside
+					key="right-panel"
+					initial={reduceMotion ? { width: targetWidth } : { width: 0, x: 24, opacity: 0 }}
+					animate={{ width: targetWidth, x: 0, opacity: 1 }}
+					exit={reduceMotion ? { width: 0 } : { width: 0, x: 24, opacity: 0 }}
+					transition={reduceMotion ? { duration: 0 } : PANEL_SLIDE_TRANSITION}
+					className={cn(
+						"flex h-full shrink-0 flex-col overflow-hidden border-l bg-panel text-sidebar-foreground",
+						showTopBorder && "border-t"
+					)}
+				>
+					<div style={{ width: targetWidth }} className="flex h-full min-h-0 flex-col">
+						<div className="relative flex-1 min-h-0 overflow-hidden">
+							{effectiveTab === "report" && reportOpen && (
+								<div className="h-full flex flex-col">
+									<ReportPanelContent
+										reportId={reportState.reportId as number}
+										title={reportState.title || "Report"}
+										onClose={closeReport}
+										shareToken={reportState.shareToken}
+									/>
+								</div>
+							)}
+							{effectiveTab === "editor" && editorOpen && (
+								<div className="h-full flex flex-col">
+									<EditorPanelContent
+										kind={editorState.kind}
+										documentId={editorState.documentId ?? undefined}
+										localFilePath={editorState.localFilePath ?? undefined}
+										memoryScope={editorState.memoryScope ?? undefined}
+										workspaceId={editorState.workspaceId ?? undefined}
+										title={editorState.title}
+										onClose={closeEditor}
+									/>
+								</div>
+							)}
+							{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
+								<div className="h-full flex flex-col">
+									<HitlEditPanelContent
+										title={hitlEditState.title}
+										content={hitlEditState.content}
+										toolName={hitlEditState.toolName}
+										contentFormat={hitlEditState.contentFormat}
+										extraFields={hitlEditState.extraFields}
+										onSave={hitlEditState.onSave}
+										onClose={closeHitlEdit}
+									/>
+								</div>
+							)}
+							{effectiveTab === "citation" && citationOpen && citationState.chunkId != null && (
+								<div className="h-full flex flex-col">
+									<CitationPanelContent chunkId={citationState.chunkId} onClose={closeCitation} />
+								</div>
+							)}
+							{effectiveTab === "artifacts" && artifactsOpen && (
+								<div className="h-full flex flex-col">
+									<ArtifactsPanelContent onClose={closeArtifacts} />
+								</div>
+							)}
+						</div>
 					</div>
-				)}
-				{effectiveTab === "editor" && editorOpen && (
-					<div className="h-full flex flex-col">
-						<EditorPanelContent
-							kind={editorState.kind}
-							documentId={editorState.documentId ?? undefined}
-							localFilePath={editorState.localFilePath ?? undefined}
-							memoryScope={editorState.memoryScope ?? undefined}
-							workspaceId={editorState.workspaceId ?? undefined}
-							title={editorState.title}
-							onClose={closeEditor}
-						/>
-					</div>
-				)}
-				{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
-					<div className="h-full flex flex-col">
-						<HitlEditPanelContent
-							title={hitlEditState.title}
-							content={hitlEditState.content}
-							toolName={hitlEditState.toolName}
-							contentFormat={hitlEditState.contentFormat}
-							extraFields={hitlEditState.extraFields}
-							onSave={hitlEditState.onSave}
-							onClose={closeHitlEdit}
-						/>
-					</div>
-				)}
-				{effectiveTab === "citation" && citationOpen && citationState.chunkId != null && (
-					<div className="h-full flex flex-col">
-						<CitationPanelContent chunkId={citationState.chunkId} onClose={closeCitation} />
-					</div>
-				)}
-				{effectiveTab === "artifacts" && artifactsOpen && (
-					<div className="h-full flex flex-col">
-						<ArtifactsPanelContent onClose={closeArtifacts} />
-					</div>
-				)}
-			</div>
-		</aside>
+				</motion.aside>
+			) : null}
+		</AnimatePresence>
 	);
 }

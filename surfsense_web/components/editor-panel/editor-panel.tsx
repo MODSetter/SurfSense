@@ -574,28 +574,14 @@ export function EditorPanelContent({
 		<>
 			{showDesktopHeader ? (
 				<div className="shrink-0">
-					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
-						<h2 className="select-none text-lg font-semibold">File</h2>
-						<div className="flex items-center gap-1 shrink-0">
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={onClose}
-								className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
-							>
-								<XIcon className="h-4 w-4" />
-								<span className="sr-only">Close editor panel</span>
-							</Button>
-						</div>
-					</div>
-					<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+					<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 						<div className="min-w-0 flex flex-1 items-center gap-2">
 							<p className="truncate text-sm text-muted-foreground">{displayTitle}</p>
 							{memoryLimitState && (
 								<>
 									<Separator
 										orientation="vertical"
-										className="mx-1 bg-border data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-white/10"
+										className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
 									/>
 									<span className={`shrink-0 text-xs ${memoryCounterClassName}`}>
 										{memoryLimitState.label}
@@ -671,6 +657,19 @@ export function EditorPanelContent({
 									)}
 								</>
 							)}
+							<Separator
+								orientation="vertical"
+								className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
+							/>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onClose}
+								className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							>
+								<XIcon className="size-4" />
+								<span className="sr-only">Close editor panel</span>
+							</Button>
 						</div>
 					</div>
 				</div>
