@@ -667,6 +667,102 @@ async def search_documents(
         ) from e
 
 
+class SemanticSearchRequest(PydanticBaseModel):
+    """Request body for hybrid (semantic + keyword) knowledge-base search."""
+
+    workspace_id: int
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+    document_types: list[str] | None = Field(
+        default=None,
+        description="Optional DocumentType names to restrict the search to.",
+    )
+
+
+class SemanticSearchChunk(PydanticBaseModel):
+    content: str
+    position: int
+    score: float
+
+
+class SemanticSearchHit(PydanticBaseModel):
+    document_id: int
+    title: str
+    document_type: str | None = None
+    score: float
+    chunks: list[SemanticSearchChunk]
+
+
+class SemanticSearchResponse(PydanticBaseModel):
+    items: list[SemanticSearchHit]
+
+
+@router.post("/documents/search-semantic", response_model=SemanticSearchResponse)
+async def search_documents_semantic(
+    request: SemanticSearchRequest,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """Hybrid semantic + keyword search over a workspace's knowledge base.
+
+    Thin REST door onto the same retriever the chat agent uses: returns the most
+    relevant documents with their matching passages, ranked by relevance.
+    Requires DOCUMENTS_READ permission for the workspace.
+    """
+    # Local import: the retriever pulls in the embedding model + agent stack,
+    # so keep it out of module import (mirrors the celery-task imports here).
+    from app.agents.chat.multi_agent_chat.shared.retrieval.hybrid_search import (
+        search_chunks,
+    )
+    from app.agents.chat.multi_agent_chat.shared.retrieval.models import SearchScope
+
+    await check_permission(
+        session,
+        auth,
+        request.workspace_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this workspace",
+    )
+
+    scope = SearchScope(
+        document_types=tuple(request.document_types)
+        if request.document_types
+        else None,
+    )
+    try:
+        hits = await search_chunks(
+            session,
+            workspace_id=request.workspace_id,
+            query=request.query,
+            scope=scope,
+            top_k=request.top_k,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Semantic search failed: {e!s}"
+        ) from e
+
+    return SemanticSearchResponse(
+        items=[
+            SemanticSearchHit(
+                document_id=hit.document_id,
+                title=hit.title,
+                document_type=hit.document_type,
+                score=hit.score,
+                chunks=[
+                    SemanticSearchChunk(
+                        content=chunk.content,
+                        position=chunk.position,
+                        score=chunk.score,
+                    )
+                    for chunk in hit.chunks
+                ],
+            )
+            for hit in hits
+        ]
+    )
+
+
 @router.get("/documents/search/titles", response_model=DocumentTitleSearchResponse)
 async def search_document_titles(
     workspace_id: int,
