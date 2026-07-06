@@ -7,8 +7,11 @@ import {
 	ChevronRight,
 	FileText,
 	FolderClock,
+	FolderPlus,
 	Laptop,
+	ListFilter,
 	Lock,
+	MoreHorizontal,
 	Paperclip,
 	Server,
 	Trash2,
@@ -35,6 +38,7 @@ import {
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
+import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
@@ -57,6 +61,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,6 +86,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
@@ -117,6 +132,75 @@ function downloadTextFile(content: string, fileName: string, type = "text/markdo
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
+
+function EmbeddedDocumentsMenu({
+	typeCounts,
+	activeTypes,
+	onToggleType,
+	onCreateFolder,
+}: {
+	typeCounts: Partial<Record<string, number>>;
+	activeTypes: DocumentTypeEnum[];
+	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
+	onCreateFolder: () => void;
+}) {
+	const documentTypes = useMemo(
+		() => Object.keys(typeCounts).sort() as DocumentTypeEnum[],
+		[typeCounts]
+	);
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="relative h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					aria-label="Document actions"
+				>
+					<MoreHorizontal className="h-3.5 w-3.5" />
+					{activeTypes.length > 0 ? (
+						<span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+					) : null}
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" className="w-44">
+				<DropdownMenuItem onSelect={onCreateFolder}>
+					<FolderPlus className="h-4 w-4" />
+					New folder
+				</DropdownMenuItem>
+				<DropdownMenuSub>
+					<DropdownMenuSubTrigger>
+						<ListFilter className="h-4 w-4" />
+						Filter by type
+					</DropdownMenuSubTrigger>
+					<DropdownMenuSubContent className="w-52 max-h-72 overflow-y-auto">
+						{documentTypes.length > 0 ? (
+							documentTypes.map((type) => (
+								<DropdownMenuCheckboxItem
+									key={type}
+									checked={activeTypes.includes(type)}
+									onCheckedChange={(checked) => onToggleType(type, checked === true)}
+									onSelect={(event) => event.preventDefault()}
+								>
+									{getDocumentTypeIcon(type, "h-4 w-4")}
+									<span className="min-w-0 flex-1 truncate">{getDocumentTypeLabel(type)}</span>
+									<span className="ml-auto text-xs text-muted-foreground">
+										{typeCounts[type] ?? 0}
+									</span>
+								</DropdownMenuCheckboxItem>
+							))
+						) : (
+							<DropdownMenuItem disabled>No document types</DropdownMenuItem>
+						)}
+					</DropdownMenuSubContent>
+				</DropdownMenuSub>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
 
@@ -1472,11 +1556,15 @@ function AuthenticatedDocumentsSidebarBase({
 	if (embedded) {
 		return (
 			<div className="flex h-full min-h-0 flex-col text-sidebar-foreground">
-				{renderDocumentTree({
-					documents: treeDocumentsWithMemory,
-					activeTypesForTree: [],
-					searchQuery: undefined,
-				})}
+				<div className="flex shrink-0 justify-end px-2 pb-1">
+					<EmbeddedDocumentsMenu
+						typeCounts={typeCounts}
+						activeTypes={activeTypes}
+						onToggleType={onToggleType}
+						onCreateFolder={() => handleCreateFolder(null)}
+					/>
+				</div>
+				{renderDocumentTree()}
 			</div>
 		);
 	}
@@ -1847,6 +1935,14 @@ function AnonymousDocumentsSidebar({
 	if (embedded) {
 		return (
 			<div className="flex h-full min-h-0 flex-col text-sidebar-foreground">
+				<div className="flex shrink-0 justify-end px-2 pb-1">
+					<EmbeddedDocumentsMenu
+						typeCounts={hasDoc ? { FILE: 1 } : {}}
+						activeTypes={[]}
+						onToggleType={() => {}}
+						onCreateFolder={() => gate("create folders")}
+					/>
+				</div>
 				<FolderTreeView
 					folders={[]}
 					documents={treeDocuments}

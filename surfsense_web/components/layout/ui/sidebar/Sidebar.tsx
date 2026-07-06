@@ -181,7 +181,7 @@ export function Sidebar({
 			)}
 			style={{ width: isCollapsed ? collapsedWidth : sidebarWidth }}
 		>
-			<div className="relative flex h-12 shrink-0 items-center gap-0 px-1 border-b">
+			<div className="relative flex h-12 shrink-0 items-center gap-0 px-1">
 				<div
 					className={cn(
 						"min-w-0 overflow-hidden",
