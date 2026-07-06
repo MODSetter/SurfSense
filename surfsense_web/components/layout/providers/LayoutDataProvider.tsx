@@ -399,7 +399,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
 	const handleUserSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/user-settings`);
+		router.push(`/dashboard/${searchSpaceId}/user-settings/profile`);
 	}, [router, searchSpaceId]);
 
 	const handleAnnouncements = useCallback(() => {
@@ -408,7 +408,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const handleSearchSpaceSettings = useCallback(
 		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/search-space-settings`);
+			router.push(`/dashboard/${space.id}/search-space-settings/general`);
 		},
 		[router]
 	);
@@ -606,7 +606,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/search-space-settings`);
+		router.push(`/dashboard/${searchSpaceId}/search-space-settings/general`);
 	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
