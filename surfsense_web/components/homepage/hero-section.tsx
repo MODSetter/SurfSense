@@ -516,7 +516,7 @@ const CATEGORIES: HeroCategory[] = [
 	},
 	{
 		id: "platform-agent",
-		label: "Platform Agent",
+		label: "SurfSense Agent",
 		useCases: [
 			{
 				id: "chat-workspace",
