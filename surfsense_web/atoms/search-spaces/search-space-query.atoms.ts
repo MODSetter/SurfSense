@@ -5,6 +5,7 @@ import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export const activeSearchSpaceIdAtom = atom<string | null>(null);
+export const activeWorkspaceIdAtom = activeSearchSpaceIdAtom;
 
 export const searchSpacesQueryParamsAtom = atom<GetSearchSpacesRequest["queryParams"]>({
 	skip: 0,
