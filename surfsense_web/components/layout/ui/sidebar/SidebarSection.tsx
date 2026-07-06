@@ -80,7 +80,7 @@ export function SidebarSection({
 
 			<div
 				className={cn(
-					"grid flex-1 overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out",
+					"grid flex-1 overflow-hidden transition-opacity duration-200 ease-out",
 					isOpen ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0"
 				)}
 				aria-hidden={!isOpen}
