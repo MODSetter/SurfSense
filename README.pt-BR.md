@@ -31,6 +31,17 @@ O SurfSense é a **plataforma open source de inteligência competitiva para agen
 >
 > **Nada do que você usa vai deixar de existir.** Sua base de conhecimento, o chat com citações, os relatórios, os podcasts, as apresentações, as automações e os chats colaborativos continuam funcionando, e a auto-hospedagem segue gratuita e open source. Leia o anúncio completo no [nosso changelog](https://www.surfsense.com/changelog).
 
+## Sumário
+
+- [Por que os agentes precisam do SurfSense](#por-que-os-agentes-precisam-do-surfsense)
+- [O que você pode fazer com o SurfSense?](#o-que-você-pode-fazer-com-o-surfsense)
+- [Conectores de dados ao vivo](#conectores-de-dados-ao-vivo)
+- [Início rápido](#início-rápido)
+- [Tudo o mais que vem na caixa](#tudo-o-mais-que-vem-na-caixa)
+- [SurfSense vs Google NotebookLM](#surfsense-vs-google-notebooklm)
+- [Roadmap](#roadmap)
+- [Contribua](#contribua)
+
 ## Por que os agentes precisam do SurfSense
 
 Pergunte a qualquer agente capaz "quanto os concorrentes estão cobrando esta semana?" ou "o que o Reddit está dizendo sobre nós desde o lançamento?" e ele não terá nenhum lugar confiável para procurar. As APIs oficiais das plataformas têm limites de requisições, preços voltados para empresas ou simplesmente não existem, e a infraestrutura de scraping é frágil. O SurfSense fecha essa lacuna:
@@ -39,6 +50,52 @@ Pergunte a qualquer agente capaz "quanto os concorrentes estão cobrando esta se
 - **Um servidor MCP** que expõe cada conector como uma ferramenta nativa (`surfsense_reddit_scrape`, `surfsense_google_search` e outras) para o Claude, o Cursor ou qualquer framework de agentes.
 - **Um harness de agentes**, não apenas dados brutos: novas tentativas, saída estruturada e medição de créditos já vêm prontos, então os agentes vão de uma pergunta a um relatório sem que você precise construir a infraestrutura.
 - **Open source e auto-hospedável**, para que sua pesquisa competitiva permaneça na sua própria infraestrutura.
+
+## O que você pode fazer com o SurfSense?
+
+Cada caso de uso abaixo é uma tarefa real que o agente do SurfSense executa de ponta a ponta hoje, em um único prompt ou de forma agendada.
+
+### Fluxos de trabalho multi-conector
+
+Encadeie vários conectores em uma única execução do agente e receba um único relatório com citações.
+
+- **Impacto de um lançamento, em todas as plataformas** — "Nosso concorrente lançou a v2 ontem. Meça a reação nas buscas, no Reddit e no YouTube." O agente raspa SERPs, threads do Reddit e comentários do YouTube, e depois funde os três sinais em um único relatório de impacto do lançamento.
+- **Análise de concorrentes locais** — o Google Maps encontra os players, o rastreador web lê suas páginas de preços e o Google Search mostra quem vence a busca, tudo em uma única execução.
+- **Concorrente 360, de forma agendada** — uma automação encadeia quatro conectores toda semana: mudanças no site, movimentos de ranking, sentimento no Reddit e reação no YouTube.
+
+### Monitoramento de concorrentes
+
+- **Vigilância de preços** — extraia cada plano, preço e limite das páginas de preços dos concorrentes em uma única tabela, depois verifique novamente todo dia e receba alertas sobre qualquer mudança.
+- **Acompanhamento de produto e changelog** — rastreie as páginas de changelog, produto e vagas dos rivais toda segunda-feira e receba um relatório do que eles lançaram.
+- **Monitoramento de rankings e anúncios** — acompanhe os rankings do Google, os anúncios pagos e as citações em AI Overviews que o seu mercado realmente vê, e sinalize os movimentos dia a dia.
+
+### Geração de leads B2B
+
+- **Leads de negócios locais** — transforme uma categoria e um território ("hamburguerias em San Jose") em uma lista de leads com telefones, sites, avaliações e contatos de decisores extraídos dos sites deles.
+- **Equipes e contatos** — rastreie o site de qualquer empresa e extraia a equipe completa com e-mails, redes sociais e a origem de cada dado, exportado para CSV.
+- **Mapeamento de portfólios e mercados** — mapeie o portfólio de um investidor ou uma categoria inteira, e depois enriqueça cada empresa com preços e contatos.
+
+### Escuta de marca e mercado
+
+- **Monitoramento de marca no Reddit** — ouça o que o seu mercado diz sobre você, seus concorrentes e sua categoria nas threads onde os compradores falam com franqueza.
+- **Sentimento da audiência no YouTube** — colete vídeos, transcrições e comentários em escala, e depois agrupe o que as audiências elogiam e criticam.
+- **Mineração de intenção e de quem quer trocar** — encontre as pessoas que estão ativamente buscando uma alternativa a um concorrente, ordenadas por quão prontas estão para migrar.
+
+### Pesquisa de mercado
+
+- **Pesquisa profunda na web ao vivo** — o agente rastreia dezenas de fontes ao vivo sobre uma pergunta e sintetiza uma resposta com citações, não um índice desatualizado.
+- **Acompanhamento de AI Overviews e GEO** — capture quando os AI Overviews do Google respondem às buscas do seu mercado, e exatamente quais fontes eles citam.
+- **Relatórios e alertas com citações** — tudo o que os agentes coletam chega ao seu workspace como relatórios e alertas com fontes que você pode verificar.
+
+### Automatize qualquer uma dessas tarefas, sem código
+
+As automações executam turnos completos de agente de forma agendada ou em resposta a eventos, e depois gravam os resultados no Notion, Slack, Linear e Jira. Descreva o fluxo de trabalho em linguagem natural e o SurfSense o constrói. Experimente prompts como:
+
+- "Monitore as páginas de preços dos nossos 3 principais concorrentes e me avise no Slack quando um plano ou preço mudar."
+- "Acompanhe cada menção à nossa marca no Reddit e no YouTube e me envie um resumo diário."
+- "Monitore nosso ranking no Google para nossas 10 principais palavras-chave e sinalize quedas semana a semana."
+- "Colete os novos reviews do Google Maps das nossas unidades e das dos concorrentes toda segunda-feira."
+- "Execute um relatório mensal de análise de concorrentes e salve no meu workspace."
 
 ## Conectores de dados ao vivo
 
@@ -114,17 +171,6 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 ```
 
 O script de instalação configura o [Watchtower](https://github.com/nicholas-fedor/watchtower) automaticamente para atualizações automáticas diárias. Para pular essa etapa, adicione a flag `--no-watchtower`. Para Docker Compose, instalação manual e outras opções de implantação, consulte a [documentação](https://www.surfsense.com/docs/).
-
-## Fluxos de trabalho de inteligência competitiva
-
-As automações executam turnos completos de agente de forma agendada ou em resposta a eventos, e depois gravam os resultados no Notion, Slack, Linear e Jira. Descreva o fluxo de trabalho em linguagem natural e o SurfSense o constrói, sem precisar de código. Experimente prompts como:
-
-- "Monitore as páginas de preços dos nossos 3 principais concorrentes e me avise no Slack quando um plano ou preço mudar."
-- "Acompanhe cada menção à nossa marca no Reddit e no YouTube e me envie um resumo diário."
-- "Monitore nosso ranking no Google para nossas 10 principais palavras-chave e sinalize quedas semana a semana."
-- "Colete os novos reviews do Google Maps das nossas unidades e das dos concorrentes toda segunda-feira."
-- "Execute um relatório mensal de análise de concorrentes e salve no meu workspace."
-
 
 ## Tudo o mais que vem na caixa
 

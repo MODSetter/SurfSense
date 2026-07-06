@@ -31,6 +31,17 @@ SurfSense is the **open-source competitive intelligence platform for AI agents**
 >
 > **Nothing you rely on is going away.** Your knowledge base, chat with citations, reports, podcasts, presentations, automations, and collaborative chats all keep working, and self-hosting stays free and open source. Read the full announcement on [our changelog](https://www.surfsense.com/changelog).
 
+## Table of contents
+
+- [Why agents need SurfSense](#why-agents-need-surfsense)
+- [What can you do with SurfSense?](#what-can-you-do-with-surfsense)
+- [Live data connectors](#live-data-connectors)
+- [Quick start](#quick-start)
+- [Everything else in the box](#everything-else-in-the-box)
+- [SurfSense vs Google NotebookLM](#surfsense-vs-google-notebooklm)
+- [Roadmap](#roadmap)
+- [Contribute](#contribute)
+
 ## Why agents need SurfSense
 
 Ask any capable agent "what are competitors charging this week?" or "what is Reddit saying about us since the launch?" and it has nowhere trustworthy to look. Official platform APIs are rate-limited, priced for enterprises, or missing entirely, and scraping plumbing is brittle. SurfSense closes that gap:
@@ -39,6 +50,52 @@ Ask any capable agent "what are competitors charging this week?" or "what is Red
 - **An MCP server** that exposes every connector as a native tool (`surfsense_reddit_scrape`, `surfsense_google_search`, and more) to Claude, Cursor, or any agent framework.
 - **An agent harness**, not just raw data: retries, structured output, and credit metering are built in, so agents go from a question to a brief without you building the plumbing.
 - **Open source and self-hostable**, so your competitive research stays on your own infrastructure.
+
+## What can you do with SurfSense?
+
+Every use case below is a real task the SurfSense agent runs end-to-end today, in one prompt or on a schedule.
+
+### Multi-connector workflows
+
+Chain several connectors in a single agent run and get one cited brief back.
+
+- **Launch impact, across every platform** — "Our competitor launched v2 yesterday. Measure the reaction across search, Reddit, and YouTube." The agent scrapes SERPs, Reddit threads, and YouTube comments, then merges all three signals into one launch-impact brief.
+- **Local competitor teardown** — Google Maps finds the players, the web crawler reads their pricing pages, and Google Search shows who wins the query, in one run.
+- **Competitor 360, on a schedule** — an automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.
+
+### Competitor monitoring
+
+- **Pricing watch** — extract every plan, price, and limit from competitors' pricing pages into one table, then re-check daily and alert on any change.
+- **Product & changelog tracking** — crawl rivals' changelog, product, and careers pages every Monday and get a brief on what they shipped.
+- **Rank & ad monitoring** — track the Google rankings, paid ads, and AI Overview citations your market actually sees, and flag movements day over day.
+
+### B2B lead generation
+
+- **Local business leads** — turn a category and a territory ("burger places in San Jose") into a lead list with phones, websites, ratings, and decision-maker contacts pulled from their sites.
+- **Team rosters & contacts** — spider any company site and pull the full team with emails, socials, and source provenance, exported to CSV.
+- **Portfolio & market mapping** — map an investor's portfolio or a whole category, then enrich every company with pricing and contacts.
+
+### Brand & market listening
+
+- **Reddit brand monitoring** — hear what your market says about you, your competitors, and your category in the threads where buyers speak candidly.
+- **YouTube audience sentiment** — pull videos, transcripts, and comments at scale, then cluster what audiences praise and complain about.
+- **Switcher & intent mining** — find the people actively asking for an alternative to a competitor, ranked by how ready they are to move.
+
+### Market research
+
+- **Deep research on the live web** — the agent crawls dozens of live sources on a question and synthesizes a cited answer, not a stale index.
+- **AI Overview & GEO tracking** — capture when Google's AI Overviews answer your market's queries, and exactly which sources they cite.
+- **Cited briefs & alerts** — everything the agents gather lands in your workspace as briefs and alerts with sources you can check.
+
+### Automate any of it, no code
+
+Automations run full agent turns on a schedule or in response to events, then write results back to Notion, Slack, Linear, and Jira. Describe the workflow in plain English and SurfSense builds it. Try prompts like:
+
+- "Watch our top 3 competitors' pricing pages and alert me in Slack when a plan or price changes."
+- "Track every mention of our brand on Reddit and YouTube and send me a daily digest."
+- "Monitor our Google ranking for our top 10 keywords and flag drops week over week."
+- "Pull new Google Maps reviews for our locations and our competitors' every Monday."
+- "Run a monthly competitor analysis report and save it to my workspace."
 
 ## Live data connectors
 
@@ -113,16 +170,6 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 ```
 
 The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag. For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
-
-## Competitive intelligence workflows
-
-Automations run full agent turns on a schedule or in response to events, then write results back to Notion, Slack, Linear, and Jira. Describe the workflow in plain English and SurfSense builds it, no code needed. Try prompts like:
-
-- "Watch our top 3 competitors' pricing pages and alert me in Slack when a plan or price changes."
-- "Track every mention of our brand on Reddit and YouTube and send me a daily digest."
-- "Monitor our Google ranking for our top 10 keywords and flag drops week over week."
-- "Pull new Google Maps reviews for our locations and our competitors' every Monday."
-- "Run a monthly competitor analysis report and save it to my workspace."
 
 ## Everything else in the box
 
