@@ -336,13 +336,18 @@ export function Sidebar({
 						)}
 					</SidebarSection>
 					{documentsPanel?.open ? (
-						<div className="min-h-0 flex-1 border-t">
+						<SidebarSection
+							title={documentsItem?.title ?? "Documents"}
+							defaultOpen={true}
+							fillHeight
+							contentClassName="px-0"
+						>
 							<DocumentsSidebar
 								open={documentsPanel.open}
 								onOpenChange={documentsPanel.onOpenChange}
 								embedded
 							/>
-						</div>
+						</SidebarSection>
 					) : null}
 				</div>
 			)}

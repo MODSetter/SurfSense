@@ -13,6 +13,7 @@ interface SidebarSectionProps {
 	alwaysShowAction?: boolean;
 	persistentAction?: React.ReactNode;
 	className?: string;
+	contentClassName?: string;
 	fillHeight?: boolean;
 }
 
@@ -24,6 +25,7 @@ export function SidebarSection({
 	alwaysShowAction = false,
 	persistentAction,
 	className,
+	contentClassName,
 	fillHeight = false,
 }: SidebarSectionProps) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -69,7 +71,9 @@ export function SidebarSection({
 			</div>
 
 			<CollapsibleContent className={cn("overflow-hidden flex-1 flex flex-col min-h-0")}>
-				<div className={cn("px-2 flex-1 flex flex-col min-h-0 overflow-hidden")}>{children}</div>
+				<div className={cn("px-2 flex-1 flex flex-col min-h-0 overflow-hidden", contentClassName)}>
+					{children}
+				</div>
 			</CollapsibleContent>
 		</Collapsible>
 	);

@@ -1097,6 +1097,81 @@ function AuthenticatedDocumentsSidebarBase({
 		currentFilesystemTab === "cloud" &&
 		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
 
+	const renderDocumentTree = ({
+		documents = searchFilteredDocuments,
+		activeTypesForTree = activeTypes,
+		searchQuery = debouncedSearch.trim() || undefined,
+	}: {
+		documents?: DocumentNodeDoc[];
+		activeTypesForTree?: DocumentTypeEnum[];
+		searchQuery?: string;
+	} = {}) => (
+		<div className="relative flex-1 min-h-0 overflow-auto">
+			{deletableSelectedIds.length > 0 && (
+				<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
+					<Button
+						type="button"
+						variant="destructive"
+						size="sm"
+						onClick={() => setBulkDeleteConfirmOpen(true)}
+						className="pointer-events-auto h-auto gap-1.5 px-3 py-1 text-xs shadow-lg"
+					>
+						<Trash2 size={12} />
+						Delete {deletableSelectedIds.length}{" "}
+						{deletableSelectedIds.length === 1 ? "item" : "items"}
+					</Button>
+				</div>
+			)}
+
+			{showCloudSkeleton ? (
+				<CloudDocumentsSkeleton />
+			) : (
+				<FolderTreeView
+					folders={treeFolders}
+					documents={documents}
+					expandedIds={expandedIds}
+					onToggleExpand={toggleFolderExpand}
+					mentionedDocKeys={mentionedDocKeys}
+					onToggleChatMention={handleToggleChatMention}
+					onToggleFolderSelect={handleToggleFolderSelect}
+					onRenameFolder={handleRenameFolder}
+					onDeleteFolder={handleDeleteFolder}
+					onMoveFolder={handleMoveFolder}
+					onCreateFolder={handleCreateFolder}
+					searchQuery={searchQuery}
+					onPreviewDocument={(doc) => {
+						if (openMemoryDocument(doc)) return;
+						openEditorPanel({
+							documentId: doc.id,
+							searchSpaceId,
+							title: doc.title,
+						});
+					}}
+					onEditDocument={(doc) => {
+						if (openMemoryDocument(doc)) return;
+						openEditorPanel({
+							documentId: doc.id,
+							searchSpaceId,
+							title: doc.title,
+						});
+					}}
+					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+					onMoveDocument={handleMoveDocument}
+					onResetDocument={handleResetMemoryDocument}
+					onExportDocument={handleExportDocument}
+					onVersionHistory={(doc) => setVersionDocId(doc.id)}
+					activeTypes={activeTypesForTree}
+					onDropIntoFolder={handleDropIntoFolder}
+					onReorderFolder={handleReorderFolder}
+					watchedFolderIds={watchedFolderIds}
+					onRescanFolder={handleRescanFolder}
+					onStopWatchingFolder={handleStopWatching}
+					onExportFolder={handleExportFolder}
+				/>
+			)}
+		</div>
+	);
+
 	const cloudContent = (
 		<>
 			{isElectron && (
@@ -1124,70 +1199,7 @@ function AuthenticatedDocumentsSidebarBase({
 					/>
 				</div>
 
-				<div className="relative flex-1 min-h-0 overflow-auto">
-					{deletableSelectedIds.length > 0 && (
-						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
-							<Button
-								type="button"
-								variant="destructive"
-								size="sm"
-								onClick={() => setBulkDeleteConfirmOpen(true)}
-								className="pointer-events-auto h-auto gap-1.5 px-3 py-1 text-xs shadow-lg"
-							>
-								<Trash2 size={12} />
-								Delete {deletableSelectedIds.length}{" "}
-								{deletableSelectedIds.length === 1 ? "item" : "items"}
-							</Button>
-						</div>
-					)}
-
-					{showCloudSkeleton ? (
-						<CloudDocumentsSkeleton />
-					) : (
-						<FolderTreeView
-							folders={treeFolders}
-							documents={searchFilteredDocuments}
-							expandedIds={expandedIds}
-							onToggleExpand={toggleFolderExpand}
-							mentionedDocKeys={mentionedDocKeys}
-							onToggleChatMention={handleToggleChatMention}
-							onToggleFolderSelect={handleToggleFolderSelect}
-							onRenameFolder={handleRenameFolder}
-							onDeleteFolder={handleDeleteFolder}
-							onMoveFolder={handleMoveFolder}
-							onCreateFolder={handleCreateFolder}
-							searchQuery={debouncedSearch.trim() || undefined}
-							onPreviewDocument={(doc) => {
-								if (openMemoryDocument(doc)) return;
-								openEditorPanel({
-									documentId: doc.id,
-									searchSpaceId,
-									title: doc.title,
-								});
-							}}
-							onEditDocument={(doc) => {
-								if (openMemoryDocument(doc)) return;
-								openEditorPanel({
-									documentId: doc.id,
-									searchSpaceId,
-									title: doc.title,
-								});
-							}}
-							onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-							onMoveDocument={handleMoveDocument}
-							onResetDocument={handleResetMemoryDocument}
-							onExportDocument={handleExportDocument}
-							onVersionHistory={(doc) => setVersionDocId(doc.id)}
-							activeTypes={activeTypes}
-							onDropIntoFolder={handleDropIntoFolder}
-							onReorderFolder={handleReorderFolder}
-							watchedFolderIds={watchedFolderIds}
-							onRescanFolder={handleRescanFolder}
-							onStopWatchingFolder={handleStopWatching}
-							onExportFolder={handleExportFolder}
-						/>
-					)}
-				</div>
+				{renderDocumentTree()}
 			</div>
 		</>
 	);
@@ -1459,8 +1471,12 @@ function AuthenticatedDocumentsSidebarBase({
 
 	if (embedded) {
 		return (
-			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-				{documentsContent}
+			<div className="flex h-full min-h-0 flex-col text-sidebar-foreground">
+				{renderDocumentTree({
+					documents: treeDocumentsWithMemory,
+					activeTypesForTree: [],
+					searchQuery: undefined,
+				})}
 			</div>
 		);
 	}
@@ -1830,8 +1846,37 @@ function AnonymousDocumentsSidebar({
 
 	if (embedded) {
 		return (
-			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-				{documentsContent}
+			<div className="flex h-full min-h-0 flex-col text-sidebar-foreground">
+				<FolderTreeView
+					folders={[]}
+					documents={treeDocuments}
+					expandedIds={new Set()}
+					onToggleExpand={() => {}}
+					mentionedDocKeys={mentionedDocKeys}
+					onToggleChatMention={handleToggleChatMention}
+					onToggleFolderSelect={() => {}}
+					onRenameFolder={() => gate("rename folders")}
+					onDeleteFolder={() => gate("delete folders")}
+					onMoveFolder={() => gate("organize folders")}
+					onCreateFolder={() => gate("create folders")}
+					onPreviewDocument={() => gate("preview documents")}
+					onEditDocument={() => gate("edit documents")}
+					onDeleteDocument={async () => {
+						handleRemoveDoc();
+						setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== -1));
+						return true;
+					}}
+					onMoveDocument={() => gate("organize documents")}
+					onExportDocument={() => gate("export documents")}
+					onVersionHistory={() => gate("view version history")}
+					activeTypes={[]}
+					onDropIntoFolder={async () => gate("organize documents")}
+					onReorderFolder={async () => gate("organize folders")}
+					watchedFolderIds={new Set()}
+					onRescanFolder={() => gate("watch local folders")}
+					onStopWatchingFolder={() => gate("watch local folders")}
+					onExportFolder={() => gate("export folders")}
+				/>
 			</div>
 		);
 	}
