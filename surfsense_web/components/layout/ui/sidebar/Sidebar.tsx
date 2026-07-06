@@ -16,6 +16,7 @@ import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
+import { DocumentsSidebar } from "./DocumentsSidebar";
 import { NavSection } from "./NavSection";
 import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
@@ -76,6 +77,10 @@ interface SidebarProps {
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
 	isAllChatsActive?: boolean;
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -113,6 +118,7 @@ export function Sidebar({
 	onChatArchive,
 	onViewAllChats,
 	isAllChatsActive = false,
+	documentsPanel,
 	user,
 	onSettings,
 	onManageMembers,
@@ -136,11 +142,9 @@ export function Sidebar({
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
-	// Inbox, Automations, and Documents are rendered explicitly right below
+	// Inbox, Automations, and Artifacts are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
-	// in the bottom NavSection. Documents is only present in navItems on
-	// mobile; Automations is identified by URL suffix so the same code path
-	// works across search spaces.
+	// in the bottom NavSection. Documents is embedded below Recents.
 	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
@@ -280,7 +284,10 @@ export function Sidebar({
 					<SidebarSection
 						title={t("recents")}
 						defaultOpen={true}
-						fillHeight={true}
+						fillHeight={!documentsPanel?.open}
+						className={
+							documentsPanel?.open ? "flex shrink-0 flex-col min-h-0 max-h-[35%]" : undefined
+						}
 						alwaysShowAction={!disableTooltips && isAllChatsActive}
 						action={
 							onViewAllChats ? (
@@ -328,6 +335,15 @@ export function Sidebar({
 							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
 						)}
 					</SidebarSection>
+					{documentsPanel?.open ? (
+						<div className="min-h-0 flex-1 border-t">
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
+								embedded
+							/>
+						</div>
+					) : null}
 				</div>
 			)}
 

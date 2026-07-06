@@ -12,7 +12,6 @@ import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
-import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
@@ -133,7 +132,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
-	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 
 	// Open documents sidebar by default on desktop (docked mode)
 	const documentsInitialized = useRef(false);
@@ -335,9 +333,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
-	// Inbox, Automations, and Documents are rendered explicitly below "New chat"
+	// Inbox, Automations, and Artifacts are rendered explicitly below "New chat"
 	// in the sidebar (also surfaced in the icon rail's collapsed mode via this
-	// list). Announcements has been moved to the avatar dropdown.
+	// list). Documents is embedded below Recents; announcements live in the avatar dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const navItems: NavItem[] = useMemo(
@@ -523,27 +521,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				return;
 			}
 			if (item.url === "#documents") {
-				if (!isMobile) {
-					if (!isDocumentsSidebarOpen) {
-						setIsDocumentsSidebarOpen(true);
-						setIsRightPanelCollapsed(false);
+				setIsDocumentsSidebarOpen((prev) => {
+					if (!prev) {
 						setActiveSlideoutPanel(null);
-					} else {
-						setIsRightPanelCollapsed((prev) => !prev);
 					}
-				} else {
-					setIsDocumentsSidebarOpen((prev) => {
-						if (!prev) {
-							setActiveSlideoutPanel(null);
-						}
-						return !prev;
-					});
-				}
+					return !prev;
+				});
 				return;
 			}
 			router.push(item.url);
 		},
-		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
+		[router, setIsDocumentsSidebarOpen]
 	);
 
 	const handleNewChat = useCallback(() => {

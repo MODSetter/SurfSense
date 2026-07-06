@@ -1359,6 +1359,10 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								<Camera className="h-4 w-4" />
 								Take a screenshot
 							</DropdownMenuItem>
+							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
+								<Unplug className="h-4 w-4" />
+								Manage Connectors
+							</DropdownMenuItem>
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
 								onOpenChange={(open) => {

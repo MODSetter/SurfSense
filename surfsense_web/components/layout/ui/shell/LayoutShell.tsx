@@ -440,6 +440,7 @@ export function LayoutShell({
 								onChatArchive={onChatArchive}
 								onViewAllChats={onViewAllChats}
 								isAllChatsActive={isAllChatsPage}
+								documentsPanel={documentsPanel}
 								user={user}
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}
@@ -532,17 +533,8 @@ export function LayoutShell({
 										{children}
 									</MainContentPanel>
 
-									{/* Right panel — tabbed Sources/Report (desktop only) */}
-									{documentsPanel ? (
-										<RightPanel
-											documentsPanel={{
-												open: documentsPanel.open,
-												onOpenChange: documentsPanel.onOpenChange,
-											}}
-											showCollapseButton={!isMacDesktop}
-											showTopBorder={isMacDesktop}
-										/>
-									) : null}
+									{/* Right panel — Report/Editor/Citations/Artifacts (desktop only) */}
+									<RightPanel showTopBorder={isMacDesktop} />
 								</>
 							)}
 						</DesktopWorkspaceRegion>

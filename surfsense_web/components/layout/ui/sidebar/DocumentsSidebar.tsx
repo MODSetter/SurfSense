@@ -12,7 +12,6 @@ import {
 	Paperclip,
 	Server,
 	Trash2,
-	Unplug,
 	Upload,
 	X,
 } from "lucide-react";
@@ -25,8 +24,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
-import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
@@ -58,7 +55,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,7 +63,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -167,18 +162,6 @@ interface WatchedFolderEntry {
 	active: boolean;
 }
 
-const SHOWCASE_CONNECTORS = [
-	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
-	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
-	{ type: "NOTION_CONNECTOR", label: "Notion" },
-	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
-	{ type: "GOOGLE_CALENDAR_CONNECTOR", label: "Google Calendar" },
-	{ type: "SLACK_CONNECTOR", label: "Slack" },
-	{ type: "LINEAR_CONNECTOR", label: "Linear" },
-	{ type: "JIRA_CONNECTOR", label: "Jira" },
-	{ type: "GITHUB_CONNECTOR", label: "GitHub" },
-] as const;
-
 interface DocumentsSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -228,11 +211,8 @@ function AuthenticatedDocumentsSidebarBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const searchSpaceId = getWorkspaceIdNumber(params) ?? 0;
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
-	const { data: connectors } = useAtomValue(connectorsAtom);
-	const connectorCount = connectors?.length ?? 0;
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
@@ -1116,76 +1096,9 @@ function AuthenticatedDocumentsSidebarBase({
 	const showCloudSkeleton =
 		currentFilesystemTab === "cloud" &&
 		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
-	const connectorButtonLabel = connectorCount > 0 ? "Manage connectors" : "Connect your connectors";
 
 	const cloudContent = (
 		<>
-			{/* Connected tools strip */}
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={() => setConnectorDialogOpen(true)}
-				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
-			>
-				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">{connectorButtonLabel}</span>
-				{connectorCount > 0 && (
-					<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-						{connectorCount}
-					</span>
-				)}
-				<AvatarGroup className="ml-auto shrink-0">
-					{connectorCount > 0 && connectors
-						? connectors.slice(0, isMobile ? 5 : 9).map((connector, i) => {
-								const avatar = (
-									<Avatar
-										key={connector.id}
-										className="size-6"
-										style={{ zIndex: Math.max(9 - i, 1) }}
-									>
-										<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-											{getConnectorIcon(connector.connector_type, "size-3.5")}
-										</AvatarFallback>
-									</Avatar>
-								);
-								if (isMobile) return avatar;
-								return (
-									<Tooltip key={connector.id}>
-										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-										<TooltipContent side="top" className="text-xs">
-											{connector.name}
-										</TooltipContent>
-									</Tooltip>
-								);
-							})
-						: (isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
-								({ type, label }, i) => {
-									const avatar = (
-										<Avatar
-											key={type}
-											className="size-6"
-											style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-										>
-											<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-												{getConnectorIcon(type, "size-3.5")}
-											</AvatarFallback>
-										</Avatar>
-									);
-									if (isMobile) return avatar;
-									return (
-										<Tooltip key={type}>
-											<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-											<TooltipContent side="top" className="text-xs">
-												{label}
-											</TooltipContent>
-										</Tooltip>
-									);
-								}
-							)}
-				</AvatarGroup>
-			</Button>
-
 			{isElectron && (
 				<Button
 					type="button"
@@ -1541,7 +1454,6 @@ function AuthenticatedDocumentsSidebarBase({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-
 		</>
 	);
 
@@ -1825,44 +1737,6 @@ function AnonymousDocumentsSidebar({
 				</div>
 			</div>
 
-			{/* Connectors strip (gated) */}
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={() => gate("connect your data sources")}
-				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground"
-			>
-				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">Connect your connectors</span>
-				<AvatarGroup className="ml-auto shrink-0">
-					{(isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
-						({ type, label }, i) => {
-							const avatar = (
-								<Avatar
-									key={type}
-									className="size-6"
-									style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-								>
-									<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-										{getConnectorIcon(type, "size-3.5")}
-									</AvatarFallback>
-								</Avatar>
-							);
-							if (isMobile) return avatar;
-							return (
-								<Tooltip key={type}>
-									<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-									<TooltipContent side="top" className="text-xs">
-										{label}
-									</TooltipContent>
-								</Tooltip>
-							);
-						}
-					)}
-				</AvatarGroup>
-			</Button>
-
 			{/* Filters & upload */}
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
 				<div className="px-4 pb-1.5">
@@ -1873,7 +1747,6 @@ function AnonymousDocumentsSidebar({
 						onToggleType={() => {}}
 						activeTypes={[]}
 						onCreateFolder={() => gate("create folders")}
-						onUploadClick={handleAnonUploadClick}
 					/>
 				</div>
 

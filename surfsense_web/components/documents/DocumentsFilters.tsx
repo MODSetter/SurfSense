@@ -1,9 +1,8 @@
 "use client";
 
-import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { FolderPlus, ListFilter, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -21,7 +20,6 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
-	onUploadClick,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -29,14 +27,10 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
-	onUploadClick?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
-
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
-	const handleUpload = onUploadClick ?? openUploadDialog;
 
 	const [typeSearchQuery, setTypeSearchQuery] = useState("");
 	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
@@ -207,18 +201,6 @@ export function DocumentsFilters({
 						</Button>
 					)}
 				</div>
-
-				{/* Upload Button */}
-				<Button
-					data-joyride="upload-button"
-					onClick={handleUpload}
-					variant="outline"
-					size="sm"
-					className="h-8 shrink-0 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
-				>
-					<Upload size={13} />
-					<span>Upload</span>
-				</Button>
 			</div>
 		</div>
 	);
