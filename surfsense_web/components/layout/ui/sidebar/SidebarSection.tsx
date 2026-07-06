@@ -41,7 +41,7 @@ export function SidebarSection({
 				className
 			)}
 		>
-			<div className="flex items-center group/section shrink-0 px-4 py-1">
+			<div className="flex items-center group/section shrink-0 pl-4 pr-2.5 py-1">
 				<CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-accent-foreground transition-colors min-w-0">
 					<span className="truncate">{title}</span>
 					<ChevronRight
@@ -66,7 +66,15 @@ export function SidebarSection({
 				)}
 
 				{persistentAction && (
-					<div className="shrink-0 ml-auto flex items-center">{persistentAction}</div>
+					<div
+						className={cn(
+							"shrink-0 ml-auto flex items-center transition-opacity",
+							isOpen ? "opacity-100" : "pointer-events-none opacity-0"
+						)}
+						aria-hidden={!isOpen}
+					>
+						{persistentAction}
+					</div>
 				)}
 			</div>
 

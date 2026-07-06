@@ -11,9 +11,9 @@ import {
 	Laptop,
 	ListFilter,
 	Lock,
-	MoreHorizontal,
 	Paperclip,
 	Server,
+	SlidersVertical,
 	Trash2,
 	Upload,
 	X,
@@ -92,6 +92,7 @@ import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
+import { SidebarSection } from "./SidebarSection";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 const DesktopLocalTabContent = dynamic(
@@ -133,7 +134,7 @@ function downloadTextFile(content: string, fileName: string, type = "text/markdo
 	URL.revokeObjectURL(url);
 }
 
-function EmbeddedDocumentsMenu({
+export function EmbeddedDocumentsMenu({
 	typeCounts,
 	activeTypes,
 	onToggleType,
@@ -159,7 +160,7 @@ function EmbeddedDocumentsMenu({
 					className="relative h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 					aria-label="Document actions"
 				>
-					<MoreHorizontal className="h-3.5 w-3.5" />
+					<SlidersVertical className="h-3.5 w-3.5" />
 					{activeTypes.length > 0 ? (
 						<span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
 					) : null}
@@ -1555,17 +1556,22 @@ function AuthenticatedDocumentsSidebarBase({
 
 	if (embedded) {
 		return (
-			<div className="flex h-full min-h-0 flex-col text-sidebar-foreground">
-				<div className="flex shrink-0 justify-end px-2 pb-1">
+			<SidebarSection
+				title={t("title") || "Documents"}
+				defaultOpen={true}
+				fillHeight
+				contentClassName="px-0"
+				persistentAction={
 					<EmbeddedDocumentsMenu
 						typeCounts={typeCounts}
 						activeTypes={activeTypes}
 						onToggleType={onToggleType}
 						onCreateFolder={() => handleCreateFolder(null)}
 					/>
-				</div>
+				}
+			>
 				{renderDocumentTree()}
-			</div>
+			</SidebarSection>
 		);
 	}
 
@@ -1934,15 +1940,20 @@ function AnonymousDocumentsSidebar({
 
 	if (embedded) {
 		return (
-			<div className="flex h-full min-h-0 flex-col text-sidebar-foreground">
-				<div className="flex shrink-0 justify-end px-2 pb-1">
+			<SidebarSection
+				title={t("title") || "Documents"}
+				defaultOpen={true}
+				fillHeight
+				contentClassName="px-0"
+				persistentAction={
 					<EmbeddedDocumentsMenu
 						typeCounts={hasDoc ? { FILE: 1 } : {}}
 						activeTypes={[]}
 						onToggleType={() => {}}
 						onCreateFolder={() => gate("create folders")}
 					/>
-				</div>
+				}
+			>
 				<FolderTreeView
 					folders={[]}
 					documents={treeDocuments}
@@ -1973,7 +1984,7 @@ function AnonymousDocumentsSidebar({
 					onStopWatchingFolder={() => gate("watch local folders")}
 					onExportFolder={() => gate("export folders")}
 				/>
-			</div>
+			</SidebarSection>
 		);
 	}
 
