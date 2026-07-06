@@ -1,7 +1,7 @@
 import type { GetConnectorsRequest } from "@/contracts/types/connector.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLogsRequest } from "@/contracts/types/log.types";
-import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
+import type { GetSearchSpacesRequest } from "@/contracts/types/workspace.types";
 
 /**
  * Convert an object to a stable array of [key, value] pairs sorted by key.

@@ -3,8 +3,8 @@
 import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { activeTabAtom } from "@/atoms/tabs/tabs.atom";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ActionLogButton } from "@/components/agent-action-log/action-log-button";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
 import { ArtifactsToggleButton } from "@/features/chat-artifacts";
@@ -16,7 +16,7 @@ interface HeaderProps {
 
 export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const pathname = usePathname();
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
 	const activeTab = useAtomValue(activeTabAtom);
 
 	const isFreePage = pathname?.startsWith("/free") ?? false;
@@ -56,7 +56,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 			id: currentThreadState.id,
 			visibility: currentThreadState.visibility,
 			created_by_id: null,
-			search_space_id: currentThreadState.searchSpaceId,
+			workspace_id: currentThreadState.searchSpaceId,
 			title: "",
 			archived: false,
 			created_at: "",

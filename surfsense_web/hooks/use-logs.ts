@@ -24,8 +24,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 
 			const allFilters = { ...memoizedFilters, ...customFilters };
 
-			if (allFilters.search_space_id) {
-				params.search_space_id = allFilters.search_space_id.toString();
+			if (allFilters.workspace_id) {
+				params.workspace_id = allFilters.workspace_id.toString();
 			}
 			if (allFilters.level) {
 				params.level = allFilters.level;
@@ -55,13 +55,13 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 		refetch,
 	} = useQuery({
 		queryKey: cacheKeys.logs.withQueryParams({
-			search_space_id: searchSpaceId,
+			workspace_id: searchSpaceId,
 			...buildQueryParams(filters ?? {}),
 		}),
 		queryFn: () =>
 			logsApiService.getLogs({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					...buildQueryParams(filters ?? {}),
 				},
 			}),
@@ -95,7 +95,7 @@ export function useLogsSummary(
 		queryKey: cacheKeys.logs.summary(searchSpaceId),
 		queryFn: () =>
 			logsApiService.getLogSummary({
-				search_space_id: searchSpaceId,
+				workspace_id: searchSpaceId,
 				hours: hours,
 			}),
 		enabled: !!searchSpaceId,

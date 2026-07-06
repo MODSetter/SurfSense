@@ -30,9 +30,9 @@ class PromptsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { search_space_id, ...body } = parsed.data;
+		const { workspace_id, ...body } = parsed.data;
 		return baseApiService.post("/api/v1/prompts", promptRead, {
-			body: { ...body, workspace_id: search_space_id },
+			body: { ...body, workspace_id },
 		});
 	};
 

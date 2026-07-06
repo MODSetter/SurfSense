@@ -8,13 +8,13 @@ import { toast } from "sonner";
 import {
 	updateSearchSpaceApiAccessMutationAtom,
 	updateSearchSpaceMutationAtom,
-} from "@/atoms/search-spaces/search-space-mutation.atoms";
+} from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -58,7 +58,7 @@ export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerPr
 		setIsExporting(true);
 		try {
 			const response = await authenticatedFetch(
-				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`),
+				buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/export`),
 				{ method: "GET" }
 			);
 			if (!response.ok) {

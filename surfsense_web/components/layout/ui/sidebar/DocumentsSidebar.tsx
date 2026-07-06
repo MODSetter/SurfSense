@@ -8,10 +8,16 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
+import { searchSpacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
@@ -51,6 +57,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
@@ -234,7 +241,8 @@ function AuthenticatedDocumentsSidebarBase({
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
-	const searchSpaceId = getWorkspaceIdNumber(params) ?? 0;
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
@@ -248,7 +256,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 		if (folders.length === 0) {
 			try {
-				const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+				const backendFolders = await documentsApiService.getWatchedFolders(workspaceId);
 				for (const bf of backendFolders) {
 					const meta = bf.metadata as Record<string, unknown> | null;
 					if (!meta?.watched || !meta.folder_path) continue;
@@ -256,7 +264,7 @@ function AuthenticatedDocumentsSidebarBase({
 						path: meta.folder_path as string,
 						name: bf.name,
 						rootFolderId: bf.id,
-						searchSpaceId: bf.search_space_id,
+						searchSpaceId: bf.workspace_id,
 						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
 						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
 						active: true,
@@ -281,7 +289,7 @@ function AuthenticatedDocumentsSidebarBase({
 				.map((f: WatchedFolderEntry) => f.rootFolderId as number)
 		);
 		setWatchedFolderIds(ids);
-	}, [searchSpaceId, electronAPI]);
+	}, [workspaceId, electronAPI]);
 
 	useEffect(() => {
 		refreshWatchedIds();
@@ -297,24 +305,28 @@ function AuthenticatedDocumentsSidebarBase({
 	// Folder state
 	const [expandedFolderMap, setExpandedFolderMap] = useAtom(expandedFolderIdsAtom);
 	const expandedIds = useMemo(
-		() => new Set(expandedFolderMap[searchSpaceId] ?? []),
-		[expandedFolderMap, searchSpaceId]
+		() => new Set(expandedFolderMap[workspaceId] ?? []),
+		[expandedFolderMap, workspaceId]
 	);
 	const toggleFolderExpand = useCallback(
 		(folderId: number) => {
 			setExpandedFolderMap((prev) => {
-				const current = new Set(prev[searchSpaceId] ?? []);
+				const current = new Set(prev[workspaceId] ?? []);
 				if (current.has(folderId)) current.delete(folderId);
 				else current.add(folderId);
-				return { ...prev, [searchSpaceId]: [...current] };
+				return { ...prev, [workspaceId]: [...current] };
 			});
 		},
-		[searchSpaceId, setExpandedFolderMap]
+		[workspaceId, setExpandedFolderMap]
 	);
 
 	// Zero queries for tree data
-	const [zeroFolders, zeroFoldersResult] = useQuery(queries.folders.bySpace({ searchSpaceId }));
-	const [zeroAllDocs, zeroAllDocsResult] = useQuery(queries.documents.bySpace({ searchSpaceId }));
+	const [zeroFolders, zeroFoldersResult] = useQuery(
+		queries.folders.bySpace({ searchSpaceId: workspaceId })
+	);
+	const [zeroAllDocs, zeroAllDocsResult] = useQuery(
+		queries.documents.bySpace({ searchSpaceId: workspaceId })
+	);
 	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
 
 	const treeFolders: FolderDisplay[] = useMemo(
@@ -349,7 +361,7 @@ function AuthenticatedDocumentsSidebarBase({
 		const zeroIds = new Set(zeroDocs.map((d) => d.id));
 
 		const pendingAgentDocs = agentCreatedDocs
-			.filter((d) => d.searchSpaceId === searchSpaceId && !zeroIds.has(d.id))
+			.filter((d) => d.searchSpaceId === workspaceId && !zeroIds.has(d.id))
 			.map((d) => ({
 				id: d.id,
 				title: d.title,
@@ -359,7 +371,7 @@ function AuthenticatedDocumentsSidebarBase({
 			}));
 
 		return [...pendingAgentDocs, ...zeroDocs];
-	}, [zeroAllDocs, agentCreatedDocs, searchSpaceId]);
+	}, [zeroAllDocs, agentCreatedDocs, workspaceId]);
 
 	// Prune agent-created docs once Zero has caught up
 	useEffect(() => {
@@ -409,21 +421,21 @@ function AuthenticatedDocumentsSidebarBase({
 				await foldersApiService.createFolder({
 					name,
 					parent_id: createFolderParentId,
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 				});
 				toast.success("Folder created");
 				if (createFolderParentId !== null) {
 					setExpandedFolderMap((prev) => {
-						const current = new Set(prev[searchSpaceId] ?? []);
+						const current = new Set(prev[workspaceId] ?? []);
 						current.add(createFolderParentId);
-						return { ...prev, [searchSpaceId]: [...current] };
+						return { ...prev, [workspaceId]: [...current] };
 					});
 				}
 			} catch (e: unknown) {
 				toast.error((e as Error)?.message || "Failed to create folder");
 			}
 		},
-		[createFolderParentId, searchSpaceId, setExpandedFolderMap]
+		[createFolderParentId, workspaceId, setExpandedFolderMap]
 	);
 
 	const handleRescanFolder = useCallback(
@@ -444,7 +456,7 @@ function AuthenticatedDocumentsSidebarBase({
 				await uploadFolderScan({
 					folderPath: matched.path,
 					folderName: matched.name,
-					searchSpaceId,
+					searchSpaceId: workspaceId,
 					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
 					fileExtensions:
 						matched.fileExtensions ?? Array.from(getSupportedExtensionsSet(undefined, etlService)),
@@ -455,7 +467,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}
 		},
-		[searchSpaceId, electronAPI, etlService]
+		[workspaceId, electronAPI, etlService]
 	);
 
 	const handleStopWatching = useCallback(
@@ -577,7 +589,7 @@ function AuthenticatedDocumentsSidebarBase({
 					.trim()
 					.slice(0, 80) || "folder";
 			await doExport(
-				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`, {
 					folder_id: ctx.folder.id,
 				}),
 				`${safeName}.zip`
@@ -590,7 +602,7 @@ function AuthenticatedDocumentsSidebarBase({
 			isExportingKBRef.current = false;
 		}
 		setExportWarningContext(null);
-	}, [exportWarningContext, searchSpaceId, doExport]);
+	}, [exportWarningContext, workspaceId, doExport]);
 
 	const getPendingCountInSubtree = useCallback(
 		(folderId: number): number => {
@@ -631,7 +643,7 @@ function AuthenticatedDocumentsSidebarBase({
 						.trim()
 						.slice(0, 80) || "folder";
 				await doExport(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`, {
 						folder_id: folder.id,
 					}),
 					`${safeName}.zip`
@@ -644,7 +656,7 @@ function AuthenticatedDocumentsSidebarBase({
 				isExportingKBRef.current = false;
 			}
 		},
-		[searchSpaceId, getPendingCountInSubtree, doExport]
+		[workspaceId, getPendingCountInSubtree, doExport]
 	);
 
 	const handleExportDocument = useCallback(
@@ -654,7 +666,7 @@ function AuthenticatedDocumentsSidebarBase({
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
 							? buildBackendUrl("/api/v1/users/me/memory")
-							: buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/memory`);
+							: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory`);
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -682,7 +694,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 			try {
 				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export`, {
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${doc.id}/export`, {
 						format,
 					}),
 					{ method: "GET" }
@@ -707,7 +719,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error(err instanceof Error ? err.message : `Export failed`);
 			}
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	const handleFolderPickerSelect = useCallback(
@@ -830,7 +842,7 @@ function AuthenticatedDocumentsSidebarBase({
 				openEditorPanel({
 					kind: "memory",
 					memoryScope: "user",
-					searchSpaceId,
+					searchSpaceId: workspaceId,
 					title: doc.title,
 				});
 				return true;
@@ -839,14 +851,14 @@ function AuthenticatedDocumentsSidebarBase({
 				openEditorPanel({
 					kind: "memory",
 					memoryScope: "team",
-					searchSpaceId,
+					searchSpaceId: workspaceId,
 					title: doc.title,
 				});
 				return true;
 			}
 			return false;
 		},
-		[openEditorPanel, searchSpaceId]
+		[openEditorPanel, workspaceId]
 	);
 
 	const handleResetMemoryDocument = useCallback(
@@ -858,7 +870,7 @@ function AuthenticatedDocumentsSidebarBase({
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
 					? buildBackendUrl("/api/v1/users/me/memory/reset")
-					: buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/memory/reset`);
+					: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory/reset`);
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {
@@ -871,7 +883,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error((error as Error)?.message || `Failed to reset ${doc.title.toLowerCase()}`);
 			}
 		},
-		[openMemoryDocument, searchSpaceId]
+		[openMemoryDocument, workspaceId]
 	);
 
 	const typeCounts = useMemo(() => {
@@ -1008,7 +1020,7 @@ function AuthenticatedDocumentsSidebarBase({
 						if (openMemoryDocument(doc)) return;
 						openEditorPanel({
 							documentId: doc.id,
-							searchSpaceId,
+							searchSpaceId: workspaceId,
 							title: doc.title,
 						});
 					}}
@@ -1016,7 +1028,7 @@ function AuthenticatedDocumentsSidebarBase({
 						if (openMemoryDocument(doc)) return;
 						openEditorPanel({
 							documentId: doc.id,
-							searchSpaceId,
+							searchSpaceId: workspaceId,
 							title: doc.title,
 						});
 					}}
@@ -1098,7 +1110,7 @@ function AuthenticatedDocumentsSidebarBase({
 								{deletableSelectedIds.length === 1
 									? "This document"
 									: `These ${deletableSelectedIds.length} documents`}{" "}
-								will be permanently deleted from your search space.
+								will be permanently deleted from your workspace.
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>

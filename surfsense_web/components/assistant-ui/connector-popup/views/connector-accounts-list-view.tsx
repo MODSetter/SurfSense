@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -44,7 +44,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	isConnecting = false,
 	addButtonText,
 }) => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
 	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
 	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);

@@ -153,6 +153,138 @@ export const reddit: ConnectorPageContent = {
 		},
 	},
 
+	schema: {
+		requestNote:
+			"Provide at least one source: urls, search_queries, or community. Up to 20 sources per call.",
+		request: [
+			{
+				name: "urls",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Reddit URLs to scrape: a post, a subreddit (/r/name), a user (/user/name), or a search URL. Max 20.",
+			},
+			{
+				name: "search_queries",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Search terms to run on Reddit. Each returns up to max_items results. Scope to one subreddit with community. Max 20.",
+			},
+			{
+				name: "community",
+				type: "string",
+				description:
+					"Subreddit name without the r/ prefix, e.g. 'python'. Scopes search_queries to that subreddit; with no search_queries, its listing is scraped.",
+			},
+			{
+				name: "sort",
+				type: "string",
+				defaultValue: '"new"',
+				description: "Result ordering: relevance, hot, top, new, rising, or comments.",
+			},
+			{
+				name: "time_filter",
+				type: "string",
+				description: "Time window for top sorts: hour, day, week, month, year, or all.",
+			},
+			{
+				name: "include_nsfw",
+				type: "boolean",
+				defaultValue: "true",
+				description: "Include posts flagged over-18 in the results.",
+			},
+			{
+				name: "skip_comments",
+				type: "boolean",
+				defaultValue: "false",
+				description: "Skip fetching comment trees. Faster when you only need posts or listings.",
+			},
+			{
+				name: "max_items",
+				type: "integer",
+				defaultValue: "10",
+				description: "Max total items to return across all sources. 1 to 100.",
+			},
+			{
+				name: "max_posts",
+				type: "integer",
+				defaultValue: "10",
+				description: "Max posts to pull per subreddit, user, or search target.",
+			},
+			{
+				name: "max_comments",
+				type: "integer",
+				defaultValue: "10",
+				description: "Max comments to pull per post. 0 disables comments.",
+			},
+			{
+				name: "post_date_limit",
+				type: "string",
+				description: "ISO date. Only return posts newer than this, for incremental scrapes.",
+			},
+			{
+				name: "comment_date_limit",
+				type: "string",
+				description: "ISO date. Only return comments newer than this, for incremental scrapes.",
+			},
+		],
+		responseNote:
+			"The response is { items: [...] } with one flat item per result, keyed by dataType. Fields that do not apply to a given dataType are null. One returned item is one billable unit.",
+		response: [
+			{
+				name: "dataType",
+				type: "string",
+				description: "What this item is: post, comment, community, or user.",
+			},
+			{
+				name: "id / url / username",
+				type: "string",
+				description: "Identity and provenance: the Reddit ID, permalink, and author username.",
+			},
+			{
+				name: "title / body",
+				type: "string",
+				description: "Post title and full text body (or comment text for comments).",
+			},
+			{
+				name: "communityName",
+				type: "string",
+				description: "The subreddit the item belongs to, plus numberOfMembers for communities.",
+			},
+			{
+				name: "upVotes / upVoteRatio",
+				type: "integer / number",
+				description: "Score and upvote ratio, the engagement signal for ranking what matters.",
+			},
+			{
+				name: "numberOfComments",
+				type: "integer",
+				description: "Comment count on a post; numberOfReplies for comments.",
+			},
+			{
+				name: "flair / over18 / isVideo",
+				type: "string / boolean",
+				description: "Post flair and content flags.",
+			},
+			{
+				name: "thumbnailUrl / imageUrls / videoUrls",
+				type: "string / string[]",
+				description: "Media attached to the post.",
+			},
+			{
+				name: "postId / parentId",
+				type: "string",
+				description: "Threading for comments: the parent post and parent comment IDs.",
+			},
+			{
+				name: "createdAt / scrapedAt",
+				type: "string",
+				description: "ISO timestamps for when the item was posted and when it was scraped.",
+			},
+		],
+	},
+
 	faq: [
 		{
 			question: "Is scraping Reddit legal?",

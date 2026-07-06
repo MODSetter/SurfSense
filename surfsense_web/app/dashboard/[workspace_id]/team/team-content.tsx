@@ -139,7 +139,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleRevokeInvite = useCallback(
 		async (inviteId: number): Promise<boolean> => {
 			const request: DeleteInviteRequest = {
-				search_space_id: workspaceId,
+				workspace_id: workspaceId,
 				invite_id: inviteId,
 			};
 			await revokeInvite(request);
@@ -151,7 +151,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleCreateInvite = useCallback(
 		async (inviteData: CreateInviteRequest["data"]) => {
 			const request: CreateInviteRequest = {
-				search_space_id: workspaceId,
+				workspace_id: workspaceId,
 				data: inviteData,
 			};
 			return await createInvite(request);
@@ -162,7 +162,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleUpdateMember = useCallback(
 		async (membershipId: number, roleId: number | null): Promise<Membership> => {
 			const request: UpdateMembershipRequest = {
-				search_space_id: workspaceId,
+				workspace_id: workspaceId,
 				membership_id: membershipId,
 				data: { role_id: roleId },
 			};
@@ -174,7 +174,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const handleRemoveMember = useCallback(
 		async (membershipId: number) => {
 			const request: DeleteMembershipRequest = {
-				search_space_id: workspaceId,
+				workspace_id: workspaceId,
 				membership_id: membershipId,
 			};
 			await deleteMember(request);
@@ -185,13 +185,13 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 
 	const { data: roles = [], isLoading: rolesLoading } = useQuery({
 		queryKey: cacheKeys.roles.all(workspaceId.toString()),
-		queryFn: () => rolesApiService.getRoles({ search_space_id: workspaceId }),
+		queryFn: () => rolesApiService.getRoles({ workspace_id: workspaceId }),
 		enabled: !!workspaceId,
 	});
 
 	const { data: invites = [], isLoading: invitesLoading } = useQuery({
 		queryKey: cacheKeys.invites.all(workspaceId.toString()),
-		queryFn: () => invitesApiService.getInvites({ search_space_id: workspaceId }),
+		queryFn: () => invitesApiService.getInvites({ workspace_id: workspaceId }),
 		staleTime: 5 * 60 * 1000,
 	});
 
@@ -581,7 +581,7 @@ function MemberRow({
 											<AlertDialogTitle>Remove member?</AlertDialogTitle>
 											<AlertDialogDescription>
 												This will remove <span className="font-medium">{member.user_email}</span>{" "}
-												from this search space. They will lose access to all resources.
+												from this workspace. They will lose access to all resources.
 											</AlertDialogDescription>
 										</AlertDialogHeader>
 										<AlertDialogFooter>
@@ -599,7 +599,7 @@ function MemberRow({
 							<DropdownMenuSeparator className="bg-popover-border" />
 							<DropdownMenuItem
 								onClick={() =>
-									router.push(`/dashboard/${workspaceId}/search-space-settings/team-roles`)
+									router.push(`/dashboard/${workspaceId}/workspace-settings/team-roles`)
 								}
 							>
 								Manage Roles
@@ -709,7 +709,7 @@ function CreateInviteDialog({
 								Invite Created!
 							</DialogTitle>
 							<DialogDescription>
-								Share this link to invite people to your search space.
+								Share this link to invite people to your workspace.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3 py-2 md:py-4">
@@ -748,7 +748,7 @@ function CreateInviteDialog({
 						<DialogHeader>
 							<DialogTitle>Invite Members</DialogTitle>
 							<DialogDescription>
-								Create a link to invite people to this search space.
+								Create a link to invite people to this workspace.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3 py-2 md:py-4">

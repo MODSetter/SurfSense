@@ -66,7 +66,7 @@ export function useFolderSync() {
 
 					await documentsApiService.folderUploadFiles(files, {
 						folder_name: batch.folderName,
-						search_space_id: batch.searchSpaceId,
+						workspace_id: batch.searchSpaceId,
 						relative_paths: addChangeFiles.map((f) => f.relativePath),
 						root_folder_id: batch.rootFolderId,
 					});
@@ -75,7 +75,7 @@ export function useFolderSync() {
 				if (unlinkFiles.length > 0) {
 					await documentsApiService.folderNotifyUnlinked({
 						folder_name: batch.folderName,
-						search_space_id: batch.searchSpaceId,
+						workspace_id: batch.searchSpaceId,
 						root_folder_id: batch.rootFolderId,
 						relative_paths: unlinkFiles.map((f) => f.relativePath),
 					});

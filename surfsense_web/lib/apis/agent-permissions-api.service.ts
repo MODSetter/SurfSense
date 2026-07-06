@@ -7,7 +7,7 @@ export type AgentPermissionAction = z.infer<typeof ActionEnum>;
 
 const AgentPermissionRuleSchema = z.object({
 	id: z.number(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	user_id: z.string().nullable(),
 	thread_id: z.number().nullable(),
 	permission: z.string(),

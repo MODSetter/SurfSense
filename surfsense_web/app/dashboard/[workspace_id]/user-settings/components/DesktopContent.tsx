@@ -13,9 +13,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import type { SearchSpace } from "@/contracts/types/search-space.types";
+import type { SearchSpace } from "@/contracts/types/workspace.types";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 
 export function DesktopContent() {
 	const api = useElectronAPI();

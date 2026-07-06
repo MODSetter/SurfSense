@@ -80,7 +80,7 @@ export function AutoReloadSettings() {
 
 	const setupMutation = useMutation({
 		mutationFn: () =>
-			stripeApiService.createAutoReloadSetupSession({ search_space_id: searchSpaceId }),
+			stripeApiService.createAutoReloadSetupSession({ workspace_id: searchSpaceId }),
 		onSuccess: (response) => {
 			window.location.assign(response.checkout_url);
 		},

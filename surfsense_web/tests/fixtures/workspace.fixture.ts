@@ -6,7 +6,7 @@ import {
 	createSearchSpace,
 	deleteSearchSpace,
 	type SearchSpaceRow,
-} from "../helpers/api/search-spaces";
+} from "../helpers/api/workspaces";
 import { uniqueSearchSpaceName } from "../helpers/canary";
 
 export type SearchSpaceFixtures = {

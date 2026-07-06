@@ -37,7 +37,7 @@ class AutomationsApiService {
 
 	listAutomations = async (params: AutomationListParams) => {
 		const qs = new URLSearchParams({
-			workspace_id: String(params.search_space_id),
+			workspace_id: String(params.workspace_id),
 			limit: String(params.limit),
 			offset: String(params.offset),
 		});
@@ -50,9 +50,9 @@ class AutomationsApiService {
 
 	createAutomation = async (request: AutomationCreateRequest) => {
 		const data = rejectIfInvalid(automationCreateRequest.safeParse(request));
-		const { search_space_id, ...body } = data;
+		const { workspace_id, ...body } = data;
 		return baseApiService.post(BASE, automation, {
-			body: { ...body, workspace_id: search_space_id },
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -66,7 +66,7 @@ class AutomationsApiService {
 		return baseApiService.delete(`${BASE}/${automationId}`);
 	};
 
-	// Whether the search space's models are billable for automations (premium
+	// Whether the workspace's models are billable for automations (premium
 	// global or BYOK). Used to gate creation surfaces before submit.
 	getModelEligibility = async (searchSpaceId: number) => {
 		const qs = new URLSearchParams({ workspace_id: String(searchSpaceId) });

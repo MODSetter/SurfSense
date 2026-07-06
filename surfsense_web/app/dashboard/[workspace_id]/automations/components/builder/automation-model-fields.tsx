@@ -51,7 +51,7 @@ export function AutomationModelFields({
 	errors,
 }: AutomationModelFieldsProps) {
 	const { llm, image, vision, isLoading } = useAutomationEligibleModels();
-	const rolesHref = `/dashboard/${workspaceId}/search-space-settings/models`;
+	const rolesHref = `/dashboard/${workspaceId}/workspace-settings/models`;
 
 	return (
 		<div className="flex flex-col gap-4">

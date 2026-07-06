@@ -223,7 +223,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 				if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
 				try {
 					const doc = await documentsApiService.getDocumentByVirtualPath({
-						search_space_id: resolvedSearchSpaceId,
+						workspace_id: resolvedSearchSpaceId,
 						virtual_path: path,
 					});
 					openEditorPanel({

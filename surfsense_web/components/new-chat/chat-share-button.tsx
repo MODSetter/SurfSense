@@ -51,7 +51,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
-	const { mutateAsync: updateVisibility } = useUpdateThreadVisibility(thread?.search_space_id ?? 0);
+	const { mutateAsync: updateVisibility } = useUpdateThreadVisibility(thread?.workspace_id ?? 0);
 
 	// Snapshot creation mutation
 	const { mutateAsync: createSnapshot, isPending: isCreatingSnapshot } = useAtomValue(
@@ -139,9 +139,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							variant="ghost"
 							size="icon"
 							onClick={() =>
-								router.push(
-									`/dashboard/${thread.search_space_id}/search-space-settings/public-links`
-								)
+								router.push(`/dashboard/${thread.workspace_id}/workspace-settings/public-links`)
 							}
 							className="size-8 bg-muted/50 hover:bg-accent hover:text-accent-foreground"
 						>

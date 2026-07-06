@@ -1,5 +1,5 @@
 import { atomWithQuery } from "jotai-tanstack-query";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { automationsApiService } from "@/lib/apis/automations-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
@@ -11,7 +11,7 @@ const DEFAULT_LIMIT = 50;
 const DEFAULT_OFFSET = 0;
 
 export const automationsListAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		queryKey: cacheKeys.automations.list(Number(searchSpaceId ?? 0), DEFAULT_LIMIT, DEFAULT_OFFSET),
@@ -22,7 +22,7 @@ export const automationsListAtom = atomWithQuery((get) => {
 				return { items: [], total: 0 };
 			}
 			return automationsApiService.listAutomations({
-				search_space_id: Number(searchSpaceId),
+				workspace_id: Number(searchSpaceId),
 				limit: DEFAULT_LIMIT,
 				offset: DEFAULT_OFFSET,
 			});

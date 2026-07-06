@@ -139,8 +139,8 @@ class ChatCommentsApiService {
 		}
 
 		const params = new URLSearchParams();
-		if (parsed.data.search_space_id !== undefined) {
-			params.set("workspace_id", String(parsed.data.search_space_id));
+		if (parsed.data.workspace_id !== undefined) {
+			params.set("workspace_id", String(parsed.data.workspace_id));
 		}
 
 		const queryString = params.toString();

@@ -95,7 +95,7 @@ async function uploadBatchesWithConcurrency(
 					files,
 					{
 						folder_name: params.folderName,
-						search_space_id: params.searchSpaceId,
+						workspace_id: params.searchSpaceId,
 						relative_paths: batch.map((e) => e.relativePath),
 						root_folder_id: resolvedRootFolderId,
 						processing_mode: params.processingMode,
@@ -169,7 +169,7 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 
 	const mtimeCheckResult = await documentsApiService.folderMtimeCheck({
 		folder_name: folderName,
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		files: allFiles.map((f) => ({ relative_path: f.relativePath, mtime: f.mtimeMs / 1000 })),
 	});
 
@@ -214,7 +214,7 @@ export async function uploadFolderScan(params: FolderSyncParams): Promise<number
 
 	await documentsApiService.folderSyncFinalize({
 		folder_name: folderName,
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		root_folder_id: rootFolderId ?? null,
 		all_relative_paths: allFiles.map((f) => f.relativePath),
 	});

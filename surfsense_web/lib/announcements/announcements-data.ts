@@ -14,6 +14,27 @@ import type { Announcement } from "@/contracts/types/announcement.types";
  */
 export const announcements: Announcement[] = [
 	{
+		id: "2026-07-05-competitive-intelligence-direction",
+		title: "SurfSense's Next Chapter: Competitive Intelligence for AI Agents",
+		description:
+			"Happy Independence Day to everyone celebrating in the United States! We picked this week to share some big news: SurfSense is now the open-source competitive intelligence agent platform. Your agents monitor competitors, track rankings, and listen to your market with live data from Reddit, YouTube, Google Maps, Google Search, and the open web, through one REST API or MCP server. Everything you rely on today keeps working, and self-hosting stays free.",
+		category: "update",
+		date: "2026-07-05T00:00:00Z",
+		startTime: "2026-07-05T00:00:00Z",
+		endTime: "2026-08-31T00:00:00Z",
+		audience: "all",
+		isImportant: true,
+		spotlight: true,
+		image: {
+			src: "/announcements/competitive-intelligence.png",
+			alt: "Platform data tiles for social, video, maps, search, and the web flowing into a central AI core that outputs market charts and alerts.",
+		},
+		link: {
+			label: "Read the full announcement",
+			url: "/changelog",
+		},
+	},
+	{
 		id: "2026-05-31-ai-automations",
 		title: "Introducing AI Automations",
 		description:
@@ -23,8 +44,7 @@ export const announcements: Announcement[] = [
 		startTime: "2026-05-31T00:00:00Z",
 		endTime: "2026-07-15T00:00:00Z",
 		audience: "users",
-		isImportant: true,
-		spotlight: true,
+		isImportant: false,
 		image: {
 			src: "/announcements/automations.png",
 			alt: "Connector tiles flowing into a central AI core that triggers scheduled and event-driven automations.",

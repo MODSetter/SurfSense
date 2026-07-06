@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SearchSpace } from "@/contracts/types/search-space.types";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import type { SearchSpace } from "@/contracts/types/workspace.types";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";

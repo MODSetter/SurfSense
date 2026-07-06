@@ -7,25 +7,17 @@ const roleBase = z.object({
 	permissions: z.array(z.string()),
 	is_default: z.boolean(),
 	is_system_role: z.boolean(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_at: z.string(),
 });
 
-export const role = z.preprocess((value) => {
-	if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-		const record = value as Record<string, unknown>;
-		if (record.search_space_id === undefined && record.workspace_id !== undefined) {
-			return { ...record, search_space_id: record.workspace_id };
-		}
-	}
-	return value;
-}, roleBase);
+export const role = roleBase;
 
 /**
  * Create role
  */
 export const createRoleRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	data: roleBase.pick({
 		name: true,
 		description: true,
@@ -40,7 +32,7 @@ export const createRoleResponse = role;
  * Get roles
  */
 export const getRolesRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getRolesResponse = z.array(role);
@@ -49,7 +41,7 @@ export const getRolesResponse = z.array(role);
  * Get role by ID
  */
 export const getRoleByIdRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number(),
 });
 
@@ -59,7 +51,7 @@ export const getRoleByIdResponse = role;
  * Update role
  */
 export const updateRoleRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number(),
 	data: roleBase
 		.pick({
@@ -77,7 +69,7 @@ export const updateRoleResponse = role;
  * Delete role
  */
 export const deleteRoleRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number(),
 });
 

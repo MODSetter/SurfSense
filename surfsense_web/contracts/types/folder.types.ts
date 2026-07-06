@@ -5,27 +5,19 @@ const folderBase = z.object({
 	name: z.string(),
 	position: z.string(),
 	parent_id: z.number().nullable(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_by_id: z.string().nullable().optional(),
 	created_at: z.string(),
 	updated_at: z.string(),
 	metadata: z.record(z.string(), z.any()).nullable().optional(),
 });
 
-export const folder = z.preprocess((value) => {
-	if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-		const record = value as Record<string, unknown>;
-		if (record.search_space_id === undefined && record.workspace_id !== undefined) {
-			return { ...record, search_space_id: record.workspace_id };
-		}
-	}
-	return value;
-}, folderBase);
+export const folder = folderBase;
 
 export const folderCreateRequest = z.object({
 	name: z.string().min(1).max(255),
 	parent_id: z.number().nullable().optional(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const folderUpdateRequest = z.object({

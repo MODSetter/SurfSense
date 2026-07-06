@@ -208,7 +208,7 @@ export function InboxSidebarContent({
 		queryFn: () =>
 			notificationsApiService.getNotifications({
 				queryParams: {
-					search_space_id: searchSpaceId ?? undefined,
+					workspace_id: searchSpaceId ?? undefined,
 					type: searchTypeFilter,
 					search: debouncedSearch.trim(),
 					limit: 50,
@@ -364,7 +364,7 @@ export function InboxSidebarContent({
 
 			if (item.type === "new_mention") {
 				if (isNewMentionMetadata(item.metadata)) {
-					const searchSpaceId = item.search_space_id;
+					const searchSpaceId = item.workspace_id;
 					const threadId = item.metadata.thread_id;
 					const commentId = item.metadata.comment_id;
 
@@ -382,7 +382,7 @@ export function InboxSidebarContent({
 				}
 			} else if (item.type === "comment_reply") {
 				if (isCommentReplyMetadata(item.metadata)) {
-					const searchSpaceId = item.search_space_id;
+					const searchSpaceId = item.workspace_id;
 					const threadId = item.metadata.thread_id;
 					const replyId = item.metadata.reply_id;
 

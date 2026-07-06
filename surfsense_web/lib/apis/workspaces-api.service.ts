@@ -19,7 +19,7 @@ import {
 	updateSearchSpaceApiAccessResponse,
 	updateSearchSpaceRequest,
 	updateSearchSpaceResponse,
-} from "@/contracts/types/search-space.types";
+} from "@/contracts/types/workspace.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
@@ -137,6 +137,17 @@ class SearchSpacesApiService {
 		}
 
 		return baseApiService.delete(`/api/v1/workspaces/${request.id}`, deleteSearchSpaceResponse);
+	};
+
+	/**
+	 * Trigger AI file sorting for all documents in a search space
+	 */
+	triggerAiSort = async (searchSpaceId: number) => {
+		return baseApiService.post(
+			`/api/v1/workspaces/${searchSpaceId}/ai-sort`,
+			z.object({ message: z.string() }),
+			{}
+		);
 	};
 
 	/**

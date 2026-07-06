@@ -10,7 +10,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 import {
 	Dialog,
@@ -90,7 +90,7 @@ const DocumentUploadPopupContent: FC<{
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
 }> = ({ isOpen, onOpenChange }) => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
 
 	if (!searchSpaceId) return null;
 

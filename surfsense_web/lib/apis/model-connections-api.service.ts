@@ -56,15 +56,15 @@ class ModelConnectionsApiService {
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
-		const { search_space_id, ...body } = parsed.data;
+		const { workspace_id, ...body } = parsed.data;
 		if (
 			body.scope === "SEARCH_SPACE" &&
-			(!Number.isFinite(search_space_id) || (search_space_id ?? 0) <= 0)
+			(!Number.isFinite(workspace_id) || (workspace_id ?? 0) <= 0)
 		) {
 			throw new ValidationError("workspace_id is required");
 		}
 		return baseApiService.post(`/api/v1/model-connections`, connectionRead, {
-			body: { ...body, workspace_id: search_space_id },
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -98,10 +98,10 @@ class ModelConnectionsApiService {
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
-		const { search_space_id, ...body } = parsed.data;
+		const { workspace_id, ...body } = parsed.data;
 		if (
 			body.scope === "SEARCH_SPACE" &&
-			(!Number.isFinite(search_space_id) || (search_space_id ?? 0) <= 0)
+			(!Number.isFinite(workspace_id) || (workspace_id ?? 0) <= 0)
 		) {
 			throw new ValidationError("workspace_id is required");
 		}
@@ -109,7 +109,7 @@ class ModelConnectionsApiService {
 			`/api/v1/model-connections/discover-preview`,
 			modelPreviewListResponse,
 			{
-				body: { ...body, workspace_id: search_space_id },
+				body: { ...body, workspace_id },
 			}
 		);
 	};
@@ -121,15 +121,15 @@ class ModelConnectionsApiService {
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.issues.map((issue) => issue.message).join(", "));
 		}
-		const { search_space_id, ...body } = parsed.data;
+		const { workspace_id, ...body } = parsed.data;
 		if (
 			body.scope === "SEARCH_SPACE" &&
-			(!Number.isFinite(search_space_id) || (search_space_id ?? 0) <= 0)
+			(!Number.isFinite(workspace_id) || (workspace_id ?? 0) <= 0)
 		) {
 			throw new ValidationError("workspace_id is required");
 		}
 		return baseApiService.post(`/api/v1/model-connections/test-preview`, verifyConnectionResponse, {
-			body: { ...body, workspace_id: search_space_id },
+			body: { ...body, workspace_id },
 		});
 	};
 

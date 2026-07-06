@@ -157,6 +157,103 @@ export const webCrawl: ConnectorPageContent = {
 		},
 	},
 
+	schema: {
+		requestNote:
+			"Only startUrls is required. With maxCrawlDepth 0 the call scrapes exactly those URLs; with a higher depth it spiders the site from them.",
+		request: [
+			{
+				name: "startUrls",
+				type: "string[]",
+				required: true,
+				description:
+					"Seed URLs to crawl, 1 to 20. With maxCrawlDepth 0 only these are fetched; otherwise they are the spider's entry points.",
+			},
+			{
+				name: "maxCrawlDepth",
+				type: "integer",
+				defaultValue: "0",
+				description:
+					"Link-hops to follow from each start URL, 0 to 5. 0 scrapes only the start URLs; 1 also fetches their linked pages. The spider stays on the start URL's site.",
+			},
+			{
+				name: "maxCrawlPages",
+				type: "integer",
+				defaultValue: "10",
+				description:
+					"Max pages to fetch in total, start URLs included, 1 to 200. The crawl stops at this ceiling.",
+			},
+			{
+				name: "maxLength",
+				type: "integer",
+				defaultValue: "50000",
+				description: "Max characters of cleaned markdown kept per page. Longer pages truncate.",
+			},
+			{
+				name: "includeUrlPatterns",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Regex patterns a discovered link must match to be followed. Empty follows every same-site link. Start URLs are always fetched. Max 25.",
+			},
+			{
+				name: "excludeUrlPatterns",
+				type: "string[]",
+				defaultValue: "[]",
+				description:
+					"Regex patterns that exclude a discovered link from being followed. Wins over includeUrlPatterns. Max 25.",
+			},
+		],
+		responseNote:
+			"The response is { items: [...], contacts: {...} }: one item per fetched page in crawl order, plus site-wide deduplicated contacts. Only successful pages are billed.",
+		response: [
+			{
+				name: "items[].url / status",
+				type: "string",
+				description:
+					"The requested URL and its outcome: success, empty (fetched but no content), or failed.",
+			},
+			{
+				name: "items[].markdown",
+				type: "string",
+				description: "The page's content as cleaned markdown, ready for an LLM or a diff.",
+			},
+			{
+				name: "items[].metadata",
+				type: "object",
+				description: "Page metadata such as title and description.",
+			},
+			{
+				name: "items[].crawl",
+				type: "object",
+				description:
+					"Crawl provenance: the URL actually loaded, its link depth, and the referrer page it was discovered on.",
+			},
+			{
+				name: "items[].links",
+				type: "object[]",
+				description:
+					"Every link on the page with its anchor text and kind: internal, external, social, email, or tel.",
+			},
+			{
+				name: "items[].contacts",
+				type: "object",
+				description:
+					"Emails, phones, and social profile URLs harvested from the page's raw HTML, including footer boilerplate the markdown omits.",
+			},
+			{
+				name: "items[].error",
+				type: "string",
+				description: "Failure reason when status is not success.",
+			},
+			{
+				name: "contacts",
+				type: "object",
+				description:
+					"Site-wide contact rollup: every email, phone, and social URL deduplicated across pages, each with the pages it appeared on and a siteWide flag separating company boilerplate from page-local finds like team members.",
+			},
+		],
+	},
+
 	faq: [
 		{
 			question: "What formats does the Web Crawl API return?",

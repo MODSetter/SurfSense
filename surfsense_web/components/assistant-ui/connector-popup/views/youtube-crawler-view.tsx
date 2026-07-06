@@ -165,7 +165,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			{
 				document_type: "YOUTUBE_VIDEO",
 				content: videoUrls,
-				search_space_id: parseInt(searchSpaceId, 10),
+				workspace_id: parseInt(searchSpaceId, 10),
 			},
 			{
 				onSuccess: () => {

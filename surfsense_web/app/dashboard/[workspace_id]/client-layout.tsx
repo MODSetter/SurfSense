@@ -13,7 +13,7 @@ import {
 	modelConnectionsAtom,
 	modelRolesAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
-import { activeWorkspaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";

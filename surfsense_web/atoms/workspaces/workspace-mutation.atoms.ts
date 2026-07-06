@@ -5,11 +5,11 @@ import type {
 	DeleteSearchSpaceRequest,
 	UpdateSearchSpaceApiAccessRequest,
 	UpdateSearchSpaceRequest,
-} from "@/contracts/types/search-space.types";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+} from "@/contracts/types/workspace.types";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
-import { activeSearchSpaceIdAtom } from "./search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "./workspace-query.atoms";
 
 export const createSearchSpaceMutationAtom = atomWithMutation(() => {
 	return {
@@ -28,7 +28,7 @@ export const createSearchSpaceMutationAtom = atomWithMutation(() => {
 });
 
 export const updateSearchSpaceMutationAtom = atomWithMutation((get) => {
-	const activeSearchSpaceId = get(activeSearchSpaceIdAtom);
+	const activeSearchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: ["update-search-space", activeSearchSpaceId],
@@ -52,7 +52,7 @@ export const updateSearchSpaceMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateSearchSpaceApiAccessMutationAtom = atomWithMutation((get) => {
-	const activeSearchSpaceId = get(activeSearchSpaceIdAtom);
+	const activeSearchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: ["update-search-space-api-access", activeSearchSpaceId],
@@ -74,7 +74,7 @@ export const updateSearchSpaceApiAccessMutationAtom = atomWithMutation((get) => 
 });
 
 export const deleteSearchSpaceMutationAtom = atomWithMutation((get) => {
-	const activeSearchSpaceId = get(activeSearchSpaceIdAtom);
+	const activeSearchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: ["delete-search-space", activeSearchSpaceId],

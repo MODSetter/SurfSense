@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { ArrowLeft, Info, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -78,7 +78,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
-	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
+	const searchSpaceIdAtom = useAtomValue(activeWorkspaceIdAtom);
 	const isAuthExpired = connector.config?.auth_expired === true;
 	const reauthEndpoint = getReauthEndpoint(connector);
 	const [reauthing, setReauthing] = useState(false);

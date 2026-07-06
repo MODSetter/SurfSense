@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
@@ -36,7 +36,7 @@ interface ConnectorIndicatorProps {
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	(_props, ref) => {
-		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+		const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
 
 		// Real-time document type counts via Zero (updates instantly as docs are indexed)
 		const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);

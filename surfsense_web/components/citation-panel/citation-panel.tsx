@@ -77,7 +77,7 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 		if (!data) return;
 		openEditorPanel({
 			documentId: data.id,
-			searchSpaceId: data.search_space_id,
+			searchSpaceId: data.workspace_id,
 			title: data.title,
 		});
 	};

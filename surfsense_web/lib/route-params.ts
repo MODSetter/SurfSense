@@ -1,7 +1,7 @@
 type RouteParams = Record<string, string | string[] | undefined>;
 
 export function getWorkspaceIdParam(params: RouteParams | null | undefined): string | undefined {
-	const value = params?.workspace_id ?? params?.search_space_id;
+	const value = params?.workspace_id;
 	return Array.isArray(value) ? value[0] : value;
 }
 

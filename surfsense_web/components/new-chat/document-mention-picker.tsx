@@ -316,7 +316,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	const titleSearchParams = useMemo(
 		() => ({
-			search_space_id: searchSpaceId,
+			workspace_id: searchSpaceId,
 			page: 0,
 			page_size: PAGE_SIZE,
 			...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
@@ -362,7 +362,7 @@ export const DocumentMentionPicker = forwardRef<
 
 		try {
 			const queryParams = {
-				search_space_id: searchSpaceId,
+				workspace_id: searchSpaceId,
 				page: nextPage,
 				page_size: PAGE_SIZE,
 				...(isSearchValid ? { title: debouncedSearch.trim() } : {}),

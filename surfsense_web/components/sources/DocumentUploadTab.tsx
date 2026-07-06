@@ -364,7 +364,7 @@ export function DocumentUploadTab({
 					batch.map((e) => e.file),
 					{
 						folder_name: folderUpload.folderName,
-						search_space_id: Number(searchSpaceId),
+						workspace_id: Number(searchSpaceId),
 						relative_paths: batch.map((e) => e.relativePath),
 						root_folder_id: rootFolderId,
 						use_vision_llm: useVisionLlm,
@@ -413,7 +413,7 @@ export function DocumentUploadTab({
 		uploadDocuments(
 			{
 				files: rawFiles,
-				search_space_id: Number(searchSpaceId),
+				workspace_id: Number(searchSpaceId),
 				use_vision_llm: useVisionLlm,
 				processing_mode: processingMode,
 			},

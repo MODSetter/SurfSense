@@ -41,8 +41,8 @@ class NotificationsApiService {
 		// Build query string from params
 		const params = new URLSearchParams();
 
-		if (queryParams.search_space_id !== undefined) {
-			params.append("workspace_id", String(queryParams.search_space_id));
+		if (queryParams.workspace_id !== undefined) {
+			params.append("workspace_id", String(queryParams.workspace_id));
 		}
 		if (queryParams.type) {
 			params.append("type", queryParams.type);

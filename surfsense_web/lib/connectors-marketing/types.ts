@@ -67,6 +67,32 @@ export interface ApiSample {
 	requestBody: Record<string, unknown>;
 }
 
+/** One request parameter or response field in the schema reference tables. */
+export interface SchemaField {
+	name: string;
+	/** Short type label, e.g. "string[]", "integer", "boolean", "object[]". */
+	type: string;
+	/** Rendered as a "required" pill next to the type. */
+	required?: boolean;
+	/** Default value shown for optional request parameters, e.g. '"new"', "10". */
+	defaultValue?: string;
+	description: string;
+}
+
+/**
+ * The request/response contract rendered as the "API schema" section. Fields
+ * map 1:1 to the backend capability `ScrapeInput`/`ScrapeOutput` models so the
+ * reference is truthful.
+ */
+export interface ApiSchema {
+	/** One-liner above the request table (e.g. which sources are required). */
+	requestNote: string;
+	request: SchemaField[];
+	/** One-liner above the response table (envelope shape + billable unit). */
+	responseNote: string;
+	response: SchemaField[];
+}
+
 /** Everything needed to render one connector marketing page. */
 export interface ConnectorPageContent {
 	slug: string;
@@ -99,6 +125,7 @@ export interface ConnectorPageContent {
 		rows: ComparisonRow[];
 	};
 	api: ApiSample;
+	schema: ApiSchema;
 	faq: FaqItem[];
 	related: RelatedLink[];
 }

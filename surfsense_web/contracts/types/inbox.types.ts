@@ -152,7 +152,7 @@ export const inboxItemMetadata = z.union([
 export const inboxItem = z.object({
 	id: z.number(),
 	user_id: z.string(),
-	search_space_id: z.number().nullable(),
+	workspace_id: z.number().nullable(),
 	type: inboxItemTypeEnum,
 	title: z.string(),
 	message: z.string(),
@@ -210,7 +210,7 @@ export type NotificationCategory = z.infer<typeof notificationCategory>;
  */
 export const getNotificationsRequest = z.object({
 	queryParams: z.object({
-		search_space_id: z.number().optional(),
+		workspace_id: z.number().optional(),
 		type: inboxItemTypeEnum.optional(),
 		category: notificationCategory.optional(),
 		source_type: z.string().optional(),
@@ -260,7 +260,7 @@ export const markAllNotificationsReadResponse = z.object({
  * Request schema for getting unread count
  */
 export const getUnreadCountRequest = z.object({
-	search_space_id: z.number().optional(),
+	workspace_id: z.number().optional(),
 });
 
 /**

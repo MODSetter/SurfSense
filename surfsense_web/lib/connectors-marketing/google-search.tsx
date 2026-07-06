@@ -156,6 +156,83 @@ export const googleSearch: ConnectorPageContent = {
 		},
 	},
 
+	schema: {
+		requestNote: "Only queries is required. Up to 20 queries per call.",
+		request: [
+			{
+				name: "queries",
+				type: "string[]",
+				required: true,
+				description:
+					"Search terms (e.g. 'wedding photographers denver') or full Google Search URLs. Each term is searched; each URL is scraped as-is. 1 to 20.",
+			},
+			{
+				name: "max_pages_per_query",
+				type: "integer",
+				defaultValue: "1",
+				description: "Result pages to fetch per query, 1 to 10. 1 fetches the first page only.",
+			},
+			{
+				name: "country_code",
+				type: "string",
+				description: "Two-letter country to search from, e.g. 'us', 'fr'.",
+			},
+			{
+				name: "language_code",
+				type: "string",
+				defaultValue: '""',
+				description: "Result language code, e.g. 'en', 'fr'. Blank uses Google's default.",
+			},
+			{
+				name: "site",
+				type: "string",
+				description: "Restrict results to a single domain, e.g. 'example.com'.",
+			},
+		],
+		responseNote:
+			"The response is { items: [...] } with one item per fetched SERP page. One fetched page is one billable unit.",
+		response: [
+			{
+				name: "searchQuery",
+				type: "object",
+				description:
+					"Provenance for this page: the term or URL searched, page number, device, country, and language.",
+			},
+			{
+				name: "resultsTotal",
+				type: "integer",
+				description: "Google's estimated total result count for the query.",
+			},
+			{
+				name: "organicResults",
+				type: "object[]",
+				description:
+					"The organic listings: title, url, displayedUrl, description, date, emphasizedKeywords, siteLinks, and position.",
+			},
+			{
+				name: "paidResults / paidProducts",
+				type: "object[]",
+				description: "Ads and shopping placements on the page, with titles, URLs, and prices.",
+			},
+			{
+				name: "relatedQueries",
+				type: "object[]",
+				description: "The 'related searches' block: title and search URL for each suggestion.",
+			},
+			{
+				name: "peopleAlsoAsk",
+				type: "object[]",
+				description: "People Also Ask entries with the question, answer text, and source page URL.",
+			},
+			{
+				name: "aiOverview",
+				type: "object",
+				description:
+					"The AI Overview block when Google shows one: full answer content plus the sources it cites.",
+			},
+		],
+	},
+
 	faq: [
 		{
 			question: "What is a SERP API?",

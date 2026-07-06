@@ -177,7 +177,7 @@ export function BuyCreditsContent() {
 				<Button
 					className="w-full"
 					disabled={purchaseMutation.isPending}
-					onClick={() => purchaseMutation.mutate({ quantity, search_space_id: searchSpaceId })}
+					onClick={() => purchaseMutation.mutate({ quantity, workspace_id: searchSpaceId })}
 				>
 					{purchaseMutation.isPending ? (
 						<>

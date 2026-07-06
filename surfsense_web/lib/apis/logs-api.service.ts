@@ -36,7 +36,7 @@ class LogsApiService {
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
 					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
-						const key = k === "search_space_id" ? "workspace_id" : k;
+						const key = k;
 						// Handle array values (document_type)
 						if (Array.isArray(v)) {
 							return [key, v.join(",")];
@@ -75,9 +75,9 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
-		const { search_space_id, ...body } = parsedRequest.data;
+		const { workspace_id, ...body } = parsedRequest.data;
 		return baseApiService.post(`/api/v1/logs`, createLogResponse, {
-			body: { ...body, workspace_id: search_space_id },
+			body: { ...body, workspace_id },
 		});
 	};
 
@@ -91,9 +91,9 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
-		const { search_space_id, ...body } = parsedRequest.data;
+		const { workspace_id, ...body } = parsedRequest.data;
 		return baseApiService.put(`/api/v1/logs/${logId}`, updateLogResponse, {
-			body: search_space_id === undefined ? body : { ...body, workspace_id: search_space_id },
+			body: workspace_id === undefined ? body : { ...body, workspace_id },
 		});
 	};
 
@@ -111,7 +111,7 @@ class LogsApiService {
 	};
 
 	/**
-	 * Get summary for logs by search space
+	 * Get summary for logs by workspace
 	 */
 	getLogSummary = async (request: GetLogSummaryRequest) => {
 		const parsedRequest = getLogSummaryRequest.safeParse(request);
@@ -120,8 +120,8 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
-		const { search_space_id, hours } = parsedRequest.data;
-		const url = `/api/v1/logs/workspaces/${search_space_id}/summary${hours ? `?hours=${hours}` : ""}`;
+		const { workspace_id, hours } = parsedRequest.data;
+		const url = `/api/v1/logs/workspaces/${workspace_id}/summary${hours ? `?hours=${hours}` : ""}`;
 		return baseApiService.get(url, getLogSummaryResponse);
 	};
 }

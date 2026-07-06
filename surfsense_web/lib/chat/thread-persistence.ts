@@ -20,7 +20,7 @@ export interface ThreadRecord {
 	archived: boolean;
 	visibility: ChatVisibility;
 	created_by_id: string | null;
-	search_space_id: number;
+	workspace_id: number;
 	created_at: string;
 	updated_at: string;
 	has_comments?: boolean;

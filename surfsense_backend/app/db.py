@@ -3037,6 +3037,11 @@ async def create_db_and_tables():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
+        # create_all never creates zero_publication (a migration-only
+        # artifact), and without it zero-cache crash-loops. Idempotent.
+        from app.zero_publication import ensure_publication
+
+        await conn.run_sync(ensure_publication)
     await setup_indexes()
 
 

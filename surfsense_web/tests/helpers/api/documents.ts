@@ -55,7 +55,7 @@ export async function getEditorContent(
 	documentId: number
 ): Promise<EditorContent> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
+		`${BACKEND_URL}/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/editor-content`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {

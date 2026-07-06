@@ -1,11 +1,10 @@
 import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
-import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import type { GetSearchSpacesRequest } from "@/contracts/types/workspace.types";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
-export const activeSearchSpaceIdAtom = atom<string | null>(null);
-export const activeWorkspaceIdAtom = activeSearchSpaceIdAtom;
+export const activeWorkspaceIdAtom = atom<string | null>(null);
 
 export const searchSpacesQueryParamsAtom = atom<GetSearchSpacesRequest["queryParams"]>({
 	skip: 0,

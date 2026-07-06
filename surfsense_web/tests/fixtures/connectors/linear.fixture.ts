@@ -1,5 +1,5 @@
 import { type ConnectorRow, deleteConnector, runLinearOAuth } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../search-space.fixture";
+import { searchSpaceFixtures } from "../workspace.fixture";
 
 export type LinearFixtures = {
 	/**

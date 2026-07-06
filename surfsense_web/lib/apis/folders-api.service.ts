@@ -27,9 +27,9 @@ class FoldersApiService {
 				`Invalid request: ${parsed.error.issues.map((i) => i.message).join(", ")}`
 			);
 		}
-		const { search_space_id, ...body } = parsed.data;
+		const { workspace_id, ...body } = parsed.data;
 		return baseApiService.post("/api/v1/folders", folder, {
-			body: { ...body, workspace_id: search_space_id },
+			body: { ...body, workspace_id },
 		});
 	};
 
