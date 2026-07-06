@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from app.capabilities.core import Executor
+from app.capabilities.core.progress import emit_progress
 from app.capabilities.google_maps.reviews.schemas import ReviewsInput, ReviewsOutput
 from app.exceptions import ForbiddenError
 from app.proprietary.platforms.google_maps import (
@@ -29,12 +30,14 @@ def build_reviews_executor(scrape_fn: ReviewsFn | None = None) -> Executor:
             reviewsStartDate=payload.start_date,
             language=payload.language,
         )
+        emit_progress("starting", "Fetching Google Maps reviews", total=payload.max_reviews, unit="review")
         try:
             items = await scrape_fn(actor_input)
         except SignInRequiredError as exc:
             raise ForbiddenError(
                 f"Google sign in required: {exc}", code="GOOGLE_SIGNIN_REQUIRED"
             ) from exc
+        emit_progress("done", f"Scraped {len(items)} review(s)", current=len(items), unit="review")
         return ReviewsOutput(items=items)
 
     return execute

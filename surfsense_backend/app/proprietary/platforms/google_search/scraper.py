@@ -10,6 +10,7 @@ the YouTube and Maps flows were.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
@@ -74,7 +75,10 @@ async def _serp_page_flow(
         if html is None:
             logger.warning("[google_search] no SERP HTML for %s", url)
             break
-        item = parse_serp(html, include_icons=input_model.includeIcons)
+        # Rendered SERPs are ~1MB; parse off-loop to keep the server responsive.
+        item = await asyncio.to_thread(
+            parse_serp, html, include_icons=input_model.includeIcons
+        )
         if input_model.saveHtml:
             item.html = html
         if not input_model.focusOnPaidAds or item.paidResults or item.paidProducts:
@@ -137,7 +141,7 @@ async def _ai_mode_flow(
     if html is None:
         logger.warning("[google_search] no AI Mode HTML for %r", term)
         return
-    result = parse_ai_mode(html, query=term, url=url)
+    result = await asyncio.to_thread(parse_ai_mode, html, query=term, url=url)
     if result is None:
         logger.info("[google_search] AI Mode answer missing for %r", term)
         return
@@ -177,9 +181,12 @@ async def scrape_serps(
     ``limit`` is a request-time policy guard (used by the route), NOT a
     ceiling in the streaming core.
     """
+    from app.capabilities.core.progress import emit_progress
+
     results: list[dict[str, Any]] = []
     async for item in iter_serps(input_model):
         results.append(item)
+        emit_progress("scraping", current=len(results), total=limit, unit="page")
         if limit is not None and len(results) >= limit:
             break
     return results

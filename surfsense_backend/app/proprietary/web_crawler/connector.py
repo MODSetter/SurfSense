@@ -514,7 +514,11 @@ class WebCrawlerConnector:
             )
             return None
 
-        result = self._build_result(
+        # Trafilatura extraction is CPU-bound (100ms+ on large pages); run it
+        # off-loop so concurrent requests aren't stalled. The browser tiers get
+        # this for free by calling _build_result inside their worker threads.
+        result = await asyncio.to_thread(
+            self._build_result,
             page.html_content,
             url,
             "scrapling-static",

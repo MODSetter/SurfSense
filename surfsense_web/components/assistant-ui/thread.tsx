@@ -116,7 +116,8 @@ import {
 	promoteRecentMention,
 } from "../new-chat/document-mention-picker";
 
-const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
+const COMPOSER_PLACEHOLDER =
+	"Track competitors, scrape platforms, automate briefs — / for prompts, @ for docs";
 
 type ComposerSuggestionAnchorPoint = {
 	left: number;

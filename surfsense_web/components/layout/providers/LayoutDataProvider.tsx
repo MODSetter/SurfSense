@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Boxes, Inbox } from "lucide-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { AlarmClock, AlertTriangle, Boxes, Inbox, SquareTerminal } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
+import { playgroundSidebarOpenAtom } from "@/atoms/layout/playground.atom";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
@@ -42,6 +43,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -77,6 +79,8 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const params = useParams();
 	const pathname = usePathname();
 	const { theme, setTheme } = useTheme();
+	const isMobile = useIsMobile();
+	const [playgroundSidebarOpen, setPlaygroundSidebarOpen] = useAtom(playgroundSidebarOpenAtom);
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
@@ -319,6 +323,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	// list). Documents is embedded below Recents; announcements live in the avatar dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
+	const isPlaygroundRoute = pathname?.includes("/playground") === true;
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -342,6 +347,14 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						icon: Boxes,
 						isActive: isArtifactsActive,
 					},
+					{
+						title: "Playground",
+						url: `/dashboard/${workspaceId}/playground`,
+						icon: SquareTerminal,
+						// Mobile has no second-level sidebar: Playground is a plain link
+						// there, so highlight by route. Desktop highlights the toggle state.
+						isActive: isMobile ? isPlaygroundRoute : playgroundSidebarOpen,
+					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
 		[
@@ -350,6 +363,9 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 			workspaceId,
 			isAutomationsActive,
 			isArtifactsActive,
+			isPlaygroundRoute,
+			playgroundSidebarOpen,
+			isMobile,
 		]
 	);
 
@@ -491,9 +507,18 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				setActiveSlideoutPanel((prev) => (prev === "inbox" ? null : "inbox"));
 				return;
 			}
+			// Desktop: Playground is a persistent toggle, not a plain link — it just
+			// opens the second-level sidebar (which holds the whole API playground)
+			// and only closes on a second click, never navigating away from the
+			// current page (e.g. a new chat). Mobile has no second-level sidebar,
+			// so there it navigates to the playground index page instead.
+			if (item.url.endsWith("/playground") && !isMobile) {
+				setPlaygroundSidebarOpen((prev) => !prev);
+				return;
+			}
 			router.push(item.url);
 		},
-		[router]
+		[router, setPlaygroundSidebarOpen, setActiveSlideoutPanel, isMobile]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -660,6 +685,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const isTeamPage = pathname?.endsWith("/team") === true;
 	const isAutomationsPage = pathname?.includes("/automations") === true;
 	const isArtifactsPage = pathname?.endsWith("/artifacts") === true;
+	const isPlaygroundPage = pathname?.includes("/playground") === true;
 	const isAllChatsPage = pathname?.endsWith("/chats") === true;
 	const handleViewAllChats = useCallback(() => {
 		setActiveSlideoutPanel(null);
@@ -676,6 +702,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 		isTeamPage ||
 		isAutomationsPage ||
 		isArtifactsPage ||
+		isPlaygroundPage ||
 		isAllChatsPage;
 
 	return (
@@ -714,6 +741,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				isAllChatsPage={isAllChatsPage}
+				showPlaygroundSidebar={playgroundSidebarOpen}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
 					isUserSettingsPage ||
@@ -721,12 +749,13 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 					isTeamPage ||
 					isAutomationsPage ||
 					isArtifactsPage ||
+					isPlaygroundPage ||
 					isAllChatsPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:pb-10 md:pt-16"
 						: undefined
 				}
 				workspacePanelContentClassName={
-					isAutomationsPage
+					isAutomationsPage || isPlaygroundPage
 						? "max-w-none select-none"
 						: isAllChatsPage
 							? "max-w-5xl"

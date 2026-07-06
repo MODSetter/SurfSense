@@ -67,6 +67,144 @@ const HERO_REALTIME = "/homepage/hero_realtime";
  */
 const CATEGORIES: HeroCategory[] = [
 	{
+		id: "connector-workflows",
+		label: "Multi-Connector Workflows",
+		useCases: [
+			{
+				id: "launch-impact",
+				title: "Launch Impact, Across Every Platform",
+				description:
+					"One prompt chains Google Search, Reddit, and YouTube into a single cited brief on how a competitor launch actually landed.",
+				src: null,
+				demo: {
+					prompt:
+						"Our competitor launched v2 yesterday. Measure the reaction across search, Reddit, and YouTube.",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["Scraping 8 SERPs · launch coverage + AI Overviews"],
+						},
+						{
+							title: "Reddit",
+							items: ['"competitor v2" · 23 threads in the past 48h'],
+						},
+						{
+							title: "Youtube",
+							items: ["6 launch videos · 1,904 comments pulled"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Merge all three signals into one launch-impact brief"],
+						},
+					],
+					rows: [
+						{
+							primary: "5 of 8 SERPs show launch coverage",
+							secondary: "2 already trigger AI Overviews citing their blog",
+						},
+						{
+							primary: "Reddit: pricing backlash in 9 of 23 threads",
+							secondary: '"v2 doubled the price" · top thread 412 upvotes',
+						},
+						{
+							primary: "YouTube: creators praise UI, question pricing",
+							secondary: "61% positive on features · pricing the top complaint",
+						},
+					],
+					summary: "3 connectors, one cited brief · saved to your workspace",
+				},
+			},
+			{
+				id: "local-teardown",
+				title: "Local Competitor Teardown",
+				description:
+					"Google Maps finds the players, the Web Crawler reads their sites, and Google Search shows who wins the query, in one run.",
+				src: null,
+				demo: {
+					prompt:
+						'Tear down the top-rated gyms in Austin: reviews, pricing pages, and who ranks for "gym austin".',
+					steps: [
+						{
+							title: "Google Maps",
+							items: ['"gym austin" · top 10 places + 2,400 reviews'],
+						},
+						{
+							title: "Web Crawler",
+							items: ["Visiting 10 gym sites", "Extracting pricing and membership pages"],
+						},
+						{
+							title: "Google Search",
+							items: ['SERP for "gym austin" · organic, ads, map pack'],
+						},
+					],
+					rows: [
+						{
+							primary: "Review themes: crowding + billing complaints",
+							secondary: "appear in 31% of 1-3★ reviews across 10 gyms",
+						},
+						{
+							primary: "Pricing: $89–149/mo · 3 hide it behind forms",
+							secondary: "extracted from all 10 sites with source pages",
+						},
+						{
+							primary: "2 gyms buy ads on their own brand name",
+							secondary: "map pack and organic top 3 don't overlap",
+						},
+					],
+					summary: "Maps + Crawler + Search in one run · teardown saved",
+				},
+			},
+			{
+				id: "competitor-360",
+				title: "Competitor 360, on a Schedule",
+				description:
+					"An automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.",
+				src: null,
+				demo: {
+					prompt:
+						"Every Monday, build me a 360 on our top competitor: site changes, rankings, Reddit, and YouTube.",
+					steps: [
+						{
+							title: "Web Crawler",
+							items: ["pricing + changelog pages · 2 changes detected"],
+						},
+						{
+							title: "Google Search",
+							items: ["12 shared keywords · rank movements captured"],
+						},
+						{
+							title: "Reddit",
+							items: ["18 mentions this week · sentiment tagged"],
+						},
+						{
+							title: "Youtube",
+							items: ["2 new videos · comments and transcripts pulled"],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly 360 brief · Mondays 8:00"],
+						},
+					],
+					rows: [
+						{
+							primary: "Shipped: usage-based pricing page",
+							secondary: "pricing + changelog diff · detected Jul 3",
+						},
+						{
+							primary: 'Took #2 on "competitive intelligence api"',
+							secondary: "you hold #4 · gap widened two weeks in a row",
+						},
+						{
+							primary: "Reddit sentiment down 12 pts since the change",
+							secondary: "churn signals in 5 threads · quotes linked",
+						},
+					],
+					summary: "4 connectors, 1 automation · first brief lands Monday 8:00",
+				},
+			},
+		],
+	},
+	{
 		id: "competitor-monitoring",
 		label: "Competitor Monitoring",
 		useCases: [
@@ -580,8 +718,8 @@ export function HeroSection() {
 							)}
 						>
 							SurfSense is an open-source competitive intelligence platform. Your AI agents monitor
-							competitors, track rankings, and listen to your market with live data from the
-							platforms that matter, through one API or MCP server.
+							competitors, track rankings, and listen to your market with live data from platforms
+							like Reddit, YouTube, Google Maps, Google Search, and the open web.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">

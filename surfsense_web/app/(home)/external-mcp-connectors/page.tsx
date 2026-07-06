@@ -12,35 +12,37 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { FaqItem } from "@/lib/connectors-marketing/types";
 
-const canonicalUrl = "https://www.surfsense.com/mcp-connector";
+const canonicalUrl = "https://www.surfsense.com/external-mcp-connectors";
 
 const metaDescription =
-	"The SurfSense MCP connector lets your AI agents use any MCP server. Paste a config, tools are auto-discovered, and every call runs with per-tool approval. Try it free.";
+	"External MCP connectors let your SurfSense agents use any MCP server. Paste a config, tools are auto-discovered, and every call runs with per-tool approval. Try it free.";
 
 export const metadata: Metadata = {
-	title: "MCP Connector for AI Agents: Add Any MCP Server | SurfSense",
+	title: "External MCP Connectors: Add Any MCP Server | SurfSense",
 	description: metaDescription,
 	keywords: [
 		"mcp connector",
+		"external mcp connectors",
 		"what is an mcp connector",
 		"mcp client",
 		"add mcp server",
 		"connect mcp server",
 		"mcp integrations",
-		"mcp server for ai agents",
 	],
 	alternates: { canonical: canonicalUrl },
 	openGraph: {
-		title: "MCP Connector for AI Agents: Add Any MCP Server | SurfSense",
+		title: "External MCP Connectors: Add Any MCP Server | SurfSense",
 		description: metaDescription,
 		url: canonicalUrl,
 		siteName: "SurfSense",
 		type: "website",
-		images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SurfSense MCP connector" }],
+		images: [
+			{ url: "/og-image.png", width: 1200, height: 630, alt: "SurfSense external MCP connectors" },
+		],
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "MCP Connector for AI Agents: Add Any MCP Server | SurfSense",
+		title: "External MCP Connectors: Add Any MCP Server | SurfSense",
 		description: metaDescription,
 		images: ["/og-image.png"],
 	},
@@ -94,14 +96,14 @@ const ONE_CLICK_APPS = [
 
 const FAQ: FaqItem[] = [
 	{
-		question: "What is an MCP connector?",
+		question: "What is an external MCP connector?",
 		answer:
-			"An MCP connector links an AI application to an MCP (Model Context Protocol) server, so the app's agents can call the server's tools. In SurfSense, you add a server config once, its tools are auto-discovered, and every agent in your workspace can use them with per-tool approval.",
+			"An external MCP connector links SurfSense to an outside MCP (Model Context Protocol) server, so your agents can call that server's tools. You add a server config once, its tools are auto-discovered, and every agent in your workspace can use them with per-tool approval.",
 	},
 	{
-		question: "How is an MCP connector different from an MCP server?",
+		question: "How is this different from the SurfSense MCP server?",
 		answer:
-			"An MCP server exposes tools; an MCP connector consumes them. This page covers SurfSense acting as the client: plugging outside MCP servers into your agents. SurfSense also ships its own MCP server, which exposes connectors like Reddit and Google Maps as tools inside Claude, Cursor, or any MCP client.",
+			"Direction. External MCP connectors make SurfSense the client: outside tools flow into your SurfSense agents. The SurfSense MCP server is the reverse: it exposes your workspace and the scraper APIs as tools inside Claude, Cursor, or any MCP client you already run.",
 	},
 	{
 		question: "Which MCP transports are supported?",
@@ -139,14 +141,14 @@ function ConfigCard() {
 	);
 }
 
-export default function McpConnectorPage() {
+export default function ExternalMcpConnectorsPage() {
 	return (
 		<>
 			<JsonLd
 				data={{
 					"@context": "https://schema.org",
 					"@type": "SoftwareApplication",
-					name: "SurfSense MCP Connector",
+					name: "SurfSense External MCP Connectors",
 					applicationCategory: "DeveloperApplication",
 					operatingSystem: "Web",
 					description: metaDescription,
@@ -176,21 +178,21 @@ export default function McpConnectorPage() {
 								className="mb-6"
 								items={[
 									{ name: "Connectors", href: "/connectors" },
-									{ name: "MCP Connector", href: "/mcp-connector" },
+									{ name: "External MCP Connectors", href: "/external-mcp-connectors" },
 								]}
 							/>
 							<Badge variant="outline" className="mb-5 gap-1.5 py-1">
 								<Plug className="size-3.5" />
-								MCP connector
+								External MCP connectors
 							</Badge>
 							<h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-								Bring any MCP server to your AI agents
+								Bring any external MCP server to your agents
 							</h1>
 							<p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-								The SurfSense MCP connector turns your workspace into an MCP client. Add any MCP
-								server with the same config you'd use in Cursor, and its tools are auto-discovered
-								and handed to your agents, guarded by per-tool approval. Notion, Slack, Jira, and
-								more connect with one-click OAuth.
+								External MCP connectors turn your SurfSense workspace into an MCP client. Add any
+								MCP server with the same config you'd use in Cursor, and its tools are
+								auto-discovered and handed to your agents, guarded by per-tool approval. Notion,
+								Slack, Jira, and more connect with one-click OAuth.
 							</p>
 							<div className="mt-8 flex flex-wrap items-center gap-3">
 								<Button asChild size="lg">
@@ -273,12 +275,18 @@ export default function McpConnectorPage() {
 				<MarketingSection>
 					<Reveal>
 						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-							MCP connector vs MCP server
+							External MCP connectors vs the SurfSense MCP server
 						</h2>
 						<p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
-							They are two sides of the same protocol. The MCP connector on this page makes
-							SurfSense a <em>client</em>: it consumes tools from outside MCP servers. The SurfSense
-							MCP <em>server</em> does the reverse, exposing platform connectors like{" "}
+							They are two sides of the same protocol. The external MCP connectors on this page make
+							SurfSense a <em>client</em>: they consume tools from outside MCP servers. The{" "}
+							<Link
+								href="/mcp-server"
+								className="font-medium text-foreground underline underline-offset-4"
+							>
+								SurfSense MCP server
+							</Link>{" "}
+							does the reverse, exposing your workspace and scraper APIs like{" "}
 							<Link
 								href="/reddit"
 								className="font-medium text-foreground underline underline-offset-4"
@@ -302,7 +310,7 @@ export default function McpConnectorPage() {
 				<MarketingSection>
 					<Reveal>
 						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-							MCP connector: frequently asked questions
+							External MCP connectors: frequently asked questions
 						</h2>
 					</Reveal>
 					<Reveal>
@@ -320,7 +328,7 @@ export default function McpConnectorPage() {
 								Give your agents every tool they need
 							</h2>
 							<p className="mx-auto mt-3 max-w-xl text-muted-foreground leading-relaxed">
-								The MCP connector is part of the SurfSense{" "}
+								External MCP connectors are part of the SurfSense{" "}
 								<Link href="/" className="font-medium text-foreground underline underline-offset-4">
 									competitive intelligence platform
 								</Link>
@@ -343,6 +351,9 @@ export default function McpConnectorPage() {
 							<nav aria-label="Other connectors" className="flex flex-wrap justify-center gap-2">
 								<Button asChild variant="ghost" size="sm">
 									<Link href="/connectors">All connectors</Link>
+								</Button>
+								<Button asChild variant="ghost" size="sm">
+									<Link href="/mcp-server">SurfSense MCP Server</Link>
 								</Button>
 								<Button asChild variant="ghost" size="sm">
 									<Link href="/reddit">Reddit API</Link>

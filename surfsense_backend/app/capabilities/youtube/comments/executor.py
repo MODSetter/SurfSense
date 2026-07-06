@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from app.capabilities.core import Executor
+from app.capabilities.core.progress import emit_progress
 from app.capabilities.youtube.comments.schemas import CommentsInput, CommentsOutput
 from app.proprietary.platforms.youtube import (
     YouTubeCommentsInput,
@@ -24,7 +25,9 @@ def build_comments_executor(scrape_fn: CommentsFn | None = None) -> Executor:
             maxComments=payload.max_comments,
             sortCommentsBy=payload.sort_by,
         )
+        emit_progress("starting", "Fetching YouTube comments", total=payload.max_comments, unit="comment")
         items = await scrape_fn(actor_input)
+        emit_progress("done", f"Scraped {len(items)} comment(s)", current=len(items), unit="comment")
         return CommentsOutput(items=items)
 
     return execute

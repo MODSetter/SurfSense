@@ -111,6 +111,13 @@ export const cacheKeys = {
 		batchUnreadCounts: (workspaceId: number | null) =>
 			["notifications", "unread-counts-batch", workspaceId] as const,
 	},
+	scrapers: {
+		capabilities: (workspaceId: number | string) =>
+			["scrapers", "capabilities", workspaceId] as const,
+		runs: (workspaceId: number | string) => ["scrapers", "runs", workspaceId] as const,
+		run: (workspaceId: number | string, runId: string) =>
+			["scrapers", "run", workspaceId, runId] as const,
+	},
 	automations: {
 		// list endpoint is keyed by pagination too so distinct pages don't collide
 		list: (workspaceId: number, limit: number, offset: number) =>

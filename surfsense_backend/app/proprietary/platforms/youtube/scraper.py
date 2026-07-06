@@ -174,7 +174,9 @@ async def _video_flow(
     html = await fetch_html(url)
     if not html:
         return
-    partial = parse_video_page(html)
+    # Watch-page HTML is 1-2MB and the embedded-JSON scan is pure Python; run
+    # it off-loop so one video parse can't stall other requests.
+    partial = await asyncio.to_thread(parse_video_page, html)
     if not partial:
         return
     yield await _finalize(
@@ -294,7 +296,7 @@ async def _channel_tab_flow(
         seed_html = await fetch_html(from_url)
         if not seed_html:
             return
-        initial = extract_yt_initial_data(seed_html)
+        initial = await asyncio.to_thread(extract_yt_initial_data, seed_html)
         if not initial:
             return
 
@@ -355,7 +357,11 @@ async def _channel_flow(
     (identity, banner, and the About panel's deep fields) stamped on every item.
     """
     videos_seed = await fetch_html(_channel_tab_url(handle, "videos"))
-    initial = extract_yt_initial_data(videos_seed) if videos_seed else None
+    initial = (
+        await asyncio.to_thread(extract_yt_initial_data, videos_seed)
+        if videos_seed
+        else None
+    )
     channel_meta: dict[str, Any] = {}
     if initial:
         channel_meta = parse_channel_metadata(initial)
@@ -457,7 +463,7 @@ async def _hashtag_flow(
     html = await fetch_html(url)
     if not html:
         return
-    data = extract_yt_initial_data(html)
+    data = await asyncio.to_thread(extract_yt_initial_data, html)
     order = 0
     while data:
         items, token = parse_search_response(data)
@@ -552,9 +558,12 @@ async def scrape_youtube(
     ``limit`` is a request-time policy guard (used by the route), NOT a ceiling
     in the streaming core.
     """
+    from app.capabilities.core.progress import emit_progress
+
     results: list[dict[str, Any]] = []
     async for item in iter_youtube(input_model):
         results.append(item)
+        emit_progress("scraping", current=len(results), total=limit, unit="video")
         if limit is not None and len(results) >= limit:
             break
     return results

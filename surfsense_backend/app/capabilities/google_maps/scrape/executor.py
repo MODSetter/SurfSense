@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from app.capabilities.core import Executor
+from app.capabilities.core.progress import emit_progress
 from app.capabilities.google_maps.scrape.schemas import ScrapeInput, ScrapeOutput
 from app.exceptions import ForbiddenError
 from app.proprietary.platforms.google_maps import (
@@ -32,12 +33,14 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             maxReviews=payload.max_reviews,
             maxImages=payload.max_images,
         )
+        emit_progress("starting", "Searching Google Maps", total=payload.max_places, unit="place")
         try:
             items = await scrape_fn(actor_input)
         except SignInRequiredError as exc:
             raise ForbiddenError(
                 f"Google sign in required: {exc}", code="GOOGLE_SIGNIN_REQUIRED"
             ) from exc
+        emit_progress("done", f"Scraped {len(items)} place(s)", current=len(items), unit="place")
         return ScrapeOutput(items=items)
 
     return execute

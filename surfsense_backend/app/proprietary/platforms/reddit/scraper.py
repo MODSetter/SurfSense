@@ -444,9 +444,14 @@ async def scrape_reddit(
     ``limit`` is a request-time policy guard, NOT a ceiling in the streaming
     core.
     """
+    from app.capabilities.core.progress import emit_progress
+
     results: list[dict[str, Any]] = []
     async for item in iter_reddit(input_model):
         results.append(item)
+        emit_progress(
+            "scraping", current=len(results), total=limit, unit="item"
+        )
         if limit is not None and len(results) >= limit:
             break
     return results

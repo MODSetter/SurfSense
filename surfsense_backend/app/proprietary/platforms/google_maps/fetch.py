@@ -582,14 +582,21 @@ async def fetch_rpc_json(
         if looks_like_signin_wall(text):
             logger.warning("Maps RPC GET %s hit a sign-in/consent wall", url)
             return None
-        body = strip_xssi(text)
-        # The proxy/HTML fetcher may wrap the JSON in <html><body><p>…</p>…,
-        # so extract just the balanced top-level array/object.
-        start = next((i for i, c in enumerate(body) if c in "[{"), -1)
-        if start == -1:
-            return None
-        blob = brace_match_json(body, start)
-        return json.loads(blob) if blob else None
+        # brace_match_json is a pure-Python scan and review payloads reach
+        # ~1MB; decode off-loop so it can't stall concurrent requests.
+        return await asyncio.to_thread(_decode_rpc_body, text)
     except Exception as e:
         logger.warning("Maps RPC GET %s failed: %s", url, e)
         return None
+
+
+def _decode_rpc_body(text: str) -> Any | None:
+    """Strip the XSSI guard and decode the balanced top-level JSON blob."""
+    body = strip_xssi(text)
+    # The proxy/HTML fetcher may wrap the JSON in <html><body><p>…</p>…,
+    # so extract just the balanced top-level array/object.
+    start = next((i for i, c in enumerate(body) if c in "[{"), -1)
+    if start == -1:
+        return None
+    blob = brace_match_json(body, start)
+    return json.loads(blob) if blob else None

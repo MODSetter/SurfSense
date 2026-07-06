@@ -21,7 +21,7 @@ export const googleMaps: ConnectorPageContent = {
 		"google maps scraper python",
 	],
 
-	h1: "Google Maps API for Lead Generation and Local Market Intelligence",
+	h1: "Google Maps Scraper API for Lead Generation and Local Market Intelligence",
 	heroLede:
 		"The SurfSense Google Maps API turns Maps into a B2B lead engine. Extract business names, categories, phones, websites, ratings, and reviews at scale, then point your AI agents at any territory or category to build lead lists and map a local market in minutes.",
 
@@ -305,7 +305,7 @@ export const googleMaps: ConnectorPageContent = {
 		{ label: "YouTube API", href: "/youtube" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
-		{ label: "MCP Connector", href: "/mcp-connector" },
+		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],
 };

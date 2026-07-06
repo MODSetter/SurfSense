@@ -7,11 +7,12 @@ export const webCrawl: ConnectorPageContent = {
 	cardTitle: "Web Crawl API",
 	icon: IconWorldWww,
 
-	metaTitle: "Web Crawl API for AI Agents and Deep Research | SurfSense",
+	metaTitle: "Web Scraping and Crawl API for AI Agents | SurfSense",
 	metaDescription:
 		"Point your agents at any URL and get clean, LLM-ready markdown, links, and contacts back. The SurfSense Web Crawl API for deep research and competitor monitoring. Start free.",
 	keywords: [
 		"web crawl api",
+		"web scraping api",
 		"web crawler api",
 		"web crawling api",
 		"firecrawl alternative",
@@ -281,7 +282,7 @@ export const webCrawl: ConnectorPageContent = {
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "Reddit API", href: "/reddit" },
-		{ label: "MCP Connector", href: "/mcp-connector" },
+		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],
 };

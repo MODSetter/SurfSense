@@ -80,14 +80,16 @@ async def _comments_for_video(
     html = await fetch_html(page_url)
     if not html:
         return
-    initial = extract_yt_initial_data(html)
+    # Both helpers scan 1-2MB of watch-page HTML in pure Python; keep that
+    # off the event loop.
+    initial = await asyncio.to_thread(extract_yt_initial_data, html)
     if not initial:
         return
     section = comment_section_token(initial)
     if not section:  # comments disabled or absent
         return
 
-    meta = parse_video_page(html) or {}
+    meta = await asyncio.to_thread(parse_video_page, html) or {}
     base = {
         "videoId": video_id,
         "pageUrl": page_url,
@@ -180,9 +182,12 @@ async def scrape_comments(
     input_model: YouTubeCommentsInput, *, limit: int | None = None
 ) -> list[dict]:
     """Collect :func:`iter_comments` into a list, honoring an optional guard."""
+    from app.capabilities.core.progress import emit_progress
+
     results: list[dict] = []
     async for comment in iter_comments(input_model):
         results.append(comment)
+        emit_progress("scraping", current=len(results), total=limit, unit="comment")
         if limit is not None and len(results) >= limit:
             break
     return results

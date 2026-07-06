@@ -12,7 +12,7 @@ import logging
 
 from fake_useragent import UserAgent
 from requests import Session
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import RequestBlocked, YouTubeTranscriptApi
 from youtube_transcript_api.formatters import (
     SRTFormatter,
     TextFormatter,
@@ -30,6 +30,11 @@ _FORMATTERS = {
     "vtt": WebVTTFormatter,
     "plaintext": TextFormatter,
 }
+
+# Blocked-IP retries, mirroring innertube's rotate-on-block. Each retry builds a
+# fresh Session (new TCP connection), which draws a new exit IP on a rotating
+# proxy gateway. Without a proxy we don't retry - the egress IP can't change.
+_MAX_ROTATIONS = 3
 
 
 def _build_client() -> YouTubeTranscriptApi:
@@ -59,10 +64,26 @@ def _select_transcript(transcript_list, language: str, prefer_generated: bool):
 def _fetch_subtitles_sync(
     video_id: str, language: str, fmt: str, prefer_generated: bool
 ):
-    api = _build_client()
-    transcript_list = api.list(video_id)
-    transcript = _select_transcript(transcript_list, language, prefer_generated)
-    fetched = transcript.fetch()
+    attempts = (_MAX_ROTATIONS + 1) if get_requests_proxies() else 1
+    for attempt in range(attempts):
+        api = _build_client()
+        try:
+            transcript_list = api.list(video_id)
+            transcript = _select_transcript(
+                transcript_list, language, prefer_generated
+            )
+            fetched = transcript.fetch()
+            break
+        except RequestBlocked:  # covers IpBlocked; rotate to a fresh exit IP
+            if attempt == attempts - 1:
+                raise
+            logger.info(
+                "Transcript request blocked for %s; retrying on a fresh proxy "
+                "connection (attempt %d/%d)",
+                video_id,
+                attempt + 2,
+                attempts,
+            )
 
     if fmt == "xml":
         # No XML formatter in the library; emit the raw snippet data as text.

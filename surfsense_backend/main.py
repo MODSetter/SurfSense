@@ -6,10 +6,6 @@ import sys
 import uvicorn
 from dotenv import load_dotenv
 
-# Fix for Windows: psycopg requires SelectorEventLoop, not ProactorEventLoop
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
 from app.config.uvicorn import load_uvicorn_config
 
 _old_log_record_factory = logging.getLogRecordFactory()
@@ -47,6 +43,14 @@ if __name__ == "__main__":
     server = uvicorn.Server(config)
 
     if sys.platform == "win32":
+        # Windows needs a split-loop setup: psycopg's async driver requires a
+        # SelectorEventLoop (no add_reader on Proactor), so the SERVER loop is
+        # forced to Selector via loop_factory. The global policy is left at
+        # its default (Proactor) so worker threads that call
+        # asyncio.new_event_loop() — playwright/patchright sync API used by
+        # the scrapers, unstructured, etc. — get a loop that CAN spawn
+        # subprocesses. Do not set WindowsSelectorEventLoopPolicy globally:
+        # that breaks every browser-based scraper with NotImplementedError.
         asyncio.run(server.serve(), loop_factory=asyncio.SelectorEventLoop)
     else:
         server.run()

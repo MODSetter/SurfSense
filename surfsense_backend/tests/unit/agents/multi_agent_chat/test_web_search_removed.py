@@ -17,7 +17,10 @@ from app.agents.chat.multi_agent_chat.main_agent.tools.index import (
 from app.agents.chat.multi_agent_chat.subagents.registry import (
     SUBAGENT_BUILDERS_BY_NAME,
 )
-from app.utils.validators import DEPRECATED_CONNECTOR_TYPES, raise_if_connector_deprecated
+from app.utils.validators import (
+    DEPRECATED_CONNECTOR_TYPES,
+    raise_if_connector_deprecated,
+)
 
 pytestmark = pytest.mark.unit
 

@@ -106,6 +106,24 @@ def test_registered_verbs_appear_on_rest():
 
 
 @pytest.mark.asyncio
+async def test_capabilities_endpoint_lists_verbs_with_input_schema(monkeypatch):
+    """The playground reads verb identity + input JSON schema from one GET."""
+    app = _build_app([_ECHO], monkeypatch)
+    async with _client(app) as client:
+        resp = await client.get("/api/v1/workspaces/7/scrapers/capabilities")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    entry = body[0]
+    assert entry["name"] == "test.echo"
+    assert entry["description"] == "Echo the input back for tests."
+    # The schemas are the pydantic models' JSON schemas: the form renders the
+    # input schema, the API reference docs render both.
+    assert "value" in entry["input_schema"]["properties"]
+    assert "properties" in entry["output_schema"]
+
+
+@pytest.mark.asyncio
 async def test_over_budget_is_blocked_before_the_executor(monkeypatch):
     from app.capabilities.core.access import rest
     from app.services.web_crawl_credit_service import InsufficientCreditsError
@@ -243,6 +261,7 @@ def _fake_run_row(**overrides):
         "thread_id": None,
         "input": {"value": "hi"},
         "output_text": '{"echo": "hi"}',
+        "progress": None,
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -337,3 +356,111 @@ async def test_success_charges_once(monkeypatch):
     assert isinstance(output, _EchoOutput)
     assert unit is None
     assert ctx.workspace_id == 7
+
+
+@pytest.mark.asyncio
+async def test_async_mode_returns_202_and_pending_run(monkeypatch):
+    """``?mode=async`` inserts a pending run and returns its id without blocking."""
+    from unittest.mock import AsyncMock
+
+    from app.capabilities.core.access import rest
+
+    monkeypatch.setattr(
+        rest, "create_pending_run", AsyncMock(return_value="async-id"), raising=True
+    )
+    # Don't actually run the scrape in the background during this unit test.
+    monkeypatch.setattr(rest, "_execute_async_run", AsyncMock(), raising=True)
+
+    app = _build_app([_ECHO], monkeypatch)
+    async with _client(app) as client:
+        resp = await client.post(
+            "/api/v1/workspaces/7/scrapers/test/echo?mode=async",
+            json={"value": "hi"},
+        )
+    assert resp.status_code == 202
+    assert resp.json() == {"run_id": "run_async-id", "status": "running"}
+
+
+@pytest.mark.asyncio
+async def test_run_events_replays_buffer_then_finishes(monkeypatch):
+    """The SSE endpoint replays buffered events and closes on ``run.finished``."""
+    from app.capabilities.core.events import run_event_bus
+
+    row = _fake_run_row(status="running")
+    raw = str(row.id)
+    run_event_bus.publish(raw, {"type": "run.progress", "phase": "scraping", "current": 1})
+    run_event_bus.publish(raw, {"type": "run.finished", "status": "success", "item_count": 2})
+
+    app = _build_app_with_rows(monkeypatch, [row])
+    try:
+        async with _client(app) as client:
+            resp = await client.get(
+                f"/api/v1/workspaces/7/scrapers/runs/run_{raw}/events"
+            )
+        assert resp.status_code == 200
+        body = resp.text
+        assert '"type": "run.progress"' in body
+        assert '"type": "run.finished"' in body
+        assert '"status": "success"' in body
+    finally:
+        run_event_bus.close(raw)
+
+
+@pytest.mark.asyncio
+async def test_cancel_finalizes_running_run(monkeypatch):
+    """Cancel signals the task, finalizes as ``cancelled``, and emits a terminal."""
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from app.capabilities.core.access import rest
+    from app.capabilities.core.events import run_event_bus
+
+    finalize = AsyncMock(return_value=True)
+    monkeypatch.setattr(rest, "finalize_run", finalize, raising=True)
+
+    row = _fake_run_row(status="running")
+    raw = str(row.id)
+    task = asyncio.create_task(asyncio.sleep(60))
+    run_event_bus.register_task(raw, task)
+
+    app = _build_app_with_rows(monkeypatch, [row])
+    try:
+        async with _client(app) as client:
+            resp = await client.post(
+                f"/api/v1/workspaces/7/scrapers/runs/run_{raw}/cancel"
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {"run_id": f"run_{raw}", "status": "cancelled"}
+        finalize.assert_awaited_once()
+        assert finalize.await_args.kwargs["status"] == "cancelled"
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        run_event_bus.close(raw)
+
+
+@pytest.mark.asyncio
+async def test_cancel_conflicts_when_not_running(monkeypatch):
+    """Cancelling a terminal run is a 409, not a silent overwrite."""
+    row = _fake_run_row(status="success")
+    app = _build_app_with_rows(monkeypatch, [row])
+    async with _client(app) as client:
+        resp = await client.post(
+            f"/api/v1/workspaces/7/scrapers/runs/run_{row.id}/cancel"
+        )
+    assert resp.status_code == 409
+
+
+def test_emit_progress_is_a_noop_without_context():
+    """Scraper code can call ``emit_progress`` freely; unset context = no-op."""
+    from app.capabilities.core.progress import emit_progress, progress_scope
+
+    # No active reporter -> returns without raising, records nothing.
+    emit_progress("phase", "message", current=1, total=2, unit="item")
+
+    # Inside a scope, coarse events are buffered for persistence.
+    with progress_scope() as reporter:
+        emit_progress("starting", "go")
+        emit_progress("done", current=5, unit="item")
+    assert len(reporter.coarse) == 2
+    assert reporter.coarse[0]["phase"] == "starting"

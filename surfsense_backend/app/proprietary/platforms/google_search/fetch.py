@@ -33,6 +33,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import sys
+import threading
 import time
 from urllib.parse import urlsplit, urlunsplit
 
@@ -228,9 +230,46 @@ _MOBILE_UA = "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132
 _MOBILE_VIEWPORT = {"width": 412, "height": 915}
 
 
+# patchright launches Chromium via asyncio.create_subprocess_exec, which the
+# server's main loop cannot do on Windows (main.py pins a SelectorEventLoop
+# for psycopg; Selector loops raise NotImplementedError on subprocess_exec).
+# All browser work therefore runs on ONE dedicated background loop that is
+# explicitly subprocess-capable; callers await it across threads. This also
+# keeps the persistent AsyncStealthySession (and its async page_action) intact
+# — the sync-fetcher-in-a-thread pattern the other scrapers use would tear
+# down the browser on every fetch.
+_browser_loop: asyncio.AbstractEventLoop | None = None
+_browser_loop_guard = threading.Lock()
+
+
+def _get_browser_loop() -> asyncio.AbstractEventLoop:
+    """The lazily-started, process-wide event loop the browser lives on."""
+    global _browser_loop
+    with _browser_loop_guard:
+        if _browser_loop is None:
+            loop = (
+                asyncio.ProactorEventLoop()
+                if sys.platform == "win32"
+                else asyncio.new_event_loop()
+            )
+            threading.Thread(
+                target=loop.run_forever, name="google-search-browser", daemon=True
+            ).start()
+            _browser_loop = loop
+        return _browser_loop
+
+
+async def _in_browser_loop(coro):
+    """Run ``coro`` on the browser loop and await its result from this loop."""
+    return await asyncio.wrap_future(
+        asyncio.run_coroutine_threadsafe(coro, _get_browser_loop())
+    )
+
+
 # One live browser per layout (desktop / mobile — the UA and viewport are
 # session-level context options). Launching Chromium costs ~5 s, so it's paid
 # once and every fetch just opens a fresh context on its vetted sticky proxy.
+# Only ever touched from coroutines running on the browser loop.
 _sessions: dict[bool, AsyncStealthySession] = {}
 _session_lock = asyncio.Lock()
 
@@ -263,8 +302,7 @@ async def _get_session(mobile: bool) -> AsyncStealthySession:
         return session
 
 
-async def _drop_session(mobile: bool) -> None:
-    """Close and forget a session whose browser is presumed broken."""
+async def _drop_session_on_loop(mobile: bool) -> None:
     async with _session_lock:
         session = _sessions.pop(mobile, None)
     if session is not None:
@@ -274,16 +312,30 @@ async def _drop_session(mobile: bool) -> None:
             pass
 
 
+async def _drop_session(mobile: bool) -> None:
+    """Close and forget a session whose browser is presumed broken."""
+    await _in_browser_loop(_drop_session_on_loop(mobile))
+
+
 async def close_sessions() -> None:
     """Shut down the shared browsers (for tests/scripts wanting a clean exit)."""
     for mobile in (False, True):
         await _drop_session(mobile)
 
 
-async def _render(url: str, proxy: str | None, mobile: bool = False):
-    """Headless render of a SERP on the shared browser (fresh proxy context)."""
+async def _render_on_loop(url: str, proxy: str | None, mobile: bool):
     session = await _get_session(mobile)
     return await session.fetch(url, proxy=proxy)
+
+
+async def _render(url: str, proxy: str | None, mobile: bool = False):
+    """Headless render of a SERP on the shared browser (fresh proxy context).
+
+    The actual browser work is marshalled onto the dedicated subprocess-capable
+    loop (see :func:`_get_browser_loop`); this coroutine just awaits it from
+    the caller's loop.
+    """
+    return await _in_browser_loop(_render_on_loop(url, proxy, mobile))
 
 
 async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
@@ -324,7 +376,8 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
         except Exception as e:
             # Renders on a walled IP still return HTML; an exception means the
             # browser side is broken, so relaunch it rather than limp along.
-            logger.warning("[google_search] render failed: %s", e)
+            # repr(), not str(): e.g. NotImplementedError stringifies to "".
+            logger.warning("[google_search] render failed: %r", e)
             _last_good_proxy = None
             await _drop_session(mobile)
             continue

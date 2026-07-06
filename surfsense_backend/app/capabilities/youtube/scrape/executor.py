@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from app.capabilities.core import Executor
+from app.capabilities.core.progress import emit_progress
 from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
 from app.proprietary.platforms.youtube import (
     YouTubeScrapeInput,
@@ -30,7 +31,9 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             downloadSubtitles=payload.download_subtitles,
             subtitlesLanguage=payload.subtitles_language,
         )
+        emit_progress("starting", "Resolving YouTube targets", total=payload.max_results, unit="video")
         items = await scrape_fn(actor_input)
+        emit_progress("done", f"Scraped {len(items)} video(s)", current=len(items), unit="video")
         return ScrapeOutput(items=items)
 
     return execute

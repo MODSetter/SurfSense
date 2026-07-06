@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from scrapling.spiders import CrawlerEngine, LinkExtractor, Response, Spider
 
+from app.capabilities.core.progress import emit_progress
 from app.proprietary.web_crawler.connector import (
     CrawlOutcome,
     CrawlOutcomeStatus,
@@ -88,7 +89,16 @@ class _ConnectorSession:
         self._is_alive = False
 
     async def fetch(self, url: str, **_kwargs: Any) -> Response:
+        emit_progress("fetching", f"Fetching {url}", unit="page", url=url)
         outcome = await self._connector.crawl_url(url)
+        if outcome.captcha_attempts:
+            emit_progress(
+                "captcha",
+                f"Captcha {'solved' if outcome.captcha_solved else 'attempted'} on {url}",
+                url=url,
+                attempts=outcome.captcha_attempts,
+                solved=outcome.captcha_solved,
+            )
         result = outcome.result or {}
         content = result.get("content")
         # Selector chokes on empty content; a fetch that raises would be counted
@@ -156,6 +166,16 @@ class _SiteSpider(Spider):
 
         if len(self.pages) < self._max_pages:
             self.pages.append(_to_page(req_url, outcome, depth, referrer))
+            emit_progress(
+                "crawled",
+                f"Crawled {req_url}",
+                current=len(self.pages),
+                total=self._max_pages,
+                unit="page",
+                url=req_url,
+                depth=depth,
+                status=outcome.status.value,
+            )
 
         # Cap reached: stop the engine so queued-but-unfetched links are abandoned
         # (never fetched, never billed), matching the old BFS's per-fetch guard.

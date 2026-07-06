@@ -2823,6 +2823,9 @@ class Run(Base, TimestampMixin):
     char_count = Column(Integer, nullable=False, default=0)
     duration_ms = Column(Integer, nullable=True)
     cost_micros = Column(BigInteger, nullable=True)
+    # Coarse progress log (list of throttled events) captured during the run;
+    # the live fine-grained stream is ephemeral (bus/SSE only).
+    progress = Column(JSONB, nullable=True)
 
 
 class ToolOutputSpill(Base, TimestampMixin):

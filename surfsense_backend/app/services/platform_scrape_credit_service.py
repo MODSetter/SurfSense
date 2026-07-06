@@ -21,11 +21,11 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
+from app.services import wallet_credit
 
 # One "out of credit" type across every per-unit biller; the capability doors
 # already catch exactly this one.
 from app.services.etl_credit_service import InsufficientCreditsError
-from app.services import wallet_credit
 
 __all__ = ["InsufficientCreditsError", "PlatformScrapeCreditService"]
 

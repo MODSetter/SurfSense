@@ -1,4 +1,4 @@
-import { ArrowRight, Plug } from "lucide-react";
+import { ArrowRight, Plug, Server } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllConnectors } from "@/lib/connectors-marketing";
@@ -75,15 +75,32 @@ export default function ConnectorsIndexPage() {
 							</Link>
 						);
 					})}
-					{/* Bespoke page (not in the scrape-API registry): SurfSense as an MCP client. */}
+					{/* Bespoke pages (not in the scrape-API registry): the two MCP directions. */}
 					<Link
-						href="/mcp-connector"
+						href="/mcp-server"
+						className="group flex flex-col rounded-xl border bg-card p-6 transition-colors hover:border-brand/40"
+					>
+						<span className="flex size-11 items-center justify-center rounded-lg border bg-muted/40 transition-transform duration-200 ease-out group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+							<Server className="size-5 text-foreground" />
+						</span>
+						<h2 className="mt-4 text-lg font-semibold">SurfSense MCP Server</h2>
+						<p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-4">
+							Give Claude, Cursor, or any MCP client native tools for your workspace: every scraper
+							API plus knowledge base search, reads, and writes. One API key.
+						</p>
+						<span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-foreground">
+							Explore
+							<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+						</span>
+					</Link>
+					<Link
+						href="/external-mcp-connectors"
 						className="group flex flex-col rounded-xl border bg-card p-6 transition-colors hover:border-brand/40"
 					>
 						<span className="flex size-11 items-center justify-center rounded-lg border bg-muted/40 transition-transform duration-200 ease-out group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100">
 							<Plug className="size-5 text-foreground" />
 						</span>
-						<h2 className="mt-4 text-lg font-semibold">MCP Connector</h2>
+						<h2 className="mt-4 text-lg font-semibold">External MCP Connectors</h2>
 						<p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-4">
 							Bring any MCP server to your agents. Paste a config like you would in Cursor, tools
 							are auto-discovered, and Notion, Slack, Jira, and more connect with one-click OAuth.

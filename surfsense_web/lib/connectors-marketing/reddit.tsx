@@ -24,7 +24,7 @@ export const reddit: ConnectorPageContent = {
 		"brand monitoring tool",
 	],
 
-	h1: "Reddit API for Brand Monitoring and Market Research",
+	h1: "Reddit Scraper API for Brand Monitoring and Market Research",
 	heroLede:
 		"The SurfSense Reddit API extracts posts, comments, subreddits, and user data without the official Reddit API's rate limits or per-call pricing. Give your AI agents a live feed of what your market says about your brand, your competitors, and your category, so you hear it first.",
 
@@ -313,7 +313,7 @@ export const reddit: ConnectorPageContent = {
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
-		{ label: "MCP Connector", href: "/mcp-connector" },
+		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],
 };

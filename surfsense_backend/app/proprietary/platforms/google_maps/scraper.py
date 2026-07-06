@@ -455,9 +455,12 @@ async def scrape_places(
     ``limit`` is a request-time policy guard (used by the route), NOT a ceiling
     in the streaming core.
     """
+    from app.capabilities.core.progress import emit_progress
+
     results: list[dict[str, Any]] = []
     async for item in iter_places(input_model):
         results.append(item)
+        emit_progress("scraping", current=len(results), total=limit, unit="place")
         if limit is not None and len(results) >= limit:
             break
     return results

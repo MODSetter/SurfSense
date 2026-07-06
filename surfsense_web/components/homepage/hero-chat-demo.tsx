@@ -27,7 +27,7 @@ export type HeroChatDemoScript = {
 
 type Stage = "typing" | "steps" | "answer" | "done";
 
-const PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
+const PLACEHOLDER = "Track competitors, scrape platforms, automate briefs — / for prompts, @ for docs";
 
 /** Blinking caret for the typewriter (overlay only, never inside the real input). */
 function Caret() {

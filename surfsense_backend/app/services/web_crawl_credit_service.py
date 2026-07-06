@@ -24,13 +24,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
 
-# Reuse the ETL service's error type so callers (and tests) have one exception
-# to catch for "out of credit" across every per-unit wallet biller.
-from app.services.etl_credit_service import InsufficientCreditsError
-
 # Wallet math (spendable / check / debit) is shared with the platform-scrape
 # biller — see app/services/wallet_credit.py.
 from app.services import wallet_credit
+
+# Reuse the ETL service's error type so callers (and tests) have one exception
+# to catch for "out of credit" across every per-unit wallet biller.
+from app.services.etl_credit_service import InsufficientCreditsError
 
 __all__ = ["InsufficientCreditsError", "WebCrawlCreditService"]
 

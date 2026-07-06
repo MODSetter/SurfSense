@@ -150,13 +150,18 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/artifacts")),
 		[navItems]
 	);
+	const playgroundItem = useMemo(
+		() => navItems.find((item) => item.url.endsWith("/playground")),
+		[navItems]
+	);
 	const footerNavItems = useMemo(
 		() =>
 			navItems.filter(
 				(item) =>
 					item.url !== "#inbox" &&
 					!item.url.endsWith("/automations") &&
-					!item.url.endsWith("/artifacts")
+					!item.url.endsWith("/artifacts") &&
+					!item.url.endsWith("/playground")
 			),
 		[navItems]
 	);
@@ -265,6 +270,16 @@ export function Sidebar({
 							isCollapsed={isCollapsed}
 							isActive={artifactsItem.isActive}
 							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
+						/>
+					)}
+					{playgroundItem && (
+						<SidebarButton
+							icon={playgroundItem.icon}
+							label={playgroundItem.title}
+							onClick={() => onNavItemClick?.(playgroundItem)}
+							isCollapsed={isCollapsed}
+							isActive={playgroundItem.isActive}
+							tooltipContent={isCollapsed ? playgroundItem.title : undefined}
 						/>
 					)}
 				</div>

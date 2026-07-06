@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const VIEWPORT = { once: true, amount: 0.4 } as const;
 
-export type UseCaseArtVariant = "price" | "brand" | "leads" | "serp";
+export type UseCaseArtVariant = "price" | "brand" | "leads" | "serp" | "chat" | "api";
 
 /** Soft infinite pulse ring marking the "live" signal in each artifact. */
 function Pulse({
@@ -282,11 +282,154 @@ function SerpArt({ reduce }: { reduce: boolean }) {
 	);
 }
 
+/** Founders & marketers: a plain-English ask streams back an agent brief with cited sources. */
+function ChatArt({ reduce }: { reduce: boolean }) {
+	const briefLines = [
+		{ y: 38, width: 150, delay: 0.55 },
+		{ y: 52, width: 180, delay: 0.7 },
+		{ y: 66, width: 120, delay: 0.85 },
+	];
+	return (
+		<motion.svg
+			viewBox="0 0 240 96"
+			className="h-auto w-full"
+			initial={reduce ? undefined : "hidden"}
+			whileInView="visible"
+			viewport={VIEWPORT}
+		>
+			{/* User ask: right-aligned bubble */}
+			<motion.g
+				variants={{ hidden: { opacity: 0, y: -6 }, visible: { opacity: 1, y: 0 } }}
+				transition={{ duration: 0.35, ease: EASE_OUT, delay: 0.1 }}
+			>
+				<rect x="112" y="8" width="116" height="18" rx="9" className="fill-muted-foreground/15" />
+				<rect x="124" y="14" width="92" height="6" rx="3" className="fill-muted-foreground/35" />
+			</motion.g>
+			{/* Agent avatar */}
+			<motion.circle
+				cx="22"
+				cy="44"
+				r="6"
+				className="fill-brand"
+				variants={{ hidden: { opacity: 0, scale: 0 }, visible: { opacity: 1, scale: 1 } }}
+				style={{ transformBox: "fill-box", transformOrigin: "center" }}
+				transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.4 }}
+			/>
+			<Pulse cx={22} cy={44} reduce={reduce} delay={0.7} />
+			{/* Brief streams in line by line */}
+			{briefLines.map((line) => (
+				<motion.rect
+					key={line.y}
+					x="36"
+					y={line.y}
+					width={line.width}
+					height="6"
+					rx="3"
+					className="fill-muted-foreground/30"
+					variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
+					transition={{ duration: 0.3, ease: EASE_OUT, delay: line.delay }}
+				/>
+			))}
+			{/* Citation chip */}
+			<motion.g
+				variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}
+				transition={{ duration: 0.3, ease: EASE_OUT, delay: 1.05 }}
+			>
+				<rect x="36" y="76" width="64" height="15" rx="7.5" className="fill-brand/10" />
+				<text x="68" y="87" textAnchor="middle" className="fill-brand text-[9px] font-medium">
+					3 sources
+				</text>
+			</motion.g>
+		</motion.svg>
+	);
+}
+
+/** Developers & agents: a typed request gets a 200 and JSON streams back. */
+function ApiArt({ reduce }: { reduce: boolean }) {
+	const jsonLines = [
+		{ y: 50, text: '{ "items": [', delay: 0.6 },
+		{ y: 66, text: '    { "title": "...", "score": 812 },', delay: 0.75 },
+		{ y: 82, text: "] }", delay: 0.9 },
+	];
+	return (
+		<motion.svg
+			viewBox="0 0 240 96"
+			className="h-auto w-full"
+			initial={reduce ? undefined : "hidden"}
+			whileInView="visible"
+			viewport={VIEWPORT}
+		>
+			{/* Request line */}
+			<motion.g
+				variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
+				transition={{ duration: 0.35, ease: EASE_OUT, delay: 0.1 }}
+			>
+				<text x="12" y="22" className="fill-brand font-mono text-[10px] font-semibold">
+					POST
+				</text>
+				<text x="44" y="22" className="fill-muted-foreground font-mono text-[10px]">
+					/scrapers/reddit/scrape
+				</text>
+			</motion.g>
+			{/* 200 OK badge */}
+			<motion.g
+				variants={{ hidden: { opacity: 0, scale: 0.8 }, visible: { opacity: 1, scale: 1 } }}
+				style={{ transformBox: "fill-box", transformOrigin: "center" }}
+				transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.45 }}
+			>
+				<rect x="182" y="10" width="46" height="16" rx="4" className="fill-brand/10" />
+				<text x="205" y="21" textAnchor="middle" className="fill-brand text-[9px] font-medium">
+					200 OK
+				</text>
+			</motion.g>
+			<line
+				x1="12"
+				y1="32"
+				x2="228"
+				y2="32"
+				className="stroke-muted-foreground/15"
+				strokeWidth="1"
+			/>
+			{/* JSON response streams in */}
+			{jsonLines.map((line) => (
+				<motion.text
+					key={line.y}
+					x="12"
+					y={line.y}
+					className="fill-muted-foreground font-mono text-[10px]"
+					style={{ whiteSpace: "pre" }}
+					variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
+					transition={{ duration: 0.3, ease: EASE_OUT, delay: line.delay }}
+				>
+					{line.text}
+				</motion.text>
+			))}
+			{/* Blinking cursor after the closing brace */}
+			<motion.rect
+				x="34"
+				y="74"
+				width="5"
+				height="10"
+				className="fill-brand"
+				variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+				animate={reduce ? undefined : { opacity: [1, 1, 0, 0] }}
+				transition={
+					reduce
+						? { duration: 0.2, delay: 1 }
+						: { duration: 1, times: [0, 0.5, 0.5, 1], repeat: Infinity, delay: 1 }
+				}
+			/>
+		</motion.svg>
+	);
+}
+
 const ART: Record<UseCaseArtVariant, (props: { reduce: boolean }) => React.ReactNode> = {
 	price: PriceArt,
 	brand: BrandArt,
 	leads: LeadsArt,
 	serp: SerpArt,
+	chat: ChatArt,
+	api: ApiArt,
 };
 
 /** Small animated artifact rendered at the top of each use-case card. */

@@ -90,6 +90,7 @@ async def record_run(
     error: str | None = None,
     duration_ms: int | None = None,
     cost_micros: int | None = None,
+    progress: list[dict[str, Any]] | None = None,
 ) -> str | None:
     """Persist a run row and return its id, or ``None`` on failure (best-effort).
 
@@ -112,6 +113,7 @@ async def record_run(
             char_count=serialized.char_count if serialized else 0,
             duration_ms=duration_ms,
             cost_micros=cost_micros,
+            progress=progress or None,
         )
         session.add(run)
         await session.flush()
@@ -126,6 +128,120 @@ async def record_run(
         except Exception:
             logger.exception("record_run rollback failed")
         return None
+
+
+async def create_pending_run(
+    session: AsyncSession,
+    *,
+    workspace_id: int,
+    capability: str,
+    origin: str,
+    input: dict | None = None,
+    user_id: Any | None = None,
+    thread_id: str | None = None,
+) -> str | None:
+    """Insert a ``running`` run row up front and return its id (best-effort).
+
+    The async door needs a durable id before it spawns the background scrape so
+    the row is visible in history and streamable while it runs; :func:`finalize_run`
+    later flips it to a terminal status.
+    """
+    try:
+        run = Run(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            thread_id=thread_id,
+            capability=capability,
+            origin=origin,
+            status="running",
+            input=input,
+        )
+        session.add(run)
+        await session.flush()
+        run_id = str(run.id)
+        await session.commit()
+        return run_id
+    except Exception:
+        logger.exception("create_pending_run failed for capability=%s", capability)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.exception("create_pending_run rollback failed")
+        return None
+
+
+async def finalize_run(
+    session: AsyncSession,
+    *,
+    run_id: str,
+    status: str,
+    serialized: SerializedOutput | None = None,
+    error: str | None = None,
+    duration_ms: int | None = None,
+    cost_micros: int | None = None,
+    progress: list[dict[str, Any]] | None = None,
+) -> bool:
+    """Flip a pending run to a terminal status with its output/metrics.
+
+    Returns ``True`` on success. Best-effort like the other recorders: a failure
+    here is logged and swallowed rather than crashing the background task.
+    """
+    import uuid as _uuid
+
+    try:
+        raw = run_id[len("run_") :] if run_id.startswith("run_") else run_id
+        run = await session.get(Run, _uuid.UUID(raw))
+        if run is None:
+            logger.warning("finalize_run: run %s not found", run_id)
+            return False
+        run.status = status
+        run.error = error
+        if serialized is not None:
+            run.output_text = serialized.text
+            run.item_count = serialized.item_count
+            run.char_count = serialized.char_count
+        if duration_ms is not None:
+            run.duration_ms = duration_ms
+        if cost_micros is not None:
+            run.cost_micros = cost_micros
+        if progress:
+            run.progress = progress
+        await _maybe_cleanup(session, "runs", RUNS_RETENTION_DAYS)
+        await session.commit()
+        return True
+    except Exception:
+        logger.exception("finalize_run failed for run=%s", run_id)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.exception("finalize_run rollback failed")
+        return False
+
+
+async def fail_stale_running_runs(session: AsyncSession) -> int:
+    """Mark every leftover ``running`` run as ``error`` — called once at startup.
+
+    Single process: any row still ``running`` at boot belongs to a scrape that
+    died with the previous process, so it can never complete. Without this sweep
+    such rows would stay ``running`` forever.
+    """
+    try:
+        result = await session.execute(
+            text(
+                "UPDATE runs SET status = 'error', "
+                "error = 'Interrupted by server restart' "
+                "WHERE status = 'running'"
+            )
+        )
+        await session.commit()
+        return result.rowcount or 0
+    except Exception:
+        logger.exception("fail_stale_running_runs failed")
+        try:
+            await session.rollback()
+        except Exception:
+            logger.exception("fail_stale_running_runs rollback failed")
+        return 0
 
 
 async def record_spill(

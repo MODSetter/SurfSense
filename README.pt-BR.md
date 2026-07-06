@@ -36,7 +36,7 @@ O SurfSense é a **plataforma open source de inteligência competitiva para agen
 Pergunte a qualquer agente capaz "quanto os concorrentes estão cobrando esta semana?" ou "o que o Reddit está dizendo sobre nós desde o lançamento?" e ele não terá nenhum lugar confiável para procurar. As APIs oficiais das plataformas têm limites de requisições, preços voltados para empresas ou simplesmente não existem, e a infraestrutura de scraping é frágil. O SurfSense fecha essa lacuna:
 
 - **Conectores nativos de cada plataforma**, cada um sendo um endpoint REST tipado que retorna JSON estruturado. Sem roleta de limites de requisição, sem parsing de HTML.
-- **Um servidor MCP** que expõe cada conector como uma ferramenta nativa (`reddit.scrape`, `google_search.scrape` e outras) para o Claude, o Cursor ou qualquer framework de agentes.
+- **Um servidor MCP** que expõe cada conector como uma ferramenta nativa (`surfsense_reddit_scrape`, `surfsense_google_search` e outras) para o Claude, o Cursor ou qualquer framework de agentes.
 - **Um harness de agentes**, não apenas dados brutos: novas tentativas, saída estruturada e medição de créditos já vêm prontos, então os agentes vão de uma pergunta a um relatório sem que você precise construir a infraestrutura.
 - **Open source e auto-hospedável**, para que sua pesquisa competitiva permaneça na sua própria infraestrutura.
 
@@ -49,7 +49,7 @@ Pergunte a qualquer agente capaz "quanto os concorrentes estão cobrando esta se
 | **Google Maps** | Estabelecimentos, avaliações e reviews para pesquisa local de concorrentes e leads | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | SERPs ao vivo para acompanhamento de rankings e monitoramento de mercado | [Google Search API](https://www.surfsense.com/google-search) |
 | **Web Crawl** (rastreamento web) | Qualquer página da web aberta como conteúdo limpo e estruturado | [Web Crawling API](https://www.surfsense.com/web-crawl) |
-| **Conector MCP** | Traga qualquer servidor MCP para seus agentes, com OAuth em um clique para Notion, Slack, Jira e outros | [MCP Connector](https://www.surfsense.com/mcp-connector) |
+| **Conectores MCP externos** | Traga qualquer servidor MCP para seus agentes, com OAuth em um clique para Notion, Slack, Jira e outros | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
 A cobrança é por uso: os conectores cobram por item efetivamente retornado, os rastreamentos por página obtida com sucesso, e chamadas com falha nunca são cobradas. Instalações auto-hospedadas rodam com a cobrança desativada. Veja os [preços](https://www.surfsense.com/pricing).
 
@@ -88,7 +88,7 @@ Adicione o servidor MCP do SurfSense ao Claude, ao Cursor ou ao seu próprio fra
 }
 ```
 
-Seu agente agora pode chamar cada conector como uma ferramenta nativa.
+Seu agente agora pode chamar cada conector como uma ferramenta nativa. Veja a página do [servidor MCP do SurfSense](https://www.surfsense.com/mcp-server) para a lista completa de ferramentas, ou execute o servidor localmente a partir de [`surfsense_mcp`](./surfsense_mcp).
 
 ### Use a nuvem
 

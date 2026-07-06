@@ -36,7 +36,7 @@ SurfSense is the **open-source competitive intelligence platform for AI agents**
 Ask any capable agent "what are competitors charging this week?" or "what is Reddit saying about us since the launch?" and it has nowhere trustworthy to look. Official platform APIs are rate-limited, priced for enterprises, or missing entirely, and scraping plumbing is brittle. SurfSense closes that gap:
 
 - **Platform-native connectors**, each a typed REST endpoint returning structured JSON. No rate-limit roulette, no HTML parsing.
-- **An MCP server** that exposes every connector as a native tool (`reddit.scrape`, `google_search.scrape`, and more) to Claude, Cursor, or any agent framework.
+- **An MCP server** that exposes every connector as a native tool (`surfsense_reddit_scrape`, `surfsense_google_search`, and more) to Claude, Cursor, or any agent framework.
 - **An agent harness**, not just raw data: retries, structured output, and credit metering are built in, so agents go from a question to a brief without you building the plumbing.
 - **Open source and self-hostable**, so your competitive research stays on your own infrastructure.
 
@@ -49,7 +49,7 @@ Ask any capable agent "what are competitors charging this week?" or "what is Red
 | **Google Maps** | Places, ratings, and reviews for local competitor and lead research | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | Live SERPs for rank tracking and market monitoring | [Google Search API](https://www.surfsense.com/google-search) |
 | **Web Crawl** | Any page on the open web as clean, structured content | [Web Crawling API](https://www.surfsense.com/web-crawl) |
-| **MCP Connector** | Bring any MCP server to your agents, with one-click OAuth for Notion, Slack, Jira, and more | [MCP Connector](https://www.surfsense.com/mcp-connector) |
+| **External MCP Connectors** | Bring any MCP server to your agents, with one-click OAuth for Notion, Slack, Jira, and more | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
 Billing is pay as you go: connectors bill per item actually returned, crawls per page successfully fetched, and failed calls are never billed. Self-hosted installs run with billing off. See [pricing](https://www.surfsense.com/pricing).
 
@@ -88,7 +88,7 @@ Add the SurfSense MCP server to Claude, Cursor, or your own agent framework:
 }
 ```
 
-Your agent can now call every connector as a native tool.
+Your agent can now call every connector as a native tool. See the [SurfSense MCP server](https://www.surfsense.com/mcp-server) page for the full tool list, or run the server locally from [`surfsense_mcp`](./surfsense_mcp).
 
 ### Use the cloud
 

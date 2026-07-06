@@ -202,9 +202,12 @@ async def scrape_reviews(
     input_model: GoogleMapsReviewsInput, *, limit: int | None = None
 ) -> list[dict[str, Any]]:
     """Collect :func:`iter_reviews` into a list, honoring an optional guard."""
+    from app.capabilities.core.progress import emit_progress
+
     results: list[dict[str, Any]] = []
     async for item in iter_reviews(input_model):
         results.append(item)
+        emit_progress("scraping", current=len(results), total=limit, unit="review")
         if limit is not None and len(results) >= limit:
             break
     return results

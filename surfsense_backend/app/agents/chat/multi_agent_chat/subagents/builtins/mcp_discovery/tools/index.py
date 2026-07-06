@@ -22,8 +22,8 @@ from langchain_core.tools import BaseTool
 from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset
 
 from .calendar.index import load_tools as load_calendar_tools
-from .gmail.index import load_tools as load_gmail_tools
 from .get_connected_accounts import create_get_connected_accounts_tool
+from .gmail.index import load_tools as load_gmail_tools
 
 NAME = "mcp_discovery"
 

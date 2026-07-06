@@ -9,6 +9,7 @@ the captcha telemetry the billing seam reads).
 from __future__ import annotations
 
 from app.capabilities.core import Executor
+from app.capabilities.core.progress import emit_progress
 from app.capabilities.web.crawl.schemas import (
     ContactRef,
     Contacts,
@@ -38,6 +39,12 @@ def build_crawl_executor(engine: WebCrawlerConnector | None = None) -> Executor:
     crawler = engine or WebCrawlerConnector()
 
     async def execute(payload: CrawlInput) -> CrawlOutput:
+        emit_progress(
+            "starting",
+            f"Crawling {len(payload.startUrls)} seed URL(s)",
+            total=payload.maxCrawlPages,
+            unit="page",
+        )
         pages = await crawl_site(
             crawler,
             payload.startUrls,
@@ -46,7 +53,14 @@ def build_crawl_executor(engine: WebCrawlerConnector | None = None) -> Executor:
             include_patterns=payload.includeUrlPatterns,
             exclude_patterns=payload.excludeUrlPatterns,
         )
+        emit_progress(
+            "processing",
+            f"Processing {len(pages)} crawled page(s)",
+            current=len(pages),
+            unit="page",
+        )
         items = [_to_item(page, payload.maxLength) for page in pages]
+        emit_progress("done", f"Crawled {len(items)} page(s)", current=len(items), unit="page")
         return CrawlOutput(
             items=items,
             contacts=_aggregate_contacts(items),

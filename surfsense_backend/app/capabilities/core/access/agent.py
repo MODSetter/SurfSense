@@ -16,6 +16,7 @@ import time
 from langchain_core.tools import BaseTool, StructuredTool
 
 from app.capabilities.core.billing import charge_capability, gate_capability
+from app.capabilities.core.progress import progress_scope
 from app.capabilities.core.runs import (
     RUN_OUTPUT_CHAR_CAP,
     record_run,
@@ -68,49 +69,55 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
         input_dump = payload.model_dump(exclude_none=True)
         thread_id = _current_thread_id()
 
-        async with async_session_maker() as session:
-            ctx = CapabilityContext(session=session, workspace_id=workspace_id)
-            try:
-                await gate_capability(payload, unit, ctx)
-            except InsufficientCreditsError as exc:
-                return str(exc)
+        # A buffer-only reporter: coarse progress lands in ``runs.progress`` and,
+        # because we're inside a LangGraph tool call, ``emit_progress`` also fires
+        # ``scraper_progress`` custom events that surface on the chat thinking step.
+        with progress_scope() as reporter:
+            async with async_session_maker() as session:
+                ctx = CapabilityContext(session=session, workspace_id=workspace_id)
+                try:
+                    await gate_capability(payload, unit, ctx)
+                except InsufficientCreditsError as exc:
+                    return str(exc)
 
-            started = time.perf_counter()
-            try:
-                output = await executor(payload)
-            except Exception as exc:
+                started = time.perf_counter()
+                try:
+                    output = await executor(payload)
+                except Exception as exc:
+                    duration_ms = int((time.perf_counter() - started) * 1000)
+                    async with async_session_maker() as rec_session:
+                        await record_run(
+                            rec_session,
+                            workspace_id=workspace_id,
+                            capability=name,
+                            origin="agent",
+                            status="error",
+                            input=input_dump,
+                            error=str(exc),
+                            thread_id=thread_id,
+                            duration_ms=duration_ms,
+                            progress=reporter.coarse,
+                        )
+                    raise
+
                 duration_ms = int((time.perf_counter() - started) * 1000)
-                async with async_session_maker() as rec_session:
-                    await record_run(
-                        rec_session,
-                        workspace_id=workspace_id,
-                        capability=name,
-                        origin="agent",
-                        status="error",
-                        input=input_dump,
-                        error=str(exc),
-                        thread_id=thread_id,
-                        duration_ms=duration_ms,
-                    )
-                raise
+                cost_micros = await charge_capability(output, unit, ctx)
 
-            duration_ms = int((time.perf_counter() - started) * 1000)
-            cost_micros = await charge_capability(output, unit, ctx)
-
-        serialized = serialize_output(output)
-        async with async_session_maker() as rec_session:
-            run_id = await record_run(
-                rec_session,
-                workspace_id=workspace_id,
-                capability=name,
-                origin="agent",
-                status="success",
-                serialized=serialized,
-                input=input_dump,
-                thread_id=thread_id,
-                duration_ms=duration_ms,
-                cost_micros=cost_micros,
-            )
+            serialized = serialize_output(output)
+            async with async_session_maker() as rec_session:
+                run_id = await record_run(
+                    rec_session,
+                    workspace_id=workspace_id,
+                    capability=name,
+                    origin="agent",
+                    status="success",
+                    serialized=serialized,
+                    input=input_dump,
+                    thread_id=thread_id,
+                    duration_ms=duration_ms,
+                    cost_micros=cost_micros,
+                    progress=reporter.coarse,
+                )
 
         if serialized.char_count <= RUN_OUTPUT_CHAR_CAP:
             dump = output.model_dump(exclude_none=True)

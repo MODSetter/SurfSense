@@ -39,6 +39,7 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent impor
 from app.agents.chat.multi_agent_chat.subagents.builtins.youtube.agent import (
     build_subagent as build_youtube_subagent,
 )
+
 # File connectors stay native — they enrich the knowledge base. Every other
 # connector (Slack/Jira/Linear/ClickUp/Airtable/Notion/Confluence/Gmail/
 # Calendar) migrated to hosted MCP under ``mcp_discovery``; Discord/Teams/Luma

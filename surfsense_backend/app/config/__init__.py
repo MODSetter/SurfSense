@@ -705,16 +705,16 @@ class Config:
         os.getenv("GOOGLE_SEARCH_MICROS_PER_SERP", "5500")
     )
     GOOGLE_MAPS_MICROS_PER_PLACE = int(
-        os.getenv("GOOGLE_MAPS_MICROS_PER_PLACE", "5000")
+        os.getenv("GOOGLE_MAPS_MICROS_PER_PLACE", "3500")
     )
     GOOGLE_MAPS_MICROS_PER_REVIEW = int(
-        os.getenv("GOOGLE_MAPS_MICROS_PER_REVIEW", "2000")
+        os.getenv("GOOGLE_MAPS_MICROS_PER_REVIEW", "1500")
     )
-    YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "3500"))
+    YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "2500"))
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
     YOUTUBE_MICROS_PER_COMMENT = int(
-        os.getenv("YOUTUBE_MICROS_PER_COMMENT", "3500")
+        os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500")
     )
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service

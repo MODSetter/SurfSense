@@ -23,7 +23,7 @@ export const youtube: ConnectorPageContent = {
 		"audience research tools",
 	],
 
-	h1: "YouTube API for Audience Sentiment and Content Intelligence",
+	h1: "YouTube Scraper API for Audience Sentiment and Content Intelligence",
 	heroLede:
 		"The SurfSense YouTube API pulls videos, channel stats, comments, and transcripts at scale, without YouTube Data API quotas. Feed your AI agents every comment and transcript that matters to your market, so you know what people actually think about your product and your competitors' content.",
 
@@ -273,7 +273,7 @@ export const youtube: ConnectorPageContent = {
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
-		{ label: "MCP Connector", href: "/mcp-connector" },
+		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],
 };
