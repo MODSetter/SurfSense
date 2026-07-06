@@ -758,7 +758,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					isTeamPage ||
 					isAutomationsPage ||
 					isAllChatsPage
-						? "items-start justify-center px-6 py-8 md:px-10 md:py-10"
+						? "items-start justify-center px-6 py-8 md:px-10 md:pb-10 md:pt-16"
 						: undefined
 				}
 				workspacePanelContentClassName={

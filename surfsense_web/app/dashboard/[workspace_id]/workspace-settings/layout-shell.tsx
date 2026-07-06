@@ -79,7 +79,7 @@ export function SearchSpaceSettingsLayoutShell({
 		`/dashboard/${workspaceId}/workspace-settings/${tab}`;
 
 	return (
-		<section className="flex h-full min-h-[min(680px,calc(100vh-5rem))] w-full select-none flex-col gap-6 md:pt-6 md:flex-row">
+		<section className="flex h-full min-h-[min(680px,calc(100vh-5rem))] w-full select-none flex-col gap-6 md:flex-row">
 			<div className="md:w-[220px] md:shrink-0">
 				<h1 className="mb-4 px-1 text-2xl font-semibold tracking-tight">{t("title")}</h1>
 				<nav className="hidden flex-col gap-0.5 md:flex">

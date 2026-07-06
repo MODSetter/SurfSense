@@ -234,7 +234,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 
 	return (
 		<div className={cn("flex h-full min-h-0 w-full flex-1 flex-col", className)}>
-			<div className="shrink-0 space-y-4 px-3 pb-3 pt-3">
+			<div className="shrink-0 space-y-4 px-3 pb-3">
 				<div className="flex items-center justify-between gap-4 flex-wrap">
 					<div className="flex items-baseline gap-3">
 						<h1 className="text-xl md:text-2xl font-semibold text-foreground">
@@ -550,7 +550,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 
 export function AllChatsWorkspaceContent({ searchSpaceId }: { searchSpaceId: string }) {
 	return (
-		<div className="flex h-[calc(100vh-8rem)] min-h-0 w-full overflow-hidden text-sidebar-foreground">
+		<div className="flex h-full min-h-0 w-full overflow-hidden text-sidebar-foreground">
 			<AllChatsContent searchSpaceId={searchSpaceId} />
 		</div>
 	);
