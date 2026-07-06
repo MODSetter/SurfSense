@@ -20,7 +20,12 @@ export function OrganizationJsonLd() {
 				logo: "https://www.surfsense.com/logo.png",
 				description:
 					"SurfSense is an open-source competitive intelligence platform. AI agents monitor competitors, track rankings, and listen to your market through one API or MCP server.",
-				sameAs: ["https://github.com/MODSetter/SurfSense", "https://discord.gg/ejRNvftDp9"],
+				sameAs: [
+					"https://github.com/MODSetter/SurfSense",
+					"https://discord.gg/ejRNvftDp9",
+					"https://www.reddit.com/r/SurfSense/",
+					"https://www.linkedin.com/company/surfsense/",
+				],
 				contactPoint: {
 					"@type": "ContactPoint",
 					email: "rohan@surfsense.com",

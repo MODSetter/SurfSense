@@ -1,4 +1,4 @@
-import { IconBrandDiscord, IconBrandGithub } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGithub, IconBrandReddit } from "@tabler/icons-react";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "@/components/connectors-marketing/reveal";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const GITHUB_URL = "https://github.com/MODSetter/SurfSense";
 const DISCORD_URL = "https://discord.gg/ejRNvftDp9";
+const REDDIT_URL = "https://www.reddit.com/r/SurfSense/";
 
 /** Closing CTA doubling as the GitHub/community strip (brief section 7). */
 export function CommunityStrip() {
@@ -38,6 +39,12 @@ export function CommunityStrip() {
 							<Link href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
 								<IconBrandDiscord className="size-4" />
 								Join Discord
+							</Link>
+						</Button>
+						<Button asChild variant="ghost" size="lg">
+							<Link href={REDDIT_URL} target="_blank" rel="noopener noreferrer">
+								<IconBrandReddit className="size-4" />
+								r/SurfSense
 							</Link>
 						</Button>
 					</div>
