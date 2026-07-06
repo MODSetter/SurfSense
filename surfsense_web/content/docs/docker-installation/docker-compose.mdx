@@ -39,6 +39,7 @@ All configuration lives in a single `docker/.env` file (or `surfsense/.env` if y
 | `AUTH_TYPE` | Authentication method: `LOCAL` (email/password) or `GOOGLE` (OAuth) | `LOCAL` |
 | `ETL_SERVICE` | Document parsing: `DOCLING` (local), `UNSTRUCTURED`, or `LLAMACLOUD` | `DOCLING` |
 | `EMBEDDING_MODEL` | Embedding model for vector search | `sentence-transformers/all-MiniLM-L6-v2` |
+| `EMBEDDING_BASE_URL` | Optional separate endpoint for Chonkie/LiteLLM embedding models. Use with values like `EMBEDDING_MODEL=litellm://ollama/nomic-embed-text`. `OLLAMA_EMBEDDING_BASE_URL` is also accepted as an Ollama-specific fallback. | *(empty)* |
 | `TTS_SERVICE` | Text-to-speech provider for podcasts | `local/kokoro` |
 | `STT_SERVICE` | Speech-to-text provider for audio files | `local/base` |
 | `REGISTRATION_ENABLED` | Allow new user registrations | `TRUE` |
