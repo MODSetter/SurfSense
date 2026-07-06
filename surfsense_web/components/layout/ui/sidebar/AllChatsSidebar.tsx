@@ -249,7 +249,7 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 									variant="secondary"
 									className="h-7 gap-1.5 rounded-md px-2.5 text-xs font-medium"
 								>
-									<span className="text-muted-foreground">Filter by</span>
+									<span className="font-semibold text-muted-foreground">Filter by</span>
 									<span>{selectedFilterLabel}</span>
 									<ChevronDown className="h-3 w-3 text-muted-foreground" />
 								</Button>

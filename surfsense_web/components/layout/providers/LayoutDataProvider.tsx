@@ -698,6 +698,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const isSearchSpaceSettingsPage = pathname?.includes("/workspace-settings") === true;
 	const isTeamPage = pathname?.endsWith("/team") === true;
 	const isAutomationsPage = pathname?.includes("/automations") === true;
+	const isArtifactsPage = pathname?.endsWith("/artifacts") === true;
 	const isAllChatsPage = pathname?.endsWith("/chats") === true;
 	const handleViewAllChats = useCallback(() => {
 		setActiveSlideoutPanel(null);
@@ -713,6 +714,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		isSearchSpaceSettingsPage ||
 		isTeamPage ||
 		isAutomationsPage ||
+		isArtifactsPage ||
 		isAllChatsPage;
 
 	return (
@@ -757,6 +759,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					isSearchSpaceSettingsPage ||
 					isTeamPage ||
 					isAutomationsPage ||
+					isArtifactsPage ||
 					isAllChatsPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:pb-10 md:pt-16"
 						: undefined
@@ -766,7 +769,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						? "max-w-none select-none"
 						: isAllChatsPage
 							? "max-w-5xl"
-							: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
+							: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage || isArtifactsPage
 								? "max-w-5xl"
 								: undefined
 				}
