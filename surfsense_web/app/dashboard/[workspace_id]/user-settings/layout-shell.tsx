@@ -10,7 +10,6 @@ import {
 	ReceiptText,
 	ShieldCheck,
 	WandSparkles,
-	Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
@@ -27,7 +26,6 @@ export type UserSettingsTab =
 	| "prompts"
 	| "community-prompts"
 	| "agent-permissions"
-	| "agent-status"
 	| "purchases"
 	| "desktop"
 	| "hotkeys"
@@ -79,11 +77,6 @@ export function UserSettingsLayoutShell({ workspaceId, children }: UserSettingsL
 				value: "agent-permissions" as const,
 				label: "Agent Permissions",
 				icon: <ShieldCheck className="h-4 w-4" />,
-			},
-			{
-				value: "agent-status" as const,
-				label: "Agent Status",
-				icon: <Workflow className="h-4 w-4" />,
 			},
 			{
 				value: "messaging-channels" as const,
