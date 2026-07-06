@@ -776,7 +776,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					isAutomationsPage
 						? "max-w-none select-none"
 						: isAllChatsPage
-							? "max-w-3xl"
+							? "max-w-5xl"
 							: isUserSettingsPage || isSearchSpaceSettingsPage || isTeamPage
 								? "max-w-5xl"
 								: undefined

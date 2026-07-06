@@ -21,6 +21,7 @@ type LoadedZeroContext = {
 	context: ZeroContext;
 	desktopAuth?: string;
 };
+type ZeroContextState = LoadedZeroContext | null | undefined;
 
 function getCacheURL() {
 	if (configuredCacheURL) return configuredCacheURL;
@@ -131,7 +132,7 @@ function AuthenticatedZeroProvider({
 	children: React.ReactNode;
 	isDesktop: boolean;
 }) {
-	const [loadedContext, setLoadedContext] = useState<LoadedZeroContext | null>(null);
+	const [loadedContext, setLoadedContext] = useState<ZeroContextState>(undefined);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -153,7 +154,7 @@ function AuthenticatedZeroProvider({
 
 		const unsubscribe = window.electronAPI.onAuthChanged(({ accessToken }) => {
 			if (!accessToken) {
-				setLoadedContext(null);
+				setLoadedContext(undefined);
 				return;
 			}
 			void load();
@@ -165,9 +166,7 @@ function AuthenticatedZeroProvider({
 		};
 	}, [isDesktop]);
 
-	if (!loadedContext) {
-		return <>{children}</>;
-	}
+	if (!loadedContext) return null;
 
 	return (
 		<ZeroClientProvider
@@ -236,7 +235,7 @@ function WebZeroProvider({ children }: { children: React.ReactNode }) {
 	const session = useSession();
 
 	if (session.status !== "authenticated") {
-		return <>{children}</>;
+		return null;
 	}
 
 	return <AuthenticatedZeroProvider isDesktop={false}>{children}</AuthenticatedZeroProvider>;
