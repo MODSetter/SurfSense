@@ -32,7 +32,7 @@ const formatRewardUsd = (micros: number) => {
 export function EarnCreditsContent() {
 	const params = useParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = params?.search_space_id ?? "";
+	const searchSpaceId = params?.workspace_id ?? "";
 
 	useEffect(() => {
 		trackIncentivePageViewed();

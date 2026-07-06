@@ -79,7 +79,7 @@ export function useInbox(
 			try {
 				const notificationsPromise = notificationsApiService.getNotifications({
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: searchSpaceId,
 						category,
 						limit: INITIAL_PAGE_SIZE,
 					},
@@ -146,7 +146,7 @@ export function useInbox(
 						({
 							id: item.id,
 							user_id: item.userId,
-							search_space_id: item.searchSpaceId ?? undefined,
+							workspace_id: item.searchSpaceId ?? undefined,
 							type: item.type,
 							title: item.title,
 							message: item.message,
@@ -208,7 +208,7 @@ export function useInbox(
 
 			const response = await notificationsApiService.getNotifications({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					category,
 					before_date: beforeDate,
 					limit: SCROLL_PAGE_SIZE,

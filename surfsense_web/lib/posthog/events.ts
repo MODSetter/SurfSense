@@ -80,20 +80,20 @@ export function trackLogout() {
 
 export function trackSearchSpaceCreated(searchSpaceId: number, name: string) {
 	safeCapture("search_space_created", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		name,
 	});
 }
 
 export function trackSearchSpaceDeleted(searchSpaceId: number) {
 	safeCapture("search_space_deleted", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 	});
 }
 
 export function trackSearchSpaceViewed(searchSpaceId: number) {
 	safeCapture("search_space_viewed", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 	});
 }
 
@@ -103,7 +103,7 @@ export function trackSearchSpaceViewed(searchSpaceId: number) {
 
 export function trackChatCreated(searchSpaceId: number, chatId: number) {
 	safeCapture("chat_created", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		chat_id: chatId,
 	});
 }
@@ -118,7 +118,7 @@ export function trackChatMessageSent(
 	}
 ) {
 	safeCapture("chat_message_sent", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		chat_id: chatId,
 		has_attachments: options?.hasAttachments ?? false,
 		has_mentioned_documents: options?.hasMentionedDocuments ?? false,
@@ -128,14 +128,14 @@ export function trackChatMessageSent(
 
 export function trackChatResponseReceived(searchSpaceId: number, chatId: number) {
 	safeCapture("chat_response_received", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		chat_id: chatId,
 	});
 }
 
 export function trackChatError(searchSpaceId: number, chatId: number, error?: string) {
 	safeCapture("chat_error", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		chat_id: chatId,
 		error,
 	});
@@ -158,7 +158,7 @@ export function trackChatBlocked(
 	safeCapture(
 		"chat_blocked",
 		compact({
-			search_space_id: searchSpaceId,
+			workspace_id: searchSpaceId,
 			chat_id: chatId ?? undefined,
 			flow: payload.flow,
 			kind: payload.kind,
@@ -178,7 +178,7 @@ export function trackChatErrorDetailed(
 	safeCapture(
 		"chat_error",
 		compact({
-			search_space_id: searchSpaceId,
+			workspace_id: searchSpaceId,
 			chat_id: chatId ?? undefined,
 			flow: payload.flow,
 			kind: payload.kind,
@@ -220,7 +220,7 @@ export function trackDocumentUploadStarted(
 	totalSizeBytes: number
 ) {
 	safeCapture("document_upload_started", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		file_count: fileCount,
 		total_size_bytes: totalSizeBytes,
 	});
@@ -228,35 +228,35 @@ export function trackDocumentUploadStarted(
 
 export function trackDocumentUploadSuccess(searchSpaceId: number, fileCount: number) {
 	safeCapture("document_upload_success", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		file_count: fileCount,
 	});
 }
 
 export function trackDocumentUploadFailure(searchSpaceId: number, error?: string) {
 	safeCapture("document_upload_failure", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		error,
 	});
 }
 
 export function trackDocumentDeleted(searchSpaceId: number, documentId: number) {
 	safeCapture("document_deleted", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		document_id: documentId,
 	});
 }
 
 export function trackDocumentBulkDeleted(searchSpaceId: number, count: number) {
 	safeCapture("document_bulk_deleted", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		count,
 	});
 }
 
 export function trackYouTubeImport(searchSpaceId: number, url: string) {
 	safeCapture("youtube_import_started", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		url,
 	});
 }
@@ -303,7 +303,7 @@ export function trackConnectorEvent(
 	const meta = getConnectorTelemetryMeta(connectorType);
 	safeCapture(`connector_${stage}`, {
 		...compact({
-			search_space_id: options.searchSpaceId ?? undefined,
+			workspace_id: options.searchSpaceId ?? undefined,
 			connector_id: options.connectorId ?? undefined,
 			source: options.source,
 			error: options.error,
@@ -369,14 +369,14 @@ export function trackConnectorSynced(
 
 export function trackSettingsViewed(searchSpaceId: number, section: string) {
 	safeCapture("settings_viewed", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		section,
 	});
 }
 
 export function trackSettingsUpdated(searchSpaceId: number, section: string, setting: string) {
 	safeCapture("settings_updated", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		section,
 		setting,
 	});
@@ -388,14 +388,14 @@ export function trackSettingsUpdated(searchSpaceId: number, section: string, set
 
 export function trackPodcastGenerated(searchSpaceId: number, chatId: number) {
 	safeCapture("podcast_generated", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		chat_id: chatId,
 	});
 }
 
 export function trackSourcesTabViewed(searchSpaceId: number, tab: string) {
 	safeCapture("sources_tab_viewed", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		tab,
 	});
 }
@@ -423,7 +423,7 @@ export function trackSearchSpaceInviteSent(
 	}
 ) {
 	safeCapture("search_space_invite_sent", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		role_name: options?.roleName,
 		has_expiry: options?.hasExpiry ?? false,
 		has_max_uses: options?.hasMaxUses ?? false,
@@ -436,7 +436,7 @@ export function trackSearchSpaceInviteAccepted(
 	roleName?: string | null
 ) {
 	safeCapture("search_space_invite_accepted", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		search_space_name: searchSpaceName,
 		role_name: roleName,
 	});
@@ -454,7 +454,7 @@ export function trackSearchSpaceUserAdded(
 	roleName?: string | null
 ) {
 	safeCapture("search_space_user_added", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		search_space_name: searchSpaceName,
 		role_name: roleName,
 	});
@@ -466,7 +466,7 @@ export function trackSearchSpaceUsersViewed(
 	ownerCount: number
 ) {
 	safeCapture("search_space_users_viewed", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		user_count: userCount,
 		owner_count: ownerCount,
 	});
@@ -497,7 +497,7 @@ export function trackIndexWithDateRangeOpened(
 	connectorId: number
 ) {
 	safeCapture("index_with_date_range_opened", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 	});
@@ -513,7 +513,7 @@ export function trackIndexWithDateRangeStarted(
 	}
 ) {
 	safeCapture("index_with_date_range_started", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 		has_start_date: options?.hasStartDate ?? false,
@@ -527,7 +527,7 @@ export function trackQuickIndexClicked(
 	connectorId: number
 ) {
 	safeCapture("quick_index_clicked", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 	});
@@ -539,7 +539,7 @@ export function trackConfigurePeriodicIndexingOpened(
 	connectorId: number
 ) {
 	safeCapture("configure_periodic_indexing_opened", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 	});
@@ -552,7 +552,7 @@ export function trackPeriodicIndexingStarted(
 	frequencyMinutes: number
 ) {
 	safeCapture("periodic_indexing_started", {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		connector_type: connectorType,
 		connector_id: connectorId,
 		frequency_minutes: frequencyMinutes,
@@ -602,7 +602,7 @@ export function trackReferralLanding(refCode: string, landingUrl: string) {
 // ============================================
 
 interface AutomationCreatedProps {
-	search_space_id: number;
+	workspace_id: number;
 	automation_id: number;
 	task_count?: number;
 	trigger_type?: string;
@@ -617,13 +617,13 @@ export function trackAutomationCreated(props: AutomationCreatedProps) {
 	safeCapture("automation_created", compact(props));
 }
 
-export function trackAutomationCreateFailed(props: { search_space_id?: number; error?: string }) {
+export function trackAutomationCreateFailed(props: { workspace_id?: number; error?: string }) {
 	safeCapture("automation_create_failed", compact(props));
 }
 
 export function trackAutomationUpdated(props: {
 	automation_id: number;
-	search_space_id?: number;
+	workspace_id?: number;
 	has_definition_change?: boolean;
 	has_name_change?: boolean;
 	has_description_change?: boolean;
@@ -634,7 +634,7 @@ export function trackAutomationUpdated(props: {
 
 export function trackAutomationStatusChanged(props: {
 	automation_id: number;
-	search_space_id?: number;
+	workspace_id?: number;
 	next_status: string;
 }) {
 	safeCapture("automation_status_changed", compact(props));
@@ -644,7 +644,7 @@ export function trackAutomationUpdateFailed(props: { automation_id: number; erro
 	safeCapture("automation_update_failed", compact(props));
 }
 
-export function trackAutomationDeleted(props: { automation_id: number; search_space_id?: number }) {
+export function trackAutomationDeleted(props: { automation_id: number; workspace_id?: number }) {
 	safeCapture("automation_deleted", compact(props));
 }
 
@@ -699,7 +699,7 @@ export function trackAutomationTriggerRemoveFailed(props: {
 }
 
 interface AutomationChatDecisionProps {
-	search_space_id?: number;
+	workspace_id?: number;
 	edited?: boolean;
 	task_count?: number;
 	trigger_type?: string;
@@ -712,25 +712,25 @@ export function trackAutomationChatApproved(props: AutomationChatDecisionProps) 
 	safeCapture("automation_chat_approved", compact(props));
 }
 
-export function trackAutomationChatRejected(props: { search_space_id?: number }) {
+export function trackAutomationChatRejected(props: { workspace_id?: number }) {
 	safeCapture("automation_chat_rejected", compact(props));
 }
 
-export function trackAutomationChatDraftEdited(props: { search_space_id?: number }) {
+export function trackAutomationChatDraftEdited(props: { workspace_id?: number }) {
 	safeCapture("automation_chat_draft_edited", compact(props));
 }
 
 export function trackAutomationChatCreateSucceeded(props: {
 	automation_id: number;
 	name?: string;
-	search_space_id?: number;
+	workspace_id?: number;
 }) {
 	safeCapture("automation_chat_create_succeeded", compact(props));
 }
 
 export function trackAutomationChatCreateFailed(props: {
 	reason: "invalid" | "error";
-	search_space_id?: number;
+	workspace_id?: number;
 	issue_count?: number;
 	message?: string;
 }) {

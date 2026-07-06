@@ -46,7 +46,7 @@ class ModelConnectionsApiService {
 
 	getConnections = async (searchSpaceId: number): Promise<ConnectionRead[]> => {
 		return baseApiService.get(
-			`/api/v1/model-connections?search_space_id=${searchSpaceId}`,
+			`/api/v1/model-connections?workspace_id=${searchSpaceId}`,
 			connectionListResponse
 		);
 	};
@@ -159,11 +159,11 @@ class ModelConnectionsApiService {
 	};
 
 	getModelRoles = async (searchSpaceId: number): Promise<ModelRoles> => {
-		return baseApiService.get(`/api/v1/search-spaces/${searchSpaceId}/model-roles`, modelRoles);
+		return baseApiService.get(`/api/v1/workspaces/${searchSpaceId}/model-roles`, modelRoles);
 	};
 
 	updateModelRoles = async (searchSpaceId: number, roles: ModelRoles): Promise<ModelRoles> => {
-		return baseApiService.put(`/api/v1/search-spaces/${searchSpaceId}/model-roles`, modelRoles, {
+		return baseApiService.put(`/api/v1/workspaces/${searchSpaceId}/model-roles`, modelRoles, {
 			body: roles,
 		});
 	};

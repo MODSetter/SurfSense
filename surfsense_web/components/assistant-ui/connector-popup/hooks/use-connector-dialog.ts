@@ -10,7 +10,7 @@ import {
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
@@ -58,7 +58,7 @@ function clearOAuthResultCookie(): void {
 }
 
 export const useConnectorDialog = () => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
 	const { data: allConnectors, refetch: refetchAllConnectors } = useAtomValue(connectorsAtom);
 	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
@@ -165,7 +165,7 @@ export const useConnectorDialog = () => {
 				await indexConnector({
 					connector_id: connector.id,
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: searchSpaceId,
 						start_date: format(startDate, "yyyy-MM-dd"),
 						end_date: format(endDate, "yyyy-MM-dd"),
 					},
@@ -418,7 +418,7 @@ export const useConnectorDialog = () => {
 					enable_vision_llm: false,
 				},
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 				},
 			});
 
@@ -519,7 +519,7 @@ export const useConnectorDialog = () => {
 						enable_vision_llm: false,
 					},
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: searchSpaceId,
 					},
 				});
 				// Refetch connectors to get the new one
@@ -612,7 +612,7 @@ export const useConnectorDialog = () => {
 								await indexConnector({
 									connector_id: connector.id,
 									queryParams: {
-										search_space_id: searchSpaceId,
+										workspace_id: searchSpaceId,
 										start_date: startDateStr,
 										end_date: endDateStr,
 									},
@@ -847,7 +847,7 @@ export const useConnectorDialog = () => {
 						await indexConnector({
 							connector_id: indexingConfig.connectorId,
 							queryParams: {
-								search_space_id: searchSpaceId,
+								workspace_id: searchSpaceId,
 							},
 							body: {
 								folders: selectedFolders || [],
@@ -870,14 +870,14 @@ export const useConnectorDialog = () => {
 					await indexConnector({
 						connector_id: indexingConfig.connectorId,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: searchSpaceId,
 						},
 					});
 				} else {
 					await indexConnector({
 						connector_id: indexingConfig.connectorId,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: searchSpaceId,
 							start_date: startDateStr,
 							end_date: endDateStr,
 						},
@@ -1114,7 +1114,7 @@ export const useConnectorDialog = () => {
 						await indexConnector({
 							connector_id: editingConnector.id,
 							queryParams: {
-								search_space_id: searchSpaceId,
+								workspace_id: searchSpaceId,
 							},
 							body: {
 								folders: selectedFolders || [],
@@ -1134,7 +1134,7 @@ export const useConnectorDialog = () => {
 					await indexConnector({
 						connector_id: editingConnector.id,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: searchSpaceId,
 						},
 					});
 					indexingDescription = "Re-indexing started with updated configuration.";
@@ -1143,7 +1143,7 @@ export const useConnectorDialog = () => {
 					await indexConnector({
 						connector_id: editingConnector.id,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: searchSpaceId,
 							start_date: startDateStr,
 							end_date: endDateStr,
 						},
@@ -1296,7 +1296,7 @@ export const useConnectorDialog = () => {
 				await indexConnector({
 					connector_id: connectorId,
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: searchSpaceId,
 						start_date: startDateStr,
 						end_date: endDateStr,
 					},

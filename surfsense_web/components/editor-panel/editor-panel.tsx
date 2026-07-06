@@ -276,7 +276,7 @@ export function EditorPanelContent({
 				}
 				const response = await authenticatedFetch(
 					buildBackendUrl(
-						`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+						`/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/editor-content`
 					),
 					{ method: "GET" }
 				);
@@ -412,7 +412,7 @@ export function EditorPanelContent({
 					throw new Error("Missing document context");
 				}
 				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`),
+					buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/save`),
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -520,7 +520,7 @@ export function EditorPanelContent({
 		try {
 			const response = await authenticatedFetch(
 				buildBackendUrl(
-					`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`
+					`/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/download-markdown`
 				),
 				{ method: "GET" }
 			);

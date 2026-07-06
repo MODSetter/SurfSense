@@ -126,7 +126,7 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { files, search_space_id, use_vision_llm, processing_mode } = parsedRequest.data;
+		const { files, workspace_id, use_vision_llm, processing_mode } = parsedRequest.data;
 		const UPLOAD_BATCH_SIZE = 5;
 
 		const batches: File[][] = [];
@@ -143,7 +143,7 @@ class DocumentsApiService {
 		for (const batch of batches) {
 			const formData = new FormData();
 			for (const file of batch) formData.append("files", file);
-			formData.append("search_space_id", String(search_space_id));
+			formData.append("workspace_id", String(workspace_id));
 			formData.append("use_vision_llm", String(use_vision_llm));
 			formData.append("processing_mode", processing_mode);
 
@@ -189,9 +189,9 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { search_space_id, document_ids } = parsedRequest.data.queryParams;
+		const { workspace_id, document_ids } = parsedRequest.data.queryParams;
 		const params = new URLSearchParams({
-			search_space_id: String(search_space_id),
+			workspace_id: String(workspace_id),
 			document_ids: document_ids.join(","),
 		});
 
@@ -266,9 +266,9 @@ class DocumentsApiService {
 		);
 	};
 
-	getDocumentByVirtualPath = async (request: { search_space_id: number; virtual_path: string }) => {
+	getDocumentByVirtualPath = async (request: { workspace_id: number; virtual_path: string }) => {
 		const params = new URLSearchParams({
-			search_space_id: String(request.search_space_id),
+			workspace_id: String(request.workspace_id),
 			virtual_path: request.virtual_path,
 		});
 		return baseApiService.get(
@@ -403,7 +403,7 @@ class DocumentsApiService {
 
 	folderMtimeCheck = async (body: {
 		folder_name: string;
-		search_space_id: number;
+		workspace_id: number;
 		files: { relative_path: string; mtime: number }[];
 	}): Promise<{ files_to_upload: string[] }> => {
 		return baseApiService.post(`/api/v1/documents/folder-mtime-check`, undefined, {
@@ -415,7 +415,7 @@ class DocumentsApiService {
 		files: File[],
 		metadata: {
 			folder_name: string;
-			search_space_id: number;
+			workspace_id: number;
 			relative_paths: string[];
 			root_folder_id?: number | null;
 			use_vision_llm?: boolean;
@@ -428,7 +428,7 @@ class DocumentsApiService {
 			formData.append("files", file);
 		}
 		formData.append("folder_name", metadata.folder_name);
-		formData.append("search_space_id", String(metadata.search_space_id));
+		formData.append("workspace_id", String(metadata.workspace_id));
 		formData.append("relative_paths", JSON.stringify(metadata.relative_paths));
 		if (metadata.root_folder_id != null) {
 			formData.append("root_folder_id", String(metadata.root_folder_id));
@@ -458,7 +458,7 @@ class DocumentsApiService {
 
 	folderNotifyUnlinked = async (body: {
 		folder_name: string;
-		search_space_id: number;
+		workspace_id: number;
 		root_folder_id: number | null;
 		relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
@@ -469,7 +469,7 @@ class DocumentsApiService {
 
 	folderSyncFinalize = async (body: {
 		folder_name: string;
-		search_space_id: number;
+		workspace_id: number;
 		root_folder_id: number | null;
 		all_relative_paths: string[];
 	}): Promise<{ deleted_count: number }> => {
@@ -480,7 +480,7 @@ class DocumentsApiService {
 
 	getWatchedFolders = async (searchSpaceId: number) => {
 		return baseApiService.get(
-			`/api/v1/documents/watched-folders?search_space_id=${searchSpaceId}`,
+			`/api/v1/documents/watched-folders?workspace_id=${searchSpaceId}`,
 			folderListResponse
 		);
 	};

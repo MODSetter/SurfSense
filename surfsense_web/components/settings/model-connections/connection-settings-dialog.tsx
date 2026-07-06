@@ -148,7 +148,7 @@ export function ConnectionSettingsDialog({
 						base_url: data.base_url,
 						api_key: apiKeyForTest,
 						scope: "SEARCH_SPACE",
-						search_space_id: connection.search_space_id,
+						workspace_id: connection.workspace_id,
 						extra: connection.extra ?? {},
 						enabled: connection.enabled,
 						models: [],

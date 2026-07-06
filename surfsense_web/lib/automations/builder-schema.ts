@@ -271,7 +271,7 @@ export function buildCreatePayload(
 ): AutomationCreateRequest {
 	const trigger = buildScheduleTrigger(form);
 	return {
-		search_space_id: searchSpaceId,
+		workspace_id: searchSpaceId,
 		name: form.name.trim(),
 		description: form.description?.trim() ? form.description.trim() : null,
 		definition: buildDefinition(form),

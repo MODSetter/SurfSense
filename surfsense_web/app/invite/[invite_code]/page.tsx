@@ -98,15 +98,11 @@ export default function InviteAcceptPage() {
 
 				// Track invite accepted and user added events
 				trackSearchSpaceInviteAccepted(
-					result.search_space_id,
-					result.search_space_name,
+					result.workspace_id,
+					result.workspace_name,
 					result.role_name
 				);
-				trackSearchSpaceUserAdded(
-					result.search_space_id,
-					result.search_space_name,
-					result.role_name
-				);
+				trackSearchSpaceUserAdded(result.workspace_id, result.workspace_name, result.role_name);
 			}
 		} catch (err: any) {
 			setError(err.message || "Failed to accept invite");
@@ -117,7 +113,7 @@ export default function InviteAcceptPage() {
 
 	const handleDecline = () => {
 		// Track invite declined event
-		trackSearchSpaceInviteDeclined(inviteInfo?.search_space_name);
+		trackSearchSpaceInviteDeclined(inviteInfo?.workspace_name);
 		router.push("/dashboard");
 	};
 
@@ -180,7 +176,7 @@ export default function InviteAcceptPage() {
 								</motion.div>
 								<CardTitle className="text-2xl">Welcome to the team!</CardTitle>
 								<CardDescription>
-									You've successfully joined {acceptedData.search_space_name}
+									You've successfully joined {acceptedData.workspace_name}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-4">
@@ -190,7 +186,7 @@ export default function InviteAcceptPage() {
 											<Users className="h-5 w-5 text-primary" />
 										</div>
 										<div>
-											<p className="font-medium">{acceptedData.search_space_name}</p>
+											<p className="font-medium">{acceptedData.workspace_name}</p>
 											<p className="text-sm text-muted-foreground">Search Space</p>
 										</div>
 									</div>
@@ -208,7 +204,7 @@ export default function InviteAcceptPage() {
 							<CardFooter>
 								<Button
 									className="w-full gap-2"
-									onClick={() => router.push(`/dashboard/${acceptedData.search_space_id}`)}
+									onClick={() => router.push(`/dashboard/${acceptedData.workspace_id}`)}
 								>
 									Go to Search Space
 									<ArrowRight className="h-4 w-4" />
@@ -260,7 +256,7 @@ export default function InviteAcceptPage() {
 								</motion.div>
 								<CardTitle className="text-2xl">You're Invited!</CardTitle>
 								<CardDescription>
-									Sign in to join {inviteInfo?.search_space_name || "this search space"}
+									Sign in to join {inviteInfo?.workspace_name || "this search space"}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-4">
@@ -270,7 +266,7 @@ export default function InviteAcceptPage() {
 											<Users className="h-5 w-5 text-primary" />
 										</div>
 										<div>
-											<p className="font-medium">{inviteInfo?.search_space_name}</p>
+											<p className="font-medium">{inviteInfo?.workspace_name}</p>
 											<p className="text-sm text-muted-foreground">Search Space</p>
 										</div>
 									</div>
@@ -307,7 +303,7 @@ export default function InviteAcceptPage() {
 								</motion.div>
 								<CardTitle className="text-2xl">You're Invited!</CardTitle>
 								<CardDescription>
-									Accept this invite to join {inviteInfo?.search_space_name || "this search space"}
+									Accept this invite to join {inviteInfo?.workspace_name || "this search space"}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-4">
@@ -317,7 +313,7 @@ export default function InviteAcceptPage() {
 											<Users className="h-5 w-5 text-primary" />
 										</div>
 										<div>
-											<p className="font-medium">{inviteInfo?.search_space_name}</p>
+											<p className="font-medium">{inviteInfo?.workspace_name}</p>
 											<p className="text-sm text-muted-foreground">Search Space</p>
 										</div>
 									</div>

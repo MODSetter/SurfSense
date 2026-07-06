@@ -7,7 +7,7 @@ import { z } from "zod";
 export const imageGenerationListItem = z.object({
 	id: z.number(),
 	prompt: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_at: z.string(),
 	is_success: z.boolean(),
 	image_count: z.number().nullish(),

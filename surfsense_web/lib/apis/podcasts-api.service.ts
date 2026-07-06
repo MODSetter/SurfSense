@@ -17,7 +17,7 @@ const voiceOptionList = z.array(voiceOption);
 class PodcastsApiService {
 	list = async (searchSpaceId: number, limit = 200) => {
 		const qs = new URLSearchParams({
-			search_space_id: String(searchSpaceId),
+			workspace_id: String(searchSpaceId),
 			limit: String(limit),
 		}).toString();
 		return baseApiService.get(`${BASE}?${qs}`, podcastSummaryList);

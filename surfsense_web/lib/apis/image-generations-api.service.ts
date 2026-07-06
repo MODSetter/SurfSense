@@ -9,7 +9,7 @@ const BASE = "/api/v1/image-generations";
 class ImageGenerationsApiService {
 	list = async (searchSpaceId: number, limit = 100) => {
 		const qs = new URLSearchParams({
-			search_space_id: String(searchSpaceId),
+			workspace_id: String(searchSpaceId),
 			limit: String(limit),
 		}).toString();
 		return baseApiService.get(`${BASE}?${qs}`, imageGenerationList);

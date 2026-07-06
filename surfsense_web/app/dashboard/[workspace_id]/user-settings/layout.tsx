@@ -11,7 +11,5 @@ export default function UserSettingsLayout({
 }) {
 	const { workspace_id } = use(params);
 
-	return (
-		<UserSettingsLayoutShell workspaceId={workspace_id}>{children}</UserSettingsLayoutShell>
-	);
+	return <UserSettingsLayoutShell workspaceId={workspace_id}>{children}</UserSettingsLayoutShell>;
 }

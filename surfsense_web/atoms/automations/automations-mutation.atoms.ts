@@ -49,10 +49,10 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 		return automationsApiService.createAutomation(request);
 	},
 	onSuccess: (automation, variables) => {
-		invalidateList(variables.search_space_id);
+		invalidateList(variables.workspace_id);
 		toast.success("Automation created");
 		trackAutomationCreated({
-			search_space_id: variables.search_space_id,
+			workspace_id: variables.workspace_id,
 			automation_id: automation.id,
 			task_count: variables.definition.plan.length,
 			trigger_type: variables.triggers?.[0]?.type ?? "none",
@@ -67,7 +67,7 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 		console.error("Error creating automation:", error);
 		toast.error("Failed to create automation");
 		trackAutomationCreateFailed({
-			search_space_id: variables.search_space_id,
+			workspace_id: variables.workspace_id,
 			error: error.message,
 		});
 	},
@@ -80,20 +80,20 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 	},
 	onSuccess: (automation, vars) => {
 		invalidateDetail(vars.automationId);
-		invalidateList(automation.search_space_id);
+		invalidateList(automation.workspace_id);
 		toast.success("Automation updated");
 		// A status-only patch (pause/resume/archive) is a distinct action from a
 		// definition/name edit, so split it into its own event.
 		if (vars.patch.status && !vars.patch.definition) {
 			trackAutomationStatusChanged({
 				automation_id: vars.automationId,
-				search_space_id: automation.search_space_id,
+				workspace_id: automation.workspace_id,
 				next_status: vars.patch.status,
 			});
 		} else {
 			trackAutomationUpdated({
 				automation_id: vars.automationId,
-				search_space_id: automation.search_space_id,
+				workspace_id: automation.workspace_id,
 				has_definition_change: !!vars.patch.definition,
 				has_name_change: vars.patch.name != null,
 				has_description_change: vars.patch.description !== undefined,
@@ -123,7 +123,7 @@ export const deleteAutomationMutationAtom = atomWithMutation(() => ({
 		toast.success("Automation deleted");
 		trackAutomationDeleted({
 			automation_id: vars.automationId,
-			search_space_id: vars.searchSpaceId,
+			workspace_id: vars.searchSpaceId,
 		});
 	},
 	onError: (error: Error, vars) => {

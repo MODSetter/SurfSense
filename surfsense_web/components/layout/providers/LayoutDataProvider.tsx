@@ -13,10 +13,10 @@ import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
-import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
-import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { deleteSearchSpaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
+import { searchSpacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
@@ -47,7 +47,7 @@ import { useInbox } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { getLoginPath, logout } from "@/lib/auth-utils";
 import { fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
@@ -397,7 +397,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const handleSearchSpaceSettings = useCallback(
 		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/search-space-settings`);
+			router.push(`/dashboard/${space.id}/workspace-settings`);
 		},
 		[router]
 	);
@@ -595,7 +595,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/search-space-settings`);
+		router.push(`/dashboard/${searchSpaceId}/workspace-settings`);
 	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
@@ -699,7 +699,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// Detect if we're on the chat page (needs overflow-hidden for chat's own scroll)
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 	const isUserSettingsPage = pathname?.includes("/user-settings") === true;
-	const isSearchSpaceSettingsPage = pathname?.includes("/search-space-settings") === true;
+	const isSearchSpaceSettingsPage = pathname?.includes("/workspace-settings") === true;
 	const isTeamPage = pathname?.endsWith("/team") === true;
 	const isAutomationsPage = pathname?.includes("/automations") === true;
 	const useWorkspacePanel =

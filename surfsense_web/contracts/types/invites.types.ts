@@ -5,7 +5,7 @@ export const invite = z.object({
 	id: z.number(),
 	name: z.string().max(100).nullable().optional(),
 	invite_code: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_by_id: z.string().nullable(),
 	role_id: z.number().nullable(),
 	expires_at: z.string().nullable(),
@@ -20,7 +20,7 @@ export const invite = z.object({
  * Create invite
  */
 export const createInviteRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	data: z.object({
 		name: z.string().max(100).optional(),
 		role_id: z.number().nullable().optional(),
@@ -35,7 +35,7 @@ export const createInviteResponse = invite;
  * Get invites
  */
 export const getInvitesRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getInvitesResponse = z.array(invite);
@@ -44,7 +44,7 @@ export const getInvitesResponse = z.array(invite);
  * Update invite
  */
 export const updateInviteRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	invite_id: z.number(),
 	data: z.object({
 		name: z.string().max(100).optional(),
@@ -61,7 +61,7 @@ export const updateInviteResponse = invite;
  * Delete invite
  */
 export const deleteInviteRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	invite_id: z.number(),
 });
 
@@ -77,7 +77,7 @@ export const getInviteInfoRequest = z.object({
 });
 
 export const getInviteInfoResponse = z.object({
-	search_space_name: z.string(),
+	workspace_name: z.string(),
 	role_name: z.string().nullable(),
 	is_valid: z.boolean(),
 	message: z.string().nullable(),
@@ -92,8 +92,8 @@ export const acceptInviteRequest = z.object({
 
 export const acceptInviteResponse = z.object({
 	message: z.string(),
-	search_space_id: z.number(),
-	search_space_name: z.string(),
+	workspace_id: z.number(),
+	workspace_name: z.string(),
 	role_name: z.string().nullable(),
 });
 

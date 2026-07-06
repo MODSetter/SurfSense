@@ -8,7 +8,7 @@ export interface SearchSourceConnector {
 	is_indexable: boolean;
 	last_indexed_at: string | null;
 	config: Record<string, unknown>;
-	search_space_id: number;
+	workspace_id: number;
 	user_id?: string;
 	created_at?: string;
 	periodic_indexing_enabled: boolean;
@@ -108,7 +108,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 				const response = await authenticatedFetch(
 					buildBackendUrl("/api/v1/search-source-connectors", {
-						search_space_id: spaceId,
+						workspace_id: spaceId,
 					}),
 					{
 						method: "GET",
@@ -157,17 +157,17 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 	/**
 	 * Create a new search source connector
-	 * @param connectorData - The connector data (excluding search_space_id)
+	 * @param connectorData - The connector data (excluding workspace_id)
 	 * @param spaceId - The search space ID to associate the connector with
 	 */
 	const createConnector = async (
-		connectorData: Omit<SearchSourceConnector, "id" | "user_id" | "created_at" | "search_space_id">,
+		connectorData: Omit<SearchSourceConnector, "id" | "user_id" | "created_at" | "workspace_id">,
 		spaceId: number
 	) => {
 		try {
 			const response = await authenticatedFetch(
 				buildBackendUrl("/api/v1/search-source-connectors", {
-					search_space_id: spaceId,
+					workspace_id: spaceId,
 				}),
 				{
 					method: "POST",
@@ -199,7 +199,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	const updateConnector = async (
 		connectorId: number,
 		connectorData: Partial<
-			Omit<SearchSourceConnector, "id" | "user_id" | "created_at" | "search_space_id">
+			Omit<SearchSourceConnector, "id" | "user_id" | "created_at" | "workspace_id">
 		>
 	) => {
 		try {
@@ -269,7 +269,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		try {
 			const response = await authenticatedFetch(
 				buildBackendUrl(`/api/v1/search-source-connectors/${connectorId}/index`, {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					start_date: startDate,
 					end_date: endDate,
 				}),

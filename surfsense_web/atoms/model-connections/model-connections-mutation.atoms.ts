@@ -16,7 +16,7 @@ import type {
 import { modelConnectionsApiService } from "@/lib/apis/model-connections-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
-import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
 function invalidateModelConnections(searchSpaceId: number) {
 	queryClient.invalidateQueries({
@@ -40,14 +40,14 @@ function upsertModelConnection(searchSpaceId: number, connection: ConnectionRead
 }
 
 export const createModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "create"],
 		mutationFn: (request: ConnectionCreateRequest) =>
 			modelConnectionsApiService.createConnection(request),
 		onSuccess: (connection: ConnectionRead, request: ConnectionCreateRequest) => {
 			const resolvedSearchSpaceId = Number(
-				request.search_space_id ?? connection.search_space_id ?? searchSpaceId
+				request.workspace_id ?? connection.workspace_id ?? searchSpaceId
 			);
 			toast.success("Connection created");
 			if (resolvedSearchSpaceId > 0) {
@@ -60,7 +60,7 @@ export const createModelConnectionMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "update"],
 		mutationFn: ({ id, data }: { id: number; data: ConnectionUpdateRequest }) =>
@@ -74,7 +74,7 @@ export const updateModelConnectionMutationAtom = atomWithMutation((get) => {
 });
 
 export const deleteModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "delete"],
 		mutationFn: (id: number) => modelConnectionsApiService.deleteConnection(id),
@@ -87,7 +87,7 @@ export const deleteModelConnectionMutationAtom = atomWithMutation((get) => {
 });
 
 export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "verify"],
 		mutationFn: (id: number) => modelConnectionsApiService.verifyConnection(id),
@@ -110,7 +110,7 @@ export const verifyModelConnectionMutationAtom = atomWithMutation((get) => {
 });
 
 export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-connections", "discover"],
 		mutationFn: (id: number) => modelConnectionsApiService.discoverModels(id),
@@ -149,7 +149,7 @@ export const testPreviewModelMutationAtom = atomWithMutation(() => {
 });
 
 export const addManualModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "add-manual"],
 		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelCreateRequest }) =>
@@ -163,7 +163,7 @@ export const addManualModelMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "update"],
 		mutationFn: ({ id, data }: { id: number; data: ModelUpdateRequest }) =>
@@ -174,7 +174,7 @@ export const updateModelMutationAtom = atomWithMutation((get) => {
 });
 
 export const bulkUpdateModelsMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "bulk-update"],
 		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelsBulkUpdateRequest }) =>
@@ -185,7 +185,7 @@ export const bulkUpdateModelsMutationAtom = atomWithMutation((get) => {
 });
 
 export const testModelMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["models", "test"],
 		mutationFn: (id: number) => modelConnectionsApiService.testModel(id),
@@ -199,7 +199,7 @@ export const testModelMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateModelRolesMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = Number(get(activeSearchSpaceIdAtom));
+	const searchSpaceId = Number(get(activeWorkspaceIdAtom));
 	return {
 		mutationKey: ["model-roles", "update"],
 		mutationFn: (roles: ModelRoles) =>

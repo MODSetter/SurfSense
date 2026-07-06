@@ -13,7 +13,7 @@ export async function createSearchSpace(
 	name: string,
 	description = "E2E test search space"
 ): Promise<SearchSpaceRow> {
-	const response = await request.post(`${BACKEND_URL}/api/v1/searchspaces`, {
+	const response = await request.post(`${BACKEND_URL}/api/v1/workspaces`, {
 		headers: authHeaders(token),
 		data: { name, description },
 	});
@@ -28,7 +28,7 @@ export async function deleteSearchSpace(
 	token: string,
 	id: number
 ): Promise<void> {
-	const response = await request.delete(`${BACKEND_URL}/api/v1/searchspaces/${id}`, {
+	const response = await request.delete(`${BACKEND_URL}/api/v1/workspaces/${id}`, {
 		headers: authHeaders(token),
 	});
 	if (!response.ok() && response.status() !== 404) {

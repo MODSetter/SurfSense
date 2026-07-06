@@ -5,13 +5,13 @@ import { useAtomValue } from "jotai";
 import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { updateSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { updateSearchSpaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 

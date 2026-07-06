@@ -6,7 +6,7 @@ import { AlertTriangle, Info, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
-import { activeWorkspaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
 	AlertDialog,

@@ -7,8 +7,8 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
@@ -391,7 +391,7 @@ export function OnboardingTour() {
 
 	// Get user data
 	const { data: user } = useAtomValue(currentUserAtom);
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const searchSpaceId = useAtomValue(activeWorkspaceIdAtom);
 
 	// Fetch threads data
 	const { data: threadsData } = useQuery({

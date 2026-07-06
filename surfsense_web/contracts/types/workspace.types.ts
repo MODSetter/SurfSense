@@ -81,14 +81,14 @@ export const updateSearchSpaceApiAccessResponse = searchSpace.omit({
 export const deleteSearchSpaceRequest = searchSpace.pick({ id: true });
 
 export const deleteSearchSpaceResponse = z.object({
-	message: z.literal("Search space deleted successfully"),
+	message: z.literal("Workspace deleted successfully"),
 });
 
 /**
  * Leave search space (for non-owners)
  */
 export const leaveSearchSpaceResponse = z.object({
-	message: z.literal("Successfully left the search space"),
+	message: z.literal("Successfully left the workspace"),
 });
 
 // Inferred types

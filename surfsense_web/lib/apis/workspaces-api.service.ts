@@ -19,7 +19,7 @@ import {
 	updateSearchSpaceApiAccessResponse,
 	updateSearchSpaceRequest,
 	updateSearchSpaceResponse,
-} from "@/contracts/types/search-space.types";
+} from "@/contracts/types/workspace.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
@@ -50,7 +50,7 @@ class SearchSpacesApiService {
 			? new URLSearchParams(transformedQueryParams).toString()
 			: "";
 
-		return baseApiService.get(`/api/v1/searchspaces?${queryParams}`, getSearchSpacesResponse);
+		return baseApiService.get(`/api/v1/workspaces?${queryParams}`, getSearchSpacesResponse);
 	};
 
 	/**
@@ -66,7 +66,7 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.post(`/api/v1/searchspaces`, createSearchSpaceResponse, {
+		return baseApiService.post(`/api/v1/workspaces`, createSearchSpaceResponse, {
 			body: parsedRequest.data,
 		});
 	};
@@ -84,7 +84,7 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.get(`/api/v1/searchspaces/${request.id}`, getSearchSpaceResponse);
+		return baseApiService.get(`/api/v1/workspaces/${request.id}`, getSearchSpaceResponse);
 	};
 
 	/**
@@ -100,7 +100,7 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.put(`/api/v1/searchspaces/${request.id}`, updateSearchSpaceResponse, {
+		return baseApiService.put(`/api/v1/workspaces/${request.id}`, updateSearchSpaceResponse, {
 			body: parsedRequest.data.data,
 		});
 	};
@@ -115,7 +115,7 @@ class SearchSpacesApiService {
 		}
 
 		return baseApiService.put(
-			`/api/v1/searchspaces/${request.id}/api-access`,
+			`/api/v1/workspaces/${request.id}/api-access`,
 			updateSearchSpaceApiAccessResponse,
 			{
 				body: { api_access_enabled: parsedRequest.data.api_access_enabled },
@@ -136,7 +136,7 @@ class SearchSpacesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.delete(`/api/v1/searchspaces/${request.id}`, deleteSearchSpaceResponse);
+		return baseApiService.delete(`/api/v1/workspaces/${request.id}`, deleteSearchSpaceResponse);
 	};
 
 	/**
@@ -144,7 +144,7 @@ class SearchSpacesApiService {
 	 */
 	triggerAiSort = async (searchSpaceId: number) => {
 		return baseApiService.post(
-			`/api/v1/searchspaces/${searchSpaceId}/ai-sort`,
+			`/api/v1/workspaces/${searchSpaceId}/ai-sort`,
 			z.object({ message: z.string() }),
 			{}
 		);
@@ -156,7 +156,7 @@ class SearchSpacesApiService {
 	 */
 	leaveSearchSpace = async (searchSpaceId: number) => {
 		return baseApiService.delete(
-			`/api/v1/searchspaces/${searchSpaceId}/members/me`,
+			`/api/v1/workspaces/${searchSpaceId}/members/me`,
 			leaveSearchSpaceResponse
 		);
 	};

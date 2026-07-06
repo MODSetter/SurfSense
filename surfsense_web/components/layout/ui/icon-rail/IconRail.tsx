@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import type { NavItem, SearchSpace, User } from "../../types/layout.types";
 import { SidebarUserProfile } from "../sidebar/SidebarUserProfile";
-import { SearchSpaceAvatar } from "./SearchSpaceAvatar";
+import { SearchSpaceAvatar } from "./WorkspaceAvatar";
 
 interface IconRailProps {
 	searchSpaces: SearchSpace[];

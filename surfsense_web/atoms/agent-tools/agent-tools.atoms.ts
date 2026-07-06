@@ -2,7 +2,7 @@ import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import { agentToolsApiService } from "@/lib/apis/agent-tools-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
 export const agentToolsAtom = atomWithQuery((_get) => ({
 	queryKey: cacheKeys.agentTools.all(),
@@ -42,7 +42,7 @@ const hydratedForAtom = atom<string | null>(null);
  */
 export const disabledToolsAtom = atom(
 	(get) => {
-		const searchSpaceId = get(activeSearchSpaceIdAtom);
+		const searchSpaceId = get(activeWorkspaceIdAtom);
 		const hydratedFor = get(hydratedForAtom);
 		if (searchSpaceId && hydratedFor !== searchSpaceId) {
 			return loadDisabledTools(searchSpaceId);
@@ -50,7 +50,7 @@ export const disabledToolsAtom = atom(
 		return get(disabledToolsBaseAtom);
 	},
 	(get, set, update: string[] | ((prev: string[]) => string[])) => {
-		const searchSpaceId = get(activeSearchSpaceIdAtom);
+		const searchSpaceId = get(activeWorkspaceIdAtom);
 		const prev = get(disabledToolsBaseAtom);
 		const next = typeof update === "function" ? update(prev) : update;
 		set(disabledToolsBaseAtom, next);
@@ -66,7 +66,7 @@ export const disabledToolsAtom = atom(
  * Call this from a useEffect in a component that has access to the search space.
  */
 export const hydrateDisabledToolsAtom = atom(null, (get, set) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 	if (!searchSpaceId) return;
 	const stored = loadDisabledTools(searchSpaceId);
 	set(disabledToolsBaseAtom, stored);
@@ -75,7 +75,7 @@ export const hydrateDisabledToolsAtom = atom(null, (get, set) => {
 
 /** Toggle a single tool's enabled/disabled state */
 export const toggleToolAtom = atom(null, (get, set, toolName: string) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 	const current = get(disabledToolsBaseAtom);
 	const next = current.includes(toolName)
 		? current.filter((t) => t !== toolName)

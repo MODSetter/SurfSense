@@ -5,7 +5,7 @@ export const folder = z.object({
 	name: z.string(),
 	position: z.string(),
 	parent_id: z.number().nullable(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_by_id: z.string().nullable().optional(),
 	created_at: z.string(),
 	updated_at: z.string(),
@@ -15,7 +15,7 @@ export const folder = z.object({
 export const folderCreateRequest = z.object({
 	name: z.string().min(1).max(255),
 	parent_id: z.number().nullable().optional(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const folderUpdateRequest = z.object({

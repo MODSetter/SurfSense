@@ -69,9 +69,9 @@ export const PromptPicker = forwardRef<PromptPickerRef, PromptPickerProps>(funct
 
 	const createPromptIndex = filtered.length;
 	const totalItems = filtered.length + 1;
-	const searchSpaceId = Array.isArray(params?.search_space_id)
-		? params.search_space_id[0]
-		: params?.search_space_id;
+	const searchSpaceId = Array.isArray(params?.workspace_id)
+		? params.workspace_id[0]
+		: params?.workspace_id;
 
 	const handleSelect = useCallback(
 		(index: number) => {

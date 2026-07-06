@@ -59,7 +59,7 @@ export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 export { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 export { notionFixtures } from "./connectors/notion.fixture";
 export { slackFixtures } from "./connectors/slack.fixture";
-export { searchSpaceFixtures } from "./search-space.fixture";
+export { searchSpaceFixtures } from "./workspace.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
 import { clickupFixtures } from "./connectors/clickup.fixture";
@@ -76,7 +76,7 @@ import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 import { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 import { notionFixtures } from "./connectors/notion.fixture";
 import { slackFixtures } from "./connectors/slack.fixture";
-import { searchSpaceFixtures } from "./search-space.fixture";
+import { searchSpaceFixtures } from "./workspace.fixture";
 
 /** Default `test` for specs that just need auth + a clean search space. */
 export const test = searchSpaceFixtures;

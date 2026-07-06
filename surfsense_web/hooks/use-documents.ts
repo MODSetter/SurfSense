@@ -13,7 +13,7 @@ export interface DocumentStatusType {
 
 export interface DocumentDisplay {
 	id: number;
-	search_space_id: number;
+	workspace_id: number;
 	document_type: string;
 	title: string;
 	created_by_id: string | null;
@@ -25,7 +25,7 @@ export interface DocumentDisplay {
 
 export interface ApiDocumentInput {
 	id: number;
-	search_space_id: number;
+	workspace_id: number;
 	document_type: string;
 	title: string;
 	created_by_id?: string | null;
@@ -38,7 +38,7 @@ export interface ApiDocumentInput {
 export function toDisplayDoc(item: ApiDocumentInput): DocumentDisplay {
 	return {
 		id: item.id,
-		search_space_id: item.search_space_id,
+		workspace_id: item.workspace_id,
 		document_type: item.document_type,
 		title: item.title,
 		created_by_id: item.created_by_id ?? null,
@@ -142,7 +142,7 @@ export function useDocuments(
 				const [docsResponse, countsResponse] = await Promise.all([
 					documentsApiService.getDocuments({
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: searchSpaceId,
 							page: 0,
 							page_size: INITIAL_PAGE_SIZE,
 							...(typeFilter.length > 0 && { document_types: typeFilter }),
@@ -151,7 +151,7 @@ export function useDocuments(
 						},
 					}),
 					documentsApiService.getDocumentTypeCounts({
-						queryParams: { search_space_id: searchSpaceId },
+						queryParams: { workspace_id: searchSpaceId },
 					}),
 				]);
 
@@ -201,7 +201,7 @@ export function useDocuments(
 			documentsApiService
 				.getDocuments({
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: searchSpaceId,
 						page: 0,
 						page_size: 20,
 					},
@@ -232,7 +232,7 @@ export function useDocuments(
 				.filter((d) => !prevIds.has(d.id))
 				.map((doc) => ({
 					id: doc.id,
-					search_space_id: doc.searchSpaceId,
+					workspace_id: doc.searchSpaceId,
 					document_type: doc.documentType,
 					title: doc.title,
 					created_by_id: doc.createdById ?? null,
@@ -308,7 +308,7 @@ export function useDocuments(
 		try {
 			const response = await documentsApiService.getDocuments({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					skip: apiLoadedCountRef.current,
 					page_size: SCROLL_PAGE_SIZE,
 					...(typeFilter.length > 0 && { document_types: typeFilter }),

@@ -146,7 +146,7 @@ export function ImageModelSelector({
 
 	function manageModelConnections() {
 		setOpen(false);
-		router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`);
+		router.push(`/dashboard/${searchSpaceId}/workspace-settings/models`);
 	}
 
 	const handleScroll = useCallback((event: UIEvent<HTMLDivElement>) => {

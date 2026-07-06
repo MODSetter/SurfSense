@@ -7,7 +7,7 @@ export type AgentPermissionAction = z.infer<typeof ActionEnum>;
 
 const AgentPermissionRuleSchema = z.object({
 	id: z.number(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	user_id: z.string().nullable(),
 	thread_id: z.number().nullable(),
 	permission: z.string(),
@@ -44,7 +44,7 @@ export type AgentPermissionRuleUpdate = z.infer<typeof AgentPermissionRuleUpdate
 class AgentPermissionsApiService {
 	list = async (searchSpaceId: number): Promise<AgentPermissionRule[]> => {
 		return baseApiService.get(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules`,
+			`/api/v1/workspaces/${searchSpaceId}/agent/permissions/rules`,
 			AgentPermissionRuleListSchema
 		);
 	};
@@ -58,7 +58,7 @@ class AgentPermissionsApiService {
 			throw new ValidationError(parsed.error.issues.map((i) => i.message).join(", "));
 		}
 		return baseApiService.post(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules`,
+			`/api/v1/workspaces/${searchSpaceId}/agent/permissions/rules`,
 			AgentPermissionRuleSchema,
 			{ body: parsed.data }
 		);
@@ -74,7 +74,7 @@ class AgentPermissionsApiService {
 			throw new ValidationError(parsed.error.issues.map((i) => i.message).join(", "));
 		}
 		return baseApiService.patch(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules/${ruleId}`,
+			`/api/v1/workspaces/${searchSpaceId}/agent/permissions/rules/${ruleId}`,
 			AgentPermissionRuleSchema,
 			{ body: parsed.data }
 		);
@@ -82,7 +82,7 @@ class AgentPermissionsApiService {
 
 	remove = async (searchSpaceId: number, ruleId: number): Promise<void> => {
 		await baseApiService.delete(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules/${ruleId}`
+			`/api/v1/workspaces/${searchSpaceId}/agent/permissions/rules/${ruleId}`
 		);
 	};
 }

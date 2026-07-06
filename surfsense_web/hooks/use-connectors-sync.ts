@@ -27,7 +27,7 @@ export function useConnectorsSync(searchSpaceId: number | string | null) {
 			periodic_indexing_enabled: c.periodicIndexingEnabled,
 			indexing_frequency_minutes: c.indexingFrequencyMinutes ?? null,
 			next_scheduled_at: c.nextScheduledAt ? new Date(c.nextScheduledAt).toISOString() : null,
-			search_space_id: c.searchSpaceId,
+			workspace_id: c.searchSpaceId,
 			user_id: c.userId,
 			created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
 		}));

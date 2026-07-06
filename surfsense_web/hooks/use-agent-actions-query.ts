@@ -93,7 +93,7 @@ export function applyActionLogSse(
 			id: event.id,
 			thread_id: threadId,
 			user_id: null,
-			search_space_id: searchSpaceId,
+			workspace_id: searchSpaceId,
 			tool_name: event.tool_name,
 			args: null,
 			result_id: null,

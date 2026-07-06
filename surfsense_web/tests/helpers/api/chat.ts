@@ -24,7 +24,7 @@ export async function streamChatToCompletion(
 		headers: authHeaders(token),
 		data: {
 			chat_id: args.threadId,
-			search_space_id: args.searchSpaceId,
+			workspace_id: args.searchSpaceId,
 			user_query: args.query,
 		},
 	});

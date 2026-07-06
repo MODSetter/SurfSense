@@ -173,6 +173,37 @@ def apply_publication(conn: Connection) -> None:
     conn.execute(text(build_set_table_sql(conn)))
 
 
+def ensure_publication(conn: Connection) -> None:
+    """Create ``zero_publication`` if missing, then reconcile if its shape drifted.
+
+    Startup-bootstrap counterpart of migration 116: databases created via
+    ``Base.metadata.create_all`` (dev/test, ``DB_BOOTSTRAP_ON_STARTUP=TRUE``)
+    never run migrations, so without this zero-cache crash-loops on
+    ``Unknown or invalid publications``. Idempotent: when the publication
+    already matches the canonical shape no DDL is emitted, so a normal boot
+    fires no event triggers and never disturbs a running zero-cache.
+    """
+
+    exists = conn.execute(
+        text("SELECT 1 FROM pg_publication WHERE pubname = :name"),
+        {"name": PUBLICATION_NAME},
+    ).fetchone()
+    if not exists:
+        # Seed with one table; the reconcile below sets the full canonical
+        # shape. CREATE PUBLICATION is safe here (unlike in migrations, see
+        # 116_create_zero_publication.py): the publication does not exist, so
+        # no zero-cache replica can be attached to it yet.
+        conn.execute(
+            text(
+                f"CREATE PUBLICATION {_quote_identifier(PUBLICATION_NAME)} "
+                "FOR TABLE notifications"
+            )
+        )
+
+    if verify_publication(conn):
+        conn.execute(text(build_set_table_sql(conn)))
+
+
 def _actual_publication_shape(conn: Connection) -> dict[str, list[str] | None]:
     rows = conn.execute(
         text(

@@ -1,6 +1,6 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import type {
 	CreateDocumentRequest,
 	DeleteDocumentRequest,
@@ -14,7 +14,7 @@ import { queryClient } from "@/lib/query-client/client";
 import { globalDocumentsQueryParamsAtom } from "./ui.atoms";
 
 export const createDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
@@ -34,7 +34,7 @@ export const createDocumentMutationAtom = atomWithMutation((get) => {
 });
 
 export const uploadDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
@@ -54,7 +54,7 @@ export const uploadDocumentMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
@@ -77,7 +77,7 @@ export const updateDocumentMutationAtom = atomWithMutation((get) => {
 });
 
 export const deleteDocumentMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {

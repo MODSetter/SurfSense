@@ -3,7 +3,7 @@ import {
 	deleteConnector,
 	runConfluenceOAuth,
 } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../search-space.fixture";
+import { searchSpaceFixtures } from "../workspace.fixture";
 
 export type ConfluenceFixtures = {
 	/**

@@ -458,7 +458,7 @@ const Composer: FC = () => {
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
-	const { search_space_id, chat_id } = useParams();
+	const { workspace_id, chat_id } = useParams();
 	const aui = useAui();
 	// Desktop-only auto-focus; on mobile, programmatic focus would
 	// summon the soft keyboard on every picker close / thread switch.
@@ -824,7 +824,7 @@ const Composer: FC = () => {
 
 	const handleDocumentsMention = useCallback(
 		(mentions: MentionedDocumentInfo[]) => {
-			const parsedSearchSpaceId = Number(search_space_id);
+			const parsedSearchSpaceId = Number(workspace_id);
 			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
@@ -844,7 +844,7 @@ const Composer: FC = () => {
 			setMentionQuery("");
 			setSuggestionAnchorPoint(null);
 		},
-		[search_space_id]
+		[workspace_id]
 	);
 
 	useEffect(() => {
@@ -893,7 +893,7 @@ const Composer: FC = () => {
 						<ComposerSuggestionPopoverContent side="top">
 							<DocumentMentionPicker
 								ref={documentPickerRef}
-								searchSpaceId={Number(search_space_id)}
+								searchSpaceId={Number(workspace_id)}
 								enableChatMentions
 								currentChatId={threadId}
 								onSelectionChange={handleDocumentsMention}
@@ -959,7 +959,7 @@ const Composer: FC = () => {
 					</div>
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
-						searchSpaceId={Number(search_space_id)}
+						searchSpaceId={Number(workspace_id)}
 						onChatModelSelected={handleChatModelSelected}
 					/>
 					<ConnectorIndicator showTrigger={false} />

@@ -1,10 +1,6 @@
 import { TeamContent } from "./team-content";
 
-export default async function TeamPage({
-	params,
-}: {
-	params: Promise<{ workspace_id: string }>;
-}) {
+export default async function TeamPage({ params }: { params: Promise<{ workspace_id: string }> }) {
 	const { workspace_id } = await params;
 
 	return (

@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { getPostLoginRedirectPath } from "@/lib/auth-utils";
 
 type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";

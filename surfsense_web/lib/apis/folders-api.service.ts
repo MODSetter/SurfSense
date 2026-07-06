@@ -31,10 +31,7 @@ class FoldersApiService {
 	};
 
 	listFolders = async (searchSpaceId: number) => {
-		return baseApiService.get(
-			`/api/v1/folders?search_space_id=${searchSpaceId}`,
-			folderListResponse
-		);
+		return baseApiService.get(`/api/v1/folders?workspace_id=${searchSpaceId}`, folderListResponse);
 	};
 
 	getFolder = async (folderId: number) => {

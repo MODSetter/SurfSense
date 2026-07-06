@@ -377,7 +377,7 @@ function SidebarUsageFooter({
 	onNavigate?: () => void;
 }) {
 	const params = useParams();
-	const searchSpaceId = params?.search_space_id ?? "";
+	const searchSpaceId = params?.workspace_id ?? "";
 	const isAnonymous = useIsAnonymous();
 
 	if (isCollapsed) return null;

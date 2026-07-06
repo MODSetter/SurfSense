@@ -599,7 +599,7 @@ function MemberRow({
 							<DropdownMenuSeparator className="bg-popover-border" />
 							<DropdownMenuItem
 								onClick={() =>
-									router.push(`/dashboard/${workspaceId}/search-space-settings/team-roles`)
+									router.push(`/dashboard/${workspaceId}/workspace-settings/team-roles`)
 								}
 							>
 								Manage Roles

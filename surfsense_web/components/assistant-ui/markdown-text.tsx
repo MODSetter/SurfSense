@@ -188,7 +188,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const params = useParams();
 	const electronAPI = useElectronAPI();
-	const searchSpaceIdParam = params?.search_space_id;
+	const searchSpaceIdParam = params?.workspace_id;
 	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
 		? Number(searchSpaceIdParam[0])
 		: Number(searchSpaceIdParam);
@@ -228,7 +228,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 				if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
 				try {
 					const doc = await documentsApiService.getDocumentByVirtualPath({
-						search_space_id: resolvedSearchSpaceId,
+						workspace_id: resolvedSearchSpaceId,
 						virtual_path: path,
 					});
 					openEditorPanel({

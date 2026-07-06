@@ -10,10 +10,10 @@ import type {
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
-import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
 export const createConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
@@ -32,7 +32,7 @@ export const createConnectorMutationAtom = atomWithMutation((get) => {
 });
 
 export const updateConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
@@ -54,7 +54,7 @@ export const updateConnectorMutationAtom = atomWithMutation((get) => {
 });
 
 export const deleteConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
@@ -80,7 +80,7 @@ export const deleteConnectorMutationAtom = atomWithMutation((get) => {
 });
 
 export const indexConnectorMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const searchSpaceId = get(activeWorkspaceIdAtom);
 
 	return {
 		mutationKey: cacheKeys.connectors.index(),

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
-import { SearchSpaceAvatar } from "../icon-rail/SearchSpaceAvatar";
+import { SearchSpaceAvatar } from "../icon-rail/WorkspaceAvatar";
 import { Sidebar } from "./Sidebar";
 
 interface MobileSidebarProps {

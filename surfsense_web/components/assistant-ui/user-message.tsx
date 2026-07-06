@@ -75,7 +75,7 @@ const UserTextPart: FC = () => {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const router = useRouter();
 	const params = useParams();
-	const searchSpaceIdParam = params?.search_space_id;
+	const searchSpaceIdParam = params?.workspace_id;
 	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
 		? Number(searchSpaceIdParam[0])
 		: Number(searchSpaceIdParam);

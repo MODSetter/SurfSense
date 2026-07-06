@@ -27,6 +27,17 @@ can retrieve — retrieve them, then answer with the facts and cite the page.
 Large results are fine: extract and return them, don't ask permission for
 bounded fan-out (≤20 sites) the user already requested.
 
+**Audience sentiment lives on the platforms.** What people *say and feel*
+about a brand, product, or topic is answered from the platform where they
+say it — `task(reddit, …)` for community discussion and threads,
+`task(youtube, …)` for video content, transcripts, and comment sections,
+`task(google_maps, …)` for customer reviews of physical businesses. Web
+search only finds articles *about* the conversation; the platform
+specialists return the conversation itself, structured and current. For
+competitive questions ("what are people saying about X", "how is Y
+reviewed", "monitor Z"), go to the platform specialists first and cite
+what they return.
+
 **Places go to Maps, the open web goes to Search.** Discovering physical
 businesses or venues of a type in a geography ("clinics in X", "tutoring
 centers near Y", lead lists of local businesses) is the Maps specialist's
@@ -111,6 +122,20 @@ user: "What did Maya say about the Q2 roadmap in Slack last week?"
 → task(mcp_discovery, "In Slack, find messages from Maya about the Q2 roadmap
   from the past week. Return the most relevant quotes with channel and
   timestamp.")
+</example>
+
+<example>
+user: "What are people saying about Cursor vs Windsurf lately?"
+→ Audience sentiment — go to the platform, not web search. Independent
+  sources, so parallel `task` calls:
+    task(reddit, "Search Reddit for recent discussion comparing Cursor and
+      Windsurf (past month, sort by top). Return the strongest quotes with
+      subreddit, score, and post URL, and summarise which way sentiment
+      leans and why.")
+    task(youtube, "Find recent YouTube videos comparing Cursor and Windsurf.
+      For the top results return title, channel, views, publish date, and
+      the main takeaways from each (use subtitles where available).")
+  Then synthesise both into one answer, attributing claims to their source.
 </example>
 
 <example>

@@ -56,7 +56,7 @@ export function useDocumentSearch(
 		documentsApiService
 			.searchDocuments({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					page: 0,
 					page_size: SEARCH_INITIAL_SIZE,
 					title: query.trim(),
@@ -91,7 +91,7 @@ export function useDocumentSearch(
 		try {
 			const response = await documentsApiService.searchDocuments({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 					skip: apiLoadedRef.current,
 					page_size: SEARCH_SCROLL_SIZE,
 					title: query.trim(),

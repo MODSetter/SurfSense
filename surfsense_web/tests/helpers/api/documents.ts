@@ -21,7 +21,7 @@ export async function listDocuments(
 	limit = 100
 ): Promise<DocumentRow[]> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}&limit=${limit}`,
+		`${BACKEND_URL}/api/v1/documents?workspace_id=${searchSpaceId}&limit=${limit}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
@@ -55,7 +55,7 @@ export async function getEditorContent(
 	documentId: number
 ): Promise<EditorContent> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
+		`${BACKEND_URL}/api/v1/workspaces/${searchSpaceId}/documents/${documentId}/editor-content`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {

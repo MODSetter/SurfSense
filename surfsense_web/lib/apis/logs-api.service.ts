@@ -117,8 +117,8 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
-		const { search_space_id, hours } = parsedRequest.data;
-		const url = `/api/v1/logs/search-space/${search_space_id}/summary${hours ? `?hours=${hours}` : ""}`;
+		const { workspace_id, hours } = parsedRequest.data;
+		const url = `/api/v1/logs/workspaces/${workspace_id}/summary${hours ? `?hours=${hours}` : ""}`;
 		return baseApiService.get(url, getLogSummaryResponse);
 	};
 }

@@ -156,10 +156,7 @@ export function AutomationBuilderForm({
 		if (mode === "edit" && automation) {
 			return { ...buildUpdatePayload(formForPayload), status: automation.status };
 		}
-		const { workspace_id: _ignored, ...rest } = buildCreatePayload(
-			formForPayload,
-			workspaceId
-		);
+		const { workspace_id: _ignored, ...rest } = buildCreatePayload(formForPayload, workspaceId);
 		return rest;
 	}
 

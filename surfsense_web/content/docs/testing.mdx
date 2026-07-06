@@ -87,7 +87,7 @@ External boundaries (LLM, embedding, chunking, Redis) are mocked in both suites.
 1. **Database setup** — `TEST_DATABASE_URL` defaults to `surfsense_test`. Tables and extensions (`vector`, `pg_trgm`) are created once per session and dropped after.
 2. **Transaction isolation** — Each test runs inside a savepoint that rolls back, so tests don't affect each other.
 3. **User creation** — Integration tests register a test user via `POST /auth/register` on first run, then log in for subsequent requests.
-4. **Search space discovery** — Tests call `GET /api/v1/searchspaces` and use the first available space.
+4. **Search space discovery** — Tests call `GET /api/v1/workspaces` and use the first available space.
 5. **Cleanup** — A session fixture purges stale documents before tests run. Per-test cleanup deletes documents via API, falling back to direct DB access for stuck records.
 
 ## Writing New Tests

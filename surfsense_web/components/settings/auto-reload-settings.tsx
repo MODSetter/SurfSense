@@ -38,7 +38,7 @@ export function AutoReloadSettings() {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = Number(params?.search_space_id);
+	const searchSpaceId = Number(params?.workspace_id);
 
 	const [enabled, setEnabled] = useState(false);
 	const [thresholdInput, setThresholdInput] = useState("");
@@ -79,7 +79,7 @@ export function AutoReloadSettings() {
 
 	const setupMutation = useMutation({
 		mutationFn: () =>
-			stripeApiService.createAutoReloadSetupSession({ search_space_id: searchSpaceId }),
+			stripeApiService.createAutoReloadSetupSession({ workspace_id: searchSpaceId }),
 		onSuccess: (response) => {
 			window.location.assign(response.checkout_url);
 		},

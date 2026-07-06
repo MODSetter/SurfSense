@@ -4,7 +4,7 @@ import { role } from "./roles.types";
 export const membership = z.object({
 	id: z.number(),
 	user_id: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number().nullable(),
 	is_owner: z.boolean(),
 	joined_at: z.string(),
@@ -21,7 +21,7 @@ export const membership = z.object({
  * Get members
  */
 export const getMembersRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getMembersResponse = z.array(membership);
@@ -30,7 +30,7 @@ export const getMembersResponse = z.array(membership);
  * Update membership
  */
 export const updateMembershipRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	membership_id: z.number(),
 	data: z.object({
 		role_id: z.number().nullable(),
@@ -43,7 +43,7 @@ export const updateMembershipResponse = membership;
  * Delete membership
  */
 export const deleteMembershipRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	membership_id: z.number(),
 });
 
@@ -55,7 +55,7 @@ export const deleteMembershipResponse = z.object({
  * Leave search space
  */
 export const leaveSearchSpaceRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const leaveSearchSpaceResponse = z.object({
@@ -66,12 +66,12 @@ export const leaveSearchSpaceResponse = z.object({
  * Get my access
  */
 export const getMyAccessRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getMyAccessResponse = z.object({
-	search_space_name: z.string(),
-	search_space_id: z.number(),
+	workspace_name: z.string(),
+	workspace_id: z.number(),
 	is_owner: z.boolean(),
 	permissions: z.array(z.string()),
 	role_name: z.string().nullable(),

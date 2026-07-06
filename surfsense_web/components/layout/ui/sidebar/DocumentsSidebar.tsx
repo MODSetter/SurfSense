@@ -35,7 +35,7 @@ import {
 	folderWatchDialogOpenAtom,
 	folderWatchInitialFolderAtom,
 } from "@/atoms/folder-sync/folder-sync.atoms";
-import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { searchSpacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
@@ -76,7 +76,7 @@ import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { searchSpacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { buildBackendUrl } from "@/lib/env-config";
@@ -228,7 +228,7 @@ function AuthenticatedDocumentsSidebarBase({
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
-	const searchSpaceId = Number(params.search_space_id);
+	const searchSpaceId = Number(params.workspace_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
@@ -430,7 +430,7 @@ function AuthenticatedDocumentsSidebarBase({
 						path: meta.folder_path as string,
 						name: bf.name,
 						rootFolderId: bf.id,
-						searchSpaceId: bf.search_space_id,
+						searchSpaceId: bf.workspace_id,
 						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
 						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
 						active: true,
@@ -583,7 +583,7 @@ function AuthenticatedDocumentsSidebarBase({
 				await foldersApiService.createFolder({
 					name,
 					parent_id: createFolderParentId,
-					search_space_id: searchSpaceId,
+					workspace_id: searchSpaceId,
 				});
 				toast.success("Folder created");
 				if (createFolderParentId !== null) {
@@ -751,7 +751,7 @@ function AuthenticatedDocumentsSidebarBase({
 					.trim()
 					.slice(0, 80) || "folder";
 			await doExport(
-				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+				buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/export`, {
 					folder_id: ctx.folder.id,
 				}),
 				`${safeName}.zip`
@@ -805,7 +805,7 @@ function AuthenticatedDocumentsSidebarBase({
 						.trim()
 						.slice(0, 80) || "folder";
 				await doExport(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+					buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/export`, {
 						folder_id: folder.id,
 					}),
 					`${safeName}.zip`
@@ -828,7 +828,7 @@ function AuthenticatedDocumentsSidebarBase({
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
 							? buildBackendUrl("/api/v1/users/me/memory")
-							: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory`);
+							: buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/memory`);
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -856,7 +856,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 			try {
 				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export`, {
+					buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/documents/${doc.id}/export`, {
 						format,
 					}),
 					{ method: "GET" }
@@ -1038,7 +1038,7 @@ function AuthenticatedDocumentsSidebarBase({
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
 					? buildBackendUrl("/api/v1/users/me/memory/reset")
-					: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory/reset`);
+					: buildBackendUrl(`/api/v1/workspaces/${searchSpaceId}/memory/reset`);
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {

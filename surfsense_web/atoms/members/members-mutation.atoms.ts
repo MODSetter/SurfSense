@@ -21,7 +21,7 @@ export const updateMemberMutationAtom = atomWithMutation(() => {
 		onSuccess: (_: UpdateMembershipResponse, request: UpdateMembershipRequest) => {
 			toast.success("Member updated successfully");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.members.all(request.search_space_id.toString()),
+				queryKey: cacheKeys.members.all(request.workspace_id.toString()),
 			});
 		},
 		onError: () => {
@@ -39,7 +39,7 @@ export const deleteMemberMutationAtom = atomWithMutation(() => {
 		onSuccess: (_: DeleteMembershipResponse, request: DeleteMembershipRequest) => {
 			toast.success("Member removed successfully");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.members.all(request.search_space_id.toString()),
+				queryKey: cacheKeys.members.all(request.workspace_id.toString()),
 			});
 		},
 		onError: () => {
@@ -57,7 +57,7 @@ export const leaveSearchSpaceMutationAtom = atomWithMutation(() => {
 		onSuccess: (_: LeaveSearchSpaceResponse, request: LeaveSearchSpaceRequest) => {
 			toast.success("Successfully left the search space");
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.members.all(request.search_space_id.toString()),
+				queryKey: cacheKeys.members.all(request.workspace_id.toString()),
 			});
 		},
 		onError: () => {

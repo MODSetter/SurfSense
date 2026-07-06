@@ -1,11 +1,11 @@
 import type { APIRequestContext } from "@playwright/test";
 import { authHeaders, BACKEND_URL } from "../helpers/api/auth";
-import type { SearchSpaceFixtures } from "./search-space.fixture";
+import type { SearchSpaceFixtures } from "./workspace.fixture";
 
 export type ChatThreadRow = {
 	id: number;
 	title: string;
-	search_space_id: number;
+	workspace_id: number;
 	visibility: string;
 	created_by_id: string | null;
 	created_at: string;
@@ -29,7 +29,7 @@ export const chatThreadFixtures = {
 			headers: authHeaders(apiToken),
 			data: {
 				title: "e2e-drive-journey",
-				search_space_id: searchSpace.id,
+				workspace_id: searchSpace.id,
 				visibility: "PRIVATE",
 			},
 		});

@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { createSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { createSearchSpaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,

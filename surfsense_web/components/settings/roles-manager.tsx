@@ -279,7 +279,7 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 
 	const { data: roles = [], isLoading: rolesLoading } = useQuery({
 		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
-		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
+		queryFn: () => rolesApiService.getRoles({ workspace_id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
 
@@ -311,7 +311,7 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 			}
 		): Promise<Role> => {
 			const request: UpdateRoleRequest = {
-				search_space_id: searchSpaceId,
+				workspace_id: searchSpaceId,
 				role_id: roleId,
 				data: data,
 			};
@@ -323,7 +323,7 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 	const handleDeleteRole = useCallback(
 		async (roleId: number): Promise<boolean> => {
 			const request: DeleteRoleRequest = {
-				search_space_id: searchSpaceId,
+				workspace_id: searchSpaceId,
 				role_id: roleId,
 			};
 			await deleteRole(request);
@@ -335,7 +335,7 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 	const handleCreateRole = useCallback(
 		async (roleData: CreateRoleRequest["data"]): Promise<Role> => {
 			const request: CreateRoleRequest = {
-				search_space_id: searchSpaceId,
+				workspace_id: searchSpaceId,
 				data: roleData,
 			};
 			return await createRole(request);

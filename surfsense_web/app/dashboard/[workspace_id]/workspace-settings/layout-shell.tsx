@@ -76,7 +76,7 @@ export function SearchSpaceSettingsLayoutShell({
 	const selectedLabel = navItems.find((item) => item.value === activeTab)?.label ?? t("title");
 
 	const hrefFor = (tab: SearchSpaceSettingsTab) =>
-		`/dashboard/${workspaceId}/search-space-settings/${tab}`;
+		`/dashboard/${workspaceId}/workspace-settings/${tab}`;
 
 	return (
 		<section className="flex h-full min-h-[min(680px,calc(100vh-5rem))] w-full select-none flex-col gap-6 md:pt-6 md:flex-row">
