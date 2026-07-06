@@ -176,7 +176,7 @@ function CloudDocumentsSkeleton() {
 	];
 
 	return (
-		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">
+		<div className="px-2 py-1">
 			<div className="space-y-1">
 				{rows.map((row) => (
 					<div key={row.id} className="flex h-8 items-center gap-2 px-2">
@@ -971,7 +971,7 @@ function AuthenticatedDocumentsSidebarBase({
 		activeTypesForTree?: DocumentTypeEnum[];
 		searchQuery?: string;
 	} = {}) => (
-		<div className="relative flex-1 min-h-0 overflow-auto">
+		<div className="relative">
 			{deletableSelectedIds.length > 0 && (
 				<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
 					<Button
@@ -1043,7 +1043,6 @@ function AuthenticatedDocumentsSidebarBase({
 				<SidebarSection
 					title={t("title") || "Documents"}
 					defaultOpen={true}
-					fillHeight
 					contentClassName="px-0"
 					persistentAction={
 						<EmbeddedDocumentsMenu
@@ -1217,7 +1216,6 @@ function AnonymousDocumentsSidebar({ embedded = false }: DocumentsSidebarProps) 
 			<SidebarSection
 				title={t("title") || "Documents"}
 				defaultOpen={true}
-				fillHeight
 				contentClassName="px-0"
 				persistentAction={
 					<EmbeddedDocumentsMenu

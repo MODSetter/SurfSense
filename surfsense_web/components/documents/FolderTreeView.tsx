@@ -336,7 +336,7 @@ export function FolderTreeView({
 
 	return (
 		<DndProvider backend={HTML5Backend}>
-			<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">{treeNodes}</div>
+			<div className="px-2 py-1">{treeNodes}</div>
 		</DndProvider>
 	);
 }

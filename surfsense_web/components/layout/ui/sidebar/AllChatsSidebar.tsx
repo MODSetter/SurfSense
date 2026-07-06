@@ -11,7 +11,6 @@ import {
 	RotateCcwIcon,
 	Search,
 	Trash2,
-	User,
 	Users,
 	X,
 } from "lucide-react";
@@ -236,8 +235,12 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 	return (
 		<div className={cn("flex h-full min-h-0 w-full flex-1 flex-col", className)}>
 			<div className="shrink-0 space-y-4 px-3 pb-3 pt-3">
-				<div className="flex items-center justify-between gap-4">
-					<h2 className="text-lg font-semibold">{t("chats") || "Chats"}</h2>
+				<div className="flex items-center justify-between gap-4 flex-wrap">
+					<div className="flex items-baseline gap-3">
+						<h1 className="text-xl md:text-2xl font-semibold text-foreground">
+							{t("chats") || "Chats"}
+						</h1>
+					</div>
 					{!isSearchMode && (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
@@ -276,22 +279,22 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 				</div>
 
 				<div className="relative">
-					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+					<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
 					<Input
 						type="text"
 						placeholder={t("search_chats") || "Search chats..."}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="h-8 border-0 bg-muted pl-8 pr-7 text-sm shadow-none"
+						className="h-12 border-0 bg-muted pl-10 pr-9 text-base shadow-none"
 					/>
 					{searchQuery && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							onClick={handleClearSearch}
 						>
-							<X className="h-3.5 w-3.5" />
+							<X className="h-4.5 w-4.5" />
 							<span className="sr-only">{t("clear_search") || "Clear search"}</span>
 						</Button>
 					)}
@@ -487,17 +490,11 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 					</div>
 				) : (
 					<div className="text-center py-8">
-						<User className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
-						<p className="text-xs text-muted-foreground">
+						<p className="text-base font-medium text-muted-foreground">
 							{showArchived
 								? t("no_archived_chats") || "No archived chats"
 								: t("no_chats") || "No chats"}
 						</p>
-						{!showArchived && (
-							<p className="mt-1 text-[11px] text-muted-foreground/70">
-								{t("start_new_chat_hint") || "Start a new chat from the chat page"}
-							</p>
-						)}
 					</div>
 				)}
 			</div>
