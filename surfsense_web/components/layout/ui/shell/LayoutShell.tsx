@@ -27,7 +27,6 @@ import {
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
 import {
-	DocumentsSidebar,
 	InboxSidebarContent,
 	MobileSidebar,
 	MobileSidebarTrigger,
@@ -313,6 +312,7 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllChats={onViewAllChats}
 							isAllChatsActive={isAllChatsPage}
+							documentsPanel={documentsPanel}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -366,14 +366,6 @@ export function LayoutShell({
 								)}
 							</AnimatePresence>
 						</SidebarSlideOutPanel>
-
-						{/* Mobile Documents Sidebar - separate (not part of slide-out group) */}
-						{documentsPanel && (
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-							/>
-						)}
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>

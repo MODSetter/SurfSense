@@ -337,11 +337,7 @@ export function Sidebar({
 					</SidebarSection>
 					{documentsPanel?.open ? (
 						<div className="min-h-0 flex flex-1 flex-col">
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-								embedded
-							/>
+							<DocumentsSidebar embedded />
 						</div>
 					) : null}
 				</div>

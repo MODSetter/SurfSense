@@ -28,6 +28,10 @@ interface MobileSidebarProps {
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
 	isAllChatsActive?: boolean;
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -76,6 +80,7 @@ export function MobileSidebar({
 	onChatArchive,
 	onViewAllChats,
 	isAllChatsActive = false,
+	documentsPanel,
 	user,
 	onSettings,
 	onManageMembers,
@@ -94,6 +99,9 @@ export function MobileSidebar({
 
 	const handleNavItemClick = (item: NavItem) => {
 		onNavItemClick?.(item);
+		if (item.url === "#documents") {
+			return;
+		}
 		onOpenChange(false);
 	};
 
@@ -167,6 +175,7 @@ export function MobileSidebar({
 								: undefined
 						}
 						isAllChatsActive={isAllChatsActive}
+						documentsPanel={documentsPanel}
 						user={user}
 						onSettings={
 							onSettings

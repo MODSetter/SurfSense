@@ -260,16 +260,6 @@ export function FolderTreeView({
 
 		const nodes: React.ReactNode[] = [];
 
-		if (parentId === null) {
-			const processingDocs = childDocs.filter((d) => {
-				const state = d.status?.state;
-				return state === "pending" || state === "processing";
-			});
-			for (const d of processingDocs) {
-				nodes.push(renderDocumentNode(d, depth));
-			}
-		}
-
 		for (let i = 0; i < visibleFolders.length; i++) {
 			const f = visibleFolders[i];
 			const siblingPositions = {
@@ -314,15 +304,7 @@ export function FolderTreeView({
 			}
 		}
 
-		const remainingDocs =
-			parentId === null
-				? childDocs.filter((d) => {
-						const state = d.status?.state;
-						return state !== "pending" && state !== "processing";
-					})
-				: childDocs;
-
-		for (const d of remainingDocs) {
+		for (const d of childDocs) {
 			nodes.push(renderDocumentNode(d, depth));
 		}
 
