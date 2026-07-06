@@ -113,23 +113,15 @@ function AllChatsContent({ searchSpaceId, className }: AllChatsContentProps) {
 		enabled: !!searchSpaceId && isSearchMode,
 	});
 
-	const { activeChats, archivedChats } = useMemo(() => {
+	const threads = useMemo(() => {
 		if (isSearchMode) {
-			return {
-				activeChats: (searchData ?? []).filter((t) => !t.archived),
-				archivedChats: (searchData ?? []).filter((t) => t.archived),
-			};
+			return (searchData ?? []).filter((thread) => thread.archived === showArchived);
 		}
 
-		if (!threadsData) return { activeChats: [], archivedChats: [] };
+		if (!threadsData) return [];
 
-		return {
-			activeChats: threadsData.threads,
-			archivedChats: threadsData.archived_threads,
-		};
-	}, [threadsData, searchData, isSearchMode]);
-
-	const threads = showArchived ? archivedChats : activeChats;
+		return showArchived ? threadsData.archived_threads : threadsData.threads;
+	}, [threadsData, searchData, isSearchMode, showArchived]);
 
 	const handleThreadClick = useCallback(
 		(thread: ThreadListItem) => {
