@@ -5,7 +5,6 @@ export { DocumentsSidebar } from "./DocumentsSidebar";
 export { MobileSidebar, MobileSidebarTrigger } from "./MobileSidebar";
 export { NavSection } from "./NavSection";
 export { NotificationsDropdown } from "./NotificationsDropdown";
-export { PlaygroundSidebar } from "./PlaygroundSidebar";
 export { Sidebar } from "./Sidebar";
 export { SidebarCollapseButton } from "./SidebarCollapseButton";
 export { SidebarHeader } from "./SidebarHeader";

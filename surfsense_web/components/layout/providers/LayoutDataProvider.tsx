@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { AlarmClock, AlertTriangle, Boxes, SquareTerminal } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
-import { playgroundSidebarOpenAtom } from "@/atoms/layout/playground.atom";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
@@ -43,7 +42,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -68,8 +66,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const params = useParams();
 	const pathname = usePathname();
 	const { theme, setTheme } = useTheme();
-	const isMobile = useIsMobile();
-	const [playgroundSidebarOpen, setPlaygroundSidebarOpen] = useAtom(playgroundSidebarOpenAtom);
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
@@ -316,20 +312,11 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						title: "Playground",
 						url: `/dashboard/${workspaceId}/playground`,
 						icon: SquareTerminal,
-						// Mobile has no second-level sidebar: Playground is a plain link
-						// there, so highlight by route. Desktop highlights the toggle state.
-						isActive: isMobile ? isPlaygroundRoute : playgroundSidebarOpen,
+						isActive: isPlaygroundRoute,
 					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[
-			workspaceId,
-			isAutomationsActive,
-			isArtifactsActive,
-			isPlaygroundRoute,
-			playgroundSidebarOpen,
-			isMobile,
-		]
+		[workspaceId, isAutomationsActive, isArtifactsActive, isPlaygroundRoute]
 	);
 
 	// Handlers
@@ -466,18 +453,9 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
-			// Desktop: Playground is a persistent toggle, not a plain link — it just
-			// opens the second-level sidebar (which holds the whole API playground)
-			// and only closes on a second click, never navigating away from the
-			// current page (e.g. a new chat). Mobile has no second-level sidebar,
-			// so there it navigates to the playground index page instead.
-			if (item.url.endsWith("/playground") && !isMobile) {
-				setPlaygroundSidebarOpen((prev) => !prev);
-				return;
-			}
 			router.push(item.url);
 		},
-		[router, setPlaygroundSidebarOpen, isMobile]
+		[router]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -699,7 +677,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				isAllChatsPage={isAllChatsPage}
-				showPlaygroundSidebar={playgroundSidebarOpen}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
 					isUserSettingsPage ||
@@ -713,13 +690,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						: undefined
 				}
 				workspacePanelContentClassName={
-					isAutomationsPage || isPlaygroundPage
-						? "max-w-none select-none"
-						: isAllChatsPage
-							? "max-w-5xl"
-							: isUserSettingsPage || isWorkspaceSettingsPage || isTeamPage || isArtifactsPage
-								? "max-w-5xl"
-								: undefined
+					useWorkspacePanel ? "max-w-5xl select-none" : undefined
 				}
 				isLoadingChats={isLoadingThreads}
 				notifications={{

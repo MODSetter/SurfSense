@@ -27,7 +27,6 @@ import {
 import {
 	MobileSidebar,
 	MobileSidebarTrigger,
-	PlaygroundSidebar,
 	Sidebar,
 	SidebarCollapseButton,
 } from "../sidebar";
@@ -109,7 +108,6 @@ interface LayoutShellProps {
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
 	isAllChatsPage?: boolean;
-	showPlaygroundSidebar?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
@@ -210,7 +208,6 @@ export function LayoutShell({
 	defaultCollapsed = false,
 	isChatPage = false,
 	isAllChatsPage = false,
-	showPlaygroundSidebar = false,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
@@ -338,27 +335,11 @@ export function LayoutShell({
 							/>
 						</div>
 
-						{/* Playground second-level sidebar — contextual, desktop only. Sits
-						    between the icon rail and the main sidebar. On Mac it becomes the
-						    leftmost panel, so it takes the rounded-corner/left-border treatment. */}
-						{showPlaygroundSidebar && activeWorkspaceId != null && (
-							<div
-								className={cn(
-									"relative hidden md:flex shrink-0 z-20 -mr-2 bg-panel",
-									isMacDesktop ? "rounded-tl-xl border-t border-r border-l" : "border-r"
-								)}
-							>
-								<PlaygroundSidebar workspaceId={activeWorkspaceId} />
-							</div>
-						)}
-
 						{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content. Negative right margin closes the flex gap so the sidebar sits flush against the main panel, separated only by a border. */}
 						<div
 							className={cn(
 								"relative hidden md:flex shrink-0 z-20 -mr-2 bg-panel",
-								isMacDesktop
-									? cn("border-t border-r", !showPlaygroundSidebar && "rounded-tl-xl border-l")
-									: "border-r"
+								isMacDesktop ? "rounded-tl-xl border-l border-t border-r" : "border-r"
 							)}
 						>
 							<Sidebar
@@ -396,7 +377,7 @@ export function LayoutShell({
 								}
 								className={cn(
 									"flex shrink-0",
-									isMacDesktop && !showPlaygroundSidebar && "rounded-tl-xl"
+									isMacDesktop && "rounded-tl-xl"
 								)}
 								isLoadingChats={isLoadingChats}
 								sidebarWidth={sidebarWidth}
