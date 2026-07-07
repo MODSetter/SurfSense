@@ -189,7 +189,7 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 			<div className="grid gap-6 lg:grid-cols-2">
 				<div className="space-y-5">
 					<div>
-						<h1 className="text-lg font-semibold">
+						<h1 className="text-xl font-semibold text-foreground md:text-2xl">
 							{catalogVerb.label} <span className="text-muted-foreground">· {platform}</span>
 						</h1>
 						{capability.description && (

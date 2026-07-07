@@ -68,7 +68,7 @@ export function RunsTable({ workspaceId }: { workspaceId: number }) {
 	return (
 		<div className="space-y-4">
 			<div>
-				<h1 className="text-xl font-semibold">Runs</h1>
+				<h1 className="text-xl font-semibold text-foreground md:text-2xl">Runs</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
 					Every platform-native API run in this workspace — from the playground, API keys, and
 					agents. Newest first.

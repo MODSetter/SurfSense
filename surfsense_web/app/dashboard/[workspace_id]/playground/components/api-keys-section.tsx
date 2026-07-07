@@ -50,7 +50,7 @@ export function ApiKeysSection({ workspaceId }: { workspaceId: number }) {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-xl font-semibold">API Keys</h1>
+				<h1 className="text-xl font-semibold text-foreground md:text-2xl">API Keys</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
 					Enable API access for this workspace and manage the keys that use it.
 				</p>
