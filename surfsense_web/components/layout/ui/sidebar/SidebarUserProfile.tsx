@@ -2,6 +2,7 @@
 
 import {
 	Check,
+	ChevronRight,
 	ChevronUp,
 	Download,
 	ExternalLink,
@@ -17,8 +18,9 @@ import {
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -63,6 +65,8 @@ const LEARN_MORE_LINKS = [
 	{ key: "documentation" as const, href: "https://www.surfsense.com/docs" },
 	{ key: "github" as const, href: "https://github.com/MODSetter/SurfSense" },
 ];
+
+type MobileProfileSubmenu = "theme" | "language" | "learn_more";
 
 interface SidebarUserProfileProps {
 	user: User;
@@ -144,12 +148,14 @@ export function SidebarUserProfile({
 	const isDesktopViewport = useMediaQuery("(min-width: 768px)");
 	const { os, primary, isMobileOS } = usePrimaryDownload();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
+	const [mobileSubmenu, setMobileSubmenu] = useState<MobileProfileSubmenu | null>(null);
 	const bgColor = getUserAvatarColor(user.email);
 	const initials = getUserInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
 	const downloadUrl = primary?.url ?? GITHUB_RELEASES_URL;
 	const downloadLabel = t("download_for_os", { os });
 	const showDownloadCta = !isDesktop && !isMobileOS && isDesktopViewport;
+	const useMobileSubmenus = !isDesktopViewport;
 
 	const handleLanguageChange = (newLocale: "en" | "es" | "pt" | "hi" | "zh") => {
 		setLocale(newLocale);
@@ -168,6 +174,242 @@ export function SidebarUserProfile({
 			setIsLoggingOut(false);
 		}
 	};
+
+	const submenuTriggerClassName = "cursor-default";
+	const drawerItemClassName = cn(
+		"flex h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors",
+		"hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+	);
+	const drawerSeparatorClassName = "mx-3 h-px bg-popover-border";
+
+	const renderThemeSubmenu = () => {
+		if (!setTheme) return null;
+
+		if (useMobileSubmenus) {
+			return (
+				<DropdownMenuItem
+					className={submenuTriggerClassName}
+					onSelect={() => setMobileSubmenu("theme")}
+				>
+					<Sun className="h-4 w-4" />
+					<span className="flex-1">{t("theme")}</span>
+					<ChevronRight className="h-4 w-4 text-muted-foreground" />
+				</DropdownMenuItem>
+			);
+		}
+
+		return (
+			<DropdownMenuSub>
+				<DropdownMenuSubTrigger>
+					<Sun className="h-4 w-4" />
+					{t("theme")}
+				</DropdownMenuSubTrigger>
+				<DropdownMenuPortal>
+					<DropdownMenuSubContent className="gap-1">
+						{THEMES.map((themeOption) => {
+							const Icon = themeOption.icon;
+							const isSelected = theme === themeOption.value;
+							return (
+								<DropdownMenuItem
+									key={themeOption.value}
+									onClick={() => handleThemeChange(themeOption.value)}
+									className={cn(
+										"mb-1 last:mb-0 transition-all",
+										"hover:bg-accent hover:text-accent-foreground",
+										isSelected && "text-primary"
+									)}
+								>
+									<Icon className="h-4 w-4" />
+									<span className="flex-1">{t(themeOption.value)}</span>
+									{isSelected && <Check className="h-4 w-4 shrink-0" />}
+								</DropdownMenuItem>
+							);
+						})}
+					</DropdownMenuSubContent>
+				</DropdownMenuPortal>
+			</DropdownMenuSub>
+		);
+	};
+
+	const renderLanguageSubmenu = () => {
+		if (useMobileSubmenus) {
+			return (
+				<DropdownMenuItem
+					className={submenuTriggerClassName}
+					onSelect={() => setMobileSubmenu("language")}
+				>
+					<Languages className="h-4 w-4" />
+					<span className="flex-1">{t("language")}</span>
+					<ChevronRight className="h-4 w-4 text-muted-foreground" />
+				</DropdownMenuItem>
+			);
+		}
+
+		return (
+			<DropdownMenuSub>
+				<DropdownMenuSubTrigger>
+					<Languages className="h-4 w-4" />
+					{t("language")}
+				</DropdownMenuSubTrigger>
+				<DropdownMenuPortal>
+					<DropdownMenuSubContent className="gap-1">
+						{LANGUAGES.map((language) => {
+							const isSelected = locale === language.code;
+							return (
+								<DropdownMenuItem
+									key={language.code}
+									onClick={() => handleLanguageChange(language.code)}
+									className={cn(
+										"mb-1 last:mb-0 transition-all",
+										"hover:bg-accent hover:text-accent-foreground",
+										isSelected && "text-primary"
+									)}
+								>
+									<span className="mr-2">{language.flag}</span>
+									<span className="flex-1">{language.name}</span>
+									{isSelected && <Check className="h-4 w-4 shrink-0" />}
+								</DropdownMenuItem>
+							);
+						})}
+					</DropdownMenuSubContent>
+				</DropdownMenuPortal>
+			</DropdownMenuSub>
+		);
+	};
+
+	const renderLearnMoreSubmenu = () => {
+		if (useMobileSubmenus) {
+			return (
+				<DropdownMenuItem
+					className={submenuTriggerClassName}
+					onSelect={() => setMobileSubmenu("learn_more")}
+				>
+					<Info className="h-4 w-4" />
+					<span className="flex-1">{t("learn_more")}</span>
+					<ChevronRight className="h-4 w-4 text-muted-foreground" />
+				</DropdownMenuItem>
+			);
+		}
+
+		return (
+			<DropdownMenuSub>
+				<DropdownMenuSubTrigger>
+					<Info className="h-4 w-4" />
+					{t("learn_more")}
+				</DropdownMenuSubTrigger>
+				<DropdownMenuPortal>
+					<DropdownMenuSubContent className="min-w-[180px] gap-1">
+						{LEARN_MORE_LINKS.map((link) => (
+							<DropdownMenuItem key={link.key} asChild>
+								<a href={link.href} target="_blank" rel="noopener noreferrer">
+									<span className="flex-1">{t(link.key)}</span>
+									<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+								</a>
+							</DropdownMenuItem>
+						))}
+						<DropdownMenuSeparator />
+						<p className="select-none px-2 py-1 text-xs leading-tight text-muted-foreground/50">
+							v{APP_VERSION}
+						</p>
+					</DropdownMenuSubContent>
+				</DropdownMenuPortal>
+			</DropdownMenuSub>
+		);
+	};
+
+	const mobileSubmenuDrawer = (
+		<Drawer
+			open={mobileSubmenu !== null}
+			onOpenChange={(open) => {
+				if (!open) setMobileSubmenu(null);
+			}}
+			shouldScaleBackground={false}
+		>
+			<DrawerContent
+				className="z-80 max-h-[75vh] rounded-t-2xl border bg-popover text-popover-foreground"
+				overlayClassName="z-80"
+			>
+				<DrawerHandle className="mt-3 h-1.5 w-10" />
+				<DrawerTitle className="px-4 pb-2 pt-3 text-center text-base font-semibold">
+					{mobileSubmenu === "theme"
+						? t("theme")
+						: mobileSubmenu === "language"
+							? t("language")
+							: t("learn_more")}
+				</DrawerTitle>
+				<div className="space-y-1 px-4 pb-6 pt-1">
+					{mobileSubmenu === "theme" &&
+						setTheme &&
+						THEMES.map((themeOption, index) => {
+							const Icon = themeOption.icon;
+							const isSelected = theme === themeOption.value;
+							return (
+								<Fragment key={themeOption.value}>
+									{index > 0 && <div className={drawerSeparatorClassName} />}
+									<button
+										type="button"
+										className={cn(drawerItemClassName, isSelected && "text-primary")}
+										onClick={() => {
+											handleThemeChange(themeOption.value);
+											setMobileSubmenu(null);
+										}}
+									>
+										<Icon className="h-4 w-4 text-muted-foreground" />
+										<span className="flex-1">{t(themeOption.value)}</span>
+										{isSelected && <Check className="h-4 w-4 shrink-0" />}
+									</button>
+								</Fragment>
+							);
+						})}
+
+					{mobileSubmenu === "language" &&
+						LANGUAGES.map((language, index) => {
+							const isSelected = locale === language.code;
+							return (
+								<Fragment key={language.code}>
+									{index > 0 && <div className={drawerSeparatorClassName} />}
+									<button
+										type="button"
+										className={cn(drawerItemClassName, isSelected && "text-primary")}
+										onClick={() => {
+											handleLanguageChange(language.code);
+											setMobileSubmenu(null);
+										}}
+									>
+										<span className="text-base">{language.flag}</span>
+										<span className="flex-1">{language.name}</span>
+										{isSelected && <Check className="h-4 w-4 shrink-0" />}
+									</button>
+								</Fragment>
+							);
+						})}
+
+					{mobileSubmenu === "learn_more" && (
+						<>
+							{LEARN_MORE_LINKS.map((link, index) => (
+								<Fragment key={link.key}>
+									{index > 0 && <div className={drawerSeparatorClassName} />}
+									<a
+										href={link.href}
+										target="_blank"
+										rel="noopener noreferrer"
+										className={drawerItemClassName}
+										onClick={() => setMobileSubmenu(null)}
+									>
+										<span className="flex-1">{t(link.key)}</span>
+										<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+									</a>
+								</Fragment>
+							))}
+							<p className="select-none px-3 py-1 text-xs leading-tight text-muted-foreground/50">
+								v{APP_VERSION}
+							</p>
+						</>
+					)}
+				</div>
+			</DrawerContent>
+		</Drawer>
+	);
 
 	// Collapsed view - just show avatar with dropdown
 	if (isCollapsed) {
@@ -251,89 +493,11 @@ export function SidebarUserProfile({
 								</DropdownMenuItem>
 							)}
 
-							{setTheme && (
-								<DropdownMenuSub>
-									<DropdownMenuSubTrigger>
-										<Sun className="h-4 w-4" />
-										{t("theme")}
-									</DropdownMenuSubTrigger>
-									<DropdownMenuPortal>
-										<DropdownMenuSubContent className="gap-1">
-											{THEMES.map((themeOption) => {
-												const Icon = themeOption.icon;
-												const isSelected = theme === themeOption.value;
-												return (
-													<DropdownMenuItem
-														key={themeOption.value}
-														onClick={() => handleThemeChange(themeOption.value)}
-														className={cn(
-															"mb-1 last:mb-0 transition-all",
-															"hover:bg-accent hover:text-accent-foreground",
-															isSelected && "text-primary"
-														)}
-													>
-														<Icon className="h-4 w-4" />
-														<span className="flex-1">{t(themeOption.value)}</span>
-														{isSelected && <Check className="h-4 w-4 shrink-0" />}
-													</DropdownMenuItem>
-												);
-											})}
-										</DropdownMenuSubContent>
-									</DropdownMenuPortal>
-								</DropdownMenuSub>
-							)}
+							{renderThemeSubmenu()}
 
-							<DropdownMenuSub>
-								<DropdownMenuSubTrigger>
-									<Languages className="h-4 w-4" />
-									{t("language")}
-								</DropdownMenuSubTrigger>
-								<DropdownMenuPortal>
-									<DropdownMenuSubContent className="gap-1">
-										{LANGUAGES.map((language) => {
-											const isSelected = locale === language.code;
-											return (
-												<DropdownMenuItem
-													key={language.code}
-													onClick={() => handleLanguageChange(language.code)}
-													className={cn(
-														"mb-1 last:mb-0 transition-all",
-														"hover:bg-accent hover:text-accent-foreground",
-														isSelected && "text-primary"
-													)}
-												>
-													<span className="mr-2">{language.flag}</span>
-													<span className="flex-1">{language.name}</span>
-													{isSelected && <Check className="h-4 w-4 shrink-0" />}
-												</DropdownMenuItem>
-											);
-										})}
-									</DropdownMenuSubContent>
-								</DropdownMenuPortal>
-							</DropdownMenuSub>
+							{renderLanguageSubmenu()}
 
-							<DropdownMenuSub>
-								<DropdownMenuSubTrigger>
-									<Info className="h-4 w-4" />
-									{t("learn_more")}
-								</DropdownMenuSubTrigger>
-								<DropdownMenuPortal>
-									<DropdownMenuSubContent className="min-w-[180px] gap-1">
-										{LEARN_MORE_LINKS.map((link) => (
-											<DropdownMenuItem key={link.key} asChild>
-												<a href={link.href} target="_blank" rel="noopener noreferrer">
-													<span className="flex-1">{t(link.key)}</span>
-													<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-												</a>
-											</DropdownMenuItem>
-										))}
-										<DropdownMenuSeparator />
-										<p className="select-none px-2 py-1 text-xs leading-tight text-muted-foreground/50">
-											v{APP_VERSION}
-										</p>
-									</DropdownMenuSubContent>
-								</DropdownMenuPortal>
-							</DropdownMenuSub>
+							{renderLearnMoreSubmenu()}
 
 							{!isDesktop && !isMobileOS && (
 								<DropdownMenuItem asChild className="font-medium">
@@ -356,6 +520,7 @@ export function SidebarUserProfile({
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+					{mobileSubmenuDrawer}
 				</div>
 			</div>
 		);
@@ -433,89 +598,11 @@ export function SidebarUserProfile({
 						</DropdownMenuItem>
 					)}
 
-					{setTheme && (
-						<DropdownMenuSub>
-							<DropdownMenuSubTrigger>
-								<Sun className="h-4 w-4" />
-								{t("theme")}
-							</DropdownMenuSubTrigger>
-							<DropdownMenuPortal>
-								<DropdownMenuSubContent className="gap-1">
-									{THEMES.map((themeOption) => {
-										const Icon = themeOption.icon;
-										const isSelected = theme === themeOption.value;
-										return (
-											<DropdownMenuItem
-												key={themeOption.value}
-												onClick={() => handleThemeChange(themeOption.value)}
-												className={cn(
-													"mb-1 last:mb-0 transition-all",
-													"hover:bg-accent hover:text-accent-foreground",
-													isSelected && "text-primary"
-												)}
-											>
-												<Icon className="h-4 w-4" />
-												<span className="flex-1">{t(themeOption.value)}</span>
-												{isSelected && <Check className="h-4 w-4 shrink-0" />}
-											</DropdownMenuItem>
-										);
-									})}
-								</DropdownMenuSubContent>
-							</DropdownMenuPortal>
-						</DropdownMenuSub>
-					)}
+					{renderThemeSubmenu()}
 
-					<DropdownMenuSub>
-						<DropdownMenuSubTrigger>
-							<Languages className="h-4 w-4" />
-							{t("language")}
-						</DropdownMenuSubTrigger>
-						<DropdownMenuPortal>
-							<DropdownMenuSubContent className="gap-1">
-								{LANGUAGES.map((language) => {
-									const isSelected = locale === language.code;
-									return (
-										<DropdownMenuItem
-											key={language.code}
-											onClick={() => handleLanguageChange(language.code)}
-											className={cn(
-												"mb-1 last:mb-0 transition-all",
-												"hover:bg-accent hover:text-accent-foreground",
-												isSelected && "text-primary"
-											)}
-										>
-											<span className="mr-2">{language.flag}</span>
-											<span className="flex-1">{language.name}</span>
-											{isSelected && <Check className="h-4 w-4 shrink-0" />}
-										</DropdownMenuItem>
-									);
-								})}
-							</DropdownMenuSubContent>
-						</DropdownMenuPortal>
-					</DropdownMenuSub>
+					{renderLanguageSubmenu()}
 
-					<DropdownMenuSub>
-						<DropdownMenuSubTrigger>
-							<Info className="h-4 w-4" />
-							{t("learn_more")}
-						</DropdownMenuSubTrigger>
-						<DropdownMenuPortal>
-							<DropdownMenuSubContent className="min-w-[180px] gap-1">
-								{LEARN_MORE_LINKS.map((link) => (
-									<DropdownMenuItem key={link.key} asChild>
-										<a href={link.href} target="_blank" rel="noopener noreferrer">
-											<span className="flex-1">{t(link.key)}</span>
-											<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-										</a>
-									</DropdownMenuItem>
-								))}
-								<DropdownMenuSeparator />
-								<p className="select-none px-2 py-1 text-xs leading-tight text-muted-foreground/50">
-									v{APP_VERSION}
-								</p>
-							</DropdownMenuSubContent>
-						</DropdownMenuPortal>
-					</DropdownMenuSub>
+					{renderLearnMoreSubmenu()}
 
 					{!isDesktop && (
 						<DropdownMenuItem asChild className="font-medium">
@@ -534,6 +621,7 @@ export function SidebarUserProfile({
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
+			{mobileSubmenuDrawer}
 		</div>
 	);
 }
