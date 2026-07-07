@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, History } from "lucide-react";
+import { ArrowRight, History, Info } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { PLAYGROUND_PLATFORMS } from "@/lib/playground/catalog";
 import { formatPricing } from "@/lib/playground/format";
@@ -20,12 +21,21 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 
 	return (
 		<div className="space-y-8">
-			<div>
-				<h1 className="text-xl font-semibold text-foreground md:text-2xl">API Playground</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Manually run SurfSense's platform-native APIs and inspect their output.
-				</p>
-			</div>
+			<Alert>
+				<Info />
+				<AlertDescription>
+					<p>
+						Manually run SurfSense's platform-native APIs and inspect their output. To use these APIs outside SurfSense,{" "}
+						<Link
+							href={`/dashboard/${workspaceId}/user-settings/api-key`}
+							className="font-medium text-foreground underline-offset-4 hover:underline"
+						>
+							create an API key
+						</Link>
+						.
+					</p>
+				</AlertDescription>
+			</Alert>
 
 			<div className="grid gap-3 sm:grid-cols-2">
 				<Link
