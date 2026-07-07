@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState } from "react";
+import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -322,10 +323,16 @@ export function Sidebar({
 					/>
 				)}
 
+				{!isCollapsed && (
+					<div className="shrink-0 py-1.5">
+						<ConnectAgentDialog className="w-[calc(100%-1rem)]" />
+					</div>
+				)}
+
 				<SidebarUsageFooter
 					pageUsage={pageUsage}
 					isCollapsed={isCollapsed}
-					hasNavSectionAbove={footerNavItems.length > 0}
+					hasNavSectionAbove={footerNavItems.length > 0 || !isCollapsed}
 					onNavigate={onNavigate}
 				/>
 
