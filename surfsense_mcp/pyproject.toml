@@ -8,6 +8,8 @@ license = { text = "Apache-2.0" }
 dependencies = [
     "mcp>=1.26.0",
     "httpx>=0.27.0",
+    "starlette>=0.37",
+    "uvicorn>=0.30",
 ]
 
 [project.scripts]
