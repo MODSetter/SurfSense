@@ -1,8 +1,9 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, History } from "lucide-react";
+import { ChevronDown, ChevronRight, History, Info } from "lucide-react";
 import { Fragment, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -67,13 +68,12 @@ export function RunsTable({ workspaceId }: { workspaceId: number }) {
 
 	return (
 		<div className="space-y-4">
-			<div>
-				<h1 className="text-xl font-semibold">Runs</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Every platform-native API run in this workspace — from the playground, API keys, and
-					agents. Newest first.
-				</p>
-			</div>
+			<Alert>
+				<Info />
+				<AlertDescription>
+					View all API runs for this workspace, including runs from the playground, API keys, and agents.
+				</AlertDescription>
+			</Alert>
 
 			<div className="flex flex-wrap items-center gap-2">
 				<Select value={capability} onValueChange={setCapability}>

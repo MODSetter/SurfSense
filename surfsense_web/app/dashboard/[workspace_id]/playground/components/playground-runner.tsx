@@ -1,14 +1,23 @@
 "use client";
 
-import { AlertTriangle, Coins, Hash, Loader2, Play, Timer, X } from "lucide-react";
+import {
+	Check,
+	Copy,
+	Hash,
+	Info,
+	Coins,
+	Timer,
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useRunStream } from "@/hooks/use-run-stream";
 import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { scrapersApiService } from "@/lib/apis/scrapers-api.service";
-import { AbortedError, AppError } from "@/lib/error";
+import { AppError } from "@/lib/error";
 import { findVerb } from "@/lib/playground/catalog";
 import { formatCost, formatDuration, formatPricing } from "@/lib/playground/format";
 import { buildPayload, initialFormValues, parseSchemaFields } from "@/lib/playground/json-schema";
@@ -58,36 +67,44 @@ function RunStat({
 	);
 }
 
-function ErrorPanel({ error, workspaceId }: { error: unknown; workspaceId: number }) {
-	if (error instanceof AbortedError) {
-		return null;
-	}
+function getRunErrorMessage(error: unknown): string {
 	const status = error instanceof AppError ? error.status : undefined;
 
 	if (status === 402) {
-		return (
-			<div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
-				<p className="font-medium text-destructive">Insufficient credits</p>
-				<p className="mt-1 text-muted-foreground">You don't have enough credits to run this API.</p>
-				<Button asChild size="sm" variant="outline" className="mt-3">
-					<Link href={`/dashboard/${workspaceId}/buy-more`}>Buy credits</Link>
-				</Button>
-			</div>
-		);
+		return "Insufficient credits. Add credits to run this API.";
 	}
 
-	const message =
-		status === 422
-			? "Invalid input. Check the fields above and try again."
-			: error instanceof Error && error.message
-				? error.message
-				: "Something went wrong running this API.";
+	if (status === 422) {
+		return "Invalid input. Check the fields above and try again.";
+	}
+
+	return error instanceof Error && error.message
+		? error.message
+		: "Something went wrong running this API.";
+}
+
+function EndpointCopyButton({ endpoint }: { endpoint: string }) {
+	const [copied, setCopied] = useState(false);
+
+	const handleCopy = () => {
+		navigator.clipboard.writeText(endpoint).then(() => {
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1500);
+		});
+	};
 
 	return (
-		<div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-			<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-			<span>{message}</span>
-		</div>
+		<Button
+			type="button"
+			variant="ghost"
+			size="sm"
+			onClick={handleCopy}
+			className="h-auto justify-start gap-2 rounded bg-muted/40 px-2 py-1 font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+		>
+			<code>{endpoint}</code>
+			{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+			<span className="sr-only">{copied ? "Copied endpoint" : "Copy endpoint"}</span>
+		</Button>
 	);
 }
 
@@ -110,6 +127,8 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 	const [values, setValues] = useState<Record<string, unknown>>({});
 	const run = useRunStream(workspaceId);
 	const isRunning = run.status === "running";
+	const previousStatusRef = useRef(run.status);
+	const notifiedRunRef = useRef<string | null>(null);
 
 	// Seed form defaults once the schema is available.
 	useEffect(() => {
@@ -158,6 +177,29 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 		() => (run.detail ? parseJsonlOutput(run.detail.output_text) : null),
 		[run.detail]
 	);
+	const endpoint = `POST /workspaces/${workspaceId}/scrapers/${platform}/${verb}`;
+
+	useEffect(() => {
+		const previousStatus = previousStatusRef.current;
+		previousStatusRef.current = run.status;
+
+		if (previousStatus !== "running") return;
+
+		if (run.status === "success") {
+			const key = `${run.runId ?? "run"}:success`;
+			if (notifiedRunRef.current === key) return;
+			notifiedRunRef.current = key;
+			toast.success("API run completed.");
+			return;
+		}
+
+		if (run.status === "error") {
+			const key = `${run.runId ?? "run"}:error`;
+			if (notifiedRunRef.current === key) return;
+			notifiedRunRef.current = key;
+			toast.error(getRunErrorMessage(run.error));
+		}
+	}, [run.status, run.runId, run.error]);
 
 	if (isLoading) {
 		return (
@@ -186,26 +228,40 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 
 	return (
 		<div className="space-y-10">
-			<div className="grid gap-6 lg:grid-cols-2">
+			<div className="space-y-6">
+				{capability.description && (
+					<Alert>
+						<Info />
+						<AlertDescription>
+							<p>
+								{capability.description}
+								{capability.docs_url ? (
+									<>
+										{" "}
+										<Link
+											href={capability.docs_url}
+											className="font-medium text-foreground underline-offset-4 hover:underline"
+										>
+											Read docs
+										</Link>
+										{" "}for more info.
+									</>
+								) : null}
+							</p>
+						</AlertDescription>
+					</Alert>
+				)}
+
 				<div className="space-y-5">
-					<div>
-						<h1 className="text-lg font-semibold">
-							{catalogVerb.label} <span className="text-muted-foreground">· {platform}</span>
-						</h1>
-						{capability.description && (
-							<p className="mt-1 text-sm text-muted-foreground">{capability.description}</p>
-						)}
-						<code className="mt-2 inline-block rounded bg-muted/40 px-1.5 py-0.5 text-xs text-muted-foreground">
-							POST /workspaces/{workspaceId}/scrapers/{platform}/{verb}
-						</code>
-						<div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-							<Coins className="h-3.5 w-3.5" />
+					<div className="space-y-2">
+						<EndpointCopyButton endpoint={endpoint} />
+						<div className="text-xs text-muted-foreground">
+							<span>Pricing: </span>
 							<span className="font-medium tabular-nums text-foreground">
 								{formatPricing(capability.pricing)}
 							</span>
 						</div>
 					</div>
-
 					<SchemaForm
 						fields={fields}
 						values={values}
@@ -214,23 +270,17 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 					/>
 
 					<div className="flex items-center gap-2">
-						<Button type="button" onClick={handleRun} disabled={isRunning} className="gap-1.5">
-							{isRunning ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<Play className="h-4 w-4" />
-							)}
-							Run
+						<Button type="button" onClick={handleRun} disabled={isRunning} className="relative">
+							<span className={isRunning ? "opacity-0" : ""}>Run</span>
+							{isRunning && <Spinner size="sm" className="absolute" />}
 						</Button>
 						{isRunning && (
-							<Button type="button" variant="outline" onClick={run.cancel} className="gap-1.5">
-								<X className="h-4 w-4" />
+							<Button type="button" variant="secondary" onClick={run.cancel}>
 								Cancel
 							</Button>
 						)}
 					</div>
 
-					{run.status === "error" && <ErrorPanel error={run.error} workspaceId={workspaceId} />}
 				</div>
 
 				<div className="space-y-3">

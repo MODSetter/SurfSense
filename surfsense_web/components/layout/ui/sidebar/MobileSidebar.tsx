@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { WorkspaceAvatar } from "../icon-rail/WorkspaceAvatar";
+import { NotificationsDropdown, type NotificationsDropdownData } from "./NotificationsDropdown";
 import { Sidebar } from "./Sidebar";
 import { SidebarUserProfile } from "./SidebarUserProfile";
 
@@ -35,6 +36,7 @@ interface MobileSidebarProps {
 	onUserSettings?: () => void;
 	onAnnouncements?: () => void;
 	announcementUnreadCount?: number;
+	notifications?: NotificationsDropdownData;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	theme?: string;
@@ -83,6 +85,7 @@ export function MobileSidebar({
 	onUserSettings,
 	onAnnouncements,
 	announcementUnreadCount = 0,
+	notifications,
 	onLogout,
 	pageUsage,
 	theme,
@@ -161,11 +164,19 @@ export function MobileSidebar({
 						isCollapsed
 						theme={theme}
 						setTheme={setTheme}
+						topContent={
+							notifications ? (
+								<NotificationsDropdown
+									notifications={notifications}
+									onCloseMobileSidebar={() => onOpenChange(false)}
+								/>
+							) : undefined
+						}
 					/>
 				</div>
 
 				{/* Sidebar Content - right side */}
-				<div className="flex-1 overflow-hidden flex flex-col [&>*]:!w-full">
+				<div className="flex-1 overflow-hidden flex flex-col border-r [&>*]:!w-full">
 					<Sidebar
 						workspace={workspace}
 						isCollapsed={false}

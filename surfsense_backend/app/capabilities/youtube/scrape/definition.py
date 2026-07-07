@@ -10,16 +10,14 @@ from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
 YOUTUBE_SCRAPE = Capability(
     name="youtube.scrape",
     description=(
-        "Scrape public YouTube data. Give it YouTube URLs (video, channel, "
-        "playlist, shorts, or hashtag) and/or search queries, and it returns "
-        "structured video items — title, views, likes, publish date, channel "
-        "info, description, and optionally subtitles. Use search_queries to "
-        "discover videos, or urls to pull a known video/channel/playlist."
+        "Scrape public YouTube videos, channels, playlists, and subtitles. Use "
+        "urls or search_queries."
     ),
     input_schema=ScrapeInput,
     output_schema=ScrapeOutput,
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.YOUTUBE_VIDEO,
+    docs_url="/docs/connectors/native/youtube",
 )
 
 register_capability(YOUTUBE_SCRAPE)

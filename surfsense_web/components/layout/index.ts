@@ -9,6 +9,7 @@ export type {
 	User,
 	Workspace,
 } from "./types/layout.types";
+export type { RoutedSectionGroup, RoutedSectionItem } from "./ui";
 export {
 	ChatListItem,
 	CreateWorkspaceDialog,
@@ -20,6 +21,7 @@ export {
 	MobileSidebarTrigger,
 	NavIcon,
 	NavSection,
+	RoutedSectionShell,
 	Sidebar,
 	SidebarCollapseButton,
 	SidebarHeader,

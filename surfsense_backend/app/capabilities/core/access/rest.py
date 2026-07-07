@@ -71,6 +71,7 @@ class CapabilitySummary(BaseModel):
 
     name: str
     description: str
+    docs_url: str | None = None
     input_schema: dict
     output_schema: dict
     # Empty list = free (billing disabled or an unmetered verb).
@@ -145,6 +146,7 @@ def _register_capabilities_list(
             CapabilitySummary(
                 name=capability.name,
                 description=capability.description,
+                docs_url=capability.docs_url,
                 input_schema=capability.input_schema.model_json_schema(),
                 output_schema=capability.output_schema.model_json_schema(),
             ),

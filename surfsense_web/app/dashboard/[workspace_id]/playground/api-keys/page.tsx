@@ -1,4 +1,4 @@
-import { ApiKeysSection } from "../components/api-keys-section";
+import { redirect } from "next/navigation";
 
 export default async function PlaygroundApiKeysPage({
 	params,
@@ -7,9 +7,5 @@ export default async function PlaygroundApiKeysPage({
 }) {
 	const { workspace_id } = await params;
 
-	return (
-		<div className="mx-auto w-full max-w-3xl">
-			<ApiKeysSection workspaceId={Number(workspace_id)} />
-		</div>
-	);
+	redirect(`/dashboard/${workspace_id}/user-settings/api-key`);
 }

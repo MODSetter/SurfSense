@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Boxes, Inbox, SquareTerminal } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { AlarmClock, AlertTriangle, Boxes, SquareTerminal } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
-import { playgroundSidebarOpenAtom } from "@/atoms/layout/playground.atom";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
@@ -43,7 +42,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -60,17 +58,6 @@ interface LayoutDataProviderProps {
 	children: React.ReactNode;
 }
 
-/**
- * Format count for display: shows numbers up to 999, then "1k+", "2k+", etc.
- */
-function formatInboxCount(count: number): string {
-	if (count <= 999) {
-		return count.toString();
-	}
-	const thousands = Math.floor(count / 1000);
-	return `${thousands}k+`;
-}
-
 export function LayoutDataProvider({ workspaceId, children }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
@@ -79,8 +66,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const params = useParams();
 	const pathname = usePathname();
 	const { theme, setTheme } = useTheme();
-	const isMobile = useIsMobile();
-	const [playgroundSidebarOpen, setPlaygroundSidebarOpen] = useAtom(playgroundSidebarOpenAtom);
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
@@ -124,12 +109,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 		queryFn: () => fetchThreads(Number(workspaceId), 6),
 		enabled: !!workspaceId,
 	});
-
-	// Unified slide-out panel state (only one can be open at a time)
-	type SlideoutPanel = "inbox" | null;
-	const [activeSlideoutPanel, setActiveSlideoutPanel] = useState<SlideoutPanel>(null);
-
-	const isInboxSidebarOpen = activeSlideoutPanel === "inbox";
 
 	// Search space dialog state
 	const [isCreateWorkspaceDialogOpen, setIsCreateWorkspaceDialogOpen] = useState(false);
@@ -228,17 +207,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 	const [isLeavingWorkspace, setIsLeavingWorkspace] = useState(false);
 
-	// Reset transient slide-out panels when switching workspaces.
-	// Tabs intentionally persist across spaces — opening tabs from multiple
-	// workspaces is a supported flow (browser-tab semantics).
-	const prevWorkspaceIdRef = useRef(workspaceId);
-	useEffect(() => {
-		if (prevWorkspaceIdRef.current !== workspaceId) {
-			prevWorkspaceIdRef.current = workspaceId;
-			setActiveSlideoutPanel(null);
-		}
-	}, [workspaceId]);
-
 	const workspaces: Workspace[] = useMemo(() => {
 		if (!workspacesData || !Array.isArray(workspacesData)) return [];
 		return workspacesData.map((space) => ({
@@ -318,9 +286,9 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	}, [threadsData, workspaceId]);
 
 	// Navigation items
-	// Inbox, Automations, and Artifacts are rendered explicitly below "New chat"
-	// in the sidebar (also surfaced in the icon rail's collapsed mode via this
-	// list). Documents is embedded below Recents; announcements live in the avatar dropdown.
+	// Automations and Artifacts are rendered explicitly below "New chat"
+	// in the sidebar. Documents is embedded below Recents; notifications and
+	// announcements live in the avatar rail/dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundRoute = pathname?.includes("/playground") === true;
@@ -328,13 +296,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 		() =>
 			(
 				[
-					{
-						title: "Inbox",
-						url: "#inbox",
-						icon: Inbox,
-						isActive: isInboxSidebarOpen,
-						badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
-					},
 					{
 						title: "Automations",
 						url: `/dashboard/${workspaceId}/automations`,
@@ -351,22 +312,11 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						title: "Playground",
 						url: `/dashboard/${workspaceId}/playground`,
 						icon: SquareTerminal,
-						// Mobile has no second-level sidebar: Playground is a plain link
-						// there, so highlight by route. Desktop highlights the toggle state.
-						isActive: isMobile ? isPlaygroundRoute : playgroundSidebarOpen,
+						isActive: isPlaygroundRoute,
 					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[
-			isInboxSidebarOpen,
-			totalUnreadCount,
-			workspaceId,
-			isAutomationsActive,
-			isArtifactsActive,
-			isPlaygroundRoute,
-			playgroundSidebarOpen,
-			isMobile,
-		]
+		[workspaceId, isAutomationsActive, isArtifactsActive, isPlaygroundRoute]
 	);
 
 	// Handlers
@@ -503,22 +453,9 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
-			if (item.url === "#inbox") {
-				setActiveSlideoutPanel((prev) => (prev === "inbox" ? null : "inbox"));
-				return;
-			}
-			// Desktop: Playground is a persistent toggle, not a plain link — it just
-			// opens the second-level sidebar (which holds the whole API playground)
-			// and only closes on a second click, never navigating away from the
-			// current page (e.g. a new chat). Mobile has no second-level sidebar,
-			// so there it navigates to the playground index page instead.
-			if (item.url.endsWith("/playground") && !isMobile) {
-				setPlaygroundSidebarOpen((prev) => !prev);
-				return;
-			}
 			router.push(item.url);
 		},
-		[router, setPlaygroundSidebarOpen, setActiveSlideoutPanel, isMobile]
+		[router]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -688,7 +625,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 	const isPlaygroundPage = pathname?.includes("/playground") === true;
 	const isAllChatsPage = pathname?.endsWith("/chats") === true;
 	const handleViewAllChats = useCallback(() => {
-		setActiveSlideoutPanel(null);
 		router.push(
 			isAllChatsPage ? `/dashboard/${workspaceId}/new-chat` : `/dashboard/${workspaceId}/chats`
 		);
@@ -741,7 +677,6 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				setTheme={setTheme}
 				isChatPage={isChatPage}
 				isAllChatsPage={isAllChatsPage}
-				showPlaygroundSidebar={playgroundSidebarOpen}
 				useWorkspacePanel={useWorkspacePanel}
 				workspacePanelViewportClassName={
 					isUserSettingsPage ||
@@ -755,23 +690,15 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						: undefined
 				}
 				workspacePanelContentClassName={
-					isAutomationsPage || isPlaygroundPage
-						? "max-w-none select-none"
-						: isAllChatsPage
-							? "max-w-5xl"
-							: isUserSettingsPage || isWorkspaceSettingsPage || isTeamPage || isArtifactsPage
-								? "max-w-5xl"
-								: undefined
+					useWorkspacePanel ? "max-w-5xl select-none" : undefined
 				}
 				isLoadingChats={isLoadingThreads}
-				activeSlideoutPanel={activeSlideoutPanel}
-				onSlideoutPanelChange={setActiveSlideoutPanel}
-				inbox={{
-					isOpen: isInboxSidebarOpen,
+				notifications={{
 					totalUnreadCount,
 					comments: {
 						items: commentsInbox.inboxItems,
 						unreadCount: commentsInbox.unreadCount,
+						totalCount: commentsInbox.totalCount,
 						loading: commentsInbox.loading,
 						loadingMore: commentsInbox.loadingMore,
 						hasMore: commentsInbox.hasMore,
@@ -782,6 +709,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 					status: {
 						items: statusInbox.inboxItems,
 						unreadCount: statusInbox.unreadCount,
+						totalCount: statusInbox.totalCount,
 						loading: statusInbox.loading,
 						loadingMore: statusInbox.loadingMore,
 						hasMore: statusInbox.hasMore,
