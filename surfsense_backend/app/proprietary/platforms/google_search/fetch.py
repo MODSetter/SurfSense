@@ -75,7 +75,8 @@ _WALLED_ROUND_BACKOFF_S = 3.0
 
 # The sticky IP that most recently served a real SERP; the strongest hint for
 # the next fetch. Re-vetted (cheap) before reuse, dropped on failure.
-# ponytail: a single slot, not a pool — one render runs at a time today.
+# ponytail: a single slot, not a pool — concurrent fetches share (and race)
+# it; worst case a loser re-vets a fresh IP, which is the normal path anyway.
 _last_good_proxy: str | None = None
 
 # A usable precheck responds in <1 s; anything slower is a dead/slow sticky IP
@@ -273,6 +274,23 @@ async def _in_browser_loop(coro):
 _sessions: dict[bool, AsyncStealthySession] = {}
 _session_lock = asyncio.Lock()
 
+# How many renders may run at once. scrapling's page pool defaults to ONE
+# page, and a per-fetch proxy context skips its wait-for-a-slot path, so a
+# second concurrent render raised RuntimeError('Maximum page limit (1)
+# reached'); the failure handler then closed the shared browser under the
+# sibling render (the TargetClosedError cascade seen in production when
+# several scrape runs overlap). The pool and this gate are sized together:
+# the gate queues excess renders instead of tripping the pool.
+_MAX_CONCURRENT_PAGES = 4
+# Only ever awaited from coroutines running on the browser loop.
+_render_gate = asyncio.Semaphore(_MAX_CONCURRENT_PAGES)
+
+# Live renders per session, so dropping a "broken" session defers the actual
+# browser close until its last in-flight render finishes — closing earlier is
+# what murdered sibling renders. Browser-loop-only state.
+_inflight: dict[AsyncStealthySession, int] = {}
+_doomed: set[AsyncStealthySession] = set()
+
 
 async def _get_session(mobile: bool) -> AsyncStealthySession:
     """The shared live browser session for this layout, launching it if needed."""
@@ -286,6 +304,7 @@ async def _get_session(mobile: bool) -> AsyncStealthySession:
             "google_search": True,
             "page_action": _expand_blocks,
             "retries": 1,  # our own IP loop is the retry policy
+            "max_pages": _MAX_CONCURRENT_PAGES,
         }
         base = get_proxy_url()
         if base:
@@ -305,9 +324,14 @@ async def _get_session(mobile: bool) -> AsyncStealthySession:
 async def _drop_session_on_loop(mobile: bool) -> None:
     async with _session_lock:
         session = _sessions.pop(mobile, None)
-    if session is not None:
-        with contextlib.suppress(Exception):  # already dead; nothing to salvage
-            await session.close()
+    if session is None:
+        return
+    if _inflight.get(session, 0):
+        # Sibling renders are still on this browser; the last one closes it.
+        _doomed.add(session)
+        return
+    with contextlib.suppress(Exception):  # already dead; nothing to salvage
+        await session.close()
 
 
 async def _drop_session(mobile: bool) -> None:
@@ -322,8 +346,19 @@ async def close_sessions() -> None:
 
 
 async def _render_on_loop(url: str, proxy: str | None, mobile: bool):
-    session = await _get_session(mobile)
-    return await session.fetch(url, proxy=proxy)
+    async with _render_gate:
+        session = await _get_session(mobile)
+        _inflight[session] = _inflight.get(session, 0) + 1
+        try:
+            return await session.fetch(url, proxy=proxy)
+        finally:
+            _inflight[session] -= 1
+            if not _inflight[session]:
+                del _inflight[session]
+                if session in _doomed:
+                    _doomed.discard(session)
+                    with contextlib.suppress(Exception):
+                        await session.close()
 
 
 async def _render(url: str, proxy: str | None, mobile: bool = False):
