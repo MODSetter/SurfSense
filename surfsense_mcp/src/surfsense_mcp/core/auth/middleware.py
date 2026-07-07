@@ -6,9 +6,12 @@ not reach the tool handler. A pure middleware binds the key in the request's own
 task, from which the SDK's per-request handling inherits it.
 
 Requests without a key are rejected here so no tool ever runs unauthenticated.
+Paths in ``public_paths`` (e.g. the health probe) skip the check entirely.
 """
 
 from __future__ import annotations
+
+from collections.abc import Iterable
 
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
@@ -21,11 +24,12 @@ from .identity import bind_api_key, unbind_api_key
 class ApiKeyIdentityMiddleware:
     """Binds the per-request API key into the identity contextvar, or 401s."""
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, public_paths: Iterable[str] = ()) -> None:
         self._app = app
+        self._public_paths = frozenset(public_paths)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] != "http" or scope["path"] in self._public_paths:
             await self._app(scope, receive, send)
             return
 
