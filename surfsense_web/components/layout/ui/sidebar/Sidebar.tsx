@@ -316,7 +316,6 @@ export function Sidebar({
 												key={chat.id}
 												name={chat.name}
 												isActive={chat.id === activeChatId}
-												isShared={chat.visibility === "SEARCH_SPACE"}
 												archived={chat.archived}
 												dropdownOpen={openDropdownChatId === chat.id}
 												onDropdownOpenChange={(open) =>
