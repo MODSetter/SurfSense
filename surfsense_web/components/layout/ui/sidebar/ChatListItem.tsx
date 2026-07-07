@@ -19,7 +19,6 @@ import { sidebarListItemClassName } from "./SidebarListItem";
 interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
-	isShared?: boolean;
 	archived?: boolean;
 	dropdownOpen?: boolean;
 	onDropdownOpenChange?: (open: boolean) => void;
