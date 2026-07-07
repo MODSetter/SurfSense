@@ -138,7 +138,7 @@ Adicione o servidor MCP do SurfSense ao Claude, ao Cursor ou ao seu próprio fra
 {
   "mcpServers": {
     "surfsense": {
-      "url": "https://mcp.surfsense.com",
+      "url": "https://mcp.surfsense.com/mcp",
       "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
     }
   }
