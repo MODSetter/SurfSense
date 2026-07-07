@@ -18,11 +18,11 @@ class ActionContext:
     session: AsyncSession
     run_id: int
     step_id: str
-    search_space_id: int
+    workspace_id: int
     creator_user_id: UUID | None
     # Captured model snapshot from the automation definition (``definition.models``),
-    # resolved per run instead of the live search space. ``None`` falls back to the
-    # search space's current prefs (defensive; should not happen post-capture).
+    # resolved per run instead of the live workspace. ``None`` falls back to the
+    # workspace's current prefs (defensive; should not happen post-capture).
     chat_model_id: int | None = None
     image_gen_model_id: int | None = None
     vision_model_id: int | None = None

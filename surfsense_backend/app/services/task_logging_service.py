@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 class TaskLoggingService:
     """Service for logging background tasks using the database Log model"""
 
-    def __init__(self, session: AsyncSession, search_space_id: int):
+    def __init__(self, session: AsyncSession, workspace_id: int):
         self.session = session
-        self.search_space_id = search_space_id
+        self.workspace_id = workspace_id
 
     async def log_task_start(
         self,
@@ -47,7 +47,7 @@ class TaskLoggingService:
             message=message,
             source=source,
             log_metadata=log_metadata,
-            search_space_id=self.search_space_id,
+            workspace_id=self.workspace_id,
         )
 
         self.session.add(log_entry)
@@ -232,7 +232,7 @@ class TaskLoggingService:
             message=message,
             source=source,
             log_metadata=metadata or {},
-            search_space_id=self.search_space_id,
+            workspace_id=self.workspace_id,
         )
 
         self.session.add(log_entry)

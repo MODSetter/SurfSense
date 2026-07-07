@@ -18,7 +18,7 @@ export interface CirclebackConfigProps extends ConnectorConfigProps {
 // Type-safe schema for webhook info response
 const circlebackWebhookInfoSchema = z.object({
 	webhook_url: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	method: z.string(),
 	content_type: z.string(),
 	description: z.string(),
@@ -40,12 +40,12 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 		const controller = new AbortController();
 
 		const doFetch = async () => {
-			if (!connector.search_space_id) return;
+			if (!connector.workspace_id) return;
 
 			setIsLoading(true);
 			try {
 				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/webhooks/circleback/${connector.search_space_id}/info`),
+					buildBackendUrl(`/api/v1/webhooks/circleback/${connector.workspace_id}/info`),
 					{ signal: controller.signal }
 				);
 				if (controller.signal.aborted) return;
@@ -70,7 +70,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 
 		doFetch().catch(() => {});
 		return () => controller.abort();
-	}, [connector.search_space_id]);
+	}, [connector.workspace_id]);
 
 	const handleNameChange = (value: string) => {
 		setName(value);
@@ -165,7 +165,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 						<AlertDescription>
 							Configure this URL in Circleback Settings → Automations → Create automation → Send
 							webhook request. The webhook will automatically send meeting notes, transcripts, and
-							action items to this search space.
+							action items to this workspace.
 						</AlertDescription>
 					</Alert>
 				)}

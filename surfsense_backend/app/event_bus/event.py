@@ -25,7 +25,7 @@ class Event(BaseModel):
     """A published domain fact.
 
     ``event_type`` is a dotted namespace (``document.indexed``, etc). ``payload`` is
-    JSON-serializable. ``search_space_id`` scopes delivery. ``event_id`` and
+    JSON-serializable. ``workspace_id`` scopes delivery. ``event_id`` and
     ``occurred_at`` are engine-stamped.
     """
 
@@ -33,6 +33,6 @@ class Event(BaseModel):
 
     event_type: str
     payload: dict[str, Any] = Field(default_factory=dict)
-    search_space_id: int
+    workspace_id: int
     event_id: str = Field(default_factory=_new_event_id)
     occurred_at: datetime = Field(default_factory=_now)

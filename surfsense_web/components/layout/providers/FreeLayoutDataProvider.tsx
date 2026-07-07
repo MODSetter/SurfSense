@@ -1,22 +1,21 @@
 "use client";
 
-import { Inbox, LibraryBig } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
-import type { ChatItem, NavItem, PageUsage, SearchSpace } from "../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, Workspace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
 
 interface FreeLayoutDataProviderProps {
 	children: ReactNode;
 }
 
-const GUEST_SPACE: SearchSpace = {
+const GUEST_SPACE: Workspace = {
 	id: 0,
 	name: "SurfSense Free",
 	description: "Free AI chat without login",
@@ -28,15 +27,8 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const router = useRouter();
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
-	const isMobile = useIsMobile();
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 	const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
-	const [isDocsSidebarOpen, setIsDocsSidebarOpen] = useState(false);
-
-	// Keep docs sidebar closed on mobile; auto-open only on desktop after hydration
-	useEffect(() => {
-		setIsDocsSidebarOpen(!isMobile);
-	}, [isMobile]);
 
 	useEffect(() => {
 		anonymousChatApiService
@@ -65,17 +57,9 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 						icon: Inbox,
 						isActive: false,
 					},
-					isMobile
-						? {
-								title: "Documents",
-								url: "#documents",
-								icon: LibraryBig,
-								isActive: false,
-							}
-						: null,
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[isMobile]
+		[]
 	);
 
 	const pageUsage: PageUsage | undefined = quota
@@ -87,26 +71,22 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
 			if (item.title === "Inbox") gate("use the inbox");
-			else if (item.title === "Documents") setIsDocsSidebarOpen((v) => !v);
 		},
 		[gate]
 	);
 
 	const handleAnnouncements = useCallback(() => gate("see what's new"), [gate]);
 
-	const handleSearchSpaceSelect = useCallback(
-		(_id: number) => gate("switch search spaces"),
-		[gate]
-	);
+	const handleWorkspaceSelect = useCallback((_id: number) => gate("switch workspaces"), [gate]);
 
 	return (
 		<LayoutShell
-			searchSpaces={[GUEST_SPACE]}
-			activeSearchSpaceId={0}
-			onSearchSpaceSelect={handleSearchSpaceSelect}
-			onSearchSpaceSettings={gatedAction("search space settings")}
-			onAddSearchSpace={gatedAction("create search spaces")}
-			searchSpace={GUEST_SPACE}
+			workspaces={[GUEST_SPACE]}
+			activeWorkspaceId={0}
+			onWorkspaceSelect={handleWorkspaceSelect}
+			onWorkspaceSettings={gatedAction("workspace settings")}
+			onAddWorkspace={gatedAction("create workspaces")}
+			workspace={GUEST_SPACE}
 			navItems={navItems}
 			onNavItemClick={handleNavItemClick}
 			chats={[]}
@@ -121,7 +101,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 				email: "Guest",
 				name: "Guest",
 			}}
-			onSettings={gatedAction("search space settings")}
+			onSettings={gatedAction("workspace settings")}
 			onManageMembers={gatedAction("team management")}
 			onUserSettings={gatedAction("account settings")}
 			onAnnouncements={handleAnnouncements}
@@ -130,10 +110,6 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			pageUsage={pageUsage}
 			isChatPage
 			isLoadingChats={false}
-			documentsPanel={{
-				open: isDocsSidebarOpen,
-				onOpenChange: setIsDocsSidebarOpen,
-			}}
 		>
 			{children}
 		</LayoutShell>

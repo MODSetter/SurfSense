@@ -1,0 +1,73 @@
+---
+title: Obsidian
+description: Sync your Obsidian vault with the SurfSense plugin
+---
+
+# Obsidian Plugin Setup Guide
+
+SurfSense integrates with Obsidian through the SurfSense Obsidian plugin.
+
+## How it works
+
+The plugin runs inside your Obsidian app and pushes note updates to SurfSense over HTTPS.
+This works for cloud and self-hosted deployments, including desktop and mobile clients.
+
+## What gets indexed
+
+| Content Type | Description |
+|--------------|-------------|
+| Markdown files | Note content (`.md`) |
+| Frontmatter | YAML metadata like title, tags, aliases, dates |
+| Wiki links | Linked notes (`[[note]]`) |
+| Tags | Inline and frontmatter tags |
+| Vault metadata | Vault and path metadata used for deep links and sync state |
+
+## Quick start
+
+1. Open **Connectors** in SurfSense and choose **Obsidian**.
+2. Install the plugin (recommended via BRAT) using the steps below.
+3. In Obsidian, open **Settings → SurfSense**.  
+4. Paste your SurfSense API token from the user settings section.
+5. Paste your Server URL in the plugin setting: either your SurfSense main domain (if `/api/v1` rewrites are enabled) or your direct backend URL.
+6. Choose the Workspace in the plugin, then the first sync should run automatically.
+7. Confirm the connector appears as **Obsidian - &lt;vault&gt;** in SurfSense.
+
+## Install via BRAT (recommended)
+
+1. In Obsidian, open **Settings → Community plugins** and install **[BRAT](obsidian://show-plugin?id=obsidian42-brat)**.
+2. Open BRAT settings and click **Add beta plugin** button.
+3. Paste the repository: `https://github.com/MODSetter/SurfSense/`.
+4. Select the latest plugin version, then click "Add plugin".
+5. Open **Settings → SurfSense** to finish setup.
+
+## Migrating from the legacy connector
+
+If you previously used the legacy Obsidian connector architecture, migrate to the plugin flow:
+
+1. Delete the old legacy Obsidian connector from SurfSense.
+2. Install and configure the SurfSense Obsidian plugin using the quick start above.
+3. Run the first plugin sync and verify the new **Obsidian - &lt;vault&gt;** connector is active.
+
+<Callout type="warn">
+    Deleting the legacy connector also deletes all documents that were indexed by that connector. Always finish and verify plugin sync before deleting the old connector.
+</Callout>
+
+## Troubleshooting
+
+**Plugin connects but no files appear**
+- Verify the plugin is pointed to the correct Workspace.
+- Trigger a manual sync from the plugin settings.
+- Confirm your API token is valid and not expired.
+
+**Self-hosted URL issues**
+- Use a public or LAN backend URL that your Obsidian device can reach.
+- If your instance is behind TLS, ensure the URL/certificate is valid for the device running Obsidian.
+
+**Unauthorized / 401 errors**
+- Regenerate and paste a fresh API token from SurfSense.
+- Ensure the token belongs to the same account and workspace you are syncing into.
+
+**Cannot reach server URL**
+- Check that the backend URL is reachable from the Obsidian device.
+- For self-hosted setups, verify firewall and reverse proxy rules.
+- Avoid using localhost unless SurfSense and Obsidian run on the same machine.

@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源竞争情报平台" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,291 +20,272 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense
+# SurfSense：为你的 AI 智能体注入竞争情报能力
 
-NotebookLM 是目前最好、最实用的 AI 平台之一，但当你开始经常使用它时，你也会感受到它的局限性，总觉得还有不足之处。
+SurfSense 是**面向 AI 智能体的开源竞争情报平台**。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Google Maps、Google Search 和开放网络**的实时数据，监控竞争对手、追踪排名、倾听市场动态。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
 
-1. 一个笔记本中可以添加的来源数量有限制。
-2. 可以拥有的笔记本数量有限制。
-3. 来源不能超过 500,000 个单词和 200MB。
-4. 你被锁定在 Google 服务中（LLM、使用模型等），没有配置选项。
-5. 有限的外部数据源和服务集成。
-6. NotebookLM 代理专门针对学习和研究进行了优化，但你可以用源数据做更多事情。
-7. 缺乏多人协作支持。
+> [!NOTE]
+> **📢 致我们的 NotebookLM 替代品用户**
+>
+> 在过去几个月里，我们把 SurfSense 打造成了针对个人知识的最佳通用研究智能体，这段旅程为我们赢得了一个令我们由衷自豪的社区。如今，Claude、OpenCode、Hermes、OpenClaw 等智能体工具已经证明智能体就是未来，通用研究正在成为每个有能力的智能体开箱即用的功能。而智能体仍然缺少的是**实时市场数据以及围绕它的工作流**，所以这正是我们全力投入的方向：成为标杆级的开源竞争情报智能体平台。
+>
+> **你所依赖的一切功能都不会消失。**你的知识库、带引用的对话、报告、播客、演示文稿、自动化以及协作聊天都会继续可用，自托管也依然免费且开源。完整公告请阅读[我们的更新日志](https://www.surfsense.com/changelog)。
 
-...还有更多。
+## 目录
 
-**SurfSense 正是为了解决这些问题而生。** SurfSense 赋予你：
+- [为什么智能体需要 SurfSense](#为什么智能体需要-surfsense)
+- [你可以用 SurfSense 做什么？](#你可以用-surfsense-做什么)
+- [实时数据连接器](#实时数据连接器)
+- [快速开始](#快速开始)
+- [开箱即用的其他能力](#开箱即用的其他能力)
+- [SurfSense 对比 Google NotebookLM](#surfsense-对比-google-notebooklm)
+- [路线图](#路线图)
+- [参与贡献](#参与贡献)
 
-- **控制你的数据流** - 保持数据私密和安全。
-- **无数据限制** - 添加无限数量的来源和笔记本。
-- **无供应商锁定** - 配置任何 LLM、图像、TTS 和 STT 模型。
-- **25+ 外部数据源** - 从 Google Drive、OneDrive、Dropbox、Notion 和许多其他外部服务添加你的来源。
-- **实时多人协作支持** - 在共享笔记本中轻松与团队成员协作。
-- **AI 自动化与智能体** - 按计划运行 AI 智能体，或在文档进入文件夹的那一刻触发它们，然后将结果回写到 Notion、Slack、Linear 和 Drive。只需在聊天中描述即可创建无代码自动化。
-- **桌面应用** - 通过 Quick Assist、General Assist、Screenshot Assist 和本地文件夹同步在任何应用程序中获得 AI 助手。
+## 为什么智能体需要 SurfSense
 
-...更多功能即将推出。
+问任何一个有能力的智能体"竞争对手这周的定价是多少？"或者"自发布以来 Reddit 上对我们的评价如何？"，它都找不到可信赖的数据来源。官方平台 API 要么有速率限制，要么按企业级定价，要么根本不存在，而自建抓取管线又非常脆弱。SurfSense 正是为填补这一空白而生：
 
+- **平台原生连接器**，每个都是返回结构化 JSON 的强类型 REST 端点。不用赌速率限制，也不用解析 HTML。
+- **一个 MCP 服务器**，把每个连接器都作为原生工具（`surfsense_reddit_scrape`、`surfsense_google_search` 等）暴露给 Claude、Cursor 或任何智能体框架。
+- **一套智能体运行框架**，而不只是原始数据：重试、结构化输出和额度计量都已内置，智能体可以从一个问题直达一份简报，无需你自己搭建管线。
+- **开源且可自托管**，你的竞争研究数据始终留在你自己的基础设施上。
 
+## 你可以用 SurfSense 做什么？
 
-## 视频代理示例
+下面的每个用例都是 SurfSense 智能体如今能够端到端完成的真实任务，一条提示语或一个定时计划即可触发。
 
-https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
+### 多连接器工作流
 
+在一次智能体运行中串联多个连接器，最终得到一份带引用的简报。
 
+- **发布影响力分析，覆盖所有平台** — "我们的竞争对手昨天发布了 v2。评估搜索、Reddit 和 YouTube 上的反应。"智能体会抓取搜索结果页、Reddit 帖子和 YouTube 评论，然后把三路信号汇总成一份发布影响力简报。
+- **本地竞争对手拆解** — Google Maps 找到本地玩家，网页爬虫读取他们的定价页面，Google Search 展示谁在搜索中胜出，全部在一次运行中完成。
+- **定时执行的竞争对手 360 全景** — 一条自动化每周串联四个连接器：网站变更、排名变动、Reddit 舆情和 YouTube 反应。
 
-## 播客代理示例
+### 竞争对手监控
 
-https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
+- **定价监控** — 从竞争对手的定价页面提取每个套餐、价格和限制，汇总到一张表格，然后每天复查，任何变动即时预警。
+- **产品与更新日志追踪** — 每周一爬取对手的更新日志、产品页和招聘页面，收到一份他们发布了什么的简报。
+- **排名与广告监控** — 追踪你的市场真正看到的 Google 排名、付费广告和 AI Overview 引用，并逐日标记变动。
 
+### B2B 潜在客户开发
 
-## 如何使用 SurfSense
+- **本地商户线索** — 把一个品类加一个地区（"圣何塞的汉堡店"）变成一份线索清单，包含电话、网站、评分，以及从他们网站上提取的决策人联系方式。
+- **团队名录与联系方式** — 爬取任意公司网站，提取完整团队名单，附带邮箱、社交账号和数据来源，导出为 CSV。
+- **投资组合与市场地图** — 绘制一家投资机构的投资组合或整个品类的全景图，再为每家公司补充定价和联系方式。
 
-### Cloud
+### 品牌与市场舆情监听
 
-1. 访问 [surfsense.com](https://www.surfsense.com) 并登录。
+- **Reddit 品牌监控** — 在买家坦诚发言的帖子里，倾听你的市场对你、你的竞争对手和你所在品类的真实评价。
+- **YouTube 观众情绪分析** — 大规模拉取视频、字幕转录和评论，然后聚类分析观众在称赞什么、抱怨什么。
+- **换用意向挖掘** — 找到正在积极寻找某竞争对手替代品的人群，并按他们的换用意愿排序。
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="登录" /></p>
+### 市场调研
 
-2. 连接您的连接器并同步。启用定期同步以保持连接器数据更新。
+- **实时网络深度研究** — 智能体针对一个问题爬取数十个实时来源，并综合出一份带引用的答案，而不是过时的索引。
+- **AI Overview 与 GEO 追踪** — 捕捉 Google 的 AI Overviews 何时回答了你市场的搜索，以及它们究竟引用了哪些来源。
+- **带引用的简报与预警** — 智能体收集到的一切都会以简报和预警的形式汇入你的工作区，每条结论都附带可核查的来源。
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="连接器" /></p>
+### 把以上任何任务自动化，无需代码
 
-3. 在连接器数据索引期间，上传文档。
+自动化功能可以按计划或响应事件运行完整的智能体回合，然后把结果写回 Notion、Slack、Linear 和 Jira。用自然语言描述工作流，SurfSense 就会替你构建。可以试试这些提示语：
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="上传文档" /></p>
+- "盯住我们前 3 名竞争对手的定价页面，一旦套餐或价格变动就在 Slack 上提醒我。"
+- "追踪 Reddit 和 YouTube 上对我们品牌的每一次提及，每天给我发一份摘要。"
+- "监控我们前 10 个关键词的 Google 排名，按周标记下滑情况。"
+- "每周一拉取我们门店以及竞争对手门店的最新 Google Maps 评论。"
+- "每月生成一份竞争对手分析报告并保存到我的工作区。"
 
-4. 一切索引完成后，尽管提问（使用场景）：
+## 实时数据连接器
 
-   **桌面应用**（在以下所有功能之外的原生附加功能，并非独立的功能集）
+| 连接器 | 你的智能体能获得什么 | 了解更多 |
+|---|---|---|
+| **Reddit** | 帖子、评论和子版块信息流，不受官方 API 速率限制 | [Reddit Scraper API](https://www.surfsense.com/reddit) |
+| **YouTube** | 视频、字幕转录和评论串，用于品牌和产品舆情监听 | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **Google Maps** | 地点、评分和评论，用于本地竞争对手和潜在客户调研 | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
+| **Google Search** | 实时搜索结果页，用于排名追踪和市场监控 | [Google Search API](https://www.surfsense.com/google-search) |
+| **Web Crawl** | 把开放网络上的任意页面转为干净、结构化的内容 | [Web Crawling API](https://www.surfsense.com/web-crawl) |
+| **外部 MCP 连接器** | 将任意 MCP 服务器接入你的智能体，Notion、Slack、Jira 等支持一键 OAuth | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
-   - General Assist：通过全局快捷键，从任意应用中即刻打开 SurfSense。
+计费采用按量付费：连接器按实际返回的条目计费，爬取按成功抓取的页面计费，失败的调用永不计费。自托管部署默认关闭计费。详见[定价](https://www.surfsense.com/pricing)。
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
+## 快速开始
 
-   - Quick Assist：在任意位置选中文本，让 AI 解释、改写或对其执行操作。
+### 在代码中调用连接器
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+每个连接器都是一个 REST 端点，你可以用任何语言、凭借你的 SurfSense API 密钥来调用：
 
-   - Screenshot Assist：截取屏幕上任意区域，并就其中内容向 AI 提问。
+```bash
+curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_queries": ["your brand"],
+    "community": "webscraping",
+    "sort": "top",
+    "time_filter": "week"
+  }'
+```
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
+每个[连接器页面](https://www.surfsense.com/connectors)都提供 Python、JavaScript、Go、PHP、Ruby、Java 和 C# 的可直接复制粘贴的示例。
 
-   - Watch Local Folder：将本地文件夹自动同步到你的知识库。非常适合 Obsidian 库。
+### 通过 MCP 把工具交给你的智能体
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
+把 SurfSense MCP 服务器添加到 Claude、Cursor 或你自己的智能体框架：
 
-   **成果工作室**
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "url": "https://mcp.surfsense.com",
+      "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
+    }
+  }
+}
+```
 
-   - AI Report Generator：生成带引用的研究报告，并导出为 PDF、DOCX、HTML、LaTeX、EPUB、ODT 或纯文本。
+现在，你的智能体就可以把每个连接器当作原生工具来调用。完整工具列表请查看 [SurfSense MCP 服务器](https://www.surfsense.com/mcp-server) 页面，也可以通过 [`surfsense_mcp`](./surfsense_mcp) 在本地运行该服务器。
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
+### 使用云端服务
 
-   - AI Podcast Generator：在 20 秒内将任意文档或文件夹转换为双主持人 AI 播客。
+访问 [surfsense.com](https://www.surfsense.com)，登录后用自然语言向智能体索取实时市场数据。新账户自带 5 美元免费额度，无需订阅。
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
 
-   - AI Presentation & Video Maker：根据你的资料创建可编辑的幻灯片和带旁白的视频概览。
+### 免费自托管
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
+在你自己的基础设施上运行整个平台，包括连接器、智能体、自动化和 MCP 服务器。自托管部署默认关闭计费，抓取、爬取和智能体运行只受你的硬件和你自带的模型密钥限制。
 
-   - AI Image Generator：直接从你的聊天和文档生成高质量图像。
+**前置条件：**必须已安装并运行 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
-
-   - AI Resume Builder：根据任意职位描述定制你现有的简历，顺利通过 ATS。
-     可以试试这样的提示：
-
-     - “根据这份职位描述定制我的简历，让它通过 ATS 并赢得面试。”
-     - “匹配这份招聘启事中的关键词，为 ATS 优化我的简历。”
-     - “重写我的简历要点，突出这个岗位所需要的技能。”
-     - “将我的简历与这份职位描述对比，列出需要改进的差距。”
-     - “根据我的简历和这份职位描述，写一封相匹配的求职信。”
-
-   **搜索与聊天**
-
-   - Chat With Your PDFs & Docs：跨所有文件提问，并获得带内联引用的答案。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
-
-   - AI Search With Citations：在整个知识库中进行语义与关键词的混合搜索。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
-
-   - Collaborative AI Chat：与团队实时协作处理 AI 对话。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
-
-   - Comments & Mentions：在任意 AI 消息上评论并 @ 你的队友。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
-
-   **连接器与集成**
-
-   - Connect & Sync Your Tools：将 Notion、Slack、Google Drive、Gmail、GitHub、Linear 等 25+ 数据源同步为一个可搜索的语料库。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
-
-   - Chat With Uploaded Files：上传 PDF、Office 文档、图像和音频。即刻可搜索。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
-
-   - Connector Write-Back：让智能体将结果回写到 Notion、Slack、Linear 和 Drive。
-     可以试试这样的提示：
-
-     - “把这份研究摘要发布到我的 Notion 工作区。”
-     - “把这些会议行动项发送到我们的团队 Slack 频道。”
-     - “根据这份缺陷报告创建一个 Jira 工单。”
-     - “根据这个功能需求在 Linear 中创建一个 issue。”
-     - “把这份生成的报告作为文档保存到 Google Drive。”
-
-   - Obsidian & Knowledge Base Sync：让你的 Obsidian 库与个人知识库保持同步。
-
-   **自动化**
-
-   - Scheduled AI Workflows：按计划运行智能体：每日简报、每周摘要、周期性报告。
-     可以试试这样的提示：
-
-     - “每天早上把我知识库中新增文档的每日简报发邮件给我。”
-     - “每周五根据我的 Slack 和 Gmail 生成一份每周状态报告。”
-     - “每月运行一次竞争对手分析报告并保存到我的工作区。”
-     - “把我的 GitHub 和 Linear 活动汇总成一份每日站会更新。”
-     - “针对我关注的主题创建一份周期性的每周研究报告。”
-
-   - Event-Triggered Automations：在文档进入文件夹的那一刻触发智能体，并将结果发布到你的工具中。
-     可以试试这样的提示：
-
-     - “当一个 PDF 进入我的 Research 文件夹时，生成一份带引用的 AI 摘要。”
-     - “当新增会议记录时，把它整理成带行动项的会议纪要。”
-     - “当上传发票时，把供应商、总额和到期日提取到一张表格中。”
-     - “当一份合同进入我的 Legal 文件夹时，标记关键条款和续约日期。”
-     - “当一份简历加入 Candidates 时，根据职位描述对其进行筛选。”
-
-   - Chat-Built Automations：用通俗的语言描述一个自动化，SurfSense 就会为你构建它。
-     可以试试这样的提示：
-
-     - “创建一个 AI 智能体，每天早上把新增 Notion 页面的摘要发邮件给我。”
-     - “创建一个无代码自动化，每周把研究摘要发布到 Slack。”
-     - “设置一个 AI 笔记助手，把新增会议记录整理成纪要。”
-     - “创建一个工作流，从会议记录中提取行动项并指派负责人。”
-     - “自动化一份来自我的 Gmail 和 Google Drive 的每日邮件简报。”
-
-
-### 自托管
-
-在您自己的基础设施上运行 SurfSense，实现完全的数据控制和隐私保护。
-
-**前置条件：** 需要安装并运行 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
-
-#### Linux/MacOS 用户：
+Linux/macOS：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-#### Windows 用户：
+Windows：
 
-```powershell
+```bash
 irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
-安装脚本会自动配置 [Watchtower](https://github.com/nicholas-fedor/watchtower) 以实现每日自动更新。如需跳过，请添加 `--no-watchtower` 参数。
+安装脚本会自动配置 [Watchtower](https://github.com/nicholas-fedor/watchtower) 以实现每日自动更新。如需跳过，请加上 `--no-watchtower` 参数。关于 Docker Compose、手动安装及其他部署方式，请参阅[文档](https://www.surfsense.com/docs/)。
 
-如需 Docker Compose、手动安装及其他部署方式，请查看[文档](https://www.surfsense.com/docs/)。
+## 开箱即用的其他能力
 
-### 桌面应用
+让 SurfSense 成为领先的开源 NotebookLM 替代品的那套研究工作区依然都在，而且你的智能体收集到的一切都会汇入其中。
 
-SurfSense 还提供桌面应用，将 AI 助手带到您计算机上的每个应用程序中。从[最新版本](https://github.com/MODSetter/SurfSense/releases/latest)下载。
+**知识库**
 
-桌面应用包含以下强大功能：
+- 上传 PDF、Office 文档、图片和音频，或同步 **Google Drive、OneDrive 和 Dropbox**。支持 50 多种文件格式。
+- 混合语义与全文搜索，提供 Perplexity 风格的带引用回答。
+- AI 文件整理功能按来源、日期和主题自动归类文档。
 
-- **General Assist** — 通过全局快捷键从任何应用程序即时启动 SurfSense。
-- **Quick Assist** — 在任何位置选中文本，然后让 AI 解释、改写或对其执行操作。
-- **Screenshot Assist** — 在屏幕上框选区域并附加到聊天，让回复基于您的知识库。
-- **Watch Local Folder** — 监视本地文件夹，自动将文件更改同步到您的知识库。**Pro tip：** 将其指向您的 Obsidian vault，让笔记在 SurfSense 中随时可搜索。
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="与你的 PDF 和文档对话" /></p>
 
-所有功能均基于您选择的搜索空间运行，确保回答始终以您自己的数据为依据。
+**成果工作室**
 
-### 如何实时协作（Beta）
+- AI 报告生成器，可导出为 PDF、DOCX、HTML、LaTeX、EPUB、ODT 或纯文本。
+- 20 秒内基于任意文档或文件夹生成双主持人 AI 播客。
+- 可编辑的幻灯片、带旁白的视频概览以及 AI 图像生成。
 
-1. 前往成员管理页面并创建邀请。
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI 报告生成器" /></p>
+
+**团队协作**
+
+- 支持评论和提及的实时协作 AI 聊天。
+- 基于角色的访问控制（RBAC），提供所有者、管理员、编辑者和查看者角色。
+
+<p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="协作 AI 聊天" /></p>
+
+**桌面应用**
+
+在电脑上的每个应用中获得原生 AI 辅助。从[最新版本](https://github.com/MODSetter/SurfSense/releases/latest)下载。
+
+- **General Assist**：通过全局快捷键在任意应用中唤起 SurfSense。
+- **Quick Assist**：在任意位置选中文本，让 AI 解释、改写或据此执行操作。
+- **Screenshot Assist**：截取屏幕上任意区域，向 AI 提问。
+- **Watch Local Folder**：把本地文件夹自动同步到知识库。将它指向你的 Obsidian 仓库，让笔记随时可搜索。
+
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+
+**无供应商锁定**
+
+- 通过 OpenAI 规范和 LiteLLM 支持 100 多种 LLM，包括 GPT-5.5、Claude Sonnet 5 和 Gemini 3.1 Pro。
+- 支持 6,000 多种嵌入模型和所有主流重排序器。
+- 完整支持本地和私有 LLM（vLLM、Ollama），你的数据始终属于你。
+
+## 视频智能体示例
+
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
+
+## 播客智能体示例
+
+https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
+
+## 如何进行实时协作（Beta）
+
+1. 进入成员管理页面并创建邀请。
 
    <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="邀请成员" /></p>
 
-2. 队友加入后，该 SearchSpace 变为共享。
+2. 队友加入后，该工作区即变为共享。
 
    <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="邀请加入流程" /></p>
 
-3. 将聊天设为共享。
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/17b93904-0888-4c3a-ac12-51a24a8ea26a" alt="设为共享聊天" /></p>
-
-4. 您的团队现在可以实时聊天。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="实时聊天" /></p>
-
-5. 添加评论以标记队友。
+3. 将聊天设为共享，即可与团队实时协作，并通过评论标记队友。
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="实时评论" /></p>
 
-## SurfSense vs Google NotebookLM
+## SurfSense 对比 Google NotebookLM
+
+还在把我们当作 NotebookLM 替代品来比较？这里是坦诚的对比。
 
 | 功能 | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **每个笔记本的来源数** | 50（免费）到 600（Ultra，$249.99/月） | 无限制 |
-| **笔记本数量** | 100（免费）到 500（付费方案） | 无限制 |
-| **来源大小限制** | 500,000 词 / 200MB 每个来源 | 无限制 |
-| **定价** | 免费版可用；Pro $19.99/月，Ultra $249.99/月 | 免费开源，在自己的基础设施上自托管 |
-| **LLM 支持** | 仅 Google Gemini | 100+ LLM，通过 OpenAI spec 和 LiteLLM |
-| **嵌入模型** | 仅 Google | 6,000+ 嵌入模型，所有主流重排序器 |
-| **本地 / 私有 LLM** | 不可用 | 完整支持（vLLM、Ollama）- 您的数据由您掌控 |
-| **可自托管** | 否 | 是 - Docker 一行命令或完整 Docker Compose |
+| **面向智能体的实时市场数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Google Maps、Google Search 和网页爬取连接器 |
+| **MCP 服务器** | 无 | 每个连接器都作为原生智能体工具暴露，还可自带 MCP 服务器并使用一键 OAuth 应用 |
+| **每个笔记本的来源数** | 50 个（免费版）至 600 个（Ultra 版，249.99 美元/月） | 无限制 |
+| **笔记本数量** | 100 个（免费版）至 500 个（付费档位） | 无限制 |
+| **来源大小限制** | 每个来源 50 万字 / 200MB | 无限制 |
+| **定价** | 免费档；Pro 19.99 美元/月，Ultra 249.99 美元/月 | 自托管免费且开源；云端按量付费，附赠 5 美元免费额度 |
+| **LLM 支持** | 仅 Google Gemini | 通过 OpenAI 规范和 LiteLLM 支持 100 多种 LLM |
+| **嵌入模型** | 仅 Google | 6,000 多种嵌入模型，所有主流重排序器 |
+| **本地 / 私有 LLM** | 不支持 | 完整支持（vLLM、Ollama），你的数据始终属于你 |
+| **可自托管** | 否 | 是，Docker 一行命令或完整 Docker Compose |
 | **开源** | 否 | 是 |
-| **外部连接器** | Google Drive、YouTube、网站 | 27+ 连接器 - 搜索引擎、Google Drive、OneDrive、Dropbox、Slack、Teams、Jira、Notion、GitHub、Discord 等[更多](#外部数据源) |
-| **文件格式支持** | PDF、Docs、Slides、Sheets、CSV、Word、EPUB、图像、网页 URL、YouTube | 50+ 格式 - 文档、图像、视频，通过 LlamaCloud、Unstructured 或 Docling（本地） |
-| **搜索** | 语义搜索 | 混合搜索 - 语义 + 全文搜索，结合层次化索引和倒数排名融合 |
-| **引用回答** | 是 | 是 - Perplexity 风格的引用回答 |
-| **代理架构** | 否 | 是 - 基于 [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) 构建，支持规划、子代理和文件系统访问 |
-| **实时多人协作** | 共享笔记本，支持查看者/编辑者角色（无实时聊天） | RBAC 角色控制（所有者/管理员/编辑者/查看者），实时聊天和评论线程 |
-| **视频生成** | 通过 Veo 3 的电影级视频概览（仅 Ultra） | 可用（NotebookLM 在此方面更好，正在积极改进） |
-| **演示文稿生成** | 更美观的幻灯片但不可编辑 | 创建可编辑的幻灯片式演示文稿 |
-| **播客生成** | 可自定义主持人和语言的音频概览 | 可用，支持多种 TTS 提供商（NotebookLM 在此方面更好，正在积极改进） |
-| **AI 自动化与智能体** | 否 | 定时 AI 工作流、新文档的事件触发，以及通过聊天构建的无代码自动化，支持回写到 Notion、Slack、Linear 和 Jira |
-| **桌面应用** | 否 | 原生应用，包含 General Assist、Quick Assist、Screenshot Assist 和本地文件夹同步 |
-| **浏览器扩展** | 否 | 跨浏览器扩展，保存任何网页，包括需要身份验证的页面 |
-
-<details>
-<summary><b>外部数据源完整列表</b></summary>
-<a id="外部数据源"></a>
-
-搜索引擎（SearXNG、Tavily、LinkUp、Baidu Search）· Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube 视频 · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian，更多即将推出。
-
-</details>
-
+| **知识库来源** | Google Drive、YouTube、网站 | 文件上传、Google Drive、OneDrive、Dropbox、本地文件夹同步以及爬取的网页 |
+| **文件格式支持** | PDF、Docs、Slides、Sheets、CSV、Word、EPUB、图片、网页 URL、YouTube | 50 多种格式：文档、图片、视频，通过 LlamaCloud、Unstructured 或 Docling（本地）解析 |
+| **搜索** | 语义搜索 | 混合语义 + 全文搜索，带分层索引和倒数排名融合 |
+| **带引用的回答** | 有 | 有，Perplexity 风格的引用回答 |
+| **智能体架构** | 无 | 有，由 [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) 驱动，具备规划、子智能体和文件系统访问能力 |
+| **AI 自动化与智能体** | 无 | 定时工作流、事件触发以及通过聊天构建的无代码自动化，可写回 Notion、Slack、Linear 和 Jira |
+| **实时多人协作** | 共享笔记本，仅有查看者/编辑者角色（无实时聊天） | RBAC 提供所有者 / 管理员 / 编辑者 / 查看者角色，支持实时聊天和评论串 |
+| **视频生成** | 通过 Veo 3 生成电影级视频概览（仅 Ultra 版） | 已提供（此项 NotebookLM 更强，我们正在积极改进） |
+| **演示文稿生成** | 幻灯片更美观但不可编辑 | 可编辑的幻灯片式演示文稿 |
+| **播客生成** | 音频概览，支持自定义主持人和语言 | 已提供，支持多种 TTS 服务商（此项 NotebookLM 更强，我们正在积极改进） |
+| **桌面应用** | 无 | 原生应用，包含 General Assist、Quick Assist、Screenshot Assist 和本地文件夹同步 |
 
 ## 功能请求与未来规划
 
+**SurfSense 正在积极开发中。**虽然它尚未达到生产就绪状态，但你可以帮助我们加快进度。
 
-**SurfSense 正在积极开发中。** 虽然它还未达到生产就绪状态，但您可以帮助我们加快进度。
-
-加入 [SurfSense Discord](https://discord.gg/ejRNvftDp9) 一起塑造 SurfSense 的未来！
+加入 [SurfSense Discord](https://discord.gg/ejRNvftDp9)，一起塑造 SurfSense 的未来！
 
 ## 路线图
 
-随时了解我们的开发进度和即将推出的功能！  
-查看我们的公开路线图并贡献您的想法或反馈：
+随时了解我们的开发进度和即将推出的功能。查看我们的公开路线图，贡献你的想法或反馈：
 
-**路线图讨论：** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
+**路线图讨论：**[SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
 
-**看板：** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
+**看板：**[SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
 
+## 参与贡献
 
-## 贡献
+欢迎一切形式的贡献，从点星标、报告缺陷到后端改进。请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 开始参与。
 
-欢迎所有贡献，从 Star 和 Bug 报告到后端改进。请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 开始贡献。
-
-感谢所有 Surfers:
+感谢所有 Surfer：
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />

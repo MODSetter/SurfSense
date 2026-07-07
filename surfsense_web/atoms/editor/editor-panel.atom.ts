@@ -6,7 +6,7 @@ interface EditorPanelState {
 	kind: "document" | "local_file" | "memory";
 	documentId: number | null;
 	localFilePath: string | null;
-	searchSpaceId: number | null;
+	workspaceId: number | null;
 	memoryScope: "user" | "team" | null;
 	title: string | null;
 }
@@ -16,7 +16,7 @@ const initialState: EditorPanelState = {
 	kind: "document",
 	documentId: null,
 	localFilePath: null,
-	searchSpaceId: null,
+	workspaceId: null,
 	memoryScope: null,
 	title: null,
 };
@@ -33,18 +33,18 @@ export const openEditorPanelAtom = atom(
 		get,
 		set,
 		payload:
-			| { documentId: number; searchSpaceId: number; title?: string; kind?: "document" }
+			| { documentId: number; workspaceId: number; title?: string; kind?: "document" }
 			| {
 					kind: "local_file";
 					localFilePath: string;
 					title?: string;
-					searchSpaceId?: number;
+					workspaceId?: number;
 			  }
 			| {
 					kind: "memory";
 					memoryScope: "user" | "team";
 					title?: string;
-					searchSpaceId?: number;
+					workspaceId?: number;
 			  }
 	) => {
 		if (!get(editorPanelAtom).isOpen) {
@@ -56,7 +56,7 @@ export const openEditorPanelAtom = atom(
 				kind: "local_file",
 				documentId: null,
 				localFilePath: payload.localFilePath,
-				searchSpaceId: payload.searchSpaceId ?? null,
+				workspaceId: payload.workspaceId ?? null,
 				memoryScope: null,
 				title: payload.title ?? null,
 			});
@@ -70,7 +70,7 @@ export const openEditorPanelAtom = atom(
 				kind: "memory",
 				documentId: null,
 				localFilePath: null,
-				searchSpaceId: payload.searchSpaceId ?? null,
+				workspaceId: payload.workspaceId ?? null,
 				memoryScope: payload.memoryScope,
 				title: payload.title ?? null,
 			});
@@ -83,7 +83,7 @@ export const openEditorPanelAtom = atom(
 			kind: "document",
 			documentId: payload.documentId,
 			localFilePath: null,
-			searchSpaceId: payload.searchSpaceId,
+			workspaceId: payload.workspaceId,
 			memoryScope: null,
 			title: payload.title ?? null,
 		});

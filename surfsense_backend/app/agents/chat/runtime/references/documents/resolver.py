@@ -14,13 +14,13 @@ from ..models import DocumentReference
 async def resolve_document_references(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     document_ids: list[int],
     index: PathIndex,
 ) -> list[DocumentReference]:
     """Map document ids to references in input order; unknown ids are dropped.
 
-    Best-effort and fail-closed: an id outside ``search_space_id`` (deleted or
+    Best-effort and fail-closed: an id outside ``workspace_id`` (deleted or
     foreign) simply does not produce a reference.
     """
     if not document_ids:
@@ -28,7 +28,7 @@ async def resolve_document_references(
 
     rows = await session.execute(
         select(Document).where(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.id.in_(document_ids),
         )
     )

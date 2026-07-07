@@ -1,7 +1,7 @@
 """Behavior guard for the shared find/upsert/update logic (BaseNotificationHandler).
 
 Uses the connector-indexing handler instance to drive the base methods against
-real Postgres, pinning upsert dedup, search-space scoping, and status stamping.
+real Postgres, pinning upsert dedup, workspace scoping, and status stamping.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import User, Workspace
 from app.notifications.persistence import Notification
 from app.notifications.service import NotificationService
 
@@ -22,7 +22,7 @@ handler = NotificationService.connector_indexing
 async def test_find_or_create_creates_with_progress_metadata(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Creating a notification seeds operation id, in-progress status, and start time."""
     notification = await handler.find_or_create_notification(
@@ -31,7 +31,7 @@ async def test_find_or_create_creates_with_progress_metadata(
         operation_id="op-create",
         title="Title",
         message="Message",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     assert notification.notification_metadata["operation_id"] == "op-create"
@@ -42,7 +42,7 @@ async def test_find_or_create_creates_with_progress_metadata(
 async def test_find_or_create_upserts_same_operation(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Reusing an operation id updates the same row instead of creating a duplicate."""
     first = await handler.find_or_create_notification(
@@ -51,7 +51,7 @@ async def test_find_or_create_upserts_same_operation(
         operation_id="op-upsert",
         title="First",
         message="First message",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     second = await handler.find_or_create_notification(
@@ -60,7 +60,7 @@ async def test_find_or_create_upserts_same_operation(
         operation_id="op-upsert",
         title="Second",
         message="Second message",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     assert second.id == first.id
@@ -76,22 +76,22 @@ async def test_find_or_create_upserts_same_operation(
     assert count == 1
 
 
-async def test_find_by_operation_is_scoped_to_search_space(
+async def test_find_by_operation_is_scoped_to_workspace(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
-    """Operation-id lookup is scoped per search space, so other spaces don't match."""
+    """Operation-id lookup is scoped per workspace, so other spaces don't match."""
     await handler.find_or_create_notification(
         session=db_session,
         user_id=db_user.id,
         operation_id="op-scoped",
         title="Title",
         message="Message",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
-    other_space = SearchSpace(name="Other Space", user_id=db_user.id)
+    other_space = Workspace(name="Other Space", user_id=db_user.id)
     db_session.add(other_space)
     await db_session.flush()
 
@@ -99,7 +99,7 @@ async def test_find_by_operation_is_scoped_to_search_space(
         session=db_session,
         user_id=db_user.id,
         operation_id="op-scoped",
-        search_space_id=other_space.id,
+        workspace_id=other_space.id,
     )
     assert found_other is None
 
@@ -107,7 +107,7 @@ async def test_find_by_operation_is_scoped_to_search_space(
         session=db_session,
         user_id=db_user.id,
         operation_id="op-scoped",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
     assert found_same is not None
 
@@ -115,7 +115,7 @@ async def test_find_by_operation_is_scoped_to_search_space(
 async def test_update_notification_completed_stamps_completed_at(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Completing a notification stamps completed_at and merges metadata updates."""
     notification = await handler.find_or_create_notification(
@@ -124,7 +124,7 @@ async def test_update_notification_completed_stamps_completed_at(
         operation_id="op-complete",
         title="Title",
         message="Message",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     updated = await handler.update_notification(
@@ -142,7 +142,7 @@ async def test_update_notification_completed_stamps_completed_at(
 async def test_update_notification_failed_stamps_completed_at(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     """Failing a notification also stamps completed_at for the terminal state."""
     notification = await handler.find_or_create_notification(
@@ -151,7 +151,7 @@ async def test_update_notification_failed_stamps_completed_at(
         operation_id="op-fail",
         title="Title",
         message="Message",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     updated = await handler.update_notification(

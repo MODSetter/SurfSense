@@ -12,60 +12,110 @@ from typing import Any
 import validators
 from fastapi import HTTPException
 
+# Connectors retired during the MCP migration: no viable official MCP server
+# exists yet, so new connections are refused. Existing rows keep working until
+# the user removes them. If demand returns, reinstate the connector by dropping
+# it from this set and re-enabling its subagent/route.
+#
+# The four search APIs (TAVILY/SEARXNG/LINKUP/BAIDU) are deprecated alongside the
+# Google-only web-search consolidation: public web search now runs through the
+# google_search subagent, and users who still want Tavily/Linkup can add them via
+# the generic Custom MCP connector (API-key headers).
+DEPRECATED_CONNECTOR_TYPES: frozenset[str] = frozenset(
+    {
+        "DISCORD_CONNECTOR",
+        "TEAMS_CONNECTOR",
+        "LUMA_CONNECTOR",
+        "TAVILY_API",
+        "SEARXNG_API",
+        "LINKUP_API",
+        "BAIDU_SEARCH_API",
+        # Legacy content crawlers/search superseded by the file Import menu and
+        # hosted MCP tooling. Created via the generic connector /add route, which
+        # is the single choke point enforcing this deprecation.
+        "YOUTUBE_CONNECTOR",
+        "WEBCRAWLER_CONNECTOR",
+        "ELASTICSEARCH_CONNECTOR",
+    }
+)
 
-def validate_search_space_id(search_space_id: Any) -> int:
+
+def raise_if_connector_deprecated(connector_type: str | Any) -> None:
+    """Refuse new connections for a deprecated connector type (HTTP 410 Gone)."""
+    connector_type_str = (
+        connector_type.value
+        if hasattr(connector_type, "value")
+        else str(connector_type)
+    )
+    if connector_type_str in DEPRECATED_CONNECTOR_TYPES:
+        pretty = (
+            connector_type_str.replace("_CONNECTOR", "")
+            .replace("_SEARCH_API", "")
+            .replace("_API", "")
+            .replace("_", " ")
+            .title()
+        )
+        raise HTTPException(
+            status_code=410,
+            detail=(
+                f"The {pretty} connector has been deprecated and can no longer be "
+                "connected. If you were relying on it heavily, let us know and we'll "
+                "consider bringing it back."
+            ),
+        )
+
+
+def validate_workspace_id(workspace_id: Any) -> int:
     """
-    Validate and convert search_space_id to integer.
+    Validate and convert workspace_id to integer.
 
     Args:
-        search_space_id: The search space ID to validate
+        workspace_id: The workspace ID to validate
 
     Returns:
-        int: Validated search space ID
+        int: Validated workspace ID
 
     Raises:
         HTTPException: If validation fails
     """
-    if search_space_id is None:
-        raise HTTPException(status_code=400, detail="search_space_id is required")
+    if workspace_id is None:
+        raise HTTPException(status_code=400, detail="workspace_id is required")
 
-    if isinstance(search_space_id, bool):
+    if isinstance(workspace_id, bool):
         raise HTTPException(
-            status_code=400, detail="search_space_id must be an integer, not a boolean"
+            status_code=400, detail="workspace_id must be an integer, not a boolean"
         )
 
-    if isinstance(search_space_id, int):
-        if search_space_id <= 0:
+    if isinstance(workspace_id, int):
+        if workspace_id <= 0:
             raise HTTPException(
-                status_code=400, detail="search_space_id must be a positive integer"
+                status_code=400, detail="workspace_id must be a positive integer"
             )
-        return search_space_id
+        return workspace_id
 
-    if isinstance(search_space_id, str):
+    if isinstance(workspace_id, str):
         # Check if it's a valid integer string
-        if not search_space_id.strip():
-            raise HTTPException(
-                status_code=400, detail="search_space_id cannot be empty"
-            )
+        if not workspace_id.strip():
+            raise HTTPException(status_code=400, detail="workspace_id cannot be empty")
 
         # Check for valid integer format (no leading zeros, no decimal points)
-        if not re.match(r"^[1-9]\d*$", search_space_id.strip()):
+        if not re.match(r"^[1-9]\d*$", workspace_id.strip()):
             raise HTTPException(
                 status_code=400,
-                detail="search_space_id must be a valid positive integer",
+                detail="workspace_id must be a valid positive integer",
             )
 
-        value = int(search_space_id.strip())
+        value = int(workspace_id.strip())
         # Regex already guarantees value > 0, but check retained for clarity
         if value <= 0:
             raise HTTPException(
-                status_code=400, detail="search_space_id must be a positive integer"
+                status_code=400, detail="workspace_id must be a positive integer"
             )
         return value
 
     raise HTTPException(
         status_code=400,
-        detail="search_space_id must be an integer or string representation of an integer",
+        detail="workspace_id must be an integer or string representation of an integer",
     )
 
 
@@ -469,22 +519,6 @@ def validate_connector_config(
         if not isinstance(value, list) or not value:
             raise ValueError(f"{field_name} must be a non-empty list of strings")
 
-    def validate_firecrawl_api_key_format() -> None:
-        """Validate Firecrawl API key format if provided."""
-        api_key = config.get("FIRECRAWL_API_KEY", "")
-        if api_key and api_key.strip() and not api_key.strip().startswith("fc-"):
-            raise ValueError(
-                "Firecrawl API key should start with 'fc-'. Please verify your API key."
-            )
-
-    def validate_initial_urls() -> None:
-        initial_urls = config.get("INITIAL_URLS", "")
-        if initial_urls and initial_urls.strip():
-            urls = [url.strip() for url in initial_urls.split("\n") if url.strip()]
-            for url in urls:
-                if not validators.url(url):
-                    raise ValueError(f"Invalid URL format in INITIAL_URLS: {url}")
-
     # Lookup table for connector validation rules
     connector_rules = {
         "SERPER_API": {"required": ["SERPER_API_KEY"], "validators": {}},
@@ -570,14 +604,6 @@ def validate_connector_config(
         #     "validators": {}
         # },
         "LUMA_CONNECTOR": {"required": ["LUMA_API_KEY"], "validators": {}},
-        "WEBCRAWLER_CONNECTOR": {
-            "required": [],  # No required fields - API key is optional
-            "optional": ["FIRECRAWL_API_KEY", "INITIAL_URLS"],
-            "validators": {
-                "FIRECRAWL_API_KEY": lambda: validate_firecrawl_api_key_format(),
-                "INITIAL_URLS": lambda: validate_initial_urls(),
-            },
-        },
     }
 
     rules = connector_rules.get(connector_type_str)

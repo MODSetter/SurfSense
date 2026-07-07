@@ -57,10 +57,14 @@ If running the frontend outside Docker (e.g. `pnpm dev`), you need:
       -e ZERO_REPLICA_FILE=/data/zero.db \
       -e ZERO_ADMIN_PASSWORD=surfsense-zero-admin \
       -e ZERO_APP_PUBLICATIONS=zero_publication \
+      -e ZERO_NUM_SYNC_WORKERS=4 \
+      -e ZERO_UPSTREAM_MAX_CONNS=20 \
+      -e ZERO_CVR_MAX_CONNS=30 \
       -e ZERO_QUERY_URL="http://host.docker.internal:3000/api/zero/query" \
       -e ZERO_MUTATE_URL="http://host.docker.internal:3000/api/zero/mutate" \
+      -e ZERO_QUERY_FORWARD_COOKIES=true \
       -v surfsense-zero-cache:/data \
-      rocicorp/zero:1.4.0
+      rocicorp/zero:1.6.0
     ```
 
     Run `uv run alembic upgrade head` from `surfsense_backend/` **before** starting this container so the `zero_publication` exists.

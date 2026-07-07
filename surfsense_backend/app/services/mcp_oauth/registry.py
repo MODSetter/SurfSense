@@ -153,13 +153,26 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
             "mpim:history",
             "im:history",
         ],
+        # Both prefixed and unprefixed variants: sources disagree on which
+        # names mcp.slack.com currently advertises. Unmatched entries are
+        # ignored at discovery time.
         allowed_tools=[
             "slack_search_channels",
             "slack_read_channel",
             "slack_read_thread",
+            "search_channels",
+            "read_channel",
+            "read_thread",
         ],
         readonly_tools=frozenset(
-            {"slack_search_channels", "slack_read_channel", "slack_read_thread"}
+            {
+                "slack_search_channels",
+                "slack_read_channel",
+                "slack_read_thread",
+                "search_channels",
+                "read_channel",
+                "read_thread",
+            }
         ),
         # TODO: oauth.v2.user.access only returns team.id, not team.name.
         # To populate team_name, either add "team:read" scope and call
@@ -185,6 +198,53 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         ),
         account_metadata_keys=["user_id", "user_email"],
     ),
+    "notion": MCPServiceConfig(
+        name="Notion",
+        mcp_url="https://mcp.notion.com/mcp",
+        connector_type="NOTION_CONNECTOR",
+        # DCR (RFC 7591): Notion issues its own client credentials. It expires
+        # DCR registrations, but refresh reuses the original persisted
+        # ``mcp_oauth.client_id`` (see _refresh_connector_token).
+        # Notion renamed its MCP tools with a "notion-" prefix (late 2025).
+        # Unprefixed names kept for servers still advertising the old names —
+        # allowlist entries the server doesn't advertise are simply ignored.
+        allowed_tools=[
+            "notion-search",
+            "notion-fetch",
+            "notion-create-pages",
+            "notion-update-page",
+            "search",
+            "fetch",
+            "create-pages",
+            "update-page",
+        ],
+        readonly_tools=frozenset({"notion-search", "notion-fetch", "search", "fetch"}),
+        account_metadata_keys=["workspace_name"],
+    ),
+    "confluence": MCPServiceConfig(
+        name="Confluence",
+        # Same Atlassian Rovo server as Jira; tool sets are kept disjoint by
+        # curation so a workspace can connect both as separate connectors.
+        mcp_url="https://mcp.atlassian.com/v1/mcp",
+        connector_type="CONFLUENCE_CONNECTOR",
+        allowed_tools=[
+            "getAccessibleAtlassianResources",
+            "getConfluenceSpaces",
+            "getConfluencePage",
+            "searchConfluenceUsingCql",
+            "createConfluencePage",
+            "updateConfluencePage",
+        ],
+        readonly_tools=frozenset(
+            {
+                "getAccessibleAtlassianResources",
+                "getConfluenceSpaces",
+                "getConfluencePage",
+                "searchConfluenceUsingCql",
+            }
+        ),
+        account_metadata_keys=["cloud_id", "site_name", "base_url"],
+    ),
 }
 
 _CONNECTOR_TYPE_TO_SERVICE: dict[str, MCPServiceConfig] = {
@@ -205,6 +265,25 @@ LIVE_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset(
         SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
         SearchSourceConnectorType.DISCORD_CONNECTOR,
         SearchSourceConnectorType.LUMA_CONNECTOR,
+        # Migrated to hosted MCP — indexing pipelines deprecated (KB is
+        # files/notes/uploads only). LIVE membership blocks the index route
+        # and auto-disables periodic indexing.
+        SearchSourceConnectorType.NOTION_CONNECTOR,
+        SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+    }
+)
+
+# Indexing-only connectors retired with the KB "files, notes, and uploads only"
+# shift: their ingestion pipelines are deprecated. Like LIVE membership, this
+# blocks the index route and auto-disables periodic indexing — but the message
+# frames it as a deprecation, not a real-time-tools swap. Obsidian is
+# intentionally excluded (file-like vault content still enriches the KB).
+DEPRECATED_INDEXING_CONNECTOR_TYPES: frozenset[SearchSourceConnectorType] = frozenset(
+    {
+        SearchSourceConnectorType.GITHUB_CONNECTOR,
+        SearchSourceConnectorType.BOOKSTACK_CONNECTOR,
+        SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
+        SearchSourceConnectorType.CIRCLEBACK_CONNECTOR,
     }
 )
 

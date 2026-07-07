@@ -1,0 +1,98 @@
+---
+title: Slack
+description: Let the SurfSense agent search and read your Slack workspace
+---
+
+The Slack connector connects SurfSense to Slack's hosted MCP server, giving the agent live tools to search channels and read threads on your behalf. Nothing is indexed in the background — the agent queries Slack in real time when you ask.
+
+<Callout type="info">
+This setup is only needed on **self-hosted** deployments. On SurfSense Cloud, just click **Connect**.
+</Callout>
+
+## Step 1: Create a New Slack App
+
+1. Navigate to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click **"Create New App"**
+3. Select **"From scratch"**
+
+![Create an App Dialog](/docs/connectors/slack/slack-create-app.png)
+
+## Step 2: Name App & Choose Workspace
+
+1. Enter **App Name**: `SurfSense`
+2. Select the workspace to develop your app in
+3. Click **"Create App"**
+
+<Callout type="warn">
+You won't be able to change the workspace later. The workspace will control the app even if you leave it.
+</Callout>
+
+![Name App & Choose Workspace](/docs/connectors/slack/slack-name-workspace.png)
+
+## Step 3: Get App Credentials
+
+On the **Basic Information** page:
+
+1. Copy your **Client ID**
+2. Copy your **Client Secret** (click Show to reveal)
+
+![Basic Information - App Credentials](/docs/connectors/slack/slack-app-credentials.png)
+
+## Step 4: Configure the Redirect URL
+
+1. In the left sidebar, click **"OAuth & Permissions"**
+2. Under **Redirect URLs**, click **"Add New Redirect URL"**
+3. Enter your SurfSense callback URL:
+
+```
+http://localhost:3929/api/v1/auth/mcp/slack/connector/callback
+```
+
+<Callout type="info">
+`http://localhost:3929` is the default public URL of a Docker install. If you run SurfSense [manually](/docs/manual-installation), use your backend URL (`http://localhost:8000`); in production, use your public domain. Note that Slack requires HTTPS redirect URLs for production apps.
+</Callout>
+
+4. Click **"Add"**, then **"Save URLs"**
+
+![Redirect URLs Configuration](/docs/connectors/slack/slack-redirect-urls.png)
+
+## Step 5: Configure User Token Scopes
+
+On the same **OAuth & Permissions** page, scroll to **Scopes**. The connector acts on behalf of the connecting user, so add these under **User Token Scopes**:
+
+| OAuth Scope | Description |
+|-------------|-------------|
+| `search:read.public` | Search public channels |
+| `search:read.private` | Search private channels the user is in |
+| `search:read.mpim` | Search group direct messages |
+| `search:read.im` | Search direct messages |
+| `channels:history` | Read messages in public channels |
+| `groups:history` | Read messages in private channels |
+| `mpim:history` | Read group direct messages |
+| `im:history` | Read direct messages |
+
+## Step 6: Enable Public Distribution
+
+1. In the left sidebar, click **"Manage Distribution"**
+2. Under **Share Your App with Other Workspaces**, enable distribution so users can authorize the app in their own workspaces
+
+![Manage Distribution](/docs/connectors/slack/slack-distribution.png)
+
+## Step 7: Add the Credentials to SurfSense
+
+Add the Client ID and Client Secret to your `.env` file:
+
+```bash
+SLACK_CLIENT_ID=your_slack_client_id
+SLACK_CLIENT_SECRET=your_slack_client_secret
+```
+
+Restart SurfSense, open the **Connectors** dialog, and click **Connect** on Slack:
+
+```bash
+docker compose up -d
+```
+
+<Callout type="warn">
+Never share your app credentials publicly.
+</Callout>

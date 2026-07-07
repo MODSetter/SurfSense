@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { NavItem, SearchSpace, User } from "../../types/layout.types";
+import type { NavItem, User, Workspace } from "../../types/layout.types";
 import { SidebarUserProfile } from "../sidebar/SidebarUserProfile";
-import { SearchSpaceAvatar } from "./SearchSpaceAvatar";
+import { WorkspaceAvatar } from "./WorkspaceAvatar";
 
 interface IconRailProps {
-	searchSpaces: SearchSpace[];
-	activeSearchSpaceId: number | null;
-	onSearchSpaceSelect: (id: number) => void;
-	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
-	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
-	onAddSearchSpace: () => void;
+	workspaces: Workspace[];
+	activeWorkspaceId: number | null;
+	onWorkspaceSelect: (id: number) => void;
+	onWorkspaceDelete?: (workspace: Workspace) => void;
+	onWorkspaceSettings?: (workspace: Workspace) => void;
+	onAddWorkspace: () => void;
 	isSingleRailMode?: boolean;
 	onNewChat?: () => void;
 	navItems?: NavItem[];
@@ -31,12 +31,12 @@ interface IconRailProps {
 }
 
 export function IconRail({
-	searchSpaces,
-	activeSearchSpaceId,
-	onSearchSpaceSelect,
-	onSearchSpaceDelete,
-	onSearchSpaceSettings,
-	onAddSearchSpace,
+	workspaces,
+	activeWorkspaceId,
+	onWorkspaceSelect,
+	onWorkspaceDelete,
+	onWorkspaceSettings,
+	onAddWorkspace,
 	isSingleRailMode = false,
 	onNewChat,
 	navItems = [],
@@ -77,18 +77,16 @@ export function IconRail({
 		<div className={cn("flex h-full w-14 min-h-0 flex-col items-center", className)}>
 			<ScrollArea className="w-full min-h-0 flex-1">
 				<div className="flex flex-col items-center gap-2 px-1.5 py-3">
-					{searchSpaces.map((searchSpace) => (
-						<SearchSpaceAvatar
-							key={searchSpace.id}
-							name={searchSpace.name}
-							isActive={searchSpace.id === activeSearchSpaceId}
-							isShared={searchSpace.memberCount > 1}
-							isOwner={searchSpace.isOwner}
-							onClick={() => onSearchSpaceSelect(searchSpace.id)}
-							onDelete={onSearchSpaceDelete ? () => onSearchSpaceDelete(searchSpace) : undefined}
-							onSettings={
-								onSearchSpaceSettings ? () => onSearchSpaceSettings(searchSpace) : undefined
-							}
+					{workspaces.map((workspace) => (
+						<WorkspaceAvatar
+							key={workspace.id}
+							name={workspace.name}
+							isActive={workspace.id === activeWorkspaceId}
+							isShared={workspace.memberCount > 1}
+							isOwner={workspace.isOwner}
+							onClick={() => onWorkspaceSelect(workspace.id)}
+							onDelete={onWorkspaceDelete ? () => onWorkspaceDelete(workspace) : undefined}
+							onSettings={onWorkspaceSettings ? () => onWorkspaceSettings(workspace) : undefined}
 							size="md"
 						/>
 					))}
@@ -98,15 +96,15 @@ export function IconRail({
 							<Button
 								variant="ghost"
 								size="icon"
-								onClick={onAddSearchSpace}
+								onClick={onAddWorkspace}
 								className="h-10 w-10 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
 							>
 								<Plus className="h-5 w-5 text-muted-foreground" />
-								<span className="sr-only">Add search space</span>
+								<span className="sr-only">Add workspace</span>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="right" sideOffset={8}>
-							Add search space
+							Add workspace
 						</TooltipContent>
 					</Tooltip>
 

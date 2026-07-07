@@ -1,0 +1,69 @@
+---
+title: Airtable
+description: Let the SurfSense agent browse your Airtable bases, tables, and records
+---
+
+The Airtable connector connects SurfSense to Airtable's hosted MCP server, giving the agent live tools to list your bases, browse tables, and read records. Nothing is indexed in the background.
+
+<Callout type="info">
+This setup is only needed on **self-hosted** deployments. On SurfSense Cloud, just click **Connect**.
+</Callout>
+
+## Step 1: Register an OAuth Integration
+
+1. Navigate to [airtable.com/create/oauth](https://airtable.com/create/oauth)
+2. In the **Builder Hub**, under **Developers**, click **"OAuth integrations"**
+3. Click **"Register an OAuth integration"**
+
+![Airtable OAuth Integrations Page](/docs/connectors/airtable/airtable-oauth-integrations.png)
+
+Fill in the details:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `SurfSense` |
+| **OAuth redirect URL** | `http://localhost:3929/api/v1/auth/mcp/airtable/connector/callback` |
+
+<Callout type="info">
+`http://localhost:3929` is the default public URL of a Docker install. If you run SurfSense [manually](/docs/manual-installation), use your backend URL (`http://localhost:8000`); in production, use your public domain.
+</Callout>
+
+Click **"Register integration"**
+
+![Register Integration Form](/docs/connectors/airtable/airtable-register-integration.png)
+
+## Step 2: Configure Scopes
+
+Enable the scopes SurfSense requests:
+
+| Scope | Description |
+|-------|-------------|
+| `data.records:read` | See the data in records |
+| `schema.bases:read` | See the structure of a base, like table names or field types |
+
+![Scopes Configuration](/docs/connectors/airtable/airtable-scopes.png)
+
+## Step 3: Fill in Support Information
+
+Add a support email (plus privacy policy and terms URLs if you have them) and click **"Save changes"**.
+
+![Support Information & Preview](/docs/connectors/airtable/airtable-support-info.png)
+
+## Step 4: Add the Credentials to SurfSense
+
+Copy the **Client ID** and **Client Secret** from the integration page and add them to your `.env` file:
+
+```bash
+AIRTABLE_CLIENT_ID=your_airtable_client_id
+AIRTABLE_CLIENT_SECRET=your_airtable_client_secret
+```
+
+Restart SurfSense, open the **Connectors** dialog, and click **Connect** on Airtable:
+
+```bash
+docker compose up -d
+```
+
+<Callout type="warn">
+Never share your client secret publicly.
+</Callout>

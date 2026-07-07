@@ -37,7 +37,7 @@ export const mcpConnectorRead = z.object({
 	name: z.string(),
 	connector_type: z.literal("MCP_CONNECTOR"),
 	server_config: mcpServerConfig,
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	user_id: z.string(),
 	created_at: z.string(),
 	updated_at: z.string(),
@@ -49,7 +49,7 @@ export const mcpConnectorRead = z.object({
 export const createMCPConnectorRequest = z.object({
 	data: mcpConnectorCreate,
 	queryParams: z.object({
-		search_space_id: z.number().or(z.string()),
+		workspace_id: z.number().or(z.string()),
 	}),
 });
 
@@ -60,7 +60,7 @@ export const updateMCPConnectorRequest = z.object({
 
 export const getMCPConnectorsRequest = z.object({
 	queryParams: z.object({
-		search_space_id: z.number().or(z.string()),
+		workspace_id: z.number().or(z.string()),
 	}),
 });
 

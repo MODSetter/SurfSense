@@ -1,4 +1,4 @@
-"""Podcasts are scoped to search-space membership.
+"""Podcasts are scoped to workspace membership.
 
 A user can only create or read podcasts in spaces they belong to, and an
 unscoped listing returns only the caller's own podcasts — never another
@@ -13,9 +13,9 @@ BASE = "/api/v1/podcasts"
 
 
 async def test_reading_a_podcast_in_a_nonmember_space_is_forbidden(
-    client, db_search_space, make_podcast, act_as, db_other_user
+    client, db_workspace, make_podcast, act_as, db_other_user
 ):
-    podcast = await make_podcast(search_space_id=db_search_space.id)
+    podcast = await make_podcast(workspace_id=db_workspace.id)
     act_as(db_other_user)
 
     resp = await client.get(f"{BASE}/{podcast.id}")
@@ -24,7 +24,7 @@ async def test_reading_a_podcast_in_a_nonmember_space_is_forbidden(
 
 
 async def test_creating_in_a_nonmember_space_is_forbidden(
-    client, db_search_space, act_as, db_other_user
+    client, db_workspace, act_as, db_other_user
 ):
     act_as(db_other_user)
 
@@ -32,7 +32,7 @@ async def test_creating_in_a_nonmember_space_is_forbidden(
         BASE,
         json={
             "title": "X",
-            "search_space_id": db_search_space.id,
+            "workspace_id": db_workspace.id,
             "source_content": "content",
         },
     )
@@ -41,9 +41,9 @@ async def test_creating_in_a_nonmember_space_is_forbidden(
 
 
 async def test_listing_returns_only_the_callers_podcasts(
-    client, db_search_space, make_podcast, foreign_podcast
+    client, db_workspace, make_podcast, foreign_podcast
 ):
-    mine = await make_podcast(search_space_id=db_search_space.id, title="Mine")
+    mine = await make_podcast(workspace_id=db_workspace.id, title="Mine")
 
     resp = await client.get(BASE)
 

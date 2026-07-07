@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
@@ -36,10 +36,10 @@ interface ConnectorIndicatorProps {
 
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	(_props, ref) => {
-		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+		const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 
 		// Real-time document type counts via Zero (updates instantly as docs are indexed)
-		const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
+		const documentTypeCounts = useZeroDocumentTypeCounts(workspaceId);
 		// Read status inbox items from shared atom (populated by LayoutDataProvider)
 		// instead of creating a duplicate useInbox("status") hook.
 		const statusInboxItems = useAtomValue(statusInboxItemsAtom);
@@ -124,7 +124,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			loading: connectorsLoading,
 			error: connectorsError,
 			refreshConnectors: refreshConnectorsSync,
-		} = useConnectorsSync(searchSpaceId);
+		} = useConnectorsSync(workspaceId);
 
 		const useSyncData = connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
 		const connectors = useSyncData ? connectorsFromSync : allConnectors || [];
@@ -142,7 +142,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			inboxItems
 		);
 
-		// Get document types that have documents in the search space
+		// Get document types that have documents in the workspace
 		const activeDocumentTypes = documentTypeCounts
 			? Object.entries(documentTypeCounts).filter(([, count]) => count > 0)
 			: [];
@@ -163,7 +163,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			open: () => handleOpenChange(true),
 		}));
 
-		if (!searchSpaceId) return null;
+		if (!workspaceId) return null;
 
 		return (
 			<Dialog open={isOpen} modal={false} onOpenChange={handleOpenChange}>
@@ -189,10 +189,10 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 					}}
 					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden ring-0 dark:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:hover:bg-accent [&>button]:hover:text-accent-foreground [&>button>svg]:size-5 select-none"
 				>
-					<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
+					<DialogTitle className="sr-only">Manage External MCP Connectors</DialogTitle>
 					{/* YouTube Crawler View - shown when adding YouTube videos */}
-					{isYouTubeView && searchSpaceId ? (
-						<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+					{isYouTubeView && workspaceId ? (
+						<YouTubeCrawlerView workspaceId={workspaceId} onBack={handleBackFromYouTube} />
 					) : viewingMCPList ? (
 						<ConnectorAccountsListView
 							connectorType="MCP_CONNECTOR"
@@ -253,7 +253,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							isSaving={isSaving}
 							isDisconnecting={isDisconnecting}
 							isIndexing={indexingConnectorIds.has(editingConnector.id)}
-							searchSpaceId={searchSpaceId?.toString()}
+							workspaceId={workspaceId?.toString()}
 							onStartDateChange={setStartDate}
 							onEndDateChange={setEndDate}
 							onPeriodicEnabledChange={setPeriodicEnabled}
@@ -346,7 +346,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 										<TabsContent value="all" className="m-0">
 											<AllConnectorsTab
 												searchQuery={searchQuery}
-												searchSpaceId={searchSpaceId}
+												workspaceId={workspaceId}
 												connectedTypes={connectedTypes}
 												connectingId={connectingId}
 												allConnectors={connectors}

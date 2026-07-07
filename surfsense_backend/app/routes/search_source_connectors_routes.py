@@ -1,21 +1,21 @@
 """
 SearchSourceConnector routes for CRUD operations:
 POST /search-source-connectors/ - Create a new connector
-GET /search-source-connectors/ - List all connectors for the current user (optionally filtered by search space)
+GET /search-source-connectors/ - List all connectors for the current user (optionally filtered by workspace)
 GET /search-source-connectors/{connector_id} - Get a specific connector
 PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
-POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
+POST /search-source-connectors/{connector_id}/index - Index content from a connector to a workspace
 
 MCP (Model Context Protocol) Connector routes:
 POST /connectors/mcp - Create a new MCP connector with custom API tools
-GET /connectors/mcp - List all MCP connectors for the current user's search space
+GET /connectors/mcp - List all MCP connectors for the current user's workspace
 GET /connectors/mcp/{connector_id} - Get a specific MCP connector with tools config
 PUT /connectors/mcp/{connector_id} - Update an MCP connector's tools config
 DELETE /connectors/mcp/{connector_id} - Delete an MCP connector
 
-Note: OAuth connectors (Gmail, Drive, Slack, etc.) support multiple accounts per search space.
-Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search space.
+Note: OAuth connectors (Gmail, Drive, Slack, etc.) support multiple accounts per workspace.
+Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per workspace.
 """
 
 import asyncio
@@ -73,6 +73,7 @@ from app.utils.periodic_scheduler import (
     update_periodic_schedule,
 )
 from app.utils.rbac import check_permission
+from app.utils.validators import raise_if_connector_deprecated
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -170,8 +171,8 @@ async def list_github_repositories(
 @router.post("/search-source-connectors", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
     connector: SearchSourceConnectorCreate,
-    search_space_id: int = Query(
-        ..., description="ID of the search space to associate the connector with"
+    workspace_id: int = Query(
+        ..., description="ID of the workspace to associate the connector with"
     ),
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -181,26 +182,32 @@ async def create_search_source_connector(
     Create a new search source connector.
     Requires CONNECTORS_CREATE permission.
 
-    Each search space can have only one connector of each type (based on search_space_id and connector_type).
+    Each workspace can have only one connector of each type (based on workspace_id and connector_type).
     The config must contain the appropriate keys for the connector type.
     """
     try:
+        # Refuse new connections for deprecated connector types (HTTP 410). The
+        # search APIs (Tavily/SearXNG/Linkup/Baidu) are created through this
+        # generic route rather than a dedicated OAuth route, so this is the
+        # single choke point that must enforce the deprecation.
+        raise_if_connector_deprecated(connector.connector_type)
+
         # Check if user has permission to create connectors
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.CONNECTORS_CREATE.value,
-            "You don't have permission to create connectors in this search space",
+            "You don't have permission to create connectors in this workspace",
         )
 
-        # Check if a connector with the same type already exists for this search space
+        # Check if a connector with the same type already exists for this workspace
         # (for non-OAuth connectors that don't support multiple accounts)
         # Exception: MCP_CONNECTOR can have multiple instances with different names
         if connector.connector_type != SearchSourceConnectorType.MCP_CONNECTOR:
             result = await session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.connector_type == connector.connector_type,
                 )
             )
@@ -208,7 +215,7 @@ async def create_search_source_connector(
             if existing_connector:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"A connector with type {connector.connector_type} already exists in this search space.",
+                    detail=f"A connector with type {connector.connector_type} already exists in this workspace.",
                 )
 
         # Prepare connector data
@@ -217,7 +224,7 @@ async def create_search_source_connector(
         # MCP connectors support multiple instances — ensure unique name
         if connector.connector_type == SearchSourceConnectorType.MCP_CONNECTOR:
             connector_data["name"] = await ensure_unique_connector_name(
-                session, connector_data["name"], search_space_id, user.id
+                session, connector_data["name"], workspace_id, user.id
             )
 
         # Automatically set next_scheduled_at if periodic indexing is enabled
@@ -231,7 +238,7 @@ async def create_search_source_connector(
             )
 
         db_connector = SearchSourceConnector(
-            **connector_data, search_space_id=search_space_id, user_id=user.id
+            **connector_data, workspace_id=workspace_id, user_id=user.id
         )
         session.add(db_connector)
         await session.commit()
@@ -244,7 +251,7 @@ async def create_search_source_connector(
         ):
             success = create_periodic_schedule(
                 connector_id=db_connector.id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=str(user.id),
                 connector_type=db_connector.connector_type,
                 frequency_minutes=db_connector.indexing_frequency_minutes,
@@ -263,7 +270,7 @@ async def create_search_source_connector(
         await session.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"Integrity error: A connector with this type already exists in this search space. {e!s}",
+            detail=f"Integrity error: A connector with this type already exists in this workspace. {e!s}",
         ) from e
     except HTTPException:
         await session.rollback()
@@ -281,32 +288,32 @@ async def create_search_source_connector(
 async def read_search_source_connectors(
     skip: int = 0,
     limit: int = 100,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    List all search source connectors for a search space.
+    List all search source connectors for a workspace.
     Requires CONNECTORS_READ permission.
     """
     try:
-        if search_space_id is None:
+        if workspace_id is None:
             raise HTTPException(
                 status_code=400,
-                detail="search_space_id is required",
+                detail="workspace_id is required",
             )
 
         # Check if user has permission to read connectors
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.CONNECTORS_READ.value,
-            "You don't have permission to view connectors in this search space",
+            "You don't have permission to view connectors in this workspace",
         )
 
         query = select(SearchSourceConnector).filter(
-            SearchSourceConnector.search_space_id == search_space_id
+            SearchSourceConnector.workspace_id == workspace_id
         )
 
         result = await session.execute(query.offset(skip).limit(limit))
@@ -348,7 +355,7 @@ async def read_search_source_connector(
         await check_permission(
             session,
             auth,
-            connector.search_space_id,
+            connector.workspace_id,
             Permission.CONNECTORS_READ.value,
             "You don't have permission to view this connector",
         )
@@ -390,7 +397,7 @@ async def update_search_source_connector(
     await check_permission(
         session,
         auth,
-        db_connector.search_space_id,
+        db_connector.workspace_id,
         Permission.CONNECTORS_UPDATE.value,
         "You don't have permission to update this connector",
     )
@@ -489,8 +496,7 @@ async def update_search_source_connector(
         if key == "connector_type" and value != db_connector.connector_type:
             check_result = await session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id
-                    == db_connector.search_space_id,
+                    SearchSourceConnector.workspace_id == db_connector.workspace_id,
                     SearchSourceConnector.connector_type == value,
                     SearchSourceConnector.id != connector_id,
                 )
@@ -499,7 +505,7 @@ async def update_search_source_connector(
             if existing_connector:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"A connector with type {value} already exists in this search space.",
+                    detail=f"A connector with type {value} already exists in this workspace.",
                 )
 
         setattr(db_connector, key, value)
@@ -520,7 +526,7 @@ async def update_search_source_connector(
                 # Create or update the periodic schedule
                 success = update_periodic_schedule(
                     connector_id=db_connector.id,
-                    search_space_id=db_connector.search_space_id,
+                    workspace_id=db_connector.workspace_id,
                     user_id=str(user.id),
                     connector_type=db_connector.connector_type,
                     frequency_minutes=db_connector.indexing_frequency_minutes,
@@ -592,7 +598,7 @@ async def delete_search_source_connector(
         await check_permission(
             session,
             auth,
-            db_connector.search_space_id,
+            db_connector.workspace_id,
             Permission.CONNECTORS_DELETE.value,
             "You don't have permission to delete this connector",
         )
@@ -672,7 +678,7 @@ async def delete_search_source_connector(
             )
 
         # Delete the connector record
-        search_space_id = db_connector.search_space_id
+        workspace_id = db_connector.workspace_id
         is_mcp = db_connector.connector_type == SearchSourceConnectorType.MCP_CONNECTOR
         await session.delete(db_connector)
         await session.commit()
@@ -682,7 +688,7 @@ async def delete_search_source_connector(
                 invalidate_mcp_tools_cache,
             )
 
-            invalidate_mcp_tools_cache(search_space_id)
+            invalidate_mcp_tools_cache(workspace_id)
 
         logger.info(
             f"Connector {connector_id} ({connector_name}) deleted successfully. "
@@ -712,8 +718,8 @@ async def delete_search_source_connector(
 )
 async def index_connector_content(
     connector_id: int,
-    search_space_id: int = Query(
-        ..., description="ID of the search space to store indexed content"
+    workspace_id: int = Query(
+        ..., description="ID of the workspace to store indexed content"
     ),
     start_date: str = Query(
         None,
@@ -732,7 +738,7 @@ async def index_connector_content(
 ):
     user = auth.user
     """
-    Index content from a KB connector to a search space.
+    Index content from a KB connector to a workspace.
 
     Live connectors (Slack, Teams, Linear, Jira, ClickUp, Calendar, Airtable,
     Gmail, Discord, Luma) use real-time agent tools instead.
@@ -749,25 +755,25 @@ async def index_connector_content(
         if not connector:
             raise HTTPException(status_code=404, detail="Connector not found")
 
-        # Ensure the connector actually belongs to the requested search space.
+        # Ensure the connector actually belongs to the requested workspace.
         # Without this, the permission check below would authorize against the
-        # caller-supplied search_space_id (their own space) while the connector
+        # caller-supplied workspace_id (their own space) while the connector
         # lives in another user's space, allowing cross-tenant indexing of a
         # foreign connector (and use of its stored credentials). Returning 404
         # (rather than 403) on a mismatch also avoids disclosing the existence of
-        # connectors in other search spaces.
-        if connector.search_space_id != search_space_id:
+        # connectors in other workspaces.
+        if connector.workspace_id != workspace_id:
             raise HTTPException(status_code=404, detail="Connector not found")
 
         # Check if user has permission to update connectors (indexing is an update
-        # operation). Authorize against the connector's OWN search space — matching
+        # operation). Authorize against the connector's OWN workspace — matching
         # the read/update/delete handlers — not the client-supplied query param.
         await check_permission(
             session,
             auth,
-            connector.search_space_id,
+            connector.workspace_id,
             Permission.CONNECTORS_UPDATE.value,
-            "You don't have permission to index content in this search space",
+            "You don't have permission to index content in this workspace",
         )
 
         # Handle different connector types
@@ -828,7 +834,10 @@ async def index_connector_content(
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str
 
-        from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+        from app.services.mcp_oauth.registry import (
+            DEPRECATED_INDEXING_CONNECTOR_TYPES,
+            LIVE_CONNECTOR_TYPES,
+        )
 
         if connector.connector_type in LIVE_CONNECTOR_TYPES:
             return {
@@ -838,7 +847,21 @@ async def index_connector_content(
                 ),
                 "indexing_started": False,
                 "connector_id": connector_id,
-                "search_space_id": search_space_id,
+                "workspace_id": workspace_id,
+                "indexing_from": indexing_from,
+                "indexing_to": indexing_to,
+            }
+
+        if connector.connector_type in DEPRECATED_INDEXING_CONNECTOR_TYPES:
+            return {
+                "message": (
+                    f"Indexing for {connector.connector_type.value} has been "
+                    "deprecated. The knowledge base now stores files, notes, and "
+                    "uploads only."
+                ),
+                "indexing_started": False,
+                "connector_id": connector_id,
+                "workspace_id": workspace_id,
                 "indexing_from": indexing_from,
                 "indexing_to": indexing_to,
             }
@@ -847,10 +870,10 @@ async def index_connector_content(
             from app.tasks.celery_tasks.connector_tasks import index_notion_pages_task
 
             logger.info(
-                f"Triggering Notion indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering Notion indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
             )
             index_notion_pages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Notion indexing started in the background."
 
@@ -858,10 +881,10 @@ async def index_connector_content(
             from app.tasks.celery_tasks.connector_tasks import index_github_repos_task
 
             logger.info(
-                f"Triggering GitHub indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering GitHub indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
             )
             index_github_repos_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "GitHub indexing started in the background."
 
@@ -871,10 +894,10 @@ async def index_connector_content(
             )
 
             logger.info(
-                f"Triggering Confluence indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering Confluence indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
             )
             index_confluence_pages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Confluence indexing started in the background."
 
@@ -884,10 +907,10 @@ async def index_connector_content(
             )
 
             logger.info(
-                f"Triggering BookStack indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering BookStack indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
             )
             index_bookstack_pages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "BookStack indexing started in the background."
 
@@ -900,7 +923,7 @@ async def index_connector_content(
 
             if drive_items and drive_items.has_items():
                 logger.info(
-                    f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"Triggering Google Drive indexing for connector {connector_id} into workspace {workspace_id}, "
                     f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
                 )
                 items_dict = drive_items.model_dump()
@@ -929,13 +952,13 @@ async def index_connector_content(
                     "indexing_options": indexing_options,
                 }
                 logger.info(
-                    f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"Triggering Google Drive indexing for connector {connector_id} into workspace {workspace_id} "
                     f"using existing config"
                 )
 
             index_google_drive_files_task.delay(
                 connector_id,
-                search_space_id,
+                workspace_id,
                 str(user.id),
                 items_dict,
             )
@@ -948,7 +971,7 @@ async def index_connector_content(
 
             if drive_items and drive_items.has_items():
                 logger.info(
-                    f"Triggering OneDrive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"Triggering OneDrive indexing for connector {connector_id} into workspace {workspace_id}, "
                     f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
                 )
                 items_dict = drive_items.model_dump()
@@ -976,13 +999,13 @@ async def index_connector_content(
                     "indexing_options": indexing_options,
                 }
                 logger.info(
-                    f"Triggering OneDrive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"Triggering OneDrive indexing for connector {connector_id} into workspace {workspace_id} "
                     f"using existing config"
                 )
 
             index_onedrive_files_task.delay(
                 connector_id,
-                search_space_id,
+                workspace_id,
                 str(user.id),
                 items_dict,
             )
@@ -995,7 +1018,7 @@ async def index_connector_content(
 
             if drive_items and drive_items.has_items():
                 logger.info(
-                    f"Triggering Dropbox indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"Triggering Dropbox indexing for connector {connector_id} into workspace {workspace_id}, "
                     f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
                 )
                 items_dict = drive_items.model_dump()
@@ -1023,13 +1046,13 @@ async def index_connector_content(
                     "indexing_options": indexing_options,
                 }
                 logger.info(
-                    f"Triggering Dropbox indexing for connector {connector_id} into search space {search_space_id} "
+                    f"Triggering Dropbox indexing for connector {connector_id} into workspace {workspace_id} "
                     f"using existing config"
                 )
 
             index_dropbox_files_task.delay(
                 connector_id,
-                search_space_id,
+                workspace_id,
                 str(user.id),
                 items_dict,
             )
@@ -1044,40 +1067,12 @@ async def index_connector_content(
             )
 
             logger.info(
-                f"Triggering Elasticsearch indexing for connector {connector_id} into search space {search_space_id}"
+                f"Triggering Elasticsearch indexing for connector {connector_id} into workspace {workspace_id}"
             )
             index_elasticsearch_documents_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Elasticsearch indexing started in the background."
-
-        elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_crawled_urls_task
-            from app.utils.webcrawler_utils import parse_webcrawler_urls
-
-            # Check if URLs are configured before triggering indexing
-            connector_config = connector.config or {}
-            urls = parse_webcrawler_urls(connector_config.get("INITIAL_URLS"))
-
-            if not urls:
-                # URLs are optional - skip indexing gracefully
-                logger.info(
-                    f"Webcrawler connector {connector_id} has no URLs configured, skipping indexing"
-                )
-                response_message = "No URLs configured for this connector. Add URLs in the connector settings to enable indexing."
-                indexing_started = False
-            else:
-                logger.info(
-                    f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-                )
-                index_crawled_urls_task.delay(
-                    connector_id,
-                    search_space_id,
-                    str(user.id),
-                    indexing_from,
-                    indexing_to,
-                )
-                response_message = "Web page indexing started in the background."
 
         elif (
             connector.connector_type
@@ -1112,12 +1107,12 @@ async def index_connector_content(
                 await session.refresh(connector)
 
                 logger.info(
-                    f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"Triggering Composio Google Drive indexing for connector {connector_id} into workspace {workspace_id}, "
                     f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
                 )
             else:
                 logger.info(
-                    f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"Triggering Composio Google Drive indexing for connector {connector_id} into workspace {workspace_id} "
                     f"using existing config"
                 )
 
@@ -1145,7 +1140,7 @@ async def index_connector_content(
                 "indexing_options": indexing_options,
             }
             index_google_drive_files_task.delay(
-                connector_id, search_space_id, str(user.id), items_dict
+                connector_id, workspace_id, str(user.id), items_dict
             )
             response_message = (
                 "Composio Google Drive indexing started in the background."
@@ -1160,10 +1155,10 @@ async def index_connector_content(
             )
 
             logger.info(
-                f"Triggering Composio Gmail indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering Composio Gmail indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
             )
             index_google_gmail_messages_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Composio Gmail indexing started in the background."
 
@@ -1176,10 +1171,10 @@ async def index_connector_content(
             )
 
             logger.info(
-                f"Triggering Composio Google Calendar indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering Composio Google Calendar indexing for connector {connector_id} into workspace {workspace_id} from {indexing_from} to {indexing_to}"
             )
             index_google_calendar_events_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                connector_id, workspace_id, str(user.id), indexing_from, indexing_to
             )
             response_message = (
                 "Composio Google Calendar indexing started in the background."
@@ -1195,7 +1190,7 @@ async def index_connector_content(
             "message": response_message,
             "indexing_started": indexing_started,
             "connector_id": connector_id,
-            "search_space_id": search_space_id,
+            "workspace_id": workspace_id,
             "indexing_from": indexing_from,
             "indexing_to": indexing_to,
         }
@@ -1292,7 +1287,7 @@ async def _persist_auth_expired(session: AsyncSession, connector_id: int) -> Non
 async def _run_indexing_with_notifications(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1307,7 +1302,7 @@ async def _run_indexing_with_notifications(
     Args:
         session: Database session
         connector_id: ID of the connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -1359,7 +1354,7 @@ async def _run_indexing_with_notifications(
                     connector_id=connector_id,
                     connector_name=connector.name,
                     connector_type=connector.connector_type.value,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     start_date=start_date,
                     end_date=end_date,
                 )
@@ -1476,7 +1471,7 @@ async def _run_indexing_with_notifications(
         indexing_kwargs = {
             "session": session,
             "connector_id": connector_id,
-            "search_space_id": search_space_id,
+            "workspace_id": workspace_id,
             "user_id": user_id,
             "start_date": start_date,
             "end_date": end_date,
@@ -1717,7 +1712,7 @@ async def _run_indexing_with_notifications(
 
 async def run_notion_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1732,7 +1727,7 @@ async def run_notion_indexing_with_new_session(
         await _run_indexing_with_notifications(
             session=session,
             connector_id=connector_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
@@ -1746,7 +1741,7 @@ async def run_notion_indexing_with_new_session(
 async def run_notion_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1757,7 +1752,7 @@ async def run_notion_indexing(
     Args:
         session: Database session
         connector_id: ID of the Notion connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -1767,7 +1762,7 @@ async def run_notion_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -1781,18 +1776,18 @@ async def run_notion_indexing(
 # Add new helper functions for GitHub indexing
 async def run_github_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
 ):
     """Wrapper to run GitHub indexing with its own database session."""
     logger.info(
-        f"Background task started: Indexing GitHub connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+        f"Background task started: Indexing GitHub connector {connector_id} into space {workspace_id} from {start_date} to {end_date}"
     )
     async with async_session_maker() as session:
         await run_github_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
     logger.info(f"Background task finished: Indexing GitHub connector {connector_id}")
 
@@ -1800,7 +1795,7 @@ async def run_github_indexing_with_new_session(
 async def run_github_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1811,7 +1806,7 @@ async def run_github_indexing(
     Args:
         session: Database session
         connector_id: ID of the GitHub connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -1821,7 +1816,7 @@ async def run_github_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -1834,18 +1829,18 @@ async def run_github_indexing(
 # Add new helper functions for Confluence indexing
 async def run_confluence_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
 ):
     """Wrapper to run Confluence indexing with its own database session."""
     logger.info(
-        f"Background task started: Indexing Confluence connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+        f"Background task started: Indexing Confluence connector {connector_id} into space {workspace_id} from {start_date} to {end_date}"
     )
     async with async_session_maker() as session:
         await run_confluence_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
     logger.info(
         f"Background task finished: Indexing Confluence connector {connector_id}"
@@ -1855,7 +1850,7 @@ async def run_confluence_indexing_with_new_session(
 async def run_confluence_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1866,7 +1861,7 @@ async def run_confluence_indexing(
     Args:
         session: Database session
         connector_id: ID of the Confluence connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -1876,7 +1871,7 @@ async def run_confluence_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -1889,18 +1884,18 @@ async def run_confluence_indexing(
 # Add new helper functions for Google Calendar indexing
 async def run_google_calendar_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
 ):
     """Wrapper to run Google Calendar indexing with its own database session."""
     logger.info(
-        f"Background task started: Indexing Google Calendar connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+        f"Background task started: Indexing Google Calendar connector {connector_id} into space {workspace_id} from {start_date} to {end_date}"
     )
     async with async_session_maker() as session:
         await run_google_calendar_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
     logger.info(
         f"Background task finished: Indexing Google Calendar connector {connector_id}"
@@ -1910,7 +1905,7 @@ async def run_google_calendar_indexing_with_new_session(
 async def run_google_calendar_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1921,7 +1916,7 @@ async def run_google_calendar_indexing(
     Args:
         session: Database session
         connector_id: ID of the Google Calendar connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -1931,7 +1926,7 @@ async def run_google_calendar_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -1943,7 +1938,7 @@ async def run_google_calendar_indexing(
 
 async def run_google_gmail_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1954,14 +1949,14 @@ async def run_google_gmail_indexing_with_new_session(
     """
     async with async_session_maker() as session:
         await run_google_gmail_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
 async def run_google_gmail_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -1972,7 +1967,7 @@ async def run_google_gmail_indexing(
     Args:
         session: Database session
         connector_id: ID of the Google Gmail connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -1983,7 +1978,7 @@ async def run_google_gmail_indexing(
     async def gmail_indexing_wrapper(
         session: AsyncSession,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
         start_date: str | None,
         end_date: str | None,
@@ -1994,7 +1989,7 @@ async def run_google_gmail_indexing(
         indexed_count, skipped_count, error_message = await index_google_gmail_messages(
             session=session,
             connector_id=connector_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
@@ -2007,7 +2002,7 @@ async def run_google_gmail_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -2020,7 +2015,7 @@ async def run_google_gmail_indexing(
 async def run_google_drive_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
@@ -2057,7 +2052,7 @@ async def run_google_drive_indexing(
                 connector_id=connector_id,
                 connector_name=connector.name,
                 connector_type=connector.connector_type.value,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 folder_count=len(items.folders),
                 file_count=len(items.files),
                 folder_names=items.get_folder_names() if items.folders else None,
@@ -2086,7 +2081,7 @@ async def run_google_drive_indexing(
                 ) = await index_google_drive_files(
                     session,
                     connector_id,
-                    search_space_id,
+                    workspace_id,
                     user_id,
                     folder_id=folder.id,
                     folder_name=folder.name,
@@ -2119,7 +2114,7 @@ async def run_google_drive_indexing(
                 ) = await index_google_drive_selected_files(
                     session,
                     connector_id,
-                    search_space_id,
+                    workspace_id,
                     user_id,
                     files=file_tuples,
                 )
@@ -2199,7 +2194,7 @@ async def run_google_drive_indexing(
 async def run_onedrive_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ):
@@ -2224,7 +2219,7 @@ async def run_onedrive_indexing(
                 connector_id=connector_id,
                 connector_name=connector.name,
                 connector_type=connector.connector_type.value,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 folder_count=len(items_dict.get("folders", [])),
                 file_count=len(items_dict.get("files", [])),
                 folder_names=[
@@ -2251,7 +2246,7 @@ async def run_onedrive_indexing(
         ) = await index_onedrive_files(
             session,
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
         )
@@ -2313,7 +2308,7 @@ async def run_onedrive_indexing(
 async def run_dropbox_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ):
@@ -2338,7 +2333,7 @@ async def run_dropbox_indexing(
                 connector_id=connector_id,
                 connector_name=connector.name,
                 connector_type=connector.connector_type.value,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 folder_count=len(items_dict.get("folders", [])),
                 file_count=len(items_dict.get("files", [])),
                 folder_names=[
@@ -2365,7 +2360,7 @@ async def run_dropbox_indexing(
         ) = await index_dropbox_files(
             session,
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
         )
@@ -2426,18 +2421,18 @@ async def run_dropbox_indexing(
 
 async def run_elasticsearch_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
 ):
     """Wrapper to run Elasticsearch indexing with its own database session."""
     logger.info(
-        f"Background task started: Indexing Elasticsearch connector {connector_id} into space {search_space_id}"
+        f"Background task started: Indexing Elasticsearch connector {connector_id} into space {workspace_id}"
     )
     async with async_session_maker() as session:
         await run_elasticsearch_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
     logger.info(
         f"Background task finished: Indexing Elasticsearch connector {connector_id}"
@@ -2447,7 +2442,7 @@ async def run_elasticsearch_indexing_with_new_session(
 async def run_elasticsearch_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -2458,7 +2453,7 @@ async def run_elasticsearch_indexing(
     Args:
         session: Database session
         connector_id: ID of the Elasticsearch connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -2468,7 +2463,7 @@ async def run_elasticsearch_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -2478,73 +2473,21 @@ async def run_elasticsearch_indexing(
     )
 
 
-# Add new helper functions for crawled web page indexing
-async def run_web_page_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Create a new session and run the Web page indexing task.
-    This prevents session leaks by creating a dedicated session for the background task.
-    """
-    async with async_session_maker() as session:
-        await run_web_page_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-
-
-async def run_web_page_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """
-    Background task to run Web page indexing.
-
-    Args:
-        session: Database session
-        connector_id: ID of the webcrawler connector
-        search_space_id: ID of the search space
-        user_id: ID of the user
-        start_date: Start date for indexing
-        end_date: End date for indexing
-    """
-    from app.tasks.connector_indexers import index_crawled_urls
-
-    await _run_indexing_with_notifications(
-        session=session,
-        connector_id=connector_id,
-        search_space_id=search_space_id,
-        user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
-        indexing_function=index_crawled_urls,
-        update_timestamp_func=_update_connector_timestamp_by_id,
-        supports_heartbeat_callback=True,
-    )
-
-
 # Add new helper functions for BookStack indexing
 async def run_bookstack_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
 ):
     """Wrapper to run BookStack indexing with its own database session."""
     logger.info(
-        f"Background task started: Indexing BookStack connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+        f"Background task started: Indexing BookStack connector {connector_id} into space {workspace_id} from {start_date} to {end_date}"
     )
     async with async_session_maker() as session:
         await run_bookstack_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
     logger.info(
         f"Background task finished: Indexing BookStack connector {connector_id}"
@@ -2554,7 +2497,7 @@ async def run_bookstack_indexing_with_new_session(
 async def run_bookstack_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -2565,7 +2508,7 @@ async def run_bookstack_indexing(
     Args:
         session: Database session
         connector_id: ID of the BookStack connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -2575,7 +2518,7 @@ async def run_bookstack_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -2587,7 +2530,7 @@ async def run_bookstack_indexing(
 
 async def run_composio_indexing_with_new_session(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -2598,14 +2541,14 @@ async def run_composio_indexing_with_new_session(
     """
     async with async_session_maker() as session:
         await run_composio_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
 async def run_composio_indexing(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None,
     end_date: str | None,
@@ -2619,7 +2562,7 @@ async def run_composio_indexing(
     Args:
         session: Database session
         connector_id: ID of the Composio connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for indexing
         end_date: End date for indexing
@@ -2629,7 +2572,7 @@ async def run_composio_indexing(
     await _run_indexing_with_notifications(
         session=session,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         start_date=start_date,
         end_date=end_date,
@@ -2647,7 +2590,7 @@ async def run_composio_indexing(
 @router.post("/connectors/mcp", response_model=MCPConnectorRead, status_code=201)
 async def create_mcp_connector(
     connector_data: MCPConnectorCreate,
-    search_space_id: int = Query(..., description="Search space ID"),
+    workspace_id: int = Query(..., description="Workspace ID"),
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
@@ -2660,7 +2603,7 @@ async def create_mcp_connector(
 
     Args:
         connector_data: MCP server configuration (command, args, env)
-        search_space_id: ID of the search space to attach the connector to
+        workspace_id: ID of the workspace to attach the connector to
         session: Database session
         user: Current authenticated user
 
@@ -2668,21 +2611,21 @@ async def create_mcp_connector(
         Created MCP connector with server configuration
 
     Raises:
-        HTTPException: If search space not found or permission denied
+        HTTPException: If workspace not found or permission denied
     """
     try:
         # Check user has permission to create connectors
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.CONNECTORS_CREATE.value,
-            "You don't have permission to create connectors in this search space",
+            "You don't have permission to create connectors in this workspace",
         )
 
-        # Ensure unique name across MCP connectors in this search space
+        # Ensure unique name across MCP connectors in this workspace
         unique_name = await ensure_unique_connector_name(
-            session, connector_data.name, search_space_id, user.id
+            session, connector_data.name, workspace_id, user.id
         )
 
         # Create the connector with single server config
@@ -2693,7 +2636,7 @@ async def create_mcp_connector(
             config={"server_config": connector_data.server_config.model_dump()},
             periodic_indexing_enabled=False,
             indexing_frequency_minutes=None,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user.id,
         )
 
@@ -2703,14 +2646,14 @@ async def create_mcp_connector(
 
         logger.info(
             f"Created MCP connector {db_connector.id} "
-            f"for user {user.id} in search space {search_space_id}"
+            f"for user {user.id} in workspace {workspace_id}"
         )
 
         from app.agents.chat.multi_agent_chat.shared.tools.mcp.cache import (
             refresh_mcp_tools_cache_for_connector,
         )
 
-        refresh_mcp_tools_cache_for_connector(db_connector.id, search_space_id)
+        refresh_mcp_tools_cache_for_connector(db_connector.id, workspace_id)
 
         connector_read = SearchSourceConnectorRead.model_validate(db_connector)
         return MCPConnectorRead.from_connector(connector_read)
@@ -2727,15 +2670,15 @@ async def create_mcp_connector(
 
 @router.get("/connectors/mcp", response_model=list[MCPConnectorRead])
 async def list_mcp_connectors(
-    search_space_id: int = Query(..., description="Search space ID"),
+    workspace_id: int = Query(..., description="Workspace ID"),
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    List all MCP connectors for a search space.
+    List all MCP connectors for a workspace.
 
     Args:
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         session: Database session
         user: Current authenticated user
 
@@ -2747,9 +2690,9 @@ async def list_mcp_connectors(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.CONNECTORS_READ.value,
-            "You don't have permission to view connectors in this search space",
+            "You don't have permission to view connectors in this workspace",
         )
 
         # Fetch MCP connectors
@@ -2757,7 +2700,7 @@ async def list_mcp_connectors(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.MCP_CONNECTOR,
-                SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.workspace_id == workspace_id,
             )
         )
 
@@ -2811,7 +2754,7 @@ async def get_mcp_connector(
         await check_permission(
             session,
             auth,
-            connector.search_space_id,
+            connector.workspace_id,
             Permission.CONNECTORS_READ.value,
             "You don't have permission to view this connector",
         )
@@ -2865,7 +2808,7 @@ async def update_mcp_connector(
         await check_permission(
             session,
             auth,
-            connector.search_space_id,
+            connector.workspace_id,
             Permission.CONNECTORS_UPDATE.value,
             "You don't have permission to update this connector",
         )
@@ -2890,7 +2833,7 @@ async def update_mcp_connector(
             refresh_mcp_tools_cache_for_connector,
         )
 
-        refresh_mcp_tools_cache_for_connector(connector.id, connector.search_space_id)
+        refresh_mcp_tools_cache_for_connector(connector.id, connector.workspace_id)
 
         connector_read = SearchSourceConnectorRead.model_validate(connector)
         return MCPConnectorRead.from_connector(connector_read)
@@ -2937,12 +2880,12 @@ async def delete_mcp_connector(
         await check_permission(
             session,
             auth,
-            connector.search_space_id,
+            connector.workspace_id,
             Permission.CONNECTORS_DELETE.value,
             "You don't have permission to delete this connector",
         )
 
-        search_space_id = connector.search_space_id
+        workspace_id = connector.workspace_id
         await session.delete(connector)
         await session.commit()
 
@@ -2950,7 +2893,7 @@ async def delete_mcp_connector(
             invalidate_mcp_tools_cache,
         )
 
-        invalidate_mcp_tools_cache(search_space_id)
+        invalidate_mcp_tools_cache(workspace_id)
 
         logger.info(f"Deleted MCP connector {connector_id}")
 
@@ -3060,7 +3003,7 @@ async def get_drive_picker_token(
     await check_permission(
         session,
         auth,
-        connector.search_space_id,
+        connector.workspace_id,
         Permission.CONNECTORS_READ.value,
         "You don't have permission to access this connector",
     )
@@ -3143,7 +3086,7 @@ async def _ensure_mcp_connector_for_user(
     The JSONB ``has_key("server_config")`` filter is the same MCP marker
     used elsewhere in this module.
 
-    Returns the connector's ``search_space_id`` (needed downstream for
+    Returns the connector's ``workspace_id`` (needed downstream for
     MCP tool cache invalidation). Raises ``HTTPException(404)`` when the
     connector does not exist, is not owned by the user, or is not
     MCP-backed.
@@ -3152,16 +3095,16 @@ async def _ensure_mcp_connector_for_user(
     from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 
     result = await session.execute(
-        select(SearchSourceConnector.search_space_id).where(
+        select(SearchSourceConnector.workspace_id).where(
             SearchSourceConnector.id == connector_id,
             SearchSourceConnector.user_id == user_id,
             cast(SearchSourceConnector.config, PG_JSONB).has_key("server_config"),
         )
     )
-    search_space_id = result.scalar_one_or_none()
-    if search_space_id is None:
+    workspace_id = result.scalar_one_or_none()
+    if workspace_id is None:
         raise HTTPException(status_code=404, detail="MCP connector not found")
-    return search_space_id
+    return workspace_id
 
 
 @router.post("/connectors/mcp/{connector_id}/trust-tool")
@@ -3185,7 +3128,7 @@ async def trust_mcp_tool(
     from app.services.user_tool_allowlist import add_user_trust
 
     try:
-        search_space_id = await _ensure_mcp_connector_for_user(
+        workspace_id = await _ensure_mcp_connector_for_user(
             session, user_id=user.id, connector_id=connector_id
         )
         trusted = await add_user_trust(
@@ -3195,7 +3138,7 @@ async def trust_mcp_tool(
             tool_name=body.tool_name,
         )
         await session.commit()
-        invalidate_mcp_tools_cache(search_space_id)
+        invalidate_mcp_tools_cache(workspace_id)
         return {"status": "ok", "trusted_tools": trusted}
 
     except HTTPException:
@@ -3228,7 +3171,7 @@ async def untrust_mcp_tool(
     from app.services.user_tool_allowlist import remove_user_trust
 
     try:
-        search_space_id = await _ensure_mcp_connector_for_user(
+        workspace_id = await _ensure_mcp_connector_for_user(
             session, user_id=user.id, connector_id=connector_id
         )
         trusted = await remove_user_trust(
@@ -3238,7 +3181,7 @@ async def untrust_mcp_tool(
             tool_name=body.tool_name,
         )
         await session.commit()
-        invalidate_mcp_tools_cache(search_space_id)
+        invalidate_mcp_tools_cache(workspace_id)
         return {"status": "ok", "trusted_tools": trusted}
 
     except HTTPException:

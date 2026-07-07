@@ -4,25 +4,31 @@ SpillToBackendEdit + SpillingContextEditingMiddleware.
 LangChain's :class:`ClearToolUsesEdit` discards old ``ToolMessage.content``
 when the context-editing budget triggers, replacing the body with a fixed
 placeholder. That's lossy: anything the agent might want to revisit is
-gone. The spill-to-disk pattern (originally from OpenCode's
+gone. The spill pattern (originally from OpenCode's
 ``opencode/packages/opencode/src/tool/truncate.ts``) keeps the prune
-behavior but writes the full original payload to the runtime backend
-under ``/tool_outputs/{thread_id}/{message_id}.txt`` first. The
-placeholder is then upgraded to point at the spill path so the agent
-(or a subagent) can read it back on demand.
+behavior but persists the full original payload first — to the
+``tool_output_spills`` table — and upgrades the placeholder to a
+``spill_<uuid>`` reference the agent can read back with the shared
+``read_run``/``search_run`` tools on demand.
+
+Why the DB and not the runtime filesystem backend: the previous version
+wrote via ``backend.aupload_files``, which is a no-op on cloud
+(``KBPostgresBackend`` raises ``NotImplementedError``) and mismatched on
+desktop (paths must be ``/{mount_id}/...``), so spills were unrecoverable
+in production. A table works on every deployment and needs no sandbox.
 
 Why this is a middleware subclass instead of a plain ``ContextEdit``:
-``ContextEdit.apply`` is sync, but writing to the backend is async. We
-capture the spill payloads inside ``apply`` and flush them via
-``await backend.aupload_files(...)`` from ``awrap_model_call`` *before*
-delegating to the handler, so the explore subagent can always read what
-the placeholder advertises.
+``ContextEdit.apply`` is sync, but the DB write is async. We generate the
+spill id and capture the payload inside ``apply`` (so the placeholder can
+reference the final id immediately) and flush the rows from
+``awrap_model_call`` *before* delegating to the handler.
 """
 
 from __future__ import annotations
 
 import logging
 import threading
+import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -44,7 +50,6 @@ from langchain_core.messages.utils import count_tokens_approximately
 from langgraph.config import get_config
 
 if TYPE_CHECKING:
-    from deepagents.backends.protocol import BackendProtocol
     from langchain.agents.middleware.types import (
         ModelRequest,
         ModelResponse,
@@ -52,24 +57,27 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SPILL_PREFIX = "/tool_outputs"
+# Namespace for deterministic spill ids: the same (thread, message) always maps
+# to the same row, so re-running the edit on later model calls (edits apply to a
+# per-call copy of the messages, never to persisted state) re-references the
+# existing spill instead of inserting a duplicate every turn.
+_SPILL_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 
 
-def _build_spill_placeholder(spill_path: str) -> str:
+def _spill_id_for(thread_id: str | None, message_key: str) -> uuid.UUID:
+    return uuid.uuid5(_SPILL_NAMESPACE, f"{thread_id or 'no_thread'}:{message_key}")
+
+
+def _build_spill_placeholder(spill_id: uuid.UUID) -> str:
     """Build the user-facing placeholder text shown to the model."""
     return (
-        f"[cleared — full output at {spill_path}; ask the explore subagent to read it]"
+        f"[cleared — full output stored as spill_{spill_id}; "
+        "use read_run/search_run to read it]"
     )
 
 
-def _get_thread_id_or_session() -> str:
-    """Best-effort thread_id discovery for the spill path.
-
-    Falls back to a process-stable string if no LangGraph config is
-    available (e.g. unit tests). The exact value doesn't matter as long
-    as it's stable within one stream so the placeholder paths line up
-    with the actual upload path.
-    """
+def _get_thread_id() -> str | None:
+    """Best-effort ``configurable.thread_id`` for the spill row (``None`` if absent)."""
     try:
         config = get_config()
         thread_id = config.get("configurable", {}).get("thread_id")
@@ -77,17 +85,18 @@ def _get_thread_id_or_session() -> str:
             return str(thread_id)
     except RuntimeError:
         pass
-    return "no_thread"
+    return None
 
 
 @dataclass(slots=True)
 class SpillToBackendEdit(ContextEdit):
-    """Capture-and-replace context edit that spills full tool output to the backend.
+    """Capture-and-replace context edit that spills full tool output to the DB.
 
     Behaves like :class:`ClearToolUsesEdit` (same trigger / keep / exclude
     semantics) **and** records the original ``ToolMessage.content`` in
-    :attr:`pending_spills` so the wrapping middleware can flush them
-    before the model call.
+    :attr:`pending_spills` so the wrapping middleware can flush the rows to
+    ``tool_output_spills`` before the model call. The spill id is generated up
+    front so the placeholder can reference it immediately.
 
     Args:
         trigger: Token threshold above which the edit fires.
@@ -97,8 +106,6 @@ class SpillToBackendEdit(ContextEdit):
         exclude_tools: Names of tools whose output is NOT spilled.
         clear_tool_inputs: Also clear the originating ``AIMessage.tool_calls``
             args when their pair is cleared.
-        path_prefix: Path under the backend where spills are written.
-            Default ``"/tool_outputs"``.
     """
 
     trigger: int = 100_000
@@ -106,12 +113,16 @@ class SpillToBackendEdit(ContextEdit):
     keep: int = 3
     clear_tool_inputs: bool = False
     exclude_tools: Sequence[str] = ()
-    path_prefix: str = DEFAULT_SPILL_PREFIX
 
-    pending_spills: list[tuple[str, bytes]] = field(default_factory=list)
+    # (spill_id, content_bytes, tool_name, thread_id)
+    pending_spills: list[tuple[uuid.UUID, bytes, str | None, str | None]] = field(
+        default_factory=list
+    )
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def drain_pending(self) -> list[tuple[str, bytes]]:
+    def drain_pending(
+        self,
+    ) -> list[tuple[uuid.UUID, bytes, str | None, str | None]]:
         """Return and clear the pending-spill list atomically."""
         with self._lock:
             out = list(self.pending_spills)
@@ -139,7 +150,7 @@ class SpillToBackendEdit(ContextEdit):
         if self.keep:
             candidates = candidates[: -self.keep]
 
-        thread_id = _get_thread_id_or_session()
+        thread_id = _get_thread_id()
         excluded_tools = set(self.exclude_tools)
 
         for idx, tool_message in candidates:
@@ -168,24 +179,23 @@ class SpillToBackendEdit(ContextEdit):
             if tool_name in excluded_tools:
                 continue
 
-            message_id = tool_message.id or tool_message.tool_call_id or "unknown"
-            spill_path = f"{self.path_prefix}/{thread_id}/{message_id}.txt"
-
+            message_key = tool_message.id or tool_message.tool_call_id or "unknown"
+            spill_id = _spill_id_for(thread_id, message_key)
             original = tool_message.content
             payload = self._encode_payload(original)
             with self._lock:
-                self.pending_spills.append((spill_path, payload))
+                self.pending_spills.append((spill_id, payload, tool_name, thread_id))
 
             messages[idx] = tool_message.model_copy(
                 update={
                     "artifact": None,
-                    "content": _build_spill_placeholder(spill_path),
+                    "content": _build_spill_placeholder(spill_id),
                     "response_metadata": {
                         **tool_message.response_metadata,
                         "context_editing": {
                             "cleared": True,
-                            "strategy": "spill_to_backend",
-                            "spill_path": spill_path,
+                            "strategy": "spill_to_db",
+                            "spill_id": str(spill_id),
                         },
                     },
                 }
@@ -243,52 +253,30 @@ class SpillToBackendEdit(ContextEdit):
         )
 
 
-BackendResolver = "Callable[[Any], BackendProtocol] | BackendProtocol"
-
-
 class SpillingContextEditingMiddleware(ContextEditingMiddleware):
     """:class:`ContextEditingMiddleware` that flushes :class:`SpillToBackendEdit` writes.
 
-    Runs the configured edits as the parent does, then flushes any
-    pending spills via the supplied backend resolver before delegating
-    to the model handler. Spill failures are logged but never abort the
-    model call — the placeholder text is already in the message, so the
-    worst case is the agent gets a placeholder it cannot follow up on.
+    Runs the configured edits as the parent does, then persists any pending
+    spills to ``tool_output_spills`` before delegating to the model handler.
+    Spill failures are logged but never abort the model call — the placeholder
+    text is already in the message, so the worst case is the agent gets a
+    placeholder it cannot follow up on.
     """
 
     def __init__(
         self,
         *,
         edits: Sequence[ContextEdit],
-        backend_resolver: BackendResolver | None = None,
+        workspace_id: int | None = None,
         token_count_method: str = "approximate",
     ) -> None:
         super().__init__(edits=list(edits), token_count_method=token_count_method)  # type: ignore[arg-type]
-        self._backend_resolver = backend_resolver
+        self._workspace_id = workspace_id
 
-    def _resolve_backend(self, request: ModelRequest) -> BackendProtocol | None:
-        if self._backend_resolver is None:
-            return None
-        if callable(self._backend_resolver):
-            try:
-                from langchain.tools import ToolRuntime
-
-                tool_runtime = ToolRuntime(
-                    state=getattr(request, "state", {}),
-                    context=getattr(request.runtime, "context", None),
-                    stream_writer=getattr(request.runtime, "stream_writer", None),
-                    store=getattr(request.runtime, "store", None),
-                    config=getattr(request.runtime, "config", None) or {},
-                    tool_call_id=None,
-                )
-                return self._backend_resolver(tool_runtime)
-            except Exception:
-                logger.exception("Failed to resolve spill backend")
-                return None
-        return self._backend_resolver  # type: ignore[return-value]
-
-    def _collect_pending(self) -> list[tuple[str, bytes]]:
-        out: list[tuple[str, bytes]] = []
+    def _collect_pending(
+        self,
+    ) -> list[tuple[uuid.UUID, bytes, str | None, str | None]]:
+        out: list[tuple[uuid.UUID, bytes, str | None, str | None]] = []
         for edit in self.edits:
             if isinstance(edit, SpillToBackendEdit):
                 out.extend(edit.drain_pending())
@@ -321,28 +309,37 @@ class SpillingContextEditingMiddleware(ContextEditingMiddleware):
 
         pending = self._collect_pending()
         if pending:
-            backend = self._resolve_backend(request)
-            if backend is not None:
-                try:
-                    await backend.aupload_files(pending)
-                except Exception:
-                    logger.exception(
-                        "Spill-to-backend upload failed (%d files); placeholders "
-                        "remain in messages but content is unrecoverable",
-                        len(pending),
-                    )
-            else:
-                logger.warning(
-                    "SpillToBackendEdit produced %d pending spills but no backend "
-                    "resolver was configured; content is unrecoverable",
-                    len(pending),
-                )
+            await self._flush_spills(pending)
 
         return await handler(request.override(messages=edited_messages))
 
+    async def _flush_spills(
+        self, pending: list[tuple[uuid.UUID, bytes, str | None, str | None]]
+    ) -> None:
+        """Persist spilled tool outputs to the DB (best-effort)."""
+        from app.capabilities.core.runs import record_spill
+        from app.db import async_session_maker
+
+        try:
+            async with async_session_maker() as session:
+                for spill_id, payload, tool_name, thread_id in pending:
+                    await record_spill(
+                        session,
+                        spill_id=spill_id,
+                        content=payload.decode("utf-8", errors="replace"),
+                        workspace_id=self._workspace_id,
+                        thread_id=thread_id,
+                        tool_name=tool_name,
+                    )
+        except Exception:
+            logger.exception(
+                "Spill-to-DB flush failed (%d rows); placeholders remain in "
+                "messages but content is unrecoverable",
+                len(pending),
+            )
+
 
 __all__ = [
-    "DEFAULT_SPILL_PREFIX",
     "ClearToolUsesEdit",
     "SpillToBackendEdit",
     "SpillingContextEditingMiddleware",

@@ -1,6 +1,6 @@
 """Lock creation-time model-policy enforcement in ``AutomationService``.
 
-Creation (REST + manual builder) rejects search spaces whose models aren't
+Creation (REST + manual builder) rejects workspaces whose models aren't
 billable for automations with HTTP 422, mirroring the runtime backstop. These
 tests isolate the new ``_assert_models_billable`` / ``model_eligibility`` paths
 without touching the DB commit.
@@ -29,13 +29,13 @@ pytestmark = pytest.mark.unit
 
 
 class _FakeSession:
-    def __init__(self, search_space: Any) -> None:
-        self._search_space = search_space
+    def __init__(self, workspace: Any) -> None:
+        self._workspace = workspace
         self.added: list[Any] = []
         self.commits = 0
 
     async def get(self, _model: Any, _pk: int) -> Any:
-        return self._search_space
+        return self._workspace
 
     def add(self, obj: Any) -> None:
         self.added.append(obj)
@@ -44,9 +44,9 @@ class _FakeSession:
         self.commits += 1
 
 
-def _service(search_space: Any) -> AutomationService:
+def _service(workspace: Any) -> AutomationService:
     return AutomationService(
-        session=_FakeSession(search_space),
+        session=_FakeSession(workspace),
         auth=AuthContext.session(SimpleNamespace(id="u-1")),
     )
 
@@ -81,7 +81,7 @@ async def test_assert_models_billable_raises_422_on_violation(
 async def test_assert_models_billable_raises_404_when_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A missing search space is a 404, not a policy error."""
+    """A missing workspace is a 404, not a policy error."""
     monkeypatch.setattr(
         automation_mod, "assert_automation_models_billable", lambda _ss: None
     )
@@ -93,23 +93,23 @@ async def test_assert_models_billable_raises_404_when_missing(
     assert exc_info.value.status_code == 404
 
 
-async def test_assert_models_billable_returns_search_space_when_ok(
+async def test_assert_models_billable_returns_workspace_when_ok(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When the policy accepts, the loaded search space is returned for reuse."""
+    """When the policy accepts, the loaded workspace is returned for reuse."""
     monkeypatch.setattr(
         automation_mod, "assert_automation_models_billable", lambda _ss: None
     )
 
-    search_space = SimpleNamespace(chat_model_id=-1)
-    service = _service(search_space)
-    assert await service._assert_models_billable(1) is search_space
+    workspace = SimpleNamespace(chat_model_id=-1)
+    service = _service(workspace)
+    assert await service._assert_models_billable(1) is workspace
 
 
-async def test_create_injects_captured_models_from_search_space(
+async def test_create_injects_captured_models_from_workspace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """create() snapshots the search space's model prefs onto the definition."""
+    """create() snapshots the workspace's model prefs onto the definition."""
     monkeypatch.setattr(
         automation_mod, "assert_automation_models_billable", lambda _ss: None
     )
@@ -124,14 +124,14 @@ async def test_create_injects_captured_models_from_search_space(
 
     monkeypatch.setattr(AutomationService, "_get_with_triggers_or_raise", _return_added)
 
-    search_space = SimpleNamespace(
+    workspace = SimpleNamespace(
         chat_model_id=-1,
         image_gen_model_id=5,
         vision_model_id=-1,
     )
-    service = _service(search_space)
+    service = _service(workspace)
     payload = AutomationCreate(
-        search_space_id=1,
+        workspace_id=1,
         name="A",
         definition=_definition(),
     )
@@ -148,7 +148,7 @@ async def test_create_injects_captured_models_from_search_space(
 async def test_create_treats_unset_prefs_as_auto_zero(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``None`` search-space prefs are captured as ``0`` (Auto) ids."""
+    """``None`` workspace prefs are captured as ``0`` (Auto) ids."""
     monkeypatch.setattr(
         automation_mod, "assert_automation_models_billable", lambda _ss: None
     )
@@ -163,13 +163,13 @@ async def test_create_treats_unset_prefs_as_auto_zero(
 
     monkeypatch.setattr(AutomationService, "_get_with_triggers_or_raise", _return_added)
 
-    search_space = SimpleNamespace(
+    workspace = SimpleNamespace(
         chat_model_id=None,
         image_gen_model_id=None,
         vision_model_id=None,
     )
-    service = _service(search_space)
-    payload = AutomationCreate(search_space_id=1, name="A", definition=_definition())
+    service = _service(workspace)
+    payload = AutomationCreate(workspace_id=1, name="A", definition=_definition())
 
     automation = await service.create(payload)
 
@@ -185,7 +185,7 @@ async def test_create_honors_selected_models_when_provided(
 ) -> None:
     """When the payload carries ``definition.models`` they are validated + kept.
 
-    The search-space snapshot path is bypassed entirely (no
+    The workspace snapshot path is bypassed entirely (no
     ``assert_automation_models_billable`` call).
     """
 
@@ -217,7 +217,7 @@ async def test_create_honors_selected_models_when_provided(
 
     service = _service(SimpleNamespace(chat_model_id=-99))
     payload = AutomationCreate(
-        search_space_id=1,
+        workspace_id=1,
         name="A",
         definition=_definition(
             models=AutomationModels(
@@ -257,7 +257,7 @@ async def test_create_rejects_unbillable_selected_models(
 
     service = _service(SimpleNamespace(chat_model_id=-3))
     payload = AutomationCreate(
-        search_space_id=1,
+        workspace_id=1,
         name="A",
         definition=_definition(
             models=AutomationModels(
@@ -284,7 +284,7 @@ async def test_update_preserves_captured_models(
         "vision_model_id": -1,
     }
     existing = SimpleNamespace(
-        search_space_id=1,
+        workspace_id=1,
         definition={"name": "A", "plan": [], "models": captured},
         version=3,
     )
@@ -315,7 +315,7 @@ async def test_update_honors_changed_models_when_valid(
 ) -> None:
     """A definition edit with a *changed* models block validates + keeps it."""
     existing = SimpleNamespace(
-        search_space_id=1,
+        workspace_id=1,
         definition={
             "name": "A",
             "plan": [],
@@ -376,7 +376,7 @@ async def test_update_rejects_changed_unbillable_models(
 ) -> None:
     """A *changed* non-billable models block is rejected with HTTP 422."""
     existing = SimpleNamespace(
-        search_space_id=1,
+        workspace_id=1,
         definition={
             "name": "A",
             "plan": [],
@@ -438,7 +438,7 @@ async def test_update_keeps_unchanged_models_without_revalidation(
         "vision_model_id": -1,
     }
     existing = SimpleNamespace(
-        search_space_id=1,
+        workspace_id=1,
         definition={"name": "A", "plan": [], "models": captured},
         version=3,
     )
@@ -477,7 +477,7 @@ async def test_model_eligibility_authorizes_and_returns_payload(
     authorized: dict[str, Any] = {}
 
     async def _fake_check_permission(_session, _user, ss_id, permission, _msg):
-        authorized["search_space_id"] = ss_id
+        authorized["workspace_id"] = ss_id
         authorized["permission"] = permission
 
     monkeypatch.setattr(automation_mod, "check_permission", _fake_check_permission)
@@ -488,8 +488,8 @@ async def test_model_eligibility_authorizes_and_returns_payload(
     )
 
     service = _service(SimpleNamespace(chat_model_id=-2))
-    result = await service.model_eligibility(search_space_id=5)
+    result = await service.model_eligibility(workspace_id=5)
 
     assert result == {"allowed": False, "violations": [{"kind": "image"}]}
-    assert authorized["search_space_id"] == 5
+    assert authorized["workspace_id"] == 5
     assert authorized["permission"] == "automations:read"

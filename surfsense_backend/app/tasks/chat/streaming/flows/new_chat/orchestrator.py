@@ -83,7 +83,7 @@ from app.tasks.chat.streaming.flows.shared.first_frames import (
 from app.tasks.chat.streaming.flows.shared.llm_bundle import load_llm_bundle
 from app.tasks.chat.streaming.flows.shared.pre_stream_setup import (
     get_chat_checkpointer,
-    setup_connector_and_firecrawl,
+    setup_connector_service,
 )
 from app.tasks.chat.streaming.flows.shared.premium_quota import (
     CreditReservation,
@@ -120,7 +120,7 @@ _background_tasks: set[asyncio.Task] = set()
 
 async def stream_new_chat(
     user_query: str,
-    search_space_id: int,
+    workspace_id: int,
     chat_id: int,
     user_id: str | None = None,
     llm_config_id: int = -1,
@@ -165,7 +165,7 @@ async def stream_new_chat(
     chat_error_category: str | None = None
     chat_span_cm, chat_span = open_chat_request_span(
         chat_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         flow=flow,
         request_id=request_id,
         turn_id=stream_result.turn_id,
@@ -194,7 +194,7 @@ async def stream_new_chat(
         flow=flow,
         request_id=request_id,
         thread_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
     )
 
@@ -217,7 +217,7 @@ async def stream_new_chat(
         pin_result = await resolve_initial_auto_pin(
             session,
             chat_id=chat_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             selected_llm_config_id=llm_config_id,
             requires_image_input=requires_image_input,
@@ -233,7 +233,7 @@ async def stream_new_chat(
         llm_config_id = pin_result.llm_config_id  # type: ignore[assignment]
 
         llm, agent_config, llm_load_error = await load_llm_bundle(
-            session, config_id=llm_config_id, search_space_id=search_space_id
+            session, config_id=llm_config_id, workspace_id=workspace_id
         )
         if llm_load_error:
             yield emit_stream_error(
@@ -273,7 +273,7 @@ async def stream_new_chat(
                     pin_fallback = await resolve_initial_auto_pin(
                         session,
                         chat_id=chat_id,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         selected_llm_config_id=0,
                         requires_image_input=requires_image_input,
@@ -300,7 +300,7 @@ async def stream_new_chat(
                     llm, agent_config, llm_load_error = await load_llm_bundle(
                         session,
                         config_id=llm_config_id,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                     )
                     if llm_load_error:
                         yield emit_stream_error(
@@ -325,7 +325,7 @@ async def stream_new_chat(
                         is_expected=True,
                         request_id=request_id,
                         thread_id=chat_id,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         message=(
                             "Premium quota exhausted on pinned model; "
@@ -376,11 +376,11 @@ async def stream_new_chat(
         )
 
         _t0 = time.perf_counter()
-        connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
-            session, search_space_id=search_space_id
+        connector_service = await setup_connector_service(
+            session, workspace_id=workspace_id
         )
         _perf_log.info(
-            "[stream_new_chat] Connector service + firecrawl key in %.3fs",
+            "[stream_new_chat] Connector service in %.3fs",
             time.perf_counter() - _t0,
         )
 
@@ -403,14 +403,13 @@ async def stream_new_chat(
         agent = await build_main_agent_for_thread(
             agent_factory,
             llm=llm,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
             user_id=user_id,
             thread_id=chat_id,
             agent_config=agent_config,
-            firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
@@ -427,7 +426,7 @@ async def stream_new_chat(
         assembled = await build_new_chat_input_state(
             session,
             chat_id=chat_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_query=user_query,
             user_image_data_urls=user_image_data_urls,
             mentioned_document_ids=mentioned_document_ids,
@@ -592,7 +591,7 @@ async def stream_new_chat(
         title_emitted = False
 
         runtime_context = build_new_chat_runtime_context(
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             mentioned_document_ids=mentioned_document_ids,
             accepted_folder_ids=accepted_folder_ids,
             mentioned_folder_ids=mentioned_folder_ids,
@@ -632,13 +631,13 @@ async def stream_new_chat(
             llm_config_id = await reroute_to_next_auto_pin(
                 session,
                 chat_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 current_llm_config_id=llm_config_id,
                 requires_image_input=requires_image_input,
             )
             new_llm, new_agent_config, llm_load_err = await load_llm_bundle(
-                session, config_id=llm_config_id, search_space_id=search_space_id
+                session, config_id=llm_config_id, workspace_id=workspace_id
             )
             if llm_load_err:
                 # Re-raise the original so the terminal-error path classifies
@@ -658,14 +657,13 @@ async def stream_new_chat(
             new_agent = await build_main_agent_for_thread(
                 agent_factory,
                 llm=llm,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 db_session=session,
                 connector_service=connector_service,
                 checkpointer=checkpointer,
                 user_id=user_id,
                 thread_id=chat_id,
                 agent_config=agent_config,
-                firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
@@ -683,7 +681,7 @@ async def stream_new_chat(
                 flow=flow,
                 request_id=request_id,
                 chat_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 previous_config_id=previous_config_id,
                 new_config_id=llm_config_id,
@@ -700,7 +698,7 @@ async def stream_new_chat(
             initial_step_id=initial_step_id,
             initial_step_title=initial_step_title,
             initial_step_items=initial_step_items,
-            fallback_commit_search_space_id=search_space_id,
+            fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
                 filesystem_selection.mode
@@ -793,7 +791,7 @@ async def stream_new_chat(
             streaming_service=streaming_service,
             request_id=request_id,
             chat_id=chat_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             chat_span=chat_span,
         )
@@ -826,7 +824,7 @@ async def stream_new_chat(
             await finalize_assistant_message(
                 stream_result=stream_result,
                 chat_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 accumulator=accumulator,
                 log_prefix="stream_new_chat",

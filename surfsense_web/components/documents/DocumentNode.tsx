@@ -4,11 +4,9 @@ import {
 	AlertCircle,
 	Clock,
 	Download,
-	Eye,
 	History,
 	MoreHorizontal,
 	Move,
-	Pencil,
 	RotateCcw,
 	Trash2,
 } from "lucide-react";
@@ -40,10 +38,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
+import { SidebarListItem } from "../layout/ui/sidebar/SidebarListItem";
 import { DND_TYPES } from "./FolderNode";
 import { isVersionableType } from "./version-history";
-
-const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
 
 export interface DocumentNodeDoc {
 	id: number;
@@ -59,7 +56,6 @@ interface DocumentNodeProps {
 	isMentioned: boolean;
 	onToggleChatMention: (doc: DocumentNodeDoc, isMentioned: boolean) => void;
 	onPreview: (doc: DocumentNodeDoc) => void;
-	onEdit: (doc: DocumentNodeDoc) => void;
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
 	onReset?: (doc: DocumentNodeDoc) => void;
@@ -68,7 +64,6 @@ interface DocumentNodeProps {
 	canDelete?: boolean;
 	canMove?: boolean;
 	canMention?: boolean;
-	canEdit?: boolean;
 	contextMenuOpen?: boolean;
 	onContextMenuOpenChange?: (open: boolean) => void;
 }
@@ -79,7 +74,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 	isMentioned,
 	onToggleChatMention,
 	onPreview,
-	onEdit,
 	onDelete,
 	onMove,
 	onReset,
@@ -88,7 +82,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 	canDelete = true,
 	canMove = true,
 	canMention = true,
-	canEdit = true,
 	contextMenuOpen,
 	onContextMenuOpenChange,
 }: DocumentNodeProps) {
@@ -99,10 +92,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isMemoryDocument =
 		doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
 	const isSelectable = canMention && !isUnavailable;
-	const isEditable =
-		canEdit &&
-		(isMemoryDocument || EDITABLE_DOCUMENT_TYPES.has(doc.document_type)) &&
-		!isUnavailable;
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
@@ -111,12 +100,20 @@ export const DocumentNode = React.memo(function DocumentNode({
 	}, [doc, isMentioned, isSelectable, onToggleChatMention]);
 
 	const handlePrimaryClick = useCallback(() => {
-		if (canMention) {
-			handleCheckChange();
-			return;
-		}
+		if (isUnavailable) return;
 		onPreview(doc);
-	}, [canMention, doc, handleCheckChange, onPreview]);
+	}, [doc, isUnavailable, onPreview]);
+
+	const handlePrimaryKeyDown = useCallback(
+		(event: React.KeyboardEvent<HTMLDivElement>) => {
+			if (event.currentTarget !== event.target) return;
+			if (event.key !== "Enter" && event.key !== " ") return;
+
+			event.preventDefault();
+			handlePrimaryClick();
+		},
+		[handlePrimaryClick]
+	);
 
 	const [{ isDragging }, drag] = useDrag(
 		() => ({
@@ -165,14 +162,17 @@ export const DocumentNode = React.memo(function DocumentNode({
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild>
-				<div
+				<SidebarListItem
 					ref={attachRef}
-					className={cn(
-						"group flex h-8 w-full items-center gap-2.5 rounded-md px-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer select-none text-left",
-						isMentioned && "bg-accent text-accent-foreground",
-						isDragging && "opacity-40"
-					)}
+					active={isMentioned}
+					dragging={isDragging}
+					className="gap-2.5 px-1"
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
+					role="button"
+					tabIndex={isUnavailable ? -1 : 0}
+					aria-disabled={isUnavailable}
+					onClick={handlePrimaryClick}
+					onKeyDown={handlePrimaryKeyDown}
 				>
 					{(() => {
 						if (statusState === "pending") {
@@ -249,17 +249,11 @@ export const DocumentNode = React.memo(function DocumentNode({
 						onOpenChange={handleTitleTooltipOpenChange}
 					>
 						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="ghost"
-								aria-disabled={canMention ? !isSelectable : false}
-								onClick={handlePrimaryClick}
-								className="h-full min-w-0 flex-1 justify-start bg-transparent px-0 py-0 text-left font-normal text-inherit hover:bg-transparent hover:text-inherit"
-							>
+							<span className="flex h-full min-w-0 flex-1 items-center text-left font-normal text-inherit">
 								<span ref={titleRef} className="min-w-0 flex-1 truncate">
 									{doc.title}
 								</span>
-							</Button>
+							</span>
 						</TooltipTrigger>
 						<TooltipContent side="bottom" className="max-w-xs break-words">
 							{doc.title}
@@ -305,16 +299,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 								className="w-40"
 								onClick={(e) => e.stopPropagation()}
 							>
-								<DropdownMenuItem onClick={() => onPreview(doc)} disabled={isUnavailable}>
-									<Eye className="mr-2 h-4 w-4" />
-									Open
-								</DropdownMenuItem>
-								{isEditable && (
-									<DropdownMenuItem onClick={() => onEdit(doc)}>
-										<Pencil className="mr-2 h-4 w-4" />
-										Edit
-									</DropdownMenuItem>
-								)}
 								{canMove && (
 									<DropdownMenuItem onClick={() => onMove(doc)}>
 										<Move className="mr-2 h-4 w-4" />
@@ -358,21 +342,11 @@ export const DocumentNode = React.memo(function DocumentNode({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</span>
-				</div>
+				</SidebarListItem>
 			</ContextMenuTrigger>
 
 			{contextMenuOpen && (
 				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
-					<ContextMenuItem onClick={() => onPreview(doc)} disabled={isUnavailable}>
-						<Eye className="mr-2 h-4 w-4" />
-						Open
-					</ContextMenuItem>
-					{isEditable && (
-						<ContextMenuItem onClick={() => onEdit(doc)}>
-							<Pencil className="mr-2 h-4 w-4" />
-							Edit
-						</ContextMenuItem>
-					)}
 					{canMove && (
 						<ContextMenuItem onClick={() => onMove(doc)}>
 							<Move className="mr-2 h-4 w-4" />

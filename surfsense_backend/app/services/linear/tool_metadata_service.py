@@ -90,7 +90,7 @@ class LinearToolMetadataService:
     def __init__(self, db_session: AsyncSession):
         self._db_session = db_session
 
-    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
+    async def get_creation_context(self, workspace_id: int, user_id: str) -> dict:
         """Return context needed to create a new Linear issue.
 
         Fetches all connected Linear workspaces, and for each one fetches
@@ -99,7 +99,7 @@ class LinearToolMetadataService:
         Returns a dict with key: workspaces (each entry has id, name, organization_name, teams, priorities).
         Returns a dict with key 'error' on failure.
         """
-        connectors = await self._get_all_linear_connectors(search_space_id, user_id)
+        connectors = await self._get_all_linear_connectors(workspace_id, user_id)
         if not connectors:
             return {"error": "No Linear account connected"}
 
@@ -155,7 +155,7 @@ class LinearToolMetadataService:
         return {"workspaces": workspaces}
 
     async def get_update_context(
-        self, search_space_id: int, user_id: str, issue_ref: str
+        self, workspace_id: int, user_id: str, issue_ref: str
     ) -> dict:
         """Return context needed to update an indexed Linear issue.
 
@@ -166,7 +166,7 @@ class LinearToolMetadataService:
         Returns a dict with keys: workspace, priorities, issue, team.
         Returns a dict with key 'error' if the issue is not found or API fails.
         """
-        document = await self._resolve_issue(search_space_id, user_id, issue_ref)
+        document = await self._resolve_issue(workspace_id, user_id, issue_ref)
         if not document:
             return {
                 "error": f"Issue '{issue_ref}' not found in your synced Linear issues. "
@@ -241,7 +241,7 @@ class LinearToolMetadataService:
         }
 
     async def get_delete_context(
-        self, search_space_id: int, user_id: str, issue_ref: str
+        self, workspace_id: int, user_id: str, issue_ref: str
     ) -> dict:
         """Return context needed to archive an indexed Linear issue.
 
@@ -250,7 +250,7 @@ class LinearToolMetadataService:
         Returns a dict with keys: workspace, issue.
         Returns a dict with key 'error' if the issue is not found.
         """
-        document = await self._resolve_issue(search_space_id, user_id, issue_ref)
+        document = await self._resolve_issue(workspace_id, user_id, issue_ref)
         if not document:
             return {
                 "error": f"Issue '{issue_ref}' not found in your synced Linear issues. "
@@ -332,7 +332,7 @@ class LinearToolMetadataService:
         return result.get("data", {}).get("issue")
 
     async def _resolve_issue(
-        self, search_space_id: int, user_id: str, issue_ref: str
+        self, workspace_id: int, user_id: str, issue_ref: str
     ) -> Document | None:
         """Resolve an issue from the KB using a 3-step fallback.
 
@@ -348,7 +348,7 @@ class LinearToolMetadataService:
             )
             .filter(
                 and_(
-                    Document.search_space_id == search_space_id,
+                    Document.workspace_id == workspace_id,
                     Document.document_type == DocumentType.LINEAR_CONNECTOR,
                     SearchSourceConnector.user_id == user_id,
                     or_(
@@ -368,13 +368,13 @@ class LinearToolMetadataService:
         return result.scalars().first()
 
     async def _get_all_linear_connectors(
-        self, search_space_id: int, user_id: str
+        self, workspace_id: int, user_id: str
     ) -> list[SearchSourceConnector]:
-        """Fetch all Linear connectors for the given search space and user."""
+        """Fetch all Linear connectors for the given workspace and user."""
         result = await self._db_session.execute(
             select(SearchSourceConnector).filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.LINEAR_CONNECTOR,

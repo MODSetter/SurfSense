@@ -92,7 +92,7 @@ async def test_create_document_allows_identical_content_at_different_paths() -> 
         session,  # type: ignore[arg-type]
         virtual_path="/documents/a/notes.md",
         content=content,
-        search_space_id=42,
+        workspace_id=42,
         created_by_id="user-1",
     )
     assert isinstance(first, Document)
@@ -104,7 +104,7 @@ async def test_create_document_allows_identical_content_at_different_paths() -> 
         session,  # type: ignore[arg-type]
         virtual_path="/documents/b/notes-copy.md",
         content=content,
-        search_space_id=42,
+        workspace_id=42,
         created_by_id="user-1",
     )
     assert isinstance(second, Document)
@@ -121,7 +121,7 @@ async def test_create_document_still_rejects_path_collision() -> None:
     """Path uniqueness remains the hard invariant.
 
     If ``unique_identifier_hash`` already points at an existing row in
-    the same search space, the create call must raise ``ValueError``
+    the same workspace, the create call must raise ``ValueError``
     with a clear message — matching the behavior the commit loop relies
     on to upsert via the existing-row code path.
     """
@@ -137,7 +137,7 @@ async def test_create_document_still_rejects_path_collision() -> None:
             session,  # type: ignore[arg-type]
             virtual_path="/documents/notes.md",
             content="anything",
-            search_space_id=42,
+            workspace_id=42,
             created_by_id="user-1",
         )
 
@@ -160,7 +160,7 @@ async def test_create_document_does_not_query_for_content_hash_collision(
         session,  # type: ignore[arg-type]
         virtual_path="/documents/notes.md",
         content="hello",
-        search_space_id=42,
+        workspace_id=42,
         created_by_id="user-1",
     )
     # Path-collision SELECT only. No content_hash SELECT.

@@ -3,7 +3,7 @@ import path from 'path';
 import { trackEvent } from './analytics';
 import { showErrorDialog } from './errors';
 import { getServerOrigin, getServerPort } from './server';
-import { setActiveSearchSpaceId } from './active-search-space';
+import { setActiveWorkspaceId } from './active-workspace';
 
 const isDev = !app.isPackaged;
 const isMac = process.platform === 'darwin';
@@ -140,14 +140,14 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   });
 
   // Auto-sync active search space from URL navigation
-  const syncSearchSpace = (url: string) => {
+  const syncWorkspace = (url: string) => {
     const match = url.match(/\/dashboard\/(\d+)/);
     if (match) {
-      setActiveSearchSpaceId(match[1]);
+      setActiveWorkspaceId(match[1]);
     }
   };
-  mainWindow.webContents.on('did-navigate', (_event, url) => syncSearchSpace(url));
-  mainWindow.webContents.on('did-navigate-in-page', (_event, url) => syncSearchSpace(url));
+  mainWindow.webContents.on('did-navigate', (_event, url) => syncWorkspace(url));
+  mainWindow.webContents.on('did-navigate-in-page', (_event, url) => syncWorkspace(url));
 
   if (isDev) {
     mainWindow.webContents.openDevTools();

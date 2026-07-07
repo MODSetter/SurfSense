@@ -28,7 +28,7 @@ export const connectionRead = z.object({
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: z.union([connectionScopeEnum, z.string()]),
-	search_space_id: z.number().nullable().optional(),
+	workspace_id: z.number().nullable().optional(),
 	user_id: z.string().nullable().optional(),
 	enabled: z.boolean(),
 	has_api_key: z.boolean(),
@@ -57,7 +57,7 @@ export const connectionCreateRequest = z.object({
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: connectionScopeEnum.default("SEARCH_SPACE"),
-	search_space_id: z.number().nullable().optional(),
+	workspace_id: z.number().nullable().optional(),
 	enabled: z.boolean().default(true),
 	models: z.array(modelSelection).default([]),
 });

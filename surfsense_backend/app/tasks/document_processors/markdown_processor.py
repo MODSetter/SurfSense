@@ -13,6 +13,7 @@ from app.utils.document_converters import (
     create_document_chunks,
     embed_text,
     generate_content_hash,
+    truncate_for_embedding,
 )
 
 from ._helpers import (
@@ -120,7 +121,7 @@ async def add_received_markdown_file_document(
     session: AsyncSession,
     file_name: str,
     file_in_markdown: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     connector: dict | None = None,
 ) -> Document | None:
@@ -131,14 +132,14 @@ async def add_received_markdown_file_document(
         session: Database session
         file_name: Name of the markdown file
         file_in_markdown: Content of the markdown file
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         connector: Optional connector info for Google Drive files
 
     Returns:
         Document object if successful, None if failed
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -155,11 +156,11 @@ async def add_received_markdown_file_document(
     try:
         # Generate unique identifier hash (uses file_id for Google Drive, filename for others)
         primary_hash, legacy_hash = get_google_drive_unique_identifier(
-            connector, file_name, search_space_id
+            connector, file_name, workspace_id
         )
 
         # Generate content hash
-        content_hash = generate_content_hash(file_in_markdown, search_space_id)
+        content_hash = generate_content_hash(file_in_markdown, workspace_id)
 
         # Check if document exists (with migration support for Google Drive and content_hash fallback)
         existing_document = await find_existing_document_with_migration(
@@ -182,7 +183,9 @@ async def add_received_markdown_file_document(
                 return doc
             # Content changed - continue to update
 
-        summary_content = f"File: {file_name}\n\n{file_in_markdown[:4000]}"
+        summary_content = (
+            f"File: {file_name}\n\n{truncate_for_embedding(file_in_markdown)}"
+        )
         summary_embedding = embed_text(summary_content)
 
         # Process chunks
@@ -214,7 +217,7 @@ async def add_received_markdown_file_document(
                 doc_type = DocumentType.GOOGLE_DRIVE_FILE
 
             document = Document(
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 title=file_name,
                 document_type=doc_type,
                 document_metadata={

@@ -6,11 +6,11 @@ import { KIND_META } from "./kind-meta";
 
 export function ArtifactCard({
 	artifact,
-	searchSpaceId,
+	workspaceId,
 	onOpen,
 }: {
 	artifact: LibraryArtifact;
-	searchSpaceId: number;
+	workspaceId: number;
 	onOpen: (artifact: LibraryArtifact) => void;
 }) {
 	const meta = KIND_META[artifact.kind];
@@ -50,7 +50,7 @@ export function ArtifactCard({
 
 			{artifact.sourceThreadId ? (
 				<Link
-					href={`/dashboard/${searchSpaceId}/new-chat/${artifact.sourceThreadId}`}
+					href={`/dashboard/${workspaceId}/new-chat/${artifact.sourceThreadId}`}
 					title="Open source chat"
 					className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
 				>

@@ -22,13 +22,13 @@ from app.db import (
 )
 from app.gateway.whatsapp.adapter_baileys import WhatsAppBaileysAdapter
 from app.users import get_auth_context
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 router = APIRouter(prefix="/gateway/whatsapp/baileys", tags=["gateway"])
 
 
 class BaileysPairRequest(BaseModel):
-    search_space_id: int
+    workspace_id: int
     phone_number: str
 
 
@@ -66,7 +66,7 @@ async def request_pairing_code(
 ) -> dict[str, Any]:
     user = auth.user
     _ensure_baileys_enabled()
-    await check_search_space_access(session, auth, body.search_space_id)
+    await check_workspace_access(session, auth, body.workspace_id)
     adapter = WhatsAppBaileysAdapter()
     try:
         pairing = await adapter.request_pairing_code(phone_number=body.phone_number)
@@ -79,7 +79,7 @@ async def request_pairing_code(
             platform=ExternalChatPlatform.WHATSAPP,
             mode=ExternalChatAccountMode.SELF_HOST_BYO,
             owner_user_id=user.id,
-            owner_search_space_id=body.search_space_id,
+            owner_workspace_id=body.workspace_id,
             is_system_account=False,
             cursor_state={},
             health_status=ExternalChatHealthStatus.UNKNOWN,
@@ -87,7 +87,7 @@ async def request_pairing_code(
         session.add(account)
     else:
         account.mode = ExternalChatAccountMode.SELF_HOST_BYO
-        account.owner_search_space_id = body.search_space_id
+        account.owner_workspace_id = body.workspace_id
         account.health_status = ExternalChatHealthStatus.UNKNOWN
         account.suspended_at = None
         account.suspended_reason = None

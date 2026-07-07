@@ -27,7 +27,7 @@ class BaseNotificationHandler:
         session: AsyncSession,
         user_id: UUID,
         operation_id: str,
-        search_space_id: int | None = None,
+        workspace_id: int | None = None,
     ) -> Notification | None:
         """Return the notification for ``operation_id``, if one exists."""
         query = select(Notification).where(
@@ -35,8 +35,8 @@ class BaseNotificationHandler:
             Notification.type == self.notification_type,
             Notification.notification_metadata["operation_id"].astext == operation_id,
         )
-        if search_space_id is not None:
-            query = query.where(Notification.search_space_id == search_space_id)
+        if workspace_id is not None:
+            query = query.where(Notification.workspace_id == workspace_id)
 
         result = await session.execute(query)
         return result.scalar_one_or_none()
@@ -48,12 +48,12 @@ class BaseNotificationHandler:
         operation_id: str,
         title: str,
         message: str,
-        search_space_id: int | None = None,
+        workspace_id: int | None = None,
         initial_metadata: dict[str, Any] | None = None,
     ) -> Notification:
         """Upsert a notification keyed by ``operation_id``."""
         notification = await self.find_notification_by_operation(
-            session, user_id, operation_id, search_space_id
+            session, user_id, operation_id, workspace_id
         )
 
         if notification:
@@ -77,7 +77,7 @@ class BaseNotificationHandler:
 
         notification = Notification(
             user_id=user_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             type=self.notification_type,
             title=title,
             message=message,

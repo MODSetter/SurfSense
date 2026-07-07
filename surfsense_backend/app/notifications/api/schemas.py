@@ -10,7 +10,7 @@ class NotificationResponse(BaseModel):
 
     id: int
     user_id: str
-    search_space_id: int | None
+    workspace_id: int | None
     type: str
     title: str
     message: str

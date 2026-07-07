@@ -8,7 +8,7 @@ Export is on-demand in multiple formats (PDF, DOCX, HTML, LaTeX, EPUB, ODT,
 plain text).  PDF uses pypandoc (Markdown->Typst) + typst-py; the rest use
 pypandoc directly with format-specific templates and options.
 
-Authorization: lightweight search-space membership checks (no granular RBAC)
+Authorization: lightweight workspace membership checks (no granular RBAC)
 since reports are chat-generated artifacts, not standalone managed resources.
 """
 
@@ -31,8 +31,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.db import (
     Report,
-    SearchSpace,
-    SearchSpaceMembership,
+    Workspace,
+    WorkspaceMembership,
     get_async_session,
 )
 from app.schemas import ReportContentRead, ReportContentUpdate, ReportRead
@@ -43,7 +43,7 @@ from app.templates.export_helpers import (
     get_typst_template_path,
 )
 from app.users import get_auth_context
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ async def _get_report_with_access(
     session: AsyncSession,
     auth: AuthContext,
 ) -> Report:
-    """Fetch a report and verify the user belongs to its search space.
+    """Fetch a report and verify the user belongs to its workspace.
 
     Raises HTTPException(404) if not found, HTTPException(403) if no access.
     """
@@ -171,8 +171,8 @@ async def _get_report_with_access(
         raise HTTPException(status_code=404, detail="Report not found")
 
     # Lightweight membership check - no granular RBAC, just "is the user a
-    # member of the search space this report belongs to?"
-    await check_search_space_access(session, auth, report.search_space_id)
+    # member of the workspace this report belongs to?"
+    await check_workspace_access(session, auth, report.workspace_id)
 
     return report
 
@@ -204,23 +204,23 @@ async def _get_version_siblings(
 async def read_reports(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=MAX_REPORT_LIST_LIMIT),
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     """
     List reports the user has access to.
-    Filters by search space membership.
+    Filters by workspace membership.
     """
     try:
-        if search_space_id is not None:
-            # Verify the caller is a member of the requested search space
-            await check_search_space_access(session, auth, search_space_id)
+        if workspace_id is not None:
+            # Verify the caller is a member of the requested workspace
+            await check_workspace_access(session, auth, workspace_id)
 
             result = await session.execute(
                 select(Report)
-                .filter(Report.search_space_id == search_space_id)
+                .filter(Report.workspace_id == workspace_id)
                 .order_by(Report.id.desc())
                 .offset(skip)
                 .limit(limit)
@@ -228,9 +228,9 @@ async def read_reports(
         else:
             result = await session.execute(
                 select(Report)
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
                 .order_by(Report.id.desc())
                 .offset(skip)
                 .limit(limit)
@@ -307,7 +307,7 @@ async def update_report_content(
     """
     Update the Markdown content of a report.
 
-    The caller must be a member of the search space the report belongs to.
+    The caller must be a member of the workspace the report belongs to.
     Returns the updated report content including version siblings.
     """
     try:

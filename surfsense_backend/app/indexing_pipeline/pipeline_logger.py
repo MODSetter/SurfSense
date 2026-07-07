@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PipelineLogContext:
     connector_id: int | None
-    search_space_id: int
+    workspace_id: int
     unique_id: str  # always available from ConnectorDocument
     doc_id: int | None = None  # set once the DB row exists (index phase only)
 
@@ -36,7 +36,7 @@ class LogMessages:
 def _format_context(ctx: PipelineLogContext) -> str:
     parts = [
         f"connector_id={ctx.connector_id}",
-        f"search_space_id={ctx.search_space_id}",
+        f"workspace_id={ctx.workspace_id}",
         f"unique_id={ctx.unique_id}",
     ]
     if ctx.doc_id is not None:

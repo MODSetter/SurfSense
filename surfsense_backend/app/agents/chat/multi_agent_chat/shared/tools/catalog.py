@@ -65,14 +65,6 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Search the user's knowledge base with hybrid semantic + keyword retrieval",
     ),
     ToolMetadata(
-        name="scrape_webpage",
-        description="Scrape and extract the main content from a webpage",
-    ),
-    ToolMetadata(
-        name="web_search",
-        description="Search the web for real-time information using configured search engines",
-    ),
-    ToolMetadata(
         name="create_automation",
         description="Draft an automation from an NL intent; user approves the card; tool saves",
     ),

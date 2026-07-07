@@ -11,21 +11,21 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_index_batch_creates_ready_documents(
-    db_session, db_search_space, make_connector_document, mocker
+    db_session, db_workspace, make_connector_document, mocker
 ):
     """index_batch prepares and indexes a batch, resulting in READY documents."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     docs = [
         make_connector_document(
             document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
             unique_id="msg-batch-1",
-            search_space_id=space_id,
+            workspace_id=space_id,
             source_markdown="## Email 1\n\nBody",
         ),
         make_connector_document(
             document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
             unique_id="msg-batch-2",
-            search_space_id=space_id,
+            workspace_id=space_id,
             source_markdown="## Email 2\n\nDifferent body",
         ),
     ]
@@ -36,7 +36,7 @@ async def test_index_batch_creates_ready_documents(
     assert len(results) == 2
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == space_id)
+        select(Document).filter(Document.workspace_id == space_id)
     )
     rows = result.scalars().all()
     assert len(rows) == 2

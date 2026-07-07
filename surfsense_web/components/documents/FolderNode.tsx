@@ -5,7 +5,6 @@ import {
 	ChevronDown,
 	ChevronRight,
 	Download,
-	Eye,
 	EyeOff,
 	Folder,
 	FolderOpen,
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
+import { SidebarListItem } from "@/components/layout/ui/sidebar/SidebarListItem";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -49,7 +49,7 @@ export interface FolderDisplay {
 	name: string;
 	position: string;
 	parentId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	metadata?: Record<string, unknown> | null;
 }
 
@@ -254,15 +254,14 @@ export const FolderNode = React.memo(function FolderNode({
 	return (
 		<ContextMenu onOpenChange={onContextMenuOpenChange}>
 			<ContextMenuTrigger asChild disabled={isRenaming}>
-				{/* biome-ignore lint/a11y/useSemanticElements: div required for drag/drop refs */}
-				<div
+				<SidebarListItem
 					ref={attachRef}
 					role="button"
 					tabIndex={0}
+					dragging={isDragging}
 					className={cn(
-						"group relative flex h-8 items-center gap-1 rounded-md px-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer select-none",
+						"relative gap-1 px-1",
 						isExpanded && "font-medium",
-						isDragging && "opacity-40",
 						isOver && canDrop && dropZone === "middle" && "bg-accent ring-1 ring-primary/40",
 						isOver && canDrop && dropZone === "top" && "border-t-2 border-primary",
 						isOver && canDrop && dropZone === "bottom" && "border-b-2 border-primary",
@@ -434,7 +433,7 @@ export const FolderNode = React.memo(function FolderNode({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					)}
-				</div>
+				</SidebarListItem>
 			</ContextMenuTrigger>
 
 			{!isRenaming && contextMenuOpen && (

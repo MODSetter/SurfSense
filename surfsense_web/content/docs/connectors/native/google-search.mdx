@@ -1,0 +1,39 @@
+---
+title: Google Search
+description: Search Google and get structured SERP results
+---
+
+The Google Search scraper runs searches and returns structured SERP data: organic results (title, URL, description), related queries, people-also-ask questions, and any AI overview.
+
+## Endpoint
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/google_search/scrape
+```
+
+## Inputs
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `queries` | required | 1–20 search terms or full Google Search URLs — terms are searched, URLs are scraped as-is |
+| `max_pages_per_query` | `1` | Result pages to fetch per query (max 10) |
+| `country_code` | — | Two-letter country to search from, e.g. `us`, `fr` |
+| `language_code` | — | Result language code (blank = Google default) |
+| `site` | — | Restrict results to a single domain, e.g. `example.com` |
+
+## Example
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/google_search/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "queries": ["open source notebooklm alternative"],
+    "max_pages_per_query": 2,
+    "country_code": "us"
+  }'
+```
+
+The response is `{ "items": [...] }` — one item per fetched SERP page. Billing is per SERP page.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Google Search → Scrape** in your workspace.

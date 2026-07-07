@@ -1,13 +1,11 @@
 "use client";
 
 import { ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { ArrowUpIcon, Globe, Paperclip, SquareIcon } from "lucide-react";
+import { ArrowUpIcon, Paperclip, SquareIcon } from "lucide-react";
 import { type FC, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
@@ -76,8 +74,6 @@ export const FreeComposer: FC = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const hasUploadedDoc = anonMode.isAnonymous && anonMode.uploadedDoc !== null;
-	const webSearchEnabled = anonMode.isAnonymous ? anonMode.webSearchEnabled : true;
-	const setWebSearchEnabled = anonMode.isAnonymous ? anonMode.setWebSearchEnabled : () => {};
 
 	const handleTextChange = useCallback(
 		(e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -99,7 +95,9 @@ export const FreeComposer: FC = () => {
 				gate("mention documents");
 				return;
 			}
-			if (e.key === "Enter" && !e.shiftKey) {
+			// Ignore Enter while an IME composition is active (e.g. confirming a
+			// Japanese/Chinese/Korean conversion) so it doesn't submit the message.
+			if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
 				e.preventDefault();
 				if (text.trim()) {
 					aui.composer().send();
@@ -205,26 +203,6 @@ export const FreeComposer: FC = () => {
 								? "Document limit reached. Create an account for more."
 								: "Upload a document (text files only)"}
 						</TooltipContent>
-					</Tooltip>
-
-					<Separator orientation="vertical" className="h-4" />
-
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<label
-								htmlFor="free-web-search-toggle"
-								className="flex cursor-pointer select-none items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-							>
-								<Globe className="size-3.5" />
-								<span className="hidden sm:inline">Web</span>
-								<Switch
-									id="free-web-search-toggle"
-									checked={webSearchEnabled}
-									onCheckedChange={setWebSearchEnabled}
-								/>
-							</label>
-						</TooltipTrigger>
-						<TooltipContent>Toggle web search</TooltipContent>
 					</Tooltip>
 				</div>
 

@@ -1,7 +1,7 @@
 # =============================================================================
 # SurfSense — Dependencies only (no backend / frontend / Celery images)
 # =============================================================================
-# Postgres, Redis, SearXNG, pgAdmin, Zero — run API + Next + Celery on the host.
+# Postgres, Redis, pgAdmin, Zero — run API + Next + Celery on the host.
 # Celery is not Dockerized here: use `uv run` from surfsense_backend/ (no extra
 # backend image build just for workers).
 #
@@ -9,7 +9,7 @@
 #   docker compose -f docker/docker-compose.deps-only.yml up -d
 #
 # Compose variable substitution uses `docker/.env` (copy from .env.example).
-# Bind mounts use ./postgresql.conf and ./searxng in this directory.
+# Bind mounts use ./postgresql.conf in this directory.
 #
 # Local Celery (from surfsense_backend/, after Redis is up):
 #   uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues=surfsense,surfsense.connectors
@@ -17,7 +17,6 @@
 #
 # Host setup:
 #   - Backend .env: DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense
-#   - Backend .env: SEARXNG_DEFAULT_HOST=http://localhost:${SEARXNG_PORT:-8888}
 #   - Backend .env: CELERY_BROKER_URL / REDIS_APP_URL → redis://localhost:6379/0
 #   - Web .env: NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:${ZERO_CACHE_PORT:-4848}
 #
@@ -76,20 +75,6 @@ services:
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  searxng:
-    image: searxng/searxng:2026.3.13-3c1f68c59
-    ports:
-      - "${SEARXNG_PORT:-8888}:8080"
-    volumes:
-      - ./searxng:/etc/searxng
-    environment:
-      - SEARXNG_SECRET=${SEARXNG_SECRET:-surfsense-searxng-secret}
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5

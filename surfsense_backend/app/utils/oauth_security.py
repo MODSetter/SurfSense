@@ -63,7 +63,7 @@ class OAuthStateManager:
         Generate cryptographically signed state parameter.
 
         Args:
-            space_id: The search space ID
+            space_id: The workspace ID
             user_id: The user ID
             **extra_fields: Additional fields to include in state (e.g., code_verifier for PKCE)
 

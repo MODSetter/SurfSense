@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { ArrowLeft, Info, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -41,7 +41,7 @@ interface ConnectorEditViewProps {
 	isSaving: boolean;
 	isDisconnecting: boolean;
 	isIndexing?: boolean;
-	searchSpaceId?: string;
+	workspaceId?: string;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -65,7 +65,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	isSaving,
 	isDisconnecting,
 	isIndexing = false,
-	searchSpaceId,
+	workspaceId,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -78,7 +78,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
-	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceIdAtom = useAtomValue(activeWorkspaceIdAtom);
 	const isAuthExpired = connector.config?.auth_expired === true;
 	const reauthEndpoint = getReauthEndpoint(connector);
 	const [reauthing, setReauthing] = useState(false);
@@ -91,7 +91,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		(connector.is_indexable || connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR);
 
 	const handleReauth = useCallback(async () => {
-		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
+		const spaceId = workspaceId ?? workspaceIdAtom;
 		if (!spaceId || !reauthEndpoint) return;
 		setReauthing(true);
 		try {
@@ -119,7 +119,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		} finally {
 			setReauthing(false);
 		}
-	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
+	}, [workspaceId, workspaceIdAtom, reauthEndpoint, connector.id]);
 
 	// Get connector-specific config component (MCP-backed connectors use a generic view)
 	const ConnectorConfigComponent = useMemo(() => {
@@ -273,7 +273,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}
-								searchSpaceId={searchSpaceId}
+								workspaceId={workspaceId}
 							/>
 						)}
 

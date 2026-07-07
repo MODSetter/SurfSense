@@ -8,7 +8,7 @@ export const purchaseStatusEnum = z.enum(["pending", "completed", "failed"]);
 
 export const createCreditCheckoutSessionRequest = z.object({
 	quantity: z.number().int().min(1).max(10_000),
-	search_space_id: z.number().int().min(1),
+	workspace_id: z.number().int().min(1),
 });
 
 export const createCreditCheckoutSessionResponse = z.object({
@@ -90,7 +90,7 @@ export const updateAutoReloadSettingsRequest = z.object({
 });
 
 export const createAutoReloadSetupSessionRequest = z.object({
-	search_space_id: z.number().int().min(1),
+	workspace_id: z.number().int().min(1),
 });
 
 export const createAutoReloadSetupSessionResponse = z.object({

@@ -59,7 +59,7 @@ class TestSpillEdit:
         assert edit.pending_spills == []
 
     def test_above_trigger_clears_and_records(self) -> None:
-        edit = SpillToBackendEdit(trigger=100, keep=1, path_prefix="/tool_outputs")
+        edit = SpillToBackendEdit(trigger=100, keep=1)
         msgs = _build_history(4)
         edit.apply(msgs, count_tokens=_approx_count)
 
@@ -102,7 +102,9 @@ class TestSpillEdit:
         assert edit.drain_pending() == []
 
     def test_placeholder_format(self) -> None:
-        path = "/tool_outputs/thread-1/tool-msg-0.txt"
-        text = _build_spill_placeholder(path)
-        assert path in text
-        assert "explore" in text  # mentions the recovery agent
+        import uuid
+
+        spill_id = uuid.uuid4()
+        text = _build_spill_placeholder(spill_id)
+        assert f"spill_{spill_id}" in text
+        assert "read_run" in text  # points at the recovery tools

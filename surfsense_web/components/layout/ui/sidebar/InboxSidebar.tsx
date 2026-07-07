@@ -58,6 +58,7 @@ import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { convertRenderedToDisplay } from "@/lib/comments/utils";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
@@ -165,7 +166,7 @@ export function InboxSidebarContent({
 	const router = useRouter();
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
-	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
+	const workspaceId = getWorkspaceIdNumber(params) ?? null;
 
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
@@ -203,11 +204,11 @@ export function InboxSidebarContent({
 	// Server-side search query
 	const searchTypeFilter = activeTab === "comments" ? ("new_mention" as const) : undefined;
 	const { data: searchResponse, isLoading: isSearchLoading } = useQuery({
-		queryKey: cacheKeys.notifications.search(searchSpaceId, debouncedSearch.trim(), activeTab),
+		queryKey: cacheKeys.notifications.search(workspaceId, debouncedSearch.trim(), activeTab),
 		queryFn: () =>
 			notificationsApiService.getNotifications({
 				queryParams: {
-					search_space_id: searchSpaceId ?? undefined,
+					workspace_id: workspaceId ?? undefined,
 					type: searchTypeFilter,
 					search: debouncedSearch.trim(),
 					limit: 50,
@@ -241,8 +242,8 @@ export function InboxSidebarContent({
 
 	// Fetch source types for the status tab filter
 	const { data: sourceTypesData } = useQuery({
-		queryKey: cacheKeys.notifications.sourceTypes(searchSpaceId),
-		queryFn: () => notificationsApiService.getSourceTypes(searchSpaceId ?? undefined),
+		queryKey: cacheKeys.notifications.sourceTypes(workspaceId),
+		queryFn: () => notificationsApiService.getSourceTypes(workspaceId ?? undefined),
 		staleTime: 60 * 1000,
 		enabled: activeTab === "status",
 	});
@@ -363,17 +364,17 @@ export function InboxSidebarContent({
 
 			if (item.type === "new_mention") {
 				if (isNewMentionMetadata(item.metadata)) {
-					const searchSpaceId = item.search_space_id;
+					const workspaceId = item.workspace_id;
 					const threadId = item.metadata.thread_id;
 					const commentId = item.metadata.comment_id;
 
-					if (searchSpaceId && threadId) {
+					if (workspaceId && threadId) {
 						if (commentId) {
 							setTargetCommentId(commentId);
 						}
 						const url = commentId
-							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
-							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
+							? `/dashboard/${workspaceId}/new-chat/${threadId}?commentId=${commentId}`
+							: `/dashboard/${workspaceId}/new-chat/${threadId}`;
 						onOpenChange(false);
 						onCloseMobileSidebar?.();
 						router.push(url);
@@ -381,17 +382,17 @@ export function InboxSidebarContent({
 				}
 			} else if (item.type === "comment_reply") {
 				if (isCommentReplyMetadata(item.metadata)) {
-					const searchSpaceId = item.search_space_id;
+					const workspaceId = item.workspace_id;
 					const threadId = item.metadata.thread_id;
 					const replyId = item.metadata.reply_id;
 
-					if (searchSpaceId && threadId) {
+					if (workspaceId && threadId) {
 						if (replyId) {
 							setTargetCommentId(replyId);
 						}
 						const url = replyId
-							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${replyId}`
-							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
+							? `/dashboard/${workspaceId}/new-chat/${threadId}?commentId=${replyId}`
+							: `/dashboard/${workspaceId}/new-chat/${threadId}`;
 						onOpenChange(false);
 						onCloseMobileSidebar?.();
 						router.push(url);

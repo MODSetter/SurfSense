@@ -28,7 +28,7 @@ class PodcastRepository:
         await self._session.flush()
         return podcast
 
-    async def latest_with_spec(self, search_space_id: int) -> Podcast | None:
+    async def latest_with_spec(self, workspace_id: int) -> Podcast | None:
         """Most recent podcast in the space that has a stored brief.
 
         Used to seed language/voice defaults for a new podcast from what the
@@ -37,7 +37,7 @@ class PodcastRepository:
         result = await self._session.execute(
             select(Podcast)
             .where(
-                Podcast.search_space_id == search_space_id,
+                Podcast.workspace_id == workspace_id,
                 Podcast.spec.is_not(None),
             )
             .order_by(Podcast.created_at.desc())

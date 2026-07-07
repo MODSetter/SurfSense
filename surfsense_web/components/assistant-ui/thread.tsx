@@ -14,7 +14,6 @@ import {
 	ChevronDown,
 	ChevronRight,
 	Clipboard,
-	Globe,
 	Plus,
 	Settings2,
 	SquareIcon,
@@ -23,7 +22,7 @@ import {
 	Wrench,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -57,7 +56,6 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ChatViewport } from "@/components/assistant-ui/chat-viewport";
-import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
@@ -95,6 +93,7 @@ import {
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
@@ -106,9 +105,12 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
+import { findPlatform, type PlaygroundPlatform } from "@/lib/playground/catalog";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import {
 	DocumentMentionPicker,
@@ -116,7 +118,8 @@ import {
 	promoteRecentMention,
 } from "../new-chat/document-mention-picker";
 
-const COMPOSER_PLACEHOLDER = "Ask anything, type / for prompts, type @ to mention docs";
+const COMPOSER_PLACEHOLDER =
+	"Track competitors, scrape platforms, automate briefs — / for prompts, @ for docs";
 
 type ComposerSuggestionAnchorPoint = {
 	left: number;
@@ -459,7 +462,9 @@ const Composer: FC = () => {
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
-	const { search_space_id, chat_id } = useParams();
+	const params = useParams();
+	const workspaceId = getWorkspaceIdNumber(params);
+	const chat_id = params.chat_id;
 	const aui = useAui();
 	// Desktop-only auto-focus; on mobile, programmatic focus would
 	// summon the soft keyboard on every picker close / thread switch.
@@ -713,6 +718,10 @@ const Composer: FC = () => {
 	// Arrow / Enter / Escape navigation for the active picker.
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			// While an IME composition is active (e.g. confirming a Japanese/Chinese/
+			// Korean conversion), let the Enter/Arrow keys reach the IME instead of
+			// driving picker navigation/selection.
+			if (e.nativeEvent.isComposing) return;
 			if (showPromptPicker) {
 				if (e.key === "ArrowDown") {
 					e.preventDefault();
@@ -821,7 +830,6 @@ const Composer: FC = () => {
 
 	const handleDocumentsMention = useCallback(
 		(mentions: MentionedDocumentInfo[]) => {
-			const parsedSearchSpaceId = Number(search_space_id);
 			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
@@ -829,8 +837,8 @@ const Composer: FC = () => {
 				const key = getMentionDocKey(mention);
 				if (editorDocKeys.has(key)) continue;
 				editorRef.current?.insertMentionChip(mention);
-				if (Number.isFinite(parsedSearchSpaceId)) {
-					promoteRecentMention(parsedSearchSpaceId, mention);
+				if (workspaceId) {
+					promoteRecentMention(workspaceId, mention);
 				}
 				// Track within the loop so a duplicate-in-batch can't double-insert.
 				editorDocKeys.add(key);
@@ -841,7 +849,7 @@ const Composer: FC = () => {
 			setMentionQuery("");
 			setSuggestionAnchorPoint(null);
 		},
-		[search_space_id]
+		[workspaceId]
 	);
 
 	useEffect(() => {
@@ -890,7 +898,7 @@ const Composer: FC = () => {
 						<ComposerSuggestionPopoverContent side="top">
 							<DocumentMentionPicker
 								ref={documentPickerRef}
-								searchSpaceId={Number(search_space_id)}
+								workspaceId={workspaceId ?? 0}
 								enableChatMentions
 								currentChatId={threadId}
 								onSelectionChange={handleDocumentsMention}
@@ -956,10 +964,9 @@ const Composer: FC = () => {
 					</div>
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
-						searchSpaceId={Number(search_space_id)}
+						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>
-					<ConnectorIndicator showTrigger={false} />
 				</div>
 				<ConnectToolsBanner
 					isThreadEmpty={isThreadEmpty}
@@ -975,15 +982,75 @@ const Composer: FC = () => {
 	);
 };
 
+/**
+ * Full-color brand marks for the platform-native scraper APIs (web, Google
+ * Search, Google Maps, Reddit, YouTube) available in this workspace, shown beside the
+ * composer "+" so the user can see these native endpoints are connected. Laid
+ * out as a clean row (not stacked) after a hairline divider that separates them
+ * from the composer actions. The capability registry is the source of truth;
+ * icons are display-only with a status tooltip. One-time staggered entrance,
+ * reduced-motion aware.
+ */
+const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => {
+	const { data: capabilities } = useScraperCapabilities(workspaceId);
+	const reduceMotion = useReducedMotion();
+
+	const platforms = useMemo<PlaygroundPlatform[]>(() => {
+		if (!capabilities?.length) return [];
+		const seen = new Set<string>();
+		const result: PlaygroundPlatform[] = [];
+		for (const cap of capabilities) {
+			const platformId = cap.name.split(".")[0];
+			if (seen.has(platformId)) continue;
+			seen.add(platformId);
+			const platform = findPlatform(platformId);
+			if (platform) result.push(platform);
+		}
+		return result;
+	}, [capabilities]);
+
+	if (platforms.length === 0) return null;
+
+	return (
+		<div className="hidden items-center gap-1 sm:flex">
+			<div aria-hidden className="h-5 w-px shrink-0 bg-border" />
+			<div className="flex items-center gap-0.5" aria-label="Connected data sources">
+				{platforms.map((platform, i) => {
+					const Icon = platform.icon;
+					return (
+						<Tooltip key={platform.id}>
+							<TooltipTrigger asChild>
+								<motion.span
+									initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{
+										duration: 0.2,
+										ease: [0.23, 1, 0.32, 1],
+										delay: reduceMotion ? 0 : i * 0.04,
+									}}
+									className="flex size-5 items-center justify-center"
+								>
+									<Icon className="size-3.5" />
+								</motion.span>
+							</TooltipTrigger>
+							<TooltipContent side="bottom">{platform.label} · Connected</TooltipContent>
+						</Tooltip>
+					);
+				})}
+			</div>
+		</div>
+	);
+};
+
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
-	searchSpaceId: number;
+	workspaceId: number;
 	onChatModelSelected?: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
 	isBlockedByOtherUser = false,
-	searchSpaceId,
+	workspaceId,
 	onChatModelSelected,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
@@ -1053,12 +1120,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		});
 	}, []);
 
-	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
-	const isWebSearchEnabled = hasWebSearchTool && !disabledToolsSet.has("web_search");
-	const filteredTools = useMemo(
-		() => agentTools?.filter((t) => t.name !== "web_search"),
-		[agentTools]
-	);
+	const filteredTools = agentTools;
 	const groupedTools = useMemo(() => {
 		if (!filteredTools) return [];
 		const toolsByName = new Map(filteredTools.map((t) => [t.name, t]));
@@ -1139,25 +1201,9 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									<Upload className="size-4" />
 									Upload Files
 								</DropdownMenuItem>
-								{hasWebSearchTool && (
-									<DropdownMenuItem
-										onSelect={(event) => {
-											event.preventDefault();
-											toggleTool("web_search");
-										}}
-									>
-										<Globe className="size-4" />
-										<span className="flex-1">Web Search</span>
-										<Switch
-											checked={isWebSearchEnabled}
-											tabIndex={-1}
-											className="pointer-events-none shrink-0 origin-right scale-[0.6]"
-										/>
-									</DropdownMenuItem>
-								)}
 								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 									<Unplug className="size-4" />
-									Manage Connectors
+									Manage External MCP Connectors
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
 									<Settings2 className="size-4" />
@@ -1375,26 +1421,10 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								<Camera className="h-4 w-4" />
 								Take a screenshot
 							</DropdownMenuItem>
-							{hasWebSearchTool && (
-								<DropdownMenuItem
-									onSelect={(event) => {
-										event.preventDefault();
-										toggleTool("web_search");
-									}}
-									className={cn(
-										"hover:bg-accent hover:text-accent-foreground",
-										isWebSearchEnabled && "text-primary"
-									)}
-								>
-									<Globe className="h-4 w-4" />
-									<span className="flex-1 min-w-0 truncate">Web Search</span>
-									<Switch
-										checked={isWebSearchEnabled}
-										tabIndex={-1}
-										className="pointer-events-none shrink-0 origin-right scale-[0.6]"
-									/>
-								</DropdownMenuItem>
-							)}
+							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
+								<Unplug className="h-4 w-4" />
+								Manage External MCP Connectors
+							</DropdownMenuItem>
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
 								onOpenChange={(open) => {
@@ -1587,6 +1617,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
+				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
 			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
@@ -1596,7 +1627,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 			)}
 			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
 				<ChatHeader
-					searchSpaceId={searchSpaceId}
+					workspaceId={workspaceId}
 					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
 					onChatModelSelected={onChatModelSelected}
 				/>

@@ -12,12 +12,12 @@ from app.agents.chat.shared.context import SurfSenseContextSchema
 
 def build_resume_chat_runtime_context(
     *,
-    search_space_id: int,
+    workspace_id: int,
     request_id: str | None,
     turn_id: str,
 ) -> SurfSenseContextSchema:
     return SurfSenseContextSchema(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         request_id=request_id,
         turn_id=turn_id,
     )

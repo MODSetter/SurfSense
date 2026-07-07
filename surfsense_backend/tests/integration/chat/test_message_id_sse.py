@@ -48,8 +48,8 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    SearchSpace,
     User,
+    Workspace,
 )
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat import persistence as persistence_module
@@ -68,11 +68,11 @@ pytestmark = pytest.mark.integration
 
 @pytest_asyncio.fixture
 async def db_thread(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ) -> NewChatThread:
     thread = NewChatThread(
         title="Test Chat",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         created_by_id=db_user.id,
         visibility=ChatVisibility.PRIVATE,
     )

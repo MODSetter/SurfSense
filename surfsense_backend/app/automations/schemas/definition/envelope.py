@@ -14,8 +14,8 @@ from .trigger_spec import TriggerSpec
 class AutomationModels(BaseModel):
     """Captured model profile for an automation.
 
-    Snapshotted from the search space's model roles at create time so runs are
-    insulated from later chat/search-space model changes. Model-id conventions
+    Snapshotted from the workspace's model roles at create time so runs are
+    insulated from later chat/workspace model changes. Model-id conventions
     match the shared scheme (``0`` Auto, ``< 0`` global, ``> 0`` BYOK).
     """
 
@@ -40,6 +40,6 @@ class AutomationDefinition(BaseModel):
     execution: Execution = Field(default_factory=Execution)
     metadata: Metadata = Field(default_factory=Metadata)
     # Captured server-side at create() and preserved across update(); resolved
-    # at runtime instead of the live search space. Optional so drafts/builder
+    # at runtime instead of the live workspace. Optional so drafts/builder
     # payloads validate without it.
     models: AutomationModels | None = None

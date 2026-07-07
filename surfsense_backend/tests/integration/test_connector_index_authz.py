@@ -1,13 +1,13 @@
-"""Cross-search-space authorization on the connector index endpoint.
+"""Cross-workspace authorization on the connector index endpoint.
 
-``POST /search-source-connectors/{connector_id}/index?search_space_id=<X>`` must
-authorize against the **connector's own** ``search_space_id`` (matching the
-read/update/delete handlers), not the caller-supplied ``search_space_id`` query
+``POST /search-source-connectors/{connector_id}/index?workspace_id=<X>`` must
+authorize against the **connector's own** ``workspace_id`` (matching the
+read/update/delete handlers), not the caller-supplied ``workspace_id`` query
 parameter, and must reject a connector that does not belong to the requested
-search space.
+workspace.
 
-Without this, a user who owns search space B could index another user's
-connector (which lives in space A) by passing ``search_space_id=B``: the
+Without this, a user who owns workspace B could index another user's
+connector (which lives in space A) by passing ``workspace_id=B``: the
 background indexer would run with the **victim connector's stored credentials**
 and write the fetched content into the attacker's space. These tests pin that
 boundary.
@@ -27,11 +27,11 @@ from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
     User,
+    Workspace,
 )
 from app.routes.search_source_connectors_routes import index_connector_content
-from app.routes.search_spaces_routes import create_default_roles_and_membership
+from app.routes.workspaces_routes import create_default_roles_and_membership
 
 pytestmark = pytest.mark.integration
 
@@ -39,9 +39,9 @@ pytestmark = pytest.mark.integration
 _CHECK_PERMISSION = "app.routes.search_source_connectors_routes.check_permission"
 
 
-async def _make_user_with_space(session: AsyncSession) -> tuple[User, SearchSpace]:
-    """A user plus a search space they own, with the default roles/membership
-    the ``POST /searchspaces`` route would create (so ``check_permission`` would
+async def _make_user_with_space(session: AsyncSession) -> tuple[User, Workspace]:
+    """A user plus a workspace they own, with the default roles/membership
+    the ``POST /workspaces`` route would create (so ``check_permission`` would
     legitimately pass for this user on this space)."""
     user = User(
         id=uuid.uuid4(),
@@ -53,7 +53,7 @@ async def _make_user_with_space(session: AsyncSession) -> tuple[User, SearchSpac
     )
     session.add(user)
     await session.flush()
-    space = SearchSpace(name=f"Space {uuid.uuid4().hex[:8]}", user_id=user.id)
+    space = Workspace(name=f"Space {uuid.uuid4().hex[:8]}", user_id=user.id)
     session.add(space)
     await session.flush()
     await create_default_roles_and_membership(session, space.id, user.id)
@@ -64,7 +64,7 @@ async def _make_user_with_space(session: AsyncSession) -> tuple[User, SearchSpac
 async def _make_connector(
     session: AsyncSession,
     owner: User,
-    space: SearchSpace,
+    space: Workspace,
     connector_type: SearchSourceConnectorType,
 ) -> SearchSourceConnector:
     connector = SearchSourceConnector(
@@ -77,7 +77,7 @@ async def _make_connector(
             "repo_full_names": ["octocat/Hello-World"],
         },
         is_indexable=True,
-        search_space_id=space.id,
+        workspace_id=space.id,
         user_id=owner.id,
     )
     session.add(connector)
@@ -90,7 +90,7 @@ class TestConnectorIndexCrossSpaceAuthz:
         self, db_session: AsyncSession
     ):
         """Attacker (owns space B) cannot index victim's connector (in space A)
-        by passing ``search_space_id=B``.
+        by passing ``workspace_id=B``.
 
         The mismatch is rejected with 404 **before** ``check_permission`` runs —
         which is essential, because that permission check *would* pass: the
@@ -108,13 +108,13 @@ class TestConnectorIndexCrossSpaceAuthz:
         ):
             await index_connector_content(
                 connector_id=connector_a.id,
-                search_space_id=space_b.id,  # the attacker's own space
+                workspace_id=space_b.id,  # the attacker's own space
                 session=db_session,
                 auth=AuthContext.session(attacker),
             )
 
         assert exc_info.value.status_code == 404
-        # Rejected at the search-space reconciliation, never reaching (or relying
+        # Rejected at the workspace reconciliation, never reaching (or relying
         # on) the permission check — which would have passed for space B.
         check_permission_mock.assert_not_awaited()
 
@@ -122,7 +122,7 @@ class TestConnectorIndexCrossSpaceAuthz:
         self, db_session: AsyncSession
     ):
         """A legitimate same-space index passes the reconciliation and authorizes
-        ``check_permission`` against the connector's **own** search space (not the
+        ``check_permission`` against the connector's **own** workspace (not the
         client-supplied query param)."""
         owner, space = await _make_user_with_space(db_session)
         # A "live" connector type returns early (no Celery dispatch) right after
@@ -139,11 +139,11 @@ class TestConnectorIndexCrossSpaceAuthz:
         ):
             await index_connector_content(
                 connector_id=connector.id,
-                search_space_id=space.id,  # the connector's own space
+                workspace_id=space.id,  # the connector's own space
                 session=db_session,
                 auth=AuthContext.session(owner),
             )
 
         check_permission_mock.assert_awaited_once()
         # The space passed to check_permission must be the connector's own space.
-        assert connector.search_space_id in check_permission_mock.await_args.args
+        assert connector.workspace_id in check_permission_mock.await_args.args

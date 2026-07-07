@@ -15,59 +15,43 @@ from app.agents.chat.multi_agent_chat.constants import (
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.google_maps.agent import (
+    build_subagent as build_google_maps_subagent,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.google_search.agent import (
+    build_subagent as build_google_search_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
     build_subagent as build_knowledge_base_subagent,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.mcp_discovery.agent import (
+    build_subagent as build_mcp_discovery_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
     build_subagent as build_memory_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.builtins.research.agent import (
-    build_subagent as build_research_subagent,
+from app.agents.chat.multi_agent_chat.subagents.builtins.reddit.agent import (
+    build_subagent as build_reddit_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.connectors.airtable.agent import (
-    build_subagent as build_airtable_subagent,
+from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent import (
+    build_subagent as build_web_crawler_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.connectors.calendar.agent import (
-    build_subagent as build_calendar_subagent,
+from app.agents.chat.multi_agent_chat.subagents.builtins.youtube.agent import (
+    build_subagent as build_youtube_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.connectors.clickup.agent import (
-    build_subagent as build_clickup_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.confluence.agent import (
-    build_subagent as build_confluence_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.discord.agent import (
-    build_subagent as build_discord_subagent,
-)
+
+# File connectors stay native — they enrich the knowledge base. Every other
+# connector (Slack/Jira/Linear/ClickUp/Airtable/Notion/Confluence/Gmail/
+# Calendar) migrated to hosted MCP under ``mcp_discovery``; Discord/Teams/Luma
+# were deprecated (no viable official MCP server). Their old packages are gone.
 from app.agents.chat.multi_agent_chat.subagents.connectors.dropbox.agent import (
     build_subagent as build_dropbox_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.gmail.agent import (
-    build_subagent as build_gmail_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.connectors.google_drive.agent import (
     build_subagent as build_google_drive_subagent,
 )
-from app.agents.chat.multi_agent_chat.subagents.connectors.jira.agent import (
-    build_subagent as build_jira_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.linear.agent import (
-    build_subagent as build_linear_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.luma.agent import (
-    build_subagent as build_luma_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.notion.agent import (
-    build_subagent as build_notion_subagent,
-)
 from app.agents.chat.multi_agent_chat.subagents.connectors.onedrive.agent import (
     build_subagent as build_onedrive_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.slack.agent import (
-    build_subagent as build_slack_subagent,
-)
-from app.agents.chat.multi_agent_chat.subagents.connectors.teams.agent import (
-    build_subagent as build_teams_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
@@ -90,25 +74,18 @@ class SubagentBuilder(Protocol):
 
 
 SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
-    "airtable": build_airtable_subagent,
-    "calendar": build_calendar_subagent,
-    "clickup": build_clickup_subagent,
-    "confluence": build_confluence_subagent,
     "deliverables": build_deliverables_subagent,
-    "discord": build_discord_subagent,
     "dropbox": build_dropbox_subagent,
-    "gmail": build_gmail_subagent,
     "google_drive": build_google_drive_subagent,
-    "jira": build_jira_subagent,
+    "google_maps": build_google_maps_subagent,
+    "google_search": build_google_search_subagent,
     "knowledge_base": build_knowledge_base_subagent,
-    "linear": build_linear_subagent,
-    "luma": build_luma_subagent,
+    "mcp_discovery": build_mcp_discovery_subagent,
     "memory": build_memory_subagent,
-    "notion": build_notion_subagent,
     "onedrive": build_onedrive_subagent,
-    "research": build_research_subagent,
-    "slack": build_slack_subagent,
-    "teams": build_teams_subagent,
+    "reddit": build_reddit_subagent,
+    "web_crawler": build_web_crawler_subagent,
+    "youtube": build_youtube_subagent,
 }
 
 
@@ -119,7 +96,7 @@ def _route_resource_package(builder: SubagentBuilder) -> str:
 
 def main_prompt_registry_subagent_lines(exclude: list[str]) -> list[tuple[str, str]]:
     """(name, description) for registry specialists included for **task** (same rules as ``build_subagents``)."""
-    banned = frozenset(("memory", "research")) | frozenset(exclude)
+    banned = frozenset(("memory",)) | frozenset(exclude)
     rows: list[tuple[str, str]] = []
     for name in sorted(SUBAGENT_BUILDERS_BY_NAME):
         if name in banned:
@@ -189,10 +166,10 @@ def build_subagents(
     disabled_tools: list[str] | None = None,
     ask_kb_tool: BaseTool | None = None,
 ) -> list[SubAgent]:
-    """Build registry subagents; skip memory/research; skip names in exclude."""
+    """Build registry subagents; skip memory; skip names in exclude."""
     mcp = mcp_tools_by_agent or {}
     specs: list[SubAgent] = []
-    excluded = ["memory", "research"]
+    excluded = ["memory"]
     if exclude:
         excluded.extend(exclude)
     disabled_names = frozenset(disabled_tools or ())

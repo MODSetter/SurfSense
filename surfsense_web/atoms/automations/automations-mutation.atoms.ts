@@ -26,15 +26,15 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 
 // Cache invalidation strategy:
-// - Automation writes invalidate the search-space list + the touched detail.
+// - Automation writes invalidate the workspace list + the touched detail.
 // - Trigger writes only invalidate the parent automation detail (triggers
 //   come back inline in AutomationDetail).
 // We deliberately invalidate the whole "automations" prefix on the list side
-// because list is keyed by (searchSpaceId, limit, offset) and we don't track
+// because list is keyed by (workspaceId, limit, offset) and we don't track
 // the active pagination in this layer.
 
-function invalidateList(searchSpaceId: number) {
-	queryClient.invalidateQueries({ queryKey: ["automations", "list", searchSpaceId] });
+function invalidateList(workspaceId: number) {
+	queryClient.invalidateQueries({ queryKey: ["automations", "list", workspaceId] });
 }
 
 function invalidateDetail(automationId: number) {
@@ -49,10 +49,10 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 		return automationsApiService.createAutomation(request);
 	},
 	onSuccess: (automation, variables) => {
-		invalidateList(variables.search_space_id);
+		invalidateList(variables.workspace_id);
 		toast.success("Automation created");
 		trackAutomationCreated({
-			search_space_id: variables.search_space_id,
+			workspace_id: variables.workspace_id,
 			automation_id: automation.id,
 			task_count: variables.definition.plan.length,
 			trigger_type: variables.triggers?.[0]?.type ?? "none",
@@ -67,7 +67,7 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 		console.error("Error creating automation:", error);
 		toast.error("Failed to create automation");
 		trackAutomationCreateFailed({
-			search_space_id: variables.search_space_id,
+			workspace_id: variables.workspace_id,
 			error: error.message,
 		});
 	},
@@ -80,20 +80,20 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 	},
 	onSuccess: (automation, vars) => {
 		invalidateDetail(vars.automationId);
-		invalidateList(automation.search_space_id);
+		invalidateList(automation.workspace_id);
 		toast.success("Automation updated");
 		// A status-only patch (pause/resume/archive) is a distinct action from a
 		// definition/name edit, so split it into its own event.
 		if (vars.patch.status && !vars.patch.definition) {
 			trackAutomationStatusChanged({
 				automation_id: vars.automationId,
-				search_space_id: automation.search_space_id,
+				workspace_id: automation.workspace_id,
 				next_status: vars.patch.status,
 			});
 		} else {
 			trackAutomationUpdated({
 				automation_id: vars.automationId,
-				search_space_id: automation.search_space_id,
+				workspace_id: automation.workspace_id,
 				has_definition_change: !!vars.patch.definition,
 				has_name_change: vars.patch.name != null,
 				has_description_change: vars.patch.description !== undefined,
@@ -113,17 +113,17 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 
 export const deleteAutomationMutationAtom = atomWithMutation(() => ({
 	meta: { suppressGlobalErrorToast: true },
-	mutationFn: async (vars: { automationId: number; searchSpaceId: number }) => {
+	mutationFn: async (vars: { automationId: number; workspaceId: number }) => {
 		await automationsApiService.deleteAutomation(vars.automationId);
 		return vars;
 	},
 	onSuccess: (vars) => {
-		invalidateList(vars.searchSpaceId);
+		invalidateList(vars.workspaceId);
 		invalidateDetail(vars.automationId);
 		toast.success("Automation deleted");
 		trackAutomationDeleted({
 			automation_id: vars.automationId,
-			search_space_id: vars.searchSpaceId,
+			workspace_id: vars.workspaceId,
 		});
 	},
 	onError: (error: Error, vars) => {

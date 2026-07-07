@@ -115,9 +115,9 @@ interface UrlCitationProps {
 }
 
 /**
- * Inline citation for live web search results (URL-based chunk IDs).
+ * Inline citation for URL-based chunk IDs (e.g. scraped/linked web pages).
  * Renders a compact chip with favicon + domain and a hover popover showing the
- * page title and snippet (extracted deterministically from web_search tool results).
+ * page title and snippet when citation metadata is available.
  */
 export const UrlCitation: FC<UrlCitationProps> = ({ url }) => {
 	const reactId = useId();

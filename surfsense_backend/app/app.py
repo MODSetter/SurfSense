@@ -465,7 +465,7 @@ async def _warm_agent_jit_caches() -> None:
     Doing one throwaway compile during ``lifespan`` startup pre-pays
     that cost so the *first real request* doesn't. We do NOT prime
     :mod:`agent_cache` because the cache key requires real
-    ``thread_id`` / ``user_id`` / ``search_space_id`` / etc. — the
+    ``thread_id`` / ``user_id`` / ``workspace_id`` / etc. — the
     throwaway agent is genuinely thrown away and immediately collected.
 
     Safety
@@ -613,6 +613,29 @@ async def _warm_embedding_model() -> None:
         )
 
 
+async def _sweep_stale_scraper_runs() -> None:
+    """Fail scraper runs left ``running`` by a previous process (single-process).
+
+    The async scraper door tracks in-flight runs as ``running``; a restart kills
+    those background tasks, so any such row at boot is dead. Non-fatal.
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        from app.capabilities.core.runs import fail_stale_running_runs
+        from app.db import async_session_maker
+
+        async with async_session_maker() as session:
+            swept = await fail_stale_running_runs(session)
+        if swept:
+            logger.info(
+                "[startup] Marked %d stale running scraper run(s) as error", swept
+            )
+    except Exception:
+        logger.warning(
+            "[startup] Stale scraper-run sweep failed (non-fatal)", exc_info=True
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tune GC: lower gen-2 threshold so long-lived garbage is collected
@@ -623,6 +646,7 @@ async def lifespan(app: FastAPI):
     _enable_slow_callback_logging(threshold_sec=0.5)
     init_otel(app)
     await create_db_and_tables()
+    await _sweep_stale_scraper_runs()
     await setup_checkpointer_tables()
     initialize_openrouter_integration()
     _start_openrouter_background_refresh()

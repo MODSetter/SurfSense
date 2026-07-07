@@ -11,9 +11,9 @@ export function hasEnabledChatModel(connections: ConnectionRead[]): boolean {
 export function isLlmOnboardingComplete(
 	chatModelId: number | null | undefined,
 	globalConnections: ConnectionRead[],
-	searchSpaceConnections: ConnectionRead[]
+	workspaceConnections: ConnectionRead[]
 ): boolean {
-	const connections = [...globalConnections, ...searchSpaceConnections];
+	const connections = [...globalConnections, ...workspaceConnections];
 	const resolvedChatModelId = chatModelId ?? 0;
 
 	if (resolvedChatModelId === 0) {

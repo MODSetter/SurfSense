@@ -111,7 +111,7 @@ async def check_no_circular_reference(
 
 async def generate_folder_position(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     parent_id: int | None,
     before_position: str | None = None,
     after_position: str | None = None,
@@ -129,7 +129,7 @@ async def generate_folder_position(
     query = (
         select(Folder.position)
         .where(
-            Folder.search_space_id == search_space_id,
+            Folder.workspace_id == workspace_id,
             Folder.parent_id == parent_id
             if parent_id is not None
             else Folder.parent_id.is_(None),
@@ -144,7 +144,7 @@ async def generate_folder_position(
 
 async def ensure_folder_hierarchy_with_depth_validation(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     path_segments: list[dict],
 ) -> Folder:
     """Create or return a nested folder chain, validating depth at each step.
@@ -163,7 +163,7 @@ async def ensure_folder_hierarchy_with_depth_validation(
         metadata = segment.get("metadata")
 
         stmt = select(Folder).where(
-            Folder.search_space_id == search_space_id,
+            Folder.workspace_id == workspace_id,
             Folder.name == name,
             Folder.parent_id == parent_id
             if parent_id is not None
@@ -174,12 +174,10 @@ async def ensure_folder_hierarchy_with_depth_validation(
 
         if folder is None:
             await validate_folder_depth(session, parent_id, subtree_depth=0)
-            position = await generate_folder_position(
-                session, search_space_id, parent_id
-            )
+            position = await generate_folder_position(session, workspace_id, parent_id)
             folder = Folder(
                 name=name,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 parent_id=parent_id,
                 position=position,
                 folder_metadata=metadata,

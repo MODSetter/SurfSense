@@ -42,7 +42,7 @@ async def build_agent_with_cache(
     final_system_prompt: str,
     backend_resolver: Any,
     filesystem_mode: FilesystemMode,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     thread_id: int | None,
     visibility: ChatVisibility,
@@ -69,7 +69,7 @@ async def build_agent_with_cache(
             final_system_prompt=final_system_prompt,
             backend_resolver=backend_resolver,
             filesystem_mode=filesystem_mode,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             thread_id=thread_id,
             visibility=visibility,
@@ -104,7 +104,7 @@ async def build_agent_with_cache(
         config_id,
         None if cross_thread else thread_id,
         user_id,
-        search_space_id,
+        workspace_id,
         visibility,
         filesystem_mode,
         anon_session_id,
@@ -120,7 +120,7 @@ async def build_agent_with_cache(
         sorted(disabled_tools) if disabled_tools else None,
         # Bound into the generate_image subagent tool at construction time, so it
         # must key the compiled-agent cache to avoid leaking one automation's
-        # image model into another with the same config_id/search_space.
+        # image model into another with the same config_id/workspace.
         image_gen_model_id_override,
     )
     return await get_cache().get_or_build(cache_key, builder=_build)

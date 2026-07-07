@@ -70,7 +70,7 @@ export type BuilderExecution = z.infer<typeof builderExecutionSchema>;
  * Per-automation model selection. ``0`` means "unset" — the builder resolves it
  * to the eligible default during render, and the resolved (non-zero) ids are
  * written onto ``definition.models`` at submit so the run is insulated from
- * later chat/search-space model changes.
+ * later chat/workspace model changes.
  */
 export const builderModelsSchema = z.object({
 	chatModelId: z.number().int(),
@@ -236,7 +236,7 @@ function buildDefinition(form: BuilderForm): AutomationDefinition {
 		metadata: { tags: form.tags },
 		// Only emit models when fully resolved (the builder seeds non-zero
 		// defaults before submit). A zero/unset triple is omitted so the
-		// backend falls back to the search-space snapshot.
+		// backend falls back to the workspace snapshot.
 		...(hasResolvedModels(form.models)
 			? {
 					models: {
@@ -267,11 +267,11 @@ export function buildScheduleTrigger(form: BuilderForm): TriggerCreateRequest | 
 
 export function buildCreatePayload(
 	form: BuilderForm,
-	searchSpaceId: number
+	workspaceId: number
 ): AutomationCreateRequest {
 	const trigger = buildScheduleTrigger(form);
 	return {
-		search_space_id: searchSpaceId,
+		workspace_id: workspaceId,
 		name: form.name.trim(),
 		description: form.description?.trim() ? form.description.trim() : null,
 		definition: buildDefinition(form),

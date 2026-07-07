@@ -16,7 +16,7 @@ from .access import accessible_threads
 async def resolve_chat_references(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     requesting_user_id: str | None,
     current_chat_id: int,
     thread_ids: list[int],
@@ -27,7 +27,7 @@ async def resolve_chat_references(
 
     threads = await accessible_threads(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         requesting_user_id=requesting_user_id,
         thread_ids=thread_ids,
         exclude_thread_id=current_chat_id,

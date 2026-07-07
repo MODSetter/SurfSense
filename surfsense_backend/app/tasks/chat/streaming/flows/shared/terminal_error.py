@@ -34,7 +34,7 @@ def handle_terminal_exception(
     streaming_service: VercelStreamingService,
     request_id: str | None,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     chat_span: Any,
 ) -> tuple[Iterator[str], dict[str, Any]]:
@@ -87,7 +87,7 @@ def handle_terminal_exception(
             flow=flow,
             request_id=request_id,
             thread_id=chat_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             message=user_message,
             error_kind=error_kind,

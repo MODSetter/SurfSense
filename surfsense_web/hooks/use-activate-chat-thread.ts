@@ -13,21 +13,20 @@ interface ActivateChatThreadInput {
 	id: number | null;
 	title?: string;
 	url?: string;
-	searchSpaceId: number | string;
+	workspaceId: number | string;
 	visibility?: ChatVisibility;
 	hasComments?: boolean;
 }
 
-function getSearchSpaceId(searchSpaceId: number | string): number {
-	const parsed =
-		typeof searchSpaceId === "number" ? searchSpaceId : Number.parseInt(searchSpaceId, 10);
+function getWorkspaceId(workspaceId: number | string): number {
+	const parsed = typeof workspaceId === "number" ? workspaceId : Number.parseInt(workspaceId, 10);
 	return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-function getChatUrl(searchSpaceId: number | string, threadId: number | null): string {
+function getChatUrl(workspaceId: number | string, threadId: number | null): string {
 	return threadId
-		? `/dashboard/${searchSpaceId}/new-chat/${threadId}`
-		: `/dashboard/${searchSpaceId}/new-chat`;
+		? `/dashboard/${workspaceId}/new-chat/${threadId}`
+		: `/dashboard/${workspaceId}/new-chat`;
 }
 
 export function useActivateChatThread() {
@@ -46,22 +45,22 @@ export function useActivateChatThread() {
 	);
 
 	const activateChatThread = useCallback(
-		({ id, title, url, searchSpaceId, visibility, hasComments }: ActivateChatThreadInput) => {
-			const numericSearchSpaceId = getSearchSpaceId(searchSpaceId);
-			const chatUrl = url ?? getChatUrl(searchSpaceId, id);
+		({ id, title, url, workspaceId, visibility, hasComments }: ActivateChatThreadInput) => {
+			const numericWorkspaceId = getWorkspaceId(workspaceId);
+			const chatUrl = url ?? getChatUrl(workspaceId, id);
 
 			syncChatTab({
 				chatId: id,
 				title: id ? title : (title ?? "New Chat"),
 				chatUrl,
-				searchSpaceId: numericSearchSpaceId,
+				workspaceId: numericWorkspaceId,
 				...(visibility !== undefined ? { visibility } : {}),
 				...(hasComments !== undefined ? { hasComments } : {}),
 			});
 
 			setCurrentThreadMetadata({
 				id,
-				searchSpaceId: numericSearchSpaceId,
+				workspaceId: numericWorkspaceId,
 				...(visibility !== undefined ? { visibility } : {}),
 				...(hasComments !== undefined ? { hasComments } : {}),
 			});

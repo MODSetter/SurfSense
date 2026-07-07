@@ -36,11 +36,11 @@ async def test_resolve_billing_for_auto_mode(monkeypatch):
         _no_auto_candidates,
     )
 
-    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
+    workspace = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
         session=None,
         config_id=0,  # IMAGE_GEN_AUTO_MODE_ID
-        search_space=search_space,
+        workspace=workspace,
     )
     assert tier == "free"
     assert model == "auto"
@@ -95,11 +95,11 @@ async def test_resolve_billing_for_premium_global_config(monkeypatch):
         raising=False,
     )
 
-    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
+    workspace = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
 
     # Premium with override.
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
-        session=None, config_id=-1, search_space=search_space
+        session=None, config_id=-1, workspace=workspace
     )
     assert tier == "premium"
     assert model == "openai/gpt-image-1"
@@ -109,7 +109,7 @@ async def test_resolve_billing_for_premium_global_config(monkeypatch):
     from app.services.billable_calls import DEFAULT_IMAGE_RESERVE_MICROS
 
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
-        session=None, config_id=-2, search_space=search_space
+        session=None, config_id=-2, workspace=workspace
     )
     assert tier == "free"
     # Provider-prefixed model string for OpenRouter.
@@ -125,9 +125,9 @@ async def test_resolve_billing_for_user_owned_byok_is_free():
     from app.routes import image_generation_routes
     from app.services.billable_calls import DEFAULT_IMAGE_RESERVE_MICROS
 
-    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
+    workspace = SimpleNamespace(id=1, user_id=None, image_gen_model_id=None)
     tier, model, reserve = await image_generation_routes._resolve_billing_for_image_gen(
-        session=None, config_id=42, search_space=search_space
+        session=None, config_id=42, workspace=workspace
     )
     assert tier == "free"
     assert model == "user_byok"
@@ -135,9 +135,9 @@ async def test_resolve_billing_for_user_owned_byok_is_free():
 
 
 @pytest.mark.asyncio
-async def test_resolve_billing_falls_back_to_search_space_default(monkeypatch):
+async def test_resolve_billing_falls_back_to_workspace_default(monkeypatch):
     """When the request omits ``image_gen_model_id``, the helper
-    must consult the search space's default — so a search space pinned
+    must consult the workspace's default — so a workspace pinned
     to a premium global config still gates new requests by quota.
     """
     from app.config import config
@@ -172,13 +172,13 @@ async def test_resolve_billing_falls_back_to_search_space_default(monkeypatch):
         raising=False,
     )
 
-    search_space = SimpleNamespace(id=1, user_id=None, image_gen_model_id=-7)
+    workspace = SimpleNamespace(id=1, user_id=None, image_gen_model_id=-7)
     (
         tier,
         model,
         _reserve,
     ) = await image_generation_routes._resolve_billing_for_image_gen(
-        session=None, config_id=None, search_space=search_space
+        session=None, config_id=None, workspace=workspace
     )
     assert tier == "premium"
     assert model == "openai/gpt-image-1"

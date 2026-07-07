@@ -7,8 +7,8 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
@@ -31,7 +31,7 @@ const TOUR_STEPS: TourStep[] = [
 	{
 		target: '[data-joyride="upload-button"]',
 		title: "Upload documents",
-		content: "Upload files to your search space.",
+		content: "Upload files to your workspace.",
 		placement: "left",
 	},
 	{
@@ -391,17 +391,17 @@ export function OnboardingTour() {
 
 	// Get user data
 	const { data: user } = useAtomValue(currentUserAtom);
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 
 	// Fetch threads data
 	const { data: threadsData } = useQuery({
-		queryKey: ["threads", searchSpaceId, { limit: 40 }], // Same key as layout
-		queryFn: () => fetchThreads(Number(searchSpaceId), 40),
-		enabled: !!searchSpaceId,
+		queryKey: ["threads", workspaceId, { limit: 40 }], // Same key as layout
+		queryFn: () => fetchThreads(Number(workspaceId), 40),
+		enabled: !!workspaceId,
 	});
 
 	// Real-time document type counts via Zero
-	const documentTypeCounts = useZeroDocumentTypeCounts(searchSpaceId);
+	const documentTypeCounts = useZeroDocumentTypeCounts(workspaceId);
 
 	// Get connectors
 	const { data: connectors = [] } = useAtomValue(connectorsAtom);
@@ -448,7 +448,7 @@ export function OnboardingTour() {
 	// Check if tour should run: localStorage + data validation with user ID tracking
 	useEffect(() => {
 		// Don't check if not mounted or no user
-		if (!mounted || !user?.id || !searchSpaceId) return;
+		if (!mounted || !user?.id || !workspaceId) return;
 
 		// Check if on new-chat page
 		const isNewChatPage = pathname?.includes("/new-chat");
@@ -459,7 +459,7 @@ export function OnboardingTour() {
 		// - threadsData is defined (query completed, even if empty)
 		// - documentTypeCounts is defined (query completed, even if empty object)
 		// - connectors is an array (always defined with default [])
-		// If searchSpaceId is not set, connectors query won't run, but that's okay
+		// If workspaceId is not set, connectors query won't run, but that's okay
 		const dataLoaded = threadsData !== undefined && documentTypeCounts !== undefined;
 		if (!dataLoaded) return;
 
@@ -542,7 +542,7 @@ export function OnboardingTour() {
 			cancelled = true;
 			if (startCheckTimerRef.current) clearTimeout(startCheckTimerRef.current);
 		};
-	}, [mounted, user?.id, searchSpaceId, pathname, threadsData, documentTypeCounts, connectors]);
+	}, [mounted, user?.id, workspaceId, pathname, threadsData, documentTypeCounts, connectors]);
 
 	// Update position on resize/scroll
 	useEffect(() => {

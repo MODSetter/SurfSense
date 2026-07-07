@@ -86,7 +86,7 @@ async def connect_airtable(
     Initiate Airtable OAuth flow.
 
     Args:
-        space_id: The search space ID
+        space_id: The workspace ID
         user: Current authenticated user
 
     Returns:
@@ -317,7 +317,7 @@ async def airtable_callback(
             connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
             is_indexable=False,
             config=credentials_dict,
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user_id,
         )
         session.add(new_connector)

@@ -18,13 +18,13 @@ pytestmark = pytest.mark.integration
 
 async def test_per_doc_chunk_limit_respected(db_session, seed_large_doc):
     """A document with 35 chunks should have at most _MAX_FETCH_CHUNKS_PER_DOC chunks returned."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = ChucksHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 
@@ -40,13 +40,13 @@ async def test_per_doc_chunk_limit_respected(db_session, seed_large_doc):
 
 async def test_doc_metadata_populated_from_rrf(db_session, seed_large_doc):
     """Document metadata (title, type, etc.) should be present even without joinedload."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = ChucksHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 
@@ -62,13 +62,13 @@ async def test_doc_metadata_populated_from_rrf(db_session, seed_large_doc):
 
 async def test_matched_chunk_ids_tracked(db_session, seed_large_doc):
     """matched_chunk_ids should contain the chunk IDs that appeared in the RRF results."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = ChucksHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 
@@ -83,13 +83,13 @@ async def test_matched_chunk_ids_tracked(db_session, seed_large_doc):
 
 async def test_chunks_ordered_by_id(db_session, seed_large_doc):
     """Chunks within each document should be ordered by chunk ID (original order)."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = ChucksHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 
@@ -100,13 +100,13 @@ async def test_chunks_ordered_by_id(db_session, seed_large_doc):
 
 async def test_score_is_positive_float(db_session, seed_large_doc):
     """Each result should have a positive float score from RRF."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = ChucksHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 

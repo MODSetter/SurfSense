@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the open-source competitive intelligence platform for AI agents" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,273 +20,253 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense
+# SurfSense: Give Your AI Agents Competitive Intelligence
 
-NotebookLM is one of the best and most useful AI platforms out there, but once you start using it regularly you also feel its limitations leaving something to be desired more.
+SurfSense is the **open-source competitive intelligence platform for AI agents**. Your agents monitor competitors, track rankings, and listen to your market with live data from **Reddit, YouTube, Google Maps, Google Search, and the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
 
-1. There are limits on the amount of sources you can add in a notebook.
-2. There are limits on the number of notebooks you can have.
-3. You cannot have sources that exceed 500,000 words and are more than 200MB.
-4. You are vendor locked in to Google services (LLMs, usage models, etc.) with no option to configure them.
-5. Limited external data sources and service integrations.
-6. NotebookLM Agent is specifically optimised for just studying and researching, but you can do so much more with the source data.
-7. Lack of multiplayer support.
+> [!NOTE]
+> **📢 A note for our NotebookLM-alternative users**
+>
+> For the past couple of months we built SurfSense as the best general research agent for your own knowledge, and that chapter earned us a community we are genuinely proud of. Agentic tools like Claude, OpenCode, Hermes, and OpenClaw have now proven that agents are the future, and general research is becoming something every capable agent does out of the box. What agents still lack is **live market data and the workflows around it**, so that is where we are pointing all of our energy: becoming the definitive open-source competitive intelligence agent platform.
+>
+> **Nothing you rely on is going away.** Your knowledge base, chat with citations, reports, podcasts, presentations, automations, and collaborative chats all keep working, and self-hosting stays free and open source. Read the full announcement on [our changelog](https://www.surfsense.com/changelog).
 
-...and more.
+## Table of contents
 
-**SurfSense is specifically made to solve these problems.** SurfSense empowers you to:
+- [Why agents need SurfSense](#why-agents-need-surfsense)
+- [What can you do with SurfSense?](#what-can-you-do-with-surfsense)
+- [Live data connectors](#live-data-connectors)
+- [Quick start](#quick-start)
+- [Everything else in the box](#everything-else-in-the-box)
+- [SurfSense vs Google NotebookLM](#surfsense-vs-google-notebooklm)
+- [Roadmap](#roadmap)
+- [Contribute](#contribute)
 
-- **Control Your Data Flow** - Keep your data private and secure.
-- **No Data Limits** - Add an unlimited amount of sources and notebooks.
-- **No Vendor Lock-in** - Configure any LLM, image, TTS, and STT models to use.
-- **25+ External Data Sources** - Add your sources from Google Drive, OneDrive, Dropbox, Notion, and many other external services.
-- **Real-Time Multiplayer Support** - Work easily with your team members in a shared notebook.
-- **AI File Sorting** - Automatically organize your documents into a smart folder hierarchy using AI-powered categorization by source, date, and topic.
-- **AI Automations & Agents** - Run AI agents on a schedule or trigger them the moment a document lands in a folder, then write results back to Notion, Slack, Linear, and Drive. Build no-code automations just by describing them in chat.
-- **Desktop App** - Get AI assistance in any application with Quick Assist, General Assist, Screenshot Assist, and local folder sync.
+## Why agents need SurfSense
 
-...and more to come.
+Ask any capable agent "what are competitors charging this week?" or "what is Reddit saying about us since the launch?" and it has nowhere trustworthy to look. Official platform APIs are rate-limited, priced for enterprises, or missing entirely, and scraping plumbing is brittle. SurfSense closes that gap:
 
+- **Platform-native connectors**, each a typed REST endpoint returning structured JSON. No rate-limit roulette, no HTML parsing.
+- **An MCP server** that exposes every connector as a native tool (`surfsense_reddit_scrape`, `surfsense_google_search`, and more) to Claude, Cursor, or any agent framework.
+- **An agent harness**, not just raw data: retries, structured output, and credit metering are built in, so agents go from a question to a brief without you building the plumbing.
+- **Open source and self-hostable**, so your competitive research stays on your own infrastructure.
 
+## What can you do with SurfSense?
 
-## Video Agent Sample
+Every use case below is a real task the SurfSense agent runs end-to-end today, in one prompt or on a schedule.
 
-https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
+### Multi-connector workflows
 
+Chain several connectors in a single agent run and get one cited brief back.
 
+- **Launch impact, across every platform** — "Our competitor launched v2 yesterday. Measure the reaction across search, Reddit, and YouTube." The agent scrapes SERPs, Reddit threads, and YouTube comments, then merges all three signals into one launch-impact brief.
+- **Local competitor teardown** — Google Maps finds the players, the web crawler reads their pricing pages, and Google Search shows who wins the query, in one run.
+- **Competitor 360, on a schedule** — an automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.
 
-## Podcast Agent Sample
+### Competitor monitoring
 
-https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
+- **Pricing watch** — extract every plan, price, and limit from competitors' pricing pages into one table, then re-check daily and alert on any change.
+- **Product & changelog tracking** — crawl rivals' changelog, product, and careers pages every Monday and get a brief on what they shipped.
+- **Rank & ad monitoring** — track the Google rankings, paid ads, and AI Overview citations your market actually sees, and flag movements day over day.
 
+### B2B lead generation
 
-## How to Use SurfSense
+- **Local business leads** — turn a category and a territory ("burger places in San Jose") into a lead list with phones, websites, ratings, and decision-maker contacts pulled from their sites.
+- **Team rosters & contacts** — spider any company site and pull the full team with emails, socials, and source provenance, exported to CSV.
+- **Portfolio & market mapping** — map an investor's portfolio or a whole category, then enrich every company with pricing and contacts.
 
-### Cloud
+### Brand & market listening
 
-1. Go to [surfsense.com](https://www.surfsense.com) and login.
+- **Reddit brand monitoring** — hear what your market says about you, your competitors, and your category in the threads where buyers speak candidly.
+- **YouTube audience sentiment** — pull videos, transcripts, and comments at scale, then cluster what audiences praise and complain about.
+- **Switcher & intent mining** — find the people actively asking for an alternative to a competitor, ranked by how ready they are to move.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/LoginFlowGif.gif" alt="Login" /></p>
+### Market research
 
-2. Connect your connectors and sync. Enable periodic syncing to keep connectors synced.
+- **Deep research on the live web** — the agent crawls dozens of live sources on a question and synthesizes a cited answer, not a stale index.
+- **AI Overview & GEO tracking** — capture when Google's AI Overviews answer your market's queries, and exactly which sources they cite.
+- **Cited briefs & alerts** — everything the agents gather lands in your workspace as briefs and alerts with sources you can check.
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connectors" /></p>
+### Automate any of it, no code
 
-3. Till connectors data index, upload Documents.
+Automations run full agent turns on a schedule or in response to events, then write results back to Notion, Slack, Linear, and Jira. Describe the workflow in plain English and SurfSense builds it. Try prompts like:
 
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Upload Documents" /></p>
+- "Watch our top 3 competitors' pricing pages and alert me in Slack when a plan or price changes."
+- "Track every mention of our brand on Reddit and YouTube and send me a daily digest."
+- "Monitor our Google ranking for our top 10 keywords and flag drops week over week."
+- "Pull new Google Maps reviews for our locations and our competitors' every Monday."
+- "Run a monthly competitor analysis report and save it to my workspace."
 
-4. Once everything is indexed, Ask Away (Use Cases):
+## Live data connectors
 
-   **Desktop App** (native extras on top of everything below, not a separate feature set)
+| Connector | What your agents get | Learn more |
+|---|---|---|
+| **Reddit** | Posts, comments, and subreddit streams without the official API's rate limits | [Reddit Scraper API](https://www.surfsense.com/reddit) |
+| **YouTube** | Videos, transcripts, and comment threads for brand and product listening | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **Google Maps** | Places, ratings, and reviews for local competitor and lead research | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
+| **Google Search** | Live SERPs for rank tracking and market monitoring | [Google Search API](https://www.surfsense.com/google-search) |
+| **Web Crawl** | Any page on the open web as clean, structured content | [Web Crawling API](https://www.surfsense.com/web-crawl) |
+| **External MCP Connectors** | Bring any MCP server to your agents, with one-click OAuth for Notion, Slack, Jira, and more | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
-   - General Assist: launch SurfSense instantly from any application with a global shortcut.
+Billing is pay as you go: connectors bill per item actually returned, crawls per page successfully fetched, and failed calls are never billed. Self-hosted installs run with billing off. See [pricing](https://www.surfsense.com/pricing).
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/general_assist.gif" alt="General Assist" /></p>
+## Quick start
 
-   - Quick Assist: select text anywhere, then ask AI to explain, rewrite, or act on it.
+### Call a connector from code
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+Every connector is a REST endpoint you can call from any language with your SurfSense API key:
 
-   - Screenshot Assist: capture any region of your screen and ask AI about what's in it.
+```bash
+curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_queries": ["your brand"],
+    "community": "webscraping",
+    "sort": "top",
+    "time_filter": "week"
+  }'
+```
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/screenshot_assist.gif" alt="Screenshot Assist" /></p>
+Each [connector page](https://www.surfsense.com/connectors) has copy-paste examples in Python, JavaScript, Go, PHP, Ruby, Java, and C#.
 
-   - Watch Local Folder: auto-sync a local folder to your knowledge base. Great for Obsidian vaults.
+### Give the tools to your agents over MCP
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/folder_watch.gif" alt="Watch Local Folder" /></p>
+Add the SurfSense MCP server to Claude, Cursor, or your own agent framework:
 
-   **Deliverable Studio**
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "url": "https://mcp.surfsense.com",
+      "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
+    }
+  }
+}
+```
 
-   - AI Report Generator: generate cited research reports and export to PDF, DOCX, HTML, LaTeX, EPUB, ODT, or plain text.
+Your agent can now call every connector as a native tool. See the [SurfSense MCP server](https://www.surfsense.com/mcp-server) page for the full tool list, or run the server locally from [`surfsense_mcp`](./surfsense_mcp).
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
+### Use the cloud
 
-   - AI Podcast Generator: turn any document or folder into a two-host AI podcast in under 20 seconds.
+Go to [surfsense.com](https://www.surfsense.com), log in, and ask the agent for live market data in plain English. New accounts start with $5 of free credit and no subscription.
 
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/PodcastGenGif.gif" alt="AI Podcast Generator" /></p>
+### Self-host for free
 
-   - AI Presentation & Video Maker: create editable slide decks and narrated video overviews from your sources.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/video_gen_gif.gif" alt="AI Presentation and Video Maker" /></p>
-
-   - AI Image Generator: generate high-quality images straight from your chats and documents.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ImageGenGif.gif" alt="AI Image Generator" /></p>
-
-   - AI Resume Builder: tailor your existing resume to any job description and beat the ATS.
-     Try prompts like these:
-
-     - "Tailor my resume to this job description so it gets past ATS and lands an interview."
-     - "Optimize my resume for ATS by matching the keywords in this job posting."
-     - "Rewrite my resume bullet points to highlight the skills this role is asking for."
-     - "Compare my resume against this job description and list the gaps to fix."
-     - "Write a matching cover letter from my resume and this job description."
-
-   **Search & Chat**
-
-   - Chat With Your PDFs & Docs: ask questions across all your files and get answers with inline citations.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
-
-   - AI Search With Citations: hybrid semantic and keyword search across your entire knowledge base.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BSNCGif.gif" alt="AI Search With Citations" /></p>
-
-   - Collaborative AI Chat: work on AI conversations with your team in real time.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
-
-   - Comments & Mentions: comment and tag teammates on any AI message.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comments and Mentions" /></p>
-
-   **Connectors & Integrations**
-
-   - Connect & Sync Your Tools: sync Notion, Slack, Google Drive, Gmail, GitHub, Linear and 25+ sources into one searchable corpus.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ConnectorFlowGif.gif" alt="Connect and Sync Your Tools" /></p>
-
-   - Chat With Uploaded Files: drop in PDFs, Office docs, images and audio. Instantly searchable.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/DocUploadGif.gif" alt="Chat With Uploaded Files" /></p>
-
-   - Connector Write-Back: let the agent post results back to Notion, Slack, Linear and Drive.
-     Try prompts like these:
-
-     - "Post this research summary to my Notion workspace."
-     - "Send these meeting action items to our team Slack channel."
-     - "Create a Jira ticket from this bug report."
-     - "Open a Linear issue from this feature request."
-     - "Save this generated report to Google Drive as a doc."
-
-   - Obsidian & Knowledge Base Sync: keep your Obsidian vault and personal knowledge base in sync.
-
-   **Automations**
-
-   - Scheduled AI Workflows: run an agent on a schedule: daily briefs, weekly digests, recurring reports.
-     Try prompts like these:
-
-     - "Email me a daily brief of new documents in my knowledge base every morning."
-     - "Generate a weekly status report from my Slack and Gmail every Friday."
-     - "Run a monthly competitor analysis report and save it to my workspace."
-     - "Summarize my GitHub and Linear activity into a daily standup update."
-     - "Create a recurring weekly research report on the topics I track."
-
-   - Event-Triggered Automations: fire an agent the moment a document lands in a folder, then post the result to your tools.
-     Try prompts like these:
-
-     - "When a PDF lands in my Research folder, generate a cited AI summary."
-     - "When new meeting notes are added, turn them into meeting minutes with action items."
-     - "When an invoice is uploaded, extract the vendor, total, and due date into a table."
-     - "When a contract enters my Legal folder, flag key terms and renewal dates."
-     - "When a resume is added to Candidates, screen it against the job description."
-
-   - Chat-Built Automations: describe an automation in plain English and SurfSense builds it for you.
-     Try prompts like these:
-
-     - "Build an AI agent that emails me a summary of new Notion pages each morning."
-     - "Create a no-code automation that posts a weekly research digest to Slack."
-     - "Set up an AI note taker that turns new meeting notes into minutes."
-     - "Make a workflow that extracts action items from meeting notes and assigns owners."
-     - "Automate a daily email brief from my Gmail and Google Drive."
-
-
-### Self Hosted
-
-Run SurfSense on your own infrastructure for full data control and privacy.
+Run the entire platform, connectors, agents, automations, and the MCP server on your own infrastructure. Self-hosted installs ship with billing off, so scraping, crawling, and agent runs are limited only by your hardware and the model keys you bring.
 
 **Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
 
-#### For Linux/MacOS users:
+For Linux/macOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-#### For Windows users:
+For Windows:
 
 ```bash
 irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
-The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag.
+The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag. For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
 
-For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
+## Everything else in the box
 
-### Desktop App
+The research workspace that made SurfSense the leading open-source NotebookLM alternative is still here, and everything your agents gather lands in it.
 
-SurfSense also ships a desktop app that brings AI assistance to every application on your computer. Download it from the [latest release](https://github.com/MODSetter/SurfSense/releases/latest).
+**Knowledge base**
 
-The desktop app includes these powerful features:
+- Upload PDFs, Office docs, images, and audio, or sync **Google Drive, OneDrive, and Dropbox**. 50+ file formats supported.
+- Hybrid semantic and full-text search with cited, Perplexity-style answers.
+- AI file sorting auto-organizes documents by source, date, and topic.
 
-- **General Assist** — Launch SurfSense instantly from any application with a global shortcut.
-- **Quick Assist** — Select text anywhere, then ask AI to explain, rewrite, or act on it.
-- **Screenshot Assist** — Select a region on your screen and attach it to chat so answers stay grounded in your knowledge base.
-- **Watch Local Folder** — Watch a local folder and automatically sync file changes to your knowledge base. **Pro tip:** Point it at your Obsidian vault to keep your notes searchable in SurfSense.
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
 
-All features operate against your chosen search space, so your answers are always grounded in your own data.
+**Deliverable studio**
 
-### How to Realtime Collaborate (Beta)
+- AI report generator with export to PDF, DOCX, HTML, LaTeX, EPUB, ODT, or plain text.
+- Two-host AI podcasts from any document or folder in under 20 seconds.
+- Editable slide decks, narrated video overviews, and AI image generation.
 
-1. Go to Manage Members page and create an invite.
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
+
+**Team collaboration**
+
+- Real-time collaborative AI chats with comments and mentions.
+- RBAC with Owner, Admin, Editor, and Viewer roles.
+
+<p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
+
+**Desktop app**
+
+Native AI assistance in every application on your computer. Download from the [latest release](https://github.com/MODSetter/SurfSense/releases/latest).
+
+- **General Assist**: launch SurfSense from any app with a global shortcut.
+- **Quick Assist**: select text anywhere, then ask AI to explain, rewrite, or act on it.
+- **Screenshot Assist**: capture any region of your screen and ask AI about it.
+- **Watch Local Folder**: auto-sync a local folder to your knowledge base. Point it at your Obsidian vault to keep your notes searchable.
+
+<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
+
+**No vendor lock-in**
+
+- 100+ LLMs via the OpenAI spec and LiteLLM, including GPT-5.5, Claude Sonnet 5, and Gemini 3.1 Pro.
+- 6,000+ embedding models and all major rerankers.
+- Full local and private LLM support (vLLM, Ollama), so your data stays yours.
+
+## Video Agent Sample
+
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
+
+## Podcast Agent Sample
+
+https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
+
+## How to collaborate in real time (Beta)
+
+1. Go to the Manage Members page and create an invite.
 
    <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="Invite Members" /></p>
 
-2. Teammate joins and that SearchSpace becomes shared.
+2. A teammate joins and that workspace becomes shared.
 
    <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="Invite Join Flow" /></p>
 
-3. Make chat shared.
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/17b93904-0888-4c3a-ac12-51a24a8ea26a" alt="Make Chat Shared" /></p>
-
-4. Your team can now chat in realtime.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Realtime Chat" /></p>
-
-5. Add comment to tag teammates.
+3. Make a chat shared and work in it together in real time, with comments to tag teammates.
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Realtime Comments" /></p>
 
 ## SurfSense vs Google NotebookLM
 
+Still comparing us as a NotebookLM alternative? Here is the honest breakdown.
+
 | Feature | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
+| **Live market data for agents** | No | Reddit, YouTube, Google Maps, Google Search, and web crawl connectors via REST API and MCP |
+| **MCP server** | No | Every connector exposed as a native agent tool, plus bring-your-own MCP servers with one-click OAuth apps |
 | **Sources per Notebook** | 50 (Free) to 600 (Ultra, $249.99/mo) | Unlimited |
 | **Number of Notebooks** | 100 (Free) to 500 (paid tiers) | Unlimited |
 | **Source Size Limit** | 500,000 words / 200MB per source | No limit |
-| **Pricing** | Free tier available; Pro $19.99/mo, Ultra $249.99/mo | Free and open source, self-host on your own infra |
+| **Pricing** | Free tier; Pro $19.99/mo, Ultra $249.99/mo | Free and open source to self-host; cloud is pay as you go with $5 free credit |
 | **LLM Support** | Google Gemini only | 100+ LLMs via OpenAI spec & LiteLLM |
 | **Embedding Models** | Google only | 6,000+ embedding models, all major rerankers |
-| **Local / Private LLMs** | Not available | Full support (vLLM, Ollama) - your data stays yours |
-| **Self Hostable** | No | Yes - Docker one-liner or full Docker Compose |
+| **Local / Private LLMs** | Not available | Full support (vLLM, Ollama), your data stays yours |
+| **Self Hostable** | No | Yes, Docker one-liner or full Docker Compose |
 | **Open Source** | No | Yes |
-| **External Connectors** | Google Drive, YouTube, websites | 27+ connectors - Search Engines, Google Drive, OneDrive, Dropbox, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |
-| **File Format Support** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, images, web URLs, YouTube | 50+ formats - documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
-| **Search** | Semantic search | Hybrid Search - Semantic + Full Text with Hierarchical Indices & Reciprocal Rank Fusion |
-| **Cited Answers** | Yes | Yes - Perplexity-style cited responses |
-| **Agentic Architecture** | No | Yes - powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) with planning, subagents, and file system access |
+| **Knowledge Base Sources** | Google Drive, YouTube, websites | File uploads, Google Drive, OneDrive, Dropbox, local folder sync, and crawled pages |
+| **File Format Support** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, images, web URLs, YouTube | 50+ formats: documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
+| **Search** | Semantic search | Hybrid semantic + full-text with hierarchical indices & reciprocal rank fusion |
+| **Cited Answers** | Yes | Yes, Perplexity-style cited responses |
+| **Agentic Architecture** | No | Yes, powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) with planning, subagents, and file system access |
+| **AI Automations & Agents** | No | Scheduled workflows, event triggers, and chat-built no-code automations with write-back to Notion, Slack, Linear & Jira |
 | **Real-Time Multiplayer** | Shared notebooks with Viewer/Editor roles (no real-time chat) | RBAC with Owner / Admin / Editor / Viewer roles, real-time chat & comment threads |
 | **Video Generation** | Cinematic Video Overviews via Veo 3 (Ultra only) | Available (NotebookLM is better here, actively improving) |
-| **Presentation Generation** | Better looking slides but not editable | Create editable, slide-based presentations |
+| **Presentation Generation** | Better looking slides but not editable | Editable, slide-based presentations |
 | **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
-| **AI File Sorting** | No | LLM-powered auto-categorization into source, date, category, and subcategory folders |
-| **AI Automations & Agents** | No | Scheduled AI workflows, event triggers on new documents, and chat-built no-code automations with connector write-back to Notion, Slack, Linear & Jira |
 | **Desktop App** | No | Native app with General Assist, Quick Assist, Screenshot Assist, and local folder sync |
-| **Browser Extension** | No | Cross-browser extension to save any webpage, including auth-protected pages |
 
-<details>
-<summary><b>Full list of External Sources</b></summary>
-<a id="external-sources"></a>
-
-Search Engines (SearXNG, Tavily, LinkUp, Baidu Search) · Google Drive · OneDrive · Dropbox · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · YouTube Videos · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, and more to come.
-
-</details>
-
-
-## FEATURE REQUESTS AND FUTURE
-
+## Feature requests and future
 
 **SurfSense is actively being developed.** While it's not yet production-ready, you can help us speed up the process.
 
@@ -294,13 +274,11 @@ Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the f
 
 ## Roadmap
 
-Stay up to date with our development progress and upcoming features!  
-Check out our public roadmap and contribute your ideas or feedback:
+Stay up to date with our development progress and upcoming features. Check out our public roadmap and contribute your ideas or feedback:
 
 **Roadmap Discussion:** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
 
 **Kanban Board:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
-
 
 ## Contribute
 

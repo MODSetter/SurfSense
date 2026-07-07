@@ -1,0 +1,5 @@
+{
+	"title": "Native Connectors",
+	"pages": ["reddit", "youtube", "google-maps", "google-search", "web-crawl"],
+	"defaultOpen": false
+}

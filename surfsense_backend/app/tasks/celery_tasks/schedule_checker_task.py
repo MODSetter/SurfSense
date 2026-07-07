@@ -49,7 +49,6 @@ async def _check_and_trigger_schedules():
             # Teams, Gmail, Calendar, Luma) use real-time tools instead.
             from app.tasks.celery_tasks.connector_tasks import (
                 index_confluence_pages_task,
-                index_crawled_urls_task,
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
                 index_google_drive_files_task,
@@ -61,17 +60,24 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.GITHUB_CONNECTOR: index_github_repos_task,
                 SearchSourceConnectorType.CONFLUENCE_CONNECTOR: index_confluence_pages_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
-                SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
             }
 
-            from app.services.mcp_oauth.registry import LIVE_CONNECTOR_TYPES
+            from app.services.mcp_oauth.registry import (
+                DEPRECATED_INDEXING_CONNECTOR_TYPES,
+                LIVE_CONNECTOR_TYPES,
+            )
 
-            # Disable obsolete periodic indexing for live connectors in one batch.
+            # Disable obsolete periodic indexing in one batch: live connectors
+            # (now real-time agent tools) and deprecated-indexing connectors
+            # (KB is files/notes/uploads only) no longer index on a schedule.
             live_disabled = []
             for connector in due_connectors:
-                if connector.connector_type in LIVE_CONNECTOR_TYPES:
+                if (
+                    connector.connector_type in LIVE_CONNECTOR_TYPES
+                    or connector.connector_type in DEPRECATED_INDEXING_CONNECTOR_TYPES
+                ):
                     connector.periodic_indexing_enabled = False
                     connector.next_scheduled_at = None
                     live_disabled.append(connector)
@@ -79,7 +85,7 @@ async def _check_and_trigger_schedules():
                 await session.commit()
                 for c in live_disabled:
                     logger.info(
-                        "Disabled obsolete periodic indexing for live connector %s (%s)",
+                        "Disabled obsolete periodic indexing for connector %s (%s)",
                         c.id,
                         c.connector_type.value,
                     )
@@ -142,7 +148,7 @@ async def _check_and_trigger_schedules():
                         if selected_folders or selected_files:
                             task.delay(
                                 connector.id,
-                                connector.search_space_id,
+                                connector.workspace_id,
                                 str(connector.user_id),
                                 {
                                     "folders": selected_folders,
@@ -165,44 +171,10 @@ async def _check_and_trigger_schedules():
                             await session.commit()
                             continue
 
-                    # Special handling for Webcrawler - skip if no URLs configured
-                    elif (
-                        connector.connector_type
-                        == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR
-                    ):
-                        from app.utils.webcrawler_utils import parse_webcrawler_urls
-
-                        connector_config = connector.config or {}
-                        urls = parse_webcrawler_urls(
-                            connector_config.get("INITIAL_URLS")
-                        )
-
-                        if urls:
-                            task.delay(
-                                connector.id,
-                                connector.search_space_id,
-                                str(connector.user_id),
-                                None,  # start_date
-                                None,  # end_date
-                            )
-                        else:
-                            # No URLs configured - skip indexing but still update next_scheduled_at
-                            logger.info(
-                                f"Webcrawler connector {connector.id} has no URLs configured, "
-                                "skipping periodic indexing (will check again at next scheduled time)"
-                            )
-                            from datetime import timedelta
-
-                            connector.next_scheduled_at = now + timedelta(
-                                minutes=connector.indexing_frequency_minutes
-                            )
-                            await session.commit()
-                            continue
-
                     else:
                         task.delay(
                             connector.id,
-                            connector.search_space_id,
+                            connector.workspace_id,
                             str(connector.user_id),
                             None,  # start_date - uses last_indexed_at
                             None,  # end_date - uses now

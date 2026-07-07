@@ -4,14 +4,14 @@ import { IPC_CHANNELS } from '../ipc/channels';
 import { checkAccessibilityPermission, getFrontmostApp, simulateCopy, simulatePaste } from './platform';
 import { getServerOrigin } from './server';
 import { getShortcuts } from './shortcuts';
-import { getActiveSearchSpaceId } from './active-search-space';
+import { getActiveWorkspaceId } from './active-workspace';
 import { trackEvent } from './analytics';
 
 let currentShortcut = '';
 let quickAskWindow: BrowserWindow | null = null;
 let pendingText = '';
 let pendingMode = '';
-let pendingSearchSpaceId: string | null = null;
+let pendingWorkspaceId: string | null = null;
 let sourceApp = '';
 let savedClipboard = '';
 
@@ -57,7 +57,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     skipTaskbar: true,
   });
 
-  const spaceId = pendingSearchSpaceId;
+  const spaceId = pendingWorkspaceId;
   const route = spaceId ? `/dashboard/${spaceId}/new-chat` : '/dashboard';
   quickAskWindow.loadURL(`${getServerOrigin()}${route}?quickAssist=true`);
 
@@ -87,7 +87,7 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 async function openQuickAsk(text: string): Promise<void> {
   pendingText = text;
   pendingMode = 'quick-assist';
-  pendingSearchSpaceId = await getActiveSearchSpaceId();
+  pendingWorkspaceId = await getActiveWorkspaceId();
   const cursor = screen.getCursorScreenPoint();
   const pos = clampToScreen(cursor.x, cursor.y, 450, 750);
   createQuickAskWindow(pos.x, pos.y);

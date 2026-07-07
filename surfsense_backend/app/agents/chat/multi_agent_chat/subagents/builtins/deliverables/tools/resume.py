@@ -421,7 +421,7 @@ def _validate_max_pages(max_pages: int) -> int:
 
 
 def create_generate_resume_tool(
-    search_space_id: int,
+    workspace_id: int,
     thread_id: int | None = None,
 ):
     """
@@ -531,7 +531,7 @@ def create_generate_resume_tool(
                             "error_message": error_msg,
                         },
                         report_style="resume",
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         thread_id=resolve_root_thread_id(runtime, thread_id),
                         report_group_id=report_group_id,
                     )
@@ -581,7 +581,7 @@ def create_generate_resume_tool(
                             f"(group {report_group_id})"
                         )
 
-                llm = await get_agent_llm(read_session, search_space_id)
+                llm = await get_agent_llm(read_session, workspace_id)
 
             if not llm:
                 error_msg = (
@@ -819,7 +819,7 @@ def create_generate_resume_tool(
                     content_type="typst",
                     report_metadata=metadata,
                     report_style="resume",
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     thread_id=resolve_root_thread_id(runtime, thread_id),
                     report_group_id=report_group_id,
                 )

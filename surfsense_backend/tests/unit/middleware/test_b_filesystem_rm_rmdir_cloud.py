@@ -39,11 +39,11 @@ pytestmark = pytest.mark.unit
 
 def _make_middleware(mode: FilesystemMode = FilesystemMode.CLOUD):
     selection = FilesystemSelection(mode=mode)
-    resolver = build_backend_resolver(selection, search_space_id=1)
+    resolver = build_backend_resolver(selection, workspace_id=1)
     return build_filesystem_mw(
         backend_resolver=resolver,
         filesystem_mode=mode,
-        search_space_id=1,
+        workspace_id=1,
         user_id="00000000-0000-0000-0000-000000000001",
         thread_id=1,
     )
@@ -290,7 +290,7 @@ class TestKBPostgresBackendDeleteFilter:
 
     def _make_backend(self, state: dict[str, Any]) -> KBPostgresBackend:
         runtime = SimpleNamespace(state=state)
-        return KBPostgresBackend(search_space_id=1, runtime=runtime)
+        return KBPostgresBackend(workspace_id=1, runtime=runtime)
 
     def test_pending_filesystem_view_returns_deleted_paths(self):
         backend = self._make_backend(

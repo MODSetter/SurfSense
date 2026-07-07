@@ -67,7 +67,7 @@ async def _render_audio(podcast_id: int) -> dict:
         superseded_key = podcast.storage_key
 
         backend_name, key = await store_audio(
-            search_space_id=podcast.search_space_id,
+            workspace_id=podcast.workspace_id,
             podcast_id=podcast_id,
             data=rendered.data,
         )

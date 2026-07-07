@@ -10,7 +10,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_operation_id_encodes_type_and_space():
-    """The operation id embeds the document type and search space id."""
+    """The operation id embeds the document type and workspace id."""
     op = msg.operation_id("FILE", "report.pdf", 9)
     assert op.startswith("doc_FILE_9_")
 

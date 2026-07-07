@@ -10,11 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
+import { getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
-import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
+import { DocumentsSidebar } from "./DocumentsSidebar";
 import { NavSection } from "./NavSection";
 import { SidebarButton } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
@@ -60,7 +62,7 @@ function CollapsedInboxIcon({ item }: { item: NavItem }) {
 }
 
 interface SidebarProps {
-	searchSpace: SearchSpace | null;
+	workspace: Workspace | null;
 	isCollapsed?: boolean;
 	onToggleCollapse?: () => void;
 	navItems: NavItem[];
@@ -74,7 +76,7 @@ interface SidebarProps {
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
-	isChatsPanelOpen?: boolean;
+	isAllChatsActive?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -97,7 +99,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-	searchSpace,
+	workspace,
 	isCollapsed = false,
 	onToggleCollapse,
 	navItems,
@@ -111,7 +113,7 @@ export function Sidebar({
 	onChatDelete,
 	onChatArchive,
 	onViewAllChats,
-	isChatsPanelOpen = false,
+	isAllChatsActive = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -134,12 +136,11 @@ export function Sidebar({
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
+	const [isSidebarNavScrolled, setIsSidebarNavScrolled] = useState(false);
 
-	// Inbox, Automations, and Documents are rendered explicitly right below
+	// Inbox, Automations, and Artifacts are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
-	// in the bottom NavSection. Documents is only present in navItems on
-	// mobile; Automations is identified by URL suffix so the same code path
-	// works across search spaces.
+	// in the bottom NavSection. Documents is embedded below Recents.
 	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
@@ -149,8 +150,8 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/artifacts")),
 		[navItems]
 	);
-	const documentsItem = useMemo(
-		() => navItems.find((item) => item.url === "#documents"),
+	const playgroundItem = useMemo(
+		() => navItems.find((item) => item.url.endsWith("/playground")),
 		[navItems]
 	);
 	const footerNavItems = useMemo(
@@ -158,9 +159,9 @@ export function Sidebar({
 			navItems.filter(
 				(item) =>
 					item.url !== "#inbox" &&
-					item.url !== "#documents" &&
 					!item.url.endsWith("/automations") &&
-					!item.url.endsWith("/artifacts")
+					!item.url.endsWith("/artifacts") &&
+					!item.url.endsWith("/playground")
 			),
 		[navItems]
 	);
@@ -176,7 +177,7 @@ export function Sidebar({
 			)}
 			style={{ width: isCollapsed ? collapsedWidth : sidebarWidth }}
 		>
-			<div className="relative flex h-12 shrink-0 items-center gap-0 px-1 border-b">
+			<div className="relative flex h-12 shrink-0 items-center gap-0 px-1">
 				<div
 					className={cn(
 						"min-w-0 overflow-hidden",
@@ -186,7 +187,7 @@ export function Sidebar({
 					aria-hidden={isCollapsed}
 				>
 					<SidebarHeader
-						searchSpace={searchSpace}
+						workspace={workspace}
 						isCollapsed={false}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
@@ -215,120 +216,135 @@ export function Sidebar({
 				) : null}
 			</div>
 
-			<div className="flex flex-col gap-0.5 py-1.5">
+			<div
+				className={cn(
+					"relative flex flex-col gap-0.5 pt-1.5 pb-0 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-border after:transition-opacity",
+					isSidebarNavScrolled ? "after:opacity-100" : "after:opacity-0"
+				)}
+			>
 				<SidebarButton
 					icon={SquarePen}
 					label={t("new_chat")}
 					onClick={onNewChat}
 					isCollapsed={isCollapsed}
 				/>
-				{inboxItem && (
-					<SidebarButton
-						icon={inboxItem.icon}
-						label={inboxItem.title}
-						onClick={() => onNavItemClick?.(inboxItem)}
-						isCollapsed={isCollapsed}
-						isActive={inboxItem.isActive}
-						badge={inboxItem.badge}
-						collapsedIconNode={<CollapsedInboxIcon item={inboxItem} />}
-						tooltipContent={isCollapsed ? inboxItem.title : undefined}
-						buttonProps={
-							{
-								"data-joyride": "inbox-sidebar",
-							} as React.ButtonHTMLAttributes<HTMLButtonElement>
-						}
-					/>
-				)}
-				{automationsItem && (
-					<SidebarButton
-						icon={automationsItem.icon}
-						label={automationsItem.title}
-						onClick={() => onNavItemClick?.(automationsItem)}
-						isCollapsed={isCollapsed}
-						isActive={automationsItem.isActive}
-						tooltipContent={isCollapsed ? automationsItem.title : undefined}
-					/>
-				)}
-				{artifactsItem && (
-					<SidebarButton
-						icon={artifactsItem.icon}
-						label={artifactsItem.title}
-						onClick={() => onNavItemClick?.(artifactsItem)}
-						isCollapsed={isCollapsed}
-						isActive={artifactsItem.isActive}
-						tooltipContent={isCollapsed ? artifactsItem.title : undefined}
-					/>
-				)}
-				{documentsItem && (
-					<SidebarButton
-						icon={documentsItem.icon}
-						label={documentsItem.title}
-						onClick={() => onNavItemClick?.(documentsItem)}
-						isCollapsed={isCollapsed}
-						isActive={documentsItem.isActive}
-						tooltipContent={isCollapsed ? documentsItem.title : undefined}
-					/>
-				)}
 			</div>
 
-			{/* Chat sections - fills available space */}
-			{isCollapsed ? (
-				<div className="flex-1 w-full" />
-			) : (
-				<div className="flex-1 flex flex-col gap-1 pt-2 w-full min-h-0 overflow-hidden">
-					<SidebarSection
-						title={t("recents")}
-						defaultOpen={true}
-						fillHeight={true}
-						alwaysShowAction={!disableTooltips && isChatsPanelOpen}
-						action={
-							onViewAllChats ? (
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={onViewAllChats}
-									className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
-								>
-									{!disableTooltips && isChatsPanelOpen ? t("hide") : t("show_all")}
-								</Button>
-							) : undefined
-						}
-					>
-						{isLoadingChats ? (
-							<ChatListSkeletonRows />
-						) : chats.length > 0 ? (
-							<div className="relative flex-1 min-h-0">
-								<div
-									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-2" : ""}`}
-								>
-									{chats.slice(0, 20).map((chat) => (
-										<ChatListItem
-											key={chat.id}
-											name={chat.name}
-											isActive={chat.id === activeChatId}
-											isShared={chat.visibility === "SEARCH_SPACE"}
-											archived={chat.archived}
-											dropdownOpen={openDropdownChatId === chat.id}
-											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
-											onClick={() => onChatSelect(chat)}
-											onPrefetch={() => onChatPrefetch?.(chat)}
-											onRename={() => onChatRename?.(chat)}
-											onArchive={() => onChatArchive?.(chat)}
-											onDelete={() => onChatDelete?.(chat)}
-										/>
-									))}
-								</div>
-								{/* Gradient fade indicator when more than 4 items */}
-								{chats.length > 4 && (
-									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
-								)}
-							</div>
-						) : (
-							<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
-						)}
-					</SidebarSection>
+			<div
+				className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+				onScroll={(event) => setIsSidebarNavScrolled(event.currentTarget.scrollTop > 0)}
+			>
+				<div className="flex flex-col gap-0.5 pt-0.5 pb-1.5">
+					{inboxItem && (
+						<SidebarButton
+							icon={inboxItem.icon}
+							label={inboxItem.title}
+							onClick={() => onNavItemClick?.(inboxItem)}
+							isCollapsed={isCollapsed}
+							isActive={inboxItem.isActive}
+							badge={inboxItem.badge}
+							collapsedIconNode={<CollapsedInboxIcon item={inboxItem} />}
+							tooltipContent={isCollapsed ? inboxItem.title : undefined}
+							buttonProps={
+								{
+									"data-joyride": "inbox-sidebar",
+								} as React.ButtonHTMLAttributes<HTMLButtonElement>
+							}
+						/>
+					)}
+					{automationsItem && (
+						<SidebarButton
+							icon={automationsItem.icon}
+							label={automationsItem.title}
+							onClick={() => onNavItemClick?.(automationsItem)}
+							isCollapsed={isCollapsed}
+							isActive={automationsItem.isActive}
+							tooltipContent={isCollapsed ? automationsItem.title : undefined}
+						/>
+					)}
+					{artifactsItem && (
+						<SidebarButton
+							icon={artifactsItem.icon}
+							label={artifactsItem.title}
+							onClick={() => onNavItemClick?.(artifactsItem)}
+							isCollapsed={isCollapsed}
+							isActive={artifactsItem.isActive}
+							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
+						/>
+					)}
+					{playgroundItem && (
+						<SidebarButton
+							icon={playgroundItem.icon}
+							label={playgroundItem.title}
+							onClick={() => onNavItemClick?.(playgroundItem)}
+							isCollapsed={isCollapsed}
+							isActive={playgroundItem.isActive}
+							tooltipContent={isCollapsed ? playgroundItem.title : undefined}
+						/>
+					)}
 				</div>
-			)}
+
+				{/* Chat sections - fills available space */}
+				{isCollapsed ? (
+					<div className="w-full" />
+				) : (
+					<div className="flex flex-col gap-1 pt-2 w-full min-h-0">
+						<SidebarSection
+							title={t("recents")}
+							defaultOpen={true}
+							alwaysShowAction={!disableTooltips && isAllChatsActive}
+							action={
+								onViewAllChats ? (
+									<Button
+										type="button"
+										variant="ghost"
+										onClick={onViewAllChats}
+										className="h-auto cursor-pointer whitespace-nowrap bg-transparent p-0 text-xs font-medium text-muted-foreground/60 transition-colors hover:bg-transparent hover:text-muted-foreground"
+									>
+										{!disableTooltips && isAllChatsActive ? t("hide") : t("show_all")}
+									</Button>
+								) : undefined
+							}
+						>
+							{isLoadingChats ? (
+								<ChatListSkeletonRows />
+							) : chats.length > 0 ? (
+								<div className="relative">
+									<div className={`flex flex-col gap-0.5 ${chats.length > 4 ? "pb-2" : ""}`}>
+										{chats.slice(0, 20).map((chat) => (
+											<ChatListItem
+												key={chat.id}
+												name={chat.name}
+												isActive={chat.id === activeChatId}
+												isShared={chat.visibility === "SEARCH_SPACE"}
+												archived={chat.archived}
+												dropdownOpen={openDropdownChatId === chat.id}
+												onDropdownOpenChange={(open) =>
+													setOpenDropdownChatId(open ? chat.id : null)
+												}
+												onClick={() => onChatSelect(chat)}
+												onPrefetch={() => onChatPrefetch?.(chat)}
+												onRename={() => onChatRename?.(chat)}
+												onArchive={() => onChatArchive?.(chat)}
+												onDelete={() => onChatDelete?.(chat)}
+											/>
+										))}
+									</div>
+									{/* Gradient fade indicator when more than 4 items */}
+									{chats.length > 4 && (
+										<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-sidebar/80 to-transparent" />
+									)}
+								</div>
+							) : (
+								<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
+							)}
+						</SidebarSection>
+						<div className="min-h-0 flex flex-1 flex-col">
+							<DocumentsSidebar embedded />
+						</div>
+					</div>
+				)}
+			</div>
 
 			{/* Footer */}
 			<div className="mt-auto border-t">
@@ -377,7 +393,7 @@ function SidebarUsageFooter({
 	onNavigate?: () => void;
 }) {
 	const params = useParams();
-	const searchSpaceId = params?.search_space_id ?? "";
+	const workspaceId = getWorkspaceIdParam(params) ?? "";
 	const isAnonymous = useIsAnonymous();
 
 	if (isCollapsed) return null;
@@ -423,7 +439,7 @@ function SidebarUsageFooter({
 			<CreditBalanceDisplay />
 			<div className="space-y-0.5">
 				<Link
-					href={`/dashboard/${searchSpaceId}/earn-credits`}
+					href={`/dashboard/${workspaceId}/earn-credits`}
 					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>
@@ -436,7 +452,7 @@ function SidebarUsageFooter({
 					</Badge>
 				</Link>
 				<Link
-					href={`/dashboard/${searchSpaceId}/buy-more`}
+					href={`/dashboard/${workspaceId}/buy-more`}
 					onClick={onNavigate}
 					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
 				>

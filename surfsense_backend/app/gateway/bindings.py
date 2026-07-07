@@ -34,7 +34,7 @@ async def get_or_create_thread_for_binding(
 
     thread = NewChatThread(
         title=f"{source.title()} chat",
-        search_space_id=binding.search_space_id,
+        workspace_id=binding.workspace_id,
         created_by_id=binding.user_id,
         visibility=ChatVisibility.PRIVATE,
         source=source,
