@@ -6,6 +6,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { Button } from "@/components/ui/button";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerTitle,
+	DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -16,6 +23,7 @@ import {
 	isNewMentionMetadata,
 } from "@/contracts/types/inbox.types";
 import type { InboxItem } from "@/hooks/use-inbox";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export interface NotificationsDataSource {
@@ -79,6 +87,7 @@ export function NotificationsDropdown({
 	onCloseMobileSidebar,
 }: NotificationsDropdownProps) {
 	const router = useRouter();
+	const isMobile = useIsMobile();
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 	const [open, setOpen] = useState(false);
 	const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
@@ -260,33 +269,186 @@ export function NotificationsDropdown({
 		{ value: "unread", label: "Unread", count: notifications.totalUnreadCount },
 	];
 
+	const triggerButton = (
+		<Button
+			type="button"
+			variant="ghost"
+			size="icon"
+			aria-label={
+				notifications.totalUnreadCount > 0
+					? `Notifications, ${unreadLabel} unread`
+					: "Notifications"
+			}
+			className={cn(
+				"relative h-10 w-10 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+				open && "bg-accent text-accent-foreground"
+			)}
+		>
+			<Bell className="h-4 w-4" />
+			{notifications.totalUnreadCount > 0 ? (
+				<span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+					{unreadLabel}
+				</span>
+			) : null}
+		</Button>
+	);
+
+	const panelContent = (
+		<>
+			<div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
+				<div className="min-w-0">
+					<h2 className="text-base font-semibold">Notifications</h2>
+				</div>
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					onClick={handleMarkAllAsRead}
+					disabled={visibleUnreadCount === 0 || markingAllAsRead}
+					className="h-8 shrink-0 gap-1.5 px-2 text-xs text-muted-foreground hover:text-accent-foreground"
+				>
+					{markingAllAsRead ? <Spinner size="xs" /> : null}
+					Mark all read
+				</Button>
+			</div>
+
+			<div className="relative flex shrink-0 items-end gap-4 px-4 after:absolute after:inset-x-0 after:bottom-0 after:z-0 after:h-px after:bg-muted-foreground/25 after:content-['']">
+				{tabs.map((tab) => {
+					const isActive = activeFilter === tab.value;
+					return (
+						<button
+							key={tab.value}
+							type="button"
+							aria-pressed={isActive}
+							onClick={() => setActiveFilter(tab.value)}
+							className={cn(
+								"relative z-10 flex h-11 items-center gap-2 border-b-2 border-transparent px-0 text-sm font-medium text-muted-foreground transition-colors",
+								"hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+								isActive && "border-primary text-primary"
+							)}
+						>
+							<span>{tab.label}</span>
+							<span
+								className={cn(
+									"inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
+									isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+								)}
+							>
+								{formatNotificationCount(tab.count)}
+							</span>
+						</button>
+					);
+				})}
+			</div>
+
+			<div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-2">
+				{isLoading ? (
+					<div className="space-y-1">
+						{[82, 64, 74].map((width) => (
+							<div key={width} className="flex h-[72px] items-center rounded-lg px-2 py-2">
+								<div className="min-w-0 flex-1 space-y-2">
+									<Skeleton className="h-3 rounded" style={{ width: `${width}%` }} />
+									<Skeleton className="h-2.5 w-1/2 rounded" />
+								</div>
+							</div>
+						))}
+					</div>
+				) : items.length > 0 ? (
+					<div className="space-y-1">
+						{items.map((item) => {
+							const isMarkingAsRead = markingAsReadId === item.id;
+							return (
+								<Button
+									key={item.id}
+									type="button"
+									variant="ghost"
+									disabled={isMarkingAsRead}
+									onClick={() => handleItemClick(item)}
+									className={cn(
+										"group h-auto w-full justify-start rounded-lg px-2 py-2 text-left",
+										"hover:bg-accent hover:text-accent-foreground",
+										!item.read && "bg-accent/40"
+									)}
+									style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
+								>
+									<div className="min-w-0 flex-1">
+										<div className="flex min-w-0 items-start gap-2">
+											<p
+												className={cn(
+													"line-clamp-1 flex-1 text-sm font-medium",
+													!item.read && "font-semibold"
+												)}
+											>
+												{item.title}
+											</p>
+											{!item.read ? (
+												<span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+											) : null}
+										</div>
+										<p className="mt-0.5 line-clamp-2 text-xs font-normal text-muted-foreground group-hover:text-accent-foreground/80">
+											{item.message}
+										</p>
+										<p className="mt-1 text-[11px] font-normal text-muted-foreground/70">
+											{formatTime(item.created_at)}
+										</p>
+									</div>
+									{isMarkingAsRead ? <Spinner size="xs" className="shrink-0" /> : null}
+								</Button>
+							);
+						})}
+						{hasMore ? (
+							<div
+								ref={loadMoreTriggerRef}
+								className="flex min-h-10 items-center justify-center py-2"
+							>
+								{isLoadingMore ? <Spinner size="xs" /> : null}
+							</div>
+						) : null}
+					</div>
+				) : (
+					<div className="flex flex-col items-center justify-center px-6 py-10 text-center">
+						<p className="text-sm font-medium">{emptyStateCopy.title}</p>
+						<p className="mt-1 text-xs text-muted-foreground">{emptyStateCopy.description}</p>
+						{hasMore ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={loadMoreForActiveFilter}
+								disabled={isLoadingMore}
+								className="mt-3 text-xs"
+							>
+								{isLoadingMore ? <Spinner size="xs" /> : null}
+								Load more
+							</Button>
+						) : null}
+					</div>
+				)}
+			</div>
+		</>
+	);
+
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
+				<DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+				<DrawerContent
+					className="z-80 h-[78vh] max-h-[90vh] overflow-hidden rounded-t-2xl border bg-popover text-popover-foreground"
+					overlayClassName="z-80"
+				>
+					<DrawerHandle className="mt-3 h-1.5 w-10" />
+					<DrawerTitle className="sr-only">Notifications</DrawerTitle>
+					<div className="flex min-h-0 flex-1 flex-col">{panelContent}</div>
+				</DrawerContent>
+			</Drawer>
+		);
+	}
+
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<PopoverTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							aria-label={
-								notifications.totalUnreadCount > 0
-									? `Notifications, ${unreadLabel} unread`
-									: "Notifications"
-							}
-							className={cn(
-								"relative h-10 w-10 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-								open && "bg-accent text-accent-foreground"
-							)}
-						>
-							<Bell className="h-4 w-4" />
-							{notifications.totalUnreadCount > 0 ? (
-								<span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-									{unreadLabel}
-								</span>
-							) : null}
-						</Button>
-					</PopoverTrigger>
+					<PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 				</TooltipTrigger>
 				<TooltipContent side="right" sideOffset={8}>
 					Notifications
@@ -298,138 +460,7 @@ export function NotificationsDropdown({
 				sideOffset={10}
 				className="z-80 flex max-h-[min(520px,calc(100vh-2rem))] w-[360px] flex-col overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-lg"
 			>
-				<div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
-					<div className="min-w-0">
-						<h2 className="text-base font-semibold">Notifications</h2>
-					</div>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={handleMarkAllAsRead}
-						disabled={visibleUnreadCount === 0 || markingAllAsRead}
-						className="h-8 shrink-0 gap-1.5 px-2 text-xs text-muted-foreground hover:text-accent-foreground"
-					>
-						{markingAllAsRead ? <Spinner size="xs" /> : null}
-						Mark all read
-					</Button>
-				</div>
-
-				<div className="relative flex shrink-0 items-end gap-4 px-4 after:absolute after:inset-x-0 after:bottom-0 after:z-0 after:h-px after:bg-muted-foreground/25 after:content-['']">
-					{tabs.map((tab) => {
-						const isActive = activeFilter === tab.value;
-						return (
-							<button
-								key={tab.value}
-								type="button"
-								aria-pressed={isActive}
-								onClick={() => setActiveFilter(tab.value)}
-								className={cn(
-									"relative z-10 flex h-11 items-center gap-2 border-b-2 border-transparent px-0 text-sm font-medium text-muted-foreground transition-colors",
-									"hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-									isActive && "border-primary text-primary"
-								)}
-							>
-								<span>{tab.label}</span>
-								<span
-									className={cn(
-										"inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
-										isActive
-											? "bg-primary text-primary-foreground"
-											: "bg-muted text-muted-foreground"
-									)}
-								>
-									{formatNotificationCount(tab.count)}
-								</span>
-							</button>
-						);
-					})}
-				</div>
-
-				<div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-2">
-					{isLoading ? (
-						<div className="space-y-1">
-							{[82, 64, 74].map((width) => (
-								<div key={width} className="flex h-[72px] items-center rounded-lg px-2 py-2">
-									<div className="min-w-0 flex-1 space-y-2">
-										<Skeleton className="h-3 rounded" style={{ width: `${width}%` }} />
-										<Skeleton className="h-2.5 w-1/2 rounded" />
-									</div>
-								</div>
-							))}
-						</div>
-					) : items.length > 0 ? (
-						<div className="space-y-1">
-							{items.map((item) => {
-								const isMarkingAsRead = markingAsReadId === item.id;
-								return (
-									<Button
-										key={item.id}
-										type="button"
-										variant="ghost"
-										disabled={isMarkingAsRead}
-										onClick={() => handleItemClick(item)}
-										className={cn(
-											"group h-auto w-full justify-start rounded-lg px-2 py-2 text-left",
-											"hover:bg-accent hover:text-accent-foreground",
-											!item.read && "bg-accent/40"
-										)}
-										style={{ contentVisibility: "auto", containIntrinsicSize: "0 72px" }}
-									>
-										<div className="min-w-0 flex-1">
-											<div className="flex min-w-0 items-start gap-2">
-												<p
-													className={cn(
-														"line-clamp-1 flex-1 text-sm font-medium",
-														!item.read && "font-semibold"
-													)}
-												>
-													{item.title}
-												</p>
-												{!item.read ? (
-													<span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-												) : null}
-											</div>
-											<p className="mt-0.5 line-clamp-2 text-xs font-normal text-muted-foreground group-hover:text-accent-foreground/80">
-												{item.message}
-											</p>
-											<p className="mt-1 text-[11px] font-normal text-muted-foreground/70">
-												{formatTime(item.created_at)}
-											</p>
-										</div>
-										{isMarkingAsRead ? <Spinner size="xs" className="shrink-0" /> : null}
-									</Button>
-								);
-							})}
-							{hasMore ? (
-								<div
-									ref={loadMoreTriggerRef}
-									className="flex min-h-10 items-center justify-center py-2"
-								>
-									{isLoadingMore ? <Spinner size="xs" /> : null}
-								</div>
-							) : null}
-						</div>
-					) : (
-						<div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-							<p className="text-sm font-medium">{emptyStateCopy.title}</p>
-							<p className="mt-1 text-xs text-muted-foreground">{emptyStateCopy.description}</p>
-							{hasMore ? (
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									onClick={loadMoreForActiveFilter}
-									disabled={isLoadingMore}
-									className="mt-3 text-xs"
-								>
-									{isLoadingMore ? <Spinner size="xs" /> : null}
-									Load more
-								</Button>
-							) : null}
-						</div>
-					)}
-				</div>
+				{panelContent}
 			</PopoverContent>
 		</Popover>
 	);
