@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from surfsense_mcp.core.rendering import clip, compact_items, to_json
+from mcp_server.core.rendering import clip, compact_items, to_json
 
 
 def test_clip_leaves_short_text_untouched():

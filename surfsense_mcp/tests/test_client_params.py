@@ -6,7 +6,7 @@ import asyncio
 
 import httpx
 
-from surfsense_mcp.core.client import SurfSenseClient
+from mcp_server.core.client import SurfSenseClient
 
 
 def _capture(client: SurfSenseClient) -> dict:

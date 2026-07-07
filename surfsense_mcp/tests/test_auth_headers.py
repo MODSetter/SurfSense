@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from starlette.datastructures import Headers
 
-from surfsense_mcp.core.auth.headers import extract_api_key
+from mcp_server.core.auth.headers import extract_api_key
 
 
 def _headers(**pairs: str) -> Headers:
