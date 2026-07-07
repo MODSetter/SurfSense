@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -133,7 +134,12 @@ function FieldRow({
 				<Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
 					{field.title}
 				</Label>
-				{field.required && <span className="text-xs text-destructive">required</span>}
+				<Badge
+					variant={field.required ? "destructive" : "secondary"}
+					className="px-1.5 py-0 text-[10px]"
+				>
+					{field.required ? "required" : "optional"}
+				</Badge>
 			</div>
 			{field.description && (
 				<p className="text-xs text-muted-foreground">{field.description}</p>
