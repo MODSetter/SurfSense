@@ -47,6 +47,8 @@ async def _collect_tools() -> dict[str, object]:
         api_prefix="/api/v1",
         timeout=5.0,
         default_workspace=None,
+        host="127.0.0.1",
+        port=8080,
     )
     mcp, _client = build_server(settings)
     tools = await mcp.list_tools()

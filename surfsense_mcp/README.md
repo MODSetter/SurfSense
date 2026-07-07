@@ -2,9 +2,15 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes
 SurfSense to MCP clients like **Claude Code**, **Cursor**, and **Claude Desktop**.
-It talks to a running SurfSense backend purely over its REST API using a SurfSense
-API key — it imports no backend code and can point at any instance (local or
-hosted) by changing two environment variables.
+It talks to a SurfSense backend purely over its REST API using a SurfSense API
+key — it imports no backend code.
+
+Connect it two ways:
+
+- **Hosted** (recommended) — point your client at `https://mcp.surfsense.com/mcp`
+  and pass your API key in a header. Nothing to install or keep running.
+- **Self-host (stdio)** — run the server yourself against any backend (cloud or
+  your own). Best for self-hosters and clients without remote-server support.
 
 ## Tools
 
@@ -29,15 +35,42 @@ Workspace-scoped tools default to the active workspace; pass `workspace` (a name
 or id) to override for a single call. Ids never need to be typed by hand — the
 model carries them between calls.
 
-## Prerequisites
+## Get an API key
 
-1. A running SurfSense backend (default `http://localhost:8000`).
-2. A **SurfSense API key**: SurfSense → Settings → API → create key (`ss_pat_…`).
-3. **API access enabled** on the workspace(s) you want to use (workspace settings).
+1. SurfSense → **API Playground → API Keys**: create a personal key (`ss_pat_…`).
+   It is shown only once.
+2. Toggle **API key access** on for the workspace(s) you want to use.
 
-## Setup
+## Connect (hosted)
 
-Uses [uv](https://github.com/astral-sh/uv):
+Point your client at the hosted server and send the key as a Bearer token. For
+clients that read an `mcpServers` map (Cursor, Claude Desktop, and others):
+
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "url": "https://mcp.surfsense.com/mcp",
+      "headers": { "Authorization": "Bearer ss_pat_your_key_here" }
+    }
+  }
+}
+```
+
+Claude Code, from a terminal:
+
+```bash
+claude mcp add --transport http surfsense https://mcp.surfsense.com/mcp \
+  --header "Authorization: Bearer ss_pat_your_key_here"
+```
+
+Most MCP clients accept this `url` + `headers` form; check your client's docs for
+its exact remote-server field.
+
+## Self-host (stdio)
+
+Run the server yourself when you host your own backend or use a client without
+remote support. It uses [uv](https://github.com/astral-sh/uv):
 
 ```bash
 cd surfsense_mcp
@@ -45,11 +78,8 @@ uv sync
 uv run python -m surfsense_mcp.selfcheck   # verify tools register correctly
 ```
 
-## Connect it to a client
-
-### Cursor
-
-Add to `~/.cursor/mcp.json` (or a project `.cursor/mcp.json`):
+Then add it to your client. Cursor (`~/.cursor/mcp.json` or a project
+`.cursor/mcp.json`):
 
 ```json
 {
@@ -66,7 +96,7 @@ Add to `~/.cursor/mcp.json` (or a project `.cursor/mcp.json`):
 }
 ```
 
-### Claude Code
+Claude Code:
 
 ```bash
 claude mcp add surfsense \
@@ -75,15 +105,13 @@ claude mcp add surfsense \
   -- uv run --directory /absolute/path/to/SurfSense/surfsense_mcp python -m surfsense_mcp
 ```
 
-### Claude Desktop
-
-Add the same `mcpServers` block as Cursor to
+Claude Desktop: add the same `mcpServers` block as Cursor to
 `claude_desktop_config.json` (Settings → Developer → Edit Config).
 
 ## Configuration
 
-See `.env.example`. Secrets are passed as environment variables by the client;
-never commit tokens.
+See `.env.example`. For self-host, secrets are passed as environment variables by
+the client; never commit tokens.
 
 ## Backend dependency
 

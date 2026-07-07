@@ -138,7 +138,7 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
 {
   "mcpServers": {
     "surfsense": {
-      "url": "https://mcp.surfsense.com",
+      "url": "https://mcp.surfsense.com/mcp",
       "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
     }
   }

@@ -4,50 +4,57 @@ description: Connect the SurfSense MCP server to Claude Code, Codex, OpenCode, C
 ---
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
-import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 # SurfSense MCP Server
 
 The SurfSense MCP server exposes your workspace to any [Model Context Protocol](https://modelcontextprotocol.io/) client. Your agent gets 18 native, typed tools: every scraper (Reddit, YouTube, Google Maps, Google Search, web crawl), full knowledge-base access (search, read, add, upload, update, delete), and a workspace selector.
 
-It talks to SurfSense purely over the REST API — point it at SurfSense Cloud or your own self-hosted instance by changing one environment variable.
+Connect it two ways: the **hosted** server at `https://mcp.surfsense.com/mcp` (nothing to install — just an API key), or run it yourself over **stdio** against any SurfSense backend, cloud or self-hosted.
 
-## Prerequisites
+## Create an API key
 
-<Steps>
-<Step>
+You need a SurfSense API key either way. In SurfSense, open **API Playground → API Keys** in your workspace sidebar:
 
-### Install uv
+1. Toggle **API key access** on for the workspace.
+2. Create a personal API key (`ss_pat_…`) and copy it — it is shown only once.
 
-The server runs with [uv](https://github.com/astral-sh/uv). Install it once, then from the SurfSense repository run:
+## Connect (hosted)
+
+The hosted server runs at `https://mcp.surfsense.com/mcp`. Point your client at it and send the key as a Bearer token — there is nothing to install and no backend to run. For clients that read an `mcpServers` map (Cursor, and others):
+
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "url": "https://mcp.surfsense.com/mcp",
+      "headers": { "Authorization": "Bearer ss_pat_your_key_here" }
+    }
+  }
+}
+```
+
+Claude Code, from a terminal:
+
+```bash
+claude mcp add --transport http surfsense https://mcp.surfsense.com/mcp \
+  --header "Authorization: Bearer ss_pat_your_key_here"
+```
+
+Most MCP clients accept this `url` + `headers` form; check your client's docs for its exact remote-server field.
+
+## Self-host (stdio)
+
+Run the server yourself when you host your own backend or use a client without remote support. It runs with [uv](https://github.com/astral-sh/uv) — install it once, then from the SurfSense repository run:
 
 ```bash
 cd surfsense_mcp
 uv sync
 ```
 
-</Step>
-<Step>
-
-### Create an API key
-
-In SurfSense, open **API Playground → API Keys** in your workspace sidebar:
-
-1. Toggle **API key access** on for the workspace.
-2. Create a personal API key (`ss_pat_…`) and copy it — it is shown only once.
-
-</Step>
-<Step>
-
-### Know your base URL
+Point the server at your backend with `SURFSENSE_BASE_URL`:
 
 - **SurfSense Cloud**: `https://api.surfsense.com`
 - **Self-hosted**: wherever your backend runs, e.g. `http://localhost:8000`
-
-</Step>
-</Steps>
-
-## Connect your agent
 
 Every client below launches the same command — `uv run --directory <path-to>/surfsense_mcp python -m surfsense_mcp` — and passes `SURFSENSE_BASE_URL` and `SURFSENSE_API_KEY` as environment variables. Replace the placeholder paths and key with yours.
 
@@ -221,7 +228,7 @@ Run `/mcp` inside Gemini CLI to confirm the server and its tools.
 </Tabs>
 
 <Callout type="info" title="stdio transport — nothing to keep running">
-The server uses stdio transport: your client launches the process on demand and shuts it down with the session. There is no daemon to manage — only your SurfSense backend needs to be up.
+In this mode your client launches the process on demand and shuts it down with the session. There is no daemon to manage — only your SurfSense backend needs to be up. (The hosted server above needs none of this.)
 </Callout>
 
 ## Test it
@@ -236,7 +243,7 @@ That calls `surfsense_list_workspaces` — the simplest end-to-end check of the 
 
 ## Configuration reference
 
-All settings are environment variables passed by the client:
+For self-host (stdio), all settings are environment variables passed by the client. The hosted server needs only your API key in the `Authorization` header:
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
