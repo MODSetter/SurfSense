@@ -129,6 +129,7 @@ export const FolderNode = React.memo(function FolderNode({
 	const rowRef = useRef<HTMLDivElement>(null);
 	const [dropZone, setDropZone] = useState<DropZone | null>(null);
 	const [isRescanning, setIsRescanning] = useState(false);
+	const [dropdownOpen, setDropdownOpen] = useState(false);
 
 	const handleRescan = useCallback(async () => {
 		if (isRescanning) return;
@@ -349,12 +350,17 @@ export const FolderNode = React.memo(function FolderNode({
 					)}
 
 					{!isRenaming && (
-						<DropdownMenu>
+						<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 							<DropdownMenuTrigger asChild>
 								<Button
 									variant="ghost"
 									size="icon"
-									className="hidden sm:inline-flex h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+									className={cn(
+										"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent transition-opacity",
+										dropdownOpen
+											? "opacity-100 bg-accent hover:bg-accent"
+											: "opacity-0 group-hover:opacity-100"
+									)}
 									onClick={(e) => e.stopPropagation()}
 								>
 									<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />

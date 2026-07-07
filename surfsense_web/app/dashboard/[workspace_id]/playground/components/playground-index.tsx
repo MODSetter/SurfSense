@@ -23,8 +23,7 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 			<div>
 				<h1 className="text-xl font-semibold text-foreground md:text-2xl">API Playground</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Manually run SurfSense's platform-native APIs and inspect their output. Every run is
-					captured under Runs.
+					Manually run SurfSense's platform-native APIs and inspect their output.
 				</p>
 			</div>
 

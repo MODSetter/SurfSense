@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState } from "react";
 import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -410,29 +409,25 @@ function SidebarUsageFooter({
 	return (
 		<div className={containerClass}>
 			<CreditBalanceDisplay />
-			<div className="space-y-0.5">
+			<div className="relative grid grid-cols-2 before:absolute before:inset-y-1 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border">
 				<Link
 					href={`/dashboard/${workspaceId}/earn-credits`}
 					onClick={onNavigate}
-					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+					className="group relative z-10 mx-0.5 flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 				>
-					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
-						<Zap className="h-3 w-3 shrink-0" />
-						Earn credits
-					</span>
-					<Badge className="h-4 rounded px-1 text-[10px] font-semibold leading-none bg-emerald-600 text-white border-transparent hover:bg-emerald-600">
+					<Zap className="h-3 w-3 shrink-0" />
+					<span className="truncate">Earn</span>
+					<SidebarButtonBadge className="h-4 px-1 text-[10px] bg-emerald-600 text-white hover:bg-emerald-600">
 						FREE
-					</Badge>
+					</SidebarButtonBadge>
 				</Link>
 				<Link
 					href={`/dashboard/${workspaceId}/buy-more`}
 					onClick={onNavigate}
-					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+					className="group relative z-10 mx-0.5 flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 				>
-					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
-						<CreditCard className="h-3 w-3 shrink-0" />
-						Buy credits
-					</span>
+					<CreditCard className="h-3 w-3 shrink-0" />
+					<span className="truncate">Buy</span>
 				</Link>
 			</div>
 		</div>
