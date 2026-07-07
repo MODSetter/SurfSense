@@ -5,6 +5,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	FolderInput,
 	FolderPlus,
+	FolderSync,
 	ListFilter,
 	Plus,
 	Settings2,
@@ -32,9 +33,12 @@ import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
-import { useIsSelfHosted, useRuntimeConfig } from "@/components/providers/runtime-config";
+import { useOptionalRuntimeConfig, useRuntimeConfig } from "@/components/providers/runtime-config";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
-import { DEFAULT_EXCLUDE_PATTERNS } from "@/components/sources/FolderWatchDialog";
+import {
+	DEFAULT_EXCLUDE_PATTERNS,
+	FolderWatchDialog,
+} from "@/components/sources/FolderWatchDialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -187,12 +191,26 @@ export function EmbeddedDocumentsMenu({
  * OAuth or open the existing account's config. In anonymous mode, `gate`
  * intercepts every item to trigger the login flow.
  */
-export function EmbeddedImportMenu({ gate }: { gate?: (feature: string) => void }) {
+export function EmbeddedImportMenu({
+	gate,
+	onFolderWatched,
+}: {
+	gate?: (feature: string) => void;
+	onFolderWatched?: () => void;
+}) {
 	const { openDialog } = useDocumentUploadDialog();
 	const setImportRequest = useSetAtom(importConnectorRequestAtom);
-	const selfHosted = useIsSelfHosted();
+	// Provider is absent on anonymous /free pages, where every item is login-gated
+	// anyway — defaulting to hosted (Composio) there is cosmetic.
+	const selfHosted = useOptionalRuntimeConfig()?.deploymentMode === "self-hosted";
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
 	const { data: connectors } = useAtomValue(connectorsAtom);
+
+	// Watch Local Folder is a desktop-app feature (needs the Electron folder watcher).
+	const { isDesktop } = usePlatform();
+	const params = useParams();
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
 
 	// Native Google Drive connector self-hosted only; hosted deployments use Composio.
 	const driveType = selfHosted
@@ -223,6 +241,14 @@ export function EmbeddedImportMenu({ gate }: { gate?: (feature: string) => void 
 					<Upload className="h-4 w-4" />
 					Upload Files
 				</DropdownMenuItem>
+				{isDesktop && (
+					<DropdownMenuItem
+						onSelect={() => (gate ? gate("watch local folders") : setFolderWatchOpen(true))}
+					>
+						<FolderSync className="h-4 w-4" />
+						Watch Local Folder
+					</DropdownMenuItem>
+				)}
 				<DropdownMenuSeparator />
 				{cloudItems.map((item) => {
 					const enabled = gate ? true : isConnectorEnabled(item.type);
@@ -297,6 +323,14 @@ export function EmbeddedImportMenu({ gate }: { gate?: (feature: string) => void 
 					);
 				})}
 			</DropdownMenuContent>
+			{isDesktop && !gate && (
+				<FolderWatchDialog
+					open={folderWatchOpen}
+					onOpenChange={setFolderWatchOpen}
+					workspaceId={workspaceId}
+					onSuccess={onFolderWatched}
+				/>
+			)}
 		</DropdownMenu>
 	);
 }
@@ -1180,7 +1214,7 @@ function AuthenticatedDocumentsSidebarBase({
 					contentClassName="px-0"
 					persistentAction={
 						<div className="flex items-center gap-0.5">
-							<EmbeddedImportMenu />
+							<EmbeddedImportMenu onFolderWatched={refreshWatchedIds} />
 							<EmbeddedDocumentsMenu
 								typeCounts={typeCounts}
 								activeTypes={activeTypes}

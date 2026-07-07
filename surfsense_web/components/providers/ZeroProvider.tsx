@@ -35,6 +35,13 @@ async function fetchZeroContext(isDesktop: boolean): Promise<LoadedZeroContext |
 	const response = await authenticatedFetch(buildBackendUrl("/zero/context"), {
 		skipAuthRedirect: true,
 	});
+	if (response.status === 401) {
+		// Auth is dead (refresh already failed inside authenticatedFetch). This
+		// provider gates the whole app tree, so nothing below it (e.g.
+		// DashboardShell) can run its own redirect — do it here.
+		handleUnauthorized();
+		return null;
+	}
 	if (!response.ok) return null;
 
 	return {
@@ -233,6 +240,12 @@ function ZeroClientProvider({
 
 function WebZeroProvider({ children }: { children: React.ReactNode }) {
 	const session = useSession();
+
+	// Same reasoning as fetchZeroContext: this provider blocks the whole tree,
+	// so the login redirect must happen here, not in a child that never mounts.
+	useEffect(() => {
+		if (session.status === "unauthenticated") handleUnauthorized();
+	}, [session.status]);
 
 	if (session.status !== "authenticated") {
 		return null;
