@@ -10,10 +10,11 @@ from typing import Any
 
 import httpx
 
+from .auth.identity import current_api_key
 from .errors import ToolError
 
 _FAILURE_HINTS: dict[int, str] = {
-    401: "Authentication failed — check that SURFSENSE_API_KEY is a valid, unexpired key.",
+    401: "Authentication failed — the SurfSense API key is invalid or expired.",
     402: "The workspace is out of credits for this operation.",
     403: (
         "Access denied — the token lacks permission, or API access is disabled "
@@ -27,16 +28,30 @@ _FAILURE_HINTS: dict[int, str] = {
 class SurfSenseClient:
     """Issues authenticated requests against ``{base_url}{api_prefix}``."""
 
-    def __init__(self, *, api_base: str, api_key: str, timeout: float) -> None:
+    def __init__(
+        self, *, api_base: str, timeout: float, fallback_api_key: str | None = None
+    ) -> None:
         self._api_base = api_base
+        # The key is resolved per request (one client serves many users over
+        # http), so none is baked into the shared client. ``fallback_api_key``
+        # is the env-supplied key used under stdio, where there is no header.
+        self._fallback_api_key = fallback_api_key
         self._http = httpx.AsyncClient(
             base_url=api_base,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Accept": "application/json",
-            },
+            headers={"Accept": "application/json"},
             timeout=timeout,
         )
+
+    def _auth_headers(self) -> dict[str, str]:
+        """Resolve the caller's key: the per-request header, else the env key."""
+        api_key = current_api_key() or self._fallback_api_key
+        if not api_key:
+            raise ToolError(
+                "No SurfSense API key supplied. Send it as an 'Authorization: "
+                "Bearer ss_pat_...' header (remote server), or set the "
+                "SURFSENSE_API_KEY environment variable (stdio)."
+            )
+        return {"Authorization": f"Bearer {api_key}"}
 
     async def request(
         self,
@@ -53,9 +68,16 @@ class SurfSenseClient:
         # as a value (e.g. int("") on folder_id) and fail.
         if params is not None:
             params = {key: value for key, value in params.items() if value is not None}
+        headers = self._auth_headers()
         try:
             response = await self._http.request(
-                method, path, params=params, json=json, data=data, files=files
+                method,
+                path,
+                params=params,
+                json=json,
+                data=data,
+                files=files,
+                headers=headers,
             )
         except httpx.RequestError as exc:
             raise ToolError(
