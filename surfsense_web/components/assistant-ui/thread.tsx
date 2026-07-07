@@ -1014,13 +1014,13 @@ const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => 
 	return (
 		<div className="hidden items-center gap-1 sm:flex">
 			<div aria-hidden className="h-5 w-px shrink-0 bg-border" />
-			<div className="flex items-center gap-0.5" aria-label="Connected data sources">
+			<ul className="m-0 flex list-none items-center gap-0.5 p-0" aria-label="Connected data sources">
 				{platforms.map((platform, i) => {
 					const Icon = platform.icon;
 					return (
 						<Tooltip key={platform.id}>
 							<TooltipTrigger asChild>
-								<motion.span
+								<motion.li
 									initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{
@@ -1031,13 +1031,13 @@ const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => 
 									className="flex size-5 items-center justify-center"
 								>
 									<Icon className="size-3.5" />
-								</motion.span>
+								</motion.li>
 							</TooltipTrigger>
 							<TooltipContent side="bottom">{platform.label} · Connected</TooltipContent>
 						</Tooltip>
 					);
 				})}
-			</div>
+			</ul>
 		</div>
 	);
 };

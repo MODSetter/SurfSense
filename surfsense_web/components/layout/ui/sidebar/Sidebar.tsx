@@ -246,6 +246,14 @@ export function Sidebar({
 							onClick={() => onNavItemClick?.(playgroundItem)}
 							isCollapsed={isCollapsed}
 							isActive={playgroundItem.isActive}
+							badge={
+								<Badge
+									variant="secondary"
+									className="h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10"
+								>
+									New
+								</Badge>
+							}
 							tooltipContent={isCollapsed ? playgroundItem.title : undefined}
 						/>
 					)}

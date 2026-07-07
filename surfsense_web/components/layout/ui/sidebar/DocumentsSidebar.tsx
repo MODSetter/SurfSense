@@ -145,10 +145,10 @@ export function EmbeddedDocumentsMenu({
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="relative h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+						className="relative h-6 w-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 						aria-label="Document actions"
 					>
-						<SlidersVertical className="h-3.5 w-3.5" />
+						<SlidersVertical className="size-3.5" />
 						{activeTypes.length > 0 ? (
 							<span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
 						) : null}
@@ -284,10 +284,10 @@ export function EmbeddedImportMenu({
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					className="h-6 w-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 					aria-label="Import documents"
 				>
-					<FolderInput className="h-3.5 w-3.5" />
+					<FolderInput className="size-3.5" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-56">
@@ -1267,7 +1267,7 @@ function AuthenticatedDocumentsSidebarBase({
 					defaultOpen={true}
 					contentClassName="px-0"
 					persistentAction={
-						<div className="flex items-center gap-0.5">
+						<div className="flex items-center gap-1.5">
 							<EmbeddedImportMenu onFolderWatched={refreshWatchedIds} />
 							<EmbeddedDocumentsMenu
 								typeCounts={typeCounts}
@@ -1443,7 +1443,7 @@ function AnonymousDocumentsSidebar({ embedded = false }: DocumentsSidebarProps) 
 				defaultOpen={true}
 				contentClassName="px-0"
 				persistentAction={
-					<div className="flex items-center gap-0.5">
+					<div className="flex items-center gap-1.5">
 						<EmbeddedImportMenu gate={gate} />
 						<EmbeddedDocumentsMenu
 							typeCounts={hasDoc ? { FILE: 1 } : {}}
