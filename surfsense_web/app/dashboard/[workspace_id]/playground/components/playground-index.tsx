@@ -45,7 +45,7 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 					<div className="flex items-center gap-3">
 						<History className="h-5 w-5 text-muted-foreground" />
 						<div>
-							<p className="text-sm font-medium">Runs</p>
+							<p className="text-sm font-medium">API Runs</p>
 							<p className="text-xs text-muted-foreground">See every API run in this workspace</p>
 						</div>
 					</div>

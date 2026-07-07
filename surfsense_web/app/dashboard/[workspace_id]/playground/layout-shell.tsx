@@ -30,7 +30,7 @@ export function PlaygroundLayoutShell({ workspaceId, children }: PlaygroundLayou
 			},
 			{
 				value: "runs",
-				label: "Runs",
+				label: "API Runs",
 				href: `${base}/runs`,
 				icon: <History className="h-4 w-4" />,
 			},

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, ChevronRight, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,8 +45,9 @@ function SchemaBlock({ title, schema }: { title: string; schema: Record<string, 
 	const json = useMemo(() => JSON.stringify(schema, null, 2), [schema]);
 	return (
 		<details className="group rounded-md border border-border/60">
-			<summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-				{title}
+			<summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+				<span>{title}</span>
+				<ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
 			</summary>
 			<div className="relative border-t border-border/60">
 				<CopyButton text={json} />
