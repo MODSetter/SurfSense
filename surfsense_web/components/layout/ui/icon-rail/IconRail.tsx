@@ -6,6 +6,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { NavItem, User, Workspace } from "../../types/layout.types";
+import {
+	NotificationsDropdown,
+	type NotificationsDropdownData,
+} from "../sidebar/NotificationsDropdown";
 import { SidebarUserProfile } from "../sidebar/SidebarUserProfile";
 import { WorkspaceAvatar } from "./WorkspaceAvatar";
 
@@ -24,6 +28,7 @@ interface IconRailProps {
 	onUserSettings?: () => void;
 	onAnnouncements?: () => void;
 	announcementUnreadCount?: number;
+	notifications?: NotificationsDropdownData;
 	onLogout?: () => void;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
@@ -45,6 +50,7 @@ export function IconRail({
 	onUserSettings,
 	onAnnouncements,
 	announcementUnreadCount = 0,
+	notifications,
 	onLogout,
 	theme,
 	setTheme,
@@ -145,6 +151,9 @@ export function IconRail({
 				isCollapsed
 				theme={theme}
 				setTheme={setTheme}
+				topContent={
+					notifications ? <NotificationsDropdown notifications={notifications} /> : undefined
+				}
 			/>
 		</div>
 	);

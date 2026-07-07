@@ -46,21 +46,6 @@ function ChatListSkeletonRows() {
 	);
 }
 
-function CollapsedInboxIcon({ item }: { item: NavItem }) {
-	const Icon = item.icon;
-
-	return (
-		<span className="relative flex h-3.5 w-3.5 items-center justify-center">
-			<Icon className="h-3.5 w-3.5" />
-			{typeof item.badge === "string" ? (
-				<span className="absolute right-0 top-0 flex min-w-3.5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium leading-3 text-destructive-foreground">
-					{item.badge}
-				</span>
-			) : null}
-		</span>
-	);
-}
-
 interface SidebarProps {
 	workspace: Workspace | null;
 	isCollapsed?: boolean;
@@ -138,10 +123,9 @@ export function Sidebar({
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 	const [isSidebarNavScrolled, setIsSidebarNavScrolled] = useState(false);
 
-	// Inbox, Automations, and Artifacts are rendered explicitly right below
+	// Automations, Artifacts, and Playground are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
 	// in the bottom NavSection. Documents is embedded below Recents.
-	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
 		[navItems]
@@ -158,7 +142,6 @@ export function Sidebar({
 		() =>
 			navItems.filter(
 				(item) =>
-					item.url !== "#inbox" &&
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
 					!item.url.endsWith("/playground")
@@ -235,23 +218,6 @@ export function Sidebar({
 				onScroll={(event) => setIsSidebarNavScrolled(event.currentTarget.scrollTop > 0)}
 			>
 				<div className="flex flex-col gap-0.5 pt-0.5 pb-1.5">
-					{inboxItem && (
-						<SidebarButton
-							icon={inboxItem.icon}
-							label={inboxItem.title}
-							onClick={() => onNavItemClick?.(inboxItem)}
-							isCollapsed={isCollapsed}
-							isActive={inboxItem.isActive}
-							badge={inboxItem.badge}
-							collapsedIconNode={<CollapsedInboxIcon item={inboxItem} />}
-							tooltipContent={isCollapsed ? inboxItem.title : undefined}
-							buttonProps={
-								{
-									"data-joyride": "inbox-sidebar",
-								} as React.ButtonHTMLAttributes<HTMLButtonElement>
-							}
-						/>
-					)}
 					{automationsItem && (
 						<SidebarButton
 							icon={automationsItem.icon}

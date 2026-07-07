@@ -1,14 +1,13 @@
 "use client";
 
-import { Inbox } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
-import type { ChatItem, NavItem, PageUsage, Workspace } from "../types/layout.types";
+import type { ChatItem, PageUsage, Workspace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
 
 interface FreeLayoutDataProviderProps {
@@ -47,33 +46,11 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 
 	const gatedAction = useCallback((feature: string) => () => gate(feature), [gate]);
 
-	const navItems: NavItem[] = useMemo(
-		() =>
-			(
-				[
-					{
-						title: "Inbox",
-						url: "#inbox",
-						icon: Inbox,
-						isActive: false,
-					},
-				] as (NavItem | null)[]
-			).filter((item): item is NavItem => item !== null),
-		[]
-	);
-
 	const pageUsage: PageUsage | undefined = quota
 		? { pagesUsed: quota.used, pagesLimit: quota.limit }
 		: undefined;
 
 	const handleChatSelect = useCallback((_chat: ChatItem) => gate("view chat history"), [gate]);
-
-	const handleNavItemClick = useCallback(
-		(item: NavItem) => {
-			if (item.title === "Inbox") gate("use the inbox");
-		},
-		[gate]
-	);
 
 	const handleAnnouncements = useCallback(() => gate("see what's new"), [gate]);
 
@@ -87,8 +64,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			onWorkspaceSettings={gatedAction("workspace settings")}
 			onAddWorkspace={gatedAction("create workspaces")}
 			workspace={GUEST_SPACE}
-			navItems={navItems}
-			onNavItemClick={handleNavItemClick}
+			navItems={[]}
 			chats={[]}
 			activeChatId={null}
 			onNewChat={resetChat}

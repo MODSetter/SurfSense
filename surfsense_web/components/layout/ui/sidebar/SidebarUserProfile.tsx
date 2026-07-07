@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,6 +73,7 @@ interface SidebarUserProfileProps {
 	isCollapsed?: boolean;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
+	topContent?: React.ReactNode;
 }
 
 function formatAnnouncementCount(count: number): string {
@@ -134,6 +136,7 @@ export function SidebarUserProfile({
 	isCollapsed = false,
 	theme,
 	setTheme,
+	topContent,
 }: SidebarUserProfileProps) {
 	const t = useTranslations("sidebar");
 	const { locale, setLocale } = useLocaleContext();
@@ -171,6 +174,7 @@ export function SidebarUserProfile({
 		return (
 			<div className="w-full border-t px-1.5 py-2">
 				<div className="flex flex-col items-center gap-2">
+					{topContent}
 					{showDownloadCta && (
 						<Tooltip>
 							<TooltipTrigger asChild>
