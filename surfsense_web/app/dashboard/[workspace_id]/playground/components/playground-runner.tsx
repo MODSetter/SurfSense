@@ -244,7 +244,7 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 										>
 											Read docs
 										</Link>
-										.
+										{" "}for more info.
 									</>
 								) : null}
 							</p>

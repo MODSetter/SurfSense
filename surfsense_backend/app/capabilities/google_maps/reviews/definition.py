@@ -10,15 +10,14 @@ from app.capabilities.google_maps.reviews.schemas import ReviewsInput, ReviewsOu
 GOOGLE_MAPS_REVIEWS = Capability(
     name="google_maps.reviews",
     description=(
-        "Fetch public reviews for one or more Google Maps places. Give it place "
-        "URLs or place IDs; returns structured review items with author, text, "
-        "star rating, like count, owner response, and timestamps. Use it to "
-        "gauge sentiment or pull recent feedback on specific places."
+        "Fetch public Google Maps reviews with authors, ratings, text, and "
+        "owner responses. Use urls or place IDs."
     ),
     input_schema=ReviewsInput,
     output_schema=ReviewsOutput,
     executor=build_reviews_executor(),
     billing_unit=BillingUnit.GOOGLE_MAPS_REVIEW,
+    docs_url="/docs/connectors/native/google-maps",
 )
 
 register_capability(GOOGLE_MAPS_REVIEWS)
