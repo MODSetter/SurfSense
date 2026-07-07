@@ -7,8 +7,12 @@ description: Connect your Microsoft Teams to SurfSense
 
 This guide walks you through setting up a Microsoft Teams OAuth integration for SurfSense using Azure App Registration.
 
+<Callout type="warn" title="Deprecated">
+The Microsoft Teams connector is **deprecated** and can no longer be connected (the backend refuses new connections with HTTP 410). Existing connections remain manageable. The guide below is retained for reference only.
+</Callout>
+
 <Callout type="info">
-  Microsoft Teams and [Microsoft OneDrive](/docs/connectors/microsoft-onedrive) share the same Azure App Registration. If you have already created an app for OneDrive, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
+  Microsoft Teams and [Microsoft OneDrive](/docs/connectors/external/onedrive) share the same Azure App Registration. If you have already created an app for OneDrive, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
 </Callout>
 
 ## Step 1: Access Azure App Registrations
@@ -101,7 +105,7 @@ After registration, you will be taken to the app's **Overview** page. Here you w
 
 ## Running SurfSense with Microsoft Teams Connector
 
-Add the Microsoft OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
+Add the Microsoft OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
 
 ```bash
 MICROSOFT_CLIENT_ID=your_microsoft_client_id

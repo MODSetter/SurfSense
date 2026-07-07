@@ -1,0 +1,91 @@
+---
+title: Native Connectors
+description: SurfSense's built-in scraper APIs for Reddit, YouTube, Google Maps, Google Search, and the web
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+Native connectors are SurfSense's own scraper APIs — built into the platform, no third-party account or OAuth app required. They pull structured, public data from the platforms below and return clean JSON.
+
+<Cards>
+  <Card
+    title="Reddit"
+    description="Posts, comments, subreddits, and users — by URL or search"
+    href="/docs/connectors/native/reddit"
+  />
+  <Card
+    title="YouTube"
+    description="Videos, channels, playlists, subtitles, and comments"
+    href="/docs/connectors/native/youtube"
+  />
+  <Card
+    title="Google Maps"
+    description="Places with details, ratings, photos, and reviews"
+    href="/docs/connectors/native/google-maps"
+  />
+  <Card
+    title="Google Search"
+    description="Structured SERPs: organic results, people-also-ask, AI overviews"
+    href="/docs/connectors/native/google-search"
+  />
+  <Card
+    title="Web Crawl"
+    description="Scrape any page or spider a whole site into clean markdown"
+    href="/docs/connectors/native/web-crawl"
+  />
+</Cards>
+
+## Three ways to use them
+
+Every scraper is available through the same three doors:
+
+1. **In chat** — the AI agent uses these scrapers as tools automatically. Ask "what is r/selfhosted saying about SurfSense?" and the agent runs the Reddit scraper for you.
+2. **API Playground** — open **API Playground** in your workspace sidebar, pick a scraper, fill in the form, and run it interactively. Great for exploring what a scraper returns before writing code.
+3. **REST API** — call the scrapers from your own code. Each one is a single `POST`:
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/{platform}/{verb}
+Authorization: Bearer <your-api-key>
+```
+
+The playground's **API reference** section on every scraper page generates ready-to-paste snippets (cURL, Python, JavaScript, Go, and more) with your workspace ID already filled in, plus the full input and output JSON schemas.
+
+## API keys
+
+To call the REST API you need two things, both under **API Playground → API Keys**:
+
+1. Toggle **API key access** on for the workspace.
+2. Create a personal API key and send it as an `Authorization: Bearer` header.
+
+## Sync and async runs
+
+By default a `POST` blocks until the scrape finishes and returns the results. For long scrapes, append `?mode=async` — you get a `202` with a `run_id` immediately, then:
+
+- **Stream progress**: `GET .../scrapers/runs/{run_id}/events` (Server-Sent Events, ends with a `run.finished` event)
+- **Fetch the result**: `GET .../scrapers/runs/{run_id}`
+- **Cancel**: `POST .../scrapers/runs/{run_id}/cancel`
+
+## Avoiding blocks with a proxy (self-hosted)
+
+Scrapers make real requests to the target platforms, and heavy use from a single server IP will eventually get rate-limited or blocked. If you self-host, we recommend routing scraper traffic through a proxy — any HTTP proxy or rotating residential/datacenter gateway you already use works; SurfSense doesn't require a specific vendor.
+
+Set it up in your backend `.env` and restart:
+
+```bash
+# A single endpoint (user:pass@host:port), used for all scraper traffic
+PROXY_URL=http://username:password@proxy.example.com:8080
+
+# Or a comma-separated pool that SurfSense rotates through per request.
+# Gateways that rotate server-side just need the single PROXY_URL above.
+PROXY_URLS=http://user:pass@host1:port,http://user:pass@host2:port
+```
+
+Leave both unset and requests go out directly from your server's IP — fine for light use. See the proxy section of `.env.example` for the full details, including `PROXY_PROVIDER` if your vendor has a built-in integration.
+
+<Callout type="info">
+On SurfSense Cloud, proxying is already handled — nothing to configure.
+</Callout>
+
+## Runs and pricing
+
+Every run — from chat, the playground, or the API — is recorded under **API Playground → Runs** with its input, output, duration, and cost. Scrapers are metered per item returned (per post, video, comment, place, review, SERP page, or crawled page); the current rate is shown on each scraper's playground card, and pricing is returned by the capabilities API (`GET .../scrapers/capabilities`).

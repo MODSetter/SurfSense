@@ -344,6 +344,9 @@ def test_validate_connector_config_invalid():
         "SEARXNG_API",
         "LINKUP_API",
         "BAIDU_SEARCH_API",
+        "YOUTUBE_CONNECTOR",
+        "WEBCRAWLER_CONNECTOR",
+        "ELASTICSEARCH_CONNECTOR",
     ],
 )
 def test_raise_if_connector_deprecated_blocks(connector_type):

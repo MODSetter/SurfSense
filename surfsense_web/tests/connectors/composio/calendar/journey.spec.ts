@@ -27,7 +27,7 @@ test.describe("Composio Calendar journey", () => {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
+		const connectorDialog = page.getByRole("dialog", { name: "Manage External MCP Connectors" });
 		await expect(connectorDialog).toBeVisible();
 
 		const beforeChatDocs = await listDocuments(request, apiToken, workspace.id);

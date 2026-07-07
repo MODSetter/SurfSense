@@ -21,14 +21,27 @@ export async function openConnectorPopup(page: Page): Promise<void> {
 	await expect(trigger).toBeVisible({ timeout: 60_000 });
 	await trigger.click();
 
-	await expect(page.getByRole("dialog", { name: "Manage Connectors" })).toBeVisible();
+	await expect(page.getByRole("dialog", { name: "Manage External MCP Connectors" })).toBeVisible();
 }
 
-export async function clickComposioDriveCard(page: Page): Promise<void> {
-	const composioDriveCard = page.getByText("Search your Drive files via Composio");
-	await composioDriveCard.scrollIntoViewIfNeeded();
-	const card = composioDriveCard
-		.locator("xpath=ancestor::*[self::article or self::div][1]")
-		.first();
-	await card.getByRole("button", { name: "Connect" }).click();
+/**
+ * Opens the Documents sidebar "Import" menu. Import connectors
+ * (Google Drive / OneDrive / Dropbox) are surfaced here instead of in the
+ * external-MCP connector catalog.
+ */
+export async function openDocumentsImportMenu(page: Page): Promise<void> {
+	const trigger = page.getByRole("button", { name: "Import documents" }).first();
+	// Long timeout absorbs Next.js dev cold-compile of the dashboard route.
+	await expect(trigger).toBeVisible({ timeout: 60_000 });
+	await trigger.click();
+}
+
+/**
+ * Opens the Import menu and asserts a cloud-drive import connector is offered.
+ * `label` is the visible menu label ("Google Drive", "OneDrive", "Dropbox").
+ */
+export async function expectImportConnectorAvailable(page: Page, label: string): Promise<void> {
+	await openDocumentsImportMenu(page);
+	await expect(page.getByRole("menuitem", { name: label })).toBeVisible();
+	await page.keyboard.press("Escape");
 }

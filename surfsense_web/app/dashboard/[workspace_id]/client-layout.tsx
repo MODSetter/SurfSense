@@ -14,6 +14,7 @@ import {
 	modelRolesAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
@@ -214,7 +215,10 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider workspaceId={workspaceId}>{children}</LayoutDataProvider>
+			<LayoutDataProvider workspaceId={workspaceId}>
+				{children}
+				<ConnectorIndicator showTrigger={false} />
+			</LayoutDataProvider>
 		</DocumentUploadDialogProvider>
 	);
 }

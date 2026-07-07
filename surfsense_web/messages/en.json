@@ -205,7 +205,7 @@
 		"manage_documents": "Manage Documents",
 		"connectors": "Connectors",
 		"add_connector": "Add Connector",
-		"manage_connectors": "Manage Connectors",
+		"manage_connectors": "Manage External MCP Connectors",
 		"logs": "Logs",
 		"all_workspaces": "All Workspaces",
 		"team": "Team"

@@ -18,6 +18,23 @@ export const DEPRECATED_CONNECTOR_TYPES = new Set<string>([
 	EnumConnectorName.SEARXNG_API,
 	EnumConnectorName.LINKUP_API,
 	EnumConnectorName.BAIDU_SEARCH_API,
+	// Legacy content crawlers/search retired in favor of the file Import menu and
+	// hosted MCP tooling. Existing rows stay manageable; new connections refused.
+	EnumConnectorName.YOUTUBE_CONNECTOR,
+	EnumConnectorName.WEBCRAWLER_CONNECTOR,
+	EnumConnectorName.ELASTICSEARCH_CONNECTOR,
+]);
+
+/**
+ * File-import connectors surfaced through the Documents sidebar "Import" menu
+ * instead of the external-MCP connector catalog. They index remote files into
+ * the knowledge base, so they belong with uploads, not with live MCP tools.
+ */
+export const IMPORT_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+	EnumConnectorName.ONEDRIVE_CONNECTOR,
+	EnumConnectorName.DROPBOX_CONNECTOR,
 ]);
 
 /**

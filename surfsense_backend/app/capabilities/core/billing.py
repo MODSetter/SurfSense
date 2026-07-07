@@ -43,6 +43,53 @@ def _platform_rate(unit: BillingUnit) -> int:
     return int(getattr(config, _PLATFORM_RATE_KEYS[unit]))
 
 
+# Display noun for each platform meter, e.g. "$3.50 / 1k places".
+_UNIT_NOUNS: dict[BillingUnit, str] = {
+    BillingUnit.REDDIT_ITEM: "item",
+    BillingUnit.GOOGLE_SEARCH_SERP: "SERP",
+    BillingUnit.GOOGLE_MAPS_PLACE: "place",
+    BillingUnit.GOOGLE_MAPS_REVIEW: "review",
+    BillingUnit.YOUTUBE_VIDEO: "video",
+    BillingUnit.YOUTUBE_COMMENT: "comment",
+}
+
+
+def pricing_meters(unit: BillingUnit | None) -> list[dict]:
+    """The live per-item rates a verb charges, for UI display. Empty = free.
+
+    Mirrors the gate/charge logic exactly: meters whose billing flag is off are
+    omitted, so a self-hosted install with billing disabled reads as free.
+    """
+    if unit is None:
+        return []
+    if unit is BillingUnit.WEB_CRAWL:
+        meters = []
+        if WebCrawlCreditService.billing_enabled():
+            meters.append(
+                {"unit": "page", "micros_per_unit": config.WEB_CRAWL_MICROS_PER_SUCCESS}
+            )
+        if WebCrawlCreditService.captcha_billing_enabled() and captcha_enabled():
+            meters.append(
+                {
+                    "unit": "captcha solve",
+                    "micros_per_unit": config.WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE,
+                }
+            )
+        return meters
+    if not config.PLATFORM_SCRAPE_BILLING_ENABLED:
+        return []
+    meters = [{"unit": _UNIT_NOUNS[unit], "micros_per_unit": _platform_rate(unit)}]
+    if unit is BillingUnit.GOOGLE_MAPS_PLACE:
+        # Dual-metered: attached reviews bill on their own meter.
+        meters.append(
+            {
+                "unit": _UNIT_NOUNS[BillingUnit.GOOGLE_MAPS_REVIEW],
+                "micros_per_unit": _platform_rate(BillingUnit.GOOGLE_MAPS_REVIEW),
+            }
+        )
+    return meters
+
+
 async def gate_capability(
     payload: BillableInput, unit: BillingUnit | None, ctx: CapabilityContext
 ) -> None:

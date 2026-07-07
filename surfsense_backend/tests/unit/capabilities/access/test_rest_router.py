@@ -124,6 +124,41 @@ async def test_capabilities_endpoint_lists_verbs_with_input_schema(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_capabilities_endpoint_exposes_live_pricing(monkeypatch):
+    """Billed verbs report their per-item rate; free verbs report an empty list."""
+    from app.capabilities.core.types import BillingUnit
+    from app.config import config
+
+    monkeypatch.setattr(config, "PLATFORM_SCRAPE_BILLING_ENABLED", True)
+    monkeypatch.setattr(config, "YOUTUBE_MICROS_PER_VIDEO", 2500)
+
+    billed = Capability(
+        name="test.billed",
+        description="Billed verb for tests.",
+        input_schema=_EchoInput,
+        output_schema=_EchoOutput,
+        executor=_echo_executor,
+        billing_unit=BillingUnit.YOUTUBE_VIDEO,
+    )
+
+    app = _build_app([_ECHO, billed], monkeypatch)
+    async with _client(app) as client:
+        resp = await client.get("/api/v1/workspaces/7/scrapers/capabilities")
+    assert resp.status_code == 200
+    by_name = {entry["name"]: entry for entry in resp.json()}
+    assert by_name["test.echo"]["pricing"] == []
+    assert by_name["test.billed"]["pricing"] == [
+        {"unit": "video", "micros_per_unit": 2500}
+    ]
+
+    # Rates are read live: a config retune shows up without a router rebuild.
+    monkeypatch.setattr(config, "PLATFORM_SCRAPE_BILLING_ENABLED", False)
+    async with _client(app) as client:
+        resp = await client.get("/api/v1/workspaces/7/scrapers/capabilities")
+    assert resp.json()[1]["pricing"] == []
+
+
+@pytest.mark.asyncio
 async def test_over_budget_is_blocked_before_the_executor(monkeypatch):
     from app.capabilities.core.access import rest
     from app.services.web_crawl_credit_service import InsufficientCreditsError

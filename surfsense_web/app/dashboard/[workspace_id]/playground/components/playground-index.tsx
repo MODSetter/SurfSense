@@ -2,10 +2,21 @@
 
 import { ArrowRight, History, KeyRound } from "lucide-react";
 import Link from "next/link";
+import { useMemo } from "react";
+import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { PLAYGROUND_PLATFORMS } from "@/lib/playground/catalog";
+import { formatPricing } from "@/lib/playground/format";
 
 export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 	const base = `/dashboard/${workspaceId}/playground`;
+
+	// The grid renders from the static catalog immediately; pricing fills in
+	// once the capabilities fetch lands (blank while loading, never blocking).
+	const { data: capabilities } = useScraperCapabilities(workspaceId);
+	const pricingByName = useMemo(
+		() => new Map(capabilities?.map((c) => [c.name, formatPricing(c.pricing)])),
+		[capabilities]
+	);
 
 	return (
 		<div className="space-y-8">
@@ -67,6 +78,11 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 										<ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
 									</div>
 									<code className="mt-2 text-xs text-muted-foreground">{verb.name}</code>
+									{pricingByName.has(verb.name) ? (
+										<span className="mt-2 text-xs tabular-nums text-muted-foreground">
+											{pricingByName.get(verb.name)}
+										</span>
+									) : null}
 								</Link>
 							))}
 						</div>

@@ -2,16 +2,29 @@
 
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { FolderPlus, ListFilter, SlidersVertical, Trash2 } from "lucide-react";
+import {
+	FolderInput,
+	FolderPlus,
+	ListFilter,
+	Plus,
+	Settings2,
+	SlidersVertical,
+	Trash2,
+	Upload,
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { importConnectorRequestAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { useConnectorStatus } from "@/components/assistant-ui/connector-popup/hooks/use-connector-status";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
@@ -19,7 +32,7 @@ import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
-import { useRuntimeConfig } from "@/components/providers/runtime-config";
+import { useIsSelfHosted, useRuntimeConfig } from "@/components/providers/runtime-config";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import { DEFAULT_EXCLUDE_PATTERNS } from "@/components/sources/FolderWatchDialog";
 import {
@@ -38,6 +51,7 @@ import {
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuSub,
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
@@ -47,6 +61,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -158,6 +175,127 @@ export function EmbeddedDocumentsMenu({
 						)}
 					</DropdownMenuSubContent>
 				</DropdownMenuSub>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+/**
+ * Import menu: local file upload plus the cloud-drive import connectors
+ * (Google Drive / OneDrive / Dropbox). Drive/OneDrive/Dropbox set
+ * `importConnectorRequestAtom`, which the connector dialog consumes to run
+ * OAuth or open the existing account's config. In anonymous mode, `gate`
+ * intercepts every item to trigger the login flow.
+ */
+export function EmbeddedImportMenu({ gate }: { gate?: (feature: string) => void }) {
+	const { openDialog } = useDocumentUploadDialog();
+	const setImportRequest = useSetAtom(importConnectorRequestAtom);
+	const selfHosted = useIsSelfHosted();
+	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
+	const { data: connectors } = useAtomValue(connectorsAtom);
+
+	// Native Google Drive connector self-hosted only; hosted deployments use Composio.
+	const driveType = selfHosted
+		? EnumConnectorName.GOOGLE_DRIVE_CONNECTOR
+		: EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR;
+
+	const cloudItems = [
+		{ type: driveType, label: "Google Drive" },
+		{ type: EnumConnectorName.ONEDRIVE_CONNECTOR, label: "OneDrive" },
+		{ type: EnumConnectorName.DROPBOX_CONNECTOR, label: "Dropbox" },
+	];
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					aria-label="Import documents"
+				>
+					<FolderInput className="h-3.5 w-3.5" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" className="w-56">
+				<DropdownMenuItem onSelect={() => (gate ? gate("upload files") : openDialog())}>
+					<Upload className="h-4 w-4" />
+					Upload Files
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				{cloudItems.map((item) => {
+					const enabled = gate ? true : isConnectorEnabled(item.type);
+					const statusMessage = enabled ? null : getConnectorStatusMessage(item.type);
+					const icon = getConnectorIcon(item.type, "h-4 w-4");
+					// gate = anonymous mode; treat every connector as unconnected so items
+					// route through the login gate rather than reading workspace connectors.
+					const accountCount = gate
+						? 0
+						: (connectors ?? []).filter(
+								(c: SearchSourceConnector) => c.connector_type === item.type
+							).length;
+
+					// Unavailable (e.g. maintenance): non-actionable item explaining why.
+					if (!enabled) {
+						return (
+							<DropdownMenuItem key={item.type} disabled title={statusMessage ?? undefined}>
+								{icon}
+								{item.label}
+							</DropdownMenuItem>
+						);
+					}
+
+					// Connected: manage the existing account(s) or add another.
+					if (accountCount > 0) {
+						return (
+							<DropdownMenuSub key={item.type}>
+								<DropdownMenuSubTrigger>
+									{icon}
+									<span className="min-w-0 flex-1 truncate">{item.label}</span>
+									<span className="ml-auto text-xs text-muted-foreground">{accountCount}</span>
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="w-48">
+									<DropdownMenuItem
+										onSelect={() =>
+											gate
+												? gate("manage import connectors")
+												: setImportRequest({ connectorType: item.type, mode: "auto" })
+										}
+									>
+										<Settings2 className="h-4 w-4" />
+										{accountCount > 1 ? "Manage accounts" : "Manage"}
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onSelect={() =>
+											gate
+												? gate("import from cloud storage")
+												: setImportRequest({ connectorType: item.type, mode: "connect" })
+										}
+									>
+										<Plus className="h-4 w-4" />
+										Add another account
+									</DropdownMenuItem>
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
+						);
+					}
+
+					// Not connected: single click starts the first OAuth connect.
+					return (
+						<DropdownMenuItem
+							key={item.type}
+							onSelect={() =>
+								gate
+									? gate("import from cloud storage")
+									: setImportRequest({ connectorType: item.type, mode: "auto" })
+							}
+						>
+							{icon}
+							{item.label}
+						</DropdownMenuItem>
+					);
+				})}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -1041,12 +1179,15 @@ function AuthenticatedDocumentsSidebarBase({
 					defaultOpen={true}
 					contentClassName="px-0"
 					persistentAction={
-						<EmbeddedDocumentsMenu
-							typeCounts={typeCounts}
-							activeTypes={activeTypes}
-							onToggleType={onToggleType}
-							onCreateFolder={() => handleCreateFolder(null)}
-						/>
+						<div className="flex items-center gap-0.5">
+							<EmbeddedImportMenu />
+							<EmbeddedDocumentsMenu
+								typeCounts={typeCounts}
+								activeTypes={activeTypes}
+								onToggleType={onToggleType}
+								onCreateFolder={() => handleCreateFolder(null)}
+							/>
+						</div>
 					}
 				>
 					{renderDocumentTree()}
@@ -1214,12 +1355,15 @@ function AnonymousDocumentsSidebar({ embedded = false }: DocumentsSidebarProps) 
 				defaultOpen={true}
 				contentClassName="px-0"
 				persistentAction={
-					<EmbeddedDocumentsMenu
-						typeCounts={hasDoc ? { FILE: 1 } : {}}
-						activeTypes={[]}
-						onToggleType={() => {}}
-						onCreateFolder={() => gate("create folders")}
-					/>
+					<div className="flex items-center gap-0.5">
+						<EmbeddedImportMenu gate={gate} />
+						<EmbeddedDocumentsMenu
+							typeCounts={hasDoc ? { FILE: 1 } : {}}
+							activeTypes={[]}
+							onToggleType={() => {}}
+							onCreateFolder={() => gate("create folders")}
+						/>
+					</div>
 				}
 			>
 				<FolderTreeView

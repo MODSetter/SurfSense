@@ -2,7 +2,10 @@ import { format } from "date-fns";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import {
+	connectorDialogOpenAtom,
+	importConnectorRequestAtom,
+} from "@/atoms/connector-dialog/connector-dialog.atoms";
 import {
 	createConnectorMutationAtom,
 	deleteConnectorMutationAtom,
@@ -67,6 +70,8 @@ export const useConnectorDialog = () => {
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
+	// Import-flow request from the Documents sidebar "Import" menu
+	const [importConnectorRequest, setImportConnectorRequest] = useAtom(importConnectorRequestAtom);
 	const [activeTab, setActiveTab] = useState("all");
 	const [connectingId, setConnectingId] = useState<string | null>(null);
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -1371,6 +1376,47 @@ export const useConnectorDialog = () => {
 		},
 		[isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector, setIsOpen]
 	);
+
+	// Consume an import request from the Documents sidebar "Import" menu.
+	// mode "connect" -> always OAuth connect (add account). mode "auto" routes by
+	// account count: none -> connect, one -> edit view, many -> accounts list.
+	useEffect(() => {
+		if (!importConnectorRequest || !workspaceId) return;
+
+		const { connectorType, mode } = importConnectorRequest;
+		setImportConnectorRequest(null);
+
+		const connectorDef =
+			OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+			COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+
+		const existing = (allConnectors || []).filter(
+			(c: SearchSourceConnector) => c.connector_type === connectorType
+		);
+
+		if (mode === "connect" || existing.length === 0) {
+			if (connectorDef) {
+				handleConnectOAuth(connectorDef);
+			}
+			return;
+		}
+
+		setIsOpen(true);
+		if (existing.length === 1) {
+			handleStartEdit(existing[0]);
+		} else {
+			handleViewAccountsList(connectorType, connectorDef?.title);
+		}
+	}, [
+		importConnectorRequest,
+		workspaceId,
+		allConnectors,
+		setImportConnectorRequest,
+		handleConnectOAuth,
+		handleStartEdit,
+		handleViewAccountsList,
+		setIsOpen,
+	]);
 
 	const handleTabChange = useCallback((value: string) => {
 		setActiveTab(value);

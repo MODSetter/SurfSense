@@ -31,7 +31,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 		>
 			<DialogHeader>
 				<DialogTitle className="text-xl sm:text-3xl font-semibold tracking-tight">
-					Manage Connectors
+					Manage External MCP Connectors
 				</DialogTitle>
 				<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
 					Connect Surfsense to your favorite tools and services.

@@ -1,0 +1,58 @@
+---
+title: Web Crawl
+description: Scrape any page or crawl a whole site into clean markdown
+---
+
+The web crawler fetches one or more pages — or spiders a whole site — and returns each page as clean markdown, plus metadata, every link with its anchor text, and harvested contact signals (emails, phone numbers, social profiles). JS-rendered pages are loaded in a real browser and auto-scrolled, so lazy-loaded listings are captured too.
+
+## Endpoint
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/web/crawl
+```
+
+## Inputs
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `startUrls` | required | 1–20 seed URLs |
+| `maxCrawlDepth` | `0` | Link-hops to follow from each seed. `0` = fetch only the seeds; `1` = also the pages they link to; up to 5. The spider stays on the seed's site |
+| `maxCrawlPages` | `10` | Total pages fetched per call, seeds included (max 200) |
+| `maxLength` | `50000` | Max characters of markdown kept per page |
+| `includeUrlPatterns` | — | Regexes a discovered link must match to be followed (empty = follow every same-site link) |
+| `excludeUrlPatterns` | — | Regexes that exclude links from being followed (wins over include) |
+
+## Example
+
+Scrape a single page:
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/web/crawl" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "startUrls": ["https://example.com/pricing"] }'
+```
+
+Crawl a site's blog, two hops deep:
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/web/crawl" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "startUrls": ["https://example.com/blog"],
+    "maxCrawlDepth": 2,
+    "maxCrawlPages": 50,
+    "includeUrlPatterns": ["/blog/"]
+  }'
+```
+
+## Output
+
+One item per fetched page (in crawl order) with its markdown, metadata (title, description), crawl provenance (depth, referrer), links classified as internal/external/social/email/tel, and page-level contacts. The response also includes a site-wide `contacts` summary that deduplicates every email, phone, and social profile found — `siteWide: true` marks header/footer values (the company's own contacts) versus page-local finds like individual team members.
+
+Contact details often live on about/contact/privacy pages, so crawl with `maxCrawlDepth >= 1` to surface them — useful for lead generation and competitive intelligence.
+
+Billing is per successfully fetched page.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Web → Crawl** in your workspace.

@@ -6,6 +6,12 @@ import { z } from "zod";
  * consumed by the playground's generic form renderer, the output schema by the
  * API reference docs — so they are intentionally untyped here.
  */
+/** One live per-item rate a verb charges on, e.g. 3500 micro-USD per place. */
+export const scraperPricingMeter = z.object({
+	unit: z.string(),
+	micros_per_unit: z.number(),
+});
+
 export const scraperCapability = z.object({
 	name: z.string(),
 	description: z.string(),
@@ -13,6 +19,8 @@ export const scraperCapability = z.object({
 	// Optional so a backend that predates output schemas degrades to just not
 	// showing the output-schema block instead of failing the whole fetch.
 	output_schema: z.record(z.string(), z.unknown()).optional(),
+	// Optional for the same backward-compat reason; empty array = free.
+	pricing: z.array(scraperPricingMeter).optional(),
 });
 
 export const listCapabilitiesResponse = z.array(scraperCapability);
@@ -50,6 +58,7 @@ export const startAsyncRunResponse = z.object({
 	status: z.string(),
 });
 
+export type ScraperPricingMeter = z.infer<typeof scraperPricingMeter>;
 export type ScraperCapability = z.infer<typeof scraperCapability>;
 export type ScraperRunSummary = z.infer<typeof scraperRunSummary>;
 export type ScraperRunDetail = z.infer<typeof scraperRunDetail>;

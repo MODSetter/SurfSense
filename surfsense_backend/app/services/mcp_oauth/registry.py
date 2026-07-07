@@ -153,13 +153,26 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
             "mpim:history",
             "im:history",
         ],
+        # Both prefixed and unprefixed variants: sources disagree on which
+        # names mcp.slack.com currently advertises. Unmatched entries are
+        # ignored at discovery time.
         allowed_tools=[
             "slack_search_channels",
             "slack_read_channel",
             "slack_read_thread",
+            "search_channels",
+            "read_channel",
+            "read_thread",
         ],
         readonly_tools=frozenset(
-            {"slack_search_channels", "slack_read_channel", "slack_read_thread"}
+            {
+                "slack_search_channels",
+                "slack_read_channel",
+                "slack_read_thread",
+                "search_channels",
+                "read_channel",
+                "read_thread",
+            }
         ),
         # TODO: oauth.v2.user.access only returns team.id, not team.name.
         # To populate team_name, either add "team:read" scope and call
@@ -192,13 +205,22 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
         # DCR (RFC 7591): Notion issues its own client credentials. It expires
         # DCR registrations, but refresh reuses the original persisted
         # ``mcp_oauth.client_id`` (see _refresh_connector_token).
+        # Notion renamed its MCP tools with a "notion-" prefix (late 2025).
+        # Unprefixed names kept for servers still advertising the old names —
+        # allowlist entries the server doesn't advertise are simply ignored.
         allowed_tools=[
+            "notion-search",
+            "notion-fetch",
+            "notion-create-pages",
+            "notion-update-page",
             "search",
             "fetch",
             "create-pages",
             "update-page",
         ],
-        readonly_tools=frozenset({"search", "fetch"}),
+        readonly_tools=frozenset(
+            {"notion-search", "notion-fetch", "search", "fetch"}
+        ),
         account_metadata_keys=["workspace_name"],
     ),
     "confluence": MCPServiceConfig(

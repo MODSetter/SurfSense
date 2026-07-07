@@ -10,7 +10,7 @@ import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { scrapersApiService } from "@/lib/apis/scrapers-api.service";
 import { AbortedError, AppError } from "@/lib/error";
 import { findVerb } from "@/lib/playground/catalog";
-import { formatCost, formatDuration } from "@/lib/playground/format";
+import { formatCost, formatDuration, formatPricing } from "@/lib/playground/format";
 import { buildPayload, initialFormValues, parseSchemaFields } from "@/lib/playground/json-schema";
 import { ApiReference } from "./api-reference";
 import { OutputViewer } from "./output-viewer";
@@ -198,6 +198,12 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 						<code className="mt-2 inline-block rounded bg-muted/40 px-1.5 py-0.5 text-xs text-muted-foreground">
 							POST /workspaces/{workspaceId}/scrapers/{platform}/{verb}
 						</code>
+						<div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+							<Coins className="h-3.5 w-3.5" />
+							<span className="font-medium tabular-nums text-foreground">
+								{formatPricing(capability.pricing)}
+							</span>
+						</div>
 					</div>
 
 					<SchemaForm

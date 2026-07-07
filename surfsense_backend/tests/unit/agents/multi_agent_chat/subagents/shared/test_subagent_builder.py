@@ -25,6 +25,7 @@ from app.agents.chat.multi_agent_chat.shared.permissions.middleware.core import 
     PermissionMiddleware,
 )
 from app.agents.chat.multi_agent_chat.subagents.shared.subagent_builder import (
+    append_today_utc,
     pack_subagent,
 )
 
@@ -102,6 +103,35 @@ async def test_subagent_recovers_when_primary_llm_fails():
     final = result["messages"][-1]
     assert isinstance(final, AIMessage)
     assert final.content == "recovered via fallback"
+
+
+def test_packed_subagent_prompt_carries_todays_utc_date():
+    """Subagents must inherit the main agent's clock, not guess the date."""
+    from datetime import UTC, datetime
+
+    today = datetime.now(UTC).date().isoformat()
+
+    result = pack_subagent(
+        name="date_test",
+        description="test",
+        system_prompt="be helpful",
+        tools=[],
+        ruleset=Ruleset(origin="date_test", rules=[]),
+        dependencies={"flags": AgentFeatureFlags()},
+    )
+
+    prompt = result.spec["system_prompt"]
+    assert prompt.startswith("be helpful")
+    assert f"Today (UTC): {today}" in prompt
+
+
+def test_append_today_utc_is_idempotent_shape():
+    """Helper appends exactly one dated line and preserves the original body."""
+    from datetime import UTC, datetime
+
+    today = datetime.now(UTC).date().isoformat()
+    out = append_today_utc("body")
+    assert out == f"body\n\nToday (UTC): {today}\n"
 
 
 def _extract_permission_mw(spec) -> PermissionMiddleware:

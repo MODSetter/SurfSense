@@ -1,11 +1,11 @@
-import {
-	IconBrandGoogle,
-	IconBrandGoogleMaps,
-	IconBrandReddit,
-	IconBrandYoutube,
-	IconWorldWww,
-} from "@tabler/icons-react";
 import type { ComponentType } from "react";
+import {
+	GoogleMapsIcon,
+	GoogleSearchIcon,
+	RedditIcon,
+	WebIcon,
+	YouTubeIcon,
+} from "./platform-icons";
 
 /** Icon component that accepts a ``className`` (Tabler + Lucide both satisfy this). */
 export type PlatformIcon = ComponentType<{ className?: string }>;
@@ -36,13 +36,13 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 	{
 		id: "reddit",
 		label: "Reddit",
-		icon: IconBrandReddit,
+		icon: RedditIcon,
 		verbs: [{ name: "reddit.scrape", verb: "scrape", label: "Scrape" }],
 	},
 	{
 		id: "youtube",
 		label: "YouTube",
-		icon: IconBrandYoutube,
+		icon: YouTubeIcon,
 		verbs: [
 			{ name: "youtube.scrape", verb: "scrape", label: "Scrape" },
 			{ name: "youtube.comments", verb: "comments", label: "Comments" },
@@ -51,7 +51,7 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 	{
 		id: "google_maps",
 		label: "Google Maps",
-		icon: IconBrandGoogleMaps,
+		icon: GoogleMapsIcon,
 		verbs: [
 			{ name: "google_maps.scrape", verb: "scrape", label: "Scrape" },
 			{ name: "google_maps.reviews", verb: "reviews", label: "Reviews" },
@@ -60,13 +60,13 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 	{
 		id: "google_search",
 		label: "Google Search",
-		icon: IconBrandGoogle,
+		icon: GoogleSearchIcon,
 		verbs: [{ name: "google_search.scrape", verb: "scrape", label: "Scrape" }],
 	},
 	{
 		id: "web",
 		label: "Web",
-		icon: IconWorldWww,
+		icon: WebIcon,
 		verbs: [{ name: "web.crawl", verb: "crawl", label: "Crawl" }],
 	},
 ];

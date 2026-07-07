@@ -28,7 +28,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.capabilities.core.access.rate_limit import enforce_capability_rate_limit
-from app.capabilities.core.billing import charge_capability, gate_capability
+from app.capabilities.core.billing import (
+    charge_capability,
+    gate_capability,
+    pricing_meters,
+)
 from app.capabilities.core.events import run_event_bus
 from app.capabilities.core.progress import progress_scope
 from app.capabilities.core.runs import (
@@ -55,13 +59,22 @@ _SSE_HEADERS = {
 }
 
 
+class PricingMeter(BaseModel):
+    """One live per-item rate a verb charges on, e.g. 3500 micro-USD per place."""
+
+    unit: str
+    micros_per_unit: int
+
+
 class CapabilitySummary(BaseModel):
-    """A verb's identity + input/output JSON schemas, for the playground UI."""
+    """A verb's identity + input/output JSON schemas + pricing, for the playground UI."""
 
     name: str
     description: str
     input_schema: dict
     output_schema: dict
+    # Empty list = free (billing disabled or an unmetered verb).
+    pricing: list[PricingMeter] = []
 
 
 class RunSummary(BaseModel):
@@ -125,12 +138,17 @@ def _register_capabilities_list(
 ) -> None:
     """Register the ``GET`` that lists verbs + their input schemas for the UI."""
 
-    summaries = [
-        CapabilitySummary(
-            name=capability.name,
-            description=capability.description,
-            input_schema=capability.input_schema.model_json_schema(),
-            output_schema=capability.output_schema.model_json_schema(),
+    # Schemas are static; pricing is attached per request because rates are
+    # read live from config (env retune + restart, no rebuild).
+    base_summaries = [
+        (
+            CapabilitySummary(
+                name=capability.name,
+                description=capability.description,
+                input_schema=capability.input_schema.model_json_schema(),
+                output_schema=capability.output_schema.model_json_schema(),
+            ),
+            capability.billing_unit,
         )
         for capability in capabilities
     ]
@@ -141,7 +159,12 @@ def _register_capabilities_list(
         auth: AuthContext = Depends(get_auth_context),
     ) -> list[CapabilitySummary]:
         await check_workspace_access(session, auth, workspace_id)
-        return summaries
+        return [
+            summary.model_copy(
+                update={"pricing": [PricingMeter(**m) for m in pricing_meters(unit)]}
+            )
+            for summary, unit in base_summaries
+        ]
 
     router.add_api_route(
         "/workspaces/{workspace_id}/scrapers/capabilities",

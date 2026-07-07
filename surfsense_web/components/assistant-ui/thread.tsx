@@ -22,7 +22,7 @@ import {
 	Wrench,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -56,7 +56,6 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ChatViewport } from "@/components/assistant-ui/chat-viewport";
-import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
@@ -94,6 +93,7 @@ import {
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
@@ -105,9 +105,11 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
+import { findPlatform, type PlaygroundPlatform } from "@/lib/playground/catalog";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import {
@@ -965,7 +967,6 @@ const Composer: FC = () => {
 						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>
-					<ConnectorIndicator showTrigger={false} />
 				</div>
 				<ConnectToolsBanner
 					isThreadEmpty={isThreadEmpty}
@@ -978,6 +979,66 @@ const Composer: FC = () => {
 				) : null}
 			</div>
 		</ComposerPrimitive.Root>
+	);
+};
+
+/**
+ * Full-color brand marks for the platform-native scraper APIs (web, Google
+ * Search, Google Maps, Reddit, YouTube) available in this workspace, shown beside the
+ * composer "+" so the user can see these native endpoints are connected. Laid
+ * out as a clean row (not stacked) after a hairline divider that separates them
+ * from the composer actions. The capability registry is the source of truth;
+ * icons are display-only with a status tooltip. One-time staggered entrance,
+ * reduced-motion aware.
+ */
+const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => {
+	const { data: capabilities } = useScraperCapabilities(workspaceId);
+	const reduceMotion = useReducedMotion();
+
+	const platforms = useMemo<PlaygroundPlatform[]>(() => {
+		if (!capabilities?.length) return [];
+		const seen = new Set<string>();
+		const result: PlaygroundPlatform[] = [];
+		for (const cap of capabilities) {
+			const platformId = cap.name.split(".")[0];
+			if (seen.has(platformId)) continue;
+			seen.add(platformId);
+			const platform = findPlatform(platformId);
+			if (platform) result.push(platform);
+		}
+		return result;
+	}, [capabilities]);
+
+	if (platforms.length === 0) return null;
+
+	return (
+		<div className="hidden items-center gap-1 sm:flex">
+			<div aria-hidden className="h-5 w-px shrink-0 bg-border" />
+			<div className="flex items-center gap-0.5" aria-label="Connected data sources">
+				{platforms.map((platform, i) => {
+					const Icon = platform.icon;
+					return (
+						<Tooltip key={platform.id}>
+							<TooltipTrigger asChild>
+								<motion.span
+									initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{
+										duration: 0.2,
+										ease: [0.23, 1, 0.32, 1],
+										delay: reduceMotion ? 0 : i * 0.04,
+									}}
+									className="flex size-5 items-center justify-center"
+								>
+									<Icon className="size-3.5" />
+								</motion.span>
+							</TooltipTrigger>
+							<TooltipContent side="bottom">{platform.label} · Connected</TooltipContent>
+						</Tooltip>
+					);
+				})}
+			</div>
+		</div>
 	);
 };
 
@@ -1142,7 +1203,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 									<Unplug className="size-4" />
-									Manage Connectors
+									Manage External MCP Connectors
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
 									<Settings2 className="size-4" />
@@ -1362,7 +1423,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							</DropdownMenuItem>
 							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 								<Unplug className="h-4 w-4" />
-								Manage Connectors
+								Manage External MCP Connectors
 							</DropdownMenuItem>
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
@@ -1556,6 +1617,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
+				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
 			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">

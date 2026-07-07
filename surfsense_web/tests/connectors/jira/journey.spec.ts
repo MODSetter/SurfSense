@@ -42,7 +42,7 @@ test.describe("Jira connector journey", () => {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
+		const connectorDialog = page.getByRole("dialog", { name: "Manage External MCP Connectors" });
 		await expect(connectorDialog).toBeVisible();
 		await connectorDialog.getByPlaceholder("Search").fill("Jira");
 		await expect(connectorDialog.getByText("Jira", { exact: true })).toBeVisible();

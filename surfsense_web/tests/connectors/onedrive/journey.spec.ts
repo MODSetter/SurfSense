@@ -3,7 +3,7 @@ import { streamChatToCompletion } from "../../helpers/api/chat";
 import { listConnectors, triggerIndex, updateConnectorConfig } from "../../helpers/api/connectors";
 import { getEditorContent, listDocuments } from "../../helpers/api/documents";
 import { CANARY_TOKENS, FAKE_ONEDRIVE_FILES } from "../../helpers/canary";
-import { openConnectorPopup } from "../../helpers/ui/connector-popup";
+import { expectImportConnectorAvailable } from "../../helpers/ui/connector-popup";
 import { waitForDocumentByTitle, waitForIndexingComplete } from "../../helpers/waits/indexing";
 
 /**
@@ -32,9 +32,7 @@ test.describe("Native OneDrive journey", () => {
 		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
-		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
-		await expect(connectorDialog).toBeVisible();
+		await expectImportConnectorAvailable(page, "OneDrive");
 
 		const selectedFiles = [
 			{

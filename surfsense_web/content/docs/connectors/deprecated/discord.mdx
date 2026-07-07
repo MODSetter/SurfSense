@@ -5,6 +5,10 @@ description: Connect your Discord servers to SurfSense
 
 # Discord OAuth Integration Setup Guide
 
+<Callout type="warn" title="Deprecated">
+The Discord connector is **deprecated** and can no longer be connected (the backend refuses new connections with HTTP 410). Existing connections remain manageable. The guide below is retained for reference only.
+</Callout>
+
 This guide walks you through setting up a Discord OAuth integration for SurfSense.
 
 ## Step 1: Create a New Discord Application
@@ -64,7 +68,7 @@ You'll also see your **Application ID** and **Public Key** on this page.
 
 ## Running SurfSense with Discord Connector
 
-Add the Discord credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
+Add the Discord credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
 
 ```bash
 DISCORD_CLIENT_ID=your_discord_client_id

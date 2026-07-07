@@ -16,6 +16,9 @@ from langchain_core.tools import BaseTool
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.agents.chat.multi_agent_chat.shared.permissions import Rule, Ruleset
 from app.agents.chat.multi_agent_chat.subagents.shared.spec import SurfSenseSubagentSpec
+from app.agents.chat.multi_agent_chat.subagents.shared.subagent_builder import (
+    append_today_utc,
+)
 
 from .middleware_stack import build_kb_middleware
 from .prompts import load_description, load_readonly_system_prompt, load_system_prompt
@@ -57,7 +60,7 @@ def build_subagent(
         {
             "name": NAME,
             "description": load_description(),
-            "system_prompt": load_system_prompt(filesystem_mode),
+            "system_prompt": append_today_utc(load_system_prompt(filesystem_mode)),
             "model": llm,
             "tools": [_build_search_knowledge_base_tool(dependencies)],
             "middleware": build_kb_middleware(
@@ -86,7 +89,9 @@ def build_readonly_subagent(
         {
             "name": READONLY_NAME,
             "description": "Read-only knowledge_base specialist (invoked via ask_knowledge_base).",
-            "system_prompt": load_readonly_system_prompt(filesystem_mode),
+            "system_prompt": append_today_utc(
+                load_readonly_system_prompt(filesystem_mode)
+            ),
             "model": llm,
             "tools": [_build_search_knowledge_base_tool(dependencies)],
             "middleware": build_kb_middleware(

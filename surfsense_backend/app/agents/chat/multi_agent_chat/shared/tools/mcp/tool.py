@@ -649,14 +649,31 @@ async def _load_http_mcp_tools(
     total_discovered = len(tool_definitions)
 
     if allowed_set:
-        tool_definitions = [td for td in tool_definitions if td["name"] in allowed_set]
-        logger.info(
-            "HTTP MCP server '%s' (connector %d): %d/%d tools after allowlist filter",
-            url,
-            connector_id,
-            len(tool_definitions),
-            total_discovered,
-        )
+        filtered = [td for td in tool_definitions if td["name"] in allowed_set]
+        if not filtered and total_discovered:
+            # The server renamed its tools out from under our allowlist
+            # (e.g. Notion's "notion-" prefix rename) — a fully-dead
+            # allowlist would silently disable the connector. Load
+            # everything instead: renamed tools won't match
+            # ``readonly_tools`` either, so every tool stays HITL-gated.
+            logger.warning(
+                "HTTP MCP server '%s' (connector %d): allowlist matched 0/%d "
+                "advertised tools — server likely renamed its tools. "
+                "Loading all tools (HITL-gated). Update the registry allowlist: %s",
+                url,
+                connector_id,
+                total_discovered,
+                sorted(td["name"] for td in tool_definitions),
+            )
+        else:
+            tool_definitions = filtered
+            logger.info(
+                "HTTP MCP server '%s' (connector %d): %d/%d tools after allowlist filter",
+                url,
+                connector_id,
+                len(tool_definitions),
+                total_discovered,
+            )
     else:
         logger.info(
             "Discovered %d tools from HTTP MCP server '%s' (connector %d) — no allowlist, loading all",

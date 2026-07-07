@@ -30,6 +30,12 @@ DEPRECATED_CONNECTOR_TYPES: frozenset[str] = frozenset(
         "SEARXNG_API",
         "LINKUP_API",
         "BAIDU_SEARCH_API",
+        # Legacy content crawlers/search superseded by the file Import menu and
+        # hosted MCP tooling. Created via the generic connector /add route, which
+        # is the single choke point enforcing this deprecation.
+        "YOUTUBE_CONNECTOR",
+        "WEBCRAWLER_CONNECTOR",
+        "ELASTICSEARCH_CONNECTOR",
     }
 )
 
