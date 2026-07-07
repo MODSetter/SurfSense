@@ -3,7 +3,6 @@
 import { History, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
 import { PLAYGROUND_PLATFORMS, type PlatformIcon } from "@/lib/playground/catalog";
 import { cn } from "@/lib/utils";
 
@@ -90,9 +89,6 @@ export function PlaygroundSidebar({ workspaceId }: PlaygroundSidebarProps) {
 				))}
 			</div>
 
-			<div className="shrink-0 py-1.5 before:mx-3 before:mb-1.5 before:block before:h-px before:bg-border">
-				<ConnectAgentDialog />
-			</div>
 		</div>
 	);
 }

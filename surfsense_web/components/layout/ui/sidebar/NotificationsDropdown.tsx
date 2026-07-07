@@ -329,10 +329,7 @@ export function NotificationsDropdown({
 						>
 							<span>{tab.label}</span>
 							<span
-								className={cn(
-									"inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
-									isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-								)}
+								className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground"
 							>
 								{formatNotificationCount(tab.count)}
 							</span>
@@ -406,7 +403,7 @@ export function NotificationsDropdown({
 						) : null}
 					</div>
 				) : (
-					<div className="flex flex-col items-center justify-center px-6 py-10 text-center">
+					<div className="flex min-h-full flex-col items-center justify-center px-6 py-10 text-center">
 						<p className="text-sm font-medium">{emptyStateCopy.title}</p>
 						<p className="mt-1 text-xs text-muted-foreground">{emptyStateCopy.description}</p>
 						{hasMore ? (
@@ -438,7 +435,7 @@ export function NotificationsDropdown({
 				>
 					<DrawerHandle className="mt-3 h-1.5 w-10" />
 					<DrawerTitle className="sr-only">Notifications</DrawerTitle>
-					<div className="flex min-h-0 flex-1 flex-col">{panelContent}</div>
+					<div className="flex min-h-0 flex-1 select-none flex-col">{panelContent}</div>
 				</DrawerContent>
 			</Drawer>
 		);
@@ -458,7 +455,7 @@ export function NotificationsDropdown({
 				side="right"
 				align="end"
 				sideOffset={10}
-				className="z-80 flex max-h-[min(520px,calc(100vh-2rem))] w-[360px] flex-col overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-lg"
+				className="z-80 flex h-[min(420px,calc(100vh-2rem))] w-[360px] select-none flex-col overflow-hidden rounded-xl border bg-popover p-0 text-popover-foreground shadow-lg"
 			>
 				{panelContent}
 			</PopoverContent>
