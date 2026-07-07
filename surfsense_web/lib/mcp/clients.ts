@@ -52,7 +52,7 @@ function bearer(apiKey: string): string {
 }
 
 function serverArgs(serverDir: string): string[] {
-	return ["run", "--directory", serverDir, "python", "-m", "surfsense_mcp"];
+	return ["run", "--directory", serverDir, "python", "-m", "mcp_server"];
 }
 
 /** The `mcpServers` remote shape shared by Cursor, Windsurf, and Gemini CLI. */
@@ -110,7 +110,7 @@ export const MCP_CLIENTS: McpClient[] = [
 					"claude mcp add surfsense \\",
 					`  -e SURFSENSE_BASE_URL=${baseUrl} \\`,
 					`  -e SURFSENSE_API_KEY=${apiKey} \\`,
-					`  -- uv run --directory ${serverDir} python -m surfsense_mcp`,
+					`  -- uv run --directory ${serverDir} python -m mcp_server`,
 				].join("\n"),
 		},
 	},
@@ -139,7 +139,7 @@ export const MCP_CLIENTS: McpClient[] = [
 			configFile: "~/.codex/config.toml",
 			language: "toml",
 			steps: [
-				"Add this to ~/.codex/config.toml (or run `codex mcp add surfsense -- uv run --directory <dir> python -m surfsense_mcp`).",
+				"Add this to ~/.codex/config.toml (or run `codex mcp add surfsense -- uv run --directory <dir> python -m mcp_server`).",
 				"Restart Codex; `codex mcp list` should show surfsense.",
 			],
 			build: ({ baseUrl, apiKey, serverDir }) =>

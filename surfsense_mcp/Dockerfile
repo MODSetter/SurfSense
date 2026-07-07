@@ -33,4 +33,4 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8080
 
-CMD ["python", "-m", "surfsense_mcp"]
+CMD ["python", "-m", "mcp_server"]

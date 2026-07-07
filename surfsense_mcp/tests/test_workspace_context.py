@@ -6,9 +6,9 @@ import asyncio
 
 import pytest
 
-from surfsense_mcp.core.auth import identity
-from surfsense_mcp.core.errors import ToolError
-from surfsense_mcp.core.workspace_context import WorkspaceContext
+from mcp_server.core.auth import identity
+from mcp_server.core.errors import ToolError
+from mcp_server.core.workspace_context import WorkspaceContext
 
 
 class FakeClient:

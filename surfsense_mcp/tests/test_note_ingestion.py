@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from surfsense_mcp.features.knowledge_base.note_ingestion import build_note_document
+from mcp_server.features.knowledge_base.note_ingestion import build_note_document
 
 
 def test_builds_extension_document_with_content():
