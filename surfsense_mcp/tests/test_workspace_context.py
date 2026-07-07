@@ -6,6 +6,7 @@ import asyncio
 
 import pytest
 
+from surfsense_mcp.core.auth import identity
 from surfsense_mcp.core.errors import ToolError
 from surfsense_mcp.core.workspace_context import WorkspaceContext
 
@@ -96,3 +97,30 @@ def test_resolution_is_remembered_as_active():
     assert ctx.active is not None and ctx.active.id == 2
     # a later default call reuses the active selection without re-choosing
     assert asyncio.run(ctx.resolve(None)).id == 2
+
+
+def test_active_workspace_is_isolated_per_identity():
+    ctx = _context(_rows(("A", 1), ("B", 2)))
+
+    async def select_as(key: str, reference: str) -> None:
+        token = identity.bind_api_key(key)
+        try:
+            await ctx.resolve(reference)
+        finally:
+            identity.unbind_api_key(token)
+
+    async def active_for(key: str) -> int | None:
+        token = identity.bind_api_key(key)
+        try:
+            return ctx.active.id if ctx.active else None
+        finally:
+            identity.unbind_api_key(token)
+
+    asyncio.run(select_as("ss_pat_A", "A"))
+    asyncio.run(select_as("ss_pat_B", "B"))
+
+    # Each caller keeps its own selection; no bleed across identities.
+    assert asyncio.run(active_for("ss_pat_A")) == 1
+    assert asyncio.run(active_for("ss_pat_B")) == 2
+    # An unknown caller has no active selection.
+    assert asyncio.run(active_for("ss_pat_C")) is None

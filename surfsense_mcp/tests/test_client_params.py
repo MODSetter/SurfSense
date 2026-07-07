@@ -25,7 +25,9 @@ def _capture(client: SurfSenseClient) -> dict:
 
 
 def test_none_params_are_dropped():
-    client = SurfSenseClient(api_base="http://test/api/v1", api_key="ss_pat_x", timeout=5)
+    client = SurfSenseClient(
+        api_base="http://test/api/v1", timeout=5, fallback_api_key="ss_pat_x"
+    )
     seen = _capture(client)
     asyncio.run(
         client.request(
