@@ -1,8 +1,6 @@
-"""Extraction of a SurfSense API key from request headers.
+"""Extract a SurfSense API key from request headers.
 
-Pure and side-effect free: given the request headers, return the caller's key
-or ``None``. Isolated from transport and state so the parsing rules stay
-trivially unit-testable.
+Pure header parsing, kept separate from transport and state.
 """
 
 from __future__ import annotations
