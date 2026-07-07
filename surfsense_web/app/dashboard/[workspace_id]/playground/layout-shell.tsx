@@ -90,6 +90,6 @@ function getSelectedLabel(
 	const group = groups.find((item) => item.items.some((child) => child.value === activeValue));
 	const child = group?.items.find((item) => item.value === activeValue);
 
-	if (group && child) return `${group.label} / ${child.label}`;
+	if (group && child) return `${group.label}: ${child.label}`;
 	return "API Playground";
 }

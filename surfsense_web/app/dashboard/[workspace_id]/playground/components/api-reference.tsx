@@ -22,10 +22,10 @@ function CopyButton({ text }: { text: string }) {
 			variant="ghost"
 			size="sm"
 			onClick={copy}
-			className="absolute right-2 top-2 h-7 gap-1.5 px-2 text-xs"
+			aria-label={copied ? "Copied" : "Copy"}
+			className="absolute right-2 top-2 h-7 w-7 p-0"
 		>
 			{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-			{copied ? "Copied" : "Copy"}
 		</Button>
 	);
 }
@@ -91,11 +91,7 @@ export function ApiReference({
 			<div>
 				<h2 className="text-base font-semibold">API reference</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Call this API from your own project. Create a key in{" "}
-					<span className="font-medium text-foreground">User settings</span> and enable API access
-					for this workspace, then send it as a{" "}
-					<code className="rounded bg-muted/40 px-1 py-0.5 text-xs">Authorization: Bearer</code>{" "}
-					header.
+					Create an API key, enable API access for this workspace, then use the examples below to call this endpoint.
 				</p>
 			</div>
 

@@ -2,15 +2,13 @@
 
 import {
 	Check,
-	Coins,
 	Copy,
 	Hash,
 	Info,
-	Loader2,
-	Play,
+	Coins,
 	Timer,
-	X,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -235,7 +233,21 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 					<Alert>
 						<Info />
 						<AlertDescription>
-							<p>{capability.description}</p>
+							<p>
+								{capability.description}
+								{capability.docs_url ? (
+									<>
+										{" "}
+										<Link
+											href={capability.docs_url}
+											className="font-medium text-foreground underline-offset-4 hover:underline"
+										>
+											Read docs
+										</Link>
+										.
+									</>
+								) : null}
+							</p>
 						</AlertDescription>
 					</Alert>
 				)}
@@ -243,8 +255,8 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 				<div className="space-y-5">
 					<div className="space-y-2">
 						<EndpointCopyButton endpoint={endpoint} />
-						<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-							<Coins className="h-3.5 w-3.5" />
+						<div className="text-xs text-muted-foreground">
+							<span>Pricing: </span>
 							<span className="font-medium tabular-nums text-foreground">
 								{formatPricing(capability.pricing)}
 							</span>
@@ -258,17 +270,12 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 					/>
 
 					<div className="flex items-center gap-2">
-						<Button type="button" onClick={handleRun} disabled={isRunning} className="gap-1.5">
-							{isRunning ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<Play className="h-4 w-4" />
-							)}
-							Run
+						<Button type="button" onClick={handleRun} disabled={isRunning} className="relative">
+							<span className={isRunning ? "opacity-0" : ""}>Run</span>
+							{isRunning && <Spinner size="sm" className="absolute" />}
 						</Button>
 						{isRunning && (
-							<Button type="button" variant="outline" onClick={run.cancel} className="gap-1.5">
-								<X className="h-4 w-4" />
+							<Button type="button" variant="secondary" onClick={run.cancel}>
 								Cancel
 							</Button>
 						)}
