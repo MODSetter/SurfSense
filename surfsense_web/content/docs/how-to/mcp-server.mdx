@@ -1,0 +1,263 @@
+---
+title: MCP Server
+description: Connect the SurfSense MCP server to Claude Code, Codex, OpenCode, Cursor, and other MCP clients, step by step
+---
+
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+# SurfSense MCP Server
+
+The SurfSense MCP server exposes your workspace to any [Model Context Protocol](https://modelcontextprotocol.io/) client. Your agent gets 18 native, typed tools: every scraper (Reddit, YouTube, Google Maps, Google Search, web crawl), full knowledge-base access (search, read, add, upload, update, delete), and a workspace selector.
+
+It talks to SurfSense purely over the REST API — point it at SurfSense Cloud or your own self-hosted instance by changing one environment variable.
+
+## Prerequisites
+
+<Steps>
+<Step>
+
+### Install uv
+
+The server runs with [uv](https://github.com/astral-sh/uv). Install it once, then from the SurfSense repository run:
+
+```bash
+cd surfsense_mcp
+uv sync
+```
+
+</Step>
+<Step>
+
+### Create an API key
+
+In SurfSense, open **API Playground → API Keys** in your workspace sidebar:
+
+1. Toggle **API key access** on for the workspace.
+2. Create a personal API key (`ss_pat_…`) and copy it — it is shown only once.
+
+</Step>
+<Step>
+
+### Know your base URL
+
+- **SurfSense Cloud**: `https://api.surfsense.com`
+- **Self-hosted**: wherever your backend runs, e.g. `http://localhost:8000`
+
+</Step>
+</Steps>
+
+## Connect your agent
+
+Every client below launches the same command — `uv run --directory <path-to>/surfsense_mcp python -m surfsense_mcp` — and passes `SURFSENSE_BASE_URL` and `SURFSENSE_API_KEY` as environment variables. Replace the placeholder paths and key with yours.
+
+<Tabs items={['Claude Code', 'Codex', 'OpenCode', 'Cursor', 'Claude Desktop', 'VS Code', 'Windsurf', 'Gemini CLI']}>
+<Tab value="Claude Code">
+
+Run one command in a terminal:
+
+```bash
+claude mcp add surfsense \
+  -e SURFSENSE_BASE_URL=https://api.surfsense.com \
+  -e SURFSENSE_API_KEY=ss_pat_your_key_here \
+  -- uv run --directory /path/to/SurfSense/surfsense_mcp python -m surfsense_mcp
+```
+
+Start Claude Code and run `/mcp` — `surfsense` should be listed as connected. Add `--scope project` to share the server (without the key) via a checked-in `.mcp.json`.
+
+</Tab>
+<Tab value="Codex">
+
+Add to `~/.codex/config.toml` (or a project's `.codex/config.toml`):
+
+```toml
+[mcp_servers.surfsense]
+command = "uv"
+args = ["run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"]
+
+[mcp_servers.surfsense.env]
+SURFSENSE_BASE_URL = "https://api.surfsense.com"
+SURFSENSE_API_KEY = "ss_pat_your_key_here"
+```
+
+Or use the CLI: `codex mcp add surfsense -e SURFSENSE_API_KEY=... -- uv run --directory ... python -m surfsense_mcp`. Verify with `codex mcp list`.
+
+</Tab>
+<Tab value="OpenCode">
+
+Add to `opencode.json` in your project root (or `~/.config/opencode/opencode.json` globally):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "surfsense": {
+      "type": "local",
+      "command": ["uv", "run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "enabled": true,
+      "environment": {
+        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
+        "SURFSENSE_API_KEY": "ss_pat_your_key_here"
+      }
+    }
+  }
+}
+```
+
+OpenCode's format differs from most clients: the root key is `mcp` (not `mcpServers`), the command is a single array, and environment variables go under `environment` (not `env`).
+
+</Tab>
+<Tab value="Cursor">
+
+Add to `~/.cursor/mcp.json` (global — keeps the key out of your repo) or a project's `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "env": {
+        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
+        "SURFSENSE_API_KEY": "ss_pat_your_key_here"
+      }
+    }
+  }
+}
+```
+
+Then open **Cursor Settings → MCP** and refresh the `surfsense` server; its 18 tools should appear with a green dot.
+
+</Tab>
+<Tab value="Claude Desktop">
+
+Open **Settings → Developer → Edit Config** to reach `claude_desktop_config.json`, and add the same `mcpServers` block as Cursor:
+
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "env": {
+        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
+        "SURFSENSE_API_KEY": "ss_pat_your_key_here"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop; SurfSense appears under the tools icon in the chat input.
+
+</Tab>
+<Tab value="VS Code">
+
+Add to `.vscode/mcp.json` in your workspace (or run the **MCP: Add Server** command). Note VS Code uses a `servers` key:
+
+```json
+{
+  "servers": {
+    "surfsense": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "env": {
+        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
+        "SURFSENSE_API_KEY": "ss_pat_your_key_here"
+      }
+    }
+  }
+}
+```
+
+Open Copilot Chat in agent mode and click the tools icon to confirm the server is loaded.
+
+</Tab>
+<Tab value="Windsurf">
+
+Add the standard `mcpServers` block to `~/.codeium/windsurf/mcp_config.json` (or via **Windsurf Settings → Cascade → MCP Servers**):
+
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "env": {
+        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
+        "SURFSENSE_API_KEY": "ss_pat_your_key_here"
+      }
+    }
+  }
+}
+```
+
+Press refresh in the MCP panel to pick up the server.
+
+</Tab>
+<Tab value="Gemini CLI">
+
+Add the standard `mcpServers` block to `~/.gemini/settings.json` (or `.gemini/settings.json` in a project):
+
+```json
+{
+  "mcpServers": {
+    "surfsense": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "env": {
+        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
+        "SURFSENSE_API_KEY": "ss_pat_your_key_here"
+      }
+    }
+  }
+}
+```
+
+Run `/mcp` inside Gemini CLI to confirm the server and its tools.
+
+</Tab>
+</Tabs>
+
+<Callout type="info" title="stdio transport — nothing to keep running">
+The server uses stdio transport: your client launches the process on demand and shuts it down with the session. There is no daemon to manage — only your SurfSense backend needs to be up.
+</Callout>
+
+## Test it
+
+In a fresh agent session, try:
+
+> list my SurfSense workspaces
+
+That calls `surfsense_list_workspaces` — the simplest end-to-end check of the key, backend, and server. Then try a real task:
+
+> find the top subreddits discussing NotebookLM and save a summary note to my workspace
+
+## Configuration reference
+
+All settings are environment variables passed by the client:
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `SURFSENSE_API_KEY` | Yes | — | API key from **API Playground → API Keys** |
+| `SURFSENSE_BASE_URL` | No | `http://localhost:8000` | Backend to talk to |
+| `SURFSENSE_WORKSPACE` | No | — | Default workspace by name or id, so agents skip selection |
+| `SURFSENSE_TIMEOUT` | No | `180` | Request timeout in seconds |
+
+## Troubleshooting
+
+- **401 errors** — the API key is wrong or expired; create a new one.
+- **403 errors** — API access is disabled for the workspace; toggle **API key access** on under **API Playground → API Keys**.
+- **"Could not reach SurfSense"** — the backend isn't running or `SURFSENSE_BASE_URL` is wrong.
+- **Server won't start** — run `uv run python -m surfsense_mcp.selfcheck` inside `surfsense_mcp`; it verifies all 18 tools register without needing a backend.
+
+## Tools reference
+
+| Group | Tools |
+|-------|-------|
+| Workspaces | `surfsense_list_workspaces`, `surfsense_select_workspace` |
+| Scrapers | `surfsense_reddit_scrape`, `surfsense_youtube_scrape`, `surfsense_youtube_comments`, `surfsense_google_maps_scrape`, `surfsense_google_maps_reviews`, `surfsense_google_search`, `surfsense_web_crawl`, `surfsense_list_scraper_runs`, `surfsense_get_scraper_run` |
+| Knowledge base | `surfsense_search_knowledge_base`, `surfsense_list_documents`, `surfsense_get_document`, `surfsense_add_document`, `surfsense_upload_file`, `surfsense_update_document`, `surfsense_delete_document` |
+
+Usage is billed exactly like the REST API — scraper tools are metered per returned item, and every call is recorded under **API Playground → Runs**.

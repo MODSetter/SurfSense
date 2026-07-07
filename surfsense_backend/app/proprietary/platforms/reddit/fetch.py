@@ -8,7 +8,7 @@ Reddit deprecated *cold* unauthenticated ``.json`` (a bare anonymous GET now
 ``scripts/e2e_reddit_scraper.py`` step 0) is:
 
     warm one anonymous session cookie (``loid``) with a plain GET to
-    ``old.reddit.com`` (``www.reddit.com/svc/shreddit/<slug>`` fallback), then
+    ``www.reddit.com/svc/shreddit/<slug>`` (``old.reddit.com`` fallback), then
     GET ``www.reddit.com/<path>/.json?raw_json=1`` through that same
     Chrome-impersonated, sticky-IP session. Which warm URL mints ``loid`` is
     exit-IP dependent, so the order is a tiebreak — see :func:`warm_session`.
@@ -83,6 +83,12 @@ _BACKOFF_BASE_S = 5.0
 # stricter per-IP cap may need it raised — watch for 429 log spam and bump it.
 _MIN_INTERVAL_S = 0.5
 _PACE_JITTER_S = 0.25
+
+# curl's default is 30s, so one dead sticky IP stalled a whole run for 30-50s
+# (seen live 2026-07-06). A healthy fetch lands in ~1s; cap at 10s so a dead IP
+# costs one bounded wait, then the timeout falls into the generic exception
+# branch of fetch_json and rotates to a fresh IP — same treatment as a 403.
+_REQUEST_TIMEOUT_S = 10.0
 
 _HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
 
@@ -170,7 +176,10 @@ class _RotatingSession:
             self._cm = self.session = None
             return
         self._cm = FetcherSession(
-            proxy=proxy, stealthy_headers=True, impersonate="chrome"
+            proxy=proxy,
+            stealthy_headers=True,
+            impersonate="chrome",
+            timeout=_REQUEST_TIMEOUT_S,
         )
         self.session = await self._cm.__aenter__()
 
@@ -234,16 +243,15 @@ async def warm_session(session: Any, *, slug: str = _WARM_SLUG) -> bool:
     Returns ``True`` when a ``loid`` was issued (the session can now reach
     ``.json``), else ``False`` (caller rotates the IP and retries).
 
-    Tries ``old.reddit`` (yt-dlp's primary), then ``svc/shreddit``. WHICH one
-    mints is exit-IP dependent and roughly random: live probes 2026-07-04 saw
-    both directions across sessions on the rotating residential/custom proxy
-    (one IP 403s ``old.reddit`` but mints on ``shreddit``; another does the
-    reverse, sometimes with an ``rdt`` bot-interstitial). So the order is a
-    tiebreak, not an optimization — a fresh session pays ~one wasted warm 403
-    either way. That cost is amortized: ``fan_out`` reuses one warmed session
-    per worker across many jobs, so warm-up runs once per worker, not per fetch.
-    The fallback is what actually matters — it preserves correctness whichever
-    way a given IP leans.
+    Tries ``svc/shreddit`` first, then ``old.reddit`` (yt-dlp's primary) as
+    the fallback. Live probes 2026-07-04 saw both directions across exit IPs,
+    but a live run 2026-07-06 had ``old.reddit`` 403 on 12/12 fresh IPs while
+    ``shreddit`` minted every time — Reddit appears to have shut old.reddit to
+    anonymous traffic, so shreddit-first saves one guaranteed-403 round trip
+    per warm-up. The fallback is what actually matters — it preserves
+    correctness if a given IP (or Reddit) flips back the other way. That cost
+    is amortized: ``fan_out`` reuses one warmed session per worker across many
+    jobs, so warm-up runs once per worker, not per fetch.
 
     ponytail: sequential two-source warm burns 1 wasted request on ~half of new
     sessions. A parallel warm (gather both, take whichever mints) removes the
@@ -256,14 +264,14 @@ async def warm_session(session: Any, *, slug: str = _WARM_SLUG) -> bool:
     """
     seen: set[str] = set()
     with suppress(Exception):
-        page = await session.get(_OLD_REDDIT_URL, headers=_HEADERS)
+        page = await session.get(_SHREDDIT_URL.format(slug=slug), headers=_HEADERS)
         seen |= _response_cookie_names(page)
     if _LOID_COOKIE in seen:
         return True
 
-    # Fallback: mints loid on exit IPs where old.reddit 403s instead.
+    # Fallback: mints loid on exit IPs where shreddit 403s instead.
     with suppress(Exception):
-        page = await session.get(_SHREDDIT_URL.format(slug=slug), headers=_HEADERS)
+        page = await session.get(_OLD_REDDIT_URL, headers=_HEADERS)
         seen |= _response_cookie_names(page)
     return _LOID_COOKIE in seen
 
@@ -278,6 +286,7 @@ async def _get_page(session: Any, url: str) -> Any:
         cookies=_OVER18_COOKIES,
         proxy=get_proxy_url(),
         stealthy_headers=True,
+        timeout=_REQUEST_TIMEOUT_S,
     )
 
 

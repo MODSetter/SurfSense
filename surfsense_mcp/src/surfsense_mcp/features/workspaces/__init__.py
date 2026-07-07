@@ -7,10 +7,13 @@ rest of the conversation needs no ids.
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
-from ...core.rendering import ResponseFormat, to_json
+from ...core.rendering import ResponseFormatParam, to_json
 from ...core.workspace_context import Workspace, WorkspaceContext
 
 _READ_ONLY = ToolAnnotations(
@@ -23,15 +26,19 @@ def register(mcp: FastMCP, context: WorkspaceContext) -> None:
 
     @mcp.tool(
         name="surfsense_list_workspaces",
+        title="List workspaces",
         annotations=_READ_ONLY,
         structured_output=False,
     )
-    async def list_workspaces(response_format: ResponseFormat = "markdown") -> str:
+    async def list_workspaces(
+        response_format: ResponseFormatParam = "markdown",
+    ) -> str:
         """List the SurfSense workspaces (search spaces) the account can access.
 
-        Use this to discover which workspaces exist before selecting one, or when
-        the user asks what search spaces they have. Returns each workspace's name,
-        id, description, ownership, and member count.
+        Use this to discover which workspaces exist before selecting one, or
+        when the user asks what search spaces they have. Returns each
+        workspace's name, id, description, ownership, and member count, and
+        marks the currently active one.
         """
         workspaces = await context.fetch_all()
         if response_format == "json":
@@ -40,16 +47,27 @@ def register(mcp: FastMCP, context: WorkspaceContext) -> None:
 
     @mcp.tool(
         name="surfsense_select_workspace",
+        title="Select active workspace",
         annotations=_READ_ONLY,
         structured_output=False,
     )
-    async def select_workspace(workspace: str) -> str:
-        """Set the active workspace (search space) for later tools, by name or id.
+    async def select_workspace(
+        workspace: Annotated[
+            str,
+            Field(
+                description="Workspace name or numeric id; matching is "
+                "case-insensitive and a unique partial name works. "
+                "Example: 'Research'."
+            ),
+        ],
+    ) -> str:
+        """Set the active workspace (search space) that later tools default to.
 
         Use this when the user says which search space to work in ("use my
-        Research space"). Accepts a workspace name or numeric id; matching is
-        case-insensitive and accepts a unique partial name. Once set, other tools
-        default to this workspace unless they are given a different one.
+        Research space"), or after surfsense_list_workspaces when several
+        exist. Once set, workspace-scoped tools use it unless given a
+        different 'workspace'. Do NOT call it before every tool — once per
+        session is enough.
         """
         selected = await context.resolve(workspace)
         return (

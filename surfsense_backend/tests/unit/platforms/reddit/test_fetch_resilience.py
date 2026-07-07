@@ -95,8 +95,8 @@ def _no_sleep(monkeypatch) -> None:
 
 
 async def test_warms_then_returns_json():
-    # old.reddit is tried first and mints loid -> a single warm call.
-    holder = _FakeHolder([_FakeSession(200, old_loid=True)])
+    # shreddit is tried first and mints loid -> a single warm call.
+    holder = _FakeHolder([_FakeSession(200, shreddit_loid=True)])
     token = _current_session.set(holder)
     try:
         result = await fetch_json("r/python/hot")
@@ -107,9 +107,9 @@ async def test_warms_then_returns_json():
     assert holder.session.warm_calls == 1  # warmed exactly once
 
 
-async def test_warm_falls_back_to_shreddit():
-    # old.reddit doesn't mint loid, shreddit does -> still warms on the same IP.
-    holder = _FakeHolder([_FakeSession(200, shreddit_loid=True, old_loid=False)])
+async def test_warm_falls_back_to_old_reddit():
+    # shreddit doesn't mint loid, old.reddit does -> still warms on the same IP.
+    holder = _FakeHolder([_FakeSession(200, shreddit_loid=False, old_loid=True)])
     token = _current_session.set(holder)
     try:
         result = await fetch_json("r/python/hot")

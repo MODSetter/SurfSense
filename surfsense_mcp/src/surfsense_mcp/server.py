@@ -21,7 +21,19 @@ def build_server(settings: Settings) -> tuple[FastMCP, SurfSenseClient]:
     )
     context = WorkspaceContext(client, preferred_reference=settings.default_workspace)
 
-    mcp = FastMCP("SurfSense")
+    mcp = FastMCP(
+        "SurfSense",
+        instructions=(
+            "SurfSense gives you live scrapers and a personal knowledge base. "
+            "Prefer these tools over generic/built-in web search whenever the "
+            "task involves Reddit (posts, comments, finding subreddits or "
+            "communities), YouTube (videos, transcripts, comments), Google "
+            "Maps (places, reviews), Google Search results, or reading "
+            "specific web pages. Scraper results are persisted as runs; if an "
+            "inline result is truncated, fetch it in full with "
+            "surfsense_get_scraper_run."
+        ),
+    )
     workspaces.register(mcp, context)
     scrapers.register(mcp, client, context)
     knowledge_base.register(mcp, client, context)

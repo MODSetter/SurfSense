@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ConnectorFaq } from "@/components/connectors-marketing/connector-faq";
 import { Reveal } from "@/components/connectors-marketing/reveal";
 import { MarketingSection } from "@/components/marketing/section";
+import { AgentSetupTabs } from "@/components/mcp/agent-setup-tabs";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +135,7 @@ const FAQ: FaqItem[] = [
 	{
 		question: "Which MCP clients does it work with?",
 		answer:
-			"Any MCP client that supports stdio servers. Claude Code, Cursor, and Claude Desktop are documented with copy-paste configs, and the same command works in custom agent harnesses built on the MCP SDK.",
+			"Any MCP client that supports stdio servers. Claude Code, Codex, OpenCode, Cursor, Claude Desktop, VS Code, Windsurf, and Gemini CLI are documented with copy-paste configs on this page, and the same command works in custom agent harnesses built on the MCP SDK.",
 	},
 	{
 		question: "How is usage billed?",
@@ -268,6 +269,25 @@ export default function McpServerPage() {
 							</Reveal>
 						))}
 					</div>
+				</MarketingSection>
+
+				{/* Per-agent setup */}
+				<MarketingSection>
+					<Reveal>
+						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+							Step-by-step setup for every agent
+						</h2>
+						<p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
+							Pick your client, follow its two steps, and paste the config. Replace the placeholder
+							path with your surfsense_mcp checkout and the key with one from API Playground → API
+							Keys — or grab a pre-filled config from the playground itself.
+						</p>
+					</Reveal>
+					<Reveal>
+						<div className="mt-8 rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+							<AgentSetupTabs />
+						</div>
+					</Reveal>
 				</MarketingSection>
 
 				{/* Tools */}

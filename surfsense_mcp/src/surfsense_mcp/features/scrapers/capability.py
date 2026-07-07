@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.client import SurfSenseClient
-from ...core.rendering import ResponseFormat, clip, to_json
+from ...core.rendering import ResponseFormat, clip, compact_items, to_json
 from ...core.workspace_context import WorkspaceContext
 
 
@@ -29,6 +29,10 @@ async def run_scraper(
     result = await client.request(
         "POST", f"/workspaces/{resolved.id}/scrapers/{platform}/{verb}", json=body
     )
+    # Inline results are compacted (redundant fields dropped, long fields
+    # excerpted) so every item survives the overall clip; the complete output
+    # is stored server-side and retrievable with surfsense_get_scraper_run.
+    result = compact_items(result)
     if response_format == "json":
         return clip(to_json(result))
     return _render_markdown(platform, verb, resolved.name, result)
@@ -40,7 +44,11 @@ def _render_markdown(
     """A readable header plus the structured payload, clipped to a safe size."""
     header = f'# {platform}.{verb} — {_describe_size(result)} from "{workspace_name}"'
     body = clip(to_json(result))
-    return f"{header}\n\n```json\n{body}\n```"
+    footer = (
+        "\n\nFields shown as excerpts; use surfsense_get_scraper_run for the "
+        "full output."
+    )
+    return f"{header}\n\n```json\n{body}\n```{footer}"
 
 
 def _describe_size(result: Any) -> str:

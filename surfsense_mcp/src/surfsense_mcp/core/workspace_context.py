@@ -8,9 +8,21 @@ speaks a name, we resolve it, and remember the choice for later calls.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Annotated
+
+from pydantic import Field
 
 from .client import SurfSenseClient
 from .errors import ToolError
+
+# Shared parameter type for every workspace-scoped tool.
+WorkspaceParam = Annotated[
+    str | None,
+    Field(
+        description="Workspace name or id, e.g. 'Research' or '3'. Omit to use "
+        "the active workspace (set with surfsense_select_workspace)."
+    ),
+]
 
 
 @dataclass(frozen=True)

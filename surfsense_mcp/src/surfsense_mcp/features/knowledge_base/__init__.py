@@ -10,14 +10,16 @@ from __future__ import annotations
 
 import mimetypes
 from pathlib import Path
+from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from ...core.client import SurfSenseClient
 from ...core.errors import ToolError
-from ...core.rendering import ResponseFormat, clip, to_json
-from ...core.workspace_context import WorkspaceContext
+from ...core.rendering import ResponseFormatParam, clip, to_json
+from ...core.workspace_context import WorkspaceContext, WorkspaceParam
 from .note_ingestion import build_note_document
 
 _READ = ToolAnnotations(
@@ -30,6 +32,22 @@ _DELETE = ToolAnnotations(
     readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=False
 )
 
+_DOCUMENT_ID = Annotated[
+    int,
+    Field(
+        description="Document id from surfsense_search_knowledge_base or "
+        "surfsense_list_documents results."
+    ),
+]
+
+_DOCUMENT_TYPES = Annotated[
+    list[str] | None,
+    Field(
+        description="Restrict to these document types, e.g. "
+        "['FILE', 'CRAWLED_URL', 'YOUTUBE_VIDEO']. Omit for all types."
+    ),
+]
+
 
 def register(
     mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
@@ -38,21 +56,34 @@ def register(
 
     @mcp.tool(
         name="surfsense_search_knowledge_base",
+        title="Search knowledge base",
         annotations=_READ,
         structured_output=False,
     )
     async def search_knowledge_base(
-        query: str,
-        top_k: int = 5,
-        document_types: list[str] | None = None,
-        workspace: str | None = None,
-        response_format: ResponseFormat = "markdown",
+        query: Annotated[
+            str,
+            Field(
+                min_length=1,
+                description="Natural-language search, e.g. "
+                "'notebooklm user complaints'.",
+            ),
+        ],
+        top_k: Annotated[
+            int, Field(ge=1, le=20, description="Maximum documents to return.")
+        ] = 5,
+        document_types: _DOCUMENT_TYPES = None,
+        workspace: WorkspaceParam = None,
+        response_format: ResponseFormatParam = "markdown",
     ) -> str:
-        """Search the workspace's knowledge base by meaning and keyword.
+        """Search the workspace's knowledge base by meaning and keywords.
 
-        Use this to answer questions from stored content: it returns the most
-        relevant documents with the passages that matched, ranked by relevance.
-        top_k caps documents (1–20). Optionally restrict to document_types.
+        Use this FIRST when a question might be answered by content already
+        stored in SurfSense — notes, uploaded files, saved pages, past
+        research. Do NOT use it to fetch new data from the web; use the
+        scraper tools for that. Returns the most relevant documents with the
+        passages that matched, ranked by relevance score.
+        Example: query='pricing feedback', top_k=5.
         """
         resolved = await context.resolve(workspace)
         hits = await client.request(
@@ -71,21 +102,33 @@ def register(
         return _render_search(query, items)
 
     @mcp.tool(
-        name="surfsense_list_documents", annotations=_READ, structured_output=False
+        name="surfsense_list_documents",
+        title="List documents",
+        annotations=_READ,
+        structured_output=False,
     )
     async def list_documents(
-        document_types: list[str] | None = None,
-        folder_id: int | None = None,
-        page: int = 0,
-        page_size: int = 20,
-        workspace: str | None = None,
-        response_format: ResponseFormat = "markdown",
+        document_types: _DOCUMENT_TYPES = None,
+        folder_id: Annotated[
+            int | None,
+            Field(description="Only documents in this folder. Omit for all."),
+        ] = None,
+        page: Annotated[
+            int, Field(ge=0, description="Zero-based page number.")
+        ] = 0,
+        page_size: Annotated[
+            int, Field(ge=1, description="Documents per page.")
+        ] = 20,
+        workspace: WorkspaceParam = None,
+        response_format: ResponseFormatParam = "markdown",
     ) -> str:
         """List documents in the workspace's knowledge base, newest first.
 
-        Use this to browse or inventory what is stored. Optionally filter by
-        document_types or a folder_id. Paginated: returns page_size items and a
-        has_more flag; request the next page by increasing page.
+        Use this to browse or inventory what is stored; to find documents
+        about a topic, prefer surfsense_search_knowledge_base. Returns each
+        document's title, id, type, and update time, plus a has_more flag —
+        request the next page by increasing page.
+        Example: document_types=['FILE'], page=0, page_size=20.
         """
         resolved = await context.resolve(workspace)
         result = await client.request(
@@ -104,15 +147,20 @@ def register(
         return _render_document_list(result)
 
     @mcp.tool(
-        name="surfsense_get_document", annotations=_READ, structured_output=False
+        name="surfsense_get_document",
+        title="Read one document",
+        annotations=_READ,
+        structured_output=False,
     )
     async def get_document(
-        document_id: int, response_format: ResponseFormat = "markdown"
+        document_id: _DOCUMENT_ID,
+        response_format: ResponseFormatParam = "markdown",
     ) -> str:
         """Read one document's full content and metadata by id.
 
-        Use this after search or list to open a specific document. The id comes
-        from those tools' results.
+        Use this after surfsense_search_knowledge_base or
+        surfsense_list_documents to open a specific document — search results
+        only include the matching passages, this returns the whole text.
         """
         document = await client.request("GET", f"/documents/{document_id}")
         if response_format == "json":
@@ -120,20 +168,36 @@ def register(
         return _render_document(document)
 
     @mcp.tool(
-        name="surfsense_add_document", annotations=_WRITE, structured_output=False
+        name="surfsense_add_document",
+        title="Add a note",
+        annotations=_WRITE,
+        structured_output=False,
     )
     async def add_document(
-        title: str,
-        content: str,
-        source_url: str | None = None,
-        workspace: str | None = None,
+        title: Annotated[
+            str,
+            Field(min_length=1, description="Short descriptive title for the note."),
+        ],
+        content: Annotated[
+            str,
+            Field(
+                min_length=1,
+                description="The note's body; plain text or markdown.",
+            ),
+        ],
+        source_url: Annotated[
+            str | None,
+            Field(description="Where the text came from, if anywhere."),
+        ] = None,
+        workspace: WorkspaceParam = None,
     ) -> str:
-        """Add a text or markdown note to the workspace's knowledge base.
+        """Save a text or markdown note into the workspace's knowledge base.
 
-        Use this to save notes, summaries, or snippets so they become
-        searchable. The content is indexed asynchronously, so it may take a
-        moment to appear in search. source_url optionally records where the text
-        came from.
+        Use this to store notes, summaries, or findings so they become
+        searchable later — e.g. after finishing a piece of research. For files
+        on disk use surfsense_upload_file instead. Indexing is asynchronous,
+        so the note may take a moment to appear in search.
+        Example: title='NotebookLM subreddits', content='- r/notebooklm ...'.
         """
         resolved = await context.resolve(workspace)
         await client.request(
@@ -152,18 +216,35 @@ def register(
         )
 
     @mcp.tool(
-        name="surfsense_upload_file", annotations=_WRITE, structured_output=False
+        name="surfsense_upload_file",
+        title="Upload a file",
+        annotations=_WRITE,
+        structured_output=False,
     )
     async def upload_file(
-        file_path: str,
-        use_vision_llm: bool = False,
-        workspace: str | None = None,
+        file_path: Annotated[
+            str,
+            Field(
+                description="Path to a local file, e.g. "
+                "'C:/Users/me/report.pdf' or '~/notes/summary.md'."
+            ),
+        ],
+        use_vision_llm: Annotated[
+            bool,
+            Field(
+                description="True reads scanned or image-heavy files with a "
+                "vision model (slower)."
+            ),
+        ] = False,
+        workspace: WorkspaceParam = None,
     ) -> str:
-        """Upload a local file (PDF, doc, etc.) into the knowledge base.
+        """Upload a local file (PDF, docx, markdown, etc.) into the knowledge base.
 
-        Use this to ingest a file from disk; it is parsed, chunked, and indexed
-        asynchronously. Set use_vision_llm to read scanned or image-heavy files
-        with a vision model (slower).
+        Use this to ingest a file from disk so its content becomes searchable;
+        for text you already have in hand use surfsense_add_document instead.
+        The file is parsed, chunked, and indexed asynchronously. Duplicate
+        files are detected and skipped.
+        Example: file_path='C:/Users/me/report.pdf'.
         """
         resolved = await context.resolve(workspace)
         payload = _read_upload(file_path)
@@ -186,14 +267,28 @@ def register(
         )
 
     @mcp.tool(
-        name="surfsense_update_document", annotations=_WRITE, structured_output=False
+        name="surfsense_update_document",
+        title="Replace a document's content",
+        annotations=_WRITE,
+        structured_output=False,
     )
-    async def update_document(document_id: int, content: str) -> str:
+    async def update_document(
+        document_id: _DOCUMENT_ID,
+        content: Annotated[
+            str,
+            Field(
+                min_length=1,
+                description="New full text; replaces the existing content "
+                "entirely.",
+            ),
+        ],
+    ) -> str:
         """Replace a document's stored content by id.
 
-        Use this to correct or rewrite a document's text. Note: this updates the
-        stored content; re-indexing of search chunks is not triggered by this
-        call.
+        Use this to correct or rewrite a document's text. The new content
+        REPLACES the old entirely — to append, read the document first with
+        surfsense_get_document and resend the combined text. Search chunks are
+        not re-indexed by this call.
         """
         existing = await client.request("GET", f"/documents/{document_id}")
         await client.request(
@@ -208,13 +303,17 @@ def register(
         return f"Updated document {document_id} ('{existing.get('title', '')}')."
 
     @mcp.tool(
-        name="surfsense_delete_document", annotations=_DELETE, structured_output=False
+        name="surfsense_delete_document",
+        title="Delete a document",
+        annotations=_DELETE,
+        structured_output=False,
     )
-    async def delete_document(document_id: int) -> str:
-        """Delete a document from the knowledge base by id.
+    async def delete_document(document_id: _DOCUMENT_ID) -> str:
+        """Permanently delete a document from the knowledge base by id.
 
-        Use this to permanently remove a document. Deletion runs in the
-        background; the document stops appearing in searches immediately.
+        Use this only when the user explicitly asks to remove a document —
+        deletion cannot be undone. The document stops appearing in searches
+        immediately.
         """
         await client.request("DELETE", f"/documents/{document_id}")
         return f"Deleted document {document_id}."

@@ -98,6 +98,23 @@ export function trackWorkspaceViewed(workspaceId: number) {
 }
 
 // ============================================
+// ACTIVE-USER (WAU) EVENT
+// ============================================
+
+/**
+ * Single signal for active-user counting. Fired whenever a user sends a
+ * chat message or starts an API run, so a "weekly unique users on
+ * weekly_users" insight in PostHog is our WAU number.
+ *
+ * ponytail: frontend-only capture — API runs made directly against the
+ * backend (PAT/curl, no browser) are not counted. Upgrade path is a
+ * server-side capture in the backend if that ever matters.
+ */
+export function trackWeeklyUser(source: "chat_message" | "api_run", workspaceId?: number) {
+	safeCapture("weekly_users", compact({ source, workspace_id: workspaceId }));
+}
+
+// ============================================
 // CHAT EVENTS
 // ============================================
 
@@ -124,6 +141,7 @@ export function trackChatMessageSent(
 		has_mentioned_documents: options?.hasMentionedDocuments ?? false,
 		message_length: options?.messageLength,
 	});
+	trackWeeklyUser("chat_message", workspaceId);
 }
 
 export function trackChatResponseReceived(workspaceId: number, chatId: number) {

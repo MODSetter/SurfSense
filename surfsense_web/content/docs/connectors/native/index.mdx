@@ -35,13 +35,14 @@ Native connectors are SurfSense's own scraper APIs — built into the platform, 
   />
 </Cards>
 
-## Three ways to use them
+## Four ways to use them
 
-Every scraper is available through the same three doors:
+Every scraper is available through the same four doors:
 
 1. **In chat** — the AI agent uses these scrapers as tools automatically. Ask "what is r/selfhosted saying about SurfSense?" and the agent runs the Reddit scraper for you.
 2. **API Playground** — open **API Playground** in your workspace sidebar, pick a scraper, fill in the form, and run it interactively. Great for exploring what a scraper returns before writing code.
-3. **REST API** — call the scrapers from your own code. Each one is a single `POST`:
+3. **MCP server** — hand every scraper to Claude Code, Codex, OpenCode, Cursor, or any MCP client as native tools. See the [MCP server guide](/docs/how-to/mcp-server).
+4. **REST API** — call the scrapers from your own code. Each one is a single `POST`:
 
 ```bash
 POST /api/v1/workspaces/{workspace_id}/scrapers/{platform}/{verb}

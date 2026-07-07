@@ -72,6 +72,10 @@ def run() -> list[str]:
         schema = tool.inputSchema
         if not isinstance(schema, dict) or "properties" not in schema:
             problems.append(f"{name}: malformed input schema")
+            continue
+        for param, spec in schema["properties"].items():
+            if not isinstance(spec, dict) or not spec.get("description"):
+                problems.append(f"{name}: parameter '{param}' has no description")
     return problems
 
 
