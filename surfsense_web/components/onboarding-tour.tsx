@@ -395,8 +395,8 @@ export function OnboardingTour() {
 
 	// Fetch threads data
 	const { data: threadsData } = useQuery({
-		queryKey: ["threads", workspaceId, { limit: 40 }], // Same key as layout
-		queryFn: () => fetchThreads(Number(workspaceId), 40),
+		queryKey: ["threads", workspaceId, { limit: 6 }], // Same key as layout
+		queryFn: () => fetchThreads(Number(workspaceId), 6),
 		enabled: !!workspaceId,
 	});
 

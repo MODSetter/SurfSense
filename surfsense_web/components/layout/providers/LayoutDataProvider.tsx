@@ -118,10 +118,10 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 		enabled: !!workspaceId,
 	});
 
-	// Fetch threads (40 total to allow up to 20 per section - shared/private)
+	// Fetch recent threads for the sidebar.
 	const { data: threadsData, isPending: isLoadingThreads } = useQuery({
-		queryKey: ["threads", workspaceId, { limit: 40 }],
-		queryFn: () => fetchThreads(Number(workspaceId), 40),
+		queryKey: ["threads", workspaceId, { limit: 6 }],
+		queryFn: () => fetchThreads(Number(workspaceId), 6),
 		enabled: !!workspaceId,
 	});
 

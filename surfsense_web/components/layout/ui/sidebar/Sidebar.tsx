@@ -311,7 +311,7 @@ export function Sidebar({
 							) : chats.length > 0 ? (
 								<div className="relative">
 									<div className={`flex flex-col gap-0.5 ${chats.length > 4 ? "pb-2" : ""}`}>
-										{chats.slice(0, 20).map((chat) => (
+										{chats.slice(0, 6).map((chat) => (
 											<ChatListItem
 												key={chat.id}
 												name={chat.name}
