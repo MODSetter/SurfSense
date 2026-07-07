@@ -727,6 +727,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 					comments: {
 						items: commentsInbox.inboxItems,
 						unreadCount: commentsInbox.unreadCount,
+						totalCount: commentsInbox.totalCount,
 						loading: commentsInbox.loading,
 						loadingMore: commentsInbox.loadingMore,
 						hasMore: commentsInbox.hasMore,
@@ -737,6 +738,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 					status: {
 						items: statusInbox.inboxItems,
 						unreadCount: statusInbox.unreadCount,
+						totalCount: statusInbox.totalCount,
 						loading: statusInbox.loading,
 						loadingMore: statusInbox.loadingMore,
 						hasMore: statusInbox.hasMore,

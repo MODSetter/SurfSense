@@ -54,6 +54,7 @@ export function useInbox(
 	const [hasMore, setHasMore] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 	const [unreadCount, setUnreadCount] = useState(0);
+	const [totalCount, setTotalCount] = useState(0);
 
 	const initialLoadDoneRef = useRef(false);
 	const olderUnreadOffsetRef = useRef<number | null>(null);
@@ -71,6 +72,7 @@ export function useInbox(
 		setLoading(true);
 		setInboxItems([]);
 		setHasMore(false);
+		setTotalCount(0);
 		initialLoadDoneRef.current = false;
 		olderUnreadOffsetRef.current = null;
 		apiUnreadTotalRef.current = 0;
@@ -97,6 +99,7 @@ export function useInbox(
 				if (cancelled) return;
 
 				setInboxItems(notificationsResponse.items);
+				setTotalCount(notificationsResponse.total);
 				setHasMore(notificationsResponse.has_more);
 				setUnreadCount(unreadResponse.total_unread);
 				apiUnreadTotalRef.current = unreadResponse.total_unread;
@@ -222,6 +225,7 @@ export function useInbox(
 				const deduped = newItems.filter((d) => !existingIds.has(d.id));
 				return [...prev, ...deduped];
 			});
+			setTotalCount(response.total);
 			setHasMore(response.has_more);
 		} catch (err) {
 			console.error(`[useInbox:${category}] Load more failed:`, err);
@@ -299,6 +303,7 @@ export function useInbox(
 	return {
 		inboxItems,
 		unreadCount,
+		totalCount,
 		markAsRead,
 		markAllAsRead,
 		loading,

@@ -3,7 +3,7 @@
 import { useAtom } from "jotai";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 export interface NotificationsDataSource {
 	items: InboxItem[];
 	unreadCount: number;
+	totalCount?: number;
 	loading: boolean;
 	loadingMore?: boolean;
 	hasMore?: boolean;
@@ -40,7 +41,7 @@ interface NotificationsDropdownProps {
 	onCloseMobileSidebar?: () => void;
 }
 
-type NotificationFilter = "mentions" | "status" | null;
+type NotificationFilter = "all" | "mentions" | "unread";
 
 function formatNotificationCount(count: number): string {
 	if (count <= 999) {
@@ -80,36 +81,83 @@ export function NotificationsDropdown({
 	const router = useRouter();
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 	const [open, setOpen] = useState(false);
-	const [activeFilter, setActiveFilter] = useState<NotificationFilter>(null);
+	const [activeFilter, setActiveFilter] = useState<NotificationFilter>("all");
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 	const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
+	const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
 	const unreadLabel = formatNotificationCount(notifications.totalUnreadCount);
+	const allCount =
+		(notifications.comments.totalCount ?? 0) + (notifications.status.totalCount ?? 0);
+	const mentionsCount = notifications.comments.totalCount ?? notifications.comments.items.length;
 	const visibleUnreadCount =
 		activeFilter === "mentions"
 			? notifications.comments.unreadCount
-			: activeFilter === "status"
-				? notifications.status.unreadCount
-				: notifications.totalUnreadCount;
-	const visibleUnreadLabel = formatNotificationCount(visibleUnreadCount);
+			: notifications.totalUnreadCount;
 	const isLoading =
 		activeFilter === "mentions"
 			? notifications.comments.loading
-			: activeFilter === "status"
-				? notifications.status.loading
-				: notifications.comments.loading || notifications.status.loading;
+			: notifications.comments.loading || notifications.status.loading;
+	const isLoadingMore =
+		activeFilter === "mentions"
+			? !!notifications.comments.loadingMore
+			: !!notifications.comments.loadingMore || !!notifications.status.loadingMore;
+	const hasMore =
+		activeFilter === "mentions"
+			? !!notifications.comments.hasMore
+			: !!notifications.comments.hasMore || !!notifications.status.hasMore;
 	const items = useMemo(() => {
 		const sourceItems =
 			activeFilter === "mentions"
 				? notifications.comments.items
-				: activeFilter === "status"
-					? notifications.status.items
-					: [...notifications.comments.items, ...notifications.status.items];
+				: [...notifications.comments.items, ...notifications.status.items];
 
 		return sourceItems
-			.toSorted((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-			.slice(0, 8);
+			.filter((item) => activeFilter !== "unread" || !item.read)
+			.toSorted((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 	}, [activeFilter, notifications.comments.items, notifications.status.items]);
+
+	const loadMoreForActiveFilter = useCallback(() => {
+		if (isLoadingMore) return;
+
+		if (activeFilter === "mentions") {
+			if (notifications.comments.hasMore) {
+				notifications.comments.loadMore?.();
+			}
+			return;
+		}
+
+		if (notifications.comments.hasMore) {
+			notifications.comments.loadMore?.();
+		}
+		if (notifications.status.hasMore) {
+			notifications.status.loadMore?.();
+		}
+	}, [activeFilter, isLoadingMore, notifications.comments, notifications.status]);
+
+	useEffect(() => {
+		if (!open || isLoading || isLoadingMore || !hasMore) return;
+		const root = scrollContainerRef.current;
+		const target = loadMoreTriggerRef.current;
+		if (!root || !target) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting) {
+					loadMoreForActiveFilter();
+				}
+			},
+			{
+				root,
+				rootMargin: "120px",
+				threshold: 0,
+			}
+		);
+
+		observer.observe(target);
+		return () => observer.disconnect();
+	}, [hasMore, isLoading, isLoadingMore, loadMoreForActiveFilter, open]);
 
 	const markItemAsRead = useCallback(
 		async (item: InboxItem) => {
@@ -179,8 +227,6 @@ export function NotificationsDropdown({
 		try {
 			if (activeFilter === "mentions") {
 				await notifications.comments.markAllAsRead();
-			} else if (activeFilter === "status") {
-				await notifications.status.markAllAsRead();
 			} else {
 				await Promise.all([
 					notifications.comments.markAllAsRead(),
@@ -192,25 +238,27 @@ export function NotificationsDropdown({
 		}
 	}, [activeFilter, markingAllAsRead, notifications, visibleUnreadCount]);
 
-	const handleFilterClick = useCallback((filter: Exclude<NotificationFilter, null>) => {
-		setActiveFilter((current) => (current === filter ? null : filter));
-	}, []);
-
 	const emptyStateCopy =
 		activeFilter === "mentions"
 			? {
 					title: "No mentions",
 					description: "Mentions and replies will appear here.",
 				}
-			: activeFilter === "status"
+			: activeFilter === "unread"
 				? {
-						title: "No status updates",
-						description: "Connector and document updates will appear here.",
+						title: "No unread notifications",
+						description: "New mentions and status updates will appear here.",
 					}
 				: {
 						title: "No notifications",
 						description: "Mentions, replies, and status updates will appear here.",
 					};
+
+	const tabs: { value: NotificationFilter; label: string; count: number }[] = [
+		{ value: "all", label: "All", count: allCount },
+		{ value: "mentions", label: "Mentions", count: mentionsCount },
+		{ value: "unread", label: "Unread", count: notifications.totalUnreadCount },
+	];
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -253,9 +301,6 @@ export function NotificationsDropdown({
 				<div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
 					<div className="min-w-0">
 						<h2 className="text-base font-semibold">Notifications</h2>
-						<p className="text-xs text-muted-foreground">
-							{visibleUnreadCount > 0 ? `${visibleUnreadLabel} unread` : "You're all caught up"}
-						</p>
 					</div>
 					<Button
 						type="button"
@@ -270,46 +315,38 @@ export function NotificationsDropdown({
 					</Button>
 				</div>
 
-				<div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						aria-pressed={activeFilter === "mentions"}
-						onClick={() => handleFilterClick("mentions")}
-						className={cn(
-							"h-7 rounded-full px-2.5 text-xs text-muted-foreground",
-							activeFilter === "mentions" && "bg-accent text-accent-foreground"
-						)}
-					>
-						Mentions
-						{notifications.comments.unreadCount > 0 ? (
-							<span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 px-1 text-[10px] font-medium text-primary">
-								{formatNotificationCount(notifications.comments.unreadCount)}
-							</span>
-						) : null}
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						aria-pressed={activeFilter === "status"}
-						onClick={() => handleFilterClick("status")}
-						className={cn(
-							"h-7 rounded-full px-2.5 text-xs text-muted-foreground",
-							activeFilter === "status" && "bg-accent text-accent-foreground"
-						)}
-					>
-						Status
-						{notifications.status.unreadCount > 0 ? (
-							<span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 px-1 text-[10px] font-medium text-primary">
-								{formatNotificationCount(notifications.status.unreadCount)}
-							</span>
-						) : null}
-					</Button>
+				<div className="relative flex shrink-0 items-end gap-4 px-4 after:absolute after:inset-x-0 after:bottom-0 after:z-0 after:h-px after:bg-muted-foreground/25 after:content-['']">
+					{tabs.map((tab) => {
+						const isActive = activeFilter === tab.value;
+						return (
+							<button
+								key={tab.value}
+								type="button"
+								aria-pressed={isActive}
+								onClick={() => setActiveFilter(tab.value)}
+								className={cn(
+									"relative z-10 flex h-11 items-center gap-2 border-b-2 border-transparent px-0 text-sm font-medium text-muted-foreground transition-colors",
+									"hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+									isActive && "border-primary text-primary"
+								)}
+							>
+								<span>{tab.label}</span>
+								<span
+									className={cn(
+										"inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold",
+										isActive
+											? "bg-primary text-primary-foreground"
+											: "bg-muted text-muted-foreground"
+									)}
+								>
+									{formatNotificationCount(tab.count)}
+								</span>
+							</button>
+						);
+					})}
 				</div>
 
-				<div className="min-h-0 flex-1 overflow-y-auto p-2">
+				<div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto p-2">
 					{isLoading ? (
 						<div className="space-y-1">
 							{[82, 64, 74].map((width) => (
@@ -364,11 +401,32 @@ export function NotificationsDropdown({
 									</Button>
 								);
 							})}
+							{hasMore ? (
+								<div
+									ref={loadMoreTriggerRef}
+									className="flex min-h-10 items-center justify-center py-2"
+								>
+									{isLoadingMore ? <Spinner size="xs" /> : null}
+								</div>
+							) : null}
 						</div>
 					) : (
 						<div className="flex flex-col items-center justify-center px-6 py-10 text-center">
 							<p className="text-sm font-medium">{emptyStateCopy.title}</p>
 							<p className="mt-1 text-xs text-muted-foreground">{emptyStateCopy.description}</p>
+							{hasMore ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={loadMoreForActiveFilter}
+									disabled={isLoadingMore}
+									className="mt-3 text-xs"
+								>
+									{isLoadingMore ? <Spinner size="xs" /> : null}
+									Load more
+								</Button>
+							) : null}
 						</div>
 					)}
 				</div>
