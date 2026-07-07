@@ -423,8 +423,12 @@ async def test_run_events_replays_buffer_then_finishes(monkeypatch):
 
     row = _fake_run_row(status="running")
     raw = str(row.id)
-    run_event_bus.publish(raw, {"type": "run.progress", "phase": "scraping", "current": 1})
-    run_event_bus.publish(raw, {"type": "run.finished", "status": "success", "item_count": 2})
+    run_event_bus.publish(
+        raw, {"type": "run.progress", "phase": "scraping", "current": 1}
+    )
+    run_event_bus.publish(
+        raw, {"type": "run.finished", "status": "success", "item_count": 2}
+    )
 
     app = _build_app_with_rows(monkeypatch, [row])
     try:

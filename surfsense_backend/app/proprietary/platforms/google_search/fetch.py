@@ -31,6 +31,7 @@ if we add another sticky vendor is to extend ``_STICKY_HOSTS``.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import random
 import sys
@@ -158,8 +159,7 @@ async def _vet_fresh_ip(url: str, base: str) -> str | None:
         return proxy if await _precheck(url, proxy) else None
 
     tasks = [
-        asyncio.create_task(vet(_sticky_variant(base)))
-        for _ in range(_VET_CONCURRENCY)
+        asyncio.create_task(vet(_sticky_variant(base))) for _ in range(_VET_CONCURRENCY)
     ]
     winner: str | None = None
     for fut in asyncio.as_completed(tasks):
@@ -306,10 +306,8 @@ async def _drop_session_on_loop(mobile: bool) -> None:
     async with _session_lock:
         session = _sessions.pop(mobile, None)
     if session is not None:
-        try:
+        with contextlib.suppress(Exception):  # already dead; nothing to salvage
             await session.close()
-        except Exception:  # already dead; nothing to salvage
-            pass
 
 
 async def _drop_session(mobile: bool) -> None:

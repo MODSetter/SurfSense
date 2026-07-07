@@ -1393,4 +1393,3 @@ async def _index_uploaded_folder_files_async(
                 heartbeat_task.cancel()
             if notification_id is not None:
                 _stop_heartbeat(notification_id)
-

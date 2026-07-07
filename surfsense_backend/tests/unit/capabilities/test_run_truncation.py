@@ -64,7 +64,9 @@ def test_preview_is_char_budgeted_and_references_run():
     per_item = "y" * 500
     items = [f'{{"i": {i}, "v": "{per_item}"}}' for i in range(500)]
     body = "\n".join(items)
-    serialized = SerializedOutput(text=body, item_count=len(items), char_count=len(body))
+    serialized = SerializedOutput(
+        text=body, item_count=len(items), char_count=len(body)
+    )
 
     preview = _build_preview(serialized, run_id="abc")
 
@@ -143,8 +145,11 @@ async def test_read_run_paginates(monkeypatch):
     read_run, _ = _tools()
 
     out = await read_run.ainvoke(
-        {"ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000",
-         "offset": 2, "limit": 3}
+        {
+            "ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000",
+            "offset": 2,
+            "limit": 3,
+        }
     )
     assert "item_2" in out and "item_3" in out and "item_4" in out
     assert "item_0" not in out and "item_5" not in out
@@ -184,8 +189,7 @@ async def test_search_run_excerpts_huge_matched_line(monkeypatch):
     _, search_run = _tools()
 
     out = await search_run.ainvoke(
-        {"ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000",
-         "pattern": "NEEDLE"}
+        {"ref": "run_" + "0" * 8 + "-0000-0000-0000-000000000000", "pattern": "NEEDLE"}
     )
     assert "NEEDLE" in out
     assert "match at char 100000" in out
@@ -215,8 +219,10 @@ async def test_search_run_matches(monkeypatch):
     _patch_session(monkeypatch, _BODY, [])
     _, search_run = _tools()
     out = await search_run.ainvoke(
-        {"ref": "spill_" + "0" * 8 + "-0000-0000-0000-000000000000",
-         "pattern": "item_7"}
+        {
+            "ref": "spill_" + "0" * 8 + "-0000-0000-0000-000000000000",
+            "pattern": "item_7",
+        }
     )
     assert "item_7" in out
     assert "item_1" not in out.split("item_7")[0]
@@ -232,14 +238,30 @@ _CRAWL_BODY = "\n".join(
                 "url": "https://x.com/team/",
                 "status": "success",
                 "links": [
-                    {"url": "https://x.com/author/jane/", "text": "Jane Doe",
-                     "context": "Jane Doe General Partner", "kind": "internal"},
-                    {"url": "https://x.com/author/bob/", "text": "Bob Roe",
-                     "context": "Bob Roe Operations", "kind": "internal"},
+                    {
+                        "url": "https://x.com/author/jane/",
+                        "text": "Jane Doe",
+                        "context": "Jane Doe General Partner",
+                        "kind": "internal",
+                    },
+                    {
+                        "url": "https://x.com/author/bob/",
+                        "text": "Bob Roe",
+                        "context": "Bob Roe Operations",
+                        "kind": "internal",
+                    },
                     # Duplicate of Jane (nav + card) — must dedupe.
-                    {"url": "https://x.com/author/jane/", "text": "Jane Doe",
-                     "context": "Jane Doe General Partner", "kind": "internal"},
-                    {"url": "https://x.com/about/", "text": "About", "kind": "internal"},
+                    {
+                        "url": "https://x.com/author/jane/",
+                        "text": "Jane Doe",
+                        "context": "Jane Doe General Partner",
+                        "kind": "internal",
+                    },
+                    {
+                        "url": "https://x.com/about/",
+                        "text": "About",
+                        "kind": "internal",
+                    },
                 ],
             }
         ),

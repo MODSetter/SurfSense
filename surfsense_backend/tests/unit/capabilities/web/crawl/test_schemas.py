@@ -43,18 +43,20 @@ def test_estimated_units_for_single_url_is_seed_count() -> None:
 
 
 def test_estimated_units_for_spider_is_max_pages() -> None:
-    model = CrawlInput(
-        startUrls=["https://a.com"], maxCrawlDepth=2, maxCrawlPages=25
-    )
+    model = CrawlInput(startUrls=["https://a.com"], maxCrawlDepth=2, maxCrawlPages=25)
     assert model.estimated_units == 25
 
 
 def test_billable_units_counts_only_successes() -> None:
     out = CrawlOutput(
         items=[
-            CrawlItem(url="a", status="success", crawl=CrawlMeta(loadedUrl="a", depth=0)),
+            CrawlItem(
+                url="a", status="success", crawl=CrawlMeta(loadedUrl="a", depth=0)
+            ),
             CrawlItem(url="b", status="empty", crawl=CrawlMeta(loadedUrl="b", depth=1)),
-            CrawlItem(url="c", status="failed", crawl=CrawlMeta(loadedUrl="c", depth=1)),
+            CrawlItem(
+                url="c", status="failed", crawl=CrawlMeta(loadedUrl="c", depth=1)
+            ),
         ]
     )
     assert out.billable_units == 1

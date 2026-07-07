@@ -241,5 +241,3 @@ class TestCheckBalance:
         session, _user = _make_session(balance_micros=0)
         await WebCrawlCreditService(session).check_balance(_USER_ID, 0)
         session.execute.assert_not_called()
-
-

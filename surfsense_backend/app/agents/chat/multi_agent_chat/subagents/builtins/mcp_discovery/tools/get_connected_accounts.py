@@ -85,8 +85,7 @@ def create_get_connected_accounts_tool(*, workspace_id: int) -> BaseTool:
                     # ``server_config`` presence == the connector produces agent
                     # tools. Native rows without it are connected for indexing
                     # only and need a reconnect via MCP.
-                    "usable_in_chat": isinstance(cfg, dict)
-                    and "server_config" in cfg,
+                    "usable_in_chat": isinstance(cfg, dict) and "server_config" in cfg,
                     "account": account_meta,
                 }
             )

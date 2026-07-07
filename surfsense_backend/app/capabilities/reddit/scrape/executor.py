@@ -36,7 +36,9 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             postDateLimit=payload.post_date_limit,
             commentDateLimit=payload.comment_date_limit,
         )
-        emit_progress("starting", "Resolving Reddit targets", total=payload.max_items, unit="item")
+        emit_progress(
+            "starting", "Resolving Reddit targets", total=payload.max_items, unit="item"
+        )
         try:
             items = await scrape_fn(actor_input, limit=payload.max_items)
         except RedditAccessBlockedError as exc:
@@ -46,7 +48,9 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
                 f"Reddit refused anonymous access: {exc}",
                 code="REDDIT_ACCESS_BLOCKED",
             ) from exc
-        emit_progress("done", f"Scraped {len(items)} item(s)", current=len(items), unit="item")
+        emit_progress(
+            "done", f"Scraped {len(items)} item(s)", current=len(items), unit="item"
+        )
         return ScrapeOutput(items=items)
 
     return execute

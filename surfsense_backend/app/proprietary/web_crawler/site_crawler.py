@@ -156,9 +156,7 @@ class _SiteSpider(Spider):
         # ladder + proxy rotation; never let the spider re-fetch on top of that.
         return False
 
-    async def parse(
-        self, response: Response
-    ) -> AsyncGenerator[Request | None, None]:
+    async def parse(self, response: Response) -> AsyncGenerator[Request | None, None]:
         outcome: CrawlOutcome = response._outcome  # type: ignore[attr-defined]
         depth: int = response.meta.get("_depth", 0)
         referrer: str | None = response.meta.get("_referrer")

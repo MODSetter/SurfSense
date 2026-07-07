@@ -5,12 +5,12 @@ import sys
 from logging.config import fileConfig
 
 import sqlalchemy as sa
-from alembic.script import ScriptDirectory
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from alembic.script import ScriptDirectory
 
 # Ensure the app directory is in the Python path
 # This allows Alembic to find your models
@@ -81,9 +81,7 @@ def _fast_forward_fresh_db(connection: Connection) -> bool:
     step rather than resurrecting the replay.
     """
     for table in ("documents", "searchspaces", BOOTSTRAP_MARKER_TABLE):
-        if connection.execute(
-            sa.text("SELECT to_regclass(:t)"), {"t": table}
-        ).scalar():
+        if connection.execute(sa.text("SELECT to_regclass(:t)"), {"t": table}).scalar():
             return False
     if connection.execute(sa.text("SELECT to_regclass('alembic_version')")).scalar():
         current = connection.execute(

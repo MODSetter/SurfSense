@@ -95,8 +95,15 @@ def test_flatten_comments_counts_replies_and_stops_at_more():
                     "kind": "Listing",
                     "data": {
                         "children": [
-                            {"kind": "t1", "data": {"name": "t1_2", "id": "2",
-                                                    "body": "reply", "replies": ""}},
+                            {
+                                "kind": "t1",
+                                "data": {
+                                    "name": "t1_2",
+                                    "id": "2",
+                                    "body": "reply",
+                                    "replies": "",
+                                },
+                            },
                             {"kind": "more", "data": {}},  # stub -> ignored
                         ]
                     },
@@ -112,8 +119,10 @@ def test_flatten_comments_counts_replies_and_stops_at_more():
 
 def test_flatten_comments_honors_max():
     tree = [
-        {"kind": "t1", "data": {"name": f"t1_{i}", "id": str(i), "body": "x",
-                                "replies": ""}}
+        {
+            "kind": "t1",
+            "data": {"name": f"t1_{i}", "id": str(i), "body": "x", "replies": ""},
+        }
         for i in range(5)
     ]
     assert len(flatten_comments(tree, max_comments=2)) == 2
@@ -128,9 +137,17 @@ def test_children_and_after():
 
 
 def test_parse_community_maps_members():
-    thing = {"kind": "t5", "data": {"name": "t5_s", "id": "s",
-                                    "display_name": "py", "display_name_prefixed": "r/py",
-                                    "subscribers": 1234, "url": "/r/py/"}}
+    thing = {
+        "kind": "t5",
+        "data": {
+            "name": "t5_s",
+            "id": "s",
+            "display_name": "py",
+            "display_name_prefixed": "r/py",
+            "subscribers": 1234,
+            "url": "/r/py/",
+        },
+    }
     item = parse_community(thing)
     assert item["dataType"] == "community"
     assert item["numberOfMembers"] == 1234

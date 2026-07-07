@@ -233,7 +233,9 @@ async def test_gate_reserves_worst_case_captcha_when_solving_enabled(monkeypatch
 
     with pytest.raises(InsufficientCreditsError):
         await gate_capability(
-            CrawlInput(startUrls=["https://a.com"]), BillingUnit.WEB_CRAWL, _ctx(session)
+            CrawlInput(startUrls=["https://a.com"]),
+            BillingUnit.WEB_CRAWL,
+            _ctx(session),
         )
 
 

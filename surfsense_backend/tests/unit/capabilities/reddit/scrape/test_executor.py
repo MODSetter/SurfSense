@@ -43,7 +43,9 @@ async def test_maps_urls_to_start_urls_and_wraps_items():
     assert out.items[0].dataType == "post"
 
     (actor_input, _limit) = scraper.calls[0]
-    assert [u.url for u in actor_input.startUrls] == ["https://www.reddit.com/r/python/"]
+    assert [u.url for u in actor_input.startUrls] == [
+        "https://www.reddit.com/r/python/"
+    ]
     assert actor_input.searches == []
 
 

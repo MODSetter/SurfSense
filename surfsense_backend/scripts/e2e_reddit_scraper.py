@@ -182,9 +182,7 @@ async def step5_dump_fixtures() -> bool:
         wrote.append("sample_post.json")
         # A single comment thing, for the comment-mapping fixture.
         comment_kids = children(post[1]) if len(post) > 1 else []
-        first_comment = next(
-            (c for c in comment_kids if c.get("kind") == "t1"), None
-        )
+        first_comment = next((c for c in comment_kids if c.get("kind") == "t1"), None)
         if first_comment:
             (_FIXTURE_DIR / "sample_comment.json").write_text(
                 json.dumps(first_comment), encoding="utf-8"

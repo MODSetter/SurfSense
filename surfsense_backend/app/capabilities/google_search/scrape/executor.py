@@ -43,7 +43,12 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             unit="page",
         )
         items = await scrape_fn(actor_input, limit=_MAX_SERP_ITEMS)
-        emit_progress("done", f"Scraped {len(items)} SERP page(s)", current=len(items), unit="page")
+        emit_progress(
+            "done",
+            f"Scraped {len(items)} SERP page(s)",
+            current=len(items),
+            unit="page",
+        )
         return ScrapeOutput(items=items)
 
     return execute

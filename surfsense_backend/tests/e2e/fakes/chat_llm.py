@@ -562,8 +562,8 @@ class FakeChatLLM(BaseChatModel):
 
         # Marker unique to a connector subagent's prompt: the main agent must
         # delegate via ``task``; only the subagent has connector tools registered.
-        in_connector_subagent = (
-            "connected-apps specialist" in _messages_to_text(messages)
+        in_connector_subagent = "connected-apps specialist" in _messages_to_text(
+            messages
         )
 
         # Main agent: delegate live-tool connector work to its subagent (which

@@ -62,13 +62,15 @@ def _tool(name: str, metadata: dict) -> StructuredTool:
 def test_all_mcp_connectors_route_to_discovery():
     for connector_type in _MCP_ROUTED:
         assert (
-            CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS[connector_type]
-            == MCP_DISCOVERY_NAME
+            CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS[connector_type] == MCP_DISCOVERY_NAME
         ), connector_type
 
 
 def test_file_connectors_keep_native_routes():
-    assert CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS["GOOGLE_DRIVE_CONNECTOR"] == "google_drive"
+    assert (
+        CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS["GOOGLE_DRIVE_CONNECTOR"]
+        == "google_drive"
+    )
     assert CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS["DROPBOX_CONNECTOR"] == "dropbox"
     assert CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS["ONEDRIVE_CONNECTOR"] == "onedrive"
 
@@ -87,7 +89,9 @@ def test_discovery_gating_is_any_of():
 
 
 def test_discovery_gating_tokens_match_routed_connectors():
-    assert SUBAGENT_TO_REQUIRED_CONNECTOR_MAP[MCP_DISCOVERY_NAME] == frozenset(_MCP_ROUTED)
+    assert SUBAGENT_TO_REQUIRED_CONNECTOR_MAP[MCP_DISCOVERY_NAME] == frozenset(
+        _MCP_ROUTED
+    )
 
 
 def test_legacy_aliases_resolve_to_a_live_subagent():
@@ -104,7 +108,12 @@ def test_collision_only_prefixes_shared_names():
         _tool("search", {"mcp_connector_id": 2, "mcp_transport": "http"}),
         _tool("list_bases", {"mcp_connector_id": 2, "mcp_transport": "http"}),
     ]
-    resolved = {t.name: t for t in resolve_tool_name_collisions(tools, {1: "NOTION_CONNECTOR", 2: "AIRTABLE_CONNECTOR"})}
+    resolved = {
+        t.name: t
+        for t in resolve_tool_name_collisions(
+            tools, {1: "NOTION_CONNECTOR", 2: "AIRTABLE_CONNECTOR"}
+        )
+    }
 
     # The unique tool keeps its bare name (trusted_tools / history stay valid).
     assert "list_bases" in resolved

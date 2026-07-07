@@ -50,9 +50,7 @@ def _augment_allowlist_for_collision_prefixes(
             continue
         original = meta.get("mcp_original_tool_name")
         if original in trusted_names and tool.name not in trusted_names:
-            alias_rules.append(
-                Rule(permission=tool.name, pattern="*", action="allow")
-            )
+            alias_rules.append(Rule(permission=tool.name, pattern="*", action="allow"))
 
     if not alias_rules:
         return dependencies

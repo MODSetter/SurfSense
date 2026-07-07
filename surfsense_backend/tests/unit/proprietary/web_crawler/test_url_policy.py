@@ -116,7 +116,12 @@ def test_extract_link_records_dedupes_keeping_first_nonempty_text() -> None:
     html = '<a href="/p"><img src="logo.png"/></a><a href="/p">Pricing</a>'
     records = extract_link_records(html, "https://example.com/")
     assert records == [
-        {"url": "https://example.com/p", "text": "Pricing", "rel": "", "kind": "internal"}
+        {
+            "url": "https://example.com/p",
+            "text": "Pricing",
+            "rel": "",
+            "kind": "internal",
+        }
     ]
 
 

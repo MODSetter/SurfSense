@@ -28,9 +28,7 @@ _REDDIT_HOSTS = frozenset(
 )
 
 # Listing sorts that can appear as a trailing subreddit path segment.
-_SUBREDDIT_SORTS = frozenset(
-    {"hot", "new", "top", "rising", "controversial", "best"}
-)
+_SUBREDDIT_SORTS = frozenset({"hot", "new", "top", "rising", "controversial", "best"})
 _USER_CONTENT = frozenset({"overview", "submitted", "comments"})
 
 

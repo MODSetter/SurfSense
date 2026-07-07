@@ -73,9 +73,7 @@ def _anchor_context(anchor: Any) -> str:
     return ""
 
 
-def extract_link_records(
-    page_html: str | None, base_url: str
-) -> list[dict[str, str]]:
+def extract_link_records(page_html: str | None, base_url: str) -> list[dict[str, str]]:
     """Structured ``<a>`` inventory: ``{url, text, context, rel, kind}`` per target.
 
     ``kind`` is one of ``internal`` (same site as ``base_url``), ``external``,

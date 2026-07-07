@@ -218,9 +218,7 @@ MCP_SERVICES: dict[str, MCPServiceConfig] = {
             "create-pages",
             "update-page",
         ],
-        readonly_tools=frozenset(
-            {"notion-search", "notion-fetch", "search", "fetch"}
-        ),
+        readonly_tools=frozenset({"notion-search", "notion-fetch", "search", "fetch"}),
         account_metadata_keys=["workspace_name"],
     ),
     "confluence": MCPServiceConfig(

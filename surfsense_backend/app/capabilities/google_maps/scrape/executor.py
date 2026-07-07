@@ -33,14 +33,18 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             maxReviews=payload.max_reviews,
             maxImages=payload.max_images,
         )
-        emit_progress("starting", "Searching Google Maps", total=payload.max_places, unit="place")
+        emit_progress(
+            "starting", "Searching Google Maps", total=payload.max_places, unit="place"
+        )
         try:
             items = await scrape_fn(actor_input)
         except SignInRequiredError as exc:
             raise ForbiddenError(
                 f"Google sign in required: {exc}", code="GOOGLE_SIGNIN_REQUIRED"
             ) from exc
-        emit_progress("done", f"Scraped {len(items)} place(s)", current=len(items), unit="place")
+        emit_progress(
+            "done", f"Scraped {len(items)} place(s)", current=len(items), unit="place"
+        )
         return ScrapeOutput(items=items)
 
     return execute

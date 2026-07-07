@@ -41,9 +41,7 @@ def upgrade() -> None:
         );
         """
     )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_runs_workspace_id ON runs (workspace_id)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_runs_workspace_id ON runs (workspace_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_runs_user_id ON runs (user_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_runs_capability ON runs (capability)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_runs_created_at ON runs (created_at)")

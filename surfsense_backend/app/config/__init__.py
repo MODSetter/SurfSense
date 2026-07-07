@@ -713,9 +713,7 @@ class Config:
     YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "2500"))
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
-    YOUTUBE_MICROS_PER_COMMENT = int(
-        os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500")
-    )
+    YOUTUBE_MICROS_PER_COMMENT = int(os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.

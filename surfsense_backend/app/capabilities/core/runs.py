@@ -291,7 +291,9 @@ async def record_spill(
         return None
 
 
-async def _maybe_cleanup(session: AsyncSession, table: str, retention_days: int) -> None:
+async def _maybe_cleanup(
+    session: AsyncSession, table: str, retention_days: int
+) -> None:
     """Delete a bounded batch of expired rows on ~1% of inserts."""
     if random.random() >= _CLEANUP_SAMPLE_RATE:
         return

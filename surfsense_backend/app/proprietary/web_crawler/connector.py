@@ -91,7 +91,9 @@ _CURRENCY_AMOUNT_RE = re.compile(
     re.IGNORECASE,
 )
 
-_STRIP_XPATH = "//script | //style | //noscript | //template | //svg | //iframe | //head"
+_STRIP_XPATH = (
+    "//script | //style | //noscript | //template | //svg | //iframe | //head"
+)
 
 
 def _visible_text(raw_html: str) -> str:
@@ -278,9 +280,7 @@ class WebCrawlerConnector:
                 else:
                     reached_without_content = True
                     errors.append("Scrapling static: empty extraction")
-                    self._log_tier_outcome(
-                        "scrapling-static", url, tier_start, "empty"
-                    )
+                    self._log_tier_outcome("scrapling-static", url, tier_start, "empty")
             except Exception as exc:
                 errors.append(f"Scrapling static: {exc!s}")
                 self._log_tier_outcome(

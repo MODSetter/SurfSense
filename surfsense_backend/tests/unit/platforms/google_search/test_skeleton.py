@@ -274,8 +274,13 @@ def test_parse_serp_extracts_all_blocks():
     assert prod.prices == ["$24.99", "$30"]
 
     # Related searches exclude the numeric pagination anchor (a.fl).
-    assert [r.title for r in item.relatedQueries] == ["easy apple pie", "apple pie recipe"]
-    assert item.relatedQueries[0].url == "https://www.google.com/search?q=easy+apple+pie"
+    assert [r.title for r in item.relatedQueries] == [
+        "easy apple pie",
+        "apple pie recipe",
+    ]
+    assert (
+        item.relatedQueries[0].url == "https://www.google.com/search?q=easy+apple+pie"
+    )
 
     # suggestedResults are the related queries re-shaped with type/position.
     assert [(s.position, s.title, s.type) for s in item.suggestedResults] == [

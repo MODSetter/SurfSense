@@ -87,9 +87,30 @@ _NOISE_EMAIL_DOMAINS = frozenset(
 # or version-pinned dep (``react@18.2.0.js``) matches the email shape.
 _ASSET_TLDS = frozenset(
     {
-        "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp",
-        "css", "js", "mjs", "cjs", "ts", "map", "json", "xml",
-        "woff", "woff2", "ttf", "eot", "otf", "php", "html", "htm",
+        "png",
+        "jpg",
+        "jpeg",
+        "gif",
+        "svg",
+        "webp",
+        "ico",
+        "bmp",
+        "css",
+        "js",
+        "mjs",
+        "cjs",
+        "ts",
+        "map",
+        "json",
+        "xml",
+        "woff",
+        "woff2",
+        "ttf",
+        "eot",
+        "otf",
+        "php",
+        "html",
+        "htm",
     }
 )
 
@@ -100,19 +121,47 @@ _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 # common locals like hello/info/contact/support.
 _PLACEHOLDER_EMAIL_LOCALS = frozenset(
     {
-        "youremail", "yourname", "youraddress", "myemail", "email", "name",
-        "user", "username", "someone", "somebody", "johndoe", "janedoe",
-        "firstname", "lastname", "firstnamelastname", "firstlast",
-        "test", "example", "sample", "placeholder",
+        "youremail",
+        "yourname",
+        "youraddress",
+        "myemail",
+        "email",
+        "name",
+        "user",
+        "username",
+        "someone",
+        "somebody",
+        "johndoe",
+        "janedoe",
+        "firstname",
+        "lastname",
+        "firstnamelastname",
+        "firstlast",
+        "test",
+        "example",
+        "sample",
+        "placeholder",
     }
 )
 
 # Placeholder profile handles left in site templates ("github.com/username").
 _PLACEHOLDER_SOCIAL_SEGMENTS = frozenset(
     {
-        "username", "yourusername", "yourhandle", "handle", "user",
-        "profile", "yourprofile", "yourname", "yourpage", "pagename",
-        "youraccount", "account", "example", "placeholder", "yourcompany",
+        "username",
+        "yourusername",
+        "yourhandle",
+        "handle",
+        "user",
+        "profile",
+        "yourprofile",
+        "yourname",
+        "yourpage",
+        "pagename",
+        "youraccount",
+        "account",
+        "example",
+        "placeholder",
+        "yourcompany",
     }
 )
 

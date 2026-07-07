@@ -291,8 +291,8 @@ async def _user_flow(
         date_limit=input_model.postDateLimit,
     ):
         # A user listing mixes posts (t3) and comments (t1); a post has a title.
-        parsed = parse_post(data) if data.get("title") is not None else parse_comment(
-            data
+        parsed = (
+            parse_post(data) if data.get("title") is not None else parse_comment(data)
         )
         item = _emit(parsed, include_nsfw=input_model.includeNSFW)
         if item is not None:
@@ -401,8 +401,7 @@ async def iter_reddit(
                 continue
             resolved.append(r)
         jobs = [
-            _dispatch(r, input_model)
-            for r in _capped_targets(resolved, input_model)
+            _dispatch(r, input_model) for r in _capped_targets(resolved, input_model)
         ]
         async for item in fan_out(jobs):
             yield item
@@ -449,9 +448,7 @@ async def scrape_reddit(
     results: list[dict[str, Any]] = []
     async for item in iter_reddit(input_model):
         results.append(item)
-        emit_progress(
-            "scraping", current=len(results), total=limit, unit="item"
-        )
+        emit_progress("scraping", current=len(results), total=limit, unit="item")
         if limit is not None and len(results) >= limit:
             break
     return results

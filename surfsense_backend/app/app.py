@@ -627,9 +627,13 @@ async def _sweep_stale_scraper_runs() -> None:
         async with async_session_maker() as session:
             swept = await fail_stale_running_runs(session)
         if swept:
-            logger.info("[startup] Marked %d stale running scraper run(s) as error", swept)
+            logger.info(
+                "[startup] Marked %d stale running scraper run(s) as error", swept
+            )
     except Exception:
-        logger.warning("[startup] Stale scraper-run sweep failed (non-fatal)", exc_info=True)
+        logger.warning(
+            "[startup] Stale scraper-run sweep failed (non-fatal)", exc_info=True
+        )
 
 
 @asynccontextmanager

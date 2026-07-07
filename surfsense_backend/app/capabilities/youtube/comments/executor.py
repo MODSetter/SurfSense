@@ -25,9 +25,19 @@ def build_comments_executor(scrape_fn: CommentsFn | None = None) -> Executor:
             maxComments=payload.max_comments,
             sortCommentsBy=payload.sort_by,
         )
-        emit_progress("starting", "Fetching YouTube comments", total=payload.max_comments, unit="comment")
+        emit_progress(
+            "starting",
+            "Fetching YouTube comments",
+            total=payload.max_comments,
+            unit="comment",
+        )
         items = await scrape_fn(actor_input)
-        emit_progress("done", f"Scraped {len(items)} comment(s)", current=len(items), unit="comment")
+        emit_progress(
+            "done",
+            f"Scraped {len(items)} comment(s)",
+            current=len(items),
+            unit="comment",
+        )
         return CommentsOutput(items=items)
 
     return execute

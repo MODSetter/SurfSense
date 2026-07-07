@@ -218,7 +218,9 @@ def parse_organic(doc: Adaptor, *, include_icons: bool = False) -> list[OrganicR
     return results
 
 
-def parse_paid_results(doc: Adaptor, *, include_icons: bool = False) -> list[PaidResult]:
+def parse_paid_results(
+    doc: Adaptor, *, include_icons: bool = False
+) -> list[PaidResult]:
     """Text ads (``div[data-text-ad]``), covering the top and bottom ad blocks.
 
     Fields mirror an organic result: the heading is the title, the ad's anchor
@@ -239,7 +241,11 @@ def parse_paid_results(doc: Adaptor, *, include_icons: bool = False) -> list[Pai
         description = None
         for cand in block.css(".Va3FIb"):
             text = _text(cand)
-            if text and text != title and (description is None or len(text) > len(description)):
+            if (
+                text
+                and text != title
+                and (description is None or len(text) > len(description))
+            ):
                 description = text
         slot = block.attrib.get("data-ta-slot-pos")
         ads.append(

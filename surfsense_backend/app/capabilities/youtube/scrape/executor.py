@@ -31,9 +31,16 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             downloadSubtitles=payload.download_subtitles,
             subtitlesLanguage=payload.subtitles_language,
         )
-        emit_progress("starting", "Resolving YouTube targets", total=payload.max_results, unit="video")
+        emit_progress(
+            "starting",
+            "Resolving YouTube targets",
+            total=payload.max_results,
+            unit="video",
+        )
         items = await scrape_fn(actor_input)
-        emit_progress("done", f"Scraped {len(items)} video(s)", current=len(items), unit="video")
+        emit_progress(
+            "done", f"Scraped {len(items)} video(s)", current=len(items), unit="video"
+        )
         return ScrapeOutput(items=items)
 
     return execute

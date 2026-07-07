@@ -101,7 +101,11 @@ async def test_aggregated_contacts_carry_provenance_and_site_wide_flag() -> None
     class _ContactsEngine:
         async def crawl_url(self, url: str) -> CrawlOutcome:
             socials = [footer] + ([person] if url.endswith("/about") else [])
-            links = ["https://e.com/about", "https://e.com/blog"] if url == "https://e.com/" else []
+            links = (
+                ["https://e.com/about", "https://e.com/blog"]
+                if url == "https://e.com/"
+                else []
+            )
             return CrawlOutcome(
                 status=_SUCCESS,
                 result={

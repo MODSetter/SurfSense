@@ -83,7 +83,9 @@ def resolve_tool_name_collisions(
             or original_name,
             "mcp_collision_prefixed": True,
         }
-        resolved.append(tool.model_copy(update={"name": new_name, "metadata": new_meta}))
+        resolved.append(
+            tool.model_copy(update={"name": new_name, "metadata": new_meta})
+        )
     return resolved
 
 

@@ -128,7 +128,7 @@ def _cell(value: Any) -> str:
     """Render one CSV cell: scalars as-is, nested structures as compact JSON."""
     if value is None:
         return ""
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict | list):
         return json.dumps(value, ensure_ascii=False, default=str)
     return str(value)
 
@@ -230,9 +230,7 @@ def build_run_reader_tools(*, workspace_id: int) -> list[BaseTool]:
         count = min(max(1, limit), _MAX_LIMIT)
         window = lines[start : start + count]
         if not window:
-            return (
-                f"No lines at offset {start} (total {len(lines)} lines in {ref})."
-            )
+            return f"No lines at offset {start} (total {len(lines)} lines in {ref})."
         window_body = "\n".join(window)
         start_char = max(0, char_offset)
         if start_char >= len(window_body) > 0:
@@ -328,10 +326,14 @@ def build_run_reader_tools(*, workspace_id: int) -> list[BaseTool]:
         records = _rows_from_body(body, rows)
         if include_pattern:
             inc = _build_matcher(include_pattern.strip())
-            records = [r for r in records if inc(" ".join(map(_cell, r.values()))) is not None]
+            records = [
+                r for r in records if inc(" ".join(map(_cell, r.values()))) is not None
+            ]
         if exclude_pattern:
             exc = _build_matcher(exclude_pattern.strip())
-            records = [r for r in records if exc(" ".join(map(_cell, r.values()))) is None]
+            records = [
+                r for r in records if exc(" ".join(map(_cell, r.values()))) is None
+            ]
         if not records:
             return (
                 f"Error: no rows to export from {ref} "
@@ -353,7 +355,9 @@ def build_run_reader_tools(*, workspace_id: int) -> list[BaseTool]:
 
         preview_lines = csv_text.split("\n")[:4]
         truncated_note = (
-            f" (capped at {_EXPORT_MAX_ROWS} rows)" if row_count >= _EXPORT_MAX_ROWS else ""
+            f" (capped at {_EXPORT_MAX_ROWS} rows)"
+            if row_count >= _EXPORT_MAX_ROWS
+            else ""
         )
         return (
             f"Exported {row_count} rows{truncated_note} to {final_path} "

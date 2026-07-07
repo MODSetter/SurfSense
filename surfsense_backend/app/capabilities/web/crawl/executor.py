@@ -60,7 +60,9 @@ def build_crawl_executor(engine: WebCrawlerConnector | None = None) -> Executor:
             unit="page",
         )
         items = [_to_item(page, payload.maxLength) for page in pages]
-        emit_progress("done", f"Crawled {len(items)} page(s)", current=len(items), unit="page")
+        emit_progress(
+            "done", f"Crawled {len(items)} page(s)", current=len(items), unit="page"
+        )
         return CrawlOutput(
             items=items,
             contacts=_aggregate_contacts(items),

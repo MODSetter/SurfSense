@@ -2795,9 +2795,7 @@ class Run(Base, TimestampMixin):
     __tablename__ = "runs"
     __allow_unmapped__ = True
 
-    __table_args__ = (
-        Index("ix_runs_workspace_created", "workspace_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_runs_workspace_created", "workspace_id", "created_at"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id = Column(

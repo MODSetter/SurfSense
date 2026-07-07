@@ -29,9 +29,7 @@ def _last_ai_text(messages: list) -> str | None:
 
 
 @pytest.mark.asyncio
-async def test_web_query_delegates_to_google_search(
-    db_session, db_user, db_workspace
-):
+async def test_web_query_delegates_to_google_search(db_session, db_user, db_workspace):
     """A web-search query routes through ``task(google_search)`` and resumes.
 
     Scripted sequence (the fake model is shared and consumed in order across the
@@ -76,9 +74,7 @@ async def test_web_query_delegates_to_google_search(
     )
 
     task_tool_messages = [
-        m
-        for m in result["messages"]
-        if isinstance(m, ToolMessage) and m.name == "task"
+        m for m in result["messages"] if isinstance(m, ToolMessage) and m.name == "task"
     ]
     assert task_tool_messages, "web query did not delegate through the task tool"
     assert _last_ai_text(result["messages"]) == (

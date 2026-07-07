@@ -209,7 +209,10 @@ async def _execute_async_run(
             raise
         except (SurfSenseError, HTTPException) as exc:
             await _finalize_async(
-                run_id, status="error", error=str(exc), started=started,
+                run_id,
+                status="error",
+                error=str(exc),
+                started=started,
                 progress=reporter.coarse,
             )
             _publish_finished(run_id, "error", error=str(exc))

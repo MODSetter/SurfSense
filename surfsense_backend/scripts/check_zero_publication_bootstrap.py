@@ -40,7 +40,9 @@ async def main() -> None:
         await admin.execute(f'DROP DATABASE IF EXISTS "{SCRATCH_DB}" WITH (FORCE)')
         await admin.close()
 
-    print("OK: ensure_publication creates and verifies on a create_all DB, idempotently.")
+    print(
+        "OK: ensure_publication creates and verifies on a create_all DB, idempotently."
+    )
 
 
 asyncio.run(main())

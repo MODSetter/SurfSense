@@ -125,9 +125,7 @@ async def test_dedupes_on_canonical_url() -> None:
         }
     )
 
-    await crawl_site(
-        engine, ["https://e.com/"], max_crawl_depth=3, max_crawl_pages=10
-    )
+    await crawl_site(engine, ["https://e.com/"], max_crawl_depth=3, max_crawl_pages=10)
 
     assert engine.calls.count("https://e.com/a") == 1
     assert engine.calls.count("https://e.com/") == 1

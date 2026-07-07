@@ -69,9 +69,7 @@ def _fetch_subtitles_sync(
         api = _build_client()
         try:
             transcript_list = api.list(video_id)
-            transcript = _select_transcript(
-                transcript_list, language, prefer_generated
-            )
+            transcript = _select_transcript(transcript_list, language, prefer_generated)
             fetched = transcript.fetch()
             break
         except RequestBlocked:  # covers IpBlocked; rotate to a fresh exit IP

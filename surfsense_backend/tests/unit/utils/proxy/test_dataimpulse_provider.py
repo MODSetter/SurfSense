@@ -47,9 +47,7 @@ def test_location_stops_at_next_param(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_no_country_suffix_yields_empty_location(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        Config, "PROXY_URL", "http://tok:secret@gw.dataimpulse.com:823"
-    )
+    monkeypatch.setattr(Config, "PROXY_URL", "http://tok:secret@gw.dataimpulse.com:823")
     assert DataImpulseProvider().get_location() == ""
 
 

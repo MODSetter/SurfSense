@@ -165,7 +165,8 @@ class CrawlItem(BaseModel):
         default=None, description="Crawl provenance (loaded URL, depth, referrer)."
     )
     markdown: str | None = Field(
-        default=None, description="Cleaned page content as markdown (null unless success)."
+        default=None,
+        description="Cleaned page content as markdown (null unless success).",
     )
     metadata: dict[str, str] | None = Field(
         default=None, description="Page metadata such as title and description."

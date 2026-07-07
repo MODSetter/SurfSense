@@ -22,7 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.etl_credit_service import InsufficientCreditsError
 
-__all__ = ["InsufficientCreditsError", "apply_debit", "check_balance", "spendable_micros"]
+__all__ = [
+    "InsufficientCreditsError",
+    "apply_debit",
+    "check_balance",
+    "spendable_micros",
+]
 
 
 async def spendable_micros(session: AsyncSession, user_id: str | UUID) -> int:
