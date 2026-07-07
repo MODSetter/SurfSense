@@ -2,15 +2,15 @@
 
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CreditCard, RefreshCw } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
@@ -69,7 +69,7 @@ export function AutoReloadSettings() {
 		const setupResult = searchParams.get("auto_reload_setup");
 		if (!setupResult) return;
 		if (setupResult === "success") {
-			toast.success("Card saved. You can now enable auto-reload.");
+			toast.success("Card saved. You can now enable top-ups.");
 			queryClient.invalidateQueries({ queryKey: ["auto-reload-settings"] });
 		} else if (setupResult === "cancel") {
 			toast.info("Card setup canceled.");
@@ -92,19 +92,19 @@ export function AutoReloadSettings() {
 		mutationFn: stripeApiService.updateAutoReloadSettings,
 		onSuccess: (updated) => {
 			queryClient.setQueryData(["auto-reload-settings"], updated);
-			toast.success(updated.enabled ? "Auto-reload is on." : "Auto-reload settings saved.");
+			toast.success(updated.enabled ? "Top-ups are on." : "Top-up settings saved.");
 		},
 		onError: (error) => {
 			if (error instanceof AppError && error.message) {
 				toast.error(error.message);
 				return;
 			}
-			toast.error("Couldn't save auto-reload settings. Please try again.");
+			toast.error("Couldn't save top-up settings. Please try again.");
 		},
 	});
 
 	// Render nothing while loading (avoids a spinner flash on pages where the
-	// feature flag turns out to be off) and when auto-reload is disabled
+	// feature flag turns out to be off) and when top-ups are disabled
 	// server-side.
 	if (isLoading || !settings || !settings.feature_enabled) {
 		return null;
@@ -131,7 +131,7 @@ export function AutoReloadSettings() {
 			return;
 		}
 		if (amountMicros == null || amountMicros < settings.min_amount_micros) {
-			toast.error(`Reload amount must be at least $${minAmountDollars}.`);
+			toast.error(`Top-up amount must be at least $${minAmountDollars}.`);
 			return;
 		}
 
@@ -142,135 +142,168 @@ export function AutoReloadSettings() {
 		});
 	};
 
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2 text-base">
-					<RefreshCw className="h-4 w-4 text-amber-500" />
-					Auto-reload
-				</CardTitle>
-				<CardDescription>
-					Automatically top up your credit balance when it drops below a threshold, using a saved
-					card. Current balance:{" "}
-					<span className="font-medium text-foreground">{formatUsd(balanceMicros)}</span>.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="space-y-5">
+	const addCardButton = (
+		<Button
+			className="w-full sm:w-auto"
+			onClick={() => setupMutation.mutate()}
+			disabled={setupMutation.isPending}
+		>
+			{setupMutation.isPending ? (
+				<>
+					<Spinner size="xs" />
+					Redirecting
+				</>
+			) : (
+				"Add a card"
+			)}
+		</Button>
+	);
+
+	if (!hasCard) {
+		return (
+			<div className="space-y-5">
 				{settings.failed_at && (
 					<Alert variant="destructive">
 						<AlertTriangle className="h-4 w-4" />
-						<AlertTitle>Last auto-reload failed</AlertTitle>
+						<AlertTitle>Last top-up failed</AlertTitle>
 						<AlertDescription>
-							Your saved card was declined and auto-reload was turned off. Update your card and
-							re-enable it below to keep topping up automatically.
+							Your saved card was declined and top-ups were turned off. Update your card and
+							re-enable top-ups below.
 						</AlertDescription>
 					</Alert>
 				)}
 
-				{!hasCard ? (
-					<div className="flex flex-col items-start gap-3 rounded-lg border bg-muted/20 p-4">
-						<div className="flex items-center gap-2 text-sm">
-							<CreditCard className="h-4 w-4 text-muted-foreground" />
-							<span>Add a card to enable automatic top-ups.</span>
+				<div className="space-y-6">
+					<Alert className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<div className="flex min-w-0 items-start gap-3">
+							<Info className="mt-0.5 h-4 w-4 shrink-0" />
+							<p className="text-sm leading-relaxed text-muted-foreground">
+								Automatically top up your credit balance when it drops below a threshold, using a
+								saved card. Current balance:{" "}
+								<span className="font-medium text-foreground">{formatUsd(balanceMicros)}</span>.
+							</p>
 						</div>
-						<Button onClick={() => setupMutation.mutate()} disabled={setupMutation.isPending}>
-							{setupMutation.isPending ? (
-								<>
-									<Spinner size="xs" />
-									Redirecting
-								</>
-							) : (
-								"Add a card"
-							)}
-						</Button>
+						{addCardButton}
+					</Alert>
+					<Separator />
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-6">
+			{settings.failed_at && (
+				<Alert variant="destructive">
+					<AlertTriangle className="h-4 w-4" />
+					<AlertTitle>Last top-up failed</AlertTitle>
+					<AlertDescription>
+						Your saved card was declined and top-ups were turned off. Update your card and
+						re-enable top-ups below.
+					</AlertDescription>
+				</Alert>
+			)}
+
+			<section className="space-y-5">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="space-y-1">
+						<h2 className="text-base font-semibold tracking-tight">Automatic top-ups</h2>
+						<p className="text-sm text-muted-foreground">
+							Current balance:{" "}
+							<span className="font-medium text-foreground">{formatUsd(balanceMicros)}</span>
+						</p>
 					</div>
-				) : (
-					<>
-						<div className="flex items-center justify-between gap-4">
-							<div className="space-y-0.5">
-								<Label htmlFor="auto-reload-toggle" className="text-sm font-medium">
-									Enable auto-reload
-								</Label>
-								<p className="text-xs text-muted-foreground">
-									Charge your saved card when the balance gets low.
-								</p>
-							</div>
-							<Switch id="auto-reload-toggle" checked={enabled} onCheckedChange={setEnabled} />
-						</div>
+					<Button
+						className="w-full sm:w-auto"
+						onClick={() => setupMutation.mutate()}
+						disabled={setupMutation.isPending}
+					>
+						{setupMutation.isPending ? (
+							<>
+								<Spinner size="xs" />
+								Redirecting
+							</>
+						) : (
+							"Update card"
+						)}
+					</Button>
+				</div>
 
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div className="space-y-1.5">
-								<Label htmlFor="auto-reload-threshold" className="text-xs">
-									When balance falls below
-								</Label>
-								<div className="relative">
-									<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-										$
-									</span>
-									<Input
-										id="auto-reload-threshold"
-										type="number"
-										min="0"
-										step="1"
-										inputMode="decimal"
-										className="pl-6 tabular-nums"
-										value={thresholdInput}
-										onChange={(e) => setThresholdInput(e.target.value)}
-										disabled={!enabled}
-										placeholder="5"
-									/>
-								</div>
-							</div>
-							<div className="space-y-1.5">
-								<Label htmlFor="auto-reload-amount" className="text-xs">
-									Add this much credit
-								</Label>
-								<div className="relative">
-									<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-										$
-									</span>
-									<Input
-										id="auto-reload-amount"
-										type="number"
-										min={minAmountDollars}
-										step="1"
-										inputMode="decimal"
-										className="pl-6 tabular-nums"
-										value={amountInput}
-										onChange={(e) => setAmountInput(e.target.value)}
-										disabled={!enabled}
-										placeholder="10"
-									/>
-								</div>
-								<p className="text-[11px] text-muted-foreground">Minimum ${minAmountDollars}.</p>
-							</div>
-						</div>
+				<div className="flex items-center justify-between gap-4">
+					<div className="space-y-0.5">
+						<Label htmlFor="top-ups-toggle" className="text-sm font-medium">
+							Enable top-ups
+						</Label>
+						<p className="text-xs text-muted-foreground">
+							Charge your saved card when the balance gets low.
+						</p>
+					</div>
+					<Switch id="top-ups-toggle" checked={enabled} onCheckedChange={setEnabled} />
+				</div>
 
-						<div className="flex items-center justify-between gap-3">
-							<Button
-								variant="ghost"
-								size="sm"
-								className="text-muted-foreground"
-								onClick={() => setupMutation.mutate()}
-								disabled={setupMutation.isPending}
-							>
-								<CreditCard className="h-3.5 w-3.5" />
-								Update card
-							</Button>
-							<Button onClick={handleSave} disabled={saveMutation.isPending}>
-								{saveMutation.isPending ? (
-									<>
-										<Spinner size="xs" />
-										Saving
-									</>
-								) : (
-									"Save"
-								)}
-							</Button>
+				<div className="grid gap-4 sm:grid-cols-2">
+					<div className="space-y-1.5">
+						<Label htmlFor="top-ups-threshold" className="text-xs">
+							When balance falls below
+						</Label>
+						<div className="relative">
+							<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+								$
+							</span>
+							<Input
+								id="top-ups-threshold"
+								type="number"
+								min="0"
+								step="1"
+								inputMode="decimal"
+								className="pl-6 tabular-nums"
+								value={thresholdInput}
+								onChange={(e) => setThresholdInput(e.target.value)}
+								disabled={!enabled}
+								placeholder="5"
+							/>
 						</div>
-					</>
-				)}
-			</CardContent>
-		</Card>
+					</div>
+					<div className="space-y-1.5">
+						<Label htmlFor="top-ups-amount" className="text-xs">
+							Add this much credit
+						</Label>
+						<div className="relative">
+							<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+								$
+							</span>
+							<Input
+								id="top-ups-amount"
+								type="number"
+								min={minAmountDollars}
+								step="1"
+								inputMode="decimal"
+								className="pl-6 tabular-nums"
+								value={amountInput}
+								onChange={(e) => setAmountInput(e.target.value)}
+								disabled={!enabled}
+								placeholder="10"
+							/>
+						</div>
+						<p className="text-[11px] text-muted-foreground">Minimum ${minAmountDollars}.</p>
+					</div>
+				</div>
+
+				<div className="flex justify-end">
+					<Button className="w-full sm:w-auto" onClick={handleSave} disabled={saveMutation.isPending}>
+						{saveMutation.isPending ? (
+							<>
+								<Spinner size="xs" />
+								Saving
+							</>
+						) : (
+							"Save"
+						)}
+					</Button>
+				</div>
+			</section>
+
+			<Separator />
+		</div>
 	);
 }

@@ -41,7 +41,7 @@ const demoPlans = [
 			"Premium models like GPT-5.5, Claude Sonnet 5, Gemini 3.1 Pro billed at provider cost",
 			"Scheduled and event-triggered agents for briefs, alerts, and monitoring",
 			"Write results back to Notion, Slack, Linear, and Jira",
-			"Top up any amount, $1 buys $1 of credit, optional auto-reload",
+			"Add credit any time. $1 buys $1 of credit, with optional automatic refills",
 			"Priority support on Discord",
 		],
 		description: "",
@@ -95,7 +95,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "How does Pay As You Go work?",
 				answer:
-					"There is no monthly subscription. Start with $5 of free credit, and when you need more, top up any amount. $1 buys exactly $1 of credit, added to your balance immediately. You can enable auto-reload to top up automatically when your balance runs low, and turn it off any time.",
+					"There is no monthly subscription. Start with $5 of free credit, and when you need more, add any amount. $1 buys exactly $1 of credit, added to your balance immediately. You can enable automatic refills when your balance runs low, and turn them off any time."
 			},
 			{
 				question: "What happens if I run out of credit?",
