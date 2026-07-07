@@ -2,8 +2,8 @@
 
 A pure ASGI middleware, deliberately not Starlette's ``BaseHTTPMiddleware``:
 the latter runs the endpoint in a separate task, so a contextvar set in it does
-not reach the tool handler. A pure middleware sets the key in the request's own
-task, from which the SDK's per-request handling inherits it (verified).
+not reach the tool handler. A pure middleware binds the key in the request's own
+task, from which the SDK's per-request handling inherits it.
 
 Requests without a key are rejected here so no tool ever runs unauthenticated.
 """

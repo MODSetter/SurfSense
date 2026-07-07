@@ -32,9 +32,8 @@ class SurfSenseClient:
         self, *, api_base: str, timeout: float, fallback_api_key: str | None = None
     ) -> None:
         self._api_base = api_base
-        # The key is resolved per request (one client serves many users over
-        # http), so none is baked into the shared client. ``fallback_api_key``
-        # is the env-supplied key used under stdio, where there is no header.
+        # Resolved per request, so no key is baked into the shared client. The
+        # fallback is the env key used under stdio, where there is no header.
         self._fallback_api_key = fallback_api_key
         self._http = httpx.AsyncClient(
             base_url=api_base,
