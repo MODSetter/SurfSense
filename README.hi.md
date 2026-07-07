@@ -138,7 +138,7 @@ SurfSense MCP सर्वर को Claude, Cursor या अपने एज�
 {
   "mcpServers": {
     "surfsense": {
-      "url": "https://mcp.surfsense.com",
+      "url": "https://mcp.surfsense.com/mcp",
       "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
     }
   }
