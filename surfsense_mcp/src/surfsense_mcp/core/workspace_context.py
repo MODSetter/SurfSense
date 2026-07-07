@@ -7,13 +7,21 @@ speaks a name, we resolve it, and remember the choice for later calls.
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Annotated
 
 from pydantic import Field
 
+from .auth.identity import current_identity
 from .client import SurfSenseClient
 from .errors import ToolError
+
+# ponytail: one small entry per distinct caller (API token). Bounded so a flood
+# of keys can't grow memory without limit; an evicted caller just re-resolves
+# its default workspace on the next call. Upgrade path: a TTL/LRU store if
+# per-caller state ever grows past this one field.
+_MAX_TRACKED_IDENTITIES = 2048
 
 # Shared parameter type for every workspace-scoped tool.
 WorkspaceParam = Annotated[
@@ -44,15 +52,21 @@ class WorkspaceContext:
     ) -> None:
         self._client = client
         self._preferred_reference = preferred_reference
-        self._active: Workspace | None = None
+        # Active selection is per caller: one shared slot would leak one user's
+        # choice to every other user on a shared server.
+        self._active_by_identity: OrderedDict[str, Workspace] = OrderedDict()
 
     @property
     def active(self) -> Workspace | None:
-        return self._active
+        return self._active_by_identity.get(current_identity())
 
     def remember(self, workspace: Workspace) -> Workspace:
-        """Make ``workspace`` the default for later scoped calls."""
-        self._active = workspace
+        """Make ``workspace`` the default for the current caller's later calls."""
+        identity = current_identity()
+        self._active_by_identity[identity] = workspace
+        self._active_by_identity.move_to_end(identity)
+        while len(self._active_by_identity) > _MAX_TRACKED_IDENTITIES:
+            self._active_by_identity.popitem(last=False)
         return workspace
 
     async def fetch_all(self) -> list[Workspace]:
@@ -67,8 +81,9 @@ class WorkspaceContext:
         return self.remember(await self._match(reference))
 
     async def _resolve_default(self) -> Workspace:
-        if self._active is not None:
-            return self._active
+        active = self.active
+        if active is not None:
+            return active
         if self._preferred_reference:
             return self.remember(await self._match(self._preferred_reference))
         return self.remember(await self._only_workspace_or_prompt())
