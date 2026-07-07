@@ -19,7 +19,7 @@ import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 import { DocumentsSidebar } from "./DocumentsSidebar";
 import { NavSection } from "./NavSection";
-import { SidebarButton } from "./SidebarButton";
+import { SidebarButton, SidebarButtonBadge } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
@@ -246,14 +246,7 @@ export function Sidebar({
 							onClick={() => onNavItemClick?.(playgroundItem)}
 							isCollapsed={isCollapsed}
 							isActive={playgroundItem.isActive}
-							badge={
-								<Badge
-									variant="secondary"
-									className="h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10"
-								>
-									New
-								</Badge>
-							}
+							badge={<SidebarButtonBadge>New</SidebarButtonBadge>}
 							tooltipContent={isCollapsed ? playgroundItem.title : undefined}
 						/>
 					)}

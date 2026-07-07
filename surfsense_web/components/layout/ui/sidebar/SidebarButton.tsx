@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,26 @@ const baseClassName = cn(
 	"transition-colors hover:bg-accent hover:text-accent-foreground",
 	"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 );
+
+export function SidebarButtonBadge({
+	children,
+	className,
+}: {
+	children: React.ReactNode;
+	className?: string;
+}) {
+	return (
+		<Badge
+			variant="secondary"
+			className={cn(
+				"h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10",
+				className
+			)}
+		>
+			{children}
+		</Badge>
+	);
+}
 
 export function SidebarButton({
 	icon: Icon,

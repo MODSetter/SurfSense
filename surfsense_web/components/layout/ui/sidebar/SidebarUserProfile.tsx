@@ -414,7 +414,7 @@ export function SidebarUserProfile({
 	// Collapsed view - just show avatar with dropdown
 	if (isCollapsed) {
 		return (
-			<div className="relative w-full px-1.5 py-2 before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-border">
+			<div className="relative w-full px-1.5 py-2 before:absolute before:inset-x-1.5 before:top-0 before:h-px before:bg-border">
 				<div className="flex flex-col items-center gap-2">
 					{topContent}
 					{showDownloadCta && (

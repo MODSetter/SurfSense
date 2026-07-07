@@ -29,7 +29,7 @@ export function ConnectAgentDialog({ className }: { className?: string }) {
 				)}
 			>
 				<Cable className="h-3.5 w-3.5 shrink-0" />
-				<span className="min-w-0 flex-1 truncate">Connect your AI Agent</span>
+				<span className="min-w-0 flex-1 truncate">Connect your agent</span>
 			</DialogTrigger>
 			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
 				<DialogHeader>
