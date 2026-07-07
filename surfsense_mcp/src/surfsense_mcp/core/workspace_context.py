@@ -16,6 +16,7 @@ from pydantic import Field
 from .auth.identity import current_identity
 from .client import SurfSenseClient
 from .errors import ToolError
+from .workspace_matching import as_int, match_by_name, name_list
 
 # ponytail: one small entry per distinct caller (API token). Bounded so a flood
 # of keys can't grow memory without limit; an evicted caller just re-resolves
@@ -99,43 +100,20 @@ class WorkspaceContext:
             )
         raise ToolError(
             "No workspace selected. Choose one first with surfsense_select_workspace, "
-            f"or pass 'workspace'. Available: {_name_list(workspaces)}."
+            f"or pass 'workspace'. Available: {name_list(workspaces)}."
         )
 
     async def _match(self, reference: str | int) -> Workspace:
         workspaces = await self.fetch_all()
-        as_id = _as_int(reference)
+        as_id = as_int(reference)
         if as_id is not None:
             found = next((w for w in workspaces if w.id == as_id), None)
             if found is None:
                 raise ToolError(
-                    f"No workspace with id {as_id}. Available: {_name_list(workspaces)}."
+                    f"No workspace with id {as_id}. Available: {name_list(workspaces)}."
                 )
             return found
-        return _match_by_name(str(reference), workspaces)
-
-
-def _match_by_name(reference: str, workspaces: list[Workspace]) -> Workspace:
-    """Match on name: exact, then case-insensitive, then unique substring."""
-    needle = reference.strip()
-    exact = [w for w in workspaces if w.name == needle]
-    if exact:
-        return exact[0]
-    lowered = needle.casefold()
-    insensitive = [w for w in workspaces if w.name.casefold() == lowered]
-    if insensitive:
-        return insensitive[0]
-    partial = [w for w in workspaces if lowered in w.name.casefold()]
-    if len(partial) == 1:
-        return partial[0]
-    if len(partial) > 1:
-        raise ToolError(
-            f"'{reference}' matches several workspaces: {_name_list(partial)}. "
-            "Use a more specific name or the id."
-        )
-    raise ToolError(
-        f"No workspace named '{reference}'. Available: {_name_list(workspaces)}."
-    )
+        return match_by_name(str(reference), workspaces)
 
 
 def _to_workspace(row: dict) -> Workspace:
@@ -146,14 +124,3 @@ def _to_workspace(row: dict) -> Workspace:
         is_owner=row.get("is_owner", False),
         member_count=row.get("member_count", 1),
     )
-
-
-def _as_int(reference: str | int) -> int | None:
-    if isinstance(reference, int):
-        return reference
-    text = reference.strip()
-    return int(text) if text.isdigit() else None
-
-
-def _name_list(workspaces: list[Workspace]) -> str:
-    return ", ".join(f"{w.name} (id {w.id})" for w in workspaces)
