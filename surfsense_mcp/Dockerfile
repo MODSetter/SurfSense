@@ -7,6 +7,10 @@ FROM python:3.12-slim AS deps
 
 WORKDIR /app
 
+# curl is used by the container healthcheck probe against /health.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml uv.lock ./
 RUN pip install --no-cache-dir uv && \
     uv export --frozen --no-dev --no-emit-project --no-hashes \
