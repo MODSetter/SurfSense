@@ -1,23 +1,32 @@
-"""Assemble the streamable-http ASGI app for the remote transport.
+"""Wrap the SDK's MCP endpoint with identity + CORS for the remote transport.
 
-Wraps the SDK's MCP endpoint with the API-key identity middleware and CORS.
-CORS sits outermost so browser preflight (which carries no key) is answered
-before the identity middleware, and clients can read the ``Mcp-Session-Id``
-header the streamable-http protocol relies on.
+CORS is outermost so keyless browser preflight is answered before the identity
+middleware. ``/health`` is a public path, exempt from the key check.
 """
 
 from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp
 
 from ..auth.middleware import ApiKeyIdentityMiddleware
 
+HEALTH_PATH = "/health"
+
+
+async def _health(_request: Request) -> JSONResponse:
+    return JSONResponse({"status": "ok"})
+
 
 def build_http_app(mcp: FastMCP) -> ASGIApp:
     """Return the MCP streamable-http app wrapped with identity + CORS."""
-    app: ASGIApp = ApiKeyIdentityMiddleware(mcp.streamable_http_app())
+    mcp.custom_route(HEALTH_PATH, methods=["GET"])(_health)
+    app: ASGIApp = ApiKeyIdentityMiddleware(
+        mcp.streamable_http_app(), public_paths={HEALTH_PATH}
+    )
     return CORSMiddleware(
         app,
         allow_origins=["*"],
