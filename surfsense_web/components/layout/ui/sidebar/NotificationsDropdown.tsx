@@ -274,11 +274,7 @@ export function NotificationsDropdown({
 			type="button"
 			variant="ghost"
 			size="icon"
-			aria-label={
-				notifications.totalUnreadCount > 0
-					? `Notifications, ${unreadLabel} unread`
-					: "Notifications"
-			}
+			aria-label="Notifications"
 			className={cn(
 				"relative h-10 w-10 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground",
 				open && "bg-accent text-accent-foreground"

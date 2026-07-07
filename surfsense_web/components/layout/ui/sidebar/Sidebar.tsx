@@ -201,7 +201,7 @@ export function Sidebar({
 
 			<div
 				className={cn(
-					"relative flex flex-col gap-0.5 pt-1.5 pb-0 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-border after:transition-opacity",
+					"relative flex flex-col gap-0.5 pt-1.5 pb-0 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border after:transition-opacity",
 					isSidebarNavScrolled ? "after:opacity-100" : "after:opacity-0"
 				)}
 			>
