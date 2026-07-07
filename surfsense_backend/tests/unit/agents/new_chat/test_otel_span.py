@@ -65,8 +65,8 @@ class TestResolveToolName:
     def test_falls_back_to_tool_call_name(self) -> None:
         request = MagicMock()
         request.tool = None
-        request.tool_call = {"name": "web_search", "args": {}}
-        assert _resolve_tool_name(request) == "web_search"
+        request.tool_call = {"name": "create_automation", "args": {}}
+        assert _resolve_tool_name(request) == "create_automation"
 
     def test_unknown_when_nothing_resolves(self) -> None:
         request = MagicMock()
@@ -278,8 +278,8 @@ class TestMiddlewareIntegration:
 
             request = MagicMock()
             request.tool = MagicMock()
-            request.tool.name = "web_search"
+            request.tool.name = "scrape_webpage"
             await mw.awrap_tool_call(request, handler)
-            assert errors == ["web_search"]
+            assert errors == ["scrape_webpage"]
         finally:
             ot.reload_for_tests()

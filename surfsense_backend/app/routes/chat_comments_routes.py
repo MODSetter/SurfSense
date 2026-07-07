@@ -101,9 +101,9 @@ async def remove_comment(
 
 @router.get("/mentions", response_model=MentionListResponse)
 async def list_mentions(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(require_session_context),
 ):
     """List mentions for the current user."""
-    return await get_user_mentions(session, auth, search_space_id)
+    return await get_user_mentions(session, auth, workspace_id)

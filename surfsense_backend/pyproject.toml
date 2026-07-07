@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.30"
+version = "0.0.31"
 description = "SurfSense Backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -18,7 +18,6 @@ dependencies = [
     "google-api-python-client>=2.156.0",
     "google-auth-oauthlib>=1.2.1",
     "kokoro>=0.9.4",
-    "linkup-sdk>=0.2.4",
     "llama-cloud-services>=0.6.25",
     "Markdown>=3.7",
     "markdownify>=0.14.1",
@@ -34,7 +33,6 @@ dependencies = [
     "spacy>=3.8.7",
     "en-core-web-sm@https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "static-ffmpeg>=2.13",
-    "tavily-python>=0.3.2",
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
     "youtube-transcript-api>=1.0.3",
@@ -42,11 +40,11 @@ dependencies = [
     "faster-whisper>=1.1.0",
     "celery[redis]>=5.5.3",
     "redis>=5.2.1",
-    "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
     "azure-storage-blob>=12.23.0",
     "fake-useragent>=2.2.0",
     "trafilatura>=2.0.0",
+    "captchatools>=1.5.0",
     "fastapi-users[oauth,sqlalchemy]>=15.0.3",
     "chonkie[all]>=1.5.0",
     "langgraph-checkpoint-postgres>=3.0.2",

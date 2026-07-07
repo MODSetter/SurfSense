@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { DocumentsProcessingStatus } from "@/hooks/use-documents-processing";
 
-export interface SearchSpace {
+export interface Workspace {
 	id: number;
 	name: string;
 	description?: string | null;
@@ -41,15 +41,15 @@ export interface PageUsage {
 }
 
 export interface IconRailProps {
-	searchSpaces: SearchSpace[];
-	activeSearchSpaceId: number | null;
-	onSearchSpaceSelect: (id: number) => void;
-	onAddSearchSpace: () => void;
+	workspaces: Workspace[];
+	activeWorkspaceId: number | null;
+	onWorkspaceSelect: (id: number) => void;
+	onAddWorkspace: () => void;
 	className?: string;
 }
 
 export interface SidebarHeaderProps {
-	searchSpace: SearchSpace | null;
+	workspace: Workspace | null;
 	onSettings?: () => void;
 }
 
@@ -71,23 +71,23 @@ export interface ChatsSectionProps {
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
-	searchSpaceId?: string;
+	workspaceId?: string;
 }
 
 export interface SidebarUserProfileProps {
 	user: User;
-	searchSpaceId?: string;
+	workspaceId?: string;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSwitchSearchSpace?: () => void;
+	onSwitchWorkspace?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	theme?: string;
 }
 
 export interface SidebarProps {
-	searchSpace: SearchSpace | null;
-	searchSpaceId?: string;
+	workspace: Workspace | null;
+	workspaceId?: string;
 	navItems: NavItem[];
 	chats: ChatItem[];
 	activeChatId?: number | null;
@@ -106,10 +106,10 @@ export interface SidebarProps {
 }
 
 export interface LayoutShellProps {
-	searchSpaces: SearchSpace[];
-	activeSearchSpaceId: number | null;
-	onSearchSpaceSelect: (id: number) => void;
-	onAddSearchSpace: () => void;
+	workspaces: Workspace[];
+	activeWorkspaceId: number | null;
+	onWorkspaceSelect: (id: number) => void;
+	onAddWorkspace: () => void;
 	sidebarProps: Omit<SidebarProps, "className">;
 	children: React.ReactNode;
 	className?: string;

@@ -292,7 +292,7 @@ INCENTIVE_TASKS_CONFIG = {
 
 class Permission(StrEnum):
     """
-    Granular permissions for search space resources.
+    Granular permissions for workspace resources.
     Use '*' (FULL_ACCESS) to grant all permissions.
     """
 
@@ -363,10 +363,10 @@ class Permission(StrEnum):
     ROLES_UPDATE = "roles:update"
     ROLES_DELETE = "roles:delete"
 
-    # Search Space Settings
+    # Workspace Settings
     SETTINGS_VIEW = "settings:view"
     SETTINGS_UPDATE = "settings:update"
-    SETTINGS_DELETE = "settings:delete"  # Delete the entire search space
+    SETTINGS_DELETE = "settings:delete"  # Delete the entire workspace
 
     # API Access
     API_ACCESS_MANAGE = "api_access:manage"
@@ -515,7 +515,7 @@ class ChatVisibility(StrEnum):
     Visibility/sharing level for chat threads.
 
     PRIVATE: Only the creator can see/access the chat (default)
-    SEARCH_SPACE: All members of the search space can see/access the chat
+    SEARCH_SPACE: All members of the workspace can see/access the chat
     PUBLIC: (Future) Anyone with the link can access the chat
     """
 
@@ -605,8 +605,10 @@ class NewChatThread(BaseModel, TimestampMixin):
     )
 
     # Foreign keys
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     # Track who created this chat thread (for visibility filtering)
@@ -644,7 +646,7 @@ class NewChatThread(BaseModel, TimestampMixin):
     # Auto model pin for this thread: concrete resolved global LLM
     # config id. NULL means no pin; Auto will resolve on the next turn.
     # Single-writer invariant: only app.services.auto_model_pin_service sets
-    # or clears this column (plus bulk clears when a search space's
+    # or clears this column (plus bulk clears when a workspace's
     # chat_model_id changes). Unindexed: all reads are by primary key.
     pinned_llm_config_id = Column(Integer, nullable=True)
 
@@ -661,7 +663,7 @@ class NewChatThread(BaseModel, TimestampMixin):
     )
 
     # Relationships
-    search_space = relationship("SearchSpace", back_populates="new_chat_threads")
+    workspace = relationship("Workspace", back_populates="new_chat_threads")
     created_by = relationship("User", back_populates="new_chat_threads")
     messages = relationship(
         "NewChatMessage",
@@ -785,8 +787,10 @@ class ExternalChatAccount(Base, TimestampMixin):
     owner_user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
-    owner_search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+    owner_workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
     )
     is_system_account = Column(
         Boolean, nullable=False, default=False, server_default="false"
@@ -819,9 +823,7 @@ class ExternalChatAccount(Base, TimestampMixin):
     )
 
     owner = relationship("User", foreign_keys=[owner_user_id])
-    owner_search_space = relationship(
-        "SearchSpace", foreign_keys=[owner_search_space_id]
-    )
+    owner_workspace = relationship("Workspace", foreign_keys=[owner_workspace_id])
     bindings = relationship(
         "ExternalChatBinding",
         back_populates="account",
@@ -897,8 +899,10 @@ class ExternalChatBinding(Base, TimestampMixin):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     state = Column(
         SQLAlchemyEnum(
@@ -948,7 +952,7 @@ class ExternalChatBinding(Base, TimestampMixin):
 
     account = relationship("ExternalChatAccount", back_populates="bindings")
     user = relationship("User", foreign_keys=[user_id])
-    search_space = relationship("SearchSpace", foreign_keys=[search_space_id])
+    workspace = relationship("Workspace", foreign_keys=[workspace_id])
     new_chat_thread = relationship("NewChatThread", foreign_keys=[new_chat_thread_id])
     threads = relationship(
         "NewChatThread",
@@ -978,9 +982,7 @@ class ExternalChatBinding(Base, TimestampMixin):
             postgresql_where=text("state = 'pending'"),
         ),
         Index("ix_external_chat_bindings_user_state", "user_id", "state"),
-        Index(
-            "ix_external_chat_bindings_search_space_state", "search_space_id", "state"
-        ),
+        Index("ix_external_chat_bindings_workspace_state", "workspace_id", "state"),
     )
 
 
@@ -1113,9 +1115,9 @@ class TokenUsage(BaseModel, TimestampMixin):
         nullable=True,
         index=True,
     )
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -1129,7 +1131,7 @@ class TokenUsage(BaseModel, TimestampMixin):
     # Relationships
     thread = relationship("NewChatThread", back_populates="token_usages")
     message = relationship("NewChatMessage", back_populates="token_usage")
-    search_space = relationship("SearchSpace")
+    workspace = relationship("Workspace")
     user = relationship("User")
 
 
@@ -1318,9 +1320,9 @@ class Folder(BaseModel, TimestampMixin):
         nullable=True,
         index=True,
     )
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -1340,7 +1342,7 @@ class Folder(BaseModel, TimestampMixin):
     folder_metadata = Column("metadata", JSONB, nullable=True)
 
     parent = relationship("Folder", remote_side="Folder.id", backref="children")
-    search_space = relationship("SearchSpace", back_populates="folders")
+    workspace = relationship("Workspace", back_populates="folders")
     created_by = relationship("User", back_populates="folders")
     documents = relationship("Document", back_populates="folder", passive_deletes=True)
 
@@ -1357,7 +1359,7 @@ class Document(BaseModel, TimestampMixin):
     # filesystem two files at different paths can hold identical bytes,
     # and the agent's ``write_file`` flow needs that semantic to support
     # copy / duplicate operations. Path uniqueness lives on
-    # ``unique_identifier_hash`` (per search space). The hash remains
+    # ``unique_identifier_hash`` (per workspace). The hash remains
     # indexed because connector indexers consult it as a change-detection
     # / cross-source dedup hint via :func:`check_duplicate_document`.
     # See migration 133.
@@ -1382,8 +1384,10 @@ class Document(BaseModel, TimestampMixin):
     # Track when document was last updated by indexers, processors, or editor
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     folder_id = Column(
@@ -1421,7 +1425,7 @@ class Document(BaseModel, TimestampMixin):
     )
 
     # Relationships
-    search_space = relationship("SearchSpace", back_populates="documents")
+    workspace = relationship("Workspace", back_populates="documents")
     folder = relationship("Folder", back_populates="documents")
     created_by = relationship("User", back_populates="documents")
     connector = relationship("SearchSourceConnector", back_populates="documents")
@@ -1506,10 +1510,12 @@ class VideoPresentation(BaseModel, TimestampMixin):
         index=True,
     )
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    search_space = relationship("SearchSpace", back_populates="video_presentations")
+    workspace = relationship("Workspace", back_populates="video_presentations")
 
     thread_id = Column(
         Integer,
@@ -1533,10 +1539,12 @@ class Report(BaseModel, TimestampMixin):
         String(100), nullable=True
     )  # e.g. "executive_summary", "deep_research"
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    search_space = relationship("SearchSpace", back_populates="reports")
+    workspace = relationship("Workspace", back_populates="reports")
 
     # Versioning: reports sharing the same report_group_id are versions of the same report.
     # For v1, report_group_id = the report's own id (set after insert).
@@ -1561,14 +1569,16 @@ class Connection(BaseModel, TimestampMixin):
     scope = Column(SQLAlchemyEnum(ConnectionScope), nullable=False, index=True)
     enabled = Column(Boolean, nullable=False, default=True, server_default="true")
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
     )
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True
     )
 
-    search_space = relationship("SearchSpace", back_populates="connections")
+    workspace = relationship("Workspace", back_populates="connections")
     user = relationship("User", back_populates="connections")
     models = relationship(
         "Model",
@@ -1580,8 +1590,8 @@ class Connection(BaseModel, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "(scope = 'GLOBAL' AND search_space_id IS NULL AND user_id IS NULL) OR "
-            "(scope = 'SEARCH_SPACE' AND search_space_id IS NOT NULL AND user_id IS NOT NULL) OR "
+            "(scope = 'GLOBAL' AND workspace_id IS NULL AND user_id IS NULL) OR "
+            "(scope = 'SEARCH_SPACE' AND workspace_id IS NOT NULL AND user_id IS NOT NULL) OR "
             "(scope = 'USER' AND user_id IS NOT NULL)",
             name="ck_connections_scope_owner",
         ),
@@ -1672,8 +1682,10 @@ class ImageGeneration(BaseModel, TimestampMixin):
     access_token = Column(String(64), nullable=True, index=True)
 
     # Foreign keys
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     created_by_id = Column(
         UUID(as_uuid=True),
@@ -1683,12 +1695,12 @@ class ImageGeneration(BaseModel, TimestampMixin):
     )
 
     # Relationships
-    search_space = relationship("SearchSpace", back_populates="image_generations")
+    workspace = relationship("Workspace", back_populates="image_generations")
     created_by = relationship("User", back_populates="image_generations")
 
 
-class SearchSpace(BaseModel, TimestampMixin):
-    __tablename__ = "searchspaces"
+class Workspace(BaseModel, TimestampMixin):
+    __tablename__ = "workspaces"
 
     name = Column(String(100), nullable=False, index=True)
     description = Column(String(500), nullable=True)
@@ -1709,7 +1721,7 @@ class SearchSpace(BaseModel, TimestampMixin):
     # Note: ID values preserve the existing convention:
     #   - 0: Auto mode
     #   - Negative IDs: Global virtual models from global_llm_config.yaml
-    #   - Positive IDs: User/search-space models from the models table
+    #   - Positive IDs: User/workspace models from the models table
     chat_model_id = Column(
         Integer, nullable=True, default=0, server_default="0"
     )  # For agent/chat operations, defaults to Auto mode
@@ -1720,78 +1732,74 @@ class SearchSpace(BaseModel, TimestampMixin):
         Integer, nullable=True, default=0, server_default="0"
     )  # For vision/screenshot analysis, defaults to Auto mode
 
-    ai_file_sort_enabled = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )
-
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
-    user = relationship("User", back_populates="search_spaces")
+    user = relationship("User", back_populates="workspaces")
 
     folders = relationship(
         "Folder",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Folder.position",
         cascade="all, delete-orphan",
     )
     documents = relationship(
         "Document",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Document.id",
         cascade="all, delete-orphan",
     )
     new_chat_threads = relationship(
         "NewChatThread",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="NewChatThread.updated_at.desc()",
         cascade="all, delete-orphan",
     )
     podcasts = relationship(
         "Podcast",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Podcast.id.desc()",
         cascade="all, delete-orphan",
     )
     video_presentations = relationship(
         "VideoPresentation",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="VideoPresentation.id.desc()",
         cascade="all, delete-orphan",
     )
     reports = relationship(
         "Report",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Report.id.desc()",
         cascade="all, delete-orphan",
     )
     image_generations = relationship(
         "ImageGeneration",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="ImageGeneration.id.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(
         "Log",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Log.id",
         cascade="all, delete-orphan",
     )
     notifications = relationship(
         "Notification",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Notification.created_at.desc()",
         cascade="all, delete-orphan",
     )
     search_source_connectors = relationship(
         "SearchSourceConnector",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="SearchSourceConnector.id",
         cascade="all, delete-orphan",
     )
     connections = relationship(
         "Connection",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Connection.id",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -1799,7 +1807,7 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     automations = relationship(
         "Automation",
-        back_populates="search_space",
+        back_populates="workspace",
         order_by="Automation.id",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -1807,21 +1815,21 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     # RBAC relationships
     roles = relationship(
-        "SearchSpaceRole",
-        back_populates="search_space",
-        order_by="SearchSpaceRole.id",
+        "WorkspaceRole",
+        back_populates="workspace",
+        order_by="WorkspaceRole.id",
         cascade="all, delete-orphan",
     )
     memberships = relationship(
-        "SearchSpaceMembership",
-        back_populates="search_space",
-        order_by="SearchSpaceMembership.id",
+        "WorkspaceMembership",
+        back_populates="workspace",
+        order_by="WorkspaceMembership.id",
         cascade="all, delete-orphan",
     )
     invites = relationship(
-        "SearchSpaceInvite",
-        back_populates="search_space",
-        order_by="SearchSpaceInvite.id",
+        "WorkspaceInvite",
+        back_populates="workspace",
+        order_by="WorkspaceInvite.id",
         cascade="all, delete-orphan",
     )
 
@@ -1830,11 +1838,11 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
     __table_args__ = (
         UniqueConstraint(
-            "search_space_id",
+            "workspace_id",
             "user_id",
             "connector_type",
             "name",
-            name="uq_searchspace_user_connector_type_name",
+            name="uq_workspace_user_connector_type_name",
         ),
         # Mirrors migration 129; backs the ``/obsidian/connect`` upsert.
         Index(
@@ -1881,12 +1889,12 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     indexing_frequency_minutes = Column(Integer, nullable=True)
     next_scheduled_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    search_space = relationship(
-        "SearchSpace", back_populates="search_source_connectors"
-    )
+    workspace = relationship("Workspace", back_populates="search_source_connectors")
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
@@ -1908,10 +1916,12 @@ class Log(BaseModel, TimestampMixin):
     )  # Service/component that generated the log
     log_metadata = Column(JSON, nullable=True, default={})  # Additional context data
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    search_space = relationship("SearchSpace", back_populates="logs")
+    workspace = relationship("Workspace", back_populates="logs")
 
 
 class UserIncentiveTask(BaseModel, TimestampMixin):
@@ -2024,18 +2034,18 @@ class CreditPurchase(Base, TimestampMixin):
     user = relationship("User", back_populates="credit_purchases")
 
 
-class SearchSpaceRole(BaseModel, TimestampMixin):
+class WorkspaceRole(BaseModel, TimestampMixin):
     """
-    Custom roles that can be defined per search space.
-    Each search space can have multiple roles with different permission sets.
+    Custom roles that can be defined per workspace.
+    Each workspace can have multiple roles with different permission sets.
     """
 
-    __tablename__ = "search_space_roles"
+    __tablename__ = "workspace_roles"
     __table_args__ = (
         UniqueConstraint(
-            "search_space_id",
+            "workspace_id",
             "name",
-            name="uq_searchspace_role_name",
+            name="uq_workspace_role_name",
         ),
     )
 
@@ -2048,46 +2058,50 @@ class SearchSpaceRole(BaseModel, TimestampMixin):
     # System roles (Owner, Editor, Viewer) cannot be deleted
     is_system_role = Column(Boolean, nullable=False, default=False)
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    search_space = relationship("SearchSpace", back_populates="roles")
+    workspace = relationship("Workspace", back_populates="roles")
 
     memberships = relationship(
-        "SearchSpaceMembership", back_populates="role", passive_deletes=True
+        "WorkspaceMembership", back_populates="role", passive_deletes=True
     )
     invites = relationship(
-        "SearchSpaceInvite", back_populates="role", passive_deletes=True
+        "WorkspaceInvite", back_populates="role", passive_deletes=True
     )
 
 
-class SearchSpaceMembership(BaseModel, TimestampMixin):
+class WorkspaceMembership(BaseModel, TimestampMixin):
     """
-    Tracks user membership in search spaces with their assigned role.
-    Each user can be a member of multiple search spaces with different roles.
+    Tracks user membership in workspaces with their assigned role.
+    Each user can be a member of multiple workspaces with different roles.
     """
 
-    __tablename__ = "search_space_memberships"
+    __tablename__ = "workspace_memberships"
     __table_args__ = (
         UniqueConstraint(
             "user_id",
-            "search_space_id",
-            name="uq_user_searchspace_membership",
+            "workspace_id",
+            name="uq_user_workspace_membership",
         ),
     )
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     role_id = Column(
         Integer,
-        ForeignKey("search_space_roles.id", ondelete="SET NULL"),
+        ForeignKey("workspace_roles.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Indicates if this user is the original creator/owner of the search space
+    # Indicates if this user is the original creator/owner of the workspace
     is_owner = Column(Boolean, nullable=False, default=False)
     # Timestamp when the user joined (via invite or as creator)
     joined_at = Column(
@@ -2098,36 +2112,38 @@ class SearchSpaceMembership(BaseModel, TimestampMixin):
     # Reference to the invite used to join (null if owner/creator)
     invited_by_invite_id = Column(
         Integer,
-        ForeignKey("search_space_invites.id", ondelete="SET NULL"),
+        ForeignKey("workspace_invites.id", ondelete="SET NULL"),
         nullable=True,
     )
 
-    user = relationship("User", back_populates="search_space_memberships")
-    search_space = relationship("SearchSpace", back_populates="memberships")
-    role = relationship("SearchSpaceRole", back_populates="memberships")
+    user = relationship("User", back_populates="workspace_memberships")
+    workspace = relationship("Workspace", back_populates="memberships")
+    role = relationship("WorkspaceRole", back_populates="memberships")
     invited_by_invite = relationship(
-        "SearchSpaceInvite", back_populates="used_by_memberships"
+        "WorkspaceInvite", back_populates="used_by_memberships"
     )
 
 
-class SearchSpaceInvite(BaseModel, TimestampMixin):
+class WorkspaceInvite(BaseModel, TimestampMixin):
     """
-    Invite links for search spaces.
+    Invite links for workspaces.
     Users can create invite links with specific roles that others can use to join.
     """
 
-    __tablename__ = "search_space_invites"
+    __tablename__ = "workspace_invites"
 
     # Unique invite code (used in invite URLs)
     invite_code = Column(String(64), nullable=False, unique=True, index=True)
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
     # Role to assign when invite is used (null means use default role)
     role_id = Column(
         Integer,
-        ForeignKey("search_space_roles.id", ondelete="SET NULL"),
+        ForeignKey("workspace_roles.id", ondelete="SET NULL"),
         nullable=True,
     )
     # User who created this invite
@@ -2148,11 +2164,11 @@ class SearchSpaceInvite(BaseModel, TimestampMixin):
     # Optional custom name/label for the invite
     name = Column(String(100), nullable=True)
 
-    search_space = relationship("SearchSpace", back_populates="invites")
-    role = relationship("SearchSpaceRole", back_populates="invites")
+    workspace = relationship("Workspace", back_populates="invites")
+    role = relationship("WorkspaceRole", back_populates="invites")
     created_by = relationship("User", back_populates="created_invites")
     used_by_memberships = relationship(
-        "SearchSpaceMembership",
+        "WorkspaceMembership",
         back_populates="invited_by_invite",
         passive_deletes=True,
     )
@@ -2179,9 +2195,9 @@ class Prompt(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -2196,7 +2212,7 @@ class Prompt(BaseModel, TimestampMixin):
     is_public = Column(Boolean, nullable=False, default=False)
 
     user = relationship("User")
-    search_space = relationship("SearchSpace")
+    workspace = relationship("Workspace")
 
 
 if config.AUTH_TYPE == "GOOGLE":
@@ -2208,7 +2224,7 @@ if config.AUTH_TYPE == "GOOGLE":
         oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
             "OAuthAccount", lazy="joined"
         )
-        search_spaces = relationship("SearchSpace", back_populates="user")
+        workspaces = relationship("Workspace", back_populates="user")
         notifications = relationship(
             "Notification",
             back_populates="user",
@@ -2217,13 +2233,13 @@ if config.AUTH_TYPE == "GOOGLE":
         )
 
         # RBAC relationships
-        search_space_memberships = relationship(
-            "SearchSpaceMembership",
+        workspace_memberships = relationship(
+            "WorkspaceMembership",
             back_populates="user",
             cascade="all, delete-orphan",
         )
         created_invites = relationship(
-            "SearchSpaceInvite",
+            "WorkspaceInvite",
             back_populates="created_by",
             passive_deletes=True,
         )
@@ -2345,7 +2361,7 @@ if config.AUTH_TYPE == "GOOGLE":
 else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
-        search_spaces = relationship("SearchSpace", back_populates="user")
+        workspaces = relationship("Workspace", back_populates="user")
         notifications = relationship(
             "Notification",
             back_populates="user",
@@ -2354,13 +2370,13 @@ else:
         )
 
         # RBAC relationships
-        search_space_memberships = relationship(
-            "SearchSpaceMembership",
+        workspace_memberships = relationship(
+            "WorkspaceMembership",
             back_populates="user",
             cascade="all, delete-orphan",
         )
         created_invites = relationship(
-            "SearchSpaceInvite",
+            "WorkspaceInvite",
             back_populates="created_by",
             passive_deletes=True,
         )
@@ -2508,9 +2524,9 @@ class AgentActionLog(BaseModel):
         nullable=True,
         index=True,
     )
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2579,9 +2595,9 @@ class DocumentRevision(BaseModel):
         nullable=True,
         index=True,
     )
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2620,9 +2636,9 @@ class FolderRevision(BaseModel):
         nullable=True,
         index=True,
     )
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2648,7 +2664,7 @@ class FolderRevision(BaseModel):
 class AgentPermissionRule(BaseModel):
     """Persistent permission rule consumed by :class:`PermissionMiddleware`.
 
-    Scoped at one of: search-space-wide (``user_id`` and ``thread_id`` NULL),
+    Scoped at one of: workspace-wide (``user_id`` and ``thread_id`` NULL),
     user-wide (``user_id`` set, ``thread_id`` NULL), or per-thread
     (``thread_id`` set). Loaded at agent build time and converted to
     :class:`Rule` instances inside the agent factory.
@@ -2656,9 +2672,9 @@ class AgentPermissionRule(BaseModel):
 
     __tablename__ = "agent_permission_rules"
 
-    search_space_id = Column(
+    workspace_id = Column(
         Integer,
-        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -2687,7 +2703,7 @@ class AgentPermissionRule(BaseModel):
 
     __table_args__ = (
         UniqueConstraint(
-            "search_space_id",
+            "workspace_id",
             "user_id",
             "thread_id",
             "permission",
@@ -2757,6 +2773,82 @@ class PersonalAccessToken(BaseModel, TimestampMixin):
     @property
     def is_valid(self) -> bool:
         return not self.is_expired
+
+
+class Run(Base, TimestampMixin):
+    """One row per scraper-capability invocation, from either the agent door
+    or the REST/API-key door.
+
+    Backs the user-facing Scraper-API logs and the agent's tool-boundary
+    truncation: the full output lives here while the model sees only a capped
+    preview plus this row's id. ``output_text`` is stored as JSONL (one item
+    per line, ``exclude_none``) so ``read_run``/``search_run`` can page and grep
+    by line without parsing the whole payload. Retained ~30 days via opportunistic
+    bounded cleanup on insert.
+
+    ``cost_micros`` ships nullable and unpopulated in this pass; the planned
+    per-verb pricing rework will fill it. ``thread_id`` is a free-form string
+    (subagent ids look like ``"2099::task:call_x"``), so it is intentionally not
+    a foreign key.
+    """
+
+    __tablename__ = "runs"
+    __allow_unmapped__ = True
+
+    __table_args__ = (Index("ix_runs_workspace_created", "workspace_id", "created_at"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    thread_id = Column(String(255), nullable=True)
+    capability = Column(String(100), nullable=False, index=True)
+    origin = Column(String(16), nullable=False)
+    status = Column(String(16), nullable=False)
+    error = Column(Text, nullable=True)
+    input = Column(JSONB, nullable=True)
+    output_text = Column(Text, nullable=True)
+    item_count = Column(Integer, nullable=False, default=0)
+    char_count = Column(Integer, nullable=False, default=0)
+    duration_ms = Column(Integer, nullable=True)
+    cost_micros = Column(BigInteger, nullable=True)
+    # Coarse progress log (list of throttled events) captured during the run;
+    # the live fine-grained stream is ephemeral (bus/SSE only).
+    progress = Column(JSONB, nullable=True)
+
+
+class ToolOutputSpill(Base, TimestampMixin):
+    """Internal scratch store for main-agent context-editing spills.
+
+    Kept separate from ``runs`` so customer-facing scraper logs stay clean.
+    The full ``ToolMessage`` content that context editing evicts is written here
+    and the message body is replaced with a ``spill_{id}`` placeholder the agent
+    can read back via ``read_run``/``search_run``. Retained ~7 days.
+    """
+
+    __tablename__ = "tool_output_spills"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    thread_id = Column(String(255), nullable=True)
+    tool_name = Column(String(255), nullable=True)
+    content = Column(Text, nullable=False)
+    char_count = Column(Integer, nullable=False, default=0)
 
 
 # Register model packages that live outside this file so their classes
@@ -2865,15 +2957,15 @@ _INDEX_DEFINITIONS: list[tuple[str, str, str]] = [
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_title_trgm ON documents USING gin (title gin_trgm_ops)",
     ),
     (
-        "idx_documents_search_space_id",
+        "idx_documents_workspace_id",
         "documents",
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_search_space_id ON documents (search_space_id)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_workspace_id ON documents (workspace_id)",
     ),
     # Covering index for "recent documents" query — enables index-only scan.
     (
-        "idx_documents_search_space_updated",
+        "idx_documents_workspace_updated",
         "documents",
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_documents_workspace_updated ON documents (workspace_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)",
     ),
 ]
 
@@ -2946,6 +3038,11 @@ async def create_db_and_tables():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
+        # create_all never creates zero_publication (a migration-only
+        # artifact), and without it zero-cache crash-loops. Idempotent.
+        from app.zero_publication import ensure_publication
+
+        await conn.run_sync(ensure_publication)
     await setup_indexes()
 
 
@@ -3034,10 +3131,10 @@ def has_all_permissions(
 def get_default_roles_config() -> list[dict]:
     """
     Get the configuration for default system roles.
-    These roles are created automatically when a search space is created.
+    These roles are created automatically when a workspace is created.
 
     Only 3 roles are supported:
-    - Owner: Full access to everything (assigned to search space creator)
+    - Owner: Full access to everything (assigned to workspace creator)
     - Editor: Can create/update content but cannot delete, manage roles, or change settings
     - Viewer: Read-only access to resources (can add comments)
 
@@ -3047,7 +3144,7 @@ def get_default_roles_config() -> list[dict]:
     return [
         {
             "name": "Owner",
-            "description": "Full access to all search space resources and settings",
+            "description": "Full access to all workspace resources and settings",
             "permissions": DEFAULT_ROLE_PERMISSIONS["Owner"],
             "is_default": False,
             "is_system_role": True,
@@ -3061,7 +3158,7 @@ def get_default_roles_config() -> list[dict]:
         },
         {
             "name": "Viewer",
-            "description": "Read-only access to search space resources",
+            "description": "Read-only access to workspace resources",
             "permissions": DEFAULT_ROLE_PERMISSIONS["Viewer"],
             "is_default": False,
             "is_system_role": True,

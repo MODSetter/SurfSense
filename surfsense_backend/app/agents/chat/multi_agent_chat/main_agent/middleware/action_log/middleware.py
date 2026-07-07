@@ -84,7 +84,7 @@ class ActionLogMiddleware(AgentMiddleware):
     Args:
         thread_id: The current chat thread's primary-key id. Required to
             persist a row; if ``None`` the middleware silently no-ops.
-        search_space_id: Search-space id for cascade-on-delete safety.
+        workspace_id: Workspace id for cascade-on-delete safety.
         user_id: UUID string of the user driving this turn (nullable in
             anonymous mode).
         tool_definitions: Optional mapping of tool name -> :class:`ToolDefinition`
@@ -98,13 +98,13 @@ class ActionLogMiddleware(AgentMiddleware):
         self,
         *,
         thread_id: int | None,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str | None,
         tool_definitions: dict[str, ToolDefinition] | None = None,
     ) -> None:
         super().__init__()
         self._thread_id = thread_id
-        self._search_space_id = search_space_id
+        self._workspace_id = workspace_id
         self._user_id = user_id
         self._tool_definitions = dict(tool_definitions or {})
 
@@ -187,7 +187,7 @@ class ActionLogMiddleware(AgentMiddleware):
             row = AgentActionLog(
                 thread_id=thread_id,
                 user_id=self._user_id,
-                search_space_id=self._search_space_id,
+                workspace_id=self._workspace_id,
                 # ``turn_id`` is the deprecated alias of ``tool_call_id``
                 # kept for one release for safe rollback. New consumers
                 # should read ``tool_call_id`` directly.

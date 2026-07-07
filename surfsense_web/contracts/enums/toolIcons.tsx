@@ -11,7 +11,6 @@ import {
 	FolderPlus,
 	FolderTree,
 	FolderX,
-	Globe,
 	ImageIcon,
 	ListTodo,
 	type LucideIcon,
@@ -45,7 +44,6 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	display_image: ImageIcon,
 	// Web / search
 	scrape_webpage: ScanLine,
-	web_search: Globe,
 	// Automations
 	create_automation: AlarmClock,
 	// Memory
@@ -149,7 +147,6 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 	display_image: "Show image",
 	// Web / search
 	scrape_webpage: "Read webpage",
-	web_search: "Search the web",
 	// Automations
 	create_automation: "Create automation",
 	// Memory

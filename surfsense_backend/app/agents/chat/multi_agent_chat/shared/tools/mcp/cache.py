@@ -99,11 +99,11 @@ async def write_cached_tools(
 
 def refresh_mcp_tools_cache_for_connector(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
 ) -> None:
     """Maintain the MCP tool cache after a single-connector lifecycle event.
 
-    Synchronously evicts the in-process LRU for the connector's search space
+    Synchronously evicts the in-process LRU for the connector's workspace
     (LRU keys are per-space, so eviction cannot be scoped finer), then schedules
     a background live discovery for this connector alone so its persisted
     ``cached_tools`` row is refreshed before the next user query.
@@ -116,11 +116,11 @@ def refresh_mcp_tools_cache_for_connector(
             invalidate_mcp_tools_cache,
         )
 
-        invalidate_mcp_tools_cache(search_space_id)
+        invalidate_mcp_tools_cache(workspace_id)
     except Exception:
         logger.debug(
             "MCP in-process cache eviction skipped for space %d",
-            search_space_id,
+            workspace_id,
             exc_info=True,
         )
 

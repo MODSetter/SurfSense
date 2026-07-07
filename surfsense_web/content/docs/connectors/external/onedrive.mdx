@@ -1,0 +1,78 @@
+---
+title: Microsoft OneDrive
+description: Import your OneDrive files into the SurfSense knowledge base
+---
+
+The OneDrive connector lets you pick files from OneDrive and index them into your knowledge base. It lives in the Documents sidebar's **Import** menu, not the connector catalog.
+
+<Callout type="info">
+This setup is only needed on **self-hosted** deployments. On SurfSense Cloud, just use **Import → OneDrive**.
+</Callout>
+
+## Step 1: Create an Azure App Registration
+
+1. Navigate to [portal.azure.com](https://portal.azure.com)
+2. Search for **"App registrations"** and open it
+3. Click **"+ New registration"** and fill in:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `SurfSense` |
+| **Supported account types** | **"Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts"** |
+| **Redirect URI** | Platform: `Web`, URI: `http://localhost:3929/api/v1/auth/onedrive/connector/callback` |
+
+<Callout type="info">
+`http://localhost:3929` is the default public URL of a Docker install. If you run SurfSense [manually](/docs/manual-installation), use your backend URL (`http://localhost:8000`); in production, use your public domain.
+</Callout>
+
+4. Click **"Register"**
+
+## Step 2: Get the Application (Client) ID
+
+On the app's **Overview** page, copy the **Application (client) ID** — this is your Client ID.
+
+## Step 3: Create a Client Secret
+
+1. Under **Manage**, click **"Certificates & secrets"**
+2. On the **"Client secrets"** tab, click **"+ New client secret"**
+3. Enter a description (e.g., `SurfSense`) and pick an expiration period
+4. Click **"Add"**
+5. **Important**: Copy the secret **Value** immediately — it will not be shown again!
+
+## Step 4: Configure API Permissions
+
+1. Under **Manage**, click **"API permissions"** > **"+ Add a permission"**
+2. Select **"Microsoft Graph"** > **"Delegated permissions"**
+3. Add all of the following:
+
+| Permission | Description |
+|------------|-------------|
+| `Files.Read.All` | Read all files the user can access |
+| `Files.ReadWrite.All` | Read and write all files the user can access |
+| `offline_access` | Maintain access to granted data |
+| `User.Read` | Sign in and read user profile |
+
+4. Click **"Add permissions"**
+
+<Callout type="warn">
+All four permissions are required. The connector will not authenticate successfully if any are missing.
+</Callout>
+
+## Step 5: Add the Credentials to SurfSense
+
+Add the credentials to your `.env` file:
+
+```bash
+MICROSOFT_CLIENT_ID=your_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
+```
+
+Restart SurfSense, open **Documents → Import → OneDrive**, and authorize:
+
+```bash
+docker compose up -d
+```
+
+<Callout type="warn">
+Never share your client secret publicly or include it in code repositories.
+</Callout>

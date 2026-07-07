@@ -13,7 +13,7 @@ export type {
 	LogSummary,
 } from "@/contracts/types/log.types";
 
-export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
+export function useLogs(workspaceId?: number, filters: LogFilters = {}) {
 	const filtersKey = JSON.stringify(filters);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stable serialized key used intentionally
 	const memoizedFilters = useMemo(() => filters, [filtersKey]);
@@ -24,8 +24,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 
 			const allFilters = { ...memoizedFilters, ...customFilters };
 
-			if (allFilters.search_space_id) {
-				params.search_space_id = allFilters.search_space_id.toString();
+			if (allFilters.workspace_id) {
+				params.workspace_id = allFilters.workspace_id.toString();
 			}
 			if (allFilters.level) {
 				params.level = allFilters.level;
@@ -55,17 +55,17 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 		refetch,
 	} = useQuery({
 		queryKey: cacheKeys.logs.withQueryParams({
-			search_space_id: searchSpaceId,
+			workspace_id: workspaceId,
 			...buildQueryParams(filters ?? {}),
 		}),
 		queryFn: () =>
 			logsApiService.getLogs({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 					...buildQueryParams(filters ?? {}),
 				},
 			}),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		staleTime: 3 * 60 * 1000,
 	});
 
@@ -80,7 +80,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 // Separate hook for log summary with smart polling support for document processing indicator UI
 // Polling only happens when there are active tasks, otherwise it stops to save resources
 export function useLogsSummary(
-	searchSpaceId: number,
+	workspaceId: number,
 	hours: number = 24,
 	options: { refetchInterval?: number; enablePolling?: boolean } = {}
 ) {
@@ -92,13 +92,13 @@ export function useLogsSummary(
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: cacheKeys.logs.summary(searchSpaceId),
+		queryKey: cacheKeys.logs.summary(workspaceId),
 		queryFn: () =>
 			logsApiService.getLogSummary({
-				search_space_id: searchSpaceId,
+				workspace_id: workspaceId,
 				hours: hours,
 			}),
-		enabled: !!searchSpaceId,
+		enabled: !!workspaceId,
 		staleTime: 3 * 60 * 1000,
 		// Always refetch on mount to show fresh processing tasks when navigating to the page
 		refetchOnMount: "always",

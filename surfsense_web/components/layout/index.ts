@@ -5,13 +5,13 @@ export type {
 	IconRailProps,
 	NavItem,
 	PageUsage,
-	SearchSpace,
 	SidebarSectionProps,
 	User,
+	Workspace,
 } from "./types/layout.types";
 export {
 	ChatListItem,
-	CreateSearchSpaceDialog,
+	CreateWorkspaceDialog,
 	CreditBalanceDisplay,
 	Header,
 	IconRail,
@@ -20,10 +20,10 @@ export {
 	MobileSidebarTrigger,
 	NavIcon,
 	NavSection,
-	SearchSpaceAvatar,
 	Sidebar,
 	SidebarCollapseButton,
 	SidebarHeader,
 	SidebarSection,
 	SidebarUserProfile,
+	WorkspaceAvatar,
 } from "./ui";

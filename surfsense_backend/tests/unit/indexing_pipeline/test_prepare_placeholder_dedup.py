@@ -32,7 +32,7 @@ def _make_connector_doc(**overrides) -> ConnectorDocument:
         "source_markdown": "## Some new content",
         "unique_id": "file-001",
         "document_type": DocumentType.GOOGLE_DRIVE_FILE,
-        "search_space_id": 1,
+        "workspace_id": 1,
         "connector_id": 42,
         "created_by_id": "00000000-0000-0000-0000-000000000001",
     }

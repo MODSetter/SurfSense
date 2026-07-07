@@ -29,7 +29,6 @@ interface FolderTreeViewProps {
 	onMoveFolder: (folder: FolderDisplay) => void;
 	onCreateFolder: (parentId: number | null) => void;
 	onPreviewDocument: (doc: DocumentNodeDoc) => void;
-	onEditDocument: (doc: DocumentNodeDoc) => void;
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
 	onResetDocument?: (doc: DocumentNodeDoc) => void;
@@ -72,7 +71,6 @@ export function FolderTreeView({
 	onMoveFolder,
 	onCreateFolder,
 	onPreviewDocument,
-	onEditDocument,
 	onDeleteDocument,
 	onMoveDocument,
 	onResetDocument,
@@ -93,8 +91,6 @@ export function FolderTreeView({
 
 	const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
 
-	const [manuallyCollapsedAiIds, setManuallyCollapsedAiIds] = useState<Set<number>>(new Set());
-
 	// Single subscription for rename state — derived boolean passed to each FolderNode
 	const [renamingFolderId, setRenamingFolderId] = useAtom(renamingFolderIdAtom);
 	const handleStartRename = useCallback(
@@ -102,38 +98,6 @@ export function FolderTreeView({
 		[setRenamingFolderId]
 	);
 	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
-
-	const aiSortFolderLevels = useMemo(() => {
-		const map = new Map<number, number>();
-		for (const f of folders) {
-			if (f.metadata?.ai_sort === true && typeof f.metadata?.ai_sort_level === "number") {
-				map.set(f.id, f.metadata.ai_sort_level as number);
-			}
-		}
-		return map;
-	}, [folders]);
-
-	const handleToggleExpand = useCallback(
-		(folderId: number) => {
-			const aiLevel = aiSortFolderLevels.get(folderId);
-			if (aiLevel !== undefined && aiLevel < 4) {
-				// AI-auto-expanded folder: only toggle the manual-collapse set.
-				// Calling onToggleExpand would add it to expandedIds and fight auto-expand.
-				setManuallyCollapsedAiIds((prev) => {
-					const next = new Set(prev);
-					if (next.has(folderId)) {
-						next.delete(folderId);
-					} else {
-						next.add(folderId);
-					}
-					return next;
-				});
-				return;
-			}
-			onToggleExpand(folderId);
-		},
-		[onToggleExpand, aiSortFolderLevels]
-	);
 
 	const effectiveActiveTypes = useMemo(() => {
 		if (
@@ -249,7 +213,6 @@ export function FolderTreeView({
 					isMentioned={!isMemoryDocument && mentionedDocKeys.has(getMentionDocKey(d))}
 					onToggleChatMention={onToggleChatMention}
 					onPreview={onPreviewDocument}
-					onEdit={onEditDocument}
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
 					onReset={onResetDocument}
@@ -258,7 +221,6 @@ export function FolderTreeView({
 					canDelete={!isMemoryDocument}
 					canMove={!isMemoryDocument}
 					canMention={!isMemoryDocument}
-					canEdit
 					contextMenuOpen={openContextMenuId === `doc-${d.id}`}
 					onContextMenuOpenChange={(open) => setOpenContextMenuId(open ? `doc-${d.id}` : null)}
 				/>
@@ -267,7 +229,6 @@ export function FolderTreeView({
 		[
 			mentionedDocKeys,
 			onDeleteDocument,
-			onEditDocument,
 			onExportDocument,
 			onMoveDocument,
 			onPreviewDocument,
@@ -280,14 +241,9 @@ export function FolderTreeView({
 
 	function renderLevel(parentId: number | null, depth: number): React.ReactNode[] {
 		const key = parentId ?? "root";
-		const childFolders = (foldersByParent[key] ?? []).slice().sort((a, b) => {
-			const aIsDate = a.metadata?.ai_sort === true && a.metadata?.ai_sort_level === 2;
-			const bIsDate = b.metadata?.ai_sort === true && b.metadata?.ai_sort_level === 2;
-			if (aIsDate && bIsDate) {
-				return b.name.localeCompare(a.name);
-			}
-			return a.position.localeCompare(b.position);
-		});
+		const childFolders = (foldersByParent[key] ?? [])
+			.slice()
+			.sort((a, b) => a.position.localeCompare(b.position));
 		const visibleFolders = hasDescendantMatch
 			? childFolders.filter((f) => hasDescendantMatch[f.id])
 			: childFolders;
@@ -299,16 +255,6 @@ export function FolderTreeView({
 
 		const nodes: React.ReactNode[] = [];
 
-		if (parentId === null) {
-			const processingDocs = childDocs.filter((d) => {
-				const state = d.status?.state;
-				return state === "pending" || state === "processing";
-			});
-			for (const d of processingDocs) {
-				nodes.push(renderDocumentNode(d, depth));
-			}
-		}
-
 		for (let i = 0; i < visibleFolders.length; i++) {
 			const f = visibleFolders[i];
 			const siblingPositions = {
@@ -317,14 +263,7 @@ export function FolderTreeView({
 			};
 
 			const isSearchAutoExpanded = !!searchQuery && !!hasDescendantMatch?.[f.id];
-			const isAiAutoExpandCandidate =
-				f.metadata?.ai_sort === true &&
-				typeof f.metadata?.ai_sort_level === "number" &&
-				(f.metadata.ai_sort_level as number) < 4;
-			const isManuallyCollapsed = manuallyCollapsedAiIds.has(f.id);
-			const isExpanded = isManuallyCollapsed
-				? isSearchAutoExpanded
-				: expandedIds.has(f.id) || isSearchAutoExpanded || isAiAutoExpandCandidate;
+			const isExpanded = expandedIds.has(f.id) || isSearchAutoExpanded;
 
 			nodes.push(
 				<FolderNode
@@ -336,7 +275,7 @@ export function FolderTreeView({
 					selectionState={folderSelectionStates[f.id] ?? "none"}
 					processingState={folderProcessingStates[f.id] ?? "idle"}
 					onToggleSelect={onToggleFolderSelect}
-					onToggleExpand={handleToggleExpand}
+					onToggleExpand={onToggleExpand}
 					onRename={onRenameFolder}
 					onStartRename={handleStartRename}
 					onCancelRename={handleCancelRename}
@@ -360,15 +299,7 @@ export function FolderTreeView({
 			}
 		}
 
-		const remainingDocs =
-			parentId === null
-				? childDocs.filter((d) => {
-						const state = d.status?.state;
-						return state !== "pending" && state !== "processing";
-					})
-				: childDocs;
-
-		for (const d of remainingDocs) {
+		for (const d of childDocs) {
 			nodes.push(renderDocumentNode(d, depth));
 		}
 
@@ -382,7 +313,7 @@ export function FolderTreeView({
 			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground select-none">
 				<p className="text-sm font-medium">No documents found</p>
 				<p className="text-xs text-muted-foreground/70">
-					Use the upload button or connect a source above
+					Use the Import button above to add files, or the plus menu to manage connectors
 				</p>
 			</div>
 		);
@@ -400,7 +331,7 @@ export function FolderTreeView({
 
 	return (
 		<DndProvider backend={HTML5Backend}>
-			<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">{treeNodes}</div>
+			<div className="px-2 py-1">{treeNodes}</div>
 		</DndProvider>
 	);
 }

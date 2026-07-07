@@ -16,17 +16,17 @@ def test_event_carries_caller_supplied_facts() -> None:
     event = Event(
         event_type="document.indexed",
         payload={"document_id": 42, "content_type": "pdf"},
-        search_space_id=7,
+        workspace_id=7,
     )
 
     assert event.event_type == "document.indexed"
     assert event.payload == {"document_id": 42, "content_type": "pdf"}
-    assert event.search_space_id == 7
+    assert event.workspace_id == 7
 
 
 def test_event_stamps_identity_and_time_when_not_supplied() -> None:
     """Engine stamps id + time so subscribers can dedup/order."""
-    event = Event(event_type="x.happened", payload={}, search_space_id=1)
+    event = Event(event_type="x.happened", payload={}, workspace_id=1)
 
     assert event.event_id
     assert isinstance(event.occurred_at, datetime)
@@ -34,8 +34,8 @@ def test_event_stamps_identity_and_time_when_not_supplied() -> None:
 
 def test_event_ids_are_unique_per_instance() -> None:
     """Two events published with identical content are still distinct facts."""
-    first = Event(event_type="x.happened", payload={}, search_space_id=1)
-    second = Event(event_type="x.happened", payload={}, search_space_id=1)
+    first = Event(event_type="x.happened", payload={}, workspace_id=1)
+    second = Event(event_type="x.happened", payload={}, workspace_id=1)
 
     assert first.event_id != second.event_id
 
@@ -45,7 +45,7 @@ def test_event_survives_json_round_trip() -> None:
     original = Event(
         event_type="podcast.generated",
         payload={"podcast_id": 9, "duration_s": 123.5},
-        search_space_id=3,
+        workspace_id=3,
     )
 
     restored = Event.model_validate_json(original.model_dump_json())

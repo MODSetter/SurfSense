@@ -11,7 +11,7 @@ export async function waitForIndexingComplete(
 	request: APIRequestContext,
 	token: string,
 	connectorId: number,
-	searchSpaceId: number,
+	workspaceId: number,
 	options: { timeoutMs?: number; intervalMs?: number; minDocuments?: number } = {}
 ): Promise<void> {
 	const timeoutMs = options.timeoutMs ?? 60_000;
@@ -23,7 +23,7 @@ export async function waitForIndexingComplete(
 
 	while (Date.now() - startedAt < timeoutMs) {
 		const connector = await getConnector(request, token, connectorId);
-		const docs = await listDocuments(request, token, searchSpaceId);
+		const docs = await listDocuments(request, token, workspaceId);
 		const readyDocs = docs.filter(isDocumentReady);
 
 		const connectorIndexed = connector.last_indexed_at !== null;
@@ -39,19 +39,19 @@ export async function waitForIndexingComplete(
 
 	throw new Error(
 		`waitForIndexingComplete: timed out after ${timeoutMs}ms waiting for ` +
-			`connector ${connectorId} in space ${searchSpaceId}. Last observed: ${lastState}`
+			`connector ${connectorId} in space ${workspaceId}. Last observed: ${lastState}`
 	);
 }
 
 /**
- * Polls until the given document title appears in the search space with
+ * Polls until the given document title appears in the workspace with
  * status=ready. Useful when a spec wants to assert on a specific file
  * by name rather than count.
  */
 export async function waitForDocumentByTitle(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number,
+	workspaceId: number,
 	title: string,
 	options: { timeoutMs?: number; intervalMs?: number } = {}
 ): Promise<void> {
@@ -60,7 +60,7 @@ export async function waitForDocumentByTitle(
 	const startedAt = Date.now();
 
 	while (Date.now() - startedAt < timeoutMs) {
-		const docs = await listDocuments(request, token, searchSpaceId);
+		const docs = await listDocuments(request, token, workspaceId);
 		const match = docs.find((d) => d.title === title && isDocumentReady(d));
 		if (match) {
 			return;
@@ -70,6 +70,6 @@ export async function waitForDocumentByTitle(
 
 	throw new Error(
 		`waitForDocumentByTitle: timed out after ${timeoutMs}ms waiting for ` +
-			`title=${JSON.stringify(title)} in space ${searchSpaceId}.`
+			`title=${JSON.stringify(title)} in space ${workspaceId}.`
 	);
 }

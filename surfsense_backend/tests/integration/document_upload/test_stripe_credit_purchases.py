@@ -187,7 +187,7 @@ class TestStripeCheckoutSessionCreation:
         self,
         client,
         headers,
-        search_space_id: int,
+        workspace_id: int,
         monkeypatch,
     ):
         checkout_session = SimpleNamespace(
@@ -205,7 +205,7 @@ class TestStripeCheckoutSessionCreation:
         response = await client.post(
             "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
-            json={"quantity": 2, "search_space_id": search_space_id},
+            json={"quantity": 2, "workspace_id": workspace_id},
         )
 
         assert response.status_code == 200, response.text
@@ -217,12 +217,12 @@ class TestStripeCheckoutSessionCreation:
         ]
         assert (
             fake_client.last_params["success_url"]
-            == f"http://localhost:3000/dashboard/{search_space_id}/purchase-success"
+            == f"http://localhost:3000/dashboard/{workspace_id}/purchase-success"
             "?session_id={CHECKOUT_SESSION_ID}"
         )
         assert (
             fake_client.last_params["cancel_url"]
-            == f"http://localhost:3000/dashboard/{search_space_id}/purchase-cancel"
+            == f"http://localhost:3000/dashboard/{workspace_id}/purchase-cancel"
         )
         assert fake_client.last_params["metadata"]["purchase_type"] == "credits"
 
@@ -244,7 +244,7 @@ class TestStripeCheckoutSessionCreation:
         self,
         client,
         headers,
-        search_space_id: int,
+        workspace_id: int,
         monkeypatch,
     ):
         monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", False)
@@ -252,7 +252,7 @@ class TestStripeCheckoutSessionCreation:
         response = await client.post(
             "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
-            json={"quantity": 2, "search_space_id": search_space_id},
+            json={"quantity": 2, "workspace_id": workspace_id},
         )
 
         assert response.status_code == 503, response.text
@@ -270,7 +270,7 @@ class TestStripeWebhookFulfillment:
         self,
         client,
         headers,
-        search_space_id: int,
+        workspace_id: int,
         credits,
         monkeypatch,
     ):
@@ -291,7 +291,7 @@ class TestStripeWebhookFulfillment:
         create_response = await client.post(
             "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
-            json={"quantity": 3, "search_space_id": search_space_id},
+            json={"quantity": 3, "workspace_id": workspace_id},
         )
         assert create_response.status_code == 200, create_response.text
 
@@ -359,7 +359,7 @@ class TestStripeReconciliation:
         self,
         client,
         headers,
-        search_space_id: int,
+        workspace_id: int,
         credits,
         monkeypatch,
     ):
@@ -380,7 +380,7 @@ class TestStripeReconciliation:
         create_response = await client.post(
             "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
-            json={"quantity": 3, "search_space_id": search_space_id},
+            json={"quantity": 3, "workspace_id": workspace_id},
         )
         assert create_response.status_code == 200, create_response.text
         assert await _get_balance(TEST_EMAIL) == 1_000_000
@@ -433,7 +433,7 @@ class TestStripeReconciliation:
         self,
         client,
         headers,
-        search_space_id: int,
+        workspace_id: int,
         credits,
         monkeypatch,
     ):
@@ -454,7 +454,7 @@ class TestStripeReconciliation:
         create_response = await client.post(
             "/api/v1/stripe/create-credit-checkout-session",
             headers=headers,
-            json={"quantity": 1, "search_space_id": search_space_id},
+            json={"quantity": 1, "workspace_id": workspace_id},
         )
         assert create_response.status_code == 200, create_response.text
 

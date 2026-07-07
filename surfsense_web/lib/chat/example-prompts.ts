@@ -20,33 +20,43 @@ export interface ChatExampleCategory {
 
 export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 	{
-		id: "search",
-		label: "Search & Summarize",
+		id: "monitor",
+		label: "Monitor Competitors",
 		prompts: [
-			"Summarize the key points across all the documents in this space",
-			"What do my files say about [topic]? Answer with citations",
-			"Find every mention of [keyword] and list the sources",
-			"Compare these two documents and highlight the differences",
+			"Extract every plan, price, and limit from [competitor]'s pricing page",
+			"Crawl [competitor]'s changelog and brief me on what they shipped this month",
+			"Track who ranks and runs ads for [keyword] in the US",
+			"Which of our target keywords trigger an AI Overview, and who gets cited?",
 		],
 	},
 	{
-		id: "create",
-		label: "Create",
+		id: "listen",
+		label: "Market Listening",
 		prompts: [
-			"Write a cited research report on [topic] from my documents",
-			"Turn this folder into a two-host podcast I can listen to",
-			"Create a slide deck and a narrated video overview from these sources",
-			"Tailor my resume to this job description so it gets past ATS and lands an interview",
+			"Find 20 Reddit posts where people ask for an alternative to [product]",
+			"Analyze the comments on [channel]'s last 10 videos and cluster the complaints",
+			"Pull the Google Maps reviews for [business] and summarize the top complaints",
+			"Find people actively looking to switch away from [competitor] this month",
+		],
+	},
+	{
+		id: "workflows",
+		label: "Multi-Connector",
+		prompts: [
+			"Measure the reaction to [competitor]'s launch across search, Reddit, and YouTube",
+			"Find the top-rated [category] businesses in [city], crawl their sites, and build a lead list with contacts",
+			"Map who ranks for [keyword], crawl each result, and compare their pricing in one table",
+			"Build a 360 on [competitor]: site changes, rank movements, Reddit sentiment, and YouTube reaction",
 		],
 	},
 	{
 		id: "automate",
 		label: "Automate",
 		prompts: [
-			"Email me a daily brief of new documents in my knowledge base every morning",
-			"When a PDF lands in my Research folder, generate a cited AI summary",
-			"Generate a weekly status report from my Slack and Gmail every Friday",
-			"Build an automation that turns new meeting notes into minutes with action items",
+			"Re-check [competitor]'s pricing page daily and alert me on any change",
+			"Every Monday, crawl our competitors' changelogs and send me a brief",
+			"Track our brand mentions on Reddit daily and tag buying intent",
+			"Send me a weekly report on [keyword] rankings and AI Overview citations",
 		],
 	},
 	{
@@ -55,7 +65,7 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 		prompts: [
 			"Search across my Notion, Slack, Google Drive and Gmail for [topic]",
 			"Post this research summary to my Notion workspace",
-			"Send these meeting action items to our team Slack channel",
+			"Send these findings to our team Slack channel",
 			"Create a Jira ticket from this bug report",
 		],
 	},

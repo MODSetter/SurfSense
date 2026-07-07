@@ -14,10 +14,10 @@ pytestmark = pytest.mark.integration
 
 
 async def test_legacy_composio_gmail_doc_migrated_in_db(
-    db_session, db_search_space, db_user, make_connector_document
+    db_session, db_workspace, db_user, make_connector_document
 ):
     """A Composio Gmail doc in the DB gets its hash and type updated to native."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     user_id = str(db_user.id)
     unique_id = "msg-legacy-123"
 
@@ -34,7 +34,7 @@ async def test_legacy_composio_gmail_doc_migrated_in_db(
         content="legacy content",
         content_hash=f"ch-{legacy_hash[:12]}",
         unique_identifier_hash=legacy_hash,
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
         embedding=[0.1] * _EMBEDDING_DIM,
         status={"state": "ready"},
@@ -46,7 +46,7 @@ async def test_legacy_composio_gmail_doc_migrated_in_db(
     connector_doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id=unique_id,
-        search_space_id=space_id,
+        workspace_id=space_id,
     )
 
     service = IndexingPipelineService(session=db_session)
@@ -59,33 +59,31 @@ async def test_legacy_composio_gmail_doc_migrated_in_db(
     assert reloaded.document_type == DocumentType.GOOGLE_GMAIL_CONNECTOR
 
 
-async def test_no_legacy_doc_is_noop(
-    db_session, db_search_space, make_connector_document
-):
+async def test_no_legacy_doc_is_noop(db_session, db_workspace, make_connector_document):
     """When no legacy document exists, migrate_legacy_docs does nothing."""
     connector_doc = make_connector_document(
         document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
         unique_id="evt-no-legacy",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     service = IndexingPipelineService(session=db_session)
     await service.migrate_legacy_docs([connector_doc])
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     assert result.scalars().all() == []
 
 
 async def test_non_google_type_is_skipped(
-    db_session, db_search_space, make_connector_document
+    db_session, db_workspace, make_connector_document
 ):
     """migrate_legacy_docs skips ConnectorDocuments that are not Google types."""
     connector_doc = make_connector_document(
         document_type=DocumentType.CLICKUP_CONNECTOR,
         unique_id="task-1",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
     service = IndexingPipelineService(session=db_session)

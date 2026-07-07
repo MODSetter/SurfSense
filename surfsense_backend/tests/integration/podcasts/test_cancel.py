@@ -15,9 +15,9 @@ pytestmark = pytest.mark.integration
 BASE = "/api/v1/podcasts"
 
 
-async def test_cancel_from_a_live_state_succeeds(client, db_search_space, make_podcast):
+async def test_cancel_from_a_live_state_succeeds(client, db_workspace, make_podcast):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.AWAITING_BRIEF
+        workspace_id=db_workspace.id, status=PodcastStatus.AWAITING_BRIEF
     )
 
     resp = await client.post(f"{BASE}/{podcast.id}/cancel")
@@ -27,10 +27,10 @@ async def test_cancel_from_a_live_state_succeeds(client, db_search_space, make_p
 
 
 async def test_cancel_from_a_terminal_state_conflicts(
-    client, db_search_space, make_podcast
+    client, db_workspace, make_podcast
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
 
     resp = await client.post(f"{BASE}/{podcast.id}/cancel")
@@ -38,13 +38,11 @@ async def test_cancel_from_a_terminal_state_conflicts(
     assert resp.status_code == 409
 
 
-async def test_cancel_of_a_regeneration_is_rejected(
-    client, db_search_space, make_podcast
-):
+async def test_cancel_of_a_regeneration_is_rejected(client, db_workspace, make_podcast):
     # Cancelling here would destroy a playable episode; reverting the
     # regeneration is the way back.
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
     await client.post(f"{BASE}/{podcast.id}/transcript/regenerate")
 

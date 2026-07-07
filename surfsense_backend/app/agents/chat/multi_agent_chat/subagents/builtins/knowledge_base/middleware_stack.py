@@ -115,7 +115,7 @@ def build_kb_middleware(
     fs_mw = build_filesystem_mw(
         backend_resolver=dependencies["backend_resolver"],
         filesystem_mode=filesystem_mode,
-        search_space_id=dependencies["search_space_id"],
+        workspace_id=dependencies["workspace_id"],
         user_id=dependencies.get("user_id"),
         thread_id=dependencies.get("thread_id"),
         read_only=read_only,

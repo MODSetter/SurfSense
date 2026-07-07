@@ -72,7 +72,7 @@ pnpm exec playwright install --with-deps chromium
 ### Each run
 
 **1. Bring up Postgres + Redis** from the repo root (the other deps-only
-services (SearXNG, Zero, pgAdmin) are not needed for E2E):
+services (Zero, pgAdmin) are not needed for E2E):
 
 ```bash
 docker compose -f docker/docker-compose.deps-only.yml up -d db redis

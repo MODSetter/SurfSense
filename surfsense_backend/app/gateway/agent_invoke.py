@@ -75,7 +75,7 @@ async def call_agent_for_gateway(
     try:
         stream = stream_new_chat(
             user_query=user_text,
-            search_space_id=binding.search_space_id,
+            workspace_id=binding.workspace_id,
             chat_id=thread.id,
             user_id=str(user.id),
             needs_history_bootstrap=thread.needs_history_bootstrap,

@@ -166,11 +166,11 @@ class TestMetricHelpers:
             model="gpt-4o",
             provider="openai",
         )
-        metrics.record_tool_call_duration(3.0, tool_name="web_search")
-        metrics.record_tool_call_error(tool_name="web_search")
+        metrics.record_tool_call_duration(3.0, tool_name="scrape_webpage")
+        metrics.record_tool_call_error(tool_name="scrape_webpage")
         metrics.record_kb_search_duration(
             4.0,
-            search_space_id=1,
+            workspace_id=1,
             surface="documents",
         )
         metrics.record_compaction_run(reason="auto")
@@ -250,7 +250,7 @@ class TestNoopSpansWhenDisabled:
         helpers = [
             otel.tool_call_span("write_file", input_size=42),
             otel.model_call_span(model_id="openai:gpt-4o", provider="openai"),
-            otel.kb_search_span(search_space_id=1, query_chars=99),
+            otel.kb_search_span(workspace_id=1, query_chars=99),
             otel.kb_persist_span(document_type="NOTE", document_id=7),
             otel.compaction_span(reason="overflow", messages_in=120),
             otel.interrupt_span(interrupt_type="permission_ask"),
@@ -278,3 +278,30 @@ class TestEnabledIntegration:
             sp.set_attribute("tool.truncated", False)
         with otel.model_call_span(model_id="m", provider="p") as sp:
             sp.set_attribute("retry.count", 3)
+
+
+class TestPackageVersionResilience:
+    """A version-tag lookup must never crash the request path (e.g. subagents).
+
+    An editable/dynamic install can have distribution metadata with no
+    ``Version`` field, which raises ``KeyError`` deep inside importlib.metadata.
+    ``_package_version`` must swallow that and every other lookup failure.
+    """
+
+    def test_missing_version_key_falls_back(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _raise_key_error(_name: str) -> str:
+            raise KeyError("Version")
+
+        monkeypatch.setattr(metrics.metadata, "version", _raise_key_error)
+        assert metrics._package_version() == "unknown"
+
+    def test_package_not_found_falls_back(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _raise_not_found(_name: str) -> str:
+            raise metrics.metadata.PackageNotFoundError("surf-new-backend")
+
+        monkeypatch.setattr(metrics.metadata, "version", _raise_not_found)
+        assert metrics._package_version() == "unknown"

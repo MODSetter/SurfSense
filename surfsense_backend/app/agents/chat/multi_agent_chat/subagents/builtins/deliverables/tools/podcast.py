@@ -28,11 +28,11 @@ logger = logging.getLogger(__name__)
 
 
 def create_generate_podcast_tool(
-    search_space_id: int,
+    workspace_id: int,
     db_session: AsyncSession,
     thread_id: int | None = None,
 ):
-    """Create ``generate_podcast`` with bound search space and thread; DB writes use a tool-local session."""
+    """Create ``generate_podcast`` with bound workspace and thread; DB writes use a tool-local session."""
     del db_session  # writes use a fresh tool-local session, see below
 
     @tool
@@ -77,13 +77,13 @@ def create_generate_podcast_tool(
                 service = PodcastService(session)
                 podcast = await service.create(
                     title=podcast_title,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     thread_id=resolve_root_thread_id(runtime, thread_id),
                 )
                 podcast.source_content = source_content
                 spec = await propose_brief(
                     session,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     focus=user_prompt,
                 )
                 await service.attach_brief(podcast, spec)

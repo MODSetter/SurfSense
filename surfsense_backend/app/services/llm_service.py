@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.config import config
-from app.db import Model, SearchSpace
+from app.db import Model, Workspace
 from app.services.auto_model_pin_service import (
     auto_model_candidates,
     choose_auto_model_candidate,
@@ -150,7 +150,7 @@ def _chat_litellm_from_resolved(
 async def _get_db_model(
     session: AsyncSession,
     model_id: int,
-    search_space: SearchSpace,
+    workspace: Workspace,
 ) -> Model | None:
     result = await session.execute(
         select(Model)
@@ -161,9 +161,9 @@ async def _get_db_model(
     if not model or not model.connection or not model.connection.enabled:
         return None
     conn = model.connection
-    if conn.search_space_id and conn.search_space_id != search_space.id:
+    if conn.workspace_id and conn.workspace_id != workspace.id:
         return None
-    if conn.user_id and conn.user_id != search_space.user_id:
+    if conn.user_id and conn.user_id != workspace.user_id:
         return None
     return model
 
@@ -269,48 +269,48 @@ async def validate_llm_config(
         return False, error_msg
 
 
-async def get_search_space_llm_instance(
+async def get_workspace_llm_instance(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     role: str,
     disable_streaming: bool = False,
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """
-    Get a ChatLiteLLM instance for a specific search space and role.
+    Get a ChatLiteLLM instance for a specific workspace and role.
 
-    LLM preferences are stored at the search space level and shared by all members.
+    LLM preferences are stored at the workspace level and shared by all members.
 
     If Auto mode (ID 0) is configured, returns a ChatLiteLLMRouter that uses
     LiteLLM Router for automatic load balancing across available providers.
 
     Args:
         session: Database session
-        search_space_id: Search Space ID
+        workspace_id: Workspace ID
         role: LLM role ('agent')
 
     Returns:
         ChatLiteLLM or ChatLiteLLMRouter instance, or None if not found
     """
     try:
-        # Get the search space with its LLM preferences
+        # Get the workspace with its LLM preferences
         result = await session.execute(
-            select(SearchSpace).where(SearchSpace.id == search_space_id)
+            select(Workspace).where(Workspace.id == workspace_id)
         )
-        search_space = result.scalars().first()
+        workspace = result.scalars().first()
 
-        if not search_space:
-            logger.error(f"Search space {search_space_id} not found")
+        if not workspace:
+            logger.error(f"Workspace {workspace_id} not found")
             return None
 
         # Get the appropriate model binding ID based on role
         if role == LLMRole.AGENT:
-            llm_config_id = search_space.chat_model_id
+            llm_config_id = workspace.chat_model_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
 
         if llm_config_id is None:
-            logger.error(f"No {role} LLM configured for search space {search_space_id}")
+            logger.error(f"No {role} LLM configured for workspace {workspace_id}")
             return None
 
         # Auto mode resolves to one concrete global or BYOK model from the
@@ -318,15 +318,15 @@ async def get_search_space_llm_instance(
         if is_auto_mode(llm_config_id):
             candidates = await auto_model_candidates(
                 session,
-                search_space_id=search_space_id,
-                user_id=search_space.user_id,
+                workspace_id=workspace_id,
+                user_id=workspace.user_id,
                 capability="chat",
             )
             if not candidates:
                 logger.error("No chat-capable models available for Auto mode")
                 return None
             llm_config_id = int(
-                choose_auto_model_candidate(candidates, search_space_id)["id"]
+                choose_auto_model_candidate(candidates, workspace_id)["id"]
             )
 
         # Check if this is a global virtual model (negative ID)
@@ -356,10 +356,10 @@ async def get_search_space_llm_instance(
 
             return SanitizedChatLiteLLM(**litellm_kwargs)
 
-        model = await _get_db_model(session, llm_config_id, search_space)
+        model = await _get_db_model(session, llm_config_id, workspace)
         if not model or not _has_capability(model, "chat"):
             logger.error(
-                f"Chat model {llm_config_id} not found in search space {search_space_id}"
+                f"Chat model {llm_config_id} not found in workspace {workspace_id}"
             )
             return None
 
@@ -377,27 +377,27 @@ async def get_search_space_llm_instance(
 
     except Exception as e:
         logger.error(
-            f"Error getting LLM instance for search space {search_space_id}, role {role}: {e!s}"
+            f"Error getting LLM instance for workspace {workspace_id}, role {role}: {e!s}"
         )
         return None
 
 
 async def get_agent_llm(
-    session: AsyncSession, search_space_id: int, disable_streaming: bool = False
+    session: AsyncSession, workspace_id: int, disable_streaming: bool = False
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """Get the search space's chat model instance."""
-    return await get_search_space_llm_instance(
+    """Get the workspace's chat model instance."""
+    return await get_workspace_llm_instance(
         session,
-        search_space_id,
+        workspace_id,
         LLMRole.AGENT,
         disable_streaming=disable_streaming,
     )
 
 
 async def get_vision_llm(
-    session: AsyncSession, search_space_id: int
+    session: AsyncSession, workspace_id: int
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
-    """Get the search space's vision LLM instance for screenshot analysis.
+    """Get the workspace's vision LLM instance for screenshot analysis.
 
     Resolves from the new connection/model role bindings:
     - Auto mode (ID 0): unified global/BYOK model candidate selection
@@ -405,7 +405,7 @@ async def get_vision_llm(
     - DB (positive ID): Model + Connection tables
 
     Premium global configs are wrapped in :class:`QuotaCheckedVisionLLM`
-    so each ``ainvoke`` debits the search-space owner's premium credit
+    so each ``ainvoke`` debits the workspace owner's premium credit
     pool. User-owned BYOK configs and free global configs are returned
     unwrapped — they don't consume premium credit (issue M).
     """
@@ -413,17 +413,17 @@ async def get_vision_llm(
 
     try:
         result = await session.execute(
-            select(SearchSpace).where(SearchSpace.id == search_space_id)
+            select(Workspace).where(Workspace.id == workspace_id)
         )
-        search_space = result.scalars().first()
-        if not search_space:
-            logger.error(f"Search space {search_space_id} not found")
+        workspace = result.scalars().first()
+        if not workspace:
+            logger.error(f"Workspace {workspace_id} not found")
             return None
 
-        owner_user_id = search_space.user_id
+        owner_user_id = workspace.user_id
 
         # Prefer the selected chat model when it is vision-capable.
-        chat_model_id = search_space.chat_model_id
+        chat_model_id = workspace.chat_model_id
         if chat_model_id and chat_model_id != AUTO_MODE_ID:
             if chat_model_id < 0:
                 chat_model = get_global_model(chat_model_id)
@@ -442,7 +442,7 @@ async def get_vision_llm(
 
                         return SanitizedChatLiteLLM(**litellm_kwargs)
             else:
-                chat_model = await _get_db_model(session, chat_model_id, search_space)
+                chat_model = await _get_db_model(session, chat_model_id, workspace)
                 if chat_model and _has_capability(chat_model, "vision"):
                     _, litellm_kwargs = _chat_litellm_from_resolved(
                         conn=chat_model.connection,
@@ -454,24 +454,22 @@ async def get_vision_llm(
 
                     return SanitizedChatLiteLLM(**litellm_kwargs)
 
-        config_id = search_space.vision_model_id
+        config_id = workspace.vision_model_id
         if config_id is None:
-            logger.error(f"No vision LLM configured for search space {search_space_id}")
+            logger.error(f"No vision LLM configured for workspace {workspace_id}")
             return None
 
         if config_id == AUTO_MODE_ID:
             candidates = await auto_model_candidates(
                 session,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=owner_user_id,
                 capability="vision",
             )
             if not candidates:
                 logger.error("No vision-capable models available for Auto mode")
                 return None
-            config_id = int(
-                choose_auto_model_candidate(candidates, search_space_id)["id"]
-            )
+            config_id = int(choose_auto_model_candidate(candidates, workspace_id)["id"])
 
         if config_id < 0:
             global_model = get_global_model(config_id)
@@ -504,7 +502,7 @@ async def get_vision_llm(
                 return QuotaCheckedVisionLLM(
                     inner_llm,
                     user_id=owner_user_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     billing_tier=billing_tier,
                     base_model=model_string,
                     quota_reserve_tokens=global_model.get("catalog", {}).get(
@@ -513,10 +511,10 @@ async def get_vision_llm(
                 )
             return inner_llm
 
-        model = await _get_db_model(session, config_id, search_space)
+        model = await _get_db_model(session, config_id, workspace)
         if not model or not _has_capability(model, "vision"):
             logger.error(
-                f"Vision model {config_id} not found in search space {search_space_id}"
+                f"Vision model {config_id} not found in workspace {workspace_id}"
             )
             return None
 
@@ -532,9 +530,7 @@ async def get_vision_llm(
         return SanitizedChatLiteLLM(**litellm_kwargs)
 
     except Exception as e:
-        logger.error(
-            f"Error getting vision LLM for search space {search_space_id}: {e!s}"
-        )
+        logger.error(f"Error getting vision LLM for workspace {workspace_id}: {e!s}")
         return None
 
 
@@ -551,7 +547,7 @@ def get_planner_llm() -> ChatLiteLLM | None:
     This helper reads from ``config.GLOBAL_LLM_CONFIGS`` (loaded at import
     time from ``global_llm_config.yaml``) so it has no DB cost and can be
     called synchronously from middleware/factory code. It returns the same
-    instance shape as the global path of ``get_search_space_llm_instance``.
+    instance shape as the global path of ``get_workspace_llm_instance``.
 
     Callers MUST fall back to their chat LLM when this returns ``None`` so
     deployments without a planner config keep working unchanged.

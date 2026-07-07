@@ -20,7 +20,7 @@ export const createInviteMutationAtom = atomWithMutation(() => ({
 	},
 	onSuccess: (_, variables) => {
 		queryClient.invalidateQueries({
-			queryKey: cacheKeys.invites.all(variables.search_space_id.toString()),
+			queryKey: cacheKeys.invites.all(variables.workspace_id.toString()),
 		});
 		toast.success("Invite created successfully");
 	},
@@ -40,7 +40,7 @@ export const updateInviteMutationAtom = atomWithMutation(() => ({
 	},
 	onSuccess: (_, variables) => {
 		queryClient.invalidateQueries({
-			queryKey: cacheKeys.invites.all(variables.search_space_id.toString()),
+			queryKey: cacheKeys.invites.all(variables.workspace_id.toString()),
 		});
 		toast.success("Invite updated successfully");
 	},
@@ -60,7 +60,7 @@ export const deleteInviteMutationAtom = atomWithMutation(() => ({
 	},
 	onSuccess: (_, variables) => {
 		queryClient.invalidateQueries({
-			queryKey: cacheKeys.invites.all(variables.search_space_id.toString()),
+			queryKey: cacheKeys.invites.all(variables.workspace_id.toString()),
 		});
 		toast.success("Invite deleted successfully");
 	},
@@ -79,7 +79,7 @@ export const acceptInviteMutationAtom = atomWithMutation(() => ({
 		return invitesApiService.acceptInvite(request);
 	},
 	onSuccess: () => {
-		queryClient.invalidateQueries({ queryKey: cacheKeys.searchSpaces.all });
+		queryClient.invalidateQueries({ queryKey: cacheKeys.workspaces.all });
 		toast.success("Invite accepted successfully");
 	},
 	onError: (error: Error) => {

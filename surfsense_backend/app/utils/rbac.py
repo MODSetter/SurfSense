@@ -1,6 +1,6 @@
 """
 RBAC (Role-Based Access Control) utility functions.
-Provides helpers for checking user permissions in search spaces.
+Provides helpers for checking user permissions in workspaces.
 """
 
 import secrets
@@ -14,9 +14,9 @@ from sqlalchemy.orm import selectinload
 from app.auth.context import AuthContext
 from app.db import (
     Permission,
-    SearchSpace,
-    SearchSpaceMembership,
-    SearchSpaceRole,
+    Workspace,
+    WorkspaceMembership,
+    WorkspaceRole,
     has_permission,
 )
 
@@ -24,25 +24,25 @@ from app.db import (
 async def get_user_membership(
     session: AsyncSession,
     user_id: UUID,
-    search_space_id: int,
-) -> SearchSpaceMembership | None:
+    workspace_id: int,
+) -> WorkspaceMembership | None:
     """
-    Get the user's membership in a search space.
+    Get the user's membership in a workspace.
 
     Args:
         session: Database session
         user_id: User UUID
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
 
     Returns:
-        SearchSpaceMembership if found, None otherwise
+        WorkspaceMembership if found, None otherwise
     """
     result = await session.execute(
-        select(SearchSpaceMembership)
-        .options(selectinload(SearchSpaceMembership.role))
+        select(WorkspaceMembership)
+        .options(selectinload(WorkspaceMembership.role))
         .filter(
-            SearchSpaceMembership.user_id == user_id,
-            SearchSpaceMembership.search_space_id == search_space_id,
+            WorkspaceMembership.user_id == user_id,
+            WorkspaceMembership.workspace_id == workspace_id,
         )
     )
     return result.scalars().first()
@@ -51,20 +51,20 @@ async def get_user_membership(
 async def get_user_permissions(
     session: AsyncSession,
     user_id: UUID,
-    search_space_id: int,
+    workspace_id: int,
 ) -> list[str]:
     """
-    Get the user's permissions in a search space.
+    Get the user's permissions in a workspace.
 
     Args:
         session: Database session
         user_id: User UUID
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
 
     Returns:
         List of permission strings
     """
-    membership = await get_user_membership(session, user_id, search_space_id)
+    membership = await get_user_membership(session, user_id, workspace_id)
 
     if not membership:
         return []
@@ -84,19 +84,19 @@ async def get_allowed_read_space_ids(
     session: AsyncSession,
     auth: AuthContext,
 ) -> list[int]:
-    """Return search spaces the principal may read through sync transports.
+    """Return workspaces the principal may read through sync transports.
 
-    This mirrors the basic REST search-space access rule: membership is required,
+    This mirrors the basic REST workspace access rule: membership is required,
     and PAT principals are additionally constrained by the per-space API gate.
     """
     stmt = (
-        select(SearchSpaceMembership.search_space_id)
-        .join(SearchSpace, SearchSpace.id == SearchSpaceMembership.search_space_id)
-        .filter(SearchSpaceMembership.user_id == auth.user.id)
-        .order_by(SearchSpaceMembership.search_space_id)
+        select(WorkspaceMembership.workspace_id)
+        .join(Workspace, Workspace.id == WorkspaceMembership.workspace_id)
+        .filter(WorkspaceMembership.user_id == auth.user.id)
+        .order_by(WorkspaceMembership.workspace_id)
     )
     if auth.is_gated:
-        stmt = stmt.filter(SearchSpace.api_access_enabled == True)  # noqa: E712
+        stmt = stmt.filter(Workspace.api_access_enabled == True)  # noqa: E712
 
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -105,57 +105,57 @@ async def get_allowed_read_space_ids(
 async def _enforce_api_access_gate(
     session: AsyncSession,
     auth: AuthContext,
-    search_space_id: int,
-    search_space: SearchSpace | None = None,
-) -> SearchSpace:
-    if search_space is None:
+    workspace_id: int,
+    workspace: Workspace | None = None,
+) -> Workspace:
+    if workspace is None:
         result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+            select(Workspace).filter(Workspace.id == workspace_id)
         )
-        search_space = result.scalars().first()
+        workspace = result.scalars().first()
 
-    if not search_space:
-        raise HTTPException(status_code=404, detail="Search space not found")
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
 
-    if auth.is_gated and not search_space.api_access_enabled:
+    if auth.is_gated and not workspace.api_access_enabled:
         raise HTTPException(
             status_code=403,
-            detail="API access is not enabled for this search space.",
+            detail="API access is not enabled for this workspace.",
         )
 
-    return search_space
+    return workspace
 
 
 async def check_permission(
     session: AsyncSession,
     auth: AuthContext,
-    search_space_id: int,
+    workspace_id: int,
     required_permission: str,
     error_message: str = "You don't have permission to perform this action",
-) -> SearchSpaceMembership:
+) -> WorkspaceMembership:
     """
-    Check if a user has a specific permission in a search space.
+    Check if a user has a specific permission in a workspace.
     Raises HTTPException if permission is denied.
 
     Args:
         session: Database session
         user: User object
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
         required_permission: Permission string to check
         error_message: Custom error message for permission denied
 
     Returns:
-        SearchSpaceMembership if permission granted
+        WorkspaceMembership if permission granted
 
     Raises:
         HTTPException: If user doesn't have access or permission
     """
-    membership = await get_user_membership(session, auth.user.id, search_space_id)
+    membership = await get_user_membership(session, auth.user.id, workspace_id)
 
     if not membership:
         raise HTTPException(
             status_code=403,
-            detail="You don't have access to this search space",
+            detail="You don't have access to this workspace",
         )
 
     # Get user's permissions
@@ -169,110 +169,110 @@ async def check_permission(
     if not has_permission(permissions, required_permission):
         raise HTTPException(status_code=403, detail=error_message)
 
-    await _enforce_api_access_gate(session, auth, search_space_id)
+    await _enforce_api_access_gate(session, auth, workspace_id)
 
     return membership
 
 
-async def check_search_space_access(
+async def check_workspace_access(
     session: AsyncSession,
     auth: AuthContext,
-    search_space_id: int,
-) -> SearchSpaceMembership:
+    workspace_id: int,
+) -> WorkspaceMembership:
     """
-    Check if a user has any access to a search space.
+    Check if a user has any access to a workspace.
     This is used for basic access control (user is a member).
 
     Args:
         session: Database session
         user: User object
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
 
     Returns:
-        SearchSpaceMembership if user has access
+        WorkspaceMembership if user has access
 
     Raises:
         HTTPException: If user doesn't have access
     """
-    membership = await get_user_membership(session, auth.user.id, search_space_id)
+    membership = await get_user_membership(session, auth.user.id, workspace_id)
 
     if not membership:
         raise HTTPException(
             status_code=403,
-            detail="You don't have access to this search space",
+            detail="You don't have access to this workspace",
         )
 
-    await _enforce_api_access_gate(session, auth, search_space_id)
+    await _enforce_api_access_gate(session, auth, workspace_id)
 
     return membership
 
 
-async def is_search_space_owner(
+async def is_workspace_owner(
     session: AsyncSession,
     user_id: UUID,
-    search_space_id: int,
+    workspace_id: int,
 ) -> bool:
     """
-    Check if a user is the owner of a search space.
+    Check if a user is the owner of a workspace.
 
     Args:
         session: Database session
         user_id: User UUID
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
 
     Returns:
         True if user is the owner, False otherwise
     """
-    membership = await get_user_membership(session, user_id, search_space_id)
+    membership = await get_user_membership(session, user_id, workspace_id)
     return membership is not None and membership.is_owner
 
 
-async def get_search_space_with_access_check(
+async def get_workspace_with_access_check(
     session: AsyncSession,
     auth: AuthContext,
-    search_space_id: int,
+    workspace_id: int,
     required_permission: str | None = None,
-) -> tuple[SearchSpace, SearchSpaceMembership]:
+) -> tuple[Workspace, WorkspaceMembership]:
     """
-    Get a search space with access and optional permission check.
+    Get a workspace with access and optional permission check.
 
     Args:
         session: Database session
         user: User object
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
         required_permission: Optional permission to check
 
     Returns:
-        Tuple of (SearchSpace, SearchSpaceMembership)
+        Tuple of (Workspace, WorkspaceMembership)
 
     Raises:
-        HTTPException: If search space not found or user lacks access/permission
+        HTTPException: If workspace not found or user lacks access/permission
     """
-    # Get the search space
+    # Get the workspace
     result = await session.execute(
-        select(SearchSpace).filter(SearchSpace.id == search_space_id)
+        select(Workspace).filter(Workspace.id == workspace_id)
     )
-    search_space = result.scalars().first()
+    workspace = result.scalars().first()
 
-    if not search_space:
-        raise HTTPException(status_code=404, detail="Search space not found")
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
 
     # Check access
     if required_permission:
         membership = await check_permission(
-            session, auth, search_space_id, required_permission
+            session, auth, workspace_id, required_permission
         )
     else:
-        membership = await check_search_space_access(session, auth, search_space_id)
+        membership = await check_workspace_access(session, auth, workspace_id)
 
-    await _enforce_api_access_gate(session, auth, search_space_id, search_space)
+    await _enforce_api_access_gate(session, auth, workspace_id, workspace)
 
-    return search_space, membership
+    return workspace, membership
 
 
 def generate_invite_code() -> str:
     """
-    Generate a unique invite code for search space invites.
+    Generate a unique invite code for workspace invites.
 
     Returns:
         A 32-character URL-safe invite code
@@ -282,22 +282,22 @@ def generate_invite_code() -> str:
 
 async def get_default_role(
     session: AsyncSession,
-    search_space_id: int,
-) -> SearchSpaceRole | None:
+    workspace_id: int,
+) -> WorkspaceRole | None:
     """
-    Get the default role for a search space (used when accepting invites without a specific role).
+    Get the default role for a workspace (used when accepting invites without a specific role).
 
     Args:
         session: Database session
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
 
     Returns:
-        Default SearchSpaceRole or None
+        Default WorkspaceRole or None
     """
     result = await session.execute(
-        select(SearchSpaceRole).filter(
-            SearchSpaceRole.search_space_id == search_space_id,
-            SearchSpaceRole.is_default == True,  # noqa: E712
+        select(WorkspaceRole).filter(
+            WorkspaceRole.workspace_id == workspace_id,
+            WorkspaceRole.is_default == True,  # noqa: E712
         )
     )
     return result.scalars().first()
@@ -305,22 +305,22 @@ async def get_default_role(
 
 async def get_owner_role(
     session: AsyncSession,
-    search_space_id: int,
-) -> SearchSpaceRole | None:
+    workspace_id: int,
+) -> WorkspaceRole | None:
     """
-    Get the Owner role for a search space.
+    Get the Owner role for a workspace.
 
     Args:
         session: Database session
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
 
     Returns:
-        Owner SearchSpaceRole or None
+        Owner WorkspaceRole or None
     """
     result = await session.execute(
-        select(SearchSpaceRole).filter(
-            SearchSpaceRole.search_space_id == search_space_id,
-            SearchSpaceRole.name == "Owner",
+        select(WorkspaceRole).filter(
+            WorkspaceRole.workspace_id == workspace_id,
+            WorkspaceRole.name == "Owner",
         )
     )
     return result.scalars().first()

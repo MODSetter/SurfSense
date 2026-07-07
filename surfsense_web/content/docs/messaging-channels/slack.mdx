@@ -79,6 +79,6 @@ the Slack app to your workspace so Slack grants the updated permissions.
 
 1. Slack sends an `app_mention` event to SurfSense.
 2. SurfSense verifies the Slack signature and stores the event in the gateway inbox.
-3. SurfSense resolves the Slack user binding to a SurfSense user and search space.
+3. SurfSense resolves the Slack user binding to a SurfSense user and workspace.
 4. SurfSense runs the backend agent with that user's permissions.
 5. The agent reply is posted back in the same Slack thread.

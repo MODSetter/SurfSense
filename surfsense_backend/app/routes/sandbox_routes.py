@@ -70,7 +70,7 @@ async def download_sandbox_file(
     await check_permission(
         session,
         auth,
-        thread.search_space_id,
+        thread.workspace_id,
         Permission.CHATS_READ.value,
         "You don't have permission to access files in this thread",
     )

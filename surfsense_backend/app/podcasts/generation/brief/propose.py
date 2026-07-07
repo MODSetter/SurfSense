@@ -17,7 +17,7 @@ from .state import BriefState
 async def propose_brief(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     speaker_count: int = DEFAULT_SPEAKER_COUNT,
     min_seconds: int = DEFAULT_MIN_SECONDS,
     max_seconds: int = DEFAULT_MAX_SECONDS,
@@ -25,7 +25,7 @@ async def propose_brief(
 ) -> PodcastSpec:
     """Reuse the last-used language and voices, else English; return the spec."""
     last_language, last_voices = preferences_from(
-        await PodcastRepository(session).latest_with_spec(search_space_id)
+        await PodcastRepository(session).latest_with_spec(workspace_id)
     )
     config = {
         "configurable": {

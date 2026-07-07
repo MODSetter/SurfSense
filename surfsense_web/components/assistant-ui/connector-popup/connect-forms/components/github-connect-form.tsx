@@ -293,7 +293,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 			{/* Documentation Link */}
 			<div>
 				<Link
-					href="/docs/connectors/github"
+					href="/docs/connectors/external/github"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="text-xs sm:text-sm font-medium underline underline-offset-4 hover:text-primary transition-colors inline-flex items-center gap-1.5"

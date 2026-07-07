@@ -29,7 +29,7 @@ import {
 	globalModelConnectionsAtom,
 	modelConnectionsAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import {
 	CitationMetadataProvider,
 	useAllCitationMetadata,
@@ -491,7 +491,7 @@ export const AssistantMessage: FC = () => {
 	const commentPanelRef = useRef<HTMLDivElement>(null);
 	const commentTriggerRef = useRef<HTMLButtonElement>(null);
 	const messageId = useAuiState(({ message }) => message?.id);
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const dbMessageId = parseMessageId(messageId);
 	const commentsEnabled = useAtomValue(commentsEnabledAtom);
 
@@ -520,7 +520,7 @@ export const AssistantMessage: FC = () => {
 	const commentCount = commentsData?.total_count ?? 0;
 	const hasComments = commentCount > 0;
 
-	const showCommentTrigger = searchSpaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
+	const showCommentTrigger = workspaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
 
 	// Close floating panel when clicking outside (but not on portaled popover/dropdown content)
 	useEffect(() => {

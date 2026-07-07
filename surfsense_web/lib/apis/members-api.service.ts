@@ -8,9 +8,9 @@ import {
 	getMembersResponse,
 	getMyAccessRequest,
 	getMyAccessResponse,
-	type LeaveSearchSpaceRequest,
-	leaveSearchSpaceRequest,
-	leaveSearchSpaceResponse,
+	type LeaveWorkspaceRequest,
+	leaveWorkspaceRequest,
+	leaveWorkspaceResponse,
 	type UpdateMembershipRequest,
 	updateMembershipRequest,
 	updateMembershipResponse,
@@ -20,7 +20,7 @@ import { baseApiService } from "./base-api.service";
 
 class MembersApiService {
 	/**
-	 * Get members of a search space
+	 * Get members of a workspace
 	 */
 	getMembers = async (request: GetMembersRequest) => {
 		const parsedRequest = getMembersRequest.safeParse(request);
@@ -33,7 +33,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.get(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/members`,
 			getMembersResponse
 		);
 	};
@@ -52,7 +52,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.put(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/members/${parsedRequest.data.membership_id}`,
 			updateMembershipResponse,
 			{
 				body: parsedRequest.data.data,
@@ -61,7 +61,7 @@ class MembersApiService {
 	};
 
 	/**
-	 * Delete a member from search space
+	 * Delete a member from workspace
 	 */
 	deleteMember = async (request: DeleteMembershipRequest) => {
 		const parsedRequest = deleteMembershipRequest.safeParse(request);
@@ -74,16 +74,16 @@ class MembersApiService {
 		}
 
 		return baseApiService.delete(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/members/${parsedRequest.data.membership_id}`,
 			deleteMembershipResponse
 		);
 	};
 
 	/**
-	 * Leave a search space (remove self)
+	 * Leave a workspace (remove self)
 	 */
-	leaveSearchSpace = async (request: LeaveSearchSpaceRequest) => {
-		const parsedRequest = leaveSearchSpaceRequest.safeParse(request);
+	leaveWorkspace = async (request: LeaveWorkspaceRequest) => {
+		const parsedRequest = leaveWorkspaceRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -93,13 +93,13 @@ class MembersApiService {
 		}
 
 		return baseApiService.delete(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/me`,
-			leaveSearchSpaceResponse
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/members/me`,
+			leaveWorkspaceResponse
 		);
 	};
 
 	/**
-	 * Get current user's access information for a search space
+	 * Get current user's access information for a workspace
 	 */
 	getMyAccess = async (request: GetMyAccessRequest) => {
 		const parsedRequest = getMyAccessRequest.safeParse(request);
@@ -112,7 +112,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.get(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/my-access`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/my-access`,
 			getMyAccessResponse
 		);
 	};

@@ -19,36 +19,32 @@ from app.agents.chat.multi_agent_chat.subagents.registry import (
 
 pytestmark = pytest.mark.unit
 
-# The full specialist roster the main agent composes from: 4 builtins + 15
-# connector routes. Adding/removing a specialist is a deliberate product change
-# and must be reflected here.
+# The full specialist roster the main agent composes from after the MCP
+# migration: builtins + the three file-connector routes (Drive/Dropbox/
+# OneDrive). Every MCP-backed connector (Slack/Jira/Linear/ClickUp/Airtable/
+# Notion/Confluence/Gmail/Calendar) now lives behind the single
+# ``mcp_discovery`` route; Discord/Teams/Luma were deprecated. Adding/removing a
+# specialist is a deliberate product change and must be reflected here.
 _EXPECTED_SUBAGENTS = frozenset(
     {
-        "airtable",
-        "calendar",
-        "clickup",
-        "confluence",
         "deliverables",
-        "discord",
         "dropbox",
-        "gmail",
         "google_drive",
-        "jira",
+        "google_maps",
+        "google_search",
         "knowledge_base",
-        "linear",
-        "luma",
+        "mcp_discovery",
         "memory",
-        "notion",
         "onedrive",
-        "research",
-        "slack",
-        "teams",
+        "reddit",
+        "web_crawler",
+        "youtube",
     }
 )
 
 # Specialists that are always available regardless of connected sources, so they
 # carry no required-connector entry.
-_CONNECTORLESS = frozenset({"memory", "research"})
+_CONNECTORLESS = frozenset({"memory"})
 
 
 def test_registry_contains_exactly_expected_subagents():

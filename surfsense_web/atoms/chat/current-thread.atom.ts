@@ -4,14 +4,14 @@ import { reportPanelAtom } from "./report-panel.atom";
 
 interface CurrentThreadState {
 	id: number | null;
-	searchSpaceId: number | null;
+	workspaceId: number | null;
 	visibility: ChatVisibility | null;
 	hasComments: boolean;
 }
 
 interface CurrentThreadMetadataPatch {
 	id: number | null;
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	visibility?: ChatVisibility | null;
 	hasComments?: boolean;
 }
@@ -24,7 +24,7 @@ interface CurrentThreadMetadataUpdate {
 
 const initialState: CurrentThreadState = {
 	id: null,
-	searchSpaceId: null,
+	workspaceId: null,
 	visibility: null,
 	hasComments: false,
 };
@@ -44,11 +44,11 @@ export const setCurrentThreadMetadataAtom = atom(
 		set(currentThreadAtom, {
 			...current,
 			id: metadata.id,
-			searchSpaceId:
-				"searchSpaceId" in metadata
-					? (metadata.searchSpaceId ?? null)
+			workspaceId:
+				"workspaceId" in metadata
+					? (metadata.workspaceId ?? null)
 					: isSameThread
-						? current.searchSpaceId
+						? current.workspaceId
 						: null,
 			visibility:
 				"visibility" in metadata

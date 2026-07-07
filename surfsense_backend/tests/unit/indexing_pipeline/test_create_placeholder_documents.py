@@ -27,7 +27,7 @@ def _make_placeholder(**overrides) -> PlaceholderInfo:
         "title": "Test Doc",
         "document_type": DocumentType.GOOGLE_DRIVE_FILE,
         "unique_id": "file-001",
-        "search_space_id": 1,
+        "workspace_id": 1,
         "connector_id": 42,
         "created_by_id": "00000000-0000-0000-0000-000000000001",
     }
@@ -36,9 +36,7 @@ def _make_placeholder(**overrides) -> PlaceholderInfo:
 
 
 def _uid_hash(p: PlaceholderInfo) -> str:
-    return compute_identifier_hash(
-        p.document_type.value, p.unique_id, p.search_space_id
-    )
+    return compute_identifier_hash(p.document_type.value, p.unique_id, p.workspace_id)
 
 
 def _session_with_existing_hashes(existing: set[str] | None = None):
@@ -82,7 +80,7 @@ async def test_creates_documents_with_pending_status_and_commits():
     assert doc.document_type == DocumentType.GOOGLE_DRIVE_FILE
     assert doc.content == "Pending..."
     assert DocumentStatus.is_state(doc.status, DocumentStatus.PENDING)
-    assert doc.search_space_id == 1
+    assert doc.workspace_id == 1
     assert doc.connector_id == 42
 
     session.commit.assert_awaited_once()

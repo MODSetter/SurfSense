@@ -34,6 +34,7 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getVirtualPathDisplay } from "@/lib/chat/virtual-path-display";
 import { type CitationUrlMap, preprocessCitationMarkdown } from "@/lib/citations/citation-parser";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { tryGetHostname } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
@@ -188,13 +189,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const params = useParams();
 	const electronAPI = useElectronAPI();
-	const searchSpaceIdParam = params?.search_space_id;
-	const parsedSearchSpaceId = Array.isArray(searchSpaceIdParam)
-		? Number(searchSpaceIdParam[0])
-		: Number(searchSpaceIdParam);
-	const resolvedSearchSpaceId = Number.isFinite(parsedSearchSpaceId)
-		? parsedSearchSpaceId
-		: undefined;
+	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
 
 	const { displayName, isFolder } = getVirtualPathDisplay(path);
 	const icon = isFolder ? <FolderIcon className="size-3.5" /> : <FileIcon className="size-3.5" />;
@@ -209,7 +204,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 					if (electronAPI.getAgentFilesystemMounts) {
 						try {
 							const mounts = (await electronAPI.getAgentFilesystemMounts(
-								resolvedSearchSpaceId
+								resolvedWorkspaceId
 							)) as AgentFilesystemMount[];
 							resolvedLocalPath = normalizeLocalVirtualPathForEditor(path, mounts);
 						} catch {
@@ -220,21 +215,21 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 						kind: "local_file",
 						localFilePath: resolvedLocalPath,
 						title: resolvedLocalPath.split("/").pop() || resolvedLocalPath,
-						searchSpaceId: resolvedSearchSpaceId,
+						workspaceId: resolvedWorkspaceId,
 					});
 					return;
 				}
 
-				if (!resolvedSearchSpaceId || !path.startsWith("/documents/")) return;
+				if (!resolvedWorkspaceId || !path.startsWith("/documents/")) return;
 				try {
 					const doc = await documentsApiService.getDocumentByVirtualPath({
-						search_space_id: resolvedSearchSpaceId,
+						workspace_id: resolvedWorkspaceId,
 						virtual_path: path,
 					});
 					openEditorPanel({
 						kind: "document",
 						documentId: doc.id,
-						searchSpaceId: resolvedSearchSpaceId,
+						workspaceId: resolvedWorkspaceId,
 						title: doc.title,
 					});
 				} catch {
@@ -242,7 +237,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 				}
 			})();
 		},
-		[electronAPI, openEditorPanel, path, resolvedSearchSpaceId]
+		[electronAPI, openEditorPanel, path, resolvedWorkspaceId]
 	);
 
 	// Folders cannot open in the editor panel — keep them as visual chips.

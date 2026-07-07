@@ -24,7 +24,7 @@ from .base import (
 def get_google_drive_unique_identifier(
     connector: dict | None,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[str, str | None]:
     """
     Get unique identifier hash, using file_id for Google Drive (stable across renames).
@@ -40,15 +40,15 @@ def get_google_drive_unique_identifier(
 
         if file_id:
             primary_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
+                DocumentType.GOOGLE_DRIVE_FILE, file_id, workspace_id
             )
             legacy_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_DRIVE_FILE, filename, search_space_id
+                DocumentType.GOOGLE_DRIVE_FILE, filename, workspace_id
             )
             return primary_hash, legacy_hash
 
     primary_hash = generate_unique_identifier_hash(
-        DocumentType.FILE, filename, search_space_id
+        DocumentType.FILE, filename, workspace_id
     )
     return primary_hash, None
 

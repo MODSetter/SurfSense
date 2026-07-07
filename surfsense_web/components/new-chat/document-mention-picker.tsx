@@ -56,7 +56,7 @@ import { queries } from "@/zero/queries";
 export type DocumentMentionPickerRef = ComposerSuggestionNavigatorRef;
 
 interface DocumentMentionPickerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 	onSelectionChange: (mentions: MentionedDocumentInfo[]) => void;
 	onDone: () => void;
 	initialSelectedDocuments?: MentionedDocumentInfo[];
@@ -105,14 +105,14 @@ function isMentionedContextItem(value: unknown): value is MentionedDocumentInfo 
 	return false;
 }
 
-function getRecentsStorageKey(searchSpaceId: number) {
-	return `${RECENTS_STORAGE_PREFIX}${searchSpaceId}`;
+function getRecentsStorageKey(workspaceId: number) {
+	return `${RECENTS_STORAGE_PREFIX}${workspaceId}`;
 }
 
-function readRecentMentions(searchSpaceId: number): MentionedDocumentInfo[] {
+function readRecentMentions(workspaceId: number): MentionedDocumentInfo[] {
 	if (typeof window === "undefined") return [];
 	try {
-		const raw = window.localStorage.getItem(getRecentsStorageKey(searchSpaceId));
+		const raw = window.localStorage.getItem(getRecentsStorageKey(workspaceId));
 		if (!raw) return [];
 		const parsed: unknown = JSON.parse(raw);
 		if (!Array.isArray(parsed)) return [];
@@ -122,11 +122,11 @@ function readRecentMentions(searchSpaceId: number): MentionedDocumentInfo[] {
 	}
 }
 
-function writeRecentMentions(searchSpaceId: number, mentions: MentionedDocumentInfo[]) {
+function writeRecentMentions(workspaceId: number, mentions: MentionedDocumentInfo[]) {
 	if (typeof window === "undefined") return;
 	try {
 		window.localStorage.setItem(
-			getRecentsStorageKey(searchSpaceId),
+			getRecentsStorageKey(workspaceId),
 			JSON.stringify(mentions.slice(0, RECENTS_LIMIT))
 		);
 	} catch {
@@ -134,13 +134,13 @@ function writeRecentMentions(searchSpaceId: number, mentions: MentionedDocumentI
 	}
 }
 
-export function promoteRecentMention(searchSpaceId: number, mention: MentionedDocumentInfo) {
+export function promoteRecentMention(workspaceId: number, mention: MentionedDocumentInfo) {
 	const mentionKey = getMentionDocKey(mention);
 	const next = [
 		mention,
-		...readRecentMentions(searchSpaceId).filter((item) => getMentionDocKey(item) !== mentionKey),
+		...readRecentMentions(workspaceId).filter((item) => getMentionDocKey(item) !== mentionKey),
 	].slice(0, RECENTS_LIMIT);
-	writeRecentMentions(searchSpaceId, next);
+	writeRecentMentions(workspaceId, next);
 	return next;
 }
 
@@ -261,7 +261,7 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
 	{
-		searchSpaceId,
+		workspaceId,
 		onSelectionChange,
 		onDone,
 		initialSelectedDocuments = [],
@@ -286,15 +286,15 @@ export const DocumentMentionPicker = forwardRef<
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [recentMentions, setRecentMentions] = useState<MentionedDocumentInfo[]>(() =>
-		readRecentMentions(searchSpaceId)
+		readRecentMentions(workspaceId)
 	);
 
-	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ searchSpaceId }));
+	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ workspaceId }));
 	const { data: connectors = [], isLoading: isConnectorsLoading } = useAtomValue(connectorsAtom);
 	const activeConnectors = useMemo(() => connectors.filter(isConnectorActive), [connectors]);
 	const paginationScopeKey = useMemo(
-		() => `${searchSpaceId}:${debouncedSearch}`,
-		[searchSpaceId, debouncedSearch]
+		() => `${workspaceId}:${debouncedSearch}`,
+		[workspaceId, debouncedSearch]
 	);
 	const previousPaginationScopeKeyRef = useRef<string | null>(null);
 
@@ -311,17 +311,17 @@ export const DocumentMentionPicker = forwardRef<
 	}, [hasSearch]);
 
 	useEffect(() => {
-		setRecentMentions(readRecentMentions(searchSpaceId));
-	}, [searchSpaceId]);
+		setRecentMentions(readRecentMentions(workspaceId));
+	}, [workspaceId]);
 
 	const titleSearchParams = useMemo(
 		() => ({
-			search_space_id: searchSpaceId,
+			workspace_id: workspaceId,
 			page: 0,
 			page_size: PAGE_SIZE,
 			...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
 		}),
-		[searchSpaceId, debouncedSearch, isSearchValid]
+		[workspaceId, debouncedSearch, isSearchValid]
 	);
 
 	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
@@ -329,7 +329,7 @@ export const DocumentMentionPicker = forwardRef<
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
 		staleTime: 60 * 1000,
-		enabled: !!searchSpaceId && currentPage === 0 && (!hasSearch || isSearchValid),
+		enabled: !!workspaceId && currentPage === 0 && (!hasSearch || isSearchValid),
 		placeholderData: keepPreviousData,
 	});
 
@@ -362,7 +362,7 @@ export const DocumentMentionPicker = forwardRef<
 
 		try {
 			const queryParams = {
-				search_space_id: searchSpaceId,
+				workspace_id: workspaceId,
 				page: nextPage,
 				page_size: PAGE_SIZE,
 				...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
@@ -381,7 +381,7 @@ export const DocumentMentionPicker = forwardRef<
 		} finally {
 			setIsLoadingMore(false);
 		}
-	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId, isSearchValid]);
+	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, workspaceId, isSearchValid]);
 
 	const actualDocuments = useMemo(() => {
 		if (!isSingleCharSearch) return accumulatedDocuments;
@@ -406,10 +406,10 @@ export const DocumentMentionPicker = forwardRef<
 	// or types a search. An empty title returns recent threads (the
 	// backend ``ilike '%%'`` matches all, newest first).
 	const { data: threadResults = [], isLoading: isThreadsLoading } = useQuery({
-		queryKey: ["composer-mention-threads", searchSpaceId, debouncedSearch],
-		queryFn: () => searchThreads(searchSpaceId, debouncedSearch.trim()),
+		queryKey: ["composer-mention-threads", workspaceId, debouncedSearch],
+		queryFn: () => searchThreads(workspaceId, debouncedSearch.trim()),
 		staleTime: 60 * 1000,
-		enabled: enableChatMentions && !!searchSpaceId && (view.kind === "chats" || hasSearch),
+		enabled: enableChatMentions && !!workspaceId && (view.kind === "chats" || hasSearch),
 		placeholderData: keepPreviousData,
 	});
 	const threadMentions = useMemo(
@@ -425,7 +425,7 @@ export const DocumentMentionPicker = forwardRef<
 		[recentDocMentions]
 	);
 	const { data: hydratedRecentDocs = [], isFetched: hasHydratedRecentDocs } = useQuery({
-		queryKey: ["composer-mention-recent-docs", searchSpaceId, recentDocIdsKey],
+		queryKey: ["composer-mention-recent-docs", workspaceId, recentDocIdsKey],
 		queryFn: async () => {
 			const results = await Promise.allSettled(
 				recentDocMentions.map((mention) => documentsApiService.getDocument({ id: mention.id }))

@@ -28,14 +28,14 @@ async def _seed(
     title: str = "Title",
     message: str = "Message",
     read: bool = False,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     metadata: dict | None = None,
     created_at: datetime | None = None,
 ) -> Notification:
     """Insert a notification row directly for the API tests to read back."""
     notification = Notification(
         user_id=user.id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         type=type,
         title=title,
         message=message,

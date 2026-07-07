@@ -48,14 +48,14 @@ async def test_retriever_wrapper_records_one_span_and_metric(monkeypatch) -> Non
             self,
             query_text: str,
             top_k: int,
-            search_space_id: int,
+            workspace_id: int,
         ) -> list[str]:
-            del query_text, top_k, search_space_id
+            del query_text, top_k, workspace_id
             return ["doc-1", "doc-2"]
 
     result = await Retriever().search("hello", 3, 42)
 
     assert result == ["doc-1", "doc-2"]
     assert len(calls) == 1
-    assert calls[0]["search_space_id"] == 42
+    assert calls[0]["workspace_id"] == 42
     assert calls[0]["surface"] == "documents"

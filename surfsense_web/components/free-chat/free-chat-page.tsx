@@ -117,7 +117,6 @@ export function FreeChatPage() {
 	const anonMode = useAnonymousMode();
 	const modelSlug = anonMode.isAnonymous ? anonMode.modelSlug : "";
 	const resetKey = anonMode.isAnonymous ? anonMode.resetKey : 0;
-	const webSearchEnabled = anonMode.isAnonymous ? anonMode.webSearchEnabled : true;
 
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
@@ -173,7 +172,6 @@ export function FreeChatPage() {
 				model_slug: modelSlug,
 				messages: messageHistory,
 			};
-			if (!webSearchEnabled) reqBody.disabled_tools = ["web_search"];
 			if (turnstileToken) reqBody.turnstile_token = turnstileToken;
 
 			const response = await fetch(buildBackendUrl("/api/v1/public/anon-chat/stream"), {
@@ -323,7 +321,7 @@ export function FreeChatPage() {
 				throw err;
 			}
 		},
-		[modelSlug, tokenUsageStore, webSearchEnabled]
+		[modelSlug, tokenUsageStore]
 	);
 
 	const onNew = useCallback(

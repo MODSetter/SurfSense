@@ -17,7 +17,7 @@ class AutomationCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    search_space_id: int
+    workspace_id: int
     name: str = Field(..., min_length=1, max_length=200)
     description: str | None = None
     definition: AutomationDefinition
@@ -41,7 +41,7 @@ class AutomationSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    search_space_id: int
+    workspace_id: int
     name: str
     description: str | None = None
     status: AutomationStatus

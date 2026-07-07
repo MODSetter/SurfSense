@@ -15,6 +15,7 @@ registering it in ``registry.py``.
 """
 
 from abc import ABC, abstractmethod
+from urllib.parse import urlsplit
 
 
 class ProxyProvider(ABC):
@@ -27,12 +28,33 @@ class ProxyProvider(ABC):
     def get_proxy_url(self) -> str | None:
         """Return ``http://user:pass@host:port`` (no trailing slash), or ``None``.
 
-        This is the canonical form Scrapling/curl_cffi consume directly.
+        This is the canonical form Scrapling/curl_cffi consume directly, and the
+        single source every provider must supply — the ``requests`` and Playwright
+        shapes below are derived from it.
         """
 
-    @abstractmethod
     def get_playwright_proxy(self) -> dict[str, str] | None:
-        """Return a Playwright proxy dict, or ``None`` when not configured."""
+        """Return a Playwright ``{"server","username","password"}`` dict, or ``None``.
+
+        Parsed from :meth:`get_proxy_url` (the canonical URL) by default, since
+        every provider's credentials already live in that URL. Override only for a
+        vendor whose Playwright form can't be expressed as a parse of the URL.
+        """
+        proxy_url = self.get_proxy_url()
+        if not proxy_url:
+            return None
+        parts = urlsplit(proxy_url)
+        if not parts.hostname:
+            return None
+        server = f"{parts.scheme or 'http'}://{parts.hostname}"
+        if parts.port:
+            server = f"{server}:{parts.port}"
+        proxy: dict[str, str] = {"server": server}
+        if parts.username:
+            proxy["username"] = parts.username
+        if parts.password:
+            proxy["password"] = parts.password
+        return proxy
 
     def get_requests_proxies(self) -> dict[str, str] | None:
         """Return a ``requests``/``aiohttp`` proxies dict, or ``None``.
@@ -44,3 +66,26 @@ class ProxyProvider(ABC):
         if proxy_url is None:
             return None
         return {"http": proxy_url, "https": proxy_url}
+
+    def get_location(self) -> str:
+        """Return the proxy's configured exit region (e.g. ``"us"``), or ``""``.
+
+        Vendor-agnostic hook the crawler's geoip-match (``03e``) uses to align the
+        browser locale/timezone with the exit IP's country. Default ``""``
+        (unknown) for providers that don't pin a region (e.g. BYO ``custom`` URLs,
+        where the region is baked opaquely into the URL). Override in providers
+        that hold the region as a discrete field.
+        """
+        return ""
+
+    @property
+    def is_pool_backed(self) -> bool:
+        """Whether this provider rotates across a *client-side* pool of endpoints.
+
+        ``False`` for single-endpoint providers (including server-side rotating
+        gateways like ``dataimpulse``, whose rotation happens upstream). The
+        crawler performs its bounded proxy-error rotation-retry **only** when this
+        is ``True`` — retrying a single static endpoint would just re-hit the same
+        dead proxy.
+        """
+        return False

@@ -23,9 +23,9 @@ class CreateNoteRequest(BaseModel):
     source_markdown: str | None = None
 
 
-@router.post("/search-spaces/{search_space_id}/notes", response_model=DocumentRead)
+@router.post("/workspaces/{workspace_id}/notes", response_model=DocumentRead)
 async def create_note(
-    search_space_id: int,
+    workspace_id: int,
     request: CreateNoteRequest,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -40,9 +40,9 @@ async def create_note(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_CREATE.value,
-        "You don't have permission to create notes in this search space",
+        "You don't have permission to create notes in this workspace",
     )
 
     if not request.title or not request.title.strip():
@@ -58,7 +58,7 @@ async def create_note(
 
     # Create document with NOTE type
     document = Document(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         title=request.title.strip(),
         document_type=DocumentType.NOTE,
         content="",  # Empty initially, will be populated on first save/reindex
@@ -83,7 +83,7 @@ async def create_note(
         content_hash=document.content_hash,
         unique_identifier_hash=document.unique_identifier_hash,
         document_metadata=document.document_metadata,
-        search_space_id=document.search_space_id,
+        workspace_id=document.workspace_id,
         created_at=document.created_at,
         updated_at=document.updated_at,
         created_by_id=document.created_by_id,
@@ -91,11 +91,11 @@ async def create_note(
 
 
 @router.get(
-    "/search-spaces/{search_space_id}/notes",
+    "/workspaces/{workspace_id}/notes",
     response_model=PaginatedResponse[DocumentRead],
 )
 async def list_notes(
-    search_space_id: int,
+    workspace_id: int,
     skip: int | None = None,
     page: int | None = None,
     page_size: int = 50,
@@ -103,7 +103,7 @@ async def list_notes(
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    List all notes in a search space.
+    List all notes in a workspace.
 
     Requires DOCUMENTS_READ permission.
     """
@@ -111,16 +111,16 @@ async def list_notes(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read notes in this search space",
+        "You don't have permission to read notes in this workspace",
     )
 
     from sqlalchemy import func
 
     # Build query
     query = select(Document).where(
-        Document.search_space_id == search_space_id,
+        Document.workspace_id == workspace_id,
         Document.document_type == DocumentType.NOTE,
     )
 
@@ -128,7 +128,7 @@ async def list_notes(
     count_query = select(func.count()).select_from(
         select(Document)
         .where(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.document_type == DocumentType.NOTE,
         )
         .subquery()
@@ -164,7 +164,7 @@ async def list_notes(
             content_hash=doc.content_hash,
             unique_identifier_hash=doc.unique_identifier_hash,
             document_metadata=doc.document_metadata,
-            search_space_id=doc.search_space_id,
+            workspace_id=doc.workspace_id,
             created_at=doc.created_at,
             updated_at=doc.updated_at,
         )
@@ -188,9 +188,9 @@ async def list_notes(
     )
 
 
-@router.delete("/search-spaces/{search_space_id}/notes/{note_id}")
+@router.delete("/workspaces/{workspace_id}/notes/{note_id}")
 async def delete_note(
-    search_space_id: int,
+    workspace_id: int,
     note_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -204,16 +204,16 @@ async def delete_note(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_DELETE.value,
-        "You don't have permission to delete notes in this search space",
+        "You don't have permission to delete notes in this workspace",
     )
 
     # Get document
     result = await session.execute(
         select(Document).where(
             Document.id == note_id,
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.document_type == DocumentType.NOTE,
         )
     )

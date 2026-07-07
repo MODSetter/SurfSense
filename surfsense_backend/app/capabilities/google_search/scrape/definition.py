@@ -1,0 +1,25 @@
+"""``google_search.scrape`` capability registration (billed per SERP page; see
+config ``GOOGLE_SEARCH_MICROS_PER_SERP``)."""
+
+from __future__ import annotations
+
+from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.google_search.scrape.executor import build_scrape_executor
+from app.capabilities.google_search.scrape.schemas import ScrapeInput, ScrapeOutput
+
+GOOGLE_SEARCH_SCRAPE = Capability(
+    name="google_search.scrape",
+    description=(
+        "Search Google and return structured results. Give it search terms "
+        "(optionally scoped by country/language or to a single site) or full "
+        "Google Search URLs, and it returns SERP items — organic results "
+        "(title, url, description), related queries, people-also-ask, and any "
+        "AI overview. Use max_pages_per_query to page deeper."
+    ),
+    input_schema=ScrapeInput,
+    output_schema=ScrapeOutput,
+    executor=build_scrape_executor(),
+    billing_unit=BillingUnit.GOOGLE_SEARCH_SERP,
+)
+
+register_capability(GOOGLE_SEARCH_SCRAPE)

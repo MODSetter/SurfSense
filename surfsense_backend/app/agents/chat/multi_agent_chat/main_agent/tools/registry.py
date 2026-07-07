@@ -21,25 +21,12 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from app.agents.chat.shared.tools.web_search import create_web_search_tool
 from app.db import ChatVisibility
 
-from .scrape_webpage import create_scrape_webpage_tool
 from .update_memory import (
     create_update_memory_tool,
     create_update_team_memory_tool,
 )
-
-
-def _build_scrape_webpage_tool(deps: dict[str, Any]) -> BaseTool:
-    return create_scrape_webpage_tool(firecrawl_api_key=deps.get("firecrawl_api_key"))
-
-
-def _build_web_search_tool(deps: dict[str, Any]) -> BaseTool:
-    return create_web_search_tool(
-        search_space_id=deps.get("search_space_id"),
-        available_connectors=deps.get("available_connectors"),
-    )
 
 
 def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
@@ -49,7 +36,7 @@ def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
     from .automation import create_create_automation_tool
 
     return create_create_automation_tool(
-        search_space_id=deps["search_space_id"],
+        workspace_id=deps["workspace_id"],
         user_id=deps["user_id"],
         auth_context=deps.get("auth_context"),
         llm=deps["llm"],
@@ -59,7 +46,7 @@ def _build_create_automation_tool(deps: dict[str, Any]) -> BaseTool:
 def _build_update_memory_tool(deps: dict[str, Any]) -> BaseTool:
     if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE:
         return create_update_team_memory_tool(
-            search_space_id=deps["search_space_id"],
+            workspace_id=deps["workspace_id"],
             db_session=deps["db_session"],
             llm=deps.get("llm"),
         )
@@ -71,20 +58,18 @@ def _build_update_memory_tool(deps: dict[str, Any]) -> BaseTool:
 
 
 # Ordered to match the historical main-agent binding order:
-# scrape_webpage, web_search, create_automation, update_memory.
+# create_automation, update_memory.
 # Each entry is ``(factory, required_dependency_names)``.
 _MAIN_AGENT_TOOL_FACTORIES: dict[
     str, tuple[Callable[[dict[str, Any]], BaseTool], tuple[str, ...]]
 ] = {
-    "scrape_webpage": (_build_scrape_webpage_tool, ()),
-    "web_search": (_build_web_search_tool, ()),
     "create_automation": (
         _build_create_automation_tool,
-        ("search_space_id", "user_id", "llm"),
+        ("workspace_id", "user_id", "llm"),
     ),
     "update_memory": (
         _build_update_memory_tool,
-        ("user_id", "search_space_id", "db_session", "thread_visibility", "llm"),
+        ("user_id", "workspace_id", "db_session", "thread_visibility", "llm"),
     ),
 }
 

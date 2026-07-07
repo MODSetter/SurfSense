@@ -65,7 +65,7 @@ def _ensure_credit_buying_enabled() -> None:
         )
 
 
-def _get_checkout_urls(search_space_id: int) -> tuple[str, str]:
+def _get_checkout_urls(workspace_id: int) -> tuple[str, str]:
     if not config.NEXT_FRONTEND_URL:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -79,10 +79,10 @@ def _get_checkout_urls(search_space_id: int) -> tuple[str, str]:
     # webhook-vs-redirect race where users land on /purchase-success before
     # checkout.session.completed has been delivered.
     success_url = (
-        f"{base_url}/dashboard/{search_space_id}/purchase-success"
+        f"{base_url}/dashboard/{workspace_id}/purchase-success"
         f"?session_id={{CHECKOUT_SESSION_ID}}"
     )
-    cancel_url = f"{base_url}/dashboard/{search_space_id}/purchase-cancel"
+    cancel_url = f"{base_url}/dashboard/{workspace_id}/purchase-cancel"
     return success_url, cancel_url
 
 
@@ -471,7 +471,7 @@ async def create_credit_checkout_session(
     _ensure_credit_buying_enabled()
     stripe_client = get_stripe_client()
     price_id = _get_required_credit_price_id()
-    success_url, cancel_url = _get_checkout_urls(body.search_space_id)
+    success_url, cancel_url = _get_checkout_urls(body.workspace_id)
     credit_micros_granted = body.quantity * config.STRIPE_CREDIT_MICROS_PER_UNIT
 
     try:
@@ -832,11 +832,11 @@ async def create_auto_reload_setup_session(
 
     base_url = config.NEXT_FRONTEND_URL.rstrip("/")
     success_url = (
-        f"{base_url}/dashboard/{body.search_space_id}/user-settings/purchases"
+        f"{base_url}/dashboard/{body.workspace_id}/user-settings/purchases"
         f"?auto_reload_setup=success"
     )
     cancel_url = (
-        f"{base_url}/dashboard/{body.search_space_id}/user-settings/purchases"
+        f"{base_url}/dashboard/{body.workspace_id}/user-settings/purchases"
         f"?auto_reload_setup=cancel"
     )
 

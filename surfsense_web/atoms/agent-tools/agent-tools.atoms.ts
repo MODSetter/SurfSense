@@ -2,7 +2,7 @@ import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import { agentToolsApiService } from "@/lib/apis/agent-tools-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "../workspaces/workspace-query.atoms";
 
 export const agentToolsAtom = atomWithQuery((_get) => ({
 	queryKey: cacheKeys.agentTools.all(),
@@ -12,78 +12,78 @@ export const agentToolsAtom = atomWithQuery((_get) => ({
 
 const STORAGE_PREFIX = "surfsense-disabled-tools-";
 
-function loadDisabledTools(searchSpaceId: string): string[] {
+function loadDisabledTools(workspaceId: string): string[] {
 	if (typeof window === "undefined") return [];
 	try {
-		const raw = localStorage.getItem(`${STORAGE_PREFIX}${searchSpaceId}`);
+		const raw = localStorage.getItem(`${STORAGE_PREFIX}${workspaceId}`);
 		return raw ? (JSON.parse(raw) as string[]) : [];
 	} catch {
 		return [];
 	}
 }
 
-function saveDisabledTools(searchSpaceId: string, tools: string[]) {
+function saveDisabledTools(workspaceId: string, tools: string[]) {
 	if (typeof window === "undefined") return;
 	if (tools.length === 0) {
-		localStorage.removeItem(`${STORAGE_PREFIX}${searchSpaceId}`);
+		localStorage.removeItem(`${STORAGE_PREFIX}${workspaceId}`);
 	} else {
-		localStorage.setItem(`${STORAGE_PREFIX}${searchSpaceId}`, JSON.stringify(tools));
+		localStorage.setItem(`${STORAGE_PREFIX}${workspaceId}`, JSON.stringify(tools));
 	}
 }
 
 const disabledToolsBaseAtom = atom<string[]>([]);
 
-/** Tracks whether the atom has been hydrated from localStorage for the current search space */
+/** Tracks whether the atom has been hydrated from localStorage for the current workspace */
 const hydratedForAtom = atom<string | null>(null);
 
 /**
  * Read/write atom for the set of disabled tool names.
- * Persists to localStorage keyed by search space ID.
+ * Persists to localStorage keyed by workspace ID.
  */
 export const disabledToolsAtom = atom(
 	(get) => {
-		const searchSpaceId = get(activeSearchSpaceIdAtom);
+		const workspaceId = get(activeWorkspaceIdAtom);
 		const hydratedFor = get(hydratedForAtom);
-		if (searchSpaceId && hydratedFor !== searchSpaceId) {
-			return loadDisabledTools(searchSpaceId);
+		if (workspaceId && hydratedFor !== workspaceId) {
+			return loadDisabledTools(workspaceId);
 		}
 		return get(disabledToolsBaseAtom);
 	},
 	(get, set, update: string[] | ((prev: string[]) => string[])) => {
-		const searchSpaceId = get(activeSearchSpaceIdAtom);
+		const workspaceId = get(activeWorkspaceIdAtom);
 		const prev = get(disabledToolsBaseAtom);
 		const next = typeof update === "function" ? update(prev) : update;
 		set(disabledToolsBaseAtom, next);
-		set(hydratedForAtom, searchSpaceId);
-		if (searchSpaceId) {
-			saveDisabledTools(searchSpaceId, next);
+		set(hydratedForAtom, workspaceId);
+		if (workspaceId) {
+			saveDisabledTools(workspaceId, next);
 		}
 	}
 );
 
 /**
- * Hydrate disabled tools from localStorage when search space changes.
- * Call this from a useEffect in a component that has access to the search space.
+ * Hydrate disabled tools from localStorage when workspace changes.
+ * Call this from a useEffect in a component that has access to the workspace.
  */
 export const hydrateDisabledToolsAtom = atom(null, (get, set) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	if (!searchSpaceId) return;
-	const stored = loadDisabledTools(searchSpaceId);
+	const workspaceId = get(activeWorkspaceIdAtom);
+	if (!workspaceId) return;
+	const stored = loadDisabledTools(workspaceId);
 	set(disabledToolsBaseAtom, stored);
-	set(hydratedForAtom, searchSpaceId);
+	set(hydratedForAtom, workspaceId);
 });
 
 /** Toggle a single tool's enabled/disabled state */
 export const toggleToolAtom = atom(null, (get, set, toolName: string) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	const current = get(disabledToolsBaseAtom);
 	const next = current.includes(toolName)
 		? current.filter((t) => t !== toolName)
 		: [...current, toolName];
 	set(disabledToolsBaseAtom, next);
-	set(hydratedForAtom, searchSpaceId);
-	if (searchSpaceId) {
-		saveDisabledTools(searchSpaceId, next);
+	set(hydratedForAtom, workspaceId);
+	if (workspaceId) {
+		saveDisabledTools(workspaceId, next);
 	}
 });
 

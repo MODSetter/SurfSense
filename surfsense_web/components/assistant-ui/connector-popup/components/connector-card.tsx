@@ -23,6 +23,7 @@ interface ConnectorCardProps {
 	accountCount?: number;
 	connectorCount?: number;
 	isIndexing?: boolean;
+	deprecated?: boolean;
 	onConnect?: () => void;
 	onManage?: () => void;
 }
@@ -52,11 +53,15 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	accountCount,
 	connectorCount,
 	isIndexing = false,
+	deprecated = false,
 	onConnect,
 	onManage,
 }) => {
 	const isMCP = connectorType === EnumConnectorName.MCP_CONNECTOR;
 	const isLive = !!connectorType && LIVE_CONNECTOR_TYPES.has(connectorType);
+	// Deprecated connectors can no longer be connected, but existing rows stay
+	// manageable (so users can disconnect them).
+	const isDeprecatedForConnect = deprecated && !isConnected;
 	// Get connector status
 	const { getConnectorStatus, isConnectorEnabled, getConnectorStatusMessage, shouldShowWarnings } =
 		useConnectorStatus();
@@ -71,6 +76,10 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		if (isConnected) {
 			// Don't show last indexed in overview tabs - only show in accounts list view
 			return null;
+		}
+
+		if (isDeprecatedForConnect) {
+			return "Deprecated — no longer available to connect.";
 		}
 
 		return description;
@@ -104,12 +113,19 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-1.5">
 					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
-					{showWarnings && status.status !== "active" && (
-						<ConnectorStatusBadge
-							status={status.status}
-							statusMessage={statusMessage}
-							className="flex-shrink-0"
-						/>
+					{deprecated ? (
+						<span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+							Deprecated
+						</span>
+					) : (
+						showWarnings &&
+						status.status !== "active" && (
+							<ConnectorStatusBadge
+								status={status.status}
+								statusMessage={statusMessage}
+								className="flex-shrink-0"
+							/>
+						)
 					)}
 				</div>
 				{isIndexing ? (
@@ -151,18 +167,20 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					!isConnected && "shadow-xs"
 				)}
 				onClick={isConnected ? onManage : onConnect}
-				disabled={isConnecting || !isEnabled}
+				disabled={isConnecting || !isEnabled || isDeprecatedForConnect}
 			>
 				<span className={isConnecting ? "opacity-0" : ""}>
-					{!isEnabled
-						? "Unavailable"
-						: isConnected
-							? "Manage"
-							: id === "youtube-crawler"
-								? "Add"
-								: connectorType
-									? "Connect"
-									: "Add"}
+					{isDeprecatedForConnect
+						? "Deprecated"
+						: !isEnabled
+							? "Unavailable"
+							: isConnected
+								? "Manage"
+								: id === "youtube-crawler"
+									? "Add"
+									: connectorType
+										? "Connect"
+										: "Add"}
 				</span>
 				{isConnecting && <Spinner size="xs" className="absolute" />}
 			</Button>

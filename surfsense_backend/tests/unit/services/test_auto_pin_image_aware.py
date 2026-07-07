@@ -76,7 +76,7 @@ class _FakeSession:
 
 
 def _thread(*, pinned: int | None = None):
-    return SimpleNamespace(id=1, search_space_id=10, pinned_llm_config_id=pinned)
+    return SimpleNamespace(id=1, workspace_id=10, pinned_llm_config_id=pinned)
 
 
 def _set_global_llm_configs(monkeypatch, config, configs: list[dict]):
@@ -179,7 +179,7 @@ async def test_image_turn_filters_out_text_only_candidates(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id=None,
         selected_llm_config_id=0,
         requires_image_input=True,
@@ -207,7 +207,7 @@ async def test_image_turn_force_repins_stale_text_only_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id=None,
         selected_llm_config_id=0,
         requires_image_input=True,
@@ -239,7 +239,7 @@ async def test_image_turn_reuses_existing_vision_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id=None,
         selected_llm_config_id=0,
         requires_image_input=True,
@@ -269,7 +269,7 @@ async def test_image_turn_with_no_vision_candidates_raises(monkeypatch):
         await resolve_or_get_pinned_llm_config_id(
             session,
             thread_id=1,
-            search_space_id=10,
+            workspace_id=10,
             user_id=None,
             selected_llm_config_id=0,
             requires_image_input=True,
@@ -292,7 +292,7 @@ async def test_non_image_turn_keeps_text_only_in_pool(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id=None,
         selected_llm_config_id=0,
     )
@@ -326,7 +326,7 @@ async def test_image_turn_unannotated_cfg_resolves_via_helper(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id=None,
         selected_llm_config_id=0,
         requires_image_input=True,

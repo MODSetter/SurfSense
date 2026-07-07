@@ -16,8 +16,8 @@ from app.db import (
     DocumentVersion,
     Folder,
     Permission,
-    SearchSpace,
-    SearchSpaceMembership,
+    Workspace,
+    WorkspaceMembership,
     get_async_session,
 )
 from app.schemas import (
@@ -72,9 +72,9 @@ async def create_documents(
         await check_permission(
             session,
             auth,
-            request.search_space_id,
+            request.workspace_id,
             Permission.DOCUMENTS_CREATE.value,
-            "You don't have permission to create documents in this search space",
+            "You don't have permission to create documents in this workspace",
         )
 
         if request.document_type == DocumentType.EXTENSION:
@@ -96,14 +96,7 @@ async def create_documents(
                     "pageContent": individual_document.pageContent,
                 }
                 process_extension_document_task.delay(
-                    document_dict, request.search_space_id, str(user.id)
-                )
-        elif request.document_type == DocumentType.YOUTUBE_VIDEO:
-            from app.tasks.celery_tasks.document_tasks import process_youtube_video_task
-
-            for url in request.content:
-                process_youtube_video_task.delay(
-                    url, request.search_space_id, str(user.id)
+                    document_dict, request.workspace_id, str(user.id)
                 )
         else:
             raise HTTPException(status_code=400, detail="Invalid document type")
@@ -125,7 +118,7 @@ async def create_documents(
 @router.post("/documents/fileupload")
 async def create_documents_file_upload(
     files: list[UploadFile],
-    search_space_id: int = Form(...),
+    workspace_id: int = Form(...),
     use_vision_llm: bool = Form(False),
     processing_mode: str = Form("basic"),
     session: AsyncSession = Depends(get_async_session),
@@ -162,9 +155,9 @@ async def create_documents_file_upload(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.DOCUMENTS_CREATE.value,
-            "You don't have permission to create documents in this search space",
+            "You don't have permission to create documents in this workspace",
         )
 
         if not files:
@@ -216,7 +209,7 @@ async def create_documents_file_upload(
         for temp_path, filename, file_size, content_type in saved_files:
             try:
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.FILE, filename, search_space_id
+                    DocumentType.FILE, filename, workspace_id
                 )
 
                 existing = await check_document_by_unique_identifier(
@@ -244,7 +237,7 @@ async def create_documents_file_upload(
                     continue
 
                 document = Document(
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     title=filename if filename != "unknown" else "Uploaded File",
                     document_type=DocumentType.FILE,
                     document_metadata={
@@ -288,7 +281,7 @@ async def create_documents_file_upload(
                 await store_document_file(
                     session,
                     document_id=document.id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     data=original_bytes,
                     filename=filename,
                     mime_type=content_type,
@@ -308,7 +301,7 @@ async def create_documents_file_upload(
                 document_id=document.id,
                 temp_path=temp_path,
                 filename=filename,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=str(user.id),
                 use_vision_llm=use_vision_llm,
                 processing_mode=validated_mode.value,
@@ -336,7 +329,7 @@ async def read_documents(
     skip: int | None = None,
     page: int | None = None,
     page_size: int = 50,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     document_types: str | None = None,
     folder_id: int | str | None = None,
     sort_by: str = "created_at",
@@ -347,13 +340,13 @@ async def read_documents(
     user = auth.user
     """
     List documents the user has access to, with optional filtering and pagination.
-    Requires DOCUMENTS_READ permission for the search space(s).
+    Requires DOCUMENTS_READ permission for the workspace(s).
 
     Args:
         skip: Absolute number of items to skip from the beginning. If provided, it takes precedence over 'page'.
         page: Zero-based page index used when 'skip' is not provided.
         page_size: Number of items per page (default: 50). Use -1 to return all remaining items after the offset.
-        search_space_id: If provided, restrict results to a specific search space.
+        workspace_id: If provided, restrict results to a specific workspace.
         document_types: Comma-separated list of document types to filter by (e.g., "EXTENSION,FILE,SLACK_CONNECTOR").
         session: Database session (injected).
         user: Current authenticated user (injected).
@@ -363,45 +356,45 @@ async def read_documents(
 
     Notes:
         - If both 'skip' and 'page' are provided, 'skip' is used.
-        - Results are scoped to documents in search spaces the user has membership in.
+        - Results are scoped to documents in workspaces the user has membership in.
     """
     try:
         from sqlalchemy import func
 
-        # If specific search_space_id, check permission
-        if search_space_id is not None:
+        # If specific workspace_id, check permission
+        if workspace_id is not None:
             await check_permission(
                 session,
                 auth,
-                search_space_id,
+                workspace_id,
                 Permission.DOCUMENTS_READ.value,
-                "You don't have permission to read documents in this search space",
+                "You don't have permission to read documents in this workspace",
             )
             query = (
                 select(Document)
                 .options(selectinload(Document.created_by))
-                .filter(Document.search_space_id == search_space_id)
+                .filter(Document.workspace_id == workspace_id)
             )
             count_query = (
                 select(func.count())
                 .select_from(Document)
-                .filter(Document.search_space_id == search_space_id)
+                .filter(Document.workspace_id == workspace_id)
             )
         else:
-            # Get documents from all search spaces user has membership in
+            # Get documents from all workspaces user has membership in
             query = (
                 select(Document)
                 .options(selectinload(Document.created_by))
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
             )
             count_query = (
                 select(func.count())
                 .select_from(Document)
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
             )
 
         # Filter by document_types if provided
@@ -483,7 +476,7 @@ async def read_documents(
                     unique_identifier_hash=doc.unique_identifier_hash,
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
-                    search_space_id=doc.search_space_id,
+                    workspace_id=doc.workspace_id,
                     folder_id=doc.folder_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
@@ -519,22 +512,22 @@ async def search_documents(
     skip: int | None = None,
     page: int | None = None,
     page_size: int = 50,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     document_types: str | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     """
-    Search documents by title substring, optionally filtered by search_space_id and document_types.
-    Requires DOCUMENTS_READ permission for the search space(s).
+    Search documents by title substring, optionally filtered by workspace_id and document_types.
+    Requires DOCUMENTS_READ permission for the workspace(s).
 
     Args:
         title: Case-insensitive substring to match against document titles. Required.
         skip: Absolute number of items to skip from the beginning. If provided, it takes precedence over 'page'. Default: None.
         page: Zero-based page index used when 'skip' is not provided. Default: None.
         page_size: Number of items per page. Use -1 to return all remaining items after the offset. Default: 50.
-        search_space_id: Filter results to a specific search space. Default: None.
+        workspace_id: Filter results to a specific workspace. Default: None.
         document_types: Comma-separated list of document types to filter by (e.g., "EXTENSION,FILE,SLACK_CONNECTOR").
         session: Database session (injected).
         user: Current authenticated user (injected).
@@ -549,40 +542,40 @@ async def search_documents(
     try:
         from sqlalchemy import func
 
-        # If specific search_space_id, check permission
-        if search_space_id is not None:
+        # If specific workspace_id, check permission
+        if workspace_id is not None:
             await check_permission(
                 session,
                 auth,
-                search_space_id,
+                workspace_id,
                 Permission.DOCUMENTS_READ.value,
-                "You don't have permission to read documents in this search space",
+                "You don't have permission to read documents in this workspace",
             )
             query = (
                 select(Document)
                 .options(selectinload(Document.created_by))
-                .filter(Document.search_space_id == search_space_id)
+                .filter(Document.workspace_id == workspace_id)
             )
             count_query = (
                 select(func.count())
                 .select_from(Document)
-                .filter(Document.search_space_id == search_space_id)
+                .filter(Document.workspace_id == workspace_id)
             )
         else:
-            # Get documents from all search spaces user has membership in
+            # Get documents from all workspaces user has membership in
             query = (
                 select(Document)
                 .options(selectinload(Document.created_by))
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
             )
             count_query = (
                 select(func.count())
                 .select_from(Document)
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
             )
 
         # Only search by title (case-insensitive)
@@ -644,7 +637,7 @@ async def search_documents(
                     unique_identifier_hash=doc.unique_identifier_hash,
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
-                    search_space_id=doc.search_space_id,
+                    workspace_id=doc.workspace_id,
                     folder_id=doc.folder_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
@@ -674,9 +667,105 @@ async def search_documents(
         ) from e
 
 
+class SemanticSearchRequest(PydanticBaseModel):
+    """Request body for hybrid (semantic + keyword) knowledge-base search."""
+
+    workspace_id: int
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+    document_types: list[str] | None = Field(
+        default=None,
+        description="Optional DocumentType names to restrict the search to.",
+    )
+
+
+class SemanticSearchChunk(PydanticBaseModel):
+    content: str
+    position: int
+    score: float
+
+
+class SemanticSearchHit(PydanticBaseModel):
+    document_id: int
+    title: str
+    document_type: str | None = None
+    score: float
+    chunks: list[SemanticSearchChunk]
+
+
+class SemanticSearchResponse(PydanticBaseModel):
+    items: list[SemanticSearchHit]
+
+
+@router.post("/documents/search-semantic", response_model=SemanticSearchResponse)
+async def search_documents_semantic(
+    request: SemanticSearchRequest,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """Hybrid semantic + keyword search over a workspace's knowledge base.
+
+    Thin REST door onto the same retriever the chat agent uses: returns the most
+    relevant documents with their matching passages, ranked by relevance.
+    Requires DOCUMENTS_READ permission for the workspace.
+    """
+    # Local import: the retriever pulls in the embedding model + agent stack,
+    # so keep it out of module import (mirrors the celery-task imports here).
+    from app.agents.chat.multi_agent_chat.shared.retrieval.hybrid_search import (
+        search_chunks,
+    )
+    from app.agents.chat.multi_agent_chat.shared.retrieval.models import SearchScope
+
+    await check_permission(
+        session,
+        auth,
+        request.workspace_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this workspace",
+    )
+
+    scope = SearchScope(
+        document_types=tuple(request.document_types)
+        if request.document_types
+        else None,
+    )
+    try:
+        hits = await search_chunks(
+            session,
+            workspace_id=request.workspace_id,
+            query=request.query,
+            scope=scope,
+            top_k=request.top_k,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Semantic search failed: {e!s}"
+        ) from e
+
+    return SemanticSearchResponse(
+        items=[
+            SemanticSearchHit(
+                document_id=hit.document_id,
+                title=hit.title,
+                document_type=hit.document_type,
+                score=hit.score,
+                chunks=[
+                    SemanticSearchChunk(
+                        content=chunk.content,
+                        position=chunk.position,
+                        score=chunk.score,
+                    )
+                    for chunk in hit.chunks
+                ],
+            )
+            for hit in hits
+        ]
+    )
+
+
 @router.get("/documents/search/titles", response_model=DocumentTitleSearchResponse)
 async def search_document_titles(
-    search_space_id: int,
+    workspace_id: int,
     title: str = "",
     page: int = 0,
     page_size: int = 20,
@@ -691,7 +780,7 @@ async def search_document_titles(
     Results are ordered by relevance using trigram similarity scores.
 
     Args:
-        search_space_id: The search space to search in. Required.
+        workspace_id: The workspace to search in. Required.
         title: Search query (case-insensitive). If empty or < 2 chars, returns recent documents.
         page: Zero-based page index. Default: 0.
         page_size: Number of items per page. Default: 20.
@@ -704,13 +793,13 @@ async def search_document_titles(
     from sqlalchemy import desc, func, or_
 
     try:
-        # Check permission for the search space
+        # Check permission for the workspace
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read documents in this search space",
+            "You don't have permission to read documents in this workspace",
         )
 
         # Base query - only select lightweight fields
@@ -718,7 +807,7 @@ async def search_document_titles(
             Document.id,
             Document.title,
             Document.document_type,
-        ).filter(Document.search_space_id == search_space_id)
+        ).filter(Document.workspace_id == workspace_id)
 
         # If query is too short, return recent documents ordered by updated_at
         if len(title.strip()) < 2:
@@ -782,7 +871,7 @@ async def search_document_titles(
 
 @router.get("/documents/by-virtual-path", response_model=DocumentTitleRead)
 async def get_document_by_virtual_path(
-    search_space_id: int,
+    workspace_id: int,
     virtual_path: str,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -809,14 +898,14 @@ async def get_document_by_virtual_path(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read documents in this search space",
+            "You don't have permission to read documents in this workspace",
         )
 
         document = await virtual_path_to_doc(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             virtual_path=virtual_path,
         )
         if document is None:
@@ -839,13 +928,13 @@ async def get_document_by_virtual_path(
 
 @router.get("/documents/status", response_model=DocumentStatusBatchResponse)
 async def get_documents_status(
-    search_space_id: int,
+    workspace_id: int,
     document_ids: str,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     """
-    Batch status endpoint for documents in a search space.
+    Batch status endpoint for documents in a workspace.
 
     Returns lightweight status info for the provided document IDs, intended for
     polling async ETL progress in chat upload flows.
@@ -854,9 +943,9 @@ async def get_documents_status(
         await check_permission(
             session,
             auth,
-            search_space_id,
+            workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read documents in this search space",
+            "You don't have permission to read documents in this workspace",
         )
 
         # Parse comma-separated IDs (e.g. "1,2,3")
@@ -878,7 +967,7 @@ async def get_documents_status(
 
         result = await session.execute(
             select(Document).filter(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.id.in_(parsed_ids),
             )
         )
@@ -907,17 +996,17 @@ async def get_documents_status(
 
 @router.get("/documents/type-counts")
 async def get_document_type_counts(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
     user = auth.user
     """
-    Get counts of documents by type for search spaces the user has access to.
-    Requires DOCUMENTS_READ permission for the search space(s).
+    Get counts of documents by type for workspaces the user has access to.
+    Requires DOCUMENTS_READ permission for the workspace(s).
 
     Args:
-        search_space_id: If provided, restrict counts to a specific search space.
+        workspace_id: If provided, restrict counts to a specific workspace.
         session: Database session (injected).
         user: Current authenticated user (injected).
 
@@ -927,27 +1016,27 @@ async def get_document_type_counts(
     try:
         from sqlalchemy import func
 
-        if search_space_id is not None:
-            # Check permission for specific search space
+        if workspace_id is not None:
+            # Check permission for specific workspace
             await check_permission(
                 session,
                 auth,
-                search_space_id,
+                workspace_id,
                 Permission.DOCUMENTS_READ.value,
-                "You don't have permission to read documents in this search space",
+                "You don't have permission to read documents in this workspace",
             )
             query = (
                 select(Document.document_type, func.count(Document.id))
-                .filter(Document.search_space_id == search_space_id)
+                .filter(Document.workspace_id == workspace_id)
                 .group_by(Document.document_type)
             )
         else:
-            # Get counts from all search spaces user has membership in
+            # Get counts from all workspaces user has membership in
             query = (
                 select(Document.document_type, func.count(Document.id))
-                .join(SearchSpace)
-                .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .join(Workspace)
+                .join(WorkspaceMembership)
+                .filter(WorkspaceMembership.user_id == user.id)
                 .group_by(Document.document_type)
             )
 
@@ -1001,9 +1090,9 @@ async def get_document_by_chunk_id(
         await check_permission(
             session,
             auth,
-            document.search_space_id,
+            document.workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read documents in this search space",
+            "You don't have permission to read documents in this workspace",
         )
 
         total_result = await session.execute(
@@ -1048,7 +1137,7 @@ async def get_document_by_chunk_id(
             unique_identifier_hash=document.unique_identifier_hash,
             created_at=document.created_at,
             updated_at=document.updated_at,
-            search_space_id=document.search_space_id,
+            workspace_id=document.workspace_id,
             chunks=windowed_chunks,
             total_chunks=total_chunks,
             chunk_start_index=start,
@@ -1063,7 +1152,7 @@ async def get_document_by_chunk_id(
 
 @router.get("/documents/watched-folders", response_model=list[FolderRead])
 async def get_watched_folders(
-    search_space_id: int,
+    workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
@@ -1071,16 +1160,16 @@ async def get_watched_folders(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this search space",
+        "You don't have permission to read documents in this workspace",
     )
 
     folders = (
         (
             await session.execute(
                 select(Folder).where(
-                    Folder.search_space_id == search_space_id,
+                    Folder.workspace_id == workspace_id,
                     Folder.parent_id.is_(None),
                     Folder.folder_metadata.isnot(None),
                     Folder.folder_metadata["watched"].astext == "true",
@@ -1126,9 +1215,9 @@ async def get_document_chunks_paginated(
         await check_permission(
             session,
             auth,
-            document.search_space_id,
+            document.workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read documents in this search space",
+            "You don't have permission to read documents in this workspace",
         )
 
         total_result = await session.execute(
@@ -1171,7 +1260,7 @@ async def read_document(
 ):
     """
     Get a specific document by ID.
-    Requires DOCUMENTS_READ permission for the search space.
+    Requires DOCUMENTS_READ permission for the workspace.
     """
     try:
         result = await session.execute(
@@ -1184,13 +1273,13 @@ async def read_document(
                 status_code=404, detail=f"Document with id {document_id} not found"
             )
 
-        # Check permission for the search space
+        # Check permission for the workspace
         await check_permission(
             session,
             auth,
-            document.search_space_id,
+            document.workspace_id,
             Permission.DOCUMENTS_READ.value,
-            "You don't have permission to read documents in this search space",
+            "You don't have permission to read documents in this workspace",
         )
 
         raw_content = document.content or ""
@@ -1205,7 +1294,7 @@ async def read_document(
             unique_identifier_hash=document.unique_identifier_hash,
             created_at=document.created_at,
             updated_at=document.updated_at,
-            search_space_id=document.search_space_id,
+            workspace_id=document.workspace_id,
             folder_id=document.folder_id,
         )
     except HTTPException:
@@ -1225,7 +1314,7 @@ async def update_document(
 ):
     """
     Update a document.
-    Requires DOCUMENTS_UPDATE permission for the search space.
+    Requires DOCUMENTS_UPDATE permission for the workspace.
     """
     try:
         result = await session.execute(
@@ -1238,13 +1327,13 @@ async def update_document(
                 status_code=404, detail=f"Document with id {document_id} not found"
             )
 
-        # Check permission for the search space
+        # Check permission for the workspace
         await check_permission(
             session,
             auth,
-            db_document.search_space_id,
+            db_document.workspace_id,
             Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to update documents in this search space",
+            "You don't have permission to update documents in this workspace",
         )
 
         update_data = document_update.model_dump(exclude_unset=True)
@@ -1264,7 +1353,7 @@ async def update_document(
             unique_identifier_hash=db_document.unique_identifier_hash,
             created_at=db_document.created_at,
             updated_at=db_document.updated_at,
-            search_space_id=db_document.search_space_id,
+            workspace_id=db_document.workspace_id,
             folder_id=db_document.folder_id,
         )
     except HTTPException:
@@ -1284,7 +1373,7 @@ async def delete_document(
 ):
     """
     Delete a document.
-    Requires DOCUMENTS_DELETE permission for the search space.
+    Requires DOCUMENTS_DELETE permission for the workspace.
     Documents in "processing" state cannot be deleted.
 
     Heavy cascade deletion runs asynchronously via Celery so the API
@@ -1313,13 +1402,13 @@ async def delete_document(
                 detail="Document is already being deleted.",
             )
 
-        # Check permission for the search space
+        # Check permission for the workspace
         await check_permission(
             session,
             auth,
-            document.search_space_id,
+            document.workspace_id,
             Permission.DOCUMENTS_DELETE.value,
-            "You don't have permission to delete documents in this search space",
+            "You don't have permission to delete documents in this workspace",
         )
 
         # Mark the document as "deleting" so it's excluded from searches,
@@ -1371,7 +1460,7 @@ async def list_document_versions(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.search_space_id, Permission.DOCUMENTS_READ.value
+        session, user, document.workspace_id, Permission.DOCUMENTS_READ.value
     )
 
     versions = (
@@ -1413,7 +1502,7 @@ async def get_document_version(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.search_space_id, Permission.DOCUMENTS_READ.value
+        session, user, document.workspace_id, Permission.DOCUMENTS_READ.value
     )
 
     version = (
@@ -1452,7 +1541,7 @@ async def restore_document_version(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.search_space_id, Permission.DOCUMENTS_UPDATE.value
+        session, user, document.workspace_id, Permission.DOCUMENTS_UPDATE.value
     )
 
     version = (
@@ -1503,20 +1592,20 @@ _MAX_MTIME_CHECK_FILES = 10_000
 
 class FolderMtimeCheckRequest(PydanticBaseModel):
     folder_name: str
-    search_space_id: int
+    workspace_id: int
     files: list[FolderMtimeCheckFile] = Field(max_length=_MAX_MTIME_CHECK_FILES)
 
 
 class FolderUnlinkRequest(PydanticBaseModel):
     folder_name: str
-    search_space_id: int
+    workspace_id: int
     root_folder_id: int | None = None
     relative_paths: list[str]
 
 
 class FolderSyncFinalizeRequest(PydanticBaseModel):
     folder_name: str
-    search_space_id: int
+    workspace_id: int
     root_folder_id: int | None = None
     all_relative_paths: list[str]
 
@@ -1537,16 +1626,16 @@ async def folder_mtime_check(
     await check_permission(
         session,
         auth,
-        request.search_space_id,
+        request.workspace_id,
         Permission.DOCUMENTS_CREATE.value,
-        "You don't have permission to create documents in this search space",
+        "You don't have permission to create documents in this workspace",
     )
 
     uid_hashes = {}
     for f in request.files:
         uid = f"{request.folder_name}:{f.relative_path}"
         uid_hash = compute_identifier_hash(
-            DocumentType.LOCAL_FOLDER_FILE.value, uid, request.search_space_id
+            DocumentType.LOCAL_FOLDER_FILE.value, uid, request.workspace_id
         )
         uid_hashes[uid_hash] = f
 
@@ -1589,7 +1678,7 @@ async def folder_mtime_check(
 async def folder_upload(
     files: list[UploadFile],
     folder_name: str = Form(...),
-    search_space_id: int = Form(...),
+    workspace_id: int = Form(...),
     relative_paths: str = Form(...),
     root_folder_id: int | None = Form(None),
     use_vision_llm: bool = Form(False),
@@ -1613,9 +1702,9 @@ async def folder_upload(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_CREATE.value,
-        "You don't have permission to create documents in this search space",
+        "You don't have permission to create documents in this workspace",
     )
 
     if not files:
@@ -1655,9 +1744,9 @@ async def folder_upload(
 
     if root_folder_id:
         root_folder = await session.get(Folder, root_folder_id)
-        if not root_folder or root_folder.search_space_id != search_space_id:
+        if not root_folder or root_folder.workspace_id != workspace_id:
             raise HTTPException(
-                status_code=404, detail="Root folder not found in this search space"
+                status_code=404, detail="Root folder not found in this workspace"
             )
 
     if not root_folder_id:
@@ -1671,7 +1760,7 @@ async def folder_upload(
                 select(Folder).where(
                     Folder.name == folder_name,
                     Folder.parent_id.is_(None),
-                    Folder.search_space_id == search_space_id,
+                    Folder.workspace_id == workspace_id,
                 )
             )
         ).scalar_one_or_none()
@@ -1682,7 +1771,7 @@ async def folder_upload(
         else:
             root_folder = Folder(
                 name=folder_name,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_id=str(user.id),
                 position="a0",
                 folder_metadata=watched_metadata,
@@ -1721,7 +1810,7 @@ async def folder_upload(
     )
 
     index_uploaded_folder_files_task.delay(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=str(user.id),
         folder_name=folder_name,
         root_folder_id=root_folder_id,
@@ -1756,9 +1845,9 @@ async def folder_unlink(
     await check_permission(
         session,
         auth,
-        request.search_space_id,
+        request.workspace_id,
         Permission.DOCUMENTS_DELETE.value,
-        "You don't have permission to delete documents in this search space",
+        "You don't have permission to delete documents in this workspace",
     )
 
     deleted_count = 0
@@ -1768,7 +1857,7 @@ async def folder_unlink(
         uid_hash = compute_identifier_hash(
             DocumentType.LOCAL_FOLDER_FILE.value,
             unique_id,
-            request.search_space_id,
+            request.workspace_id,
         )
 
         existing = (
@@ -1813,9 +1902,9 @@ async def folder_sync_finalize(
     await check_permission(
         session,
         auth,
-        request.search_space_id,
+        request.workspace_id,
         Permission.DOCUMENTS_DELETE.value,
-        "You don't have permission to delete documents in this search space",
+        "You don't have permission to delete documents in this workspace",
     )
 
     if not request.root_folder_id:
@@ -1829,7 +1918,7 @@ async def folder_sync_finalize(
         uid_hash = compute_identifier_hash(
             DocumentType.LOCAL_FOLDER_FILE.value,
             unique_id,
-            request.search_space_id,
+            request.workspace_id,
         )
         seen_hashes.add(uid_hash)
 
@@ -1838,7 +1927,7 @@ async def folder_sync_finalize(
             await session.execute(
                 select(Document).where(
                     Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                    Document.search_space_id == request.search_space_id,
+                    Document.workspace_id == request.workspace_id,
                     Document.folder_id.in_(subtree_ids),
                 )
             )
@@ -1866,7 +1955,7 @@ async def folder_sync_finalize(
     await _cleanup_empty_folders(
         session,
         request.root_folder_id,
-        request.search_space_id,
+        request.workspace_id,
         existing_dirs,
         folder_mapping,
         subtree_ids=subtree_ids,

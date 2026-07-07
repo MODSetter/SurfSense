@@ -15,7 +15,7 @@ from app.db import VideoPresentation, VideoPresentationStatus
 from app.services.billable_calls import (
     BillingSettlementError,
     QuotaInsufficientError,
-    _resolve_agent_billing_for_search_space,
+    _resolve_agent_billing_for_workspace,
     billable_call,
 )
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -43,7 +43,7 @@ def generate_video_presentation_task(
     self,
     video_presentation_id: int,
     source_content: str,
-    search_space_id: int,
+    workspace_id: int,
     user_prompt: str | None = None,
 ) -> dict:
     """
@@ -55,7 +55,7 @@ def generate_video_presentation_task(
             lambda: _generate_video_presentation(
                 video_presentation_id,
                 source_content,
-                search_space_id,
+                workspace_id,
                 user_prompt,
             )
         )
@@ -96,7 +96,7 @@ async def _mark_video_presentation_failed(video_presentation_id: int) -> None:
 async def _generate_video_presentation(
     video_presentation_id: int,
     source_content: str,
-    search_space_id: int,
+    workspace_id: int,
     user_prompt: str | None = None,
 ) -> dict:
     """Generate video presentation and update existing record."""
@@ -120,17 +120,16 @@ async def _generate_video_presentation(
                     owner_user_id,
                     billing_tier,
                     base_model,
-                ) = await _resolve_agent_billing_for_search_space(
+                ) = await _resolve_agent_billing_for_workspace(
                     session,
-                    search_space_id,
+                    workspace_id,
                     thread_id=video_pres.thread_id,
                 )
             except ValueError as resolve_err:
                 logger.error(
-                    "VideoPresentation %s: cannot resolve billing for "
-                    "search_space=%s: %s",
+                    "VideoPresentation %s: cannot resolve billing for workspace=%s: %s",
                     video_pres.id,
-                    search_space_id,
+                    workspace_id,
                     resolve_err,
                 )
                 video_pres.status = VideoPresentationStatus.FAILED
@@ -144,7 +143,7 @@ async def _generate_video_presentation(
             graph_config = {
                 "configurable": {
                     "video_title": video_pres.title,
-                    "search_space_id": search_space_id,
+                    "workspace_id": workspace_id,
                     "user_prompt": user_prompt,
                 }
             }
@@ -157,7 +156,7 @@ async def _generate_video_presentation(
             try:
                 async with billable_call(
                     user_id=owner_user_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     billing_tier=billing_tier,
                     base_model=base_model,
                     quota_reserve_micros_override=app_config.QUOTA_DEFAULT_VIDEO_PRESENTATION_RESERVE_MICROS,

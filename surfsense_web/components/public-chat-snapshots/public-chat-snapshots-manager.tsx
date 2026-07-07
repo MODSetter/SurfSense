@@ -14,11 +14,11 @@ import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.ty
 import { PublicChatSnapshotsList } from "./public-chat-snapshots-list";
 
 interface PublicChatSnapshotsManagerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 }
 
 export function PublicChatSnapshotsManager({
-	searchSpaceId: _searchSpaceId,
+	workspaceId: _workspaceId,
 }: PublicChatSnapshotsManagerProps) {
 	const [deletingId, setDeletingId] = useState<number | undefined>();
 
@@ -125,7 +125,7 @@ export function PublicChatSnapshotsManager({
 			<Alert>
 				<Info />
 				<AlertDescription>
-					You don't have permission to view public chats in this search space.
+					You don't have permission to view public chats in this workspace.
 				</AlertDescription>
 			</Alert>
 		);

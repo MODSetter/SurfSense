@@ -2,11 +2,11 @@
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
-import { type MouseEvent, startTransition, useEffect } from "react";
+import { startTransition, useEffect } from "react";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import {
 	type RightPanelTab,
@@ -18,7 +18,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { artifactsPanelOpenAtom, closeArtifactsPanelAtom } from "@/features/chat-artifacts";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
 import { cn } from "@/lib/utils";
-import { DocumentsSidebar } from "../sidebar";
 
 const EditorPanelContent = dynamic(
 	() =>
@@ -61,39 +60,7 @@ const ArtifactsPanelContent = dynamic(
 );
 
 interface RightPanelProps {
-	documentsPanel?: {
-		open: boolean;
-		onOpenChange: (open: boolean) => void;
-	};
-	showCollapseButton?: boolean;
 	showTopBorder?: boolean;
-}
-
-function isKeyboardClick(event: MouseEvent) {
-	return event.detail === 0;
-}
-
-function CollapseButton({ onClick }: { onClick: () => void }) {
-	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<Button
-					variant="ghost"
-					size="icon"
-					tabIndex={-1}
-					onClick={(event) => {
-						if (isKeyboardClick(event)) return;
-						onClick();
-					}}
-					className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-				>
-					<PanelRight className="h-4 w-4" />
-					<span className="sr-only">Collapse panel</span>
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent side="bottom">Collapse panel</TooltipContent>
-		</Tooltip>
-	);
 }
 
 interface RightPanelToggleButtonProps {
@@ -108,7 +75,6 @@ export function RightPanelToggleButton({
 	disabled = false,
 }: RightPanelToggleButtonProps) {
 	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
-	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
@@ -124,8 +90,7 @@ export function RightPanelToggleButton({
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
-	const hasContent =
-		documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
+	const hasContent = reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 	const label = collapsed ? "Expand panel" : "Collapse panel";
 
 	if (!hasContent) return null;
@@ -162,7 +127,6 @@ export function RightPanelToggleButton({
  */
 export function RightPanelExpandButton() {
 	const [collapsed] = useAtom(rightPanelCollapsedAtom);
-	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
@@ -178,8 +142,7 @@ export function RightPanelExpandButton() {
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.chunkId != null;
-	const hasContent =
-		documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
+	const hasContent = reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 
 	if (!collapsed || !hasContent) return null;
 
@@ -199,10 +162,14 @@ const PANEL_WIDTHS = {
 	artifacts: 420,
 } as const;
 
+const PANEL_SLIDE_TRANSITION = {
+	duration: 0.2,
+	ease: [0.22, 1, 0.36, 1],
+} as const;
+
 /**
  * Priority order used to fall back to another open surface when the active
- * tab's content closes. Artifacts sit just above the always-available sources
- * tab.
+ * tab's content closes. The neutral "sources" tab is kept as the closed state.
  */
 const TAB_FALLBACK_ORDER: RightPanelTab[] = [
 	"hitl-edit",
@@ -221,11 +188,7 @@ function resolveEffectiveTab(
 	return TAB_FALLBACK_ORDER.find((tab) => openByTab[tab]) ?? "sources";
 }
 
-export function RightPanel({
-	documentsPanel,
-	showCollapseButton = true,
-	showTopBorder = false,
-}: RightPanelProps) {
+export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 	const [activeTab] = useAtom(rightPanelTabAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const closeReport = useSetAtom(closeReportPanelAtom);
@@ -237,9 +200,9 @@ export function RightPanel({
 	const closeCitation = useSetAtom(closeCitationPanelAtom);
 	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
 	const closeArtifacts = useSetAtom(closeArtifactsPanelAtom);
-	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const [collapsed] = useAtom(rightPanelCollapsedAtom);
+	const reduceMotion = useReducedMotion();
 
-	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
@@ -278,11 +241,10 @@ export function RightPanel({
 	]);
 
 	const isVisible =
-		(documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen) &&
-		!collapsed;
+		(reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen) && !collapsed;
 
 	const effectiveTab = resolveEffectiveTab(activeTab, {
-		sources: documentsOpen,
+		sources: false,
 		report: reportOpen,
 		editor: editorOpen,
 		"hitl-edit": hitlEditOpen,
@@ -291,78 +253,73 @@ export function RightPanel({
 	});
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
-	const collapseButton = showCollapseButton ? (
-		<CollapseButton onClick={() => setCollapsed(true)} />
-	) : null;
-
-	if (!isVisible) return null;
 
 	return (
-		<aside
-			style={{ width: targetWidth }}
-			className={cn(
-				"flex h-full shrink-0 flex-col border-l bg-panel text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out",
-				showTopBorder && "border-t"
-			)}
-		>
-			<div className="relative flex-1 min-h-0 overflow-hidden">
-				{effectiveTab === "sources" && documentsOpen && documentsPanel && (
-					<div className="h-full">
-						<DocumentsSidebar
-							open={documentsPanel.open}
-							onOpenChange={documentsPanel.onOpenChange}
-							embedded
-							headerAction={collapseButton}
-						/>
+		<AnimatePresence initial={false}>
+			{isVisible ? (
+				<motion.aside
+					key="right-panel"
+					initial={reduceMotion ? { width: targetWidth } : { width: 0, x: 24, opacity: 0 }}
+					animate={{ width: targetWidth, x: 0, opacity: 1 }}
+					exit={reduceMotion ? { width: 0 } : { width: 0, x: 24, opacity: 0 }}
+					transition={reduceMotion ? { duration: 0 } : PANEL_SLIDE_TRANSITION}
+					className={cn(
+						"flex h-full shrink-0 flex-col overflow-hidden border-l bg-panel text-sidebar-foreground",
+						showTopBorder && "border-t"
+					)}
+				>
+					<div style={{ width: targetWidth }} className="flex h-full min-h-0 flex-col">
+						<div className="relative flex-1 min-h-0 overflow-hidden">
+							{effectiveTab === "report" && reportOpen && (
+								<div className="h-full flex flex-col">
+									<ReportPanelContent
+										reportId={reportState.reportId as number}
+										title={reportState.title || "Report"}
+										onClose={closeReport}
+										shareToken={reportState.shareToken}
+									/>
+								</div>
+							)}
+							{effectiveTab === "editor" && editorOpen && (
+								<div className="h-full flex flex-col">
+									<EditorPanelContent
+										kind={editorState.kind}
+										documentId={editorState.documentId ?? undefined}
+										localFilePath={editorState.localFilePath ?? undefined}
+										memoryScope={editorState.memoryScope ?? undefined}
+										workspaceId={editorState.workspaceId ?? undefined}
+										title={editorState.title}
+										onClose={closeEditor}
+									/>
+								</div>
+							)}
+							{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
+								<div className="h-full flex flex-col">
+									<HitlEditPanelContent
+										title={hitlEditState.title}
+										content={hitlEditState.content}
+										toolName={hitlEditState.toolName}
+										contentFormat={hitlEditState.contentFormat}
+										extraFields={hitlEditState.extraFields}
+										onSave={hitlEditState.onSave}
+										onClose={closeHitlEdit}
+									/>
+								</div>
+							)}
+							{effectiveTab === "citation" && citationOpen && citationState.chunkId != null && (
+								<div className="h-full flex flex-col">
+									<CitationPanelContent chunkId={citationState.chunkId} onClose={closeCitation} />
+								</div>
+							)}
+							{effectiveTab === "artifacts" && artifactsOpen && (
+								<div className="h-full flex flex-col">
+									<ArtifactsPanelContent onClose={closeArtifacts} />
+								</div>
+							)}
+						</div>
 					</div>
-				)}
-				{effectiveTab === "report" && reportOpen && (
-					<div className="h-full flex flex-col">
-						<ReportPanelContent
-							reportId={reportState.reportId as number}
-							title={reportState.title || "Report"}
-							onClose={closeReport}
-							shareToken={reportState.shareToken}
-						/>
-					</div>
-				)}
-				{effectiveTab === "editor" && editorOpen && (
-					<div className="h-full flex flex-col">
-						<EditorPanelContent
-							kind={editorState.kind}
-							documentId={editorState.documentId ?? undefined}
-							localFilePath={editorState.localFilePath ?? undefined}
-							memoryScope={editorState.memoryScope ?? undefined}
-							searchSpaceId={editorState.searchSpaceId ?? undefined}
-							title={editorState.title}
-							onClose={closeEditor}
-						/>
-					</div>
-				)}
-				{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
-					<div className="h-full flex flex-col">
-						<HitlEditPanelContent
-							title={hitlEditState.title}
-							content={hitlEditState.content}
-							toolName={hitlEditState.toolName}
-							contentFormat={hitlEditState.contentFormat}
-							extraFields={hitlEditState.extraFields}
-							onSave={hitlEditState.onSave}
-							onClose={closeHitlEdit}
-						/>
-					</div>
-				)}
-				{effectiveTab === "citation" && citationOpen && citationState.chunkId != null && (
-					<div className="h-full flex flex-col">
-						<CitationPanelContent chunkId={citationState.chunkId} onClose={closeCitation} />
-					</div>
-				)}
-				{effectiveTab === "artifacts" && artifactsOpen && (
-					<div className="h-full flex flex-col">
-						<ArtifactsPanelContent onClose={closeArtifacts} />
-					</div>
-				)}
-			</div>
-		</aside>
+				</motion.aside>
+			) : null}
+		</AnimatePresence>
 	);
 }

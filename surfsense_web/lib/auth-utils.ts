@@ -32,6 +32,17 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/privacy",
 	"/terms",
 	"/changelog",
+	"/announcements",
+	"/blog",
+	// Connector marketing pages (see lib/connectors-marketing)
+	"/connectors",
+	"/mcp-server",
+	"/external-mcp-connectors",
+	"/reddit",
+	"/youtube",
+	"/google-maps",
+	"/google-search",
+	"/web-crawl",
 ];
 
 /**

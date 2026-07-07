@@ -3,7 +3,7 @@ import { streamChatToCompletion } from "../../helpers/api/chat";
 import { listConnectors, triggerIndex, updateConnectorConfig } from "../../helpers/api/connectors";
 import { getEditorContent, listDocuments } from "../../helpers/api/documents";
 import { CANARY_TOKENS, FAKE_ONEDRIVE_FILES } from "../../helpers/canary";
-import { openConnectorPopup } from "../../helpers/ui/connector-popup";
+import { expectImportConnectorAvailable } from "../../helpers/ui/connector-popup";
 import { waitForDocumentByTitle, waitForIndexingComplete } from "../../helpers/waits/indexing";
 
 /**
@@ -18,7 +18,7 @@ test.describe("Native OneDrive journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		nativeOneDriveConnector,
 		chatThread,
 	}) => {
@@ -29,12 +29,10 @@ test.describe("Native OneDrive journey", () => {
 		expect(nativeOneDriveConnector.config._token_encrypted).toBe(true);
 		expect(nativeOneDriveConnector.config.composio_connected_account_id).toBeUndefined();
 
-		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
-		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
-		await expect(connectorDialog).toBeVisible();
+		await expectImportConnectorAvailable(page, "OneDrive");
 
 		const selectedFiles = [
 			{
@@ -63,29 +61,25 @@ test.describe("Native OneDrive journey", () => {
 			indexing_options: indexingOptions,
 		});
 
-		await triggerIndex(request, apiToken, nativeOneDriveConnector.id, searchSpace.id, {
+		await triggerIndex(request, apiToken, nativeOneDriveConnector.id, workspace.id, {
 			files: selectedFiles,
 			indexing_options: indexingOptions,
 		});
 
-		await waitForIndexingComplete(request, apiToken, nativeOneDriveConnector.id, searchSpace.id, {
+		await waitForIndexingComplete(request, apiToken, nativeOneDriveConnector.id, workspace.id, {
 			timeoutMs: 240_000,
 			intervalMs: 1_500,
 			minDocuments: 2,
 		});
 
-		await waitForDocumentByTitle(
-			request,
-			apiToken,
-			searchSpace.id,
-			FAKE_ONEDRIVE_FILES.canary.name,
-			{ timeoutMs: 30_000 }
-		);
-		await waitForDocumentByTitle(request, apiToken, searchSpace.id, FAKE_ONEDRIVE_FILES.pdf.name, {
+		await waitForDocumentByTitle(request, apiToken, workspace.id, FAKE_ONEDRIVE_FILES.canary.name, {
+			timeoutMs: 30_000,
+		});
+		await waitForDocumentByTitle(request, apiToken, workspace.id, FAKE_ONEDRIVE_FILES.pdf.name, {
 			timeoutMs: 60_000,
 		});
 
-		const docs = await listDocuments(request, apiToken, searchSpace.id);
+		const docs = await listDocuments(request, apiToken, workspace.id);
 		const canaryDoc = docs.find((d) => d.title === FAKE_ONEDRIVE_FILES.canary.name);
 		const pdfDoc = docs.find((d) => d.title === FAKE_ONEDRIVE_FILES.pdf.name);
 
@@ -96,7 +90,7 @@ test.describe("Native OneDrive journey", () => {
 		if (!pdfDoc) throw new Error("unreachable: pdfDoc asserted defined above");
 		expect(pdfDoc.document_type).toBe("ONEDRIVE_FILE");
 
-		const editor = await getEditorContent(request, apiToken, searchSpace.id, canaryDoc.id);
+		const editor = await getEditorContent(request, apiToken, workspace.id, canaryDoc.id);
 		expect(
 			editor.source_markdown,
 			`canary token ${CANARY_TOKENS.onedriveCanary} should appear in editor source_markdown; ` +
@@ -105,7 +99,7 @@ test.describe("Native OneDrive journey", () => {
 		expect(editor.document_type).toBe("ONEDRIVE_FILE");
 		expect(editor.chunk_count).toBeGreaterThan(0);
 
-		const pdfEditor = await getEditorContent(request, apiToken, searchSpace.id, pdfDoc.id);
+		const pdfEditor = await getEditorContent(request, apiToken, workspace.id, pdfDoc.id);
 		expect(
 			pdfEditor.source_markdown,
 			`PDF canary token ${CANARY_TOKENS.onedrivePdfCanary} should appear in editor source_markdown; ` +
@@ -114,14 +108,14 @@ test.describe("Native OneDrive journey", () => {
 		expect(pdfEditor.document_type).toBe("ONEDRIVE_FILE");
 		expect(pdfEditor.chunk_count).toBeGreaterThan(0);
 
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshedConnectors = await listConnectors(request, apiToken, workspace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === nativeOneDriveConnector.id);
 		expect(refreshed?.connector_type).toBe("ONEDRIVE_CONNECTOR");
 		expect(refreshed?.is_indexable).toBe(true);
 		expect(refreshed?.last_indexed_at).not.toBeNull();
 
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: "What is in my e2e-onedrive-canary.txt OneDrive file?",
 		});
@@ -132,7 +126,7 @@ test.describe("Native OneDrive journey", () => {
 		).toContain(CANARY_TOKENS.onedriveCanary);
 
 		const pdfChat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: "What is in my e2e-onedrive-canary.pdf OneDrive file?",
 		});

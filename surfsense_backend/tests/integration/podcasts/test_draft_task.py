@@ -33,22 +33,22 @@ pytestmark = pytest.mark.integration
 def _wire_billing(monkeypatch, *, billable_call, transcript=None) -> None:
     """Replace the billing + LLM externals the draft body reaches for."""
 
-    async def _resolver(_session, _search_space_id, *, thread_id=None):
+    async def _resolver(_session, _workspace_id, *, thread_id=None):
         return uuid4(), "free", "openrouter/model"
 
     async def _ainvoke(_state, config=None):
         return {"transcript": transcript}
 
-    monkeypatch.setattr(draft, "_resolve_agent_billing_for_search_space", _resolver)
+    monkeypatch.setattr(draft, "_resolve_agent_billing_for_workspace", _resolver)
     monkeypatch.setattr(draft, "billable_call", billable_call)
     monkeypatch.setattr(draft, "transcript_graph", SimpleNamespace(ainvoke=_ainvoke))
 
 
 async def test_successful_draft_stores_transcript_and_starts_rendering(
-    monkeypatch, db_search_space, make_podcast, bind_task_session, captured_tasks
+    monkeypatch, db_workspace, make_podcast, bind_task_session, captured_tasks
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
+        workspace_id=db_workspace.id, status=PodcastStatus.DRAFTING
     )
 
     @asynccontextmanager
@@ -57,7 +57,7 @@ async def test_successful_draft_stores_transcript_and_starts_rendering(
 
     _wire_billing(monkeypatch, billable_call=_ok, transcript=build_transcript())
 
-    result = await draft._draft_transcript(podcast.id, db_search_space.id)
+    result = await draft._draft_transcript(podcast.id, db_workspace.id)
 
     assert result["status"] == "rendering"
     assert podcast.status == PodcastStatus.RENDERING
@@ -66,10 +66,10 @@ async def test_successful_draft_stores_transcript_and_starts_rendering(
 
 
 async def test_quota_denial_fails_the_podcast_without_a_transcript(
-    monkeypatch, db_search_space, make_podcast, bind_task_session
+    monkeypatch, db_workspace, make_podcast, bind_task_session
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
+        workspace_id=db_workspace.id, status=PodcastStatus.DRAFTING
     )
 
     @asynccontextmanager
@@ -83,7 +83,7 @@ async def test_quota_denial_fails_the_podcast_without_a_transcript(
 
     _wire_billing(monkeypatch, billable_call=_deny)
 
-    result = await draft._draft_transcript(podcast.id, db_search_space.id)
+    result = await draft._draft_transcript(podcast.id, db_workspace.id)
 
     assert result["reason"] == "quota"
     assert podcast.status == PodcastStatus.FAILED
@@ -91,10 +91,10 @@ async def test_quota_denial_fails_the_podcast_without_a_transcript(
 
 
 async def test_billing_settlement_failure_fails_the_podcast(
-    monkeypatch, db_search_space, make_podcast, bind_task_session
+    monkeypatch, db_workspace, make_podcast, bind_task_session
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
+        workspace_id=db_workspace.id, status=PodcastStatus.DRAFTING
     )
 
     @asynccontextmanager
@@ -110,7 +110,7 @@ async def test_billing_settlement_failure_fails_the_podcast(
         monkeypatch, billable_call=_settlement_fails, transcript=build_transcript()
     )
 
-    result = await draft._draft_transcript(podcast.id, db_search_space.id)
+    result = await draft._draft_transcript(podcast.id, db_workspace.id)
 
     assert result["reason"] == "billing"
     assert podcast.status == PodcastStatus.FAILED

@@ -22,7 +22,7 @@ class LogCreate(BaseModel):
     message: str
     source: str | None = None
     log_metadata: dict[str, Any] | None = None
-    search_space_id: int
+    workspace_id: int
 
 
 class LogUpdate(BaseModel):
@@ -36,7 +36,7 @@ class LogUpdate(BaseModel):
 class LogRead(LogBase, IDModel, TimestampModel):
     id: int
     created_at: datetime
-    search_space_id: int
+    workspace_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,7 +45,7 @@ class LogFilter(BaseModel):
     level: LogLevel | None = None
     status: LogStatus | None = None
     source: str | None = None
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
 

@@ -110,12 +110,12 @@ class ConfluenceToolMetadataService:
                 )
             return True
 
-    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
+    async def get_creation_context(self, workspace_id: int, user_id: str) -> dict:
         """Return context needed to create a new Confluence page.
 
         Fetches all connected accounts, and for the first healthy one fetches spaces.
         """
-        connectors = await self._get_all_confluence_connectors(search_space_id, user_id)
+        connectors = await self._get_all_confluence_connectors(workspace_id, user_id)
         if not connectors:
             return {"error": "No Confluence account connected"}
 
@@ -158,13 +158,13 @@ class ConfluenceToolMetadataService:
         }
 
     async def get_update_context(
-        self, search_space_id: int, user_id: str, page_ref: str
+        self, workspace_id: int, user_id: str, page_ref: str
     ) -> dict:
         """Return context needed to update an indexed Confluence page.
 
         Resolves the page from KB, then fetches current content and version from API.
         """
-        document = await self._resolve_page(search_space_id, user_id, page_ref)
+        document = await self._resolve_page(workspace_id, user_id, page_ref)
         if not document:
             return {
                 "error": f"Page '{page_ref}' not found in your synced Confluence pages. "
@@ -232,10 +232,10 @@ class ConfluenceToolMetadataService:
         }
 
     async def get_deletion_context(
-        self, search_space_id: int, user_id: str, page_ref: str
+        self, workspace_id: int, user_id: str, page_ref: str
     ) -> dict:
         """Return context needed to delete a Confluence page (KB metadata only)."""
-        document = await self._resolve_page(search_space_id, user_id, page_ref)
+        document = await self._resolve_page(workspace_id, user_id, page_ref)
         if not document:
             return {
                 "error": f"Page '{page_ref}' not found in your synced Confluence pages. "
@@ -256,7 +256,7 @@ class ConfluenceToolMetadataService:
         }
 
     async def _resolve_page(
-        self, search_space_id: int, user_id: str, page_ref: str
+        self, workspace_id: int, user_id: str, page_ref: str
     ) -> Document | None:
         """Resolve a page from KB: page_title -> document.title."""
         ref_lower = page_ref.lower()
@@ -268,7 +268,7 @@ class ConfluenceToolMetadataService:
             )
             .filter(
                 and_(
-                    Document.search_space_id == search_space_id,
+                    Document.workspace_id == workspace_id,
                     Document.document_type == DocumentType.CONFLUENCE_CONNECTOR,
                     SearchSourceConnector.user_id == user_id,
                     or_(
@@ -284,12 +284,12 @@ class ConfluenceToolMetadataService:
         return result.scalars().first()
 
     async def _get_all_confluence_connectors(
-        self, search_space_id: int, user_id: str
+        self, workspace_id: int, user_id: str
     ) -> list[SearchSourceConnector]:
         result = await self._db_session.execute(
             select(SearchSourceConnector).filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,

@@ -4,14 +4,14 @@ import { useAtomValue } from "jotai";
 import { ArrowLeft, Plus, RefreshCw, Server } from "lucide-react";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-fetch";
-import { getReauthEndpoint } from "@/lib/connector-telemetry";
+import { getReauthEndpoint, needsMcpReconnect } from "@/lib/connector-telemetry";
 import { buildBackendUrl } from "@/lib/env-config";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	isConnecting = false,
 	addButtonText,
 }) => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const [reauthingId, setReauthingId] = useState<number | null>(null);
 	const [confirmDisconnectId, setConfirmDisconnectId] = useState<number | null>(null);
 	const [disconnectingId, setDisconnectingId] = useState<number | null>(null);
@@ -58,13 +58,13 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	const handleReauth = useCallback(
 		async (connector: SearchSourceConnector) => {
 			const endpoint = getReauthEndpoint(connector);
-			if (!searchSpaceId || !endpoint) return;
+			if (!workspaceId || !endpoint) return;
 			setReauthingId(connector.id);
 			try {
 				const response = await authenticatedFetch(
 					buildBackendUrl(endpoint, {
 						connector_id: connector.id,
-						space_id: searchSpaceId,
+						space_id: workspaceId,
 						return_url: window.location.pathname,
 					})
 				);
@@ -86,7 +86,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				setReauthingId(null);
 			}
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	// Filter connectors to only show those of this type
@@ -192,6 +192,9 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							const connectorReauthEndpoint = getReauthEndpoint(connector);
 							const isAuthExpired =
 								!!connectorReauthEndpoint && connector.config?.auth_expired === true;
+							// Migrated type still on legacy native config: reconnect via MCP to
+							// start producing agent tools again.
+							const needsReconnect = !isAuthExpired && needsMcpReconnect(connector);
 							const isLive =
 								LIVE_CONNECTOR_TYPES.has(connector.connector_type) ||
 								Boolean(connector.config?.server_config);
@@ -244,6 +247,19 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
 											/>
 											Re-authenticate
+										</Button>
+									) : needsReconnect ? (
+										<Button
+											size="sm"
+											className="h-8 text-[11px] px-3 font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+											onClick={() => handleReauth(connector)}
+											disabled={reauthingId === connector.id}
+											title="This connector moved to MCP. Reconnect to use it with the agent."
+										>
+											<RefreshCw
+												className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
+											/>
+											Reconnect via MCP
 										</Button>
 									) : isLive && onDisconnect ? (
 										confirmDisconnectId === connector.id ? (

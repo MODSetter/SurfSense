@@ -62,7 +62,7 @@ from app.tasks.chat.streaming.flows.shared.first_frames import (
 from app.tasks.chat.streaming.flows.shared.llm_bundle import load_llm_bundle
 from app.tasks.chat.streaming.flows.shared.pre_stream_setup import (
     get_chat_checkpointer,
-    setup_connector_and_firecrawl,
+    setup_connector_service,
 )
 from app.tasks.chat.streaming.flows.shared.premium_quota import (
     CreditReservation,
@@ -95,7 +95,7 @@ _perf_log = get_perf_logger()
 
 async def stream_resume_chat(
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     decisions: list[dict],
     user_id: str | None = None,
     llm_config_id: int = -1,
@@ -127,7 +127,7 @@ async def stream_resume_chat(
     chat_error_category: str | None = None
     chat_span_cm, chat_span = open_chat_request_span(
         chat_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         flow="resume",
         request_id=request_id,
         turn_id=stream_result.turn_id,
@@ -155,7 +155,7 @@ async def stream_resume_chat(
         flow="resume",
         request_id=request_id,
         thread_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
     )
 
@@ -177,7 +177,7 @@ async def stream_resume_chat(
             pinned = await resolve_or_get_pinned_llm_config_id(
                 session,
                 thread_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 selected_llm_config_id=llm_config_id,
             )
@@ -200,7 +200,7 @@ async def stream_resume_chat(
             return
 
         llm, agent_config, llm_load_error = await load_llm_bundle(
-            session, config_id=llm_config_id, search_space_id=search_space_id
+            session, config_id=llm_config_id, workspace_id=workspace_id
         )
         if llm_load_error:
             yield emit_stream_error(
@@ -226,7 +226,7 @@ async def stream_resume_chat(
                         pinned_fb = await resolve_or_get_pinned_llm_config_id(
                             session,
                             thread_id=chat_id,
-                            search_space_id=search_space_id,
+                            workspace_id=workspace_id,
                             user_id=user_id,
                             selected_llm_config_id=0,
                             force_repin_free=True,
@@ -250,7 +250,7 @@ async def stream_resume_chat(
                     llm, agent_config, llm_load_error = await load_llm_bundle(
                         session,
                         config_id=llm_config_id,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                     )
                     if llm_load_error:
                         yield emit_stream_error(
@@ -273,7 +273,7 @@ async def stream_resume_chat(
                         is_expected=True,
                         request_id=request_id,
                         thread_id=chat_id,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         message=(
                             "Premium quota exhausted on pinned model; "
@@ -314,11 +314,11 @@ async def stream_resume_chat(
         # --- Pre-stream setup ---
 
         _t0 = time.perf_counter()
-        connector_service, firecrawl_api_key = await setup_connector_and_firecrawl(
-            session, search_space_id=search_space_id
+        connector_service = await setup_connector_service(
+            session, workspace_id=workspace_id
         )
         _perf_log.info(
-            "[stream_resume] Connector service + firecrawl key in %.3fs",
+            "[stream_resume] Connector service in %.3fs",
             time.perf_counter() - _t0,
         )
 
@@ -337,14 +337,13 @@ async def stream_resume_chat(
         agent = await build_main_agent_for_thread(
             agent_factory,
             llm=llm,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
             user_id=user_id,
             thread_id=chat_id,
             agent_config=agent_config,
-            firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
@@ -423,7 +422,7 @@ async def stream_resume_chat(
         stream_result.content_builder = AssistantContentBuilder()
 
         runtime_context = build_resume_chat_runtime_context(
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             request_id=request_id,
             turn_id=stream_result.turn_id,
         )
@@ -456,13 +455,13 @@ async def stream_resume_chat(
             llm_config_id = await reroute_to_next_auto_pin(
                 session,
                 chat_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 current_llm_config_id=llm_config_id,
                 requires_image_input=False,
             )
             new_llm, new_agent_config, llm_load_err = await load_llm_bundle(
-                session, config_id=llm_config_id, search_space_id=search_space_id
+                session, config_id=llm_config_id, workspace_id=workspace_id
             )
             if llm_load_err:
                 return None
@@ -473,14 +472,13 @@ async def stream_resume_chat(
             new_agent = await build_main_agent_for_thread(
                 agent_factory,
                 llm=llm,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 db_session=session,
                 connector_service=connector_service,
                 checkpointer=checkpointer,
                 user_id=user_id,
                 thread_id=chat_id,
                 agent_config=agent_config,
-                firecrawl_api_key=firecrawl_api_key,
                 thread_visibility=visibility,
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
@@ -497,7 +495,7 @@ async def stream_resume_chat(
                 flow="resume",
                 request_id=request_id,
                 chat_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 previous_config_id=previous_config_id,
                 new_config_id=llm_config_id,
@@ -511,7 +509,7 @@ async def stream_resume_chat(
             input_data=Command(resume=routing.lg_resume_map),
             stream_result=stream_result,
             step_prefix=resume_step_prefix(stream_result.turn_id),
-            fallback_commit_search_space_id=search_space_id,
+            fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
                 filesystem_selection.mode
@@ -572,7 +570,7 @@ async def stream_resume_chat(
             streaming_service=streaming_service,
             request_id=request_id,
             chat_id=chat_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             chat_span=chat_span,
         )
@@ -595,7 +593,7 @@ async def stream_resume_chat(
             await finalize_assistant_message(
                 stream_result=stream_result,
                 chat_id=chat_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 accumulator=accumulator,
                 log_prefix="stream_resume",

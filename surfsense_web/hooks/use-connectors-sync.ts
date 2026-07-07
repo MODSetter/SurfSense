@@ -6,16 +6,16 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { queries } from "@/zero/queries";
 
 /**
- * Syncs connectors for a search space via Zero.
+ * Syncs connectors for a workspace via Zero.
  * Returns connectors, loading state, error, and a refresh function.
  */
-export function useConnectorsSync(searchSpaceId: number | string | null) {
-	const spaceId = searchSpaceId ? Number(searchSpaceId) : -1;
+export function useConnectorsSync(workspaceId: number | string | null) {
+	const spaceId = workspaceId ? Number(workspaceId) : -1;
 
-	const [data, result] = useQuery(queries.connectors.bySpace({ searchSpaceId: spaceId }));
+	const [data, result] = useQuery(queries.connectors.bySpace({ workspaceId: spaceId }));
 
 	const connectors: SearchSourceConnector[] = useMemo(() => {
-		if (!searchSpaceId || !data) return [];
+		if (!workspaceId || !data) return [];
 		return data.map((c) => ({
 			id: c.id,
 			name: c.name,
@@ -27,14 +27,14 @@ export function useConnectorsSync(searchSpaceId: number | string | null) {
 			periodic_indexing_enabled: c.periodicIndexingEnabled,
 			indexing_frequency_minutes: c.indexingFrequencyMinutes ?? null,
 			next_scheduled_at: c.nextScheduledAt ? new Date(c.nextScheduledAt).toISOString() : null,
-			search_space_id: c.searchSpaceId,
+			workspace_id: c.workspaceId,
 			user_id: c.userId,
 			created_at: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
 		}));
-	}, [searchSpaceId, data]);
+	}, [workspaceId, data]);
 
-	const loading = !searchSpaceId ? false : result.type !== "complete";
-	const error = !searchSpaceId ? null : null;
+	const loading = !workspaceId ? false : result.type !== "complete";
+	const error = !workspaceId ? null : null;
 
 	const refreshConnectors = async () => {};
 

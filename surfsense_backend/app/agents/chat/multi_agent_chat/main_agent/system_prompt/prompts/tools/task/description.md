@@ -43,9 +43,9 @@
      like podcasts/videos), the operation did not happen — treat as
      failure and surface that to the user verbatim, do not retry blindly.
 
-  2. **`scrape_webpage`** — when a Receipt carries a `verifiable_url`
+  2. **`task(web_crawler, …)`** — when a Receipt carries a `verifiable_url`
      (Notion page URL, Slack permalink, Jira issue URL, Linear identifier
-     URL, etc.), you can fetch that URL and confirm the operation
+     URL, etc.), you can crawl that URL and confirm the operation
      externally. Use this for high-stakes mutations the user explicitly
      called out (e.g. "send the launch email to the whole team") or when
      the subagent's self-report contradicts what the user expected.
@@ -54,7 +54,7 @@
 
   - `status="success"`: the mutation already committed in the backend.
     If a `verifiable_url` is present and the request was high-stakes,
-    you may `scrape_webpage` it to externally confirm. Otherwise trust
+    you may crawl it via `task(web_crawler, …)` to externally confirm. Otherwise trust
     the Receipt and tell the user it is done. Celery-backed deliverables
     (podcasts, video presentations) also land here — the subagent
     already waited for the worker to finish, so a `success` Receipt
@@ -67,6 +67,6 @@
     their backend before returning. If you ever do see a pending
     Receipt, tell the user the work has been **kicked off** (quote the
     `external_id` / `preview` so they can find it later), do not
-    `scrape_webpage` it, and do not re-dispatch the same
+    crawl it, and do not re-dispatch the same
     `task(...)` call hoping it will be done "this time".
   </verification>

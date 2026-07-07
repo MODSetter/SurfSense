@@ -25,7 +25,7 @@ class NotionKBSyncService:
         page_url: str | None,
         content: str | None,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -37,7 +37,7 @@ class NotionKBSyncService:
 
         try:
             unique_hash = generate_unique_identifier_hash(
-                DocumentType.NOTION_CONNECTOR, page_id, search_space_id
+                DocumentType.NOTION_CONNECTOR, page_id, workspace_id
             )
 
             existing = await check_document_by_unique_identifier(
@@ -57,7 +57,7 @@ class NotionKBSyncService:
 
             markdown_content = f"# Notion Page: {page_title}\n\n{indexable_content}"
 
-            content_hash = generate_content_hash(markdown_content, search_space_id)
+            content_hash = generate_content_hash(markdown_content, workspace_id)
 
             with self.db_session.no_autoflush:
                 dup = await check_duplicate_document_by_hash(
@@ -93,7 +93,7 @@ class NotionKBSyncService:
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
                 embedding=summary_embedding,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
@@ -141,7 +141,7 @@ class NotionKBSyncService:
         document_id: int,
         appended_content: str,
         user_id: str,
-        search_space_id: int,
+        workspace_id: int,
         appended_block_ids: list[str] | None = None,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -233,7 +233,7 @@ class NotionKBSyncService:
 
             logger.debug("Updating document fields")
             document.content = summary_content
-            document.content_hash = generate_content_hash(full_content, search_space_id)
+            document.content_hash = generate_content_hash(full_content, workspace_id)
             document.embedding = summary_embedding
             document.document_metadata = {
                 **document.document_metadata,
