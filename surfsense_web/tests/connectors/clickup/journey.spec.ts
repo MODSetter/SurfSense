@@ -16,7 +16,7 @@ test.describe("ClickUp connector journey", () => {
 		page,
 		request,
 		apiToken,
-		searchSpace,
+		workspace,
 		clickupConnector,
 		chatThread,
 	}) => {
@@ -40,28 +40,28 @@ test.describe("ClickUp connector journey", () => {
 		expect(clickupConnector.config.access_token).toBeUndefined();
 		expect(clickupConnector.config.refresh_token).toBeUndefined();
 
-		await page.goto(`/dashboard/${searchSpace.id}/new-chat`, {
+		await page.goto(`/dashboard/${workspace.id}/new-chat`, {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage Connectors" });
+		const connectorDialog = page.getByRole("dialog", { name: "Manage External MCP Connectors" });
 		await expect(connectorDialog).toBeVisible();
 		await expect(connectorDialog.getByText("ClickUp")).toBeVisible();
 
-		const beforeDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const beforeDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(beforeDocs).toHaveLength(0);
 
 		const disabledIndex = await triggerIndexExpectDisabled(
 			request,
 			apiToken,
 			clickupConnector.id,
-			searchSpace.id
+			workspace.id
 		);
 		expect(disabledIndex.message ?? "").toContain("real-time agent tools");
 		expect(disabledIndex.message ?? "").toContain("background indexing is disabled");
 
 		const chat = await streamChatToCompletion(request, apiToken, {
-			searchSpaceId: searchSpace.id,
+			workspaceId: workspace.id,
 			threadId: chatThread.id,
 			query: `What is in my ClickUp task titled "${FAKE_CLICKUP_TASKS.canary.name}"?`,
 		});
@@ -73,13 +73,13 @@ test.describe("ClickUp connector journey", () => {
 		const eventText = JSON.stringify(chat.events);
 		expect(eventText).toContain("clickup_search");
 
-		const refreshedConnectors = await listConnectors(request, apiToken, searchSpace.id);
+		const refreshedConnectors = await listConnectors(request, apiToken, workspace.id);
 		const refreshed = refreshedConnectors.find((c) => c.id === clickupConnector.id);
 		expect(refreshed?.connector_type).toBe("CLICKUP_CONNECTOR");
 		expect(refreshed?.is_indexable).toBe(false);
 		expect(refreshed?.last_indexed_at).toBeNull();
 
-		const afterDocs = await listDocuments(request, apiToken, searchSpace.id);
+		const afterDocs = await listDocuments(request, apiToken, workspace.id);
 		expect(afterDocs).toHaveLength(0);
 	});
 });

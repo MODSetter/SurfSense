@@ -1,0 +1,64 @@
+---
+title: Google Maps
+description: Scrape public Google Maps places and reviews
+---
+
+The Google Maps scraper has two verbs: **scrape** for place data and **reviews** for a place's review feed.
+
+## Scrape places
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/google_maps/scrape
+```
+
+Give it search queries (optionally scoped by location), Google Maps URLs, or place IDs. Returns structured place items — name, address, category, phone, website, rating, review count, coordinates, and opening hours.
+
+At least one of `search_queries`, `urls`, or `place_ids` is required.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `search_queries` | — | Search terms, e.g. `"coffee shops"` (max 20 sources per call, combined with URLs and place IDs) |
+| `urls` | — | Place page (`/maps/place/...`) or search-results URLs |
+| `place_ids` | — | Known Google place IDs (`ChIJ...`) |
+| `location` | — | Scope for search queries, e.g. `"New York, USA"` |
+| `max_places` | `10` | Max places per search query (max 1000) |
+| `include_details` | `false` | Also fetch each place's detail page: opening hours, popular times, extra contact info (slower) |
+| `max_reviews` | `0` | Reviews to attach per place |
+| `max_images` | `0` | Images to attach per place |
+| `language` | `en` | Result language code |
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/google_maps/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_queries": ["specialty coffee"],
+    "location": "Amsterdam, Netherlands",
+    "max_places": 20,
+    "include_details": true
+  }'
+```
+
+This verb is dual-metered: billed per returned place, plus per attached review when `max_reviews > 0`.
+
+## Fetch reviews
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/google_maps/reviews
+```
+
+Give it place URLs or place IDs; returns review items with author, text, star rating, like count, owner response, and timestamps.
+
+At least one of `urls` or `place_ids` is required.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` / `place_ids` | — | Up to 20 places per call |
+| `max_reviews` | `20` | Max reviews per place (max 100,000) |
+| `sort_by` | `newest` | `newest`, `mostRelevant`, `highestRanking`, or `lowestRanking` |
+| `start_date` | — | Only reviews on/after this ISO date |
+| `language` | `en` | Review language code |
+
+Billing is per returned review.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Google Maps** in your workspace.

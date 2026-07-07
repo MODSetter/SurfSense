@@ -41,7 +41,7 @@ import { baseApiService } from "./base-api.service";
 
 class ConnectorsApiService {
 	/**
-	 * Get all connectors for a search space
+	 * Get all connectors for a workspace
 	 */
 	getConnectors = async (request: GetConnectorsRequest) => {
 		const parsedRequest = getConnectorsRequest.safeParse(request);
@@ -308,13 +308,13 @@ class ConnectorsApiService {
 	// =============================================================================
 
 	/**
-	 * Get all MCP connectors for a search space
+	 * Get all MCP connectors for a workspace
 	 */
 	getMCPConnectors = async (request: GetMCPConnectorsRequest) => {
-		const { search_space_id } = request.queryParams;
+		const { workspace_id } = request.queryParams;
 
 		const queryString = new URLSearchParams({
-			search_space_id: String(search_space_id),
+			workspace_id: String(workspace_id),
 		}).toString();
 
 		return baseApiService.get<MCPConnectorRead[]>(`/api/v1/connectors/mcp?${queryString}`);
@@ -334,7 +334,7 @@ class ConnectorsApiService {
 		const { data, queryParams } = request;
 
 		const queryString = new URLSearchParams({
-			search_space_id: String(queryParams.search_space_id),
+			workspace_id: String(queryParams.workspace_id),
 		}).toString();
 
 		return baseApiService.post<MCPConnectorRead>(

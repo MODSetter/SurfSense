@@ -38,8 +38,8 @@ const visibilityOptions: {
 	},
 	{
 		value: "SEARCH_SPACE",
-		label: "Search Space",
-		description: "All members of this search space can access",
+		label: "Workspace",
+		description: "All members of this workspace can access",
 		icon: Users,
 	},
 ];
@@ -51,7 +51,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
-	const { mutateAsync: updateVisibility } = useUpdateThreadVisibility(thread?.search_space_id ?? 0);
+	const { mutateAsync: updateVisibility } = useUpdateThreadVisibility(thread?.workspace_id ?? 0);
 
 	// Snapshot creation mutation
 	const { mutateAsync: createSnapshot, isPending: isCreatingSnapshot } = useAtomValue(
@@ -96,7 +96,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 				onVisibilityChange?.(updatedThread.visibility);
 				toast.success(
-					newVisibility === "SEARCH_SPACE" ? "Chat shared with search space" : "Chat is now private"
+					newVisibility === "SEARCH_SPACE" ? "Chat shared with workspace" : "Chat is now private"
 				);
 				setOpen(false);
 			} catch (error) {
@@ -139,9 +139,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							variant="ghost"
 							size="icon"
 							onClick={() =>
-								router.push(
-									`/dashboard/${thread.search_space_id}/search-space-settings/public-links`
-								)
+								router.push(`/dashboard/${thread.workspace_id}/workspace-settings/public-links`)
 							}
 							className="size-8 bg-muted/50 hover:bg-accent hover:text-accent-foreground"
 						>

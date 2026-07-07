@@ -69,7 +69,7 @@ async def connect_clickup(
     Initiate ClickUp OAuth flow.
 
     Args:
-        space_id: The search space ID
+        space_id: The workspace ID
         user: Current authenticated user
 
     Returns:
@@ -290,10 +290,10 @@ async def clickup_callback(
             "_token_encrypted": True,
         }
 
-        # Check if connector already exists for this search space and user
+        # Check if connector already exists for this workspace and user
         existing_connector_result = await session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.CLICKUP_CONNECTOR,
@@ -316,7 +316,7 @@ async def clickup_callback(
                 connector_type=SearchSourceConnectorType.CLICKUP_CONNECTOR,
                 is_indexable=False,
                 config=connector_config,
-                search_space_id=space_id,
+                workspace_id=space_id,
                 user_id=user_id,
             )
             session.add(new_connector)

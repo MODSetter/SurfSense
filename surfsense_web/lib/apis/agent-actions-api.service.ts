@@ -5,7 +5,7 @@ const AgentActionReadSchema = z.object({
 	id: z.number(),
 	thread_id: z.number(),
 	user_id: z.string().nullable(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	tool_name: z.string(),
 	args: z.record(z.string(), z.unknown()).nullable(),
 	result_id: z.string().nullable(),

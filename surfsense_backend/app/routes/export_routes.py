@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/search-spaces/{search_space_id}/export")
+@router.get("/workspaces/{workspace_id}/export")
 async def export_knowledge_base(
-    search_space_id: int,
+    workspace_id: int,
     folder_id: int | None = Query(
         None, description="Export only this folder's subtree"
     ),
@@ -31,13 +31,13 @@ async def export_knowledge_base(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to export documents in this search space",
+        "You don't have permission to export documents in this workspace",
     )
 
     try:
-        result = await build_export_zip(session, search_space_id, folder_id)
+        result = await build_export_zip(session, workspace_id, folder_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
 

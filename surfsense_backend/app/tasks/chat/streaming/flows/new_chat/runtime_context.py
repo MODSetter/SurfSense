@@ -13,7 +13,7 @@ from app.agents.chat.shared.context import SurfSenseContextSchema
 
 def build_new_chat_runtime_context(
     *,
-    search_space_id: int,
+    workspace_id: int,
     mentioned_document_ids: list[int] | None,
     accepted_folder_ids: list[int],
     mentioned_folder_ids: list[int] | None,
@@ -34,7 +34,7 @@ def build_new_chat_runtime_context(
     middleware reads them yet.
     """
     return SurfSenseContextSchema(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         mentioned_document_ids=list(mentioned_document_ids or []),
         mentioned_folder_ids=list(accepted_folder_ids or mentioned_folder_ids or []),
         mentioned_connector_ids=list(mentioned_connector_ids or []),

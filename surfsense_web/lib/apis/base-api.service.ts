@@ -108,6 +108,9 @@ class BaseApiService {
 
 			const refreshRetryKey = getRefreshRetryKey(mergedOptions.method, url);
 			if (this.isDesktopClient && !desktopAccessToken && !isNoAuthEndpoint) {
+				// Desktop refresh token is gone/revoked — send the user to /desktop/login
+				// (same treatment as a server 401 below) instead of erroring in place.
+				handleUnauthorized();
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 

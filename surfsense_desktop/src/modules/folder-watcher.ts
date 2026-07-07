@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { trackEvent } from './analytics';
+import { migrateWatchedFolderConfigs } from './migrate-watched-folders';
 
 export interface WatchedFolderConfig {
   path: string;
@@ -12,7 +13,7 @@ export interface WatchedFolderConfig {
   excludePatterns: string[];
   fileExtensions: string[] | null;
   rootFolderId: number | null;
-  searchSpaceId: number;
+  workspaceId: number;
   active: boolean;
 }
 
@@ -27,7 +28,7 @@ type FolderSyncAction = 'add' | 'change' | 'unlink';
 export interface FolderSyncFileChangedEvent {
   id: string;
   rootFolderId: number | null;
-  searchSpaceId: number;
+  workspaceId: number;
   folderPath: string;
   folderName: string;
   relativePath: string;
@@ -68,6 +69,12 @@ async function getStore() {
         [STORE_KEY]: [] as WatchedFolderConfig[],
       },
     });
+    // One-time read-migration: legacy persisted configs stored the workspace as
+    // `searchSpaceId`. Map it to `workspaceId` and write back once so existing
+    // watched folders keep their sync target after the rename.
+    const raw = store.get(STORE_KEY, []) as Array<Record<string, unknown>>;
+    const { configs, migrated } = migrateWatchedFolderConfigs<WatchedFolderConfig>(raw);
+    if (migrated) store.set(STORE_KEY, configs);
   }
   return store;
 }
@@ -267,7 +274,7 @@ async function startWatcher(config: WatchedFolderConfig) {
       if (storedMtime === undefined) {
         sendFileChangedEvent({
           rootFolderId: config.rootFolderId,
-          searchSpaceId: config.searchSpaceId,
+          workspaceId: config.workspaceId,
           folderPath: config.path,
           folderName: config.name,
           relativePath: rel,
@@ -278,7 +285,7 @@ async function startWatcher(config: WatchedFolderConfig) {
       } else if (Math.abs(currentMtime - storedMtime) >= MTIME_TOLERANCE_S * 1000) {
         sendFileChangedEvent({
           rootFolderId: config.rootFolderId,
-          searchSpaceId: config.searchSpaceId,
+          workspaceId: config.workspaceId,
           folderPath: config.path,
           folderName: config.name,
           relativePath: rel,
@@ -295,7 +302,7 @@ async function startWatcher(config: WatchedFolderConfig) {
       if (!(rel in currentMap)) {
         sendFileChangedEvent({
           rootFolderId: config.rootFolderId,
-          searchSpaceId: config.searchSpaceId,
+          workspaceId: config.workspaceId,
           folderPath: config.path,
           folderName: config.name,
           relativePath: rel,
@@ -346,7 +353,7 @@ async function startWatcher(config: WatchedFolderConfig) {
 
     sendFileChangedEvent({
       rootFolderId: config.rootFolderId,
-      searchSpaceId: config.searchSpaceId,
+      workspaceId: config.workspaceId,
       folderPath: config.path,
       folderName: config.name,
       relativePath,
@@ -403,7 +410,7 @@ export async function addWatchedFolder(
   }
 
   trackEvent('desktop_folder_watch_added', {
-    search_space_id: config.searchSpaceId,
+    workspace_id: config.workspaceId,
     root_folder_id: config.rootFolderId,
     active: config.active,
     has_exclude_patterns: (config.excludePatterns?.length ?? 0) > 0,
@@ -431,7 +438,7 @@ export async function removeWatchedFolder(
 
   if (removed) {
     trackEvent('desktop_folder_watch_removed', {
-      search_space_id: removed.searchSpaceId,
+      workspace_id: removed.workspaceId,
       root_folder_id: removed.rootFolderId,
     });
   }

@@ -47,7 +47,7 @@ def to_response(notification: Notification) -> NotificationResponse:
     return NotificationResponse(
         id=notification.id,
         user_id=str(notification.user_id),
-        search_space_id=notification.search_space_id,
+        workspace_id=notification.workspace_id,
         type=notification.type,
         title=notification.title,
         message=notification.message,

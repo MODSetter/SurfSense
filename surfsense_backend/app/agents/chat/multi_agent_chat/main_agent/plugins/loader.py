@@ -57,7 +57,7 @@ class PluginContext(dict):
     Backed by ``dict`` so plugins can inspect the keys they care about
     without coupling to a concrete dataclass shape. Required keys:
 
-    * ``search_space_id`` (int)
+    * ``workspace_id`` (int)
     * ``user_id`` (str | None)
     * ``thread_visibility`` (:class:`app.db.ChatVisibility`)
     * ``llm`` (:class:`langchain_core.language_models.BaseChatModel`)
@@ -72,13 +72,13 @@ class PluginContext(dict):
     def build(
         cls,
         *,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str | None,
         thread_visibility: ChatVisibility,
         llm: BaseChatModel,
     ) -> PluginContext:
         return cls(
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             thread_visibility=thread_visibility,
             llm=llm,

@@ -81,19 +81,6 @@ services:
   #     timeout: 5s
   #     retries: 3
 
-  searxng:
-    image: searxng/searxng:2026.3.13-3c1f68c59
-    volumes:
-      - ./searxng:/etc/searxng
-    environment:
-      SEARXNG_SECRET: ${SEARXNG_SECRET:-surfsense-searxng-secret}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Single public entry point for the Docker stack. Comment this service out
   # only if you front SurfSense with your own reverse proxy.
   proxy:
@@ -146,7 +133,6 @@ services:
       FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       BACKEND_URL: ${BACKEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
-      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # DAYTONA_SANDBOX_ENABLED: "TRUE"
@@ -160,8 +146,6 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      searxng:
         condition: service_healthy
       migrations:
         condition: service_completed_successfully
@@ -210,7 +194,6 @@ services:
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
       FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
-      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       SERVICE_ROLE: worker
     depends_on:
       db:

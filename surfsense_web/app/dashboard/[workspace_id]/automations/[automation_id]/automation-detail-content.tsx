@@ -1,0 +1,91 @@
+"use client";
+import { ShieldAlert } from "lucide-react";
+import { useAutomation } from "@/hooks/use-automation";
+import { useAutomationPermissions } from "../hooks/use-automation-permissions";
+import { AutomationDefinitionSection } from "./components/automation-definition-section";
+import { AutomationDetailHeader } from "./components/automation-detail-header";
+import { AutomationDetailLoading } from "./components/automation-detail-loading";
+import { AutomationNotFound } from "./components/automation-not-found";
+import { AutomationRunsSection } from "./components/automation-runs-section";
+import { AutomationTriggersSection } from "./components/automation-triggers-section";
+
+interface AutomationDetailContentProps {
+	workspaceId: number;
+	automationId: number;
+}
+
+/**
+ * Client orchestrator for one automation's detail view. Branches:
+ *   - permissions loading → skeleton
+ *   - no read permission → access denied panel
+ *   - bad id (NaN) → not-found panel
+ *   - detail fetching → skeleton
+ *   - detail error / null → not-found panel (we don't distinguish 404
+ *     from 403 in the UI)
+ *   - detail loaded → header + definition + triggers
+ *
+ * Each child component is gated independently on the relevant permission
+ * so the orchestrator stays thin.
+ */
+export function AutomationDetailContent({
+	workspaceId,
+	automationId,
+}: AutomationDetailContentProps) {
+	const perms = useAutomationPermissions();
+	const validId = Number.isInteger(automationId) && automationId > 0;
+	const { data: automation, isLoading, error } = useAutomation(validId ? automationId : undefined);
+
+	if (perms.loading) {
+		return <AutomationDetailLoading />;
+	}
+
+	if (!perms.canRead) {
+		return (
+			<div className="rounded-lg border border-border/60 bg-muted/20 px-6 py-12 text-center">
+				<ShieldAlert className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden />
+				<h2 className="mt-3 text-base font-semibold text-foreground">Access denied</h2>
+				<p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
+					You don't have permission to view automations in this workspace.
+				</p>
+			</div>
+		);
+	}
+
+	if (!validId) {
+		return <AutomationNotFound workspaceId={workspaceId} />;
+	}
+
+	if (isLoading) {
+		return <AutomationDetailLoading />;
+	}
+
+	if (error || !automation) {
+		return <AutomationNotFound workspaceId={workspaceId} error={error} />;
+	}
+
+	return (
+		<>
+			<AutomationDetailHeader
+				automation={automation}
+				workspaceId={workspaceId}
+				canUpdate={perms.canUpdate}
+				canDelete={perms.canDelete}
+			/>
+
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+				<div className="space-y-6 min-w-0 lg:col-span-2">
+					<AutomationDefinitionSection definition={automation.definition} />
+					<AutomationRunsSection automationId={automation.id} />
+				</div>
+				<div className="space-y-6 min-w-0">
+					<AutomationTriggersSection
+						triggers={automation.triggers}
+						automationId={automation.id}
+						canUpdate={perms.canUpdate}
+						canDelete={perms.canDelete}
+					/>
+				</div>
+			</div>
+		</>
+	);
+}

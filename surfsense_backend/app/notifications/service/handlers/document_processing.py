@@ -23,11 +23,11 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
         user_id: UUID,
         document_type: str,
         document_name: str,
-        search_space_id: int,
+        workspace_id: int,
         file_size: int | None = None,
     ) -> Notification:
         """Open the notification when document processing is queued."""
-        operation_id = msg.operation_id(document_type, document_name, search_space_id)
+        operation_id = msg.operation_id(document_type, document_name, workspace_id)
         title = msg.started_title(document_name)
         message = "Waiting in queue"
 
@@ -46,7 +46,7 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
             operation_id=operation_id,
             title=title,
             message=message,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             initial_metadata=metadata,
         )
 

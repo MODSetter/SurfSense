@@ -22,8 +22,8 @@ from app.auth.context import AuthContext
 from app.config import config as app_config
 from app.db import (
     Permission,
-    SearchSpace,
-    SearchSpaceMembership,
+    Workspace,
+    WorkspaceMembership,
     get_async_session,
 )
 from app.podcasts.generation.brief import propose_brief
@@ -59,7 +59,7 @@ router = APIRouter()
 
 @router.get("/podcasts", response_model=list[PodcastSummary])
 async def list_podcasts(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     skip: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_async_session),
@@ -69,11 +69,11 @@ async def list_podcasts(
     if skip < 0 or limit < 1:
         raise HTTPException(status_code=400, detail="Invalid pagination parameters")
 
-    if search_space_id is not None:
-        await _require(session, auth, search_space_id, Permission.PODCASTS_READ)
+    if workspace_id is not None:
+        await _require(session, auth, workspace_id, Permission.PODCASTS_READ)
         query = (
             select(Podcast)
-            .where(Podcast.search_space_id == search_space_id)
+            .where(Podcast.workspace_id == workspace_id)
             .order_by(Podcast.created_at.desc())
             .offset(skip)
             .limit(limit)
@@ -81,9 +81,9 @@ async def list_podcasts(
     else:
         query = (
             select(Podcast)
-            .join(SearchSpace)
-            .join(SearchSpaceMembership)
-            .where(SearchSpaceMembership.user_id == user.id)
+            .join(Workspace)
+            .join(WorkspaceMembership)
+            .where(WorkspaceMembership.user_id == user.id)
             .order_by(Podcast.created_at.desc())
             .offset(skip)
             .limit(limit)
@@ -159,19 +159,19 @@ async def create_podcast(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    await _require(session, auth, body.search_space_id, Permission.PODCASTS_CREATE)
+    await _require(session, auth, body.workspace_id, Permission.PODCASTS_CREATE)
 
     service = PodcastService(session)
     podcast = await service.create(
         title=body.title,
-        search_space_id=body.search_space_id,
+        workspace_id=body.workspace_id,
         thread_id=body.thread_id,
     )
     podcast.source_content = body.source_content
 
     spec = await propose_brief(
         session,
-        search_space_id=body.search_space_id,
+        workspace_id=body.workspace_id,
         speaker_count=body.speaker_count,
         min_seconds=body.min_seconds,
         max_seconds=body.max_seconds,
@@ -219,7 +219,7 @@ async def approve_brief(
     async with _lifecycle_errors():
         await PodcastService(session).begin_drafting(podcast)
     await session.commit()
-    draft_transcript_task.delay(podcast.id, podcast.search_space_id)
+    draft_transcript_task.delay(podcast.id, podcast.workspace_id)
     return PodcastDetail.of(podcast)
 
 
@@ -325,15 +325,15 @@ async def stream_podcast(
 async def _require(
     session: AsyncSession,
     auth: AuthContext,
-    search_space_id: int,
+    workspace_id: int,
     permission: Permission,
 ) -> None:
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         permission.value,
-        "You don't have permission for podcasts in this search space",
+        "You don't have permission for podcasts in this workspace",
     )
 
 
@@ -346,7 +346,7 @@ async def _load(
     podcast = await PodcastRepository(session).get(podcast_id)
     if podcast is None:
         raise HTTPException(status_code=404, detail="Podcast not found")
-    await _require(session, auth, podcast.search_space_id, permission)
+    await _require(session, auth, podcast.workspace_id, permission)
     return podcast
 
 

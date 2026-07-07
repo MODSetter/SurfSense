@@ -1,121 +1,36 @@
 ---
 title: Connectors
-description: Integrate with third-party services
+description: Connect SurfSense to your tools and services
 ---
 
 import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Zap, Cable } from 'lucide-react';
 
-Connect SurfSense to your favorite tools and services. Browse the available integrations below to sync data from productivity apps, communication platforms, knowledge bases, and more.
+Connectors bring data into SurfSense — either as searchable knowledge or as live tools the AI agent can use during chat. There are two kinds:
 
 <Cards>
   <Card
-    title="Google Drive"
-    description="Connect your Google Drive to SurfSense"
-    href="/docs/connectors/google-drive"
+    icon={<Zap />}
+    title="Native Connectors"
+    description="SurfSense's built-in scraper APIs: Reddit, YouTube, Google Maps, Google Search, and Web Crawl — usable in chat, the API Playground, or via REST"
+    href="/docs/connectors/native"
   />
   <Card
-    title="Gmail"
-    description="Connect your Gmail to SurfSense"
-    href="/docs/connectors/gmail"
-  />
-  <Card
-    title="Google Calendar"
-    description="Connect your Google Calendar to SurfSense"
-    href="/docs/connectors/google-calendar"
-  />
-  <Card
-    title="Dropbox"
-    description="Connect your Dropbox to SurfSense"
-    href="/docs/connectors/dropbox"
-  />
-  <Card
-    title="Notion"
-    description="Connect your Notion workspaces to SurfSense"
-    href="/docs/connectors/notion"
-  />
-  <Card
-    title="Slack"
-    description="Connect your Slack workspace to SurfSense"
-    href="/docs/connectors/slack"
-  />
-  <Card
-    title="Discord"
-    description="Connect your Discord servers to SurfSense"
-    href="/docs/connectors/discord"
-  />
-  <Card
-    title="Jira"
-    description="Connect your Jira projects to SurfSense"
-    href="/docs/connectors/jira"
-  />
-  <Card
-    title="Linear"
-    description="Connect your Linear workspace to SurfSense"
-    href="/docs/connectors/linear"
-  />
-  <Card
-    title="Microsoft Teams"
-    description="Connect your Microsoft Teams to SurfSense"
-    href="/docs/connectors/microsoft-teams"
-  />
-  <Card
-    title="Microsoft OneDrive"
-    description="Connect your Microsoft OneDrive to SurfSense"
-    href="/docs/connectors/microsoft-onedrive"
-  />
-  <Card
-    title="Confluence"
-    description="Connect your Confluence spaces to SurfSense"
-    href="/docs/connectors/confluence"
-  />
-  <Card
-    title="Airtable"
-    description="Connect your Airtable bases to SurfSense"
-    href="/docs/connectors/airtable"
-  />
-  <Card
-    title="ClickUp"
-    description="Connect your ClickUp workspace to SurfSense"
-    href="/docs/connectors/clickup"
-  />
-  <Card
-    title="GitHub"
-    description="Connect your GitHub repositories to SurfSense"
-    href="/docs/connectors/github"
-  />
-  <Card
-    title="Baidu Search"
-    description="Search the Chinese web with Baidu AI Search"
-    href="/docs/connectors/baidu-search"
-  />
-  <Card
-    title="Luma"
-    description="Connect your Luma events to SurfSense"
-    href="/docs/connectors/luma"
-  />
-  <Card
-    title="Circleback"
-    description="Connect your Circleback meetings to SurfSense"
-    href="/docs/connectors/circleback"
-  />
-  <Card
-    title="Elasticsearch"
-    description="Connect your Elasticsearch cluster to SurfSense"
-    href="/docs/connectors/elasticsearch"
-  />
-  <Card
-    title="Bookstack"
-    description="Connect your Bookstack instance to SurfSense"
-    href="/docs/connectors/bookstack"
-  />
-  <Card
-    title="Obsidian"
-    description="Sync your Obsidian vault using the SurfSense plugin"
-    href="/docs/connectors/obsidian"
-  />
-  <Card
-    title="Web Crawler"
-    description="Crawl and index any website into SurfSense"
-    href="/docs/connectors/web-crawler"
+    icon={<Cable />}
+    title="External Connectors"
+    description="Third-party integrations: Notion, Slack, Linear, Jira, Google, GitHub, Obsidian, and more"
+    href="/docs/connectors/external"
   />
 </Cards>
+
+## How connectors surface in SurfSense
+
+- **Native scrapers** — the AI agent uses them as tools automatically in chat, and you can run them yourself from the **API Playground** or your own code via the REST API.
+- **Tools & Live Sources** — external connectors like Notion, Slack, Jira, or Linear give the agent real-time tools. Ask a question in chat and the agent searches or acts on the connected service directly; nothing is copied into SurfSense in the background.
+- **Knowledge Base** — file sources like Google Drive, OneDrive, and Dropbox are imported through the Documents sidebar's **Import** menu and indexed into your knowledge base alongside uploads and notes.
+
+To manage external connectors, open the **Connectors** dialog inside your workspace. Connected accounts, sync status, and disconnect options all live there.
+
+## Deprecated connectors
+
+Some older connectors (Discord, Microsoft Teams, Luma, Elasticsearch, the old web crawler, and standalone search APIs) have been retired. Existing connections remain manageable, but new ones can't be added. Their docs are kept for reference under [Deprecated](/docs/connectors/deprecated/discord). Public web search and crawling are now built in as [native scrapers](/docs/connectors/native), and other search APIs can still be wired up through a custom MCP server.

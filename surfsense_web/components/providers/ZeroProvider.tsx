@@ -21,6 +21,7 @@ type LoadedZeroContext = {
 	context: ZeroContext;
 	desktopAuth?: string;
 };
+type ZeroContextState = LoadedZeroContext | null | undefined;
 
 function getCacheURL() {
 	if (configuredCacheURL) return configuredCacheURL;
@@ -34,6 +35,13 @@ async function fetchZeroContext(isDesktop: boolean): Promise<LoadedZeroContext |
 	const response = await authenticatedFetch(buildBackendUrl("/zero/context"), {
 		skipAuthRedirect: true,
 	});
+	if (response.status === 401) {
+		// Auth is dead (refresh already failed inside authenticatedFetch). This
+		// provider gates the whole app tree, so nothing below it (e.g.
+		// DashboardShell) can run its own redirect — do it here.
+		handleUnauthorized();
+		return null;
+	}
 	if (!response.ok) return null;
 
 	return {
@@ -131,7 +139,7 @@ function AuthenticatedZeroProvider({
 	children: React.ReactNode;
 	isDesktop: boolean;
 }) {
-	const [loadedContext, setLoadedContext] = useState<LoadedZeroContext | null>(null);
+	const [loadedContext, setLoadedContext] = useState<ZeroContextState>(undefined);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -153,7 +161,7 @@ function AuthenticatedZeroProvider({
 
 		const unsubscribe = window.electronAPI.onAuthChanged(({ accessToken }) => {
 			if (!accessToken) {
-				setLoadedContext(null);
+				setLoadedContext(undefined);
 				return;
 			}
 			void load();
@@ -165,9 +173,7 @@ function AuthenticatedZeroProvider({
 		};
 	}, [isDesktop]);
 
-	if (!loadedContext) {
-		return <>{children}</>;
-	}
+	if (!loadedContext) return null;
 
 	return (
 		<ZeroClientProvider
@@ -235,8 +241,14 @@ function ZeroClientProvider({
 function WebZeroProvider({ children }: { children: React.ReactNode }) {
 	const session = useSession();
 
+	// Same reasoning as fetchZeroContext: this provider blocks the whole tree,
+	// so the login redirect must happen here, not in a child that never mounts.
+	useEffect(() => {
+		if (session.status === "unauthenticated") handleUnauthorized();
+	}, [session.status]);
+
 	if (session.status !== "authenticated") {
-		return <>{children}</>;
+		return null;
 	}
 
 	return <AuthenticatedZeroProvider isDesktop={false}>{children}</AuthenticatedZeroProvider>;

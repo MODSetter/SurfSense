@@ -3,47 +3,37 @@
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
-	ChevronLeft,
-	ChevronRight,
-	FileText,
-	FolderClock,
-	Laptop,
-	Lock,
-	Paperclip,
-	Server,
+	FolderInput,
+	FolderPlus,
+	FolderSync,
+	ListFilter,
+	Plus,
+	Settings2,
+	SlidersVertical,
 	Trash2,
-	Unplug,
 	Upload,
-	X,
 } from "lucide-react";
-import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import { importConnectorRequestAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import {
-	folderWatchDialogOpenAtom,
-	folderWatchInitialFolderAtom,
-} from "@/atoms/folder-sync/folder-sync.atoms";
-import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { useConnectorStatus } from "@/components/assistant-ui/connector-popup/hooks/use-connector-status";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
-import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
+import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
 import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
-import { useRuntimeConfig } from "@/components/providers/runtime-config";
+import { useOptionalRuntimeConfig, useRuntimeConfig } from "@/components/providers/runtime-config";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	DEFAULT_EXCLUDE_PATTERNS,
@@ -59,36 +49,38 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
-import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
 import { queries } from "@/zero/queries/index";
-import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
-
-const DesktopLocalTabContent = dynamic(
-	() => import("./DesktopLocalTabContent").then((mod) => mod.DesktopLocalTabContent),
-	{ ssr: false }
-);
+import { SidebarSection } from "./SidebarSection";
 
 const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["USER_MEMORY", "TEAM_MEMORY"];
 const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
@@ -123,8 +115,225 @@ function downloadTextFile(content: string, fileName: string, type = "text/markdo
 	document.body.removeChild(a);
 	URL.revokeObjectURL(url);
 }
-const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
-const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
+
+export function EmbeddedDocumentsMenu({
+	typeCounts,
+	activeTypes,
+	onToggleType,
+	onCreateFolder,
+}: {
+	typeCounts: Partial<Record<string, number>>;
+	activeTypes: DocumentTypeEnum[];
+	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
+	onCreateFolder: () => void;
+}) {
+	const documentTypes = useMemo(
+		() => Object.keys(typeCounts).sort() as DocumentTypeEnum[],
+		[typeCounts]
+	);
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="relative h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					aria-label="Document actions"
+				>
+					<SlidersVertical className="h-3.5 w-3.5" />
+					{activeTypes.length > 0 ? (
+						<span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+					) : null}
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" className="w-44">
+				<DropdownMenuItem onSelect={onCreateFolder}>
+					<FolderPlus className="h-4 w-4" />
+					New folder
+				</DropdownMenuItem>
+				<DropdownMenuSub>
+					<DropdownMenuSubTrigger>
+						<ListFilter className="h-4 w-4" />
+						Filter by type
+					</DropdownMenuSubTrigger>
+					<DropdownMenuSubContent className="w-52 max-h-72 overflow-y-auto">
+						{documentTypes.length > 0 ? (
+							documentTypes.map((type) => (
+								<DropdownMenuCheckboxItem
+									key={type}
+									checked={activeTypes.includes(type)}
+									onCheckedChange={(checked) => onToggleType(type, checked === true)}
+									onSelect={(event) => event.preventDefault()}
+								>
+									{getDocumentTypeIcon(type, "h-4 w-4")}
+									<span className="min-w-0 flex-1 truncate">{getDocumentTypeLabel(type)}</span>
+									<span className="ml-auto text-xs text-muted-foreground">
+										{typeCounts[type] ?? 0}
+									</span>
+								</DropdownMenuCheckboxItem>
+							))
+						) : (
+							<DropdownMenuItem disabled>No document types</DropdownMenuItem>
+						)}
+					</DropdownMenuSubContent>
+				</DropdownMenuSub>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
+/**
+ * Import menu: local file upload plus the cloud-drive import connectors
+ * (Google Drive / OneDrive / Dropbox). Drive/OneDrive/Dropbox set
+ * `importConnectorRequestAtom`, which the connector dialog consumes to run
+ * OAuth or open the existing account's config. In anonymous mode, `gate`
+ * intercepts every item to trigger the login flow.
+ */
+export function EmbeddedImportMenu({
+	gate,
+	onFolderWatched,
+}: {
+	gate?: (feature: string) => void;
+	onFolderWatched?: () => void;
+}) {
+	const { openDialog } = useDocumentUploadDialog();
+	const setImportRequest = useSetAtom(importConnectorRequestAtom);
+	// Provider is absent on anonymous /free pages, where every item is login-gated
+	// anyway — defaulting to hosted (Composio) there is cosmetic.
+	const selfHosted = useOptionalRuntimeConfig()?.deploymentMode === "self-hosted";
+	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
+	const { data: connectors } = useAtomValue(connectorsAtom);
+
+	// Watch Local Folder is a desktop-app feature (needs the Electron folder watcher).
+	const { isDesktop } = usePlatform();
+	const params = useParams();
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
+
+	// Native Google Drive connector self-hosted only; hosted deployments use Composio.
+	const driveType = selfHosted
+		? EnumConnectorName.GOOGLE_DRIVE_CONNECTOR
+		: EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR;
+
+	const cloudItems = [
+		{ type: driveType, label: "Google Drive" },
+		{ type: EnumConnectorName.ONEDRIVE_CONNECTOR, label: "OneDrive" },
+		{ type: EnumConnectorName.DROPBOX_CONNECTOR, label: "Dropbox" },
+	];
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					aria-label="Import documents"
+				>
+					<FolderInput className="h-3.5 w-3.5" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" className="w-56">
+				<DropdownMenuItem onSelect={() => (gate ? gate("upload files") : openDialog())}>
+					<Upload className="h-4 w-4" />
+					Upload Files
+				</DropdownMenuItem>
+				{isDesktop && (
+					<DropdownMenuItem
+						onSelect={() => (gate ? gate("watch local folders") : setFolderWatchOpen(true))}
+					>
+						<FolderSync className="h-4 w-4" />
+						Watch Local Folder
+					</DropdownMenuItem>
+				)}
+				<DropdownMenuSeparator />
+				{cloudItems.map((item) => {
+					const enabled = gate ? true : isConnectorEnabled(item.type);
+					const statusMessage = enabled ? null : getConnectorStatusMessage(item.type);
+					const icon = getConnectorIcon(item.type, "h-4 w-4");
+					// gate = anonymous mode; treat every connector as unconnected so items
+					// route through the login gate rather than reading workspace connectors.
+					const accountCount = gate
+						? 0
+						: (connectors ?? []).filter(
+								(c: SearchSourceConnector) => c.connector_type === item.type
+							).length;
+
+					// Unavailable (e.g. maintenance): non-actionable item explaining why.
+					if (!enabled) {
+						return (
+							<DropdownMenuItem key={item.type} disabled title={statusMessage ?? undefined}>
+								{icon}
+								{item.label}
+							</DropdownMenuItem>
+						);
+					}
+
+					// Connected: manage the existing account(s) or add another.
+					if (accountCount > 0) {
+						return (
+							<DropdownMenuSub key={item.type}>
+								<DropdownMenuSubTrigger>
+									{icon}
+									<span className="min-w-0 flex-1 truncate">{item.label}</span>
+									<span className="ml-auto text-xs text-muted-foreground">{accountCount}</span>
+								</DropdownMenuSubTrigger>
+								<DropdownMenuSubContent className="w-48">
+									<DropdownMenuItem
+										onSelect={() =>
+											gate
+												? gate("manage import connectors")
+												: setImportRequest({ connectorType: item.type, mode: "auto" })
+										}
+									>
+										<Settings2 className="h-4 w-4" />
+										{accountCount > 1 ? "Manage accounts" : "Manage"}
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onSelect={() =>
+											gate
+												? gate("import from cloud storage")
+												: setImportRequest({ connectorType: item.type, mode: "connect" })
+										}
+									>
+										<Plus className="h-4 w-4" />
+										Add another account
+									</DropdownMenuItem>
+								</DropdownMenuSubContent>
+							</DropdownMenuSub>
+						);
+					}
+
+					// Not connected: single click starts the first OAuth connect.
+					return (
+						<DropdownMenuItem
+							key={item.type}
+							onSelect={() =>
+								gate
+									? gate("import from cloud storage")
+									: setImportRequest({ connectorType: item.type, mode: "auto" })
+							}
+						>
+							{icon}
+							{item.label}
+						</DropdownMenuItem>
+					);
+				})}
+			</DropdownMenuContent>
+			{isDesktop && !gate && (
+				<FolderWatchDialog
+					open={folderWatchOpen}
+					onOpenChange={setFolderWatchOpen}
+					workspaceId={workspaceId}
+					onSuccess={onFolderWatched}
+				/>
+			)}
+		</DropdownMenu>
+	);
+}
 
 function CloudDocumentsSkeleton() {
 	const rows = [
@@ -139,7 +348,7 @@ function CloudDocumentsSkeleton() {
 	];
 
 	return (
-		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">
+		<div className="px-2 py-1">
 			<div className="space-y-1">
 				{rows.map((row) => (
 					<div key={row.id} className="flex h-8 items-center gap-2 px-2">
@@ -152,43 +361,19 @@ function CloudDocumentsSkeleton() {
 	);
 }
 
-type FilesystemSettings = {
-	mode: "cloud" | "desktop_local_folder";
-	localRootPaths: string[];
-	updatedAt: string;
-};
-
 interface WatchedFolderEntry {
 	path: string;
 	name: string;
 	excludePatterns: string[];
 	fileExtensions: string[] | null;
 	rootFolderId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	active: boolean;
 }
 
-const SHOWCASE_CONNECTORS = [
-	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
-	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
-	{ type: "NOTION_CONNECTOR", label: "Notion" },
-	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
-	{ type: "GOOGLE_CALENDAR_CONNECTOR", label: "Google Calendar" },
-	{ type: "SLACK_CONNECTOR", label: "Slack" },
-	{ type: "LINEAR_CONNECTOR", label: "Linear" },
-	{ type: "JIRA_CONNECTOR", label: "Jira" },
-	{ type: "GITHUB_CONNECTOR", label: "GitHub" },
-] as const;
-
 interface DocumentsSidebarProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	isDocked?: boolean;
-	onDockedChange?: (docked: boolean) => void;
 	/** When true, renders content without any wrapper — parent provides the container */
 	embedded?: boolean;
-	/** Optional action element rendered in the header row (e.g. collapse button) */
-	headerAction?: React.ReactNode;
 }
 
 export function DocumentsSidebar(props: DocumentsSidebarProps) {
@@ -213,206 +398,19 @@ function AuthenticatedWebDocumentsSidebar(props: DocumentsSidebarProps) {
 }
 
 function AuthenticatedDocumentsSidebarBase({
-	open,
-	onOpenChange,
-	isDocked = false,
-	onDockedChange,
 	embedded = false,
-	headerAction,
 	desktopFeaturesEnabled,
 }: DocumentsSidebarProps & { desktopFeaturesEnabled: boolean }) {
 	const t = useTranslations("documents");
-	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
-	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
-	const searchSpaceId = Number(params.search_space_id);
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
-	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
-	const { data: connectors } = useAtomValue(connectorsAtom);
-	const connectorCount = connectors?.length ?? 0;
 
-	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
-	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
-	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
-	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
-	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
-	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
-	const localFilesystemEnabled = agentFlags?.enable_desktop_local_filesystem === true;
-	const isElectron =
-		desktopFeaturesEnabled && typeof window !== "undefined" && !!window.electronAPI;
-
-	useEffect(() => {
-		if (!electronAPI?.getAgentFilesystemSettings) return;
-		let mounted = true;
-		electronAPI
-			.getAgentFilesystemSettings(searchSpaceId)
-			.then((settings: FilesystemSettings) => {
-				if (!mounted) return;
-				setFilesystemSettings(settings);
-			})
-			.catch(() => {
-				if (!mounted) return;
-				setFilesystemSettings({
-					mode: "cloud",
-					localRootPaths: [],
-					updatedAt: new Date().toISOString(),
-				});
-			});
-		return () => {
-			mounted = false;
-		};
-	}, [electronAPI, searchSpaceId]);
-
-	const hasLocalFilesystemTrust = useCallback(() => {
-		try {
-			return window.localStorage.getItem(LOCAL_FILESYSTEM_TRUST_KEY) === "true";
-		} catch {
-			return false;
-		}
-	}, []);
-
-	const localRootPaths = filesystemSettings?.localRootPaths ?? [];
-	const canAddMoreLocalRoots = localRootPaths.length < MAX_LOCAL_FILESYSTEM_ROOTS;
-
-	const applyLocalRootPath = useCallback(
-		async (path: string) => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const nextLocalRootPaths = [path, ...localRootPaths]
-				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
-				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
-			if (nextLocalRootPaths.length === localRootPaths.length) return;
-			const updated = await electronAPI.setAgentFilesystemSettings(
-				{
-					mode: "desktop_local_folder",
-					localRootPaths: nextLocalRootPaths,
-				},
-				searchSpaceId
-			);
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, localRootPaths, searchSpaceId]
-	);
-
-	const runPickLocalRoot = useCallback(async () => {
-		if (!electronAPI?.pickAgentFilesystemRoot) return;
-		const picked = await electronAPI.pickAgentFilesystemRoot();
-		if (!picked) return;
-		await applyLocalRootPath(picked);
-	}, [applyLocalRootPath, electronAPI]);
-
-	const handlePickFilesystemRoot = useCallback(async () => {
-		if (!canAddMoreLocalRoots) return;
-		if (hasLocalFilesystemTrust()) {
-			await runPickLocalRoot();
-			return;
-		}
-		if (!electronAPI?.pickAgentFilesystemRoot) return;
-		const picked = await electronAPI.pickAgentFilesystemRoot();
-		if (!picked) return;
-		setPendingLocalPath(picked);
-		setLocalTrustDialogOpen(true);
-	}, [canAddMoreLocalRoots, electronAPI, hasLocalFilesystemTrust, runPickLocalRoot]);
-
-	const handleRemoveFilesystemRoot = useCallback(
-		async (rootPathToRemove: string) => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const updated = await electronAPI.setAgentFilesystemSettings(
-				{
-					mode: "desktop_local_folder",
-					localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
-				},
-				searchSpaceId
-			);
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, localRootPaths, searchSpaceId]
-	);
-
-	const handleClearFilesystemRoots = useCallback(async () => {
-		if (!electronAPI?.setAgentFilesystemSettings) return;
-		const updated = await electronAPI.setAgentFilesystemSettings(
-			{
-				mode: "desktop_local_folder",
-				localRootPaths: [],
-			},
-			searchSpaceId
-		);
-		setFilesystemSettings(updated);
-	}, [electronAPI, searchSpaceId]);
-
-	const handleFilesystemTabChange = useCallback(
-		async (tab: "cloud" | "local") => {
-			if (!electronAPI?.setAgentFilesystemSettings) return;
-			const updated = await electronAPI.setAgentFilesystemSettings(
-				{
-					mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
-				},
-				searchSpaceId
-			);
-			setFilesystemSettings(updated);
-		},
-		[electronAPI, searchSpaceId]
-	);
-
-	// AI File Sort state
-	const { data: searchSpaces, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
-	const activeSearchSpace = useMemo(
-		() => searchSpaces?.find((s) => s.id === searchSpaceId),
-		[searchSpaces, searchSpaceId]
-	);
-	const aiSortEnabled = activeSearchSpace?.ai_file_sort_enabled ?? false;
-	const [aiSortBusy, setAiSortBusy] = useState(false);
-	const [aiSortConfirmOpen, setAiSortConfirmOpen] = useState(false);
-
-	const handleToggleAiSort = useCallback(() => {
-		if (aiSortEnabled) {
-			// Disable: just update the setting, no confirmation needed
-			setAiSortBusy(true);
-			searchSpacesApiService
-				.updateSearchSpace({ id: searchSpaceId, data: { ai_file_sort_enabled: false } })
-				.then(() => {
-					refetchSearchSpaces();
-					toast.success("AI file sorting disabled");
-				})
-				.catch(() => toast.error("Failed to disable AI file sorting"))
-				.finally(() => setAiSortBusy(false));
-		} else {
-			setAiSortConfirmOpen(true);
-		}
-	}, [aiSortEnabled, searchSpaceId, refetchSearchSpaces]);
-
-	const handleConfirmEnableAiSort = useCallback(() => {
-		setAiSortConfirmOpen(false);
-		setAiSortBusy(true);
-		searchSpacesApiService
-			.updateSearchSpace({ id: searchSpaceId, data: { ai_file_sort_enabled: true } })
-			.then(() => searchSpacesApiService.triggerAiSort(searchSpaceId))
-			.then(() => {
-				refetchSearchSpaces();
-				toast.success("AI file sorting enabled — organizing your documents in the background");
-			})
-			.catch(() => toast.error("Failed to enable AI file sorting"))
-			.finally(() => setAiSortBusy(false));
-	}, [searchSpaceId, refetchSearchSpaces]);
-
-	const handleWatchLocalFolder = useCallback(async () => {
-		const api = window.electronAPI;
-		if (!api?.selectFolder) return;
-
-		const folderPath = await api.selectFolder();
-		if (!folderPath) return;
-
-		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
-		setWatchInitialFolder({ path: folderPath, name: folderName });
-		setFolderWatchOpen(true);
-	}, [setWatchInitialFolder, setFolderWatchOpen]);
 
 	const refreshWatchedIds = useCallback(async () => {
 		if (!electronAPI?.getWatchedFolders) return;
@@ -422,7 +420,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 		if (folders.length === 0) {
 			try {
-				const backendFolders = await documentsApiService.getWatchedFolders(searchSpaceId);
+				const backendFolders = await documentsApiService.getWatchedFolders(workspaceId);
 				for (const bf of backendFolders) {
 					const meta = bf.metadata as Record<string, unknown> | null;
 					if (!meta?.watched || !meta.folder_path) continue;
@@ -430,7 +428,7 @@ function AuthenticatedDocumentsSidebarBase({
 						path: meta.folder_path as string,
 						name: bf.name,
 						rootFolderId: bf.id,
-						searchSpaceId: bf.search_space_id,
+						workspaceId: bf.workspace_id,
 						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
 						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
 						active: true,
@@ -455,7 +453,7 @@ function AuthenticatedDocumentsSidebarBase({
 				.map((f: WatchedFolderEntry) => f.rootFolderId as number)
 		);
 		setWatchedFolderIds(ids);
-	}, [searchSpaceId, electronAPI]);
+	}, [workspaceId, electronAPI]);
 
 	useEffect(() => {
 		refreshWatchedIds();
@@ -471,24 +469,28 @@ function AuthenticatedDocumentsSidebarBase({
 	// Folder state
 	const [expandedFolderMap, setExpandedFolderMap] = useAtom(expandedFolderIdsAtom);
 	const expandedIds = useMemo(
-		() => new Set(expandedFolderMap[searchSpaceId] ?? []),
-		[expandedFolderMap, searchSpaceId]
+		() => new Set(expandedFolderMap[workspaceId] ?? []),
+		[expandedFolderMap, workspaceId]
 	);
 	const toggleFolderExpand = useCallback(
 		(folderId: number) => {
 			setExpandedFolderMap((prev) => {
-				const current = new Set(prev[searchSpaceId] ?? []);
+				const current = new Set(prev[workspaceId] ?? []);
 				if (current.has(folderId)) current.delete(folderId);
 				else current.add(folderId);
-				return { ...prev, [searchSpaceId]: [...current] };
+				return { ...prev, [workspaceId]: [...current] };
 			});
 		},
-		[searchSpaceId, setExpandedFolderMap]
+		[workspaceId, setExpandedFolderMap]
 	);
 
 	// Zero queries for tree data
-	const [zeroFolders, zeroFoldersResult] = useQuery(queries.folders.bySpace({ searchSpaceId }));
-	const [zeroAllDocs, zeroAllDocsResult] = useQuery(queries.documents.bySpace({ searchSpaceId }));
+	const [zeroFolders, zeroFoldersResult] = useQuery(
+		queries.folders.bySpace({ workspaceId: workspaceId })
+	);
+	const [zeroAllDocs, zeroAllDocsResult] = useQuery(
+		queries.documents.bySpace({ workspaceId: workspaceId })
+	);
 	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
 
 	const treeFolders: FolderDisplay[] = useMemo(
@@ -498,7 +500,7 @@ function AuthenticatedDocumentsSidebarBase({
 				name: f.name,
 				position: f.position,
 				parentId: f.parentId ?? null,
-				searchSpaceId: f.searchSpaceId,
+				workspaceId: f.workspaceId,
 				metadata: f.metadata as Record<string, unknown> | null | undefined,
 			})),
 		[zeroFolders]
@@ -523,7 +525,7 @@ function AuthenticatedDocumentsSidebarBase({
 		const zeroIds = new Set(zeroDocs.map((d) => d.id));
 
 		const pendingAgentDocs = agentCreatedDocs
-			.filter((d) => d.searchSpaceId === searchSpaceId && !zeroIds.has(d.id))
+			.filter((d) => d.workspaceId === workspaceId && !zeroIds.has(d.id))
 			.map((d) => ({
 				id: d.id,
 				title: d.title,
@@ -533,7 +535,7 @@ function AuthenticatedDocumentsSidebarBase({
 			}));
 
 		return [...pendingAgentDocs, ...zeroDocs];
-	}, [zeroAllDocs, agentCreatedDocs, searchSpaceId]);
+	}, [zeroAllDocs, agentCreatedDocs, workspaceId]);
 
 	// Prune agent-created docs once Zero has caught up
 	useEffect(() => {
@@ -583,21 +585,21 @@ function AuthenticatedDocumentsSidebarBase({
 				await foldersApiService.createFolder({
 					name,
 					parent_id: createFolderParentId,
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 				});
 				toast.success("Folder created");
 				if (createFolderParentId !== null) {
 					setExpandedFolderMap((prev) => {
-						const current = new Set(prev[searchSpaceId] ?? []);
+						const current = new Set(prev[workspaceId] ?? []);
 						current.add(createFolderParentId);
-						return { ...prev, [searchSpaceId]: [...current] };
+						return { ...prev, [workspaceId]: [...current] };
 					});
 				}
 			} catch (e: unknown) {
 				toast.error((e as Error)?.message || "Failed to create folder");
 			}
 		},
-		[createFolderParentId, searchSpaceId, setExpandedFolderMap]
+		[createFolderParentId, workspaceId, setExpandedFolderMap]
 	);
 
 	const handleRescanFolder = useCallback(
@@ -618,7 +620,7 @@ function AuthenticatedDocumentsSidebarBase({
 				await uploadFolderScan({
 					folderPath: matched.path,
 					folderName: matched.name,
-					searchSpaceId,
+					workspaceId: workspaceId,
 					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
 					fileExtensions:
 						matched.fileExtensions ?? Array.from(getSupportedExtensionsSet(undefined, etlService)),
@@ -629,7 +631,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error((err as Error)?.message || "Failed to re-scan folder");
 			}
 		},
-		[searchSpaceId, electronAPI, etlService]
+		[workspaceId, electronAPI, etlService]
 	);
 
 	const handleStopWatching = useCallback(
@@ -751,7 +753,7 @@ function AuthenticatedDocumentsSidebarBase({
 					.trim()
 					.slice(0, 80) || "folder";
 			await doExport(
-				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`, {
 					folder_id: ctx.folder.id,
 				}),
 				`${safeName}.zip`
@@ -764,7 +766,7 @@ function AuthenticatedDocumentsSidebarBase({
 			isExportingKBRef.current = false;
 		}
 		setExportWarningContext(null);
-	}, [exportWarningContext, searchSpaceId, doExport]);
+	}, [exportWarningContext, workspaceId, doExport]);
 
 	const getPendingCountInSubtree = useCallback(
 		(folderId: number): number => {
@@ -805,7 +807,7 @@ function AuthenticatedDocumentsSidebarBase({
 						.trim()
 						.slice(0, 80) || "folder";
 				await doExport(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/export`, {
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`, {
 						folder_id: folder.id,
 					}),
 					`${safeName}.zip`
@@ -818,7 +820,7 @@ function AuthenticatedDocumentsSidebarBase({
 				isExportingKBRef.current = false;
 			}
 		},
-		[searchSpaceId, getPendingCountInSubtree, doExport]
+		[workspaceId, getPendingCountInSubtree, doExport]
 	);
 
 	const handleExportDocument = useCallback(
@@ -828,7 +830,7 @@ function AuthenticatedDocumentsSidebarBase({
 					const endpoint =
 						doc.document_type === "USER_MEMORY"
 							? buildBackendUrl("/api/v1/users/me/memory")
-							: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory`);
+							: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory`);
 					const response = await authenticatedFetch(endpoint, { method: "GET" });
 					if (!response.ok) {
 						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
@@ -856,7 +858,7 @@ function AuthenticatedDocumentsSidebarBase({
 
 			try {
 				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${doc.id}/export`, {
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${doc.id}/export`, {
 						format,
 					}),
 					{ method: "GET" }
@@ -881,7 +883,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error(err instanceof Error ? err.message : `Export failed`);
 			}
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	const handleFolderPickerSelect = useCallback(
@@ -998,19 +1000,13 @@ function AuthenticatedDocumentsSidebarBase({
 		[treeDocuments]
 	);
 
-	const searchFilteredDocuments = useMemo(() => {
-		const query = debouncedSearch.trim().toLowerCase();
-		if (!query) return treeDocumentsWithMemory;
-		return treeDocumentsWithMemory.filter((d) => d.title.toLowerCase().includes(query));
-	}, [treeDocumentsWithMemory, debouncedSearch]);
-
 	const openMemoryDocument = useCallback(
 		(doc: DocumentNodeDoc) => {
 			if (doc.document_type === "USER_MEMORY") {
 				openEditorPanel({
 					kind: "memory",
 					memoryScope: "user",
-					searchSpaceId,
+					workspaceId: workspaceId,
 					title: doc.title,
 				});
 				return true;
@@ -1019,14 +1015,14 @@ function AuthenticatedDocumentsSidebarBase({
 				openEditorPanel({
 					kind: "memory",
 					memoryScope: "team",
-					searchSpaceId,
+					workspaceId: workspaceId,
 					title: doc.title,
 				});
 				return true;
 			}
 			return false;
 		},
-		[openEditorPanel, searchSpaceId]
+		[openEditorPanel, workspaceId]
 	);
 
 	const handleResetMemoryDocument = useCallback(
@@ -1038,7 +1034,7 @@ function AuthenticatedDocumentsSidebarBase({
 			const endpoint =
 				doc.document_type === "USER_MEMORY"
 					? buildBackendUrl("/api/v1/users/me/memory/reset")
-					: buildBackendUrl(`/api/v1/searchspaces/${searchSpaceId}/memory/reset`);
+					: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory/reset`);
 			try {
 				const response = await authenticatedFetch(endpoint, { method: "POST" });
 				if (!response.ok) {
@@ -1051,7 +1047,7 @@ function AuthenticatedDocumentsSidebarBase({
 				toast.error((error as Error)?.message || `Failed to reset ${doc.title.toLowerCase()}`);
 			}
 		},
-		[openMemoryDocument, searchSpaceId]
+		[openMemoryDocument, workspaceId]
 	);
 
 	const typeCounts = useMemo(() => {
@@ -1139,577 +1135,201 @@ function AuthenticatedDocumentsSidebarBase({
 		[deleteDocumentMutation, t, setSidebarDocs]
 	);
 
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open && isMobile) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange, isMobile]);
-
-	const showFilesystemTabs =
-		!isMobile && !!electronAPI && !!filesystemSettings && localFilesystemEnabled;
-	const currentFilesystemTab =
-		localFilesystemEnabled && filesystemSettings?.mode === "desktop_local_folder"
-			? "local"
-			: "cloud";
 	const showCloudSkeleton =
-		currentFilesystemTab === "cloud" &&
-		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
-	const connectorButtonLabel = connectorCount > 0 ? "Manage connectors" : "Connect your connectors";
+		zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete";
 
-	const cloudContent = (
-		<>
-			{/* Connected tools strip */}
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={() => setConnectorDialogOpen(true)}
-				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
-			>
-				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">{connectorButtonLabel}</span>
-				{connectorCount > 0 && (
-					<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-						{connectorCount}
-					</span>
-				)}
-				<AvatarGroup className="ml-auto shrink-0">
-					{connectorCount > 0 && connectors
-						? connectors.slice(0, isMobile ? 5 : 9).map((connector, i) => {
-								const avatar = (
-									<Avatar
-										key={connector.id}
-										className="size-6"
-										style={{ zIndex: Math.max(9 - i, 1) }}
-									>
-										<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-											{getConnectorIcon(connector.connector_type, "size-3.5")}
-										</AvatarFallback>
-									</Avatar>
-								);
-								if (isMobile) return avatar;
-								return (
-									<Tooltip key={connector.id}>
-										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-										<TooltipContent side="top" className="text-xs">
-											{connector.name}
-										</TooltipContent>
-									</Tooltip>
-								);
-							})
-						: (isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
-								({ type, label }, i) => {
-									const avatar = (
-										<Avatar
-											key={type}
-											className="size-6"
-											style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-										>
-											<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-												{getConnectorIcon(type, "size-3.5")}
-											</AvatarFallback>
-										</Avatar>
-									);
-									if (isMobile) return avatar;
-									return (
-										<Tooltip key={type}>
-											<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-											<TooltipContent side="top" className="text-xs">
-												{label}
-											</TooltipContent>
-										</Tooltip>
-									);
-								}
-							)}
-				</AvatarGroup>
-			</Button>
-
-			{isElectron && (
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					onClick={handleWatchLocalFolder}
-					className="shrink-0 mx-4 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
-				>
-					<FolderClock className="size-4 shrink-0" />
-					<span className="truncate">Watch local folder</span>
-				</Button>
+	const renderDocumentTree = ({
+		documents = treeDocumentsWithMemory,
+		activeTypesForTree = activeTypes,
+		searchQuery,
+	}: {
+		documents?: DocumentNodeDoc[];
+		activeTypesForTree?: DocumentTypeEnum[];
+		searchQuery?: string;
+	} = {}) => (
+		<div className="relative">
+			{deletableSelectedIds.length > 0 && (
+				<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
+					<Button
+						type="button"
+						variant="destructive"
+						size="sm"
+						onClick={() => setBulkDeleteConfirmOpen(true)}
+						className="pointer-events-auto h-auto gap-1.5 px-3 py-1 text-xs shadow-lg"
+					>
+						<Trash2 size={12} />
+						Delete {deletableSelectedIds.length}{" "}
+						{deletableSelectedIds.length === 1 ? "item" : "items"}
+					</Button>
+				</div>
 			)}
 
-			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className="px-4 pb-1.5">
-					<DocumentsFilters
-						typeCounts={typeCounts}
-						onSearch={setSearch}
-						searchValue={search}
-						onToggleType={onToggleType}
-						activeTypes={activeTypes}
-						onCreateFolder={() => handleCreateFolder(null)}
-						aiSortEnabled={aiSortEnabled}
-						aiSortBusy={aiSortBusy}
-						onToggleAiSort={handleToggleAiSort}
-					/>
-				</div>
-
-				<div className="relative flex-1 min-h-0 overflow-auto">
-					{deletableSelectedIds.length > 0 && (
-						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
-							<Button
-								type="button"
-								variant="destructive"
-								size="sm"
-								onClick={() => setBulkDeleteConfirmOpen(true)}
-								className="pointer-events-auto h-auto gap-1.5 px-3 py-1 text-xs shadow-lg"
-							>
-								<Trash2 size={12} />
-								Delete {deletableSelectedIds.length}{" "}
-								{deletableSelectedIds.length === 1 ? "item" : "items"}
-							</Button>
-						</div>
-					)}
-
-					{showCloudSkeleton ? (
-						<CloudDocumentsSkeleton />
-					) : (
-						<FolderTreeView
-							folders={treeFolders}
-							documents={searchFilteredDocuments}
-							expandedIds={expandedIds}
-							onToggleExpand={toggleFolderExpand}
-							mentionedDocKeys={mentionedDocKeys}
-							onToggleChatMention={handleToggleChatMention}
-							onToggleFolderSelect={handleToggleFolderSelect}
-							onRenameFolder={handleRenameFolder}
-							onDeleteFolder={handleDeleteFolder}
-							onMoveFolder={handleMoveFolder}
-							onCreateFolder={handleCreateFolder}
-							searchQuery={debouncedSearch.trim() || undefined}
-							onPreviewDocument={(doc) => {
-								if (openMemoryDocument(doc)) return;
-								openEditorPanel({
-									documentId: doc.id,
-									searchSpaceId,
-									title: doc.title,
-								});
-							}}
-							onEditDocument={(doc) => {
-								if (openMemoryDocument(doc)) return;
-								openEditorPanel({
-									documentId: doc.id,
-									searchSpaceId,
-									title: doc.title,
-								});
-							}}
-							onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-							onMoveDocument={handleMoveDocument}
-							onResetDocument={handleResetMemoryDocument}
-							onExportDocument={handleExportDocument}
-							onVersionHistory={(doc) => setVersionDocId(doc.id)}
-							activeTypes={activeTypes}
-							onDropIntoFolder={handleDropIntoFolder}
-							onReorderFolder={handleReorderFolder}
-							watchedFolderIds={watchedFolderIds}
-							onRescanFolder={handleRescanFolder}
-							onStopWatchingFolder={handleStopWatching}
-							onExportFolder={handleExportFolder}
-						/>
-					)}
-				</div>
-			</div>
-		</>
-	);
-
-	const localContent = (
-		<DesktopLocalTabContent
-			localRootPaths={localRootPaths}
-			canAddMoreLocalRoots={canAddMoreLocalRoots}
-			maxLocalFilesystemRoots={MAX_LOCAL_FILESYSTEM_ROOTS}
-			searchSpaceId={searchSpaceId}
-			onPickFilesystemRoot={handlePickFilesystemRoot}
-			onRemoveFilesystemRoot={handleRemoveFilesystemRoot}
-			onClearFilesystemRoots={handleClearFilesystemRoots}
-			onOpenLocalFile={(localFilePath) => {
-				openEditorPanel({
-					kind: "local_file",
-					localFilePath,
-					title: localFilePath.split("/").pop() || localFilePath,
-					searchSpaceId,
-				});
-			}}
-			electronAvailable={!!electronAPI}
-		/>
-	);
-
-	const documentsContent = (
-		<>
-			<div className="shrink-0 flex h-12 items-center px-3 border-b">
-				<div className="flex w-full items-center justify-between">
-					<div className="flex items-center gap-3">
-						{isMobile && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-								onClick={() => onOpenChange(false)}
-							>
-								<ChevronLeft className="h-4 w-4" />
-								<span className="sr-only">{tSidebar("close") || "Close"}</span>
-							</Button>
-						)}
-						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
-						{showFilesystemTabs && (
-							<Tabs
-								value={currentFilesystemTab}
-								onValueChange={(value) => {
-									void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
-								}}
-							>
-								<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
-									<TabsTrigger
-										value="cloud"
-										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-										title="Cloud"
-									>
-										<Server className="size-3 shrink-0" />
-										<span className="leading-none">Cloud</span>
-									</TabsTrigger>
-									<TabsTrigger
-										value="local"
-										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-										title="Local"
-									>
-										<Laptop className="size-3 shrink-0" />
-										<span className="leading-none">Local</span>
-									</TabsTrigger>
-								</TabsList>
-							</Tabs>
-						)}
-					</div>
-					<div className="flex items-center gap-1">
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-										onClick={() => {
-											if (isDocked) {
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4" />
-										) : (
-											<ChevronRight className="h-4 w-4" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{headerAction}
-					</div>
-				</div>
-			</div>
-			{showFilesystemTabs ? (
-				<Tabs
-					value={currentFilesystemTab}
-					onValueChange={(value) => {
-						void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
-					}}
-					className="flex min-h-0 flex-1 flex-col"
-				>
-					<TabsContent value="cloud" className="mt-0 flex min-h-0 flex-1 flex-col">
-						{cloudContent}
-					</TabsContent>
-					<TabsContent value="local" className="mt-0 flex min-h-0 flex-1 flex-col">
-						{currentFilesystemTab === "local" ? localContent : null}
-					</TabsContent>
-				</Tabs>
+			{showCloudSkeleton ? (
+				<CloudDocumentsSkeleton />
 			) : (
-				cloudContent
-			)}
-
-			{versionDocId !== null && (
-				<VersionHistoryDialog
-					open
-					onOpenChange={(open) => {
-						if (!open) setVersionDocId(null);
+				<FolderTreeView
+					folders={treeFolders}
+					documents={documents}
+					expandedIds={expandedIds}
+					onToggleExpand={toggleFolderExpand}
+					mentionedDocKeys={mentionedDocKeys}
+					onToggleChatMention={handleToggleChatMention}
+					onToggleFolderSelect={handleToggleFolderSelect}
+					onRenameFolder={handleRenameFolder}
+					onDeleteFolder={handleDeleteFolder}
+					onMoveFolder={handleMoveFolder}
+					onCreateFolder={handleCreateFolder}
+					searchQuery={searchQuery}
+					onPreviewDocument={(doc) => {
+						if (openMemoryDocument(doc)) return;
+						openEditorPanel({
+							documentId: doc.id,
+							workspaceId: workspaceId,
+							title: doc.title,
+						});
 					}}
-					documentId={versionDocId}
+					onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+					onMoveDocument={handleMoveDocument}
+					onResetDocument={handleResetMemoryDocument}
+					onExportDocument={handleExportDocument}
+					onVersionHistory={(doc) => setVersionDocId(doc.id)}
+					activeTypes={activeTypesForTree}
+					onDropIntoFolder={handleDropIntoFolder}
+					onReorderFolder={handleReorderFolder}
+					watchedFolderIds={watchedFolderIds}
+					onRescanFolder={handleRescanFolder}
+					onStopWatchingFolder={handleStopWatching}
+					onExportFolder={handleExportFolder}
 				/>
 			)}
-
-			{isElectron && (
-				<FolderWatchDialog
-					open={folderWatchOpen}
-					onOpenChange={(nextOpen) => {
-						setFolderWatchOpen(nextOpen);
-						if (!nextOpen) setWatchInitialFolder(null);
-					}}
-					searchSpaceId={searchSpaceId}
-					initialFolder={watchInitialFolder}
-					onSuccess={refreshWatchedIds}
-				/>
-			)}
-			<AlertDialog
-				open={localTrustDialogOpen}
-				onOpenChange={(nextOpen) => {
-					setLocalTrustDialogOpen(nextOpen);
-					if (!nextOpen) setPendingLocalPath(null);
-				}}
-			>
-				<AlertDialogContent className="sm:max-w-md select-none">
-					<AlertDialogHeader>
-						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
-						<AlertDialogDescription>
-							Local mode can read and edit files inside the folders you select. Continue only if you
-							trust this workspace and its contents.
-						</AlertDialogDescription>
-						{pendingLocalPath && (
-							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">
-								Folder path: {pendingLocalPath}
-							</AlertDialogDescription>
-						)}
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={async () => {
-								try {
-									window.localStorage.setItem(LOCAL_FILESYSTEM_TRUST_KEY, "true");
-								} catch {}
-								setLocalTrustDialogOpen(false);
-								const path = pendingLocalPath;
-								setPendingLocalPath(null);
-								if (path) {
-									await applyLocalRootPath(path);
-								} else {
-									await runPickLocalRoot();
-								}
-							}}
-						>
-							I trust this workspace
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-
-			<FolderPickerDialog
-				open={folderPickerOpen}
-				onOpenChange={setFolderPickerOpen}
-				folders={treeFolders}
-				title={folderPickerTarget?.type === "folder" ? "Move folder to" : "Move document to"}
-				description="Select a destination folder, or choose Root to move to the top level."
-				disabledFolderIds={folderPickerTarget?.disabledIds}
-				onSelect={handleFolderPickerSelect}
-			/>
-
-			<CreateFolderDialog
-				open={createFolderOpen}
-				onOpenChange={setCreateFolderOpen}
-				parentFolderName={createFolderParentName}
-				onConfirm={handleCreateFolderConfirm}
-			/>
-
-			<AlertDialog
-				open={bulkDeleteConfirmOpen}
-				onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirmOpen(false)}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>
-							Delete {deletableSelectedIds.length} document
-							{deletableSelectedIds.length !== 1 ? "s" : ""}?
-						</AlertDialogTitle>
-						<AlertDialogDescription>
-							This action cannot be undone.{" "}
-							{deletableSelectedIds.length === 1
-								? "This document"
-								: `These ${deletableSelectedIds.length} documents`}{" "}
-							will be permanently deleted from your search space.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={(e) => {
-								e.preventDefault();
-								handleBulkDeleteSelected();
-							}}
-							disabled={isBulkDeleting}
-							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
-						>
-							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
-							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-
-			<AlertDialog
-				open={exportWarningOpen}
-				onOpenChange={(open) => {
-					if (!open) {
-						setExportWarningOpen(false);
-						setExportWarningContext(null);
-					}
-				}}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Some documents are still processing</AlertDialogTitle>
-						<AlertDialogDescription>
-							{exportWarningContext?.pendingCount} document
-							{exportWarningContext?.pendingCount !== 1 ? "s are" : " is"} currently being processed
-							and will be excluded from the export. Do you want to continue?
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleExportWarningConfirm}>
-							Export anyway
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-
-			<AlertDialog open={aiSortConfirmOpen} onOpenChange={setAiSortConfirmOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Enable AI File Sorting?</AlertDialogTitle>
-						<AlertDialogDescription>
-							All documents in this search space will be organized into folders by connector type,
-							date, and AI-generated categories. New documents will also be sorted automatically.
-							You can disable this at any time.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirmEnableAiSort}>Enable</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-		</>
+		</div>
 	);
 
 	if (embedded) {
 		return (
-			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-				{documentsContent}
-			</div>
+			<>
+				<SidebarSection
+					title={t("title") || "Documents"}
+					defaultOpen={true}
+					contentClassName="px-0"
+					persistentAction={
+						<div className="flex items-center gap-0.5">
+							<EmbeddedImportMenu onFolderWatched={refreshWatchedIds} />
+							<EmbeddedDocumentsMenu
+								typeCounts={typeCounts}
+								activeTypes={activeTypes}
+								onToggleType={onToggleType}
+								onCreateFolder={() => handleCreateFolder(null)}
+							/>
+						</div>
+					}
+				>
+					{renderDocumentTree()}
+				</SidebarSection>
+
+				{versionDocId !== null && (
+					<VersionHistoryDialog
+						open
+						onOpenChange={(open) => {
+							if (!open) setVersionDocId(null);
+						}}
+						documentId={versionDocId}
+					/>
+				)}
+
+				<FolderPickerDialog
+					open={folderPickerOpen}
+					onOpenChange={setFolderPickerOpen}
+					folders={treeFolders}
+					title={folderPickerTarget?.type === "folder" ? "Move folder to" : "Move document to"}
+					description="Select a destination folder, or choose Root to move to the top level."
+					disabledFolderIds={folderPickerTarget?.disabledIds}
+					onSelect={handleFolderPickerSelect}
+				/>
+
+				<CreateFolderDialog
+					open={createFolderOpen}
+					onOpenChange={setCreateFolderOpen}
+					parentFolderName={createFolderParentName}
+					onConfirm={handleCreateFolderConfirm}
+				/>
+
+				<AlertDialog
+					open={bulkDeleteConfirmOpen}
+					onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirmOpen(false)}
+				>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>
+								Delete {deletableSelectedIds.length} document
+								{deletableSelectedIds.length !== 1 ? "s" : ""}?
+							</AlertDialogTitle>
+							<AlertDialogDescription>
+								This action cannot be undone.{" "}
+								{deletableSelectedIds.length === 1
+									? "This document"
+									: `These ${deletableSelectedIds.length} documents`}{" "}
+								will be permanently deleted from your workspace.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={(e) => {
+									e.preventDefault();
+									handleBulkDeleteSelected();
+								}}
+								disabled={isBulkDeleting}
+								className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							>
+								<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
+								{isBulkDeleting && <Spinner size="sm" className="absolute" />}
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+
+				<AlertDialog
+					open={exportWarningOpen}
+					onOpenChange={(open) => {
+						if (!open) {
+							setExportWarningOpen(false);
+							setExportWarningContext(null);
+						}
+					}}
+				>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Some documents are still processing</AlertDialogTitle>
+							<AlertDialogDescription>
+								{exportWarningContext?.pendingCount} document
+								{exportWarningContext?.pendingCount !== 1 ? "s are" : " is"} currently being
+								processed and will be excluded from the export. Do you want to continue?
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction onClick={handleExportWarningConfirm}>
+								Export anyway
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			</>
 		);
 	}
 
-	if (isDocked && open && !isMobile) {
-		return (
-			<aside
-				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
-				aria-label={t("title") || "Documents"}
-			>
-				{documentsContent}
-			</aside>
-		);
-	}
-
-	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("title") || "Documents"}
-			width={isMobile ? undefined : 380}
-		>
-			{documentsContent}
-		</SidebarSlideOutPanel>
-	);
+	return null;
 }
 
 // ---------------------------------------------------------------------------
 // Anonymous Documents Sidebar
 // ---------------------------------------------------------------------------
 
-const ANON_ALLOWED_EXTENSIONS = new Set([
-	".md",
-	".markdown",
-	".txt",
-	".text",
-	".json",
-	".jsonl",
-	".yaml",
-	".yml",
-	".toml",
-	".ini",
-	".cfg",
-	".conf",
-	".xml",
-	".css",
-	".scss",
-	".py",
-	".js",
-	".jsx",
-	".ts",
-	".tsx",
-	".java",
-	".kt",
-	".go",
-	".rs",
-	".rb",
-	".php",
-	".c",
-	".h",
-	".cpp",
-	".hpp",
-	".cs",
-	".swift",
-	".sh",
-	".sql",
-	".log",
-	".rst",
-	".tex",
-	".vue",
-	".svelte",
-	".astro",
-	".tf",
-	".proto",
-	".csv",
-	".tsv",
-	".html",
-	".htm",
-	".xhtml",
-]);
-
-const ANON_ACCEPT = Array.from(ANON_ALLOWED_EXTENSIONS).join(",");
-
-function AnonymousDocumentsSidebar({
-	open,
-	onOpenChange,
-	isDocked = false,
-	onDockedChange,
-	embedded = false,
-	headerAction,
-}: DocumentsSidebarProps) {
+function AnonymousDocumentsSidebar({ embedded = false }: DocumentsSidebarProps) {
 	const t = useTranslations("documents");
-	const tSidebar = useTranslations("sidebar");
-	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const anonMode = useAnonymousMode();
 	const { gate } = useLoginGate();
-
-	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [isUploading, setIsUploading] = useState(false);
-	const [search, setSearch] = useState("");
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
 	const mentionedDocKeys = useMemo(
@@ -1743,51 +1363,6 @@ function AnonymousDocumentsSidebar({
 	const uploadedDoc = anonMode.isAnonymous ? anonMode.uploadedDoc : null;
 	const hasDoc = uploadedDoc !== null;
 
-	const handleAnonUploadClick = useCallback(() => {
-		if (hasDoc) {
-			gate("upload more documents");
-			return;
-		}
-		fileInputRef.current?.click();
-	}, [hasDoc, gate]);
-
-	const handleFileChange = useCallback(
-		async (e: React.ChangeEvent<HTMLInputElement>) => {
-			const file = e.target.files?.[0];
-			if (!file) return;
-			e.target.value = "";
-
-			const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
-			if (!ANON_ALLOWED_EXTENSIONS.has(ext)) {
-				gate("upload PDFs, Word documents, images, and more");
-				return;
-			}
-
-			setIsUploading(true);
-			try {
-				const result = await anonymousChatApiService.uploadDocument(file);
-				if (!result.ok) {
-					if (result.reason === "quota_exceeded") gate("upload more documents");
-					return;
-				}
-				const data = result.data;
-				if (anonMode.isAnonymous) {
-					anonMode.setUploadedDoc({
-						filename: data.filename,
-						sizeBytes: data.size_bytes,
-					});
-				}
-				toast.success(`Uploaded "${data.filename}"`);
-			} catch (err) {
-				console.error("Upload failed:", err);
-				toast.error(err instanceof Error ? err.message : "Upload failed");
-			} finally {
-				setIsUploading(false);
-			}
-		},
-		[gate, anonMode]
-	);
-
 	const handleRemoveDoc = useCallback(() => {
 		if (anonMode.isAnonymous) {
 			anonMode.setUploadedDoc(null);
@@ -1807,255 +1382,56 @@ function AnonymousDocumentsSidebar({
 		];
 	}, [anonMode]);
 
-	const searchFilteredDocs = useMemo(() => {
-		const q = search.trim().toLowerCase();
-		if (!q) return treeDocuments;
-		return treeDocuments.filter((d) => d.title.toLowerCase().includes(q));
-	}, [treeDocuments, search]);
-
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open && isMobile) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange, isMobile]);
-
-	const documentsContent = (
-		<>
-			<input
-				ref={fileInputRef}
-				type="file"
-				accept={ANON_ACCEPT}
-				className="hidden"
-				onChange={handleFileChange}
-				disabled={isUploading}
-			/>
-
-			{/* Header */}
-			<div className="shrink-0 flex h-12 items-center px-3 border-b">
-				<div className="flex w-full items-center justify-between">
-					<div className="flex items-center gap-2">
-						<h2 className="select-none text-base font-semibold">{t("title") || "Documents"}</h2>
-					</div>
-					<div className="flex items-center gap-1">
-						{isMobile && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-								onClick={() => onOpenChange(false)}
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{tSidebar("close") || "Close"}</span>
-							</Button>
-						)}
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-										onClick={() => {
-											if (isDocked) {
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4" />
-										) : (
-											<ChevronRight className="h-4 w-4" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{headerAction}
-					</div>
-				</div>
-			</div>
-
-			{/* Connectors strip (gated) */}
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={() => gate("connect your data sources")}
-				className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground"
-			>
-				<Unplug className="size-4 shrink-0" />
-				<span className="truncate">Connect your connectors</span>
-				<AvatarGroup className="ml-auto shrink-0">
-					{(isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(
-						({ type, label }, i) => {
-							const avatar = (
-								<Avatar
-									key={type}
-									className="size-6"
-									style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-								>
-									<AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-										{getConnectorIcon(type, "size-3.5")}
-									</AvatarFallback>
-								</Avatar>
-							);
-							if (isMobile) return avatar;
-							return (
-								<Tooltip key={type}>
-									<TooltipTrigger asChild>{avatar}</TooltipTrigger>
-									<TooltipContent side="top" className="text-xs">
-										{label}
-									</TooltipContent>
-								</Tooltip>
-							);
-						}
-					)}
-				</AvatarGroup>
-			</Button>
-
-			{/* Filters & upload */}
-			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className="px-4 pb-1.5">
-					<DocumentsFilters
-						typeCounts={hasDoc ? { FILE: 1 } : {}}
-						onSearch={setSearch}
-						searchValue={search}
-						onToggleType={() => {}}
-						activeTypes={[]}
-						onCreateFolder={() => gate("create folders")}
-						aiSortEnabled={false}
-						onUploadClick={handleAnonUploadClick}
-					/>
-				</div>
-
-				<div className="relative flex-1 min-h-0 overflow-auto">
-					<FolderTreeView
-						folders={[]}
-						documents={searchFilteredDocs}
-						expandedIds={new Set()}
-						onToggleExpand={() => {}}
-						mentionedDocKeys={mentionedDocKeys}
-						onToggleChatMention={handleToggleChatMention}
-						onToggleFolderSelect={() => {}}
-						onRenameFolder={() => gate("rename folders")}
-						onDeleteFolder={() => gate("delete folders")}
-						onMoveFolder={() => gate("organize folders")}
-						onCreateFolder={() => gate("create folders")}
-						searchQuery={search.trim() || undefined}
-						onPreviewDocument={() => gate("preview documents")}
-						onEditDocument={() => gate("edit documents")}
-						onDeleteDocument={async () => {
-							handleRemoveDoc();
-							setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== -1));
-							return true;
-						}}
-						onMoveDocument={() => gate("organize documents")}
-						onExportDocument={() => gate("export documents")}
-						onVersionHistory={() => gate("view version history")}
-						activeTypes={[]}
-						onDropIntoFolder={async () => gate("organize documents")}
-						onReorderFolder={async () => gate("organize folders")}
-						watchedFolderIds={new Set()}
-						onRescanFolder={() => gate("watch local folders")}
-						onStopWatchingFolder={() => gate("watch local folders")}
-						onExportFolder={() => gate("export folders")}
-					/>
-
-					{!hasDoc && (
-						<div className="px-4 py-8 text-center">
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={handleAnonUploadClick}
-								disabled={isUploading}
-								className="relative h-auto w-full border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary hover:border-primary/60 hover:bg-primary/5 hover:text-primary cursor-pointer"
-							>
-								<span className={`flex items-center gap-2 ${isUploading ? "opacity-0" : ""}`}>
-									<Upload className="size-4" />
-									Upload a document
-								</span>
-								{isUploading && <Spinner size="sm" className="absolute" />}
-							</Button>
-							<p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-								Text, code, CSV, and HTML files only. Create an account for PDFs, images, and 30+
-								connectors.
-							</p>
-						</div>
-					)}
-				</div>
-			</div>
-
-			{/* CTA footer */}
-			<div className="border-t p-4 space-y-3">
-				<div className="flex items-center gap-2 text-xs text-muted-foreground">
-					<Lock className="size-3.5 shrink-0" />
-					<span>Create an account to unlock:</span>
-				</div>
-				<ul className="space-y-1.5 text-xs text-muted-foreground pl-5">
-					<li className="flex items-center gap-1.5">
-						<Paperclip className="size-3 shrink-0" /> PDF, Word, images, audio uploads
-					</li>
-					<li className="flex items-center gap-1.5">
-						<FileText className="size-3 shrink-0" /> Unlimited documents
-					</li>
-				</ul>
-				<Button size="sm" className="w-full" asChild>
-					<Link href="/register">Create Free Account</Link>
-				</Button>
-			</div>
-		</>
-	);
-
 	if (embedded) {
 		return (
-			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-				{documentsContent}
-			</div>
-		);
-	}
-
-	if (isDocked && open && !isMobile) {
-		return (
-			<aside
-				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
-				aria-label={t("title") || "Documents"}
+			<SidebarSection
+				title={t("title") || "Documents"}
+				defaultOpen={true}
+				contentClassName="px-0"
+				persistentAction={
+					<div className="flex items-center gap-0.5">
+						<EmbeddedImportMenu gate={gate} />
+						<EmbeddedDocumentsMenu
+							typeCounts={hasDoc ? { FILE: 1 } : {}}
+							activeTypes={[]}
+							onToggleType={() => {}}
+							onCreateFolder={() => gate("create folders")}
+						/>
+					</div>
+				}
 			>
-				{documentsContent}
-			</aside>
+				<FolderTreeView
+					folders={[]}
+					documents={treeDocuments}
+					expandedIds={new Set()}
+					onToggleExpand={() => {}}
+					mentionedDocKeys={mentionedDocKeys}
+					onToggleChatMention={handleToggleChatMention}
+					onToggleFolderSelect={() => {}}
+					onRenameFolder={() => gate("rename folders")}
+					onDeleteFolder={() => gate("delete folders")}
+					onMoveFolder={() => gate("organize folders")}
+					onCreateFolder={() => gate("create folders")}
+					onPreviewDocument={() => gate("preview documents")}
+					onDeleteDocument={async () => {
+						handleRemoveDoc();
+						setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== -1));
+						return true;
+					}}
+					onMoveDocument={() => gate("organize documents")}
+					onExportDocument={() => gate("export documents")}
+					onVersionHistory={() => gate("view version history")}
+					activeTypes={[]}
+					onDropIntoFolder={async () => gate("organize documents")}
+					onReorderFolder={async () => gate("organize folders")}
+					watchedFolderIds={new Set()}
+					onRescanFolder={() => gate("watch local folders")}
+					onStopWatchingFolder={() => gate("watch local folders")}
+					onExportFolder={() => gate("export folders")}
+				/>
+			</SidebarSection>
 		);
 	}
 
-	if (isMobile) {
-		return (
-			<Drawer open={open} onOpenChange={onOpenChange}>
-				<DrawerContent className="max-h-[75vh] flex flex-col">
-					<DrawerTitle className="sr-only">{t("title") || "Documents"}</DrawerTitle>
-					<DrawerHandle />
-					<div className="flex-1 min-h-0 flex flex-col overflow-hidden">{documentsContent}</div>
-				</DrawerContent>
-			</Drawer>
-		);
-	}
-
-	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("title") || "Documents"}
-			width={380}
-		>
-			{documentsContent}
-		</SidebarSlideOutPanel>
-	);
+	return null;
 }

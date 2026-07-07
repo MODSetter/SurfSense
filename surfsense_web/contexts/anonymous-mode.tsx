@@ -9,8 +9,6 @@ export interface AnonymousModeContextValue {
 	setModelSlug: (slug: string) => void;
 	uploadedDoc: { filename: string; sizeBytes: number } | null;
 	setUploadedDoc: (doc: { filename: string; sizeBytes: number } | null) => void;
-	webSearchEnabled: boolean;
-	setWebSearchEnabled: (enabled: boolean) => void;
 	resetKey: number;
 	resetChat: () => void;
 }
@@ -36,7 +34,6 @@ export function AnonymousModeProvider({
 	const [uploadedDoc, setUploadedDoc] = useState<{ filename: string; sizeBytes: number } | null>(
 		null
 	);
-	const [webSearchEnabled, setWebSearchEnabled] = useState(true);
 	const [resetKey, setResetKey] = useState(0);
 
 	const resetChat = () => setResetKey((k) => k + 1);
@@ -59,12 +56,10 @@ export function AnonymousModeProvider({
 			setModelSlug,
 			uploadedDoc,
 			setUploadedDoc,
-			webSearchEnabled,
-			setWebSearchEnabled,
 			resetKey,
 			resetChat,
 		}),
-		[modelSlug, uploadedDoc, webSearchEnabled, resetKey]
+		[modelSlug, uploadedDoc, resetKey]
 	);
 
 	return <AnonymousModeContext.Provider value={value}>{children}</AnonymousModeContext.Provider>;

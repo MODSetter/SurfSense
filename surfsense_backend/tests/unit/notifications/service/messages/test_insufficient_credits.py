@@ -9,8 +9,8 @@ from app.notifications.service.messages import insufficient_credits as msg
 pytestmark = pytest.mark.unit
 
 
-def test_operation_id_encodes_search_space():
-    """The operation id embeds the search space id."""
+def test_operation_id_encodes_workspace():
+    """The operation id embeds the workspace id."""
     assert msg.operation_id("doc.pdf", 9).startswith("insufficient_credits_9_")
 
 

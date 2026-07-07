@@ -10,7 +10,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 import {
 	Dialog,
@@ -90,9 +90,9 @@ const DocumentUploadPopupContent: FC<{
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
 }> = ({ isOpen, onOpenChange }) => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 
-	if (!searchSpaceId) return null;
+	if (!workspaceId) return null;
 
 	const handleSuccess = () => {
 		onOpenChange(false);
@@ -112,12 +112,12 @@ const DocumentUploadPopupContent: FC<{
 							Upload Documents
 						</DialogTitle>
 						<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 line-clamp-1">
-							Upload and sync your documents to your search space
+							Upload and sync your documents to your workspace
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="px-4 sm:px-6 pb-4 sm:pb-6">
-						<DocumentUploadTab searchSpaceId={searchSpaceId} onSuccess={handleSuccess} />
+						<DocumentUploadTab workspaceId={workspaceId} onSuccess={handleSuccess} />
 					</div>
 				</div>
 			</DialogContent>

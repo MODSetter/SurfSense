@@ -43,9 +43,9 @@ EDITOR_PLATE_MAX_BYTES = 1 * 1024 * 1024
 EDITOR_PLATE_MAX_LINES = 5000
 
 
-@router.get("/search-spaces/{search_space_id}/documents/{document_id}/editor-content")
+@router.get("/workspaces/{workspace_id}/documents/{document_id}/editor-content")
 async def get_editor_content(
-    search_space_id: int,
+    workspace_id: int,
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -62,15 +62,15 @@ async def get_editor_content(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this search space",
+        "You don't have permission to read documents in this workspace",
     )
 
     result = await session.execute(
         select(Document).filter(
             Document.id == document_id,
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
         )
     )
     document = result.scalars().first()
@@ -172,11 +172,9 @@ async def get_editor_content(
     return _build_response(markdown_content)
 
 
-@router.get(
-    "/search-spaces/{search_space_id}/documents/{document_id}/download-markdown"
-)
+@router.get("/workspaces/{workspace_id}/documents/{document_id}/download-markdown")
 async def download_document_markdown(
-    search_space_id: int,
+    workspace_id: int,
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
@@ -188,15 +186,15 @@ async def download_document_markdown(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this search space",
+        "You don't have permission to read documents in this workspace",
     )
 
     result = await session.execute(
         select(Document).filter(
             Document.id == document_id,
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
         )
     )
     document = result.scalars().first()
@@ -239,9 +237,9 @@ async def download_document_markdown(
     )
 
 
-@router.post("/search-spaces/{search_space_id}/documents/{document_id}/save")
+@router.post("/workspaces/{workspace_id}/documents/{document_id}/save")
 async def save_document(
-    search_space_id: int,
+    workspace_id: int,
     document_id: int,
     data: dict[str, Any],
     session: AsyncSession = Depends(get_async_session),
@@ -262,15 +260,15 @@ async def save_document(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_UPDATE.value,
-        "You don't have permission to update documents in this search space",
+        "You don't have permission to update documents in this workspace",
     )
 
     result = await session.execute(
         select(Document).filter(
             Document.id == document_id,
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
         )
     )
     document = result.scalars().first()
@@ -324,9 +322,9 @@ async def save_document(
     }
 
 
-@router.get("/search-spaces/{search_space_id}/documents/{document_id}/export")
+@router.get("/workspaces/{workspace_id}/documents/{document_id}/export")
 async def export_document(
-    search_space_id: int,
+    workspace_id: int,
     document_id: int,
     format: ExportFormat = Query(
         ExportFormat.PDF,
@@ -339,15 +337,15 @@ async def export_document(
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this search space",
+        "You don't have permission to read documents in this workspace",
     )
 
     result = await session.execute(
         select(Document).filter(
             Document.id == document_id,
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
         )
     )
     document = result.scalars().first()

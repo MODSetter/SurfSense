@@ -54,6 +54,53 @@ def handle_report_progress(
     return frame, new_items
 
 
+def _scraper_progress_label(data: dict[str, Any]) -> str:
+    """Build a one-line human status from a ``scraper_progress`` event."""
+    message = data.get("message")
+    phase = data.get("phase", "")
+    current = data.get("current")
+    total = data.get("total")
+    label = message or (phase.replace("_", " ").capitalize() if phase else "Working")
+    if current is not None:
+        counter = f"{current}/{total}" if total else str(current)
+        label = f"{label} ({counter})"
+    return label
+
+
+def handle_scraper_progress(
+    data: dict[str, Any],
+    *,
+    last_active_step_id: str | None,
+    last_active_step_title: str,
+    last_active_step_items: list[str],
+    streaming_service: Any,
+    content_builder: Any | None,
+    thinking_metadata: dict[str, Any] | None = None,
+) -> tuple[str | None, list[str]]:
+    """Surface a scraper's live progress as an evolving thinking-step item.
+
+    Scraper capability tool calls own a fresh thinking step (see ``tool_start``),
+    so we show a single latest-status line rather than accumulating every event.
+    Returns (frame or None, items after update).
+    """
+    if not last_active_step_id:
+        return None, last_active_step_items
+    label = _scraper_progress_label(data)
+    if not label:
+        return None, last_active_step_items
+    new_items = [label]
+    frame = emit_thinking_step_frame(
+        streaming_service=streaming_service,
+        content_builder=content_builder,
+        step_id=last_active_step_id,
+        title=last_active_step_title,
+        status="in_progress",
+        items=new_items,
+        metadata=thinking_metadata,
+    )
+    return frame, new_items
+
+
 def handle_document_created(
     data: dict[str, Any], *, streaming_service: Any
 ) -> str | None:

@@ -33,10 +33,13 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-# Subagent that emitted this receipt.
+# Subagent that emitted this receipt. ``mcp_discovery`` is the current
+# connected-apps route; the per-connector literals below it are retained so
+# historical receipts (persisted in old checkpoints) still type-check.
 ReceiptRoute = Literal[
     "deliverables",
     "knowledge_base",
+    "mcp_discovery",
     "notion",
     "slack",
     "gmail",
@@ -102,7 +105,7 @@ class Receipt(TypedDict, total=False):
     ``None`` only when the operation failed before the backend assigned one."""
 
     verifiable_url: str | None
-    """URL the parent can pass to ``scrape_webpage`` to verify the
+    """URL the parent can crawl (via ``task(web_crawler, …)``) to verify the
     operation. ``None`` when no public URL exists (Gmail, KB, raw images
     stored in the DB)."""
 

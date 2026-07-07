@@ -20,14 +20,14 @@ pytestmark = pytest.mark.integration
 async def _make_doc(
     db_session,
     *,
-    search_space_id: int,
+    workspace_id: int,
     connector_id: int,
     user_id: str,
     file_id: str,
     status: dict,
 ) -> Document:
     uid_hash = compute_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, search_space_id
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, workspace_id
     )
     doc = Document(
         title=f"{file_id}.pdf",
@@ -36,7 +36,7 @@ async def _make_doc(
         content_hash=hashlib.sha256(f"placeholder:{uid_hash}".encode()).hexdigest(),
         unique_identifier_hash=uid_hash,
         document_metadata={"google_drive_file_id": file_id},
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         status=status,
@@ -47,11 +47,11 @@ async def _make_doc(
 
 
 async def test_pending_placeholder_marked_failed(
-    db_session, db_search_space, db_connector, db_user
+    db_session, db_workspace, db_connector, db_user
 ):
     doc = await _make_doc(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         connector_id=db_connector.id,
         user_id=str(db_user.id),
         file_id="file-pending",
@@ -61,7 +61,7 @@ async def test_pending_placeholder_marked_failed(
     marked = await mark_connector_documents_failed(
         db_session,
         document_type=DocumentType.GOOGLE_DRIVE_FILE,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         failures=[("file-pending", "Download/ETL failed: boom")],
     )
 
@@ -72,11 +72,11 @@ async def test_pending_placeholder_marked_failed(
 
 
 async def test_ready_document_not_clobbered(
-    db_session, db_search_space, db_connector, db_user
+    db_session, db_workspace, db_connector, db_user
 ):
     doc = await _make_doc(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         connector_id=db_connector.id,
         user_id=str(db_user.id),
         file_id="file-ready",
@@ -86,7 +86,7 @@ async def test_ready_document_not_clobbered(
     marked = await mark_connector_documents_failed(
         db_session,
         document_type=DocumentType.GOOGLE_DRIVE_FILE,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         failures=[("file-ready", "should be ignored")],
     )
 
@@ -95,16 +95,16 @@ async def test_ready_document_not_clobbered(
     assert DocumentStatus.is_state(doc.status, DocumentStatus.READY)
 
 
-async def test_missing_document_is_noop(db_session, db_search_space):
+async def test_missing_document_is_noop(db_session, db_workspace):
     marked = await mark_connector_documents_failed(
         db_session,
         document_type=DocumentType.GOOGLE_DRIVE_FILE,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         failures=[("does-not-exist", "reason")],
     )
 
     assert marked == 0
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == db_search_space.id)
+        select(Document).filter(Document.workspace_id == db_workspace.id)
     )
     assert result.scalars().first() is None

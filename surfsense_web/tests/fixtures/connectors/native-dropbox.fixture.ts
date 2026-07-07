@@ -3,20 +3,20 @@ import {
 	deleteConnector,
 	runNativeDropboxOAuth,
 } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../search-space.fixture";
+import { workspaceFixtures } from "../workspace.fixture";
 
 export type NativeDropboxFixtures = {
 	/**
 	 * A pre-connected native Dropbox connector inside the fixture's
-	 * `searchSpace`. OAuth uses E2E Dropbox fakes and is cleaned up
+	 * `workspace`. OAuth uses E2E Dropbox fakes and is cleaned up
 	 * automatically after the test.
 	 */
 	nativeDropboxConnector: ConnectorRow;
 };
 
-export const nativeDropboxFixtures = searchSpaceFixtures.extend<NativeDropboxFixtures>({
-	nativeDropboxConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runNativeDropboxOAuth(request, apiToken, searchSpace.id);
+export const nativeDropboxFixtures = workspaceFixtures.extend<NativeDropboxFixtures>({
+	nativeDropboxConnector: async ({ request, apiToken, workspace }, use) => {
+		const { connector } = await runNativeDropboxOAuth(request, apiToken, workspace.id);
 		if (!connector) {
 			throw new Error(
 				"nativeDropboxConnector fixture: OAuth completed but no DROPBOX_CONNECTOR was created. " +

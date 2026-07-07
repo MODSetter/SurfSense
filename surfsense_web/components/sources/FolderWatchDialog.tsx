@@ -24,7 +24,7 @@ export interface SelectedFolder {
 interface FolderWatchDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	searchSpaceId: number;
+	workspaceId: number;
 	onSuccess?: () => void;
 	initialFolder?: SelectedFolder | null;
 }
@@ -41,7 +41,7 @@ export const DEFAULT_EXCLUDE_PATTERNS = [
 export function FolderWatchDialog({
 	open,
 	onOpenChange,
-	searchSpaceId,
+	workspaceId,
 	onSuccess,
 	initialFolder,
 }: FolderWatchDialogProps) {
@@ -91,7 +91,7 @@ export function FolderWatchDialog({
 			const rootFolderId = await uploadFolderScan({
 				folderPath: selectedFolder.path,
 				folderName: selectedFolder.name,
-				searchSpaceId,
+				workspaceId,
 				excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
 				fileExtensions: supportedExtensions,
 				onProgress: setProgress,
@@ -104,7 +104,7 @@ export function FolderWatchDialog({
 				excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
 				fileExtensions: supportedExtensions,
 				rootFolderId: rootFolderId ?? null,
-				searchSpaceId,
+				workspaceId,
 				active: true,
 			});
 
@@ -124,7 +124,7 @@ export function FolderWatchDialog({
 			setSubmitting(false);
 			setProgress(null);
 		}
-	}, [selectedFolder, searchSpaceId, supportedExtensions, onOpenChange, onSuccess]);
+	}, [selectedFolder, workspaceId, supportedExtensions, onOpenChange, onSuccess]);
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {

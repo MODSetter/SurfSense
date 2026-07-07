@@ -330,10 +330,10 @@ async def test_discord_gateway_install_returns_oauth_url(monkeypatch, mocker):
         "http://localhost:8000/api/v1/gateway/discord/callback",
     )
     monkeypatch.setattr(routes.config, "SECRET_KEY", "test-secret")
-    monkeypatch.setattr(routes, "check_search_space_access", mocker.AsyncMock())
+    monkeypatch.setattr(routes, "check_workspace_access", mocker.AsyncMock())
 
     response = await routes.install_discord_gateway(
-        search_space_id=123,
+        workspace_id=123,
         auth=AuthContext.session(
             SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
         ),

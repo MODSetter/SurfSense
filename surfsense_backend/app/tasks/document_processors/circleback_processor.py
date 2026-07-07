@@ -23,7 +23,7 @@ from app.db import (
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
+    Workspace,
 )
 from app.utils.document_converters import (
     create_document_chunks,
@@ -47,7 +47,7 @@ async def add_circleback_meeting_document(
     meeting_name: str,
     markdown_content: str,
     metadata: dict[str, Any],
-    search_space_id: int,
+    workspace_id: int,
     connector_id: int | None = None,
 ) -> Document | None:
     """
@@ -64,7 +64,7 @@ async def add_circleback_meeting_document(
         meeting_name: Name of the meeting
         markdown_content: Meeting content formatted as markdown
         metadata: Meeting metadata dictionary
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         connector_id: ID of the Circleback connector (for deletion support)
 
     Returns:
@@ -75,11 +75,11 @@ async def add_circleback_meeting_document(
         # Generate unique identifier hash using Circleback meeting ID
         unique_identifier = f"circleback_{meeting_id}"
         unique_identifier_hash = generate_unique_identifier_hash(
-            DocumentType.CIRCLEBACK, unique_identifier, search_space_id
+            DocumentType.CIRCLEBACK, unique_identifier, workspace_id
         )
 
         # Generate content hash
-        content_hash = generate_content_hash(markdown_content, search_space_id)
+        content_hash = generate_content_hash(markdown_content, workspace_id)
 
         # Check if document with this unique identifier already exists
         existing_document = await check_document_by_unique_identifier(
@@ -113,13 +113,13 @@ async def add_circleback_meeting_document(
             # =======================================================================
 
             # Fetch the user who set up the Circleback connector (preferred)
-            # or fall back to search space owner if no connector found
+            # or fall back to workspace owner if no connector found
             created_by_user_id = None
 
-            # Try to find the Circleback connector for this search space
+            # Try to find the Circleback connector for this workspace
             connector_result = await session.execute(
                 select(SearchSourceConnector.user_id).where(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.CIRCLEBACK_CONNECTOR,
                 )
@@ -130,15 +130,15 @@ async def add_circleback_meeting_document(
                 # Use the user who set up the Circleback connector
                 created_by_user_id = connector_user
             else:
-                # Fallback: use search space owner if no connector found
-                search_space_result = await session.execute(
-                    select(SearchSpace.user_id).where(SearchSpace.id == search_space_id)
+                # Fallback: use workspace owner if no connector found
+                workspace_result = await session.execute(
+                    select(Workspace.user_id).where(Workspace.id == workspace_id)
                 )
-                created_by_user_id = search_space_result.scalar_one_or_none()
+                created_by_user_id = workspace_result.scalar_one_or_none()
 
             # Create new document with PENDING status (visible in UI immediately)
             document = Document(
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 title=meeting_name,
                 document_type=DocumentType.CIRCLEBACK,
                 document_metadata={
@@ -162,7 +162,7 @@ async def add_circleback_meeting_document(
             # Commit immediately so document appears in UI with pending status
             await session.commit()
             logger.info(
-                f"Created pending Circleback meeting document {meeting_id} in search space {search_space_id}"
+                f"Created pending Circleback meeting document {meeting_id} in workspace {workspace_id}"
             )
 
             # =======================================================================
@@ -213,11 +213,11 @@ async def add_circleback_meeting_document(
 
         if existing_document:
             logger.info(
-                f"Updated Circleback meeting document {meeting_id} in search space {search_space_id}"
+                f"Updated Circleback meeting document {meeting_id} in workspace {workspace_id}"
             )
         else:
             logger.info(
-                f"Processed Circleback meeting document {meeting_id} in search space {search_space_id} - now ready"
+                f"Processed Circleback meeting document {meeting_id} in workspace {workspace_id} - now ready"
             )
 
         return document

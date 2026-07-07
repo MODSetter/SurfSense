@@ -3,7 +3,7 @@
 export interface SurfsensePluginSettings {
 	serverUrl: string;
 	apiToken: string;
-	searchSpaceId: number | null;
+	workspaceId: number | null;
 	connectorId: number | null;
 	/** UUID for the vault — lives here so Obsidian Sync replicates it across devices. */
 	vaultId: string;
@@ -25,7 +25,7 @@ export interface SurfsensePluginSettings {
 export const DEFAULT_SETTINGS: SurfsensePluginSettings = {
 	serverUrl: "https://surfsense.com",
 	apiToken: "",
-	searchSpaceId: null,
+	workspaceId: null,
 	connectorId: null,
 	vaultId: "",
 	syncIntervalMinutes: 10,
@@ -107,7 +107,7 @@ export interface HeadingRef {
 	level: number;
 }
 
-export interface SearchSpace {
+export interface Workspace {
 	id: number;
 	name: string;
 	description?: string;
@@ -117,7 +117,7 @@ export interface SearchSpace {
 export interface ConnectResponse {
 	connector_id: number;
 	vault_id: string;
-	search_space_id: number;
+	workspace_id: number;
 	capabilities: string[];
 	server_time_utc: string;
 	[key: string]: unknown;

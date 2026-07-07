@@ -27,7 +27,7 @@ async def store_document_file(
     session: AsyncSession,
     *,
     document_id: int,
-    search_space_id: int,
+    workspace_id: int,
     data: bytes,
     filename: str,
     mime_type: str | None = None,
@@ -38,7 +38,7 @@ async def store_document_file(
     """Write bytes to storage and add a ``DocumentFile`` row to the session."""
     backend = backend or get_storage_backend()
     key = build_document_file_key(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         document_id=document_id,
         kind=kind,
         filename=filename,
@@ -47,7 +47,7 @@ async def store_document_file(
 
     record = DocumentFile(
         document_id=document_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         kind=kind,
         storage_backend=backend.backend_name,
         storage_key=key,

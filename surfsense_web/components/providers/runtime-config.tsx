@@ -31,6 +31,11 @@ export function useRuntimeConfig() {
 	return context;
 }
 
+/** For components that may render outside RuntimeConfigProvider (e.g. anonymous /free pages). */
+export function useOptionalRuntimeConfig(): RuntimeConfigValue | null {
+	return useContext(RuntimeConfigContext);
+}
+
 export function useIsLocalAuth() {
 	return useRuntimeConfig().authType === "LOCAL";
 }

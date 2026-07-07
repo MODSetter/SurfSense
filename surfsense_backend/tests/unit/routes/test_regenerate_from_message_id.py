@@ -117,7 +117,7 @@ class TestRegenerateRequestValidation:
     def test_revert_actions_requires_from_message_id(self) -> None:
         with pytest.raises(Exception) as exc:
             RegenerateRequest(
-                search_space_id=1,
+                workspace_id=1,
                 user_query="hi",
                 revert_actions=True,
             )
@@ -126,7 +126,7 @@ class TestRegenerateRequestValidation:
 
     def test_from_message_id_without_revert_is_allowed(self) -> None:
         req = RegenerateRequest(
-            search_space_id=1,
+            workspace_id=1,
             user_query="hi",
             from_message_id=42,
         )
@@ -135,7 +135,7 @@ class TestRegenerateRequestValidation:
 
     def test_revert_actions_with_from_message_id_passes(self) -> None:
         req = RegenerateRequest(
-            search_space_id=1,
+            workspace_id=1,
             user_query="hi",
             from_message_id=42,
             revert_actions=True,

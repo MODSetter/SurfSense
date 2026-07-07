@@ -217,7 +217,7 @@ async def test_pre_write_snapshot_defers_dispatch_when_list_provided(
         session,  # type: ignore[arg-type]
         doc=doc,
         action_id=42,
-        search_space_id=1,
+        workspace_id=1,
         turn_id="t-1",
         deferred_dispatches=deferred,
     )
@@ -262,7 +262,7 @@ async def test_pre_write_snapshot_dispatches_inline_when_list_omitted(
         session,  # type: ignore[arg-type]
         doc=doc,
         action_id=88,
-        search_space_id=1,
+        workspace_id=1,
         turn_id="t-1",
         # No deferred_dispatches arg — fall back to inline dispatch.
     )
@@ -302,7 +302,7 @@ async def test_pre_mkdir_snapshot_defers_dispatch_when_list_provided(
         session,  # type: ignore[arg-type]
         folder=folder,
         action_id=55,
-        search_space_id=1,
+        workspace_id=1,
         turn_id="t-1",
         deferred_dispatches=deferred,
     )

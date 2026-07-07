@@ -1,42 +1,15 @@
 "use client";
-import {
-	ChevronDown,
-	Clock,
-	CornerDownLeft,
-	Download,
-	Lightbulb,
-	Monitor,
-	Sparkles,
-} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { HeroChatDemo, type HeroChatDemoScript } from "@/components/homepage/hero-chat-demo";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-	Empty,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyMedia,
-	EmptyTitle,
-} from "@/components/ui/empty";
 import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-	GITHUB_RELEASES_URL,
-	getAssetLabel,
-	usePrimaryDownload,
-} from "@/lib/desktop-download-utils";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -74,206 +47,653 @@ type HeroUseCase = {
 	title: string;
 	description: string;
 	src: string | null;
-	comingSoon?: boolean;
-	examples?: string[];
+	/** Scripted chat demo shown when there is no recorded video. */
+	demo?: HeroChatDemoScript;
 };
 
 type HeroCategory = {
 	id: string;
 	label: string;
-	desktopOnly?: boolean;
 	useCases: HeroUseCase[];
 };
 
 const HERO_TUTORIAL = "/homepage/hero_tutorial";
 const HERO_REALTIME = "/homepage/hero_realtime";
 
+/*
+ * Every scripted demo below mirrors a task the SurfSense agent has actually run
+ * end-to-end (see backend agent e2e suite). Recorded videos take precedence via
+ * `src`; everything else plays the chat demo.
+ */
 const CATEGORIES: HeroCategory[] = [
 	{
-		id: "desktop",
-		label: "Desktop App",
-		desktopOnly: true,
+		id: "connector-workflows",
+		label: "Multi-Connector Workflows",
 		useCases: [
 			{
-				id: "general",
-				title: "General Assist",
-				description: "Launch SurfSense instantly from any application with a global shortcut.",
-				src: `${HERO_TUTORIAL}/general_assist.mp4`,
+				id: "launch-impact",
+				title: "Launch Impact, Across Every Platform",
+				description:
+					"One prompt chains Google Search, Reddit, and YouTube into a single cited brief on how a competitor launch actually landed.",
+				src: null,
+				demo: {
+					prompt:
+						"Our competitor launched v2 yesterday. Measure the reaction across search, Reddit, and YouTube.",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["Scraping 8 SERPs · launch coverage + AI Overviews"],
+						},
+						{
+							title: "Reddit",
+							items: ['"competitor v2" · 23 threads in the past 48h'],
+						},
+						{
+							title: "Youtube",
+							items: ["6 launch videos · 1,904 comments pulled"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Merge all three signals into one launch-impact brief"],
+						},
+					],
+					rows: [
+						{
+							primary: "5 of 8 SERPs show launch coverage",
+							secondary: "2 already trigger AI Overviews citing their blog",
+						},
+						{
+							primary: "Reddit: pricing backlash in 9 of 23 threads",
+							secondary: '"v2 doubled the price" · top thread 412 upvotes',
+						},
+						{
+							primary: "YouTube: creators praise UI, question pricing",
+							secondary: "61% positive on features · pricing the top complaint",
+						},
+					],
+					summary: "3 connectors, one cited brief · saved to your workspace",
+				},
 			},
 			{
-				id: "quick",
-				title: "Quick Assist",
-				description: "Select text anywhere, then ask AI to explain, rewrite, or act on it.",
-				src: `${HERO_TUTORIAL}/quick_assist.mp4`,
+				id: "local-teardown",
+				title: "Local Competitor Teardown",
+				description:
+					"Google Maps finds the players, the Web Crawler reads their sites, and Google Search shows who wins the query, in one run.",
+				src: null,
+				demo: {
+					prompt:
+						'Tear down the top-rated gyms in Austin: reviews, pricing pages, and who ranks for "gym austin".',
+					steps: [
+						{
+							title: "Google Maps",
+							items: ['"gym austin" · top 10 places + 2,400 reviews'],
+						},
+						{
+							title: "Web Crawler",
+							items: ["Visiting 10 gym sites", "Extracting pricing and membership pages"],
+						},
+						{
+							title: "Google Search",
+							items: ['SERP for "gym austin" · organic, ads, map pack'],
+						},
+					],
+					rows: [
+						{
+							primary: "Review themes: crowding + billing complaints",
+							secondary: "appear in 31% of 1-3★ reviews across 10 gyms",
+						},
+						{
+							primary: "Pricing: $89–149/mo · 3 hide it behind forms",
+							secondary: "extracted from all 10 sites with source pages",
+						},
+						{
+							primary: "2 gyms buy ads on their own brand name",
+							secondary: "map pack and organic top 3 don't overlap",
+						},
+					],
+					summary: "Maps + Crawler + Search in one run · teardown saved",
+				},
 			},
 			{
-				id: "screenshot",
-				title: "Screenshot Assist",
-				description: "Capture any region of your screen and ask AI about what’s in it.",
-				src: `${HERO_TUTORIAL}/screenshot_assist.mp4`,
-			},
-			{
-				id: "watch-folder",
-				title: "Watch Local Folder",
-				description: "Auto-sync a local folder to your knowledge base. Great for Obsidian vaults.",
-				src: `${HERO_TUTORIAL}/folder_watch.mp4`,
+				id: "competitor-360",
+				title: "Competitor 360, on a Schedule",
+				description:
+					"An automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.",
+				src: null,
+				demo: {
+					prompt:
+						"Every Monday, build me a 360 on our top competitor: site changes, rankings, Reddit, and YouTube.",
+					steps: [
+						{
+							title: "Web Crawler",
+							items: ["pricing + changelog pages · 2 changes detected"],
+						},
+						{
+							title: "Google Search",
+							items: ["12 shared keywords · rank movements captured"],
+						},
+						{
+							title: "Reddit",
+							items: ["18 mentions this week · sentiment tagged"],
+						},
+						{
+							title: "Youtube",
+							items: ["2 new videos · comments and transcripts pulled"],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly 360 brief · Mondays 8:00"],
+						},
+					],
+					rows: [
+						{
+							primary: "Shipped: usage-based pricing page",
+							secondary: "pricing + changelog diff · detected Jul 3",
+						},
+						{
+							primary: 'Took #2 on "competitive intelligence api"',
+							secondary: "you hold #4 · gap widened two weeks in a row",
+						},
+						{
+							primary: "Reddit sentiment down 12 pts since the change",
+							secondary: "churn signals in 5 threads · quotes linked",
+						},
+					],
+					summary: "4 connectors, 1 automation · first brief lands Monday 8:00",
+				},
 			},
 		],
 	},
 	{
-		id: "deliverables",
-		label: "Deliverable Studio",
+		id: "competitor-monitoring",
+		label: "Competitor Monitoring",
 		useCases: [
+			{
+				id: "pricing-watch",
+				title: "Competitor Pricing Watch",
+				description:
+					"The agent extracts every plan from a competitor's pricing page, and an automation re-checks it so you hear about changes first.",
+				src: null,
+				demo: {
+					prompt: "Extract every plan, price, and limit from our top 3 competitors' pricing pages.",
+					steps: [
+						{
+							title: "Plan tasks",
+							items: ["Crawl 3 pricing pages", "Extract plans, prices, limits into one table"],
+						},
+						{
+							title: "Web Crawler",
+							items: [
+								"competitor-a.com/pricing · 4 plans",
+								"competitor-b.com/pricing · 3 plans",
+								"competitor-c.com/plans · 4 plans",
+							],
+						},
+						{
+							title: "Create automation",
+							items: ["Daily pricing re-check · alert on any change"],
+						},
+					],
+					rows: [
+						{
+							primary: "Competitor A — Pro $49/mo",
+							secondary: "10k credits · 3 seats · raised from $39 on Jun 12",
+						},
+						{
+							primary: "Competitor B — Team $99/mo",
+							secondary: "50k credits · unlimited seats · annual-only",
+						},
+						{
+							primary: "Competitor C — Free tier removed",
+							secondary: "Trial now 7 days · card required",
+						},
+					],
+					summary: "3 pages parsed · 11 plans in one table · daily re-check scheduled",
+				},
+			},
+			{
+				id: "site-diff",
+				title: "Product & Changelog Tracking",
+				description:
+					"An automation crawls a rival's product, changelog, and careers pages and briefs you on what shipped.",
+				src: null,
+				demo: {
+					prompt:
+						"Every Monday, crawl our competitors' changelogs and brief me on what they shipped.",
+					steps: [
+						{
+							title: "Web Crawler",
+							items: [
+								"competitor-a.com/changelog · 6 entries",
+								"competitor-b.com/whats-new · 3 entries",
+							],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly changelog brief · Mondays 8:00"],
+						},
+					],
+					rows: [
+						{
+							primary: "Competitor A shipped SSO + audit logs",
+							secondary: "changelog · Jun 30 · enterprise push",
+						},
+						{
+							primary: "Competitor B launched API v2 beta",
+							secondary: "whats-new · Jul 2 · targets developers",
+						},
+					],
+					summary: "Brief saved to workspace · automation runs Mondays 8:00",
+				},
+			},
+			{
+				id: "serp-watch",
+				title: "Rank & Ad Monitoring",
+				description:
+					"Automations track the Google rankings, paid ads, and AI Overview citations your market actually sees.",
+				src: null,
+				demo: {
+					prompt: "Track who ranks and runs ads for our top 10 keywords in the US.",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["Scraping 10 SERPs (US) · organic, ads, AI Overviews"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Diff against last capture", "Flag rank and ad movements"],
+						},
+						{
+							title: "Create automation",
+							items: ["Daily rank + ad watch on these keywords"],
+						},
+					],
+					rows: [
+						{
+							primary: '"competitive intelligence tools" — you #4, ↓1',
+							secondary: "Competitor A took #3 · runs 2 sponsored ads",
+						},
+						{
+							primary: "AI Overview cites Competitor B",
+							secondary: 'triggered on "brand monitoring software"',
+						},
+					],
+					summary: "10 SERPs captured · 3 movements flagged · daily automation on",
+				},
+			},
+		],
+	},
+	{
+		id: "lead-generation",
+		label: "B2B Lead Generation",
+		useCases: [
+			{
+				id: "local-leads",
+				title: "Local Business Leads",
+				description:
+					"Turn a category and a territory into a lead list with phones, websites, ratings, and decision-maker contacts.",
+				src: null,
+				demo: {
+					prompt:
+						"Find the top 5 burger places in San Jose and pull staff contacts from their websites.",
+					steps: [
+						{
+							title: "Google Maps",
+							items: ['Searching "burger san jose" · top 5 by rating and reviews'],
+						},
+						{
+							title: "Web Crawler",
+							items: ["Visiting 5 business sites", "Extracting staff and contact pages"],
+						},
+						{
+							title: "Save document",
+							items: ["Lead list with phones, sites, contacts"],
+						},
+					],
+					rows: [
+						{
+							primary: "The Counter — 4.5★ (2,310 reviews)",
+							secondary: "+1 408-423-9200 · thecounter.com · 2 contacts found",
+						},
+						{
+							primary: "Paper Plane — 4.6★ (1,882 reviews)",
+							secondary: "site crawled · owner + events email found",
+						},
+						{
+							primary: "Smoking Pig BBQ — 4.4★ (3,041 reviews)",
+							secondary: "+1 408-380-4784 · catering contact found",
+						},
+					],
+					summary: "5 places · 9 contacts with provenance · saved as lead list",
+				},
+			},
+			{
+				id: "team-rosters",
+				title: "Team Rosters & Contacts",
+				description:
+					"Spider any company site and pull the full team with emails, socials, and provenance, exported to CSV.",
+				src: null,
+				demo: {
+					prompt: "Get the complete a16z team roster and save it as a CSV in my workspace.",
+					steps: [
+						{
+							title: "Web Crawler",
+							items: ["a16z.com/team · following profile links", "142 profiles found"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Enrich each profile with email or LinkedIn"],
+						},
+						{
+							title: "Write file",
+							items: ["a16z-team.csv · saved to workspace"],
+						},
+					],
+					rows: [
+						{
+							primary: "142 team profiles extracted",
+							secondary: "name, role, focus area, profile URL",
+						},
+						{
+							primary: "89 enriched with email or LinkedIn",
+							secondary: "pulled from bios and linked pages",
+						},
+						{ primary: "a16z-team.csv", secondary: "saved to your workspace · ready to export" },
+					],
+					summary: "Full roster in 94s · every row cites its source page",
+				},
+			},
+			{
+				id: "portfolio-mapping",
+				title: "Portfolio & Market Mapping",
+				description:
+					"Map an investor's portfolio or a whole category, then enrich every company with pricing and contacts.",
+				src: null,
+				demo: {
+					prompt: "Get the a16z team and their portfolio companies.",
+					steps: [
+						{
+							title: "Web Crawler",
+							items: ["a16z.com/team · 142 profiles", "a16z.com/portfolio · 312 companies"],
+						},
+						{
+							title: "Plan tasks",
+							items: [
+								"Match partners to their portfolio boards",
+								"Enrich your category with pricing",
+							],
+						},
+					],
+					rows: [
+						{
+							primary: "312 portfolio companies mapped",
+							secondary: "sector, stage, website, one-line pitch",
+						},
+						{
+							primary: "48 in your category",
+							secondary: "enriched with pricing page + team size",
+						},
+					],
+					summary: "Market map saved · new investments auto-added by automation",
+				},
+			},
+		],
+	},
+	{
+		id: "brand-listening",
+		label: "Brand & Market Listening",
+		useCases: [
+			{
+				id: "reddit-listening",
+				title: "Reddit Brand Monitoring",
+				description:
+					"Hear what your market says about you, your competitors, and your category in the threads where buyers speak candidly.",
+				src: null,
+				demo: {
+					prompt: "Give me 20 posts on Reddit where people ask for an alternative to NotebookLM.",
+					steps: [
+						{
+							title: "Reddit",
+							items: [
+								'Searching "notebooklm alternative" across Reddit',
+								"37 posts found · ranking by relevance and upvotes",
+							],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Tag each post: buying intent, churn signal, question"],
+						},
+					],
+					rows: [
+						{
+							primary: "Best NotebookLM alternative that's open source?",
+							secondary: "r/selfhosted · 214 upvotes · buying intent",
+						},
+						{
+							primary: "NotebookLM keeps losing my sources, what else?",
+							secondary: "r/artificial · 96 upvotes · churn signal",
+						},
+						{
+							primary: "Anything like NotebookLM but with an API?",
+							secondary: "r/LocalLLaMA · 71 upvotes · developer intent",
+						},
+					],
+					summary: "20 posts · 8 with buying intent · daily tracking automation on",
+				},
+			},
+			{
+				id: "youtube-sentiment",
+				title: "YouTube Audience Sentiment",
+				description:
+					"Pull videos, transcripts, and comments at scale to mine what audiences praise and complain about.",
+				src: null,
+				demo: {
+					prompt:
+						"Analyze the comments on our competitor's last 10 videos and cluster the complaints.",
+					steps: [
+						{
+							title: "Youtube",
+							items: ["Fetching last 10 videos", "4,812 comments pulled"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Cluster complaints by theme", "Score sentiment per cluster"],
+						},
+					],
+					rows: [
+						{
+							primary: "Pricing complaints — 31% of negative comments",
+							secondary: '"went from free to $20/mo overnight"',
+						},
+						{
+							primary: "Export limits — 22%",
+							secondary: '"can\'t get my own data out"',
+						},
+						{
+							primary: "Praise: onboarding — 18% positive",
+							secondary: "worth copying in your messaging",
+						},
+					],
+					summary: "4,812 comments clustered · sentiment report saved",
+				},
+			},
+			{
+				id: "switcher-mining",
+				title: "Switcher & Intent Mining",
+				description:
+					"Find the people actively looking for an alternative to a competitor, ranked by how ready they are to move.",
+				src: null,
+				demo: {
+					prompt: "Find people asking for alternatives to our biggest competitor this month.",
+					steps: [
+						{
+							title: "Reddit",
+							items: [
+								'Searching "alternative" mentions · past month',
+								"12 active switcher threads",
+							],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Rank by recency and engagement", "Extract switching triggers"],
+						},
+					],
+					rows: [
+						{
+							primary: "12 threads with active switchers",
+							secondary: "ranked by recency and engagement",
+						},
+						{
+							primary: "Top trigger: API price increase",
+							secondary: "mentioned in 7 of 12 threads",
+						},
+					],
+					summary: "Outreach-ready summaries drafted for the 5 hottest threads",
+				},
+			},
+		],
+	},
+	{
+		id: "market-research",
+		label: "Market Research",
+		useCases: [
+			{
+				id: "deep-research",
+				title: "Deep Research on the Live Web",
+				description:
+					"The agent crawls dozens of live sources on a question and synthesizes a cited answer, not a stale index.",
+				src: null,
+				demo: {
+					prompt: "Research the AI note-taking market and build a landscape brief with citations.",
+					steps: [
+						{
+							title: "Research",
+							items: ["Crawling 38 live sources", "Vendor sites, reviews, pricing pages"],
+						},
+						{
+							title: "Generate report",
+							items: ["Landscape brief · 24 inline citations"],
+						},
+					],
+					rows: [
+						{
+							primary: "23 vendors mapped across 4 segments",
+							secondary: "consumer, prosumer, team, developer-first",
+						},
+						{
+							primary: "Pricing clusters at $10 and $20/mo",
+							secondary: "3 vendors moved upmarket this quarter",
+						},
+					],
+					summary: "Landscape brief saved · 24 inline citations you can check",
+				},
+			},
+			{
+				id: "geo-monitoring",
+				title: "AI Overview & GEO Tracking",
+				description:
+					"Capture when Google's AI Overviews answer your market's queries, and exactly which sources they cite.",
+				src: null,
+				demo: {
+					prompt: "Which of our target keywords trigger an AI Overview, and who gets cited?",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["Scraping 25 SERPs", "Capturing AI Overviews and citations"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Map citations to competitors", "Compute your citation gap"],
+						},
+					],
+					rows: [
+						{
+							primary: "9 of 25 keywords trigger an AI Overview",
+							secondary: "up from 6 last month",
+						},
+						{
+							primary: "Competitor A cited on 4 · you on 1",
+							secondary: "their listicle wins 3 of those citations",
+						},
+					],
+					summary: "Citation gap report saved · weekly re-check scheduled",
+				},
+			},
+			{
+				id: "cited-briefs",
+				title: "Cited Briefs & Alerts",
+				description:
+					"Everything the agents gather lands in your workspace as briefs and alerts with sources you can check.",
+				src: null,
+				demo: {
+					prompt: "Send me a Monday brief of every competitor change detected last week.",
+					steps: [
+						{
+							title: "Plan tasks",
+							items: ["Collect pricing, changelog, SERP, Reddit signals"],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly brief · Mondays 8:00 · workspace + email"],
+						},
+					],
+					rows: [
+						{
+							primary: "Sources: pricing, changelogs, SERPs, Reddit",
+							secondary: "everything your agents tracked this week",
+						},
+						{
+							primary: "Delivered to workspace + email",
+							secondary: "every claim links to its source",
+						},
+					],
+					summary: "Automation created · first brief lands Monday 8:00",
+				},
+			},
+		],
+	},
+	{
+		id: "platform-agent",
+		label: "SurfSense Agent",
+		useCases: [
+			{
+				id: "chat-workspace",
+				title: "Chat With Everything You Gather",
+				description:
+					"Ask questions across every crawl, mention, and document in your workspace and get answers with inline citations.",
+				src: `${HERO_TUTORIAL}/BQnaGif_compressed.mp4`,
+			},
 			{
 				id: "report",
 				title: "AI Report Generator",
 				description:
-					"Generate cited research reports from your documents, then export to PDF or Markdown.",
+					"Turn your intelligence into cited research reports, then export to PDF or Markdown.",
 				src: `${HERO_TUTORIAL}/ReportGenGif_compressed.mp4`,
 			},
 			{
 				id: "podcast",
 				title: "AI Podcast Generator",
-				description: "Turn any document or folder into a two-host AI podcast in under 20 seconds.",
+				description: "Turn any brief or folder into a two-host AI podcast in under 20 seconds.",
 				src: `${HERO_TUTORIAL}/PodcastGenGif.mp4`,
 			},
 			{
 				id: "presentation",
 				title: "AI Presentation & Video Maker",
-				description: "Create editable slide decks and narrated video overviews from your sources.",
+				description: "Create editable slide decks and narrated video overviews from your findings.",
 				src: `${HERO_TUTORIAL}/video_gen_surf.mp4`,
 			},
 			{
-				id: "image",
-				title: "AI Image Generator",
-				description: "Generate high-quality images straight from your chats and documents.",
-				src: `${HERO_TUTORIAL}/ImageGenGif.mp4`,
-			},
-			{
-				id: "resume",
-				title: "AI Resume Builder",
-				description: "Tailor your existing resume to any job description and beat the ATS.",
-				src: null,
-				comingSoon: true,
-				examples: [
-					"Tailor my resume to this job description so it gets past ATS and lands an interview.",
-					"Optimize my resume for ATS by matching the keywords in this job posting.",
-					"Rewrite my resume bullet points to highlight the skills this role is asking for.",
-					"Compare my resume against this job description and list the gaps to fix.",
-					"Write a matching cover letter from my resume and this job description.",
-				],
-			},
-		],
-	},
-	{
-		id: "automations",
-		label: "Automations",
-		useCases: [
-			{
-				id: "schedule",
-				title: "Scheduled AI Workflows",
-				description: "Run an agent on a schedule: daily briefs, weekly digests, recurring reports.",
-				src: null,
-				comingSoon: true,
-				examples: [
-					"Email me a daily brief of new documents in my knowledge base every morning.",
-					"Generate a weekly status report from my Slack and Gmail every Friday.",
-					"Run a monthly competitor analysis report and save it to my workspace.",
-					"Summarize my GitHub and Linear activity into a daily standup update.",
-					"Create a recurring weekly research report on the topics I track.",
-				],
-			},
-			{
-				id: "event",
-				title: "Event-Triggered Automations",
+				id: "connect",
+				title: "Build Your Knowledge Base",
 				description:
-					"Fire an agent the moment a document lands in a folder, then post the result to your tools.",
-				src: null,
-				comingSoon: true,
-				examples: [
-					"When a PDF lands in my Research folder, generate a cited AI summary.",
-					"When new meeting notes are added, turn them into meeting minutes with action items.",
-					"When an invoice is uploaded, extract the vendor, total, and due date into a table.",
-					"When a contract enters my Legal folder, flag key terms and renewal dates.",
-					"When a resume is added to Candidates, screen it against the job description.",
-				],
-			},
-			{
-				id: "chat-built",
-				title: "Chat-Built Automations",
-				description: "Describe an automation in plain English and SurfSense builds it for you.",
-				src: null,
-				comingSoon: true,
-				examples: [
-					"Build an AI agent that emails me a summary of new Notion pages each morning.",
-					"Create a no-code automation that posts a weekly research digest to Slack.",
-					"Set up an AI note taker that turns new meeting notes into minutes.",
-					"Make a workflow that extracts action items from meeting notes and assigns owners.",
-					"Automate a daily email brief from my Gmail and Google Drive.",
-				],
-			},
-		],
-	},
-	{
-		id: "search-chat",
-		label: "Search & Chat",
-		useCases: [
-			{
-				id: "chat-docs",
-				title: "Chat With Your PDFs & Docs",
-				description: "Ask questions across all your files and get answers with inline citations.",
-				src: `${HERO_TUTORIAL}/BQnaGif_compressed.mp4`,
-			},
-			{
-				id: "search",
-				title: "AI Search With Citations",
-				description: "Hybrid semantic and keyword search across your entire knowledge base.",
-				src: `${HERO_TUTORIAL}/BSNCGif.mp4`,
+					"Upload files or sync Google Drive, OneDrive, and Dropbox into one searchable knowledge base alongside everything your agents gather.",
+				src: `${HERO_TUTORIAL}/ConnectorFlowGif.mp4`,
 			},
 			{
 				id: "collab",
 				title: "Collaborative AI Chat",
 				description: "Work on AI conversations with your team in real time.",
 				src: `${HERO_REALTIME}/RealTimeChatGif.mp4`,
-			},
-			{
-				id: "comments",
-				title: "Comments & Mentions",
-				description: "Comment and tag teammates on any AI message.",
-				src: `${HERO_REALTIME}/RealTimeCommentsFlow.mp4`,
-			},
-		],
-	},
-	{
-		id: "connectors",
-		label: "Connectors & Integrations",
-		useCases: [
-			{
-				id: "connect",
-				title: "Connect & Sync Your Tools",
-				description:
-					"Sync Notion, Slack, Google Drive, Gmail, GitHub, Linear and 25+ sources into one searchable corpus.",
-				src: `${HERO_TUTORIAL}/ConnectorFlowGif.mp4`,
-			},
-			{
-				id: "upload",
-				title: "Chat With Uploaded Files",
-				description: "Drop in PDFs, Office docs, images and audio. Instantly searchable.",
-				src: `${HERO_TUTORIAL}/DocUploadGif.mp4`,
-			},
-			{
-				id: "write-back",
-				title: "Connector Write-Back",
-				description: "Let the agent post results back to Notion, Slack, Linear and Drive.",
-				src: null,
-				comingSoon: true,
-				examples: [
-					"Post this research summary to my Notion workspace.",
-					"Send these meeting action items to our team Slack channel.",
-					"Create a Jira ticket from this bug report.",
-					"Open a Linear issue from this feature request.",
-					"Save this generated report to Google Drive as a doc.",
-				],
 			},
 		],
 	},
@@ -285,24 +705,24 @@ export function HeroSection() {
 			<div className="mt-4 flex w-full min-w-0 flex-col items-start px-2 md:px-8 xl:px-0">
 				<h1
 					className={cn(
-						"relative mt-4 max-w-7xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl xl:text-8xl dark:text-neutral-50"
+						"relative mt-4 max-w-4xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl dark:text-neutral-50"
 					)}
 				>
-					<Balancer>NotebookLM for Teams</Balancer>
+					<Balancer>Give your AI agents competitive intelligence.</Balancer>
 				</h1>
-				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-12 md:flex-row md:items-end md:gap-10">
+				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-8 md:flex-row md:items-end md:gap-10">
 					<div>
 						<p
 							className={cn(
-								"relative mb-8 max-w-2xl text-left text-sm tracking-wide text-neutral-600 antialiased sm:text-base md:text-xl dark:text-neutral-400"
+								"relative mb-8 max-w-2xl text-left text-sm text-neutral-600 antialiased sm:text-base md:text-lg dark:text-neutral-400"
 							)}
 						>
-							A free, open source NotebookLM alternative for teams with no data limits. Use ChatGPT,
-							Claude AI, and any AI model for free.
+							SurfSense is an open-source competitive intelligence platform. Your AI agents monitor
+							competitors, track rankings, and listen to your market with live data from platforms
+							like Reddit, YouTube, Google Maps, Google Search, and the open web.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
-							<DownloadButton />
 							<GetStartedButton />
 						</div>
 					</div>
@@ -343,88 +763,6 @@ function GetStartedButton() {
 				<Link href="/login">Get Started</Link>
 			</Button>
 		</>
-	);
-}
-
-function DownloadButton() {
-	const { os, primary, alternatives, isMobileOS } = usePrimaryDownload();
-
-	const fallbackUrl = GITHUB_RELEASES_URL;
-	const mobileDisabledLabel = "Desktop app unavailable on mobile";
-
-	if (isMobileOS) {
-		return (
-			<Button
-				type="button"
-				variant="ghost"
-				disabled
-				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-			>
-				<Download className="size-4" />
-				{mobileDisabledLabel}
-			</Button>
-		);
-	}
-
-	if (!primary) {
-		return (
-			<Button
-				asChild
-				variant="ghost"
-				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-			>
-				<a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
-					<Download className="size-4" />
-					Download for {os}
-				</a>
-			</Button>
-		);
-	}
-
-	return (
-		<div className="flex h-14 w-full items-stretch sm:w-auto">
-			<Button
-				asChild
-				variant="ghost"
-				className="h-auto flex-1 gap-2 rounded-l-lg rounded-r-none border border-r-0 border-neutral-200 bg-white px-5 text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-[0.99] hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-			>
-				<a href={primary.url}>
-					<Download className="size-4 shrink-0" />
-					Download for {os}
-				</a>
-			</Button>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button
-						type="button"
-						variant="ghost"
-						className="h-auto rounded-l-none rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
-					>
-						<ChevronDown className="size-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" className="w-64">
-					{alternatives.map((asset) => (
-						<DropdownMenuItem key={asset.name} asChild>
-							<a href={asset.url} className="cursor-pointer">
-								<Download className="mr-2 size-3.5" />
-								{getAssetLabel(asset.name)}
-							</a>
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuItem asChild>
-						<a
-							href={fallbackUrl}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="cursor-pointer"
-						>
-							All downloads
-						</a>
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</div>
 	);
 }
 
@@ -478,52 +816,6 @@ const TabVideo = memo(function TabVideo({
 	);
 });
 
-const UseCasePlaceholder = ({ title }: { title: string }) => (
-	<Empty className="size-full justify-center rounded-lg border border-dashed bg-muted/30 sm:rounded-xl">
-		<EmptyHeader>
-			<EmptyMedia variant="icon">
-				<Clock aria-hidden="true" />
-			</EmptyMedia>
-			<EmptyTitle>Demo coming soon</EmptyTitle>
-			<EmptyDescription className="text-pretty">{`A walkthrough of ${title} is on the way.`}</EmptyDescription>
-		</EmptyHeader>
-	</Empty>
-);
-
-const UseCaseExamples = ({ examples }: { examples: string[] }) => (
-	<div className="flex size-full flex-col gap-3 rounded-lg border border-dashed bg-muted/30 p-4 sm:rounded-xl sm:p-5">
-		<div className="flex items-center gap-2">
-			<Lightbulb aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-			<p className="text-sm font-medium text-foreground">Try prompts like these today</p>
-		</div>
-		<ul className="flex min-w-0 flex-col gap-2">
-			{examples.map((example) => (
-				<li key={example}>
-					<div className="flex items-start gap-2.5 rounded-md border bg-background px-3 py-2">
-						<CornerDownLeft
-							aria-hidden="true"
-							className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/70"
-						/>
-						<span className="min-w-0 text-sm text-pretty text-muted-foreground">{example}</span>
-					</div>
-				</li>
-			))}
-		</ul>
-	</div>
-);
-
-const DesktopBadge = () => (
-	<Tooltip>
-		<TooltipTrigger asChild>
-			<span className="ml-0.5 inline-flex items-center text-amber-600 dark:text-amber-400">
-				<Monitor aria-hidden="true" className="size-3.5" />
-				<span className="sr-only">Desktop app only</span>
-			</span>
-		</TooltipTrigger>
-		<TooltipContent side="bottom">Desktop app only</TooltipContent>
-	</Tooltip>
-);
-
 const UseCasePane = memo(function UseCasePane({
 	useCase,
 	reduceMotion,
@@ -532,7 +824,7 @@ const UseCasePane = memo(function UseCasePane({
 	reduceMotion: boolean;
 }) {
 	const { expanded, open, close } = useExpandedMedia();
-	const hasVideo = !useCase.comingSoon && Boolean(useCase.src);
+	const hasVideo = Boolean(useCase.src);
 
 	const media = hasVideo ? (
 		<Button
@@ -546,13 +838,7 @@ const UseCasePane = memo(function UseCasePane({
 		</Button>
 	) : (
 		<div className="bg-neutral-50 p-2 sm:p-3 dark:bg-neutral-950">
-			{useCase.examples && useCase.examples.length > 0 ? (
-				<UseCaseExamples examples={useCase.examples} />
-			) : (
-				<div className="aspect-video w-full">
-					<UseCasePlaceholder title={useCase.title} />
-				</div>
-			)}
+			{useCase.demo && <HeroChatDemo demo={useCase.demo} reduceMotion={reduceMotion} />}
 		</div>
 	);
 
@@ -609,14 +895,6 @@ const CategoryPanel = memo(function CategoryPanel({
 }) {
 	return (
 		<div className="flex w-full flex-col gap-3">
-			{category.desktopOnly && (
-				<div className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:text-sm dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200">
-					<Sparkles aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-					<span className="text-pretty">
-						The desktop app includes everything in SurfSense, plus these native-only superpowers.
-					</span>
-				</div>
-			)}
 			<Tabs
 				defaultValue={category.useCases[0]?.id}
 				orientation="vertical"
@@ -670,15 +948,9 @@ const BrowserWindow = () => {
 							<React.Fragment key={category.id}>
 								<TabsTrigger
 									value={category.id}
-									className={cn(
-										"h-auto shrink-0 touch-manipulation gap-1.5 rounded-md px-2.5 py-1 text-xs sm:text-sm",
-										category.desktopOnly
-											? "bg-amber-100/70 text-amber-800 hover:bg-amber-100 data-[state=active]:bg-amber-200/80 data-[state=active]:text-amber-900 data-[state=active]:shadow-sm dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/40 dark:data-[state=active]:bg-amber-900/60 dark:data-[state=active]:text-amber-50"
-											: "data-[state=active]:bg-background data-[state=active]:shadow"
-									)}
+									className="h-auto shrink-0 touch-manipulation gap-1.5 rounded-md px-2.5 py-1 text-xs data-[state=active]:bg-background data-[state=active]:shadow sm:text-sm"
 								>
 									{category.label}
-									{category.desktopOnly && <DesktopBadge />}
 								</TabsTrigger>
 								{index !== CATEGORIES.length - 1 && (
 									<Separator

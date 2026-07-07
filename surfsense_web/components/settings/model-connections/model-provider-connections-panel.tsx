@@ -23,7 +23,7 @@ import {
 } from "./provider-metadata";
 
 interface ModelProviderConnectionsPanelProps {
-	searchSpaceId: number;
+	workspaceId: number;
 	connections: ConnectionRead[];
 	className?: string;
 	addProviderTitle?: string;
@@ -49,7 +49,7 @@ function toModelSelection(model: SelectableModel): ModelSelection {
 }
 
 export function ModelProviderConnectionsPanel({
-	searchSpaceId,
+	workspaceId,
 	connections,
 	className,
 	addProviderTitle = "Add Provider",
@@ -126,6 +126,11 @@ export function ModelProviderConnectionsPanel({
 	// Each provider connect form builds its own credential payload; the backend
 	// resolver (`to_litellm`) forwards `extra.litellm_params` straight to LiteLLM.
 	function handleCreate(draft: ConnectionDraft) {
+		if (!Number.isFinite(workspaceId) || workspaceId <= 0) {
+			toast.error("Workspace is still loading. Please try again.");
+			return;
+		}
+
 		const models = connectionModelsForDraft(draft);
 		const testModel = representativeTestModel(models);
 		if (!testModel) {
@@ -138,7 +143,7 @@ export function ModelProviderConnectionsPanel({
 			base_url: draft.base_url,
 			api_key: draft.api_key,
 			scope: "SEARCH_SPACE" as const,
-			search_space_id: searchSpaceId,
+			workspace_id: workspaceId,
 			extra: draft.extra,
 			enabled: true,
 			models,
@@ -165,13 +170,18 @@ export function ModelProviderConnectionsPanel({
 		setProvider(providerId);
 		setIsAddProviderOpen(true);
 		if (providerId === "vertex_ai") {
+			if (!Number.isFinite(workspaceId) || workspaceId <= 0) {
+				toast.error("Workspace is still loading. Please try again.");
+				return;
+			}
+
 			previewModels.mutate(
 				{
 					provider: providerId,
 					base_url: null,
 					api_key: null,
 					scope: "SEARCH_SPACE",
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 					extra: {},
 					enabled: true,
 					models: [],
@@ -184,13 +194,18 @@ export function ModelProviderConnectionsPanel({
 	}
 
 	function refreshConnectModels(draft: ConnectionDraft) {
+		if (!Number.isFinite(workspaceId) || workspaceId <= 0) {
+			toast.error("Workspace is still loading. Please try again.");
+			return;
+		}
+
 		previewModels.mutate(
 			{
 				provider,
 				base_url: draft.base_url,
 				api_key: draft.api_key,
 				scope: "SEARCH_SPACE",
-				search_space_id: searchSpaceId,
+				workspace_id: workspaceId,
 				extra: draft.extra,
 				enabled: true,
 				models: [],

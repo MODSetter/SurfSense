@@ -1,69 +1,51 @@
 ---
 title: Manual Installation
-description: Setting up SurfSense manually for customized deployments
+description: Set up SurfSense from source, component by component
 icon: Wrench
 ---
 
-# Manual Installation (Preferred)
+This guide sets up SurfSense without Docker (except for zero-cache, which is simplest to run as a container). Choose this path if you want to contribute to SurfSense or need full control over each component. If you just want to run SurfSense, the [Docker installation](/docs/docker-installation) is much faster.
 
-This guide provides step-by-step instructions for setting up SurfSense without Docker. This approach gives you more control over the installation process and allows for customization of the environment.
+## What You'll Need
 
-## Prerequisites
+- **Python 3.12+** — backend runtime
+- **Node.js 20+** and **pnpm** — frontend runtime
+- **PostgreSQL 14+** with the **pgvector** extension — database
+- **Redis** — message broker for background tasks
+- **Docker** — to run zero-cache (the real-time sync server)
+- **Git** — to clone the repository
+- **uv** — Python package manager ([install instructions](https://docs.astral.sh/uv/getting-started/installation/))
 
-Before beginning the manual installation, ensure you have the following installed and configured:
+Clone the repository first:
 
-### Required Software
-- **Python 3.12+** - Backend runtime environment
-- **Node.js 20+** - Frontend runtime environment  
-- **PostgreSQL 14+** - Database server (must be configured with `wal_level = logical` for [Zero real-time sync](/docs/how-to/zero-sync))
-- **PGVector** - PostgreSQL extension for vector similarity search
-- **Redis** - Message broker for Celery task queue
-- **Zero-cache** - Rocicorp Zero real-time sync server (run via Docker; see [Zero-Cache Setup](#zero-cache-setup) below)
-- **Docker** - Required to run zero-cache (the simplest way; the Postgres + Redis can be installed natively)
-- **Git** - Version control (to clone the repository)
+```bash
+git clone https://github.com/MODSetter/SurfSense.git
+cd SurfSense
+```
 
-### Required Services & API Keys
+## Decisions to Make Up Front
 
-Complete all the [setup steps](/docs), including:
+**Authentication.** SurfSense supports local email/password auth (the default, no setup needed) or Google OAuth login. For Google login you need an OAuth client from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) — the [Google connectors guide](/docs/connectors/external/google) walks through creating one.
 
-- **Authentication Setup** (choose one):
-  - Google OAuth credentials (for `AUTH_TYPE=GOOGLE`)
-  - Local authentication setup (for `AUTH_TYPE=LOCAL`)
-- **File Processing ETL Service** (choose one):
-  - Unstructured.io API key (Supports 34+ formats)
-  - LlamaCloud API key (enhanced parsing, supports 50+ formats)
-  - Docling (local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
-- **Other API keys** as needed for your use case
+**Document parsing (ETL).** SurfSense converts uploaded files with one of three services:
+
+- **Docling** (default) — runs locally, no API key, privacy-friendly. Supports PDF, Office docs, images, HTML, CSV.
+- **Unstructured** — needs an API key from [Unstructured Platform](https://platform.unstructured.io/). Supports 34+ formats.
+- **LlamaCloud** — needs an API key from [LlamaCloud](https://cloud.llamaindex.ai/). Supports 50+ formats.
+
+You only need one. Docling is the easiest way to start.
 
 ## Backend Setup
 
-The backend is the core of SurfSense. Follow these steps to set it up:
+### 1. Configure the Environment
 
-### Optional: Messaging Channels
-
-SurfSense can expose the same backend agent through Telegram, WhatsApp, Slack,
-and Discord. For manual installs, configure the relevant channel variables in
-`surfsense_backend/.env`.
-
-See [Messaging Channels](/docs/messaging-channels) for the channel-specific
-setup guides.
-
-### 1. Environment Configuration
-
-First, create and configure your environment variables by copying the example file:
+Copy the example environment file:
 
 **Linux/macOS:**
 
 ```bash
 cd surfsense_backend
 cp .env.example .env
-```
-
-**Windows (Command Prompt):**
-
-```cmd
-cd surfsense_backend
-copy .env.example .env
 ```
 
 **Windows (PowerShell):**
@@ -73,158 +55,20 @@ cd surfsense_backend
 Copy-Item -Path .env.example -Destination .env
 ```
 
-Edit the `.env` file and set the following variables:
+`.env.example` is the source of truth for configuration — every variable is documented inline with comments and sensible defaults. At minimum, set your PostgreSQL connection string and a JWT secret key (generate one with `openssl rand -base64 32`). Everything else — auth type, ETL service, embeddings, TTS/STT, connector credentials — is optional and explained in the file itself.
 
-| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DATABASE_URL               | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`)                                                                                    |
-| SECRET_KEY                 | JWT Secret key for authentication (should be a secure random string)                                                                                                                      |
-| NEXT_FRONTEND_URL          | URL where your frontend application is hosted (e.g., `http://localhost:3000`)                                                                                                             |
-| BACKEND_URL                | (Optional) Public URL of the backend for OAuth callbacks (e.g., `https://api.yourdomain.com`). Required when running behind a reverse proxy with HTTPS. Used to set correct OAuth redirect URLs and secure cookies. |
-| AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
-| GOOGLE_OAUTH_CLIENT_ID     | (Optional) Client ID from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                        |
-| GOOGLE_OAUTH_CLIENT_SECRET | (Optional) Client secret from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                    |
-| EMBEDDING_MODEL            | Name of the embedding model (e.g., `sentence-transformers/all-MiniLM-L6-v2`, `openai://text-embedding-ada-002`)                                                                                                                 |
-| EMBEDDING_BASE_URL         | (Optional) Separate endpoint for Chonkie/LiteLLM embedding models, such as `http://localhost:11434` with `EMBEDDING_MODEL=litellm://ollama/nomic-embed-text`. `OLLAMA_EMBEDDING_BASE_URL` is also supported as an Ollama-specific fallback. |
-| RERANKERS_ENABLED          | (Optional) Enable or disable document reranking for improved search results (e.g., `TRUE` or `FALSE`, default: `FALSE`)                                                                  |
-| RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) (required if RERANKERS_ENABLED=TRUE)                                                                                        |
-| RERANKERS_MODEL_TYPE       | Type of reranker model (e.g., `flashrank`) (required if RERANKERS_ENABLED=TRUE)                                                                                                          |
-| TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `local/kokoro`, `openai/tts-1`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers)                            |
-| TTS_SERVICE_API_KEY        | (Optional if local) API key for the Text-to-Speech service                                                                                                                                                    |
-| TTS_SERVICE_API_BASE       | (Optional) Custom API base URL for the Text-to-Speech service                                                                                                                           |
-| STT_SERVICE                | Speech-to-Text API provider for Audio Files (e.g., `local/base`, `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                   |
-| STT_SERVICE_API_KEY        | (Optional if local) API key for the Speech-to-Text service                                                                                                                                                    |
-| STT_SERVICE_API_BASE       | (Optional) Custom API base URL for the Speech-to-Text service                                                                                                                      |
-| ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
-| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
-| LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
-| REDIS_URL                  | Single Redis connection URL for the Celery broker, result backend, and app cache (e.g., `redis://localhost:6379/0`). Optionally override per use with `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, or `REDIS_APP_URL`. |
-| SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
-| REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
-| PAGES_LIMIT                | (Optional) Maximum pages limit per user for ETL services (default: `999999999` for unlimited in OSS version)                                                                                        |
-
-**Google Connector OAuth Configuration:**
-| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GOOGLE_CALENDAR_REDIRECT_URI | (Optional) Redirect URI for Google Calendar connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/calendar/connector/callback`)                                     |
-| GOOGLE_GMAIL_REDIRECT_URI  | (Optional) Redirect URI for Gmail connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/gmail/connector/callback`)                                                   |
-| GOOGLE_DRIVE_REDIRECT_URI  | (Optional) Redirect URI for Google Drive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/drive/connector/callback`)                                            |
-
-**Connector OAuth Configurations (Optional):**
-
-| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AIRTABLE_CLIENT_ID         | (Optional) Airtable OAuth client ID from [Airtable Developer Hub](https://airtable.com/create/oauth)                                                                                      |
-| AIRTABLE_CLIENT_SECRET     | (Optional) Airtable OAuth client secret                                                                                                                                                   |
-| AIRTABLE_REDIRECT_URI      | (Optional) Redirect URI for Airtable connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/airtable/connector/callback`)                                                    |
-| CLICKUP_CLIENT_ID          | (Optional) ClickUp OAuth client ID                                                                                                                                                        |
-| CLICKUP_CLIENT_SECRET      | (Optional) ClickUp OAuth client secret                                                                                                                                                    |
-| CLICKUP_REDIRECT_URI       | (Optional) Redirect URI for ClickUp connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/clickup/connector/callback`)                                                      |
-| DISCORD_CLIENT_ID          | (Optional) Discord OAuth client ID                                                                                                                                                        |
-| DISCORD_CLIENT_SECRET      | (Optional) Discord OAuth client secret                                                                                                                                                    |
-| DISCORD_REDIRECT_URI       | (Optional) Redirect URI for Discord connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/discord/connector/callback`)                                                      |
-| DISCORD_BOT_TOKEN          | (Optional) Discord bot token from Developer Portal                                                                                                                                        |
-| ATLASSIAN_CLIENT_ID        | (Optional) Atlassian OAuth client ID (for Jira and Confluence)                                                                                                                            |
-| ATLASSIAN_CLIENT_SECRET    | (Optional) Atlassian OAuth client secret                                                                                                                                                  |
-| JIRA_REDIRECT_URI          | (Optional) Redirect URI for Jira connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/jira/connector/callback`)                                                            |
-| CONFLUENCE_REDIRECT_URI    | (Optional) Redirect URI for Confluence connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/confluence/connector/callback`)                                                |
-| LINEAR_CLIENT_ID           | (Optional) Linear OAuth client ID                                                                                                                                                         |
-| LINEAR_CLIENT_SECRET       | (Optional) Linear OAuth client secret                                                                                                                                                     |
-| LINEAR_REDIRECT_URI        | (Optional) Redirect URI for Linear connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/linear/connector/callback`)                                                        |
-| NOTION_CLIENT_ID           | (Optional) Notion OAuth client ID                                                                                                                                                         |
-| NOTION_CLIENT_SECRET       | (Optional) Notion OAuth client secret                                                                                                                                                     |
-| NOTION_REDIRECT_URI        | (Optional) Redirect URI for Notion connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/notion/connector/callback`)                                                        |
-| SLACK_CLIENT_ID            | (Optional) Slack OAuth client ID                                                                                                                                                          |
-| SLACK_CLIENT_SECRET        | (Optional) Slack OAuth client secret                                                                                                                                                      |
-| SLACK_REDIRECT_URI         | (Optional) Redirect URI for Slack connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/slack/connector/callback`)                                                          |
-| MICROSOFT_CLIENT_ID        | (Optional) Microsoft OAuth client ID (shared for Teams and OneDrive)                                                                                                                      |
-| MICROSOFT_CLIENT_SECRET    | (Optional) Microsoft OAuth client secret (shared for Teams and OneDrive)                                                                                                                  |
-| TEAMS_REDIRECT_URI         | (Optional) Redirect URI for Teams connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/teams/connector/callback`)                                                          |
-| ONEDRIVE_REDIRECT_URI      | (Optional) Redirect URI for OneDrive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/onedrive/connector/callback`)                                                    |
-| DROPBOX_APP_KEY            | (Optional) Dropbox OAuth app key                                                                                                                                                          |
-| DROPBOX_APP_SECRET         | (Optional) Dropbox OAuth app secret                                                                                                                                                       |
-| DROPBOX_REDIRECT_URI       | (Optional) Redirect URI for Dropbox connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/dropbox/connector/callback`)                                                      |
-
-**(Optional) Backend LangSmith Observability:**
-| ENV VARIABLE | DESCRIPTION |
-|--------------|-------------|
-| LANGSMITH_TRACING | Enable LangSmith tracing (e.g., `true`) |
-| LANGSMITH_ENDPOINT | LangSmith API endpoint (e.g., `https://api.smith.langchain.com`) |
-| LANGSMITH_API_KEY | Your LangSmith API key |
-| LANGSMITH_PROJECT | LangSmith project name (e.g., `surfsense`) |
-
-**(Optional) Uvicorn Server Configuration**
-| ENV VARIABLE | DESCRIPTION | DEFAULT VALUE |
-|------------------------------|---------------------------------------------|---------------|
-| UVICORN_HOST                 | Host address to bind the server             | 0.0.0.0       |
-| UVICORN_PORT                 | Port to run the backend API                 | 8000          |
-| UVICORN_LOG_LEVEL            | Logging level (e.g., info, debug, warning)  | info          |
-| UVICORN_PROXY_HEADERS        | Enable/disable proxy headers                | false         |
-| UVICORN_FORWARDED_ALLOW_IPS  | Comma-separated list of allowed IPs         | 127.0.0.1     |
-| UVICORN_WORKERS              | Number of worker processes                  | 1             |
-| UVICORN_ACCESS_LOG           | Enable/disable access log (true/false)      | true          |
-| UVICORN_LOOP                 | Event loop implementation                   | auto          |
-| UVICORN_HTTP                 | HTTP protocol implementation                | auto          |
-| UVICORN_WS                   | WebSocket protocol implementation           | auto          |
-| UVICORN_LIFESPAN             | Lifespan implementation                     | auto          |
-| UVICORN_LOG_CONFIG           | Path to logging config file or empty string |               |
-| UVICORN_SERVER_HEADER        | Enable/disable Server header                | true          |
-| UVICORN_DATE_HEADER          | Enable/disable Date header                  | true          |
-| UVICORN_LIMIT_CONCURRENCY    | Max concurrent connections                  |               |
-| UVICORN_LIMIT_MAX_REQUESTS   | Max requests before worker restart          |               |
-| UVICORN_TIMEOUT_KEEP_ALIVE   | Keep-alive timeout (seconds)                | 5             |
-| UVICORN_TIMEOUT_NOTIFY       | Worker shutdown notification timeout (sec)  | 30            |
-| UVICORN_SSL_KEYFILE          | Path to SSL key file                        |               |
-| UVICORN_SSL_CERTFILE         | Path to SSL certificate file                |               |
-| UVICORN_SSL_KEYFILE_PASSWORD | Password for SSL key file                   |               |
-| UVICORN_SSL_VERSION          | SSL version                                 |               |
-| UVICORN_SSL_CERT_REQS        | SSL certificate requirements                |               |
-| UVICORN_SSL_CA_CERTS         | Path to CA certificates file                |               |
-| UVICORN_SSL_CIPHERS          | SSL ciphers                                 |               |
-| UVICORN_HEADERS              | Comma-separated list of headers             |               |
-| UVICORN_USE_COLORS           | Enable/disable colored logs                 | true          |
-| UVICORN_UDS                  | Unix domain socket path                     |               |
-| UVICORN_FD                   | File descriptor to bind to                  |               |
-| UVICORN_ROOT_PATH            | Root path for the application               |               |
-
-Refer to the `.env.example` file for all available Uvicorn options and their usage. Uncomment and set in your `.env` file as needed.
-
-For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#command-line-options).
+For separate embedding servers, set `EMBEDDING_BASE_URL` with Chonkie/LiteLLM embedding models; `OLLAMA_EMBEDDING_BASE_URL` is also supported as an Ollama-specific fallback.
 
 ### 2. Install Dependencies
 
-Install the backend dependencies using `uv`:
-
-**Linux/macOS:**
-
 ```bash
-# Install uv if you don't have it
-curl -fsSL https://astral.sh/uv/install.sh | bash
-
-# Install dependencies
-uv sync
-```
-
-**Windows (PowerShell):**
-
-```powershell
-# Install uv if you don't have it
-iwr -useb https://astral.sh/uv/install.ps1 | iex
-
-# Install dependencies
-uv sync
-```
-
-**Windows (Command Prompt):**
-
-```cmd
-# Install dependencies with uv (after installing uv)
+# From surfsense_backend/
 uv sync
 ```
 
 ### 3. Configure PostgreSQL for Zero Sync
 
-SurfSense uses [Rocicorp Zero](https://zero.rocicorp.dev/) for real-time data synchronization (notifications, document status, chat comments, indexing progress). Zero replicates data from PostgreSQL via **logical replication**, which requires a one-time PostgreSQL configuration change.
+SurfSense uses [Rocicorp Zero](https://zero.rocicorp.dev/) for real-time updates (notifications, document status, chat comments, indexing progress). Zero replicates data from PostgreSQL via **logical replication**, which requires a one-time PostgreSQL configuration change.
 
 Edit your `postgresql.conf` (typical locations: `/etc/postgresql/<version>/main/postgresql.conf` on Linux, `/usr/local/var/postgres/postgresql.conf` on macOS via Homebrew, `C:\Program Files\PostgreSQL\<version>\data\postgresql.conf` on Windows) and set:
 
@@ -261,7 +105,7 @@ psql -U postgres -d surfsense -c "SHOW wal_level;"
 # Should return: logical
 ```
 
-**Managed databases (RDS, Supabase, Cloud SQL, etc.):** Enable logical replication via your provider's parameter group (e.g. `rds.logical_replication=1` on RDS) and grant your database user the `REPLICATION` privilege:
+**Managed databases (RDS, Supabase, Cloud SQL, etc.):** enable logical replication via your provider's parameter group (e.g. `rds.logical_replication=1` on RDS) and grant your database user the `REPLICATION` privilege:
 
 ```sql
 ALTER USER surfsense WITH REPLICATION;
@@ -270,24 +114,11 @@ GRANT CREATE ON DATABASE surfsense TO surfsense;
 
 ### 4. Run Database Migrations
 
-Before starting the backend, run Alembic migrations. This creates the schema **and** the `zero_publication` that zero-cache needs to start. Skipping this step will cause zero-cache to crash-loop with `Unknown or invalid publications. Specified: [zero_publication]`.
-
-**If using uv:**
+This creates the schema **and** the `zero_publication` that zero-cache needs to start. Skipping this step will cause zero-cache to crash-loop with `Unknown or invalid publications. Specified: [zero_publication]`.
 
 ```bash
 # From surfsense_backend/
 uv run alembic upgrade head
-```
-
-**If using pip/venv:**
-
-```bash
-# Activate virtual environment first
-source .venv/bin/activate  # Linux/macOS
-# OR
-.venv\Scripts\activate     # Windows
-
-alembic upgrade head
 ```
 
 Verify the publication was created:
@@ -297,181 +128,86 @@ psql -U postgres -d surfsense -c "SELECT pubname FROM pg_publication;"
 # Should include: zero_publication
 ```
 
-### 5. Start Redis Server
-
-Redis is required for Celery task queue. Start the Redis server:
+### 5. Start Redis
 
 **Linux:**
 
 ```bash
-# Start Redis server
 sudo systemctl start redis
-
-# Or if using Redis installed via package manager
+# or run directly
 redis-server
 ```
 
-**macOS:**
+**macOS (Homebrew):**
 
 ```bash
-# If installed via Homebrew
 brew services start redis
-
-# Or run directly
-redis-server
 ```
 
-**Windows:**
+**Windows — run Redis in Docker (easiest):**
 
 ```powershell
-# Option 1: If using Redis on Windows (via WSL or Windows port)
-redis-server
-
-# Option 2: If installed as a Windows service
-net start Redis
-```
-
-**Alternative for Windows - Run Redis in Docker:**
-
-If you have Docker Desktop installed, you can run Redis in a container:
-
-```powershell
-# Pull and run Redis container
 docker run -d --name redis -p 6379:6379 redis:latest
-
-# To stop Redis
-docker stop redis
-
-# To start Redis again
-docker start redis
-
-# To remove Redis container
-docker rm -f redis
 ```
 
-Verify Redis is running by connecting to it:
+Verify it's running:
 
 ```bash
 redis-cli ping
 # Should return: PONG
 ```
 
-### 6. Start Celery Worker
+### 6. Start the Celery Worker
 
-In a new terminal window, start the Celery worker to handle background tasks. For external chat surfaces, Celery only runs maintenance tasks; agent turns run inside the FastAPI process.
+In a new terminal, start the worker that handles background tasks (document indexing, connector syncs):
 
-**If using uv:**
+**Linux/macOS:**
 
 ```bash
-# Make sure you're in the surfsense_backend directory
 cd surfsense_backend
-
-# Start Celery worker (consume default, connectors, and external chat maintenance queues)
 DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
 uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
 ```
 
-**If using pip/venv:**
+**Windows (PowerShell):**
 
-```bash
-# Make sure you're in the surfsense_backend directory
+```powershell
 cd surfsense_backend
-
-# Activate virtual environment
-source .venv/bin/activate  # Linux/macOS
-# OR
-.venv\Scripts\activate     # Windows
-
-# Start Celery worker (consume default, connectors, and external chat maintenance queues)
-DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
-celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
+uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="surfsense,surfsense.connectors,surfsense.gateway"
 ```
 
-**Optional: Start Flower for monitoring Celery tasks:**
-
-In another terminal window:
+Optionally, run [Flower](https://flower.readthedocs.io/) in another terminal to monitor tasks at [http://localhost:5555](http://localhost:5555):
 
 ```bash
-# If using uv
 uv run celery -A celery_worker.celery_app flower --port=5555
-
-# If using pip/venv (activate venv first)
-celery -A celery_worker.celery_app flower --port=5555
 ```
-
-Access Flower at [http://localhost:5555](http://localhost:5555) to monitor your Celery tasks.
 
 ### 7. Start Celery Beat (Scheduler)
 
-In another new terminal window, start Celery Beat to enable periodic tasks (like scheduled connector indexing):
-
-**If using uv:**
+In another terminal, start the scheduler that triggers periodic tasks (like scheduled connector syncs). Without it, scheduled tasks won't run.
 
 ```bash
-# Make sure you're in the surfsense_backend directory
 cd surfsense_backend
-
-# Start Celery Beat
 uv run celery -A celery_worker.celery_app beat --loglevel=info
 ```
 
-**If using pip/venv:**
-
-```bash
-# Make sure you're in the surfsense_backend directory
-cd surfsense_backend
-
-# Activate virtual environment
-source .venv/bin/activate  # Linux/macOS
-# OR
-.venv\Scripts\activate     # Windows
-
-# Start Celery Beat
-celery -A celery_worker.celery_app beat --loglevel=info
-```
-
-**Important**: Celery Beat is required for the periodic indexing functionality to work. Without it, scheduled connector tasks won't run automatically. The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable.
-
 ### 8. Run the Backend
 
-Start the backend server:
-
-**If using uv:**
-
 ```bash
-# Run without hot reloading
+# From surfsense_backend/
 uv run main.py
 
 # Or with hot reloading for development
 uv run main.py --reload
 ```
 
-**If using pip/venv:**
-
-```bash
-# Activate virtual environment if not already activated
-source .venv/bin/activate  # Linux/macOS
-# OR
-.venv\Scripts\activate     # Windows
-
-# Run without hot reloading
-python main.py
-
-# Or with hot reloading for development
-python main.py --reload
-```
-
-If everything is set up correctly, you should see output indicating the server is running on `http://localhost:8000`.
+You should see the server running on `http://localhost:8000`.
 
 ## Zero-Cache Setup
 
-**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates (notifications, document indexing status, chat comments, collaboration indicators) to all connected clients via WebSocket. The frontend connects to it on startup. Without zero-cache running, you will not see live updates and many parts of the UI will sit on stale data.
-
-For an overview of how Zero works and the list of synced tables, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
+**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates to all connected clients via WebSocket. Without it, the UI sits on stale data. For an overview of how Zero works, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
 
 ### 1. Run Zero-Cache via Docker
-
-The simplest way to run zero-cache is the official Docker image. Open a new terminal:
 
 **Linux/macOS:**
 
@@ -490,8 +226,9 @@ docker run -d --name surfsense-zero-cache \
   -e ZERO_CVR_MAX_CONNS=30 \
   -e ZERO_QUERY_URL="http://host.docker.internal:3000/api/zero/query" \
   -e ZERO_MUTATE_URL="http://host.docker.internal:3000/api/zero/mutate" \
+  -e ZERO_QUERY_FORWARD_COOKIES=true \
   -v surfsense-zero-cache:/data \
-  rocicorp/zero:1.4.0
+  rocicorp/zero:1.6.0
 ```
 
 **Windows (PowerShell):**
@@ -511,34 +248,30 @@ docker run -d --name surfsense-zero-cache `
   -e ZERO_CVR_MAX_CONNS=30 `
   -e ZERO_QUERY_URL="http://host.docker.internal:3000/api/zero/query" `
   -e ZERO_MUTATE_URL="http://host.docker.internal:3000/api/zero/mutate" `
+  -e ZERO_QUERY_FORWARD_COOKIES=true `
   -v surfsense-zero-cache:/data `
-  rocicorp/zero:1.4.0
+  rocicorp/zero:1.6.0
 ```
 
-**Adjustments to make for your setup:**
+**Adjustments for your setup:**
 
-- Replace `postgres:postgres` in the connection URLs with your actual `DB_USER:DB_PASSWORD`.
+- Replace `postgres:postgres` in the connection URLs with your actual database user and password.
 - On Linux without Docker Desktop, `host.docker.internal` may not resolve. Either keep the `--add-host=host.docker.internal:host-gateway` flag (Docker 20.10+) or replace `host.docker.internal` with your host's IP / `--network=host` + `localhost`.
 - For production / custom domains, set `ZERO_QUERY_URL` and `ZERO_MUTATE_URL` to your public frontend URL (e.g. `https://app.yourdomain.com/api/zero/query`).
 
 ### 2. Verify Zero-Cache
 
-Confirm zero-cache is healthy:
-
 ```bash
 curl http://localhost:4848/keepalive
 # Should return HTTP 200
-```
 
-Tail the logs to confirm initial replication completed without errors:
-
-```bash
+# Tail logs to confirm initial replication completed without errors
 docker logs -f surfsense-zero-cache
 ```
 
-### Alternative: Use `docker-compose.deps-only.yml`
+### Alternative: Let Docker Manage All Dependencies
 
-If you would rather have Docker manage Postgres, Redis, SearXNG, and zero-cache together (while still running the backend and frontend natively), the repository ships a deps-only compose file. **Run alembic migrations on the host first** so `zero_publication` exists before zero-cache starts:
+If you'd rather have Docker manage Postgres, Redis, and zero-cache together (while still running the backend and frontend natively), the repository ships a deps-only compose file. **Run alembic migrations on the host first** so `zero_publication` exists before zero-cache starts:
 
 ```bash
 cd surfsense_backend
@@ -547,29 +280,17 @@ cd ../docker
 docker compose -f docker-compose.deps-only.yml up -d
 ```
 
-The deps-only stack exposes zero-cache on port `4848` by default. If your
-frontend is not behind a reverse proxy that serves `/zero`, set
-`NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` before building/running the
-frontend.
+The deps-only stack exposes zero-cache on port `4848`. Point the frontend at it by setting the zero-cache URL in `surfsense_web/.env` (see the comments in `surfsense_web/.env.example`).
 
 ## Frontend Setup
 
-### 1. Environment Configuration
-
-Set up the frontend environment:
+### 1. Configure the Environment
 
 **Linux/macOS:**
 
 ```bash
 cd surfsense_web
 cp .env.example .env
-```
-
-**Windows (Command Prompt):**
-
-```cmd
-cd surfsense_web
-copy .env.example .env
 ```
 
 **Windows (PowerShell):**
@@ -579,145 +300,57 @@ cd surfsense_web
 Copy-Item -Path .env.example -Destination .env
 ```
 
-Edit the `.env` file and set:
+As with the backend, `.env.example` documents every option inline. Make sure the auth type and ETL service match what you configured for the backend, and that the backend URL points at `http://localhost:8000`.
 
-| ENV VARIABLE | DESCRIPTION |
-| --- | --- |
-| `SURFSENSE_BACKEND_INTERNAL_URL` | Backend URL used by Next.js server routes, e.g. `http://localhost:8000` or `http://backend:8000` in Docker |
-| `AUTH_TYPE` | Same value as backend auth type: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication |
-| `ETL_SERVICE` | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING`; affects supported file formats in the upload interface |
-| `DEPLOYMENT_MODE` | `self-hosted` or `cloud`; controls self-hosted-only connector visibility |
-| `NEXT_PUBLIC_ZERO_CACHE_URL` | Only needed when the browser cannot reach Zero through same-origin `/zero`, e.g. manual local dev at `http://localhost:4848` |
-
-### 2. Install Dependencies
-
-Install the frontend dependencies:
-
-**Linux/macOS:**
+### 2. Install Dependencies and Run
 
 ```bash
 # Install pnpm if you don't have it
 npm install -g pnpm
 
-# Install dependencies
 pnpm install
-```
-
-**Windows:**
-
-```powershell
-# Install pnpm if you don't have it
-npm install -g pnpm
-
-# Install dependencies
-pnpm install
-```
-
-### 3. Run the Frontend
-
-Start the Next.js development server:
-
-**Linux/macOS/Windows:**
-
-```bash
 pnpm run dev
 ```
 
-The frontend should now be running at `http://localhost:3000`.
+The frontend should now be running at [http://localhost:3000](http://localhost:3000).
 
-## Browser Extension Setup (Optional)
+## Browser Extension (Optional)
 
-The SurfSense browser extension allows you to save any webpage, including those protected behind authentication.
-
-### 1. Environment Configuration
-
-**Linux/macOS:**
+The SurfSense browser extension saves any webpage — including those behind authentication — straight into your knowledge base.
 
 ```bash
 cd surfsense_browser_extension
-cp .env.example .env
-```
+cp .env.example .env   # set the backend URL, documented inline
 
-**Windows (Command Prompt):**
-
-```cmd
-cd surfsense_browser_extension
-copy .env.example .env
-```
-
-**Windows (PowerShell):**
-
-```powershell
-cd surfsense_browser_extension
-Copy-Item -Path .env.example -Destination .env
-```
-
-Edit the `.env` file:
-
-| ENV VARIABLE              | DESCRIPTION                                           |
-| ------------------------- | ----------------------------------------------------- |
-| PLASMO_PUBLIC_BACKEND_URL | SurfSense Backend URL (e.g., `http://127.0.0.1:8000`) |
-
-### 2. Build the Extension
-
-Build the extension for your browser using the [Plasmo framework](https://docs.plasmo.com/framework/workflows/build#with-a-specific-target).
-
-**Linux/macOS/Windows:**
-
-```bash
-# Install dependencies
 pnpm install
-
-# Build for Chrome (default)
-pnpm build
-
-# Or for other browsers
-pnpm build --target=firefox
-pnpm build --target=edge
+pnpm build                     # Chrome (default)
+pnpm build --target=firefox    # or Firefox
+pnpm build --target=edge       # or Edge
 ```
 
-### 3. Load the Extension
+Load the built extension in your browser's developer mode and configure it with your SurfSense API key. See the [Plasmo build docs](https://docs.plasmo.com/framework/workflows/build#with-a-specific-target) for details.
 
-Load the extension in your browser's developer mode and configure it with your SurfSense API key.
+## Verify Your Installation
 
-## Verification
-
-To verify your installation:
-
-1. Open your browser and navigate to `http://localhost:3000`
-2. Sign in with your Google account (or local credentials if `AUTH_TYPE=LOCAL`)
-3. Create a search space and try uploading a document
-4. Watch the upload status update live without refreshing. This confirms zero-cache is wired up correctly
-5. Test the chat functionality with your uploaded content
+1. Open [http://localhost:3000](http://localhost:3000) and sign in.
+2. Create a workspace and upload a document.
+3. Watch the upload status update live without refreshing — this confirms zero-cache is wired up correctly.
+4. Chat with your uploaded content.
 
 ## Troubleshooting
 
-- **Database Connection Issues**: Verify your PostgreSQL server is running and pgvector is properly installed
-- **Redis Connection Issues**: Ensure Redis server is running (`redis-cli ping` should return `PONG`). Check that `REDIS_URL` is correctly set in your `.env` file
-- **Celery Worker Issues**: Make sure the Celery worker is running in a separate terminal. Check worker logs for any errors
-- **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
-- **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible
-- **File Upload Failures**: Validate your ETL service API key (Unstructured.io or LlamaCloud) or ensure Docling is properly configured
-- **Real-time updates not working / stale UI**: Verify zero-cache is running (`curl http://localhost:4848/keepalive` returns 200). Open browser DevTools → Console and look for WebSocket errors. In default Docker, confirm `/zero` is routed by Caddy. In manual local development, confirm `NEXT_PUBLIC_ZERO_CACHE_URL` in `surfsense_web/.env` matches the running zero-cache address.
-- **Zero-cache stuck on `Unknown or invalid publications. Specified: [zero_publication]`**: You skipped (or never ran) `uv run alembic upgrade head` from `surfsense_backend/`. Run it, then restart the zero-cache container with `docker restart surfsense-zero-cache`.
-- **Zero-cache crashes with `_zero.tableMetadata` errors**: A previous run left a half-built SQLite replica behind. Stop the container, remove the volume, and start fresh: `docker rm -f surfsense-zero-cache && docker volume rm surfsense-zero-cache && docker run -d ...` (re-run the command from [Zero-Cache Setup](#zero-cache-setup)).
-- **`wal_level` is not set to `logical`**: zero-cache requires logical replication. Set `wal_level = logical` in `postgresql.conf`, restart PostgreSQL, and verify with `SHOW wal_level;` in psql.
+- **Database connection issues**: Verify PostgreSQL is running and pgvector is installed.
+- **Redis connection issues**: `redis-cli ping` should return `PONG`. Check the Redis URL in your backend `.env`.
+- **Celery worker issues**: Make sure the worker is running in a separate terminal and check its logs.
+- **File upload failures**: Validate your ETL service API key, or use Docling which needs none.
+- **Real-time updates not working / stale UI**: Verify zero-cache is running (`curl http://localhost:4848/keepalive` returns 200). Open browser DevTools → Console and look for WebSocket errors. Confirm the zero-cache URL in `surfsense_web/.env` matches the running zero-cache address.
+- **Zero-cache stuck on `Unknown or invalid publications. Specified: [zero_publication]`**: You skipped `uv run alembic upgrade head`. Run it from `surfsense_backend/`, then `docker restart surfsense-zero-cache`.
+- **Zero-cache crashes with `_zero.tableMetadata` errors**: A previous run left a half-built SQLite replica behind. Start fresh: `docker rm -f surfsense-zero-cache && docker volume rm surfsense-zero-cache`, then re-run the command from [Zero-Cache Setup](#zero-cache-setup).
+- **`wal_level` is not `logical`**: zero-cache requires logical replication. Set it in `postgresql.conf`, restart PostgreSQL, and verify with `SHOW wal_level;`.
 - **Backend `/ready` returns 503**: The readiness probe verifies `zero_publication` exists. Run `uv run alembic upgrade head` to create it.
-- **Windows-specific**: If you encounter path issues, ensure you're using the correct path separator (`\` instead of `/`)
-- **macOS-specific**: If you encounter permission issues, you may need to use `sudo` for some installation commands
 
 ## Next Steps
 
-Now that you have SurfSense running locally, you can explore its features:
-
-- Create search spaces for organizing your content
-- Upload documents or use the browser extension to save webpages
-- Ask questions about your saved content
-- Explore the advanced RAG capabilities
-
-For production deployments, consider setting up:
-
-- A reverse proxy like Nginx
-- SSL certificates for secure connections
-- Proper database backups
-- User access controls
+- Set up [connectors](/docs/connectors) to bring in your tools and services.
+- Connect [local models](/docs/local-models) like Ollama or LM Studio.
+- For production, put a reverse proxy in front, add SSL, and set up database backups.

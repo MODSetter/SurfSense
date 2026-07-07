@@ -240,13 +240,13 @@ class GoogleCalendarToolMetadataService:
             )
 
     async def _get_accounts(
-        self, search_space_id: int, user_id: str
+        self, workspace_id: int, user_id: str
     ) -> list[GoogleCalendarAccount]:
         result = await self._db_session.execute(
             select(SearchSourceConnector)
             .filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(CALENDAR_CONNECTOR_TYPES),
                 )
@@ -256,8 +256,8 @@ class GoogleCalendarToolMetadataService:
         connectors = result.scalars().all()
         return [GoogleCalendarAccount.from_connector(c) for c in connectors]
 
-    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
-        accounts = await self._get_accounts(search_space_id, user_id)
+    async def get_creation_context(self, workspace_id: int, user_id: str) -> dict:
+        accounts = await self._get_accounts(workspace_id, user_id)
 
         if not accounts:
             return {
@@ -360,9 +360,9 @@ class GoogleCalendarToolMetadataService:
         }
 
     async def get_update_context(
-        self, search_space_id: int, user_id: str, event_ref: str
+        self, workspace_id: int, user_id: str, event_ref: str
     ) -> dict:
-        resolved = await self._resolve_event(search_space_id, user_id, event_ref)
+        resolved = await self._resolve_event(workspace_id, user_id, event_ref)
         if not resolved:
             return {
                 "error": (
@@ -449,12 +449,12 @@ class GoogleCalendarToolMetadataService:
         }
 
     async def get_deletion_context(
-        self, search_space_id: int, user_id: str, event_ref: str
+        self, workspace_id: int, user_id: str, event_ref: str
     ) -> dict:
-        resolved = await self._resolve_event(search_space_id, user_id, event_ref)
+        resolved = await self._resolve_event(workspace_id, user_id, event_ref)
         if not resolved:
             live_resolved = await self._resolve_live_event(
-                search_space_id, user_id, event_ref
+                workspace_id, user_id, event_ref
             )
             if not live_resolved:
                 return {
@@ -495,7 +495,7 @@ class GoogleCalendarToolMetadataService:
         }
 
     async def _resolve_event(
-        self, search_space_id: int, user_id: str, event_ref: str
+        self, workspace_id: int, user_id: str, event_ref: str
     ) -> tuple[Document, SearchSourceConnector] | None:
         result = await self._db_session.execute(
             select(Document, SearchSourceConnector)
@@ -505,7 +505,7 @@ class GoogleCalendarToolMetadataService:
             )
             .filter(
                 and_(
-                    Document.search_space_id == search_space_id,
+                    Document.workspace_id == workspace_id,
                     Document.document_type.in_(CALENDAR_DOCUMENT_TYPES),
                     SearchSourceConnector.user_id == user_id,
                     or_(
@@ -526,13 +526,13 @@ class GoogleCalendarToolMetadataService:
         return None
 
     async def _resolve_live_event(
-        self, search_space_id: int, user_id: str, event_ref: str
+        self, workspace_id: int, user_id: str, event_ref: str
     ) -> tuple[SearchSourceConnector, dict] | None:
         result = await self._db_session.execute(
             select(SearchSourceConnector)
             .filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(CALENDAR_CONNECTOR_TYPES),
                 )

@@ -85,7 +85,7 @@ class NewChatThreadBase(BaseModel):
 class NewChatThreadCreate(NewChatThreadBase):
     """Schema for creating a new thread."""
 
-    search_space_id: int
+    workspace_id: int
     # Visibility defaults to PRIVATE, but can be set on creation
     visibility: ChatVisibility = ChatVisibility.PRIVATE
 
@@ -108,7 +108,7 @@ class NewChatThreadRead(NewChatThreadBase, IDModel):
     Schema for reading a thread (matches assistant-ui ThreadRecord).
     """
 
-    search_space_id: int
+    workspace_id: int
     visibility: ChatVisibility
     created_by_id: UUID | None = None
     created_at: datetime
@@ -236,7 +236,7 @@ class NewChatRequest(BaseModel):
 
     chat_id: int
     user_query: str
-    search_space_id: int
+    workspace_id: int
     messages: list[ChatMessage] | None = None  # Optional chat history from frontend
     mentioned_document_ids: list[int] | None = (
         None  # Optional document IDs mentioned with @ in the chat
@@ -279,7 +279,7 @@ class NewChatRequest(BaseModel):
         default=None,
         description=(
             "Other chat thread IDs the user @-mentioned. Each is "
-            "resolved (access-checked, same search space) into a "
+            "resolved (access-checked, same workspace) into a "
             "read-only ``<referenced_chat_context>`` block prepended to "
             "the agent query. Display chips persist via the "
             "``mentioned_documents`` list (kind=``thread``)."
@@ -330,7 +330,7 @@ class RegenerateRequest(BaseModel):
     ``data-revert-results`` and do not abort the regeneration.
     """
 
-    search_space_id: int
+    workspace_id: int
     user_query: str | None = (
         None  # New user query (for edit). None = reload with same query
     )
@@ -428,7 +428,7 @@ class ResumeDecision(BaseModel):
 
 
 class ResumeRequest(BaseModel):
-    search_space_id: int
+    workspace_id: int
     decisions: list[ResumeDecision]
     # Mirrors ``NewChatRequest.disabled_tools`` so the resumed run sees the
     # same tool surface as the originating turn.
@@ -520,7 +520,7 @@ class PublicChatSnapshotDetail(BaseModel):
 
 
 class PublicChatSnapshotsBySpaceResponse(BaseModel):
-    """List of public chat snapshots for a search space."""
+    """List of public chat snapshots for a workspace."""
 
     snapshots: list[PublicChatSnapshotDetail]
 
@@ -556,4 +556,4 @@ class CloneResponse(BaseModel):
     """Response after cloning a public snapshot."""
 
     thread_id: int
-    search_space_id: int
+    workspace_id: int

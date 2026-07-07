@@ -31,7 +31,7 @@ def _report_search_types(
     """Build the document-type scope for the shared KB search.
 
     ``None`` means "search every indexed type"; a tuple narrows the scope to the
-    connectors/document types the search space actually has.
+    connectors/document types the workspace actually has.
     """
     types: set[str] = set()
     if available_document_types:
@@ -561,7 +561,7 @@ async def _revise_with_sections(
 
 
 def create_generate_report_tool(
-    search_space_id: int,
+    workspace_id: int,
     thread_id: int | None = None,
     connector_service: ConnectorService | None = None,
     available_connectors: list[str] | None = None,
@@ -728,7 +728,7 @@ def create_generate_report_tool(
                             "error_message": error_msg,
                         },
                         report_style=report_style,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         thread_id=resolve_root_thread_id(runtime, thread_id),
                         report_group_id=report_group_id,
                     )
@@ -769,7 +769,7 @@ def create_generate_report_tool(
                             "creating standalone report"
                         )
 
-                llm = await get_agent_llm(read_session, search_space_id)
+                llm = await get_agent_llm(read_session, workspace_id)
 
             if not llm:
                 error_msg = (
@@ -846,7 +846,7 @@ def create_generate_report_tool(
                         async with shielded_async_session() as kb_session:
                             return await search_chunks(
                                 kb_session,
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 query=q,
                                 scope=scope,
                                 top_k=10,
@@ -1044,7 +1044,7 @@ def create_generate_report_tool(
                     content=report_content,
                     report_metadata=metadata,
                     report_style=report_style,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     thread_id=resolve_root_thread_id(runtime, thread_id),
                     report_group_id=report_group_id,
                 )

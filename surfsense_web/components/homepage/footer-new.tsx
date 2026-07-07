@@ -2,6 +2,7 @@ import {
 	IconBrandDiscord,
 	IconBrandGithub,
 	IconBrandLinkedin,
+	IconBrandReddit,
 	IconBrandTwitter,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -21,6 +22,10 @@ export function FooterNew() {
 		//   title: "Clients",
 		//   href: "#",
 		// },
+		{
+			title: "Connectors",
+			href: "/connectors",
+		},
 		{
 			title: "Pricing",
 			href: "/pricing",
@@ -63,6 +68,11 @@ export function FooterNew() {
 			title: "Discord",
 			href: "https://discord.gg/ejRNvftDp9",
 			icon: IconBrandDiscord,
+		},
+		{
+			title: "Reddit",
+			href: "https://www.reddit.com/r/SurfSense/",
+			icon: IconBrandReddit,
 		},
 	];
 	const legals = [

@@ -12,7 +12,7 @@ from app.observability import metrics as ot_metrics, otel as ot
 def open_chat_request_span(
     *,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     flow: Literal["new", "regenerate", "resume"],
     request_id: str | None,
     turn_id: str,
@@ -23,7 +23,7 @@ def open_chat_request_span(
     """Open the per-request span; returns ``(span_cm, span)`` for finally-close."""
     span_cm = ot.chat_request_span(
         chat_id=chat_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         flow=flow,
         request_id=request_id,
         turn_id=turn_id,

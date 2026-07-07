@@ -55,7 +55,7 @@ class AgentActionRead(BaseModel):
     id: int
     thread_id: int
     user_id: str | None
-    search_space_id: int
+    workspace_id: int
     tool_name: str
     args: dict[str, Any] | None
     result_id: str | None
@@ -116,7 +116,7 @@ async def list_thread_actions(
     """List agent actions for a thread, newest first.
 
     Authorization:
-    * Caller must be a member of the thread's search space with
+    * Caller must be a member of the thread's workspace with
       ``CHATS_READ`` permission.
 
     Pagination:
@@ -133,7 +133,7 @@ async def list_thread_actions(
     await check_permission(
         session,
         auth,
-        thread.search_space_id,
+        thread.workspace_id,
         Permission.CHATS_READ.value,
         "You don't have permission to view this thread's action log.",
     )
@@ -169,7 +169,7 @@ async def list_thread_actions(
             id=row.id,
             thread_id=row.thread_id,
             user_id=str(row.user_id) if row.user_id is not None else None,
-            search_space_id=row.search_space_id,
+            workspace_id=row.workspace_id,
             tool_name=row.tool_name,
             args=row.args,
             result_id=row.result_id,

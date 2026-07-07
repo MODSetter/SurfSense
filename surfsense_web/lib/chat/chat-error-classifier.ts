@@ -39,7 +39,7 @@ export interface RawChatErrorInput {
 	error: unknown;
 	flow: ChatFlow;
 	context?: {
-		searchSpaceId?: number;
+		workspaceId?: number;
 		threadId?: number | null;
 	};
 }

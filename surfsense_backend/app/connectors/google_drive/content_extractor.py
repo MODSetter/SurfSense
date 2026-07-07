@@ -136,7 +136,7 @@ async def _parse_file_to_markdown(
 async def download_and_process_file(
     client: GoogleDriveClient,
     file: dict[str, Any],
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     session: AsyncSession,
     task_logger: TaskLoggingService,
@@ -149,7 +149,7 @@ async def download_and_process_file(
     Args:
         client: GoogleDriveClient instance
         file: File metadata from Drive API
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         session: Database session
         task_logger: Task logging service
@@ -246,7 +246,7 @@ async def download_and_process_file(
         await process_file_in_background(
             file_path=temp_file_path,
             filename=etl_filename,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             session=session,
             task_logger=task_logger,

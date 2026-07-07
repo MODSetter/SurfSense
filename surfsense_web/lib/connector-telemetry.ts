@@ -113,16 +113,48 @@ const LEGACY_REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
 };
 
 /**
+ * Connector types migrated to hosted MCP, mapped to their MCP service key.
+ * A legacy native row of one of these types (no ``config.server_config``)
+ * re-authenticates through the MCP flow so the reconnect writes an MCP
+ * ``server_config`` and the row starts producing agent tools again.
+ *
+ * Gmail/Calendar/Drive/Dropbox/OneDrive are intentionally absent: they stay
+ * on their native OAuth (Google Workspace MCP is not GA yet; file connectors
+ * remain native for knowledge-base enrichment).
+ */
+const MIGRATED_TYPE_TO_MCP_SERVICE: Partial<Record<string, string>> = {
+	[EnumConnectorName.LINEAR_CONNECTOR]: "linear",
+	[EnumConnectorName.JIRA_CONNECTOR]: "jira",
+	[EnumConnectorName.NOTION_CONNECTOR]: "notion",
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: "confluence",
+};
+
+/**
+ * True when a row is a migrated connector type still on its legacy native
+ * config (no MCP ``server_config``). Such rows appear "connected" but produce
+ * no agent tools until reconnected via MCP — the UI surfaces a nudge.
+ */
+export function needsMcpReconnect(connector: SearchSourceConnector): boolean {
+	if (!(connector.connector_type in MIGRATED_TYPE_TO_MCP_SERVICE)) return false;
+	return !connector.config?.server_config;
+}
+
+/**
  * Resolve the reauth endpoint for a connector.
  *
  * MCP OAuth connectors (those with ``config.mcp_service``) dynamically build
- * the URL from the service key. Legacy OAuth connectors fall back to the
- * static ``LEGACY_REAUTH_ENDPOINTS`` map.
+ * the URL from the service key. Migrated native rows are routed to the MCP
+ * reauth flow so reconnecting converts them in place. Everything else falls
+ * back to the static ``LEGACY_REAUTH_ENDPOINTS`` map.
  */
 export function getReauthEndpoint(connector: SearchSourceConnector): string | undefined {
 	const mcpService = connector.config?.mcp_service as string | undefined;
 	if (mcpService) {
 		return `/api/v1/auth/mcp/${mcpService}/connector/reauth`;
+	}
+	const migratedService = MIGRATED_TYPE_TO_MCP_SERVICE[connector.connector_type];
+	if (migratedService) {
+		return `/api/v1/auth/mcp/${migratedService}/connector/reauth`;
 	}
 	return LEGACY_REAUTH_ENDPOINTS[connector.connector_type];
 }

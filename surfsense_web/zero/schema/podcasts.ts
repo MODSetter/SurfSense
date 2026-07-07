@@ -12,7 +12,7 @@ export const podcastTable = table("podcasts")
 		specVersion: number().from("spec_version"),
 		durationSeconds: number().optional().from("duration_seconds"),
 		error: string().optional(),
-		searchSpaceId: number().from("search_space_id"),
+		workspaceId: number().from("workspace_id"),
 		threadId: number().optional().from("thread_id"),
 		createdAt: number().from("created_at"),
 	})

@@ -169,7 +169,7 @@ async def test_free_path_skips_reserve_but_writes_audit_row(monkeypatch):
 
     async with billable_call(
         user_id=user_id,
-        search_space_id=42,
+        workspace_id=42,
         billing_tier="free",
         base_model="openai/gpt-image-1",
         usage_type="image_generation",
@@ -210,7 +210,7 @@ async def test_premium_reserve_denied_raises_quota_insufficient(monkeypatch):
     with pytest.raises(QuotaInsufficientError) as exc_info:
         async with billable_call(
             user_id=user_id,
-            search_space_id=42,
+            workspace_id=42,
             billing_tier="premium",
             base_model="openai/gpt-image-1",
             quota_reserve_micros_override=50_000,
@@ -242,7 +242,7 @@ async def test_premium_success_finalizes_with_actual_cost(monkeypatch):
 
     async with billable_call(
         user_id=user_id,
-        search_space_id=42,
+        workspace_id=42,
         billing_tier="premium",
         base_model="openai/gpt-image-1",
         quota_reserve_micros_override=50_000,
@@ -292,7 +292,7 @@ async def test_premium_failure_releases_reservation(monkeypatch):
     with pytest.raises(_ProviderError):
         async with billable_call(
             user_id=user_id,
-            search_space_id=42,
+            workspace_id=42,
             billing_tier="premium",
             base_model="openai/gpt-image-1",
             quota_reserve_micros_override=50_000,
@@ -336,7 +336,7 @@ async def test_premium_uses_estimator_when_no_micros_override(monkeypatch):
     user_id = uuid4()
     async with billable_call(
         user_id=user_id,
-        search_space_id=1,
+        workspace_id=1,
         billing_tier="premium",
         base_model="openai/gpt-4o",
         quota_reserve_tokens=4000,
@@ -367,7 +367,7 @@ async def test_premium_finalize_failure_propagates_and_releases(monkeypatch):
     with pytest.raises(BillingSettlementError):
         async with billable_call(
             user_id=user_id,
-            search_space_id=42,
+            workspace_id=42,
             billing_tier="premium",
             base_model="openai/gpt-image-1",
             quota_reserve_micros_override=50_000,
@@ -408,7 +408,7 @@ async def test_premium_audit_commit_hang_times_out_after_finalize(monkeypatch):
 
     async with billable_call(
         user_id=user_id,
-        search_space_id=42,
+        workspace_id=42,
         billing_tier="premium",
         base_model="openai/gpt-image-1",
         quota_reserve_micros_override=50_000,
@@ -450,7 +450,7 @@ async def test_free_audit_failure_is_best_effort(monkeypatch):
 
     async with billable_call(
         user_id=uuid4(),
-        search_space_id=42,
+        workspace_id=42,
         billing_tier="free",
         base_model="openai/gpt-image-1",
         usage_type="image_generation",
@@ -488,7 +488,7 @@ async def test_free_podcast_path_audits_with_podcast_usage_type(monkeypatch):
 
     async with billable_call(
         user_id=user_id,
-        search_space_id=42,
+        workspace_id=42,
         billing_tier="free",
         base_model="openrouter/some-free-model",
         quota_reserve_micros_override=200_000,
@@ -514,7 +514,7 @@ async def test_free_podcast_path_audits_with_podcast_usage_type(monkeypatch):
     row = spies["record"][0]
     assert row["usage_type"] == "podcast_generation"
     assert row["thread_id"] is None
-    assert row["search_space_id"] == 42
+    assert row["workspace_id"] == 42
     assert row["call_details"] == {"podcast_id": 7, "title": "Test Podcast"}
 
 
@@ -539,7 +539,7 @@ async def test_premium_video_denial_raises_quota_insufficient(monkeypatch):
     with pytest.raises(QuotaInsufficientError) as exc_info:
         async with billable_call(
             user_id=user_id,
-            search_space_id=42,
+            workspace_id=42,
             billing_tier="premium",
             base_model="gpt-5.4",
             quota_reserve_micros_override=1_000_000,

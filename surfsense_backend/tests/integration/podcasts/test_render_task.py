@@ -20,10 +20,10 @@ pytestmark = pytest.mark.integration
 
 
 async def test_render_marks_ready_and_stores_audio(
-    db_search_space, make_podcast, bind_task_session, fake_tts, fake_merge, fake_storage
+    db_workspace, make_podcast, bind_task_session, fake_tts, fake_merge, fake_storage
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.RENDERING
+        workspace_id=db_workspace.id, status=PodcastStatus.RENDERING
     )
 
     result = await render._render_audio(podcast.id)
@@ -37,7 +37,7 @@ async def test_render_marks_ready_and_stores_audio(
 
 async def test_rerender_replaces_audio_and_purges_the_old_object(
     db_session,
-    db_search_space,
+    db_workspace,
     make_podcast,
     bind_task_session,
     fake_tts,
@@ -47,7 +47,7 @@ async def test_rerender_replaces_audio_and_purges_the_old_object(
     # A regenerated episode keeps exactly one stored object: the new render
     # must not leak the superseded audio in the object store.
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
     old_key = podcast.storage_key
     fake_storage.objects[old_key] = b"old-audio"
@@ -68,7 +68,7 @@ async def test_rerender_replaces_audio_and_purges_the_old_object(
 
 async def test_render_losing_to_a_user_revert_keeps_the_episode_and_leaks_nothing(
     db_session,
-    db_search_space,
+    db_workspace,
     make_podcast,
     bind_task_session,
     fake_tts,
@@ -79,7 +79,7 @@ async def test_render_losing_to_a_user_revert_keeps_the_episode_and_leaks_nothin
     # stale render must neither resurrect the redo nor leak the object it
     # already stored.
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
     old_key = podcast.storage_key
     fake_storage.objects[old_key] = b"old-audio"

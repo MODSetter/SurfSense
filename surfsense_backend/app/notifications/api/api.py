@@ -35,7 +35,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 @router.get("/unread-counts-batch", response_model=BatchUnreadCountResponse)
 async def get_unread_counts_batch(
-    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    workspace_id: int | None = Query(None, description="Filter by workspace ID"),
     auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> BatchUnreadCountResponse:
@@ -48,11 +48,11 @@ async def get_unread_counts_batch(
         Notification.read == False,  # noqa: E712
     ]
 
-    if search_space_id is not None:
-        # Include global (null search-space) notifications.
+    if workspace_id is not None:
+        # Include global (null workspace) notifications.
         base_filter.append(
-            (Notification.search_space_id == search_space_id)
-            | (Notification.search_space_id.is_(None))
+            (Notification.workspace_id == workspace_id)
+            | (Notification.workspace_id.is_(None))
         )
 
     is_comments = Notification.type.in_(CATEGORY_TYPES["comments"])
@@ -87,7 +87,7 @@ async def get_unread_counts_batch(
 
 @router.get("/source-types", response_model=SourceTypesResponse)
 async def get_notification_source_types(
-    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    workspace_id: int | None = Query(None, description="Filter by workspace ID"),
     auth: AuthContext = Depends(require_session_context),
     session: AsyncSession = Depends(get_async_session),
 ) -> SourceTypesResponse:
@@ -95,11 +95,11 @@ async def get_notification_source_types(
     user = auth.user
     base_filter = [Notification.user_id == user.id]
 
-    if search_space_id is not None:
-        # Include global (null search-space) notifications.
+    if workspace_id is not None:
+        # Include global (null workspace) notifications.
         base_filter.append(
-            (Notification.search_space_id == search_space_id)
-            | (Notification.search_space_id.is_(None))
+            (Notification.workspace_id == workspace_id)
+            | (Notification.workspace_id.is_(None))
         )
 
     connector_type_expr = Notification.notification_metadata["connector_type"].astext
@@ -156,7 +156,7 @@ async def get_notification_source_types(
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
-    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    workspace_id: int | None = Query(None, description="Filter by workspace ID"),
     type_filter: NotificationType | None = Query(
         None, alias="type", description="Filter by notification type"
     ),
@@ -179,11 +179,11 @@ async def get_unread_count(
         Notification.read == False,  # noqa: E712
     ]
 
-    if search_space_id is not None:
-        # Include global (null search-space) notifications.
+    if workspace_id is not None:
+        # Include global (null workspace) notifications.
         base_filter.append(
-            (Notification.search_space_id == search_space_id)
-            | (Notification.search_space_id.is_(None))
+            (Notification.workspace_id == workspace_id)
+            | (Notification.workspace_id.is_(None))
         )
 
     if type_filter:
@@ -211,7 +211,7 @@ async def get_unread_count(
 
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
-    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    workspace_id: int | None = Query(None, description="Filter by workspace ID"),
     type_filter: NotificationType | None = Query(
         None, alias="type", description="Filter by notification type"
     ),
@@ -244,15 +244,15 @@ async def list_notifications(
         Notification.user_id == user.id
     )
 
-    if search_space_id is not None:
-        # Include global (null search-space) notifications.
+    if workspace_id is not None:
+        # Include global (null workspace) notifications.
         query = query.where(
-            (Notification.search_space_id == search_space_id)
-            | (Notification.search_space_id.is_(None))
+            (Notification.workspace_id == workspace_id)
+            | (Notification.workspace_id.is_(None))
         )
         count_query = count_query.where(
-            (Notification.search_space_id == search_space_id)
-            | (Notification.search_space_id.is_(None))
+            (Notification.workspace_id == workspace_id)
+            | (Notification.workspace_id.is_(None))
         )
 
     if type_filter:

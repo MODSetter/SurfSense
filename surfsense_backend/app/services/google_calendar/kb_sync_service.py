@@ -40,7 +40,7 @@ class GoogleCalendarKBSyncService:
         html_link: str | None,
         description: str | None,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -52,7 +52,7 @@ class GoogleCalendarKBSyncService:
 
         try:
             unique_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_CALENDAR_CONNECTOR, event_id, search_space_id
+                DocumentType.GOOGLE_CALENDAR_CONNECTOR, event_id, workspace_id
             )
 
             existing = await check_document_by_unique_identifier(
@@ -74,7 +74,7 @@ class GoogleCalendarKBSyncService:
                 f"{description or ''}"
             ).strip()
 
-            content_hash = generate_content_hash(indexable_content, search_space_id)
+            content_hash = generate_content_hash(indexable_content, workspace_id)
 
             with self.db_session.no_autoflush:
                 dup = await check_duplicate_document_by_hash(
@@ -116,7 +116,7 @@ class GoogleCalendarKBSyncService:
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
                 embedding=summary_embedding,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 source_markdown=indexable_content,
                 updated_at=get_current_timestamp(),
@@ -165,7 +165,7 @@ class GoogleCalendarKBSyncService:
         document_id: int,
         event_id: str,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -260,7 +260,7 @@ class GoogleCalendarKBSyncService:
             document.title = event_summary
             document.content = summary_content
             document.content_hash = generate_content_hash(
-                indexable_content, search_space_id
+                indexable_content, workspace_id
             )
             document.embedding = summary_embedding
 

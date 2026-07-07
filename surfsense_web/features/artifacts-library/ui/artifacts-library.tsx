@@ -1,7 +1,7 @@
 "use client";
 
 import { useSetAtom } from "jotai";
-import { Boxes, RefreshCw, TriangleAlert } from "lucide-react";
+import { RefreshCw, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
@@ -33,7 +33,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 			<div>
 				<p className="font-medium text-foreground">Couldn't load artifacts</p>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Something went wrong fetching this search space's deliverables.
+					Something went wrong fetching this workspace's deliverables.
 				</p>
 			</div>
 			<Button variant="outline" size="sm" onClick={onRetry}>
@@ -46,22 +46,14 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState() {
 	return (
-		<div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-20 text-center">
-			<span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-				<Boxes className="size-6" />
-			</span>
-			<div>
-				<p className="font-medium text-foreground">No artifacts yet</p>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Reports, resumes, podcasts, presentations, and images you generate appear here.
-				</p>
-			</div>
+		<div className="flex items-center justify-center py-20 text-center">
+			<p className="font-medium text-foreground">No artifacts yet</p>
 		</div>
 	);
 }
 
-export function ArtifactsLibrary({ searchSpaceId }: { searchSpaceId: number }) {
-	const { artifacts, loading, error, refresh } = useLibraryArtifacts(searchSpaceId);
+export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
+	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
 	const openReportPanel = useSetAtom(openReportPanelAtom);
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
 
@@ -89,17 +81,14 @@ export function ArtifactsLibrary({ searchSpaceId }: { searchSpaceId: number }) {
 	};
 
 	return (
-		<div className="mx-auto w-full max-w-5xl px-6 py-8">
-			<header className="mb-6 flex items-center justify-between gap-4">
-				<div>
-					<h1 className="text-xl font-semibold text-foreground">Artifacts</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Every deliverable created across this search space.
-					</p>
+		<div className="w-full space-y-6">
+			<header className="flex items-center justify-between gap-4 flex-wrap">
+				<div className="flex items-baseline gap-3">
+					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Artifacts</h1>
+					{!loading && artifacts.length > 0 ? (
+						<span className="text-sm text-muted-foreground">{artifacts.length} total</span>
+					) : null}
 				</div>
-				{!loading && artifacts.length > 0 ? (
-					<span className="shrink-0 text-sm text-muted-foreground">{artifacts.length} total</span>
-				) : null}
 			</header>
 
 			{loading ? (
@@ -124,7 +113,7 @@ export function ArtifactsLibrary({ searchSpaceId }: { searchSpaceId: number }) {
 										<ArtifactCard
 											key={artifact.key}
 											artifact={artifact}
-											searchSpaceId={searchSpaceId}
+											workspaceId={workspaceId}
 											onOpen={handleOpen}
 										/>
 									))}

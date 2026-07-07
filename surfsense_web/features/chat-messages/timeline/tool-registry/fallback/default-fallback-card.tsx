@@ -56,10 +56,12 @@ export const DefaultFallbackCard: TimelineToolComponent = ({
 	result,
 	status,
 	langchainToolCallId,
+	progress,
 }) => {
 	const isCancelled = status === "cancelled";
 	const isError = status === "error";
 	const isRunning = status === "running";
+	const liveProgress = isRunning ? (progress ?? []) : [];
 
 	const [isExpanded, setIsExpanded] = useState(isRunning);
 	useEffect(() => {
@@ -72,10 +74,13 @@ export const DefaultFallbackCard: TimelineToolComponent = ({
 		[result]
 	);
 
-	const subtitle = useMemo(
-		() => (isError || isCancelled ? deriveResultMessage(result) : null),
-		[isError, isCancelled, result]
-	);
+	const subtitle = useMemo(() => {
+		if (isError || isCancelled) return deriveResultMessage(result);
+		// While running, surface the latest streamed activity line so progress
+		// is visible even when the card is collapsed.
+		if (isRunning && liveProgress.length > 0) return liveProgress[liveProgress.length - 1];
+		return null;
+	}, [isError, isCancelled, isRunning, liveProgress, result]);
 
 	const displayName = getToolDisplayName(toolName);
 
@@ -195,6 +200,25 @@ export const DefaultFallbackCard: TimelineToolComponent = ({
 									)}
 								</NestedScroll>
 							</div>
+						)}
+						{isRunning && liveProgress.length > 0 && (
+							<>
+								<Separator />
+								<div className="flex flex-col gap-1 min-w-0">
+									<p className="text-xs font-medium text-muted-foreground">Progress</p>
+									<div className="flex flex-col gap-1.5 rounded-md bg-muted/40 px-3 py-2">
+										{liveProgress.map((line) => (
+											<div
+												key={line}
+												className="flex items-center gap-2 text-xs text-foreground/80"
+											>
+												<Spinner size="sm" className="shrink-0 text-primary" />
+												<span className="min-w-0 wrap-break-word">{line}</span>
+											</div>
+										))}
+									</div>
+								</div>
+							</>
 						)}
 						{!isCancelled && result !== undefined && (
 							<>

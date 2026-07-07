@@ -165,10 +165,9 @@ const DeleteConfluencePageToolUI = dynamic(
  *  - **Structural primitives** (``task``): the row IS the parent of a
  *    delegation span; its job is to label the group. Children render
  *    as their own indented entries.
- *  - **Suppressed connectors** (``web_search``, ``link_preview``,
- *    ``multi_link_preview``, ``scrape_webpage``): citations they
- *    produce render inline in markdown; a separate card would be
- *    redundant noise.
+ *  - **Suppressed connectors** (``link_preview``, ``multi_link_preview``,
+ *    ``scrape_webpage``): citations they produce render inline in
+ *    markdown; a separate card would be redundant noise.
  */
 const NullTimelineBody: TimelineToolComponent = () => null;
 
@@ -218,7 +217,6 @@ const TOOLS_BY_NAME = {
 	create_confluence_page: CreateConfluencePageToolUI,
 	update_confluence_page: UpdateConfluencePageToolUI,
 	delete_confluence_page: DeleteConfluencePageToolUI,
-	web_search: NullTimelineBody,
 	link_preview: NullTimelineBody,
 	multi_link_preview: NullTimelineBody,
 	scrape_webpage: NullTimelineBody,

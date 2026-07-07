@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 import { atomWithStorage, createJSONStorage } from "jotai/utils";
 import type { ChatVisibility } from "@/lib/chat/thread-persistence";
+import { migrateLegacyTabs } from "./migrate-tabs";
 
 export type TabType = "chat" | "document";
 
@@ -15,7 +16,7 @@ export interface Tab {
 	hasComments?: boolean;
 	/** For document tabs */
 	documentId?: number;
-	searchSpaceId?: number;
+	workspaceId?: number;
 }
 
 interface TabsState {
@@ -40,10 +41,16 @@ const initialState: TabsState = {
 const deletedChatIdsAtom = atom<Set<number>>(new Set<number>());
 
 // Persist tabs in localStorage so they survive a hard refresh and let the user
-// keep tabs open across multiple search spaces (browser-like behavior).
+// keep tabs open across multiple workspaces (browser-like behavior).
 const localStorageAdapter = createJSONStorage<TabsState>(
 	() => (typeof window !== "undefined" ? localStorage : undefined) as Storage
 );
+
+// Wrap getItem in place so the adapter keeps its original (sync) type while
+// migrating legacy persisted state on read.
+const baseGetItem = localStorageAdapter.getItem.bind(localStorageAdapter);
+localStorageAdapter.getItem = (key, initialValue) =>
+	migrateLegacyTabs(baseGetItem(key, initialValue));
 
 export const tabsStateAtom = atomWithStorage<TabsState>(
 	"surfsense:tabs",
@@ -81,14 +88,14 @@ export const syncChatTabAtom = atom(
 			chatId,
 			title,
 			chatUrl,
-			searchSpaceId,
+			workspaceId,
 			visibility,
 			hasComments,
 		}: {
 			chatId: number | null;
 			title?: string;
 			chatUrl?: string;
-			searchSpaceId: number;
+			workspaceId: number;
 			visibility?: ChatVisibility;
 			hasComments?: boolean;
 		}
@@ -111,7 +118,7 @@ export const syncChatTabAtom = atom(
 								...t,
 								title: title || t.title,
 								chatUrl: chatUrl || t.chatUrl,
-								searchSpaceId: searchSpaceId ?? t.searchSpaceId,
+								workspaceId: workspaceId ?? t.workspaceId,
 								...(visibility !== undefined ? { visibility } : {}),
 								...(hasComments !== undefined ? { hasComments } : {}),
 							}
@@ -122,18 +129,18 @@ export const syncChatTabAtom = atom(
 		}
 
 		// If navigating to a new chat (no chatId), ensure there's a "new chat" tab
-		// scoped to the current search space.
+		// scoped to the current workspace.
 		if (!chatId) {
 			const hasNewChatTab = state.tabs.some((t) => t.id === "chat-new");
 			if (hasNewChatTab) {
 				set(tabsStateAtom, {
 					...state,
 					activeTabId: "chat-new",
-					tabs: state.tabs.map((t) => (t.id === "chat-new" ? { ...t, searchSpaceId, chatUrl } : t)),
+					tabs: state.tabs.map((t) => (t.id === "chat-new" ? { ...t, workspaceId, chatUrl } : t)),
 				});
 			} else {
 				set(tabsStateAtom, {
-					tabs: [...state.tabs, { ...INITIAL_CHAT_TAB, searchSpaceId, chatUrl }],
+					tabs: [...state.tabs, { ...INITIAL_CHAT_TAB, workspaceId, chatUrl }],
 					activeTabId: "chat-new",
 				});
 			}
@@ -148,7 +155,7 @@ export const syncChatTabAtom = atom(
 			title: title || "New Chat",
 			chatId,
 			chatUrl,
-			searchSpaceId,
+			workspaceId,
 			...(visibility !== undefined ? { visibility } : {}),
 			...(hasComments !== undefined ? { hasComments } : {}),
 		};
@@ -197,11 +204,7 @@ export const openDocumentTabAtom = atom(
 	(
 		get,
 		set,
-		{
-			documentId,
-			searchSpaceId,
-			title,
-		}: { documentId: number; searchSpaceId: number; title?: string }
+		{ documentId, workspaceId, title }: { documentId: number; workspaceId: number; title?: string }
 	) => {
 		const state = get(tabsStateAtom);
 		const tabId = makeDocumentTabId(documentId);
@@ -221,7 +224,7 @@ export const openDocumentTabAtom = atom(
 			type: "document",
 			title: title || `Document ${documentId}`,
 			documentId,
-			searchSpaceId,
+			workspaceId,
 		};
 
 		set(tabsStateAtom, {
@@ -300,7 +303,7 @@ export const removeChatTabAtom = atom(null, (get, set, chatId: number) => {
 	return remaining.find((t) => t.id === newActiveId) ?? null;
 });
 
-/** Reset tabs when switching search spaces. */
+/** Reset tabs when switching workspaces. */
 export const resetTabsAtom = atom(null, (_get, set) => {
 	set(tabsStateAtom, { ...initialState });
 	set(deletedChatIdsAtom, new Set<number>());

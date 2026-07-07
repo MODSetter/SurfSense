@@ -201,7 +201,7 @@ async def _run_gdrive_selected(mocks, file_ids):
         mocks["session"],
         file_ids,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -542,7 +542,7 @@ async def _run_onedrive_selected(mocks, file_ids):
         mocks["session"],
         file_ids,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -641,7 +641,7 @@ async def _run_dropbox_selected(mocks, file_paths):
         mocks["session"],
         file_paths,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 

@@ -33,6 +33,20 @@ import { getRenderedHtml } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 import Loading from "./Loading";
 
+// One-time migration: legacy persisted keys were `search_space` / `search_space_id`.
+// Copy them to the new `workspace` / `workspace_id` keys on first read so the
+// user's selected workspace survives the rename.
+async function migrateLegacyWorkspaceKeys(storage: Storage): Promise<void> {
+	const legacyName = await storage.get("search_space");
+	if (legacyName !== undefined && (await storage.get("workspace")) === undefined) {
+		await storage.set("workspace", legacyName);
+	}
+	const legacyId = await storage.get("search_space_id");
+	if (legacyId !== undefined && (await storage.get("workspace_id")) === undefined) {
+		await storage.set("workspace_id", legacyId);
+	}
+}
+
 const HomePage = () => {
 	const { toast } = useToast();
 	const navigation = useNavigate();
@@ -40,11 +54,11 @@ const HomePage = () => {
 	const [loading, setLoading] = useState(true);
 	const [open, setOpen] = React.useState(false);
 	const [value, setValue] = React.useState<string>("");
-	const [searchspaces, setSearchSpaces] = useState([]);
+	const [workspaces, setWorkspaces] = useState([]);
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
-		const checkSearchSpaces = async () => {
+		const checkWorkspaces = async () => {
 			const storage = new Storage({ area: "local" });
 			const token = await storage.get("token");
 
@@ -55,7 +69,7 @@ const HomePage = () => {
 			}
 
 			try {
-				const response = await fetch(await buildBackendUrl("/api/v1/searchspaces"), {
+				const response = await fetch(await buildBackendUrl("/api/v1/workspaces"), {
 					headers: {
 						Authorization: `Bearer ${token}`,
 					}
@@ -66,7 +80,7 @@ const HomePage = () => {
 				} else {
 					const res = await response.json();
 					console.log(res);
-					setSearchSpaces(res);
+					setWorkspaces(res);
 				}
 			} catch (error) {
 				await storage.remove("token");
@@ -77,7 +91,7 @@ const HomePage = () => {
 			}
 		};
 
-		checkSearchSpaces();
+		checkWorkspaces();
 	}, []);
 
 	useEffect(() => {
@@ -98,10 +112,11 @@ const HomePage = () => {
 				});
 
 				const storage = new Storage({ area: "local" });
-				const searchspace = await storage.get("search_space");
+				await migrateLegacyWorkspaceKeys(storage);
+				const workspace = await storage.get("workspace");
 
-				if (searchspace) {
-					setValue(searchspace);
+				if (workspace) {
+					setValue(workspace);
 				}
 
 				await storage.set("showShadowDom", true);
@@ -262,17 +277,17 @@ const HomePage = () => {
 	const saveDatamessage = async () => {
 		if (value === "") {
 			toast({
-				title: "Select a SearchSpace !",
+				title: "Select a Workspace !",
 			});
 			return;
 		}
 
 		const storage = new Storage({ area: "local" });
-		const search_space_id = await storage.get("search_space_id");
+		const workspace_id = await storage.get("workspace_id");
 
-		if (!search_space_id) {
+		if (!workspace_id) {
 			toast({
-				title: "Invalid SearchSpace selected!",
+				title: "Invalid Workspace selected!",
 				variant: "destructive",
 			});
 			return;
@@ -319,15 +334,15 @@ const HomePage = () => {
 		const storage = new Storage({ area: "local" });
 		await storage.remove("token");
 		await storage.remove("showShadowDom");
-		await storage.remove("search_space");
-		await storage.remove("search_space_id");
+		await storage.remove("workspace");
+		await storage.remove("workspace_id");
 		navigation("/login");
 	}
 
 	if (loading) {
 		return <Loading />;
 	} else {
-		return searchspaces.length === 0 ? (
+		return workspaces.length === 0 ? (
 			<div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-900 to-gray-800">
 				<div className="flex flex-1 items-center justify-center p-4">
 					<div className="w-full max-w-md space-y-8">
@@ -337,7 +352,7 @@ const HomePage = () => {
 							</div>
 							<h1 className="mt-4 text-3xl font-semibold tracking-tight text-white">SurfSense</h1>
 							<div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-yellow-300">
-								<p className="text-sm">Please create a Search Space to continue</p>
+								<p className="text-sm">Please create a Workspace to continue</p>
 							</div>
 						</div>
 
@@ -390,7 +405,7 @@ const HomePage = () => {
 						</div>
 
 						<div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 backdrop-blur-sm">
-							<Label className="mb-2 block text-sm font-medium text-gray-300">Search Space</Label>
+							<Label className="mb-2 block text-sm font-medium text-gray-300">Workspace</Label>
 							<Popover open={open} onOpenChange={setOpen}>
 								<PopoverTrigger asChild>
 									<Button
@@ -399,8 +414,8 @@ const HomePage = () => {
 										className="w-full justify-between border-gray-700 bg-gray-900 text-white hover:bg-gray-700"
 									>
 										{value
-											? searchspaces.find((space) => space.name === value)?.name
-											: "Select Search Space..."}
+											? workspaces.find((space) => space.name === value)?.name
+											: "Select Workspace..."}
 										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 									</Button>
 								</PopoverTrigger>
@@ -411,23 +426,23 @@ const HomePage = () => {
 											className="border-gray-700 bg-gray-900 text-gray-200"
 										/>
 										<CommandList>
-											<CommandEmpty>No search spaces found.</CommandEmpty>
+											<CommandEmpty>No workspaces found.</CommandEmpty>
 											<CommandGroup>
-												{searchspaces.map((space) => (
+												{workspaces.map((space) => (
 													<CommandItem
 														key={space.name}
 														value={space.name}
 														onSelect={async (currentValue) => {
 															const storage = new Storage({ area: "local" });
 															if (currentValue === value) {
-																await storage.set("search_space", "");
-																await storage.set("search_space_id", 0);
+																await storage.set("workspace", "");
+																await storage.set("workspace_id", 0);
 															} else {
-																const selectedSpace = searchspaces.find(
+																const selectedSpace = workspaces.find(
 																	(space) => space.name === currentValue
 																);
-																await storage.set("search_space", currentValue);
-																await storage.set("search_space_id", selectedSpace.id);
+																await storage.set("workspace", currentValue);
+																await storage.set("workspace_id", selectedSpace.id);
 															}
 															setValue(currentValue === value ? "" : currentValue);
 															setOpen(false);

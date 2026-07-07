@@ -50,9 +50,7 @@ def upgrade() -> None:
             """
         )
 
-    op.execute(
-        "ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(64)"
-    )
+    op.execute("ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(64)")
     op.execute("ALTER TABLE refresh_tokens DROP COLUMN IF EXISTS is_revoked")
 
 
@@ -63,14 +61,19 @@ def downgrade() -> None:
     )
     op.execute(
         """
-        UPDATE refresh_tokens
-        SET is_revoked = TRUE
-        WHERE revoked_at IS NOT NULL
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'refresh_tokens'
+                  AND column_name = 'revoked_at'
+            ) THEN
+                UPDATE refresh_tokens SET is_revoked = TRUE WHERE revoked_at IS NOT NULL;
+            END IF;
+        END $$;
         """
     )
     op.execute("ALTER TABLE refresh_tokens ALTER COLUMN is_revoked DROP DEFAULT")
-    op.execute(
-        "ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(256)"
-    )
+    op.execute("ALTER TABLE refresh_tokens ALTER COLUMN token_hash TYPE VARCHAR(256)")
     op.execute("ALTER TABLE refresh_tokens DROP COLUMN IF EXISTS absolute_expiry")
     op.execute("ALTER TABLE refresh_tokens DROP COLUMN IF EXISTS revoked_at")

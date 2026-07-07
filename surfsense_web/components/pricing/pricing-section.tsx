@@ -14,39 +14,40 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "$5 of credit included to start",
+		billingText: "Open source. Run it on your own infrastructure",
 		features: [
-			"Self Hostable",
-			"$5 of credit included to start",
-			"One credit balance for document processing and premium AI features",
-			"Includes access to OpenAI text, audio and image models",
-			"AI automations and agents: scheduled and event-triggered workflows",
-			"Desktop app: Quick, General and Screenshot Assist plus local folder sync",
-			"Realtime Collaborative Group Chats with teammates",
+			"Full platform: connectors, agents, automations, and the MCP server",
+			"Unlimited scraping and crawling, you control billing",
+			"Bring your own keys for any model provider",
+			"Keep competitive research on your own infrastructure",
 			"Community support on Discord",
 		],
 		description: "",
-		buttonText: "Get Started",
-		href: "/login",
+		buttonText: "View on GitHub",
+		href: "https://github.com/MODSetter/SurfSense",
 		isPopular: false,
 	},
 	{
 		name: "PAY AS YOU GO",
-		price: "1",
-		yearlyPrice: "1",
-		period: "pack",
-		billingText: "No subscription, buy only when you need more",
+		price: "5",
+		yearlyPrice: "5",
+		period: "to start",
+		billingText: "Your first $5 of credit is free. No subscription, ever",
 		features: [
-			"Everything in Free",
-			"Buy credit in $1 packs — $1 buys $1 of credit, with optional auto-reload",
-			"Use premium AI models like GPT-5.4, Claude Sonnet 4.6, Gemini 2.5 Pro & 100+ more via OpenRouter",
-			"Connector write-back to Notion, Slack, Linear & Jira",
+			"$5 of free credit to start, one balance for everything",
+			"Platform connectors: Reddit, YouTube, Google Maps, Google Search, and the open web",
+			"Call every connector as a REST API with your key or through the MCP server",
+			"Pay per item returned and per page crawled. Failed calls are never billed",
+			"Premium models like GPT-5.5, Claude Sonnet 5, Gemini 3.1 Pro billed at provider cost",
+			"Scheduled and event-triggered agents for briefs, alerts, and monitoring",
+			"Write results back to Notion, Slack, Linear, and Jira",
+			"Top up any amount, $1 buys $1 of credit, optional auto-reload",
 			"Priority support on Discord",
 		],
 		description: "",
 		buttonText: "Get Started",
 		href: "/login",
-		isPopular: false,
+		isPopular: true,
 	},
 	{
 		name: "ENTERPRISE",
@@ -56,7 +57,7 @@ const demoPlans = [
 		billingText: "",
 		features: [
 			"Everything in Pay As You Go",
-			"Custom automation and agent workflows",
+			"Custom connectors and agent workflows",
 			"On-prem or VPC deployment",
 			"Audit logs and compliance",
 			"SSO, OIDC & SAML",
@@ -84,107 +85,92 @@ interface FAQSection {
 
 const faqData: FAQSection[] = [
 	{
-		title: "Credits & Document Billing",
+		title: "Credits & Pay As You Go",
 		items: [
 			{
 				question: "What are credits in SurfSense?",
 				answer:
-					"Credits are a single prepaid balance shown in dollars that powers everything in SurfSense — both document processing and premium AI features. New accounts start with $5 of credit. Your balance goes down as you use the product and back up when you top up or earn more, so there's just one number to keep an eye on.",
+					"Credits are a single prepaid balance shown in dollars that powers everything in SurfSense: platform connector calls, web crawls, document processing, and premium AI models. New accounts start with $5 of free credit. There is one number to watch, and it only moves when you actually use the product.",
 			},
 			{
-				question: "How much does document processing cost?",
+				question: "How does Pay As You Go work?",
 				answer:
-					"Document processing is billed per page out of your credit balance. For PDFs, one page equals one real PDF page; for other document types like Word, PowerPoint, and Excel files, pages are automatically estimated. Basic mode costs $0.001 per page and Premium mode costs $0.01 per page. Premium processing uses advanced extraction optimized for complex financial, medical, and legal documents with intricate tables and layouts. Every file uses at least 1 page.",
-			},
-			{
-				question: "How does the Pay As You Go plan work?",
-				answer:
-					"There's no monthly subscription. When you need more credit, simply buy $1 packs — $1 buys exactly $1 of credit. Purchased credit is added to your balance immediately so you can keep working right away. You only pay when you actually need more, and you can enable auto-reload to top up automatically.",
+					"There is no monthly subscription. Start with $5 of free credit, and when you need more, top up any amount. $1 buys exactly $1 of credit, added to your balance immediately. You can enable auto-reload to top up automatically when your balance runs low, and turn it off any time.",
 			},
 			{
 				question: "What happens if I run out of credit?",
 				answer:
-					"SurfSense checks your remaining credit before processing each file. If you don't have enough, the upload is paused and you'll be notified so you can buy more credit and continue. For cloud connector syncs, a small overage may be allowed so your sync doesn't partially fail.",
+					"SurfSense checks your balance before every billable call, so your wallet can never go negative. When credit runs out, connector calls, crawls, premium model requests, and document processing pause until you top up. Free models and connectors that do not consume credit keep working.",
 			},
 			{
-				question: "If I delete a document, do I get my credit back?",
+				question: "Do failed scrapes or crawls cost anything?",
 				answer:
-					"No. Deleting a document removes it from your knowledge base, but the credit it used is not refunded. Credit tracks your total usage over time, not how much is currently stored, so be mindful of what you index. Once credit is spent, it's spent even if you later remove the document.",
+					"No. Platform connectors bill per item actually returned, and web crawls bill per page successfully fetched. A request that errors, times out, or comes back empty is not charged. You pay for data you receive, not for attempts.",
 			},
 		],
 	},
 	{
-		title: "File Types & Connectors",
+		title: "Connector & Scraping Pricing",
 		items: [
 			{
-				question: "Which file types use credit?",
+				question: "How are platform connectors billed?",
 				answer:
-					"Credit is only used for document files that need processing, including PDFs, Word documents (DOC, DOCX, ODT, RTF), presentations (PPT, PPTX, ODP), spreadsheets (XLS, XLSX, ODS), ebooks (EPUB), and images (JPG, PNG, TIFF, WebP, BMP). Plain text files, code files, Markdown, CSV, TSV, HTML, audio, and video files do not consume any credit.",
+					"Each platform connector meters per item returned: a Reddit post or comment, a Google Search results page, a Google Maps place or review, a YouTube video or comment. Rates are fractions of a cent per item and are debited from your credit balance after the call succeeds, so your $5 of free credit covers hundreds of items.",
 			},
 			{
-				question: "How is credit consumed for documents?",
+				question: "How much does web crawling cost?",
 				answer:
-					"Credit is deducted whenever a document file is successfully indexed into your knowledge base, whether through direct uploads or file-based connector syncs (Google Drive, OneDrive, Dropbox, Local Folder). In Basic mode each page costs $0.001; in Premium mode each page costs $0.01. SurfSense checks your remaining credit before processing and only charges you after the file is indexed. Duplicate documents are automatically detected and won't cost you extra.",
+					"Web crawls are billed per successfully fetched page at a fraction of a cent, so $1 of credit covers hundreds of pages. Pages that fail to load are never charged. Crawled pages can feed your agents directly or be indexed into your knowledge base for later questions.",
 			},
 			{
-				question: "Do connectors like Slack, Notion, or Gmail use credit?",
+				question: "Does the REST API cost the same as the MCP server?",
 				answer:
-					"No. Connectors that work with structured text data like Slack, Discord, Notion, Confluence, Jira, Linear, ClickUp, GitHub, Gmail, Google Calendar, Microsoft Teams, Airtable, Elasticsearch, Web Crawler, BookStack, Obsidian, and Luma do not use credit at all. Document-processing charges only apply to file-based connectors such as Google Drive, OneDrive, Dropbox, and Local Folder syncs.",
+					"Yes. Whether your own app calls a connector with your SurfSense API key or your agent calls it as a tool through the MCP server, it is the same endpoint, the same per-item rate, and the same credit balance. There is no separate API plan or seat fee.",
+			},
+			{
+				question: "What can I add to the knowledge base?",
+				answer:
+					"You can upload files directly or sync documents from Google Drive, OneDrive, and Dropbox. Crawled pages can also be indexed for later questions. Document files are billed per page processed; connecting the drives themselves costs nothing.",
 			},
 		],
 	},
 	{
-		title: "Premium AI & Credit",
+		title: "Premium AI, Agents & Automations",
 		items: [
 			{
 				question: "How is credit used for premium AI?",
 				answer:
-					"The same credit balance pays for paid AI usage in SurfSense, including premium AI models like GPT-5.4, Claude Sonnet 4.6, and Gemini 2.5 Pro, plus premium AI features such as image generation, podcasts, and video presentations when they use paid models. Each request debits the actual USD provider cost, so cheaper and more expensive models bill proportionally.",
+					"The same balance pays for premium AI models like GPT-5.5, Claude Sonnet 5, and Gemini 3.1 Pro, plus over 100 more via OpenRouter, and for premium features such as image generation, podcasts, and video presentations. Each request debits the actual USD provider cost, so cheaper models bill proportionally less.",
 			},
 			{
-				question: "How much credit do I get for free?",
+				question: "Do agents and automations cost extra?",
 				answer:
-					"Every registered SurfSense account starts with $5 of credit at no cost. Anonymous users (no login) get 500,000 free tokens across free models before creating an account. Once your included credit runs out, you can top up at any time or earn more by completing tasks.",
+					"No. There is no add-on fee for agents or automations. A scheduled competitor brief or an event-triggered alert draws from the same credit balance: connector items and crawled pages at their per-unit rates, and model usage at provider cost. A workflow that uses free models and no scraping costs nothing.",
 			},
 			{
-				question: "How does buying credit work?",
+				question: "What can the agents actually do?",
 				answer:
-					"Top-ups are pay as you go, with no subscription. $1 buys $1 of credit, and your balance is spent at provider cost. Purchased credit is added to your account immediately, and you can buy any custom amount. Enable auto-reload to top up automatically when your balance runs low.",
-			},
-			{
-				question: "Is there a separate balance for documents and AI?",
-				answer:
-					"No. SurfSense uses one unified credit balance for everything — document indexing, file-based connector processing, premium model chats, and premium AI generation features all draw from the same wallet. Premium document processing mode simply costs more per page ($0.01 vs $0.001), but it's the same credit.",
-			},
-			{
-				question: "What happens if I run out of credit?",
-				answer:
-					"When your credit balance runs low, you'll see a warning. Once you run out, paid model requests, premium AI features, and document processing are paused until you top up. You can still use non-premium models and features that do not consume credit.",
+					"You describe the job in plain English and SurfSense sets up the agent, no code needed. Agents can watch competitor pricing pages, track brand mentions on Reddit and YouTube, monitor Google rankings and Maps reviews, then turn what they find into briefs and alerts, and write results back to Notion, Slack, Linear, and Jira.",
 			},
 		],
 	},
 	{
-		title: "Automations & Agents",
+		title: "Documents & Knowledge Base",
 		items: [
 			{
-				question: "What can AI automations and agents do?",
+				question: "How much does document processing cost?",
 				answer:
-					"AI automations let you run agents on your knowledge base without writing code. You can schedule recurring workflows like daily briefs, weekly status reports, and competitor analysis, or trigger an agent the moment a document lands in a folder. Agents can read across your connected tools, generate summaries and reports, and write results back to Notion, Slack, Linear, and Jira.",
+					"Document processing is billed per page from your credit balance. Basic mode costs $0.001 per page and Premium mode costs $0.01 per page, with Premium using advanced extraction for complex financial, medical, and legal layouts. Pages in Word, PowerPoint, and Excel files are estimated automatically, and every file uses at least 1 page.",
 			},
 			{
-				question: "Do automations and agents cost extra?",
+				question: "Which file types use credit?",
 				answer:
-					"No. There is no separate subscription or add-on fee for automations. Agents draw from the same unified credit balance as the rest of SurfSense. Indexing documents and premium AI model usage during a workflow both consume credit at provider cost. If a workflow only uses free models and indexes no documents, it does not touch your credit.",
+					"Only document files that need processing: PDFs, Word documents, presentations, spreadsheets, ebooks, and images. Plain text, code, Markdown, CSV, HTML, audio, and video files are indexed free. Duplicate documents are detected automatically and never charged twice.",
 			},
 			{
-				question: "How do event-triggered automations work?",
+				question: "If I delete a document, do I get my credit back?",
 				answer:
-					"Event-triggered automations fire when something happens in your knowledge base, most commonly when a new document enters a folder you are watching. For example, when a PDF lands in your Research folder you can auto-generate a cited summary, or when an invoice is uploaded you can extract the vendor, total, and due date. The agent runs automatically and can post the result to your connected tools.",
-			},
-			{
-				question: "Can I build an automation without code?",
-				answer:
-					"Yes. You can describe the workflow automation you want in plain English in chat, and SurfSense builds the automation for you. For example, ask it to email you a summary of new Notion pages each morning, or post a weekly research digest to Slack, and it sets up the scheduled or event-triggered agent without any code.",
+					"No. Deleting a document removes it from your knowledge base, but the credit it used is not refunded. Credit tracks your total usage over time, not how much is currently stored, so once credit is spent it stays spent even if you later remove the document.",
 			},
 		],
 	},
@@ -192,9 +178,14 @@ const faqData: FAQSection[] = [
 		title: "Self-Hosting",
 		items: [
 			{
-				question: "Can I self-host SurfSense with unlimited usage?",
+				question: "Is the self-hosted version really free and unlimited?",
 				answer:
-					"Yes! When self-hosting, you have full control over billing. The default self-hosted setup leaves document-processing credit billing off and gives you effectively unlimited credit, so you can index as much data and use as many AI queries as your infrastructure supports.",
+					"Yes. SurfSense is open source, and the default self-hosted configuration ships with all credit billing switched off. Scraping, crawling, document processing, and agent runs are limited only by your own infrastructure and the model provider keys you bring.",
+			},
+			{
+				question: "What is the difference between self-hosted and cloud?",
+				answer:
+					"Both run the same platform: connectors, agents, automations, and the MCP server. Cloud is zero-setup with managed infrastructure and metered pay-as-you-go credit. Self-hosted runs on your machines with your own model keys, keeps competitive research fully in-house, and leaves billing under your control.",
 			},
 		],
 	},
@@ -372,7 +363,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Start free with $5 of credit. Run AI automations and agents, and pay as you go."
+				description="Give your agents competitive intelligence. Self-host for free, or start with $5 of credit and pay as you go. No subscriptions."
 			/>
 			<PricingFAQ />
 		</>

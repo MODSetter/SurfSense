@@ -23,7 +23,7 @@ def load_tools(
     if d.get("thread_visibility") == ChatVisibility.SEARCH_SPACE:
         return [
             create_update_team_memory_tool(
-                search_space_id=d["search_space_id"],
+                workspace_id=d["workspace_id"],
                 db_session=d["db_session"],
                 llm=d.get("llm"),
             )

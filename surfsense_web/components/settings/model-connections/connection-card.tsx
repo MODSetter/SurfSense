@@ -66,7 +66,7 @@ export function ConnectionCard({ connection }: { connection: ConnectionRead }) {
 								<AlertDialogTitle>Delete this provider?</AlertDialogTitle>
 								<AlertDialogDescription>
 									<span className="font-medium text-foreground">{providerLabel}</span> and all of
-									its models will be removed from this search space. This cannot be undone.
+									its models will be removed from this workspace. This cannot be undone.
 								</AlertDialogDescription>
 							</AlertDialogHeader>
 							<AlertDialogFooter>

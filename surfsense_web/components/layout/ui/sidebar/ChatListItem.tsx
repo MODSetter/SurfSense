@@ -14,11 +14,11 @@ import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import { cn } from "@/lib/utils";
+import { sidebarListItemClassName } from "./SidebarListItem";
 
 interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
-	isShared?: boolean;
 	archived?: boolean;
 	dropdownOpen?: boolean;
 	onDropdownOpenChange?: (open: boolean) => void;
@@ -66,12 +66,11 @@ export function ChatListItem({
 				onMouseEnter={onPrefetch}
 				onFocus={onPrefetch}
 				{...(isMobile ? longPressHandlers : {})}
-				className={cn(
-					"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
-					"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
-					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-					isActive && "bg-accent text-accent-foreground"
-				)}
+				className={sidebarListItemClassName({
+					active: isActive,
+					className:
+						"justify-start gap-2 overflow-hidden px-2 py-1.5 font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				})}
 			>
 				<span className="min-w-0 flex-1 truncate">{animatedName}</span>
 			</Button>

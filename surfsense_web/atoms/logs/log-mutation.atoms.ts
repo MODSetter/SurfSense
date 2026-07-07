@@ -1,5 +1,5 @@
 import { atomWithMutation } from "jotai-tanstack-query";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import type {
 	CreateLogRequest,
 	DeleteLogRequest,
@@ -13,10 +13,10 @@ import { queryClient } from "@/lib/query-client/client";
  * Create Log Mutation
  */
 export const createLogMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	return {
-		mutationKey: cacheKeys.logs.list(searchSpaceId ?? undefined),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.logs.list(workspaceId ?? undefined),
+		enabled: !!workspaceId,
 		mutationFn: async (request: CreateLogRequest) => logsApiService.createLog(request),
 		onSuccess: () => {
 			// Invalidate all log-related queries (list, summary, detail, withQueryParams)
@@ -29,10 +29,10 @@ export const createLogMutationAtom = atomWithMutation((get) => {
  * Update Log Mutation
  */
 export const updateLogMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	return {
-		mutationKey: cacheKeys.logs.list(searchSpaceId ?? undefined),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.logs.list(workspaceId ?? undefined),
+		enabled: !!workspaceId,
 		mutationFn: async ({ logId, data }: { logId: number; data: UpdateLogRequest }) =>
 			logsApiService.updateLog(logId, data),
 		onSuccess: (_data, variables) => {
@@ -45,10 +45,10 @@ export const updateLogMutationAtom = atomWithMutation((get) => {
  * Delete Log Mutation
  */
 export const deleteLogMutationAtom = atomWithMutation((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const workspaceId = get(activeWorkspaceIdAtom);
 	return {
-		mutationKey: cacheKeys.logs.list(searchSpaceId ?? undefined),
-		enabled: !!searchSpaceId,
+		mutationKey: cacheKeys.logs.list(workspaceId ?? undefined),
+		enabled: !!workspaceId,
 		mutationFn: async (request: DeleteLogRequest) => logsApiService.deleteLog(request),
 		onSuccess: (_data, request) => {
 			queryClient.invalidateQueries({ queryKey: ["logs"] });

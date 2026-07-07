@@ -293,6 +293,81 @@ def test_runner_runs_shutdown_asyncgens_before_close() -> None:
     gc.collect()
 
 
+@contextmanager
+def _patch_checkpointer_close(recorder: list[int]) -> Iterator[None]:
+    """Patch ``close_checkpointer`` to record the loop it runs on.
+
+    The runner imports it lazily, so we patch the attribute on the
+    already-loaded checkpointer module (same trick as the engine stub).
+    """
+    import app.agents.chat.runtime.checkpointer as cp
+
+    original = cp.close_checkpointer
+
+    async def _stub() -> None:
+        recorder.append(id(asyncio.get_running_loop()))
+
+    cp.close_checkpointer = _stub  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        cp.close_checkpointer = original  # type: ignore[assignment]
+
+
+def test_runner_disposes_checkpointer_pool_around_call() -> None:
+    """The durable checkpointer's loop-bound pool must be dropped before
+    and after each task, on the task's own fresh loop — the fix that lets
+    a worker use the shared AsyncPostgresSaver instead of InMemorySaver.
+    """
+    from app.tasks.celery_tasks import run_async_celery_task
+
+    engine_stub = _StaleLoopEngine()
+    cp_loops: list[int] = []
+
+    async def _body() -> str:
+        # Both the engine and the checkpointer are disposed once before we run.
+        assert len(cp_loops) == 1
+        return "ok"
+
+    with _patch_shared_engine(engine_stub), _patch_checkpointer_close(cp_loops):
+        assert run_async_celery_task(_body) == "ok"
+
+    # Once before the body, once after (finally).
+    assert len(cp_loops) == 2
+    # Both ran on the SAME fresh loop, matching the engine's dispose loop.
+    assert cp_loops[0] == cp_loops[1]
+    assert cp_loops[0] == engine_stub.dispose_loop_ids[0]
+
+
+def test_runner_swallows_checkpointer_dispose_errors() -> None:
+    """A flaky checkpointer dispose must never take down a celery task."""
+    from app.tasks.celery_tasks import run_async_celery_task
+
+    engine_stub = _StaleLoopEngine()
+
+    import app.agents.chat.runtime.checkpointer as cp
+
+    original = cp.close_checkpointer
+    calls = {"n": 0}
+
+    async def _angry() -> None:
+        calls["n"] += 1
+        raise RuntimeError("checkpointer dispose blew up")
+
+    cp.close_checkpointer = _angry  # type: ignore[assignment]
+
+    async def _body() -> int:
+        return 42
+
+    try:
+        with _patch_shared_engine(engine_stub):
+            assert run_async_celery_task(_body) == 42
+    finally:
+        cp.close_checkpointer = original  # type: ignore[assignment]
+
+    assert calls["n"] == 2  # before + after both attempted, both swallowed
+
+
 def test_runner_uses_proactor_loop_on_windows() -> None:
     """On Windows the celery worker preselects a Proactor policy so
     subprocess (ffmpeg) calls work. The helper must not silently fall

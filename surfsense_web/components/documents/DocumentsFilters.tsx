@@ -1,20 +1,16 @@
 "use client";
 
-import { IconBinaryTree, IconBinaryTreeFilled } from "@tabler/icons-react";
-import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { FolderPlus, ListFilter, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
-import { cn } from "@/lib/utils";
 import { getDocumentTypeIcon } from "./DocumentTypeIcon";
 
 export function DocumentsFilters({
@@ -24,10 +20,6 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
-	aiSortEnabled = false,
-	aiSortBusy = false,
-	onToggleAiSort,
-	onUploadClick,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -35,17 +27,10 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
-	aiSortEnabled?: boolean;
-	aiSortBusy?: boolean;
-	onToggleAiSort?: () => void;
-	onUploadClick?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
-
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
-	const handleUpload = onUploadClick ?? openUploadDialog;
 
 	const [typeSearchQuery, setTypeSearchQuery] = useState("");
 	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
@@ -77,7 +62,7 @@ export function DocumentsFilters({
 	return (
 		<div className="flex select-none">
 			<div className="flex items-center gap-2 w-full">
-				{/* New Folder + AI Sort + Filter Toggle Group */}
+				{/* New Folder + Filter Toggle Group */}
 				<ToggleGroup type="multiple" value={[]} className="overflow-visible">
 					{onCreateFolder && (
 						<Tooltip>
@@ -94,46 +79,6 @@ export function DocumentsFilters({
 								</ToggleGroupItem>
 							</TooltipTrigger>
 							<TooltipContent>New folder</TooltipContent>
-						</Tooltip>
-					)}
-
-					{onToggleAiSort && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<ToggleGroupItem
-									value="ai-sort"
-									disabled={aiSortBusy}
-									className={cn(
-										"h-8 w-8 shrink-0 border-0 bg-muted transition-colors",
-										"relative before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-border/60 before:content-[''] dark:before:bg-white/10",
-										"disabled:pointer-events-none disabled:opacity-50",
-										aiSortEnabled
-											? "bg-accent text-accent-foreground hover:bg-accent"
-											: "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-									)}
-									onClick={(e) => {
-										e.preventDefault();
-										onToggleAiSort();
-									}}
-									aria-label={aiSortEnabled ? "Disable AI sort" : "Enable AI sort"}
-									aria-pressed={aiSortEnabled}
-								>
-									{aiSortBusy ? (
-										<Spinner size="xs" />
-									) : aiSortEnabled ? (
-										<IconBinaryTreeFilled size={14} />
-									) : (
-										<IconBinaryTree size={14} />
-									)}
-								</ToggleGroupItem>
-							</TooltipTrigger>
-							<TooltipContent>
-								{aiSortBusy
-									? "AI sort in progress..."
-									: aiSortEnabled
-										? "AI sort active — click to disable"
-										: "Enable AI sort"}
-							</TooltipContent>
 						</Tooltip>
 					)}
 
@@ -256,18 +201,6 @@ export function DocumentsFilters({
 						</Button>
 					)}
 				</div>
-
-				{/* Upload Button */}
-				<Button
-					data-joyride="upload-button"
-					onClick={handleUpload}
-					variant="outline"
-					size="sm"
-					className="h-8 shrink-0 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
-				>
-					<Upload size={13} />
-					<span>Upload</span>
-				</Button>
 			</div>
 		</div>
 	);

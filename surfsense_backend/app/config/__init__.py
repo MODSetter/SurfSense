@@ -559,9 +559,6 @@ class Config:
         os.getenv("SURFSENSE_CONNECTOR_DISCOVERY_TTL_SECONDS", "30")
     )
 
-    # Platform web search (SearXNG)
-    SEARXNG_DEFAULT_HOST = os.getenv("SEARXNG_DEFAULT_HOST")
-
     SURFSENSE_PUBLIC_URL = os.getenv("SURFSENSE_PUBLIC_URL")
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL") or SURFSENSE_PUBLIC_URL
     # Backend URL to override the http to https in the OAuth redirect URI
@@ -658,6 +655,70 @@ class Config:
         os.getenv("ETL_CREDIT_BILLING_ENABLED", "FALSE").upper() == "TRUE"
     )
     MICROS_PER_PAGE = int(os.getenv("MICROS_PER_PAGE", "1000"))
+
+    # Web-crawl billing debits the credit wallet per *successful* crawl request
+    # (CrawlOutcomeStatus.SUCCESS). Off by default so self-hosted / OSS installs
+    # keep crawling effectively-free; hosted deployments set this TRUE.
+    #
+    # The price is fully config-driven — there is no hardcoded rate anywhere.
+    # ``WEB_CRAWL_MICROS_PER_SUCCESS`` is the single source of truth; retune it
+    # to any rate with just an env change + restart (no code/migration):
+    #   WEB_CRAWL_MICROS_PER_SUCCESS = round(USD_per_1000_crawls * 1_000)
+    #   $2/1000 -> 2000 (default) | $1/1000 -> 1000 | $0.50/1000 -> 500
+    WEB_CRAWL_CREDIT_BILLING_ENABLED = (
+        os.getenv("WEB_CRAWL_CREDIT_BILLING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    WEB_CRAWL_MICROS_PER_SUCCESS = int(
+        os.getenv("WEB_CRAWL_MICROS_PER_SUCCESS", "2000")
+    )
+
+    # Phase 3d captcha-solve billing. Captcha can't ride the per-success crawl
+    # meter above: the solver charges per *attempt* regardless of whether the
+    # crawl ultimately succeeds, so solves are metered as a SEPARATE per-attempt
+    # unit (usage_type="web_crawl_captcha"). Off by default; independent of the
+    # crawl-billing flag. Price is config-driven (no hardcoded rate):
+    #   WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE = round(USD_per_1000_solves * 1_000)
+    #   $3/1000 -> 3000 (default) | $5/1000 -> 5000
+    # Set with margin over the solver vendor's per-attempt price.
+    WEB_CRAWL_CAPTCHA_BILLING_ENABLED = (
+        os.getenv("WEB_CRAWL_CAPTCHA_BILLING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE = int(
+        os.getenv("WEB_CRAWL_CAPTCHA_MICROS_PER_SOLVE", "3000")
+    )
+
+    # Platform-native scraper billing (Reddit, Google Search, Google Maps,
+    # YouTube). Debits the credit wallet per *item returned* — the same
+    # per-unit model as web crawl, one meter per verb. Off by default so
+    # self-hosted / OSS installs keep scraping effectively-free; hosted
+    # deployments set this TRUE.
+    #
+    # Rates are fully config-driven (no hardcoded price). Each is micro-USD
+    # per item; retune with an env change + restart (no code/migration):
+    #   <KEY> = round(USD_per_1000_items * 1_000)
+    #   $3.50/1000 -> 3500 | $5.00/1000 -> 5000 | $2.00/1000 -> 2000
+    # Defaults sit at/above Apify's first-party actor rates (Jul 2026), which
+    # is justified because SurfSense charges no subscription tiers, no
+    # per-run actor-start fees, and no separate proxy/compute/storage billing.
+    PLATFORM_SCRAPE_BILLING_ENABLED = (
+        os.getenv("PLATFORM_SCRAPE_BILLING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    REDDIT_SCRAPE_MICROS_PER_ITEM = int(
+        os.getenv("REDDIT_SCRAPE_MICROS_PER_ITEM", "3500")
+    )
+    GOOGLE_SEARCH_MICROS_PER_SERP = int(
+        os.getenv("GOOGLE_SEARCH_MICROS_PER_SERP", "5500")
+    )
+    GOOGLE_MAPS_MICROS_PER_PLACE = int(
+        os.getenv("GOOGLE_MAPS_MICROS_PER_PLACE", "3500")
+    )
+    GOOGLE_MAPS_MICROS_PER_REVIEW = int(
+        os.getenv("GOOGLE_MAPS_MICROS_PER_REVIEW", "1500")
+    )
+    YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "2500"))
+    # Kept separate from the video rate so comments can be re-tuned toward the
+    # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
+    YOUTUBE_MICROS_PER_COMMENT = int(os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
@@ -844,8 +905,8 @@ class Config:
     # Legacy environment variables removed in favor of user-specific configurations
 
     # True when an operator-provided global_llm_config.yaml is present.
-    # Used to gate the per-search-space LLM onboarding flow: when a global
-    # config file exists, search spaces inherit it and onboarding is skipped.
+    # Used to gate the per-workspace LLM onboarding flow: when a global
+    # config file exists, workspaces inherit it and onboarding is skipped.
     GLOBAL_LLM_CONFIG_FILE_EXISTS = (
         BASE_DIR / "app" / "config" / "global_llm_config.yaml"
     ).exists()
@@ -1008,16 +1069,75 @@ class Config:
 
     # Proxy provider selection. Maps to a ProxyProvider implementation registered
     # in app/utils/proxy/registry.py. Add new vendors there and switch via this var.
-    PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "anonymous_proxies")
+    PROXY_PROVIDER = os.getenv("PROXY_PROVIDER", "custom")
 
-    # Residential Proxy Configuration (anonymous-proxies.net)
-    # Used for web crawling and YouTube transcript fetching to avoid IP bans.
-    # Consumed by the "anonymous_proxies" proxy provider.
-    RESIDENTIAL_PROXY_USERNAME = os.getenv("RESIDENTIAL_PROXY_USERNAME")
-    RESIDENTIAL_PROXY_PASSWORD = os.getenv("RESIDENTIAL_PROXY_PASSWORD")
-    RESIDENTIAL_PROXY_HOSTNAME = os.getenv("RESIDENTIAL_PROXY_HOSTNAME")
-    RESIDENTIAL_PROXY_LOCATION = os.getenv("RESIDENTIAL_PROXY_LOCATION", "")
-    RESIDENTIAL_PROXY_TYPE = int(os.getenv("RESIDENTIAL_PROXY_TYPE", "1"))
+    # Proxy endpoint(s), shared across all providers — PROXY_PROVIDER selects how
+    # they're interpreted, not a different env name. PROXY_URL is a single full
+    # http://user:pass@host:port endpoint (used by every provider); e.g. DataImpulse
+    # encodes country as a "__cr.<country>" username suffix that its provider parses
+    # for geoip-match. PROXY_URLS is a comma-separated pool that the "custom" provider
+    # rotates client-side (server-side-rotating gateways ignore it). Leave unset to
+    # disable proxying.
+    PROXY_URL = os.getenv("PROXY_URL")
+    PROXY_URLS = os.getenv("PROXY_URLS")
+
+    # =====================================================================
+    # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha) via captchatools.
+    # The LAST-resort bypass tier: only fires on the StealthyFetcher browser
+    # tier, only when a sitekey is detected, and only when explicitly enabled.
+    # Cloudflare Turnstile is already handled free in-framework (03a), NOT here.
+    # One app-wide config (mirrors the single PROXY_PROVIDER model) — no
+    # per-connector config. Off by default => zero solve attempts, zero cost.
+    # Solving may violate a target site's ToS; treat as opt-in/owner-acknowledged
+    # and public-data only (no logged-in bypass).
+    # =====================================================================
+    CAPTCHA_SOLVING_ENABLED = (
+        os.getenv("CAPTCHA_SOLVING_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    # captchatools "solving_site": capmonster | 2captcha | anticaptcha |
+    # capsolver | captchaai. captchatools is itself the provider registry, so we
+    # do not rebuild a vendor hierarchy.
+    CAPTCHA_SOLVER_PROVIDER = os.getenv("CAPTCHA_SOLVER_PROVIDER", "capsolver")
+    CAPTCHA_SOLVER_API_KEY = os.getenv("CAPTCHA_SOLVER_API_KEY")
+    # Per-URL solve cap so one hostile page can't burn unbounded solver credit.
+    CAPTCHA_MAX_ATTEMPTS_PER_URL = int(os.getenv("CAPTCHA_MAX_ATTEMPTS_PER_URL", "1"))
+    # Abort a single solve after this many seconds (solves take 10-60s).
+    CAPTCHA_SOLVE_TIMEOUT_S = int(os.getenv("CAPTCHA_SOLVE_TIMEOUT_S", "120"))
+    # Default captcha type when detection is ambiguous: v2 | v3 | hcaptcha.
+    CAPTCHA_TYPE_DEFAULT = os.getenv("CAPTCHA_TYPE_DEFAULT", "v2")
+    # reCAPTCHA v3 tuning (only used for v3 challenges).
+    CAPTCHA_V3_MIN_SCORE = float(os.getenv("CAPTCHA_V3_MIN_SCORE", "0.7"))
+    CAPTCHA_V3_ACTION = os.getenv("CAPTCHA_V3_ACTION", "verify")
+
+    # =====================================================================
+    # Phase 3e — Stealth hardening (Slice A): runtime/config-level levers
+    # layered on Scrapling's patchright-Chromium StealthyFetcher tier. All are
+    # consumed by the centralized kwargs builder in
+    # app/proprietary/web_crawler/stealth.py (proprietary — bypass tuning), which
+    # is the single source of truth imported by the crawler AND the 03f harness
+    # (no test-vs-prod drift). Defaults preserve today's behavior /
+    # introduce no crawl-speed regression. See plans/backend/03e-stealth-hardening.md.
+    # =====================================================================
+    # Map the active proxy provider's exit region (ProxyProvider.get_location())
+    # -> browser locale/timezone so the fingerprint coheres with the proxy exit
+    # geo. No exit-IP lookup (zero added latency); unknown/empty region => skip.
+    CRAWL_GEOIP_MATCH_ENABLED = (
+        os.getenv("CRAWL_GEOIP_MATCH_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    # Force WebRTC to respect the proxy (prevents real-local-IP leak). Cheap +
+    # safe => default TRUE.
+    CRAWL_BLOCK_WEBRTC = os.getenv("CRAWL_BLOCK_WEBRTC", "TRUE").upper() == "TRUE"
+    # Random canvas noise. An UNSTABLE canvas hash is itself a fingerprint tell,
+    # so default FALSE (opt-in + 03f-validated). See 03e §2.
+    CRAWL_HIDE_CANVAS = os.getenv("CRAWL_HIDE_CANVAS", "FALSE").upper() == "TRUE"
+    # Set a Google referer so the first hit looks like organic arrival.
+    CRAWL_GOOGLE_SEARCH_REFERER = (
+        os.getenv("CRAWL_GOOGLE_SEARCH_REFERER", "TRUE").upper() == "TRUE"
+    )
+    # Route DNS via Cloudflare DoH (anti DNS-leak behind proxies). Adds a DNS
+    # round-trip => default FALSE to honor the "no speed regression" bar; flip on
+    # when leak-safety outweighs the marginal latency.
+    CRAWL_DNS_OVER_HTTPS = os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")

@@ -23,18 +23,80 @@ from app.agents.chat.multi_agent_chat.constants import (
 )
 from app.agents.chat.multi_agent_chat.shared.tools.mcp.tool import load_mcp_tools
 from app.db import SearchSourceConnector
+from app.services.mcp_oauth.registry import MCP_SERVICES, get_service_by_connector_type
 
 logger = logging.getLogger(__name__)
 
 
+def _service_key_for_type(connector_type: str | None) -> str | None:
+    """Return the ``MCP_SERVICES`` key for a connector type, if any."""
+    if connector_type is None:
+        return None
+    svc = get_service_by_connector_type(connector_type)
+    if svc is None:
+        return None
+    return next((k for k, v in MCP_SERVICES.items() if v is svc), None)
+
+
+def resolve_tool_name_collisions(
+    tools: Sequence[BaseTool],
+    connector_id_to_type: dict[int, str],
+) -> list[BaseTool]:
+    """Prefix only the tools whose exposed name collides across connectors.
+
+    All MCP tools now merge into a single ``mcp_discovery`` subagent, so two
+    apps advertising the same tool name (e.g. Jira and Confluence both expose
+    ``getAccessibleAtlassianResources``) would otherwise shadow each other.
+    We detect names carried by more than one distinct connector and rebuild
+    just those with a ``{service_key_or_mcp}_{connector_id}_`` prefix — the
+    same convention as the existing multi-account prefixing. Non-colliding
+    tools keep their names, so stored ``trusted_tools`` and HITL history stay
+    valid in the common case; for the prefixed ones,
+    ``metadata['mcp_original_tool_name']`` is preserved as the "Always Allow"
+    fallback key.
+    """
+    names_to_connectors: dict[str, set[int]] = defaultdict(set)
+    for tool in tools:
+        meta = getattr(tool, "metadata", None) or {}
+        cid = meta.get("mcp_connector_id")
+        if isinstance(cid, int):
+            names_to_connectors[tool.name].add(cid)
+
+    colliding = {n for n, cids in names_to_connectors.items() if len(cids) > 1}
+    if not colliding:
+        return list(tools)
+
+    resolved: list[BaseTool] = []
+    for tool in tools:
+        meta = getattr(tool, "metadata", None) or {}
+        cid = meta.get("mcp_connector_id")
+        if tool.name not in colliding or not isinstance(cid, int):
+            resolved.append(tool)
+            continue
+
+        original_name = tool.name
+        prefix = _service_key_for_type(connector_id_to_type.get(cid)) or "mcp"
+        new_name = f"{prefix}_{cid}_{original_name}"
+        new_meta = {
+            **meta,
+            "mcp_original_tool_name": meta.get("mcp_original_tool_name")
+            or original_name,
+            "mcp_collision_prefixed": True,
+        }
+        resolved.append(
+            tool.model_copy(update={"name": new_name, "metadata": new_meta})
+        )
+    return resolved
+
+
 async def fetch_mcp_connector_metadata_maps(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[dict[int, str], dict[str, str]]:
     """Resolve connector id and display name to connector type for MCP tool routing."""
     result = await session.execute(
         select(SearchSourceConnector).filter(
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             cast(SearchSourceConnector.config, JSONB).has_key("server_config"),
         ),
     )
@@ -101,13 +163,14 @@ def partition_mcp_tools_by_connector(
 
 async def load_mcp_tools_by_connector(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
 ) -> dict[str, list[BaseTool]]:
     """Load MCP tools and route them to each subagent as a flat list.
 
     ``bypass_internal_hitl=True`` is set so tool gating is uniformly the
     consuming subagent's :class:`PermissionMiddleware` responsibility.
     """
-    flat = await load_mcp_tools(session, search_space_id, bypass_internal_hitl=True)
-    id_map, name_map = await fetch_mcp_connector_metadata_maps(session, search_space_id)
+    flat = await load_mcp_tools(session, workspace_id, bypass_internal_hitl=True)
+    id_map, name_map = await fetch_mcp_connector_metadata_maps(session, workspace_id)
+    flat = resolve_tool_name_collisions(flat, id_map)
     return partition_mcp_tools_by_connector(flat, id_map, name_map)

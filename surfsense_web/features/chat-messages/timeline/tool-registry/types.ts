@@ -22,6 +22,13 @@ export interface TimelineToolProps {
 	result?: unknown;
 	langchainToolCallId?: string;
 	status: ItemStatus;
+	/**
+	 * Live activity lines for this tool (the joined thinking-step items).
+	 * While ``status === "running"`` these are the streamed progress updates
+	 * (e.g. scraper ``scraper_progress`` events) so the fallback card can show
+	 * output inside its dropdown instead of a static "input only" view.
+	 */
+	progress?: readonly string[];
 }
 
 /**

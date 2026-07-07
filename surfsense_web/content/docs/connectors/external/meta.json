@@ -1,0 +1,15 @@
+{
+	"title": "External Connectors",
+	"pages": [
+		"google",
+		"slack",
+		"airtable",
+		"onedrive",
+		"dropbox",
+		"github",
+		"bookstack",
+		"circleback",
+		"obsidian"
+	],
+	"defaultOpen": false
+}
