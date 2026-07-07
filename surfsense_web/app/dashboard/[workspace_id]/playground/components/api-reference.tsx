@@ -90,9 +90,9 @@ export function ApiReference({
 			<div>
 				<h2 className="text-base font-semibold">API reference</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Call this API from your own project. Create a key under{" "}
-					<span className="font-medium text-foreground">API Keys</span> (and enable API access for
-					this workspace), then send it as a{" "}
+					Call this API from your own project. Create a key in{" "}
+					<span className="font-medium text-foreground">User settings</span> and enable API access
+					for this workspace, then send it as a{" "}
 					<code className="rounded bg-muted/40 px-1 py-0.5 text-xs">Authorization: Bearer</code>{" "}
 					header.
 				</p>

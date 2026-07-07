@@ -1,6 +1,6 @@
 "use client";
 
-import { History, KeyRound, LayoutGrid } from "lucide-react";
+import { History, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { useSelectedLayoutSegments } from "next/navigation";
 import type React from "react";
@@ -86,13 +86,6 @@ export function PlaygroundLayoutShell({ workspaceId, children }: PlaygroundLayou
 				label: "Runs",
 				href: `${base}/runs`,
 				icon: <History className="h-4 w-4" />,
-			},
-			{
-				type: "item",
-				value: "api-keys",
-				label: "API Keys",
-				href: `${base}/api-keys`,
-				icon: <KeyRound className="h-4 w-4" />,
 			},
 			...PLAYGROUND_PLATFORMS.flatMap<PlaygroundNavItem>((platform) => [
 				{
