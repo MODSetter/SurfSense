@@ -206,7 +206,7 @@ function buildMcp({ mcpTool }: ApiSample): string {
 	const config = {
 		mcpServers: {
 			surfsense: {
-				url: "https://mcp.surfsense.com",
+				url: "https://mcp.surfsense.com/mcp",
 				headers: { Authorization: "Bearer ${SURFSENSE_API_KEY}" },
 			},
 		},

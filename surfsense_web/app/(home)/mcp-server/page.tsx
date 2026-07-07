@@ -50,16 +50,13 @@ export const metadata: Metadata = {
 	},
 };
 
-/* Mirrors surfsense_mcp/README.md: the real Cursor config. */
+/* The hosted Cursor config; mirrors lib/mcp/clients.ts. */
 const CURSOR_CONFIG = `{
   "mcpServers": {
     "surfsense": {
-      "command": "uv",
-      "args": ["run", "--directory", ".../surfsense_mcp",
-               "python", "-m", "surfsense_mcp"],
-      "env": {
-        "SURFSENSE_BASE_URL": "https://api.surfsense.com",
-        "SURFSENSE_API_KEY": "ss_pat_..."
+      "url": "https://mcp.surfsense.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ss_pat_..."
       }
     }
   }
@@ -76,7 +73,7 @@ const STEPS = [
 		icon: TerminalSquare,
 		title: "Add the server to your client",
 		description:
-			"Drop the config into Cursor's mcp.json, run claude mcp add for Claude Code, or paste it into Claude Desktop. Point it at the cloud or your own self-hosted instance.",
+			"Point your client at https://mcp.surfsense.com/mcp with your key in an Authorization header — the hosted config for Cursor, Claude Code, and others is one paste. Prefer stdio? Switch to Self-host and run it against your own backend.",
 	},
 	{
 		icon: Server,
@@ -135,7 +132,7 @@ const FAQ: FaqItem[] = [
 	{
 		question: "Which MCP clients does it work with?",
 		answer:
-			"Any MCP client that supports stdio servers. Claude Code, Codex, OpenCode, Cursor, Claude Desktop, VS Code, Windsurf, and Gemini CLI are documented with copy-paste configs on this page, and the same command works in custom agent harnesses built on the MCP SDK.",
+			"Any MCP client that speaks remote (streamable HTTP) or stdio. Claude Code, Codex, OpenCode, Cursor, Claude Desktop, VS Code, Windsurf, and Gemini CLI all have copy-paste configs on this page — Hosted for the one-paste https://mcp.surfsense.com/mcp endpoint, or Self-host for stdio against your own backend.",
 	},
 	{
 		question: "How is usage billed?",
@@ -278,9 +275,9 @@ export default function McpServerPage() {
 							Step-by-step setup for every agent
 						</h2>
 						<p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
-							Pick your client, follow its two steps, and paste the config. Replace the placeholder
-							path with your surfsense_mcp checkout and the key with one from API Playground → API
-							Keys — or grab a pre-filled config from the playground itself.
+							Pick your client, choose <strong>Hosted</strong> or <strong>Self-host</strong>, and
+							paste the config. Replace the key with one from API Playground → API Keys — or grab a
+							pre-filled config from the playground itself.
 						</p>
 					</Reveal>
 					<Reveal>
