@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .input import StartUrl, TikTokScrapeInput
 from .items import (
     AuthorMeta,
     CommentItem,
@@ -16,6 +17,8 @@ __all__ = [
     "CommentItem",
     "ErrorItem",
     "MusicMeta",
+    "StartUrl",
+    "TikTokScrapeInput",
     "TikTokVideoItem",
     "VideoMeta",
 ]
