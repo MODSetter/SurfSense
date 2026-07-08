@@ -10,16 +10,15 @@ signs correctly for whatever version TikTok ships.
 The pure response-shape parsing lives in :func:`items_from_response`; this module
 is the untested browser-I/O glue (covered by the e2e smoke, not unit tests).
 
-Requires a residential proxy: TikTok throttles bare/datacenter IPs, returning
-empty ``item_list`` bodies (and 429s) after a few hits. Set
-``TIKTOK_LISTING_DEBUG=1`` to print captured XHR URLs while diagnosing.
+Needs a residential proxy; datacenter IPs get empty bodies and 429s. The profile
+feed (``/api/post/item_list``) is additionally soft-blocked: TikTok returns an
+empty 200 even to its own signed request, so profile targets yield nothing.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from typing import Any
 
 from scrapling.fetchers import StealthyFetcher
@@ -66,24 +65,16 @@ def _build_page_action(collected: list[dict[str, Any]], url: str, target_count: 
     listener already attached so page-one fires into it; scrolling pages the rest.
     """
 
-    debug = bool(os.getenv("TIKTOK_LISTING_DEBUG"))
-
     def _on_response(response: Any) -> None:
         response_url = getattr(response, "url", "")
-        if debug and "/api/" in response_url:
-            print(f"    [xhr] {getattr(response, 'status', '?')} {response_url[:120]}")
-        try:
-            if not any(marker in response_url for marker in _ITEM_LIST_MARKERS):
-                return
-            body = response.json()
-        except Exception as exc:
-            if debug:
-                print(f"    [xhr-parse-fail] {exc} :: {response_url[:120]}")
+        if not any(marker in response_url for marker in _ITEM_LIST_MARKERS):
             return
-        items = items_from_response(body)
-        if debug:
-            print(f"    [match] +{len(items)} items from {response_url[:100]}")
-        collected.extend(items)
+        try:
+            body = response.json()
+        except Exception:
+            # An empty 200 (TikTok soft-block) or a body evicted before read.
+            return
+        collected.extend(items_from_response(body))
 
     def _warm(page: Any) -> None:
         if _has_mstoken(page):
