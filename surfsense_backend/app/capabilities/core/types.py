@@ -25,6 +25,7 @@ class BillingUnit(StrEnum):
     GOOGLE_MAPS_REVIEW = "google_maps_review"
     YOUTUBE_VIDEO = "youtube_video"
     YOUTUBE_COMMENT = "youtube_comment"
+    TIKTOK_VIDEO = "tiktok_video"
 
 
 class BillableInput(Protocol):
