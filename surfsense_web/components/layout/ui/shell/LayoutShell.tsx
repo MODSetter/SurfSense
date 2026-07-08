@@ -352,6 +352,9 @@ export function LayoutShell({
 								onPlaygroundItemClick={
 									playgroundSidebar ? handlePlaygroundSidebarToggle : undefined
 								}
+								isPlaygroundSidebarOpen={
+									playgroundSidebar ? !isPlaygroundSidebarCollapsed : undefined
+								}
 								chats={chats}
 								activeChatId={activeChatId}
 								onNewChat={onNewChat}

@@ -53,6 +53,7 @@ interface SidebarProps {
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	onPlaygroundItemClick?: (item: NavItem) => void;
+	isPlaygroundSidebarOpen?: boolean;
 	chats: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
@@ -91,6 +92,7 @@ export function Sidebar({
 	navItems,
 	onNavItemClick,
 	onPlaygroundItemClick,
+	isPlaygroundSidebarOpen,
 	chats,
 	activeChatId,
 	onNewChat,
@@ -246,7 +248,7 @@ export function Sidebar({
 							label={playgroundItem.title}
 							onClick={() => (onPlaygroundItemClick ?? onNavItemClick)?.(playgroundItem)}
 							isCollapsed={isCollapsed}
-							isActive={playgroundItem.isActive}
+							isActive={isPlaygroundSidebarOpen ?? playgroundItem.isActive}
 							badge={<SidebarButtonBadge>New</SidebarButtonBadge>}
 							tooltipContent={isCollapsed ? playgroundItem.title : undefined}
 						/>
