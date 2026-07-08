@@ -51,6 +51,7 @@ import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, Workspace } from "../types/layout.types";
 import { CreateWorkspaceDialog } from "../ui/dialogs";
+import { PlaygroundSidebar } from "../ui/playground/PlaygroundSidebar";
 import { LayoutShell } from "../ui/shell";
 
 interface LayoutDataProviderProps {
@@ -689,9 +690,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 						? "items-start justify-center px-6 py-8 md:px-10 md:pb-10 md:pt-16"
 						: undefined
 				}
-				workspacePanelContentClassName={
-					useWorkspacePanel ? "max-w-5xl select-none" : undefined
-				}
+				workspacePanelContentClassName={useWorkspacePanel ? "max-w-5xl select-none" : undefined}
 				isLoadingChats={isLoadingThreads}
 				notifications={{
 					totalUnreadCount,
@@ -720,6 +719,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				}}
 				onTabSwitch={handleTabSwitch}
 				onTabPrefetch={handleTabPrefetch}
+				playgroundSidebar={<PlaygroundSidebar workspaceId={workspaceId} />}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>
