@@ -62,3 +62,4 @@ class Capability:
     output_schema: type[BaseModel]
     executor: Executor
     billing_unit: BillingUnit | None
+    docs_url: str | None = None

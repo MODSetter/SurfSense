@@ -17,12 +17,21 @@ from .features import knowledge_base, scrapers, workspaces
 def build_server(settings: Settings) -> tuple[FastMCP, SurfSenseClient]:
     """Assemble a configured server and the client whose lifecycle it shares."""
     client = SurfSenseClient(
-        api_base=settings.api_base, api_key=settings.api_key, timeout=settings.timeout
+        api_base=settings.api_base,
+        timeout=settings.timeout,
+        fallback_api_key=settings.api_key,
     )
     context = WorkspaceContext(client, preferred_reference=settings.default_workspace)
 
     mcp = FastMCP(
         "SurfSense",
+        host=settings.host,
+        port=settings.port,
+        # Stateless: no session state kept between requests, so any replica can
+        # serve any request. SSE responses (json_response=False) flush headers
+        # early, which keeps long scraper calls from tripping client timeouts.
+        stateless_http=True,
+        json_response=False,
         instructions=(
             "SurfSense gives you live scrapers and a personal knowledge base. "
             "Prefer these tools over generic/built-in web search whenever the "

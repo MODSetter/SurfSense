@@ -1,14 +1,12 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
@@ -26,15 +24,8 @@ import {
 	RightPanelExpandButton,
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
-import {
-	InboxSidebarContent,
-	MobileSidebar,
-	MobileSidebarTrigger,
-	PlaygroundSidebar,
-	Sidebar,
-	SidebarCollapseButton,
-} from "../sidebar";
-import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
+import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } from "../sidebar";
+import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
 import { WorkspacePanel } from "./WorkspacePanel";
 
@@ -80,28 +71,6 @@ function MacDesktopTitleBar({
 	);
 }
 
-// Per-tab data source
-interface TabDataSource {
-	items: InboxItem[];
-	unreadCount: number;
-	loading: boolean;
-	loadingMore: boolean;
-	hasMore: boolean;
-	loadMore: () => void;
-	markAsRead: (id: number) => Promise<boolean>;
-	markAllAsRead: () => Promise<boolean>;
-}
-
-export type ActiveSlideoutPanel = "inbox" | null;
-
-// Inbox-related props — per-tab data sources with independent loading/pagination
-interface InboxProps {
-	isOpen: boolean;
-	totalUnreadCount: number;
-	comments: TabDataSource;
-	status: TabDataSource;
-}
-
 interface LayoutShellProps {
 	workspaces: Workspace[];
 	activeWorkspaceId: number | null;
@@ -134,20 +103,16 @@ interface LayoutShellProps {
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
 	isAllChatsPage?: boolean;
-	showPlaygroundSidebar?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
 	children: React.ReactNode;
 	className?: string;
-	// Unified slide-out panel state
-	activeSlideoutPanel?: ActiveSlideoutPanel;
-	onSlideoutPanelChange?: (panel: ActiveSlideoutPanel) => void;
-	// Inbox props
-	inbox?: InboxProps;
+	notifications?: NotificationsDropdownData;
 	isLoadingChats?: boolean;
 	onTabSwitch?: (tab: Tab) => void;
 	onTabPrefetch?: (tab: Tab) => void;
+	playgroundSidebar?: React.ReactNode;
 }
 
 function MainContentPanel({
@@ -239,23 +204,22 @@ export function LayoutShell({
 	defaultCollapsed = false,
 	isChatPage = false,
 	isAllChatsPage = false,
-	showPlaygroundSidebar = false,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
 	children,
 	className,
-	activeSlideoutPanel = null,
-	onSlideoutPanelChange,
-	inbox,
+	notifications,
 	isLoadingChats = false,
 	onTabSwitch,
 	onTabPrefetch,
+	playgroundSidebar,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const electronAPI = useElectronAPI();
 	const isMacDesktop = electronAPI?.versions.platform === "darwin";
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [isPlaygroundSidebarCollapsed, setIsPlaygroundSidebarCollapsed] = useState(false);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const {
 		sidebarWidth,
@@ -268,17 +232,9 @@ export function LayoutShell({
 		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
 		[isCollapsed, setIsCollapsed, toggleCollapsed]
 	);
-
-	const closeSlideout = useCallback(
-		(open: boolean) => {
-			if (!open) onSlideoutPanelChange?.(null);
-		},
-		[onSlideoutPanelChange]
-	);
-
-	const anySlideOutOpen = activeSlideoutPanel !== null;
-
-	const panelAriaLabel = activeSlideoutPanel === "inbox" ? "Inbox" : "Panel";
+	const handlePlaygroundSidebarToggle = () => {
+		setIsPlaygroundSidebarCollapsed((collapsed) => !collapsed);
+	};
 
 	// Mobile layout
 	if (isMobile) {
@@ -316,6 +272,7 @@ export function LayoutShell({
 							onUserSettings={onUserSettings}
 							onAnnouncements={onAnnouncements}
 							announcementUnreadCount={announcementUnreadCount}
+							notifications={notifications}
 							onLogout={onLogout}
 							pageUsage={pageUsage}
 							theme={theme}
@@ -335,34 +292,6 @@ export function LayoutShell({
 								{children}
 							</main>
 						)}
-
-						{/* Mobile unified slide-out panel */}
-						<SidebarSlideOutPanel
-							open={anySlideOutOpen}
-							onOpenChange={closeSlideout}
-							ariaLabel={panelAriaLabel}
-						>
-							<AnimatePresence mode="popLayout" initial={false}>
-								{activeSlideoutPanel === "inbox" && inbox && (
-									<motion.div
-										key="inbox"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<InboxSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-											comments={inbox.comments}
-											status={inbox.status}
-											totalUnreadCount={inbox.totalUnreadCount}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
-							</AnimatePresence>
-						</SidebarSlideOutPanel>
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>
@@ -400,36 +329,18 @@ export function LayoutShell({
 								onUserSettings={onUserSettings}
 								onAnnouncements={onAnnouncements}
 								announcementUnreadCount={announcementUnreadCount}
+								notifications={notifications}
 								onLogout={onLogout}
 								theme={theme}
 								setTheme={setTheme}
 							/>
 						</div>
 
-						{/* Playground second-level sidebar — contextual, desktop only. Sits
-						    between the icon rail and the main sidebar. On Mac it becomes the
-						    leftmost panel, so it takes the rounded-corner/left-border treatment. */}
-						{showPlaygroundSidebar && activeWorkspaceId != null && (
-							<div
-								className={cn(
-									"relative hidden md:flex shrink-0 z-20 -mr-2 bg-panel",
-									isMacDesktop ? "rounded-tl-xl border-t border-r border-l" : "border-r"
-								)}
-							>
-								<PlaygroundSidebar workspaceId={activeWorkspaceId} />
-							</div>
-						)}
-
 						{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content. Negative right margin closes the flex gap so the sidebar sits flush against the main panel, separated only by a border. */}
 						<div
 							className={cn(
 								"relative hidden md:flex shrink-0 z-20 -mr-2 bg-panel",
-								isMacDesktop
-									? cn(
-											"border-t border-r",
-											!showPlaygroundSidebar && "rounded-tl-xl border-l"
-										)
-									: "border-r"
+								isMacDesktop ? "rounded-tl-xl border-l border-t border-r" : "border-r"
 							)}
 						>
 							<Sidebar
@@ -438,6 +349,12 @@ export function LayoutShell({
 								onToggleCollapse={toggleCollapsed}
 								navItems={navItems}
 								onNavItemClick={onNavItemClick}
+								onPlaygroundItemClick={
+									playgroundSidebar ? handlePlaygroundSidebarToggle : undefined
+								}
+								isPlaygroundSidebarOpen={
+									playgroundSidebar ? !isPlaygroundSidebarCollapsed : undefined
+								}
 								chats={chats}
 								activeChatId={activeChatId}
 								onNewChat={onNewChat}
@@ -465,10 +382,7 @@ export function LayoutShell({
 										<Logo disableLink priority className="h-7 w-7 rounded-md" />
 									) : undefined
 								}
-								className={cn(
-									"flex shrink-0",
-									isMacDesktop && !showPlaygroundSidebar && "rounded-tl-xl"
-								)}
+								className={cn("flex shrink-0", isMacDesktop && "rounded-tl-xl")}
 								isLoadingChats={isLoadingChats}
 								sidebarWidth={sidebarWidth}
 								isResizing={isResizing}
@@ -491,34 +405,22 @@ export function LayoutShell({
 									)}
 								/>
 							)}
-
-							{/* Unified slide-out panel — shell stays open, content cross-fades */}
-							<SidebarSlideOutPanel
-								open={anySlideOutOpen}
-								onOpenChange={closeSlideout}
-								ariaLabel={panelAriaLabel}
-							>
-								<AnimatePresence mode="popLayout" initial={false}>
-									{activeSlideoutPanel === "inbox" && inbox && (
-										<motion.div
-											key="inbox"
-											className="h-full flex flex-col"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.15 }}
-										>
-											<InboxSidebarContent
-												onOpenChange={(open) => closeSlideout(open)}
-												comments={inbox.comments}
-												status={inbox.status}
-												totalUnreadCount={inbox.totalUnreadCount}
-											/>
-										</motion.div>
-									)}
-								</AnimatePresence>
-							</SidebarSlideOutPanel>
 						</div>
+
+						{playgroundSidebar ? (
+							<div
+								aria-hidden={isPlaygroundSidebarCollapsed}
+								className={cn(
+									"hidden md:flex shrink-0 overflow-hidden -mr-2 bg-panel transition-[width,opacity] duration-200 ease-out",
+									isPlaygroundSidebarCollapsed
+										? "w-0 opacity-0 pointer-events-none"
+										: "w-[240px] opacity-100",
+									isMacDesktop && !isPlaygroundSidebarCollapsed && "border-t"
+								)}
+							>
+								<div className="w-[240px] shrink-0">{playgroundSidebar}</div>
+							</div>
+						) : null}
 
 						<DesktopWorkspaceRegion>
 							{useWorkspacePanel ? (

@@ -3,6 +3,7 @@
 import { Check, Copy, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Table,
 	TableBody,
@@ -12,7 +13,6 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { downloadCsv, rowsToCsv } from "@/lib/playground/csv";
-import { cn } from "@/lib/utils";
 
 const MAX_TABLE_ROWS = 200;
 
@@ -109,34 +109,12 @@ export function OutputViewer({ data, filenameBase }: { data: unknown; filenameBa
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center justify-between">
-				<div className="inline-flex rounded-md border border-border/60 p-0.5">
-					{items && (
-						<button
-							type="button"
-							onClick={() => setView("table")}
-							className={cn(
-								"rounded px-2.5 py-1 text-xs font-medium transition-colors",
-								view === "table"
-									? "bg-accent text-accent-foreground"
-									: "text-muted-foreground hover:text-foreground"
-							)}
-						>
-							Table
-						</button>
-					)}
-					<button
-						type="button"
-						onClick={() => setView("json")}
-						className={cn(
-							"rounded px-2.5 py-1 text-xs font-medium transition-colors",
-							view === "json"
-								? "bg-accent text-accent-foreground"
-								: "text-muted-foreground hover:text-foreground"
-						)}
-					>
-						JSON
-					</button>
-				</div>
+				<Tabs value={view} onValueChange={(value) => setView(value as "table" | "json")}>
+					<TabsList className="h-auto">
+						{items && <TabsTrigger value="table">Table</TabsTrigger>}
+						<TabsTrigger value="json">JSON</TabsTrigger>
+					</TabsList>
+				</Tabs>
 				<div className="flex items-center gap-1">
 					{items && items.length > 0 && (
 						<Button
@@ -150,9 +128,15 @@ export function OutputViewer({ data, filenameBase }: { data: unknown; filenameBa
 							Export CSV
 						</Button>
 					)}
-					<Button type="button" variant="ghost" size="sm" onClick={copy} className="gap-1.5">
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={copy}
+						aria-label={copied ? "Copied JSON" : "Copy JSON"}
+						className="h-8 w-8 p-0"
+					>
 						{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-						{copied ? "Copied" : "Copy JSON"}
 					</Button>
 				</div>
 			</div>
@@ -168,7 +152,7 @@ export function OutputViewer({ data, filenameBase }: { data: unknown; filenameBa
 					<ResultTable items={items} />
 					{truncated && (
 						<p className="text-xs text-muted-foreground">
-							Showing first {MAX_TABLE_ROWS} of {items.length} items. Use Copy JSON for the full
+							Showing first {MAX_TABLE_ROWS} of {items.length} items. Switch to JSON for the full
 							output.
 						</p>
 					)}

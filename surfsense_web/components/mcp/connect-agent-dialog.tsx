@@ -1,6 +1,6 @@
 "use client";
 
-import { Cable } from "lucide-react";
+import { SidebarButtonBadge } from "@/components/layout/ui/sidebar/SidebarButton";
 import { AgentSetupTabs } from "@/components/mcp/agent-setup-tabs";
 import {
 	Dialog,
@@ -28,8 +28,18 @@ export function ConnectAgentDialog({ className }: { className?: string }) {
 					className
 				)}
 			>
-				<Cable className="h-3.5 w-3.5 shrink-0" />
-				<span className="min-w-0 flex-1 truncate">Connect your AI Agent</span>
+				<span
+					aria-hidden="true"
+					className="size-3.5 shrink-0 bg-current"
+					style={{
+						mask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+						WebkitMask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+					}}
+				/>
+				<span className="flex min-w-0 flex-1 items-center gap-1.5">
+					<span className="min-w-0 truncate">Connect your agent</span>
+					<SidebarButtonBadge>New</SidebarButtonBadge>
+				</span>
 			</DialogTrigger>
 			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
 				<DialogHeader>

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx
 
-from surfsense_mcp.core.client import SurfSenseClient
+from mcp_server.core.client import SurfSenseClient
 
 _REQUEST = httpx.Request("GET", "http://localhost:8000/api/v1/documents")
 
@@ -15,7 +15,7 @@ def _response(status: int, **kwargs) -> httpx.Response:
 
 def test_explains_401_with_token_hint():
     message = SurfSenseClient._explain_failure(_response(401, json={"detail": "bad"}))
-    assert "SURFSENSE_API_KEY" in message
+    assert "API key" in message
     assert "bad" in message
 
 

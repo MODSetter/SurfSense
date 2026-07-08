@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, ChevronRight, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,10 +22,10 @@ function CopyButton({ text }: { text: string }) {
 			variant="ghost"
 			size="sm"
 			onClick={copy}
-			className="absolute right-2 top-2 h-7 gap-1.5 px-2 text-xs"
+			aria-label={copied ? "Copied" : "Copy"}
+			className="absolute right-2 top-2 h-7 w-7 p-0"
 		>
 			{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-			{copied ? "Copied" : "Copy"}
 		</Button>
 	);
 }
@@ -45,8 +45,9 @@ function SchemaBlock({ title, schema }: { title: string; schema: Record<string, 
 	const json = useMemo(() => JSON.stringify(schema, null, 2), [schema]);
 	return (
 		<details className="group rounded-md border border-border/60">
-			<summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-				{title}
+			<summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+				<span>{title}</span>
+				<ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
 			</summary>
 			<div className="relative border-t border-border/60">
 				<CopyButton text={json} />
@@ -90,16 +91,13 @@ export function ApiReference({
 			<div>
 				<h2 className="text-base font-semibold">API reference</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Call this API from your own project. Create a key under{" "}
-					<span className="font-medium text-foreground">API Keys</span> (and enable API access for
-					this workspace), then send it as a{" "}
-					<code className="rounded bg-muted/40 px-1 py-0.5 text-xs">Authorization: Bearer</code>{" "}
-					header.
+					Create an API key, enable API access for this workspace, then use the examples below to
+					call this endpoint.
 				</p>
 			</div>
 
 			<Tabs defaultValue="curl">
-				<TabsList className="h-auto flex-wrap">
+				<TabsList className="flex h-auto w-full flex-nowrap justify-start overflow-x-auto overflow-y-hidden">
 					{snippets.map((snippet) => (
 						<TabsTrigger key={snippet.id} value={snippet.id}>
 							{snippet.label}

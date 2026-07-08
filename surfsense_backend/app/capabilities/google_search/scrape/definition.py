@@ -10,16 +10,14 @@ from app.capabilities.google_search.scrape.schemas import ScrapeInput, ScrapeOut
 GOOGLE_SEARCH_SCRAPE = Capability(
     name="google_search.scrape",
     description=(
-        "Search Google and return structured results. Give it search terms "
-        "(optionally scoped by country/language or to a single site) or full "
-        "Google Search URLs, and it returns SERP items — organic results "
-        "(title, url, description), related queries, people-also-ask, and any "
-        "AI overview. Use max_pages_per_query to page deeper."
+        "Search Google and return structured SERP results. Use search_queries "
+        "or Google Search URLs."
     ),
     input_schema=ScrapeInput,
     output_schema=ScrapeOutput,
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.GOOGLE_SEARCH_SERP,
+    docs_url="/docs/connectors/native/google-search",
 )
 
 register_capability(GOOGLE_SEARCH_SCRAPE)

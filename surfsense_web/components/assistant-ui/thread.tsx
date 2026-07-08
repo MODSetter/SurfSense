@@ -22,7 +22,7 @@ import {
 	Wrench,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -119,7 +119,7 @@ import {
 } from "../new-chat/document-mention-picker";
 
 const COMPOSER_PLACEHOLDER =
-	"Track competitors, scrape platforms, automate briefs — / for prompts, @ for docs";
+	"Track competitors, scrape platforms, automate briefs. Use / for prompts, @ for docs";
 
 type ComposerSuggestionAnchorPoint = {
 	left: number;
@@ -986,14 +986,12 @@ const Composer: FC = () => {
  * Full-color brand marks for the platform-native scraper APIs (web, Google
  * Search, Google Maps, Reddit, YouTube) available in this workspace, shown beside the
  * composer "+" so the user can see these native endpoints are connected. Laid
- * out as a clean row (not stacked) after a hairline divider that separates them
+ * out as the same overlapping avatar group used by the connect-tools tray
  * from the composer actions. The capability registry is the source of truth;
- * icons are display-only with a status tooltip. One-time staggered entrance,
- * reduced-motion aware.
+ * icons are display-only with a status tooltip.
  */
 const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => {
 	const { data: capabilities } = useScraperCapabilities(workspaceId);
-	const reduceMotion = useReducedMotion();
 
 	const platforms = useMemo<PlaygroundPlatform[]>(() => {
 		if (!capabilities?.length) return [];
@@ -1014,30 +1012,26 @@ const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => 
 	return (
 		<div className="hidden items-center gap-1 sm:flex">
 			<div aria-hidden className="h-5 w-px shrink-0 bg-border" />
-			<div className="flex items-center gap-0.5" aria-label="Connected data sources">
+			<AvatarGroup className="shrink-0">
 				{platforms.map((platform, i) => {
 					const Icon = platform.icon;
 					return (
 						<Tooltip key={platform.id}>
 							<TooltipTrigger asChild>
-								<motion.span
-									initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{
-										duration: 0.2,
-										ease: [0.23, 1, 0.32, 1],
-										delay: reduceMotion ? 0 : i * 0.04,
-									}}
-									className="flex size-5 items-center justify-center"
+								<Avatar
+									className="size-5"
+									style={{ zIndex: platforms.length - i }}
 								>
-									<Icon className="size-3.5" />
-								</motion.span>
+									<AvatarFallback className="bg-popover text-[10px]">
+										<Icon className="size-3" />
+									</AvatarFallback>
+								</Avatar>
 							</TooltipTrigger>
-							<TooltipContent side="bottom">{platform.label} · Connected</TooltipContent>
+							<TooltipContent side="bottom">{platform.label} scraper available</TooltipContent>
 						</Tooltip>
 					);
 				})}
-			</div>
+			</AvatarGroup>
 		</div>
 	);
 };

@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, History, KeyRound } from "lucide-react";
+import { ArrowRight, History, Info, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { PLAYGROUND_PLATFORMS } from "@/lib/playground/catalog";
 import { formatPricing } from "@/lib/playground/format";
@@ -20,13 +21,21 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 
 	return (
 		<div className="space-y-8">
-			<div>
-				<h1 className="text-xl font-semibold">API Playground</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Manually run SurfSense's platform-native APIs and inspect their output. Every run is
-					captured under Runs.
-				</p>
-			</div>
+			<Alert>
+				<Info />
+				<AlertDescription>
+					<p>
+						Manually run SurfSense's platform-native APIs and inspect their output. To use these APIs outside SurfSense,{" "}
+						<Link
+							href={`${base}/api-keys`}
+							className="font-medium text-foreground underline-offset-4 hover:underline"
+						>
+							create an API key
+						</Link>
+						.
+					</p>
+				</AlertDescription>
+			</Alert>
 
 			<div className="grid gap-3 sm:grid-cols-2">
 				<Link
@@ -36,7 +45,7 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 					<div className="flex items-center gap-3">
 						<History className="h-5 w-5 text-muted-foreground" />
 						<div>
-							<p className="text-sm font-medium">Runs</p>
+							<p className="text-sm font-medium">API Runs</p>
 							<p className="text-xs text-muted-foreground">See every API run in this workspace</p>
 						</div>
 					</div>
@@ -50,9 +59,7 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 						<KeyRound className="h-5 w-5 text-muted-foreground" />
 						<div>
 							<p className="text-sm font-medium">API Keys</p>
-							<p className="text-xs text-muted-foreground">
-								Enable workspace access and manage keys
-							</p>
+							<p className="text-xs text-muted-foreground">Manage keys and workspace API access</p>
 						</div>
 					</div>
 					<ArrowRight className="h-4 w-4 text-muted-foreground" />
