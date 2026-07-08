@@ -1,12 +1,11 @@
 # ruff: noqa: N815 - field names mirror the public camelCase TikTok/Apify API
 """Input surface for the TikTok scraper, shaped to the Clockworks actor.
 
-Anonymous only: no auth-shaped field exists here. Fields the Phase-1 blob-first
-path does not yet act on (media downloads, follower add-ons) are still accepted
-via ``extra="allow"`` for contract parity and land inert.
+Anonymous only: no auth-shaped field exists here. ``extra="allow"`` keeps the
+contract in parity with the actor for fields the scraper does not read.
 
-Caps (``resultsPerPage``) are per-target counts; the cross-target ceiling is
-caller policy applied by the collector, never baked into the flows.
+``resultsPerPage`` is a per-target count; the cross-target ceiling is caller
+policy applied by the collector, never baked into a flow.
 """
 
 from __future__ import annotations

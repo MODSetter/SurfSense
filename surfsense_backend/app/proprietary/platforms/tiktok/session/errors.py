@@ -6,6 +6,5 @@ from __future__ import annotations
 class TikTokAccessBlockedError(RuntimeError):
     """Raised when every rotated IP is refused anonymous access.
 
-    Anonymous-only: we cannot log in, so a hard block is surfaced loudly rather
-    than returning empty data. The route maps it to a 403.
+    Distinguishes a hard block from an empty result; the route maps it to 403.
     """
