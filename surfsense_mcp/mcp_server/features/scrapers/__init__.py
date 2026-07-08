@@ -13,9 +13,9 @@ from mcp.server.fastmcp import FastMCP
 from ...core.client import SurfSenseClient
 from ...core.workspace_context import WorkspaceContext
 from . import run_history
-from .platforms import google_maps, google_search, reddit, web, youtube
+from .platforms import google_maps, google_search, reddit, tiktok, web, youtube
 
-_REGISTRARS = (web, google_search, reddit, youtube, google_maps, run_history)
+_REGISTRARS = (web, google_search, reddit, youtube, tiktok, google_maps, run_history)
 
 
 def register(
