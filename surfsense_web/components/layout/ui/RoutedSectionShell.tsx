@@ -38,6 +38,7 @@ interface RoutedSectionShellProps {
 	groups?: RoutedSectionGroup[];
 	mobileNav?: "scroll" | "drawer";
 	contentClassName?: string;
+	desktopNav?: boolean;
 }
 
 function findActiveGroupValue(groups: RoutedSectionGroup[], activeValue: string): string | null {
@@ -142,6 +143,7 @@ export function RoutedSectionShell({
 	groups = [],
 	mobileNav = "scroll",
 	contentClassName,
+	desktopNav = true,
 }: RoutedSectionShellProps) {
 	const [tabScrollPos, setTabScrollPos] = useState<"start" | "middle" | "end">("start");
 	const [drawerOpen, setDrawerOpen] = useState(false);
@@ -196,12 +198,17 @@ export function RoutedSectionShell({
 	);
 
 	return (
-		<section className="flex h-full min-h-[min(680px,calc(100vh-5rem))] w-full select-none flex-col gap-6 md:flex-row">
-			<div className="md:w-[220px] md:shrink-0">
+		<section
+			className={cn(
+				"flex h-full min-h-[min(680px,calc(100vh-5rem))] w-full select-none flex-col",
+				desktopNav ? "gap-6 md:flex-row" : "gap-4 md:block"
+			)}
+		>
+			<div className={cn("md:w-[220px] md:shrink-0", !desktopNav && "md:hidden")}>
 				<h1 className="mb-4 px-1 text-xl font-semibold tracking-tight text-foreground md:text-2xl">
 					{title}
 				</h1>
-				<nav className="hidden flex-col gap-0.5 md:flex">{renderNav()}</nav>
+				{desktopNav ? <nav className="hidden flex-col gap-0.5 md:flex">{renderNav()}</nav> : null}
 				{mobileNav === "drawer" ? (
 					<Drawer open={drawerOpen} onOpenChange={setDrawerOpen} shouldScaleBackground={false}>
 						<DrawerTrigger asChild>
@@ -256,11 +263,15 @@ export function RoutedSectionShell({
 			</div>
 
 			<div className="min-w-0 flex-1">
-				<div className="hidden md:block">
-					<h2 className="text-lg font-semibold">{selectedLabel}</h2>
-					<Separator className="mt-4 bg-border" />
+				{desktopNav ? (
+					<div className="hidden md:block">
+						<h2 className="text-lg font-semibold">{selectedLabel}</h2>
+						<Separator className="mt-4 bg-border" />
+					</div>
+				) : null}
+				<div className={cn("min-w-0", desktopNav ? "pt-4" : "pt-4 md:pt-0", contentClassName)}>
+					{children}
 				</div>
-				<div className={cn("min-w-0 pt-4", contentClassName)}>{children}</div>
 			</div>
 		</section>
 	);

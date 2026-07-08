@@ -24,12 +24,7 @@ import {
 	RightPanelExpandButton,
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
-import {
-	MobileSidebar,
-	MobileSidebarTrigger,
-	Sidebar,
-	SidebarCollapseButton,
-} from "../sidebar";
+import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } from "../sidebar";
 import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
 import { WorkspacePanel } from "./WorkspacePanel";
@@ -117,6 +112,7 @@ interface LayoutShellProps {
 	isLoadingChats?: boolean;
 	onTabSwitch?: (tab: Tab) => void;
 	onTabPrefetch?: (tab: Tab) => void;
+	playgroundSidebar?: React.ReactNode;
 }
 
 function MainContentPanel({
@@ -217,11 +213,13 @@ export function LayoutShell({
 	isLoadingChats = false,
 	onTabSwitch,
 	onTabPrefetch,
+	playgroundSidebar,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const electronAPI = useElectronAPI();
 	const isMacDesktop = electronAPI?.versions.platform === "darwin";
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [isPlaygroundSidebarCollapsed, setIsPlaygroundSidebarCollapsed] = useState(false);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const {
 		sidebarWidth,
@@ -234,6 +232,9 @@ export function LayoutShell({
 		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
 		[isCollapsed, setIsCollapsed, toggleCollapsed]
 	);
+	const handlePlaygroundSidebarToggle = () => {
+		setIsPlaygroundSidebarCollapsed((collapsed) => !collapsed);
+	};
 
 	// Mobile layout
 	if (isMobile) {
@@ -348,6 +349,9 @@ export function LayoutShell({
 								onToggleCollapse={toggleCollapsed}
 								navItems={navItems}
 								onNavItemClick={onNavItemClick}
+								onPlaygroundItemClick={
+									playgroundSidebar ? handlePlaygroundSidebarToggle : undefined
+								}
 								chats={chats}
 								activeChatId={activeChatId}
 								onNewChat={onNewChat}
@@ -375,10 +379,7 @@ export function LayoutShell({
 										<Logo disableLink priority className="h-7 w-7 rounded-md" />
 									) : undefined
 								}
-								className={cn(
-									"flex shrink-0",
-									isMacDesktop && "rounded-tl-xl"
-								)}
+								className={cn("flex shrink-0", isMacDesktop && "rounded-tl-xl")}
 								isLoadingChats={isLoadingChats}
 								sidebarWidth={sidebarWidth}
 								isResizing={isResizing}
@@ -402,6 +403,21 @@ export function LayoutShell({
 								/>
 							)}
 						</div>
+
+						{playgroundSidebar ? (
+							<div
+								aria-hidden={isPlaygroundSidebarCollapsed}
+								className={cn(
+									"hidden md:flex shrink-0 overflow-hidden -mr-2 bg-panel transition-[width,opacity] duration-200 ease-out",
+									isPlaygroundSidebarCollapsed
+										? "w-0 opacity-0 pointer-events-none"
+										: "w-[240px] opacity-100",
+									isMacDesktop && !isPlaygroundSidebarCollapsed && "border-t"
+								)}
+							>
+								<div className="w-[240px] shrink-0">{playgroundSidebar}</div>
+							</div>
+						) : null}
 
 						<DesktopWorkspaceRegion>
 							{useWorkspacePanel ? (
