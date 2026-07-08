@@ -4,7 +4,7 @@ import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	Check,
-	FolderInput,
+	FilePlus,
 	FolderPlus,
 	FolderSync,
 	ListFilter,
@@ -287,7 +287,7 @@ export function EmbeddedImportMenu({
 					className="h-6 w-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 					aria-label="Import documents"
 				>
-					<FolderInput className="size-3.5" />
+					<FilePlus className="size-3.5" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-56">
