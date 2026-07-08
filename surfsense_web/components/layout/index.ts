@@ -9,10 +9,15 @@ export type {
 	User,
 	Workspace,
 } from "./types/layout.types";
+export type { RoutedSectionGroup, RoutedSectionItem } from "./ui";
 export {
 	ChatListItem,
 	CreateWorkspaceDialog,
 	CreditBalanceDisplay,
+	getPlaygroundActiveValue,
+	getPlaygroundNavGroups,
+	getPlaygroundNavItems,
+	getPlaygroundSelectedLabel,
 	Header,
 	IconRail,
 	LayoutShell,
@@ -20,6 +25,8 @@ export {
 	MobileSidebarTrigger,
 	NavIcon,
 	NavSection,
+	PlaygroundSidebar,
+	RoutedSectionShell,
 	Sidebar,
 	SidebarCollapseButton,
 	SidebarHeader,

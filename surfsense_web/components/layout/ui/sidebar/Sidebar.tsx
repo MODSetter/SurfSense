@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +18,7 @@ import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
 import { DocumentsSidebar } from "./DocumentsSidebar";
 import { NavSection } from "./NavSection";
-import { SidebarButton } from "./SidebarButton";
+import { SidebarButton, SidebarButtonBadge } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
@@ -46,27 +46,14 @@ function ChatListSkeletonRows() {
 	);
 }
 
-function CollapsedInboxIcon({ item }: { item: NavItem }) {
-	const Icon = item.icon;
-
-	return (
-		<span className="relative flex h-3.5 w-3.5 items-center justify-center">
-			<Icon className="h-3.5 w-3.5" />
-			{typeof item.badge === "string" ? (
-				<span className="absolute right-0 top-0 flex min-w-3.5 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium leading-3 text-destructive-foreground">
-					{item.badge}
-				</span>
-			) : null}
-		</span>
-	);
-}
-
 interface SidebarProps {
 	workspace: Workspace | null;
 	isCollapsed?: boolean;
 	onToggleCollapse?: () => void;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
+	onPlaygroundItemClick?: (item: NavItem) => void;
+	isPlaygroundSidebarOpen?: boolean;
 	chats: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
@@ -104,6 +91,8 @@ export function Sidebar({
 	onToggleCollapse,
 	navItems,
 	onNavItemClick,
+	onPlaygroundItemClick,
+	isPlaygroundSidebarOpen,
 	chats,
 	activeChatId,
 	onNewChat,
@@ -138,10 +127,9 @@ export function Sidebar({
 	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 	const [isSidebarNavScrolled, setIsSidebarNavScrolled] = useState(false);
 
-	// Inbox, Automations, and Artifacts are rendered explicitly right below
+	// Automations, Artifacts, and Playground are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
 	// in the bottom NavSection. Documents is embedded below Recents.
-	const inboxItem = useMemo(() => navItems.find((item) => item.url === "#inbox"), [navItems]);
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
 		[navItems]
@@ -158,7 +146,6 @@ export function Sidebar({
 		() =>
 			navItems.filter(
 				(item) =>
-					item.url !== "#inbox" &&
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
 					!item.url.endsWith("/playground")
@@ -218,7 +205,7 @@ export function Sidebar({
 
 			<div
 				className={cn(
-					"relative flex flex-col gap-0.5 pt-1.5 pb-0 after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-border after:transition-opacity",
+					"relative flex flex-col gap-0.5 pt-1.5 pb-0 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border after:transition-opacity",
 					isSidebarNavScrolled ? "after:opacity-100" : "after:opacity-0"
 				)}
 			>
@@ -235,23 +222,6 @@ export function Sidebar({
 				onScroll={(event) => setIsSidebarNavScrolled(event.currentTarget.scrollTop > 0)}
 			>
 				<div className="flex flex-col gap-0.5 pt-0.5 pb-1.5">
-					{inboxItem && (
-						<SidebarButton
-							icon={inboxItem.icon}
-							label={inboxItem.title}
-							onClick={() => onNavItemClick?.(inboxItem)}
-							isCollapsed={isCollapsed}
-							isActive={inboxItem.isActive}
-							badge={inboxItem.badge}
-							collapsedIconNode={<CollapsedInboxIcon item={inboxItem} />}
-							tooltipContent={isCollapsed ? inboxItem.title : undefined}
-							buttonProps={
-								{
-									"data-joyride": "inbox-sidebar",
-								} as React.ButtonHTMLAttributes<HTMLButtonElement>
-							}
-						/>
-					)}
 					{automationsItem && (
 						<SidebarButton
 							icon={automationsItem.icon}
@@ -276,9 +246,10 @@ export function Sidebar({
 						<SidebarButton
 							icon={playgroundItem.icon}
 							label={playgroundItem.title}
-							onClick={() => onNavItemClick?.(playgroundItem)}
+							onClick={() => (onPlaygroundItemClick ?? onNavItemClick)?.(playgroundItem)}
 							isCollapsed={isCollapsed}
-							isActive={playgroundItem.isActive}
+							isActive={isPlaygroundSidebarOpen ?? playgroundItem.isActive}
+							badge={<SidebarButtonBadge>New</SidebarButtonBadge>}
 							tooltipContent={isCollapsed ? playgroundItem.title : undefined}
 						/>
 					)}
@@ -356,10 +327,16 @@ export function Sidebar({
 					/>
 				)}
 
+				{!isCollapsed && (
+					<div className="shrink-0 py-1.5">
+						<ConnectAgentDialog className="w-[calc(100%-1rem)]" />
+					</div>
+				)}
+
 				<SidebarUsageFooter
 					pageUsage={pageUsage}
 					isCollapsed={isCollapsed}
-					hasNavSectionAbove={footerNavItems.length > 0}
+					hasNavSectionAbove={footerNavItems.length > 0 || !isCollapsed}
 					onNavigate={onNavigate}
 				/>
 
@@ -436,29 +413,25 @@ function SidebarUsageFooter({
 	return (
 		<div className={containerClass}>
 			<CreditBalanceDisplay />
-			<div className="space-y-0.5">
+			<div className="relative grid grid-cols-2 before:absolute before:inset-y-1 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border">
 				<Link
 					href={`/dashboard/${workspaceId}/earn-credits`}
 					onClick={onNavigate}
-					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+					className="group relative z-10 mx-0.5 flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 				>
-					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
-						<Zap className="h-3 w-3 shrink-0" />
-						Earn credits
-					</span>
-					<Badge className="h-4 rounded px-1 text-[10px] font-semibold leading-none bg-emerald-600 text-white border-transparent hover:bg-emerald-600">
+					<Zap className="h-3 w-3 shrink-0" />
+					<span className="truncate">Earn</span>
+					<SidebarButtonBadge className="h-4 px-1 text-[10px] bg-emerald-600 text-white hover:bg-emerald-600">
 						FREE
-					</Badge>
+					</SidebarButtonBadge>
 				</Link>
 				<Link
 					href={`/dashboard/${workspaceId}/buy-more`}
 					onClick={onNavigate}
-					className="group flex w-full items-center justify-between rounded-md px-1.5 py-1 transition-colors hover:bg-accent"
+					className="group relative z-10 mx-0.5 flex min-w-0 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 				>
-					<span className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-accent-foreground">
-						<CreditCard className="h-3 w-3 shrink-0" />
-						Buy credits
-					</span>
+					<CreditCard className="h-3 w-3 shrink-0" />
+					<span className="truncate">Buy</span>
 				</Link>
 			</div>
 		</div>

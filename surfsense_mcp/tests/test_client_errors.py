@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx
 
-from surfsense_mcp.core.client import SurfSenseClient
+from mcp_server.core.client import SurfSenseClient
 
 _REQUEST = httpx.Request("GET", "http://localhost:8000/api/v1/documents")
 

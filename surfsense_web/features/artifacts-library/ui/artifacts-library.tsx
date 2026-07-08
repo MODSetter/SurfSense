@@ -1,7 +1,7 @@
 "use client";
 
 import { useSetAtom } from "jotai";
-import { RefreshCw, TriangleAlert } from "lucide-react";
+import { Boxes, RefreshCw, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
@@ -46,8 +46,15 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState() {
 	return (
-		<div className="flex items-center justify-center py-20 text-center">
-			<p className="font-medium text-foreground">No artifacts yet</p>
+		<div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-6 py-12 text-center">
+			<div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+				<Boxes className="h-6 w-6" aria-hidden />
+			</div>
+			<h3 className="mt-4 text-base font-semibold text-foreground">No artifacts yet</h3>
+			<p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
+				Artifacts collect the reports, resumes, podcasts, presentations, and images SurfSense
+				creates for this workspace. Generated deliverables from your chats will appear here.
+			</p>
 		</div>
 	);
 }

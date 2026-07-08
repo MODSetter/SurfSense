@@ -12,9 +12,9 @@ import asyncio
 import httpx
 import pytest
 
-from surfsense_mcp.core.auth import identity
-from surfsense_mcp.core.client import SurfSenseClient
-from surfsense_mcp.core.errors import ToolError
+from mcp_server.core.auth import identity
+from mcp_server.core.client import SurfSenseClient
+from mcp_server.core.errors import ToolError
 
 
 def _client_recording_auth(seen: dict, *, fallback: str | None) -> SurfSenseClient:

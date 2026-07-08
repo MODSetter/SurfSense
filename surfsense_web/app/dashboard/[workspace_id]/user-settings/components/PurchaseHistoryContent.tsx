@@ -108,9 +108,8 @@ function normalizeCreditPurchase(p: CreditPurchase): UnifiedPurchase {
 function formatGranted(p: UnifiedPurchase): string {
 	if (p.kind === "credits") {
 		const dollars = p.granted / 1_000_000;
-		// Credit packs are always whole dollars at the moment, but future
-		// fractional grants (refunds, partial top-ups, auto-reload) shouldn't
-		// silently round to "$0".
+		// Credit packs are always whole dollars today, but future fractional grants
+		// such as refunds or low-balance refills shouldn't silently round to "$0".
 		if (dollars >= 1) return `$${dollars.toFixed(2)} of credit`;
 		if (dollars > 0) return `$${dollars.toFixed(3)} of credit`;
 		return "$0 of credit";

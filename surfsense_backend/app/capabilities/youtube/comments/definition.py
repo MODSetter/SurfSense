@@ -10,15 +10,14 @@ from app.capabilities.youtube.comments.schemas import CommentsInput, CommentsOut
 YOUTUBE_COMMENTS = Capability(
     name="youtube.comments",
     description=(
-        "Fetch public comments (and their replies) for one or more YouTube "
-        "videos. Give it the video URLs; returns structured comment items with "
-        "author, text, like count, reply relationships, and timestamps. Use it "
-        "to gauge sentiment or pull discussion on specific videos."
+        "Fetch public YouTube comments and replies with authors, text, likes, "
+        "and timestamps. Use video URLs."
     ),
     input_schema=CommentsInput,
     output_schema=CommentsOutput,
     executor=build_comments_executor(),
     billing_unit=BillingUnit.YOUTUBE_COMMENT,
+    docs_url="/docs/connectors/native/youtube",
 )
 
 register_capability(YOUTUBE_COMMENTS)

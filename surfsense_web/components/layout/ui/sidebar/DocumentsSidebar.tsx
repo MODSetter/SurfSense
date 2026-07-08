@@ -3,7 +3,8 @@
 import { useQuery } from "@rocicorp/zero/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
-	FolderInput,
+	Check,
+	FilePlus,
 	FolderPlus,
 	FolderSync,
 	ListFilter,
@@ -50,6 +51,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -69,6 +71,7 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
@@ -127,60 +130,111 @@ export function EmbeddedDocumentsMenu({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	onCreateFolder: () => void;
 }) {
+	const isMobile = useIsMobile();
+	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const documentTypes = useMemo(
 		() => Object.keys(typeCounts).sort() as DocumentTypeEnum[],
 		[typeCounts]
 	);
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					className="relative h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-					aria-label="Document actions"
+		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="relative h-6 w-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+						aria-label="Document actions"
+					>
+						<SlidersVertical className="size-3.5" />
+						{activeTypes.length > 0 ? (
+							<span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+						) : null}
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-44">
+					<DropdownMenuItem onSelect={onCreateFolder}>
+						<FolderPlus className="h-4 w-4" />
+						New folder
+					</DropdownMenuItem>
+					{isMobile ? (
+						<DropdownMenuItem onSelect={() => setFilterDrawerOpen(true)}>
+							<ListFilter className="h-4 w-4" />
+							<span className="flex-1">Filter by type</span>
+						</DropdownMenuItem>
+					) : (
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger>
+								<ListFilter className="h-4 w-4" />
+								Filter by type
+							</DropdownMenuSubTrigger>
+							<DropdownMenuSubContent className="w-52 max-h-72 overflow-y-auto">
+								{documentTypes.length > 0 ? (
+									documentTypes.map((type) => (
+										<DropdownMenuCheckboxItem
+											key={type}
+											checked={activeTypes.includes(type)}
+											onCheckedChange={(checked) => onToggleType(type, checked === true)}
+											onSelect={(event) => event.preventDefault()}
+										>
+											{getDocumentTypeIcon(type, "h-4 w-4")}
+											<span className="min-w-0 flex-1 truncate">{getDocumentTypeLabel(type)}</span>
+											<span className="ml-auto text-xs text-muted-foreground">
+												{typeCounts[type] ?? 0}
+											</span>
+										</DropdownMenuCheckboxItem>
+									))
+								) : (
+									<DropdownMenuItem disabled>No document types</DropdownMenuItem>
+								)}
+							</DropdownMenuSubContent>
+						</DropdownMenuSub>
+					)}
+				</DropdownMenuContent>
+			</DropdownMenu>
+
+			<Drawer
+				open={filterDrawerOpen}
+				onOpenChange={setFilterDrawerOpen}
+				shouldScaleBackground={false}
+			>
+				<DrawerContent
+					className="z-80 max-h-[75vh] rounded-t-2xl border bg-popover text-popover-foreground"
+					overlayClassName="z-80"
 				>
-					<SlidersVertical className="h-3.5 w-3.5" />
-					{activeTypes.length > 0 ? (
-						<span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
-					) : null}
-				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-44">
-				<DropdownMenuItem onSelect={onCreateFolder}>
-					<FolderPlus className="h-4 w-4" />
-					New folder
-				</DropdownMenuItem>
-				<DropdownMenuSub>
-					<DropdownMenuSubTrigger>
-						<ListFilter className="h-4 w-4" />
+					<DrawerHandle className="mt-3 h-1.5 w-10" />
+					<DrawerTitle className="px-4 pb-2 pt-3 text-center text-base font-semibold">
 						Filter by type
-					</DropdownMenuSubTrigger>
-					<DropdownMenuSubContent className="w-52 max-h-72 overflow-y-auto">
+					</DrawerTitle>
+					<div className="px-4 pb-6 pt-1">
 						{documentTypes.length > 0 ? (
-							documentTypes.map((type) => (
-								<DropdownMenuCheckboxItem
-									key={type}
-									checked={activeTypes.includes(type)}
-									onCheckedChange={(checked) => onToggleType(type, checked === true)}
-									onSelect={(event) => event.preventDefault()}
-								>
-									{getDocumentTypeIcon(type, "h-4 w-4")}
-									<span className="min-w-0 flex-1 truncate">{getDocumentTypeLabel(type)}</span>
-									<span className="ml-auto text-xs text-muted-foreground">
-										{typeCounts[type] ?? 0}
-									</span>
-								</DropdownMenuCheckboxItem>
-							))
+							documentTypes.map((type, index) => {
+								const isActive = activeTypes.includes(type);
+								return (
+									<div key={type}>
+										{index > 0 && <div className="mx-3 h-px bg-popover-border" />}
+										<button
+											type="button"
+											className="flex h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+											onClick={() => onToggleType(type, !isActive)}
+										>
+											{getDocumentTypeIcon(type, "h-4 w-4")}
+											<span className="min-w-0 flex-1 truncate">{getDocumentTypeLabel(type)}</span>
+											<span className="text-xs text-muted-foreground">{typeCounts[type] ?? 0}</span>
+											{isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
+										</button>
+									</div>
+								);
+							})
 						) : (
-							<DropdownMenuItem disabled>No document types</DropdownMenuItem>
+							<p className="px-3 py-4 text-sm text-muted-foreground">No document types</p>
 						)}
-					</DropdownMenuSubContent>
-				</DropdownMenuSub>
-			</DropdownMenuContent>
-		</DropdownMenu>
+					</div>
+				</DrawerContent>
+			</Drawer>
+		</>
 	);
 }
 
@@ -230,10 +284,10 @@ export function EmbeddedImportMenu({
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-7 w-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+					className="h-6 w-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
 					aria-label="Import documents"
 				>
-					<FolderInput className="h-3.5 w-3.5" />
+					<FilePlus className="size-3.5" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-56">
@@ -1213,7 +1267,7 @@ function AuthenticatedDocumentsSidebarBase({
 					defaultOpen={true}
 					contentClassName="px-0"
 					persistentAction={
-						<div className="flex items-center gap-0.5">
+						<div className="flex items-center gap-1.5">
 							<EmbeddedImportMenu onFolderWatched={refreshWatchedIds} />
 							<EmbeddedDocumentsMenu
 								typeCounts={typeCounts}
@@ -1389,7 +1443,7 @@ function AnonymousDocumentsSidebar({ embedded = false }: DocumentsSidebarProps) 
 				defaultOpen={true}
 				contentClassName="px-0"
 				persistentAction={
-					<div className="flex items-center gap-0.5">
+					<div className="flex items-center gap-1.5">
 						<EmbeddedImportMenu gate={gate} />
 						<EmbeddedDocumentsMenu
 							typeCounts={hasDoc ? { FILE: 1 } : {}}

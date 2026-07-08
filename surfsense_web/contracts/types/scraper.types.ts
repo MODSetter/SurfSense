@@ -15,6 +15,7 @@ export const scraperPricingMeter = z.object({
 export const scraperCapability = z.object({
 	name: z.string(),
 	description: z.string(),
+	docs_url: z.string().nullable().optional(),
 	input_schema: z.record(z.string(), z.unknown()),
 	// Optional so a backend that predates output schemas degrades to just not
 	// showing the output-schema block instead of failing the whole fetch.

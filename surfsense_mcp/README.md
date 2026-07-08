@@ -75,7 +75,7 @@ remote support. It uses [uv](https://github.com/astral-sh/uv):
 ```bash
 cd surfsense_mcp
 uv sync
-uv run python -m surfsense_mcp.selfcheck   # verify tools register correctly
+uv run python -m mcp_server.selfcheck   # verify tools register correctly
 ```
 
 Then add it to your client. Cursor (`~/.cursor/mcp.json` or a project
@@ -86,7 +86,7 @@ Then add it to your client. Cursor (`~/.cursor/mcp.json` or a project
   "mcpServers": {
     "surfsense": {
       "command": "uv",
-      "args": ["run", "--directory", "/absolute/path/to/SurfSense/surfsense_mcp", "python", "-m", "surfsense_mcp"],
+      "args": ["run", "--directory", "/absolute/path/to/SurfSense/surfsense_mcp", "python", "-m", "mcp_server"],
       "env": {
         "SURFSENSE_BASE_URL": "http://localhost:8000",
         "SURFSENSE_API_KEY": "ss_pat_your_token_here"
@@ -102,7 +102,7 @@ Claude Code:
 claude mcp add surfsense \
   -e SURFSENSE_BASE_URL=http://localhost:8000 \
   -e SURFSENSE_API_KEY=ss_pat_your_token_here \
-  -- uv run --directory /absolute/path/to/SurfSense/surfsense_mcp python -m surfsense_mcp
+  -- uv run --directory /absolute/path/to/SurfSense/surfsense_mcp python -m mcp_server
 ```
 
 Claude Desktop: add the same `mcpServers` block as Cursor to
