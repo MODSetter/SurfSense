@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	Check,
-	Copy,
-	Hash,
-	Info,
-	Coins,
-	Timer,
-} from "lucide-react";
+import { Check, Coins, Copy, Hash, Info, Timer } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -99,9 +92,9 @@ function EndpointCopyButton({ endpoint }: { endpoint: string }) {
 			variant="ghost"
 			size="sm"
 			onClick={handleCopy}
-			className="h-auto justify-start gap-2 rounded bg-muted/40 px-2 py-1 font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+			className="h-auto max-w-full items-start justify-start gap-2 whitespace-normal rounded bg-muted/40 px-2 py-1 font-mono text-xs text-muted-foreground hover:bg-muted hover:text-foreground sm:whitespace-nowrap"
 		>
-			<code>{endpoint}</code>
+			<code className="min-w-0 break-all text-left sm:break-normal">{endpoint}</code>
 			{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
 			<span className="sr-only">{copied ? "Copied endpoint" : "Copy endpoint"}</span>
 		</Button>
@@ -243,8 +236,8 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 											className="font-medium text-foreground underline-offset-4 hover:underline"
 										>
 											Read docs
-										</Link>
-										{" "}for more info.
+										</Link>{" "}
+										for more info.
 									</>
 								) : null}
 							</p>
@@ -280,17 +273,12 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 							</Button>
 						)}
 					</div>
-
 				</div>
 
 				<div className="space-y-3">
 					<h2 className="text-sm font-medium text-muted-foreground">Output</h2>
 					{isRunning ? (
-						<RunProgressPanel
-							latest={run.latest}
-							events={run.events}
-							elapsedMs={run.elapsedMs}
-						/>
+						<RunProgressPanel latest={run.latest} events={run.events} elapsedMs={run.elapsedMs} />
 					) : run.status === "cancelled" ? (
 						<div className="flex h-64 items-center justify-center rounded-md border border-border/60 px-4 text-center text-sm text-muted-foreground">
 							Run cancelled.

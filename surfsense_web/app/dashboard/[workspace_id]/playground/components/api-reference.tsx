@@ -91,12 +91,13 @@ export function ApiReference({
 			<div>
 				<h2 className="text-base font-semibold">API reference</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Create an API key, enable API access for this workspace, then use the examples below to call this endpoint.
+					Create an API key, enable API access for this workspace, then use the examples below to
+					call this endpoint.
 				</p>
 			</div>
 
 			<Tabs defaultValue="curl">
-				<TabsList className="h-auto flex-wrap">
+				<TabsList className="flex h-auto w-full flex-nowrap justify-start overflow-x-auto overflow-y-hidden">
 					{snippets.map((snippet) => (
 						<TabsTrigger key={snippet.id} value={snippet.id}>
 							{snippet.label}
