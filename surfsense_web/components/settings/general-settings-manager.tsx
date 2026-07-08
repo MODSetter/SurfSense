@@ -5,20 +5,17 @@ import { useAtomValue } from "jotai";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-	updateWorkspaceApiAccessMutationAtom,
-	updateWorkspaceMutationAtom,
-} from "@/atoms/workspaces/workspace-mutation.atoms";
+import { updateWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
+import { WorkspaceApiAccessControl } from "./workspace-api-access-control";
 
 interface GeneralSettingsManagerProps {
 	workspaceId: number;
@@ -39,14 +36,10 @@ export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerPr
 	});
 
 	const { mutateAsync: updateWorkspace } = useAtomValue(updateWorkspaceMutationAtom);
-	const { mutateAsync: updateWorkspaceApiAccess } = useAtomValue(
-		updateWorkspaceApiAccessMutationAtom
-	);
 
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [saving, setSaving] = useState(false);
-	const [savingApiAccess, setSavingApiAccess] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
 	const hasWorkspace = !!workspace;
 	const workspaceName = workspace?.name;
@@ -121,25 +114,6 @@ export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerPr
 		handleSave();
 	};
 
-	const handleApiAccessToggle = useCallback(
-		async (enabled: boolean) => {
-			try {
-				setSavingApiAccess(true);
-				await updateWorkspaceApiAccess({
-					id: workspaceId,
-					api_access_enabled: enabled,
-				});
-				await fetchWorkspace();
-			} catch (error) {
-				console.error("Error updating API access:", error);
-				toast.error(error instanceof Error ? error.message : "Failed to update API access");
-			} finally {
-				setSavingApiAccess(false);
-			}
-		},
-		[fetchWorkspace, workspaceId, updateWorkspaceApiAccess]
-	);
-
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
@@ -206,18 +180,7 @@ export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerPr
 				</div>
 			</form>
 
-			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-				<div className="space-y-1">
-					<Label htmlFor="api-access-enabled">API key access</Label>
-					<p className="text-xs text-muted-foreground">Allow API keys to access this workspace.</p>
-				</div>
-				<Switch
-					id="api-access-enabled"
-					checked={!!workspace?.api_access_enabled}
-					disabled={savingApiAccess}
-					onCheckedChange={handleApiAccessToggle}
-				/>
-			</div>
+			<WorkspaceApiAccessControl workspaceId={workspaceId} className="border-t pt-6" />
 
 			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="space-y-1">

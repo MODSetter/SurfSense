@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, History, LayoutGrid } from "lucide-react";
+import { ChevronRight, History, KeyRound, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +27,12 @@ export function getPlaygroundNavItems(base: string): RoutedSectionItem[] {
 			label: "API Runs",
 			href: `${base}/runs`,
 			icon: <History className="h-4 w-4" />,
+		},
+		{
+			value: "api-keys",
+			label: "API Keys",
+			href: `${base}/api-keys`,
+			icon: <KeyRound className="h-4 w-4" />,
 		},
 	];
 }

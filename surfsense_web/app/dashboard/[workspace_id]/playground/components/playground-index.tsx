@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, History, Info } from "lucide-react";
+import { ArrowRight, History, Info, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -27,7 +27,7 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 					<p>
 						Manually run SurfSense's platform-native APIs and inspect their output. To use these APIs outside SurfSense,{" "}
 						<Link
-							href={`/dashboard/${workspaceId}/user-settings/api-key`}
+							href={`${base}/api-keys`}
 							className="font-medium text-foreground underline-offset-4 hover:underline"
 						>
 							create an API key
@@ -47,6 +47,19 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 						<div>
 							<p className="text-sm font-medium">API Runs</p>
 							<p className="text-xs text-muted-foreground">See every API run in this workspace</p>
+						</div>
+					</div>
+					<ArrowRight className="h-4 w-4 text-muted-foreground" />
+				</Link>
+				<Link
+					href={`${base}/api-keys`}
+					className="flex items-center justify-between rounded-lg border border-border/60 bg-accent/40 px-4 py-3 transition-colors hover:bg-accent"
+				>
+					<div className="flex items-center gap-3">
+						<KeyRound className="h-5 w-5 text-muted-foreground" />
+						<div>
+							<p className="text-sm font-medium">API Keys</p>
+							<p className="text-xs text-muted-foreground">Manage keys and workspace API access</p>
 						</div>
 					</div>
 					<ArrowRight className="h-4 w-4 text-muted-foreground" />
