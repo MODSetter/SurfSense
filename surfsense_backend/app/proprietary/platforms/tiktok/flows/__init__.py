@@ -5,4 +5,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 FetchFn = Callable[[str], Awaitable[str | None]]
+"""Fetch a page's HTML by URL (blob-first video flow)."""
+
+FetchListingFn = Callable[[str, int], Awaitable[list[dict]]]
+"""Load a listing page and return up to ``count`` captured itemStructs."""
+
 FlowResult = AsyncIterator[dict]

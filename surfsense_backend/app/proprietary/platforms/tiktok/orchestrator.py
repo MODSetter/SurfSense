@@ -2,33 +2,27 @@
 
 Targets run sequentially on one warm sticky IP; ``limit`` is collector policy
 applied by :func:`scrape_tiktok`, never baked into a flow. Each kind routes to
-its flow via :func:`_dispatch`.
+its flow via :func:`_dispatch`: video URLs read the rehydration blob over HTTP,
+listings capture signed item_list XHRs through the stealth browser.
 """
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import quote
 
-from .flows import FetchFn
+from .flows import FetchFn, FetchListingFn
+from .flows.listing import iter_listing
 from .flows.video import iter_video
 from .schemas import TikTokScrapeInput
-from .session import fetch_html, proxy_session
+from .session import fetch_html, fetch_item_list, proxy_session
 from .targets import resolve_target
 from .targets.types import TikTokTarget
-
-logger = logging.getLogger(__name__)
 
 _PROFILE_URL = "https://www.tiktok.com/@{name}"
 _HASHTAG_URL = "https://www.tiktok.com/tag/{tag}"
 _SEARCH_URL = "https://www.tiktok.com/search?q={query}"
-
-
-async def _empty() -> AsyncIterator[dict[str, Any]]:
-    for _ in ():
-        yield {}
 
 
 def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
@@ -54,21 +48,31 @@ def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
     return targets
 
 
-def _dispatch(target: TikTokTarget, *, fetch: FetchFn) -> AsyncIterator[dict[str, Any]]:
+def _dispatch(
+    target: TikTokTarget,
+    *,
+    cap: int,
+    fetch: FetchFn,
+    fetch_listing: FetchListingFn,
+) -> AsyncIterator[dict[str, Any]]:
     if target.kind == "video":
         return iter_video(target, fetch=fetch)
-    # Listings come from the signed item_list API, not the blob.
-    logger.debug("[tiktok] no blob flow for %s target", target.kind)
-    return _empty()
+    return iter_listing(target, cap=cap, fetch_listing=fetch_listing)
 
 
 async def iter_tiktok(
-    input_model: TikTokScrapeInput, *, fetch: FetchFn = fetch_html
+    input_model: TikTokScrapeInput,
+    *,
+    fetch: FetchFn = fetch_html,
+    fetch_listing: FetchListingFn = fetch_item_list,
 ) -> AsyncIterator[dict[str, Any]]:
     """Yield normalized items for every resolved target, in order."""
+    cap = input_model.resultsPerPage
     async with proxy_session():
         for target in _resolve_targets(input_model):
-            async for item in _dispatch(target, fetch=fetch):
+            async for item in _dispatch(
+                target, cap=cap, fetch=fetch, fetch_listing=fetch_listing
+            ):
                 yield item
 
 
@@ -77,12 +81,13 @@ async def scrape_tiktok(
     *,
     limit: int | None = None,
     fetch: FetchFn = fetch_html,
+    fetch_listing: FetchListingFn = fetch_item_list,
 ) -> list[dict[str, Any]]:
     """Collect :func:`iter_tiktok` into a list, honoring an optional ``limit``."""
     from app.capabilities.core.progress import emit_progress
 
     results: list[dict[str, Any]] = []
-    async for item in iter_tiktok(input_model, fetch=fetch):
+    async for item in iter_tiktok(input_model, fetch=fetch, fetch_listing=fetch_listing):
         results.append(item)
         emit_progress("scraping", current=len(results), total=limit, unit="item")
         if limit is not None and len(results) >= limit:

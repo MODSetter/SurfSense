@@ -71,3 +71,27 @@ async def test_scrape_skips_unrecognized_urls():
         TikTokScrapeInput(postURLs=["https://example.com/x"]), fetch=fake_fetch
     )
     assert items == []
+
+
+async def test_scrape_profile_returns_listing_items():
+    async def fake_listing(_url: str, _count: int) -> list[dict]:
+        return [
+            {"id": "1", "author": {"uniqueId": "a"}},
+            {"id": "2", "author": {"uniqueId": "a"}},
+        ]
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(profiles=["a"], resultsPerPage=5), fetch_listing=fake_listing
+    )
+    assert [i["id"] for i in items] == ["1", "2"]
+    assert items[0]["webVideoUrl"] == "https://www.tiktok.com/@a/video/1"
+
+
+async def test_listing_dedupes_then_caps_per_target():
+    async def fake_listing(_url: str, _count: int) -> list[dict]:
+        return [{"id": "1"}, {"id": "1"}, {"id": "2"}, {"id": "3"}]
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(hashtags=["x"], resultsPerPage=2), fetch_listing=fake_listing
+    )
+    assert [i["id"] for i in items] == ["1", "2"]
