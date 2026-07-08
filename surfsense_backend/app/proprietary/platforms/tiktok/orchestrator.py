@@ -16,7 +16,7 @@ from .flows import FetchFn, FetchListingFn
 from .flows.listing import iter_listing
 from .flows.video import iter_video
 from .schemas import TikTokScrapeInput
-from .session import fetch_html, fetch_item_list, proxy_session
+from .session import fetch_html, fetch_item_list
 from .targets import resolve_target
 from .targets.types import TikTokTarget
 
@@ -66,14 +66,18 @@ async def iter_tiktok(
     fetch: FetchFn = fetch_html,
     fetch_listing: FetchListingFn = fetch_item_list,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Yield normalized items for every resolved target, in order."""
+    """Yield normalized items for every resolved target, in order.
+
+    The video flow's ``fetch_html`` opens its own warmed proxy session per call
+    when none is bound; the listing flow drives its own browser. Neither binds a
+    ContextVar across these ``yield``s, so the generator stays context-safe.
+    """
     cap = input_model.resultsPerPage
-    async with proxy_session():
-        for target in _resolve_targets(input_model):
-            async for item in _dispatch(
-                target, cap=cap, fetch=fetch, fetch_listing=fetch_listing
-            ):
-                yield item
+    for target in _resolve_targets(input_model):
+        async for item in _dispatch(
+            target, cap=cap, fetch=fetch, fetch_listing=fetch_listing
+        ):
+            yield item
 
 
 async def scrape_tiktok(
