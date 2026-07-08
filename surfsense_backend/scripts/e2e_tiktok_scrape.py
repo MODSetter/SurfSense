@@ -7,11 +7,14 @@ Run from the backend directory:
 What it exercises (everything REAL — live network, live proxy, live browser):
 
   Stage 1 — proxy egress proof (informational).
-  Stage 2 — profile listing via the stealth browser (soft-blocked by TikTok;
-            expected empty until a stronger anti-detection path exists).
+  Stage 2 — profile via the full pipeline: TikTok soft-blocks the anonymous
+            profile feed, so this asserts graceful degradation — real videos OR
+            a single honest ErrorItem, never a silent empty.
   Stage 3 — blob video path over HTTP (URL taken from a captured hashtag struct).
   Stage 4 — hashtag listing via the stealth browser (captures item_list XHRs).
   Stage 5 — full scrape_tiktok() pipeline on a hashtag.
+  Stage 6 — search via the full pipeline: same graceful-degrade contract as
+            profile (results feed doesn't load for anonymous sessions).
 
 On success it writes raw itemStructs under tests/fixtures/tiktok/ so the parser
 suites can pin against real-shaped data without network.
@@ -40,9 +43,11 @@ for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
 
 _FIXTURES = _BACKEND_ROOT / "tests" / "fixtures" / "tiktok"
 
-# Evergreen public targets: a regular high-volume creator and a broad hashtag.
+# Evergreen public targets: a regular high-volume creator, a broad hashtag, and
+# a common search term.
 _PROFILE = "nasa"
 _HASHTAG = "food"
+_SEARCH = "meal prep"
 _COUNT = 5
 
 
@@ -93,17 +98,24 @@ async def stage_proxy() -> bool:
 
 
 async def stage_profile_listing() -> tuple[bool, list[dict[str, Any]]]:
-    _hr(f"STAGE 2 — profile listing (browser): @{_PROFILE}")
-    from app.proprietary.platforms.tiktok.session import fetch_item_list
+    _hr(f"STAGE 2 — profile listing graceful-degrade: @{_PROFILE}")
+    from app.proprietary.platforms.tiktok import TikTokScrapeInput, scrape_tiktok
 
-    url = f"https://www.tiktok.com/@{_PROFILE}"
-    raw = await fetch_item_list(url, _COUNT)
-    ok = _check(
-        "captured itemStructs from item_list XHRs",
-        len(raw) > 0 and isinstance(raw[0], dict) and bool(raw[0].get("id")),
-        f"{len(raw)} struct(s)",
+    # TikTok soft-blocks the profile feed for anonymous headless sessions
+    # (empty 200). The shipped contract is a single honest ErrorItem, not a
+    # silent empty. This stage verifies that graceful degradation, and passes if
+    # EITHER real videos come back (session got trusted) OR an ErrorItem does.
+    items = await scrape_tiktok(
+        TikTokScrapeInput(profiles=[_PROFILE], resultsPerPage=_COUNT), limit=_COUNT
     )
-    return ok, raw
+    has_video = any(it.get("id") and not it.get("errorCode") for it in items)
+    has_error = any(it.get("errorCode") == "no_items" for it in items)
+    ok = _check(
+        "profile yields videos or a graceful ErrorItem (never silent empty)",
+        has_video or has_error,
+        f"{len(items)} item(s); video={has_video} error={has_error}",
+    )
+    return ok, items
 
 
 async def stage_blob_video(video_url: str) -> tuple[bool, dict[str, Any] | None]:
@@ -167,6 +179,26 @@ async def stage_pipeline() -> bool:
     return ok
 
 
+async def stage_search_listing() -> tuple[bool, list[dict[str, Any]]]:
+    _hr(f"STAGE 6 — search listing graceful-degrade: {_SEARCH!r}")
+    from app.proprietary.platforms.tiktok import TikTokScrapeInput, scrape_tiktok
+
+    # The search results feed doesn't load for anonymous headless sessions
+    # (results XHR never fires on a cold deep-link). Same contract as profile:
+    # verify a graceful ErrorItem instead of a silent empty.
+    items = await scrape_tiktok(
+        TikTokScrapeInput(searchQueries=[_SEARCH], resultsPerPage=_COUNT), limit=_COUNT
+    )
+    has_video = any(it.get("id") and not it.get("errorCode") for it in items)
+    has_error = any(it.get("errorCode") == "no_items" for it in items)
+    ok = _check(
+        "search yields videos or a graceful ErrorItem (never silent empty)",
+        has_video or has_error,
+        f"{len(items)} item(s); video={has_video} error={has_error}",
+    )
+    return ok, items
+
+
 async def main() -> int:
     print("TikTok scraper functional e2e — live network + proxy + browser")
     results: dict[str, bool] = {}
@@ -184,6 +216,9 @@ async def main() -> int:
         results["Stage 3 blob video"] = ok_video
     else:
         print("\n  [SKIP] Stage 3 — no captured struct to build a video URL")
+
+    ok_search, _ = await stage_search_listing()
+    results["Stage 6 search listing"] = ok_search
 
     ok_profile, _ = await stage_profile_listing()
     results["Stage 2 profile listing"] = ok_profile

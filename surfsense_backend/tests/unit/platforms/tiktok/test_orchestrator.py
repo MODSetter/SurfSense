@@ -95,3 +95,18 @@ async def test_listing_dedupes_then_caps_per_target():
         TikTokScrapeInput(hashtags=["x"], resultsPerPage=2), fetch_listing=fake_listing
     )
     assert [i["id"] for i in items] == ["1", "2"]
+
+
+async def test_empty_listing_emits_error_item():
+    # A trust-gated/empty feed (0 videos) must surface one honest ErrorItem,
+    # tagged with errorCode, rather than vanishing silently.
+    async def fake_listing(_url: str, _count: int) -> list[dict]:
+        return []
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(profiles=["nasa"], resultsPerPage=5),
+        fetch_listing=fake_listing,
+    )
+    assert len(items) == 1
+    assert items[0]["errorCode"] == "no_items"
+    assert items[0]["input"] == "nasa"

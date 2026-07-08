@@ -12,8 +12,18 @@ from typing import Any
 
 from ..extraction import parse_video
 from ..extraction.timestamps import now_iso
+from ..schemas import ErrorItem
 from ..targets.types import TikTokTarget
 from . import FetchListingFn
+
+# Profile and search feeds are trust-gated: an anonymous headless session gets an
+# empty body (profile) or no results XHR (search), while hashtag feeds load. We
+# can't tell "genuinely empty" from "blocked" here, so a zero-item listing emits
+# one honest ErrorItem instead of vanishing silently.
+_EMPTY_LISTING_MESSAGE = (
+    "No videos returned. The target may be empty/private/removed, or TikTok "
+    "withheld this feed from anonymous access (common for profiles and search)."
+)
 
 
 async def iter_listing(
@@ -35,3 +45,11 @@ async def iter_listing(
         emitted += 1
         if emitted >= cap:
             return
+    if emitted == 0:
+        yield ErrorItem(
+            url=target.url,
+            input=target.value,
+            error=_EMPTY_LISTING_MESSAGE,
+            errorCode="no_items",
+            scrapedAt=now_iso(),
+        ).to_output()

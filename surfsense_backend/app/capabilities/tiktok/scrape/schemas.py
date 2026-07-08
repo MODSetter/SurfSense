@@ -82,5 +82,6 @@ class ScrapeOutput(BaseModel):
 
     @property
     def billable_units(self) -> int:
-        """One returned item = one billable unit."""
-        return len(self.items)
+        """One returned video = one billable unit; ErrorItems (``errorCode`` set,
+        for blocked/empty targets) are surfaced but never charged."""
+        return sum(1 for item in self.items if not getattr(item, "errorCode", None))
