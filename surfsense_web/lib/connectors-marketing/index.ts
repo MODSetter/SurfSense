@@ -1,5 +1,6 @@
 import { googleMaps } from "./google-maps";
 import { googleSearch } from "./google-search";
+import { instagram } from "./instagram";
 import { reddit } from "./reddit";
 import type { ConnectorPageContent } from "./types";
 import { webCrawl } from "./web-crawl";
@@ -11,6 +12,7 @@ export type { ConnectorPageContent } from "./types";
 const CONNECTOR_LIST: ConnectorPageContent[] = [
 	reddit,
 	youtube,
+	instagram,
 	googleMaps,
 	googleSearch,
 	webCrawl,
