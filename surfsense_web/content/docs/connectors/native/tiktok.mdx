@@ -1,19 +1,17 @@
 ---
 title: TikTok
-description: Scrape public TikTok videos by URL, profile, hashtag, or search
+description: Scrape public TikTok videos, comments, accounts, and trending feeds
 ---
 
-The TikTok scraper pulls structured public data from TikTok. Give it URLs (a video, a profile, a hashtag, or a search page) and/or profiles, hashtags, or search terms, and it returns videos (caption, author, play/like/comment/share counts, music, hashtags, timestamps, and the web URL).
+The TikTok connector pulls structured public data from TikTok across four verbs: **scrape** (videos), **comments**, **user search** (accounts), and **trending**. Every verb returns `{ "items": [...] }` and is billed per returned item; surfaced errors (an `errorCode` field, e.g. a withheld feed) are never charged.
 
-## Endpoint
+## Scrape videos
 
 ```bash
 POST /api/v1/workspaces/{workspace_id}/scrapers/tiktok/scrape
 ```
 
-## Inputs
-
-At least one of `urls`, `profiles`, `hashtags`, or `search_queries` is required.
+Give it URLs (a video, a profile, a hashtag, or a search page) and/or profiles, hashtags, or search terms; returns videos (caption, author, play/like/comment/share counts, music, hashtags, timestamps, and the web URL). At least one of `urls`, `profiles`, `hashtags`, or `search_queries` is required.
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -24,22 +22,76 @@ At least one of `urls`, `profiles`, `hashtags`, or `search_queries` is required.
 | `results_per_page` | `10` | Max videos per profile/hashtag/search target |
 | `max_items` | `10` | Max total videos returned across all sources (hard cap 100) |
 
-## Example
-
 ```bash
 curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/tiktok/scrape" \
   -H "Authorization: Bearer $SURFSENSE_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "hashtags": ["food"],
-    "max_items": 25
-  }'
+  -d '{ "hashtags": ["food"], "max_items": 25 }'
 ```
 
-The response is `{ "items": [...] }` — one item per video. Billing is per returned item.
-
 <Callout type="info">
-Video, hashtag, and search targets are the reliable paths. TikTok restricts the profile video endpoint for automated clients, so a `profiles` target can return no items even when the account is public — prefer hashtags, search, or a direct video URL.
+Video and hashtag targets are the reliable video paths. A `profiles` target returns the account's **metadata** (name, followers, bio, verification) reliably, but TikTok often withholds its **video list** from automated clients — so a profile can return metadata with no videos. Keyword **video** search is login-walled and returns a surfaced error; to find accounts by keyword use **user search** below.
 </Callout>
 
-For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → TikTok → Scrape** in your workspace.
+## Comments
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/tiktok/comments
+```
+
+Given TikTok video URLs, returns each video's public comment thread: comment text, author, like count, and reply count (replies carry `repliesToId`, the parent comment id).
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `video_urls` | — | TikTok video URLs (`/@<user>/video/<id>`), max 20 per call |
+| `comments_per_video` | `20` | Max comments per video |
+| `max_items` | `20` | Max total comments returned (hard cap 100) |
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/tiktok/comments" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "video_urls": ["https://www.tiktok.com/@nasa/video/123"], "max_items": 50 }'
+```
+
+## User search
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/tiktok/user_search
+```
+
+Finds public TikTok accounts by keyword — the reliable account-discovery path. Returns matching profiles with name, followers, bio, and verification.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `queries` | — | Keywords to find accounts by, e.g. `["nasa", "cooking"]` (max 20) |
+| `results_per_query` | `10` | Max accounts per query |
+| `max_items` | `10` | Max total accounts returned (hard cap 100) |
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/tiktok/user_search" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "queries": ["space agency"], "max_items": 20 }'
+```
+
+## Trending
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/tiktok/trending
+```
+
+Returns the current trending videos from TikTok's Explore feed — no input needed beyond how many to return. Items use the same video shape as **scrape** and bill on the same per-video meter.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `max_items` | `20` | Max trending videos returned (hard cap 100) |
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/tiktok/trending" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "max_items": 30 }'
+```
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → TikTok** in your workspace.

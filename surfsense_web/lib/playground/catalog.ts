@@ -53,7 +53,16 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 		id: "tiktok",
 		label: "TikTok",
 		icon: TikTokIcon,
-		verbs: [{ name: "tiktok.scrape", verb: "scrape", label: "Scrape" }],
+		verbs: [
+			{ name: "tiktok.scrape", verb: "scrape", label: "Scrape" },
+			{ name: "tiktok.comments", verb: "comments", label: "Comments" },
+			{
+				name: "tiktok.user_search",
+				verb: "user_search",
+				label: "User Search",
+			},
+			{ name: "tiktok.trending", verb: "trending", label: "Trending" },
+		],
 	},
 	{
 		id: "google_maps",

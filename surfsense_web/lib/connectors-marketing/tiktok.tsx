@@ -8,7 +8,7 @@ export const tiktok: ConnectorPageContent = {
 
 	metaTitle: "TikTok Scraper API for Trend and Creator Research | SurfSense",
 	metaDescription:
-		"Scrape public TikTok videos by hashtag, search, or URL with the SurfSense TikTok Scraper API. No approval process or research-API gatekeeping, plus a free tier. Start now.",
+		"Scrape public TikTok videos, comments, accounts, and trending feeds by hashtag, search, or URL with the SurfSense TikTok Scraper API. No approval process or research-API gatekeeping, plus a free tier. Start now.",
 	keywords: [
 		"tiktok scraper",
 		"tiktok scraper api",
@@ -17,6 +17,9 @@ export const tiktok: ConnectorPageContent = {
 		"scrape tiktok",
 		"tiktok data api",
 		"tiktok hashtag scraper",
+		"tiktok comments scraper",
+		"tiktok trending scraper",
+		"tiktok user search",
 		"tiktok trend tracking",
 		"tiktok mcp",
 		"social listening",
@@ -52,7 +55,7 @@ export const tiktok: ConnectorPageContent = {
 	},
 
 	extractIntro:
-		"Every call returns structured video items. Point the API at a hashtag, a search query, a creator profile, or a specific video URL.",
+		"Every call returns structured items. Scrape videos from a hashtag, search query, creator profile, or video URL — or switch verbs to pull a video's comments, discover accounts by keyword, or fetch the current trending feed.",
 	extractFields: [
 		{
 			label: "Videos",
@@ -101,7 +104,7 @@ export const tiktok: ConnectorPageContent = {
 		{
 			title: "Campaign and sentiment tracking",
 			description:
-				"Measure how a launch or branded hashtag spreads across TikTok — video count, reach, and engagement over time — and report the momentum, not a vanity view count.",
+				"Measure how a launch or branded hashtag spreads across TikTok — video count, reach, and engagement over time — then pull the comments on top videos to read how the audience actually reacts, not just a vanity view count.",
 		},
 	],
 
@@ -134,7 +137,7 @@ export const tiktok: ConnectorPageContent = {
 			{
 				feature: "Agent-ready",
 				official: "No; you build the harness yourself",
-				surfsense: "MCP server exposes tiktok.scrape as a native tool",
+				surfsense: "MCP server exposes scrape, comments, user search, and trending as native tools",
 			},
 		],
 	},
@@ -262,7 +265,12 @@ export const tiktok: ConnectorPageContent = {
 		{
 			question: "Can I scrape a specific creator's videos?",
 			answer:
-				"You can pass profiles or a profile URL, but TikTok restricts its profile video endpoint for automated clients, so a profile target can return no videos even for a public account. For reliable results, scrape by hashtag, by search query, or by a direct video URL.",
+				"Pass a profile or profile URL and you always get the account's metadata — name, followers, bio, verification. TikTok often withholds the profile video list from automated clients, so that list can come back empty even for a public account; for reliable video results, scrape by hashtag, by search query, or by a direct video URL.",
+		},
+		{
+			question: "What TikTok data can I scrape?",
+			answer:
+				"Four verbs: scrape (videos by hashtag, search, profile, or URL), comments (a video's public comment thread), user search (find accounts by keyword — the reliable discovery path, since keyword video search is login-walled), and trending (the current Explore feed). Each returns structured items and is billed per item returned.",
 		},
 	],
 

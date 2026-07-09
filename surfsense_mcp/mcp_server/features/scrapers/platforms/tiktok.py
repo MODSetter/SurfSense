@@ -1,4 +1,4 @@
-"""TikTok scraper tool."""
+"""TikTok scraper tools: scrape (videos), comments, user search, and trending."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from ..capability import run_scraper
 def register(
     mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
 ) -> None:
-    """Register the TikTok tool."""
+    """Register the TikTok tools."""
 
     @mcp.tool(
         name="surfsense_tiktok_scrape",
@@ -83,6 +83,121 @@ def register(
                 "results_per_page": results_per_page,
                 "max_items": max_items,
             },
+            workspace=workspace,
+            response_format=response_format,
+        )
+
+    @mcp.tool(
+        name="surfsense_tiktok_comments",
+        title="Scrape TikTok comments",
+        annotations=SCRAPE,
+        structured_output=False,
+    )
+    async def tiktok_comments(
+        video_urls: Annotated[
+            list[str],
+            Field(
+                description="TikTok video URLs "
+                "('https://www.tiktok.com/@user/video/123') to pull comments from."
+            ),
+        ],
+        comments_per_video: Annotated[
+            int, Field(ge=1, description="Max comments to return per video.")
+        ] = 20,
+        max_items: Annotated[
+            int, Field(ge=1, description="Maximum comments to return in total.")
+        ] = 20,
+        workspace: WorkspaceParam = None,
+        response_format: ResponseFormatParam = "markdown",
+    ) -> str:
+        """Scrape the public comments of TikTok videos.
+
+        Returns each comment's text, author, like count, and reply count (replies
+        carry the parent comment id). Example: video_urls=['https://www.tiktok.com/
+        @nasa/video/123'], max_items=50.
+        """
+        return await run_scraper(
+            client,
+            context,
+            platform="tiktok",
+            verb="comments",
+            payload={
+                "video_urls": video_urls,
+                "comments_per_video": comments_per_video,
+                "max_items": max_items,
+            },
+            workspace=workspace,
+            response_format=response_format,
+        )
+
+    @mcp.tool(
+        name="surfsense_tiktok_user_search",
+        title="Search TikTok accounts",
+        annotations=SCRAPE,
+        structured_output=False,
+    )
+    async def tiktok_user_search(
+        queries: Annotated[
+            list[str],
+            Field(
+                description="Keywords to find TikTok accounts by, e.g. "
+                "['nasa', 'cooking']."
+            ),
+        ],
+        results_per_query: Annotated[
+            int, Field(ge=1, description="Max accounts to return per query.")
+        ] = 10,
+        max_items: Annotated[
+            int, Field(ge=1, description="Maximum accounts to return in total.")
+        ] = 10,
+        workspace: WorkspaceParam = None,
+        response_format: ResponseFormatParam = "markdown",
+    ) -> str:
+        """Find public TikTok accounts by keyword.
+
+        Returns matching profiles with name, followers, bio, and verification —
+        the reliable account-discovery path (video search is login-walled).
+        Example: queries=['space agency'], max_items=20.
+        """
+        return await run_scraper(
+            client,
+            context,
+            platform="tiktok",
+            verb="user_search",
+            payload={
+                "queries": queries,
+                "results_per_query": results_per_query,
+                "max_items": max_items,
+            },
+            workspace=workspace,
+            response_format=response_format,
+        )
+
+    @mcp.tool(
+        name="surfsense_tiktok_trending",
+        title="Get trending TikTok videos",
+        annotations=SCRAPE,
+        structured_output=False,
+    )
+    async def tiktok_trending(
+        max_items: Annotated[
+            int,
+            Field(ge=1, description="Max trending videos to return from Explore."),
+        ] = 20,
+        workspace: WorkspaceParam = None,
+        response_format: ResponseFormatParam = "markdown",
+    ) -> str:
+        """Get the current trending TikTok videos from the Explore feed.
+
+        No input needed beyond how many to return; each video comes with caption,
+        author, stats, music, and its web URL. Example: max_items=30.
+        """
+        return await run_scraper(
+            client,
+            context,
+            platform="tiktok",
+            verb="trending",
+            payload={"max_items": max_items},
             workspace=workspace,
             response_format=response_format,
         )
