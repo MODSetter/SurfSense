@@ -163,28 +163,11 @@ async def test_rotates_on_401_login_wall():
     assert holder.rotations == 1
 
 
-async def test_rotates_on_login_redirect_then_succeeds():
-    # 200 status but redirected to /accounts/login/: a soft block that must
-    # rotate to a fresh IP, not be mistaken for an empty result.
-    holder = _FakeHolder(
-        [_FakeSession(200, login_wall=True), _FakeSession(200)]
-    )
-    token = _current_session.set(holder)
-    try:
-        result = await fetch_json("api/v1/tags/web_info/", {"tag_name": "travel"})
-    finally:
-        _current_session.reset(token)
-    assert result == _PAYLOAD
-    assert holder.rotations == 1
-
-
-async def test_persistent_login_redirect_raises_blocked():
-    holder = _FakeHolder(
-        [
-            _FakeSession(200, login_wall=True)
-            for _ in range(fetch._MAX_ROTATIONS + 1)
-        ]
-    )
+async def test_login_redirect_fails_fast_without_rotating():
+    # A 302 -> /accounts/login/ (served 200) is an endpoint-level wall: rotating
+    # never clears it, so we raise immediately instead of burning IP rotations.
+    # A second healthy session is present to prove we do NOT fall through to it.
+    holder = _FakeHolder([_FakeSession(200, login_wall=True), _FakeSession(200)])
     token = _current_session.set(holder)
     try:
         raised = False
@@ -195,7 +178,7 @@ async def test_persistent_login_redirect_raises_blocked():
     finally:
         _current_session.reset(token)
     assert raised
-    assert holder.rotations == fetch._MAX_ROTATIONS
+    assert holder.rotations == 0  # fail fast: no rotation burned
 
 
 async def test_404_returns_none_without_rotating():
@@ -295,10 +278,7 @@ async def test_fan_out_empty_jobs_is_noop():
     assert out == []
 
 
-async def test_fan_out_propagates_blocked_without_deadlock(monkeypatch):
-    # Regression: a worker that raises InstagramAccessBlockedError used to strand
-    # the exception on its task and deadlock the consumer on results.get(). It
-    # must surface as InstagramAccessBlockedError, not hang.
+async def _install_fake_holders(monkeypatch) -> None:
     async def _fake_open():
         return _TrackingHolder()
 
@@ -309,9 +289,17 @@ async def test_fan_out_propagates_blocked_without_deadlock(monkeypatch):
     monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
     monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
 
-    async def _blocked_job() -> AsyncIterator[dict]:
-        raise InstagramAccessBlockedError("login wall")
-        yield {}  # unreachable; makes this an async generator
+
+async def _blocked_job() -> AsyncIterator[dict]:
+    raise InstagramAccessBlockedError("login wall")
+    yield {}  # unreachable; makes this an async generator
+
+
+async def test_fan_out_all_blocked_raises_without_deadlock(monkeypatch):
+    # Regression: a blocked worker used to strand its exception on a dead task
+    # and deadlock the consumer on results.get(). When EVERY target is blocked
+    # (zero items), it must surface InstagramAccessBlockedError, not hang.
+    await _install_fake_holders(monkeypatch)
 
     raised = False
     try:
@@ -320,7 +308,26 @@ async def test_fan_out_propagates_blocked_without_deadlock(monkeypatch):
                 pass
     except InstagramAccessBlockedError:
         raised = True
-    assert raised, "hard block must propagate, not deadlock"
+    assert raised, "fully-blocked run must surface the 403, not deadlock"
+
+
+async def test_fan_out_partial_results_survive_one_blocked_target(monkeypatch):
+    # Q2: one blocked target must NOT abort the batch — the good target's items
+    # come through and no exception is raised (aggregation, not a transaction).
+    await _install_fake_holders(monkeypatch)
+
+    async def _good_job() -> AsyncIterator[dict]:
+        for i in range(3):
+            yield {"id": f"good:{i}"}
+
+    async with asyncio.timeout(5):
+        items = [
+            item
+            async for item in scraper.fan_out(
+                [_blocked_job(), _good_job()], concurrency=2
+            )
+        ]
+    assert [it["id"] for it in items] == ["good:0", "good:1", "good:2"]
 
 
 def _profile_payload(username: str, n: int) -> dict:
