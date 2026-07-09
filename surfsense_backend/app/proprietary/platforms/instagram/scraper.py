@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import AsyncIterator
 from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
@@ -69,6 +70,10 @@ _PROFILE_PATH = "api/v1/users/web_profile_info/"
 _HASHTAG_PATH = "api/v1/tags/web_info/"
 _LOCATION_PATH = "api/v1/locations/web_info/"
 _SEARCH_PATH = "web/search/topsearch/"
+
+# Instagram usernames: 1-30 chars of letters/digits/period/underscore. Used to
+# treat a profile/user discovery query as a direct (anonymous) handle lookup.
+_HANDLE_RE = re.compile(r"[A-Za-z0-9._]{1,30}\Z")
 
 
 def _parse_newer_than(value: str | None) -> datetime | None:
@@ -356,48 +361,25 @@ async def _details_flow(
 async def _discover(
     query: str, *, search_type: str, limit: int
 ) -> list[ResolvedUrl]:
-    """Resolve a discovery query into target URLs via topsearch."""
-    data = await fetch_json(_SEARCH_PATH, {"query": query, "context": "blended"})
-    if not isinstance(data, dict):
-        return []
-    out: list[ResolvedUrl] = []
+    """Resolve a discovery query into targets - anonymously.
+
+    Instagram's keyword search (``topsearch``) is login-walled, so we never call
+    it. A profile/user query is resolved as a direct handle lookup against the
+    anonymous profile endpoint ("messi" -> instagram.com/messi/). Hashtag/place
+    keyword discovery has NO anonymous endpoint (topsearch and the tag/location
+    feeds all require a session), so we surface a clear block instead of a
+    misleading empty success.
+    """
     if search_type in ("profile", "user"):
-        for entry in data.get("users", []):
-            user = entry.get("user", {}) if isinstance(entry, dict) else {}
-            name = user.get("username")
-            if not name:
-                continue
-            out.append(
-                ResolvedUrl("profile", name, f"https://www.instagram.com/{name}/")
-            )
-    elif search_type == "hashtag":
-        for entry in data.get("hashtags", []):
-            tag = entry.get("hashtag", {}) if isinstance(entry, dict) else {}
-            name = tag.get("name")
-            if not name:
-                continue
-            out.append(
-                ResolvedUrl(
-                    "hashtag",
-                    name,
-                    f"https://www.instagram.com/explore/tags/{name}/",
-                )
-            )
-    elif search_type == "place":
-        for entry in data.get("places", []):
-            place = entry.get("place", {}) if isinstance(entry, dict) else {}
-            loc = place.get("location", {}) if isinstance(place, dict) else {}
-            pk = loc.get("pk") or loc.get("id")
-            if not pk:
-                continue
-            out.append(
-                ResolvedUrl(
-                    "place",
-                    str(pk),
-                    f"https://www.instagram.com/explore/locations/{pk}/",
-                )
-            )
-    return out[:limit]
+        handle = query.strip().lstrip("@")
+        if _HANDLE_RE.match(handle):
+            url = f"https://www.instagram.com/{handle}/"
+            return [ResolvedUrl("profile", handle, url)][:limit]
+        return []  # not a handle, and no anonymous fuzzy search -> nothing to do
+    raise InstagramAccessBlockedError(
+        f"Instagram {search_type} search requires login and is unavailable in "
+        "anonymous mode - pass a profile URL or handle via directUrls instead"
+    )
 
 
 def _resolve_inputs(input_model: InstagramScrapeInput) -> list[ResolvedUrl]:

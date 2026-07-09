@@ -43,7 +43,10 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
         except InstagramAccessBlockedError as exc:
             # Anonymous-only scraper; a hard block can't be retried with creds.
             raise ForbiddenError(
-                f"Instagram refused anonymous access: {exc}",
+                "Instagram requires a login for this request and SurfSense scrapes "
+                "anonymously. Provide a profile URL or handle via directUrls; "
+                "keyword/hashtag search needs an account and is unavailable. "
+                f"Details: {exc}",
                 code="INSTAGRAM_ACCESS_BLOCKED",
             ) from exc
         emit_progress(
