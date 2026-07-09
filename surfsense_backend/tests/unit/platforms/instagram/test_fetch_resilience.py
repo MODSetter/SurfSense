@@ -389,3 +389,22 @@ async def test_scrape_instagram_closes_sessions_when_limit_stops_inflight_worker
     assert len(items) == 3
     assert holders, "workers should have opened sessions"
     assert all(h.closed for h in holders), "early stop leaked a proxy session"
+
+
+async def test_discover_profile_is_anonymous_handle_lookup():
+    # keyword search (topsearch) is login-walled, so a profile/user query resolves
+    # as a DIRECT handle lookup against the anonymous profile endpoint — no network
+    # here, just the URL resolution, so no session/monkeypatch needed.
+    targets = await scraper._discover("messi", search_type="user", limit=10)
+    assert [(t.kind, t.value) for t in targets] == [("profile", "messi")]
+
+
+async def test_discover_hashtag_search_blocks_anonymously():
+    # hashtag/place keyword discovery has no anonymous endpoint at all, so it must
+    # fail loud (clear message) rather than return a misleading empty success.
+    raised = False
+    try:
+        await scraper._discover("travel", search_type="hashtag", limit=10)
+    except InstagramAccessBlockedError:
+        raised = True
+    assert raised
