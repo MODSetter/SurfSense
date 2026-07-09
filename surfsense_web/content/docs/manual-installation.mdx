@@ -57,6 +57,8 @@ Copy-Item -Path .env.example -Destination .env
 
 `.env.example` is the source of truth for configuration — every variable is documented inline with comments and sensible defaults. At minimum, set your PostgreSQL connection string and a JWT secret key (generate one with `openssl rand -base64 32`). Everything else — auth type, ETL service, embeddings, TTS/STT, connector credentials — is optional and explained in the file itself.
 
+For separate embedding servers, set `EMBEDDING_BASE_URL` with Chonkie/LiteLLM embedding models; `OLLAMA_EMBEDDING_BASE_URL` is also supported as an Ollama-specific fallback.
+
 ### 2. Install Dependencies
 
 ```bash
