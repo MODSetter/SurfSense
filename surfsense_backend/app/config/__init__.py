@@ -719,6 +719,14 @@ class Config:
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
     YOUTUBE_MICROS_PER_COMMENT = int(os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500"))
+    INSTAGRAM_SCRAPE_MICROS_PER_ITEM = int(
+        os.getenv("INSTAGRAM_SCRAPE_MICROS_PER_ITEM", "3500")
+    )
+    # Kept separate from the item rate so comments can be re-tuned toward the
+    # cheaper per-comment market without touching post/reel pricing.
+    INSTAGRAM_SCRAPE_MICROS_PER_COMMENT = int(
+        os.getenv("INSTAGRAM_SCRAPE_MICROS_PER_COMMENT", "1500")
+    )
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
