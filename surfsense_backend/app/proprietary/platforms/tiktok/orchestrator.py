@@ -12,12 +12,13 @@ from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import quote
 
-from .flows import FetchFn, FetchListingFn
+from .flows import FetchFn, FetchListingFn, FetchUsersFn
 from .flows.listing import iter_listing
 from .flows.profile import iter_profile
+from .flows.user_search import iter_user_search
 from .flows.video import iter_video
 from .schemas import TikTokScrapeInput
-from .session import fetch_html, fetch_item_list
+from .session import fetch_html, fetch_item_list, fetch_user_search
 from .targets import resolve_target
 from .targets.types import TikTokTarget
 
@@ -99,4 +100,26 @@ async def scrape_tiktok(
         emit_progress("scraping", current=len(results), total=limit, unit="item")
         if limit is not None and len(results) >= limit:
             break
+    return results
+
+
+async def search_tiktok_users(
+    queries: list[str],
+    *,
+    per_query: int,
+    limit: int | None = None,
+    fetch_users: FetchUsersFn = fetch_user_search,
+) -> list[dict[str, Any]]:
+    """Collect user-search account records across queries, honoring ``limit``."""
+    from app.capabilities.core.progress import emit_progress
+
+    results: list[dict[str, Any]] = []
+    for query in queries:
+        async for item in iter_user_search(
+            query, cap=per_query, fetch_users=fetch_users
+        ):
+            results.append(item)
+            emit_progress("searching", current=len(results), total=limit, unit="item")
+            if limit is not None and len(results) >= limit:
+                return results
     return results

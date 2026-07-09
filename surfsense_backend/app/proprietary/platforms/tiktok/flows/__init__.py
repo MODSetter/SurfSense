@@ -10,4 +10,7 @@ FetchFn = Callable[[str], Awaitable[str | None]]
 FetchListingFn = Callable[[str, int], Awaitable[list[dict]]]
 """Load a listing page and return up to ``count`` captured itemStructs."""
 
+FetchUsersFn = Callable[[str, int], Awaitable[list[dict]]]
+"""Load a user-search page and return up to ``count`` captured ``user_info`` records."""
+
 FlowResult = AsyncIterator[dict]

@@ -717,6 +717,9 @@ class Config:
     # Browser-driven listings make TikTok heavier per item than the API-backed
     # video meter, so it sits a touch above YouTube's video rate.
     TIKTOK_MICROS_PER_VIDEO = int(os.getenv("TIKTOK_MICROS_PER_VIDEO", "3500"))
+    # User search returns lighter account records (name/followers/bio), priced
+    # below the video meter to mirror the cheaper account-discovery market.
+    TIKTOK_MICROS_PER_USER = int(os.getenv("TIKTOK_MICROS_PER_USER", "2500"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.

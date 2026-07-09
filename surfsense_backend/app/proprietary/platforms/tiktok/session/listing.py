@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from scrapling.fetchers import StealthyFetcher
@@ -29,9 +30,11 @@ from app.proprietary.web_crawler.stealth import (
 )
 from app.utils.proxy import get_proxy_url
 
-from ..extraction import items_from_response
+from ..extraction import items_from_response, users_from_response
 
 logger = logging.getLogger(__name__)
+
+ExtractFn = Callable[[Any], list[dict[str, Any]]]
 
 # XHR paths that carry itemStructs for the three listing kinds.
 _ITEM_LIST_MARKERS = (
@@ -39,6 +42,8 @@ _ITEM_LIST_MARKERS = (
     "/api/challenge/item_list",
     "/api/search/",
 )
+# The user-search XHR carries account records (user_list), not itemStructs.
+_USER_SEARCH_MARKERS = ("/api/search/user",)
 _HOME_URL = "https://www.tiktok.com/"
 _MSTOKEN_COOKIE = "msToken"
 # Bounded scroll: a dead page can't loop forever, and a live one stops early
@@ -57,24 +62,31 @@ def _has_mstoken(page: Any) -> bool:
         return False
 
 
-def _build_page_action(collected: list[dict[str, Any]], url: str, target_count: int):
-    """A sync ``page_action`` that warms the session then captures item_list XHRs.
+def _build_page_action(
+    collected: list[dict[str, Any]],
+    url: str,
+    target_count: int,
+    markers: tuple[str, ...],
+    extract: ExtractFn,
+):
+    """A sync ``page_action`` that warms the session then captures matching XHRs.
 
-    A cold context returns an empty ``item_list`` body, so we first mint the
-    anonymous ``msToken`` (homepage hit), then navigate to the target with the
-    listener already attached so page-one fires into it; scrolling pages the rest.
+    A cold context returns an empty body, so we first mint the anonymous
+    ``msToken`` (homepage hit), then navigate to the target with the listener
+    already attached so page-one fires into it; scrolling pages the rest.
+    ``markers``/``extract`` select which XHRs to keep and how to unwrap them.
     """
 
     def _on_response(response: Any) -> None:
         response_url = getattr(response, "url", "")
-        if not any(marker in response_url for marker in _ITEM_LIST_MARKERS):
+        if not any(marker in response_url for marker in markers):
             return
         try:
             body = response.json()
         except Exception:
             # An empty 200 (TikTok soft-block) or a body evicted before read.
             return
-        collected.extend(items_from_response(body))
+        collected.extend(extract(body))
 
     def _warm(page: Any) -> None:
         if _has_mstoken(page):
@@ -110,7 +122,9 @@ def _build_page_action(collected: list[dict[str, Any]], url: str, target_count: 
     return page_action
 
 
-def _fetch_sync(url: str, target_count: int) -> list[dict[str, Any]]:
+def _fetch_sync(
+    url: str, target_count: int, markers: tuple[str, ...], extract: ExtractFn
+) -> list[dict[str, Any]]:
     collected: list[dict[str, Any]] = []
     kwargs = build_stealthy_kwargs(get_stealth_config())
     StealthyFetcher.fetch(
@@ -118,7 +132,9 @@ def _fetch_sync(url: str, target_count: int) -> list[dict[str, Any]]:
         headless=True,
         network_idle=False,
         proxy=get_proxy_url(),
-        page_action=_build_page_action(collected, url, target_count),
+        page_action=_build_page_action(
+            collected, url, target_count, markers, extract
+        ),
         **kwargs,
     )
     return collected[:target_count]
@@ -126,4 +142,13 @@ def _fetch_sync(url: str, target_count: int) -> list[dict[str, Any]]:
 
 async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, Any]]:
     """Return up to ``target_count`` itemStructs from a listing page's XHRs."""
-    return await asyncio.to_thread(_fetch_sync, page_url, target_count)
+    return await asyncio.to_thread(
+        _fetch_sync, page_url, target_count, _ITEM_LIST_MARKERS, items_from_response
+    )
+
+
+async def fetch_user_search(page_url: str, target_count: int) -> list[dict[str, Any]]:
+    """Return up to ``target_count`` ``user_info`` records from a user-search page."""
+    return await asyncio.to_thread(
+        _fetch_sync, page_url, target_count, _USER_SEARCH_MARKERS, users_from_response
+    )
