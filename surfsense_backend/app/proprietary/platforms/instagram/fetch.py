@@ -75,6 +75,12 @@ _MAX_ROTATIONS = 3
 _MAX_BACKOFFS = 4
 _BACKOFF_BASE_S = 5.0
 
+# Endpoints Instagram serves only to logged-in clients (confirmed live). A bare
+# 401/403 here is an endpoint auth wall, not a per-IP block, so every rotated IP
+# hits the same wall — fail fast instead of burning the pool, exactly like the
+# /accounts/login/ redirect branch. Content endpoints (profiles) still rotate.
+_AUTH_WALLED_PATHS = ("web/search/topsearch/", "api/v1/tags/web_info/")
+
 # Instagram 429s hard on bursts. Pace each sticky session so a fast IP can't
 # burst past the per-IP threshold. ponytail: 1.5s is tuned to residential exits;
 # a pool with a stricter per-IP cap may need it raised — watch for 429 log spam.
@@ -362,11 +368,18 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                 )
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
-            if status in _ROTATE_STATUSES and attempt < _MAX_ROTATIONS:
-                attempt += 1
-                await holder.rotate()
-                continue
             if status in _ROTATE_STATUSES:
+                # Bare 401/403 on a login-gated endpoint: rotating never clears an
+                # endpoint auth wall, so fail fast (mirrors the login-redirect
+                # branch above). Other endpoints rotate — a per-IP 401 recovers.
+                if any(p in path for p in _AUTH_WALLED_PATHS):
+                    raise InstagramAccessBlockedError(
+                        f"Instagram login wall on {path} (endpoint requires auth)"
+                    )
+                if attempt < _MAX_ROTATIONS:
+                    attempt += 1
+                    await holder.rotate()
+                    continue
                 raise InstagramAccessBlockedError(
                     f"Instagram refused {path} on {attempt} rotated IPs ({status})"
                 )
