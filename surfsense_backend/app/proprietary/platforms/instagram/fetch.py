@@ -338,11 +338,19 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
             await holder.pace()
             page = await _get_page(session, url)
             status = page.status
-            # A 302 -> /accounts/login/ soft block presents as 200 login HTML;
-            # fold it into the same rotate path as a 401/403.
-            blocked = status in _ROTATE_STATUSES or _is_login_redirect(page)
 
-            if status == 200 and not blocked:
+            # Endpoint-level login wall (302 -> /accounts/login/, served as 200
+            # login HTML): fail fast, do NOT rotate. Unlike the per-IP 401/403
+            # below — which recovers on a fresh exit IP, so it still rotates —
+            # every rotated IP hits this same wall (observed live), so rotating
+            # only burns the pool and re-warms for an unwinnable block. Raising
+            # (vs returning None) keeps a blocked target distinguishable from an
+            # empty one; fan_out swallows it per-target for partial results.
+            if _is_login_redirect(page):
+                raise InstagramAccessBlockedError(
+                    f"Instagram login wall on {path} (endpoint requires auth)"
+                )
+            if status == 200:
                 return _parse_json(page)
             if status == 404:
                 return None
@@ -354,14 +362,13 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                 )
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
-            if blocked and attempt < _MAX_ROTATIONS:
+            if status in _ROTATE_STATUSES and attempt < _MAX_ROTATIONS:
                 attempt += 1
                 await holder.rotate()
                 continue
-            if blocked:
+            if status in _ROTATE_STATUSES:
                 raise InstagramAccessBlockedError(
-                    f"Instagram refused {path} on {attempt} rotated IPs "
-                    f"(status={status}, login_wall={_is_login_redirect(page)})"
+                    f"Instagram refused {path} on {attempt} rotated IPs ({status})"
                 )
             logger.warning("[instagram] GET %s returned %s", path, status)
             return None
