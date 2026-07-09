@@ -12,13 +12,20 @@ from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import quote
 
-from .flows import FetchFn, FetchListingFn, FetchUsersFn
+from .flows import FetchCommentsFn, FetchFn, FetchListingFn, FetchUsersFn
+from .flows.comments import iter_comments
 from .flows.listing import iter_listing
 from .flows.profile import iter_profile
 from .flows.user_search import iter_user_search
 from .flows.video import iter_video
-from .schemas import TikTokScrapeInput
-from .session import fetch_html, fetch_item_list, fetch_user_search
+from .extraction.timestamps import now_iso
+from .schemas import ErrorItem, TikTokScrapeInput
+from .session import (
+    fetch_comments,
+    fetch_html,
+    fetch_item_list,
+    fetch_user_search,
+)
 from .targets import resolve_target
 from .targets.types import TikTokTarget
 
@@ -120,6 +127,47 @@ async def search_tiktok_users(
         ):
             results.append(item)
             emit_progress("searching", current=len(results), total=limit, unit="item")
+            if limit is not None and len(results) >= limit:
+                return results
+    return results
+
+
+async def scrape_tiktok_comments(
+    video_urls: list[str],
+    *,
+    per_video: int,
+    limit: int | None = None,
+    fetch_comments_fn: FetchCommentsFn = fetch_comments,
+) -> list[dict[str, Any]]:
+    """Collect comments across video URLs, honoring ``limit``.
+
+    A non-video URL yields one ``bad_url`` ErrorItem (never a silent drop) so the
+    caller can tell "wrong input" from "video has no comments".
+    """
+    from app.capabilities.core.progress import emit_progress
+
+    results: list[dict[str, Any]] = []
+    for url in video_urls:
+        target = resolve_target(url)
+        if target is None or target.kind != "video":
+            results.append(
+                ErrorItem(
+                    url=url,
+                    input=url,
+                    error="Not a TikTok video URL.",
+                    errorCode="bad_url",
+                    scrapedAt=now_iso(),
+                ).to_output()
+            )
+            emit_progress("scraping", current=len(results), total=limit, unit="item")
+            if limit is not None and len(results) >= limit:
+                return results
+            continue
+        async for item in iter_comments(
+            target, cap=per_video, fetch_comments=fetch_comments_fn
+        ):
+            results.append(item)
+            emit_progress("scraping", current=len(results), total=limit, unit="item")
             if limit is not None and len(results) >= limit:
                 return results
     return results

@@ -37,6 +37,7 @@ _PLATFORM_RATE_KEYS: dict[BillingUnit, str] = {
     BillingUnit.YOUTUBE_COMMENT: "YOUTUBE_MICROS_PER_COMMENT",
     BillingUnit.TIKTOK_VIDEO: "TIKTOK_MICROS_PER_VIDEO",
     BillingUnit.TIKTOK_USER: "TIKTOK_MICROS_PER_USER",
+    BillingUnit.TIKTOK_COMMENT: "TIKTOK_MICROS_PER_COMMENT",
 }
 
 
@@ -55,6 +56,7 @@ _UNIT_NOUNS: dict[BillingUnit, str] = {
     BillingUnit.YOUTUBE_COMMENT: "comment",
     BillingUnit.TIKTOK_VIDEO: "video",
     BillingUnit.TIKTOK_USER: "profile",
+    BillingUnit.TIKTOK_COMMENT: "comment",
 }
 
 
