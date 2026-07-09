@@ -101,6 +101,13 @@ _WARM_URL = "https://www.instagram.com/"
 _BASE = "https://www.instagram.com"
 _CSRF_COOKIE = "csrftoken"
 
+# Soft login wall: instead of a 401/403, IG answers an api/v1/* request with a
+# 302 to /accounts/login/ that the impersonated client follows to a 200 login
+# page. The status is 200 but the body is login HTML, so this evades the
+# status-code rotate check — detect it via the response's final URL and treat
+# it exactly like a 403.
+_LOGIN_PATH = "/accounts/login"
+
 
 def now_iso() -> str:
     """UTC timestamp in the millisecond ISO shape used by scraper output."""
@@ -134,6 +141,17 @@ def _parse_json(page: Any) -> Any | None:
                 return json.loads(val)
             return None
     return None
+
+
+def _is_login_redirect(page: Any) -> bool:
+    """True if IG redirected this request to the anonymous login wall.
+
+    A soft block: the final URL lands on ``/accounts/login/`` (served 200), so
+    the status check never fires. Best-effort — returns ``False`` when the
+    response exposes no URL.
+    """
+    final = getattr(page, "url", None)
+    return isinstance(final, str) and _LOGIN_PATH in final
 
 
 def _build_url(path: str, params: dict[str, Any] | None) -> str:
@@ -320,8 +338,11 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
             await holder.pace()
             page = await _get_page(session, url)
             status = page.status
+            # A 302 -> /accounts/login/ soft block presents as 200 login HTML;
+            # fold it into the same rotate path as a 401/403.
+            blocked = status in _ROTATE_STATUSES or _is_login_redirect(page)
 
-            if status == 200:
+            if status == 200 and not blocked:
                 return _parse_json(page)
             if status == 404:
                 return None
@@ -333,13 +354,14 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                 )
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
-            if status in _ROTATE_STATUSES and attempt < _MAX_ROTATIONS:
+            if blocked and attempt < _MAX_ROTATIONS:
                 attempt += 1
                 await holder.rotate()
                 continue
-            if status in _ROTATE_STATUSES:
+            if blocked:
                 raise InstagramAccessBlockedError(
-                    f"Instagram refused {path} on {attempt} rotated IPs ({status})"
+                    f"Instagram refused {path} on {attempt} rotated IPs "
+                    f"(status={status}, login_wall={_is_login_redirect(page)})"
                 )
             logger.warning("[instagram] GET %s returned %s", path, status)
             return None
