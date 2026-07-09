@@ -9,6 +9,11 @@ from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from dotenv import load_dotenv
 from rerankers import Reranker
 
+from app.config.embedding_settings import (
+    build_embedding_kwargs,
+    resolve_embedding_base_url,
+)
+
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -937,16 +942,13 @@ class Config:
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+    EMBEDDING_BASE_URL = resolve_embedding_base_url()
     # Azure OpenAI credentials from environment variables
     AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 
-    # Pass Azure credentials to embeddings when using Azure OpenAI
-    embedding_kwargs = {}
-    if AZURE_OPENAI_ENDPOINT:
-        embedding_kwargs["azure_endpoint"] = AZURE_OPENAI_ENDPOINT
-    if AZURE_OPENAI_API_KEY:
-        embedding_kwargs["azure_api_key"] = AZURE_OPENAI_API_KEY
+    # Pass provider-specific settings to embeddings when supported.
+    embedding_kwargs = build_embedding_kwargs(embedding_model=EMBEDDING_MODEL)
 
     embedding_model_instance = AutoEmbeddings.get_embeddings(
         EMBEDDING_MODEL,

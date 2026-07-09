@@ -50,6 +50,23 @@ http://<host>:11434
 
 Replace `<host>` with the LAN IP or domain for that machine.
 
+## Embeddings on a Separate Ollama Server
+
+Search-space model connections configure chat and completion models. The global
+embedding model is configured in the backend environment.
+
+Use Chonkie's LiteLLM embedding provider when embeddings run on Ollama:
+
+```dotenv
+EMBEDDING_MODEL=litellm://ollama/nomic-embed-text
+EMBEDDING_BASE_URL=http://host.docker.internal:11434
+```
+
+If chat and embeddings run on different Ollama instances, keep the chat model
+connection pointed at the chat server and set `EMBEDDING_BASE_URL` to the
+embedding server. `OLLAMA_EMBEDDING_BASE_URL` is also supported as an
+Ollama-specific fallback when `EMBEDDING_BASE_URL` is not set.
+
 ## Add the Connection
 
 1. Open Workspace Settings.
