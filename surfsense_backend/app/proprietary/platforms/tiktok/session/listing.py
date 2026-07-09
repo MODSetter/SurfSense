@@ -51,6 +51,8 @@ _ITEM_LIST_MARKERS = (
 )
 # The user-search XHR carries account records (user_list), not itemStructs.
 _USER_SEARCH_MARKERS = ("/api/search/user",)
+# The Explore feed's trending videos arrive as ordinary itemStructs.
+_EXPLORE_MARKERS = ("/api/explore/item_list",)
 # The comment feed fires only after the comments panel is opened.
 _COMMENT_MARKERS = ("/api/comment/list",)
 _COMMENT_ICON_SELECTORS = (
@@ -254,4 +256,16 @@ async def fetch_comments(page_url: str, target_count: int) -> list[dict[str, Any
         _COMMENT_MARKERS,
         comments_from_response,
         _scroll_comments,
+    )
+
+
+async def fetch_trending(page_url: str, target_count: int) -> list[dict[str, Any]]:
+    """Return up to ``target_count`` trending itemStructs from the Explore feed."""
+    return await asyncio.to_thread(
+        _fetch_sync,
+        page_url,
+        target_count,
+        _EXPLORE_MARKERS,
+        items_from_response,
+        _scroll_page,
     )

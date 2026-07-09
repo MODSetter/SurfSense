@@ -10,6 +10,7 @@ from .orchestrator import (
     iter_tiktok,
     scrape_tiktok,
     scrape_tiktok_comments,
+    scrape_tiktok_trending,
     search_tiktok_users,
 )
 from .schemas import (
@@ -29,5 +30,6 @@ __all__ = [
     "iter_tiktok",
     "scrape_tiktok",
     "scrape_tiktok_comments",
+    "scrape_tiktok_trending",
     "search_tiktok_users",
 ]

@@ -12,18 +12,19 @@ from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import quote
 
+from .extraction.timestamps import now_iso
 from .flows import FetchCommentsFn, FetchFn, FetchListingFn, FetchUsersFn
 from .flows.comments import iter_comments
 from .flows.listing import iter_listing
 from .flows.profile import iter_profile
 from .flows.user_search import iter_user_search
 from .flows.video import iter_video
-from .extraction.timestamps import now_iso
 from .schemas import ErrorItem, TikTokScrapeInput
 from .session import (
     fetch_comments,
     fetch_html,
     fetch_item_list,
+    fetch_trending,
     fetch_user_search,
 )
 from .targets import resolve_target
@@ -32,6 +33,7 @@ from .targets.types import TikTokTarget
 _PROFILE_URL = "https://www.tiktok.com/@{name}"
 _HASHTAG_URL = "https://www.tiktok.com/tag/{tag}"
 _SEARCH_URL = "https://www.tiktok.com/search?q={query}"
+_EXPLORE_URL = "https://www.tiktok.com/explore"
 
 
 def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
@@ -129,6 +131,26 @@ async def search_tiktok_users(
             emit_progress("searching", current=len(results), total=limit, unit="item")
             if limit is not None and len(results) >= limit:
                 return results
+    return results
+
+
+async def scrape_tiktok_trending(
+    *,
+    count: int,
+    fetch_trending_fn: FetchListingFn = fetch_trending,
+) -> list[dict[str, Any]]:
+    """Collect up to ``count`` trending videos from the Explore feed.
+
+    A single global feed, so it reuses the listing flow (parse/dedupe/cap/empty-
+    ErrorItem) over a synthetic target — no user input to resolve.
+    """
+    from app.capabilities.core.progress import emit_progress
+
+    target = TikTokTarget(kind="trending", value="explore", url=_EXPLORE_URL)
+    results: list[dict[str, Any]] = []
+    async for item in iter_listing(target, cap=count, fetch_listing=fetch_trending_fn):
+        results.append(item)
+        emit_progress("scraping", current=len(results), total=count, unit="item")
     return results
 
 

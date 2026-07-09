@@ -1,4 +1,4 @@
-"""``tiktok`` sub-agent tools: the TikTok scrape, comments, and user-search verbs."""
+"""``tiktok`` sub-agent tools: scrape, comments, user-search, and trending verbs."""
 
 from __future__ import annotations
 
@@ -10,13 +10,14 @@ from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 from app.capabilities.core.access.agent import build_capability_tools
 from app.capabilities.tiktok.comments.definition import TIKTOK_COMMENTS
 from app.capabilities.tiktok.scrape.definition import TIKTOK_SCRAPE
+from app.capabilities.tiktok.trending.definition import TIKTOK_TRENDING
 from app.capabilities.tiktok.user_search.definition import TIKTOK_USER_SEARCH
 
 NAME = "tiktok"
 
 RULESET = Ruleset(origin=NAME, rules=[])
 
-_CI_VERBS = [TIKTOK_SCRAPE, TIKTOK_COMMENTS, TIKTOK_USER_SEARCH]
+_CI_VERBS = [TIKTOK_SCRAPE, TIKTOK_COMMENTS, TIKTOK_USER_SEARCH, TIKTOK_TRENDING]
 
 
 def load_tools(

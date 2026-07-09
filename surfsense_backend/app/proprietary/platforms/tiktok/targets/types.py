@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-TargetKind = Literal["video", "profile", "hashtag", "search"]
+TargetKind = Literal["video", "profile", "hashtag", "search", "trending"]
 SearchSection = Literal["video", "user"]
 
 
