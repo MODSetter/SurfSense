@@ -7,7 +7,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 # SurfSense MCP Server
 
-The SurfSense MCP server exposes your workspace to any [Model Context Protocol](https://modelcontextprotocol.io/) client. Your agent gets 18 native, typed tools: every scraper (Reddit, YouTube, Google Maps, Google Search, web crawl), full knowledge-base access (search, read, add, upload, update, delete), and a workspace selector.
+The SurfSense MCP server exposes your workspace to any [Model Context Protocol](https://modelcontextprotocol.io/) client. Your agent gets 21 native, typed tools: every scraper (Reddit, YouTube, Instagram, Google Maps, Google Search, web crawl), full knowledge-base access (search, read, add, upload, update, delete), and a workspace selector.
 
 Connect it two ways: the **hosted** server at `https://mcp.surfsense.com/mcp` (nothing to install — just an API key), or run it yourself over **stdio** against any SurfSense backend, cloud or self-hosted.
 
@@ -133,7 +133,7 @@ Add to `~/.cursor/mcp.json` (global — keeps the key out of your repo) or a pro
 }
 ```
 
-Then open **Cursor Settings → MCP** and refresh the `surfsense` server; its 18 tools should appear with a green dot.
+Then open **Cursor Settings → MCP** and refresh the `surfsense` server; its 21 tools should appear with a green dot.
 
 </Tab>
 <Tab value="Claude Desktop">
@@ -257,14 +257,14 @@ For self-host (stdio), all settings are environment variables passed by the clie
 - **401 errors** — the API key is wrong or expired; create a new one.
 - **403 errors** — API access is disabled for the workspace; toggle **API key access** on under **API Playground → API Keys**.
 - **"Could not reach SurfSense"** — the backend isn't running or `SURFSENSE_BASE_URL` is wrong.
-- **Server won't start** — run `uv run python -m mcp_server.selfcheck` inside `surfsense_mcp`; it verifies all 18 tools register without needing a backend.
+- **Server won't start** — run `uv run python -m mcp_server.selfcheck` inside `surfsense_mcp`; it verifies all 21 tools register without needing a backend.
 
 ## Tools reference
 
 | Group | Tools |
 |-------|-------|
 | Workspaces | `surfsense_list_workspaces`, `surfsense_select_workspace` |
-| Scrapers | `surfsense_reddit_scrape`, `surfsense_youtube_scrape`, `surfsense_youtube_comments`, `surfsense_google_maps_scrape`, `surfsense_google_maps_reviews`, `surfsense_google_search`, `surfsense_web_crawl`, `surfsense_list_scraper_runs`, `surfsense_get_scraper_run` |
+| Scrapers | `surfsense_reddit_scrape`, `surfsense_youtube_scrape`, `surfsense_youtube_comments`, `surfsense_instagram_scrape`, `surfsense_instagram_comments`, `surfsense_instagram_details`, `surfsense_google_maps_scrape`, `surfsense_google_maps_reviews`, `surfsense_google_search`, `surfsense_web_crawl`, `surfsense_list_scraper_runs`, `surfsense_get_scraper_run` |
 | Knowledge base | `surfsense_search_knowledge_base`, `surfsense_list_documents`, `surfsense_get_document`, `surfsense_add_document`, `surfsense_upload_file`, `surfsense_update_document`, `surfsense_delete_document` |
 
 Usage is billed exactly like the REST API — scraper tools are metered per returned item, and every call is recorded under **API Playground → Runs**.
