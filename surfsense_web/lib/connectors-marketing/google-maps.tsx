@@ -303,6 +303,7 @@ export const googleMaps: ConnectorPageContent = {
 	related: [
 		{ label: "Reddit API", href: "/reddit" },
 		{ label: "YouTube API", href: "/youtube" },
+		{ label: "Instagram API", href: "/instagram" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },

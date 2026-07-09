@@ -260,6 +260,7 @@ export const googleSearch: ConnectorPageContent = {
 		{ label: "Web Crawl API", href: "/web-crawl" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "Reddit API", href: "/reddit" },
+		{ label: "Instagram API", href: "/instagram" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],

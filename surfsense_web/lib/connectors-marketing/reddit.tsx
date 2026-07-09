@@ -310,6 +310,7 @@ export const reddit: ConnectorPageContent = {
 
 	related: [
 		{ label: "YouTube API", href: "/youtube" },
+		{ label: "Instagram API", href: "/instagram" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
