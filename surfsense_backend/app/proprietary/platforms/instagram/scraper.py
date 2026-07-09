@@ -124,23 +124,24 @@ async def fan_out(
 
     Each worker opens ONE proxy session and reuses it across the sequential jobs
     it pulls, so only the first job per worker pays the proxy handshake + the
-    cookie warm-up. A bad job yields nothing rather than aborting the batch;
-    workers are cancelled and their sessions closed if the consumer stops early.
+    cookie warm-up. Partial results (matches the reddit sibling): one blocked or
+    failed target yields nothing rather than aborting the batch — Instagram is
+    an aggregation, not an atomic transaction, so 4/5 good targets beat 0/5. But
+    if EVERY target was refused (zero items AND a hard block seen), the whole run
+    couldn't reach anonymous data, so we surface ``InstagramAccessBlockedError``
+    (-> 403) instead of a misleading empty success. Workers are cancelled and
+    their sessions closed if the consumer stops early.
     """
     if not jobs:
         return
     job_queue: asyncio.Queue[AsyncIterator[dict[str, Any]]] = asyncio.Queue()
     for job in jobs:
         job_queue.put_nowait(job)
-    # A batch of items on success, or a hard-block exception to re-raise on the
-    # consumer side. The consumer reads exactly one entry per job, so a worker
-    # MUST put something for every job it pulls — raising instead would strand
-    # the error on a dead task and deadlock the consumer on ``results.get()``.
-    results: asyncio.Queue[list[dict[str, Any]] | InstagramAccessBlockedError] = (
-        asyncio.Queue()
-    )
+    results: asyncio.Queue[list[dict[str, Any]]] = asyncio.Queue()
+    blocked = False  # set if any target hit a hard login/auth wall
 
     async def worker() -> None:
+        nonlocal blocked
         holder = None
         try:
             holder = await open_proxy_holder()
@@ -160,10 +161,10 @@ async def fan_out(
                     else:
                         items = [item async for item in job]
                 except InstagramAccessBlockedError as e:
-                    # A hard login wall aborts the batch. Hand it to the consumer
-                    # via the queue (not ``raise``) so it never deadlocks waiting.
-                    await results.put(e)
-                    return
+                    # Partial results: a blocked target must not kill the batch.
+                    # Record it so a fully-blocked run can still surface the 403.
+                    blocked = True
+                    logger.warning("[instagram] target blocked: %s", e)
                 except Exception as e:  # one bad target must not kill the run
                     logger.warning("[instagram] fan-out job failed: %s", e)
                 await results.put(items)
@@ -172,18 +173,24 @@ async def fan_out(
                 await holder.close()
 
     tasks = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(jobs)))]
+    emitted = 0
     try:
         for _ in range(len(jobs)):
-            batch = await results.get()
-            if isinstance(batch, InstagramAccessBlockedError):
-                raise batch
-            for item in batch:
+            for item in await results.get():
+                emitted += 1
                 yield item
     finally:
         for task in tasks:
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+    # Reached only on natural exhaustion (an early-stop close raises GeneratorExit
+    # inside the loop and skips this). Nothing came back AND a wall was hit ->
+    # the run was fully refused, so fail loud rather than return empty.
+    if emitted == 0 and blocked:
+        raise InstagramAccessBlockedError(
+            "Instagram refused anonymous access to every target"
+        )
 
 
 def _emit(partial: dict[str, Any], *, input_url: str | None) -> dict[str, Any]:
