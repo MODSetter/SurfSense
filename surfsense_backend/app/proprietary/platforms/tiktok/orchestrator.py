@@ -14,6 +14,7 @@ from urllib.parse import quote
 
 from .flows import FetchFn, FetchListingFn
 from .flows.listing import iter_listing
+from .flows.profile import iter_profile
 from .flows.video import iter_video
 from .schemas import TikTokScrapeInput
 from .session import fetch_html, fetch_item_list
@@ -57,6 +58,8 @@ def _dispatch(
 ) -> AsyncIterator[dict[str, Any]]:
     if target.kind == "video":
         return iter_video(target, fetch=fetch)
+    if target.kind == "profile":
+        return iter_profile(target, cap=cap, fetch=fetch, fetch_listing=fetch_listing)
     return iter_listing(target, cap=cap, fetch_listing=fetch_listing)
 
 

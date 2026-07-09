@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .author import parse_author
+from .author import parse_author, parse_profile
 from .hydration import extract_rehydration_data
 from .item_list import items_from_response
 from .scopes import user_info, video_item_struct
@@ -12,6 +12,7 @@ __all__ = [
     "extract_rehydration_data",
     "items_from_response",
     "parse_author",
+    "parse_profile",
     "parse_video",
     "user_info",
     "video_item_struct",

@@ -10,6 +10,33 @@ import json
 from app.proprietary.platforms.tiktok import TikTokScrapeInput, scrape_tiktok
 
 
+async def _no_html(_url: str) -> str:
+    """Fetch stub that yields no rehydration blob (skips profile metadata)."""
+    return ""
+
+
+def _profile_page(username: str, followers: int, videos: int) -> str:
+    blob = {
+        "__DEFAULT_SCOPE__": {
+            "webapp.user-detail": {
+                "userInfo": {
+                    "user": {
+                        "id": "u1",
+                        "uniqueId": username,
+                        "nickname": "Nick",
+                        "verified": True,
+                    },
+                    "stats": {"followerCount": followers, "videoCount": videos},
+                }
+            }
+        }
+    }
+    return (
+        '<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" '
+        f'type="application/json">{json.dumps(blob)}</script>'
+    )
+
+
 def _video_page(video_id: str, username: str) -> str:
     blob = {
         "__DEFAULT_SCOPE__": {
@@ -81,10 +108,55 @@ async def test_scrape_profile_returns_listing_items():
         ]
 
     items = await scrape_tiktok(
-        TikTokScrapeInput(profiles=["a"], resultsPerPage=5), fetch_listing=fake_listing
+        TikTokScrapeInput(profiles=["a"], resultsPerPage=5),
+        fetch=_no_html,
+        fetch_listing=fake_listing,
     )
     assert [i["id"] for i in items] == ["1", "2"]
     assert items[0]["webVideoUrl"] == "https://www.tiktok.com/@a/video/1"
+
+
+async def test_profile_emits_metadata_then_videos():
+    # The blob metadata item comes first and is billable; videos follow.
+    async def fake_fetch(_url: str) -> str:
+        return _profile_page("a", followers=100, videos=2)
+
+    async def fake_listing(_url: str, _count: int) -> list[dict]:
+        return [{"id": "1", "author": {"uniqueId": "a"}}]
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(profiles=["a"], resultsPerPage=5),
+        fetch=fake_fetch,
+        fetch_listing=fake_listing,
+    )
+    assert len(items) == 2
+    profile, video = items
+    assert "webVideoUrl" not in profile  # metadata item, not a video
+    assert profile["name"] == "a"
+    assert profile["fans"] == 100
+    assert profile["verified"] is True
+    assert profile["scrapedAt"] is not None
+    assert video["id"] == "1"
+
+
+async def test_profile_metadata_survives_blocked_listing():
+    # Videos withheld from anonymous access: we still return the profile metadata
+    # (not just an ErrorItem), so a blocked profile isn't a total loss.
+    async def fake_fetch(_url: str) -> str:
+        return _profile_page("a", followers=100, videos=9)
+
+    async def fake_listing(_url: str, _count: int) -> list[dict]:
+        return []
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(profiles=["a"], resultsPerPage=5),
+        fetch=fake_fetch,
+        fetch_listing=fake_listing,
+    )
+    assert len(items) == 2
+    assert items[0]["name"] == "a"
+    assert items[0]["fans"] == 100
+    assert items[1]["errorCode"] == "no_items"
 
 
 async def test_listing_dedupes_then_caps_per_target():
@@ -105,6 +177,7 @@ async def test_empty_listing_emits_error_item():
 
     items = await scrape_tiktok(
         TikTokScrapeInput(profiles=["nasa"], resultsPerPage=5),
+        fetch=_no_html,
         fetch_listing=fake_listing,
     )
     assert len(items) == 1

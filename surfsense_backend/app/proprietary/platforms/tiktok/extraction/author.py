@@ -29,3 +29,10 @@ def build_author_meta(author: dict[str, Any], stats: dict[str, Any]) -> dict[str
 def parse_author(user_info: dict[str, Any]) -> dict[str, Any]:
     """Map a ``webapp.user-detail`` ``userInfo`` (``{user, stats}``) to authorMeta."""
     return build_author_meta(user_info.get("user") or {}, user_info.get("stats") or {})
+
+
+def parse_profile(user_info: dict[str, Any]) -> dict[str, Any]:
+    """Map a ``userInfo`` to a standalone :class:`TikTokProfileItem` output dict."""
+    from ..schemas.items import TikTokProfileItem
+
+    return TikTokProfileItem(**parse_author(user_info)).to_output()

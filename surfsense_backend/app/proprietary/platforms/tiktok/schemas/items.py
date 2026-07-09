@@ -30,6 +30,21 @@ class AuthorMeta(BaseModel):
     video: int | None = None
 
 
+class TikTokProfileItem(AuthorMeta):
+    """A profile's public metadata, read from the page's rehydration blob.
+
+    Emitted even when the video listing is withheld from anonymous access, so a
+    blocked profile still yields its account data (name, followers, bio,
+    verification) instead of only an ErrorItem. Distinguishable from a video item
+    by the absence of ``webVideoUrl``/``text``.
+    """
+
+    scrapedAt: str | None = None
+
+    def to_output(self) -> dict[str, Any]:
+        return self.model_dump(exclude_none=False)
+
+
 class MusicMeta(BaseModel):
     model_config = ConfigDict(extra="allow")
 

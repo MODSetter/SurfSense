@@ -8,6 +8,7 @@ from .items import (
     CommentItem,
     ErrorItem,
     MusicMeta,
+    TikTokProfileItem,
     TikTokVideoItem,
     VideoMeta,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "ErrorItem",
     "MusicMeta",
     "StartUrl",
+    "TikTokProfileItem",
     "TikTokScrapeInput",
     "TikTokVideoItem",
     "VideoMeta",
