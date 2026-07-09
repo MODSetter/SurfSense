@@ -24,9 +24,12 @@ _PAYLOAD = {"data": {"user": {"username": "natgeo"}}}
 
 
 class _FakePage:
-    def __init__(self, status: int, *, cookies: dict | None = None, payload=None):
+    def __init__(
+        self, status: int, *, cookies: dict | None = None, payload=None, url=None
+    ):
         self.status = status
         self.cookies = cookies or {}
+        self.url = url
         self._payload = payload if payload is not None else _PAYLOAD
 
     def json(self):
@@ -40,10 +43,18 @@ class _FakePage:
 class _FakeSession:
     """One 'IP': the warm-up GET mints csrftoken per flag; endpoint GETs return ``status``."""
 
-    def __init__(self, status: int = 200, *, csrftoken: bool = True, payload=None) -> None:
+    def __init__(
+        self,
+        status: int = 200,
+        *,
+        csrftoken: bool = True,
+        payload=None,
+        login_wall: bool = False,
+    ) -> None:
         self.status = status
         self.csrftoken = csrftoken
         self.payload = payload
+        self.login_wall = login_wall
         self.json_calls = 0
         self.warm_calls = 0
 
@@ -53,7 +64,9 @@ class _FakeSession:
             ck = {"csrftoken": "x", "mid": "y"} if self.csrftoken else {}
             return _FakePage(200, cookies=ck)
         self.json_calls += 1
-        return _FakePage(self.status, payload=self.payload)
+        # A soft login wall: 200, but the final URL is the login page.
+        final = "https://www.instagram.com/accounts/login/" if self.login_wall else url
+        return _FakePage(self.status, payload=self.payload, url=final)
 
 
 class _FakeHolder:
@@ -148,6 +161,41 @@ async def test_rotates_on_401_login_wall():
         _current_session.reset(token)
     assert result == _PAYLOAD
     assert holder.rotations == 1
+
+
+async def test_rotates_on_login_redirect_then_succeeds():
+    # 200 status but redirected to /accounts/login/: a soft block that must
+    # rotate to a fresh IP, not be mistaken for an empty result.
+    holder = _FakeHolder(
+        [_FakeSession(200, login_wall=True), _FakeSession(200)]
+    )
+    token = _current_session.set(holder)
+    try:
+        result = await fetch_json("api/v1/tags/web_info/", {"tag_name": "travel"})
+    finally:
+        _current_session.reset(token)
+    assert result == _PAYLOAD
+    assert holder.rotations == 1
+
+
+async def test_persistent_login_redirect_raises_blocked():
+    holder = _FakeHolder(
+        [
+            _FakeSession(200, login_wall=True)
+            for _ in range(fetch._MAX_ROTATIONS + 1)
+        ]
+    )
+    token = _current_session.set(holder)
+    try:
+        raised = False
+        try:
+            await fetch_json("api/v1/tags/web_info/", {"tag_name": "travel"})
+        except InstagramAccessBlockedError:
+            raised = True
+    finally:
+        _current_session.reset(token)
+    assert raised
+    assert holder.rotations == fetch._MAX_ROTATIONS
 
 
 async def test_404_returns_none_without_rotating():
