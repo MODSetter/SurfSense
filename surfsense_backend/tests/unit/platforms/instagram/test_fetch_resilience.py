@@ -295,6 +295,34 @@ async def test_fan_out_empty_jobs_is_noop():
     assert out == []
 
 
+async def test_fan_out_propagates_blocked_without_deadlock(monkeypatch):
+    # Regression: a worker that raises InstagramAccessBlockedError used to strand
+    # the exception on its task and deadlock the consumer on results.get(). It
+    # must surface as InstagramAccessBlockedError, not hang.
+    async def _fake_open():
+        return _TrackingHolder()
+
+    @asynccontextmanager
+    async def _fake_bind(_holder):
+        yield _holder
+
+    monkeypatch.setattr(scraper, "open_proxy_holder", _fake_open)
+    monkeypatch.setattr(scraper, "bind_proxy_holder", _fake_bind)
+
+    async def _blocked_job() -> AsyncIterator[dict]:
+        raise InstagramAccessBlockedError("login wall")
+        yield {}  # unreachable; makes this an async generator
+
+    raised = False
+    try:
+        async with asyncio.timeout(5):  # fail fast if the deadlock regresses
+            async for _ in scraper.fan_out([_blocked_job()], concurrency=1):
+                pass
+    except InstagramAccessBlockedError:
+        raised = True
+    assert raised, "hard block must propagate, not deadlock"
+
+
 def _profile_payload(username: str, n: int) -> dict:
     # IDs namespaced per target so cross-target de-dup doesn't collapse them.
     return {
