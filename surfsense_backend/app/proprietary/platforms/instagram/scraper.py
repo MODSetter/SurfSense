@@ -132,7 +132,13 @@ async def fan_out(
     job_queue: asyncio.Queue[AsyncIterator[dict[str, Any]]] = asyncio.Queue()
     for job in jobs:
         job_queue.put_nowait(job)
-    results: asyncio.Queue[list[dict[str, Any]]] = asyncio.Queue()
+    # A batch of items on success, or a hard-block exception to re-raise on the
+    # consumer side. The consumer reads exactly one entry per job, so a worker
+    # MUST put something for every job it pulls — raising instead would strand
+    # the error on a dead task and deadlock the consumer on ``results.get()``.
+    results: asyncio.Queue[list[dict[str, Any]] | InstagramAccessBlockedError] = (
+        asyncio.Queue()
+    )
 
     async def worker() -> None:
         holder = None
@@ -153,8 +159,11 @@ async def fan_out(
                             items = [item async for item in job]
                     else:
                         items = [item async for item in job]
-                except InstagramAccessBlockedError:
-                    raise  # a hard login wall must abort the batch, not be swallowed
+                except InstagramAccessBlockedError as e:
+                    # A hard login wall aborts the batch. Hand it to the consumer
+                    # via the queue (not ``raise``) so it never deadlocks waiting.
+                    await results.put(e)
+                    return
                 except Exception as e:  # one bad target must not kill the run
                     logger.warning("[instagram] fan-out job failed: %s", e)
                 await results.put(items)
@@ -165,7 +174,10 @@ async def fan_out(
     tasks = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(jobs)))]
     try:
         for _ in range(len(jobs)):
-            for item in await results.get():
+            batch = await results.get()
+            if isinstance(batch, InstagramAccessBlockedError):
+                raise batch
+            for item in batch:
                 yield item
     finally:
         for task in tasks:
