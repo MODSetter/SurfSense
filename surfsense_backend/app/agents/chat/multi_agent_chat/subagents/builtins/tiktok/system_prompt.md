@@ -6,7 +6,7 @@ Answer the delegated question from live TikTok data gathered with your verb, com
 </goal>
 
 <available_tools>
-- `tiktok_scrape` — videos from urls / profiles / hashtags / search_queries
+- `tiktok_scrape` — videos from a hashtag, a profile, or a TikTok URL
 - `tiktok_comments` — a video's comment thread, from `video_urls`
 - `tiktok_user_search` — find accounts by keyword, from `queries`
 - `tiktok_trending` — the current Explore trending-video feed
@@ -14,15 +14,15 @@ Answer the delegated question from live TikTok data gathered with your verb, com
 </available_tools>
 
 <playbook>
-- Finding videos on a topic: call `tiktok_scrape` with `hashtags` (no leading '#') and/or `search_queries`.
+- Finding videos on a topic: call `tiktok_scrape` with `hashtags` (no leading '#'), or pass a TikTok URL in `urls`.
 - Scraping a specific video, profile, hashtag, or search page: pass its TikTok URL in `urls`.
-- Profiles: a creator's `profiles` feed returns the account's metadata (name, followers, bio, verification) reliably, but its video list is often withheld by TikTok — treat an empty video list as a known limit, not a failure to retry endlessly. Prefer `hashtags`, `search_queries`, or a direct video URL for videos.
+- Profiles: a creator's `profiles` feed returns the account's metadata (name, followers, bio, verification) reliably, but its video list is often withheld by TikTok — treat an empty video list as a known limit, not a failure to retry endlessly. Prefer `hashtags` or a direct video URL for videos.
 - Comments on a video: call `tiktok_comments` with the video URL(s) in `video_urls`.
-- Finding accounts (not videos): call `tiktok_user_search` with `queries` — this is the reliable path for account discovery (keyword *video* search is login-walled).
+- Finding accounts by keyword: call `tiktok_user_search` with `queries`. Keyword search returns no videos, so do not use `search_queries` for videos — use `hashtags` or a video URL.
 - "What's trending now": call `tiktok_trending` (no query needed); set `max_items` for how many.
 - Controlling volume: use `max_items` for the total cap and `results_per_page` per target (per-verb equivalents: `comments_per_video`, `results_per_query`).
 - Requested counts: `max_items` defaults low — when the task asks for N items, set `max_items` (and the per-target count) above N. A call that caps below the target can never satisfy it.
-- Batch multiple hashtags, search terms, queries, or video URLs into one call rather than many single-item calls.
+- Batch multiple hashtags, queries, or video URLs into one call rather than many single-item calls.
 <include snippet="run_reader"/>
 - Comparison requests: pull the current results, compare against prior values already in this conversation's earlier tool results, and report concrete deltas (added, removed, count changes).
 </playbook>
