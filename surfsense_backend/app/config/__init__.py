@@ -728,11 +728,8 @@ class Config:
     # Comments are the cheapest per-item TikTok data, matching the per-comment
     # market (and YouTube's comment meter).
     TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
-    # Browser-listing retries when a feed comes back empty. The profile feed is
-    # withheld from flagged exit IPs; since the proxy rotates per request, each
-    # retry lands a fresh IP, turning a bad first draw into a hit. Only spends on
-    # empty results. ponytail: assumes a rotating proxy — set to 1 for a static IP,
-    # where retrying just re-hits the same (flagged) exit.
+    # Retry an empty listing draw on a fresh rotating IP. Set to 1 for a static
+    # proxy, where every retry re-hits the same exit.
     TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
@@ -1154,8 +1151,7 @@ class Config:
     # when leak-safety outweighs the marginal latency.
     CRAWL_DNS_OVER_HTTPS = os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
     # Promises an Xvfb display so the browser can run headful (TikTok's profile
-    # feed is empty to headless Chromium). Entrypoint starts Xvfb when TRUE;
-    # FALSE keeps every browser headless.
+    # feed is empty to headless Chromium). Off keeps every browser headless.
     CRAWL_HEADED_XVFB_ENABLED = (
         os.getenv("CRAWL_HEADED_XVFB_ENABLED", "FALSE").upper() == "TRUE"
     )
