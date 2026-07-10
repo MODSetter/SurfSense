@@ -1,4 +1,4 @@
-"""``instagram`` sub-agent tools: the three Instagram capability verbs."""
+"""``instagram`` sub-agent tools: the Instagram capability verbs."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 from app.capabilities.core.access.agent import build_capability_tools
-from app.capabilities.instagram.comments.definition import INSTAGRAM_COMMENTS
 from app.capabilities.instagram.details.definition import INSTAGRAM_DETAILS
 from app.capabilities.instagram.scrape.definition import INSTAGRAM_SCRAPE
 
@@ -16,7 +15,7 @@ NAME = "instagram"
 
 RULESET = Ruleset(origin=NAME, rules=[])
 
-_CI_VERBS = [INSTAGRAM_SCRAPE, INSTAGRAM_COMMENTS, INSTAGRAM_DETAILS]
+_CI_VERBS = [INSTAGRAM_SCRAPE, INSTAGRAM_DETAILS]
 
 
 def load_tools(
