@@ -22,7 +22,7 @@ Provide exactly one source: `urls` **or** `search_queries` (never both).
 | `urls` | — | Profile, post, or reel URLs or bare profile IDs (max 20 sources per call) |
 | `search_queries` | — | Discovery keywords resolved to public profiles via Google; each returns up to `max_per_target` items |
 | `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` |
-| `result_type` | `posts` | Which feed to return: `posts`, `reels`, or `mentions` (`mentions` needs profile URLs) |
+| `result_type` | `posts` | Which feed to return: `posts` or `reels` |
 | `newer_than` | — | Only return posts newer than this: `YYYY-MM-DD`, ISO timestamp, or relative (`2 months`), UTC |
 | `skip_pinned_posts` | `false` | Exclude pinned posts in posts mode |
 | `max_per_target` | `10` | Max results per URL or per discovered target |
