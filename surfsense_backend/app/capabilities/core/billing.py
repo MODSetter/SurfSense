@@ -35,6 +35,9 @@ _PLATFORM_RATE_KEYS: dict[BillingUnit, str] = {
     BillingUnit.GOOGLE_MAPS_REVIEW: "GOOGLE_MAPS_MICROS_PER_REVIEW",
     BillingUnit.YOUTUBE_VIDEO: "YOUTUBE_MICROS_PER_VIDEO",
     BillingUnit.YOUTUBE_COMMENT: "YOUTUBE_MICROS_PER_COMMENT",
+    BillingUnit.TIKTOK_VIDEO: "TIKTOK_MICROS_PER_VIDEO",
+    BillingUnit.TIKTOK_USER: "TIKTOK_MICROS_PER_USER",
+    BillingUnit.TIKTOK_COMMENT: "TIKTOK_MICROS_PER_COMMENT",
 }
 
 
@@ -51,6 +54,9 @@ _UNIT_NOUNS: dict[BillingUnit, str] = {
     BillingUnit.GOOGLE_MAPS_REVIEW: "review",
     BillingUnit.YOUTUBE_VIDEO: "video",
     BillingUnit.YOUTUBE_COMMENT: "comment",
+    BillingUnit.TIKTOK_VIDEO: "video",
+    BillingUnit.TIKTOK_USER: "profile",
+    BillingUnit.TIKTOK_COMMENT: "comment",
 }
 
 

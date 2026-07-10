@@ -719,6 +719,18 @@ class Config:
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
     YOUTUBE_MICROS_PER_COMMENT = int(os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500"))
+    # Browser-driven listings make TikTok heavier per item than the API-backed
+    # video meter, so it sits a touch above YouTube's video rate.
+    TIKTOK_MICROS_PER_VIDEO = int(os.getenv("TIKTOK_MICROS_PER_VIDEO", "3500"))
+    # User search returns lighter account records (name/followers/bio), priced
+    # below the video meter to mirror the cheaper account-discovery market.
+    TIKTOK_MICROS_PER_USER = int(os.getenv("TIKTOK_MICROS_PER_USER", "2500"))
+    # Comments are the cheapest per-item TikTok data, matching the per-comment
+    # market (and YouTube's comment meter).
+    TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Retry an empty listing draw on a fresh rotating IP. Set to 1 for a static
+    # proxy, where every retry re-hits the same exit.
+    TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
@@ -1138,6 +1150,11 @@ class Config:
     # round-trip => default FALSE to honor the "no speed regression" bar; flip on
     # when leak-safety outweighs the marginal latency.
     CRAWL_DNS_OVER_HTTPS = os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
+    # Promises an Xvfb display so the browser can run headful (TikTok's profile
+    # feed is empty to headless Chromium). Off keeps every browser headless.
+    CRAWL_HEADED_XVFB_ENABLED = (
+        os.getenv("CRAWL_HEADED_XVFB_ENABLED", "FALSE").upper() == "TRUE"
+    )
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
