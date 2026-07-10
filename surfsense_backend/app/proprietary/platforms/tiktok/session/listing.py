@@ -253,16 +253,32 @@ async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, An
 
     Headful when ``CRAWL_HEADED_XVFB_ENABLED`` promises a display (the profile feed
     is empty to headless sessions); headless otherwise so launch never fails.
+
+    Retries on an empty capture up to ``TIKTOK_LISTING_MAX_ATTEMPTS``: the feed is
+    withheld from flagged exit IPs, and the proxy rotates per request, so each retry
+    is a fresh IP — turning a bad first draw into a hit instead of an ``ErrorItem``.
     """
-    return await asyncio.to_thread(
-        _fetch_sync,
-        page_url,
-        target_count,
-        _ITEM_LIST_MARKERS,
-        items_from_response,
-        _scroll_page,
-        headless=not config.CRAWL_HEADED_XVFB_ENABLED,
-    )
+    headless = not config.CRAWL_HEADED_XVFB_ENABLED
+    attempts = max(1, config.TIKTOK_LISTING_MAX_ATTEMPTS)
+    for attempt in range(1, attempts + 1):
+        items = await asyncio.to_thread(
+            _fetch_sync,
+            page_url,
+            target_count,
+            _ITEM_LIST_MARKERS,
+            items_from_response,
+            _scroll_page,
+            headless=headless,
+        )
+        if items or attempt == attempts:
+            return items
+        logger.info(
+            "[tiktok] empty item_list for %s (attempt %d/%d); retrying on a fresh exit IP",
+            page_url,
+            attempt,
+            attempts,
+        )
+    return []
 
 
 async def fetch_user_search(page_url: str, target_count: int) -> list[dict[str, Any]]:
