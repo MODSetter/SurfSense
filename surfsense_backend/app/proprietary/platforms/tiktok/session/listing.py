@@ -11,8 +11,9 @@ The pure response-shape parsing lives in :func:`items_from_response`; this modul
 is the untested browser-I/O glue (covered by the e2e smoke, not unit tests).
 
 Needs a residential proxy; datacenter IPs get empty bodies and 429s. The profile
-feed (``/api/post/item_list``) is additionally soft-blocked: TikTok returns an
-empty 200 even to its own signed request, so profile targets yield nothing.
+feed (``/api/post/item_list``) returns an empty 200 to headless sessions, so
+:func:`fetch_item_list` runs headful. ponytail: headful needs a display — run it
+under Xvfb on a headless server.
 """
 
 from __future__ import annotations
@@ -81,12 +82,33 @@ def _has_mstoken(page: Any) -> bool:
         return False
 
 
+def _dismiss_login_modal(page: Any) -> None:
+    """Close the login modal that blocks scrolling; Escape as fallback.
+
+    Only the modal's own close button, never a generic dialog button (avoids
+    clicking "Log in").
+    """
+    try:
+        closed = page.evaluate(
+            """() => {
+              const btn = document.querySelector('[data-e2e="modal-close-inner-button"]');
+              if (btn) { btn.click(); return true; }
+              return false;
+            }"""
+        )
+        if not closed:
+            page.keyboard.press("Escape")
+    except Exception:
+        pass
+
+
 def _scroll_page(page: Any, collected: list[dict[str, Any]], target_count: int) -> None:
     """Page down a listing feed until enough items are captured or it stops growing."""
     last_height = 0
     for _ in range(_SCROLL_MAX_ROUNDS):
         if len(collected) >= target_count:
             break
+        _dismiss_login_modal(page)
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         page.wait_for_timeout(_SCROLL_SETTLE_MS)
         height = page.evaluate("document.body.scrollHeight")
@@ -207,12 +229,14 @@ def _fetch_sync(
     markers: tuple[str, ...],
     extract: ExtractFn,
     interact: InteractFn,
+    *,
+    headless: bool = True,
 ) -> list[dict[str, Any]]:
     collected: list[dict[str, Any]] = []
     kwargs = build_stealthy_kwargs(get_stealth_config())
     StealthyFetcher.fetch(
         url,
-        headless=True,
+        headless=headless,
         network_idle=False,
         proxy=get_proxy_url(),
         page_action=_build_page_action(
@@ -224,7 +248,10 @@ def _fetch_sync(
 
 
 async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, Any]]:
-    """Return up to ``target_count`` itemStructs from a listing page's XHRs."""
+    """Return up to ``target_count`` itemStructs from a listing page's XHRs.
+
+    Runs headful: the profile feed returns an empty 200 to headless sessions.
+    """
     return await asyncio.to_thread(
         _fetch_sync,
         page_url,
@@ -232,6 +259,7 @@ async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, An
         _ITEM_LIST_MARKERS,
         items_from_response,
         _scroll_page,
+        headless=False,
     )
 
 
