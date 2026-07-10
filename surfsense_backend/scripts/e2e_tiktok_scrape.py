@@ -7,9 +7,8 @@ Run from the backend directory:
 What it exercises (everything REAL — live network, live proxy, live browser):
 
   Stage 1 — proxy egress proof (informational).
-  Stage 2 — profile via the full pipeline: TikTok soft-blocks the anonymous
-            profile feed, so this asserts graceful degradation — real videos OR
-            a single honest ErrorItem, never a silent empty.
+  Stage 2 — profile via the full pipeline: asserts real videos come back
+            (fetch_item_list runs headful), degrading to one ErrorItem if not.
   Stage 3 — blob video path over HTTP (URL taken from a captured hashtag struct).
   Stage 4 — hashtag listing via the stealth browser (captures item_list XHRs).
   Stage 5 — full scrape_tiktok() pipeline on a hashtag.
@@ -107,10 +106,8 @@ async def stage_profile_listing() -> tuple[bool, list[dict[str, Any]]]:
     _hr(f"STAGE 2 — profile listing graceful-degrade: @{_PROFILE}")
     from app.proprietary.platforms.tiktok import TikTokScrapeInput, scrape_tiktok
 
-    # TikTok soft-blocks the profile feed for anonymous headless sessions
-    # (empty 200). The shipped contract is a single honest ErrorItem, not a
-    # silent empty. This stage verifies that graceful degradation, and passes if
-    # EITHER real videos come back (session got trusted) OR an ErrorItem does.
+    # fetch_item_list runs headful, so we expect real videos; still accept an
+    # ErrorItem (never a silent empty) to keep the graceful-degradation contract.
     items = await scrape_tiktok(
         TikTokScrapeInput(profiles=[_PROFILE], resultsPerPage=_COUNT), limit=_COUNT
     )
