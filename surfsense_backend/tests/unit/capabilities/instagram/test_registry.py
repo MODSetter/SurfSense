@@ -1,4 +1,4 @@
-"""The instagram namespace registers its three verbs for the doors/agent to read.
+"""The instagram namespace registers its verbs for the doors/agent to read.
 
 Unlike the stale reddit assertion (``billing_unit is None``), these assert the
 real meters — the Capability definitions are the source of truth.
@@ -21,12 +21,6 @@ def test_instagram_scrape_registered_with_item_meter():
     cap = get_capability("instagram.scrape")
     assert cap.name == "instagram.scrape"
     assert cap.billing_unit is BillingUnit.INSTAGRAM_ITEM
-
-
-def test_instagram_comments_registered_with_comment_meter():
-    cap = get_capability("instagram.comments")
-    assert cap.name == "instagram.comments"
-    assert cap.billing_unit is BillingUnit.INSTAGRAM_COMMENT
 
 
 def test_instagram_details_registered_with_item_meter():

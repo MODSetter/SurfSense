@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.capabilities.instagram.comments.schemas import CommentsInput
 from app.capabilities.instagram.details.schemas import DetailsInput, DetailsOutput
 from app.capabilities.instagram.scrape.schemas import (
     MAX_INSTAGRAM_ITEMS,
@@ -47,30 +46,22 @@ def test_scrape_bounds():
         )
 
 
-def test_comments_requires_urls_and_caps_at_50():
+def test_scrape_rejects_walled_search_type():
+    # Discovery is profile-only; hashtag/place are login-walled and rejected.
     with pytest.raises(ValidationError):
-        CommentsInput(urls=[])
-    with pytest.raises(ValidationError):
-        CommentsInput(
-            urls=["https://www.instagram.com/p/Cabc/"], max_comments_per_post=51
-        )
-    ok = CommentsInput(
-        urls=["https://www.instagram.com/p/Cabc/"], max_comments_per_post=50
-    )
-    assert ok.max_comments_per_post == 50
+        ScrapeInput(search_queries=["travel"], search_type="hashtag")
 
 
-def test_details_discriminated_union_selects_by_detail_kind():
+def test_details_wraps_profile_items():
     out = DetailsOutput(
         items=[
             {"detailKind": "profile", "username": "natgeo"},
-            {"detailKind": "hashtag", "name": "fit"},
-            {"detailKind": "place", "name": "Copenhagen"},
+            {"detailKind": "profile", "username": "nasa"},
         ]
     )
     kinds = [type(i).__name__ for i in out.items]
-    assert kinds == ["InstagramProfile", "InstagramHashtag", "InstagramPlace"]
-    assert out.billable_units == 3
+    assert kinds == ["InstagramProfile", "InstagramProfile"]
+    assert out.billable_units == 2
 
 
 def test_details_rejects_both_sources():

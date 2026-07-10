@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.capabilities.instagram.comments.executor import build_comments_executor
-from app.capabilities.instagram.comments.schemas import CommentsInput, CommentsOutput
 from app.capabilities.instagram.details.executor import build_details_executor
 from app.capabilities.instagram.details.schemas import DetailsInput, DetailsOutput
 from app.capabilities.instagram.scrape.executor import build_scrape_executor
@@ -50,10 +48,10 @@ async def test_scrape_maps_urls_and_wraps_items():
 async def test_scrape_joins_search_queries():
     fake = _FakeScraper([])
     execute = build_scrape_executor(fake)
-    await execute(ScrapeInput(search_queries=["fit", "gym"], search_type="hashtag"))
+    await execute(ScrapeInput(search_queries=["natgeo", "nasa"], search_type="profile"))
     actor_input, _ = fake.calls[0]
-    assert actor_input.search == "fit,gym"
-    assert actor_input.searchType == "hashtag"
+    assert actor_input.search == "natgeo,nasa"
+    assert actor_input.searchType == "profile"
     assert actor_input.directUrls == []
 
 
@@ -64,26 +62,6 @@ async def test_scrape_access_blocked_maps_to_forbidden():
     execute = build_scrape_executor(_blocked)
     with pytest.raises(ForbiddenError):
         await execute(ScrapeInput(urls=["x"]))
-
-
-async def test_comments_maps_flags():
-    fake = _FakeScraper([{"id": "c1", "text": "nice"}])
-    execute = build_comments_executor(fake)
-    out = await execute(
-        CommentsInput(
-            urls=["https://www.instagram.com/p/Cabc/"],
-            newest_first=True,
-            include_replies=True,
-            max_comments_per_post=25,
-        )
-    )
-    assert isinstance(out, CommentsOutput)
-    assert out.items[0].text == "nice"
-    actor_input, _ = fake.calls[0]
-    assert actor_input.resultsType == "comments"
-    assert actor_input.isNewestComments is True
-    assert actor_input.includeNestedComments is True
-    assert actor_input.resultsLimit == 25
 
 
 async def test_details_maps_and_wraps_discriminated_items():
