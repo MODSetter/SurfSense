@@ -255,9 +255,10 @@ async def _media_flow(
         return
     if resolved.kind in ("post", "reel"):
         # Single-post extraction: the anonymous ``?__a=1`` JSON API 404s/login-
-        # walls, but the public /p/<code>/ document embeds the post's og-meta +
-        # ld+json, which parse_post reads. Numeric-ID URLs can't be keyed this
-        # way (the page needs the shortCode), so they're skipped upstream.
+        # walls, but the public /p/<code>/ document embeds the mobile-v1
+        # PolarisMedia JSON (og-meta fallback), which parse_post reads. Numeric-ID
+        # URLs can't be keyed this way (the page needs the shortCode), so they're
+        # skipped upstream.
         if resolved.numeric_post_id:
             return
         html = await fetch_html(f"p/{resolved.value}/")

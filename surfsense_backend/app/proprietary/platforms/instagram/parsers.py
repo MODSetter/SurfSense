@@ -35,6 +35,10 @@ _TYPE_MAP = {
     "XDTGraphVideo": "Video",
     "XDTGraphSidecar": "Sidecar",
 }
+# Mobile v1 ``media_type``: 1 = image, 2 = video, 8 = carousel/sidecar. Used by
+# the single-post relay parser (the embedded PolarisMedia blob uses this int, not
+# the GraphQL ``__typename`` the profile feed uses).
+_MEDIA_TYPE = {1: "Image", 2: "Video", 8: "Sidecar"}
 
 
 def _int(value: Any) -> int | None:
@@ -108,6 +112,80 @@ def _shortcode(node: dict[str, Any]) -> str | None:
     return None
 
 
+def _user_ref(user: Any) -> dict[str, Any] | None:
+    """A trimmed public-user dict (tagged users / coauthor producers), or None.
+
+    Normalizes the two anonymous dialects: the profile feed nests the handle
+    under ``edge_media_to_tagged_user...node.user`` / ``coauthor_producers`` while
+    the single-post relay blob uses ``usertags.in[].user`` — both carry the same
+    scalar user fields, so this trims them to one shape.
+    """
+    if not isinstance(user, dict):
+        return None
+    ref = {
+        "username": user.get("username"),
+        "fullName": user.get("full_name"),
+        "id": user.get("id") or user.get("pk"),
+        "isVerified": user.get("is_verified"),
+        "profilePicUrl": user.get("profile_pic_url"),
+    }
+    return ref if ref["username"] or ref["id"] else None
+
+
+def _iv2_url(iv2: Any) -> str | None:
+    """First candidate URL from a mobile ``image_versions2`` container, or None."""
+    if isinstance(iv2, dict):
+        cands = iv2.get("candidates")
+        if isinstance(cands, list) and cands and isinstance(cands[0], dict):
+            url = cands[0].get("url")
+            return url if isinstance(url, str) else None
+    return None
+
+
+def _location_ref(loc: Any) -> tuple[str | None, str | None]:
+    """``(name, id)`` from a location node, or ``(None, None)``."""
+    if isinstance(loc, dict):
+        lid = loc.get("id") or loc.get("pk")
+        return loc.get("name"), (str(lid) if lid is not None else None)
+    return None, None
+
+
+def _feed_child(node: dict[str, Any]) -> dict[str, Any]:
+    """Map a profile-feed ``edge_sidecar_to_children`` child to a childPost dict."""
+    dims = node.get("dimensions") if isinstance(node.get("dimensions"), dict) else {}
+    is_video = bool(node.get("is_video"))
+    return {
+        "id": node.get("id"),
+        "shortCode": node.get("shortcode"),
+        "type": "Video" if is_video else "Image",
+        "displayUrl": node.get("display_url"),
+        "videoUrl": node.get("video_url") if is_video else None,
+        "alt": node.get("accessibility_caption"),
+        "dimensionsHeight": _int(dims.get("height")),
+        "dimensionsWidth": _int(dims.get("width")),
+    }
+
+
+def _relay_child(node: dict[str, Any]) -> dict[str, Any]:
+    """Map a single-post relay ``carousel_media`` child to a childPost dict."""
+    mt = node.get("media_type")
+    vv = node.get("video_versions")
+    video_url = (
+        vv[0].get("url") if isinstance(vv, list) and vv and isinstance(vv[0], dict) else None
+    )
+    is_video = mt == 2 or bool(video_url)
+    return {
+        "id": node.get("id"),
+        "shortCode": node.get("code"),
+        "type": _MEDIA_TYPE.get(mt) or ("Video" if is_video else "Image"),
+        "displayUrl": _iv2_url(node.get("image_versions2")) or node.get("display_uri"),
+        "videoUrl": video_url,
+        "alt": node.get("accessibility_caption"),
+        "dimensionsHeight": _int(node.get("original_height")),
+        "dimensionsWidth": _int(node.get("original_width")),
+    }
+
+
 def parse_media(node: dict[str, Any]) -> dict[str, Any]:
     """Map a raw timeline/feed media node to a flat media item dict."""
     code = _shortcode(node)
@@ -116,6 +194,16 @@ def parse_media(node: dict[str, Any]) -> dict[str, Any]:
     owner = node.get("owner") if isinstance(node.get("owner"), dict) else {}
     dims = node.get("dimensions") if isinstance(node.get("dimensions"), dict) else {}
     is_video = bool(node.get("is_video"))
+    children = _edges(node.get("edge_sidecar_to_children"))
+    tagged = [
+        ref
+        for n in _edges(node.get("edge_media_to_tagged_user"))
+        if (ref := _user_ref(n.get("user")))
+    ]
+    coauthors = [
+        ref for c in (node.get("coauthor_producers") or []) if (ref := _user_ref(c))
+    ]
+    loc_name, loc_id = _location_ref(node.get("location"))
     return {
         "id": node.get("id"),
         "type": _TYPE_MAP.get(typename) or ("Video" if is_video else "Image"),
@@ -129,14 +217,25 @@ def parse_media(node: dict[str, Any]) -> dict[str, Any]:
         "dimensionsHeight": _int(dims.get("height")),
         "dimensionsWidth": _int(dims.get("width")),
         "displayUrl": node.get("display_url"),
+        "images": [c.get("display_url") for c in children if c.get("display_url")],
+        "childPosts": [_feed_child(c) for c in children],
         "videoUrl": node.get("video_url") if is_video else None,
         "alt": node.get("accessibility_caption"),
         "likesCount": _likes_count(node),
         "videoViewCount": _int(node.get("video_view_count")) if is_video else None,
+        "videoDuration": node.get("video_duration") if is_video else None,
         "timestamp": _utc_from_sec(node.get("taken_at_timestamp")),
         "ownerUsername": owner.get("username"),
         "ownerId": owner.get("id") or node.get("owner_id"),
         "ownerFullName": owner.get("full_name"),
+        "isPinned": bool(node.get("pinned_for_users")),
+        "productType": node.get("product_type"),
+        "paidPartnership": node.get("is_paid_partnership"),
+        "taggedUsers": tagged,
+        "coauthorProducers": coauthors,
+        "musicInfo": node.get("clips_music_attribution_info"),
+        "locationName": loc_name,
+        "locationId": loc_id,
         "isCommentsDisabled": node.get("comments_disabled"),
     }
 
@@ -145,6 +244,9 @@ def parse_profile(user: dict[str, Any]) -> dict[str, Any]:
     """Map a raw ``web_profile_info`` ``data.user`` to a flat profile item dict."""
     username = user.get("username")
     latest = [parse_media(n) for n in _edges(user.get("edge_owner_to_timeline_media"))]
+    related = [
+        ref for n in _edges(user.get("edge_related_profiles")) if (ref := _user_ref(n))
+    ]
     return {
         "detailKind": "profile",
         "id": user.get("id"),
@@ -164,32 +266,34 @@ def parse_profile(user: dict[str, Any]) -> dict[str, Any]:
         "verified": user.get("is_verified"),
         "profilePicUrl": user.get("profile_pic_url"),
         "profilePicUrlHD": user.get("profile_pic_url_hd"),
+        "relatedProfiles": related,
         "latestPosts": latest,
     }
 
 
 # Anonymous single-post extraction (/p/<shortcode>/, /reel/<shortcode>/) --------
 #
-# Instagram serves logged-out visitors the post's public metadata inside the
+# Instagram serves logged-out visitors the post's full metadata inside the
 # document itself, not via a JSON XHR (the ``?__a=1`` API 404s / login-walls for
-# anonymous callers). Two durable, anonymous surfaces carry it:
-#   1. ``<script type="application/ld+json">`` — schema.org VideoObject/ImageObject
-#      with author, caption (articleBody/caption), uploadDate, interactionStatistic
-#      (likes/comments), and the media URL.
+# anonymous callers). Two anonymous surfaces carry it, in order of fidelity:
+#   1. An inline ``<script type="application/json">`` block embedding the mobile
+#      v1 ``PolarisMedia`` object (pk, taken_at, media_type, like/comment counts,
+#      caption, carousel_media, usertags, coauthor_producers, location, ...). This
+#      is the same shape the app's private API returns and is the real source.
 #   2. Open Graph ``<meta property="og:*">`` — a lossy fallback (og:description
-#      packs "N likes, M comments - author on DATE: caption").
-# ld+json is preferred; og fills gaps. ponytail: pinned to these two surfaces —
-# if a live probe shows a different embedded blob (e.g. a PolarisPost JSON), add a
-# branch here; the wiring in scraper._media_flow stays the same.
+#      packs "N likes, M comments - author on DATE: caption"). Used only if the
+#      relay blob is somehow absent (e.g. a layout change).
+# Live logged-out probes show NO ld+json on these pages, so it isn't parsed.
+# ponytail: pinned to these two surfaces — if the relay shape drifts, update
+# ``_find_media``; the wiring in scraper._media_flow stays the same.
 
-_LDJSON_RE = re.compile(
-    r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>',
-    re.IGNORECASE | re.DOTALL,
+_APP_JSON_RE = re.compile(
+    r'<script type="application/json"[^>]*>(.*?)</script>', re.DOTALL
 )
 _OG_RE = re.compile(
     r'<meta\s+property="og:([^"]+)"\s+content="([^"]*)"', re.IGNORECASE
 )
-# Anonymous /p/ pages carry NO ld+json — og tags are the real source. They
+# og tags are the fallback source (used only when the relay blob is absent). They
 # follow a fixed English shape because the fetch layer pins Accept-Language en-US:
 #   og:description = "{likes} likes, {comments} comments - {username} on {Month D, YYYY}: "{caption}""
 #   og:title       = "{fullName} on Instagram: "{caption}""
@@ -210,7 +314,7 @@ _OG_OWNER_DATE_RE = re.compile(
 _OG_TITLE_RE = re.compile(r"^(.+?)\s+on Instagram:\s*(.*)$", re.DOTALL)
 # The numeric media id (pk) rides in the App Link deep-link meta tags
 # (al:ios:url / al:android:url = "instagram://media?id=<pk>") on anonymous pages,
-# even though og:* and ld+json omit it.
+# even though the og:* tags omit it.
 _MEDIA_ID_RE = re.compile(r"instagram://media\?id=(\d+)")
 
 
@@ -272,129 +376,173 @@ def _html_int(value: Any) -> int | None:
     return None
 
 
-def _ldjson_blocks(html: str) -> list[dict[str, Any]]:
-    """Parse every ``application/ld+json`` script block into dicts."""
-    out: list[dict[str, Any]] = []
-    for raw in _LDJSON_RE.findall(html):
-        try:
-            data = json.loads(raw.strip())
-        except (ValueError, TypeError):
-            continue
-        for node in data if isinstance(data, list) else [data]:
-            if isinstance(node, dict):
-                out.append(node)
-    return out
-
-
 def _og_tags(html: str) -> dict[str, str]:
     """Map ``og:<key>`` -> content for the post document."""
     return {k.lower(): v for k, v in _OG_RE.findall(html)}
 
 
-def _ld_interaction(node: dict[str, Any]) -> dict[str, int]:
-    """Pull like/comment counts out of schema.org ``interactionStatistic``."""
-    stats = node.get("interactionStatistic")
-    items = stats if isinstance(stats, list) else [stats] if stats else []
-    out: dict[str, int] = {}
-    for stat in items:
-        if not isinstance(stat, dict):
-            continue
-        itype = str(stat.get("interactionType") or "")
-        count = _html_int(stat.get("userInteractionCount"))
-        if count is None:
-            continue
-        if "Like" in itype:
-            out["likes"] = count
-        elif "Comment" in itype:
-            out["comments"] = count
-    return out
+def _find_media(root: Any, shortcode: str | None) -> dict[str, Any] | None:
+    """Depth-first search a JSON tree for the post's mobile-v1 media object.
 
-
-def _ld_author_username(node: dict[str, Any]) -> str | None:
-    """Owner handle from a schema.org ``author`` (alternateName / identifier)."""
-    author = node.get("author")
-    author = author[0] if isinstance(author, list) and author else author
-    if not isinstance(author, dict):
-        return None
-    for key in ("alternateName", "identifier", "name"):
-        val = author.get(key)
-        if isinstance(val, dict):
-            val = val.get("value")
-        if isinstance(val, str) and val.strip():
-            return val.strip().lstrip("@") or None
+    Matches on ``code == shortcode`` (so a carousel *child* or a related post
+    can't be picked instead of the target) plus ``taken_at`` and an id, which
+    together uniquely identify the top-level ``PolarisMedia`` node.
+    """
+    stack = [root]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            if (
+                cur.get("taken_at") is not None
+                and ("pk" in cur or "id" in cur)
+                and (shortcode is None or cur.get("code") == shortcode)
+            ):
+                return cur
+            stack.extend(cur.values())
+        elif isinstance(cur, list):
+            stack.extend(cur)
     return None
 
 
-def parse_post(html: str | None, *, url: str, shortcode: str | None = None) -> dict[str, Any] | None:
+def _relay_media(html: str, shortcode: str | None) -> dict[str, Any] | None:
+    """Locate the embedded ``PolarisMedia`` object for this post, or ``None``.
+
+    The logged-out media payload is inlined as one of ~40 ``application/json``
+    script blocks. We only ``json.loads`` blocks that mention ``taken_at`` (and
+    the shortcode when known) so a single post fetch doesn't parse every blob.
+    """
+    for raw in _APP_JSON_RE.findall(html):
+        if "taken_at" not in raw:
+            continue
+        if shortcode and shortcode not in raw:
+            continue
+        try:
+            data = json.loads(raw)
+        except (ValueError, TypeError):
+            continue
+        media = _find_media(data, shortcode)
+        if media is not None:
+            return media
+    return None
+
+
+def _media_from_relay(
+    media: dict[str, Any], *, url: str, shortcode: str | None
+) -> dict[str, Any]:
+    """Map an embedded mobile-v1 ``PolarisMedia`` object to a flat media item.
+
+    Same output shape as :func:`parse_media` (so it flows through
+    ``InstagramMediaItem`` unchanged), sourced from the relay dialect
+    (``user``/``taken_at``/``usertags.in``/``carousel_media``/flat counts).
+    """
+    mt = media.get("media_type")
+    cap = media.get("caption")
+    caption = (
+        cap.get("text") if isinstance(cap, dict) else (cap if isinstance(cap, str) else None)
+    )
+    carousel = media.get("carousel_media")
+    carousel = [c for c in carousel if isinstance(c, dict)] if isinstance(carousel, list) else []
+    vv = media.get("video_versions")
+    video_url = (
+        vv[0].get("url") if isinstance(vv, list) and vv and isinstance(vv[0], dict) else None
+    )
+    is_video = mt == 2 or bool(video_url)
+    owner = media.get("user") if isinstance(media.get("user"), dict) else {}
+    tagged = [
+        ref
+        for t in ((media.get("usertags") or {}).get("in") or [])
+        if isinstance(t, dict) and (ref := _user_ref(t.get("user")))
+    ]
+    coauthors = [
+        ref for c in (media.get("coauthor_producers") or []) if (ref := _user_ref(c))
+    ]
+    loc_name, loc_id = _location_ref(media.get("location"))
+    # The relay ``id`` is ``POLARIS_<pk>``; strip the prefix so single-post ids
+    # match the numeric pk that og-fallback + the al:ios meta also yield.
+    ident = media.get("id")
+    if isinstance(ident, str) and ident.startswith("POLARIS_"):
+        ident = ident[len("POLARIS_") :]
+    pk = media.get("pk")
+    media_id = ident or (str(pk) if pk is not None else None)
+    return {
+        "id": media_id,
+        "type": _MEDIA_TYPE.get(mt) or ("Video" if is_video else "Image"),
+        "shortCode": media.get("code") or shortcode,
+        "caption": caption,
+        "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption))) if caption else [],
+        "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption))) if caption else [],
+        "url": url,
+        "commentsCount": _int(media.get("comment_count")),
+        "dimensionsHeight": _int(media.get("original_height")),
+        "dimensionsWidth": _int(media.get("original_width")),
+        "displayUrl": _iv2_url(media.get("image_versions2")) or media.get("display_uri"),
+        "images": [
+            u
+            for c in carousel
+            if (u := _iv2_url(c.get("image_versions2")) or c.get("display_uri"))
+        ],
+        "childPosts": [_relay_child(c) for c in carousel],
+        "videoUrl": video_url,
+        "alt": media.get("accessibility_caption"),
+        "likesCount": _int(media.get("like_count")),
+        "videoViewCount": _int(media.get("view_count") or media.get("play_count"))
+        if is_video
+        else None,
+        "videoDuration": media.get("video_duration") if is_video else None,
+        "timestamp": _utc_from_sec(media.get("taken_at")),
+        "ownerUsername": owner.get("username"),
+        "ownerId": owner.get("id") or owner.get("pk"),
+        "ownerFullName": owner.get("full_name"),
+        "productType": media.get("product_type"),
+        "taggedUsers": tagged,
+        "coauthorProducers": coauthors,
+        "locationName": loc_name,
+        "locationId": loc_id,
+    }
+
+
+def parse_post(
+    html: str | None, *, url: str, shortcode: str | None = None
+) -> dict[str, Any] | None:
     """Map an anonymous ``/p/<code>/`` (or ``/reel/``) HTML page to a media dict.
 
-    Prefers the embedded schema.org ``ld+json`` block, falling back to Open Graph
-    meta tags for whatever it omits. Returns a dict shaped like
-    :func:`parse_media` (so it flows through ``InstagramMediaItem`` unchanged), or
-    ``None`` when the document carries neither surface (e.g. a login interstitial
-    slipped past the fetch-layer redirect check — the caller treats ``None`` as
-    "nothing to emit", never a silent success).
+    Prefers the embedded mobile-v1 ``PolarisMedia`` relay JSON (full fidelity),
+    falling back to the lossy Open Graph meta tags only if that blob is absent.
+    Returns a dict shaped like :func:`parse_media` (so it flows through
+    ``InstagramMediaItem`` unchanged), or ``None`` when the document carries
+    neither surface (e.g. a login interstitial slipped past the fetch-layer
+    redirect check — the caller treats ``None`` as "nothing to emit", never a
+    silent success).
     """
     if not isinstance(html, str) or not html.strip():
         return None
-    blocks = _ldjson_blocks(html)
+
+    media = _relay_media(html, shortcode)
+    if media is not None:
+        return _media_from_relay(media, url=url, shortcode=shortcode)
+
+    # Fallback: no embedded relay blob -> Open Graph meta only.
     og = _og_tags(html)
-    if not blocks and not og:
+    if not og:
         return None
-
-    node = next(
-        (b for b in blocks if str(b.get("@type", "")).endswith(("Object", "Post"))),
-        blocks[0] if blocks else {},
-    )
-    # ld+json wins when present (richer, structured); og fills every gap. On
-    # anonymous /p/ pages ld+json is absent, so og_meta is the de-facto source.
     og_meta = _parse_og_meta(og)
-
-    counts = _ld_interaction(node)
-    counts.setdefault("likes", og_meta.get("likes"))
-    counts.setdefault("comments", og_meta.get("comments"))
-
-    caption = (
-        node.get("articleBody")
-        or node.get("caption")
-        or node.get("description")
-        or og_meta.get("caption")
-    )
-    caption = caption if isinstance(caption, str) else None
-
-    video = node.get("video")
-    video = video[0] if isinstance(video, list) and video else video
-    video_url = (
-        video.get("contentUrl") if isinstance(video, dict) else None
-    ) or og.get("video")
+    caption = og_meta.get("caption")
+    video_url = og.get("video")
     is_video = bool(video_url) or og.get("type") == "video.other"
-
-    image = node.get("image")
-    image = image[0] if isinstance(image, list) and image else image
-    display_url = (
-        image.get("url") if isinstance(image, dict) else image
-        if isinstance(image, str)
-        else None
-    ) or og.get("image")
-
-    media_id = node.get("identifier") if isinstance(node.get("identifier"), str) else None
-    if media_id is None:
-        id_match = _MEDIA_ID_RE.search(html)
-        media_id = id_match.group(1) if id_match else None
-
+    id_match = _MEDIA_ID_RE.search(html)
     return {
-        "id": media_id,
+        "id": id_match.group(1) if id_match else None,
         "type": "Video" if is_video else "Image",
         "shortCode": shortcode,
         "caption": caption,
         "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption))) if caption else [],
         "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption))) if caption else [],
         "url": url,
-        "commentsCount": counts.get("comments"),
-        "displayUrl": display_url,
+        "commentsCount": og_meta.get("comments"),
+        "displayUrl": og.get("image"),
         "videoUrl": video_url if is_video else None,
-        "likesCount": counts.get("likes"),
-        "timestamp": node.get("uploadDate") or node.get("datePublished") or og_meta.get("timestamp"),
-        "ownerUsername": _ld_author_username(node) or og_meta.get("ownerUsername"),
+        "likesCount": og_meta.get("likes"),
+        "timestamp": og_meta.get("timestamp"),
+        "ownerUsername": og_meta.get("ownerUsername"),
         "ownerFullName": og_meta.get("ownerFullName"),
     }
