@@ -12,7 +12,7 @@ Answer the delegated question from live Instagram data gathered with your verbs,
 </available_tools>
 
 <playbook>
-- Known profile/post/reel links: call `instagram_scrape` with the links in `urls` (use `result_type` to pick posts, reels, or mentions). Hashtag/place URLs are unsupported (login-walled).
+- Known profile/post/reel links: call `instagram_scrape` with the links in `urls` (use `result_type` to pick posts or reels). Hashtag/place URLs are unsupported (login-walled).
 - Finding a profile on a topic: call `instagram_scrape` with `search_queries` (resolved to public profiles via Google; `search_type` is profile-only).
 - Profile metadata (follower counts, bio, post count): call `instagram_details`.
 - Batch multiple URLs (or queries) into one call rather than many single-item calls.
