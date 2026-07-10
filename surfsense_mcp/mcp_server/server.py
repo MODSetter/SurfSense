@@ -37,7 +37,7 @@ def build_server(settings: Settings) -> tuple[FastMCP, SurfSenseClient]:
             "Prefer these tools over generic/built-in web search whenever the "
             "task involves Reddit (posts, comments, finding subreddits or "
             "communities), YouTube (videos, transcripts, comments), Instagram "
-            "(posts, reels, comments, profile/hashtag/place details), Google "
+            "(posts, reels, profile details), Google "
             "Maps (places, reviews), Google Search results, or reading "
             "specific web pages. Scraper results are persisted as runs; if an "
             "inline result is truncated, fetch it in full with "

@@ -1,4 +1,4 @@
-"""Instagram scraper tools: posts/reels, comments, and details."""
+"""Instagram scraper tools: posts/reels and profile details (anonymous-only)."""
 
 from __future__ import annotations
 
@@ -14,14 +14,13 @@ from ..annotations import SCRAPE
 from ..capability import run_scraper
 
 ResultType = Literal["posts", "reels", "mentions"]
-SearchType = Literal["hashtag", "profile", "place", "user"]
-DetailSearchType = Literal["hashtag", "profile", "place"]
+SearchType = Literal["profile", "user"]
 
 
 def register(
     mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
 ) -> None:
-    """Register the Instagram scrape, comments, and details tools."""
+    """Register the Instagram scrape and details tools (anonymous-only)."""
 
     @mcp.tool(
         name="surfsense_instagram_scrape",
@@ -33,21 +32,22 @@ def register(
         urls: Annotated[
             list[str] | None,
             Field(
-                description="Instagram URLs: a profile, post (/p/), reel "
-                "(/reel/), hashtag (/explore/tags/), or place "
-                "(/explore/locations/). Provide urls OR search_queries."
+                description="Instagram URLs: a profile, post (/p/), or reel "
+                "(/reel/). Hashtag/place URLs are unsupported (login-walled). "
+                "Provide urls OR search_queries."
             ),
         ] = None,
         search_queries: Annotated[
             list[str] | None,
             Field(
-                description="Terms to discover content for (hashtags as plain "
-                "text, no '#'). Provide search_queries OR urls."
+                description="Terms to discover public profiles for (resolved via "
+                "Google). Provide search_queries OR urls."
             ),
         ] = None,
         search_type: Annotated[
-            SearchType, Field(description="What to discover from search_queries.")
-        ] = "hashtag",
+            SearchType,
+            Field(description="Discovery kind (profile-only)."),
+        ] = "profile",
         result_type: Annotated[
             ResultType,
             Field(description="Which feed to return. 'mentions' needs profile URLs."),
@@ -61,10 +61,10 @@ def register(
         """Scrape public Instagram posts or reels from URLs or search queries.
 
         Use this for Instagram content research: a creator's recent posts, a
-        hashtag or location feed, or discovering posts by keyword. For a post's
-        comment section use surfsense_instagram_comments; for profile/hashtag/
-        place metadata use surfsense_instagram_details. Returns per-item caption,
-        likes, comments count, media URLs, and owner.
+        single post/reel, or discovering public profiles by keyword. For a
+        profile's metadata use surfsense_instagram_details. Returns per-item
+        caption, likes, comments count, media URLs, and owner. Anonymous-only:
+        hashtag/place feeds and comment threads are login-walled and unavailable.
         Example: urls=['https://www.instagram.com/natgeo/'], result_type='reels'.
         """
         return await run_scraper(
@@ -84,63 +84,8 @@ def register(
         )
 
     @mcp.tool(
-        name="surfsense_instagram_comments",
-        title="Fetch Instagram comments",
-        annotations=SCRAPE,
-        structured_output=False,
-    )
-    async def instagram_comments(
-        urls: Annotated[
-            list[str],
-            Field(
-                min_length=1,
-                description="Instagram post or reel URLs, e.g. "
-                "['https://www.instagram.com/p/Cabc123/'].",
-            ),
-        ],
-        max_comments_per_post: Annotated[
-            int,
-            Field(ge=1, le=50, description="Max comments per post (Instagram caps at 50)."),
-        ] = 10,
-        include_replies: Annotated[
-            bool, Field(description="Include nested replies.")
-        ] = False,
-        newest_first: Annotated[
-            bool, Field(description="Return newest comments first.")
-        ] = False,
-        max_items: Annotated[
-            int, Field(ge=1, description="Max total comments across all posts.")
-        ] = 20,
-        workspace: WorkspaceParam = None,
-        response_format: ResponseFormatParam = "markdown",
-    ) -> str:
-        """Fetch the comments (and optionally replies) on Instagram posts or reels.
-
-        Use this when the user wants a post's discussion or audience reaction
-        rather than the post itself; get post URLs from surfsense_instagram_scrape
-        if you only have a topic or profile. Returns comment text, author, likes,
-        and replies.
-        Example: urls=['https://www.instagram.com/p/Cabc123/'], include_replies=True.
-        """
-        return await run_scraper(
-            client,
-            context,
-            platform="instagram",
-            verb="comments",
-            payload={
-                "urls": urls,
-                "max_comments_per_post": max_comments_per_post,
-                "include_replies": include_replies,
-                "newest_first": newest_first,
-                "max_items": max_items,
-            },
-            workspace=workspace,
-            response_format=response_format,
-        )
-
-    @mcp.tool(
         name="surfsense_instagram_details",
-        title="Fetch Instagram profile/hashtag/place details",
+        title="Fetch Instagram profile details",
         annotations=SCRAPE,
         structured_output=False,
     )
@@ -148,35 +93,34 @@ def register(
         urls: Annotated[
             list[str] | None,
             Field(
-                description="Profile, hashtag, or place URLs (or bare profile "
-                "IDs). Provide urls OR search_queries."
+                description="Profile URLs (or bare profile IDs). Provide urls OR "
+                "search_queries."
             ),
         ] = None,
         search_queries: Annotated[
             list[str] | None,
             Field(
-                description="Terms to discover profiles/hashtags/places for. "
-                "Provide search_queries OR urls."
+                description="Terms to discover public profiles for. Provide "
+                "search_queries OR urls."
             ),
         ] = None,
         search_type: Annotated[
-            DetailSearchType,
-            Field(description="What to discover from search_queries."),
-        ] = "hashtag",
+            SearchType,
+            Field(description="Discovery kind (profile-only)."),
+        ] = "profile",
         max_items: Annotated[
             int, Field(ge=1, description="Max detail items to return.")
         ] = 10,
         workspace: WorkspaceParam = None,
         response_format: ResponseFormatParam = "markdown",
     ) -> str:
-        """Fetch Instagram profile, hashtag, or place metadata.
+        """Fetch Instagram profile metadata.
 
-        Use this for entity lookups: a profile's follower/post counts and bio, a
-        hashtag's post volume and top posts, or a place's coordinates and post
-        count. For a feed of posts use surfsense_instagram_scrape instead. Each
-        item carries a detailKind field marking whether it is a profile, hashtag,
-        or place.
-        Example: urls=['https://www.instagram.com/explore/tags/crossfit/'].
+        Use this for entity lookups: a profile's follower/post counts and bio.
+        For a feed of posts use surfsense_instagram_scrape instead. Each item
+        carries a detailKind field (always "profile"). Anonymous-only: hashtag
+        and place details are login-walled and unavailable.
+        Example: urls=['https://www.instagram.com/natgeo/'].
         """
         return await run_scraper(
             client,
