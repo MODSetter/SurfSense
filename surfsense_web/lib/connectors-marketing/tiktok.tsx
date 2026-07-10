@@ -8,7 +8,7 @@ export const tiktok: ConnectorPageContent = {
 
 	metaTitle: "TikTok Scraper API for Trend and Creator Research | SurfSense",
 	metaDescription:
-		"Scrape public TikTok videos, comments, accounts, and trending feeds by hashtag, search, or URL with the SurfSense TikTok Scraper API. No approval process or research-API gatekeeping, plus a free tier. Start now.",
+		"Scrape public TikTok videos, comments, accounts, and trending feeds by hashtag, profile, or URL with the SurfSense TikTok Scraper API. No approval process or research-API gatekeeping, plus a free tier. Start now.",
 	keywords: [
 		"tiktok scraper",
 		"tiktok scraper api",
@@ -29,7 +29,7 @@ export const tiktok: ConnectorPageContent = {
 
 	h1: "TikTok Scraper API for Trend and Creator Research",
 	heroLede:
-		"The SurfSense TikTok API extracts public videos by hashtag, search, or URL without TikTok's approval-gated Research API. Give your AI agents a live feed of what your market watches and shares, so you catch a trend while it is still rising.",
+		"The SurfSense TikTok API extracts public videos by hashtag, creator profile, or URL without TikTok's approval-gated Research API. Give your AI agents a live feed of what your market watches and shares, so you catch a trend while it is still rising.",
 
 	transcript: {
 		prompt: "Find trending TikToks about meal prep this week",
@@ -55,7 +55,7 @@ export const tiktok: ConnectorPageContent = {
 	},
 
 	extractIntro:
-		"Every call returns structured items. Scrape videos from a hashtag, search query, creator profile, or video URL — or switch verbs to pull a video's comments, discover accounts by keyword, or fetch the current trending feed.",
+		"Every call returns structured items. Scrape videos from a hashtag, creator profile, or video URL — or switch verbs to pull a video's comments, discover accounts by keyword, or fetch the current trending feed.",
 	extractFields: [
 		{
 			label: "Videos",
@@ -89,7 +89,7 @@ export const tiktok: ConnectorPageContent = {
 		{
 			title: "Trend and hashtag monitoring",
 			description:
-				"Track a hashtag or search term and feed the stream to an agent that flags breakout videos, rising sounds, and formats before they saturate. Catch the wave while it is still rising, not after.",
+				"Track a hashtag and feed the stream to an agent that flags breakout videos, rising sounds, and formats before they saturate. Catch the wave while it is still rising, not after.",
 		},
 		{
 			title: "Creator and influencer discovery",
@@ -161,7 +161,7 @@ export const tiktok: ConnectorPageContent = {
 				type: "string[]",
 				defaultValue: "[]",
 				description:
-					"TikTok URLs to scrape: a video, a profile (/@user), a hashtag (/tag/name), or a search URL. Max 20.",
+					"TikTok URLs to scrape: a video, a profile (/@user), or a hashtag (/tag/name). Max 20.",
 			},
 			{
 				name: "profiles",
@@ -180,13 +180,13 @@ export const tiktok: ConnectorPageContent = {
 				type: "string[]",
 				defaultValue: "[]",
 				description:
-					"Search terms to run on TikTok. Each returns up to results_per_page videos. Max 20.",
+					"Keyword search terms. Keyword video search is login-walled and returns no videos — use hashtags/profiles/urls for videos, or user_search for accounts. Max 20.",
 			},
 			{
 				name: "results_per_page",
 				type: "integer",
 				defaultValue: "10",
-				description: "Max videos to pull per profile, hashtag, or search target. 1 to 100.",
+				description: "Max videos to pull per profile or hashtag target. 1 to 100.",
 			},
 			{
 				name: "max_items",
@@ -260,17 +260,17 @@ export const tiktok: ConnectorPageContent = {
 		{
 			question: "What are the rate limits?",
 			answer:
-				"Each call caps at 100 returned videos across all sources, with up to 20 hashtags, searches, profiles, or URLs per request. SurfSense manages the underlying request budget and request signing for you.",
+				"Each call caps at 100 returned videos across all sources, with up to 20 hashtags, profiles, or URLs per request. SurfSense manages the underlying request budget and request signing for you.",
 		},
 		{
 			question: "Can I scrape a specific creator's videos?",
 			answer:
-				"Pass a profile or profile URL and you always get the account's metadata — name, followers, bio, verification. TikTok often withholds the profile video list from automated clients, so that list can come back empty even for a public account; for reliable video results, scrape by hashtag, by search query, or by a direct video URL.",
+				"Pass a profile or profile URL and you always get the account's metadata — name, followers, bio, verification. TikTok often withholds the profile video list from automated clients, so that list can come back empty even for a public account; for reliable video results, scrape by hashtag or by a direct video URL.",
 		},
 		{
 			question: "What TikTok data can I scrape?",
 			answer:
-				"Four verbs: scrape (videos by hashtag, search, profile, or URL), comments (a video's public comment thread), user search (find accounts by keyword — the reliable discovery path, since keyword video search is login-walled), and trending (the current Explore feed). Each returns structured items and is billed per item returned.",
+				"Four verbs: scrape (videos by hashtag, profile, or URL), comments (a video's public comment thread), user search (find accounts by keyword — the reliable discovery path, since keyword video search is login-walled), and trending (the current Explore feed). Each returns structured items and is billed per item returned.",
 		},
 	],
 
