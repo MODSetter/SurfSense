@@ -94,7 +94,6 @@ const TOOL_GROUPS = [
 			"surfsense_youtube_scrape",
 			"surfsense_youtube_comments",
 			"surfsense_instagram_scrape",
-			"surfsense_instagram_comments",
 			"surfsense_instagram_details",
 			"surfsense_google_maps_scrape",
 			"surfsense_google_maps_reviews",

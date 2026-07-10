@@ -55,7 +55,6 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 		icon: InstagramIcon,
 		verbs: [
 			{ name: "instagram.scrape", verb: "scrape", label: "Scrape" },
-			{ name: "instagram.comments", verb: "comments", label: "Comments" },
 			{ name: "instagram.details", verb: "details", label: "Details" },
 		],
 	},

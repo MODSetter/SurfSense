@@ -6,9 +6,9 @@ export const instagram: ConnectorPageContent = {
 	name: "Instagram",
 	icon: IconBrandInstagram,
 
-	metaTitle: "Instagram Scraper API for Social Listening | SurfSense",
+	metaTitle: "Instagram Scraper API for Creator Research | SurfSense",
 	metaDescription:
-		"Scrape public Instagram posts, reels, comments, and profiles at scale with the SurfSense Instagram Scraper API. No login, no official API, plus a free tier. Start now.",
+		"Scrape public Instagram posts, reels, and profiles at scale with the SurfSense Instagram Scraper API. No login, no official API, plus a free tier. Start now.",
 	keywords: [
 		"instagram scraper",
 		"instagram scraper api",
@@ -16,21 +16,21 @@ export const instagram: ConnectorPageContent = {
 		"instagram api alternative",
 		"scrape instagram",
 		"instagram graph api alternative",
-		"instagram comment scraper",
 		"instagram profile scraper",
-		"instagram hashtag scraper",
+		"instagram post scraper",
+		"instagram reel scraper",
 		"instagram data api",
 		"instagram mcp server",
-		"instagram sentiment analysis",
+		"creator research",
 		"social listening",
 	],
 
-	h1: "Instagram Scraper API for Social Listening and Creator Research",
+	h1: "Instagram Scraper API for Creator Research and Social Listening",
 	heroLede:
-		"The SurfSense Instagram API extracts public posts, reels, comments, and profile, hashtag, and place details without logging in or registering for the Instagram Graph API. Give your AI agents a live feed of what creators post and what their audiences say, so you spot trends and sentiment first.",
+		"The SurfSense Instagram API extracts public posts, reels, and profile details without logging in or registering for the Instagram Graph API. Give your AI agents a live feed of what creators post, so you spot trends and shifts in engagement first.",
 
 	transcript: {
-		prompt: "Pull recent reels from @competitor and tell me what the comments think",
+		prompt: "Pull recent reels from @competitor and summarize what they're posting",
 		toolCall:
 			'instagram.scrape({ urls: ["instagram.com/competitor/"],\n  result_type: "reels", max_items: 20 })',
 		rows: [
@@ -40,9 +40,9 @@ export const instagram: ConnectorPageContent = {
 				tag: "top reel",
 			},
 			{
-				primary: "Comments skew positive on price, negative on shipping",
-				secondary: "1,203 comments · 0.71 positive",
-				tag: "sentiment",
+				primary: "Cadence up 40% this month, all short-form reels",
+				secondary: "20 reels · 12 days",
+				tag: "trend",
 			},
 			{
 				primary: "3 creators tagged asking for a collab",
@@ -50,11 +50,11 @@ export const instagram: ConnectorPageContent = {
 				tag: "lead signal",
 			},
 		],
-		resultSummary: "20 reels · 4,910 comments · surfaced in 2.4s",
+		resultSummary: "20 reels · surfaced in 2.4s",
 	},
 
 	extractIntro:
-		"Every call returns structured items keyed by type. Point the API at a profile, post, reel, hashtag, or place URL, or discover content with a search query.",
+		"Every call returns structured items keyed by type. Point the API at a public profile, post, or reel URL, or discover creators with a search query.",
 	extractFields: [
 		{
 			label: "Posts & Reels",
@@ -62,21 +62,9 @@ export const instagram: ConnectorPageContent = {
 				"Caption, hashtags, mentions, like and comment counts, media URLs, dimensions, and timestamp.",
 		},
 		{
-			label: "Comments",
-			description: "Comment text, author, like and reply counts, and nested replies for any post.",
-		},
-		{
 			label: "Profiles",
 			description:
 				"Follower, following, and post counts, bio, external URL, verified and business flags.",
-		},
-		{
-			label: "Hashtags",
-			description: "Post volume, top posts, and recent posts for any /explore/tags/ hashtag.",
-		},
-		{
-			label: "Places",
-			description: "Name, coordinates, address, and recent posts for any /explore/locations/ place.",
 		},
 		{
 			label: "Owner & Media",
@@ -90,17 +78,12 @@ export const instagram: ConnectorPageContent = {
 		{
 			title: "Creator and competitor monitoring",
 			description:
-				"Track what your competitors and target creators post, and how their audiences react. Feed the stream to an agent that flags viral formats, launches, and shifts in engagement the moment they land.",
+				"Track what your competitors and target creators post, and how engagement moves. Feed the stream to an agent that flags viral formats, launches, and shifts in cadence the moment they land.",
 		},
 		{
-			title: "Audience sentiment and comment mining",
+			title: "Content and format research",
 			description:
-				"Pull full comment threads on a post or reel and score them for sentiment, so you can measure how a launch, a collab, or a campaign actually resonated with real followers.",
-		},
-		{
-			title: "Hashtag and trend research",
-			description:
-				"Map the volume and top content behind any hashtag before you spend on a campaign. Turn trend research into a content calendar your team can act on.",
+				"Study a creator's recent posts and reels to see which formats earn the most likes and comments, and turn that into a content calendar your team can act on.",
 		},
 		{
 			title: "Influencer vetting and outreach",
@@ -123,12 +106,7 @@ export const instagram: ConnectorPageContent = {
 			{
 				feature: "Coverage",
 				official: "Mostly your own or connected accounts",
-				surfsense: "Any public profile, post, hashtag, or place",
-			},
-			{
-				feature: "Comments",
-				official: "Limited to accounts you manage",
-				surfsense: "Public comments and replies on any post, up to 50 per post",
+				surfsense: "Any public profile, post, or reel",
 			},
 			{
 				feature: "Setup",
@@ -163,21 +141,21 @@ export const instagram: ConnectorPageContent = {
 				type: "string[]",
 				defaultValue: "[]",
 				description:
-					"Instagram URLs or bare profile IDs: profile, post (/p/), reel (/reel/), hashtag (/explore/tags/), or place (/explore/locations/). Max 20.",
+					"Instagram URLs or bare profile IDs: profile, post (/p/), or reel (/reel/). Hashtag and place URLs are login-walled and unsupported. Max 20.",
 			},
 			{
 				name: "search_queries",
 				type: "string[]",
 				defaultValue: "[]",
 				description:
-					"Discovery keywords (hashtags as plaintext, no '#'). Provide these OR urls, not both. Max 20.",
+					"Discovery keywords resolved to public profiles via Google. Provide these OR urls, not both. Max 20.",
 			},
 			{
 				name: "search_type",
 				type: "string",
-				defaultValue: '"hashtag"',
+				defaultValue: '"profile"',
 				description:
-					"What to discover from search_queries: hashtag, profile, place, or user. Only used with search_queries.",
+					"What to discover from search_queries: profile or user. Only used with search_queries.",
 			},
 			{
 				name: "result_type",
@@ -261,7 +239,7 @@ export const instagram: ConnectorPageContent = {
 		{
 			question: "Is scraping Instagram legal?",
 			answer:
-				"SurfSense reads only public Instagram data, the same posts, reels, and comments any logged-out visitor can see. It never logs in and cannot access private accounts or stories. As always, review Instagram's terms and your own compliance needs before you run at scale.",
+				"SurfSense reads only public Instagram data, the same posts, reels, and profiles any logged-out visitor can see. It never logs in and cannot access private accounts, stories, or login-walled feeds. As always, review Instagram's terms and your own compliance needs before you run at scale.",
 		},
 		{
 			question: "Do I need an Instagram account or the Graph API?",
@@ -271,12 +249,12 @@ export const instagram: ConnectorPageContent = {
 		{
 			question: "What are the rate limits?",
 			answer:
-				"Each call caps at 100 returned items across all sources, with up to 20 URLs or search queries per request, and up to 50 comments per post. SurfSense manages the underlying request budget and proxy rotation for you, so you scale reads without managing tokens.",
+				"Each call caps at 100 returned items across all sources, with up to 20 URLs or search queries per request. SurfSense manages the underlying request budget and proxy rotation for you, so you scale reads without managing tokens.",
 		},
 		{
-			question: "Can I get comments and replies?",
+			question: "Can I scrape hashtags, places, or comments?",
 			answer:
-				"Yes. The instagram.comments verb returns public comments on any post or reel, with author, like and reply counts, and optionally the nested replies. Get post URLs first from instagram.scrape if you only have a topic or a profile.",
+				"No. Instagram login-walls hashtag feeds, place feeds, and comment threads for logged-out visitors, so SurfSense does not offer them. The API focuses on what is reliably public and anonymous: profiles, posts, and reels.",
 		},
 	],
 
