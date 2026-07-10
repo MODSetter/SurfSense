@@ -13,7 +13,8 @@ Normalization rules (from the reference spec):
 - Numeric post-ID URLs cannot be single-post-extracted anonymously (the HTML
   page keys on the shortCode), so they resolve with ``numeric_post_id`` set and
   the media flow skips them.
-- ``share/`` redirect resolution is handled at fetch time (network), not here.
+- ``share/`` links are unsupported (they need a network redirect to resolve to a
+  canonical post/profile URL); pass the resolved ``/p/`` or profile URL instead.
 """
 
 from __future__ import annotations
@@ -40,7 +41,6 @@ class ResolvedUrl:
     kind: ResolvedKind
     value: str
     url: str
-    slug: str | None = None
     numeric_post_id: bool = False
 
 
