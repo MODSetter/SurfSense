@@ -26,8 +26,8 @@ class ScrapeInput(BaseModel):
         default_factory=list,
         max_length=MAX_INSTAGRAM_SOURCES,
         description=(
-            "Instagram URLs or bare profile IDs: profile, post (/p/), reel "
-            "(/reel/), hashtag (/explore/tags/), or place (/explore/locations/). "
+            "Instagram URLs or bare profile IDs: profile, post (/p/), or reel "
+            "(/reel/). Hashtag/place URLs are unsupported (login-walled). "
             "Provide these OR search_queries (never both)."
         ),
     )
@@ -35,13 +35,13 @@ class ScrapeInput(BaseModel):
         default_factory=list,
         max_length=MAX_INSTAGRAM_SOURCES,
         description=(
-            "Discovery keywords (hashtags as plaintext, no '#'). Provide these "
-            "OR urls (never both)."
+            "Discovery keywords resolved to profiles via Google (IG's keyword "
+            "search is login-walled). Provide these OR urls (never both)."
         ),
     )
-    search_type: Literal["hashtag", "profile", "place", "user"] = Field(
-        default="hashtag",
-        description="What to discover from search_queries. Only used with search_queries.",
+    search_type: Literal["profile", "user"] = Field(
+        default="profile",
+        description="Discovery kind (profile-only; hashtag/place are login-walled).",
     )
     result_type: Literal["posts", "reels", "mentions"] = Field(
         default="posts",

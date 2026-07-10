@@ -1,13 +1,14 @@
 """``instagram.details`` I/O contracts.
 
 A lean surface over ``InstagramScrapeInput`` (``resultsType="details"``). Each
-output item is a profile / hashtag / place, discriminated by the synthesized
-``detailKind`` field (a SurfSense addition; every other field mirrors the actor).
+output item is a profile (``detailKind="profile"``, a SurfSense addition; every
+other field mirrors the actor). Hashtag/place details are login-walled and
+therefore unsupported.
 """
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -15,16 +16,9 @@ from app.capabilities.instagram.scrape.schemas import (
     MAX_INSTAGRAM_ITEMS,
     MAX_INSTAGRAM_SOURCES,
 )
-from app.proprietary.platforms.instagram import (
-    InstagramHashtag,
-    InstagramPlace,
-    InstagramProfile,
-)
+from app.proprietary.platforms.instagram import InstagramProfile
 
-InstagramDetailItem = Annotated[
-    InstagramProfile | InstagramHashtag | InstagramPlace,
-    Field(discriminator="detailKind"),
-]
+InstagramDetailItem = InstagramProfile
 
 
 class DetailsInput(BaseModel):
@@ -32,18 +26,17 @@ class DetailsInput(BaseModel):
         default_factory=list,
         max_length=MAX_INSTAGRAM_SOURCES,
         description=(
-            "Profile / hashtag / place URLs (or bare profile IDs). The URL type "
-            "determines the detail kind. Provide these OR search_queries."
+            "Profile URLs or bare profile IDs. Provide these OR search_queries."
         ),
     )
     search_queries: list[str] = Field(
         default_factory=list,
         max_length=MAX_INSTAGRAM_SOURCES,
-        description="Discovery keywords. Provide these OR urls (never both).",
+        description="Discovery keywords resolved to profiles. Provide these OR urls.",
     )
-    search_type: Literal["hashtag", "profile", "place"] = Field(
-        default="hashtag",
-        description="What to discover from search_queries (no 'user' — use instagram.scrape).",
+    search_type: Literal["profile", "user"] = Field(
+        default="profile",
+        description="Discovery kind (profile-only; hashtag/place are login-walled).",
     )
     search_limit: int = Field(
         default=10,
@@ -78,7 +71,7 @@ class DetailsInput(BaseModel):
 class DetailsOutput(BaseModel):
     items: list[InstagramDetailItem] = Field(
         default_factory=list,
-        description="One item per profile/hashtag/place, keyed by detailKind.",
+        description="One profile detail item per resolved profile.",
     )
 
     @property

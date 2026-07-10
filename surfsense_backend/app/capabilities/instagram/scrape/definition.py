@@ -10,8 +10,8 @@ from app.capabilities.instagram.scrape.schemas import ScrapeInput, ScrapeOutput
 INSTAGRAM_SCRAPE = Capability(
     name="instagram.scrape",
     description=(
-        "Scrape public Instagram posts, reels, or mentions from "
-        "profile/post/hashtag/place URLs, or discover content via search queries."
+        "Scrape public Instagram posts, reels, or mentions from profile/post/"
+        "reel URLs, or discover public profiles via search queries."
     ),
     input_schema=ScrapeInput,
     output_schema=ScrapeOutput,
