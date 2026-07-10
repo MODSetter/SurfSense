@@ -20,6 +20,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 InstagramResultsType = Literal["posts", "details", "reels"]
+# Kept as distinct values for actor-spec parity, but under anonymous Google-backed
+# discovery ``user`` and ``profile`` are aliases: both resolve to profile targets
+# (IG's own hashtag/place/keyword search is login-walled).
 InstagramSearchType = Literal["profile", "user"]
 
 
@@ -64,7 +67,12 @@ class _ItemBase(BaseModel):
 
 
 class InstagramMediaItem(_ItemBase):
-    """A post / reel / mention. One flat schema per the actor FAQ."""
+    """A post or reel. One flat schema per the actor FAQ.
+
+    ``firstComment``/``latestComments`` are intentionally absent: comment
+    *content* is login-walled (only the anonymous comment *count* is exposed, as
+    ``commentsCount``), so this scraper can never source them.
+    """
 
     id: str | None = None
     type: Literal["Image", "Video", "Sidecar"] | None = None
@@ -74,8 +82,6 @@ class InstagramMediaItem(_ItemBase):
     mentions: list[str] = Field(default_factory=list)
     url: str | None = None
     commentsCount: int | None = None
-    firstComment: str | None = None
-    latestComments: list[dict[str, Any]] = Field(default_factory=list)
     dimensionsHeight: int | None = None
     dimensionsWidth: int | None = None
     displayUrl: str | None = None
