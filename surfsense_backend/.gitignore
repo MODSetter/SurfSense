@@ -19,3 +19,4 @@ app/templates/_generated/
 
 /tests/unit/platforms/instagram/fixtures/post.json
 /tests/unit/platforms/instagram/fixtures/profile.json
+/tests/unit/platforms/instagram/fixtures/tagged.json
