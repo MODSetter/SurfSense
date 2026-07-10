@@ -15,6 +15,7 @@ parity is additive.
 
 from __future__ import annotations
 
+import html
 import json
 import re
 from datetime import UTC, datetime
@@ -185,10 +186,70 @@ _LDJSON_RE = re.compile(
 _OG_RE = re.compile(
     r'<meta\s+property="og:([^"]+)"\s+content="([^"]*)"', re.IGNORECASE
 )
-# og:description shape: "1,234 likes, 56 comments - author on 2024-01-02 ..."
+# Anonymous /p/ pages carry NO ld+json — og tags are the real source. They
+# follow a fixed English shape because the fetch layer pins Accept-Language en-US:
+#   og:description = "{likes} likes, {comments} comments - {username} on {Month D, YYYY}: "{caption}""
+#   og:title       = "{fullName} on Instagram: "{caption}""
+# Each field is matched independently and guarded so an unrecognised shape (hidden
+# likes, a non-English locale that slipped the header, a format change) degrades
+# to None rather than crashing or polluting the caption.
 _OG_COUNTS_RE = re.compile(
     r"([\d.,]+)\s+likes?,\s*([\d.,]+)\s+comments?", re.IGNORECASE
 )
+# The username sits after the counts' " - " and before " on {date}:"; the date is
+# anchored to the English "Month D, YYYY" so a caption containing " on " or ":"
+# can't be mistaken for the prefix.
+_OG_OWNER_DATE_RE = re.compile(
+    r"-\s+([^-\n]+?)\s+on\s+([A-Z][a-z]+ \d{1,2}, \d{4}):", re.DOTALL
+)
+# og:title is the cleaner caption source (no counts/date prefix): the caption is
+# everything after "<fullName> on Instagram: ".
+_OG_TITLE_RE = re.compile(r"^(.+?)\s+on Instagram:\s*(.*)$", re.DOTALL)
+
+
+def _og_date_to_iso(value: str) -> str | None:
+    """``"July 9, 2026"`` -> ``"2026-07-09"`` (date-only; og carries no time)."""
+    try:
+        return datetime.strptime(value, "%B %d, %Y").replace(tzinfo=UTC).date().isoformat()
+    except ValueError:
+        return None
+
+
+def _clean_caption(raw: str) -> str | None:
+    """HTML-unescape and unwrap the surrounding quotes off an og caption preview."""
+    return html.unescape(raw).strip().strip('"').strip() or None
+
+
+def _parse_og_meta(og: dict[str, str]) -> dict[str, Any]:
+    """Lift post fields out of Instagram's Open Graph tags (see module notes above).
+
+    Caption + full name come from ``og:title``; counts + username + date from
+    ``og:description``. Every field is optional and independently guarded, so a
+    shape we don't recognise yields a partial (or empty) dict instead of raising.
+    """
+    out: dict[str, Any] = {}
+    desc = og.get("description", "")
+    title = og.get("title", "")
+
+    counts = _OG_COUNTS_RE.search(desc)
+    if counts:
+        out["likes"] = _html_int(counts.group(1))
+        out["comments"] = _html_int(counts.group(2))
+
+    owner_date = _OG_OWNER_DATE_RE.search(desc)
+    if owner_date:
+        out["ownerUsername"] = owner_date.group(1).strip().lstrip("@") or None
+        out["timestamp"] = _og_date_to_iso(owner_date.group(2))
+
+    tm = _OG_TITLE_RE.match(title)
+    if tm:
+        out["ownerFullName"] = tm.group(1).strip() or None
+        out["caption"] = _clean_caption(tm.group(2))
+    elif owner_date:
+        # No usable og:title: fall back to the caption after og:description's
+        # date prefix — still clean (the counts/username/date are stripped).
+        out["caption"] = _clean_caption(desc[owner_date.end():])
+    return out
 
 
 def _html_int(value: Any) -> int | None:
@@ -278,18 +339,19 @@ def parse_post(html: str | None, *, url: str, shortcode: str | None = None) -> d
         (b for b in blocks if str(b.get("@type", "")).endswith(("Object", "Post"))),
         blocks[0] if blocks else {},
     )
+    # ld+json wins when present (richer, structured); og fills every gap. On
+    # anonymous /p/ pages ld+json is absent, so og_meta is the de-facto source.
+    og_meta = _parse_og_meta(og)
+
     counts = _ld_interaction(node)
-    if "likes" not in counts or "comments" not in counts:
-        m = _OG_COUNTS_RE.search(og.get("description", ""))
-        if m:
-            counts.setdefault("likes", _html_int(m.group(1)) or 0)
-            counts.setdefault("comments", _html_int(m.group(2)) or 0)
+    counts.setdefault("likes", og_meta.get("likes"))
+    counts.setdefault("comments", og_meta.get("comments"))
 
     caption = (
         node.get("articleBody")
         or node.get("caption")
         or node.get("description")
-        or og.get("description")
+        or og_meta.get("caption")
     )
     caption = caption if isinstance(caption, str) else None
 
@@ -313,13 +375,14 @@ def parse_post(html: str | None, *, url: str, shortcode: str | None = None) -> d
         "type": "Video" if is_video else "Image",
         "shortCode": shortcode,
         "caption": caption,
-        "hashtags": _HASHTAG_RE.findall(caption) if caption else [],
-        "mentions": _MENTION_RE.findall(caption) if caption else [],
+        "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption))) if caption else [],
+        "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption))) if caption else [],
         "url": url,
         "commentsCount": counts.get("comments"),
         "displayUrl": display_url,
         "videoUrl": video_url if is_video else None,
         "likesCount": counts.get("likes"),
-        "timestamp": node.get("uploadDate") or node.get("datePublished"),
-        "ownerUsername": _ld_author_username(node),
+        "timestamp": node.get("uploadDate") or node.get("datePublished") or og_meta.get("timestamp"),
+        "ownerUsername": _ld_author_username(node) or og_meta.get("ownerUsername"),
+        "ownerFullName": og_meta.get("ownerFullName"),
     }

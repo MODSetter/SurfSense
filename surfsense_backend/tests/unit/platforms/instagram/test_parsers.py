@@ -116,12 +116,17 @@ def test_parse_post_prefers_ldjson():
 
 
 def test_parse_post_falls_back_to_og_meta():
+    # Anonymous /p/ pages carry no ld+json; everything is lifted from the og
+    # tags. og:description gives counts + username + date; og:title gives the
+    # clean caption + full name. Entities in the caption are deduped.
     html = """
     <html><head>
     <meta property="og:type" content="video.other" />
     <meta property="og:image" content="https://cdn/i.jpg" />
+    <meta property="og:title"
+      content="Nat Geo on Instagram: &quot;a caption #wow #wow @buzz&quot;" />
     <meta property="og:description"
-      content="1,234 likes, 56 comments - natgeo on January 2, 2024: &quot;a caption&quot;" />
+      content="1,234 likes, 56 comments - natgeo on January 2, 2024: &quot;a caption #wow #wow @buzz&quot;" />
     </head></html>
     """
     item = parse_post(html, url=_POST_URL, shortcode="Cabc")
@@ -130,6 +135,34 @@ def test_parse_post_falls_back_to_og_meta():
     assert item["commentsCount"] == 56
     assert item["displayUrl"] == "https://cdn/i.jpg"
     assert item["type"] == "Video"
+    assert item["ownerUsername"] == "natgeo"
+    assert item["ownerFullName"] == "Nat Geo"
+    assert item["timestamp"] == "2024-01-02"  # og carries date only, no time
+    assert item["caption"] == "a caption #wow #wow @buzz"  # unescaped, unwrapped
+    assert item["hashtags"] == ["wow"]  # deduped, no counts-prefix pollution
+    assert item["mentions"] == ["buzz"]
+
+
+def test_parse_post_og_degrades_without_crashing():
+    # A shape we don't recognise (hidden likes / a non-English locale that
+    # slipped the en-US header) must yield a partial item with None fields,
+    # never an exception or a caption polluted with the counts/date prefix.
+    html = """
+    <html><head>
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://cdn/i.jpg" />
+    <meta property="og:title" content="Nat Geo no Instagram: &quot;ol\u00e1&quot;" />
+    <meta property="og:description" content="alguma coisa sem formato" />
+    </head></html>
+    """
+    item = parse_post(html, url=_POST_URL, shortcode="Cabc")
+    assert item is not None  # og:image present -> still emits
+    assert item["displayUrl"] == "https://cdn/i.jpg"
+    assert item["likesCount"] is None
+    assert item["commentsCount"] is None
+    assert item["ownerUsername"] is None
+    assert item["timestamp"] is None
+    assert item["caption"] is None  # unrecognised prefix -> no pollution
 
 
 def test_parse_post_returns_none_without_surfaces():
