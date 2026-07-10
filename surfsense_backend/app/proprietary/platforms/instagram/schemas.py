@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-InstagramResultsType = Literal["posts", "details", "reels", "mentions"]
+InstagramResultsType = Literal["posts", "details", "reels"]
 InstagramSearchType = Literal["profile", "user"]
 
 

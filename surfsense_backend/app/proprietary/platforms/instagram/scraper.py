@@ -16,7 +16,7 @@ Google-backed handle discovery. Login-walled surfaces (hashtag/place feeds,
 comment threads, IG's native keyword search) are deliberately absent.
 
 Flows are selected by ``resultsType``:
-- ``posts`` / ``reels`` / ``mentions`` -> media items (profile feed, or a single
+- ``posts`` / ``reels`` -> media items (profile feed, or a single
   ``/p/``/``/reel/`` page, or discovery search)
 - ``details`` -> profile metadata (by URL or discovery search)
 
@@ -394,7 +394,7 @@ async def iter_instagram(
                 yield item
         return
 
-    # posts / reels / mentions -> media feeds, de-duped by id across targets.
+    # posts / reels -> media feeds, de-duped by id across targets.
     jobs = [
         _media_flow(
             r, input_model=input_model, cutoff=cutoff, per_target=per_target
