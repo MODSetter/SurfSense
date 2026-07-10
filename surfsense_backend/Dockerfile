@@ -31,11 +31,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dos2unix \
     git \
     # ── Phase 3e stealth hardening ──────────────────────────────────────────
-    # Xvfb: virtual framebuffer so the stealth browser can run headful
-    # (headless=False) without a real display — many WAFs flag headless Chromium.
-    # Gated at runtime by CRAWL_HEADED_XVFB_ENABLED (Slice B); installed now so
-    # the image is ready. Real font packages make canvas/emoji/font-enumeration
-    # fingerprints resemble a real desktop (set proven against Kasada/Akamai).
+    # Xvfb: virtual display so the browser can run headful without real hardware
+    # (entrypoint starts it when CRAWL_HEADED_XVFB_ENABLED; used by TikTok's profile
+    # feed). Real fonts make canvas/emoji/font fingerprints look like a real desktop.
     xvfb \
     fonts-noto-color-emoji \
     fonts-unifont \

@@ -36,6 +36,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
 from app.agents.chat.multi_agent_chat.subagents.builtins.reddit.agent import (
     build_subagent as build_reddit_subagent,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.tiktok.agent import (
+    build_subagent as build_tiktok_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent import (
     build_subagent as build_web_crawler_subagent,
 )
@@ -88,6 +91,7 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "memory": build_memory_subagent,
     "onedrive": build_onedrive_subagent,
     "reddit": build_reddit_subagent,
+    "tiktok": build_tiktok_subagent,
     "web_crawler": build_web_crawler_subagent,
     "youtube": build_youtube_subagent,
 }

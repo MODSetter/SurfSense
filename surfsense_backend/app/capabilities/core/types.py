@@ -27,6 +27,9 @@ class BillingUnit(StrEnum):
     YOUTUBE_COMMENT = "youtube_comment"
     INSTAGRAM_ITEM = "instagram_item"
     INSTAGRAM_COMMENT = "instagram_comment"
+    TIKTOK_VIDEO = "tiktok_video"
+    TIKTOK_USER = "tiktok_user"
+    TIKTOK_COMMENT = "tiktok_comment"
 
 
 class BillableInput(Protocol):

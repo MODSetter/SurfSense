@@ -5,6 +5,7 @@ import app.capabilities.google_maps
 import app.capabilities.google_search
 import app.capabilities.instagram
 import app.capabilities.reddit
+import app.capabilities.tiktok
 import app.capabilities.web
 import app.capabilities.youtube  # noqa: F401
 from app.automations.api import router as automations_router

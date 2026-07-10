@@ -4,6 +4,7 @@ import {
 	GoogleSearchIcon,
 	InstagramIcon,
 	RedditIcon,
+	TikTokIcon,
 	WebIcon,
 	YouTubeIcon,
 } from "./platform-icons";
@@ -56,6 +57,21 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 		verbs: [
 			{ name: "instagram.scrape", verb: "scrape", label: "Scrape" },
 			{ name: "instagram.details", verb: "details", label: "Details" },
+		],
+	},
+	{
+		id: "tiktok",
+		label: "TikTok",
+		icon: TikTokIcon,
+		verbs: [
+			{ name: "tiktok.scrape", verb: "scrape", label: "Scrape" },
+			{ name: "tiktok.comments", verb: "comments", label: "Comments" },
+			{
+				name: "tiktok.user_search",
+				verb: "user_search",
+				label: "User Search",
+			},
+			{ name: "tiktok.trending", verb: "trending", label: "Trending" },
 		],
 	},
 	{
