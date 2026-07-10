@@ -60,6 +60,59 @@ def test_parse_media_marks_video_type():
     assert item["videoViewCount"] == 99
 
 
+def test_parse_media_extracts_sidecar_tags_location_pinned():
+    # The anonymous profile feed node carries far more than the core fields:
+    # sidecar children, tagged users, coauthors, location, product type and pin
+    # state — all populated here from the real GraphQL key shapes.
+    node = {
+        "id": "1",
+        "shortcode": "Cabc",
+        "__typename": "GraphSidecar",
+        "taken_at_timestamp": 1_704_164_645,
+        "edge_media_to_caption": _edge([{"text": "x #tag @me"}]),
+        "pinned_for_users": [{"id": "9"}],
+        "product_type": "feed",
+        "location": {"id": "55", "name": "Paris"},
+        "coauthor_producers": [{"username": "co", "id": "7"}],
+        "edge_media_to_tagged_user": _edge(
+            [{"user": {"username": "tg", "id": "3"}, "x": 0.1, "y": 0.2}]
+        ),
+        "edge_sidecar_to_children": _edge(
+            [
+                {
+                    "id": "c1",
+                    "shortcode": "s1",
+                    "display_url": "https://cdn/1.jpg",
+                    "dimensions": {"height": 10, "width": 20},
+                },
+                {
+                    "id": "c2",
+                    "shortcode": "s2",
+                    "is_video": True,
+                    "video_url": "https://cdn/2.mp4",
+                    "display_url": "https://cdn/2.jpg",
+                },
+            ]
+        ),
+    }
+    item = parse_media(node)
+    assert item["type"] == "Sidecar"
+    assert item["isPinned"] is True
+    assert item["productType"] == "feed"
+    assert item["locationName"] == "Paris"
+    assert item["locationId"] == "55"
+    assert item["taggedUsers"][0]["username"] == "tg"
+    assert item["coauthorProducers"][0]["username"] == "co"
+    assert item["images"] == ["https://cdn/1.jpg", "https://cdn/2.jpg"]
+    assert len(item["childPosts"]) == 2
+    assert item["childPosts"][1]["type"] == "Video"
+    assert item["childPosts"][1]["videoUrl"] == "https://cdn/2.mp4"
+
+
+def test_parse_media_unpinned_is_false():
+    assert parse_media({"id": "1"})["isPinned"] is False
+
+
 def test_parse_profile_flattens_counts_and_latest_posts():
     user = {
         "id": "9",
@@ -71,6 +124,9 @@ def test_parse_profile_flattens_counts_and_latest_posts():
             "count": 2,
             "edges": [{"node": {"id": "p1", "shortcode": "A"}}],
         },
+        "edge_related_profiles": _edge(
+            [{"username": "similar1", "id": "11"}, {"username": "similar2", "id": "12"}]
+        ),
     }
     item = parse_profile(user)
     assert item["detailKind"] == "profile"
@@ -79,40 +135,79 @@ def test_parse_profile_flattens_counts_and_latest_posts():
     assert item["followsCount"] == 50
     assert item["postsCount"] == 2
     assert len(item["latestPosts"]) == 1
+    assert [p["username"] for p in item["relatedProfiles"]] == ["similar1", "similar2"]
 
 
 _POST_URL = "https://www.instagram.com/p/Cabc/"
 
 
-def test_parse_post_prefers_ldjson():
-    html = """
-    <html><head>
-    <script type="application/ld+json">
-    {"@type": "VideoObject", "articleBody": "sunset over #bali with @friend",
-     "uploadDate": "2024-01-02T03:04:05Z",
-     "author": {"@type": "Person", "alternateName": "@natgeo"},
-     "video": {"contentUrl": "https://cdn/v.mp4"},
-     "image": {"url": "https://cdn/i.jpg"},
-     "interactionStatistic": [
-       {"interactionType": "https://schema.org/LikeAction", "userInteractionCount": 4200},
-       {"interactionType": "https://schema.org/CommentAction", "userInteractionCount": 37}
-     ]}
-    </script>
-    </head></html>
-    """
+def test_parse_post_prefers_relay_json():
+    # Anonymous /p/ pages inline the mobile-v1 PolarisMedia object in an
+    # application/json script. It's the full-fidelity source (carousel children,
+    # tagged users, coauthors, location, precise timestamp), preferred over og.
+    media = {
+        "pk": "3938367641542741384",
+        "id": "POLARIS_3938367641542741384",
+        "code": "Cabc",
+        "taken_at": 1_704_164_645,
+        "media_type": 8,
+        "product_type": "carousel_container",
+        "like_count": 4200,
+        "comment_count": 37,
+        "accessibility_caption": "alt text",
+        "caption": {"text": "sunset over #bali with @friend @friend"},
+        "user": {"username": "natgeo", "full_name": "Nat Geo", "id": "9"},
+        "image_versions2": {"candidates": [{"url": "https://cdn/i.jpg"}]},
+        "carousel_media": [
+            {
+                "id": "m1",
+                "code": "c1",
+                "media_type": 1,
+                "image_versions2": {"candidates": [{"url": "https://cdn/c1.jpg"}]},
+                "original_height": 1080,
+                "original_width": 1080,
+            },
+            {
+                "id": "m2",
+                "code": "c2",
+                "media_type": 2,
+                "video_versions": [{"url": "https://cdn/c2.mp4"}],
+                "image_versions2": {"candidates": [{"url": "https://cdn/c2.jpg"}]},
+            },
+        ],
+        "usertags": {"in": [{"position": [0.5, 0.5], "user": {"username": "tagged1", "id": "77"}}]},
+        "coauthor_producers": [{"username": "coauthor1", "id": "88", "is_verified": True}],
+        "location": {"id": "123", "name": "Bali"},
+    }
+    html = (
+        '<html><body><script type="application/json" data-sjs>'
+        + json.dumps({"a": {"b": [{"items": [media]}]}})
+        + "</script></body></html>"
+    )
     item = parse_post(html, url=_POST_URL, shortcode="Cabc")
     assert item is not None
-    assert item["type"] == "Video"
+    assert item["id"] == "3938367641542741384"  # POLARIS_ prefix stripped
+    assert item["type"] == "Sidecar"  # media_type 8
     assert item["shortCode"] == "Cabc"
     assert item["url"] == _POST_URL
-    assert item["ownerUsername"] == "natgeo"
-    assert item["caption"] == "sunset over #bali with @friend"
+    assert item["caption"] == "sunset over #bali with @friend @friend"
     assert item["hashtags"] == ["bali"]
-    assert item["mentions"] == ["friend"]
+    assert item["mentions"] == ["friend"]  # deduped
     assert item["likesCount"] == 4200
     assert item["commentsCount"] == 37
-    assert item["videoUrl"] == "https://cdn/v.mp4"
-    assert item["timestamp"] == "2024-01-02T03:04:05Z"
+    assert item["displayUrl"] == "https://cdn/i.jpg"
+    assert item["timestamp"].startswith("2024-01-02T")  # real epoch -> ISO w/ time
+    assert item["ownerUsername"] == "natgeo"
+    assert item["ownerFullName"] == "Nat Geo"
+    assert item["images"] == ["https://cdn/c1.jpg", "https://cdn/c2.jpg"]
+    assert len(item["childPosts"]) == 2
+    assert item["childPosts"][1]["type"] == "Video"
+    assert item["childPosts"][1]["videoUrl"] == "https://cdn/c2.mp4"
+    assert item["taggedUsers"][0]["username"] == "tagged1"
+    assert item["coauthorProducers"][0]["username"] == "coauthor1"
+    assert item["locationName"] == "Bali"
+    assert item["locationId"] == "123"
+    assert item["productType"] == "carousel_container"
 
 
 def test_parse_post_falls_back_to_og_meta():
@@ -196,3 +291,8 @@ def test_fixture_post_maps():
     item = parse_post(raw["html"], url=raw["url"], shortcode=raw.get("shortcode"))
     assert item is not None, "captured /p/ HTML produced no media item"
     assert item["url"] == raw["url"]
+    # The relay blob (not og-meta) should drive extraction: numeric id + a
+    # precise timestamp with a time component (og-only would be date-only).
+    assert item["id"] and item["id"].isdigit()
+    assert item["ownerUsername"]
+    assert item["timestamp"] and "T" in item["timestamp"]
