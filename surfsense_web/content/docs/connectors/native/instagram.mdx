@@ -13,7 +13,7 @@ Instagram login-walls hashtag feeds, place feeds, and comment threads for anonym
 POST /api/v1/workspaces/{workspace_id}/scrapers/instagram/scrape
 ```
 
-Give it Instagram URLs (profile, post `/p/`, or reel `/reel/`) or search queries. Returns structured media items — caption, hashtags, mentions, like and comment counts, media URLs, and owner.
+Give it Instagram URLs (profile, post `/p/`, or reel `/reel/`) or search queries. Returns structured media items — caption, hashtags, mentions, like and comment counts, media URLs, owner, carousel children, tagged users, coauthors, and location. Comment *content* is login-walled, so only the comment *count* is returned (never comment text).
 
 Provide exactly one source: `urls` **or** `search_queries` (never both).
 
@@ -21,7 +21,7 @@ Provide exactly one source: `urls` **or** `search_queries` (never both).
 |-------|---------|-------------|
 | `urls` | — | Profile, post, or reel URLs or bare profile IDs (max 20 sources per call) |
 | `search_queries` | — | Discovery keywords resolved to public profiles via Google; each returns up to `max_per_target` items |
-| `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` |
+| `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` (aliases — anonymous discovery resolves both to profiles) |
 | `result_type` | `posts` | Which feed to return: `posts` or `reels` |
 | `newer_than` | — | Only return posts newer than this: `YYYY-MM-DD`, ISO timestamp, or relative (`2 months`), UTC |
 | `skip_pinned_posts` | `false` | Exclude pinned posts in posts mode |
@@ -53,7 +53,7 @@ Give it profile URLs (or search queries) and get profile metadata back: follower
 |-------|---------|-------------|
 | `urls` | — | Profile URLs or bare profile IDs (max 20) |
 | `search_queries` | — | Terms to discover public profiles for (provide these OR urls) |
-| `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` |
+| `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` (aliases — anonymous discovery resolves both to profiles) |
 | `max_items` | `10` | Max detail items to return |
 
 Billing is per returned item.
