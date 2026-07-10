@@ -43,9 +43,9 @@ class ScrapeInput(BaseModel):
         default="profile",
         description="Discovery kind (profile-only; hashtag/place are login-walled).",
     )
-    result_type: Literal["posts", "reels", "mentions"] = Field(
+    result_type: Literal["posts", "reels"] = Field(
         default="posts",
-        description="Which feed to return. 'mentions' requires profile URLs.",
+        description="Which feed to return: 'posts' or 'reels'.",
     )
     newer_than: str | None = Field(
         default=None,
