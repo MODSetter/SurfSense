@@ -14,10 +14,8 @@ from pathlib import Path
 import pytest
 
 from app.proprietary.platforms.instagram.parsers import (
-    parse_comment,
-    parse_hashtag,
     parse_media,
-    parse_place,
+    parse_post,
     parse_profile,
 )
 
@@ -62,23 +60,6 @@ def test_parse_media_marks_video_type():
     assert item["videoViewCount"] == 99
 
 
-def test_parse_comment():
-    node = {
-        "id": "c1",
-        "text": "nice",
-        "created_at": 1_600_000_000,
-        "shortcode": "Cabc",
-        "owner": {"username": "bob", "id": "5"},
-        "edge_liked_by": {"count": 3},
-    }
-    item = parse_comment(node, post_url="https://www.instagram.com/p/Cabc/")
-    assert item["id"] == "c1"
-    assert item["text"] == "nice"
-    assert item["ownerUsername"] == "bob"
-    assert item["likesCount"] == 3
-    assert item["postUrl"] == "https://www.instagram.com/p/Cabc/"
-
-
 def test_parse_profile_flattens_counts_and_latest_posts():
     user = {
         "id": "9",
@@ -100,45 +81,63 @@ def test_parse_profile_flattens_counts_and_latest_posts():
     assert len(item["latestPosts"]) == 1
 
 
-def test_parse_hashtag():
-    data = {
-        "data": {
-            "id": "h1",
-            "name": "crossfit",
-            "edge_hashtag_to_media": {
-                "count": 5,
-                "edges": [{"node": {"id": "m1", "shortcode": "A"}}],
-            },
-            "edge_hashtag_to_top_posts": {
-                "edges": [{"node": {"id": "t1", "shortcode": "B"}}]
-            },
-        }
-    }
-    item = parse_hashtag(data)
-    assert item["detailKind"] == "hashtag"
-    assert item["name"] == "crossfit"
-    assert item["postsCount"] == 5
-    assert len(item["topPosts"]) == 1
-    assert len(item["posts"]) == 1
+_POST_URL = "https://www.instagram.com/p/Cabc/"
 
 
-def test_parse_place():
-    data = {
-        "location": {
-            "id": "7538318",
-            "name": "Copenhagen",
-            "slug": "copenhagen",
-            "edge_location_to_media": {
-                "count": 3,
-                "edges": [{"node": {"id": "m1", "shortcode": "A"}}],
-            },
-        }
-    }
-    item = parse_place(data)
-    assert item["detailKind"] == "place"
-    assert item["name"] == "Copenhagen"
-    assert item["location_id"] == "7538318"
-    assert len(item["posts"]) == 1
+def test_parse_post_prefers_ldjson():
+    html = """
+    <html><head>
+    <script type="application/ld+json">
+    {"@type": "VideoObject", "articleBody": "sunset over #bali with @friend",
+     "uploadDate": "2024-01-02T03:04:05Z",
+     "author": {"@type": "Person", "alternateName": "@natgeo"},
+     "video": {"contentUrl": "https://cdn/v.mp4"},
+     "image": {"url": "https://cdn/i.jpg"},
+     "interactionStatistic": [
+       {"interactionType": "https://schema.org/LikeAction", "userInteractionCount": 4200},
+       {"interactionType": "https://schema.org/CommentAction", "userInteractionCount": 37}
+     ]}
+    </script>
+    </head></html>
+    """
+    item = parse_post(html, url=_POST_URL, shortcode="Cabc")
+    assert item is not None
+    assert item["type"] == "Video"
+    assert item["shortCode"] == "Cabc"
+    assert item["url"] == _POST_URL
+    assert item["ownerUsername"] == "natgeo"
+    assert item["caption"] == "sunset over #bali with @friend"
+    assert item["hashtags"] == ["bali"]
+    assert item["mentions"] == ["friend"]
+    assert item["likesCount"] == 4200
+    assert item["commentsCount"] == 37
+    assert item["videoUrl"] == "https://cdn/v.mp4"
+    assert item["timestamp"] == "2024-01-02T03:04:05Z"
+
+
+def test_parse_post_falls_back_to_og_meta():
+    html = """
+    <html><head>
+    <meta property="og:type" content="video.other" />
+    <meta property="og:image" content="https://cdn/i.jpg" />
+    <meta property="og:description"
+      content="1,234 likes, 56 comments - natgeo on January 2, 2024: &quot;a caption&quot;" />
+    </head></html>
+    """
+    item = parse_post(html, url=_POST_URL, shortcode="Cabc")
+    assert item is not None
+    assert item["likesCount"] == 1234
+    assert item["commentsCount"] == 56
+    assert item["displayUrl"] == "https://cdn/i.jpg"
+    assert item["type"] == "Video"
+
+
+def test_parse_post_returns_none_without_surfaces():
+    # A login interstitial / empty doc carries neither ld+json nor og -> None,
+    # never a silent empty-success item.
+    assert parse_post("<html><body>login</body></html>", url=_POST_URL) is None
+    assert parse_post(None, url=_POST_URL) is None
+    assert parse_post("", url=_POST_URL) is None
 
 
 @pytest.mark.skipif(
@@ -151,3 +150,14 @@ def test_fixture_profile_maps():
     item = parse_profile(user)
     assert item["detailKind"] == "profile"
     assert item["username"]
+
+
+@pytest.mark.skipif(
+    not (_FIXTURES / "post.json").exists(),
+    reason="captured fixture absent (run the single-post probe to dump /p/ HTML)",
+)
+def test_fixture_post_maps():
+    raw = json.loads((_FIXTURES / "post.json").read_text())
+    item = parse_post(raw["html"], url=raw["url"], shortcode=raw.get("shortcode"))
+    assert item is not None, "captured /p/ HTML produced no media item"
+    assert item["url"] == raw["url"]

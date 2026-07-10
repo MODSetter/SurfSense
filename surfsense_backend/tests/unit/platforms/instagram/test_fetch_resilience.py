@@ -172,7 +172,7 @@ async def test_login_redirect_fails_fast_without_rotating():
     try:
         raised = False
         try:
-            await fetch_json("api/v1/tags/web_info/", {"tag_name": "travel"})
+            await fetch_json("api/v1/users/web_profile_info/", {"username": "natgeo"})
         except InstagramAccessBlockedError:
             raised = True
     finally:
@@ -185,7 +185,7 @@ async def test_404_returns_none_without_rotating():
     holder = _FakeHolder([_FakeSession(404), _FakeSession(200)])
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("api/v1/tags/web_info/")
+        result = await fetch_json("api/v1/users/web_profile_info/")
     finally:
         _current_session.reset(token)
     assert result is None
@@ -399,12 +399,22 @@ async def test_discover_profile_is_anonymous_handle_lookup():
     assert [(t.kind, t.value) for t in targets] == [("profile", "messi")]
 
 
-async def test_discover_hashtag_search_blocks_anonymously():
-    # hashtag/place keyword discovery has no anonymous endpoint at all, so it must
-    # fail loud (clear message) rather than return a misleading empty success.
-    raised = False
-    try:
-        await scraper._discover("travel", search_type="hashtag", limit=10)
-    except InstagramAccessBlockedError:
-        raised = True
-    assert raised
+async def test_discover_nonhandle_routes_through_google(monkeypatch):
+    # A non-handle profile query goes through Google (site:instagram.com) and
+    # classifies the organic results into profile targets (the only kind now).
+    async def _fake_scrape_serps(input_model, *, limit=None):
+        assert input_model.site == "instagram.com"
+        return [
+            {
+                "organicResults": [
+                    {"url": "https://www.instagram.com/natgeo/"},
+                    {"url": "https://www.instagram.com/p/Cabc/"},  # wrong kind
+                ]
+            }
+        ]
+
+    monkeypatch.setattr(scraper, "scrape_serps", _fake_scrape_serps)
+    targets = await scraper._discover(
+        "national geographic", search_type="profile", limit=10
+    )
+    assert [(t.kind, t.value) for t in targets] == [("profile", "natgeo")]

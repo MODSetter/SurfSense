@@ -1,9 +1,10 @@
 """Offline skeleton tests: input surface parity + URL classification.
 
 No network. Locks the two invariants the reference-compatible surface promises —
-no auth fields ever, and additive ``extra="allow"`` parity — plus the full
+no auth fields ever, and additive ``extra="allow"`` parity — plus the
 ``url_resolver`` classification/normalization table (``_u/`` and profilecard
-stripping, story→profile, ID-only locations, numeric post-ID flagging).
+stripping, story→profile, numeric post-ID flagging). Hashtag/place URLs are
+login-walled and deliberately resolve to ``None``.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ def test_input_has_no_auth_fields():
 def test_input_defaults():
     model = InstagramScrapeInput()
     assert model.resultsType == "posts"
-    assert model.searchType == "hashtag"
+    assert model.searchType == "profile"
     assert model.directUrls == []
     assert model.addParentData is False
 
@@ -70,19 +71,14 @@ def test_resolve_post_and_reel():
     assert r.kind == "reel" and r.value == "Cxyz"
 
 
-def test_resolve_hashtag():
-    r = resolve_url("https://www.instagram.com/explore/tags/crossfit/")
-    assert r.kind == "hashtag" and r.value == "crossfit"
-
-
-def test_resolve_place_with_slug_and_id_only():
-    with_slug = resolve_url(
-        "https://www.instagram.com/explore/locations/7538318/copenhagen/"
+def test_resolve_hashtag_and_place_unsupported():
+    # Login-walled surfaces: they must resolve to None so the orchestrator skips
+    # them rather than building a target that can only return a login wall.
+    assert resolve_url("https://www.instagram.com/explore/tags/crossfit/") is None
+    assert (
+        resolve_url("https://www.instagram.com/explore/locations/7538318/copenhagen/")
+        is None
     )
-    assert with_slug.kind == "place" and with_slug.value == "7538318"
-    assert with_slug.slug == "copenhagen"
-    id_only = resolve_url("https://www.instagram.com/explore/locations/7538318/")
-    assert id_only.kind == "place" and id_only.value == "7538318"
 
 
 def test_resolve_strips_u_and_profilecard():
