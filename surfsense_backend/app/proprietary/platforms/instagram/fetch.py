@@ -297,25 +297,6 @@ async def _get_page(session: Any, url: str) -> Any:
     )
 
 
-async def resolve_redirect(url: str) -> str | None:
-    """Follow a ``share/`` short URL to its canonical target, or ``None``.
-
-    ``share/`` links redirect to the real post/profile URL; the resolver records
-    the original as ``redirectedFromUrl``. Best-effort: returns the final URL
-    when the session exposes it, else ``None``.
-    """
-    holder = _current_session.get()
-    if holder is None:
-        async with proxy_session():
-            return await resolve_redirect(url)
-    with suppress(Exception):
-        page = await _get_page(holder.session, url)
-        final = getattr(page, "url", None)
-        if isinstance(final, str) and final and final != url:
-            return final
-    return None
-
-
 async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | None:
     """GET an Instagram web endpoint through a warmed session; parse JSON.
 
@@ -331,7 +312,8 @@ async def fetch_html(path: str, params: dict[str, Any] | None = None) -> str | N
     Same warm/rotate/backoff resilience as :func:`fetch_json` (a login-wall
     redirect still raises :class:`InstagramAccessBlockedError`), but hands back
     the raw HTML body for the pages that embed their data in the document
-    (``/p/<shortcode>/`` og-meta / ld+json) instead of a JSON XHR endpoint.
+    (``/p/<shortcode>/`` embedded PolarisMedia JSON / og-meta) instead of a JSON
+    XHR endpoint.
     """
     return await _fetch(path, params, _page_text)
 
