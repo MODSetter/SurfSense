@@ -21,7 +21,7 @@ def register(
 
     @mcp.tool(
         name="surfsense_tiktok_scrape",
-        title="Search or scrape TikTok",
+        title="Scrape TikTok videos",
         annotations=SCRAPE,
         structured_output=False,
     )
@@ -51,7 +51,11 @@ def register(
         ] = None,
         search_queries: Annotated[
             list[str] | None,
-            Field(description="Terms to search TikTok for, e.g. ['cooking']."),
+            Field(
+                description="Keyword search terms. Returns no videos — use "
+                "hashtags/profiles/urls for videos, or the user-search tool for "
+                "accounts."
+            ),
         ] = None,
         results_per_page: Annotated[
             int,
@@ -63,12 +67,13 @@ def register(
         workspace: WorkspaceParam = None,
         response_format: ResponseFormatParam = "markdown",
     ) -> str:
-        """Search or scrape public TikTok videos.
+        """Scrape public TikTok videos by hashtag, profile, or URL.
 
-        Use this for ANY TikTok research — a creator's videos, a hashtag feed,
-        a search, or a specific video URL — instead of a generic web search.
-        Returns videos with text, author, stats, music, and the web URL.
-        Example: hashtags=['food'], max_items=20.
+        Use for TikTok video research — a creator's videos, a hashtag feed, or a
+        specific video/profile/hashtag URL — instead of a generic web search.
+        Returns videos with text, author, stats, music, and the web URL. For
+        accounts by keyword use the user-search tool; keyword search returns no
+        videos. Example: hashtags=['food'], max_items=20.
         """
         return await run_scraper(
             client,
