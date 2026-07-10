@@ -1147,6 +1147,12 @@ class Config:
     # round-trip => default FALSE to honor the "no speed regression" bar; flip on
     # when leak-safety outweighs the marginal latency.
     CRAWL_DNS_OVER_HTTPS = os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
+    # Promises an Xvfb display so the browser can run headful (TikTok's profile
+    # feed is empty to headless Chromium). Entrypoint starts Xvfb when TRUE;
+    # FALSE keeps every browser headless.
+    CRAWL_HEADED_XVFB_ENABLED = (
+        os.getenv("CRAWL_HEADED_XVFB_ENABLED", "FALSE").upper() == "TRUE"
+    )
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
