@@ -1,9 +1,11 @@
 ---
 title: Instagram
-description: Scrape public Instagram posts, reels, comments, and profile/hashtag/place details
+description: Scrape public Instagram posts, reels, and profile details (anonymous-only)
 ---
 
-The Instagram scraper has three verbs: **scrape** for posts and reels, **comments** for a post's comment threads, and **details** for profile, hashtag, and place metadata. It reads only public, logged-out data — no account, login, or Graph API app required.
+The Instagram scraper has two verbs: **scrape** for posts and reels, and **details** for profile metadata. It reads only public, logged-out data — no account, login, or Graph API app required.
+
+Instagram login-walls hashtag feeds, place feeds, and comment threads for anonymous visitors, so those are not supported. The scraper focuses on what is reliably public: profiles, posts, and reels.
 
 ## Scrape posts and reels
 
@@ -11,15 +13,15 @@ The Instagram scraper has three verbs: **scrape** for posts and reels, **comment
 POST /api/v1/workspaces/{workspace_id}/scrapers/instagram/scrape
 ```
 
-Give it Instagram URLs (profile, post `/p/`, reel `/reel/`, hashtag `/explore/tags/`, or place `/explore/locations/`) or search queries. Returns structured media items — caption, hashtags, mentions, like and comment counts, media URLs, and owner.
+Give it Instagram URLs (profile, post `/p/`, or reel `/reel/`) or search queries. Returns structured media items — caption, hashtags, mentions, like and comment counts, media URLs, and owner.
 
 Provide exactly one source: `urls` **or** `search_queries` (never both).
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `urls` | — | Profile, post, reel, hashtag, or place URLs or bare profile IDs (max 20 sources per call) |
-| `search_queries` | — | Discovery keywords (hashtags as plaintext, no `#`); each returns up to `max_per_target` items |
-| `search_type` | `hashtag` | What to discover from `search_queries`: `hashtag`, `profile`, `place`, or `user` |
+| `urls` | — | Profile, post, or reel URLs or bare profile IDs (max 20 sources per call) |
+| `search_queries` | — | Discovery keywords resolved to public profiles via Google; each returns up to `max_per_target` items |
+| `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` |
 | `result_type` | `posts` | Which feed to return: `posts`, `reels`, or `mentions` (`mentions` needs profile URLs) |
 | `newer_than` | — | Only return posts newer than this: `YYYY-MM-DD`, ISO timestamp, or relative (`2 months`), UTC |
 | `skip_pinned_posts` | `false` | Exclude pinned posts in posts mode |
@@ -39,37 +41,19 @@ curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/instagram/scrape" \
 
 Billing is per returned item.
 
-## Fetch comments
-
-```bash
-POST /api/v1/workspaces/{workspace_id}/scrapers/instagram/comments
-```
-
-Give it post or reel URLs; returns comment items with author, text, like and reply counts, and optionally nested replies — useful for gauging sentiment on a specific post.
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `urls` | required | 1–20 post or reel URLs |
-| `max_comments_per_post` | `10` | Max comments per post (Instagram caps at 50) |
-| `include_replies` | `false` | Include nested replies |
-| `newest_first` | `false` | Return newest comments first |
-| `max_items` | `20` | Max total comments across all posts (max 100) |
-
-Billing is per returned comment or reply.
-
 ## Fetch details
 
 ```bash
 POST /api/v1/workspaces/{workspace_id}/scrapers/instagram/details
 ```
 
-Give it profile, hashtag, or place URLs (or search queries) and get entity metadata back: a profile's follower/post counts and bio, a hashtag's post volume and top posts, or a place's coordinates and post count. Each item carries a `detailKind` field marking whether it is a `profile`, `hashtag`, or `place`.
+Give it profile URLs (or search queries) and get profile metadata back: follower/post counts and bio. Each item carries a `detailKind` field, always `profile`.
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `urls` | — | Profile, hashtag, or place URLs or bare profile IDs (max 20) |
-| `search_queries` | — | Terms to discover profiles/hashtags/places for (provide these OR urls) |
-| `search_type` | `hashtag` | What to discover from `search_queries`: `hashtag`, `profile`, or `place` |
+| `urls` | — | Profile URLs or bare profile IDs (max 20) |
+| `search_queries` | — | Terms to discover public profiles for (provide these OR urls) |
+| `search_type` | `profile` | What to discover from `search_queries`: `profile` or `user` |
 | `max_items` | `10` | Max detail items to return |
 
 Billing is per returned item.
