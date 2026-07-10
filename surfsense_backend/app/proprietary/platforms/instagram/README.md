@@ -27,8 +27,15 @@ Surfaces used:
 |---|---|---|
 | profile / details | `api/v1/users/web_profile_info/?username=…` (JSON) | `parse_profile` |
 | profile feed (posts/reels) | the media embedded in the same profile JSON | `parse_media` |
-| single post / reel | `/p/<shortcode>/` (HTML: ld+json + og-meta) | `parse_post` |
+| single post / reel | `/p/<shortcode>/` (embedded mobile-v1 `PolarisMedia` JSON, og-meta fallback) | `parse_post` |
 | profile discovery | Google `site:instagram.com <query>` | `resolve_url` |
+
+All of these are richer than the core fields: the feed node and the single-post
+relay blob both carry carousel children (`images`/`childPosts`), tagged users,
+coauthor producers, location, product type, and pin state; `web_profile_info`
+also carries related profiles. Comment **content** stays login-walled — only the
+anonymous comment **count** (`commentsCount`) is exposed, so `firstComment` /
+`latestComments` are intentionally absent from the item schema.
 
 **Why anonymous-only is a hard constraint.** Live logged-out probes show that
 Instagram walls the interesting endpoints for anyone without a `sessionid`
@@ -57,7 +64,7 @@ so the capability layer can map it to a `403 INSTAGRAM_ACCESS_BLOCKED`.
 | `schemas.py` | `InstagramScrapeInput` (`extra="allow"`, no auth fields) + optional-field item models (`InstagramMediaItem`, `InstagramProfile`) each with `to_output()`. |
 | `fetch.py` | The core. Rotate-on-block sticky `_RotatingSession` + `_current_session` ContextVar + `warm_session` (csrftoken/mid) + `fetch_json` (JSON) / `fetch_html` (HTML) sharing one resilient `_fetch(path, params, extract)` loop. |
 | `url_resolver.py` | Classify an Instagram URL → `profile`/`post`/`reel`; non-Instagram (and hashtag/place) → `None`. Strips `_u/`, `profilecard/`; story → profile. |
-| `parsers.py` | Pure mapping (`parse_media`, `parse_profile`, `parse_post` [ld+json/og], `_edges`). I/O-free. |
+| `parsers.py` | Pure mapping (`parse_media`, `parse_profile`, `parse_post` [relay `PolarisMedia` JSON, og-meta fallback], `_edges`). I/O-free. |
 | `scraper.py` | Orchestrator: `_media_flow`/`_details_flow`/`_discover` (+ `_discover_via_google`), `_targets`, `fan_out`, `iter_instagram`, `scrape_instagram`. |
 
 ## How it works
@@ -71,8 +78,9 @@ so the capability layer can map it to a `403 INSTAGRAM_ACCESS_BLOCKED`.
    - A **profile** target → `web_profile_info` JSON → `parse_media` over the
      embedded recent-media edges (feed) or `parse_profile` (details).
    - A **post/reel** target → `fetch_html("p/<code>/")` → `parse_post`, which
-     reads the page's `application/ld+json` (preferred) and Open Graph meta
-     (fallback). Numeric-ID post URLs are skipped (the page keys on the shortCode).
+     reads the embedded mobile-v1 `PolarisMedia` JSON (full fidelity) and falls
+     back to Open Graph meta only if that blob is absent. Numeric-ID post URLs are
+     skipped (the page keys on the shortCode).
 3. `fetch_json` / `fetch_html` warm the session on first use, rotate the IP +
    re-warm on 401/403, back off on 429, return `None` on 404, and raise
    `InstagramAccessBlockedError` on a `/accounts/login/` redirect.
@@ -103,12 +111,12 @@ Caveats:
   the `InstagramAccessBlockedError` path, not a bug.
 - `likesCount` is frequently withheld on anonymous responses (surfaces as `-1` or
   absent upstream); treat it as best-effort.
-- **Single-post extraction** reads whatever the public `/p/` document embeds
-  (ld+json + og-meta). If Instagram strips both for a given post (private, taken
-  down, or a login interstitial), `parse_post` returns `None` — an honest empty,
-  never a fabricated item. ponytail: the embedded-blob shapes can drift; a live
-  probe that dumps the raw HTML pins them (see Testing) and any change is contained
-  to `parse_post`.
+- **Single-post extraction** reads the mobile-v1 `PolarisMedia` object embedded in
+  the public `/p/` document (og-meta is a lossy fallback). If Instagram strips both
+  for a given post (private, taken down, or a login interstitial), `parse_post`
+  returns `None` — an honest empty, never a fabricated item. ponytail: the
+  embedded-blob shape can drift; a live probe that dumps the raw HTML pins it (see
+  Testing) and any change is contained to `_find_media` / `parse_post`.
 - The `$3.50 / 1k items` default meter assumes the proxy-bytes-per-item measured
   on the reference targets; re-measure with the scale harness before high-volume use.
 
@@ -116,14 +124,15 @@ Caveats:
 
 - Offline unit tests: `tests/unit/platforms/instagram/` — `test_skeleton.py`
   (schema + URL resolver), `test_parsers.py` (mapping incl. `parse_post`
-  ld+json/og shapes; fixture-pinned tests skip when the fixture is absent),
+  relay-JSON/og shapes; fixture-pinned tests skip when the fixture is absent),
   `test_discovery.py` (Google-backed profile discovery with a fake `scrape_serps`),
   `test_fetch_resilience.py` (warm / rotate / backoff loop + fan-out with fake
   sessions, no network), `test_budget.py` (fair-share caps + de-dup).
 - Stress / accuracy harness (live, needs network + residential proxy):
   `scripts/stress/stress_instagram_scraper.py` — `--mode live-discovery` (profile
   discovery accuracy), `--mode probe-post` (dumps a real anonymous `/p/` payload
-  to `fixtures/post.json` and shows what `parse_post` extracted), and
+  to `fixtures/post.json` and shows what `parse_post` extracted), `--mode
+  probe-mentions` (settles that the tagged/`mentions` feed is login-walled), and
   `--mode accuracy` (field coverage across the profile + single-post flows).
 
 ```bash
