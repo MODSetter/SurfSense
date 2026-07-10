@@ -32,6 +32,7 @@ import json
 import logging
 import random
 import time
+from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from contextvars import ContextVar
 from datetime import UTC, datetime
@@ -74,12 +75,6 @@ _BACKOFF_STATUS = 429
 _MAX_ROTATIONS = 3
 _MAX_BACKOFFS = 4
 _BACKOFF_BASE_S = 5.0
-
-# Endpoints Instagram serves only to logged-in clients (confirmed live). A bare
-# 401/403 here is an endpoint auth wall, not a per-IP block, so every rotated IP
-# hits the same wall — fail fast instead of burning the pool, exactly like the
-# /accounts/login/ redirect branch. Content endpoints (profiles) still rotate.
-_AUTH_WALLED_PATHS = ("web/search/topsearch/", "api/v1/tags/web_info/")
 
 # Instagram 429s hard on bursts. Pace each sticky session so a fast IP can't
 # burst past the per-IP threshold. ponytail: 1.5s is tuned to residential exits;
@@ -146,6 +141,20 @@ def _parse_json(page: Any) -> Any | None:
             with suppress(Exception):
                 return json.loads(val)
             return None
+    return None
+
+
+def _page_text(page: Any) -> str | None:
+    """Best-effort HTML/text body of a scrapling response, or ``None``."""
+    for attr in ("text", "body", "content"):
+        val = getattr(page, attr, None)
+        if callable(val):
+            with suppress(Exception):
+                val = val()
+        if isinstance(val, bytes):
+            val = val.decode("utf-8", "replace")
+        if isinstance(val, str) and val.strip():
+            return val
     return None
 
 
@@ -308,20 +317,44 @@ async def resolve_redirect(url: str) -> str | None:
 
 
 async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | None:
-    """GET an Instagram web endpoint through a warmed HTTP session.
+    """GET an Instagram web endpoint through a warmed session; parse JSON.
 
     Returns parsed JSON (dict or list), or ``None`` on 404 / non-block failure.
-    Warms cookies once per session; rotates the residential IP and re-warms on
-    401/403; backs off on 429. Raises :class:`InstagramAccessBlockedError` only
-    when every rotated IP refuses anonymous access (the login-wall branch, which
-    we cannot satisfy).
+    See :func:`_fetch` for the warm/rotate/backoff resilience contract.
+    """
+    return await _fetch(path, params, _parse_json)
+
+
+async def fetch_html(path: str, params: dict[str, Any] | None = None) -> str | None:
+    """GET an Instagram web page through a warmed session; return its HTML text.
+
+    Same warm/rotate/backoff resilience as :func:`fetch_json` (a login-wall
+    redirect still raises :class:`InstagramAccessBlockedError`), but hands back
+    the raw HTML body for the pages that embed their data in the document
+    (``/p/<shortcode>/`` og-meta / ld+json) instead of a JSON XHR endpoint.
+    """
+    return await _fetch(path, params, _page_text)
+
+
+async def _fetch(
+    path: str,
+    params: dict[str, Any] | None,
+    extract: Callable[[Any], Any | None],
+) -> Any | None:
+    """GET an Instagram web endpoint through a warmed HTTP session.
+
+    Applies ``extract`` to the 200 response (JSON parse or HTML text); returns
+    ``None`` on 404 / non-block failure. Warms cookies once per session; rotates
+    the residential IP and re-warms on 401/403; backs off on 429. Raises
+    :class:`InstagramAccessBlockedError` only when every rotated IP refuses
+    anonymous access (the login-wall branch, which we cannot satisfy).
     """
     holder = _current_session.get()
     if holder is None:
         # No bound session (e.g. a direct call outside fan_out): open a
         # short-lived warmed session for this one fetch, then tear it down.
         async with proxy_session():
-            return await fetch_json(path, params)
+            return await _fetch(path, params, extract)
 
     url = _build_url(path, params)
     attempt = 0
@@ -357,7 +390,7 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                     f"Instagram login wall on {path} (endpoint requires auth)"
                 )
             if status == 200:
-                return _parse_json(page)
+                return extract(page)
             if status == 404:
                 return None
             if status == _BACKOFF_STATUS and backoffs < _MAX_BACKOFFS:
@@ -369,13 +402,9 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
             if status in _ROTATE_STATUSES:
-                # Bare 401/403 on a login-gated endpoint: rotating never clears an
-                # endpoint auth wall, so fail fast (mirrors the login-redirect
-                # branch above). Other endpoints rotate — a per-IP 401 recovers.
-                if any(p in path for p in _AUTH_WALLED_PATHS):
-                    raise InstagramAccessBlockedError(
-                        f"Instagram login wall on {path} (endpoint requires auth)"
-                    )
+                # Bare 401/403: a per-IP block that a fresh exit IP recovers, so
+                # rotate and re-warm. (The endpoint-level auth wall is caught by
+                # the login-redirect branch above and fails fast without rotating.)
                 if attempt < _MAX_ROTATIONS:
                     attempt += 1
                     await holder.rotate()

@@ -10,11 +10,15 @@ stays sequential. ``fan_out`` is ported from ``../reddit/scraper.py`` but bound
 to *this* module's proxy holders so every worker warms its own session once and
 reuses it.
 
+Anonymous-only. Every surface here is reachable without a login: profile web
+info, the media embedded in a profile page, single-post/reel pages, and
+Google-backed handle discovery. Login-walled surfaces (hashtag/place feeds,
+comment threads, IG's native keyword search) are deliberately absent.
+
 Flows are selected by ``resultsType``:
-- ``posts`` / ``reels`` / ``mentions`` -> media items (profile / hashtag feeds,
-  or discovery search)
-- ``comments`` -> comment items for post/reel URLs
-- ``details`` -> profile / hashtag / place metadata (by URL or discovery search)
+- ``posts`` / ``reels`` / ``mentions`` -> media items (profile feed, or a single
+  ``/p/``/``/reel/`` page, or discovery search)
+- ``details`` -> profile metadata (by URL or discovery search)
 
 ponytail: deep feed pagination (past the first web page of media) needs the
 GraphQL cursor endpoint whose doc-id drifts; v1 emits the first page and stops.
@@ -32,20 +36,18 @@ from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from app.proprietary.platforms.google_search.schemas import GoogleSearchScrapeInput
+from app.proprietary.platforms.google_search.scraper import scrape_serps
+
 from .fetch import (
     InstagramAccessBlockedError,
     bind_proxy_holder,
+    fetch_html,
     fetch_json,
     now_iso,
     open_proxy_holder,
 )
-from .parsers import (
-    parse_comment,
-    parse_hashtag,
-    parse_media,
-    parse_place,
-    parse_profile,
-)
+from .parsers import parse_media, parse_post, parse_profile
 from .schemas import InstagramScrapeInput
 from .url_resolver import ResolvedUrl, resolve_url
 
@@ -62,14 +64,7 @@ __all__ = [
 # residential pool with parallel login walls.
 _FANOUT_CONCURRENCY = 8
 
-# Per-post comment fetches fan across their own warm sessions; kept below the
-# top-level width so N concurrent targets x this can't explode the IP count.
-_COMMENT_CONCURRENCY = 4
-
 _PROFILE_PATH = "api/v1/users/web_profile_info/"
-_HASHTAG_PATH = "api/v1/tags/web_info/"
-_LOCATION_PATH = "api/v1/locations/web_info/"
-_SEARCH_PATH = "web/search/topsearch/"
 
 # Instagram usernames: 1-30 chars of letters/digits/period/underscore. Used to
 # treat a profile/user discovery query as a direct (anonymous) handle lookup.
@@ -235,7 +230,7 @@ async def _media_flow(
     cutoff: datetime | None,
     per_target: int,
 ) -> AsyncIterator[dict[str, Any]]:
-    """Emit media items for a profile / hashtag / place URL."""
+    """Emit media items for a profile feed, or a single ``/p/``/``/reel/`` page."""
     from .parsers import _edges
 
     result_type = input_model.resultsType
@@ -258,128 +253,95 @@ async def _media_flow(
             if emitted >= per_target:
                 return
         return
-    if resolved.kind == "hashtag":
-        data = await fetch_json(_HASHTAG_PATH, {"tag_name": resolved.value})
-        if isinstance(data, dict):
-            parsed = parse_hashtag(data)
-            emitted = 0
-            for node in [*parsed.get("topPosts", []), *parsed.get("posts", [])]:
-                if not _media_matches(node, result_type):
-                    continue
-                if not _is_after(node.get("timestamp"), cutoff):
-                    continue
-                yield _emit(node, input_url=resolved.url)
-                emitted += 1
-                if emitted >= per_target:
-                    return
-        return
-    if resolved.kind == "place":
-        data = await fetch_json(_LOCATION_PATH, {"location_id": resolved.value})
-        if isinstance(data, dict):
-            parsed = parse_place(data)
-            emitted = 0
-            for node in parsed.get("posts", []):
-                if not _is_after(node.get("timestamp"), cutoff):
-                    continue
-                yield _emit(node, input_url=resolved.url)
-                emitted += 1
-                if emitted >= per_target:
-                    return
-        return
-
-
-async def _comments_flow(
-    resolved: ResolvedUrl,
-    *,
-    input_model: InstagramScrapeInput,
-    per_target: int,
-) -> AsyncIterator[dict[str, Any]]:
-    """Emit comment items for a post / reel URL.
-
-    ponytail: the anonymous comment page uses a GraphQL cursor whose doc-id
-    drifts; v1 sources the comments embedded in the media info payload and caps
-    at the actor's 50/post ceiling. Deeper paging is the upgrade path in
-    ``fetch.py``.
-    """
-    from .parsers import _edges
-
-    path = f"p/{resolved.value}/"
-    data = await fetch_json(path, {"__a": 1, "__d": "dis"})
-    node = None
-    if isinstance(data, dict):
-        items = data.get("items")
-        if isinstance(items, list) and items:
-            node = items[0]
-        else:
-            gql = data.get("graphql")
-            node = gql.get("shortcode_media") if isinstance(gql, dict) else None
-    if not isinstance(node, dict):
-        return
-    comment_nodes = _edges(node.get("edge_media_to_parent_comment")) or _edges(
-        node.get("edge_media_to_comment")
-    )
-    cap = min(per_target, 50)
-    emitted = 0
-    for cnode in comment_nodes:
-        item = parse_comment(cnode, post_url=resolved.url)
-        yield _emit(item, input_url=resolved.url)
-        emitted += 1
-        if input_model.includeNestedComments:
-            for reply in _edges(cnode.get("edge_threaded_comments")):
-                if emitted >= cap:
-                    return
-                yield _emit(
-                    parse_comment(reply, post_url=resolved.url),
-                    input_url=resolved.url,
-                )
-                emitted += 1
-        if emitted >= cap:
+    if resolved.kind in ("post", "reel"):
+        # Single-post extraction: the anonymous ``?__a=1`` JSON API 404s/login-
+        # walls, but the public /p/<code>/ document embeds the post's og-meta +
+        # ld+json, which parse_post reads. Numeric-ID URLs can't be keyed this
+        # way (the page needs the shortCode), so they're skipped upstream.
+        if resolved.numeric_post_id:
             return
+        html = await fetch_html(f"p/{resolved.value}/")
+        item = parse_post(html, url=resolved.url, shortcode=resolved.value)
+        if item is None:
+            return
+        if not _media_matches(item, result_type):
+            return
+        if not _is_after(item.get("timestamp"), cutoff):
+            return
+        yield _emit(item, input_url=resolved.url)
+        return
 
 
 async def _details_flow(
     resolved: ResolvedUrl, *, input_model: InstagramScrapeInput
 ) -> AsyncIterator[dict[str, Any]]:
-    """Emit one profile / hashtag / place detail item for a URL."""
+    """Emit one profile detail item for a URL (anonymous web_profile_info)."""
     if resolved.kind == "profile":
         user = await _profile_user(resolved.value)
         if user is not None:
             yield _emit(parse_profile(user), input_url=resolved.url)
-        return
-    if resolved.kind == "hashtag":
-        data = await fetch_json(_HASHTAG_PATH, {"tag_name": resolved.value})
-        if isinstance(data, dict):
-            yield _emit(parse_hashtag(data), input_url=resolved.url)
-        return
-    if resolved.kind == "place":
-        data = await fetch_json(_LOCATION_PATH, {"location_id": resolved.value})
-        if isinstance(data, dict):
-            yield _emit(parse_place(data), input_url=resolved.url)
-        return
+
+
+def _kind_matches(resolved: ResolvedUrl, search_type: str) -> bool:
+    """True if a resolved IG URL is the kind the discovery query asked for.
+
+    Discovery is profile-only now (hashtag/place feeds are login-walled), so
+    every supported ``search_type`` maps to a profile target.
+    """
+    return resolved.kind == "profile"
+
+
+async def _discover_via_google(
+    query: str, *, search_type: str, limit: int
+) -> list[ResolvedUrl]:
+    """Discover IG profile targets via Google ``site:instagram.com`` (anonymous).
+
+    Instagram's own keyword search is login-walled, so we reuse the existing
+    ``google_search`` platform, classify each organic URL with ``resolve_url``,
+    keep the profile hits, de-dup, and cap at ``limit``.
+
+    Quality caveat: results reflect Google's index/ranking of instagram.com, not
+    IG's own relevance. This is discovery, not search parity (see README).
+    """
+    serps = await scrape_serps(
+        GoogleSearchScrapeInput(
+            queries=query, site="instagram.com", maxPagesPerQuery=2
+        ),
+        limit=2,
+    )
+    resolved: list[ResolvedUrl] = []
+    seen: set[tuple[str, str]] = set()
+    for serp in serps:
+        for org in serp.get("organicResults") or []:
+            url = org.get("url", "") if isinstance(org, dict) else ""
+            r = resolve_url(url)
+            if r is None or not _kind_matches(r, search_type):
+                continue
+            key = (r.kind, r.value)
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved.append(r)
+            if len(resolved) >= limit:
+                return resolved
+    return resolved
 
 
 async def _discover(
     query: str, *, search_type: str, limit: int
 ) -> list[ResolvedUrl]:
-    """Resolve a discovery query into targets - anonymously.
+    """Resolve a discovery query into profile targets - anonymously.
 
-    Instagram's keyword search (``topsearch``) is login-walled, so we never call
-    it. A profile/user query is resolved as a direct handle lookup against the
-    anonymous profile endpoint ("messi" -> instagram.com/messi/). Hashtag/place
-    keyword discovery has NO anonymous endpoint (topsearch and the tag/location
-    feeds all require a session), so we surface a clear block instead of a
-    misleading empty success.
+    A query that is a valid handle resolves directly against the anonymous
+    profile endpoint ("messi" -> instagram.com/messi/). A non-handle query (e.g.
+    "national geographic") goes through Google ``site:instagram.com`` since IG's
+    native keyword search is login-walled.
     """
-    if search_type in ("profile", "user"):
-        handle = query.strip().lstrip("@")
-        if _HANDLE_RE.match(handle):
-            url = f"https://www.instagram.com/{handle}/"
-            return [ResolvedUrl("profile", handle, url)][:limit]
-        return []  # not a handle, and no anonymous fuzzy search -> nothing to do
-    raise InstagramAccessBlockedError(
-        f"Instagram {search_type} search requires login and is unavailable in "
-        "anonymous mode - pass a profile URL or handle via directUrls instead"
-    )
+    handle = query.strip().lstrip("@")
+    if _HANDLE_RE.match(handle):
+        url = f"https://www.instagram.com/{handle}/"
+        return [ResolvedUrl("profile", handle, url)][:limit]
+    return await _discover_via_google(query, search_type=search_type, limit=limit)
 
 
 def _resolve_inputs(input_model: InstagramScrapeInput) -> list[ResolvedUrl]:
@@ -424,17 +386,6 @@ async def iter_instagram(
     result_type = input_model.resultsType
     cutoff = _parse_newer_than(input_model.onlyPostsNewerThan)
     per_target = input_model.resultsLimit or 10
-
-    if result_type == "comments":
-        jobs = [
-            _comments_flow(r, input_model=input_model, per_target=per_target)
-            for r in targets
-            if r.kind in ("post", "reel")
-        ]
-        async with aclosing(fan_out(jobs, concurrency=_COMMENT_CONCURRENCY)) as stream:
-            async for item in stream:
-                yield item
-        return
 
     if result_type == "details":
         jobs = [_details_flow(r, input_model=input_model) for r in targets]

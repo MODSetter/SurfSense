@@ -1,18 +1,18 @@
 """Classify and normalize an Instagram URL into a scrape job.
 
-Covers the supported ``directUrls`` shapes: a profile, a post (``/p/``), a reel
-(``/reel/``), a hashtag (``/explore/tags/``), and a place
-(``/explore/locations/``), plus bare profile IDs. Non-Instagram hosts resolve to
-``None`` so the orchestrator can skip them. Mirrors the frozen ``ResolvedUrl``
-dataclass shape of ``../reddit/url_resolver.py``.
+Covers the anonymously-scrapable ``directUrls`` shapes: a profile, a post
+(``/p/``), and a reel (``/reel/``), plus bare profile IDs. Hashtag and place
+URLs are deliberately unsupported — their feeds are login-walled for anonymous
+callers (use Google-backed discovery + single-post extraction instead).
+Non-Instagram hosts resolve to ``None`` so the orchestrator can skip them.
+Mirrors the frozen ``ResolvedUrl`` dataclass shape of ``../reddit/url_resolver.py``.
 
 Normalization rules (from the reference spec):
 - ``_u/`` and ``/profilecard/`` segments are stripped.
 - Story URLs (``/stories/<user>/...``) reduce to the profile.
-- Location URLs are valid with the numeric ID alone (no trailing slug).
-- Numeric post-ID URLs are only valid for the ``comments`` flow; elsewhere the
-  shortCode form is required, so a numeric-ID URL resolves with
-  ``numeric_post_id`` set and callers reject it outside comments.
+- Numeric post-ID URLs cannot be single-post-extracted anonymously (the HTML
+  page keys on the shortCode), so they resolve with ``numeric_post_id`` set and
+  the media flow skips them.
 - ``share/`` redirect resolution is handled at fetch time (network), not here.
 """
 
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import urlparse
 
-ResolvedKind = Literal["profile", "post", "reel", "hashtag", "place"]
+ResolvedKind = Literal["profile", "post", "reel"]
 
 _INSTAGRAM_HOSTS = frozenset(
     {"m.instagram.com", "www.instagram.com", "instagram.com"}
@@ -75,11 +75,6 @@ def resolve_url(url: str) -> ResolvedUrl | None:
     if not segments:
         return None
     head = segments[0]
-    if head == "explore" and len(segments) >= 3 and segments[1] == "tags":
-        return ResolvedUrl("hashtag", segments[2], url)
-    if head == "explore" and len(segments) >= 3 and segments[1] == "locations":
-        slug = segments[3] if len(segments) >= 4 else None
-        return ResolvedUrl("place", segments[2], url, slug=slug)
     if head == "p" and len(segments) >= 2:
         code = segments[1]
         return ResolvedUrl("post", code, url, numeric_post_id=code.isdigit())

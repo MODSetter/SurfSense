@@ -15,6 +15,7 @@ parity is additive.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -136,28 +137,6 @@ def parse_media(node: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def parse_comment(node: dict[str, Any], *, post_url: str | None) -> dict[str, Any]:
-    """Map a raw comment node to a flat comment item dict."""
-    owner = node.get("owner") if isinstance(node.get("owner"), dict) else {}
-    code = _shortcode(node)
-    return {
-        "id": node.get("id"),
-        "postUrl": post_url,
-        "commentUrl": f"{_BASE}/p/{code}/c/{node.get('id')}/" if code else None,
-        "text": node.get("text"),
-        "ownerUsername": owner.get("username"),
-        "ownerProfilePicUrl": owner.get("profile_pic_url"),
-        "timestamp": _utc_from_sec(node.get("created_at")),
-        "repliesCount": _edge_count(node, "edge_threaded_comments")
-        or _int(node.get("child_comment_count")),
-        "likesCount": _edge_count(node, "edge_liked_by")
-        or _int(node.get("comment_like_count")),
-        "owner": {"id": owner.get("id"), "username": owner.get("username")}
-        if owner
-        else None,
-    }
-
-
 def parse_profile(user: dict[str, Any]) -> dict[str, Any]:
     """Map a raw ``web_profile_info`` ``data.user`` to a flat profile item dict."""
     username = user.get("username")
@@ -185,39 +164,162 @@ def parse_profile(user: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def parse_hashtag(data: dict[str, Any]) -> dict[str, Any]:
-    """Map a raw ``tags/web_info`` payload to a flat hashtag item dict."""
-    node = data.get("data") if isinstance(data.get("data"), dict) else data
-    name = node.get("name")
-    top = _edges(node.get("edge_hashtag_to_top_posts"))
-    recent = _edges(node.get("edge_hashtag_to_media"))
-    return {
-        "detailKind": "hashtag",
-        "id": node.get("id"),
-        "name": name,
-        "url": f"{_BASE}/explore/tags/{name}/" if name else None,
-        "postsCount": _edge_count(node, "edge_hashtag_to_media"),
-        "topPosts": [parse_media(n) for n in top],
-        "posts": [parse_media(n) for n in recent],
-    }
+# Anonymous single-post extraction (/p/<shortcode>/, /reel/<shortcode>/) --------
+#
+# Instagram serves logged-out visitors the post's public metadata inside the
+# document itself, not via a JSON XHR (the ``?__a=1`` API 404s / login-walls for
+# anonymous callers). Two durable, anonymous surfaces carry it:
+#   1. ``<script type="application/ld+json">`` — schema.org VideoObject/ImageObject
+#      with author, caption (articleBody/caption), uploadDate, interactionStatistic
+#      (likes/comments), and the media URL.
+#   2. Open Graph ``<meta property="og:*">`` — a lossy fallback (og:description
+#      packs "N likes, M comments - author on DATE: caption").
+# ld+json is preferred; og fills gaps. ponytail: pinned to these two surfaces —
+# if a live probe shows a different embedded blob (e.g. a PolarisPost JSON), add a
+# branch here; the wiring in scraper._media_flow stays the same.
+
+_LDJSON_RE = re.compile(
+    r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>',
+    re.IGNORECASE | re.DOTALL,
+)
+_OG_RE = re.compile(
+    r'<meta\s+property="og:([^"]+)"\s+content="([^"]*)"', re.IGNORECASE
+)
+# og:description shape: "1,234 likes, 56 comments - author on 2024-01-02 ..."
+_OG_COUNTS_RE = re.compile(
+    r"([\d.,]+)\s+likes?,\s*([\d.,]+)\s+comments?", re.IGNORECASE
+)
 
 
-def parse_place(data: dict[str, Any]) -> dict[str, Any]:
-    """Map a raw ``locations/web_info`` payload to a flat place item dict."""
-    loc = data.get("location") if isinstance(data.get("location"), dict) else data
-    recent = _edges(loc.get("edge_location_to_media"))
+def _html_int(value: Any) -> int | None:
+    """Coerce a string/number (``"1,234"``) to int, or ``None``."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return int(value)
+    if isinstance(value, str):
+        digits = value.replace(",", "").strip()
+        if digits.isdigit():
+            return int(digits)
+    return None
+
+
+def _ldjson_blocks(html: str) -> list[dict[str, Any]]:
+    """Parse every ``application/ld+json`` script block into dicts."""
+    out: list[dict[str, Any]] = []
+    for raw in _LDJSON_RE.findall(html):
+        try:
+            data = json.loads(raw.strip())
+        except (ValueError, TypeError):
+            continue
+        for node in data if isinstance(data, list) else [data]:
+            if isinstance(node, dict):
+                out.append(node)
+    return out
+
+
+def _og_tags(html: str) -> dict[str, str]:
+    """Map ``og:<key>`` -> content for the post document."""
+    return {k.lower(): v for k, v in _OG_RE.findall(html)}
+
+
+def _ld_interaction(node: dict[str, Any]) -> dict[str, int]:
+    """Pull like/comment counts out of schema.org ``interactionStatistic``."""
+    stats = node.get("interactionStatistic")
+    items = stats if isinstance(stats, list) else [stats] if stats else []
+    out: dict[str, int] = {}
+    for stat in items:
+        if not isinstance(stat, dict):
+            continue
+        itype = str(stat.get("interactionType") or "")
+        count = _html_int(stat.get("userInteractionCount"))
+        if count is None:
+            continue
+        if "Like" in itype:
+            out["likes"] = count
+        elif "Comment" in itype:
+            out["comments"] = count
+    return out
+
+
+def _ld_author_username(node: dict[str, Any]) -> str | None:
+    """Owner handle from a schema.org ``author`` (alternateName / identifier)."""
+    author = node.get("author")
+    author = author[0] if isinstance(author, list) and author else author
+    if not isinstance(author, dict):
+        return None
+    for key in ("alternateName", "identifier", "name"):
+        val = author.get(key)
+        if isinstance(val, dict):
+            val = val.get("value")
+        if isinstance(val, str) and val.strip():
+            return val.strip().lstrip("@") or None
+    return None
+
+
+def parse_post(html: str | None, *, url: str, shortcode: str | None = None) -> dict[str, Any] | None:
+    """Map an anonymous ``/p/<code>/`` (or ``/reel/``) HTML page to a media dict.
+
+    Prefers the embedded schema.org ``ld+json`` block, falling back to Open Graph
+    meta tags for whatever it omits. Returns a dict shaped like
+    :func:`parse_media` (so it flows through ``InstagramMediaItem`` unchanged), or
+    ``None`` when the document carries neither surface (e.g. a login interstitial
+    slipped past the fetch-layer redirect check — the caller treats ``None`` as
+    "nothing to emit", never a silent success).
+    """
+    if not isinstance(html, str) or not html.strip():
+        return None
+    blocks = _ldjson_blocks(html)
+    og = _og_tags(html)
+    if not blocks and not og:
+        return None
+
+    node = next(
+        (b for b in blocks if str(b.get("@type", "")).endswith(("Object", "Post"))),
+        blocks[0] if blocks else {},
+    )
+    counts = _ld_interaction(node)
+    if "likes" not in counts or "comments" not in counts:
+        m = _OG_COUNTS_RE.search(og.get("description", ""))
+        if m:
+            counts.setdefault("likes", _html_int(m.group(1)) or 0)
+            counts.setdefault("comments", _html_int(m.group(2)) or 0)
+
+    caption = (
+        node.get("articleBody")
+        or node.get("caption")
+        or node.get("description")
+        or og.get("description")
+    )
+    caption = caption if isinstance(caption, str) else None
+
+    video = node.get("video")
+    video = video[0] if isinstance(video, list) and video else video
+    video_url = (
+        video.get("contentUrl") if isinstance(video, dict) else None
+    ) or og.get("video")
+    is_video = bool(video_url) or og.get("type") == "video.other"
+
+    image = node.get("image")
+    image = image[0] if isinstance(image, list) and image else image
+    display_url = (
+        image.get("url") if isinstance(image, dict) else image
+        if isinstance(image, str)
+        else None
+    ) or og.get("image")
+
     return {
-        "detailKind": "place",
-        "name": loc.get("name"),
-        "location_id": str(loc.get("id")) if loc.get("id") is not None else None,
-        "slug": loc.get("slug"),
-        "lat": loc.get("lat"),
-        "lng": loc.get("lng"),
-        "location_address": loc.get("address_json") or loc.get("address"),
-        "location_city": loc.get("city"),
-        "phone": loc.get("phone"),
-        "website": loc.get("website"),
-        "category": loc.get("category"),
-        "media_count": _edge_count(loc, "edge_location_to_media"),
-        "posts": [parse_media(n) for n in recent],
+        "id": node.get("identifier") if isinstance(node.get("identifier"), str) else None,
+        "type": "Video" if is_video else "Image",
+        "shortCode": shortcode,
+        "caption": caption,
+        "hashtags": _HASHTAG_RE.findall(caption) if caption else [],
+        "mentions": _MENTION_RE.findall(caption) if caption else [],
+        "url": url,
+        "commentsCount": counts.get("comments"),
+        "displayUrl": display_url,
+        "videoUrl": video_url if is_video else None,
+        "likesCount": counts.get("likes"),
+        "timestamp": node.get("uploadDate") or node.get("datePublished"),
+        "ownerUsername": _ld_author_username(node),
     }

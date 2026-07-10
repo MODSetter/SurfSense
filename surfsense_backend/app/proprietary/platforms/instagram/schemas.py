@@ -19,11 +19,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-InstagramResultsType = Literal[
-    "posts", "details", "comments", "reels", "mentions", "stories"
-]
-InstagramSearchType = Literal["hashtag", "profile", "place", "user"]
-InstagramDetailKind = Literal["profile", "hashtag", "place"]
+InstagramResultsType = Literal["posts", "details", "reels", "mentions"]
+InstagramSearchType = Literal["profile", "user"]
 
 
 class InstagramScrapeInput(BaseModel):
@@ -41,12 +38,10 @@ class InstagramScrapeInput(BaseModel):
     resultsLimit: int | None = Field(default=None, ge=1)
     onlyPostsNewerThan: str | None = None
     search: str | None = None
-    searchType: InstagramSearchType = "hashtag"
+    searchType: InstagramSearchType = "profile"
     searchLimit: int | None = Field(default=None, ge=1, le=250)
     addParentData: bool = False
     skipPinnedPosts: bool = False
-    isNewestComments: bool = False
-    includeNestedComments: bool = False
     addProfileStatistics: bool = False
 
 
@@ -109,22 +104,6 @@ class InstagramMediaItem(_ItemBase):
     dataSource: dict[str, Any] | None = None
 
 
-class InstagramComment(_ItemBase):
-    """A comment on a post / reel."""
-
-    id: str | None = None
-    postUrl: str | None = None
-    commentUrl: str | None = None
-    text: str | None = None
-    ownerUsername: str | None = None
-    ownerProfilePicUrl: str | None = None
-    timestamp: str | None = None
-    repliesCount: int | None = None
-    replies: list[dict[str, Any]] = Field(default_factory=list)
-    likesCount: int | None = None
-    owner: dict[str, Any] | None = None
-
-
 class InstagramProfile(_ItemBase):
     """A profile detail item (``detailKind = "profile"``)."""
 
@@ -149,39 +128,3 @@ class InstagramProfile(_ItemBase):
     relatedProfiles: list[dict[str, Any]] = Field(default_factory=list)
     latestPosts: list[dict[str, Any]] = Field(default_factory=list)
     statistics: dict[str, Any] | None = None
-
-
-class InstagramHashtag(_ItemBase):
-    """A hashtag detail item (``detailKind = "hashtag"``)."""
-
-    detailKind: Literal["hashtag"] = "hashtag"
-    id: str | None = None
-    name: str | None = None
-    url: str | None = None
-    postsCount: int | None = None
-    topPosts: list[dict[str, Any]] = Field(default_factory=list)
-    posts: list[dict[str, Any]] = Field(default_factory=list)
-    related: list[dict[str, Any]] = Field(default_factory=list)
-    searchTerm: str | None = None
-    searchSource: str | None = None
-
-
-class InstagramPlace(_ItemBase):
-    """A place detail item (``detailKind = "place"``)."""
-
-    detailKind: Literal["place"] = "place"
-    name: str | None = None
-    location_id: str | None = None
-    slug: str | None = None
-    lat: float | None = None
-    lng: float | None = None
-    location_address: str | None = None
-    location_city: str | None = None
-    location_zip: str | None = None
-    phone: str | None = None
-    website: str | None = None
-    category: str | None = None
-    media_count: int | None = None
-    posts: list[dict[str, Any]] = Field(default_factory=list)
-    searchTerm: str | None = None
-    searchSource: str | None = None
