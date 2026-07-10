@@ -23,7 +23,10 @@ from typing import Any
 
 _BASE = "https://www.instagram.com"
 _HASHTAG_RE = re.compile(r"#(\w+)")
-_MENTION_RE = re.compile(r"@([\w.]+)")
+# Instagram handles are letters/digits/period/underscore but never start or end
+# with a period, so anchor both ends to alphanumerics/underscore — otherwise
+# trailing sentence punctuation ("@hulu.") leaks into the handle.
+_MENTION_RE = re.compile(r"@([A-Za-z0-9_](?:[A-Za-z0-9_.]*[A-Za-z0-9_])?)")
 _TYPE_MAP = {
     "GraphImage": "Image",
     "GraphVideo": "Video",
@@ -205,6 +208,10 @@ _OG_OWNER_DATE_RE = re.compile(
 # og:title is the cleaner caption source (no counts/date prefix): the caption is
 # everything after "<fullName> on Instagram: ".
 _OG_TITLE_RE = re.compile(r"^(.+?)\s+on Instagram:\s*(.*)$", re.DOTALL)
+# The numeric media id (pk) rides in the App Link deep-link meta tags
+# (al:ios:url / al:android:url = "instagram://media?id=<pk>") on anonymous pages,
+# even though og:* and ld+json omit it.
+_MEDIA_ID_RE = re.compile(r"instagram://media\?id=(\d+)")
 
 
 def _og_date_to_iso(value: str) -> str | None:
@@ -370,8 +377,13 @@ def parse_post(html: str | None, *, url: str, shortcode: str | None = None) -> d
         else None
     ) or og.get("image")
 
+    media_id = node.get("identifier") if isinstance(node.get("identifier"), str) else None
+    if media_id is None:
+        id_match = _MEDIA_ID_RE.search(html)
+        media_id = id_match.group(1) if id_match else None
+
     return {
-        "id": node.get("identifier") if isinstance(node.get("identifier"), str) else None,
+        "id": media_id,
         "type": "Video" if is_video else "Image",
         "shortCode": shortcode,
         "caption": caption,

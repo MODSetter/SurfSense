@@ -123,14 +123,16 @@ def test_parse_post_falls_back_to_og_meta():
     <html><head>
     <meta property="og:type" content="video.other" />
     <meta property="og:image" content="https://cdn/i.jpg" />
+    <meta property="al:ios:url" content="instagram://media?id=3938367641542741384" />
     <meta property="og:title"
-      content="Nat Geo on Instagram: &quot;a caption #wow #wow @buzz&quot;" />
+      content="Nat Geo on Instagram: &quot;a caption #wow #wow &#064;buzz.&quot;" />
     <meta property="og:description"
-      content="1,234 likes, 56 comments - natgeo on January 2, 2024: &quot;a caption #wow #wow @buzz&quot;" />
+      content="1,234 likes, 56 comments - natgeo on January 2, 2024: &quot;a caption #wow #wow &#064;buzz.&quot;" />
     </head></html>
     """
     item = parse_post(html, url=_POST_URL, shortcode="Cabc")
     assert item is not None
+    assert item["id"] == "3938367641542741384"  # numeric pk from al:ios:url meta
     assert item["likesCount"] == 1234
     assert item["commentsCount"] == 56
     assert item["displayUrl"] == "https://cdn/i.jpg"
@@ -138,9 +140,9 @@ def test_parse_post_falls_back_to_og_meta():
     assert item["ownerUsername"] == "natgeo"
     assert item["ownerFullName"] == "Nat Geo"
     assert item["timestamp"] == "2024-01-02"  # og carries date only, no time
-    assert item["caption"] == "a caption #wow #wow @buzz"  # unescaped, unwrapped
-    assert item["hashtags"] == ["wow"]  # deduped, no counts-prefix pollution
-    assert item["mentions"] == ["buzz"]
+    assert item["caption"] == "a caption #wow #wow @buzz."  # &#064; -> @, unescaped
+    assert item["hashtags"] == ["wow"]  # deduped, no &#064;-as-#064 pollution
+    assert item["mentions"] == ["buzz"]  # trailing sentence dot stripped
 
 
 def test_parse_post_og_degrades_without_crashing():
