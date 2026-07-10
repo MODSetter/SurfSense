@@ -106,8 +106,8 @@ async def stage_profile_listing() -> tuple[bool, list[dict[str, Any]]]:
     _hr(f"STAGE 2 — profile listing graceful-degrade: @{_PROFILE}")
     from app.proprietary.platforms.tiktok import TikTokScrapeInput, scrape_tiktok
 
-    # Headful (flag on) yields real videos; still accept an ErrorItem (never a
-    # silent empty) so the graceful-degradation contract holds either way.
+    # Accept videos OR an ErrorItem (never a silent empty): the feed degrades
+    # gracefully when the exit IP is flagged.
     items = await scrape_tiktok(
         TikTokScrapeInput(profiles=[_PROFILE], resultsPerPage=_COUNT), limit=_COUNT
     )
