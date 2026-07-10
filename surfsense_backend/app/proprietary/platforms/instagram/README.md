@@ -26,7 +26,7 @@ Surfaces used:
 | Flow | Surface | Extractor |
 |---|---|---|
 | profile / details | `api/v1/users/web_profile_info/?username=…` (JSON) | `parse_profile` |
-| profile feed (posts/reels/mentions) | the media embedded in the same profile JSON | `parse_media` |
+| profile feed (posts/reels) | the media embedded in the same profile JSON | `parse_media` |
 | single post / reel | `/p/<shortcode>/` (HTML: ld+json + og-meta) | `parse_post` |
 | profile discovery | Google `site:instagram.com <query>` | `resolve_url` |
 
@@ -66,7 +66,7 @@ so the capability layer can map it to a `403 INSTAGRAM_ACCESS_BLOCKED`.
    comma-split queries) into targets and fans them out on a pool of warm proxy
    sessions (`fan_out`, 8-way). Each worker opens one sticky-IP session and warms
    `csrftoken`/`mid` once, reusing it across the sequential targets it pulls.
-2. `resultsType` selects the flow: `posts`/`reels`/`mentions` → media items,
+2. `resultsType` selects the flow: `posts`/`reels` → media items,
    `details` → profile metadata. Media items de-dupe by `id` across targets.
    - A **profile** target → `web_profile_info` JSON → `parse_media` over the
      embedded recent-media edges (feed) or `parse_profile` (details).
