@@ -11,9 +11,9 @@ The pure response-shape parsing lives in :func:`items_from_response`; this modul
 is the untested browser-I/O glue (covered by the e2e smoke, not unit tests).
 
 Needs a residential proxy; datacenter IPs get empty bodies and 429s. The profile
-feed (``/api/post/item_list``) returns an empty 200 to headless sessions, so
-:func:`fetch_item_list` runs headful. ponytail: headful needs a display — run it
-under Xvfb on a headless server.
+feed returns an empty 200 to headless sessions, so :func:`fetch_item_list` goes
+headful only when ``CRAWL_HEADED_XVFB_ENABLED`` promises an Xvfb display — else it
+stays headless and degrades to an ``ErrorItem`` instead of crashing on launch.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from typing import Any
 
 from scrapling.fetchers import StealthyFetcher
 
+from app.config import config
 from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
@@ -250,7 +251,8 @@ def _fetch_sync(
 async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, Any]]:
     """Return up to ``target_count`` itemStructs from a listing page's XHRs.
 
-    Runs headful: the profile feed returns an empty 200 to headless sessions.
+    Headful when ``CRAWL_HEADED_XVFB_ENABLED`` promises a display (the profile feed
+    is empty to headless sessions); headless otherwise so launch never fails.
     """
     return await asyncio.to_thread(
         _fetch_sync,
@@ -259,7 +261,7 @@ async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, An
         _ITEM_LIST_MARKERS,
         items_from_response,
         _scroll_page,
-        headless=False,
+        headless=not config.CRAWL_HEADED_XVFB_ENABLED,
     )
 
 
