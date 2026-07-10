@@ -728,6 +728,12 @@ class Config:
     # Comments are the cheapest per-item TikTok data, matching the per-comment
     # market (and YouTube's comment meter).
     TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Browser-listing retries when a feed comes back empty. The profile feed is
+    # withheld from flagged exit IPs; since the proxy rotates per request, each
+    # retry lands a fresh IP, turning a bad first draw into a hit. Only spends on
+    # empty results. ponytail: assumes a rotating proxy — set to 1 for a static IP,
+    # where retrying just re-hits the same (flagged) exit.
+    TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
