@@ -232,6 +232,21 @@ export const instagram: ConnectorPageContent = {
 				type: "string",
 				description: "ISO timestamp for when the post was published.",
 			},
+			{
+				name: "images / childPosts",
+				type: "string[] / object[]",
+				description: "Carousel (sidecar) children: each child's media URL and metadata.",
+			},
+			{
+				name: "taggedUsers / coauthorProducers",
+				type: "object[]",
+				description: "Users tagged in the media and any co-authors credited on it.",
+			},
+			{
+				name: "locationName / locationId / productType / isPinned",
+				type: "string / boolean",
+				description: "Location tag, product type (feed/clips), and whether the post is pinned.",
+			},
 		],
 	},
 
@@ -254,7 +269,7 @@ export const instagram: ConnectorPageContent = {
 		{
 			question: "Can I scrape hashtags, places, or comments?",
 			answer:
-				"No. Instagram login-walls hashtag feeds, place feeds, and comment threads for logged-out visitors, so SurfSense does not offer them. The API focuses on what is reliably public and anonymous: profiles, posts, and reels.",
+				"No. Instagram login-walls hashtag feeds, place feeds, and comment threads for logged-out visitors, so SurfSense does not offer them. You still get each post's comment count, just not the comment text. The API focuses on what is reliably public and anonymous: profiles, posts, and reels.",
 		},
 	],
 
