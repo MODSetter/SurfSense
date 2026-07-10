@@ -13,7 +13,7 @@ from ....core.workspace_context import WorkspaceContext, WorkspaceParam
 from ..annotations import SCRAPE
 from ..capability import run_scraper
 
-ResultType = Literal["posts", "reels", "mentions"]
+ResultType = Literal["posts", "reels"]
 SearchType = Literal["profile", "user"]
 
 
@@ -50,7 +50,7 @@ def register(
         ] = "profile",
         result_type: Annotated[
             ResultType,
-            Field(description="Which feed to return. 'mentions' needs profile URLs."),
+            Field(description="Which feed to return: 'posts' or 'reels'."),
         ] = "posts",
         max_items: Annotated[
             int, Field(ge=1, description="Maximum items to return across sources.")
