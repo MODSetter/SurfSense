@@ -88,7 +88,7 @@ export const instagram: ConnectorPageContent = {
 		{
 			title: "Influencer vetting and outreach",
 			description:
-				"Verify a creator's follower count, post cadence, and real engagement from public data before you pay for a partnership, and surface who is already mentioning your brand.",
+				"Verify a creator's follower count, post cadence, and real engagement from public data before you pay for a partnership.",
 		},
 	],
 
@@ -161,7 +161,7 @@ export const instagram: ConnectorPageContent = {
 				name: "result_type",
 				type: "string",
 				defaultValue: '"posts"',
-				description: "Which feed to return: posts, reels, or mentions. 'mentions' requires profile URLs.",
+				description: "Which feed to return: posts or reels.",
 			},
 			{
 				name: "newer_than",
