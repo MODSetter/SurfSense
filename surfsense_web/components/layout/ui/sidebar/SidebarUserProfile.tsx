@@ -52,6 +52,7 @@ const LANGUAGES = [
 	{ code: "pt" as const, name: "Português", flag: "🇧🇷" },
 	{ code: "hi" as const, name: "हिन्दी", flag: "🇮🇳" },
 	{ code: "zh" as const, name: "简体中文", flag: "🇨🇳" },
+	{ code: "ko" as const, name: "한국어", flag: "🇰🇷" },
 ];
 
 // Supported themes configuration
@@ -157,7 +158,7 @@ export function SidebarUserProfile({
 	const showDownloadCta = !isDesktop && !isMobileOS && isDesktopViewport;
 	const useMobileSubmenus = !isDesktopViewport;
 
-	const handleLanguageChange = (newLocale: "en" | "es" | "pt" | "hi" | "zh") => {
+	const handleLanguageChange = (newLocale: "en" | "es" | "pt" | "hi" | "zh" | "ko") => {
 		setLocale(newLocale);
 	};
 
