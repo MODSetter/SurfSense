@@ -29,6 +29,14 @@ const USE_CASES: {
 		art: "brand",
 	},
 	{
+		title: "Social sentiment mining",
+		description:
+			"Pull public posts, reels, and full comment threads from any creator or competitor, then score how audiences actually react to launches and campaigns.",
+		href: "/instagram",
+		anchor: "Instagram API",
+		art: "chat",
+	},
+	{
 		title: "B2B lead generation",
 		description:
 			"Turn a category and a territory into a clean lead list with phones, websites, and ratings, ready for your CRM.",

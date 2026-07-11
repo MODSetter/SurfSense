@@ -25,6 +25,8 @@ class BillingUnit(StrEnum):
     GOOGLE_MAPS_REVIEW = "google_maps_review"
     YOUTUBE_VIDEO = "youtube_video"
     YOUTUBE_COMMENT = "youtube_comment"
+    INSTAGRAM_ITEM = "instagram_item"
+    INSTAGRAM_COMMENT = "instagram_comment"
     TIKTOK_VIDEO = "tiktok_video"
     TIKTOK_USER = "tiktok_user"
     TIKTOK_COMMENT = "tiktok_comment"

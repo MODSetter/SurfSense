@@ -427,3 +427,54 @@ async def test_platform_gate_disabled_is_noop(monkeypatch):
     )
 
     session.execute.assert_not_called()
+
+
+# ===================================================================
+# Instagram per-item / per-comment billing
+# ===================================================================
+
+
+async def test_instagram_item_charges_owner_per_item(
+    monkeypatch, record_usage, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "INSTAGRAM_SCRAPE_MICROS_PER_ITEM", 3500)
+    session, user = _make_session(_OWNER, balance_micros=1_000_000)
+
+    charged = await charge_capability(
+        _FakePlatformOutput(4), BillingUnit.INSTAGRAM_ITEM, _ctx(session)
+    )
+
+    assert charged == 4 * 3500
+    assert user.credit_micros_balance == 1_000_000 - 4 * 3500
+    kwargs = record_usage.await_args.kwargs
+    assert kwargs["usage_type"] == "instagram_item"
+
+
+async def test_instagram_comment_charges_owner_per_comment(
+    monkeypatch, record_usage, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "INSTAGRAM_SCRAPE_MICROS_PER_COMMENT", 1500)
+    session, user = _make_session(_OWNER, balance_micros=1_000_000)
+
+    charged = await charge_capability(
+        _FakePlatformOutput(6), BillingUnit.INSTAGRAM_COMMENT, _ctx(session)
+    )
+
+    assert charged == 6 * 1500
+    assert user.credit_micros_balance == 1_000_000 - 6 * 1500
+    kwargs = record_usage.await_args.kwargs
+    assert kwargs["usage_type"] == "instagram_comment"
+
+
+async def test_instagram_gate_blocks_when_worst_case_exceeds_balance(
+    monkeypatch, _enable_platform_billing
+):
+    monkeypatch.setattr(config, "INSTAGRAM_SCRAPE_MICROS_PER_ITEM", 3500)
+    session = _gate_session(_OWNER, balance_micros=5000)  # affords 1 item, not 2
+
+    with pytest.raises(InsufficientCreditsError):
+        await gate_capability(
+            _FakePlatformInput(estimated_units=2),
+            BillingUnit.INSTAGRAM_ITEM,
+            _ctx(session),
+        )

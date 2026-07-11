@@ -39,6 +39,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/mcp-server",
 	"/external-mcp-connectors",
 	"/reddit",
+	"/instagram",
 	"/youtube",
 	"/google-maps",
 	"/google-search",

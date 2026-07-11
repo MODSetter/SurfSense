@@ -719,7 +719,7 @@ export function HeroSection() {
 						>
 							SurfSense is an open-source competitive intelligence platform. Your AI agents monitor
 							competitors, track rankings, and listen to your market with live data from platforms
-							like Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web.
+							like Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and the open web.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">

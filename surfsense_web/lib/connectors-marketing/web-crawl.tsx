@@ -282,6 +282,7 @@ export const webCrawl: ConnectorPageContent = {
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "Reddit API", href: "/reddit" },
+		{ label: "Instagram API", href: "/instagram" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],

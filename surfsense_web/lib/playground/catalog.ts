@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import {
 	GoogleMapsIcon,
 	GoogleSearchIcon,
+	InstagramIcon,
 	RedditIcon,
 	TikTokIcon,
 	WebIcon,
@@ -47,6 +48,15 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 		verbs: [
 			{ name: "youtube.scrape", verb: "scrape", label: "Scrape" },
 			{ name: "youtube.comments", verb: "comments", label: "Comments" },
+		],
+	},
+	{
+		id: "instagram",
+		label: "Instagram",
+		icon: InstagramIcon,
+		verbs: [
+			{ name: "instagram.scrape", verb: "scrape", label: "Scrape" },
+			{ name: "instagram.details", verb: "details", label: "Details" },
 		],
 	},
 	{

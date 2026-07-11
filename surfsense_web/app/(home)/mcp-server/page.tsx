@@ -16,7 +16,7 @@ import type { FaqItem } from "@/lib/connectors-marketing/types";
 const canonicalUrl = "https://www.surfsense.com/mcp-server";
 
 const metaDescription =
-	"The SurfSense MCP server gives Claude, Cursor, and any MCP client native tools for your workspace: scrape Reddit, YouTube, TikTok, Google Maps, Google Search, and the web, plus full knowledge base access. One API key.";
+	"The SurfSense MCP server gives Claude, Cursor, and any MCP client native tools for your workspace: scrape Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and the web, plus full knowledge base access. One API key.";
 
 export const metadata: Metadata = {
 	title: "SurfSense MCP Server: Scraper APIs and Knowledge Base as Agent Tools",
@@ -93,7 +93,12 @@ const TOOL_GROUPS = [
 			"surfsense_reddit_scrape",
 			"surfsense_youtube_scrape",
 			"surfsense_youtube_comments",
+			"surfsense_instagram_scrape",
+			"surfsense_instagram_details",
 			"surfsense_tiktok_scrape",
+			"surfsense_tiktok_comments",
+			"surfsense_tiktok_user_search",
+			"surfsense_tiktok_trending",
 			"surfsense_google_maps_scrape",
 			"surfsense_google_maps_reviews",
 			"surfsense_google_search",
@@ -128,7 +133,7 @@ const FAQ: FaqItem[] = [
 	{
 		question: "What is the SurfSense MCP server?",
 		answer:
-			"It is a Model Context Protocol server that exposes your SurfSense workspace to MCP clients like Claude Code, Cursor, and Claude Desktop. Your agents get native tools for every scraper API (Reddit, YouTube, TikTok, Google Maps, Google Search, web crawl) and for searching, reading, and writing your knowledge base.",
+			"It is a Model Context Protocol server that exposes your SurfSense workspace to MCP clients like Claude Code, Cursor, and Claude Desktop. Your agents get native tools for every scraper API (Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, web crawl) and for searching, reading, and writing your knowledge base.",
 	},
 	{
 		question: "Which MCP clients does it work with?",
@@ -216,9 +221,9 @@ export default function McpServerPage() {
 							</h1>
 							<p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
 								The SurfSense MCP server hands Claude, Cursor, or any MCP client the whole platform:
-								scrape Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web, and
-								search, read, and write your knowledge base. One API key, typed tools, pay as you
-								go.
+								scrape Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and the open
+								web, and search, read, and write your knowledge base. One API key, typed tools, pay
+								as you go.
 							</p>
 							<div className="mt-8 flex flex-wrap items-center gap-3">
 								<Button asChild size="lg">
@@ -399,6 +404,9 @@ export default function McpServerPage() {
 								</Button>
 								<Button asChild variant="ghost" size="sm">
 									<Link href="/youtube">YouTube API</Link>
+								</Button>
+								<Button asChild variant="ghost" size="sm">
+									<Link href="/instagram">Instagram API</Link>
 								</Button>
 								<Button asChild variant="ghost" size="sm">
 									<Link href="/tiktok">TikTok API</Link>
