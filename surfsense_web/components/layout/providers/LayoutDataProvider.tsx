@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Boxes, SquareTerminal } from "lucide-react";
+import { AlarmClock, AlertTriangle, Shapes, SquareTerminal } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -306,7 +306,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 					{
 						title: "Artifacts",
 						url: `/dashboard/${workspaceId}/artifacts`,
-						icon: Boxes,
+						icon: Shapes,
 						isActive: isArtifactsActive,
 					},
 					{
