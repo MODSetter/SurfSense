@@ -42,6 +42,7 @@ export const cacheKeys = {
 		globalConfigStatus: () => ["model-connections", "global-config-status"] as const,
 		providers: () => ["model-connections", "providers"] as const,
 		roles: (workspaceId: number) => ["model-roles", workspaceId] as const,
+		setupStatus: (workspaceId: number) => ["llm-setup-status", workspaceId] as const,
 	},
 	auth: {
 		user: ["auth", "user"] as const,
