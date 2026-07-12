@@ -25,6 +25,9 @@ function invalidateModelConnections(workspaceId: number) {
 	queryClient.invalidateQueries({
 		queryKey: cacheKeys.modelConnections.roles(workspaceId),
 	});
+	queryClient.invalidateQueries({
+		queryKey: cacheKeys.modelConnections.setupStatus(workspaceId),
+	});
 }
 
 function upsertModelConnection(workspaceId: number, connection: ConnectionRead) {
@@ -207,6 +210,9 @@ export const updateModelRolesMutationAtom = atomWithMutation((get) => {
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.modelConnections.roles(workspaceId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.modelConnections.setupStatus(workspaceId),
 			});
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to update model roles"),
