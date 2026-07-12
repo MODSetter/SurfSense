@@ -14,6 +14,7 @@ from app.db import (
     get_async_session,
     get_default_roles_config,
 )
+from app.routes.model_connections_routes import compute_llm_setup_status
 from app.schemas import (
     WorkspaceApiAccessUpdate,
     WorkspaceCreate,
@@ -93,7 +94,12 @@ async def create_workspace(
 
         await session.commit()
         await session.refresh(db_workspace)
-        return db_workspace
+
+        response = WorkspaceRead.model_validate(db_workspace)
+        response.llm_setup = await compute_llm_setup_status(
+            session, auth, db_workspace.id
+        )
+        return response
     except HTTPException:
         raise
     except Exception as e:
