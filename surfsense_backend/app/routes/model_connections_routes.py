@@ -16,11 +16,13 @@ from app.db import (
     Permission,
     Workspace,
     get_async_session,
+    has_permission,
 )
 from app.schemas import (
     ConnectionCreate,
     ConnectionRead,
     ConnectionUpdate,
+    LlmSetupStatusRead,
     ModelCreate,
     ModelPreviewRead,
     ModelProviderRead,
@@ -43,7 +45,7 @@ from app.services.model_connection_service import (
 )
 from app.services.provider_registry import REGISTRY
 from app.users import get_auth_context, require_session_context
-from app.utils.rbac import check_permission
+from app.utils.rbac import check_permission, get_user_permissions
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -355,7 +357,7 @@ async def list_connections(
             session,
             auth,
             workspace_id,
-            Permission.LLM_CONFIGS_CREATE.value,
+            Permission.LLM_CONFIGS_READ.value,
             "You don't have permission to view model connections in this workspace",
         )
         stmt = stmt.where(Connection.workspace_id == workspace_id)
@@ -760,7 +762,7 @@ async def get_model_roles(
         session,
         auth,
         workspace_id,
-        Permission.LLM_CONFIGS_CREATE.value,
+        Permission.LLM_CONFIGS_READ.value,
         "You don't have permission to view model roles in this workspace",
     )
     workspace = await _clear_invalid_roles(session, workspace_id)
@@ -831,3 +833,108 @@ async def update_model_roles(
         vision_model_id=workspace.vision_model_id,
         image_gen_model_id=workspace.image_gen_model_id,
     )
+
+
+def _global_catalog_has_usable_chat() -> bool:
+    """True when the operator global catalog exposes a usable chat model.
+
+    Checks usability (enabled connection + enabled, chat-capable model), not
+    mere presence of ``global_llm_config.yaml`` — an empty or malformed file,
+    or an OpenRouter-only config whose startup fetch failed, yields no models
+    and must fall through to onboarding.
+    """
+    enabled_connection_ids = {
+        conn["id"] for conn in config.GLOBAL_CONNECTIONS if conn.get("enabled", True)
+    }
+    return any(
+        model.get("connection_id") in enabled_connection_ids
+        and model.get("enabled", True)
+        and has_capability(model, "chat")
+        for model in config.GLOBAL_MODELS
+    )
+
+
+async def _workspace_has_enabled_chat_model(
+    session: AsyncSession, workspace_id: int
+) -> bool:
+    result = await session.execute(
+        select(Connection)
+        .options(selectinload(Connection.models))
+        .where(
+            Connection.workspace_id == workspace_id,
+            Connection.enabled == True,
+        )
+    )
+    return any(
+        model.enabled and has_capability(model, "chat")
+        for conn in result.scalars().all()
+        for model in conn.models
+    )
+
+
+async def compute_llm_setup_status(
+    session: AsyncSession,
+    auth: AuthContext,
+    workspace_id: int,
+) -> LlmSetupStatusRead:
+    """Single source of truth for whether a workspace can chat.
+
+    "Needs onboarding" is derived, never persisted: a workspace is ``ready``
+    exactly when a usable chat model resolves for it (operator global catalog,
+    a valid pinned role, or an enabled chat-capable model in Auto mode).
+    """
+    await check_permission(
+        session,
+        auth,
+        workspace_id,
+        Permission.LLM_CONFIGS_READ.value,
+        "You don't have permission to view LLM setup status in this workspace",
+    )
+    permissions = await get_user_permissions(session, auth.user.id, workspace_id)
+    can_configure = has_permission(permissions, Permission.LLM_CONFIGS_CREATE.value)
+
+    global_usable = _global_catalog_has_usable_chat()
+    if config.GLOBAL_LLM_CONFIG_FILE_EXISTS and global_usable:
+        return LlmSetupStatusRead(
+            status="ready", source="global_config", can_configure=can_configure
+        )
+
+    # Heal dangling role pins first: a chat_model_id pointing at a deleted or
+    # disabled model collapses to 0 (Auto) here, so the checks below see the
+    # real state.
+    workspace = await _clear_invalid_roles(session, workspace_id)
+    await session.commit()
+    await session.refresh(workspace)
+
+    chat_model_id = workspace.chat_model_id or 0
+    if chat_model_id != 0:
+        # Survived _clear_invalid_roles => valid, enabled, chat-capable.
+        source = "global_config" if chat_model_id < 0 else "models"
+        return LlmSetupStatusRead(
+            status="ready", source=source, can_configure=can_configure
+        )
+
+    if global_usable:
+        return LlmSetupStatusRead(
+            status="ready", source="global_config", can_configure=can_configure
+        )
+    if await _workspace_has_enabled_chat_model(session, workspace_id):
+        return LlmSetupStatusRead(
+            status="ready", source="models", can_configure=can_configure
+        )
+
+    return LlmSetupStatusRead(
+        status="needs_setup", source="none", can_configure=can_configure
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/llm-setup-status",
+    response_model=LlmSetupStatusRead,
+)
+async def llm_setup_status(
+    workspace_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    return await compute_llm_setup_status(session, auth, workspace_id)
