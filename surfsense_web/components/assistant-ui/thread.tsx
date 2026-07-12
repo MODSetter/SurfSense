@@ -47,11 +47,7 @@ import {
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
-import {
-	globalModelConnectionsAtom,
-	modelConnectionsAtom,
-	modelRolesAtom,
-} from "@/atoms/model-connections/model-connections-query.atoms";
+import { llmSetupStatusAtomFamily } from "@/atoms/model-connections/model-connections-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
@@ -1074,9 +1070,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		if (url) setPendingScreenImages((prev) => [...prev, url]);
 	}, [electronAPI, setPendingScreenImages]);
 
-	const { data: globalModelConnections } = useAtomValue(globalModelConnectionsAtom);
-	const { data: modelConnections } = useAtomValue(modelConnectionsAtom);
-	const { data: modelRoles } = useAtomValue(modelRolesAtom);
+	const { data: setupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId));
 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -1157,21 +1151,13 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		hydrateDisabled();
 	}, [hydrateDisabled]);
 
-	const hasModelConfigured = useMemo(() => {
-		const chatModelId = modelRoles?.chat_model_id ?? 0;
-		if (chatModelId === 0) {
-			return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
-				connection.models.some((model) => model.enabled && Boolean(model.supports_chat))
-			);
-		}
-		return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
-			connection.models.some(
-				(model) => model.id === chatModelId && model.enabled && Boolean(model.supports_chat)
-			)
-		);
-	}, [modelRoles?.chat_model_id, globalModelConnections, modelConnections]);
+	// Defense-in-depth only: the onboarding gate makes an unconfigured
+	// workspace unreachable, but a stale cache (e.g. another admin removed the
+	// last model) can briefly leave this composer mounted. Block sends silently
+	// until the status refetch re-engages the gate.
+	const isWorkspaceChatReady = setupStatus?.status === "ready";
 
-	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
+	const isSendDisabled = isComposerEmpty || !isWorkspaceChatReady || isBlockedByOtherUser;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
@@ -1613,12 +1599,6 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				)}
 				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
-			{!hasModelConfigured && (
-				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
-					<AlertCircle className="size-3" />
-					<span>Select a model</span>
-				</div>
-			)}
 			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
 				<ChatHeader
 					workspaceId={workspaceId}
@@ -1631,11 +1611,9 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							tooltip={
 								isBlockedByOtherUser
 									? "Wait for AI to finish responding"
-									: !hasModelConfigured
-										? "Please select a model to start chatting"
-										: isComposerEmpty
-											? "Enter a message or add a screenshot to send"
-											: "Send message"
+									: isComposerEmpty
+										? "Enter a message or add a screenshot to send"
+										: "Send message"
 							}
 							side="bottom"
 							type="submit"
