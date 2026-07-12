@@ -9,7 +9,10 @@ function baseUrlHint(provider: string) {
 		return "For local servers, use host.docker.internal instead of localhost.";
 	}
 	if (provider === "openai_compatible") {
-		return "Enter the full endpoint URL.";
+		return "Enter the full endpoint URL. This provider expects a /v1-compatible endpoint.";
+	}
+	if (provider === "openai_compatible_raw") {
+		return "Enter the exact chat-completions API base URL. SurfSense will not append /v1.";
 	}
 	if (provider === "openai" || provider === "anthropic" || provider === "openrouter") {
 		return "Override only if you route through a proxy or gateway.";

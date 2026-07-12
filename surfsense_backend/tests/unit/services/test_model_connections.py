@@ -64,6 +64,22 @@ def test_openai_compatible_resolver_uses_explicit_api_base() -> None:
     assert ensure_v1("http://example.com/v1") == "http://example.com/v1"
 
 
+def test_openai_compatible_raw_resolver_does_not_append_v1() -> None:
+    model, kwargs = to_litellm(
+        {
+            "provider": "openai_compatible_raw",
+            "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+            "api_key": "ark-key",
+            "extra": {},
+        },
+        "ep-20260101000000-test",
+    )
+
+    assert model == "openai/ep-20260101000000-test"
+    assert kwargs["api_base"] == "https://ark.cn-beijing.volces.com/api/v3"
+    assert kwargs["api_key"] == "ark-key"
+
+
 def test_ollama_resolver_uses_native_api_base() -> None:
     model, kwargs = to_litellm(
         {
