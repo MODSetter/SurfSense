@@ -111,6 +111,12 @@ export const globalLlmConfigStatus = z.object({
 	exists: z.boolean(),
 });
 
+export const llmSetupStatus = z.object({
+	status: z.enum(["ready", "needs_setup"]),
+	source: z.enum(["global_config", "models", "none"]),
+	can_configure: z.boolean(),
+});
+
 export const modelProviderRead = z.object({
 	provider: z.string(),
 	transport: z.string(),
@@ -140,5 +146,6 @@ export type ModelUpdateRequest = z.infer<typeof modelUpdateRequest>;
 export type ModelsBulkUpdateRequest = z.infer<typeof modelsBulkUpdateRequest>;
 export type ModelRoles = z.infer<typeof modelRoles>;
 export type GlobalLlmConfigStatus = z.infer<typeof globalLlmConfigStatus>;
+export type LlmSetupStatus = z.infer<typeof llmSetupStatus>;
 export type VerifyConnectionResponse = z.infer<typeof verifyConnectionResponse>;
 export type ModelProviderRead = z.infer<typeof modelProviderRead>;
