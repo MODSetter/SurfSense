@@ -30,6 +30,24 @@ function invalidateModelConnections(workspaceId: number) {
 	});
 }
 
+// After a mutation that can remove the workspace's last usable chat model,
+// surface immediate feedback. The composer's inline notice covers the state on
+// its own; this just makes the consequence obvious at the moment of the action.
+async function warnIfWorkspaceChatDisabled(workspaceId: number) {
+	if (workspaceId <= 0) return;
+	try {
+		const status = await queryClient.fetchQuery({
+			queryKey: cacheKeys.modelConnections.setupStatus(workspaceId),
+			queryFn: () => modelConnectionsApiService.getLlmSetupStatus(workspaceId),
+		});
+		if (status?.status === "needs_setup") {
+			toast.warning("Chat is now disabled. Connect a language model to start chatting again.");
+		}
+	} catch {
+		// Non-fatal: the inline composer notice still reflects the state.
+	}
+}
+
 function upsertModelConnection(workspaceId: number, connection: ConnectionRead) {
 	queryClient.setQueryData<ConnectionRead[]>(
 		cacheKeys.modelConnections.all(workspaceId),
@@ -81,9 +99,10 @@ export const deleteModelConnectionMutationAtom = atomWithMutation((get) => {
 	return {
 		mutationKey: ["model-connections", "delete"],
 		mutationFn: (id: number) => modelConnectionsApiService.deleteConnection(id),
-		onSuccess: () => {
+		onSuccess: async () => {
 			toast.success("Connection deleted");
 			invalidateModelConnections(workspaceId);
+			await warnIfWorkspaceChatDisabled(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to delete connection"),
 	};
@@ -182,7 +201,10 @@ export const bulkUpdateModelsMutationAtom = atomWithMutation((get) => {
 		mutationKey: ["models", "bulk-update"],
 		mutationFn: ({ connectionId, data }: { connectionId: number; data: ModelsBulkUpdateRequest }) =>
 			modelConnectionsApiService.bulkUpdateModels(connectionId, data),
-		onSuccess: () => invalidateModelConnections(workspaceId),
+		onSuccess: async () => {
+			invalidateModelConnections(workspaceId);
+			await warnIfWorkspaceChatDisabled(workspaceId);
+		},
 		onError: (error: Error) => toast.error(error.message || "Failed to update models"),
 	};
 });
