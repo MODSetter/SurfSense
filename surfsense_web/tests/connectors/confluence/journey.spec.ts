@@ -48,7 +48,7 @@ test.describe("Confluence connector journey", () => {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage External MCP Connectors" });
+		const connectorDialog = page.getByRole("dialog", { name: "MCP Connectors" });
 		await expect(connectorDialog).toBeVisible();
 		await connectorDialog.getByPlaceholder("Search").fill("Confluence");
 		await expect(connectorDialog.getByText("Confluence", { exact: true })).toBeVisible();

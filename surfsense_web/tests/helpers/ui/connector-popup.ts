@@ -21,7 +21,7 @@ export async function openConnectorPopup(page: Page): Promise<void> {
 	await expect(trigger).toBeVisible({ timeout: 60_000 });
 	await trigger.click();
 
-	await expect(page.getByRole("dialog", { name: "Manage External MCP Connectors" })).toBeVisible();
+	await expect(page.getByRole("dialog", { name: "MCP Connectors" })).toBeVisible();
 }
 
 /**

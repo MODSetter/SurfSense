@@ -42,7 +42,7 @@ test.describe("Linear connector journey", () => {
 			waitUntil: "domcontentloaded",
 		});
 		await openConnectorPopup(page);
-		const connectorDialog = page.getByRole("dialog", { name: "Manage External MCP Connectors" });
+		const connectorDialog = page.getByRole("dialog", { name: "MCP Connectors" });
 		await expect(connectorDialog).toBeVisible();
 
 		const beforeDocs = await listDocuments(request, apiToken, workspace.id);

@@ -1239,7 +1239,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 									<Unplug className="size-4" />
-									Manage External MCP Connectors
+									MCP Connectors
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
 									<Settings2 className="size-4" />
@@ -1459,7 +1459,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							</DropdownMenuItem>
 							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 								<Unplug className="h-4 w-4" />
-								Manage External MCP Connectors
+								MCP Connectors
 							</DropdownMenuItem>
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
