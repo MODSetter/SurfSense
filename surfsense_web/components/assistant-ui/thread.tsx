@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	agentToolsAtom,
@@ -444,6 +444,52 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 	);
 };
 
+/**
+ * Inline "this workspace can't chat yet" tray, mirrored on top of the composer
+ * (same visual treatment as the "Connect your tools" tray below it).
+ *
+ * Replaces the old full-screen onboarding redirect: a workspace with no usable
+ * chat model (fresh install, or an admin deleted the last model) renders the
+ * composer in place with this notice instead of navigating away. Configurable
+ * members get a CTA to connect one; everyone else is told to ask an admin. The
+ * send button stays disabled independently, and the backend rejects any send
+ * that slips through, so this is purely guidance.
+ *
+ * Presentational: visibility is decided by the parent so the composer can flatten
+ * its top shadow for a seamless join.
+ */
+const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> = ({
+	workspaceId,
+	canConfigure,
+}) => {
+	const router = useRouter();
+
+	return (
+		<div className="relative z-0 -mb-5 flex min-w-0 items-center gap-2 rounded-t-3xl bg-popover px-4 pt-2 pb-6 shadow-sm shadow-black/5 dark:shadow-black/10">
+			<div className="flex min-w-0 items-center gap-2 text-[13px] font-normal text-muted-foreground select-none">
+				<AlertCircle className="size-4 shrink-0" />
+				<span className="truncate">
+					{canConfigure
+						? "Connect a language model to start chatting."
+						: "No model available. Ask a workspace admin to connect a language model."}
+				</span>
+			</div>
+			<div className="min-w-0 flex-1" />
+			{canConfigure ? (
+				<Button
+					type="button"
+					size="sm"
+					className="h-6 shrink-0 cursor-pointer gap-2 rounded-md px-2.5 text-xs font-medium select-none"
+					onClick={() => router.push(`/dashboard/${workspaceId}/workspace-settings/models`)}
+				>
+					<span className="sm:hidden">Connect</span>
+					<span className="hidden sm:inline">Connect a model</span>
+				</Button>
+			) : null}
+		</div>
+	);
+};
+
 const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
@@ -482,6 +528,9 @@ const Composer: FC = () => {
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 	const [connectToolsTrayVisible, setConnectToolsTrayVisible] = useState(false);
+
+	const { data: chatSetupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId ?? 0));
+	const isChatUnavailable = !!chatSetupStatus && chatSetupStatus.status !== "ready";
 
 	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
@@ -930,10 +979,17 @@ const Composer: FC = () => {
 				) : null}
 			</Popover>
 			<div className="relative flex w-full flex-col">
+				{isChatUnavailable ? (
+					<ChatUnavailableNotice
+						workspaceId={workspaceId ?? 0}
+						canConfigure={chatSetupStatus?.can_configure ?? false}
+					/>
+				) : null}
 				<div
 					className={cn(
 						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
-						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none"
+						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none",
+						isChatUnavailable && "shadow-none dark:shadow-none"
 					)}
 				>
 					<PendingScreenImageStrip />
@@ -1151,10 +1207,10 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		hydrateDisabled();
 	}, [hydrateDisabled]);
 
-	// Defense-in-depth only: the onboarding gate makes an unconfigured
-	// workspace unreachable, but a stale cache (e.g. another admin removed the
-	// last model) can briefly leave this composer mounted. Block sends silently
-	// until the status refetch re-engages the gate.
+	// A workspace with no usable chat model renders the composer with an inline
+	// notice (see ChatUnavailableNotice) rather than being redirected away, so
+	// the send button must stay disabled here. The backend also rejects any
+	// send that lacks a resolvable model, making this defense-in-depth.
 	const isWorkspaceChatReady = setupStatus?.status === "ready";
 
 	const isSendDisabled = isComposerEmpty || !isWorkspaceChatReady || isBlockedByOtherUser;
