@@ -54,6 +54,9 @@ export const llmSetupStatusAtomFamily = atomFamily((workspaceId: number) =>
 		queryKey: cacheKeys.modelConnections.setupStatus(workspaceId),
 		enabled: workspaceId > 0 && isAuthenticated(),
 		staleTime: 5 * 60 * 1000,
+		// Recovery is event-driven: mutations invalidate this key; external fixes
+		// are caught on window focus. No polling, so not-ready tabs cost nothing.
+		refetchOnWindowFocus: true,
 		queryFn: () => modelConnectionsApiService.getLlmSetupStatus(workspaceId),
 	}))
 );
