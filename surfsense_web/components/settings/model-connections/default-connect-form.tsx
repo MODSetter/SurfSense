@@ -14,7 +14,12 @@ function baseUrlHint(provider: string) {
 	if (provider === "openai_compatible_raw") {
 		return "Enter the exact chat-completions API base URL. SurfSense will not append /v1.";
 	}
-	if (provider === "openai" || provider === "anthropic" || provider === "openrouter") {
+	if (
+		provider === "openai" ||
+		provider === "anthropic" ||
+		provider === "openrouter" ||
+		provider === "requesty"
+	) {
 		return "Override only if you route through a proxy or gateway.";
 	}
 	return undefined;

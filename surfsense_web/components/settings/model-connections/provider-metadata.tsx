@@ -7,6 +7,7 @@ export const PROVIDER_ORDER = [
 	"bedrock",
 	"azure",
 	"openrouter",
+	"requesty",
 	"ollama_chat",
 	"lm_studio",
 	"openai_compatible",
@@ -48,6 +49,12 @@ export const PROVIDER_DISPLAY: Record<
 		subtitle: "OpenRouter",
 		iconKey: "openrouter",
 		defaultBaseUrl: "https://openrouter.ai/api/v1",
+	},
+	requesty: {
+		name: "Requesty",
+		subtitle: "Requesty",
+		iconKey: "requesty",
+		defaultBaseUrl: "https://router.requesty.ai/v1",
 	},
 	vertex_ai: { name: "Gemini", subtitle: "Google Cloud Vertex AI", iconKey: "vertex_ai" },
 };
