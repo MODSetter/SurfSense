@@ -62,7 +62,8 @@ export const tiktok: ConnectorPageContent = {
 	extractFields: [
 		{
 			label: "Videos",
-			description: "Caption text, canonical web URL, duration, and cover image for each TikTok video.",
+			description:
+				"Caption text, canonical web URL, duration, and cover image for each TikTok video.",
 		},
 		{
 			label: "Engagement",

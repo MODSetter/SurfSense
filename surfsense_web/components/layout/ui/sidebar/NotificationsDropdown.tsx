@@ -324,9 +324,7 @@ export function NotificationsDropdown({
 							)}
 						>
 							<span>{tab.label}</span>
-							<span
-								className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground"
-							>
+							<span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground">
 								{formatNotificationCount(tab.count)}
 							</span>
 						</button>

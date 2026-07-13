@@ -71,7 +71,8 @@ export function RunsTable({ workspaceId }: { workspaceId: number }) {
 			<Alert>
 				<Info />
 				<AlertDescription>
-					View all API runs for this workspace, including runs from the playground, API keys, and agents.
+					View all API runs for this workspace, including runs from the playground, API keys, and
+					agents.
 				</AlertDescription>
 			</Alert>
 

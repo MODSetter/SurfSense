@@ -14,7 +14,10 @@ export function RunStatusBadge({ status }: { status: string }) {
 	}
 	if (normalized === "success") {
 		return (
-			<Badge variant="secondary" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+			<Badge
+				variant="secondary"
+				className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+			>
 				Success
 			</Badge>
 		);
