@@ -1732,6 +1732,11 @@ class Workspace(BaseModel, TimestampMixin):
         Integer, nullable=True, default=0, server_default="0"
     )  # For vision/screenshot analysis, defaults to Auto mode
 
+    # First time this workspace went ready via its own model (source=="models").
+    # NULL = never self-configured. Set once, never cleared; splits a needs_setup
+    # verdict into first-run vs. recovery.
+    llm_setup_completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
