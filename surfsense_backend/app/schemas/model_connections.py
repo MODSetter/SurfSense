@@ -153,9 +153,11 @@ class LlmSetupStatusRead(BaseModel):
 
     ``status`` is the only thing the frontend gate acts on; ``source`` is
     informational and ``can_configure`` selects the onboarding vs. blocked
-    screen for members who cannot manage models.
+    screen for members who cannot manage models. ``stage`` refines a
+    ``needs_setup`` verdict into first-run (``initial_setup``) vs. recovery.
     """
 
     status: Literal["ready", "needs_setup"]
     source: Literal["global_config", "models", "none"]
     can_configure: bool
+    stage: Literal["initial_setup", "recovery", "ready"]
