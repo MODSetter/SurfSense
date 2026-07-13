@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -34,6 +35,7 @@ class _FakeWorkspace:
     chat_model_id: int | None = 0
     vision_model_id: int | None = 0
     image_gen_model_id: int | None = 0
+    llm_setup_completed_at: datetime | None = None
 
 
 def _global_model(
@@ -90,10 +92,20 @@ async def _run_status(
     chat_model_id: int,
     ws_has_chat: bool = False,
     permissions: list[str] | None = None,
+    workspace: _FakeWorkspace | None = None,
 ):
-    """Drive the decision tree with DB-touching seams stubbed out."""
+    """Drive the decision tree with DB-touching seams stubbed out.
+
+    Pass ``workspace`` to preset/inspect ``llm_setup_completed_at`` — it is the
+    object ``_clear_invalid_roles`` returns, and the lazy stamp mutates it in
+    place (``session.commit`` is a no-op AsyncMock).
+    """
     if permissions is None:
         permissions = [Permission.FULL_ACCESS.value]
+    if workspace is None:
+        workspace = _FakeWorkspace(chat_model_id=chat_model_id)
+    else:
+        workspace.chat_model_id = chat_model_id
     with ExitStack() as stack:
         stack.enter_context(
             patch.object(mc.config, "GLOBAL_LLM_CONFIG_FILE_EXISTS", file_exists)
@@ -113,7 +125,7 @@ async def _run_status(
             patch.object(
                 mc,
                 "_clear_invalid_roles",
-                AsyncMock(return_value=_FakeWorkspace(chat_model_id=chat_model_id)),
+                AsyncMock(return_value=workspace),
             )
         )
         stack.enter_context(
@@ -136,14 +148,19 @@ class TestComputeLlmSetupStatus:
         )
         assert result.status == "needs_setup"
         assert result.source == "none"
+        assert result.stage == "initial_setup"
 
     @pytest.mark.asyncio
     async def test_usable_global_catalog_is_ready(self):
+        ws = _FakeWorkspace()
         result = await _run_status(
-            file_exists=True, global_usable=True, chat_model_id=0
+            file_exists=True, global_usable=True, chat_model_id=0, workspace=ws
         )
         assert result.status == "ready"
         assert result.source == "global_config"
+        assert result.stage == "ready"
+        # Global readiness is never stamped as this workspace's own setup.
+        assert ws.llm_setup_completed_at is None
 
     @pytest.mark.asyncio
     async def test_yaml_present_but_empty_catalog_falls_through(self):
@@ -154,14 +171,22 @@ class TestComputeLlmSetupStatus:
         )
         assert result.status == "needs_setup"
         assert result.source == "none"
+        assert result.stage == "initial_setup"
 
     @pytest.mark.asyncio
     async def test_auto_mode_with_workspace_model_is_ready(self):
+        ws = _FakeWorkspace()
         result = await _run_status(
-            file_exists=False, global_usable=False, chat_model_id=0, ws_has_chat=True
+            file_exists=False,
+            global_usable=False,
+            chat_model_id=0,
+            ws_has_chat=True,
+            workspace=ws,
         )
         assert result.status == "ready"
         assert result.source == "models"
+        assert result.stage == "ready"
+        assert ws.llm_setup_completed_at is not None
 
     @pytest.mark.asyncio
     async def test_auto_mode_counts_global_catalog_without_file(self):
@@ -174,19 +199,26 @@ class TestComputeLlmSetupStatus:
     @pytest.mark.asyncio
     async def test_pinned_workspace_model_is_ready(self):
         # chat_model_id > 0 survived _clear_invalid_roles => valid + enabled.
+        ws = _FakeWorkspace()
         result = await _run_status(
-            file_exists=False, global_usable=False, chat_model_id=5
+            file_exists=False, global_usable=False, chat_model_id=5, workspace=ws
         )
         assert result.status == "ready"
         assert result.source == "models"
+        assert result.stage == "ready"
+        assert ws.llm_setup_completed_at is not None
 
     @pytest.mark.asyncio
     async def test_pinned_global_model_is_ready(self):
+        ws = _FakeWorkspace()
         result = await _run_status(
-            file_exists=False, global_usable=False, chat_model_id=-3
+            file_exists=False, global_usable=False, chat_model_id=-3, workspace=ws
         )
         assert result.status == "ready"
         assert result.source == "global_config"
+        assert result.stage == "ready"
+        # A negative pin is global-config readiness, not own setup.
+        assert ws.llm_setup_completed_at is None
 
     @pytest.mark.asyncio
     async def test_pinned_dead_model_healed_to_needs_setup(self):
@@ -229,3 +261,58 @@ class TestComputeLlmSetupStatus:
             permissions=[Permission.LLM_CONFIGS_READ.value],
         )
         assert result.can_configure is False
+
+
+class TestOnboardingStage:
+    """First-run vs. recovery: the durable timestamp splits needs_setup."""
+
+    @pytest.mark.asyncio
+    async def test_fresh_workspace_is_initial_setup(self):
+        result = await _run_status(
+            file_exists=False, global_usable=False, chat_model_id=0, ws_has_chat=False
+        )
+        assert result.stage == "initial_setup"
+
+    @pytest.mark.asyncio
+    async def test_previously_configured_then_lost_is_recovery(self):
+        # Configured before (timestamp set), then deleted: needs_setup but recovery.
+        ws = _FakeWorkspace(llm_setup_completed_at=datetime.now(UTC))
+        result = await _run_status(
+            file_exists=False,
+            global_usable=False,
+            chat_model_id=0,
+            ws_has_chat=False,
+            workspace=ws,
+        )
+        assert result.status == "needs_setup"
+        assert result.stage == "recovery"
+        assert ws.llm_setup_completed_at is not None  # preserved, never cleared
+
+    @pytest.mark.asyncio
+    async def test_stamp_is_not_overwritten_on_subsequent_ready(self):
+        original = datetime(2020, 1, 1, tzinfo=UTC)
+        ws = _FakeWorkspace(llm_setup_completed_at=original)
+        result = await _run_status(
+            file_exists=False,
+            global_usable=False,
+            chat_model_id=0,
+            ws_has_chat=True,
+            workspace=ws,
+        )
+        assert result.stage == "ready"
+        assert ws.llm_setup_completed_at == original
+
+    @pytest.mark.asyncio
+    async def test_global_only_loss_is_initial_setup_not_recovery(self):
+        # Rode global (never stamped), then global lost: a genuine first own-setup.
+        ws = _FakeWorkspace()
+        result = await _run_status(
+            file_exists=False,
+            global_usable=False,
+            chat_model_id=0,
+            ws_has_chat=False,
+            workspace=ws,
+        )
+        assert result.status == "needs_setup"
+        assert result.stage == "initial_setup"
+        assert ws.llm_setup_completed_at is None
