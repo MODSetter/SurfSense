@@ -79,7 +79,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		}
 
 		if (isDeprecatedForConnect) {
-			return "Deprecated — no longer available to connect.";
+			return "Deprecated. No longer available to connect.";
 		}
 
 		return description;
@@ -102,7 +102,16 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 						: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
 				)}
 			>
-				{connectorType ? (
+				{isMCP ? (
+					<span
+						aria-hidden="true"
+						className="size-6 bg-current"
+						style={{
+							mask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+							WebkitMask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+						}}
+					/>
+				) : connectorType ? (
 					getConnectorIcon(connectorType, "size-6")
 				) : id === "youtube-crawler" ? (
 					<IconBrandYoutube className="size-6" />

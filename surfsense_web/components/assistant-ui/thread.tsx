@@ -258,17 +258,17 @@ const ThreadWelcome: FC = () => {
 	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
 
 	return (
-		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
-			<div className="my-auto flex w-full flex-col items-center gap-6 py-6 sm:contents sm:my-0 sm:gap-0 sm:py-0">
-				<div className="aui-thread-welcome-message flex flex-col items-center text-center sm:absolute sm:bottom-[calc(50%+5rem)] sm:left-0 sm:right-0">
+		<div className="aui-thread-welcome-root flex min-h-0 flex-1">
+			<section className="mx-auto grid w-full max-w-(--thread-max-width) content-center gap-6 pt-8 pb-[clamp(5rem,16vh,12rem)]">
+				<div className="aui-thread-welcome-message flex flex-col items-center px-4 text-center">
 					<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
 						{greeting}
 					</h1>
 				</div>
-				<div className="w-full flex items-start justify-center sm:absolute sm:top-[calc(50%-3.5rem)] sm:left-0 sm:right-0">
+				<div className="flex w-full items-start justify-center">
 					<Composer />
 				</div>
-			</div>
+			</section>
 		</div>
 	);
 };
