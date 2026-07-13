@@ -15,6 +15,7 @@ from app.db import Connection, Model, ModelSource
 from app.services.model_resolver import ensure_v1, to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
+from app.services.requesty_model_normalizer import normalize_requesty_models
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +149,7 @@ async def verify_connection(conn: Connection) -> VerifyResult:
 
     if spec.transport == Transport.OLLAMA and base_url:
         url = f"{base_url.rstrip('/')}/api/version"
-    elif spec.discovery in {"openai_models", "openrouter"} and base_url:
+    elif spec.discovery in {"openai_models", "openrouter", "requesty"} and base_url:
         url = f"{ensure_v1(base_url)}/models"
     elif spec.discovery == "anthropic_models" and base_url:
         url = f"{base_url.rstrip('/')}/models"
@@ -363,6 +364,16 @@ async def _openrouter_models(conn: Connection) -> list[dict[str, Any]]:
     return normalize_openrouter_models(response.json().get("data", []))
 
 
+async def _requesty_models(conn: Connection) -> list[dict[str, Any]]:
+    base_url = _base_url_or_default(conn) or "https://router.requesty.ai/v1"
+    async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
+        response = await client.get(
+            f"{ensure_v1(base_url)}/models", headers=_auth_headers(conn)
+        )
+    response.raise_for_status()
+    return normalize_requesty_models(response.json().get("data", []))
+
+
 def _litellm_static_models(conn: Connection) -> list[dict[str, Any]]:
     provider = conn.provider
     prefix = spec_for(provider).litellm_prefix or provider
@@ -446,6 +457,8 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             results = await _ollama_tags_then_show(conn)
         elif spec.discovery == "openrouter":
             results = await _openrouter_models(conn)
+        elif spec.discovery == "requesty":
+            results = await _requesty_models(conn)
         elif spec.discovery == "anthropic_models":
             results = await _discover_anthropic_models(conn)
         elif spec.discovery == "openai_models":
