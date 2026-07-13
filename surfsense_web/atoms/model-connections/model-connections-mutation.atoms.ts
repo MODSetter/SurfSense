@@ -41,7 +41,7 @@ async function warnIfWorkspaceChatDisabled(workspaceId: number) {
 			queryFn: () => modelConnectionsApiService.getLlmSetupStatus(workspaceId),
 		});
 		if (status?.status === "needs_setup") {
-			toast.warning("Chat is now disabled. Connect a language model to start chatting again.");
+			toast.warning("Chat is now disabled. Connect a chat model to start chatting again.");
 		}
 	} catch {
 		// Non-fatal: the inline composer notice still reflects the state.

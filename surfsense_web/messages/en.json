@@ -587,7 +587,7 @@
 		"add_provider_subtitle": "Configure your first model provider to get started",
 		"add_provider_button": "Add Provider",
 		"add_new_llm_provider": "Add New LLM Provider",
-		"configure_new_provider": "Configure a new language model provider for your AI assistant",
+		"configure_new_provider": "Configure a new chat model provider for your AI assistant",
 		"config_name": "Configuration Name",
 		"config_name_required": "Configuration Name *",
 		"config_name_placeholder": "e.g., My OpenAI GPT-4",

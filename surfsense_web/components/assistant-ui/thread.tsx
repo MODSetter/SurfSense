@@ -470,8 +470,8 @@ const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> 
 				<AlertCircle className="size-4 shrink-0" />
 				<span className="truncate">
 					{canConfigure
-						? "Connect a language model to start chatting."
-						: "No model available. Ask a workspace admin to connect a language model."}
+						? "Connect a chat model to start chatting."
+						: "No model available. Ask a workspace admin to connect a chat model."}
 				</span>
 			</div>
 			<div className="min-w-0 flex-1" />
