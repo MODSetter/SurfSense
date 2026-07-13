@@ -6,30 +6,33 @@ export const tiktok: ConnectorPageContent = {
 	name: "TikTok",
 	icon: IconBrandTiktok,
 
-	metaTitle: "TikTok Scraper API for Trend and Creator Research | SurfSense",
+	metaTitle: "TikTok Scraper API for Videos and Comments | SurfSense",
 	metaDescription:
-		"Scrape public TikTok videos, comments, accounts, and trending feeds by hashtag, profile, or URL with the SurfSense TikTok Scraper API. No approval process or research-API gatekeeping, plus a free tier. Start now.",
+		"TikTok scraper API for public videos, comments, hashtags, and profiles. No Research API approval. Structured data for AI agents, plus a free tier. Start now.",
 	keywords: [
 		"tiktok scraper",
 		"tiktok scraper api",
 		"tiktok api",
 		"tiktok api alternative",
 		"scrape tiktok",
+		"tiktok scraping",
+		"tiktok research api alternative",
 		"tiktok data api",
-		"tiktok hashtag scraper",
 		"tiktok comments scraper",
+		"tiktok comment scraper",
+		"tiktok hashtag scraper",
+		"tiktok profile scraper",
+		"tiktok video scraper",
 		"tiktok trending scraper",
 		"tiktok user search",
-		"tiktok trend tracking",
 		"tiktok mcp",
 		"social listening",
 		"influencer research tool",
-		"short-form video analytics",
 	],
 
-	h1: "TikTok Scraper API for Trend and Creator Research",
+	h1: "TikTok Scraper API for Videos, Comments, and Trend Research",
 	heroLede:
-		"The SurfSense TikTok API extracts public videos by hashtag, creator profile, or URL without TikTok's approval-gated Research API. Give your AI agents a live feed of what your market watches and shares, so you catch a trend while it is still rising.",
+		"The SurfSense TikTok scraper extracts public videos by hashtag, creator profile, or URL, plus comment threads and trending feeds, without TikTok's approval-gated Research API. Give your AI agents a live feed of what your market watches and shares, so you catch a trend while it is still rising.",
 
 	transcript: {
 		prompt: "Find trending TikToks about meal prep this week",
@@ -55,46 +58,47 @@ export const tiktok: ConnectorPageContent = {
 	},
 
 	extractIntro:
-		"Every call returns structured items. Scrape videos from a hashtag, creator profile, or video URL — or switch verbs to pull a video's comments, discover accounts by keyword, or fetch the current trending feed.",
+		"Every TikTok scraper call returns structured items. Scrape videos from a hashtag, creator profile, or video URL, or switch verbs to pull a video's comments, discover accounts by keyword, or fetch the current trending feed.",
 	extractFields: [
 		{
 			label: "Videos",
-			description: "Caption text, canonical web URL, duration, and cover image for each video.",
+			description: "Caption text, canonical web URL, duration, and cover image for each TikTok video.",
 		},
 		{
 			label: "Engagement",
 			description:
-				"Play, like, comment, share, and save counts — the signal for what is breaking out.",
+				"Play, like, comment, share, and save counts, the signal for what is breaking out.",
 		},
 		{
-			label: "Authors",
+			label: "Authors and profiles",
 			description: "Creator handle, nickname, follower and heart counts, and verified status.",
 		},
 		{
+			label: "Comments",
+			description:
+				"Public comment threads on any video URL, so you can read audience reaction beyond vanity views.",
+		},
+		{
 			label: "Music",
-			description: "Track name, artist, and whether the sound is original — the seed of a trend.",
+			description: "Track name, artist, and whether the sound is original, the seed of a trend.",
 		},
 		{
 			label: "Hashtags",
 			description: "Every hashtag on a video, so you can map a topic cluster or campaign.",
 		},
-		{
-			label: "Timestamps",
-			description: "Created and scraped times so you can track a video's momentum over runs.",
-		},
 	],
 
-	useCasesHeading: "What teams do with the TikTok API",
+	useCasesHeading: "What teams do with the TikTok scraper API",
 	useCases: [
 		{
 			title: "Trend and hashtag monitoring",
 			description:
-				"Track a hashtag and feed the stream to an agent that flags breakout videos, rising sounds, and formats before they saturate. Catch the wave while it is still rising, not after.",
+				"Use the TikTok hashtag scraper to track a topic and feed the stream to an agent that flags breakout videos, rising sounds, and formats before they saturate. Catch the wave while it is still rising, not after.",
 		},
 		{
 			title: "Creator and influencer discovery",
 			description:
-				"Surface the creators driving a topic, ranked by real engagement, so your team shortlists partners from data instead of a manager's pitch deck.",
+				"Scrape TikTok profiles and search users by keyword to surface the creators driving a topic, ranked by real engagement, so your team shortlists partners from data instead of a manager's pitch deck.",
 		},
 		{
 			title: "Competitor content analysis",
@@ -102,16 +106,16 @@ export const tiktok: ConnectorPageContent = {
 				"Watch what your category posts and what actually lands. Turn a competitor's best-performing formats and hooks into your own content brief.",
 		},
 		{
-			title: "Campaign and sentiment tracking",
+			title: "Campaign and comment sentiment",
 			description:
-				"Measure how a launch or branded hashtag spreads across TikTok — video count, reach, and engagement over time — then pull the comments on top videos to read how the audience actually reacts, not just a vanity view count.",
+				"Measure how a launch or branded hashtag spreads across TikTok, then use the TikTok comments scraper on top videos to read how the audience actually reacts, not just a vanity view count.",
 		},
 	],
 
 	comparison: {
-		heading: "A TikTok API alternative built for agents",
+		heading: "A TikTok Research API alternative built for agents",
 		intro:
-			"TikTok's official Research API is approval-gated and largely limited to academic and nonprofit use. If you cannot get access or need it for commercial research, here is how SurfSense compares.",
+			"TikTok's official Research API is approval-gated and largely limited to academic and nonprofit use. If you cannot get access or need commercial TikTok scraping, SurfSense is a TikTok API alternative. Here is how it compares.",
 		columnLabel: "Official TikTok API",
 		rows: [
 			{
@@ -180,7 +184,7 @@ export const tiktok: ConnectorPageContent = {
 				type: "string[]",
 				defaultValue: "[]",
 				description:
-					"Keyword search terms. Keyword video search is login-walled and returns no videos — use hashtags/profiles/urls for videos, or user_search for accounts. Max 20.",
+					"Keyword search terms. Keyword video search is login-walled and returns no videos; use hashtags/profiles/urls for videos, or user_search for accounts. Max 20.",
 			},
 			{
 				name: "results_per_page",
@@ -253,9 +257,19 @@ export const tiktok: ConnectorPageContent = {
 				"SurfSense reads only public TikTok data, the same videos any logged-out visitor can see. It never logs in and cannot access private or deleted content. As always, review TikTok's terms and your own compliance needs before you run at scale.",
 		},
 		{
-			question: "Does this need the official TikTok API?",
+			question: "Does this need the official TikTok Research API?",
 			answer:
-				"No. It is an independent alternative, not a wrapper on the Research API, so there is no application or approval process. You call the SurfSense API with one key, or add the MCP server to your agent, and get structured videos back.",
+				"No. This TikTok scraper API is an independent alternative, not a wrapper on the Research API, so there is no application or approval process. You call SurfSense with one key, or add the MCP server to your agent, and get structured videos, comments, and profile data back.",
+		},
+		{
+			question: "What TikTok data can I scrape?",
+			answer:
+				"Four verbs: scrape (videos by hashtag, profile, or URL), comments (a video's public comment thread), user search (find accounts by keyword), and trending (the current Explore feed). Each returns structured items and is billed per item returned.",
+		},
+		{
+			question: "Can I scrape TikTok comments and hashtags?",
+			answer:
+				"Yes. Pass a video URL to the comments endpoint for the public comment thread. Pass hashtag names or /tag/ URLs to the TikTok hashtag scraper to pull videos under that tag. Keyword video search is login-walled, so hashtags and direct URLs are the reliable discovery paths.",
 		},
 		{
 			question: "What are the rate limits?",
@@ -265,18 +279,14 @@ export const tiktok: ConnectorPageContent = {
 		{
 			question: "Can I scrape a specific creator's videos?",
 			answer:
-				"Pass a profile or profile URL and you always get the account's metadata — name, followers, bio, verification. TikTok often withholds the profile video list from automated clients, so that list can come back empty even for a public account; for reliable video results, scrape by hashtag or by a direct video URL.",
-		},
-		{
-			question: "What TikTok data can I scrape?",
-			answer:
-				"Four verbs: scrape (videos by hashtag, profile, or URL), comments (a video's public comment thread), user search (find accounts by keyword — the reliable discovery path, since keyword video search is login-walled), and trending (the current Explore feed). Each returns structured items and is billed per item returned.",
+				"Pass a profile or profile URL and you always get the account's metadata: name, followers, bio, verification. TikTok often withholds the profile video list from automated clients, so that list can come back empty even for a public account. For reliable video results, scrape by hashtag or by a direct video URL.",
 		},
 	],
 
 	related: [
-		{ label: "Reddit API", href: "/reddit" },
+		{ label: "Instagram API", href: "/instagram" },
 		{ label: "YouTube API", href: "/youtube" },
+		{ label: "Reddit API", href: "/reddit" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
