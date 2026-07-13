@@ -7,6 +7,7 @@ import {
 	Library,
 	MessageCircle,
 	Monitor,
+	Palette,
 	ReceiptText,
 	ShieldCheck,
 	WandSparkles,
@@ -20,6 +21,7 @@ import { usePlatform } from "@/hooks/use-platform";
 
 export type UserSettingsTab =
 	| "profile"
+	| "appearance"
 	| "api-key"
 	| "prompts"
 	| "community-prompts"
@@ -48,6 +50,12 @@ export function UserSettingsLayoutShell({ workspaceId, children }: UserSettingsL
 				label: t("profile_nav_label"),
 				href: `/dashboard/${workspaceId}/user-settings/profile`,
 				icon: <CircleUser className="h-4 w-4" />,
+			},
+			{
+				value: "appearance" as const,
+				label: "Appearance",
+				href: `/dashboard/${workspaceId}/user-settings/appearance`,
+				icon: <Palette className="h-4 w-4" />,
 			},
 			{
 				value: "api-key" as const,
