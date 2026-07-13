@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: Dê Inteligência Competitiva aos Seus Agentes de IA
+# SurfSense: NotebookLM para Pesquisa de Inteligência Competitiva
 
-O SurfSense é a **plataforma open source de inteligência competitiva para agentes de IA**. Seus agentes monitoram concorrentes, acompanham rankings e escutam o seu mercado com dados ao vivo do **Reddit, YouTube, Google Maps, Google Search e da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
+O SurfSense é a **plataforma open source de inteligência competitiva para agentes de IA**, como o NotebookLM, mas com conectores de scraping ao vivo. Seus agentes monitoram concorrentes, acompanham rankings e escutam o seu mercado com dados ao vivo do **Reddit, YouTube, Google Maps, Google Search e da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
 
 > [!NOTE]
 > **📢 Um recado para nossos usuários que buscavam uma alternativa ao NotebookLM**

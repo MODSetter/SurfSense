@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense：为你的 AI 智能体注入竞争情报能力
+# SurfSense：面向竞争情报研究的 NotebookLM
 
-SurfSense 是**面向 AI 智能体的开源竞争情报平台**。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Google Maps、Google Search 和开放网络**的实时数据，监控竞争对手、追踪排名、倾听市场动态。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
+SurfSense 是**面向 AI 智能体的开源竞争情报平台**，就像 NotebookLM，但配备了实时抓取连接器。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Google Maps、Google Search 和开放网络**的实时数据，监控竞争对手、追踪排名、倾听市场动态。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
 
 > [!NOTE]
 > **📢 致我们的 NotebookLM 替代品用户**
