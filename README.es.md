@@ -22,7 +22,7 @@
 
 # SurfSense: NotebookLM para investigación de inteligencia competitiva
 
-SurfSense es la **plataforma de inteligencia competitiva de código abierto para agentes de IA**, como NotebookLM pero con conectores de scraping en vivo. Tus agentes monitorean a la competencia, siguen los rankings y escuchan a tu mercado con datos en vivo de **Reddit, YouTube, Google Maps, Google Search y la web abierta**, a través de una única **API REST** o un **servidor MCP**. Agentes programados y activados por eventos convierten lo que encuentran en informes y alertas, y una base de conocimiento integrada mantiene cada hallazgo disponible para búsqueda con citas.
+SurfSense es la **plataforma de inteligencia competitiva de código abierto para agentes de IA**, como NotebookLM pero con conectores de scraping en vivo. Tus agentes monitorean a la competencia, siguen los rankings y escuchan a tu mercado con datos en vivo de **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search y la web abierta**, a través de una única **API REST** o un **servidor MCP**. Agentes programados y activados por eventos convierten lo que encuentran en informes y alertas, y una base de conocimiento integrada mantiene cada hallazgo disponible para búsqueda con citas.
 
 > [!NOTE]
 > **📢 Una nota para nuestros usuarios de la alternativa a NotebookLM**
@@ -103,6 +103,8 @@ Las automatizaciones ejecutan turnos completos de agente según un horario o en 
 |---|---|---|
 | **Reddit** | Publicaciones, comentarios y flujos de subreddits sin los límites de tasa de la API oficial | [Reddit Scraper API](https://www.surfsense.com/reddit) |
 | **YouTube** | Videos, transcripciones e hilos de comentarios para escuchar a tu marca y productos | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **Instagram** | Perfiles, publicaciones y reels públicos sin la Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
+| **TikTok** | Videos, comentarios, hashtags y perfiles sin aprobación de la Research API | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
 | **Google Maps** | Lugares, calificaciones y reseñas para investigar competidores locales y prospectos | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | SERPs en vivo para seguimiento de posiciones y monitoreo de mercado | [Google Search API](https://www.surfsense.com/google-search) |
 | **Web Crawl** (rastreo web) | Cualquier página de la web abierta como contenido limpio y estructurado | [Web Crawling API](https://www.surfsense.com/web-crawl) |
@@ -244,7 +246,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 | Característica | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **Datos de mercado en vivo para agentes** | No | Conectores de Reddit, YouTube, Google Maps, Google Search y rastreo web vía API REST y MCP |
+| **Datos de mercado en vivo para agentes** | No | Conectores de Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search y rastreo web vía API REST y MCP |
 | **Servidor MCP** | No | Cada conector expuesto como herramienta nativa de agente, más servidores MCP propios con aplicaciones OAuth de un clic |
 | **Fuentes por Notebook** | 50 (gratis) a 600 (Ultra, $249.99/mes) | Ilimitadas |
 | **Número de Notebooks** | 100 (gratis) a 500 (niveles de pago) | Ilimitado |

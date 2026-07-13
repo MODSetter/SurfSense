@@ -22,7 +22,7 @@
 
 # SurfSense: NotebookLM para Pesquisa de Inteligência Competitiva
 
-O SurfSense é a **plataforma open source de inteligência competitiva para agentes de IA**, como o NotebookLM, mas com conectores de scraping ao vivo. Seus agentes monitoram concorrentes, acompanham rankings e escutam o seu mercado com dados ao vivo do **Reddit, YouTube, Google Maps, Google Search e da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
+O SurfSense é a **plataforma open source de inteligência competitiva para agentes de IA**, como o NotebookLM, mas com conectores de scraping ao vivo. Seus agentes monitoram concorrentes, acompanham rankings e escutam o seu mercado com dados ao vivo do **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search e da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
 
 > [!NOTE]
 > **📢 Um recado para nossos usuários que buscavam uma alternativa ao NotebookLM**
@@ -103,6 +103,8 @@ As automações executam turnos completos de agente de forma agendada ou em resp
 |---|---|---|
 | **Reddit** | Posts, comentários e fluxos de subreddits sem os limites de requisição da API oficial | [Reddit Scraper API](https://www.surfsense.com/reddit) |
 | **YouTube** | Vídeos, transcrições e threads de comentários para monitoramento de marca e produto | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **Instagram** | Perfis, posts e reels públicos sem a Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
+| **TikTok** | Vídeos, comentários, hashtags e perfis sem aprovação da Research API | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
 | **Google Maps** | Estabelecimentos, avaliações e reviews para pesquisa local de concorrentes e leads | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | SERPs ao vivo para acompanhamento de rankings e monitoramento de mercado | [Google Search API](https://www.surfsense.com/google-search) |
 | **Web Crawl** (rastreamento web) | Qualquer página da web aberta como conteúdo limpo e estruturado | [Web Crawling API](https://www.surfsense.com/web-crawl) |
@@ -244,7 +246,7 @@ Ainda nos comparando como alternativa ao NotebookLM? Aqui está o comparativo ho
 
 | Recurso | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **Dados de mercado ao vivo para agentes** | Não | Conectores de Reddit, YouTube, Google Maps, Google Search e rastreamento web via API REST e MCP |
+| **Dados de mercado ao vivo para agentes** | Não | Conectores de Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search e rastreamento web via API REST e MCP |
 | **Servidor MCP** | Não | Cada conector exposto como ferramenta nativa de agente, além de servidores MCP próprios com apps OAuth em um clique |
 | **Fontes por Notebook** | 50 (gratuito) a 600 (Ultra, US$ 249,99/mês) | Ilimitadas |
 | **Número de Notebooks** | 100 (gratuito) a 500 (planos pagos) | Ilimitado |

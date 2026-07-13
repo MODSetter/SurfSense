@@ -22,7 +22,7 @@
 
 # SurfSense: कॉम्पिटिटिव इंटेलिजेंस रिसर्च के लिए NotebookLM
 
-SurfSense **AI एजेंट्स के लिए ओपन सोर्स कॉम्पिटिटिव इंटेलिजेंस प्लेटफ़ॉर्म** है, बिलकुल NotebookLM जैसा, पर लाइव स्क्रैपिंग कनेक्टर्स के साथ। आपके एजेंट प्रतिस्पर्धियों पर नज़र रखते हैं, रैंकिंग ट्रैक करते हैं, और **Reddit, YouTube, Google Maps, Google Search और ओपन वेब** से लाइव डेटा के साथ आपके बाज़ार की बात सुनते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
+SurfSense **AI एजेंट्स के लिए ओपन सोर्स कॉम्पिटिटिव इंटेलिजेंस प्लेटफ़ॉर्म** है, बिलकुल NotebookLM जैसा, पर लाइव स्क्रैपिंग कनेक्टर्स के साथ। आपके एजेंट प्रतिस्पर्धियों पर नज़र रखते हैं, रैंकिंग ट्रैक करते हैं, और **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search और ओपन वेब** से लाइव डेटा के साथ आपके बाज़ार की बात सुनते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
 
 > [!NOTE]
 > **📢 हमारे NotebookLM-विकल्प उपयोगकर्ताओं के लिए एक सूचना**
@@ -103,6 +103,8 @@ SurfSense **AI एजेंट्स के लिए ओपन सोर्स 
 |---|---|---|
 | **Reddit** | आधिकारिक API की रेट लिमिट के बिना पोस्ट, कमेंट और सबरेडिट स्ट्रीम | [Reddit Scraper API](https://www.surfsense.com/reddit) |
 | **YouTube** | ब्रांड और प्रोडक्ट लिसनिंग के लिए वीडियो, ट्रांसक्रिप्ट और कमेंट थ्रेड | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **Instagram** | Graph API के बिना सार्वजनिक प्रोफ़ाइल, पोस्ट और रील्स | [Instagram Scraper API](https://www.surfsense.com/instagram) |
+| **TikTok** | Research API अप्रूवल के बिना वीडियो, कमेंट, हैशटैग और प्रोफ़ाइल | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
 | **Google Maps** | स्थानीय प्रतिस्पर्धी और लीड रिसर्च के लिए स्थान, रेटिंग और रिव्यू | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | रैंक ट्रैकिंग और मार्केट मॉनिटरिंग के लिए लाइव SERP | [Google Search API](https://www.surfsense.com/google-search) |
 | **Web Crawl** | ओपन वेब का कोई भी पेज साफ़-सुथरे, स्ट्रक्चर्ड कंटेंट के रूप में | [Web Crawling API](https://www.surfsense.com/web-crawl) |
@@ -244,7 +246,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 | फ़ीचर | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **एजेंट्स के लिए लाइव मार्केट डेटा** | नहीं | REST API और MCP के ज़रिए Reddit, YouTube, Google Maps, Google Search और वेब क्रॉल कनेक्टर |
+| **एजेंट्स के लिए लाइव मार्केट डेटा** | नहीं | REST API और MCP के ज़रिए Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search और वेब क्रॉल कनेक्टर |
 | **MCP सर्वर** | नहीं | हर कनेक्टर नेटिव एजेंट टूल के रूप में उपलब्ध, साथ ही वन-क्लिक OAuth ऐप्स के साथ अपने MCP सर्वर लाने की सुविधा |
 | **प्रति नोटबुक स्रोत** | 50 (Free) से 600 (Ultra, $249.99/माह) | असीमित |
 | **नोटबुक की संख्या** | 100 (Free) से 500 (सशुल्क टियर) | असीमित |
