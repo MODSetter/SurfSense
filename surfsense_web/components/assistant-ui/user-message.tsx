@@ -22,6 +22,7 @@ import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { MentionChip } from "@/components/assistant-ui/mention-chip";
+import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -182,6 +183,7 @@ export const UserMessage: FC = () => {
 						</div>
 					)}
 				</div>
+				<MessageTimestamp className="mt-1 pl-1" />
 			</div>
 		</MessagePrimitive.Root>
 	);
