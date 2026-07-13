@@ -113,19 +113,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-1.5">
 					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
-					{deprecated ? (
-						<span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-							Deprecated
-						</span>
-					) : (
-						showWarnings &&
-						status.status !== "active" && (
-							<ConnectorStatusBadge
-								status={status.status}
-								statusMessage={statusMessage}
-								className="flex-shrink-0"
-							/>
-						)
+					{showWarnings && status.status !== "active" && (
+						<ConnectorStatusBadge
+							status={status.status}
+							statusMessage={statusMessage}
+							className="flex-shrink-0"
+						/>
 					)}
 				</div>
 				{isIndexing ? (
