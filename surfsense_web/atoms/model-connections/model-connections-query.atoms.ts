@@ -1,5 +1,5 @@
+import { atomFamily } from "jotai-family";
 import { atomWithQuery } from "jotai-tanstack-query";
-import { atomFamily } from "jotai/utils";
 import { modelConnectionsApiService } from "@/lib/apis/model-connections-api.service";
 import { isAuthenticated } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
