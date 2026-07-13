@@ -43,15 +43,15 @@ export function DashboardClientLayout({
 	const isOnboardingPage = pathname?.includes("/onboard");
 	const isWorkspaceReady = activeWorkspaceId === workspaceId;
 
-	const needsSetup = setupStatus?.status === "needs_setup";
 	const isReady = setupStatus?.status === "ready";
-	const canConfigure = setupStatus?.can_configure ?? false;
 
-	// Redirect into onboarding (configurable members) or out of it (workspace
-	// became ready). Both directions live here; the pages themselves are dumb.
+	// First-run (initial_setup) is the only not-ready state that redirects, so
+	// recovery falls through to the inline composer notice and an established
+	// user who lost their models is never re-onboarded. The other direction
+	// leaves onboarding once the workspace can chat.
 	useEffect(() => {
 		if (setupLoading || setupError) return;
-		if (needsSetup && canConfigure && !isOnboardingPage) {
+		if (setupStatus?.stage === "initial_setup" && !isOnboardingPage) {
 			router.replace(`/dashboard/${workspaceId}/onboard`);
 		} else if (isReady && isOnboardingPage) {
 			router.replace(`/dashboard/${workspaceId}/new-chat`);
@@ -59,8 +59,7 @@ export function DashboardClientLayout({
 	}, [
 		setupLoading,
 		setupError,
-		needsSetup,
-		canConfigure,
+		setupStatus?.stage,
 		isReady,
 		isOnboardingPage,
 		router,
@@ -114,14 +113,17 @@ export function DashboardClientLayout({
 		}
 	}, [workspace_id, setActiveWorkspaceIdState, electronAPI]);
 
-	// Currently navigating between onboarding and the dashboard.
+	// Suppress children during either pending redirect so neither /new-chat nor
+	// /onboard flashes for a frame.
+	const isLeavingOnboarding = isReady && isOnboardingPage;
+	const isEnteringOnboarding = setupStatus?.stage === "initial_setup" && !isOnboardingPage;
 	const isRedirecting =
-		!setupLoading &&
-		!setupError &&
-		((needsSetup && canConfigure && !isOnboardingPage) || (isReady && isOnboardingPage));
+		!setupLoading && !setupError && (isLeavingOnboarding || isEnteringOnboarding);
 
-	// Block children until the workspace is synced and the setup verdict is in,
-	// so an unconfigured workspace never flashes the composer.
+	// Block children until the workspace is synced and the initial verdict is
+	// in; afterwards the composer renders its own not-ready state in place, so
+	// recovery (e.g. deleting the last model) never triggers a full-screen
+	// loader or a redirect.
 	const shouldShowLoading = !setupError && (!isWorkspaceReady || setupLoading || isRedirecting);
 
 	useGlobalLoadingEffect(shouldShowLoading);
@@ -148,23 +150,6 @@ export function DashboardClientLayout({
 							{setupError instanceof Error ? setupError.message : String(setupError)}
 						</p>
 					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-
-	// Member without permission to connect a model in an unconfigured workspace.
-	if (needsSetup && !canConfigure) {
-		return (
-			<div className="flex flex-col items-center justify-center min-h-screen p-4">
-				<Card className="w-[440px] bg-background/60 backdrop-blur-sm">
-					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">No model available</CardTitle>
-						<CardDescription>
-							A workspace admin needs to connect a language model before chat is available
-							here.
-						</CardDescription>
-					</CardHeader>
 				</Card>
 			</div>
 		);
