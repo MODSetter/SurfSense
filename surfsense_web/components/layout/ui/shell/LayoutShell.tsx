@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
@@ -40,6 +40,8 @@ const DocumentTabContent = dynamic(
 		),
 	}
 );
+
+const PLAYGROUND_SIDEBAR_COLLAPSED_STORAGE_KEY = "surfsense:layout:v1:playground-sidebar-collapsed";
 
 function MacDesktopTitleBar({
 	isSidebarCollapsed,
@@ -232,8 +234,25 @@ export function LayoutShell({
 		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
 		[isCollapsed, setIsCollapsed, toggleCollapsed]
 	);
+	useEffect(() => {
+		try {
+			setIsPlaygroundSidebarCollapsed(
+				window.localStorage.getItem(PLAYGROUND_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
+			);
+		} catch {}
+	}, []);
+
 	const handlePlaygroundSidebarToggle = () => {
-		setIsPlaygroundSidebarCollapsed((collapsed) => !collapsed);
+		setIsPlaygroundSidebarCollapsed((collapsed) => {
+			const nextCollapsed = !collapsed;
+			try {
+				window.localStorage.setItem(
+					PLAYGROUND_SIDEBAR_COLLAPSED_STORAGE_KEY,
+					String(nextCollapsed)
+				);
+			} catch {}
+			return nextCollapsed;
+		});
 	};
 
 	// Mobile layout
