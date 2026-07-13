@@ -115,6 +115,7 @@ export const llmSetupStatus = z.object({
 	status: z.enum(["ready", "needs_setup"]),
 	source: z.enum(["global_config", "models", "none"]),
 	can_configure: z.boolean(),
+	stage: z.enum(["initial_setup", "recovery", "ready"]),
 });
 
 export const modelProviderRead = z.object({
