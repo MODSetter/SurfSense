@@ -102,7 +102,7 @@ def _parse_wiki_links(raw: Any) -> list[str]:
     except (SyntaxError, ValueError):
         # Fall back: maybe it's a comma-separated string with no quotes.
         return [tok.strip() for tok in text.strip("[]").split(",") if tok.strip()]
-    if isinstance(parsed, (list, tuple)):
+    if isinstance(parsed, list | tuple):
         return [str(x).strip() for x in parsed if str(x).strip()]
     return [str(parsed).strip()]
 

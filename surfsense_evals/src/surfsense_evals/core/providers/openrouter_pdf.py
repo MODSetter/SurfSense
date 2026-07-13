@@ -34,7 +34,7 @@ import base64
 import logging
 import time
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +43,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-class PdfEngine(str, Enum):
+class PdfEngine(StrEnum):
     NATIVE = "native"
     MISTRAL_OCR = "mistral-ocr"
     CLOUDFLARE_AI = "cloudflare-ai"

@@ -11,7 +11,8 @@ def main() -> None:
     if not runs:
         print("(no CRAG runs found)")
         return
-    m = json.load(open(runs[-1], encoding="utf-8"))
+    with open(runs[-1], encoding="utf-8") as fh:
+        m = json.load(fh)
     metrics = m["metrics"]
 
     print(f"Reading: {runs[-1]}")

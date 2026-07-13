@@ -12,7 +12,7 @@ Recall@k / MRR / nDCG@10 against qrels.
 
 from __future__ import annotations
 
-from .runner import CureBenchmark
 from ....core import registry as _registry
+from .runner import CureBenchmark
 
 _registry.register(CureBenchmark())

@@ -18,6 +18,7 @@ Document processing is asynchronous:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import mimetypes
 from collections.abc import Iterable, Sequence
@@ -157,10 +158,8 @@ class DocumentsClient:
             )
         finally:
             for _, (_, file_obj, _) in opened:
-                try:
+                with contextlib.suppress(Exception):
                     file_obj.close()
-                except Exception:  # noqa: BLE001
-                    pass
 
         response.raise_for_status()
         return FileUploadResult.from_payload(response.json())

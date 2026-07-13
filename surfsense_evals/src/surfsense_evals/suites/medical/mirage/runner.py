@@ -29,7 +29,6 @@ from ....core.ingest_settings import (
 )
 from ....core.metrics.mc_accuracy import accuracy_with_wilson_ci, macro_accuracy
 from ....core.registry import (
-    Benchmark,
     ReportSection,
     RunArtifact,
     RunContext,
@@ -229,7 +228,7 @@ class MirageBenchmark:
         run_dir = ctx.runs_dir(run_timestamp=run_timestamp)
         raw_path = run_dir / "raw.jsonl"
         with raw_path.open("w", encoding="utf-8") as fh:
-            for q, res in zip(questions, results):
+            for q, res in zip(questions, results, strict=False):
                 fh.write(
                     json.dumps(
                         {
@@ -246,7 +245,7 @@ class MirageBenchmark:
         for task in tasks:
             n_correct = 0
             n_total = 0
-            for q, res in zip(questions, results):
+            for q, res in zip(questions, results, strict=False):
                 if q.task != task:
                     continue
                 n_total += 1

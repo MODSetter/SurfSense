@@ -71,8 +71,8 @@ def mcnemar_test(
             f"Length mismatch: arm_a={len(arm_a_correct)}, arm_b={len(arm_b_correct)}"
         )
     n = len(arm_a_correct)
-    b = sum(1 for a, c in zip(arm_a_correct, arm_b_correct) if a and not c)
-    c = sum(1 for a, cc in zip(arm_a_correct, arm_b_correct) if (not a) and cc)
+    b = sum(1 for a, c in zip(arm_a_correct, arm_b_correct, strict=False) if a and not c)
+    c = sum(1 for a, cc in zip(arm_a_correct, arm_b_correct, strict=False) if (not a) and cc)
     discordant = b + c
     if discordant == 0:
         return McnemarResult(

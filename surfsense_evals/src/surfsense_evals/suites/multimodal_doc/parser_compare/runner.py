@@ -603,8 +603,8 @@ class ParserCompareBenchmark:
             f"engine: `{extra.get('pdf_engine', 'native')}`)."
         )
         body.append(
-            f"- Preprocess tariff: basic = $1 / 1k pages, "
-            f"premium = $10 / 1k pages."
+            "- Preprocess tariff: basic = $1 / 1k pages, "
+            "premium = $10 / 1k pages."
         )
         body.append("")
         body.append("### Per-arm summary")

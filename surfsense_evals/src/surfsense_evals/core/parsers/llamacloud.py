@@ -98,7 +98,7 @@ async def parse_with_llamacloud(
     from llama_cloud_services.parse.base import JobFailedException
     from llama_cloud_services.parse.utils import ResultType
 
-    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    file_size_mb = await asyncio.to_thread(os.path.getsize, file_path) / (1024 * 1024)
     # Match backend's per-page timeout heuristic so big PDFs don't drop
     # mid-job: 60s baseline + 30s/page (premium agent runs longer than
     # basic; both fit comfortably here).

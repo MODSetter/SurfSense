@@ -227,12 +227,10 @@ async def run_ingest(
 
 
 def _take(it: Iterable, n: int) -> Iterable:
-    yielded = 0
-    for x in it:
-        if yielded >= n:
+    for i, x in enumerate(it):
+        if i >= n:
             return
         yield x
-        yielded += 1
 
 
 __all__ = ["DISCIPLINES", "CorpusPassage", "PassageBatch", "run_ingest"]

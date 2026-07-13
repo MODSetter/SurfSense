@@ -17,7 +17,6 @@ Format expectations (mirrors the FRAMES paper, section 4):
 
 from __future__ import annotations
 
-
 _BASE_INSTRUCTIONS = (
     "You are a careful question-answering assistant. The question may "
     "require combining facts from multiple sources, doing arithmetic, "

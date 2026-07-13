@@ -32,13 +32,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import logging
 import sys
 from dataclasses import dataclass
 from typing import Any
-
-import sys
 
 import httpx
 from rich.console import Console
@@ -51,10 +50,8 @@ from rich.table import Table
 # Terminal, PowerShell, cmd) all interpret ANSI escapes natively.
 if sys.platform == "win32":
     for _stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(AttributeError, ValueError):
             _stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
 
 from . import registry
 from .auth import CredentialError, acquire_token, client_with_auth

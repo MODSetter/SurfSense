@@ -7,8 +7,6 @@ exercise the deterministic shortcut + the special-case routing for
 
 from __future__ import annotations
 
-import pytest
-
 from surfsense_evals.suites.research.crag.grader import (
     CragGradeResult,
     _flags_false_premise,

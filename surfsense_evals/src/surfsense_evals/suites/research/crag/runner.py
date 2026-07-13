@@ -830,11 +830,11 @@ def _per_facet_truthfulness(
     """Bucket truthfulness scores by ``key_fn(q)``."""
 
     buckets: dict[str, dict[str, list[CragGradeResult]]] = {}
-    for q, b, l, s in zip(questions, bare_grades, lc_grades, surf_grades, strict=False):
+    for q, b, lc, s in zip(questions, bare_grades, lc_grades, surf_grades, strict=False):
         key = key_fn(q)
         bucket = buckets.setdefault(key, {"bare_llm": [], "long_context": [], "surfsense": []})
         bucket["bare_llm"].append(b)
-        bucket["long_context"].append(l)
+        bucket["long_context"].append(lc)
         bucket["surfsense"].append(s)
     out: dict[str, Any] = {}
     for key, arms in buckets.items():

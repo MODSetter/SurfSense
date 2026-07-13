@@ -177,10 +177,7 @@ def extract_main_content(
             # Prefer trafilatura output even if short, but only if it
             # contained any prose at all — empty trafilatura fall-through
             # to the stripped form.
-            if body and stripped and len(stripped) > len(body) * 1.5:
-                body = stripped
-                method = "fallback_strip"
-            elif not body and stripped:
+            if body and stripped and len(stripped) > len(body) * 1.5 or not body and stripped:
                 body = stripped
                 method = "fallback_strip"
             elif body:

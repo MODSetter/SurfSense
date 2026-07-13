@@ -11,7 +11,8 @@ TIKTOK_SCRAPE = Capability(
     name="tiktok.scrape",
     description=(
         "Scrape public TikTok videos. Use urls, profiles, hashtags, or "
-        "search_queries."
+        "search_queries (search_queries are resolved via Google to public "
+        "videos; for accounts by keyword use tiktok.user_search)."
     ),
     input_schema=ScrapeInput,
     output_schema=ScrapeOutput,

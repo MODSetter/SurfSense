@@ -34,7 +34,6 @@ from ....core.ingest_settings import (
 )
 from ....core.metrics.retrieval import score_run
 from ....core.registry import (
-    Benchmark,
     ReportSection,
     RunArtifact,
     RunContext,
@@ -276,7 +275,7 @@ class CureBenchmark:
         )
 
         per_query_retrieved: dict[str, list[str]] = {}
-        for q, res in zip(queries, results):
+        for q, res in zip(queries, results, strict=False):
             chunk_ids: list[int] = []
             seen: set[int] = set()
             for citation in res.citations:
@@ -311,7 +310,7 @@ class CureBenchmark:
         run_dir = ctx.runs_dir(run_timestamp=run_timestamp)
         raw_path = run_dir / "raw.jsonl"
         with raw_path.open("w", encoding="utf-8") as fh:
-            for q, res in zip(queries, results):
+            for q, res in zip(queries, results, strict=False):
                 fh.write(
                     json.dumps(
                         {

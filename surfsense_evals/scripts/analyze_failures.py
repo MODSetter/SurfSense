@@ -12,11 +12,9 @@ Outputs (printed to stdout + written to `failures_n171.json`):
 from __future__ import annotations
 
 import json
-import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
-
 
 REPO = Path(__file__).resolve().parents[1]
 RUN = REPO / "data" / "multimodal_doc" / "runs" / "2026-05-14T00-53-19Z" / "parser_compare"

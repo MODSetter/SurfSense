@@ -52,9 +52,11 @@ def register(
         search_queries: Annotated[
             list[str] | None,
             Field(
-                description="Keyword search terms. Returns no videos — use "
-                "hashtags/profiles/urls for videos, or the user-search tool for "
-                "accounts."
+                description="Keyword search terms, resolved via Google to public "
+                "TikTok videos (TikTok's own keyword search is login-walled). "
+                "Slower than hashtags/urls, so start with at most 3 queries and "
+                "expand only if nothing significant is found. For accounts by "
+                "keyword use surfsense_tiktok_user_search."
             ),
         ] = None,
         results_per_page: Annotated[
@@ -67,13 +69,15 @@ def register(
         workspace: WorkspaceParam = None,
         response_format: ResponseFormatParam = "markdown",
     ) -> str:
-        """Scrape public TikTok videos by hashtag, profile, or URL.
+        """Scrape public TikTok videos by hashtag, profile, URL, or keyword.
 
         Use for TikTok video research — a creator's videos, a hashtag feed, or a
         specific video/profile/hashtag URL — instead of a generic web search.
-        Returns videos with text, author, stats, music, and the web URL. For
-        accounts by keyword use the user-search tool; keyword search returns no
-        videos. Example: hashtags=['food'], max_items=20.
+        search_queries also finds videos on a topic (resolved via Google), but is
+        slower: start with at most 3 queries and expand only if nothing
+        significant is found. Returns videos with text, author, stats, music, and
+        the web URL. For accounts by keyword use surfsense_tiktok_user_search.
+        Example: hashtags=['food'], max_items=20.
         """
         return await run_scraper(
             client,

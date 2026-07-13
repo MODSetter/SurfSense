@@ -93,6 +93,25 @@ class SnippetRow:
 # ---------------------------------------------------------------------------
 
 
+def _reuse_cached_dest(dest: Path, *, expect_zip: bool, label: str) -> Path | None:
+    """Return ``dest`` if a usable cache hit, else ``None`` (and delete corrupt zips)."""
+
+    if not dest.exists():
+        return None
+    if expect_zip and not _is_valid_zip(dest):
+        logger.warning(
+            "Cached %s at %s failed ZIP validation (size=%d B); deleting "
+            "and re-downloading.",
+            label,
+            dest,
+            dest.stat().st_size,
+        )
+        dest.unlink(missing_ok=True)
+        return None
+    logger.info("Using cached %s at %s", label, dest)
+    return dest
+
+
 async def _fetch_to_path(
     url: str,
     *,
@@ -127,19 +146,9 @@ async def _fetch_to_path(
       surprise-grabbing 16 GB on a slow link.
     """
 
-    if dest.exists():
-        if expect_zip and not _is_valid_zip(dest):
-            logger.warning(
-                "Cached %s at %s failed ZIP validation (size=%d B); deleting "
-                "and re-downloading.",
-                label,
-                dest,
-                dest.stat().st_size,
-            )
-            dest.unlink(missing_ok=True)
-        else:
-            logger.info("Using cached %s at %s", label, dest)
-            return dest
+    cached = _reuse_cached_dest(dest, expect_zip=expect_zip, label=label)
+    if cached is not None:
+        return cached
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     partial = dest.with_suffix(dest.suffix + ".partial")
@@ -170,39 +179,38 @@ async def _fetch_to_path(
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout_s, connect=20.0),
                 follow_redirects=True,
-            ) as client:
-                async with client.stream("GET", url, headers=headers) as response:
-                    if existing_bytes and response.status_code == 200:
-                        logger.warning(
-                            "Server ignored Range header for %s; restarting from 0.",
-                            label,
-                        )
-                        partial.unlink(missing_ok=True)
-                        existing_bytes = 0
-                    elif response.status_code == 416:
-                        # Range not satisfiable — the .partial is at or
-                        # past the end. Treat as "already downloaded";
-                        # validate by closing and re-opening for atomic
-                        # rename below.
-                        logger.info(
-                            "Server reports %s already complete (HTTP 416).",
-                            label,
-                        )
-                    elif response.status_code not in (200, 206):
-                        response.raise_for_status()
+            ) as client, client.stream("GET", url, headers=headers) as response:
+                if existing_bytes and response.status_code == 200:
+                    logger.warning(
+                        "Server ignored Range header for %s; restarting from 0.",
+                        label,
+                    )
+                    partial.unlink(missing_ok=True)
+                    existing_bytes = 0
+                elif response.status_code == 416:
+                    # Range not satisfiable — the .partial is at or
+                    # past the end. Treat as "already downloaded";
+                    # validate by closing and re-opening for atomic
+                    # rename below.
+                    logger.info(
+                        "Server reports %s already complete (HTTP 416).",
+                        label,
+                    )
+                elif response.status_code not in (200, 206):
+                    response.raise_for_status()
 
-                    total_size = _planned_total_size(response, existing_bytes)
-                    if (
-                        total_size is not None
-                        and total_size > _LARGE_DOWNLOAD_BYTES
-                        and not allow_large_download
-                    ):
-                        raise _LargeDownloadAbort(label, total_size)
+                total_size = _planned_total_size(response, existing_bytes)
+                if (
+                    total_size is not None
+                    and total_size > _LARGE_DOWNLOAD_BYTES
+                    and not allow_large_download
+                ):
+                    raise _LargeDownloadAbort(label, total_size)
 
-                    mode = "ab" if existing_bytes else "wb"
-                    with partial.open(mode) as fh:
-                        async for chunk in response.aiter_bytes(chunk_size=1 << 18):
-                            fh.write(chunk)
+                mode = "ab" if existing_bytes else "wb"
+                with partial.open(mode) as fh:
+                    async for chunk in response.aiter_bytes(chunk_size=1 << 18):
+                        fh.write(chunk)
             # Optional content sanity check before promoting to dest.
             if expect_zip and not _is_valid_zip(partial):
                 raise zipfile.BadZipFile(

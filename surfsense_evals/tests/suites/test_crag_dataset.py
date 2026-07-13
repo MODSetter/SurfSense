@@ -11,8 +11,6 @@ import bz2
 import json
 from pathlib import Path
 
-import pytest
-
 from surfsense_evals.suites.research.crag.dataset import (
     CragPage,
     CragQuestion,

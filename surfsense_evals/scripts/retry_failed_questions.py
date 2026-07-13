@@ -106,9 +106,7 @@ def _is_failure_row(row: dict[str, Any]) -> bool:
 
     if row.get("error"):
         return True
-    if not (row.get("raw_text") or "").strip():
-        return True
-    return False
+    return bool(not (row.get("raw_text") or "").strip())
 
 
 @dataclass
@@ -428,7 +426,7 @@ async def _run(args: argparse.Namespace) -> int:
 
         if f.arm == "native_pdf":
             pdf_path = Path(map_row["pdf_path"])
-            if not pdf_path.exists():
+            if not await asyncio.to_thread(pdf_path.exists):
                 logger.error("PDF missing on disk: %s — skipping", pdf_path)
                 continue
             request = _build_native_request(

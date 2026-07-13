@@ -47,9 +47,7 @@ def _row_key(row: dict) -> tuple[str, str]:
 def _is_failure(row: dict) -> bool:
     if row.get("error"):
         return True
-    if not (row.get("raw_text") or "").strip():
-        return True
-    return False
+    return bool(not (row.get("raw_text") or "").strip())
 
 
 def _summarise(rows_by_arm: dict[str, list[dict]]) -> dict[str, dict]:

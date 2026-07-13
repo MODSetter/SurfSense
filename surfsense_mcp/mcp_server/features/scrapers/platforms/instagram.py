@@ -41,7 +41,9 @@ def register(
             list[str] | None,
             Field(
                 description="Terms to discover public profiles for (resolved via "
-                "Google). Provide search_queries OR urls."
+                "Google). Google-backed discovery is slow (~30-60s per query), so "
+                "start with at most 3 queries and expand only if nothing "
+                "significant is found. Provide search_queries OR urls."
             ),
         ] = None,
         search_type: Annotated[
@@ -100,7 +102,9 @@ def register(
         search_queries: Annotated[
             list[str] | None,
             Field(
-                description="Terms to discover public profiles for. Provide "
+                description="Terms to discover public profiles for. Google-backed "
+                "discovery is slow (~30-60s per query), so start with at most 3 "
+                "queries and expand only if nothing significant is found. Provide "
                 "search_queries OR urls."
             ),
         ] = None,

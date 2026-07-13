@@ -25,6 +25,7 @@ import asyncio
 import logging
 import os
 import random
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ async def parse_with_azure_di(
         ServiceResponseError,
     )
 
-    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    file_size_mb = await asyncio.to_thread(os.path.getsize, file_path) / (1024 * 1024)
     logger.info(
         "Azure DI parsing %s (mode=%s, model=%s, size=%.1fMB)",
         file_path, processing_mode, model_id, file_size_mb,
@@ -96,12 +97,12 @@ async def parse_with_azure_di(
                 credential=AzureKeyCredential(api_key),
             )
             async with client:
-                with open(file_path, "rb") as fh:
-                    poller = await client.begin_analyze_document(
-                        model_id,
-                        body=fh,
-                        output_content_format=DocumentContentFormat.MARKDOWN,
-                    )
+                body = await asyncio.to_thread(Path(file_path).read_bytes)
+                poller = await client.begin_analyze_document(
+                    model_id,
+                    body=body,
+                    output_content_format=DocumentContentFormat.MARKDOWN,
+                )
                 result = await poller.result()
             content = (result.content or "").strip()
             if not content:

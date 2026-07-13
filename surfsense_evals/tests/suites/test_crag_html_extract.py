@@ -11,12 +11,9 @@ We don't network-fetch trafilatura; we just verify the wrapper:
 
 from __future__ import annotations
 
-import pytest
-
 from surfsense_evals.suites.research.crag.html_extract import (
     extract_main_content,
 )
-
 
 _RICH_HTML = """\
 <!DOCTYPE html>

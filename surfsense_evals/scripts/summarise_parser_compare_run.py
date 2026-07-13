@@ -16,7 +16,6 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[1]
 RUN_DIR = REPO / "data" / "multimodal_doc" / "runs" / "2026-05-14T00-53-19Z" / "parser_compare"
 RAW = RUN_DIR / "raw.jsonl"
@@ -91,7 +90,7 @@ def main() -> None:
 
     print()
     print("by answer_format (accuracy):")
-    formats = sorted({f for m in arm_metrics.values() for f in m["by_format"].keys()})
+    formats = sorted({f for m in arm_metrics.values() for f in m["by_format"]})
     header = f"{'arm':<25} " + " ".join(f"{f:>10}" for f in formats)
     print(header)
     print("-" * len(header))

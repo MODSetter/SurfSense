@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 # Pattern preserves the TS source verbatim:
 #   /[\[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g
@@ -64,7 +64,7 @@ class UrlCitation:
         return {"kind": "url", "url": self.url}
 
 
-CitationToken = Union[ChunkCitation, UrlCitation]
+CitationToken = ChunkCitation | UrlCitation
 
 
 def parse_citations(text: str, *, url_map: dict[str, str] | None = None) -> list[CitationToken]:

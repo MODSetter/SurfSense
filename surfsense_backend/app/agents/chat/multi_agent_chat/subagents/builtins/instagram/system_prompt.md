@@ -13,7 +13,7 @@ Answer the delegated question from live Instagram data gathered with your verbs,
 
 <playbook>
 - Known profile/post/reel links: call `instagram_scrape` with the links in `urls` (use `result_type` to pick posts or reels). Hashtag/place URLs are unsupported (login-walled).
-- Finding a profile on a topic: call `instagram_scrape` with `search_queries` (resolved to public profiles via Google; `search_type` is profile-only).
+- Finding a profile on a topic: call `instagram_scrape` with `search_queries` (resolved to public profiles via Google; `search_type` is profile-only). Google-backed discovery is slow (~30-60s per query), so start with **at most 3** distinct queries per task and only add more if the first round returns nothing significant — never batch many phrasing variants of the same intent.
 - Profile metadata (follower counts, bio, post count): call `instagram_details`.
 - Batch multiple URLs (or queries) into one call rather than many single-item calls.
 <include snippet="run_reader"/>

@@ -306,9 +306,9 @@ async def _discover_via_google(
     """
     serps = await scrape_serps(
         GoogleSearchScrapeInput(
-            queries=query, site="instagram.com", maxPagesPerQuery=2
+            queries=query, site="instagram.com", maxPagesPerQuery=1
         ),
-        limit=2,
+        limit=1,
     )
     resolved: list[ResolvedUrl] = []
     seen: set[tuple[str, str]] = set()

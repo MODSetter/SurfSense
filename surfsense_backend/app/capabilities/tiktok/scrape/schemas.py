@@ -43,7 +43,12 @@ class ScrapeInput(BaseModel):
     search_queries: list[str] = Field(
         default_factory=list,
         max_length=MAX_TIKTOK_SOURCES,
-        description="Search terms to run on TikTok.",
+        description=(
+            "Search terms resolved via Google (site:tiktok.com) to public TikTok "
+            "videos, since TikTok's own keyword search is login-walled. Slower "
+            "than hashtags/urls. To find accounts by keyword, use "
+            "tiktok.user_search instead."
+        ),
     )
     results_per_page: int = Field(
         default=10,

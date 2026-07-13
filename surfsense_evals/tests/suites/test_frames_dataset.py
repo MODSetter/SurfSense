@@ -16,15 +16,12 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from surfsense_evals.suites.research.frames.dataset import (
     FramesQuestion,
     _parse_reasoning_types,
     _parse_wiki_links,
     load_questions,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pure-function tests

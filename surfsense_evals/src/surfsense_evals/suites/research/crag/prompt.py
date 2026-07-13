@@ -28,7 +28,6 @@ in the runner, so the format is mandatory.
 
 from __future__ import annotations
 
-
 _BASE_INSTRUCTIONS = (
     "You are a careful question-answering assistant. The question is a "
     "real-world factual question that may be about finance, music, "

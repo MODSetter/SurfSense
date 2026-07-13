@@ -41,8 +41,6 @@ from typing import Any
 
 from ....core.config import set_suite_state
 from ....core.parsers import (
-    AzureDIError,
-    LlamaCloudError,
     count_pdf_pages,
     parse_with_azure_di,
     parse_with_llamacloud,
@@ -131,7 +129,7 @@ async def _run_one_extraction(
     else:
         raise ValueError(f"Unknown parser {parser!r}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(markdown, encoding="utf-8")
+    await asyncio.to_thread(out_path.write_text, markdown, encoding="utf-8")
     return markdown, time.monotonic() - started
 
 
