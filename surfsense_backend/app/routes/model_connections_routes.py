@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, update
@@ -895,8 +896,12 @@ async def compute_llm_setup_status(
 
     global_usable = _global_catalog_has_usable_chat()
     if config.GLOBAL_LLM_CONFIG_FILE_EXISTS and global_usable:
+        # Global readiness is never stamped: it is not this workspace's own setup.
         return LlmSetupStatusRead(
-            status="ready", source="global_config", can_configure=can_configure
+            status="ready",
+            source="global_config",
+            can_configure=can_configure,
+            stage="ready",
         )
 
     # Heal dangling role pins first: a chat_model_id pointing at a deleted or
@@ -906,25 +911,40 @@ async def compute_llm_setup_status(
     await session.commit()
     await session.refresh(workspace)
 
+    async def _stamp_own_setup() -> None:
+        # Record first own-model readiness once; the guard makes concurrent
+        # stamps idempotent. (Writing on this GET is precedented above.)
+        if workspace.llm_setup_completed_at is None:
+            workspace.llm_setup_completed_at = datetime.now(UTC)
+            await session.commit()
+
     chat_model_id = workspace.chat_model_id or 0
     if chat_model_id != 0:
         # Survived _clear_invalid_roles => valid, enabled, chat-capable.
         source = "global_config" if chat_model_id < 0 else "models"
+        if source == "models":
+            await _stamp_own_setup()
         return LlmSetupStatusRead(
-            status="ready", source=source, can_configure=can_configure
+            status="ready", source=source, can_configure=can_configure, stage="ready"
         )
 
     if global_usable:
         return LlmSetupStatusRead(
-            status="ready", source="global_config", can_configure=can_configure
+            status="ready",
+            source="global_config",
+            can_configure=can_configure,
+            stage="ready",
         )
     if await _workspace_has_enabled_chat_model(session, workspace_id):
+        await _stamp_own_setup()
         return LlmSetupStatusRead(
-            status="ready", source="models", can_configure=can_configure
+            status="ready", source="models", can_configure=can_configure, stage="ready"
         )
 
+    # A set timestamp => self-configured before (recovery); NULL => never (first-run).
+    stage = "recovery" if workspace.llm_setup_completed_at else "initial_setup"
     return LlmSetupStatusRead(
-        status="needs_setup", source="none", can_configure=can_configure
+        status="needs_setup", source="none", can_configure=can_configure, stage=stage
     )
 
 
