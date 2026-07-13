@@ -10,6 +10,7 @@ export const PROVIDER_ORDER = [
 	"ollama_chat",
 	"lm_studio",
 	"openai_compatible",
+	"openai_compatible_raw",
 ];
 
 export const PROVIDER_DISPLAY: Record<
@@ -35,6 +36,11 @@ export const PROVIDER_DISPLAY: Record<
 	openai_compatible: {
 		name: "OpenAI-Compatible",
 		subtitle: "OpenAI-compatible endpoint",
+		iconKey: "custom",
+	},
+	openai_compatible_raw: {
+		name: "OpenAI-Compatible Raw",
+		subtitle: "Use the exact base URL, no /v1 is appended",
 		iconKey: "custom",
 	},
 	openrouter: {

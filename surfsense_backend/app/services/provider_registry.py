@@ -87,6 +87,15 @@ REGISTRY: dict[str, ProviderSpec] = {
         "bearer",
         "OpenAI-compatible provider",
     ),
+    "openai_compatible_raw": ProviderSpec(
+        Transport.NATIVE,
+        "openai",
+        "none",
+        None,
+        True,
+        "bearer",
+        "OpenAI-compatible raw endpoint",
+    ),
     "lm_studio": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
         "openai",
