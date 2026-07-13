@@ -56,10 +56,15 @@ import { LayoutShell } from "../ui/shell";
 
 interface LayoutDataProviderProps {
 	workspaceId: string;
+	initialPlaygroundSidebarCollapsed: boolean;
 	children: React.ReactNode;
 }
 
-export function LayoutDataProvider({ workspaceId, children }: LayoutDataProviderProps) {
+export function LayoutDataProvider({
+	workspaceId,
+	initialPlaygroundSidebarCollapsed,
+	children,
+}: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
 	const tSidebar = useTranslations("sidebar");
@@ -720,6 +725,7 @@ export function LayoutDataProvider({ workspaceId, children }: LayoutDataProvider
 				onTabSwitch={handleTabSwitch}
 				onTabPrefetch={handleTabPrefetch}
 				playgroundSidebar={<PlaygroundSidebar workspaceId={workspaceId} />}
+				initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>

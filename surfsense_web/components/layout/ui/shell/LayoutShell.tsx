@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
@@ -41,7 +41,8 @@ const DocumentTabContent = dynamic(
 	}
 );
 
-const PLAYGROUND_SIDEBAR_COLLAPSED_STORAGE_KEY = "surfsense:layout:v1:playground-sidebar-collapsed";
+const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
+const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 function MacDesktopTitleBar({
 	isSidebarCollapsed,
@@ -115,6 +116,7 @@ interface LayoutShellProps {
 	onTabSwitch?: (tab: Tab) => void;
 	onTabPrefetch?: (tab: Tab) => void;
 	playgroundSidebar?: React.ReactNode;
+	initialPlaygroundSidebarCollapsed?: boolean;
 }
 
 function MainContentPanel({
@@ -216,12 +218,15 @@ export function LayoutShell({
 	onTabSwitch,
 	onTabPrefetch,
 	playgroundSidebar,
+	initialPlaygroundSidebarCollapsed = false,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const electronAPI = useElectronAPI();
 	const isMacDesktop = electronAPI?.versions.platform === "darwin";
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const [isPlaygroundSidebarCollapsed, setIsPlaygroundSidebarCollapsed] = useState(false);
+	const [isPlaygroundSidebarCollapsed, setIsPlaygroundSidebarCollapsed] = useState(
+		initialPlaygroundSidebarCollapsed
+	);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const {
 		sidebarWidth,
@@ -234,23 +239,11 @@ export function LayoutShell({
 		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
 		[isCollapsed, setIsCollapsed, toggleCollapsed]
 	);
-	useEffect(() => {
-		try {
-			setIsPlaygroundSidebarCollapsed(
-				window.localStorage.getItem(PLAYGROUND_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
-			);
-		} catch {}
-	}, []);
-
 	const handlePlaygroundSidebarToggle = () => {
 		setIsPlaygroundSidebarCollapsed((collapsed) => {
 			const nextCollapsed = !collapsed;
-			try {
-				window.localStorage.setItem(
-					PLAYGROUND_SIDEBAR_COLLAPSED_STORAGE_KEY,
-					String(nextCollapsed)
-				);
-			} catch {}
+			const secureAttribute = window.location.protocol === "https:" ? "; Secure" : "";
+			document.cookie = `${PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE}=${nextCollapsed}; Path=/; Max-Age=${PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax${secureAttribute}`;
 			return nextCollapsed;
 		});
 	};
