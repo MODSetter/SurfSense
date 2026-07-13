@@ -80,10 +80,9 @@ const tokenUsageStore = chatStreamStore.tokenUsage;
 const toolsWithUI = TOOLS_WITH_UI_ALL;
 
 /**
- * Display-only setters the page provides while it is mounted. After the chat
- * page unmounts (in-app navigation) these are stale but harmless — the stream
- * keeps writing to the module {@link chatStreamStore}, and the page re-derives
- * its thread from the URL when it remounts.
+ * Display-only setters, valid only while the page is mounted. The stream drives
+ * durable state through {@link chatStreamStore}; these just sync the mounted
+ * page's local view and are ignored once it unmounts.
  */
 export interface EngineView {
 	setThreadId: Dispatch<SetStateAction<number | null>>;
@@ -101,7 +100,7 @@ export interface EngineContext {
 }
 
 // ---------------------------------------------------------------------------
-// Error handling (relocated from the chat page)
+// Error handling
 // ---------------------------------------------------------------------------
 
 async function persistAssistantErrorMessage({
