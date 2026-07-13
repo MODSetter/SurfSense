@@ -68,3 +68,17 @@ export function formatRelativeFutureDate(dateString: string): string {
 export function formatThreadTimestamp(dateString: string): string {
 	return format(new Date(dateString), "MMM d, yyyy 'at' h:mm a");
 }
+
+/**
+ * Format a chat message timestamp for inline display under a bubble.
+ * Locale-aware, 12-hour clock. Example: "Jul 13, 10:42 PM".
+ */
+export function formatMessageTimestamp(date: Date): string {
+	return date.toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
+	});
+}
