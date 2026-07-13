@@ -77,9 +77,11 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
 					result.llm_setup
 				);
 			}
-			const needsSetup = result.llm_setup?.status === "needs_setup";
+			// A fresh workspace can never be recovery, so this matches the gate,
+			// which is the authoritative net regardless.
+			const isInitialSetup = result.llm_setup?.stage === "initial_setup";
 			router.push(
-				needsSetup
+				isInitialSetup
 					? `/dashboard/${result.id}/onboard`
 					: `/dashboard/${result.id}/new-chat`
 			);
