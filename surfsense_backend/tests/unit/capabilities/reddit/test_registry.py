@@ -8,15 +8,16 @@ from app.capabilities import (
     reddit,  # noqa: F401  — importing the namespace registers its verbs
 )
 from app.capabilities.core.store import get_capability
+from app.capabilities.core.types import BillingUnit
 from app.capabilities.reddit.scrape.schemas import ScrapeInput, ScrapeOutput
 
 pytestmark = pytest.mark.unit
 
 
-def test_reddit_scrape_is_registered_and_free():
+def test_reddit_scrape_is_registered_and_billed_per_item():
     cap = get_capability("reddit.scrape")
 
     assert cap.name == "reddit.scrape"
     assert cap.input_schema is ScrapeInput
     assert cap.output_schema is ScrapeOutput
-    assert cap.billing_unit is None
+    assert cap.billing_unit is BillingUnit.REDDIT_ITEM
