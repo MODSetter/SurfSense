@@ -736,6 +736,11 @@ class Config:
     # Comments are the cheapest per-item TikTok data, matching the per-comment
     # market (and YouTube's comment meter).
     TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Warmed-browser listings put Indeed on par with the other browser-driven
+    # scrapers (Reddit, Instagram) rather than the cheaper API-backed meters.
+    INDEED_SCRAPE_MICROS_PER_JOB = int(
+        os.getenv("INDEED_SCRAPE_MICROS_PER_JOB", "3500")
+    )
     # Retry an empty listing draw on a fresh rotating IP. Set to 1 for a static
     # proxy, where every retry re-hits the same exit.
     TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
