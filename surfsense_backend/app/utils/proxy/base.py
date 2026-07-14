@@ -67,6 +67,14 @@ class ProxyProvider(ABC):
             return None
         return {"http": proxy_url, "https": proxy_url}
 
+    def get_sticky_proxy_url(self, session_id: str) -> str | None:
+        """Return a proxy URL pinned to ``session_id`` when supported.
+
+        Providers without vendor-specific session routing safely fall back to
+        their ordinary proxy URL.
+        """
+        return self.get_proxy_url()
+
     def get_location(self) -> str:
         """Return the proxy's configured exit region (e.g. ``"us"``), or ``""``.
 

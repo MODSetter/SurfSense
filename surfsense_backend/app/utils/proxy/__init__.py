@@ -15,6 +15,11 @@ def get_proxy_url() -> str | None:
     return get_active_provider().get_proxy_url()
 
 
+def get_sticky_proxy_url(session_id: str) -> str | None:
+    """Proxy URL pinned to a stable vendor session when supported."""
+    return get_active_provider().get_sticky_proxy_url(session_id)
+
+
 def get_playwright_proxy() -> dict[str, str] | None:
     """Playwright-style proxy dict, or ``None`` when not configured."""
     return get_active_provider().get_playwright_proxy()
@@ -45,5 +50,6 @@ __all__ = [
     "get_proxy_url",
     "get_requests_proxies",
     "get_residential_proxy_url",
+    "get_sticky_proxy_url",
     "is_pool_backed",
 ]

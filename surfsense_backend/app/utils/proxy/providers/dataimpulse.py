@@ -16,15 +16,13 @@ Example URL::
 
     http://<token>__cr.us:<password>@gw.dataimpulse.com:823
 
-ponytail: sticky sessions (a stable exit IP across requests) are another
-username suffix (``__sid.<id>``) — the lever the Reddit scraper's README flags as
-a TODO for its ``loid``-per-IP flow. Not built yet: Reddit isn't wired to a
-route, so there's no caller to thread a session id through. Add a
-``get_sticky_proxy_url(session_id)`` here (rewriting the username) when it lands.
+Sticky sessions use the vendor's ``__sid.<id>`` username suffix, allowing a
+caller to keep cookies and requests on the same exit IP.
 """
 
 import logging
-from urllib.parse import urlsplit
+import re
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from app.config import Config
 from app.utils.proxy.base import ProxyProvider
@@ -34,6 +32,7 @@ logger = logging.getLogger(__name__)
 # DataImpulse encodes country routing as a "__cr.<country>" username suffix; the
 # country token runs until the next "__" param (e.g. "__sid") or the end.
 _COUNTRY_MARKER = "__cr."
+_SESSION_RE = re.compile(r"__sid\.[A-Za-z0-9_-]+")
 
 
 class DataImpulseProvider(ProxyProvider):
@@ -54,3 +53,25 @@ class DataImpulseProvider(ProxyProvider):
         if _COUNTRY_MARKER not in username:
             return ""
         return username.split(_COUNTRY_MARKER, 1)[1].split("__", 1)[0].lower()
+
+    def get_sticky_proxy_url(self, session_id: str) -> str | None:
+        """Return the configured URL with a deterministic sticky-session suffix."""
+        url = self.get_proxy_url()
+        if not url:
+            return None
+        safe_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id).strip("-")
+        if not safe_id:
+            raise ValueError("session_id must contain at least one letter or digit")
+        parts = urlsplit(url)
+        username = parts.username or ""
+        username = _SESSION_RE.sub("", username) + f"__sid.{safe_id}"
+        userinfo = quote(username, safe="%")
+        if parts.password is not None:
+            userinfo += f":{quote(parts.password, safe='%')}"
+        host = parts.hostname or ""
+        netloc = f"{userinfo}@{host}"
+        if parts.port:
+            netloc += f":{parts.port}"
+        return urlunsplit(
+            (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+        )
