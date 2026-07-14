@@ -116,11 +116,7 @@ def _normalise_paragraphs(text: str) -> list[str]:
 
 
 def _escape_html(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def render_pdf(

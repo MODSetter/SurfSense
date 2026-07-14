@@ -50,7 +50,7 @@ export const metadata: Metadata = {
 	alternates: {
 		canonical: "https://www.surfsense.com",
 	},
-	title: "SurfSense - Competitive Intelligence Platform for AI Agents",
+	title: "SurfSense - NotebookLM for Competitive Intelligence",
 	description:
 		"SurfSense is an open-source competitive intelligence platform. Your AI agents monitor competitors, track rankings, and listen to your market through one API or MCP server.",
 	keywords: [
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
 		"SurfSense",
 	],
 	openGraph: {
-		title: "SurfSense - Competitive Intelligence Platform for AI Agents",
+		title: "SurfSense - NotebookLM for Competitive Intelligence",
 		description:
 			"SurfSense is an open-source competitive intelligence platform. Your AI agents monitor competitors, track rankings, and listen to your market through one API or MCP server.",
 		url: "https://www.surfsense.com",
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "SurfSense - Competitive Intelligence Platform for AI Agents",
+		title: "SurfSense - NotebookLM for Competitive Intelligence",
 		description:
 			"SurfSense is an open-source competitive intelligence platform. Your AI agents monitor competitors, track rankings, and listen to your market through one API or MCP server.",
 		creator: "@SurfSenseAI",

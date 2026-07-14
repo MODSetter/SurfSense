@@ -80,7 +80,7 @@ class CragPage:
 class CragQuestion:
     """One row of CRAG (Tasks 1 & 2)."""
 
-    qid: str                          # synthesised "C00000".."C02705"
+    qid: str  # synthesised "C00000".."C02705"
     interaction_id: str
     query_time: str
     query: str
@@ -89,9 +89,9 @@ class CragQuestion:
     domain: str
     question_type: str
     static_or_dynamic: str
-    popularity: str                   # may be "" for web-sourced questions
-    split: int                        # 0=validation, 1=public_test
-    raw_index: int                    # row index in the source JSONL
+    popularity: str  # may be "" for web-sourced questions
+    split: int  # 0=validation, 1=public_test
+    raw_index: int  # row index in the source JSONL
     pages: list[CragPage] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -166,16 +166,19 @@ def _parse_pages(raw_search_results: Any) -> list[CragPage]:
         if not url or not html.strip():
             # No URL or empty HTML => useless for retrieval.
             continue
-        pages.append(CragPage(
-            page_name=str(entry.get("page_name") or "").strip(),
-            page_url=url,
-            page_snippet=str(entry.get("page_snippet") or "").strip(),
-            page_html=html,
-            page_last_modified=(
-                str(entry.get("page_last_modified")).strip()
-                if entry.get("page_last_modified") else None
-            ),
-        ))
+        pages.append(
+            CragPage(
+                page_name=str(entry.get("page_name") or "").strip(),
+                page_url=url,
+                page_snippet=str(entry.get("page_snippet") or "").strip(),
+                page_html=html,
+                page_last_modified=(
+                    str(entry.get("page_last_modified")).strip()
+                    if entry.get("page_last_modified")
+                    else None
+                ),
+            )
+        )
     return pages
 
 
@@ -217,21 +220,23 @@ def iter_questions(jsonl_bz2_path: Path) -> list[CragQuestion]:
                 continue
             interaction_id = str(row.get("interaction_id") or "").strip()
             pages = _parse_pages(row.get("search_results"))
-            out.append(CragQuestion(
-                qid=f"C{raw_idx:05d}",
-                interaction_id=interaction_id,
-                query_time=str(row.get("query_time") or "").strip(),
-                query=query,
-                gold_answer=answer,
-                alt_answers=_parse_alt_answers(row.get("alt_ans")),
-                domain=str(row.get("domain") or "").strip().lower(),
-                question_type=str(row.get("question_type") or "").strip().lower(),
-                static_or_dynamic=str(row.get("static_or_dynamic") or "").strip().lower(),
-                popularity=str(row.get("popularity") or "").strip().lower(),
-                split=int(row.get("split") or 0),
-                raw_index=raw_idx,
-                pages=pages,
-            ))
+            out.append(
+                CragQuestion(
+                    qid=f"C{raw_idx:05d}",
+                    interaction_id=interaction_id,
+                    query_time=str(row.get("query_time") or "").strip(),
+                    query=query,
+                    gold_answer=answer,
+                    alt_answers=_parse_alt_answers(row.get("alt_ans")),
+                    domain=str(row.get("domain") or "").strip().lower(),
+                    question_type=str(row.get("question_type") or "").strip().lower(),
+                    static_or_dynamic=str(row.get("static_or_dynamic") or "").strip().lower(),
+                    popularity=str(row.get("popularity") or "").strip().lower(),
+                    split=int(row.get("split") or 0),
+                    raw_index=raw_idx,
+                    pages=pages,
+                )
+            )
     return out
 
 

@@ -222,9 +222,7 @@ class _RotatingSession:
         await self.close()
         self.rotations += 1
         await self._open()
-        logger.info(
-            "[instagram] rotated proxy session (rotation #%d)", self.rotations
-        )
+        logger.info("[instagram] rotated proxy session (rotation #%d)", self.rotations)
         return self.session
 
     async def pace(self) -> None:
@@ -378,9 +376,7 @@ async def _fetch(
             if status == _BACKOFF_STATUS and backoffs < _MAX_BACKOFFS:
                 backoffs += 1
                 delay = _BACKOFF_BASE_S * (2 ** (backoffs - 1))
-                logger.warning(
-                    "[instagram] 429 on %s; backing off %.1fs", path, delay
-                )
+                logger.warning("[instagram] 429 on %s; backing off %.1fs", path, delay)
                 await asyncio.sleep(delay + random.uniform(0, 1))
                 continue
             if status in _ROTATE_STATUSES:

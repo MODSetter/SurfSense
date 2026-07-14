@@ -6,28 +6,32 @@ export const instagram: ConnectorPageContent = {
 	name: "Instagram",
 	icon: IconBrandInstagram,
 
-	metaTitle: "Instagram Scraper API for Creator Research | SurfSense",
+	metaTitle: "Instagram Scraper API for Profiles and Reels | SurfSense",
 	metaDescription:
-		"Scrape public Instagram posts, reels, and profiles at scale with the SurfSense Instagram Scraper API. No login, no official API, plus a free tier. Start now.",
+		"Instagram scraper API for public profiles, posts, and reels. No login or Graph API review. Structured data for AI agents, plus a free tier. Start now.",
 	keywords: [
 		"instagram scraper",
 		"instagram scraper api",
 		"instagram api",
 		"instagram api alternative",
 		"scrape instagram",
+		"instagram scraping",
 		"instagram graph api alternative",
 		"instagram profile scraper",
 		"instagram post scraper",
+		"instagram posts scraper",
 		"instagram reel scraper",
+		"instagram reels scraper",
+		"instagram data scraper",
 		"instagram data api",
 		"instagram mcp server",
 		"creator research",
 		"social listening",
 	],
 
-	h1: "Instagram Scraper API for Creator Research and Social Listening",
+	h1: "Instagram Scraper API for Profiles, Posts, and Reels",
 	heroLede:
-		"The SurfSense Instagram API extracts public posts, reels, and profile details without logging in or registering for the Instagram Graph API. Give your AI agents a live feed of what creators post, so you spot trends and shifts in engagement first.",
+		"The SurfSense Instagram scraper extracts public profiles, posts, and reels without logging in or registering for the Instagram Graph API. Give your AI agents a live feed of what creators post, so you spot trends and shifts in engagement first.",
 
 	transcript: {
 		prompt: "Pull recent reels from @competitor and summarize what they're posting",
@@ -54,48 +58,48 @@ export const instagram: ConnectorPageContent = {
 	},
 
 	extractIntro:
-		"Every call returns structured items keyed by type. Point the API at a public profile, post, or reel URL, or discover creators with a search query.",
+		"Every Instagram scraper call returns structured items keyed by type. Point the API at a public profile, post, or reel URL, or discover creators with a search query.",
 	extractFields: [
 		{
-			label: "Posts & Reels",
+			label: "Posts and reels",
 			description:
-				"Caption, hashtags, mentions, like and comment counts, media URLs, dimensions, and timestamp.",
+				"Caption, hashtags, mentions, like and comment counts, media URLs, dimensions, and timestamp from any public post or reel.",
 		},
 		{
-			label: "Profiles",
+			label: "Profile data",
 			description:
-				"Follower, following, and post counts, bio, external URL, verified and business flags.",
+				"Follower, following, and post counts, bio, external URL, verified and business flags for public Instagram profiles.",
 		},
 		{
-			label: "Owner & Media",
+			label: "Owner and media",
 			description:
 				"Owner username and id on every item, plus image and video URLs, alt text, and view counts.",
 		},
 	],
 
-	useCasesHeading: "What teams do with the Instagram API",
+	useCasesHeading: "What teams do with the Instagram scraper API",
 	useCases: [
 		{
 			title: "Creator and competitor monitoring",
 			description:
-				"Track what your competitors and target creators post, and how engagement moves. Feed the stream to an agent that flags viral formats, launches, and shifts in cadence the moment they land.",
+				"Scrape Instagram profiles and feeds to track what competitors and target creators post, and how engagement moves. Feed the stream to an agent that flags viral formats, launches, and shifts in cadence the moment they land.",
 		},
 		{
 			title: "Content and format research",
 			description:
-				"Study a creator's recent posts and reels to see which formats earn the most likes and comments, and turn that into a content calendar your team can act on.",
+				"Pull a creator's recent posts and reels to see which formats earn the most likes and comments, and turn that into a content calendar your team can act on.",
 		},
 		{
 			title: "Influencer vetting and outreach",
 			description:
-				"Verify a creator's follower count, post cadence, and real engagement from public data before you pay for a partnership.",
+				"Use the Instagram profile scraper to verify follower count, post cadence, and real engagement from public data before you pay for a partnership.",
 		},
 	],
 
 	comparison: {
-		heading: "An Instagram API alternative built for agents",
+		heading: "An Instagram Graph API alternative built for agents",
 		intro:
-			"The official Instagram Graph API requires a Business account, app review, and access tokens, and it can't read arbitrary public profiles. Here is how SurfSense compares.",
+			"The official Instagram Graph API requires a Business account, app review, and access tokens, and it cannot read arbitrary public profiles. SurfSense is an Instagram API alternative for public data. Here is how it compares.",
 		columnLabel: "Instagram Graph API",
 		rows: [
 			{
@@ -259,7 +263,12 @@ export const instagram: ConnectorPageContent = {
 		{
 			question: "Do I need an Instagram account or the Graph API?",
 			answer:
-				"No. This is an independent alternative to the Instagram Graph API, not a wrapper. You do not create a Business account, pass app review, or manage access tokens. You call the SurfSense API with one key, or add the MCP server to your agent, and get structured data back.",
+				"No. This Instagram scraper API is an independent alternative to the Instagram Graph API, not a wrapper. You do not create a Business account, pass app review, or manage access tokens. You call SurfSense with one key, or add the MCP server to your agent, and get structured profile, post, and reel data back.",
+		},
+		{
+			question: "What Instagram data can I scrape?",
+			answer:
+				"Public profiles, posts, and reels. Each item includes captions, hashtags, mentions, engagement counts, media URLs, and owner metadata. Point the Instagram profile scraper at a handle, or pass post and reel URLs directly. Discover creators with search queries when you do not have a URL yet.",
 		},
 		{
 			question: "What are the rate limits?",
@@ -274,11 +283,11 @@ export const instagram: ConnectorPageContent = {
 	],
 
 	related: [
-		{ label: "Reddit API", href: "/reddit" },
+		{ label: "TikTok API", href: "/tiktok" },
 		{ label: "YouTube API", href: "/youtube" },
+		{ label: "Reddit API", href: "/reddit" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
-		{ label: "Read the docs", href: "/docs" },
 	],
 };

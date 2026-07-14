@@ -79,7 +79,7 @@ We follow a **branch protection model** to keep `main` stable:
    ```
 
 3. **Choose your setup method**:
-   - **Docker Setup**: Follow the [Docker Setup Guide](./DOCKER_SETUP.md)
+   - **Docker Setup**: Follow the [Building from Source (Contributors)](https://www.surfsense.com/docs/docker-installation#building-from-source-contributors) section of the Docker Installation guide
    - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.com/docs/)
 
 4. **Configure services**:

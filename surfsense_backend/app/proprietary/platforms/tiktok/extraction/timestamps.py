@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 
-def epoch_to_iso(seconds: int | None) -> str | None:
+def epoch_to_iso(seconds: int | str | None) -> str | None:
     """Convert a Unix-seconds timestamp to ``YYYY-MM-DDTHH:MM:SS.000Z``."""
     if not seconds:
         return None
-    stamp = datetime.fromtimestamp(seconds, tz=UTC)
+    stamp = datetime.fromtimestamp(int(seconds), tz=UTC)
     return stamp.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 

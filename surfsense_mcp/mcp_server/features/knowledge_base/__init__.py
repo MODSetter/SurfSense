@@ -14,9 +14,7 @@ from ...core.workspace_context import WorkspaceContext
 from . import document_tools, search_tools
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register every knowledge-base tool on the server."""
     search_tools.register(mcp, client, context)
     document_tools.register(mcp, client, context)

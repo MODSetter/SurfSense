@@ -59,7 +59,12 @@ export function WorkspaceApiAccessControl({
 
 	if (isLoading) {
 		return (
-			<div className={cn("flex flex-col gap-3 md:flex-row md:items-center md:justify-between", className)}>
+			<div
+				className={cn(
+					"flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
+					className
+				)}
+			>
 				<div className="space-y-2">
 					<Skeleton className="h-4 w-32" />
 					<Skeleton className="h-3 w-56" />
@@ -71,7 +76,12 @@ export function WorkspaceApiAccessControl({
 
 	if (isError) {
 		return (
-			<div className={cn("flex flex-col gap-3 md:flex-row md:items-center md:justify-between", className)}>
+			<div
+				className={cn(
+					"flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
+					className
+				)}
+			>
 				<div className="space-y-1">
 					<Label>API key access</Label>
 					<p className="text-xs text-destructive">Failed to load workspace API access.</p>
@@ -84,7 +94,12 @@ export function WorkspaceApiAccessControl({
 	}
 
 	return (
-		<div className={cn("flex flex-col gap-3 md:flex-row md:items-center md:justify-between", className)}>
+		<div
+			className={cn(
+				"flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
+				className
+			)}
+		>
 			<div className="space-y-1">
 				<Label htmlFor="api-access-enabled">API key access</Label>
 				<p className="text-xs text-muted-foreground">Allow API keys to access this workspace.</p>

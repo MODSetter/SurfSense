@@ -28,9 +28,7 @@ async def test_user_search_parses_dedupes_and_caps():
     async def fake_fetch(_url: str, _cap: int) -> list[dict]:
         return [_user("1", "nasa"), _user("1", "nasa"), _user("2", "nasa2")]
 
-    items = await search_tiktok_users(
-        ["nasa"], per_query=2, fetch_users=fake_fetch
-    )
+    items = await search_tiktok_users(["nasa"], per_query=2, fetch_users=fake_fetch)
 
     assert [i["id"] for i in items] == ["1", "2"]
     first = items[0]
@@ -49,9 +47,7 @@ async def test_user_search_empty_query_emits_error_item():
     async def fake_fetch(_url: str, _cap: int) -> list[dict]:
         return []
 
-    items = await search_tiktok_users(
-        ["ghost"], per_query=5, fetch_users=fake_fetch
-    )
+    items = await search_tiktok_users(["ghost"], per_query=5, fetch_users=fake_fetch)
 
     assert len(items) == 1
     assert items[0]["errorCode"] == "no_users"

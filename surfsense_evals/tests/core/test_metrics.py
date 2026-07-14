@@ -25,7 +25,12 @@ from surfsense_evals.core.metrics import (
 @pytest.mark.parametrize(
     "k,n,low,high",
     [
-        (80, 100, 0.7111, 0.8666),  # cross-checked vs statsmodels.proportion_confint(method='wilson')
+        (
+            80,
+            100,
+            0.7111,
+            0.8666,
+        ),  # cross-checked vs statsmodels.proportion_confint(method='wilson')
         (50, 100, 0.4038, 0.5962),
         (0, 0, 0.0, 1.0),
         (0, 10, 0.0, 0.2775),
@@ -74,7 +79,7 @@ def test_mcnemar_exact_branch_strong_signal():
     assert res.b == 0
     assert res.c == 10
     assert res.method == "exact"
-    expected = 2 * (0.5 ** 10)
+    expected = 2 * (0.5**10)
     assert math.isclose(res.p_value, expected, rel_tol=1e-9)
 
 

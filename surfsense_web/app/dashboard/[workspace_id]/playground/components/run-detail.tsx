@@ -35,13 +35,7 @@ function parseJsonl(text: string | null): { items: unknown[]; total: number } {
 	return { items, total: lines.length };
 }
 
-export function RunDetail({
-	workspaceId,
-	runId,
-}: {
-	workspaceId: number;
-	runId: string;
-}) {
+export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: string }) {
 	const { data: run, isLoading, error } = useScraperRun(workspaceId, runId);
 
 	const parsed = useMemo(() => parseJsonl(run?.output_text ?? null), [run?.output_text]);

@@ -33,9 +33,7 @@ async def test_google_discovery_keeps_only_profiles(monkeypatch):
             "https://example.com/not-instagram",
         ),
     )
-    targets = await scraper._discover(
-        "nat geo photos", search_type="profile", limit=10
-    )
+    targets = await scraper._discover("nat geo photos", search_type="profile", limit=10)
     assert [(t.kind, t.value) for t in targets] == [("profile", "natgeo")]
 
 
@@ -48,9 +46,7 @@ async def test_google_discovery_dedupes(monkeypatch):
             "https://www.instagram.com/natgeo/",
         ),
     )
-    targets = await scraper._discover(
-        "nat geo photos", search_type="profile", limit=10
-    )
+    targets = await scraper._discover("nat geo photos", search_type="profile", limit=10)
     assert len(targets) == 1
 
 

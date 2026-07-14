@@ -198,8 +198,8 @@ export function AutoReloadSettings() {
 					<AlertTriangle className="h-4 w-4" />
 					<AlertTitle>Last top-up failed</AlertTitle>
 					<AlertDescription>
-						Your saved card was declined and top-ups were turned off. Update your card and
-						re-enable top-ups below.
+						Your saved card was declined and top-ups were turned off. Update your card and re-enable
+						top-ups below.
 					</AlertDescription>
 				</Alert>
 			)}
@@ -290,7 +290,11 @@ export function AutoReloadSettings() {
 				</div>
 
 				<div className="flex justify-end">
-					<Button className="w-full sm:w-auto" onClick={handleSave} disabled={saveMutation.isPending}>
+					<Button
+						className="w-full sm:w-auto"
+						onClick={handleSave}
+						disabled={saveMutation.isPending}
+					>
 						{saveMutation.isPending ? (
 							<>
 								<Spinner size="xs" />

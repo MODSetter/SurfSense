@@ -10,8 +10,8 @@ from app.capabilities.tiktok.scrape.schemas import ScrapeInput, ScrapeOutput
 TIKTOK_SCRAPE = Capability(
     name="tiktok.scrape",
     description=(
-        "Scrape public TikTok videos. Use urls, profiles, hashtags, or "
-        "search_queries."
+        "Scrape public TikTok videos. Use urls, profiles, or hashtags. To find "
+        "accounts by keyword, use tiktok.user_search."
     ),
     input_schema=ScrapeInput,
     output_schema=ScrapeOutput,

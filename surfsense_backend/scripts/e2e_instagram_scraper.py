@@ -54,9 +54,7 @@ from app.proprietary.platforms.instagram.url_resolver import resolve_url  # noqa
 _PROFILE = "natgeo"
 _SEARCH_TERM = "national geographic"
 
-_FIXTURE_DIR = (
-    _BACKEND_ROOT / "tests" / "unit" / "platforms" / "instagram" / "fixtures"
-)
+_FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "platforms" / "instagram" / "fixtures"
 
 # Fields to strip from dumped fixtures so we never commit PII / volatile tokens.
 _PII_KEYS = frozenset(
@@ -98,7 +96,9 @@ async def step0_probe() -> bool:
         data = await fetch_json(
             "api/v1/users/web_profile_info/", {"username": _PROFILE}
         )
-        user = (data or {}).get("data", {}).get("user") if isinstance(data, dict) else None
+        user = (
+            (data or {}).get("data", {}).get("user") if isinstance(data, dict) else None
+        )
         print(f"    web_profile_info({_PROFILE}) -> user={'yes' if user else 'no'}")
         return _check("sticky web_profile_info", minted and bool(user))
 
@@ -179,9 +179,7 @@ async def step5_search() -> bool:
 
 async def step6_dump_fixtures(post_url: str | None) -> bool:
     _hr("STEP 6 — dump trimmed, anonymized fixtures for offline tests")
-    profile = await fetch_json(
-        "api/v1/users/web_profile_info/", {"username": _PROFILE}
-    )
+    profile = await fetch_json("api/v1/users/web_profile_info/", {"username": _PROFILE})
     _FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     wrote = []
     if isinstance(profile, dict) and profile.get("data", {}).get("user"):

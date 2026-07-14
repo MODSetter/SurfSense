@@ -112,8 +112,9 @@ def _grade_int(pred: str, gold: str) -> GradeResult:
     if p_match is None:
         return GradeResult(False, 0.0, "int_eq", str(p_match), str(g_val))
     p_val = int(p_match.group(0).replace(",", ""))
-    return GradeResult(p_val == g_val, 1.0 if p_val == g_val else 0.0,
-                       "int_eq", str(p_val), str(g_val))
+    return GradeResult(
+        p_val == g_val, 1.0 if p_val == g_val else 0.0, "int_eq", str(p_val), str(g_val)
+    )
 
 
 _FLOAT_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
@@ -145,15 +146,15 @@ def _grade_list(pred: str, gold: str) -> GradeResult:
         return _grade_str(pred, gold)
     inter = g_items & p_items
     if not inter:
-        return GradeResult(False, 0.0, "list_set",
-                           ", ".join(sorted(p_items)),
-                           ", ".join(sorted(g_items)))
+        return GradeResult(
+            False, 0.0, "list_set", ", ".join(sorted(p_items)), ", ".join(sorted(g_items))
+        )
     precision = len(inter) / len(p_items) if p_items else 0.0
     recall = len(inter) / len(g_items)
     f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
-    return GradeResult(f1 >= 0.999, f1, "list_set",
-                       ", ".join(sorted(p_items)),
-                       ", ".join(sorted(g_items)))
+    return GradeResult(
+        f1 >= 0.999, f1, "list_set", ", ".join(sorted(p_items)), ", ".join(sorted(g_items))
+    )
 
 
 def _grade_none(pred: str, gold: str) -> GradeResult:
@@ -188,8 +189,11 @@ def _grade_none(pred: str, gold: str) -> GradeResult:
                 expressed_unknown = True
                 break
     return GradeResult(
-        expressed_unknown, 1.0 if expressed_unknown else 0.0,
-        "none_match", p, _normalise_text(gold),
+        expressed_unknown,
+        1.0 if expressed_unknown else 0.0,
+        "none_match",
+        p,
+        _normalise_text(gold),
     )
 
 

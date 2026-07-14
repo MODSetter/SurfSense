@@ -18,6 +18,7 @@ import { workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
+import { ActiveChatStreamRunner } from "@/components/chat/active-chat-stream-runner";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -649,6 +650,9 @@ export function LayoutDataProvider({
 
 	return (
 		<>
+			{/* Persistent host: keeps an in-flight chat turn streaming across
+			    in-app navigation and aborts it only on workspace teardown. */}
+			<ActiveChatStreamRunner />
 			<LayoutShell
 				workspaces={workspaces}
 				activeWorkspaceId={Number(workspaceId)}

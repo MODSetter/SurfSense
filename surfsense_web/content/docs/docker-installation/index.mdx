@@ -143,14 +143,48 @@ To update SurfSense, see [Updating](/docs/docker-installation/updating).
 
 ## Building from Source (Contributors)
 
-If you're contributing to SurfSense and want to build the images from your local checkout, use the dev compose file:
+If you're contributing to SurfSense and want to build the images from your local checkout, use the dev compose file. Unlike the production setup above, there's no bundled Caddy proxy — each service publishes its own port directly, and you need **three** separate `.env` files instead of one.
+
+**Requirements:** Docker with the `buildx` plugin (needed for the multi-stage `Dockerfile`; a plain `docker build` without BuildKit fails). Check with `docker buildx version` — if missing, install `docker-buildx` (or `docker-buildx-plugin` on some distros).
 
 ```bash
-cd SurfSense/docker
+git clone https://github.com/<your-fork>/SurfSense.git
+cd SurfSense
+cp docker/.env.example docker/.env
+cp surfsense_backend/.env.example surfsense_backend/.env
+cp surfsense_web/.env.example surfsense_web/.env
+```
+
+`docker/.env` only configures Docker Compose variable substitution — it is **not** passed into the containers. The backend and frontend read their own `.env` files instead (wired via `env_file:` in `docker-compose.dev.yml`).
+
+Edit before starting:
+
+- **`SECRET_KEY`** in `surfsense_backend/.env` — required, generate with `openssl rand -base64 32`. Note this is separate from `SECRET_KEY` in `docker/.env`; the dev compose file does not forward one to the other.
+
+Everything else in the three example files (auth type, Stripe, connector OAuth credentials, messaging bots, proxy settings, etc.) is optional — only needed if you're testing that specific integration.
+
+```bash
+cd docker
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-It builds the backend and frontend from source, publishes raw service ports for debugging, and includes pgAdmin at [http://localhost:5050](http://localhost:5050). There's also a `docker-compose.deps-only.yml` that runs just the dependencies (Postgres, Redis, zero-cache) in Docker while you run the backend and frontend natively — see [Manual Installation](/docs/manual-installation#alternative-let-docker-manage-all-dependencies).
+| Service | Port | Notes |
+|---------|------|-------|
+| `frontend` | `localhost:3000` | Next.js dev server |
+| `backend` | `localhost:8000` | FastAPI, `/ready` for healthcheck |
+| `pgadmin` | `localhost:5050` | Postgres GUI |
+| `zero-cache` | `localhost:4848` (ws) | Real-time sync |
+| `celery_worker` | — | Background task processing, no exposed port |
+| `celery_beat` | — | Periodic task scheduler, no exposed port |
+| `otel-lgtm` | `localhost:3001` | Grafana + Loki + Tempo + Mimir bundle, for tracing/metrics |
+
+Observability (`otel-lgtm`) isn't needed for regular dev work — it's the heaviest non-essential service, so skip it if you're not debugging traces/metrics:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build db redis zero-cache backend celery_worker celery_beat frontend
+```
+
+There's also a `docker-compose.deps-only.yml` that runs just the dependencies (Postgres, Redis, zero-cache) in Docker while you run the backend and frontend natively — see [Manual Installation](/docs/manual-installation#alternative-let-docker-manage-all-dependencies).
 
 ## Troubleshooting
 

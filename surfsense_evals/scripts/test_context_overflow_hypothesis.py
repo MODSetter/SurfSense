@@ -40,8 +40,7 @@ CONTEXT_HINTS = (
 
 def main() -> None:
     rows = [
-        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
     extraction_size: dict[tuple[str, str], int] = {}
@@ -73,12 +72,12 @@ def main() -> None:
     print("=" * 80)
     print("(b) Extraction size for OK vs FAILED rows per arm")
     print("=" * 80)
-    arm_buckets: dict[str, dict[str, list[int]]] = defaultdict(
-        lambda: {"ok": [], "fail": []}
-    )
+    arm_buckets: dict[str, dict[str, list[int]]] = defaultdict(lambda: {"ok": [], "fail": []})
     parser_arms = (
-        "azure_basic_lc", "azure_premium_lc",
-        "llamacloud_basic_lc", "llamacloud_premium_lc",
+        "azure_basic_lc",
+        "azure_premium_lc",
+        "llamacloud_basic_lc",
+        "llamacloud_premium_lc",
     )
     for row in rows:
         arm = row["arm"]
@@ -133,10 +132,13 @@ def main() -> None:
         "  3M_2018_10K x llamacloud_premium = 908,733 chars (~227k tokens) "
         "-- this is above Sonnet 4.5's 200k window."
     )
-    print("  If transport hypothesis is correct, this should still fail with a "
-          "real overflow error.")
-    print("  If transport hypothesis is correct AND the model truncates silently, "
-          "it might 'succeed' but be wrong.")
+    print(
+        "  If transport hypothesis is correct, this should still fail with a real overflow error."
+    )
+    print(
+        "  If transport hypothesis is correct AND the model truncates silently, "
+        "it might 'succeed' but be wrong."
+    )
     print()
     for row in rows:
         if row["doc_id"] != "3M_2018_10K.pdf":
@@ -145,10 +147,7 @@ def main() -> None:
             continue
         err = row.get("error") or "(none)"
         graded = row.get("graded") or {}
-        print(
-            f"  {row['qid']:<40} correct={graded.get('correct')!s:<5}  "
-            f"err={err[:100]}"
-        )
+        print(f"  {row['qid']:<40} correct={graded.get('correct')!s:<5}  err={err[:100]}")
 
 
 if __name__ == "__main__":

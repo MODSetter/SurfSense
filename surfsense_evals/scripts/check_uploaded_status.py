@@ -15,7 +15,6 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-
 REPO = Path(__file__).resolve().parents[1]
 PDF_DIR = REPO / "data" / "multimodal_doc" / "mmlongbench" / "pdfs"
 

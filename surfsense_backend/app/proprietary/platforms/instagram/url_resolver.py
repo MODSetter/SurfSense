@@ -25,9 +25,7 @@ from urllib.parse import urlparse
 
 ResolvedKind = Literal["profile", "post", "reel"]
 
-_INSTAGRAM_HOSTS = frozenset(
-    {"m.instagram.com", "www.instagram.com", "instagram.com"}
-)
+_INSTAGRAM_HOSTS = frozenset({"m.instagram.com", "www.instagram.com", "instagram.com"})
 _STRIP_SEGMENTS = frozenset({"_u", "profilecard"})
 _RESERVED = frozenset(
     {"p", "s", "tv", "reel", "reels", "share", "explore", "stories", "accounts"}
@@ -68,9 +66,7 @@ def resolve_url(url: str) -> ResolvedUrl | None:
     if "instagram.com" not in url.lower():
         token = url.strip().lstrip("@")
         if token and "/" not in token and "." not in token:
-            return ResolvedUrl(
-                "profile", token, f"https://www.instagram.com/{token}/"
-            )
+            return ResolvedUrl("profile", token, f"https://www.instagram.com/{token}/")
     segments = _segments(url)
     if not segments:
         return None
@@ -83,9 +79,7 @@ def resolve_url(url: str) -> ResolvedUrl | None:
         return ResolvedUrl("reel", code, url, numeric_post_id=code.isdigit())
     if head == "stories" and len(segments) >= 2:
         user = segments[1]
-        return ResolvedUrl(
-            "profile", user, f"https://www.instagram.com/{user}/"
-        )
+        return ResolvedUrl("profile", user, f"https://www.instagram.com/{user}/")
     if head not in _RESERVED:
         return ResolvedUrl("profile", head, url)
     return None

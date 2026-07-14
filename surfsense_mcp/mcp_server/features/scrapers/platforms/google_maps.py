@@ -16,9 +16,7 @@ from ..capability import run_scraper
 ReviewSort = Literal["newest", "mostRelevant", "highestRanking", "lowestRanking"]
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the Google Maps place and review tools."""
 
     @mcp.tool(
@@ -45,10 +43,7 @@ def register(
         ] = None,
         location: Annotated[
             str | None,
-            Field(
-                description="Geographic scope for a search, e.g. "
-                "'Seattle, USA'."
-            ),
+            Field(description="Geographic scope for a search, e.g. 'Seattle, USA'."),
         ] = None,
         max_places: Annotated[
             int, Field(ge=1, description="Maximum places to return.")
@@ -56,8 +51,7 @@ def register(
         include_details: Annotated[
             bool,
             Field(
-                description="True adds opening hours and extra contact info "
-                "(slower)."
+                description="True adds opening hours and extra contact info (slower)."
             ),
         ] = False,
         workspace: WorkspaceParam = None,
@@ -96,16 +90,11 @@ def register(
     async def google_maps_reviews(
         urls: Annotated[
             list[str] | None,
-            Field(
-                description="Google Maps URLs of places. Provide urls OR "
-                "place_ids."
-            ),
+            Field(description="Google Maps URLs of places. Provide urls OR place_ids."),
         ] = None,
         place_ids: Annotated[
             list[str] | None,
-            Field(
-                description="Google place ids from surfsense_google_maps_scrape."
-            ),
+            Field(description="Google place ids from surfsense_google_maps_scrape."),
         ] = None,
         max_reviews: Annotated[
             int, Field(ge=1, description="Maximum reviews per place.")

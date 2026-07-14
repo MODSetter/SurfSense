@@ -29,6 +29,7 @@ import {
 	QwenIcon,
 	RecraftIcon,
 	ReplicateIcon,
+	RequestyIcon,
 	SambaNovaIcon,
 	TogetherAiIcon,
 	VertexAiIcon,
@@ -117,6 +118,8 @@ export function getProviderIcon(
 			return <RecraftIcon className={cn(className)} />;
 		case "REPLICATE":
 			return <ReplicateIcon className={cn(className)} />;
+		case "REQUESTY":
+			return <RequestyIcon className={cn(className)} />;
 		case "SAMBANOVA":
 			return <SambaNovaIcon className={cn(className)} />;
 		case "TOGETHER_AI":

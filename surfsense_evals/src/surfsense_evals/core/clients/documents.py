@@ -18,6 +18,7 @@ Document processing is asynchronous:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import mimetypes
 from collections.abc import Iterable, Sequence
@@ -83,8 +84,7 @@ class DocumentProcessingFailed(RuntimeError):
 
     def __init__(self, statuses: Sequence[DocumentStatus]) -> None:
         details = ", ".join(
-            f"id={s.document_id} ({s.title!r}): {s.reason or 'unknown'}"
-            for s in statuses
+            f"id={s.document_id} ({s.title!r}): {s.reason or 'unknown'}" for s in statuses
         )
         super().__init__(f"Document(s) failed to process: {details}")
         self.statuses = list(statuses)
@@ -157,10 +157,8 @@ class DocumentsClient:
             )
         finally:
             for _, (_, file_obj, _) in opened:
-                try:
+                with contextlib.suppress(Exception):
                     file_obj.close()
-                except Exception:  # noqa: BLE001
-                    pass
 
         response.raise_for_status()
         return FileUploadResult.from_payload(response.json())
@@ -241,9 +239,7 @@ class DocumentsClient:
     # chunks (chunk_id -> document_id map)
     # ------------------------------------------------------------------
 
-    async def list_chunks(
-        self, document_id: int, *, page_size: int = 100
-    ) -> list[ChunkRow]:
+    async def list_chunks(self, document_id: int, *, page_size: int = 100) -> list[ChunkRow]:
         """Walk ``GET /documents/{id}/chunks`` until ``has_more=False``.
 
         Used by ingestion to materialise the ``chunk_id -> document_id``

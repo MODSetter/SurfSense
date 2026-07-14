@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
-from urllib.parse import quote
 
 from .extraction.timestamps import now_iso
 from .flows import FetchCommentsFn, FetchFn, FetchListingFn, FetchUsersFn
@@ -32,12 +31,16 @@ from .targets.types import TikTokTarget
 
 _PROFILE_URL = "https://www.tiktok.com/@{name}"
 _HASHTAG_URL = "https://www.tiktok.com/tag/{tag}"
-_SEARCH_URL = "https://www.tiktok.com/search?q={query}"
 _EXPLORE_URL = "https://www.tiktok.com/explore"
 
 
 def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
-    """Build the target list from every input source, dropping unresolved URLs."""
+    """Build the target list from the URL/profile/hashtag sources.
+
+    A raw ``tiktok.com/search?...`` URL passed explicitly in
+    ``startUrls``/``postURLs`` still resolves here and keeps its native listing
+    routing; there is no keyword-search shortcut.
+    """
     targets: list[TikTokTarget] = []
     for entry in input_model.startUrls:
         resolved = resolve_target(entry.url)
@@ -52,10 +55,6 @@ def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
         targets.append(TikTokTarget("profile", name, _PROFILE_URL.format(name=name)))
     for tag in input_model.hashtags:
         targets.append(TikTokTarget("hashtag", tag, _HASHTAG_URL.format(tag=tag)))
-    for query in input_model.searchQueries:
-        targets.append(
-            TikTokTarget("search", query, _SEARCH_URL.format(query=quote(query)))
-        )
     return targets
 
 
@@ -104,7 +103,9 @@ async def scrape_tiktok(
     from app.capabilities.core.progress import emit_progress
 
     results: list[dict[str, Any]] = []
-    async for item in iter_tiktok(input_model, fetch=fetch, fetch_listing=fetch_listing):
+    async for item in iter_tiktok(
+        input_model, fetch=fetch, fetch_listing=fetch_listing
+    ):
         results.append(item)
         emit_progress("scraping", current=len(results), total=limit, unit="item")
         if limit is not None and len(results) >= limit:

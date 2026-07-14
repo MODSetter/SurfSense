@@ -67,14 +67,18 @@ def classify(error: str | None, raw_text: str) -> str:
 
 def main() -> None:
     rows = [
-        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
-    by_arm: dict[str, dict] = defaultdict(lambda: {
-        "n": 0, "correct": 0,
-        "transient_ssl_or_5xx": 0, "transient_empty": 0,
-        "intrinsic_limit": 0, "other_error": 0,
-    })
+    by_arm: dict[str, dict] = defaultdict(
+        lambda: {
+            "n": 0,
+            "correct": 0,
+            "transient_ssl_or_5xx": 0,
+            "transient_empty": 0,
+            "intrinsic_limit": 0,
+            "other_error": 0,
+        }
+    )
     for row in rows:
         arm = row["arm"]
         m = by_arm[arm]
@@ -86,7 +90,9 @@ def main() -> None:
         if kind != "ok":
             m[kind] += 1
 
-    print(f"{'arm':<25} {'raw acc%':>8} {'transient':>10} {'intrinsic':>10} {'other':>6} {'adj acc% (no transient)':>22}")
+    print(
+        f"{'arm':<25} {'raw acc%':>8} {'transient':>10} {'intrinsic':>10} {'other':>6} {'adj acc% (no transient)':>22}"
+    )
     print("-" * 88)
     for arm in sorted(by_arm):
         m = by_arm[arm]
@@ -96,9 +102,7 @@ def main() -> None:
         other = m["other_error"]
         usable = m["n"] - transient
         adj = m["correct"] / usable * 100 if usable else 0
-        print(
-            f"{arm:<25} {raw:>7.1f}% {transient:>10} {intrinsic:>10} {other:>6} {adj:>21.1f}%"
-        )
+        print(f"{arm:<25} {raw:>7.1f}% {transient:>10} {intrinsic:>10} {other:>6} {adj:>21.1f}%")
 
     print()
     print("transient   = SSLError / 502 / 503 / empty stream / mid-stream JSON decode (would")

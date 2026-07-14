@@ -21,8 +21,7 @@ PDFS = REPO / "data" / "multimodal_doc" / "mmlongbench" / "pdfs"
 
 def main() -> None:
     rows = [
-        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
     # 1) SSL clustering: failures by question index per arm
@@ -35,11 +34,19 @@ def main() -> None:
         arm_seen_count[arm] += 1
         qid_order[f"{arm}::{row['qid']}"] = idx
         err = row.get("error") or ""
-        cluster = "ssl" if "SSLError" in err else (
-            "empty" if not (row.get("raw_text") or "").strip() and not err else (
-                "5xx" if "502" in err or "503" in err else (
-                    "size_limit" if "exceeds" in err.lower() and "limit" in err.lower() else (
-                        "other_err" if err else "ok"
+        cluster = (
+            "ssl"
+            if "SSLError" in err
+            else (
+                "empty"
+                if not (row.get("raw_text") or "").strip() and not err
+                else (
+                    "5xx"
+                    if "502" in err or "503" in err
+                    else (
+                        "size_limit"
+                        if "exceeds" in err.lower() and "limit" in err.lower()
+                        else ("other_err" if err else "ok")
                     )
                 )
             )
@@ -100,19 +107,26 @@ def main() -> None:
         err = row.get("error") or ""
         empty = not (row.get("raw_text") or "").strip()
         if err or empty:
-            by_pdf[row["doc_id"]].append({
-                "arm": row["arm"],
-                "qid": row["qid"],
-                "err_kind": (
-                    "ssl" if "SSLError" in err
-                    else "size_limit" if "exceeds" in err.lower() and "limit" in err.lower()
-                    else "5xx" if "502" in err or "503" in err
-                    else "json_decode" if "JSONDecodeError" in err
-                    else "empty" if empty and not err
-                    else "other"
-                ),
-                "pages": row.get("pages"),
-            })
+            by_pdf[row["doc_id"]].append(
+                {
+                    "arm": row["arm"],
+                    "qid": row["qid"],
+                    "err_kind": (
+                        "ssl"
+                        if "SSLError" in err
+                        else "size_limit"
+                        if "exceeds" in err.lower() and "limit" in err.lower()
+                        else "5xx"
+                        if "502" in err or "503" in err
+                        else "json_decode"
+                        if "JSONDecodeError" in err
+                        else "empty"
+                        if empty and not err
+                        else "other"
+                    ),
+                    "pages": row.get("pages"),
+                }
+            )
     for doc, items in sorted(by_pdf.items(), key=lambda x: (-len(x[1]), x[0])):
         kinds = Counter(i["err_kind"] for i in items)
         arms = sorted({i["arm"] for i in items})

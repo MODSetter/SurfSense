@@ -17,9 +17,7 @@ from ...core.workspace_context import WorkspaceContext, WorkspaceParam
 from .annotations import READ, DocumentId, DocumentTypes
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the knowledge-base read tools."""
 
     @mcp.tool(
@@ -81,12 +79,8 @@ def register(
             int | None,
             Field(description="Only documents in this folder. Omit for all."),
         ] = None,
-        page: Annotated[
-            int, Field(ge=0, description="Zero-based page number.")
-        ] = 0,
-        page_size: Annotated[
-            int, Field(ge=1, description="Documents per page.")
-        ] = 20,
+        page: Annotated[int, Field(ge=0, description="Zero-based page number.")] = 0,
+        page_size: Annotated[int, Field(ge=1, description="Documents per page.")] = 20,
         workspace: WorkspaceParam = None,
         response_format: ResponseFormatParam = "markdown",
     ) -> str:

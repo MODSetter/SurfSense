@@ -75,6 +75,21 @@ jobs:
             echo "Windows signing: skipped"
           fi
 
+      - name: Verify Apple notarization credentials
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        # Fails in seconds with the same 401 notarytool would throw after the
+        # full build, instead of wasting ~15 min of build time on bad secrets.
+        run: |
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" > /dev/null
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
 

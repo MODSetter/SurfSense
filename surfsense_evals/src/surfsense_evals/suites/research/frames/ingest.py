@@ -34,7 +34,6 @@ filename (without extension), so we round-trip via
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -161,8 +160,10 @@ async def _upload_markdowns(
                 name_to_id[s.title] = s.document_id
         logger.info(
             "FRAMES upload batch %d-%d: %d new, %d duplicate",
-            batch_start, batch_start + len(batch),
-            len(result.document_ids), len(result.duplicate_document_ids),
+            batch_start,
+            batch_start + len(batch),
+            len(result.document_ids),
+            len(result.duplicate_document_ids),
         )
     return name_to_id
 
@@ -189,14 +190,16 @@ def _resolve_question_doc_ids(
             doc_id = name_to_id.get(stem) or name_to_id.get(article.markdown_path.name)
             if doc_id is not None and doc_id not in doc_ids:
                 doc_ids.append(doc_id)
-        rows.append({
-            "qid": q.qid,
-            "raw_index": q.raw_index,
-            "n_wiki_urls": len(q.wiki_urls),
-            "wiki_titles": titles,
-            "document_ids": doc_ids,
-            "missing_urls": missing,
-        })
+        rows.append(
+            {
+                "qid": q.qid,
+                "raw_index": q.raw_index,
+                "n_wiki_urls": len(q.wiki_urls),
+                "wiki_titles": titles,
+                "document_ids": doc_ids,
+                "missing_urls": missing,
+            }
+        )
     return rows
 
 
@@ -239,7 +242,7 @@ async def run_ingest(
     settings = settings or IngestSettings(
         use_vision_llm=False,
         processing_mode="basic",
-        )
+    )
     bench_dir = ctx.benchmark_data_dir()
     wiki_cache = bench_dir / "wiki"
     wiki_cache.mkdir(parents=True, exist_ok=True)
@@ -251,8 +254,7 @@ async def run_ingest(
     questions = load_questions(tsv_path)
     if not questions:
         raise RuntimeError(
-            "FRAMES test.tsv contained no parseable rows; upstream may "
-            "have changed schema."
+            "FRAMES test.tsv contained no parseable rows; upstream may have changed schema."
         )
     logger.info("FRAMES: parsed %d questions from %s", len(questions), tsv_path.name)
     if max_questions is not None and max_questions > 0:
@@ -270,19 +272,23 @@ async def run_ingest(
     unique_urls = list(seen_urls.keys())
     logger.info(
         "FRAMES: %d unique Wikipedia URLs across %d questions",
-        len(unique_urls), len(questions),
+        len(unique_urls),
+        len(questions),
     )
 
     # 3. Fetch (with cache).
     fetcher = WikiFetcher(cache_dir=wiki_cache, rate_limit_rps=fetch_rate_limit_rps)
     n_cached = sum(
-        1 for url in unique_urls
+        1
+        for url in unique_urls
         if (wiki_cache / cache_filename_for_title(_safe_title(url))).exists()
     )
     fetched, missing_urls = await _fetch_articles(fetcher, unique_urls)
     logger.info(
         "FRAMES: fetched=%d, cache_hits=%d, missing=%d",
-        len(fetched), n_cached, len(missing_urls),
+        len(fetched),
+        n_cached,
+        len(missing_urls),
     )
 
     # 4. Upload to SurfSense (deduped by filename).

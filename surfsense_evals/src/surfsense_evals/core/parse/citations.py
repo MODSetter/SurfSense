@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 # Pattern preserves the TS source verbatim:
 #   /[\[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g
@@ -35,7 +35,7 @@ from typing import Any, Union
 # the pattern source, so we splice the literal character in via an
 # f-string. This keeps our pattern functionally identical to the TS
 # reference and lets ``"\u200B" in CITATION_REGEX.pattern`` succeed.
-_ZWSP = "\u200B"
+_ZWSP = "\u200b"
 CITATION_REGEX = re.compile(
     rf"[\[【]{_ZWSP}?citation:\s*("
     rf"https?://[^\]】{_ZWSP}]+|urlcite\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*"
@@ -64,7 +64,7 @@ class UrlCitation:
         return {"kind": "url", "url": self.url}
 
 
-CitationToken = Union[ChunkCitation, UrlCitation]
+CitationToken = ChunkCitation | UrlCitation
 
 
 def parse_citations(text: str, *, url_map: dict[str, str] | None = None) -> list[CitationToken]:

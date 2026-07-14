@@ -36,11 +36,18 @@ async def test_payload_shape_matches_openrouter_docs(respx_mock, tiny_pdf: Path)
         return httpx.Response(
             200,
             json={
-                "choices": [{
-                    "message": {"content": "Answer: B"},
-                    "finish_reason": "stop",
-                }],
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15, "cost": 0.0001},
+                "choices": [
+                    {
+                        "message": {"content": "Answer: B"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                    "cost": 0.0001,
+                },
             },
         )
 
@@ -63,8 +70,7 @@ async def test_payload_shape_matches_openrouter_docs(respx_mock, tiny_pdf: Path)
     assert file_part["file"]["filename"] == tiny_pdf.name
     assert file_part["file"]["file_data"].startswith("data:application/pdf;base64,")
     assert (
-        base64.b64decode(file_part["file"]["file_data"].split(",", 1)[1])
-        == tiny_pdf.read_bytes()  # noqa: ASYNC240 — test fixture, sync read is fine
+        base64.b64decode(file_part["file"]["file_data"].split(",", 1)[1]) == tiny_pdf.read_bytes()  # noqa: ASYNC240 — test fixture, sync read is fine
     )
     assert user["content"][1] == {"type": "text", "text": "What is the diagnosis?"}
     assert captured["headers"]["authorization"] == "Bearer sk-or-test"
@@ -85,22 +91,22 @@ async def test_chat_array_content_concatenates(respx_mock, tiny_pdf: Path):
         return_value=httpx.Response(
             200,
             json={
-                "choices": [{
-                    "message": {
-                        "content": [
-                            {"type": "text", "text": "Hello "},
-                            {"type": "text", "text": "world"},
-                            {"type": "image_url", "image_url": "ignored"},
-                        ]
+                "choices": [
+                    {
+                        "message": {
+                            "content": [
+                                {"type": "text", "text": "Hello "},
+                                {"type": "text", "text": "world"},
+                                {"type": "image_url", "image_url": "ignored"},
+                            ]
+                        }
                     }
-                }],
+                ],
                 "usage": {"prompt_tokens": 1, "completion_tokens": 1},
             },
         )
     )
-    provider = OpenRouterPdfProvider(
-        api_key="sk-or-test", base_url=_BASE, model="x/y"
-    )
+    provider = OpenRouterPdfProvider(api_key="sk-or-test", base_url=_BASE, model="x/y")
     response = await provider.complete(prompt="hi", pdf_path=tiny_pdf)
     assert response.text == "Hello world"
 

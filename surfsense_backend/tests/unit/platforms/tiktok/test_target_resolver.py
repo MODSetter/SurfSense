@@ -6,7 +6,9 @@ from app.proprietary.platforms.tiktok.targets import resolve_target
 
 
 def test_resolve_video_carries_username_and_id():
-    target = resolve_target("https://www.tiktok.com/@scout2015/video/6718335390845095173")
+    target = resolve_target(
+        "https://www.tiktok.com/@scout2015/video/6718335390845095173"
+    )
     assert target is not None
     assert target.kind == "video"
     assert target.value == "6718335390845095173"

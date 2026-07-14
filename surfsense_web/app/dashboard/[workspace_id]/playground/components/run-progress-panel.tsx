@@ -9,7 +9,9 @@ import { formatDuration } from "@/lib/playground/format";
 function eventLabel(event: ScraperRunEvent): string {
 	const base =
 		event.message ||
-		(event.phase ? event.phase.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "Working");
+		(event.phase
+			? event.phase.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+			: "Working");
 	if (event.current !== undefined && event.current !== null) {
 		const counter =
 			event.total !== undefined && event.total !== null

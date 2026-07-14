@@ -171,7 +171,9 @@ def _relay_child(node: dict[str, Any]) -> dict[str, Any]:
     mt = node.get("media_type")
     vv = node.get("video_versions")
     video_url = (
-        vv[0].get("url") if isinstance(vv, list) and vv and isinstance(vv[0], dict) else None
+        vv[0].get("url")
+        if isinstance(vv, list) and vv and isinstance(vv[0], dict)
+        else None
     )
     is_video = mt == 2 or bool(video_url)
     return {
@@ -290,9 +292,7 @@ def parse_profile(user: dict[str, Any]) -> dict[str, Any]:
 _APP_JSON_RE = re.compile(
     r'<script type="application/json"[^>]*>(.*?)</script>', re.DOTALL
 )
-_OG_RE = re.compile(
-    r'<meta\s+property="og:([^"]+)"\s+content="([^"]*)"', re.IGNORECASE
-)
+_OG_RE = re.compile(r'<meta\s+property="og:([^"]+)"\s+content="([^"]*)"', re.IGNORECASE)
 # og tags are the fallback source (used only when the relay blob is absent). They
 # follow a fixed English shape because the fetch layer pins Accept-Language en-US:
 #   og:description = "{likes} likes, {comments} comments - {username} on {Month D, YYYY}: "{caption}""
@@ -321,7 +321,9 @@ _MEDIA_ID_RE = re.compile(r"instagram://media\?id=(\d+)")
 def _og_date_to_iso(value: str) -> str | None:
     """``"July 9, 2026"`` -> ``"2026-07-09"`` (date-only; og carries no time)."""
     try:
-        return datetime.strptime(value, "%B %d, %Y").replace(tzinfo=UTC).date().isoformat()
+        return (
+            datetime.strptime(value, "%B %d, %Y").replace(tzinfo=UTC).date().isoformat()
+        )
     except ValueError:
         return None
 
@@ -359,7 +361,7 @@ def _parse_og_meta(og: dict[str, str]) -> dict[str, Any]:
     elif owner_date:
         # No usable og:title: fall back to the caption after og:description's
         # date prefix — still clean (the counts/username/date are stripped).
-        out["caption"] = _clean_caption(desc[owner_date.end():])
+        out["caption"] = _clean_caption(desc[owner_date.end() :])
     return out
 
 
@@ -438,13 +440,21 @@ def _media_from_relay(
     mt = media.get("media_type")
     cap = media.get("caption")
     caption = (
-        cap.get("text") if isinstance(cap, dict) else (cap if isinstance(cap, str) else None)
+        cap.get("text")
+        if isinstance(cap, dict)
+        else (cap if isinstance(cap, str) else None)
     )
     carousel = media.get("carousel_media")
-    carousel = [c for c in carousel if isinstance(c, dict)] if isinstance(carousel, list) else []
+    carousel = (
+        [c for c in carousel if isinstance(c, dict)]
+        if isinstance(carousel, list)
+        else []
+    )
     vv = media.get("video_versions")
     video_url = (
-        vv[0].get("url") if isinstance(vv, list) and vv and isinstance(vv[0], dict) else None
+        vv[0].get("url")
+        if isinstance(vv, list) and vv and isinstance(vv[0], dict)
+        else None
     )
     is_video = mt == 2 or bool(video_url)
     owner = media.get("user") if isinstance(media.get("user"), dict) else {}
@@ -469,13 +479,18 @@ def _media_from_relay(
         "type": _MEDIA_TYPE.get(mt) or ("Video" if is_video else "Image"),
         "shortCode": media.get("code") or shortcode,
         "caption": caption,
-        "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption))) if caption else [],
-        "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption))) if caption else [],
+        "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption)))
+        if caption
+        else [],
+        "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption)))
+        if caption
+        else [],
         "url": url,
         "commentsCount": _int(media.get("comment_count")),
         "dimensionsHeight": _int(media.get("original_height")),
         "dimensionsWidth": _int(media.get("original_width")),
-        "displayUrl": _iv2_url(media.get("image_versions2")) or media.get("display_uri"),
+        "displayUrl": _iv2_url(media.get("image_versions2"))
+        or media.get("display_uri"),
         "images": [
             u
             for c in carousel
@@ -535,8 +550,12 @@ def parse_post(
         "type": "Video" if is_video else "Image",
         "shortCode": shortcode,
         "caption": caption,
-        "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption))) if caption else [],
-        "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption))) if caption else [],
+        "hashtags": list(dict.fromkeys(_HASHTAG_RE.findall(caption)))
+        if caption
+        else [],
+        "mentions": list(dict.fromkeys(_MENTION_RE.findall(caption)))
+        if caption
+        else [],
         "url": url,
         "commentsCount": og_meta.get("comments"),
         "displayUrl": og.get("image"),

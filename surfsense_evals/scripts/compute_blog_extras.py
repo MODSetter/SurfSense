@@ -95,7 +95,7 @@ def _mcnemar_exact_pvalue(b: int, c: int) -> float:
     k = min(b, c)
     # Two-sided exact: 2 * P(X <= k) clipped at 1.0
     cdf = sum(_binom_coef(n, i) for i in range(k + 1))
-    p = 2.0 * cdf / (2 ** n)
+    p = 2.0 * cdf / (2**n)
     return min(1.0, p)
 
 
@@ -116,7 +116,7 @@ def _mcnemar_table(rows: list[dict]) -> dict:
     qids = sorted(by_qid)
     out: dict[str, dict] = {"arms": arms, "n_qids": len(qids), "pairs": []}
     for i, ai in enumerate(arms):
-        for aj in arms[i + 1:]:
+        for aj in arms[i + 1 :]:
             b = c = both = neither = 0
             for q in qids:
                 row = by_qid[q]
@@ -132,12 +132,17 @@ def _mcnemar_table(rows: list[dict]) -> dict:
                 else:
                     neither += 1
             p = _mcnemar_exact_pvalue(b, c)
-            out["pairs"].append({
-                "arm_i": ai, "arm_j": aj,
-                "b_i_only": b, "c_j_only": c,
-                "both_correct": both, "both_wrong": neither,
-                "p_value": p,
-            })
+            out["pairs"].append(
+                {
+                    "arm_i": ai,
+                    "arm_j": aj,
+                    "b_i_only": b,
+                    "c_j_only": c,
+                    "both_correct": both,
+                    "both_wrong": neither,
+                    "p_value": p,
+                }
+            )
     return out
 
 
@@ -154,9 +159,7 @@ def _per_pdf_stats(rows: list[dict]) -> dict[str, dict]:
         arm = r["arm"]
         pdf = r["doc_id"]
         graded = r.get("graded") or {}
-        bucket.setdefault(arm, {}).setdefault(pdf, []).append(
-            bool(graded.get("correct"))
-        )
+        bucket.setdefault(arm, {}).setdefault(pdf, []).append(bool(graded.get("correct")))
 
     out: dict[str, dict] = {}
     for arm, pdfs in bucket.items():
@@ -207,7 +210,8 @@ def _per_arm_latency(rows: list[dict]) -> dict[str, dict]:
             # Coefficient of variation: std / mean (unitless tail-fatness).
             "cv": (
                 statistics.stdev(lats) / statistics.mean(lats)
-                if len(lats) > 1 and statistics.mean(lats) > 0 else 0.0
+                if len(lats) > 1 and statistics.mean(lats) > 0
+                else 0.0
             ),
         }
     return out
@@ -259,24 +263,30 @@ def _print_latency(title: str, lat: dict[str, dict]) -> None:
     print()
     print(title)
     print("-" * len(title))
-    header = (f"{'arm':<25} {'n':>4} {'mean':>7} {'std':>7} "
-              f"{'p50':>7} {'p90':>7} {'p95':>7} {'p99':>7} {'max':>7} {'CV':>5}")
+    header = (
+        f"{'arm':<25} {'n':>4} {'mean':>7} {'std':>7} "
+        f"{'p50':>7} {'p90':>7} {'p95':>7} {'p99':>7} {'max':>7} {'CV':>5}"
+    )
     print(header)
     print("-" * len(header))
     for arm in sorted(lat, key=lambda a: lat[a]["mean_s"]):
         s = lat[arm]
-        print(f"{arm:<25} {s['n']:>4} "
-              f"{s['mean_s']:>6.1f}s {s['std_s']:>6.1f}s "
-              f"{s['p50_s']:>6.1f}s {s['p90_s']:>6.1f}s {s['p95_s']:>6.1f}s "
-              f"{s['p99_s']:>6.1f}s {s['max_s']:>6.1f}s {s['cv']:>5.2f}")
+        print(
+            f"{arm:<25} {s['n']:>4} "
+            f"{s['mean_s']:>6.1f}s {s['std_s']:>6.1f}s "
+            f"{s['p50_s']:>6.1f}s {s['p90_s']:>6.1f}s {s['p95_s']:>6.1f}s "
+            f"{s['p99_s']:>6.1f}s {s['max_s']:>6.1f}s {s['cv']:>5.2f}"
+        )
 
 
 def _print_tokens(title: str, toks: dict[str, dict]) -> None:
     print()
     print(title)
     print("-" * len(title))
-    header = (f"{'arm':<25} {'in mean':>9} {'in p50':>9} {'in p95':>9} {'in max':>9}"
-              f"  {'out mean':>9} {'out p95':>9}")
+    header = (
+        f"{'arm':<25} {'in mean':>9} {'in p50':>9} {'in p95':>9} {'in max':>9}"
+        f"  {'out mean':>9} {'out p95':>9}"
+    )
     print(header)
     print("-" * len(header))
     for arm in sorted(toks):
@@ -285,25 +295,31 @@ def _print_tokens(title: str, toks: dict[str, dict]) -> None:
         eout = e.get("output")
         if not ein:
             continue
-        print(f"{arm:<25} "
-              f"{ein['mean']:>9,.0f} {ein['p50']:>9,.0f} {ein['p95']:>9,.0f} {ein['max']:>9,.0f}  "
-              f"{(eout or {}).get('mean', 0):>9,.0f} {(eout or {}).get('p95', 0):>9,.0f}")
+        print(
+            f"{arm:<25} "
+            f"{ein['mean']:>9,.0f} {ein['p50']:>9,.0f} {ein['p95']:>9,.0f} {ein['max']:>9,.0f}  "
+            f"{(eout or {}).get('mean', 0):>9,.0f} {(eout or {}).get('p95', 0):>9,.0f}"
+        )
 
 
 def _print_pdf_var(title: str, var: dict[str, dict]) -> None:
     print()
     print(title)
     print("-" * len(title))
-    header = (f"{'arm':<25} {'n_pdfs':>7} {'mean':>7} {'std':>7} {'min':>7} "
-              f"{'p25':>7} {'p50':>7} {'p75':>7} {'max':>7} {'#0%':>5} {'#100%':>6}")
+    header = (
+        f"{'arm':<25} {'n_pdfs':>7} {'mean':>7} {'std':>7} {'min':>7} "
+        f"{'p25':>7} {'p50':>7} {'p75':>7} {'max':>7} {'#0%':>5} {'#100%':>6}"
+    )
     print(header)
     print("-" * len(header))
     for arm in sorted(var, key=lambda a: -var[a]["mean"]):
         s = var[arm]
-        print(f"{arm:<25} {s['n_pdfs']:>7} "
-              f"{s['mean']*100:>6.1f}% {s['std']*100:>6.1f}% {s['min']*100:>6.1f}% "
-              f"{s['p25']*100:>6.1f}% {s['p50']*100:>6.1f}% {s['p75']*100:>6.1f}% "
-              f"{s['max']*100:>6.1f}% {s['n_pdfs_zero']:>5} {s['n_pdfs_perfect']:>6}")
+        print(
+            f"{arm:<25} {s['n_pdfs']:>7} "
+            f"{s['mean'] * 100:>6.1f}% {s['std'] * 100:>6.1f}% {s['min'] * 100:>6.1f}% "
+            f"{s['p25'] * 100:>6.1f}% {s['p50'] * 100:>6.1f}% {s['p75'] * 100:>6.1f}% "
+            f"{s['max'] * 100:>6.1f}% {s['n_pdfs_zero']:>5} {s['n_pdfs_perfect']:>6}"
+        )
 
 
 def _print_mcnemar(title: str, table: dict) -> None:
@@ -311,8 +327,10 @@ def _print_mcnemar(title: str, table: dict) -> None:
     print(title)
     print("-" * len(title))
     print(f"n_qids on which all arms have a graded row: {table['n_qids']}")
-    header = (f"{'arm_i':<25} {'arm_j':<25} {'b':>4} {'c':>4} "
-              f"{'both ok':>8} {'both wr':>8} {'p (2-sided)':>13} {'sig':>4}")
+    header = (
+        f"{'arm_i':<25} {'arm_j':<25} {'b':>4} {'c':>4} "
+        f"{'both ok':>8} {'both wr':>8} {'p (2-sided)':>13} {'sig':>4}"
+    )
     print(header)
     print("-" * len(header))
     for pair in sorted(table["pairs"], key=lambda p: p["p_value"]):
@@ -323,10 +341,12 @@ def _print_mcnemar(title: str, table: dict) -> None:
             sig = "**"
         elif pair["p_value"] < 0.05:
             sig = "*"
-        print(f"{pair['arm_i']:<25} {pair['arm_j']:<25} "
-              f"{pair['b_i_only']:>4} {pair['c_j_only']:>4} "
-              f"{pair['both_correct']:>8} {pair['both_wrong']:>8} "
-              f"{pair['p_value']:>13.4f} {sig:>4}")
+        print(
+            f"{pair['arm_i']:<25} {pair['arm_j']:<25} "
+            f"{pair['b_i_only']:>4} {pair['c_j_only']:>4} "
+            f"{pair['both_correct']:>8} {pair['both_wrong']:>8} "
+            f"{pair['p_value']:>13.4f} {sig:>4}"
+        )
 
 
 # ---------------------------------------------------------------------------

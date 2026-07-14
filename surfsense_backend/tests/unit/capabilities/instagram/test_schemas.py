@@ -66,6 +66,4 @@ def test_details_wraps_profile_items():
 
 def test_details_rejects_both_sources():
     with pytest.raises(ValidationError):
-        DetailsInput(
-            urls=["https://www.instagram.com/natgeo/"], search_queries=["x"]
-        )
+        DetailsInput(urls=["https://www.instagram.com/natgeo/"], search_queries=["x"])

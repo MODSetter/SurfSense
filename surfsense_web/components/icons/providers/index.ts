@@ -27,6 +27,7 @@ export { default as PerplexityIcon } from "./perplexity.svg";
 export { default as QwenIcon } from "./qwen.svg";
 export { default as RecraftIcon } from "./recraft.svg";
 export { default as ReplicateIcon } from "./replicate.svg";
+export { default as RequestyIcon } from "./requesty.svg";
 export { default as SambaNovaIcon } from "./sambanova.svg";
 export { default as TogetherAiIcon } from "./togetherai.svg";
 export { default as VertexAiIcon } from "./vertexai.svg";
