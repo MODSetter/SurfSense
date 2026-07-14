@@ -328,9 +328,7 @@ async def _discover_via_google(
     return resolved
 
 
-async def _discover(
-    query: str, *, search_type: str, limit: int
-) -> list[ResolvedUrl]:
+async def _discover(query: str, *, search_type: str, limit: int) -> list[ResolvedUrl]:
     """Resolve a discovery query into profile targets - anonymously.
 
     A query that is a valid handle resolves directly against the anonymous
@@ -397,9 +395,7 @@ async def iter_instagram(
 
     # posts / reels -> media feeds, de-duped by id across targets.
     jobs = [
-        _media_flow(
-            r, input_model=input_model, cutoff=cutoff, per_target=per_target
-        )
+        _media_flow(r, input_model=input_model, cutoff=cutoff, per_target=per_target)
         for r in targets
     ]
     seen: set[str] = set()

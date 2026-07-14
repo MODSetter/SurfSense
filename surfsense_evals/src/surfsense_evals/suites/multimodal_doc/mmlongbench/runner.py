@@ -58,8 +58,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MMLBQuestion:
-    qid: str               # synthesised from doc_id + index
-    doc_id: str            # filename inside the documents/ folder
+    qid: str  # synthesised from doc_id + index
+    doc_id: str  # filename inside the documents/ folder
     doc_type: str
     question: str
     gold_answer: str
@@ -126,18 +126,20 @@ def _load_questions(
                 continue
             idx = per_doc_counter.get(doc_id, 0)
             per_doc_counter[doc_id] = idx + 1
-            out.append(MMLBQuestion(
-                qid=f"{doc_id}::Q{idx:03d}",
-                doc_id=doc_id,
-                doc_type=str(row.get("doc_type") or "").strip(),
-                question=str(row.get("question") or "").strip(),
-                gold_answer=gold,
-                answer_format=answer_format,
-                evidence_pages=list(row.get("evidence_pages") or []),
-                evidence_sources=list(row.get("evidence_sources") or []),
-                pdf_path=Path(map_row["pdf_path"]),
-                document_id=map_row.get("document_id"),
-            ))
+            out.append(
+                MMLBQuestion(
+                    qid=f"{doc_id}::Q{idx:03d}",
+                    doc_id=doc_id,
+                    doc_type=str(row.get("doc_type") or "").strip(),
+                    question=str(row.get("question") or "").strip(),
+                    gold_answer=gold,
+                    answer_format=answer_format,
+                    evidence_pages=list(row.get("evidence_pages") or []),
+                    evidence_sources=list(row.get("evidence_sources") or []),
+                    pdf_path=Path(map_row["pdf_path"]),
+                    document_id=map_row.get("document_id"),
+                )
+            )
     out.sort(key=lambda q: (q.doc_id, q.qid))
     if sample_n is not None and sample_n > 0:
         out = out[:sample_n]
@@ -202,41 +204,61 @@ class MMLongBenchDocBenchmark:
             help="Filter to one answer format. 'none' = unanswerable probes only.",
         )
         parser.add_argument(
-            "--n", dest="sample_n", type=int, default=None,
+            "--n",
+            dest="sample_n",
+            type=int,
+            default=None,
             help="Run only the first N questions after filters apply.",
         )
         parser.add_argument(
-            "--skip-unanswerable", dest="skip_unanswerable", action="store_true",
+            "--skip-unanswerable",
+            dest="skip_unanswerable",
+            action="store_true",
             help="Drop ~22%% unanswerable questions (use to compare against baselines that don't include them).",
         )
         parser.add_argument(
-            "--concurrency", type=int, default=4,
+            "--concurrency",
+            type=int,
+            default=4,
             help="Parallel question workers per arm.",
         )
         parser.add_argument(
-            "--no-mentions", dest="no_mentions", action="store_true",
+            "--no-mentions",
+            dest="no_mentions",
+            action="store_true",
             help="SurfSense arm: skip mentioned_document_ids (unscoped retrieval).",
         )
         parser.add_argument(
-            "--pdf-engine", default="native",
+            "--pdf-engine",
+            default="native",
             choices=[e.value for e in PdfEngine],
             help="OpenRouter file-parser engine for the native arm.",
         )
         parser.add_argument(
-            "--max-output-tokens", type=int, default=512,
+            "--max-output-tokens",
+            type=int,
+            default=512,
             help="Cap on completion length for both arms.",
         )
         # Ingest-only knobs (forwarded by the CLI to ingest.run_ingest).
         parser.add_argument(
-            "--max-docs", dest="max_docs", type=int, default=None,
+            "--max-docs",
+            dest="max_docs",
+            type=int,
+            default=None,
             help="(ingest only) cap on number of unique PDFs to download + upload.",
         )
         parser.add_argument(
-            "--upload-batch-size", dest="upload_batch_size", type=int, default=8,
+            "--upload-batch-size",
+            dest="upload_batch_size",
+            type=int,
+            default=8,
             help="(ingest only) PDFs per fileupload call.",
         )
         parser.add_argument(
-            "--skip-upload", dest="skip_upload", action="store_true",
+            "--skip-upload",
+            dest="skip_upload",
+            action="store_true",
             help="(ingest only) cache PDFs locally but don't push to SurfSense.",
         )
         # Per-upload knobs forwarded to /documents/fileupload at ingest;
@@ -278,7 +300,8 @@ class MMLongBenchDocBenchmark:
 
         doc_map, ingest_settings = _load_doc_map(map_path)
         questions = _load_questions(
-            questions_jsonl, doc_map,
+            questions_jsonl,
+            doc_map,
             doc_filter=doc_filter,
             format_filter=None if format_filter == "all" else format_filter,
             sample_n=sample_n,
@@ -292,9 +315,7 @@ class MMLongBenchDocBenchmark:
 
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
-            raise RuntimeError(
-                "OPENROUTER_API_KEY env var is required for the native arm."
-            )
+            raise RuntimeError("OPENROUTER_API_KEY env var is required for the native arm.")
 
         # Native arm slug differs from SurfSense slug only in cost-arbitrage
         # scenario; otherwise both arms answer with provider_model.
@@ -362,18 +383,30 @@ class MMLongBenchDocBenchmark:
                     "evidence_sources": q.evidence_sources,
                     "document_id": q.document_id,
                 }
-                fh.write(json.dumps({
-                    **meta,
-                    **n_res.to_jsonl(),
-                    "graded": _grade_to_jsonl(n_g),
-                }) + "\n")
-                fh.write(json.dumps({
-                    **meta,
-                    **s_res.to_jsonl(),
-                    "graded": _grade_to_jsonl(s_g),
-                }) + "\n")
+                fh.write(
+                    json.dumps(
+                        {
+                            **meta,
+                            **n_res.to_jsonl(),
+                            "graded": _grade_to_jsonl(n_g),
+                        }
+                    )
+                    + "\n"
+                )
+                fh.write(
+                    json.dumps(
+                        {
+                            **meta,
+                            **s_res.to_jsonl(),
+                            "graded": _grade_to_jsonl(s_g),
+                        }
+                    )
+                    + "\n"
+                )
 
-        metrics = _compute_metrics(questions, native_results, surf_results, native_grades, surf_grades)
+        metrics = _compute_metrics(
+            questions, native_results, surf_results, native_grades, surf_grades
+        )
         artifact = RunArtifact(
             suite=self.suite,
             benchmark=self.name,
@@ -398,13 +431,18 @@ class MMLongBenchDocBenchmark:
 
         manifest_path = run_dir / "run_artifact.json"
         manifest_path.write_text(
-            json.dumps({
-                "suite": self.suite,
-                "benchmark": self.name,
-                "raw_path": "raw.jsonl",
-                "metrics": metrics,
-                "extra": artifact.extra,
-            }, indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                {
+                    "suite": self.suite,
+                    "benchmark": self.name,
+                    "raw_path": "raw.jsonl",
+                    "metrics": metrics,
+                    "extra": artifact.extra,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
         return artifact
@@ -450,9 +488,7 @@ class MMLongBenchDocBenchmark:
             f"(McNemar p={_fmt(delta.get('mcnemar_p_value'), 4)}, "
             f"method={delta.get('mcnemar_method')})"
         )
-        body_lines.append(
-            f"  - F1 (mean): SurfSense {_pp(delta.get('f1_pp'))} pp"
-        )
+        body_lines.append(f"  - F1 (mean): SurfSense {_pp(delta.get('f1_pp'))} pp")
         body_lines.append(
             f"  - Bootstrap 95% CI on accuracy delta: "
             f"[{_pp(delta.get('bootstrap_ci_low'))}pp, {_pp(delta.get('bootstrap_ci_high'))}pp]"
@@ -472,8 +508,8 @@ class MMLongBenchDocBenchmark:
             for fmt, vals in sorted(per_format.items()):
                 body_lines.append(
                     f"  - {fmt}: SurfSense {_pp(vals.get('delta_accuracy_pp'))} pp "
-                    f"(n={vals.get('n')}, native acc={vals.get('native_accuracy', 0)*100:.1f}%, "
-                    f"surf acc={vals.get('surfsense_accuracy', 0)*100:.1f}%)"
+                    f"(n={vals.get('n')}, native acc={vals.get('native_accuracy', 0) * 100:.1f}%, "
+                    f"surf acc={vals.get('surfsense_accuracy', 0) * 100:.1f}%)"
                 )
 
         return ReportSection(
@@ -576,8 +612,7 @@ def _compute_metrics(
             "native_accuracy": (sum(n_correct) / len(pairs)) if pairs else 0.0,
             "surfsense_accuracy": (sum(s_correct) / len(pairs)) if pairs else 0.0,
             "delta_accuracy_pp": (
-                100.0 * (sum(s_correct) - sum(n_correct)) / len(pairs)
-                if pairs else 0.0
+                100.0 * (sum(s_correct) - sum(n_correct)) / len(pairs) if pairs else 0.0
             ),
         }
 
@@ -593,8 +628,12 @@ def _compute_metrics(
             "latency_ms_mean": native_latency_agg.mean,
             "latency_ms_median": native_latency_agg.median,
             "latency_ms_p95": native_latency_agg.p95,
-            "input_tokens_mean": (sum(native_in_tokens) / len(native_in_tokens)) if native_in_tokens else 0.0,
-            "output_tokens_mean": (sum(native_out_tokens) / len(native_out_tokens)) if native_out_tokens else 0.0,
+            "input_tokens_mean": (sum(native_in_tokens) / len(native_in_tokens))
+            if native_in_tokens
+            else 0.0,
+            "output_tokens_mean": (sum(native_out_tokens) / len(native_out_tokens))
+            if native_out_tokens
+            else 0.0,
         },
         "surfsense": {
             **surf_acc.to_dict(),

@@ -134,15 +134,23 @@ class MirageBenchmark:
             choices=("all", *_TASKS),
             help="Run a single task or all (default: all).",
         )
-        parser.add_argument("--n", dest="sample_n", type=int, default=None,
-                            help="Stratified sample size across tasks.")
+        parser.add_argument(
+            "--n",
+            dest="sample_n",
+            type=int,
+            default=None,
+            help="Stratified sample size across tasks.",
+        )
         parser.add_argument("--concurrency", type=int, default=4)
         parser.add_argument(
-            "--corpus", default="MedRAG/textbooks",
+            "--corpus",
+            default="MedRAG/textbooks",
             help="HF MedRAG corpus to ingest from (default: MedRAG/textbooks).",
         )
         parser.add_argument(
-            "--max-snippets-per-task", type=int, default=None,
+            "--max-snippets-per-task",
+            type=int,
+            default=None,
             help="Cap the per-task ingestion to N snippets (smoke).",
         )
         # Mutually exclusive: by default we skip the upstream 16 GB
@@ -152,18 +160,24 @@ class MirageBenchmark:
         # --allow-large-download).
         snippet_group = parser.add_mutually_exclusive_group()
         snippet_group.add_argument(
-            "--use-snippet-filter", dest="use_snippet_filter", action="store_true",
+            "--use-snippet-filter",
+            dest="use_snippet_filter",
+            action="store_true",
             default=False,
             help="Download retrieved_snippets_10k.zip (~16 GB) and "
-                 "filter the corpus to those ids before ingest. "
-                 "Default: skip and ingest entire corpus.",
+            "filter the corpus to those ids before ingest. "
+            "Default: skip and ingest entire corpus.",
         )
         snippet_group.add_argument(
-            "--skip-snippet-filter", dest="use_snippet_filter", action="store_false",
+            "--skip-snippet-filter",
+            dest="use_snippet_filter",
+            action="store_false",
             help="(Default) Skip the 16 GB upstream zip; ingest entire corpus.",
         )
         parser.add_argument(
-            "--allow-large-download", action="store_true", default=False,
+            "--allow-large-download",
+            action="store_true",
+            default=False,
             help="Permit downloads larger than 2 GB (e.g. retrieved_snippets_10k.zip).",
         )
         # Per-upload knobs; ignored at run-time (runner reads the
@@ -196,16 +210,13 @@ class MirageBenchmark:
                 "`python -m surfsense_evals ingest medical mirage` first."
             )
         benchmark = json.loads(bench_path.read_text(encoding="utf-8"))
-        ingest_settings = read_settings_header(
-            ctx.maps_dir() / "mirage_snippet_map.jsonl"
-        )
+        ingest_settings = read_settings_header(ctx.maps_dir() / "mirage_snippet_map.jsonl")
         questions = _load_questions(benchmark, tasks=tasks, sample_n=sample_n)
         if not questions:
             raise RuntimeError(
                 f"No MIRAGE questions matched task={task_filter!r} sample_n={sample_n!r}."
             )
-        logger.info("MIRAGE: scheduled %d questions across tasks %s",
-                    len(questions), tasks)
+        logger.info("MIRAGE: scheduled %d questions across tasks %s", len(questions), tasks)
 
         arm = SurfSenseArm(
             client=ctx.new_chat_client(),
@@ -255,7 +266,10 @@ class MirageBenchmark:
             per_task_acc[task] = acc.to_dict()
 
         macro = macro_accuracy(
-            {t: accuracy_with_wilson_ci(d["n_correct"], d["n_total"]) for t, d in per_task_acc.items()}
+            {
+                t: accuracy_with_wilson_ci(d["n_correct"], d["n_total"])
+                for t, d in per_task_acc.items()
+            }
         )
         metrics = {"per_task": per_task_acc, "macro_accuracy": macro}
 

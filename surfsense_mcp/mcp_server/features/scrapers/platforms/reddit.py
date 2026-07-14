@@ -17,9 +17,7 @@ RedditSort = Literal["relevance", "hot", "top", "new", "rising", "comments"]
 RedditTime = Literal["hour", "day", "week", "month", "year", "all"]
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the Reddit tool."""
 
     @mcp.tool(

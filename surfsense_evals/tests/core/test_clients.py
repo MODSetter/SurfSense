@@ -94,10 +94,18 @@ async def test_documents_status_parses_state(respx_mock, http):
             200,
             json={
                 "items": [
-                    {"id": 1, "title": "a.pdf", "document_type": "FILE",
-                     "status": {"state": "ready", "reason": None}},
-                    {"id": 2, "title": "b.pdf", "document_type": "FILE",
-                     "status": {"state": "failed", "reason": "ETL boom"}},
+                    {
+                        "id": 1,
+                        "title": "a.pdf",
+                        "document_type": "FILE",
+                        "status": {"state": "ready", "reason": None},
+                    },
+                    {
+                        "id": 2,
+                        "title": "b.pdf",
+                        "document_type": "FILE",
+                        "status": {"state": "failed", "reason": "ETL boom"},
+                    },
                 ]
             },
         )
@@ -137,14 +145,26 @@ async def test_documents_upload_returns_payload(respx_mock, http, tmp_path: Path
 async def test_documents_list_chunks_paginated(respx_mock, http):
     respx_mock.get("/api/v1/documents/5/chunks").mock(
         side_effect=[
-            httpx.Response(200, json={
-                "items": [{"id": 1, "content": "a"}, {"id": 2, "content": "b"}],
-                "total": 3, "page": 0, "page_size": 2, "has_more": True,
-            }),
-            httpx.Response(200, json={
-                "items": [{"id": 3, "content": "c"}],
-                "total": 3, "page": 1, "page_size": 2, "has_more": False,
-            }),
+            httpx.Response(
+                200,
+                json={
+                    "items": [{"id": 1, "content": "a"}, {"id": 2, "content": "b"}],
+                    "total": 3,
+                    "page": 0,
+                    "page_size": 2,
+                    "has_more": True,
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "items": [{"id": 3, "content": "c"}],
+                    "total": 3,
+                    "page": 1,
+                    "page_size": 2,
+                    "has_more": False,
+                },
+            ),
         ]
     )
     client = DocumentsClient(http, _BASE)
@@ -191,15 +211,17 @@ def _sse_body(events: list[dict]) -> bytes:
 @pytest.mark.asyncio
 @respx.mock(base_url=_BASE)
 async def test_ask_accumulates_text_deltas(respx_mock, http):
-    body = _sse_body([
-        {"type": "start", "messageId": "m1"},
-        {"type": "text-start", "id": "t1"},
-        {"type": "text-delta", "id": "t1", "delta": "Answer "},
-        {"type": "text-delta", "id": "t1", "delta": "is "},
-        {"type": "text-delta", "id": "t1", "delta": "B [citation:42]."},
-        {"type": "text-end", "id": "t1"},
-        {"type": "finish"},
-    ])
+    body = _sse_body(
+        [
+            {"type": "start", "messageId": "m1"},
+            {"type": "text-start", "id": "t1"},
+            {"type": "text-delta", "id": "t1", "delta": "Answer "},
+            {"type": "text-delta", "id": "t1", "delta": "is "},
+            {"type": "text-delta", "id": "t1", "delta": "B [citation:42]."},
+            {"type": "text-end", "id": "t1"},
+            {"type": "finish"},
+        ]
+    )
     respx_mock.post("/api/v1/new_chat").mock(
         return_value=httpx.Response(
             200,
@@ -208,9 +230,7 @@ async def test_ask_accumulates_text_deltas(respx_mock, http):
         )
     )
     client = NewChatClient(http, _BASE)
-    answer = await client.ask(
-        thread_id=1, search_space_id=2, user_query="What is the answer?"
-    )
+    answer = await client.ask(thread_id=1, search_space_id=2, user_query="What is the answer?")
     assert answer.text == "Answer is B [citation:42]."
     assert answer.finished_normally is True
     assert any(c["chunk_id"] == 42 for c in answer.citations)
@@ -219,23 +239,21 @@ async def test_ask_accumulates_text_deltas(respx_mock, http):
 @pytest.mark.asyncio
 @respx.mock(base_url=_BASE)
 async def test_ask_409_thread_busy_retries(respx_mock, http):
-    body = _sse_body([
-        {"type": "text-delta", "id": "t1", "delta": "ok"},
-        {"type": "finish"},
-    ])
+    body = _sse_body(
+        [
+            {"type": "text-delta", "id": "t1", "delta": "ok"},
+            {"type": "finish"},
+        ]
+    )
     busy = httpx.Response(
         409,
         json={"detail": {"errorCode": "THREAD_BUSY", "message": "busy"}},
         headers={"Retry-After": "1"},
     )
-    success = httpx.Response(
-        200, content=body, headers={"Content-Type": "text/event-stream"}
-    )
+    success = httpx.Response(200, content=body, headers={"Content-Type": "text/event-stream"})
     respx_mock.post("/api/v1/new_chat").mock(side_effect=[busy, success])
     client = NewChatClient(http, _BASE)
-    answer = await client.ask(
-        thread_id=1, search_space_id=2, user_query="hi", max_busy_retries=2
-    )
+    answer = await client.ask(thread_id=1, search_space_id=2, user_query="hi", max_busy_retries=2)
     assert answer.text == "ok"
 
 
@@ -250,6 +268,4 @@ async def test_ask_409_exhausts_retries(respx_mock, http):
     respx_mock.post("/api/v1/new_chat").mock(return_value=busy)
     client = NewChatClient(http, _BASE)
     with pytest.raises(ThreadBusyError):
-        await client.ask(
-            thread_id=1, search_space_id=2, user_query="hi", max_busy_retries=1
-        )
+        await client.ask(thread_id=1, search_space_id=2, user_query="hi", max_busy_retries=1)

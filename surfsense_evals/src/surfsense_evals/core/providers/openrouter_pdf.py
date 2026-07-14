@@ -121,9 +121,7 @@ class OpenRouterPdfProvider:
         body: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
-            "plugins": [
-                {"id": "file-parser", "pdf": {"engine": self._engine.value}}
-            ],
+            "plugins": [{"id": "file-parser", "pdf": {"engine": self._engine.value}}],
         }
         if max_tokens:
             body["max_tokens"] = max_tokens

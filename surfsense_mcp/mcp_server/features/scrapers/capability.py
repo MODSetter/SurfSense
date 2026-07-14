@@ -38,9 +38,7 @@ async def run_scraper(
     return _render_markdown(platform, verb, resolved.name, result)
 
 
-def _render_markdown(
-    platform: str, verb: str, workspace_name: str, result: Any
-) -> str:
+def _render_markdown(platform: str, verb: str, workspace_name: str, result: Any) -> str:
     """A readable header plus the structured payload, clipped to a safe size."""
     header = f'# {platform}.{verb} — {_describe_size(result)} from "{workspace_name}"'
     body = clip(to_json(result))

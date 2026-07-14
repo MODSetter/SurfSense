@@ -10,10 +10,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
-from urllib.parse import quote
-
-from app.proprietary.platforms.google_search.schemas import GoogleSearchScrapeInput
-from app.proprietary.platforms.google_search.scraper import scrape_serps
 
 from .extraction.timestamps import now_iso
 from .flows import FetchCommentsFn, FetchFn, FetchListingFn, FetchUsersFn
@@ -35,26 +31,15 @@ from .targets.types import TikTokTarget
 
 _PROFILE_URL = "https://www.tiktok.com/@{name}"
 _HASHTAG_URL = "https://www.tiktok.com/tag/{tag}"
-_SEARCH_URL = "https://www.tiktok.com/search?q={query}"
 _EXPLORE_URL = "https://www.tiktok.com/explore"
-
-# A ``searchQueries`` term whose Google discovery surfaced no scrapable video
-# URLs degrades to one honest ErrorItem (mirrors the listing flow's contract:
-# never vanish silently).
-_EMPTY_DISCOVERY_MESSAGE = (
-    "No public TikTok videos found for this query via Google discovery. Try a "
-    "narrower phrasing, a hashtag, or a direct video URL."
-)
 
 
 def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
     """Build the target list from the URL/profile/hashtag sources.
 
-    ``searchQueries`` is deliberately excluded: TikTok's own keyword search is
-    login-walled for anonymous sessions, so it is routed through Google video
-    discovery in :func:`iter_tiktok` instead. A raw ``tiktok.com/search?...``
-    URL passed explicitly in ``startUrls``/``postURLs`` still resolves here and
-    keeps its native listing routing.
+    A raw ``tiktok.com/search?...`` URL passed explicitly in
+    ``startUrls``/``postURLs`` still resolves here and keeps its native listing
+    routing; there is no keyword-search shortcut.
     """
     targets: list[TikTokTarget] = []
     for entry in input_model.startUrls:
@@ -71,39 +56,6 @@ def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
     for tag in input_model.hashtags:
         targets.append(TikTokTarget("hashtag", tag, _HASHTAG_URL.format(tag=tag)))
     return targets
-
-
-async def _discover_via_google(query: str, *, limit: int) -> list[TikTokTarget]:
-    """Discover public TikTok video targets via Google ``site:tiktok.com``.
-
-    TikTok's anonymous keyword search is login-walled, so we reuse the existing
-    ``google_search`` platform, classify each organic URL with ``resolve_target``,
-    and keep only video hits (``/@user/video/<id>``) — the one kind that scrapes
-    reliably over plain HTTP. Profile/hashtag/search/photo/non-tiktok results are
-    dropped (accounts belong to the ``user_search`` verb). De-duped, capped at
-    ``limit``.
-    """
-    serps = await scrape_serps(
-        GoogleSearchScrapeInput(
-            queries=query, site="tiktok.com", maxPagesPerQuery=1
-        ),
-        limit=1,
-    )
-    resolved: list[TikTokTarget] = []
-    seen: set[str] = set()
-    for serp in serps:
-        for org in serp.get("organicResults") or []:
-            url = org.get("url", "") if isinstance(org, dict) else ""
-            target = resolve_target(url)
-            if target is None or target.kind != "video":
-                continue
-            if target.value in seen:
-                continue
-            seen.add(target.value)
-            resolved.append(target)
-            if len(resolved) >= limit:
-                return resolved
-    return resolved
 
 
 def _dispatch(
@@ -128,11 +80,9 @@ async def iter_tiktok(
 ) -> AsyncIterator[dict[str, Any]]:
     """Yield normalized items for every resolved target, in order.
 
-    Direct sources (URLs, profiles, hashtags) resolve up front; ``searchQueries``
-    then run through Google video discovery. The video flow's ``fetch_html``
-    opens its own warmed proxy session per call when none is bound; the listing
-    flow drives its own browser. Neither binds a ContextVar across these
-    ``yield``s, so the generator stays context-safe.
+    The video flow's ``fetch_html`` opens its own warmed proxy session per call
+    when none is bound; the listing flow drives its own browser. Neither binds a
+    ContextVar across these ``yield``s, so the generator stays context-safe.
     """
     cap = input_model.resultsPerPage
     for target in _resolve_targets(input_model):
@@ -140,27 +90,6 @@ async def iter_tiktok(
             target, cap=cap, fetch=fetch, fetch_listing=fetch_listing
         ):
             yield item
-
-    # searchQueries -> Google-discovered public video URLs, de-duped across
-    # queries so the same video surfacing under two terms is scraped once.
-    seen_videos: set[str] = set()
-    for query in input_model.searchQueries:
-        discovered = await _discover_via_google(query, limit=cap)
-        if not discovered:
-            yield ErrorItem(
-                url=_SEARCH_URL.format(query=quote(query)),
-                input=query,
-                error=_EMPTY_DISCOVERY_MESSAGE,
-                errorCode="no_items",
-                scrapedAt=now_iso(),
-            ).to_output()
-            continue
-        for target in discovered:
-            if target.value in seen_videos:
-                continue
-            seen_videos.add(target.value)
-            async for item in iter_video(target, fetch=fetch):
-                yield item
 
 
 async def scrape_tiktok(
@@ -174,7 +103,9 @@ async def scrape_tiktok(
     from app.capabilities.core.progress import emit_progress
 
     results: list[dict[str, Any]] = []
-    async for item in iter_tiktok(input_model, fetch=fetch, fetch_listing=fetch_listing):
+    async for item in iter_tiktok(
+        input_model, fetch=fetch, fetch_listing=fetch_listing
+    ):
         results.append(item)
         emit_progress("scraping", current=len(results), total=limit, unit="item")
         if limit is not None and len(results) >= limit:

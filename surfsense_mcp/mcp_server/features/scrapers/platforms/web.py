@@ -14,9 +14,7 @@ from ..annotations import SCRAPE
 from ..capability import run_scraper
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the web crawl tool."""
 
     @mcp.tool(

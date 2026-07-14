@@ -83,6 +83,7 @@ async def acquire_token(config: Config, *, http: httpx.AsyncClient | None = None
         )
 
     if config.has_local_mode():
+
         async def _login(client: httpx.AsyncClient) -> TokenBundle:
             response = await client.post(
                 f"{config.surfsense_api_base}/auth/desktop/login",
@@ -94,15 +95,12 @@ async def acquire_token(config: Config, *, http: httpx.AsyncClient | None = None
             )
             if response.status_code != 200:
                 raise CredentialError(
-                    f"LOCAL login failed (HTTP {response.status_code}): "
-                    f"{_safe_text(response)}"
+                    f"LOCAL login failed (HTTP {response.status_code}): {_safe_text(response)}"
                 )
             payload = response.json()
             access = payload.get("access_token")
             if not access:
-                raise CredentialError(
-                    f"LOCAL login response missing access_token: {payload!r}"
-                )
+                raise CredentialError(f"LOCAL login response missing access_token: {payload!r}")
             return TokenBundle(
                 access_token=access,
                 refresh_token=payload.get("refresh_token") or None,

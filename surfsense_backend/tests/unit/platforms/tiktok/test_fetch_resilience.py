@@ -84,7 +84,9 @@ async def test_warms_then_returns_html():
 
 
 async def test_rotates_when_warm_fails_then_succeeds():
-    holder = _FakeHolder([_FakeSession(200, warms=False), _FakeSession(200, warms=True)])
+    holder = _FakeHolder(
+        [_FakeSession(200, warms=False), _FakeSession(200, warms=True)]
+    )
     token = _current_session.set(holder)
     try:
         result = await client.fetch_html("https://www.tiktok.com/@scout2015")
@@ -119,9 +121,7 @@ async def test_rotates_and_rewarms_on_403():
 
 async def test_persistent_403_raises_blocked(monkeypatch):
     _no_sleep(monkeypatch)
-    holder = _FakeHolder(
-        [_FakeSession(403) for _ in range(client._MAX_ROTATIONS + 1)]
-    )
+    holder = _FakeHolder([_FakeSession(403) for _ in range(client._MAX_ROTATIONS + 1)])
     token = _current_session.set(holder)
     try:
         raised = False

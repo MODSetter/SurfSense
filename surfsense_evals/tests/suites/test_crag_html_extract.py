@@ -112,7 +112,9 @@ class TestFallbackStripper:
         </body></html>
         """
         result = extract_main_content(
-            html, url="https://x.test/", page_name="Title",
+            html,
+            url="https://x.test/",
+            page_name="Title",
         )
         assert result.ok
         assert "content one" in result.text

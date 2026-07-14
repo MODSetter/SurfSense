@@ -54,7 +54,6 @@ async def test_forwards_typed_sources_and_limit():
         ScrapeInput(
             profiles=["nasa"],
             hashtags=["food"],
-            search_queries=["cats"],
             results_per_page=7,
             max_items=25,
         )
@@ -63,7 +62,6 @@ async def test_forwards_typed_sources_and_limit():
     (actor_input, limit) = scraper.calls[0]
     assert actor_input.profiles == ["nasa"]
     assert actor_input.hashtags == ["food"]
-    assert actor_input.searchQueries == ["cats"]
     assert actor_input.resultsPerPage == 7
     # The outer collection limit is the caller's total-item cap.
     assert limit == 25

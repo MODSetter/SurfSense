@@ -48,9 +48,7 @@ from ....core.registry import RunContext
 logger = logging.getLogger(__name__)
 
 
-MIRAGE_BENCHMARK_URL = (
-    "https://raw.githubusercontent.com/Teddy-XiongGZ/MIRAGE/main/benchmark.json"
-)
+MIRAGE_BENCHMARK_URL = "https://raw.githubusercontent.com/Teddy-XiongGZ/MIRAGE/main/benchmark.json"
 # Upstream only ships ONE zip — top-10k retrievals across 5 retrievers,
 # ~16 GB. We default to skipping it (see `--skip-snippet-filter`) and
 # ingesting the chosen corpus in full; this URL is only fetched when
@@ -100,8 +98,7 @@ def _reuse_cached_dest(dest: Path, *, expect_zip: bool, label: str) -> Path | No
         return None
     if expect_zip and not _is_valid_zip(dest):
         logger.warning(
-            "Cached %s at %s failed ZIP validation (size=%d B); deleting "
-            "and re-downloading.",
+            "Cached %s at %s failed ZIP validation (size=%d B); deleting and re-downloading.",
             label,
             dest,
             dest.stat().st_size,
@@ -176,10 +173,13 @@ async def _fetch_to_path(
             )
 
         try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(timeout_s, connect=20.0),
-                follow_redirects=True,
-            ) as client, client.stream("GET", url, headers=headers) as response:
+            async with (
+                httpx.AsyncClient(
+                    timeout=httpx.Timeout(timeout_s, connect=20.0),
+                    follow_redirects=True,
+                ) as client,
+                client.stream("GET", url, headers=headers) as response,
+            ):
                 if existing_bytes and response.status_code == 200:
                     logger.warning(
                         "Server ignored Range header for %s; restarting from 0.",
@@ -223,7 +223,7 @@ async def _fetch_to_path(
             raise
         except _RETRYABLE_NET_EXC as exc:
             last_exc = exc
-            wait = min(60.0, 2.0 ** attempt)
+            wait = min(60.0, 2.0**attempt)
             logger.warning(
                 "Network error fetching %s (%s: %s); retrying in %.0fs.",
                 label,
@@ -236,7 +236,7 @@ async def _fetch_to_path(
             last_exc = exc
             # Truncated body — drop the partial and retry from scratch.
             partial.unlink(missing_ok=True)
-            wait = min(60.0, 2.0 ** attempt)
+            wait = min(60.0, 2.0**attempt)
             logger.warning(
                 "Truncated ZIP for %s; restarting from byte 0 in %.0fs.",
                 label,
@@ -278,9 +278,9 @@ class _LargeDownloadAbort(RuntimeError):
     """Raised when a download exceeds the safety threshold without opt-in."""
 
     def __init__(self, label: str, size_bytes: int) -> None:
-        gb = size_bytes / (1024 ** 3)
+        gb = size_bytes / (1024**3)
         super().__init__(
-            f"{label} would download ~{gb:.1f} GB, above the {_LARGE_DOWNLOAD_BYTES / (1024 ** 3):.0f} GB safety cap. "
+            f"{label} would download ~{gb:.1f} GB, above the {_LARGE_DOWNLOAD_BYTES / (1024**3):.0f} GB safety cap. "
             "Re-run with `--allow-large-download` to acknowledge, or use "
             "`--skip-snippet-filter` to bypass this download entirely and "
             "ingest the full corpus instead."
@@ -320,9 +320,7 @@ def _read_snippet_ids(zip_path: Path, *, tasks: list[str]) -> dict[str, set[str]
     return out
 
 
-def _load_corpus(
-    corpus_name: str, snippet_ids: set[str] | None
-) -> Iterable[SnippetRow]:
+def _load_corpus(corpus_name: str, snippet_ids: set[str] | None) -> Iterable[SnippetRow]:
     """Stream rows from a MedRAG HF corpus.
 
     * ``snippet_ids=None`` → yield every row (full-corpus ingestion path).
@@ -541,10 +539,7 @@ async def run_ingest(
                 logger.warning("Failed to list chunks for doc_id=%s: %s", doc_id, exc)
                 continue
             for chunk in chunks:
-                fh.write(
-                    json.dumps({"chunk_id": chunk.id, "document_id": doc_id})
-                    + "\n"
-                )
+                fh.write(json.dumps({"chunk_id": chunk.id, "document_id": doc_id}) + "\n")
 
     new_state = ctx.suite_state
     new_state.ingestion_maps["mirage"] = str(snippet_map_path)

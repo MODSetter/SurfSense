@@ -11,7 +11,9 @@ from ..targets.types import TikTokTarget
 from . import FetchFn
 
 
-async def iter_video(target: TikTokTarget, *, fetch: FetchFn) -> AsyncIterator[dict[str, Any]]:
+async def iter_video(
+    target: TikTokTarget, *, fetch: FetchFn
+) -> AsyncIterator[dict[str, Any]]:
     html = await fetch(target.url)
     if not html:
         return

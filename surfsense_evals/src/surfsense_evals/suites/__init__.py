@@ -60,7 +60,5 @@ def discover_suites() -> list[str]:
                 importlib.import_module(benchmark_name)
                 imported.append(benchmark_name)
             except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Failed to import benchmark %s: %s", benchmark_name, exc
-                )
+                logger.warning("Failed to import benchmark %s: %s", benchmark_name, exc)
     return imported

@@ -102,7 +102,9 @@ async def test_warms_then_returns_json():
     holder = _FakeHolder([_FakeSession(200, csrftoken=True)])
     token = _current_session.set(holder)
     try:
-        result = await fetch_json("api/v1/users/web_profile_info/", {"username": "natgeo"})
+        result = await fetch_json(
+            "api/v1/users/web_profile_info/", {"username": "natgeo"}
+        )
     finally:
         _current_session.reset(token)
     assert result == _PAYLOAD

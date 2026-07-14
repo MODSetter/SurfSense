@@ -51,12 +51,12 @@ def _hf_hub_download(*args: Any, **kwargs: Any) -> str:
 class FramesQuestion:
     """One row of FRAMES (post-parse)."""
 
-    qid: str                   # synthesised "Q000" .. "Q823"
+    qid: str  # synthesised "Q000" .. "Q823"
     question: str
     gold_answer: str
-    wiki_urls: list[str]       # deduped, in original order
-    reasoning_types: list[str] # split on "|"
-    raw_index: int             # row index from the TSV (for debugging)
+    wiki_urls: list[str]  # deduped, in original order
+    reasoning_types: list[str]  # split on "|"
+    raw_index: int  # row index from the TSV (for debugging)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -146,14 +146,16 @@ def load_questions(tsv_path: Path) -> list[FramesQuestion]:
                     if val and val not in urls:
                         urls.append(val)
         reasoning = _parse_reasoning_types(row.get("reasoning_types"))
-        out.append(FramesQuestion(
-            qid=f"Q{int(raw_idx):03d}",
-            question=prompt,
-            gold_answer=answer,
-            wiki_urls=urls,
-            reasoning_types=reasoning,
-            raw_index=int(raw_idx),
-        ))
+        out.append(
+            FramesQuestion(
+                qid=f"Q{int(raw_idx):03d}",
+                question=prompt,
+                gold_answer=answer,
+                wiki_urls=urls,
+                reasoning_types=reasoning,
+                raw_index=int(raw_idx),
+            )
+        )
     return out
 
 

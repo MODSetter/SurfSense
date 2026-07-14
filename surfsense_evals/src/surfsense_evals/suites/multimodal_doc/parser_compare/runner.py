@@ -72,7 +72,7 @@ logger = logging.getLogger(__name__)
 # Cost tariff (per the user's spec: $1 / 1k pages basic, $10 / 1k pages premium).
 # Held as dollars-per-page so per-PDF math is a pure multiply.
 PREPROCESS_USD_PER_PAGE = {
-    "basic":   1.0  / 1000.0,
+    "basic": 1.0 / 1000.0,
     "premium": 10.0 / 1000.0,
 }
 
@@ -183,17 +183,19 @@ def _select_questions(
                 if ext_blob.get("status") == "ok" and ext_blob.get("markdown_path"):
                     extractions[arm_name] = Path(ext_blob["markdown_path"])
 
-            out.append(PCQuestion(
-                qid=f"{doc_id}::Q{idx:03d}",
-                doc_id=doc_id,
-                question=str(row.get("question") or "").strip(),
-                gold_answer=str(row.get("answer") or "").strip(),
-                answer_format=answer_format,
-                pdf_path=Path(map_row["pdf_path"]),
-                document_id=map_row.get("document_id"),
-                pages=int(map_row.get("pages", 0)),
-                extractions=extractions,
-            ))
+            out.append(
+                PCQuestion(
+                    qid=f"{doc_id}::Q{idx:03d}",
+                    doc_id=doc_id,
+                    question=str(row.get("question") or "").strip(),
+                    gold_answer=str(row.get("answer") or "").strip(),
+                    answer_format=answer_format,
+                    pdf_path=Path(map_row["pdf_path"]),
+                    document_id=map_row.get("document_id"),
+                    pages=int(map_row.get("pages", 0)),
+                    extractions=extractions,
+                )
+            )
             per_doc_taken[doc_id] = per_doc_taken.get(doc_id, 0) + 1
 
     out.sort(key=lambda q: (q.doc_id, q.qid))
@@ -242,65 +244,86 @@ class ParserCompareBenchmark:
 
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
-            "--docs", default=None,
+            "--docs",
+            default=None,
             help="Comma-separated doc_ids to include (default: all in manifest).",
         )
         parser.add_argument(
-            "--sample-per-doc", type=int, default=1,
+            "--sample-per-doc",
+            type=int,
+            default=1,
             help="Take the first N answerable questions per PDF (default 1).",
         )
         parser.add_argument(
-            "--skip-unanswerable", dest="skip_unanswerable",
-            action="store_true", default=True,
+            "--skip-unanswerable",
+            dest="skip_unanswerable",
+            action="store_true",
+            default=True,
             help="Drop 'None' format probes (default true; we want signal not "
-                 "hallucination probes for n=5).",
+            "hallucination probes for n=5).",
         )
         parser.add_argument(
-            "--include-unanswerable", dest="skip_unanswerable",
+            "--include-unanswerable",
+            dest="skip_unanswerable",
             action="store_false",
             help="Override --skip-unanswerable; include unanswerable probes too.",
         )
         parser.add_argument(
-            "--skip-format", default=None,
+            "--skip-format",
+            default=None,
             help="Comma-separated answer_format values to skip (e.g. 'none,float').",
         )
         parser.add_argument(
-            "--concurrency", type=int, default=2,
+            "--concurrency",
+            type=int,
+            default=2,
             help="Parallel question workers per arm (default 2).",
         )
         parser.add_argument(
-            "--no-mentions", dest="no_mentions", action="store_true",
+            "--no-mentions",
+            dest="no_mentions",
+            action="store_true",
             help="SurfSense arm: skip mentioned_document_ids (full-corpus retrieval).",
         )
         parser.add_argument(
-            "--pdf-engine", default="native",
+            "--pdf-engine",
+            default="native",
             choices=[e.value for e in PdfEngine],
             help="OpenRouter file-parser engine for native_pdf arm.",
         )
         parser.add_argument(
-            "--max-output-tokens", type=int, default=512,
+            "--max-output-tokens",
+            type=int,
+            default=512,
             help="Cap on completion length for every arm.",
         )
         parser.add_argument(
-            "--llm-model", default="anthropic/claude-sonnet-4.5",
+            "--llm-model",
+            default="anthropic/claude-sonnet-4.5",
             help="OpenRouter slug used by the 5 OpenRouter-driven arms. "
-                 "SurfSense arm uses whatever provider_model is pinned on the suite.",
+            "SurfSense arm uses whatever provider_model is pinned on the suite.",
         )
         parser.add_argument(
-            "--skip-arms", default=None,
+            "--skip-arms",
+            default=None,
             help="Comma-separated arm names to skip (e.g. 'llamacloud_premium_lc').",
         )
         # Ingest-only flags (forwarded by the CLI to ingest.run_ingest).
         parser.add_argument(
-            "--max-docs", type=int, default=None,
+            "--max-docs",
+            type=int,
+            default=None,
             help="(ingest only) cap number of unique PDFs to process.",
         )
         parser.add_argument(
-            "--force-reextract", action="store_true",
+            "--force-reextract",
+            action="store_true",
             help="(ingest only) re-call parsers even if cached .md exists.",
         )
         parser.add_argument(
-            "--pdf-concurrency", type=int, default=2,
+            "--pdf-concurrency",
+            type=int,
+            default=2,
             help="(ingest only) parallel PDFs (each fans out to 4 parsers).",
         )
 
@@ -312,9 +335,7 @@ class ParserCompareBenchmark:
         from .ingest import run_ingest
 
         docs_raw: str | None = opts.get("docs")
-        docs_filter = (
-            [d.strip() for d in docs_raw.split(",") if d.strip()] if docs_raw else None
-        )
+        docs_filter = [d.strip() for d in docs_raw.split(",") if d.strip()] if docs_raw else None
         await run_ingest(
             ctx,
             docs_filter=docs_filter,
@@ -329,15 +350,14 @@ class ParserCompareBenchmark:
 
     async def run(self, ctx: RunContext, **opts: Any) -> RunArtifact:
         docs_raw: str | None = opts.get("docs")
-        docs_filter = (
-            [d.strip() for d in docs_raw.split(",") if d.strip()] if docs_raw else None
-        )
+        docs_filter = [d.strip() for d in docs_raw.split(",") if d.strip()] if docs_raw else None
         sample_per_doc = int(opts.get("sample_per_doc") or 1)
         skip_unanswerable = bool(opts.get("skip_unanswerable", True))
         skip_format_raw: str | None = opts.get("skip_format")
         skip_format = (
             [f.strip() for f in skip_format_raw.split(",") if f.strip()]
-            if skip_format_raw else None
+            if skip_format_raw
+            else None
         )
         concurrency = int(opts.get("concurrency") or 2)
         no_mentions = bool(opts.get("no_mentions"))
@@ -346,8 +366,7 @@ class ParserCompareBenchmark:
         llm_model = str(opts.get("llm_model") or "anthropic/claude-sonnet-4.5")
         skip_arms_raw: str | None = opts.get("skip_arms")
         skip_arms = (
-            {a.strip() for a in skip_arms_raw.split(",") if a.strip()}
-            if skip_arms_raw else set()
+            {a.strip() for a in skip_arms_raw.split(",") if a.strip()} if skip_arms_raw else set()
         )
 
         active_arms = [a for a in ARM_NAMES if a not in skip_arms]
@@ -373,19 +392,20 @@ class ParserCompareBenchmark:
 
         doc_map = _read_doc_map(map_path)
         questions = _select_questions(
-            questions_jsonl, doc_map,
+            questions_jsonl,
+            doc_map,
             docs_filter=docs_filter,
             sample_per_doc=sample_per_doc,
             skip_unanswerable=skip_unanswerable,
             skip_format=skip_format,
         )
         if not questions:
-            raise RuntimeError(
-                "No questions matched filters; broaden --docs / --skip-format."
-            )
+            raise RuntimeError("No questions matched filters; broaden --docs / --skip-format.")
         logger.info(
             "parser_compare: scheduled %d questions across %d arms (%s)",
-            len(questions), len(active_arms), ",".join(active_arms),
+            len(questions),
+            len(active_arms),
+            ",".join(active_arms),
         )
 
         api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -396,16 +416,20 @@ class ParserCompareBenchmark:
         arms: dict[str, Any] = {}
         if "native_pdf" in active_arms:
             native_provider = OpenRouterPdfProvider(
-                api_key=api_key, base_url=ctx.config.openrouter_base_url,
-                model=llm_model, engine=PdfEngine(pdf_engine_name),
+                api_key=api_key,
+                base_url=ctx.config.openrouter_base_url,
+                model=llm_model,
+                engine=PdfEngine(pdf_engine_name),
             )
             arms["native_pdf"] = NativePdfArm(
-                provider=native_provider, max_output_tokens=max_output_tokens,
+                provider=native_provider,
+                max_output_tokens=max_output_tokens,
             )
         for arm_name, _, _ in PARSER_ARMS:
             if arm_name in active_arms:
                 lc_provider = OpenRouterChatProvider(
-                    api_key=api_key, base_url=ctx.config.openrouter_base_url,
+                    api_key=api_key,
+                    base_url=ctx.config.openrouter_base_url,
                     model=llm_model,
                 )
                 arms[arm_name] = BareLlmArm(
@@ -441,9 +465,7 @@ class ParserCompareBenchmark:
         def _lc_req(q: PCQuestion, arm_name: str) -> ArmRequest:
             md_path = q.extractions.get(arm_name)
             if md_path is None or not md_path.exists():
-                raise FileNotFoundError(
-                    f"Missing extraction for {arm_name} on {q.doc_id}"
-                )
+                raise FileNotFoundError(f"Missing extraction for {arm_name} on {q.doc_id}")
             markdown = md_path.read_text(encoding="utf-8")
             return ArmRequest(
                 question_id=q.qid,
@@ -483,14 +505,15 @@ class ParserCompareBenchmark:
 
         # Run all arms in parallel (each arm bounded by `concurrency`).
         per_arm_tasks: dict[str, list] = {
-            arm_name: [_answer_one(arm_name, q) for q in questions]
-            for arm_name in active_arms
+            arm_name: [_answer_one(arm_name, q) for q in questions] for arm_name in active_arms
         }
         per_arm_results: dict[str, list[ArmResult]] = {}
-        gathered = await asyncio.gather(*[
-            _gather_with_limit(per_arm_tasks[arm_name], concurrency=concurrency)
-            for arm_name in active_arms
-        ])
+        gathered = await asyncio.gather(
+            *[
+                _gather_with_limit(per_arm_tasks[arm_name], concurrency=concurrency)
+                for arm_name in active_arms
+            ]
+        )
         for arm_name, results in zip(active_arms, gathered, strict=True):
             per_arm_results[arm_name] = results
 
@@ -520,21 +543,29 @@ class ParserCompareBenchmark:
                 for arm_name in active_arms:
                     res = per_arm_results[arm_name][i]
                     g = per_arm_grades[arm_name][i]
-                    fh.write(json.dumps({
-                        **base,
-                        **res.to_jsonl(),
-                        "graded": {
-                            "correct": g.correct,
-                            "f1": g.f1,
-                            "method": g.method,
-                            "normalised_pred": g.normalised_pred,
-                            "normalised_gold": g.normalised_gold,
-                        },
-                    }) + "\n")
+                    fh.write(
+                        json.dumps(
+                            {
+                                **base,
+                                **res.to_jsonl(),
+                                "graded": {
+                                    "correct": g.correct,
+                                    "f1": g.f1,
+                                    "method": g.method,
+                                    "normalised_pred": g.normalised_pred,
+                                    "normalised_gold": g.normalised_gold,
+                                },
+                            }
+                        )
+                        + "\n"
+                    )
 
         # Aggregate per-arm metrics + cost
         metrics = _compute_metrics(
-            questions, per_arm_results, per_arm_grades, active_arms,
+            questions,
+            per_arm_results,
+            per_arm_grades,
+            active_arms,
         )
 
         artifact = RunArtifact(
@@ -564,13 +595,18 @@ class ParserCompareBenchmark:
 
         manifest_path = run_dir / "run_artifact.json"
         manifest_path.write_text(
-            json.dumps({
-                "suite": self.suite,
-                "benchmark": self.name,
-                "raw_path": "raw.jsonl",
-                "metrics": metrics,
-                "extra": artifact.extra,
-            }, indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                {
+                    "suite": self.suite,
+                    "benchmark": self.name,
+                    "raw_path": "raw.jsonl",
+                    "metrics": metrics,
+                    "extra": artifact.extra,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
         return artifact
@@ -602,10 +638,7 @@ class ParserCompareBenchmark:
             f"(LLM: `{extra.get('llm_model', '?')}`, "
             f"engine: `{extra.get('pdf_engine', 'native')}`)."
         )
-        body.append(
-            "- Preprocess tariff: basic = $1 / 1k pages, "
-            "premium = $10 / 1k pages."
-        )
+        body.append("- Preprocess tariff: basic = $1 / 1k pages, premium = $10 / 1k pages.")
         body.append("")
         body.append("### Per-arm summary")
         body.append("")
@@ -620,13 +653,13 @@ class ParserCompareBenchmark:
                 continue
             body.append(
                 f"| `{arm_name}` "
-                f"| {row['accuracy']*100:.1f}% "
+                f"| {row['accuracy'] * 100:.1f}% "
                 f"({row['n_correct']}/{row['n']}) "
-                f"| {row['f1_mean']*100:.1f}% "
+                f"| {row['f1_mean'] * 100:.1f}% "
                 f"| ${row['llm_cost_per_q']:.4f} "
                 f"| ${row['preprocess_cost_total']:.4f} "
                 f"| ${row['total_cost_per_q']:.4f} "
-                f"| {row['latency_ms_median']/1000:.1f}s |"
+                f"| {row['latency_ms_median'] / 1000:.1f}s |"
             )
         body.append("")
 
@@ -679,8 +712,7 @@ class ParserCompareBenchmark:
                     else:
                         row_cells.append("✓" if g.get("correct") else "✗")
                 body.append(
-                    f"| `{doc_id}` | {info.get('pages', '?')} | "
-                    + " | ".join(row_cells) + " |"
+                    f"| `{doc_id}` | {info.get('pages', '?')} | " + " | ".join(row_cells) + " |"
                 )
 
         return ReportSection(
@@ -740,16 +772,16 @@ def _compute_metrics(
             preprocess_per_page = 0.0
             preprocess_label = "unknown"
 
-        preprocess_cost_total = sum(
-            pages * preprocess_per_page for pages in pdf_pages.values()
-        )
+        preprocess_cost_total = sum(pages * preprocess_per_page for pages in pdf_pages.values())
         preprocess_cost_per_q = preprocess_cost_total / n if n else 0.0
         total_cost_per_q = llm_cost_per_q + preprocess_cost_per_q
 
         latencies = sorted(int(r.latency_ms or 0) for r in results)
         latency_median = latencies[len(latencies) // 2] if latencies else 0
-        latency_p95 = latencies[int(len(latencies) * 0.95)] if len(latencies) >= 20 else (
-            latencies[-1] if latencies else 0
+        latency_p95 = (
+            latencies[int(len(latencies) * 0.95)]
+            if len(latencies) >= 20
+            else (latencies[-1] if latencies else 0)
         )
 
         in_tokens = [int(r.input_tokens or 0) for r in results]
@@ -775,15 +807,21 @@ def _compute_metrics(
     # Per-PDF breakdown (correct / not for each arm)
     per_pdf: dict[str, dict[str, Any]] = {}
     for i, q in enumerate(questions):
-        slot = per_pdf.setdefault(q.doc_id, {
-            "pages": q.pages,
-            "arms": {},
-        })
+        slot = per_pdf.setdefault(
+            q.doc_id,
+            {
+                "pages": q.pages,
+                "arms": {},
+            },
+        )
         for arm_name in active_arms:
-            slot["arms"].setdefault(arm_name, {
-                "correct": per_arm_grades[arm_name][i].correct,
-                "f1": per_arm_grades[arm_name][i].f1,
-            })
+            slot["arms"].setdefault(
+                arm_name,
+                {
+                    "correct": per_arm_grades[arm_name][i].correct,
+                    "f1": per_arm_grades[arm_name][i].f1,
+                },
+            )
 
     return {
         "per_arm": per_arm,

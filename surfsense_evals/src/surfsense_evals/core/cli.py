@@ -204,8 +204,7 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
 
     if scenario not in SCENARIOS:
         console.print(
-            f"[red]Unknown scenario {scenario!r}. Pick one of: "
-            f"{', '.join(SCENARIOS)}[/red]"
+            f"[red]Unknown scenario {scenario!r}. Pick one of: {', '.join(SCENARIOS)}[/red]"
         )
         return 2
 
@@ -292,9 +291,7 @@ async def _cmd_setup(args: argparse.Namespace) -> int:
         if not skip_vision_setup and (vision_required or vision_llm_slug is not None):
             try:
                 vision_candidates = await ss_client.list_global_vision_models()
-                resolved = resolve_vision_llm(
-                    vision_candidates, explicit_slug=vision_llm_slug
-                )
+                resolved = resolve_vision_llm(vision_candidates, explicit_slug=vision_llm_slug)
             except VisionConfigError as exc:
                 console.print(f"[red]{exc}[/red]")
                 return 2
@@ -524,10 +521,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
         )
         artifact = await benchmark.run(ctx, **extra_kwargs)
 
-    console.print(
-        f"[green]run OK[/green] {args.suite}/{args.benchmark} → "
-        f"{artifact.raw_path}"
-    )
+    console.print(f"[green]run OK[/green] {args.suite}/{args.benchmark} → {artifact.raw_path}")
     return 0
 
 
@@ -697,15 +691,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_setup.set_defaults(_func=_cmd_setup, _async=True)
 
-    p_teardown = sub.add_parser("teardown", help="Soft-delete the suite SearchSpace + clear state slot.")
+    p_teardown = sub.add_parser(
+        "teardown", help="Soft-delete the suite SearchSpace + clear state slot."
+    )
     p_teardown.add_argument("--suite", required=True)
     p_teardown.set_defaults(_func=_cmd_teardown, _async=True)
 
     p_models = sub.add_parser("models", help="LLM-config discovery helpers.")
     models_sub = p_models.add_subparsers(dest="subcommand", required=True)
     p_models_list = models_sub.add_parser("list", help="List global LLM configs.")
-    p_models_list.add_argument("--provider", default=None, help="Filter by provider, e.g. openrouter")
-    p_models_list.add_argument("--grep", default=None, help="Substring filter on name / model_name.")
+    p_models_list.add_argument(
+        "--provider", default=None, help="Filter by provider, e.g. openrouter"
+    )
+    p_models_list.add_argument(
+        "--grep", default=None, help="Substring filter on name / model_name."
+    )
     p_models_list.set_defaults(_func=_cmd_models_list, _async=True)
 
     p_suites = sub.add_parser("suites", help="List registered suites.")
@@ -729,7 +729,9 @@ def _build_parser() -> argparse.ArgumentParser:
         suite_parser = ingest_sub.add_parser(suite, help=f"Ingest a {suite} benchmark.")
         suite_bench = suite_parser.add_subparsers(dest="benchmark", required=True)
         for benchmark in registry.list_benchmarks(suite):
-            bp = suite_bench.add_parser(benchmark.name, help=getattr(benchmark, "description", benchmark.name))
+            bp = suite_bench.add_parser(
+                benchmark.name, help=getattr(benchmark, "description", benchmark.name)
+            )
             if hasattr(benchmark, "add_run_args"):
                 benchmark.add_run_args(bp)
             bp.set_defaults(_func=_cmd_ingest, _async=True)
@@ -740,7 +742,9 @@ def _build_parser() -> argparse.ArgumentParser:
         suite_parser = run_sub.add_parser(suite, help=f"Run a {suite} benchmark.")
         suite_bench = suite_parser.add_subparsers(dest="benchmark", required=True)
         for benchmark in registry.list_benchmarks(suite):
-            bp = suite_bench.add_parser(benchmark.name, help=getattr(benchmark, "description", benchmark.name))
+            bp = suite_bench.add_parser(
+                benchmark.name, help=getattr(benchmark, "description", benchmark.name)
+            )
             if hasattr(benchmark, "add_run_args"):
                 benchmark.add_run_args(bp)
             bp.set_defaults(_func=_cmd_run, _async=True)

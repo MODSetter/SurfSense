@@ -77,9 +77,7 @@ class ScrapeInput(BaseModel):
     @model_validator(mode="after")
     def _exactly_one_source(self) -> ScrapeInput:
         if not self.urls and not self.search_queries:
-            raise ValueError(
-                "Provide at least one of 'urls' or 'search_queries'."
-            )
+            raise ValueError("Provide at least one of 'urls' or 'search_queries'.")
         if self.urls and self.search_queries:
             raise ValueError(
                 "Provide 'urls' OR 'search_queries', not both (they cannot be combined)."

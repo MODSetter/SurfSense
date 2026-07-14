@@ -159,7 +159,7 @@ export const tiktok: ConnectorPageContent = {
 
 	schema: {
 		requestNote:
-			"Provide at least one source: urls, profiles, hashtags, or search_queries. Up to 20 sources per call.",
+			"Provide at least one source: urls, profiles, or hashtags. Up to 20 sources per call. To find accounts by keyword, use the user search verb.",
 		request: [
 			{
 				name: "urls",
@@ -179,13 +179,6 @@ export const tiktok: ConnectorPageContent = {
 				type: "string[]",
 				defaultValue: "[]",
 				description: "Hashtag names to scrape, without the # prefix. Max 20.",
-			},
-			{
-				name: "search_queries",
-				type: "string[]",
-				defaultValue: "[]",
-				description:
-					"Keyword search terms. Keyword video search is login-walled and returns no videos; use hashtags/profiles/urls for videos, or user_search for accounts. Max 20.",
 			},
 			{
 				name: "results_per_page",
@@ -270,7 +263,7 @@ export const tiktok: ConnectorPageContent = {
 		{
 			question: "Can I scrape TikTok comments and hashtags?",
 			answer:
-				"Yes. Pass a video URL to the comments endpoint for the public comment thread. Pass hashtag names or /tag/ URLs to the TikTok hashtag scraper to pull videos under that tag. Keyword video search is login-walled, so hashtags and direct URLs are the reliable discovery paths.",
+				"Yes. Pass a video URL to the comments endpoint for the public comment thread. Pass hashtag names or /tag/ URLs to the TikTok hashtag scraper to pull videos under that tag. Keyword video search is login-walled on TikTok, so hashtags and direct URLs are the reliable discovery paths; to find accounts by keyword, use the user search verb.",
 		},
 		{
 			question: "What are the rate limits?",

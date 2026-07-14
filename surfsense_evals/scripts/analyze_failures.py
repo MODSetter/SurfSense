@@ -51,8 +51,7 @@ def _classify(error: str | None, raw_text: str) -> str:
 
 def main() -> None:
     rows = [
-        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
     by_arm_failures: dict[str, list[dict]] = defaultdict(list)
@@ -121,7 +120,9 @@ def main() -> None:
     print("=" * 90)
     for entry in by_arm_failures.get("native_pdf", []):
         err = (entry["error"] or "(no error string)")[:240].replace("\n", " ")
-        print(f"  {entry['qid']}  doc={entry['doc_id']} pages={entry['pages']} cluster={entry['cluster']}")
+        print(
+            f"  {entry['qid']}  doc={entry['doc_id']} pages={entry['pages']} cluster={entry['cluster']}"
+        )
         print(f"    err: {err}")
 
     summary: dict[str, Any] = {
@@ -130,18 +131,13 @@ def main() -> None:
                 "n": n_per_arm[arm],
                 "failures": len(by_arm_failures[arm]),
                 "rate": len(by_arm_failures[arm]) / n_per_arm[arm],
-                "clusters": {
-                    cluster: len(items)
-                    for cluster, items in error_clusters[arm].items()
-                },
+                "clusters": {cluster: len(items) for cluster, items in error_clusters[arm].items()},
                 "rows": by_arm_failures[arm],
             }
             for arm in sorted(n_per_arm)
         },
         "per_pdf": {
-            pdf: [
-                {**r, "arm": r["arm"]} for r in failures
-            ]
+            pdf: [{**r, "arm": r["arm"]} for r in failures]
             for pdf, failures in by_pdf_failures.items()
         },
     }

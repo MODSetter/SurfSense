@@ -177,16 +177,12 @@ class SearchSpaceClient:
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
-            raise RuntimeError(
-                f"Unexpected /model-connections/global payload: {payload!r}"
-            )
+            raise RuntimeError(f"Unexpected /model-connections/global payload: {payload!r}")
         entries: list[VisionModelEntry] = []
         for connection in payload:
             provider = str(connection.get("provider", ""))
             for model in connection.get("models") or []:
                 if not model.get("enabled", True) or not model.get("supports_image_input"):
                     continue
-                entries.append(
-                    VisionModelEntry.from_payload({**model, "provider": provider})
-                )
+                entries.append(VisionModelEntry.from_payload({**model, "provider": provider}))
         return entries

@@ -14,9 +14,7 @@ from ..annotations import SCRAPE
 from ..capability import run_scraper
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the Google Search tool."""
 
     @mcp.tool(
@@ -46,9 +44,7 @@ def register(
         ] = "",
         site: Annotated[
             str | None,
-            Field(
-                description="Restrict results to one domain, e.g. 'example.com'."
-            ),
+            Field(description="Restrict results to one domain, e.g. 'example.com'."),
         ] = None,
         workspace: WorkspaceParam = None,
         response_format: ResponseFormatParam = "markdown",

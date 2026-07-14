@@ -53,9 +53,9 @@ logger = logging.getLogger(__name__)
 # Order matters for the manifest only (deterministic JSONL diffs);
 # the runner doesn't rely on it.
 PARSER_ARMS: tuple[tuple[str, str, str], ...] = (
-    ("azure_basic_lc",       "azure",      "basic"),
-    ("azure_premium_lc",     "azure",      "premium"),
-    ("llamacloud_basic_lc",  "llamacloud", "basic"),
+    ("azure_basic_lc", "azure", "basic"),
+    ("azure_premium_lc", "azure", "premium"),
+    ("llamacloud_basic_lc", "llamacloud", "basic"),
     ("llamacloud_premium_lc", "llamacloud", "premium"),
 )
 
@@ -98,9 +98,7 @@ class PdfManifestRow:
             "pdf_path": str(self.pdf_path),
             "document_id": self.document_id,
             "pages": self.pages,
-            "extractions": {
-                arm: ext.to_jsonl() for arm, ext in self.extractions.items()
-            },
+            "extractions": {arm: ext.to_jsonl() for arm, ext in self.extractions.items()},
         }
 
 
@@ -124,7 +122,9 @@ async def _run_one_extraction(
         markdown = await parse_with_azure_di(pdf_path, processing_mode=mode)
     elif parser == "llamacloud":
         markdown = await parse_with_llamacloud(
-            pdf_path, processing_mode=mode, estimated_pages=estimated_pages,
+            pdf_path,
+            processing_mode=mode,
+            estimated_pages=estimated_pages,
         )
     else:
         raise ValueError(f"Unknown parser {parser!r}")
@@ -168,14 +168,17 @@ async def _extract_one_pdf(
                 error="(cached)",
             )
             logger.info(
-                "Cached extraction reused: %s (%d chars)", out_path.name, len(cached),
+                "Cached extraction reused: %s (%d chars)",
+                out_path.name,
+                len(cached),
             )
             coros.append(_noop())
         else:
             coros.append(
                 _run_one_extraction(
                     pdf_path,
-                    parser=parser, mode=mode,
+                    parser=parser,
+                    mode=mode,
                     out_path=out_path,
                     estimated_pages=estimated_pages,
                 )
@@ -190,16 +193,24 @@ async def _extract_one_pdf(
             err_msg = f"{type(err).__name__}: {err}"
             logger.warning(
                 "Extraction FAILED for %s [%s/%s]: %s",
-                pdf_path.name, parser, mode, err_msg,
+                pdf_path.name,
+                parser,
+                mode,
+                err_msg,
             )
             out[arm_name] = ExtractionResult(
-                arm=arm_name, parser=parser, mode=mode,
-                status="failed", error=err_msg,
+                arm=arm_name,
+                parser=parser,
+                mode=mode,
+                status="failed",
+                error=err_msg,
             )
         else:
             markdown, elapsed = result
             out[arm_name] = ExtractionResult(
-                arm=arm_name, parser=parser, mode=mode,
+                arm=arm_name,
+                parser=parser,
+                mode=mode,
                 markdown_path=out_path,
                 chars=len(markdown),
                 elapsed_s=elapsed,
@@ -288,9 +299,7 @@ async def run_ingest(
         rows_in_scope = rows_in_scope[:max_docs]
 
     if not rows_in_scope:
-        raise RuntimeError(
-            "No PDFs in scope for parser_compare. Check --docs / --max-docs."
-        )
+        raise RuntimeError("No PDFs in scope for parser_compare. Check --docs / --max-docs.")
 
     bench_dir = ctx.benchmark_data_dir()
     extractions_dir = bench_dir / "extractions"
@@ -317,7 +326,8 @@ async def run_ingest(
 
     logger.info(
         "parser_compare: extracting %d PDFs x 4 parsers (concurrency=%d)",
-        len(rows_in_scope), pdf_concurrency,
+        len(rows_in_scope),
+        pdf_concurrency,
     )
     manifest_rows = await asyncio.gather(*(_process(r) for r in rows_in_scope))
 
@@ -337,12 +347,13 @@ async def run_ingest(
     # Quick summary log
     total_extractions = sum(len(mr.extractions) for mr in manifest_rows)
     failures = sum(
-        1 for mr in manifest_rows for ext in mr.extractions.values()
-        if ext.status != "ok"
+        1 for mr in manifest_rows for ext in mr.extractions.values() if ext.status != "ok"
     )
     logger.info(
         "parser_compare ingest done: %d PDFs, %d extractions, %d failures",
-        len(manifest_rows), total_extractions, failures,
+        len(manifest_rows),
+        total_extractions,
+        failures,
     )
 
 

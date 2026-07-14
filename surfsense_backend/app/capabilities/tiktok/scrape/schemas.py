@@ -4,7 +4,8 @@ A lean, agent-friendly surface over ``TikTokScrapeInput``
 (``app/proprietary/platforms/tiktok``). The executor maps this to the full
 scraper input; the scraper's ``TikTokVideoItem`` is reused verbatim as the
 output element. Any TikTok URL kind (video, profile, hashtag, search) goes in
-``urls``; ``profiles``/``hashtags``/``search_queries`` are typed shortcuts.
+``urls``; ``profiles``/``hashtags`` are typed shortcuts. Keyword search is not a
+video source here — use ``tiktok.user_search`` to find accounts by keyword.
 """
 
 from __future__ import annotations
@@ -26,8 +27,8 @@ class ScrapeInput(BaseModel):
         max_length=MAX_TIKTOK_SOURCES,
         description=(
             "TikTok URLs to scrape: a video, a profile (/@<user>), a hashtag "
-            "(/tag/<name>), or a search URL. Provide these OR profiles/hashtags/"
-            "search_queries (at least one source is required)."
+            "(/tag/<name>), or a search URL. Provide these OR profiles/hashtags "
+            "(at least one source is required)."
         ),
     )
     profiles: list[str] = Field(
@@ -40,21 +41,11 @@ class ScrapeInput(BaseModel):
         max_length=MAX_TIKTOK_SOURCES,
         description="Hashtag names to scrape, without the leading '#'.",
     )
-    search_queries: list[str] = Field(
-        default_factory=list,
-        max_length=MAX_TIKTOK_SOURCES,
-        description=(
-            "Search terms resolved via Google (site:tiktok.com) to public TikTok "
-            "videos, since TikTok's own keyword search is login-walled. Slower "
-            "than hashtags/urls. To find accounts by keyword, use "
-            "tiktok.user_search instead."
-        ),
-    )
     results_per_page: int = Field(
         default=10,
         ge=1,
         le=MAX_TIKTOK_ITEMS,
-        description="Max videos to pull per profile/hashtag/search target.",
+        description="Max videos to pull per profile/hashtag target.",
     )
     max_items: int = Field(
         default=10,
@@ -65,10 +56,9 @@ class ScrapeInput(BaseModel):
 
     @model_validator(mode="after")
     def _require_a_source(self) -> ScrapeInput:
-        if not any((self.urls, self.profiles, self.hashtags, self.search_queries)):
+        if not any((self.urls, self.profiles, self.hashtags)):
             raise ValueError(
-                "Provide at least one of 'urls', 'profiles', 'hashtags', or "
-                "'search_queries'."
+                "Provide at least one of 'urls', 'profiles', or 'hashtags'."
             )
         return self
 

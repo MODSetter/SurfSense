@@ -35,9 +35,7 @@ _REGISTRARS = (
 )
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register every scraper and run-history tool on the server."""
     for module in _REGISTRARS:
         module.register(mcp, client, context)

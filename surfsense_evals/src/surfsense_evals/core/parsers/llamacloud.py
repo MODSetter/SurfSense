@@ -61,8 +61,7 @@ def _extract_markdown(result) -> str:
         if result and hasattr(result[0], "text"):
             return result[0].text
         return "\n\n".join(
-            doc.page_content if hasattr(doc, "page_content") else str(doc)
-            for doc in result
+            doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in result
         )
 
     return str(result)
@@ -86,9 +85,7 @@ async def parse_with_llamacloud(
 
     api_key = api_key or os.environ.get("LLAMA_CLOUD_API_KEY")
     if not api_key:
-        raise ValueError(
-            "LLAMA_CLOUD_API_KEY must be set (see surfsense_evals/.env)."
-        )
+        raise ValueError("LLAMA_CLOUD_API_KEY must be set (see surfsense_evals/.env).")
 
     parse_mode = _LLAMA_PARSE_MODE_MAP.get(processing_mode, "parse_page_with_llm")
 
@@ -106,13 +103,19 @@ async def parse_with_llamacloud(
     upload_timeout = max(120.0, 30.0 * file_size_mb)
 
     logger.info(
-        "LlamaCloud parsing %s (mode=%s, parse_mode=%s, %.1fMB, "
-        "job_timeout=%.0fs)",
-        file_path, processing_mode, parse_mode, file_size_mb, job_timeout,
+        "LlamaCloud parsing %s (mode=%s, parse_mode=%s, %.1fMB, job_timeout=%.0fs)",
+        file_path,
+        processing_mode,
+        parse_mode,
+        file_size_mb,
+        job_timeout,
     )
 
     custom_timeout = httpx.Timeout(
-        connect=120.0, read=upload_timeout, write=upload_timeout, pool=120.0,
+        connect=120.0,
+        read=upload_timeout,
+        write=upload_timeout,
+        pool=120.0,
     )
 
     last_exc: Exception | None = None
@@ -135,12 +138,12 @@ async def parse_with_llamacloud(
                 result = await parser.aparse(str(file_path))
             content = _extract_markdown(result).strip()
             if not content:
-                raise LlamaCloudError(
-                    f"LlamaCloud returned empty content for {file_path}"
-                )
+                raise LlamaCloudError(f"LlamaCloud returned empty content for {file_path}")
             logger.info(
                 "LlamaCloud OK: %s (%s) -> %d chars",
-                file_path, parse_mode, len(content),
+                file_path,
+                parse_mode,
+                len(content),
             )
             return content
 
@@ -156,7 +159,10 @@ async def parse_with_llamacloud(
                 sleep_for = delay + jitter
                 logger.warning(
                     "LlamaCloud attempt %d/%d failed (%s); retrying in %.1fs",
-                    attempt, _MAX_RETRIES, type(last_exc).__name__, sleep_for,
+                    attempt,
+                    _MAX_RETRIES,
+                    type(last_exc).__name__,
+                    sleep_for,
                 )
                 await asyncio.sleep(sleep_for)
 

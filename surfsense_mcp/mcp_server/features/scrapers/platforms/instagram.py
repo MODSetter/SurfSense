@@ -17,9 +17,7 @@ ResultType = Literal["posts", "reels"]
 SearchType = Literal["profile", "user"]
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the Instagram scrape and details tools (anonymous-only)."""
 
     @mcp.tool(

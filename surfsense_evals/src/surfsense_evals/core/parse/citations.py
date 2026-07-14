@@ -35,7 +35,7 @@ from typing import Any
 # the pattern source, so we splice the literal character in via an
 # f-string. This keeps our pattern functionally identical to the TS
 # reference and lets ``"\u200B" in CITATION_REGEX.pattern`` succeed.
-_ZWSP = "\u200B"
+_ZWSP = "\u200b"
 CITATION_REGEX = re.compile(
     rf"[\[【]{_ZWSP}?citation:\s*("
     rf"https?://[^\]】{_ZWSP}]+|urlcite\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*"

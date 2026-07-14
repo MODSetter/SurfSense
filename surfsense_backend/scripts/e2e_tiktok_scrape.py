@@ -178,7 +178,9 @@ async def stage_pipeline() -> bool:
         f"{len(items)} item(s)",
     )
     if items:
-        print(f"  sample: {items[0].get('webVideoUrl')} — {items[0].get('text', '')[:60]!r}")
+        print(
+            f"  sample: {items[0].get('webVideoUrl')} — {items[0].get('text', '')[:60]!r}"
+        )
     return ok
 
 
@@ -210,9 +212,7 @@ async def stage_comments(video_url: str) -> tuple[bool, list[dict[str, Any]]]:
     # Comments load over a signed /api/comment/list XHR that TikTok serves to
     # anonymous sessions once the panel opens. Pass if real comments come back
     # OR a graceful ErrorItem (video has none / disabled / withheld).
-    items = await scrape_tiktok_comments(
-        [video_url], per_video=_COUNT, limit=_COUNT
-    )
+    items = await scrape_tiktok_comments([video_url], per_video=_COUNT, limit=_COUNT)
     has_comment = any(it.get("id") and not it.get("errorCode") for it in items)
     has_error = any(it.get("errorCode") == "no_comments" for it in items)
     ok = _check(
@@ -253,7 +253,9 @@ async def stage_trending() -> tuple[bool, list[dict[str, Any]]]:
         f"{len(items)} item(s); videos={len(real)}",
     )
     if real:
-        print(f"  sample: {real[0].get('webVideoUrl')} — {real[0].get('text', '')[:60]!r}")
+        print(
+            f"  sample: {real[0].get('webVideoUrl')} — {real[0].get('text', '')[:60]!r}"
+        )
     return ok, items
 
 

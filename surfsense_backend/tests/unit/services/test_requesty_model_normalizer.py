@@ -58,9 +58,7 @@ def test_chat_model_requires_slash_tools_and_context():
 
 
 def test_excluded_provider_slug_is_filtered():
-    assert not is_requesty_chat_model(
-        _requesty_model(model_id="amazon/nova-pro-v1")
-    )
+    assert not is_requesty_chat_model(_requesty_model(model_id="amazon/nova-pro-v1"))
 
 
 def test_image_generation_models_excluded_from_chat_and_flagged():
@@ -89,9 +87,7 @@ def test_normalize_maps_context_window_and_capabilities():
                 name="GPT-4o mini",
             ),
             _requesty_model(model_id="openai/gpt-4o-mini", tools=False),
-            _requesty_model(
-                model_id="black-forest-labs/flux", image_generation=True
-            ),
+            _requesty_model(model_id="black-forest-labs/flux", image_generation=True),
         ]
     )
 

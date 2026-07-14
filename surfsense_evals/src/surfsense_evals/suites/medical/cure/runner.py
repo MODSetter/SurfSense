@@ -191,12 +191,15 @@ class CureBenchmark:
 
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("--lang", default="en", choices=("en", "es", "fr"))
-        parser.add_argument("--discipline", default=None,
-                            help="Restrict to one discipline (default: all ingested).")
+        parser.add_argument(
+            "--discipline", default=None, help="Restrict to one discipline (default: all ingested)."
+        )
         parser.add_argument("--n", dest="sample_n", type=int, default=None)
         parser.add_argument("--concurrency", type=int, default=4)
         parser.add_argument(
-            "--max-passages-per-discipline", type=int, default=None,
+            "--max-passages-per-discipline",
+            type=int,
+            default=None,
             help="(ingest only) cap corpus rows per discipline for smoke testing.",
         )
         # Per-upload knobs forwarded to /documents/fileupload at ingest;
@@ -233,11 +236,13 @@ class CureBenchmark:
 
         # Disciplines to query are determined by the per-discipline maps
         # actually present (either user-filtered or whatever was ingested).
-        ingested_disciplines = sorted({
-            row_disc
-            for path in maps_dir.glob("cure_corpus_map_*.jsonl")
-            for row_disc in [path.stem[len("cure_corpus_map_"):]]
-        })
+        ingested_disciplines = sorted(
+            {
+                row_disc
+                for path in maps_dir.glob("cure_corpus_map_*.jsonl")
+                for row_disc in [path.stem[len("cure_corpus_map_") :]]
+            }
+        )
         if discipline_filter:
             disciplines = [discipline_filter]
         else:

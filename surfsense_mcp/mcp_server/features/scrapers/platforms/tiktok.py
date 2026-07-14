@@ -14,9 +14,7 @@ from ..annotations import SCRAPE
 from ..capability import run_scraper
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the TikTok tools."""
 
     @mcp.tool(
@@ -32,7 +30,7 @@ def register(
                 description="TikTok URLs: a video, a profile "
                 "('https://www.tiktok.com/@nasa'), a hashtag "
                 "('https://www.tiktok.com/tag/food'), or a search URL. Provide "
-                "urls OR profiles/hashtags/search_queries."
+                "urls OR profiles/hashtags."
             ),
         ] = None,
         profiles: Annotated[
@@ -45,23 +43,12 @@ def register(
         hashtags: Annotated[
             list[str] | None,
             Field(
-                description="Hashtag names to scrape, without the '#', e.g. "
-                "['food']."
-            ),
-        ] = None,
-        search_queries: Annotated[
-            list[str] | None,
-            Field(
-                description="Keyword search terms, resolved via Google to public "
-                "TikTok videos (TikTok's own keyword search is login-walled). "
-                "Slower than hashtags/urls, so start with at most 3 queries and "
-                "expand only if nothing significant is found. For accounts by "
-                "keyword use surfsense_tiktok_user_search."
+                description="Hashtag names to scrape, without the '#', e.g. ['food']."
             ),
         ] = None,
         results_per_page: Annotated[
             int,
-            Field(ge=1, description="Max videos per profile/hashtag/search target."),
+            Field(ge=1, description="Max videos per profile/hashtag target."),
         ] = 10,
         max_items: Annotated[
             int, Field(ge=1, description="Maximum videos to return in total.")
@@ -69,15 +56,13 @@ def register(
         workspace: WorkspaceParam = None,
         response_format: ResponseFormatParam = "markdown",
     ) -> str:
-        """Scrape public TikTok videos by hashtag, profile, URL, or keyword.
+        """Scrape public TikTok videos by hashtag, profile, or URL.
 
         Use for TikTok video research — a creator's videos, a hashtag feed, or a
         specific video/profile/hashtag URL — instead of a generic web search.
-        search_queries also finds videos on a topic (resolved via Google), but is
-        slower: start with at most 3 queries and expand only if nothing
-        significant is found. Returns videos with text, author, stats, music, and
-        the web URL. For accounts by keyword use surfsense_tiktok_user_search.
-        Example: hashtags=['food'], max_items=20.
+        Returns videos with text, author, stats, music, and the web URL. There is
+        no keyword-video search; for accounts by keyword use
+        surfsense_tiktok_user_search. Example: hashtags=['food'], max_items=20.
         """
         return await run_scraper(
             client,
@@ -88,7 +73,6 @@ def register(
                 "urls": urls,
                 "profiles": profiles,
                 "hashtags": hashtags,
-                "search_queries": search_queries,
                 "results_per_page": results_per_page,
                 "max_items": max_items,
             },

@@ -42,8 +42,7 @@ def _profile_payload(n: int) -> dict:
                 "edge_owner_to_timeline_media": {
                     "count": n,
                     "edges": [
-                        {"node": {"id": str(i), "shortcode": f"S{i}"}}
-                        for i in range(n)
+                        {"node": {"id": str(i), "shortcode": f"S{i}"}} for i in range(n)
                     ],
                 },
             }

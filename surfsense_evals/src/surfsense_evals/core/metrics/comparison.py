@@ -67,17 +67,13 @@ def mcnemar_test(
     """
 
     if len(arm_a_correct) != len(arm_b_correct):
-        raise ValueError(
-            f"Length mismatch: arm_a={len(arm_a_correct)}, arm_b={len(arm_b_correct)}"
-        )
+        raise ValueError(f"Length mismatch: arm_a={len(arm_a_correct)}, arm_b={len(arm_b_correct)}")
     n = len(arm_a_correct)
     b = sum(1 for a, c in zip(arm_a_correct, arm_b_correct, strict=False) if a and not c)
     c = sum(1 for a, cc in zip(arm_a_correct, arm_b_correct, strict=False) if (not a) and cc)
     discordant = b + c
     if discordant == 0:
-        return McnemarResult(
-            n_total=n, b=b, c=c, statistic=0.0, p_value=1.0, method="degenerate"
-        )
+        return McnemarResult(n_total=n, b=b, c=c, statistic=0.0, p_value=1.0, method="degenerate")
 
     if discordant < use_exact_below:
         # Exact binomial: under H0 each discordant pair is a Bernoulli(0.5).
@@ -92,13 +88,11 @@ def mcnemar_test(
     # Chi-square with continuity correction (McNemar-Edwards).
     chi = ((abs(b - c) - 1) ** 2) / discordant
     p_value = _chi2_sf(chi, df=1)
-    return McnemarResult(
-        n_total=n, b=b, c=c, statistic=chi, p_value=p_value, method="chi2_cc"
-    )
+    return McnemarResult(n_total=n, b=b, c=c, statistic=chi, p_value=p_value, method="chi2_cc")
 
 
 def _binom_pmf(n: int, k: int) -> float:
-    return math.comb(n, k) * (0.5 ** n)
+    return math.comb(n, k) * (0.5**n)
 
 
 def _chi2_sf(x: float, *, df: int) -> float:

@@ -49,10 +49,10 @@ USER_AGENT = (
 class WikiArticle:
     """One fetched article + metadata."""
 
-    title: str            # canonical title returned by MW (post-redirect)
-    source_url: str       # the URL we were asked to fetch
-    markdown_path: Path   # where the cached body lives on disk
-    n_chars: int          # length of the body (post-prepend H1)
+    title: str  # canonical title returned by MW (post-redirect)
+    source_url: str  # the URL we were asked to fetch
+    markdown_path: Path  # where the cached body lives on disk
+    n_chars: int  # length of the body (post-prepend H1)
     redirected_from: str | None = None
 
 
@@ -168,10 +168,13 @@ class WikiFetcher:
                 break
             except (httpx.HTTPError, RuntimeError) as exc:
                 last_exc = exc
-                wait = 1.0 * (2 ** attempt)
+                wait = 1.0 * (2**attempt)
                 logger.warning(
                     "wiki fetch %r attempt %d failed: %s; retry in %.1fs",
-                    title, attempt + 1, exc, wait,
+                    title,
+                    attempt + 1,
+                    exc,
+                    wait,
                 )
                 await asyncio.sleep(wait)
         else:
@@ -217,10 +220,14 @@ class WikiFetcher:
         }
         headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
         if http is not None:
-            response = await http.get(WIKI_API, params=params, headers=headers, timeout=self._timeout)
+            response = await http.get(
+                WIKI_API, params=params, headers=headers, timeout=self._timeout
+            )
         else:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.get(WIKI_API, params=params, headers=headers, timeout=self._timeout)
+                response = await client.get(
+                    WIKI_API, params=params, headers=headers, timeout=self._timeout
+                )
         response.raise_for_status()
         data = response.json()
         if "error" in data:

@@ -11,15 +11,14 @@ The TikTok connector pulls structured public data from TikTok across four verbs:
 POST /api/v1/workspaces/{workspace_id}/scrapers/tiktok/scrape
 ```
 
-Give it URLs (a video, a profile, a hashtag, or a search page) and/or profiles, hashtags, or search terms; returns videos (caption, author, play/like/comment/share counts, music, hashtags, timestamps, and the web URL). At least one of `urls`, `profiles`, `hashtags`, or `search_queries` is required.
+Give it URLs (a video, a profile, a hashtag, or a search page) and/or profiles or hashtags; returns videos (caption, author, play/like/comment/share counts, music, hashtags, timestamps, and the web URL). At least one of `urls`, `profiles`, or `hashtags` is required.
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | `urls` | — | TikTok URLs: a video, a profile (`/@<user>`), a hashtag (`/tag/<name>`), or a search URL (max 20 sources per call) |
 | `profiles` | — | Profile usernames, with or without a leading `@` |
 | `hashtags` | — | Hashtag names, without the `#` |
-| `search_queries` | — | Search terms to run on TikTok |
-| `results_per_page` | `10` | Max videos per profile/hashtag/search target |
+| `results_per_page` | `10` | Max videos per profile/hashtag target |
 | `max_items` | `10` | Max total videos returned across all sources (hard cap 100) |
 
 ```bash
@@ -30,7 +29,7 @@ curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/tiktok/scrape" \
 ```
 
 <Callout type="info">
-Video and hashtag targets are the reliable video paths. A `profiles` target returns the account's **metadata** (name, followers, bio, verification) reliably, but TikTok often withholds its **video list** from automated clients — so a profile can return metadata with no videos. Keyword **video** search is login-walled and returns a surfaced error; to find accounts by keyword use **user search** below.
+Video and hashtag targets are the reliable video paths. A `profiles` target returns the account's **metadata** (name, followers, bio, verification) reliably, but TikTok often withholds its **video list** from automated clients — so a profile can return metadata with no videos. There is no keyword **video** search (TikTok's own search is login-walled); to find accounts by keyword use **user search** below.
 </Callout>
 
 ## Comments

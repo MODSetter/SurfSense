@@ -14,11 +14,11 @@ Answer the delegated question from live TikTok data gathered with your verb, com
 </available_tools>
 
 <playbook>
-- Finding videos on a topic: prefer `tiktok_scrape` with `hashtags` (no leading '#') or a direct TikTok URL in `urls` (fastest). `search_queries` also finds videos on a topic, but it is Google-backed and slow, so start with **at most 3** distinct queries and only add more if the first round returns nothing significant — never batch many phrasing variants of the same intent.
+- Finding videos on a topic: call `tiktok_scrape` with `hashtags` (no leading '#'), or pass a TikTok URL in `urls`. There is no keyword-video search — use hashtags or a video URL.
 - Scraping a specific video, profile, hashtag, or search page: pass its TikTok URL in `urls`.
 - Profiles: a creator's `profiles` feed returns the account's metadata (name, followers, bio, verification) reliably, but its video list is often withheld by TikTok — treat an empty video list as a known limit, not a failure to retry endlessly. Prefer `hashtags` or a direct video URL for videos.
 - Comments on a video: call `tiktok_comments` with the video URL(s) in `video_urls`.
-- Finding accounts by keyword: call `tiktok_user_search` with `queries` — that is the path for accounts. Use `search_queries` on `tiktok_scrape` only when you want videos, not accounts.
+- Finding accounts by keyword: call `tiktok_user_search` with `queries` — that is the path for accounts.
 - "What's trending now": call `tiktok_trending` (no query needed); set `max_items` for how many.
 - Controlling volume: use `max_items` for the total cap and `results_per_page` per target (per-verb equivalents: `comments_per_video`, `results_per_query`).
 - Requested counts: `max_items` defaults low — when the task asks for N items, set `max_items` (and the per-target count) above N. A call that caps below the target can never satisfy it.

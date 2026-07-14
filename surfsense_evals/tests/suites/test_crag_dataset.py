@@ -65,13 +65,15 @@ class TestParser:
                 interaction_id="abc",
                 query="Who directed Inception?",
                 answer="Christopher Nolan",
-                pages=[{
-                    "page_name": "Inception (film)",
-                    "page_url": "https://en.wikipedia.org/wiki/Inception",
-                    "page_snippet": "snippet",
-                    "page_result": "<html>full html</html>",
-                    "page_last_modified": "2024-01-01",
-                }],
+                pages=[
+                    {
+                        "page_name": "Inception (film)",
+                        "page_url": "https://en.wikipedia.org/wiki/Inception",
+                        "page_snippet": "snippet",
+                        "page_result": "<html>full html</html>",
+                        "page_last_modified": "2024-01-01",
+                    }
+                ],
             ),
         ]
         path = _make_jsonl_bz2(rows, tmp_path)
@@ -120,8 +122,7 @@ class TestParser:
 
     def test_alt_answers_parsed(self, tmp_path: Path) -> None:
         rows = [
-            _row(interaction_id="z", query="q?", answer="42",
-                 alt_ans=["forty-two", "42.0"]),
+            _row(interaction_id="z", query="q?", answer="42", alt_ans=["forty-two", "42.0"]),
         ]
         path = _make_jsonl_bz2(rows, tmp_path)
         parsed = iter_questions(path)
@@ -143,22 +144,32 @@ class TestParser:
 class TestPageHash:
     def test_url_hash_stable(self) -> None:
         a = CragPage(
-            page_name="A", page_url="https://x.test/p?q=1",
-            page_snippet="", page_html="<html/>",
+            page_name="A",
+            page_url="https://x.test/p?q=1",
+            page_snippet="",
+            page_html="<html/>",
         )
         b = CragPage(
-            page_name="B", page_url="https://x.test/p?q=1",
-            page_snippet="", page_html="<html/>",
+            page_name="B",
+            page_url="https://x.test/p?q=1",
+            page_snippet="",
+            page_html="<html/>",
         )
         assert a.url_hash == b.url_hash
         assert len(a.url_hash) == 12
 
     def test_url_hash_unique(self) -> None:
         a = CragPage(
-            page_name="A", page_url="https://x.test/a", page_snippet="", page_html="<html/>",
+            page_name="A",
+            page_url="https://x.test/a",
+            page_snippet="",
+            page_html="<html/>",
         )
         b = CragPage(
-            page_name="B", page_url="https://x.test/b", page_snippet="", page_html="<html/>",
+            page_name="B",
+            page_url="https://x.test/b",
+            page_snippet="",
+            page_html="<html/>",
         )
         assert a.url_hash != b.url_hash
 
@@ -174,21 +185,23 @@ class TestStratifiedSample:
             (5, "sports", "multi-hop"),
         ):
             for _ in range(n):
-                out.append(CragQuestion(
-                    qid=f"C{idx:05d}",
-                    interaction_id=f"i{idx}",
-                    query_time="2024-01-01",
-                    query=f"q{idx}?",
-                    gold_answer="a",
-                    alt_answers=[],
-                    domain=domain,
-                    question_type=qtype,
-                    static_or_dynamic="static",
-                    popularity="head",
-                    split=0,
-                    raw_index=idx,
-                    pages=[],
-                ))
+                out.append(
+                    CragQuestion(
+                        qid=f"C{idx:05d}",
+                        interaction_id=f"i{idx}",
+                        query_time="2024-01-01",
+                        query=f"q{idx}?",
+                        gold_answer="a",
+                        alt_answers=[],
+                        domain=domain,
+                        question_type=qtype,
+                        static_or_dynamic="static",
+                        popularity="head",
+                        split=0,
+                        raw_index=idx,
+                        pages=[],
+                    )
+                )
                 idx += 1
         return out
 

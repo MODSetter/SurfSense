@@ -175,8 +175,14 @@ def test_parse_post_prefers_relay_json():
                 "image_versions2": {"candidates": [{"url": "https://cdn/c2.jpg"}]},
             },
         ],
-        "usertags": {"in": [{"position": [0.5, 0.5], "user": {"username": "tagged1", "id": "77"}}]},
-        "coauthor_producers": [{"username": "coauthor1", "id": "88", "is_verified": True}],
+        "usertags": {
+            "in": [
+                {"position": [0.5, 0.5], "user": {"username": "tagged1", "id": "77"}}
+            ]
+        },
+        "coauthor_producers": [
+            {"username": "coauthor1", "id": "88", "is_verified": True}
+        ],
         "location": {"id": "123", "name": "Bali"},
     }
     html = (

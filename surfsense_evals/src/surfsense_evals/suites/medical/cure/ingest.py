@@ -154,13 +154,11 @@ async def run_ingest(
             if not batches:
                 logger.warning("Discipline %s produced 0 batches; skipping upload", discipline)
                 continue
-            logger.info(
-                "Uploading %d batches for discipline %s", len(batches), discipline
-            )
+            logger.info("Uploading %d batches for discipline %s", len(batches), discipline)
             upload_result = await docs_client.upload(
                 files=[b.path for b in batches],
                 search_space_id=ctx.search_space_id,
-                    use_vision_llm=settings.use_vision_llm,
+                use_vision_llm=settings.use_vision_llm,
                 processing_mode=settings.processing_mode,
             )
             new_doc_ids = list(upload_result.document_ids)
@@ -177,9 +175,7 @@ async def run_ingest(
             )
             title_to_doc = {s.title: s.document_id for s in statuses}
 
-            per_discipline_path = (
-                ctx.maps_dir() / f"cure_corpus_map_{discipline}.jsonl"
-            )
+            per_discipline_path = ctx.maps_dir() / f"cure_corpus_map_{discipline}.jsonl"
             with per_discipline_path.open("w", encoding="utf-8") as fh:
                 fh.write(settings_header_line(settings) + "\n")
                 for batch in batches:
@@ -202,9 +198,7 @@ async def run_ingest(
                     try:
                         chunks = await docs_client.list_chunks(int(doc_id))
                     except Exception as exc:  # noqa: BLE001
-                        logger.warning(
-                            "Failed to list chunks for doc_id=%s: %s", doc_id, exc
-                        )
+                        logger.warning("Failed to list chunks for doc_id=%s: %s", doc_id, exc)
                         continue
                     for chunk in chunks:
                         fh.write(

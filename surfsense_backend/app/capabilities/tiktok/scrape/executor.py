@@ -26,7 +26,6 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             startUrls=[{"url": url} for url in payload.urls],
             profiles=payload.profiles,
             hashtags=payload.hashtags,
-            searchQueries=payload.search_queries,
             resultsPerPage=payload.results_per_page,
         )
         emit_progress(

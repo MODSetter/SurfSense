@@ -27,10 +27,7 @@ def main() -> None:
             grade = a.get("graded", {})
             text = (a.get("raw_text") or "").strip()
             tail = text[-200:] if text else ""
-            print(
-                f"  [{arm_name}] grade={grade.get('grade')} "
-                f"method={grade.get('method')}"
-            )
+            print(f"  [{arm_name}] grade={grade.get('grade')} method={grade.get('method')}")
             print(f"    -> {tail!r}")
 
 

@@ -23,12 +23,12 @@ def main() -> None:
         d = metrics[arm]
         print(
             f"{arm:14s}: "
-            f"acc={d['accuracy']*100:5.1f}% (Wilson 95% CI "
-            f"{d['ci_low']*100:.1f}-{d['ci_high']*100:.1f}) | "
-            f"correct={d['correct_rate']*100:5.1f}% "
-            f"missing={d['missing_rate']*100:5.1f}% "
-            f"incorrect={d['incorrect_rate']*100:5.1f}% | "
-            f"truth={d['truthfulness_score']*100:+5.1f}%"
+            f"acc={d['accuracy'] * 100:5.1f}% (Wilson 95% CI "
+            f"{d['ci_low'] * 100:.1f}-{d['ci_high'] * 100:.1f}) | "
+            f"correct={d['correct_rate'] * 100:5.1f}% "
+            f"missing={d['missing_rate'] * 100:5.1f}% "
+            f"incorrect={d['incorrect_rate'] * 100:5.1f}% | "
+            f"truth={d['truthfulness_score'] * 100:+5.1f}%"
         )
 
     print()
@@ -48,7 +48,7 @@ def main() -> None:
         pieces = [f"{qt:20s} (n={n:3d}):"]
         for arm in ("bare_llm", "long_context", "surfsense"):
             if arm in row:
-                pieces.append(f"{arm}={row[arm]['truthfulness_score']*100:+7.1f}%")
+                pieces.append(f"{arm}={row[arm]['truthfulness_score'] * 100:+7.1f}%")
         print(" ".join(pieces))
 
     print()
@@ -58,7 +58,7 @@ def main() -> None:
         pieces = [f"{dom:10s} (n={n:3d}):"]
         for arm in ("bare_llm", "long_context", "surfsense"):
             if arm in row:
-                pieces.append(f"{arm}={row[arm]['truthfulness_score']*100:+7.1f}%")
+                pieces.append(f"{arm}={row[arm]['truthfulness_score'] * 100:+7.1f}%")
         print(" ".join(pieces))
 
 
