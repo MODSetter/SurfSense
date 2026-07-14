@@ -43,12 +43,7 @@ function FieldControl({
 
 	if (field.kind === "boolean") {
 		return (
-			<Switch
-				id={id}
-				checked={Boolean(value)}
-				onCheckedChange={onChange}
-				disabled={disabled}
-			/>
+			<Switch id={id} checked={Boolean(value)} onCheckedChange={onChange} disabled={disabled} />
 		);
 	}
 
@@ -141,9 +136,7 @@ function FieldRow({
 					{field.required ? "required" : "optional"}
 				</Badge>
 			</div>
-			{field.description && (
-				<p className="text-xs text-muted-foreground">{field.description}</p>
-			)}
+			{field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
 			<FieldControl
 				field={field}
 				value={value}
@@ -156,13 +149,7 @@ function FieldRow({
 	);
 }
 
-export function SchemaForm({
-	fields,
-	values,
-	onChange,
-	disabled,
-	fieldErrors,
-}: SchemaFormProps) {
+export function SchemaForm({ fields, values, onChange, disabled, fieldErrors }: SchemaFormProps) {
 	const [showAdvanced, setShowAdvanced] = useState(false);
 
 	const { primary, advanced } = useMemo(() => {

@@ -21,6 +21,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.google_maps.agent impor
 from app.agents.chat.multi_agent_chat.subagents.builtins.google_search.agent import (
     build_subagent as build_google_search_subagent,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.instagram.agent import (
+    build_subagent as build_instagram_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.knowledge_base.agent import (
     build_subagent as build_knowledge_base_subagent,
 )
@@ -32,6 +35,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.memory.agent import (
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.reddit.agent import (
     build_subagent as build_reddit_subagent,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.tiktok.agent import (
+    build_subagent as build_tiktok_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.web_crawler.agent import (
     build_subagent as build_web_crawler_subagent,
@@ -79,11 +85,13 @@ SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
     "google_drive": build_google_drive_subagent,
     "google_maps": build_google_maps_subagent,
     "google_search": build_google_search_subagent,
+    "instagram": build_instagram_subagent,
     "knowledge_base": build_knowledge_base_subagent,
     "mcp_discovery": build_mcp_discovery_subagent,
     "memory": build_memory_subagent,
     "onedrive": build_onedrive_subagent,
     "reddit": build_reddit_subagent,
+    "tiktok": build_tiktok_subagent,
     "web_crawler": build_web_crawler_subagent,
     "youtube": build_youtube_subagent,
 }

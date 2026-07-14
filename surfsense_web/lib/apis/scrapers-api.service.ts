@@ -1,15 +1,15 @@
 import {
 	type ListScraperRunsParams,
-	type ScraperRunEvent,
-	type StartAsyncRunResponse,
 	listCapabilitiesResponse,
 	listRunsResponse,
+	type ScraperRunEvent,
+	type StartAsyncRunResponse,
 	scraperRunDetail,
 	startAsyncRunResponse,
 } from "@/contracts/types/scraper.types";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { readSSEStream } from "@/lib/chat/streaming-state";
 import { buildBackendUrl } from "@/lib/env-config";
-import { authenticatedFetch } from "@/lib/auth-fetch";
 import { baseApiService } from "./base-api.service";
 
 const base = (workspaceId: number | string) => `/api/v1/workspaces/${workspaceId}/scrapers`;

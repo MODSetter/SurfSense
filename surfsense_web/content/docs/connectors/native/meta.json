@@ -1,5 +1,13 @@
 {
 	"title": "Native Connectors",
-	"pages": ["reddit", "youtube", "google-maps", "google-search", "web-crawl"],
+	"pages": [
+		"reddit",
+		"youtube",
+		"instagram",
+		"tiktok",
+		"google-maps",
+		"google-search",
+		"web-crawl"
+	],
 	"defaultOpen": false
 }

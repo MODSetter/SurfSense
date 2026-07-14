@@ -25,6 +25,7 @@ import asyncio
 import logging
 import os
 import random
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,7 @@ async def parse_with_azure_di(
     api_key = api_key or os.environ.get("AZURE_DI_KEY")
     if not endpoint or not api_key:
         raise ValueError(
-            "AZURE_DI_ENDPOINT and AZURE_DI_KEY must be set "
-            "(see surfsense_evals/.env)."
+            "AZURE_DI_ENDPOINT and AZURE_DI_KEY must be set (see surfsense_evals/.env)."
         )
 
     model_id = _AZURE_MODEL_BY_MODE.get(processing_mode, "prebuilt-read")
@@ -82,10 +82,13 @@ async def parse_with_azure_di(
         ServiceResponseError,
     )
 
-    file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+    file_size_mb = await asyncio.to_thread(os.path.getsize, file_path) / (1024 * 1024)
     logger.info(
         "Azure DI parsing %s (mode=%s, model=%s, size=%.1fMB)",
-        file_path, processing_mode, model_id, file_size_mb,
+        file_path,
+        processing_mode,
+        model_id,
+        file_size_mb,
     )
 
     last_exc: Exception | None = None
@@ -96,21 +99,21 @@ async def parse_with_azure_di(
                 credential=AzureKeyCredential(api_key),
             )
             async with client:
-                with open(file_path, "rb") as fh:
-                    poller = await client.begin_analyze_document(
-                        model_id,
-                        body=fh,
-                        output_content_format=DocumentContentFormat.MARKDOWN,
-                    )
+                body = await asyncio.to_thread(Path(file_path).read_bytes)
+                poller = await client.begin_analyze_document(
+                    model_id,
+                    body=body,
+                    output_content_format=DocumentContentFormat.MARKDOWN,
+                )
                 result = await poller.result()
             content = (result.content or "").strip()
             if not content:
-                raise AzureDIError(
-                    f"Azure DI returned empty content for {file_path}"
-                )
+                raise AzureDIError(f"Azure DI returned empty content for {file_path}")
             logger.info(
                 "Azure DI OK: %s (%s) -> %d chars",
-                file_path, model_id, len(content),
+                file_path,
+                model_id,
+                len(content),
             )
             return content
 
@@ -119,9 +122,7 @@ async def parse_with_azure_di(
         except HttpResponseError as exc:
             # 4xx that's not auth: don't retry, the request itself is broken.
             if exc.status_code and 400 <= exc.status_code < 500:
-                raise AzureDIError(
-                    f"Azure DI {exc.status_code} on {file_path}: {exc}"
-                ) from exc
+                raise AzureDIError(f"Azure DI {exc.status_code} on {file_path}: {exc}") from exc
             last_exc = exc
         except (ServiceRequestError, ServiceResponseError) as exc:
             last_exc = exc
@@ -132,7 +133,10 @@ async def parse_with_azure_di(
             sleep_for = delay + jitter
             logger.warning(
                 "Azure DI attempt %d/%d failed (%s); retrying in %.1fs",
-                attempt, _MAX_RETRIES, type(last_exc).__name__, sleep_for,
+                attempt,
+                _MAX_RETRIES,
+                type(last_exc).__name__,
+                sleep_for,
             )
             await asyncio.sleep(sleep_for)
 

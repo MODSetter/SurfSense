@@ -16,9 +16,7 @@ from ..capability import run_scraper
 CommentSort = Literal["TOP_COMMENTS", "NEWEST_FIRST"]
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the YouTube video and comment tools."""
 
     @mcp.tool(

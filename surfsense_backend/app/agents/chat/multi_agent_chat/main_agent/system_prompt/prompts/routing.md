@@ -31,6 +31,7 @@ bounded fan-out (≤20 sites) the user already requested.
 about a brand, product, or topic is answered from the platform where they
 say it — `task(reddit, …)` for community discussion and threads,
 `task(youtube, …)` for video content, transcripts, and comment sections,
+`task(tiktok, …)` for short-form video trends by hashtag or search,
 `task(google_maps, …)` for customer reviews of physical businesses. Web
 search only finds articles *about* the conversation; the platform
 specialists return the conversation itself, structured and current. For

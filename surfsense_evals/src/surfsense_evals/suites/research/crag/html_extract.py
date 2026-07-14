@@ -42,7 +42,7 @@ class ExtractionResult:
     """Outcome of converting one HTML blob to plain markdown."""
 
     text: str
-    method: str          # "trafilatura" | "fallback_strip" | "empty"
+    method: str  # "trafilatura" | "fallback_strip" | "empty"
     n_chars: int
 
     @property
@@ -94,11 +94,30 @@ class _StripHTMLParser(HTMLParser):
     """
 
     _SKIP_TAGS = frozenset({"script", "style", "nav", "header", "footer", "aside", "svg"})
-    _BLOCK_TAGS = frozenset({
-        "p", "div", "section", "article", "li", "ul", "ol",
-        "h1", "h2", "h3", "h4", "h5", "h6", "br", "tr",
-        "td", "th", "table", "blockquote", "pre",
-    })
+    _BLOCK_TAGS = frozenset(
+        {
+            "p",
+            "div",
+            "section",
+            "article",
+            "li",
+            "ul",
+            "ol",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "br",
+            "tr",
+            "td",
+            "th",
+            "table",
+            "blockquote",
+            "pre",
+        }
+    )
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -177,10 +196,7 @@ def extract_main_content(
             # Prefer trafilatura output even if short, but only if it
             # contained any prose at all — empty trafilatura fall-through
             # to the stripped form.
-            if body and stripped and len(stripped) > len(body) * 1.5:
-                body = stripped
-                method = "fallback_strip"
-            elif not body and stripped:
+            if body and stripped and len(stripped) > len(body) * 1.5 or not body and stripped:
                 body = stripped
                 method = "fallback_strip"
             elif body:

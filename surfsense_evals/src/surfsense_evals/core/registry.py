@@ -177,7 +177,9 @@ class Benchmark(Protocol):
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:  # pragma: no cover - protocol
         """Add benchmark-specific flags to ``run <suite> <benchmark>``."""
 
-    def report_section(self, artifacts: list[RunArtifact]) -> ReportSection:  # pragma: no cover - protocol
+    def report_section(
+        self, artifacts: list[RunArtifact]
+    ) -> ReportSection:  # pragma: no cover - protocol
         ...
 
 
@@ -224,9 +226,7 @@ def get(suite: str, name: str) -> Benchmark:
         return _REGISTRY[(suite, name)]
     except KeyError as exc:
         available = ", ".join(f"{s}/{n}" for s, n in sorted(_REGISTRY)) or "<none>"
-        raise KeyError(
-            f"Unknown benchmark '{suite}/{name}'. Registered: {available}"
-        ) from exc
+        raise KeyError(f"Unknown benchmark '{suite}/{name}'. Registered: {available}") from exc
 
 
 def list_suites() -> list[str]:

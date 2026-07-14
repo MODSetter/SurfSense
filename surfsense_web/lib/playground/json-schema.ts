@@ -8,13 +8,7 @@
 
 type JsonObject = Record<string, unknown>;
 
-export type FieldKind =
-	| "string"
-	| "string_array"
-	| "integer"
-	| "number"
-	| "boolean"
-	| "enum";
+export type FieldKind = "string" | "string_array" | "integer" | "number" | "boolean" | "enum";
 
 export interface FormField {
 	name: string;

@@ -123,6 +123,7 @@ PROVIDER_PRESTIGE_YAML: dict[str, int] = {
     "perplexity": 28,
     "bedrock": 28,
     "openrouter": 25,
+    "requesty": 25,
     "ollama_chat": 12,
     "custom": 12,
 }

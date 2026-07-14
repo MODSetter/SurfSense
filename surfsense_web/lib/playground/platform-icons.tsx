@@ -24,6 +24,8 @@ function brandIcon(src: string, alt: string) {
 
 export const RedditIcon = brandIcon("/connectors/reddit.svg", "Reddit");
 export const YouTubeIcon = brandIcon("/connectors/youtube.svg", "YouTube");
+export const InstagramIcon = brandIcon("/connectors/instagram.svg", "Instagram");
+export const TikTokIcon = brandIcon("/connectors/tiktok.svg", "TikTok");
 export const GoogleMapsIcon = brandIcon("/connectors/google-maps.svg", "Google Maps");
 export const GoogleSearchIcon = brandIcon("/connectors/google-search.svg", "Google Search");
 export const WebIcon = brandIcon("/connectors/web.svg", "Web");

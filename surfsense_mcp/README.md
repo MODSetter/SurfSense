@@ -21,6 +21,9 @@ Connect it two ways:
 **Scrapers (all platforms)**
 - `surfsense_web_crawl`, `surfsense_google_search`, `surfsense_reddit_scrape`,
   `surfsense_youtube_scrape`, `surfsense_youtube_comments`,
+  `surfsense_instagram_scrape`, `surfsense_instagram_details`,
+  `surfsense_tiktok_scrape`, `surfsense_tiktok_comments`,
+  `surfsense_tiktok_user_search`, `surfsense_tiktok_trending`,
   `surfsense_google_maps_scrape`, `surfsense_google_maps_reviews`
 - `surfsense_list_scraper_runs`, `surfsense_get_scraper_run` — retrieve past
   results in full (useful when a large result was truncated inline)

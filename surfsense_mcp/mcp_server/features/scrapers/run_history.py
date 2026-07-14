@@ -17,9 +17,7 @@ from ...core.workspace_context import WorkspaceContext, WorkspaceParam
 from .annotations import READ_RUNS
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the run-history tools."""
 
     @mcp.tool(
@@ -29,9 +27,7 @@ def register(
         structured_output=False,
     )
     async def list_scraper_runs(
-        limit: Annotated[
-            int, Field(ge=1, description="Maximum runs to list.")
-        ] = 20,
+        limit: Annotated[int, Field(ge=1, description="Maximum runs to list.")] = 20,
         capability: Annotated[
             str | None,
             Field(

@@ -129,19 +129,21 @@ def _load_questions(
             n_images = int(map_row.get("n_images", 0))
             if require_images and n_images <= 0:
                 continue
-            out.append(MXQuestion(
-                qid=qid,
-                question=str(row.get("question") or ""),
-                options={str(k).upper(): str(v) for k, v in (row.get("options") or {}).items()},
-                label=str(row.get("label") or "").strip().upper(),
-                medical_task=str(row.get("medical_task") or "").strip(),
-                body_system=str(row.get("body_system") or "").strip(),
-                question_type=str(row.get("question_type") or "").strip(),
-                split=str(row.get("split") or ""),
-                n_images=n_images,
-                pdf_path=Path(map_row["pdf_path"]),
-                document_id=map_row.get("document_id"),
-            ))
+            out.append(
+                MXQuestion(
+                    qid=qid,
+                    question=str(row.get("question") or ""),
+                    options={str(k).upper(): str(v) for k, v in (row.get("options") or {}).items()},
+                    label=str(row.get("label") or "").strip().upper(),
+                    medical_task=str(row.get("medical_task") or "").strip(),
+                    body_system=str(row.get("body_system") or "").strip(),
+                    question_type=str(row.get("question_type") or "").strip(),
+                    split=str(row.get("split") or ""),
+                    n_images=n_images,
+                    pdf_path=Path(map_row["pdf_path"]),
+                    document_id=map_row.get("document_id"),
+                )
+            )
     out.sort(key=lambda q: (q.split, q.qid))
     if sample_n is not None and sample_n > 0:
         out = out[:sample_n]
@@ -182,51 +184,81 @@ class MedXpertQAMMBenchmark:
 
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
-            "--split", default="test", choices=["test", "dev", "all"],
+            "--split",
+            default="test",
+            choices=["test", "dev", "all"],
             help="Which MedXpertQA-MM split to run (default: test).",
         )
         parser.add_argument(
-            "--task", default="all",
+            "--task",
+            default="all",
             help="Filter by medical_task value (e.g. Diagnosis, Treatment, Basic Medicine).",
         )
         parser.add_argument(
-            "--body-system", dest="body_filter", default="all",
+            "--body-system",
+            dest="body_filter",
+            default="all",
             help="Filter by body_system value (e.g. Cardiovascular, Lymphatic).",
         )
         parser.add_argument(
-            "--require-images", dest="require_images", action="store_true",
+            "--require-images",
+            dest="require_images",
+            action="store_true",
             help="Skip rare MM rows that ended up with zero resolvable images.",
         )
-        parser.add_argument("--n", dest="sample_n", type=int, default=None,
-                            help="Run only the first N questions after filters apply.")
-        parser.add_argument("--concurrency", type=int, default=4,
-                            help="Parallel question workers per arm.")
-        parser.add_argument("--no-mentions", dest="no_mentions", action="store_true",
-                            help="SurfSense arm: skip mentioned_document_ids (unscoped retrieval).")
         parser.add_argument(
-            "--pdf-engine", default="native",
+            "--n",
+            dest="sample_n",
+            type=int,
+            default=None,
+            help="Run only the first N questions after filters apply.",
+        )
+        parser.add_argument(
+            "--concurrency", type=int, default=4, help="Parallel question workers per arm."
+        )
+        parser.add_argument(
+            "--no-mentions",
+            dest="no_mentions",
+            action="store_true",
+            help="SurfSense arm: skip mentioned_document_ids (unscoped retrieval).",
+        )
+        parser.add_argument(
+            "--pdf-engine",
+            default="native",
             choices=[e.value for e in PdfEngine],
             help="OpenRouter file-parser engine for the native arm.",
         )
         parser.add_argument(
-            "--max-output-tokens", type=int, default=512,
+            "--max-output-tokens",
+            type=int,
+            default=512,
             help="Cap on completion length for both arms.",
         )
         # Ingest-only knobs (forwarded by the CLI to ingest.run_ingest).
         parser.add_argument(
-            "--max-questions", dest="max_questions", type=int, default=None,
+            "--max-questions",
+            dest="max_questions",
+            type=int,
+            default=None,
             help="(ingest only) cap on number of MM questions to render + upload.",
         )
         parser.add_argument(
-            "--upload-batch-size", dest="upload_batch_size", type=int, default=8,
+            "--upload-batch-size",
+            dest="upload_batch_size",
+            type=int,
+            default=8,
             help="(ingest only) PDFs per fileupload call.",
         )
         parser.add_argument(
-            "--skip-upload", dest="skip_upload", action="store_true",
+            "--skip-upload",
+            dest="skip_upload",
+            action="store_true",
             help="(ingest only) render PDFs locally but don't push to SurfSense.",
         )
         parser.add_argument(
-            "--include-dev", dest="include_dev", action="store_true",
+            "--include-dev",
+            dest="include_dev",
+            action="store_true",
             help="(ingest only) shorthand for --split all.",
         )
         # Per-upload knobs forwarded to /documents/fileupload at ingest;
@@ -270,7 +302,8 @@ class MedXpertQAMMBenchmark:
 
         doc_map, ingest_settings = _load_doc_map(map_path)
         questions = _load_questions(
-            questions_jsonl, doc_map,
+            questions_jsonl,
+            doc_map,
             split_filter=split_filter,
             task_filter=task_filter if task_filter != "all" else None,
             body_filter=body_filter if body_filter != "all" else None,
@@ -378,13 +411,18 @@ class MedXpertQAMMBenchmark:
 
         manifest_path = run_dir / "run_artifact.json"
         manifest_path.write_text(
-            json.dumps({
-                "suite": self.suite,
-                "benchmark": self.name,
-                "raw_path": "raw.jsonl",
-                "metrics": metrics,
-                "extra": artifact.extra,
-            }, indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                {
+                    "suite": self.suite,
+                    "benchmark": self.name,
+                    "raw_path": "raw.jsonl",
+                    "metrics": metrics,
+                    "extra": artifact.extra,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
         return artifact
@@ -536,8 +574,12 @@ def _compute_metrics(
     cost_pct = _safe_pct(surf_cost_agg.mean, native_cost_agg.mean)
     lat_pct = _safe_pct(surf_lat_agg.median, native_lat_agg.median)
 
-    per_task = _per_field(questions, native_correct, surf_correct, key=lambda q: q.medical_task or "unknown")
-    per_body = _per_field(questions, native_correct, surf_correct, key=lambda q: q.body_system or "unknown")
+    per_task = _per_field(
+        questions, native_correct, surf_correct, key=lambda q: q.medical_task or "unknown"
+    )
+    per_body = _per_field(
+        questions, native_correct, surf_correct, key=lambda q: q.body_system or "unknown"
+    )
 
     return {
         "native": {
@@ -593,8 +635,7 @@ def _per_field(
             "native_accuracy": (sum(n_correct) / len(pairs)) if pairs else 0.0,
             "surfsense_accuracy": (sum(s_correct) / len(pairs)) if pairs else 0.0,
             "delta_accuracy_pp": (
-                100.0 * (sum(s_correct) - sum(n_correct)) / len(pairs)
-                if pairs else 0.0
+                100.0 * (sum(s_correct) - sum(n_correct)) / len(pairs) if pairs else 0.0
             ),
         }
     return out

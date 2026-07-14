@@ -58,10 +58,10 @@ class CragGradeResult:
     """One graded (pred, gold) pair under CRAG's 3-class rubric."""
 
     grade: GradeClass
-    score: int                     # +1 / 0 / -1
-    method: str                    # exact, numeric, substring, refusal,
-                                   # false_premise_correct, false_premise_miss,
-                                   # llm_judge, lexical_miss, ...
+    score: int  # +1 / 0 / -1
+    method: str  # exact, numeric, substring, refusal,
+    # false_premise_correct, false_premise_miss,
+    # llm_judge, lexical_miss, ...
     normalised_pred: str = ""
     normalised_gold: str = ""
     judge_rationale: str = ""
@@ -112,10 +112,27 @@ def _normalise(s: str) -> str:
 
 
 _WORD_NUMBERS = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
-    "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
-    "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
 }
 
 _NUMERIC_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
@@ -274,8 +291,11 @@ def grade_deterministic(
             continue
         if n_pred == cand_norm:
             return CragGradeResult(
-                grade="correct", score=1, method="exact",
-                normalised_pred=n_pred, normalised_gold=cand_norm,
+                grade="correct",
+                score=1,
+                method="exact",
+                normalised_pred=n_pred,
+                normalised_gold=cand_norm,
             )
         p_num = _maybe_number(pred)
         c_num = _maybe_number(candidate)
@@ -289,21 +309,30 @@ def grade_deterministic(
             tol = abs(c_num) * 0.01
             if abs(p_num - c_num) <= tol:
                 return CragGradeResult(
-                    grade="correct", score=1, method="numeric",
-                    normalised_pred=n_pred, normalised_gold=cand_norm,
+                    grade="correct",
+                    score=1,
+                    method="numeric",
+                    normalised_pred=n_pred,
+                    normalised_gold=cand_norm,
                 )
             # Numeric question with different numbers — keep looking
             # at other candidates rather than declaring miss now;
             # alt answers may include word forms that pass.
         if _whole_word_substring(n_pred, cand_norm):
             return CragGradeResult(
-                grade="correct", score=1, method="substring",
-                normalised_pred=n_pred, normalised_gold=cand_norm,
+                grade="correct",
+                score=1,
+                method="substring",
+                normalised_pred=n_pred,
+                normalised_gold=cand_norm,
             )
         if _whole_word_substring(cand_norm, n_pred) and len(n_pred) >= 3:
             return CragGradeResult(
-                grade="correct", score=1, method="substring_reverse",
-                normalised_pred=n_pred, normalised_gold=cand_norm,
+                grade="correct",
+                score=1,
+                method="substring_reverse",
+                normalised_pred=n_pred,
+                normalised_gold=cand_norm,
             )
 
     return CragGradeResult(
@@ -326,21 +355,21 @@ _JUDGE_SYSTEM = (
     "answer (and any alternative valid answers), and a model's "
     "prediction, classify the prediction into exactly one of three "
     "categories:\n\n"
-    "* \"correct\"   — the prediction expresses the same factual "
+    '* "correct"   — the prediction expresses the same factual '
     "content as the gold answer (paraphrasing OK; numbers as words "
     "OK; partial-but-correct names OK; non-contradictory extra "
     "detail OK).\n"
-    "* \"missing\"   — the prediction explicitly refuses, says \"I "
+    '* "missing"   — the prediction explicitly refuses, says "I '
     "don't know\", says there is insufficient information, or hedges "
     "without committing.\n"
-    "* \"incorrect\" — the prediction commits to a fact that is "
+    '* "incorrect" — the prediction commits to a fact that is '
     "different from the gold answer, or fails to flag a false "
     "premise when the question contains one.\n\n"
     "Special case: if the question contains a false premise and the "
     "gold answer says so, then a prediction that flags the false "
-    "premise is \"correct\".\n\n"
+    'premise is "correct".\n\n'
     "Respond with ONLY a JSON object on a single line:\n"
-    '{\"grade\": \"correct\"|\"missing\"|\"incorrect\", \"rationale\": \"<one short sentence>\"}'
+    '{"grade": "correct"|"missing"|"incorrect", "rationale": "<one short sentence>"}'
 )
 
 
@@ -444,15 +473,17 @@ def _parse_judge_response(text: str) -> tuple[GradeClass, str]:
 
 # Methods that should *not* trigger the LLM judge — the deterministic
 # verdict is conclusive (refusal, exact match, numeric mismatch, etc.).
-_TERMINAL_METHODS = frozenset({
-    "refusal",
-    "exact",
-    "numeric",
-    "substring",
-    "substring_reverse",
-    "false_premise_flagged",
-    "empty_gold",
-})
+_TERMINAL_METHODS = frozenset(
+    {
+        "refusal",
+        "exact",
+        "numeric",
+        "substring",
+        "substring_reverse",
+        "false_premise_flagged",
+        "empty_gold",
+    }
+)
 
 
 async def grade_with_judge(

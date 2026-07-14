@@ -48,6 +48,7 @@ async def _check_and_trigger_schedules():
             # Live connectors (Linear, Slack, Jira, ClickUp, Airtable, Discord,
             # Teams, Gmail, Calendar, Luma) use real-time tools instead.
             from app.tasks.celery_tasks.connector_tasks import (
+                index_bookstack_pages_task,
                 index_confluence_pages_task,
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
@@ -57,6 +58,7 @@ async def _check_and_trigger_schedules():
 
             task_map = {
                 SearchSourceConnectorType.NOTION_CONNECTOR: index_notion_pages_task,
+                SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,
                 SearchSourceConnectorType.GITHUB_CONNECTOR: index_github_repos_task,
                 SearchSourceConnectorType.CONFLUENCE_CONNECTOR: index_confluence_pages_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,

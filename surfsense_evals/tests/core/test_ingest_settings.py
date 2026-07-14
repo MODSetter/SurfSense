@@ -46,32 +46,24 @@ class TestMerge:
 
     def test_explicit_false_overrides_default_true(self) -> None:
         defaults = IngestSettings(use_vision_llm=True)
-        merged = IngestSettings.merge(
-            defaults, {"use_vision_llm": False}
-        )
+        merged = IngestSettings.merge(defaults, {"use_vision_llm": False})
         assert merged.use_vision_llm is False
 
     def test_explicit_true_overrides_default_false(self) -> None:
         defaults = IngestSettings(use_vision_llm=False)
-        merged = IngestSettings.merge(
-            defaults, {"use_vision_llm": True}
-        )
+        merged = IngestSettings.merge(defaults, {"use_vision_llm": True})
         assert merged.use_vision_llm is True
 
     def test_none_means_silent(self) -> None:
         # Argparse with BooleanOptionalAction yields None when the
         # operator passed neither --use-vision-llm nor --no-vision-llm.
         defaults = IngestSettings(use_vision_llm=True)
-        merged = IngestSettings.merge(
-            defaults, {"use_vision_llm": None}
-        )
+        merged = IngestSettings.merge(defaults, {"use_vision_llm": None})
         assert merged.use_vision_llm is True
 
     def test_processing_mode_override(self) -> None:
         defaults = IngestSettings(processing_mode="basic")
-        merged = IngestSettings.merge(
-            defaults, {"processing_mode": "premium"}
-        )
+        merged = IngestSettings.merge(defaults, {"processing_mode": "premium"})
         assert merged.processing_mode == "premium"
 
     def test_processing_mode_invalid_raises(self) -> None:
@@ -134,9 +126,7 @@ class TestAddArgs:
         p = argparse.ArgumentParser()
         add_ingest_settings_args(
             p,
-            defaults=IngestSettings(
-                use_vision_llm=False, processing_mode="basic"
-            ),
+            defaults=IngestSettings(use_vision_llm=False, processing_mode="basic"),
         )
         return p
 
@@ -158,31 +148,21 @@ class TestAddArgs:
             args = parser.parse_args(["--processing-mode", mode])
             assert args.processing_mode == mode
 
-    def test_processing_mode_rejects_unknown(
-        self, parser: argparse.ArgumentParser
-    ) -> None:
+    def test_processing_mode_rejects_unknown(self, parser: argparse.ArgumentParser) -> None:
         with pytest.raises(SystemExit):
             parser.parse_args(["--processing-mode", "exotic"])
 
-    def test_vision_flags_mutually_exclusive(
-        self, parser: argparse.ArgumentParser
-    ) -> None:
+    def test_vision_flags_mutually_exclusive(self, parser: argparse.ArgumentParser) -> None:
         with pytest.raises(SystemExit):
             parser.parse_args(["--use-vision-llm", "--no-vision-llm"])
 
     def test_full_pipeline(self, parser: argparse.ArgumentParser) -> None:
         # Operator passes flags + defaults are reasonable. Merge
         # should yield exactly what they asked for.
-        args = parser.parse_args(
-            ["--use-vision-llm", "--processing-mode", "premium"]
-        )
-        defaults = IngestSettings(
-            use_vision_llm=False, processing_mode="basic"
-        )
+        args = parser.parse_args(["--use-vision-llm", "--processing-mode", "premium"])
+        defaults = IngestSettings(use_vision_llm=False, processing_mode="basic")
         merged = IngestSettings.merge(defaults, vars(args))
-        assert merged == IngestSettings(
-            use_vision_llm=True, processing_mode="premium"
-        )
+        assert merged == IngestSettings(use_vision_llm=True, processing_mode="premium")
 
 
 # ---------------------------------------------------------------------------
@@ -240,16 +220,12 @@ class TestHeader:
 
 class TestFormatMd:
     def test_full_settings(self) -> None:
-        out = format_ingest_settings_md(
-            {"use_vision_llm": True, "processing_mode": "premium"}
-        )
+        out = format_ingest_settings_md({"use_vision_llm": True, "processing_mode": "premium"})
         assert "vision_llm=`on`" in out
         assert "processing_mode=`premium`" in out
 
     def test_default_off(self) -> None:
-        out = format_ingest_settings_md(
-            {"use_vision_llm": False, "processing_mode": "basic"}
-        )
+        out = format_ingest_settings_md({"use_vision_llm": False, "processing_mode": "basic"})
         assert "vision_llm=`off`" in out
         assert "processing_mode=`basic`" in out
 

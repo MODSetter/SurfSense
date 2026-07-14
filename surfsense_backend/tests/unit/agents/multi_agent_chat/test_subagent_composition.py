@@ -32,11 +32,13 @@ _EXPECTED_SUBAGENTS = frozenset(
         "google_drive",
         "google_maps",
         "google_search",
+        "instagram",
         "knowledge_base",
         "mcp_discovery",
         "memory",
         "onedrive",
         "reddit",
+        "tiktok",
         "web_crawler",
         "youtube",
     }

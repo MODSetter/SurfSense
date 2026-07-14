@@ -56,7 +56,7 @@ def extract_freeform_answer(text: str) -> str:
         marker_matches = list(_ANSWER_MARKER.finditer(text))
         if marker_matches:
             last = marker_matches[-1]
-            tail = text[last.end():]
+            tail = text[last.end() :]
             nl = tail.find("\n")
             if nl >= 0:
                 tail = tail[:nl]
@@ -77,7 +77,7 @@ def extract_freeform_answer(text: str) -> str:
     # 2. Strip wrapping quotes / parens / trailing punctuation that
     #    confuse the grader without changing meaning.
     candidate = candidate.strip().strip("`").strip()
-    if candidate.startswith(("\"", "'")) and candidate.endswith(("\"", "'")):
+    if candidate.startswith(('"', "'")) and candidate.endswith(('"', "'")):
         candidate = candidate[1:-1].strip()
     return candidate
 

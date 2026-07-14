@@ -125,21 +125,23 @@ def _filter_questions(
             continue
         if qtype_filter and qtype_filter not in qtype:
             continue
-        out.append(CragRunnerQuestion(
-            qid=str(row.get("qid") or "").strip(),
-            raw_index=int(row.get("raw_index") or 0),
-            question=str(row.get("question") or "").strip(),
-            gold_answer=str(row.get("gold_answer") or "").strip(),
-            alt_answers=list(row.get("alt_answers") or []),
-            domain=domain,
-            question_type=qtype,
-            static_or_dynamic=str(row.get("static_or_dynamic") or "").lower(),
-            popularity=str(row.get("popularity") or "").lower(),
-            query_time=str(row.get("query_time") or "").strip(),
-            page_filenames=list(row.get("page_filenames") or []),
-            document_ids=list(row.get("document_ids") or []),
-            missing_pages=list(row.get("missing_pages") or []),
-        ))
+        out.append(
+            CragRunnerQuestion(
+                qid=str(row.get("qid") or "").strip(),
+                raw_index=int(row.get("raw_index") or 0),
+                question=str(row.get("question") or "").strip(),
+                gold_answer=str(row.get("gold_answer") or "").strip(),
+                alt_answers=list(row.get("alt_answers") or []),
+                domain=domain,
+                question_type=qtype,
+                static_or_dynamic=str(row.get("static_or_dynamic") or "").lower(),
+                popularity=str(row.get("popularity") or "").lower(),
+                query_time=str(row.get("query_time") or "").strip(),
+                page_filenames=list(row.get("page_filenames") or []),
+                document_ids=list(row.get("document_ids") or []),
+                missing_pages=list(row.get("missing_pages") or []),
+            )
+        )
     out.sort(key=lambda q: q.raw_index)
     if sample_n is not None and sample_n > 0:
         out = out[:sample_n]
@@ -190,15 +192,22 @@ class CragBenchmark:
 
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
-            "--n", dest="sample_n", type=int, default=None,
+            "--n",
+            dest="sample_n",
+            type=int,
+            default=None,
             help="Run only the first N questions after filters.",
         )
         parser.add_argument(
-            "--domain", dest="domain_filter", default=None,
+            "--domain",
+            dest="domain_filter",
+            default=None,
             help="Filter to a single CRAG domain (finance|music|movie|sports|open).",
         )
         parser.add_argument(
-            "--qtype", dest="qtype_filter", default=None,
+            "--qtype",
+            dest="qtype_filter",
+            default=None,
             help=(
                 "Filter to questions whose question_type contains this "
                 "substring (case-insensitive). Examples: 'multi-hop', "
@@ -206,31 +215,46 @@ class CragBenchmark:
             ),
         )
         parser.add_argument(
-            "--concurrency", type=int, default=4,
+            "--concurrency",
+            type=int,
+            default=4,
             help="Parallel question workers per arm.",
         )
         parser.add_argument(
-            "--max-output-tokens", type=int, default=512,
+            "--max-output-tokens",
+            type=int,
+            default=512,
             help="Cap on completion length for the chat-completion arms.",
         )
         parser.add_argument(
-            "--per-page-char-cap", dest="per_page_char_cap", type=int, default=12_000,
+            "--per-page-char-cap",
+            dest="per_page_char_cap",
+            type=int,
+            default=12_000,
             help="Long-context arm: max chars per page before truncation (default 12k).",
         )
         parser.add_argument(
-            "--skip-bare", dest="skip_bare", action="store_true",
+            "--skip-bare",
+            dest="skip_bare",
+            action="store_true",
             help="Skip the bare-LLM arm (saves cost on re-runs).",
         )
         parser.add_argument(
-            "--skip-long-context", dest="skip_long_context", action="store_true",
+            "--skip-long-context",
+            dest="skip_long_context",
+            action="store_true",
             help="Skip the long-context arm.",
         )
         parser.add_argument(
-            "--skip-surfsense", dest="skip_surfsense", action="store_true",
+            "--skip-surfsense",
+            dest="skip_surfsense",
+            action="store_true",
             help="Skip the SurfSense arm (useful when iterating on the LLM arms only).",
         )
         parser.add_argument(
-            "--no-mention-scope", dest="no_mention_scope", action="store_true",
+            "--no-mention-scope",
+            dest="no_mention_scope",
+            action="store_true",
             help=(
                 "SurfSense arm: don't pass mentioned_document_ids; let "
                 "the agent retrieve over the entire SearchSpace. Default "
@@ -239,37 +263,56 @@ class CragBenchmark:
             ),
         )
         parser.add_argument(
-            "--no-judge", dest="no_judge", action="store_true",
+            "--no-judge",
+            dest="no_judge",
+            action="store_true",
             help="Disable the LLM-as-judge fallback grader.",
         )
         parser.add_argument(
-            "--judge-model", dest="judge_model",
+            "--judge-model",
+            dest="judge_model",
             default="anthropic/claude-sonnet-4.5",
             help="OpenRouter slug for the LLM judge.",
         )
         parser.add_argument(
-            "--judge-concurrency", dest="judge_concurrency", type=int, default=4,
+            "--judge-concurrency",
+            dest="judge_concurrency",
+            type=int,
+            default=4,
             help="Parallel judge calls.",
         )
         # Ingest knobs
         parser.add_argument(
-            "--n-questions", dest="n_questions", type=int, default=None,
+            "--n-questions",
+            dest="n_questions",
+            type=int,
+            default=None,
             help="(ingest only) cap on number of questions to materialise + ingest.",
         )
         parser.add_argument(
-            "--upload-batch-size", dest="upload_batch_size", type=int, default=16,
+            "--upload-batch-size",
+            dest="upload_batch_size",
+            type=int,
+            default=16,
             help="(ingest only) markdown files per fileupload call.",
         )
         parser.add_argument(
-            "--skip-upload", dest="skip_upload", action="store_true",
+            "--skip-upload",
+            dest="skip_upload",
+            action="store_true",
             help="(ingest only) extract pages locally but don't push to SurfSense.",
         )
         parser.add_argument(
-            "--overwrite-extract", dest="overwrite_extract", action="store_true",
+            "--overwrite-extract",
+            dest="overwrite_extract",
+            action="store_true",
             help="(ingest only) re-run trafilatura even when cached markdown exists.",
         )
         parser.add_argument(
-            "--sample-seed", dest="sample_seed", type=int, default=17,
+            "--sample-seed",
+            dest="sample_seed",
+            type=int,
+            default=17,
             help="(ingest only) RNG seed for the stratified sample.",
         )
         add_ingest_settings_args(parser, defaults=_DEFAULT_INGEST_SETTINGS)
@@ -362,12 +405,14 @@ class CragBenchmark:
             if not api_key:
                 logger.warning("CRAG: --no-judge implied (no OPENROUTER_API_KEY for judge)")
             else:
-                judge = CragLlmJudge(config=CragJudgeConfig(
-                    api_key=api_key,
-                    model=judge_model,
-                    base_url=ctx.config.openrouter_base_url,
-                    concurrency=judge_concurrency,
-                ))
+                judge = CragLlmJudge(
+                    config=CragJudgeConfig(
+                        api_key=api_key,
+                        model=judge_model,
+                        base_url=ctx.config.openrouter_base_url,
+                        concurrency=judge_concurrency,
+                    )
+                )
 
         run_timestamp = utc_iso_timestamp()
         run_dir = ctx.runs_dir(run_timestamp=run_timestamp)
@@ -393,29 +438,53 @@ class CragBenchmark:
         # internally concurrency-bounded.
         tasks: list[Any] = []
         if bare_arm is not None:
-            tasks.append(_gather_with_limit((_bare_one(q) for q in questions), concurrency=concurrency))
+            tasks.append(
+                _gather_with_limit((_bare_one(q) for q in questions), concurrency=concurrency)
+            )
         else:
             tasks.append(_make_skipped_results(questions, "bare_llm"))
         if long_context_arm is not None:
-            tasks.append(_gather_with_limit((_long_context_one(q) for q in questions), concurrency=concurrency))
+            tasks.append(
+                _gather_with_limit(
+                    (_long_context_one(q) for q in questions), concurrency=concurrency
+                )
+            )
         else:
             tasks.append(_make_skipped_results(questions, "long_context"))
         if surf_arm is not None:
-            tasks.append(_gather_with_limit((_surf_one(q) for q in questions), concurrency=concurrency))
+            tasks.append(
+                _gather_with_limit((_surf_one(q) for q in questions), concurrency=concurrency)
+            )
         else:
             tasks.append(_make_skipped_results(questions, "surfsense"))
 
         bare_results, long_context_results, surf_results = await asyncio.gather(*tasks)
 
-        bare_grades = await _grade_results(questions, bare_results, judge=judge) if bare_arm else _empty_grades(questions)
-        lc_grades = await _grade_results(questions, long_context_results, judge=judge) if long_context_arm else _empty_grades(questions)
-        surf_grades = await _grade_results(questions, surf_results, judge=judge) if surf_arm else _empty_grades(questions)
+        bare_grades = (
+            await _grade_results(questions, bare_results, judge=judge)
+            if bare_arm
+            else _empty_grades(questions)
+        )
+        lc_grades = (
+            await _grade_results(questions, long_context_results, judge=judge)
+            if long_context_arm
+            else _empty_grades(questions)
+        )
+        surf_grades = (
+            await _grade_results(questions, surf_results, judge=judge)
+            if surf_arm
+            else _empty_grades(questions)
+        )
 
         with raw_path.open("w", encoding="utf-8") as fh:
             for q, b_res, l_res, s_res, b_g, l_g, s_g in zip(
                 questions,
-                bare_results, long_context_results, surf_results,
-                bare_grades, lc_grades, surf_grades,
+                bare_results,
+                long_context_results,
+                surf_results,
+                bare_grades,
+                lc_grades,
+                surf_grades,
                 strict=False,
             ):
                 meta = {
@@ -431,18 +500,29 @@ class CragBenchmark:
                     "alt_answers": q.alt_answers,
                 }
                 for res, grade in (
-                    (b_res, b_g), (l_res, l_g), (s_res, s_g),
+                    (b_res, b_g),
+                    (l_res, l_g),
+                    (s_res, s_g),
                 ):
-                    fh.write(json.dumps({
-                        **meta,
-                        **res.to_jsonl(),
-                        "graded": grade.to_dict(),
-                    }) + "\n")
+                    fh.write(
+                        json.dumps(
+                            {
+                                **meta,
+                                **res.to_jsonl(),
+                                "graded": grade.to_dict(),
+                            }
+                        )
+                        + "\n"
+                    )
 
         metrics = _compute_metrics(
             questions=questions,
-            bare_results=bare_results, long_context_results=long_context_results, surf_results=surf_results,
-            bare_grades=bare_grades, lc_grades=lc_grades, surf_grades=surf_grades,
+            bare_results=bare_results,
+            long_context_results=long_context_results,
+            surf_results=surf_results,
+            bare_grades=bare_grades,
+            lc_grades=lc_grades,
+            surf_grades=surf_grades,
             arms_active={
                 "bare_llm": bare_arm is not None,
                 "long_context": long_context_arm is not None,
@@ -481,13 +561,18 @@ class CragBenchmark:
 
         manifest_path = run_dir / "run_artifact.json"
         manifest_path.write_text(
-            json.dumps({
-                "suite": self.suite,
-                "benchmark": self.name,
-                "raw_path": "raw.jsonl",
-                "metrics": metrics,
-                "extra": artifact.extra,
-            }, indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                {
+                    "suite": self.suite,
+                    "benchmark": self.name,
+                    "raw_path": "raw.jsonl",
+                    "metrics": metrics,
+                    "extra": artifact.extra,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
         return artifact
@@ -547,7 +632,9 @@ class CragBenchmark:
 
         body_lines.append("- Headline truthfulness scores (CRAG paper rubric):")
         for label, key in (
-            ("Bare LLM", "bare_llm"), ("Long-Context", "long_context"), ("SurfSense", "surfsense"),
+            ("Bare LLM", "bare_llm"),
+            ("Long-Context", "long_context"),
+            ("SurfSense", "surfsense"),
         ):
             d = m.get(key, {})
             body_lines.append(
@@ -583,9 +670,7 @@ class CragBenchmark:
                 for arm in ("bare_llm", "long_context", "surfsense"):
                     if arm not in row:
                         continue
-                    pieces.append(
-                        f"{arm}={_signed_pct(row[arm].get('truthfulness_score'))}"
-                    )
+                    pieces.append(f"{arm}={_signed_pct(row[arm].get('truthfulness_score'))}")
                 body_lines.append(" ".join(pieces))
 
         if per_qtype:
@@ -596,9 +681,7 @@ class CragBenchmark:
                 for arm in ("bare_llm", "long_context", "surfsense"):
                     if arm not in row:
                         continue
-                    pieces.append(
-                        f"{arm}={_signed_pct(row[arm].get('truthfulness_score'))}"
-                    )
+                    pieces.append(f"{arm}={_signed_pct(row[arm].get('truthfulness_score'))}")
                 body_lines.append(" ".join(pieces))
 
         return ReportSection(
@@ -669,32 +752,31 @@ async def _grade_results(
     rows: list[CragGradeRow] = []
     for q, r in zip(questions, results, strict=False):
         pred = extract_freeform_answer(r.raw_text or "")
-        rows.append(CragGradeRow(
-            qid=q.qid,
-            question=q.question,
-            gold=q.gold_answer,
-            alt_answers=q.alt_answers,
-            pred=pred,
-            question_type=q.question_type,
-        ))
+        rows.append(
+            CragGradeRow(
+                qid=q.qid,
+                question=q.question,
+                gold=q.gold_answer,
+                alt_answers=q.alt_answers,
+                pred=pred,
+                question_type=q.question_type,
+            )
+        )
     return await grade_many(rows=rows, judge=judge)
 
 
 def _empty_grades(questions: list[CragRunnerQuestion]) -> list[CragGradeResult]:
-    return [
-        CragGradeResult(grade="missing", score=0, method="skipped_arm")
-        for _ in questions
-    ]
+    return [CragGradeResult(grade="missing", score=0, method="skipped_arm") for _ in questions]
 
 
 async def _make_skipped_results(
-    questions: list[CragRunnerQuestion], arm_name: str,
+    questions: list[CragRunnerQuestion],
+    arm_name: str,
 ) -> list[ArmResult]:
     """Stand-in results so downstream code can assume parallel lists."""
 
     return [
-        ArmResult(arm=arm_name, question_id=q.qid, raw_text="", error="skipped")
-        for q in questions
+        ArmResult(arm=arm_name, question_id=q.qid, raw_text="", error="skipped") for q in questions
     ]
 
 
@@ -776,20 +858,41 @@ def _compute_metrics(
 
     deltas: dict[str, Any] = {}
     for label, ref_correct, ref_t, chal_correct, chal_t, both_active in (
-        ("surfsense_vs_bare", bare_correct, bare_t, surf_correct, surf_t,
-         arms_active.get("bare_llm") and arms_active.get("surfsense")),
-        ("surfsense_vs_long_context", lc_correct, lc_t, surf_correct, surf_t,
-         arms_active.get("long_context") and arms_active.get("surfsense")),
-        ("long_context_vs_bare", bare_correct, bare_t, lc_correct, lc_t,
-         arms_active.get("bare_llm") and arms_active.get("long_context")),
+        (
+            "surfsense_vs_bare",
+            bare_correct,
+            bare_t,
+            surf_correct,
+            surf_t,
+            arms_active.get("bare_llm") and arms_active.get("surfsense"),
+        ),
+        (
+            "surfsense_vs_long_context",
+            lc_correct,
+            lc_t,
+            surf_correct,
+            surf_t,
+            arms_active.get("long_context") and arms_active.get("surfsense"),
+        ),
+        (
+            "long_context_vs_bare",
+            bare_correct,
+            bare_t,
+            lc_correct,
+            lc_t,
+            arms_active.get("bare_llm") and arms_active.get("long_context"),
+        ),
     ):
         if not both_active:
             continue
         mc = mcnemar_test(ref_correct, chal_correct)
         boot = bootstrap_delta_ci(ref_correct, chal_correct, n_resamples=2000)
         deltas[label] = {
-            "accuracy_pp": 100.0 * (sum(chal_correct) - sum(ref_correct)) / max(1, len(chal_correct)),
-            "truthfulness_score_pp": 100.0 * (chal_t["truthfulness_score"] - ref_t["truthfulness_score"]),
+            "accuracy_pp": 100.0
+            * (sum(chal_correct) - sum(ref_correct))
+            / max(1, len(chal_correct)),
+            "truthfulness_score_pp": 100.0
+            * (chal_t["truthfulness_score"] - ref_t["truthfulness_score"]),
             "mcnemar_p_value": mc.p_value,
             "mcnemar_method": mc.method,
             "mcnemar_b_ref_only": mc.b,
@@ -800,12 +903,18 @@ def _compute_metrics(
     out["deltas"] = deltas
 
     out["per_domain"] = _per_facet_truthfulness(
-        questions, bare_grades, lc_grades, surf_grades,
+        questions,
+        bare_grades,
+        lc_grades,
+        surf_grades,
         arms_active=arms_active,
         key_fn=lambda q: q.domain or "(unspecified)",
     )
     out["per_question_type"] = _per_facet_truthfulness(
-        questions, bare_grades, lc_grades, surf_grades,
+        questions,
+        bare_grades,
+        lc_grades,
+        surf_grades,
         arms_active=arms_active,
         key_fn=lambda q: q.question_type or "(unspecified)",
     )
@@ -830,11 +939,11 @@ def _per_facet_truthfulness(
     """Bucket truthfulness scores by ``key_fn(q)``."""
 
     buckets: dict[str, dict[str, list[CragGradeResult]]] = {}
-    for q, b, l, s in zip(questions, bare_grades, lc_grades, surf_grades, strict=False):
+    for q, b, lc, s in zip(questions, bare_grades, lc_grades, surf_grades, strict=False):
         key = key_fn(q)
         bucket = buckets.setdefault(key, {"bare_llm": [], "long_context": [], "surfsense": []})
         bucket["bare_llm"].append(b)
-        bucket["long_context"].append(l)
+        bucket["long_context"].append(lc)
         bucket["surfsense"].append(s)
     out: dict[str, Any] = {}
     for key, arms in buckets.items():
@@ -867,11 +976,11 @@ def _arm_summary_lines(d: dict[str, Any], *, indent: str) -> str:
     high = d.get("ci_high", 0.0)
     lines = [
         f"{indent}- Accuracy: {acc * 100:.1f}% (Wilson 95% CI: {low * 100:.1f}% – {high * 100:.1f}%)",
-        f"{indent}- 3-class: correct={d.get('correct_rate', 0)*100:.1f}%, "
-        f"missing={d.get('missing_rate', 0)*100:.1f}%, "
-        f"incorrect={d.get('incorrect_rate', 0)*100:.1f}%",
+        f"{indent}- 3-class: correct={d.get('correct_rate', 0) * 100:.1f}%, "
+        f"missing={d.get('missing_rate', 0) * 100:.1f}%, "
+        f"incorrect={d.get('incorrect_rate', 0) * 100:.1f}%",
         f"{indent}- Truthfulness score (correct - incorrect)/total: "
-        f"{d.get('truthfulness_score', 0)*100:+.1f}%",
+        f"{d.get('truthfulness_score', 0) * 100:+.1f}%",
         f"{indent}- Cost / question: ${_dollars(d.get('cost_micros_mean'))} (mean), "
         f"${_dollars(d.get('cost_micros_median'))} (median)",
         f"{indent}- Latency: p50 {_ms_to_s(d.get('latency_ms_median'))}, "
@@ -916,7 +1025,7 @@ def _pct(value: Any) -> str:
     if value is None:
         return "?"
     try:
-        return f"{float(value)*100:.1f}%"
+        return f"{float(value) * 100:.1f}%"
     except (TypeError, ValueError):
         return "?"
 
@@ -925,7 +1034,7 @@ def _signed_pct(value: Any) -> str:
     if value is None:
         return "?"
     try:
-        return f"{float(value)*100:+.1f}%"
+        return f"{float(value) * 100:+.1f}%"
     except (TypeError, ValueError):
         return "?"
 

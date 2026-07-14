@@ -25,7 +25,8 @@ export function PlaygroundIndex({ workspaceId }: { workspaceId: number }) {
 				<Info />
 				<AlertDescription>
 					<p>
-						Manually run SurfSense's platform-native APIs and inspect their output. To use these APIs outside SurfSense,{" "}
+						Manually run SurfSense's platform-native APIs and inspect their output. To use these
+						APIs outside SurfSense,{" "}
 						<Link
 							href={`${base}/api-keys`}
 							className="font-medium text-foreground underline-offset-4 hover:underline"

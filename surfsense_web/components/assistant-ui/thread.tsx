@@ -1018,10 +1018,7 @@ const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => 
 					return (
 						<Tooltip key={platform.id}>
 							<TooltipTrigger asChild>
-								<Avatar
-									className="size-5"
-									style={{ zIndex: platforms.length - i }}
-								>
+								<Avatar className="size-5" style={{ zIndex: platforms.length - i }}>
 									<AvatarFallback className="bg-popover text-[10px]">
 										<Icon className="size-3" />
 									</AvatarFallback>

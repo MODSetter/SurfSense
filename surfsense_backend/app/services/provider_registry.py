@@ -23,6 +23,7 @@ DiscoveryKind = Literal[
     "anthropic_models",
     "bedrock_models",
     "openrouter",
+    "requesty",
     "static",
     "none",
 ]
@@ -78,6 +79,15 @@ REGISTRY: dict[str, ProviderSpec] = {
         "bearer",
         "OpenRouter",
     ),
+    "requesty": ProviderSpec(
+        Transport.OPENAI_COMPATIBLE,
+        "openai",
+        "requesty",
+        "https://router.requesty.ai/v1",
+        False,
+        "bearer",
+        "Requesty",
+    ),
     "openai_compatible": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
         "openai",
@@ -86,6 +96,15 @@ REGISTRY: dict[str, ProviderSpec] = {
         True,
         "bearer",
         "OpenAI-compatible provider",
+    ),
+    "openai_compatible_raw": ProviderSpec(
+        Transport.NATIVE,
+        "openai",
+        "none",
+        None,
+        True,
+        "bearer",
+        "OpenAI-compatible raw endpoint",
     ),
     "lm_studio": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,

@@ -35,7 +35,7 @@ const demoPlans = [
 		billingText: "Your first $5 of credit is free. No subscription, ever",
 		features: [
 			"$5 of free credit to start, one balance for everything",
-			"Platform connectors: Reddit, YouTube, Google Maps, Google Search, and the open web",
+			"Platform connectors: Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web",
 			"Call every connector as a REST API with your key or through the MCP server",
 			"Pay per item returned and per page crawled. Failed calls are never billed",
 			"Premium models like GPT-5.5, Claude Sonnet 5, Gemini 3.1 Pro billed at provider cost",
@@ -95,7 +95,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "How does Pay As You Go work?",
 				answer:
-					"There is no monthly subscription. Start with $5 of free credit, and when you need more, add any amount. $1 buys exactly $1 of credit, added to your balance immediately. You can enable automatic refills when your balance runs low, and turn them off any time."
+					"There is no monthly subscription. Start with $5 of free credit, and when you need more, add any amount. $1 buys exactly $1 of credit, added to your balance immediately. You can enable automatic refills when your balance runs low, and turn them off any time.",
 			},
 			{
 				question: "What happens if I run out of credit?",

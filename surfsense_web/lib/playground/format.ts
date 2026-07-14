@@ -11,9 +11,7 @@ export function formatCost(costMicros: number | null | undefined): string {
 /** One meter as a per-1k rate, e.g. 3500 micros/place -> "$3.50 / 1k places". */
 export function formatRate(meter: ScraperPricingMeter): string {
 	const perThousand = (meter.micros_per_unit * 1000) / 1_000_000;
-	const dollars = Number.isInteger(perThousand)
-		? perThousand.toString()
-		: perThousand.toFixed(2);
+	const dollars = Number.isInteger(perThousand) ? perThousand.toString() : perThousand.toFixed(2);
 	return `$${dollars} / 1k ${meter.unit}s`;
 }
 

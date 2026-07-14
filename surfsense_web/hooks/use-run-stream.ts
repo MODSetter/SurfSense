@@ -89,17 +89,12 @@ export function useRunStream(workspaceId: number) {
 					setState((s) => ({
 						...s,
 						latest: ev,
-						events:
-							ev.type === "run.progress"
-								? [...s.events.slice(-(MAX_LOG - 1)), ev]
-								: s.events,
+						events: ev.type === "run.progress" ? [...s.events.slice(-(MAX_LOG - 1)), ev] : s.events,
 					}));
 				}
 			} catch (e) {
 				if (signal.aborted) return;
-				setState((s) =>
-					s.status === "running" ? { ...s, status: "error", error: e } : s
-				);
+				setState((s) => (s.status === "running" ? { ...s, status: "error", error: e } : s));
 			}
 		},
 		[workspaceId, queryClient]
@@ -113,12 +108,7 @@ export function useRunStream(workspaceId: number) {
 			startedAtRef.current = Date.now();
 			setState({ ...INITIAL, status: "running" });
 			try {
-				const started = await scrapersApiService.runAsync(
-					workspaceId,
-					platform,
-					verb,
-					payload
-				);
+				const started = await scrapersApiService.runAsync(workspaceId, platform, verb, payload);
 				runIdRef.current = started.run_id;
 				trackWeeklyUser("api_run", workspaceId);
 				setState((s) => ({ ...s, runId: started.run_id }));

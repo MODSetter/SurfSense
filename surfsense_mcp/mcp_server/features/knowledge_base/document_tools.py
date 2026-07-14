@@ -20,9 +20,7 @@ from .annotations import DELETE, WRITE, DocumentId
 from .note_ingestion import build_note_document
 
 
-def register(
-    mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext
-) -> None:
+def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -> None:
     """Register the knowledge-base write and delete tools."""
 
     @mcp.tool(
@@ -136,8 +134,7 @@ def register(
             str,
             Field(
                 min_length=1,
-                description="New full text; replaces the existing content "
-                "entirely.",
+                description="New full text; replaces the existing content entirely.",
             ),
         ],
     ) -> str:

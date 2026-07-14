@@ -121,7 +121,28 @@ start_beat() {
     echo "  Celery Beat PID=${PIDS[-1]}"
 }
 
+# ── Headful browser display ──────────────────────────────────
+# Give the stealth browser a virtual display so it can run headful (TikTok's
+# profile feed is empty to headless Chromium). Off => every browser stays headless.
+start_xvfb() {
+    if [ "$(echo "${CRAWL_HEADED_XVFB_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')" != "true" ]; then
+        return
+    fi
+    local display="${XVFB_DISPLAY:-:99}"
+    echo "Starting Xvfb on ${display} (CRAWL_HEADED_XVFB_ENABLED=true)..."
+    Xvfb "${display}" -screen 0 1920x1080x24 -nolisten tcp >/dev/null 2>&1 &
+    PIDS+=($!)
+    export DISPLAY="${display}"
+    sleep 1  # let the X server accept connections before a browser starts
+    echo "  Xvfb PID=${PIDS[-1]} DISPLAY=${DISPLAY}"
+}
+
 # ── Main: run based on role ──────────────────────────────────
+# migrate never launches a browser; every other role might, so start the display.
+if [ "${SERVICE_ROLE}" != "migrate" ]; then
+    start_xvfb
+fi
+
 case "${SERVICE_ROLE}" in
     migrate)
         run_migrations

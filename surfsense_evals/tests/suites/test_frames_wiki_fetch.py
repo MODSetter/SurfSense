@@ -63,14 +63,22 @@ class TestCacheFilename:
 @pytest.mark.asyncio
 @respx.mock
 async def test_fetch_success_writes_markdown(tmp_path: Path) -> None:
-    respx.get(WIKI_API).mock(return_value=httpx.Response(
-        200,
-        json={"query": {"pages": [{
-            "pageid": 1,
-            "title": "James Buchanan",
-            "extract": "James Buchanan was the 15th president of the United States.",
-        }]}},
-    ))
+    respx.get(WIKI_API).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "query": {
+                    "pages": [
+                        {
+                            "pageid": 1,
+                            "title": "James Buchanan",
+                            "extract": "James Buchanan was the 15th president of the United States.",
+                        }
+                    ]
+                }
+            },
+        )
+    )
     fetcher = WikiFetcher(cache_dir=tmp_path, rate_limit_rps=100)  # disable throttle
     article = await fetcher.fetch("https://en.wikipedia.org/wiki/James_Buchanan")
     assert article is not None
@@ -83,13 +91,21 @@ async def test_fetch_success_writes_markdown(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 @respx.mock
 async def test_fetch_missing_page_returns_none(tmp_path: Path) -> None:
-    respx.get(WIKI_API).mock(return_value=httpx.Response(
-        200,
-        json={"query": {"pages": [{
-            "title": "DoesNotExist",
-            "missing": True,
-        }]}},
-    ))
+    respx.get(WIKI_API).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "query": {
+                    "pages": [
+                        {
+                            "title": "DoesNotExist",
+                            "missing": True,
+                        }
+                    ]
+                }
+            },
+        )
+    )
     fetcher = WikiFetcher(cache_dir=tmp_path, rate_limit_rps=100)
     article = await fetcher.fetch("https://en.wikipedia.org/wiki/DoesNotExist")
     assert article is None

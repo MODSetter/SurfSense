@@ -9,6 +9,11 @@ from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from dotenv import load_dotenv
 from rerankers import Reranker
 
+from app.config.embedding_settings import (
+    build_embedding_kwargs,
+    resolve_embedding_base_url,
+)
+
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -714,6 +719,26 @@ class Config:
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
     YOUTUBE_MICROS_PER_COMMENT = int(os.getenv("YOUTUBE_MICROS_PER_COMMENT", "1500"))
+    INSTAGRAM_SCRAPE_MICROS_PER_ITEM = int(
+        os.getenv("INSTAGRAM_SCRAPE_MICROS_PER_ITEM", "3500")
+    )
+    # Kept separate from the item rate so comments can be re-tuned toward the
+    # cheaper per-comment market without touching post/reel pricing.
+    INSTAGRAM_SCRAPE_MICROS_PER_COMMENT = int(
+        os.getenv("INSTAGRAM_SCRAPE_MICROS_PER_COMMENT", "1500")
+    )
+    # Browser-driven listings make TikTok heavier per item than the API-backed
+    # video meter, so it sits a touch above YouTube's video rate.
+    TIKTOK_MICROS_PER_VIDEO = int(os.getenv("TIKTOK_MICROS_PER_VIDEO", "3500"))
+    # User search returns lighter account records (name/followers/bio), priced
+    # below the video meter to mirror the cheaper account-discovery market.
+    TIKTOK_MICROS_PER_USER = int(os.getenv("TIKTOK_MICROS_PER_USER", "2500"))
+    # Comments are the cheapest per-item TikTok data, matching the per-comment
+    # market (and YouTube's comment meter).
+    TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Retry an empty listing draw on a fresh rotating IP. Set to 1 for a static
+    # proxy, where every retry re-hits the same exit.
+    TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
 
     # Low-balance WARNING threshold (micro-USD). Surfaced by the quota service
     # so the UI can nudge the user to top up / enable auto-reload. $0.50.
@@ -937,16 +962,13 @@ class Config:
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+    EMBEDDING_BASE_URL = resolve_embedding_base_url()
     # Azure OpenAI credentials from environment variables
     AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 
-    # Pass Azure credentials to embeddings when using Azure OpenAI
-    embedding_kwargs = {}
-    if AZURE_OPENAI_ENDPOINT:
-        embedding_kwargs["azure_endpoint"] = AZURE_OPENAI_ENDPOINT
-    if AZURE_OPENAI_API_KEY:
-        embedding_kwargs["azure_api_key"] = AZURE_OPENAI_API_KEY
+    # Pass provider-specific settings to embeddings when supported.
+    embedding_kwargs = build_embedding_kwargs(embedding_model=EMBEDDING_MODEL)
 
     embedding_model_instance = AutoEmbeddings.get_embeddings(
         EMBEDDING_MODEL,
@@ -1136,6 +1158,11 @@ class Config:
     # round-trip => default FALSE to honor the "no speed regression" bar; flip on
     # when leak-safety outweighs the marginal latency.
     CRAWL_DNS_OVER_HTTPS = os.getenv("CRAWL_DNS_OVER_HTTPS", "FALSE").upper() == "TRUE"
+    # Promises an Xvfb display so the browser can run headful (TikTok's profile
+    # feed is empty to headless Chromium). Off keeps every browser headless.
+    CRAWL_HEADED_XVFB_ENABLED = (
+        os.getenv("CRAWL_HEADED_XVFB_ENABLED", "FALSE").upper() == "TRUE"
+    )
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")

@@ -23,7 +23,11 @@ assert.deepEqual(payload, {
 	query: "<query>",
 });
 
-const snippets = buildSnippets("https://api.example.com", "/api/v1/workspaces/1/scrapers/x/y", payload);
+const snippets = buildSnippets(
+	"https://api.example.com",
+	"/api/v1/workspaces/1/scrapers/x/y",
+	payload
+);
 
 // Every popular language is present.
 assert.deepEqual(

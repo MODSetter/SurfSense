@@ -8,10 +8,7 @@ runner knows to consult the judge.
 
 from __future__ import annotations
 
-import pytest
-
 from surfsense_evals.suites.research.frames.grader import (
-    GradeResult,
     _maybe_number,
     _normalise,
     _whole_word_substring,

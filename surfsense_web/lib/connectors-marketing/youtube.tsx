@@ -270,10 +270,11 @@ export const youtube: ConnectorPageContent = {
 
 	related: [
 		{ label: "Reddit API", href: "/reddit" },
+		{ label: "Instagram API", href: "/instagram" },
+		{ label: "TikTok API", href: "/tiktok" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
-		{ label: "Read the docs", href: "/docs" },
 	],
 };

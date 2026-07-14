@@ -29,8 +29,8 @@ from typing import Any
 import httpx
 
 from .openrouter_pdf import (
-    OpenRouterResponse,
     _DEFAULT_HEADERS,
+    OpenRouterResponse,
     _parse_chat_completion,
 )
 

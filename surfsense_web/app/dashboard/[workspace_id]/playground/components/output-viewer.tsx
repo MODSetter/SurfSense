@@ -3,7 +3,6 @@
 import { Check, Copy, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Table,
 	TableBody,
@@ -12,6 +11,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadCsv, rowsToCsv } from "@/lib/playground/csv";
 
 const MAX_TABLE_ROWS = 200;
@@ -117,13 +117,7 @@ export function OutputViewer({ data, filenameBase }: { data: unknown; filenameBa
 				</Tabs>
 				<div className="flex items-center gap-1">
 					{items && items.length > 0 && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							onClick={exportCsv}
-							className="gap-1.5"
-						>
+						<Button type="button" variant="ghost" size="sm" onClick={exportCsv} className="gap-1.5">
 							<Download className="h-3.5 w-3.5" />
 							Export CSV
 						</Button>

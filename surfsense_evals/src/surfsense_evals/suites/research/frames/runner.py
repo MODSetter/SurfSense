@@ -65,7 +65,7 @@ class FramesRunnerQuestion:
     question: str
     gold_answer: str
     reasoning_types: list[str]
-    document_ids: list[int]   # subset of corpus relevant to this Q (may be empty)
+    document_ids: list[int]  # subset of corpus relevant to this Q (may be empty)
     n_wiki_urls: int
     missing_urls: list[str]
 
@@ -107,16 +107,18 @@ def _load_questions(
             reasoning = list(row.get("reasoning_types") or [])
             if reasoning_filter and reasoning_filter not in [r.lower() for r in reasoning]:
                 continue
-            out.append(FramesRunnerQuestion(
-                qid=qid,
-                raw_index=int(row.get("raw_index") or 0),
-                question=str(row.get("question") or "").strip(),
-                gold_answer=str(row.get("gold_answer") or "").strip(),
-                reasoning_types=reasoning,
-                document_ids=list(map_row.get("document_ids") or []),
-                n_wiki_urls=int(map_row.get("n_wiki_urls") or 0),
-                missing_urls=list(map_row.get("missing_urls") or []),
-            ))
+            out.append(
+                FramesRunnerQuestion(
+                    qid=qid,
+                    raw_index=int(row.get("raw_index") or 0),
+                    question=str(row.get("question") or "").strip(),
+                    gold_answer=str(row.get("gold_answer") or "").strip(),
+                    reasoning_types=reasoning,
+                    document_ids=list(map_row.get("document_ids") or []),
+                    n_wiki_urls=int(map_row.get("n_wiki_urls") or 0),
+                    missing_urls=list(map_row.get("missing_urls") or []),
+                )
+            )
     out.sort(key=lambda q: q.raw_index)
     if sample_n is not None and sample_n > 0:
         out = out[:sample_n]
@@ -166,7 +168,10 @@ class FramesBenchmark:
 
     def add_run_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
-            "--n", dest="sample_n", type=int, default=None,
+            "--n",
+            dest="sample_n",
+            type=int,
+            default=None,
             help="Run only the first N questions after filters (default: all 824).",
         )
         parser.add_argument(
@@ -180,11 +185,15 @@ class FramesBenchmark:
             ),
         )
         parser.add_argument(
-            "--concurrency", type=int, default=4,
+            "--concurrency",
+            type=int,
+            default=4,
             help="Parallel question workers per arm.",
         )
         parser.add_argument(
-            "--scope-mentions", dest="scope_mentions", action="store_true",
+            "--scope-mentions",
+            dest="scope_mentions",
+            action="store_true",
             help=(
                 "SurfSense arm: scope retrieval to the per-question "
                 "document_ids (oracle-retrieval upper bound). Default "
@@ -192,11 +201,15 @@ class FramesBenchmark:
             ),
         )
         parser.add_argument(
-            "--max-output-tokens", type=int, default=512,
+            "--max-output-tokens",
+            type=int,
+            default=512,
             help="Cap on completion length for both arms.",
         )
         parser.add_argument(
-            "--no-judge", dest="no_judge", action="store_true",
+            "--no-judge",
+            dest="no_judge",
+            action="store_true",
             help=(
                 "Disable LLM-as-judge fallback grading; use only the "
                 "deterministic grader (faster but more pessimistic)."
@@ -217,19 +230,30 @@ class FramesBenchmark:
         )
         # Ingest-only knobs.
         parser.add_argument(
-            "--max-questions", dest="max_questions", type=int, default=None,
+            "--max-questions",
+            dest="max_questions",
+            type=int,
+            default=None,
             help="(ingest only) cap on number of questions to materialise + ingest.",
         )
         parser.add_argument(
-            "--upload-batch-size", dest="upload_batch_size", type=int, default=16,
+            "--upload-batch-size",
+            dest="upload_batch_size",
+            type=int,
+            default=16,
             help="(ingest only) markdown files per fileupload call.",
         )
         parser.add_argument(
-            "--skip-upload", dest="skip_upload", action="store_true",
+            "--skip-upload",
+            dest="skip_upload",
+            action="store_true",
             help="(ingest only) cache wiki articles locally but don't push to SurfSense.",
         )
         parser.add_argument(
-            "--fetch-rps", dest="fetch_rate_limit_rps", type=float, default=2.0,
+            "--fetch-rps",
+            dest="fetch_rate_limit_rps",
+            type=float,
+            default=2.0,
             help="(ingest only) max requests/second to the Wikipedia API.",
         )
         add_ingest_settings_args(parser, defaults=_DEFAULT_INGEST_SETTINGS)
@@ -270,21 +294,18 @@ class FramesBenchmark:
 
         doc_map, ingest_settings = _load_doc_map(map_path)
         questions = _load_questions(
-            questions_jsonl, doc_map,
+            questions_jsonl,
+            doc_map,
             sample_n=sample_n,
             reasoning_filter=reasoning_filter,
         )
         if not questions:
-            raise RuntimeError(
-                "No FRAMES questions matched the filters; broaden --reasoning/--n."
-            )
+            raise RuntimeError("No FRAMES questions matched the filters; broaden --reasoning/--n.")
         logger.info("FRAMES: scheduled %d questions", len(questions))
 
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
-            raise RuntimeError(
-                "OPENROUTER_API_KEY env var is required for the bare-LLM arm."
-            )
+            raise RuntimeError("OPENROUTER_API_KEY env var is required for the bare-LLM arm.")
 
         bare_provider = OpenRouterChatProvider(
             api_key=api_key,
@@ -303,12 +324,14 @@ class FramesBenchmark:
 
         judge: LlmJudge | None = None
         if not no_judge:
-            judge = LlmJudge(config=JudgeConfig(
-                api_key=api_key,
-                model=judge_model,
-                base_url=ctx.config.openrouter_base_url,
-                concurrency=judge_concurrency,
-            ))
+            judge = LlmJudge(
+                config=JudgeConfig(
+                    api_key=api_key,
+                    model=judge_model,
+                    base_url=ctx.config.openrouter_base_url,
+                    concurrency=judge_concurrency,
+                )
+            )
 
         run_timestamp = utc_iso_timestamp()
         run_dir = ctx.runs_dir(run_timestamp=run_timestamp)
@@ -318,9 +341,7 @@ class FramesBenchmark:
             return await bare_arm.answer(_make_bare_request(q, max_output_tokens))
 
         async def _surf_one(q: FramesRunnerQuestion) -> ArmResult:
-            return await surf_arm.answer(
-                _make_surfsense_request(q, scope_mentions=scope_mentions)
-            )
+            return await surf_arm.answer(_make_surfsense_request(q, scope_mentions=scope_mentions))
 
         bare_results, surf_results = await asyncio.gather(
             _gather_with_limit((_bare_one(q) for q in questions), concurrency=concurrency),
@@ -343,16 +364,26 @@ class FramesBenchmark:
                     "n_missing_urls": len(q.missing_urls),
                     "gold": q.gold_answer,
                 }
-                fh.write(json.dumps({
-                    **meta,
-                    **b_res.to_jsonl(),
-                    "graded": b_g.to_dict(),
-                }) + "\n")
-                fh.write(json.dumps({
-                    **meta,
-                    **s_res.to_jsonl(),
-                    "graded": s_g.to_dict(),
-                }) + "\n")
+                fh.write(
+                    json.dumps(
+                        {
+                            **meta,
+                            **b_res.to_jsonl(),
+                            "graded": b_g.to_dict(),
+                        }
+                    )
+                    + "\n"
+                )
+                fh.write(
+                    json.dumps(
+                        {
+                            **meta,
+                            **s_res.to_jsonl(),
+                            "graded": s_g.to_dict(),
+                        }
+                    )
+                    + "\n"
+                )
 
         metrics = _compute_metrics(questions, bare_results, surf_results, bare_grades, surf_grades)
         artifact = RunArtifact(
@@ -380,13 +411,18 @@ class FramesBenchmark:
 
         manifest_path = run_dir / "run_artifact.json"
         manifest_path.write_text(
-            json.dumps({
-                "suite": self.suite,
-                "benchmark": self.name,
-                "raw_path": "raw.jsonl",
-                "metrics": metrics,
-                "extra": artifact.extra,
-            }, indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                {
+                    "suite": self.suite,
+                    "benchmark": self.name,
+                    "raw_path": "raw.jsonl",
+                    "metrics": metrics,
+                    "extra": artifact.extra,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
         return artifact
@@ -451,8 +487,8 @@ class FramesBenchmark:
             for tag, vals in sorted(per_reasoning.items()):
                 body_lines.append(
                     f"  - {tag}: SurfSense {_pp(vals.get('delta_accuracy_pp'))} pp "
-                    f"(n={vals.get('n')}, bare acc={vals.get('bare_accuracy', 0)*100:.1f}%, "
-                    f"surf acc={vals.get('surfsense_accuracy', 0)*100:.1f}%)"
+                    f"(n={vals.get('n')}, bare acc={vals.get('bare_accuracy', 0) * 100:.1f}%, "
+                    f"surf acc={vals.get('surfsense_accuracy', 0) * 100:.1f}%)"
                 )
 
         return ReportSection(
@@ -553,8 +589,7 @@ def _compute_metrics(
             "bare_accuracy": (sum(b_correct) / len(pairs)) if pairs else 0.0,
             "surfsense_accuracy": (sum(s_correct) / len(pairs)) if pairs else 0.0,
             "delta_accuracy_pp": (
-                100.0 * (sum(s_correct) - sum(b_correct)) / len(pairs)
-                if pairs else 0.0
+                100.0 * (sum(s_correct) - sum(b_correct)) / len(pairs) if pairs else 0.0
             ),
         }
 
@@ -571,8 +606,12 @@ def _compute_metrics(
             "latency_ms_mean": bare_latency_agg.mean,
             "latency_ms_median": bare_latency_agg.median,
             "latency_ms_p95": bare_latency_agg.p95,
-            "input_tokens_mean": (sum(bare_in_tokens) / len(bare_in_tokens)) if bare_in_tokens else 0.0,
-            "output_tokens_mean": (sum(bare_out_tokens) / len(bare_out_tokens)) if bare_out_tokens else 0.0,
+            "input_tokens_mean": (sum(bare_in_tokens) / len(bare_in_tokens))
+            if bare_in_tokens
+            else 0.0,
+            "output_tokens_mean": (sum(bare_out_tokens) / len(bare_out_tokens))
+            if bare_out_tokens
+            else 0.0,
         },
         "surfsense": {
             **surf_acc.to_dict(),

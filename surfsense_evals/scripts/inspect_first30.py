@@ -44,10 +44,7 @@ def main() -> None:
         f"questions covering first 30 docs: total={len(qs_in_30)}  "
         f"answerable={answerable}  unanswerable={unanswerable}"
     )
-    print(
-        f"avg Qs/PDF: {len(qs_in_30) / 30:.1f}  "
-        f"answerable/PDF: {answerable / 30:.1f}"
-    )
+    print(f"avg Qs/PDF: {len(qs_in_30) / 30:.1f}  answerable/PDF: {answerable / 30:.1f}")
     print(f"format mix in scope: {dict(fmts)}")
     print()
     print("25 new PDFs to ingest:")
