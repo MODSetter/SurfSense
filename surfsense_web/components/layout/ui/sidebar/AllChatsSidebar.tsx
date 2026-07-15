@@ -94,7 +94,9 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 	const {
 		data: threadsData,
 		error: threadsError,
+		isFetching: isFetchingThreads,
 		isLoading: isLoadingThreads,
+		isPlaceholderData,
 	} = useQuery({
 		queryKey: ["all-threads", workspaceId],
 		queryFn: () => fetchThreads(Number(workspaceId)),
@@ -228,6 +230,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 	}, []);
 
 	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
+	const isLoadingMoreThreads = !isSearchMode && isFetchingThreads && isPlaceholderData;
 	const error = isSearchMode ? searchError : threadsError;
 
 	const selectedFilterLabel = showArchived ? "Archived" : "Active";
@@ -307,10 +310,12 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
 							<div
 								key={`skeleton-${titleWidth}`}
-								className="flex items-center gap-2.5 rounded-md px-3 py-2.5"
+								className="rounded-md px-3 py-1.5 md:py-2"
 							>
-								<Skeleton className="h-4 w-4 shrink-0 rounded" />
-								<Skeleton className="h-5 rounded" style={{ width: `${titleWidth}%` }} />
+								<Skeleton
+									className="h-4 rounded md:h-4.5"
+									style={{ width: `${titleWidth}%` }}
+								/>
 							</div>
 						))}
 					</div>
@@ -485,6 +490,21 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 								</div>
 							);
 						})}
+						{isLoadingMoreThreads ? (
+							<div className="mt-1 space-y-1">
+								{[62, 48, 56].map((titleWidth) => (
+									<div
+										key={`tail-skeleton-${titleWidth}`}
+										className="rounded-md px-3 py-1.5 md:py-2"
+									>
+										<Skeleton
+											className="h-4 rounded md:h-4.5"
+											style={{ width: `${titleWidth}%` }}
+										/>
+									</div>
+								))}
+							</div>
+						) : null}
 					</div>
 				) : isSearchMode ? (
 					<div className="text-center py-8">
