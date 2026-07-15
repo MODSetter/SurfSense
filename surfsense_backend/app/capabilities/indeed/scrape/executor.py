@@ -33,6 +33,7 @@ def build_scrape_executor(scrape_fn: ScrapeFn | None = None) -> Executor:
             remote=payload.remote,
             fromDays=payload.from_days,
             sort=payload.sort,
+            scrapeJobDetails=payload.scrape_job_details,
             maxItems=payload.max_items,
             maxItemsPerQuery=payload.max_items_per_query,
         )
