@@ -9,7 +9,7 @@ export const amazon: ConnectorPageContent = {
 
 	metaTitle: "Amazon Product Scraper API for Price & Review Data | SurfSense",
 	metaDescription:
-		"Scrape public Amazon product data as structured JSON: prices, ratings, reviews, offers, sellers, and best-seller ranks. Query by URL or search term via API or MCP. Start free.",
+		"Scrape public Amazon product data as structured JSON across US, UK, Germany, Italy, and Spain: prices, ratings, offers, sellers, and ranks. Start free.",
 	keywords: [
 		"amazon product api",
 		"amazon scraper api",
@@ -27,7 +27,7 @@ export const amazon: ConnectorPageContent = {
 
 	h1: "Amazon Product Scraper API for Price, Review, and Offer Data",
 	heroLede:
-		"The SurfSense Amazon Product API scrapes public Amazon listings as structured JSON: price and list price, rating and review breakdown, availability, marketplace offers, sellers, best-seller ranks, and on-page reviews. Point your AI agents at a search term or product URL and track prices, monitor competitors, and mine reviews — no login, only public data.",
+		"The SurfSense Amazon Product API scrapes public Amazon listings as structured JSON: price and list price, rating and review breakdown, availability, marketplace offers, sellers, best-seller ranks, and on-page reviews. Point your AI agents at a search term or product URL and track prices across US, UK, German, Italian, and Spanish marketplaces — no login, only public data.",
 
 	transcript: {
 		prompt: "Track the price and rating of the top mechanical keyboards on Amazon",
@@ -54,7 +54,7 @@ export const amazon: ConnectorPageContent = {
 	},
 
 	extractIntro:
-		"Give the API a list of product/search/category/best-seller URLs or search terms and a domain. It returns one structured item per product, with pricing, ratings, offers, and provenance parsed into their own fields.",
+		"Give the API a list of product/search/category/best-seller URLs or search terms and a domain. Marketplace is inferred from each Amazon URL, or from the domain used with search terms. Supported marketplaces include US, UK, Germany, Italy, and Spain; France is best-effort because Amazon France is more WAF-sensitive.",
 	extractFields: [
 		{
 			label: "Product core",
@@ -93,7 +93,7 @@ export const amazon: ConnectorPageContent = {
 		{
 			title: "Price and buy-box tracking",
 			description:
-				"Watch your own and competitors' prices, list prices, and marketplace offers across marketplaces. Feed each run to an agent that diffs prices and alerts you when a competitor undercuts or the buy box changes hands.",
+				"Watch your own and competitors' prices, list prices, and marketplace offers across US, UK, German, Italian, and Spanish marketplaces. Feed each run to an agent that diffs prices and alerts you when a competitor undercuts or the buy box changes hands.",
 		},
 		{
 			title: "Review mining and product research",
@@ -159,13 +159,13 @@ export const amazon: ConnectorPageContent = {
 
 	schema: {
 		requestNote:
-			"Provide urls or search_terms (at least one). Up to 20 combined sources per call.",
+			"Provide urls or search_terms (at least one). Marketplace is inferred from Amazon URLs, or from domain for search terms. Up to 20 combined sources per call.",
 		request: [
 			{
 				name: "urls",
 				type: "string[]",
 				description:
-					"Amazon product, search, category, best-seller, or short (a.co / amzn.to) URLs. Provide urls or search_terms.",
+					"Amazon product, search, category, best-seller, or short (a.co / amzn.to) URLs. Supports amazon.com, amazon.co.uk, amazon.de, amazon.it, and amazon.es; amazon.fr is best-effort. Provide urls or search_terms.",
 			},
 			{
 				name: "search_terms",
@@ -183,14 +183,14 @@ export const amazon: ConnectorPageContent = {
 				name: "domain",
 				type: "string",
 				defaultValue: '"www.amazon.com"',
-				description: "Amazon marketplace domain, e.g. 'www.amazon.co.uk'.",
+				description:
+					"Amazon marketplace domain for search_terms, e.g. 'www.amazon.co.uk', 'www.amazon.de', 'www.amazon.it', or 'www.amazon.es'. 'www.amazon.fr' is best-effort due to WAF sensitivity.",
 			},
 			{
 				name: "include_details",
 				type: "boolean",
 				defaultValue: "true",
-				description:
-					"Fetch full product detail pages. false returns faster card-only results.",
+				description: "Fetch full product detail pages. false returns faster card-only results.",
 			},
 			{
 				name: "max_offers",
@@ -301,6 +301,11 @@ export const amazon: ConnectorPageContent = {
 			question: "How do I look up a product by ASIN or search term?",
 			answer:
 				"Pass a product URL (which contains the ASIN) in urls, or a phrase in search_terms to discover products on the domain. You can also pass search, category, and best-seller URLs. One verb, amazon.scrape, handles all of them.",
+		},
+		{
+			question: "Which Amazon marketplaces are supported?",
+			answer:
+				"Marketplace routing is inferred from the Amazon URL or domain. SurfSense supports public Amazon data from US, UK, Germany, Italy, and Spain. France is wired in and retried like the others, but remains best-effort because Amazon France is more sensitive to proxy-pool WAF challenges.",
 		},
 	],
 
