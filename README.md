@@ -22,7 +22,7 @@
 
 # SurfSense: NotebookLM for Competitive Intelligence Research
 
-SurfSense is the **open-source competitive intelligence platform for AI agents**, like NotebookLM but with live scraping connectors. Your agents monitor competitors, track rankings, and listen to your market with live data from **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
+SurfSense is the **open-source competitive intelligence platform for AI agents**, like NotebookLM but with live scraping connectors. Your agents monitor competitors, track rankings, and listen to your market with live data from **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, Indeed, and the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
 
 > [!NOTE]
 > **📢 A note for our NotebookLM-alternative users**
@@ -107,6 +107,7 @@ Automations run full agent turns on a schedule or in response to events, then wr
 | **TikTok** | Videos, comments, hashtags, and profiles without Research API approval | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
 | **Google Maps** | Places, ratings, and reviews for local competitor and lead research | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | Live SERPs for rank tracking and market monitoring | [Google Search API](https://www.surfsense.com/google-search) |
+| **Indeed** | Public job postings with salaries and full descriptions, by search or company | [Indeed Scraper API](https://www.surfsense.com/indeed) |
 | **Web Crawl** | Any page on the open web as clean, structured content | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **External MCP Connectors** | Bring any MCP server to your agents, with one-click OAuth for Notion, Slack, Jira, and more | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
@@ -245,7 +246,7 @@ Still comparing us as a NotebookLM alternative? Here is the honest breakdown.
 
 | Feature | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **Live market data for agents** | No | Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and web crawl connectors via REST API and MCP |
+| **Live market data for agents** | No | Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, Indeed, and web crawl connectors via REST API and MCP |
 | **MCP server** | No | Every connector exposed as a native agent tool, plus bring-your-own MCP servers with one-click OAuth apps |
 | **Sources per Notebook** | 50 (Free) to 600 (Ultra, $249.99/mo) | Unlimited |
 | **Number of Notebooks** | 100 (Free) to 500 (paid tiers) | Unlimited |

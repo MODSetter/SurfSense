@@ -288,6 +288,7 @@ export const instagram: ConnectorPageContent = {
 		{ label: "Reddit API", href: "/reddit" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
+		{ label: "Indeed API", href: "/indeed" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 	],
 };

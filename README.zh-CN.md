@@ -22,7 +22,7 @@
 
 # SurfSense：面向竞争情报研究的 NotebookLM
 
-SurfSense 是**面向 AI 智能体的开源竞争情报平台**，就像 NotebookLM，但配备了实时抓取连接器。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Google Maps、Google Search 和开放网络**的实时数据，监控竞争对手、追踪排名、倾听市场动态。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
+SurfSense 是**面向 AI 智能体的开源竞争情报平台**，就像 NotebookLM，但配备了实时抓取连接器。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Google Maps、Google Search、Indeed 和开放网络**的实时数据，监控竞争对手、追踪排名、倾听市场动态。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
 
 > [!NOTE]
 > **📢 致我们的 NotebookLM 替代品用户**
@@ -107,6 +107,7 @@ SurfSense 是**面向 AI 智能体的开源竞争情报平台**，就像 Noteboo
 | **TikTok** | 视频、评论、话题标签和主页，无需 Research API 审批 | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
 | **Google Maps** | 地点、评分和评论，用于本地竞争对手和潜在客户调研 | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | 实时搜索结果页，用于排名追踪和市场监控 | [Google Search API](https://www.surfsense.com/google-search) |
+| **Indeed** | 公开职位信息，含薪资与完整职位描述，按搜索或公司抓取 | [Indeed Scraper API](https://www.surfsense.com/indeed) |
 | **Web Crawl** | 把开放网络上的任意页面转为干净、结构化的内容 | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **外部 MCP 连接器** | 将任意 MCP 服务器接入你的智能体，Notion、Slack、Jira 等支持一键 OAuth | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
@@ -246,7 +247,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 | 功能 | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **面向智能体的实时市场数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Google Maps、Google Search 和网页爬取连接器 |
+| **面向智能体的实时市场数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Google Maps、Google Search、Indeed 和网页爬取连接器 |
 | **MCP 服务器** | 无 | 每个连接器都作为原生智能体工具暴露，还可自带 MCP 服务器并使用一键 OAuth 应用 |
 | **每个笔记本的来源数** | 50 个（免费版）至 600 个（Ultra 版，249.99 美元/月） | 无限制 |
 | **笔记本数量** | 100 个（免费版）至 500 个（付费档位） | 无限制 |
