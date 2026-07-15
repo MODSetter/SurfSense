@@ -62,41 +62,29 @@ async def _collect(input_model, session) -> list[dict]:
 
 
 @pytest.mark.asyncio
-async def test_paginates_and_dedupes_across_pages():
-    session = _FakeSession({0: ["k1", "k2", "k3"], 10: ["k3", "k4"], 20: []})
+async def test_dedupes_within_page():
+    session = _FakeSession({0: ["k1", "k2", "k2", "k3"]})
     items = await _collect(
         IndeedScrapeInput(queries=["dev"], maxItemsPerQuery=100), session
     )
-    assert [i["jobKey"] for i in items] == ["k1", "k2", "k3", "k4"]
+    assert [i["jobKey"] for i in items] == ["k1", "k2", "k3"]
     assert all(i["scrapedAt"] for i in items)  # stamped by the orchestrator
 
 
 @pytest.mark.asyncio
-async def test_stops_when_a_page_is_all_duplicates():
-    session = _FakeSession({0: ["k1", "k2"], 10: ["k1", "k2"], 20: ["k9"]})
+async def test_does_not_fetch_deeper_pages():
+    # First page only; ``start>=10`` must never be requested.
+    session = _FakeSession({0: ["k1", "k2"], 10: ["k3"]})
     items = await _collect(
         IndeedScrapeInput(queries=["dev"], maxItemsPerQuery=100), session
     )
     assert [i["jobKey"] for i in items] == ["k1", "k2"]
-    assert 20 not in {
-        int(parse_qs(urlparse(u).query).get("start", ["0"])[0]) for u in session.fetched
-    }
+    assert all("start=" not in u for u in session.fetched)
 
 
 @pytest.mark.asyncio
-async def test_pagination_gate_keeps_earlier_pages():
-    # Indeed gates anonymous pagination: page 0 serves, start=10 is blocked.
-    # The already-yielded page-0 items must survive; paging just stops.
-    session = _FakeSession({0: ["k1", "k2"], 10: ["k3"]}, blocked_starts={10})
-    items = await _collect(
-        IndeedScrapeInput(queries=["dev"], maxItemsPerQuery=100), session
-    )
-    assert [i["jobKey"] for i in items] == ["k1", "k2"]
-
-
-@pytest.mark.asyncio
-async def test_first_page_block_propagates():
-    # A block on the very first page yielded nothing, so it surfaces as an error.
+async def test_page_block_propagates():
+    # Nothing yielded before the block, so it surfaces as an error.
     session = _FakeSession({}, blocked_starts={0})
     with pytest.raises(IndeedAccessBlockedError):
         await _collect(IndeedScrapeInput(queries=["dev"]), session)

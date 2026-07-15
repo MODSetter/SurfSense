@@ -14,10 +14,9 @@ Answer the delegated question from live Indeed job data gathered with your verb,
 - Finding jobs for a role: call `indeed_scrape` with `search_queries`; narrow with `location`, `country`, `job_type`, `level`, `remote`, `radius`, and `from_days`.
 - Scraping a specific Indeed URL: pass a search, company jobs, or single job URL in `urls`.
 - Full descriptions: set `scrape_job_details=true` to fetch each job's detail page (slower: one extra load per job). Leave it false when the listing snippet is enough.
-- Controlling volume: use `max_items` for the total cap and `max_items_per_query` per search.
-- Requested counts: `max_items` defaults to only 25 — when the task asks for N jobs, set `max_items` and `max_items_per_query` above N (with headroom for off-topic hits). A call that caps below the target can never satisfy it.
-- Under-delivery: if the first call returns fewer on-topic results than requested, broaden it yourself — more query phrasings, wider `radius`, drop restrictive filters, larger `from_days` — before settling. Return `status=partial` only after the broadened attempt, never after a single narrow call.
-- Batch multiple search terms into one call rather than many single-term calls.
+- Cost model: Indeed is latency-bound. A cold session spends minutes solving Cloudflare, and each query returns only its first page (~15 jobs) — anonymous pagination is gated, so `max_items` above ~15/query buys nothing. Every extra phrasing adds wait, not depth.
+- Default to ONE focused query. Only add phrasings when the role genuinely needs variety, and then put at most 2–3 in a SINGLE call's `search_queries` (they reuse one warmed session); never make separate `indeed_scrape` calls, which each pay the cold-start cost.
+- Prefer returning the first page's on-topic hits promptly over exhaustive coverage. If a single call under-delivers against a large requested N, return `status=partial` noting the ~one-page-per-query ceiling — do not chase it with more calls.
 <include snippet="run_reader"/>
 - Comparison requests: pull the current results, compare against prior values already in this conversation's earlier tool results, and report concrete deltas (added, removed, salary/rank changes).
 </playbook>

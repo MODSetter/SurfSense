@@ -1,14 +1,8 @@
 """Orchestrator for the Indeed scraper.
 
-:func:`iter_indeed` streams flat job items from one warmed browser session:
-``startUrls`` (search/company pages) or ``queries`` are paged by the ``start``
-offset, deduped by ``jobKey``, and stopped on the first page that adds nothing
-or that Indeed gates (anonymous pagination is bounced past page 1, so a gated
-page ends that target and keeps the pages already yielded).
-:func:`scrape_indeed` collects the stream under a caller ``limit``.
-
-Targets run sequentially on a single session — a browser per target would cost
-far more than the sequential paging it would save.
+:func:`iter_indeed` streams deduped job items from one warmed session; each
+search/company target contributes its first page. :func:`scrape_indeed` collects
+the stream under a caller ``limit``. Targets run sequentially to reuse the session.
 """
 
 from __future__ import annotations
@@ -16,9 +10,9 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import urlparse
 
-from .fetch import IndeedAccessBlockedError, IndeedSession, now_iso, open_session
+from .fetch import IndeedSession, now_iso, open_session
 from .parsers import (
     extract_jobcards_blob,
     job_results,
@@ -32,68 +26,36 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["iter_indeed", "scrape_indeed"]
 
-# Indeed's search pagination increments the ``start`` offset by 10.
-_PAGE_STEP = 10
-# Indeed stops serving useful results past ~1000; cap pages well before that.
-_MAX_PAGES = 10
-
 
 def _emit(partial: dict[str, Any]) -> dict[str, Any]:
     """Stamp ``scrapedAt`` and normalize through the output model."""
     return IndeedItem(**{**partial, "scrapedAt": now_iso()}).to_output()
 
 
-def _with_start(url: str, start: int) -> str:
-    """Return ``url`` with its ``start`` query param set (removed when 0)."""
-    parsed = urlparse(url)
-    params = [(k, v) for k, v in parse_qsl(parsed.query) if k != "start"]
-    if start:
-        params.append(("start", str(start)))
-    return urlunparse(parsed._replace(query=urlencode(params)))
-
-
-async def _paginate(
-    session: IndeedSession, first_url: str, *, domain: str, max_items: int
+async def _search_items(
+    session: IndeedSession, url: str, *, domain: str, max_items: int
 ) -> AsyncIterator[dict[str, Any]]:
-    """Yield items across pages of one search/company URL, deduped by ``jobKey``."""
+    """Yield deduped job cards from one search/company page.
+
+    ponytail: caps a query at its first page (~15 jobs) — anonymous Indeed gates
+    ``start>=10``; deeper depth needs an authenticated session or Indeed's API.
+    """
     if max_items <= 0:
         return
     base_url = f"https://{domain}"
+    html = await session.fetch_html(url)
     seen: set[str] = set()
     emitted = 0
-    for page in range(_MAX_PAGES):
-        try:
-            # Rotate to establish first-page access, but fail fast on deeper
-            # pages: Indeed gates anonymous pagination to secure.indeed.com, a
-            # block no fresh IP clears — retrying it only burns the time budget.
-            # ponytail: deeper pages are dropped rather than retried; lift the
-            # cap with an async job if full-depth pagination is ever needed.
-            html = await session.fetch_html(
-                _with_start(first_url, page * _PAGE_STEP),
-                max_rotations=None if page == 0 else 0,
-            )
-        except IndeedAccessBlockedError:
-            if page == 0:
-                raise  # never got in on this target; surface the block
-            logger.info("[indeed] pagination gated at start=%d; stopping", page * _PAGE_STEP)
-            return  # keep the pages already yielded
-        raws = job_results(extract_jobcards_blob(html))
-        if not raws:
-            return
-        added = 0
-        for raw in raws:
-            item = parse_job(raw, base_url=base_url)
-            job_key = item.get("jobKey")
-            if isinstance(job_key, str):
-                if job_key in seen:
-                    continue
-                seen.add(job_key)
-            yield _emit(item)
-            emitted += 1
-            added += 1
-            if emitted >= max_items:
-                return
-        if added == 0:  # a whole page of duplicates: end of useful results
+    for raw in job_results(extract_jobcards_blob(html)):
+        item = parse_job(raw, base_url=base_url)
+        job_key = item.get("jobKey")
+        if isinstance(job_key, str):
+            if job_key in seen:
+                continue
+            seen.add(job_key)
+        yield _emit(item)
+        emitted += 1
+        if emitted >= max_items:
             return
 
 
@@ -175,7 +137,7 @@ async def iter_indeed(
             if item is not None:
                 yield item
             continue
-        async for item in _paginate(
+        async for item in _search_items(
             session, url, domain=domain, max_items=input_model.maxItemsPerQuery
         ):
             job_key = item.get("jobKey")
