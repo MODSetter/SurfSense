@@ -258,14 +258,20 @@ def parse_product(
     price_text = _first_text(
         doc,
         "#corePrice_feature_div .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .a-offscreen",
+        "#apex_desktop .a-price .a-offscreen",
         "#priceblock_ourprice",
         "#priceblock_dealprice",
         ".priceToPay .a-offscreen",
+        "#price_inside_buybox",
+        "#centerCol .a-price .a-offscreen",
     )
     list_price_text = _first_text(
         doc,
         "#corePrice_feature_div .basisPrice .a-offscreen",
+        "#corePriceDisplay_desktop_feature_div .basisPrice .a-offscreen",
         ".priceBlockStrikePriceString",
+        "#centerCol .a-price.a-text-price .a-offscreen",
     )
     availability = _first_text(doc, "#availability", "#outOfStock")
     availability_lower = (availability or "").lower()
@@ -330,6 +336,13 @@ def parse_product(
     )
     seller_href = _attr(seller_link, "href")
     seller_id = (parse_qs(urlparse(seller_href or "").query).get("seller") or [None])[0]
+    # Fall back to the buy-box "Sold by" name when there is no seller profile link
+    # (Amazon-direct items and some link-less third-party merchants).
+    seller_name = _text(seller_link) or _first_text(
+        doc,
+        "#tabular-buybox [tabular-attribute-name='Sold by'] .tabular-buybox-text",
+        "#merchantInfoFeature_feature_div .offer-display-feature-text-message",
+    )
     return {
         "title": title,
         "url": url,
@@ -425,10 +438,10 @@ def parse_product(
         "seller": (
             {
                 "id": seller_id,
-                "name": _text(seller_link),
+                "name": seller_name,
                 "url": _absolute(domain, seller_href),
             }
-            if seller_link is not None
+            if (seller_link is not None or seller_name)
             else None
         ),
         "bestsellerRanks": ranks,

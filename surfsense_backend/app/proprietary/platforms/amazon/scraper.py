@@ -49,6 +49,28 @@ def _error(
     ).model_dump()
 
 
+def _buybox_offer(fields: dict[str, Any]) -> dict[str, Any] | None:
+    """Synthesize a single offer from the PDP buy box.
+
+    Amazon serves the All-Offers-Display panel as a JS-only modal for many
+    (especially US) ASINs, so the AOD ajax endpoint 404s. Fall back to the
+    featured buy-box winner already parsed from the product page.
+    """
+    price = fields.get("price")
+    seller = fields.get("seller")
+    seller = seller if isinstance(seller, dict) else None
+    if not price and not (seller and seller.get("name")):
+        return None
+    return {
+        "position": 1,
+        "price": price,
+        "condition": fields.get("condition") or "New",
+        "delivery": fields.get("delivery"),
+        "seller": seller,
+        "isPinnedOffer": True,
+    }
+
+
 def _page_url(url: str, page: int) -> str:
     parsed = urlparse(url)
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
@@ -154,10 +176,14 @@ async def _product_flow(
             cookies=offer_cookies or cookies,
             proxy=offer_proxy or proxy,
         )
-        if offers_html:
-            fields["offers"] = parse_aod_offers(offers_html, domain=resolved.domain)[
-                : input_model.maxOffers
-            ]
+        offers = (
+            parse_aod_offers(offers_html, domain=resolved.domain) if offers_html else []
+        )
+        if not offers:
+            buybox = _buybox_offer(fields)
+            offers = [buybox] if buybox else []
+        if offers:
+            fields["offers"] = offers[: input_model.maxOffers]
 
     if input_model.scrapeSellers:
         seller_ids: list[str] = []

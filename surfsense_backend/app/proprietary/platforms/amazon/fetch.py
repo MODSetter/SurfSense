@@ -195,8 +195,13 @@ async def fetch_aod_html(
     cookies: dict[str, str] | None = None,
     proxy: str | None = None,
 ) -> str | None:
-    """Fetch the public all-offers panel for one product."""
-    url = f"{_origin(domain)}/gp/product/ajax?asin={asin}&experienceId=aodAjaxMain"
+    """Fetch the public all-offers panel for one product.
+
+    ``aodAjaxMain`` is a path segment, not a query param. Amazon also serves this
+    panel as a JS-only modal for many (especially US) ASINs, so a 404 here is
+    expected and the caller falls back to the PDP buy-box winner.
+    """
+    url = f"{_origin(domain)}/gp/product/ajax/aodAjaxMain/?asin={asin}"
     return await fetch_html(url, cookies=cookies, proxy=proxy)
 
 
