@@ -9,6 +9,7 @@ from app.proprietary.platforms.indeed_jobs.parsers import (
     extract_jobcards_blob,
     job_results,
     parse_job,
+    parse_job_detail,
 )
 
 _FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -137,3 +138,39 @@ def test_fixture_blob_parses_into_items():
         assert item["title"]
         assert item["jobUrl"].startswith("https://www.indeed.com/viewjob?jk=")
         assert "salaryText" in item["salary"]
+
+
+# --- detail page (parse_job_detail) ----------------------------------------
+
+
+def test_parse_job_detail_extracts_description_and_fields():
+    html = (_FIXTURE_DIR / "sample_viewjob.html").read_text()
+    detail = parse_job_detail(html)
+    assert detail["descriptionHtml"].startswith("<div>")
+    assert "Data Analyst" in detail["descriptionText"]
+    assert "<div>" not in detail["descriptionText"]  # tags stripped
+    assert detail["title"]
+    assert detail["company"]
+    assert detail["formattedLocation"]
+    assert detail["jobTypes"] == ["Full-time"]
+    assert detail["benefits"] == ["401(k)", "Health insurance"]
+    assert detail["isRemote"] is True
+    assert detail["remoteType"] == "HYBRID"
+    sal = detail["salary"]
+    assert (sal["salaryMin"], sal["salaryMax"], sal["period"]) == (60000, 90000, "year")
+
+
+def test_parse_job_detail_omits_blank_fields():
+    # A page with a header but no salary/description must not emit those keys,
+    # so a merge won't clobber listing values with blanks.
+    html = (
+        "<html><script>window._initialData = "
+        '{"jobInfoWrapperModel":{"jobInfoModel":{"jobInfoHeaderModel":'
+        '{"jobTitle":"Analyst"}}}};</script></html>'
+    )
+    detail = parse_job_detail(html)
+    assert detail == {"title": "Analyst"}
+
+
+def test_parse_job_detail_not_a_job_page_returns_empty():
+    assert parse_job_detail("<html>just a moment...</html>") == {}
