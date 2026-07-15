@@ -69,7 +69,7 @@ def test_input_allows_extra_inert_fields():
     # extra="allow": unknown add-ons (e.g. upstream proxy config) are accepted.
     inp = AmazonScrapeInput(
         categoryOrProductUrls=[{"url": "https://www.amazon.com/dp/B0"}],
-        proxyConfiguration={"useApifyProxy": True},
+        proxyConfiguration={"useResidentialProxy": True},
         someFutureAddon=123,
     )
     assert inp.model_dump().get("someFutureAddon") == 123
