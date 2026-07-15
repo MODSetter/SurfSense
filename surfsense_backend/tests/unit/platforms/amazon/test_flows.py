@@ -70,6 +70,27 @@ async def test_search_flow_honors_cap_and_stops_on_empty_page(monkeypatch):
     assert len(calls) == 1
 
 
+async def test_search_flow_threads_marketplace_locale_to_fetch(monkeypatch):
+    calls: list[dict[str, object]] = []
+
+    async def fetch_page(url: str, **kwargs):
+        calls.append({"url": url, **kwargs})
+        return _response(url, _fixture("search.html"))
+
+    monkeypatch.setattr(scraper, "fetch_page", fetch_page)
+    items = await scrape_products(
+        AmazonScrapeInput(
+            categoryOrProductUrls=[{"url": "https://www.amazon.co.uk/s?k=headphones"}],
+            maxItemsPerStartUrl=1,
+            scrapeProductDetails=False,
+        )
+    )
+
+    assert len(items) == 1
+    assert calls[0]["country"] == "gb"
+    assert calls[0]["accept_language"] == "en-GB"
+
+
 async def test_search_flow_returns_no_results_error(monkeypatch):
     async def fetch_page(url: str, **_kwargs):
         return _response(url, "<html></html>")
