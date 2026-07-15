@@ -28,6 +28,7 @@ interface MobileSidebarProps {
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
+	onChatsClick?: () => void;
 	onViewAllChats?: () => void;
 	isAllChatsActive?: boolean;
 	user: User;
@@ -77,6 +78,7 @@ export function MobileSidebar({
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
+	onChatsClick,
 	onViewAllChats,
 	isAllChatsActive = false,
 	user,
@@ -194,6 +196,14 @@ export function MobileSidebar({
 						onChatRename={onChatRename}
 						onChatDelete={onChatDelete}
 						onChatArchive={onChatArchive}
+						onChatsClick={
+							onChatsClick
+								? () => {
+										onOpenChange(false);
+										onChatsClick();
+									}
+								: undefined
+						}
 						onViewAllChats={
 							onViewAllChats
 								? () => {

@@ -631,6 +631,9 @@ export function LayoutDataProvider({
 	const isArtifactsPage = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundPage = pathname?.includes("/playground") === true;
 	const isAllChatsPage = pathname?.endsWith("/chats") === true;
+	const handleChatsClick = useCallback(() => {
+		router.push(`/dashboard/${workspaceId}/chats`);
+	}, [router, workspaceId]);
 	const handleViewAllChats = useCallback(() => {
 		router.push(
 			isAllChatsPage ? `/dashboard/${workspaceId}/new-chat` : `/dashboard/${workspaceId}/chats`
@@ -671,6 +674,7 @@ export function LayoutDataProvider({
 				onChatRename={handleChatRename}
 				onChatDelete={handleChatDelete}
 				onChatArchive={handleChatArchive}
+				onChatsClick={handleChatsClick}
 				onViewAllChats={handleViewAllChats}
 				user={{
 					email: user?.email || "",
