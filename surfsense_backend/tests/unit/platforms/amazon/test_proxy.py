@@ -35,6 +35,19 @@ def test_dataimpulse_sticky_url_replaces_existing_session(monkeypatch):
     assert result.count("__sid.new") == 1
 
 
+def test_dataimpulse_sticky_url_rewrites_country(monkeypatch):
+    monkeypatch.setattr(
+        Config,
+        "PROXY_URL",
+        "http://token__cr.us:secret@gw.dataimpulse.com:823",
+    )
+
+    result = DataImpulseProvider().get_sticky_proxy_url("new", "gb")
+
+    assert "token__cr.gb__sid.new" in result
+    assert "__cr.us" not in result
+
+
 def test_dataimpulse_sticky_url_rejects_empty_session(monkeypatch):
     monkeypatch.setattr(
         Config,
