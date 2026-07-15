@@ -75,6 +75,13 @@ class ScrapeInput(BaseModel):
         default="relevance",
         description="Result ordering: relevance or date.",
     )
+    scrape_job_details: bool = Field(
+        default=False,
+        description=(
+            "Fetch each job's detail page for the full description (slower: one "
+            "extra page load per job)."
+        ),
+    )
     max_items: int = Field(
         default=25,
         ge=1,
