@@ -17,7 +17,12 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from .fetch import IndeedSession, now_iso, open_session
-from .parsers import extract_jobcards_blob, job_results, parse_job
+from .parsers import (
+    extract_jobcards_blob,
+    job_results,
+    parse_job,
+    parse_job_detail,
+)
 from .schemas import IndeedItem, IndeedScrapeInput
 from .url_resolver import build_search_url, resolve_url
 
@@ -76,24 +81,25 @@ async def _paginate(
             return
 
 
-def _targets(input_model: IndeedScrapeInput) -> list[tuple[str, str]]:
-    """Resolve inputs to ``(url, domain)`` search/company targets.
+def _targets(input_model: IndeedScrapeInput) -> list[tuple[str, str, str]]:
+    """Resolve inputs to ``(kind, url, domain)`` targets.
 
-    ``startUrls`` take precedence over ``queries``. Job (``/viewjob``) URLs are
-    skipped here; detail enrichment is a separate flow.
+    ``startUrls`` take precedence over ``queries``. ``kind`` is ``search`` for
+    query-built and search/company URLs, or ``job`` for a ``/viewjob`` URL.
     """
     if input_model.startUrls:
-        out: list[tuple[str, str]] = []
+        out: list[tuple[str, str, str]] = []
         for entry in input_model.startUrls:
             resolved = resolve_url(entry.url)
-            if resolved is None or resolved.kind == "job":
-                logger.warning("[indeed] skipping unsupported URL: %s", entry.url)
+            if resolved is None:
+                logger.warning("[indeed] skipping unrecognized URL: %s", entry.url)
                 continue
-            out.append((resolved.url, resolved.domain))
+            kind = "job" if resolved.kind == "job" else "search"
+            out.append((kind, resolved.url, resolved.domain))
         return out
 
     domain = None
-    urls: list[tuple[str, str]] = []
+    urls: list[tuple[str, str, str]] = []
     for query in input_model.queries:
         url = build_search_url(
             query,
@@ -107,8 +113,35 @@ def _targets(input_model: IndeedScrapeInput) -> list[tuple[str, str]]:
             sort=input_model.sort,
         )
         domain = domain or urlparse(url).hostname or "www.indeed.com"
-        urls.append((url, domain))
+        urls.append(("search", url, domain))
     return urls
+
+
+async def _enrich(session: IndeedSession, item: dict[str, Any], base_url: str) -> None:
+    """Merge a job's /viewjob detail (full description, etc.) onto ``item`` in place.
+
+    Best-effort: a blocked or malformed detail page leaves the listing fields as-is
+    rather than failing the run.
+    """
+    job_url = item.get("jobUrl")
+    if not isinstance(job_url, str):
+        return
+    try:
+        detail = parse_job_detail(await session.fetch_html(job_url), base_url=base_url)
+    except Exception as exc:
+        logger.warning("[indeed] detail fetch failed for %s: %s", job_url, exc)
+        return
+    item.update(detail)
+
+
+async def _job_item(
+    session: IndeedSession, url: str, base_url: str
+) -> dict[str, Any] | None:
+    """Scrape a single /viewjob URL into an item from its detail page alone."""
+    detail = parse_job_detail(await session.fetch_html(url), base_url=base_url)
+    if not detail:
+        return None
+    return _emit({"jobUrl": url, "source": "indeed", **detail})
 
 
 async def iter_indeed(
@@ -116,7 +149,13 @@ async def iter_indeed(
 ) -> AsyncIterator[dict[str, Any]]:
     """Stream flat job items for every target, deduped by ``jobKey`` across all."""
     global_seen: set[str] = set()
-    for url, domain in _targets(input_model):
+    for kind, url, domain in _targets(input_model):
+        base_url = f"https://{domain}"
+        if kind == "job":
+            item = await _job_item(session, url, base_url)
+            if item is not None:
+                yield item
+            continue
         async for item in _paginate(
             session, url, domain=domain, max_items=input_model.maxItemsPerQuery
         ):
@@ -125,6 +164,8 @@ async def iter_indeed(
                 if job_key in global_seen:
                     continue
                 global_seen.add(job_key)
+            if input_model.scrapeJobDetails:
+                await _enrich(session, item, base_url)
             yield item
 
 
