@@ -14,6 +14,7 @@ from ...core.client import SurfSenseClient
 from ...core.workspace_context import WorkspaceContext
 from . import run_history
 from .platforms import (
+    amazon,
     google_maps,
     google_search,
     instagram,
@@ -31,6 +32,7 @@ _REGISTRARS = (
     instagram,
     tiktok,
     google_maps,
+    amazon,
     run_history,
 )
 

@@ -697,9 +697,8 @@ class Config:
     # per item; retune with an env change + restart (no code/migration):
     #   <KEY> = round(USD_per_1000_items * 1_000)
     #   $3.50/1000 -> 3500 | $5.00/1000 -> 5000 | $2.00/1000 -> 2000
-    # Defaults sit at/above Apify's first-party actor rates (Jul 2026), which
-    # is justified because SurfSense charges no subscription tiers, no
-    # per-run actor-start fees, and no separate proxy/compute/storage billing.
+    # Defaults include margin for proxy, compute, and storage costs while
+    # remaining independently adjustable for each platform.
     PLATFORM_SCRAPE_BILLING_ENABLED = (
         os.getenv("PLATFORM_SCRAPE_BILLING_ENABLED", "FALSE").upper() == "TRUE"
     )
@@ -715,6 +714,7 @@ class Config:
     GOOGLE_MAPS_MICROS_PER_REVIEW = int(
         os.getenv("GOOGLE_MAPS_MICROS_PER_REVIEW", "1500")
     )
+    AMAZON_MICROS_PER_PRODUCT = int(os.getenv("AMAZON_MICROS_PER_PRODUCT", "3500"))
     YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "2500"))
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.

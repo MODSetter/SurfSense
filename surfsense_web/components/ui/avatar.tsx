@@ -55,4 +55,4 @@ function AvatarGroupCount({ className, ...props }: React.ComponentProps<"span">)
 	);
 }
 
-export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount };
+export { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage };
