@@ -32,6 +32,15 @@ def _allowed_origins() -> set[str]:
     return origins
 
 
+# Lets self-hosted deployments work from any address (LAN IP, custom domain)
+# without pre-configuring the static allowlist on .env.
+def _is_same_origin(origin: str | None, host: str | None) -> bool:
+    if not origin or not host:
+        return False
+    parsed_origin = urlparse(origin)
+    return parsed_origin.netloc == host
+
+
 class CsrfOriginMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self,
@@ -52,6 +61,11 @@ class CsrfOriginMiddleware(BaseHTTPMiddleware):
         origin = request.headers.get("Origin") or _origin_from_url(
             request.headers.get("Referer")
         )
+        host = request.headers.get("Host")
+
+        if _is_same_origin(origin, host):
+            return await call_next(request)
+
         if origin not in _allowed_origins():
             return JSONResponse(
                 {"detail": "CSRF origin check failed"},
