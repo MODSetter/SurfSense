@@ -21,6 +21,7 @@ from .fetch import (
     resolve_shortlink,
     should_localize,
 )
+from .locale import accept_language_for, proxy_country_for
 from .parsers import (
     parse_aod_offers,
     parse_bestsellers_page,
@@ -91,6 +92,8 @@ async def _location_context(
         resolved.domain,
         zip_code=input_model.zipCode,
         country_code=input_model.countryCode,
+        country=proxy_country_for(resolved.marketplace),
+        accept_language=accept_language_for(resolved.marketplace),
     )
     if session is None:
         return None, None, None, None
@@ -122,7 +125,15 @@ async def _product_flow(
     cookies, proxy, location_text, loaded_country = await _location_context(
         resolved, input_model, "PRODUCT"
     )
-    response = await fetch_page(resolved.url, cookies=cookies, proxy=proxy)
+    country = proxy_country_for(resolved.marketplace)
+    accept_language = accept_language_for(resolved.marketplace)
+    response = await fetch_page(
+        resolved.url,
+        cookies=cookies,
+        proxy=proxy,
+        country=country,
+        accept_language=accept_language,
+    )
     if response is None:
         yield _error(
             "product_not_found",
@@ -175,6 +186,8 @@ async def _product_flow(
             resolved.domain,
             cookies=offer_cookies or cookies,
             proxy=offer_proxy or proxy,
+            country=country,
+            accept_language=accept_language,
         )
         offers = (
             parse_aod_offers(offers_html, domain=resolved.domain) if offers_html else []
@@ -198,7 +211,12 @@ async def _product_flow(
 
         async def load_seller(seller_id: str) -> dict[str, Any] | None:
             html = await fetch_seller_html(
-                seller_id, resolved.domain, cookies=cookies, proxy=proxy
+                seller_id,
+                resolved.domain,
+                cookies=cookies,
+                proxy=proxy,
+                country=country,
+                accept_language=accept_language,
             )
             return (
                 parse_seller(html, seller_id=seller_id, domain=resolved.domain)
@@ -298,11 +316,17 @@ async def _search_flow(
     )
     max_pages = min(input_model.maxSearchPagesPerStartUrl, _SEARCH_PAGE_LIMIT)
     cookies, proxy, _, _ = await _location_context(resolved, input_model, "SEARCH")
+    country = proxy_country_for(resolved.marketplace)
+    accept_language = accept_language_for(resolved.marketplace)
     seen: set[str] = set()
     emitted = 0
     for page in range(1, max_pages + 1):
         html_response = await fetch_page(
-            _page_url(resolved.url, page), cookies=cookies, proxy=proxy
+            _page_url(resolved.url, page),
+            cookies=cookies,
+            proxy=proxy,
+            country=country,
+            accept_language=accept_language,
         )
         cards = (
             await asyncio.to_thread(
@@ -378,10 +402,16 @@ async def _bestsellers_flow(
         if input_model.maxItemsPerStartUrl is not None
         else _DEFAULT_ITEMS_PER_START_URL
     )
+    country = proxy_country_for(resolved.marketplace)
+    accept_language = accept_language_for(resolved.marketplace)
     seen: set[str] = set()
     emitted = 0
     for page in range(1, min(input_model.maxSearchPagesPerStartUrl, 2) + 1):
-        response = await fetch_page(_page_url(resolved.url, page))
+        response = await fetch_page(
+            _page_url(resolved.url, page),
+            country=country,
+            accept_language=accept_language,
+        )
         cards = (
             await asyncio.to_thread(
                 parse_bestsellers_page,
