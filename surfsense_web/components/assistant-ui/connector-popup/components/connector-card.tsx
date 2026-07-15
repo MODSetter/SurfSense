@@ -79,7 +79,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		}
 
 		if (isDeprecatedForConnect) {
-			return "Deprecated — no longer available to connect.";
+			return "Deprecated. No longer available to connect.";
 		}
 
 		return description;
@@ -102,7 +102,16 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 						: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
 				)}
 			>
-				{connectorType ? (
+				{isMCP ? (
+					<span
+						aria-hidden="true"
+						className="size-6 bg-current"
+						style={{
+							mask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+							WebkitMask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+						}}
+					/>
+				) : connectorType ? (
 					getConnectorIcon(connectorType, "size-6")
 				) : id === "youtube-crawler" ? (
 					<IconBrandYoutube className="size-6" />
@@ -113,19 +122,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-1.5">
 					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
-					{deprecated ? (
-						<span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-							Deprecated
-						</span>
-					) : (
-						showWarnings &&
-						status.status !== "active" && (
-							<ConnectorStatusBadge
-								status={status.status}
-								statusMessage={statusMessage}
-								className="flex-shrink-0"
-							/>
-						)
+					{showWarnings && status.status !== "active" && (
+						<ConnectorStatusBadge
+							status={status.status}
+							statusMessage={statusMessage}
+							className="flex-shrink-0"
+						/>
 					)}
 				</div>
 				{isIndexing ? (

@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	agentToolsAtom,
@@ -47,11 +47,7 @@ import {
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
-import {
-	globalModelConnectionsAtom,
-	modelConnectionsAtom,
-	modelRolesAtom,
-} from "@/atoms/model-connections/model-connections-query.atoms";
+import { llmSetupStatusAtomFamily } from "@/atoms/model-connections/model-connections-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
@@ -262,17 +258,17 @@ const ThreadWelcome: FC = () => {
 	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
 
 	return (
-		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
-			<div className="my-auto flex w-full flex-col items-center gap-6 py-6 sm:contents sm:my-0 sm:gap-0 sm:py-0">
-				<div className="aui-thread-welcome-message flex flex-col items-center text-center sm:absolute sm:bottom-[calc(50%+5rem)] sm:left-0 sm:right-0">
+		<div className="aui-thread-welcome-root flex min-h-0 flex-1">
+			<section className="mx-auto grid w-full max-w-(--thread-max-width) content-center gap-6 pt-8 pb-[clamp(5rem,16vh,12rem)]">
+				<div className="aui-thread-welcome-message flex flex-col items-center px-4 text-center">
 					<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
 						{greeting}
 					</h1>
 				</div>
-				<div className="w-full flex items-start justify-center sm:absolute sm:top-[calc(50%-3.5rem)] sm:left-0 sm:right-0">
+				<div className="flex w-full items-start justify-center">
 					<Composer />
 				</div>
-			</div>
+			</section>
 		</div>
 	);
 };
@@ -448,6 +444,52 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 	);
 };
 
+/**
+ * Inline "this workspace can't chat yet" tray, mirrored on top of the composer
+ * (same visual treatment as the "Connect your tools" tray below it).
+ *
+ * Replaces the old full-screen onboarding redirect: a workspace with no usable
+ * chat model (fresh install, or an admin deleted the last model) renders the
+ * composer in place with this notice instead of navigating away. Configurable
+ * members get a CTA to connect one; everyone else is told to ask an admin. The
+ * send button stays disabled independently, and the backend rejects any send
+ * that slips through, so this is purely guidance.
+ *
+ * Presentational: visibility is decided by the parent so the composer can flatten
+ * its top shadow for a seamless join.
+ */
+const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> = ({
+	workspaceId,
+	canConfigure,
+}) => {
+	const router = useRouter();
+
+	return (
+		<div className="relative z-0 -mb-5 flex min-w-0 items-center gap-2 rounded-t-3xl bg-popover px-4 pt-2 pb-6 shadow-sm shadow-black/5 dark:shadow-black/10">
+			<div className="flex min-w-0 items-center gap-2 text-[13px] font-normal text-muted-foreground select-none">
+				<AlertCircle className="size-4 shrink-0" />
+				<span className="truncate">
+					{canConfigure
+						? "Connect a chat model to start chatting."
+						: "No model available. Ask a workspace admin to connect a chat model."}
+				</span>
+			</div>
+			<div className="min-w-0 flex-1" />
+			{canConfigure ? (
+				<Button
+					type="button"
+					size="sm"
+					className="h-6 shrink-0 cursor-pointer gap-2 rounded-md px-2.5 text-xs font-medium select-none"
+					onClick={() => router.push(`/dashboard/${workspaceId}/workspace-settings/models`)}
+				>
+					<span className="sm:hidden">Connect</span>
+					<span className="hidden sm:inline">Connect a model</span>
+				</Button>
+			) : null}
+		</div>
+	);
+};
+
 const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
@@ -486,6 +528,9 @@ const Composer: FC = () => {
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 	const [connectToolsTrayVisible, setConnectToolsTrayVisible] = useState(false);
+
+	const { data: chatSetupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId ?? 0));
+	const isChatUnavailable = !!chatSetupStatus && chatSetupStatus.status !== "ready";
 
 	const currentPlaceholder = COMPOSER_PLACEHOLDER;
 
@@ -934,10 +979,17 @@ const Composer: FC = () => {
 				) : null}
 			</Popover>
 			<div className="relative flex w-full flex-col">
+				{isChatUnavailable ? (
+					<ChatUnavailableNotice
+						workspaceId={workspaceId ?? 0}
+						canConfigure={chatSetupStatus?.can_configure ?? false}
+					/>
+				) : null}
 				<div
 					className={cn(
 						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
-						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none"
+						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none",
+						isChatUnavailable && "shadow-none dark:shadow-none"
 					)}
 				>
 					<PendingScreenImageStrip />
@@ -1071,9 +1123,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		if (url) setPendingScreenImages((prev) => [...prev, url]);
 	}, [electronAPI, setPendingScreenImages]);
 
-	const { data: globalModelConnections } = useAtomValue(globalModelConnectionsAtom);
-	const { data: modelConnections } = useAtomValue(modelConnectionsAtom);
-	const { data: modelRoles } = useAtomValue(modelRolesAtom);
+	const { data: setupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId));
 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
@@ -1154,21 +1204,13 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		hydrateDisabled();
 	}, [hydrateDisabled]);
 
-	const hasModelConfigured = useMemo(() => {
-		const chatModelId = modelRoles?.chat_model_id ?? 0;
-		if (chatModelId === 0) {
-			return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
-				connection.models.some((model) => model.enabled && Boolean(model.supports_chat))
-			);
-		}
-		return [...(globalModelConnections ?? []), ...(modelConnections ?? [])].some((connection) =>
-			connection.models.some(
-				(model) => model.id === chatModelId && model.enabled && Boolean(model.supports_chat)
-			)
-		);
-	}, [modelRoles?.chat_model_id, globalModelConnections, modelConnections]);
+	// A workspace with no usable chat model renders the composer with an inline
+	// notice (see ChatUnavailableNotice) rather than being redirected away, so
+	// the send button must stay disabled here. The backend also rejects any
+	// send that lacks a resolvable model, making this defense-in-depth.
+	const isWorkspaceChatReady = setupStatus?.status === "ready";
 
-	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
+	const isSendDisabled = isComposerEmpty || !isWorkspaceChatReady || isBlockedByOtherUser;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
@@ -1194,7 +1236,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 									<Unplug className="size-4" />
-									Manage External MCP Connectors
+									MCP Connectors
 								</DropdownMenuItem>
 								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
 									<Settings2 className="size-4" />
@@ -1414,7 +1456,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							</DropdownMenuItem>
 							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
 								<Unplug className="h-4 w-4" />
-								Manage External MCP Connectors
+								MCP Connectors
 							</DropdownMenuItem>
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
@@ -1610,12 +1652,6 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				)}
 				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
-			{!hasModelConfigured && (
-				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
-					<AlertCircle className="size-3" />
-					<span>Select a model</span>
-				</div>
-			)}
 			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
 				<ChatHeader
 					workspaceId={workspaceId}
@@ -1628,11 +1664,9 @@ const ComposerAction: FC<ComposerActionProps> = ({
 							tooltip={
 								isBlockedByOtherUser
 									? "Wait for AI to finish responding"
-									: !hasModelConfigured
-										? "Please select a model to start chatting"
-										: isComposerEmpty
-											? "Enter a message or add a screenshot to send"
-											: "Send message"
+									: isComposerEmpty
+										? "Enter a message or add a screenshot to send"
+										: "Send message"
 							}
 							side="bottom"
 							type="submit"

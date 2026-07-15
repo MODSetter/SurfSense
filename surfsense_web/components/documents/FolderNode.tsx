@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { FolderSelectionState } from "./FolderTreeView";
 
@@ -124,6 +125,7 @@ export const FolderNode = React.memo(function FolderNode({
 	onStopWatching,
 	onExportFolder,
 }: FolderNodeProps) {
+	const isMobile = useIsMobile();
 	const [renameValue, setRenameValue] = useState(folder.name);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const rowRef = useRef<HTMLDivElement>(null);
@@ -261,8 +263,9 @@ export const FolderNode = React.memo(function FolderNode({
 					tabIndex={0}
 					dragging={isDragging}
 					className={cn(
-						"relative gap-1 px-1",
+						"group/item relative gap-1 px-1",
 						isExpanded && "font-medium",
+						dropdownOpen && "bg-accent text-accent-foreground",
 						isOver && canDrop && dropZone === "middle" && "bg-accent ring-1 ring-primary/40",
 						isOver && canDrop && dropZone === "top" && "border-t-2 border-primary",
 						isOver && canDrop && dropZone === "bottom" && "border-b-2 border-primary",
@@ -291,11 +294,11 @@ export const FolderNode = React.memo(function FolderNode({
 						)}
 					</span>
 
-					{processingState !== "idle" && selectionState === "none" ? (
-						<>
+					<span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+						{processingState !== "idle" && selectionState === "none" ? (
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center group-hover:hidden">
+									<span className="flex h-3.5 w-3.5 items-center justify-center">
 										{processingState === "processing" ? (
 											<Spinner size="xs" className="text-primary" />
 										) : (
@@ -309,29 +312,37 @@ export const FolderNode = React.memo(function FolderNode({
 										: "Some files failed to process"}
 								</TooltipContent>
 							</Tooltip>
-							<Checkbox
-								checked={false}
-								onCheckedChange={handleCheckChange}
-								onClick={(e) => e.stopPropagation()}
-								className="h-3.5 w-3.5 shrink-0 hidden group-hover:flex"
-							/>
-						</>
-					) : (
-						<Checkbox
-							checked={
-								selectionState === "all"
-									? true
-									: selectionState === "some"
-										? "indeterminate"
-										: false
-							}
-							onCheckedChange={handleCheckChange}
-							onClick={(e) => e.stopPropagation()}
-							className="h-3.5 w-3.5 shrink-0"
-						/>
-					)}
-
-					<FolderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+						) : (
+							<>
+								<FolderIcon
+									className={cn(
+										"absolute h-4 w-4 text-muted-foreground transition-opacity",
+										selectionState === "none"
+											? "max-sm:opacity-0 group-hover/item:opacity-0"
+											: "opacity-0"
+									)}
+								/>
+								<Checkbox
+									checked={
+										selectionState === "all"
+											? true
+											: selectionState === "some"
+												? "indeterminate"
+												: false
+									}
+									aria-label={`Select ${folder.name}`}
+									onCheckedChange={handleCheckChange}
+									onClick={(e) => e.stopPropagation()}
+									className={cn(
+										"absolute h-3.5 w-3.5 transition-opacity max-sm:pointer-events-auto max-sm:opacity-100",
+										selectionState === "none"
+											? "pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+											: "opacity-100"
+									)}
+								/>
+							</>
+						)}
+					</span>
 
 					{isRenaming ? (
 						<input
@@ -350,23 +361,35 @@ export const FolderNode = React.memo(function FolderNode({
 					)}
 
 					{!isRenaming && (
-						<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className={cn(
-										"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent transition-opacity",
-										dropdownOpen
-											? "opacity-100 bg-accent hover:bg-accent"
-											: "opacity-0 group-hover:opacity-100"
-									)}
-									onClick={(e) => e.stopPropagation()}
-								>
-									<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-40">
+						<div
+							className={cn(
+								"pointer-events-none absolute top-0 right-0 bottom-0 flex items-center rounded-r-md pr-1 pl-6",
+								dropdownOpen
+									? "bg-gradient-to-l from-accent from-60% to-transparent"
+									: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
+								isMobile
+									? "opacity-0"
+									: dropdownOpen
+										? "opacity-100"
+										: "opacity-0 group-hover/item:opacity-100"
+							)}
+						>
+							<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className={cn(
+											"pointer-events-auto hidden h-6 w-6 shrink-0 hover:bg-transparent transition-opacity sm:inline-flex",
+											dropdownOpen && "bg-accent hover:bg-accent"
+										)}
+										onClick={(e) => e.stopPropagation()}
+										aria-label={`Folder actions for ${folder.name}`}
+									>
+										<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" className="w-40">
 								{isWatched && onRescan && (
 									<DropdownMenuItem
 										onClick={(e) => {
@@ -436,8 +459,9 @@ export const FolderNode = React.memo(function FolderNode({
 									<Trash2 className="mr-2 h-4 w-4" />
 									Delete
 								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
 					)}
 				</SidebarListItem>
 			</ContextMenuTrigger>

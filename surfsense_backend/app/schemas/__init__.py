@@ -43,6 +43,7 @@ from .model_connections import (
     ConnectionCreate,
     ConnectionRead,
     ConnectionUpdate,
+    LlmSetupStatusRead,
     ModelCreate,
     ModelPreviewRead,
     ModelProviderRead,
@@ -185,13 +186,14 @@ __all__ = [
     "InviteInfoResponse",
     "InviteRead",
     "InviteUpdate",
+    # Auth schemas
+    "LlmSetupStatusRead",
     # Log schemas
     "LogBase",
     "LogCreate",
     "LogFilter",
     "LogRead",
     "LogUpdate",
-    # Auth schemas
     "LogoutAllResponse",
     "LogoutRequest",
     "LogoutResponse",

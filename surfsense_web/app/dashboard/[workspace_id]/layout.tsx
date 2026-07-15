@@ -1,16 +1,27 @@
 // Server component
 import type React from "react";
-import { use } from "react";
+import { cookies } from "next/headers";
 import { DashboardClientLayout } from "./client-layout";
 
-export default function DashboardLayout({
+const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
+
+export default async function DashboardLayout({
 	params,
 	children,
 }: {
 	params: Promise<{ workspace_id: string }>;
 	children: React.ReactNode;
 }) {
-	const { workspace_id } = use(params);
+	const [{ workspace_id }, cookieStore] = await Promise.all([params, cookies()]);
+	const initialPlaygroundSidebarCollapsed =
+		cookieStore.get(PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
 
-	return <DashboardClientLayout workspaceId={workspace_id}>{children}</DashboardClientLayout>;
+	return (
+		<DashboardClientLayout
+			workspaceId={workspace_id}
+			initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
+		>
+			{children}
+		</DashboardClientLayout>
+	);
 }
