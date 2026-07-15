@@ -84,8 +84,13 @@ async def gather_bounded[T](
 
 
 def is_blocked(html: str | None, status: int) -> bool:
-    """Return whether a response is an Amazon anti-bot interstitial."""
-    if status in {429, 503}:
+    """Return whether a response is an Amazon anti-bot interstitial.
+
+    ``202`` is a soft anti-bot response Amazon serves to some proxy exits (an
+    empty/accepted body rather than the page), so it is treated as blocked and
+    retried on a fresh exit rather than parsed as a real page.
+    """
+    if status in {202, 429, 503}:
         return True
     text = (html or "")[:200_000].lower()
     return any(marker in text for marker in _BLOCK_MARKERS)
