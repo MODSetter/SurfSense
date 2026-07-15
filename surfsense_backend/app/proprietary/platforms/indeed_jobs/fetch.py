@@ -140,14 +140,18 @@ class IndeedSession:
             await self._timed_fetch(f"https://{domain}/", google_search=True)
         self._warmed.add(domain)
 
-    async def fetch_html(self, url: str) -> str:
+    async def fetch_html(self, url: str, *, max_rotations: int | None = None) -> str:
         """Return a search/company/job page's HTML through the warmed session.
 
         Rotates the IP and re-warms on a security-wall bounce or timeout; raises
-        :class:`IndeedAccessBlockedError` once every rotation is exhausted.
+        :class:`IndeedAccessBlockedError` once rotations are exhausted. ``max_rotations``
+        overrides the default budget: pass ``0`` to fail fast on a systematically
+        gated page (e.g. anonymous pagination) instead of burning rotations on a
+        block no fresh IP will clear.
         """
         if self._session is None:
             await self.start()
+        budget = _MAX_ROTATIONS if max_rotations is None else max_rotations
         domain = urlparse(url).hostname or "www.indeed.com"
         attempt = 0
         while True:
@@ -163,9 +167,9 @@ class IndeedSession:
             except Exception as e:
                 logger.warning("[indeed] fetch failed on %s: %s", url, e)
 
-            if attempt >= _MAX_ROTATIONS:
+            if attempt >= budget:
                 raise IndeedAccessBlockedError(
-                    f"Indeed refused {url} on {attempt} rotated IPs"
+                    f"Indeed refused {url} after {attempt + 1} attempt(s)"
                 )
             attempt += 1
             await self._rotate()

@@ -86,6 +86,16 @@ async def test_raises_after_exhausting_rotations():
 
 
 @pytest.mark.asyncio
+async def test_max_rotations_zero_fails_fast():
+    # A gated page (pagination) must raise on the first block without rotating.
+    ctrl = _Controller(["BLOCK", "OK"])
+    session = IndeedSession(ctrl.factory)
+    with pytest.raises(IndeedAccessBlockedError):
+        await session.fetch_html(_URL, max_rotations=0)
+    assert session.rotations == 0
+
+
+@pytest.mark.asyncio
 async def test_warms_domain_once_without_rotation():
     ctrl = _Controller(["OK", "OK"])
     session = IndeedSession(ctrl.factory)

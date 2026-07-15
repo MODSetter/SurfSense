@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
+from app.proprietary.platforms.indeed_jobs.fetch import IndeedAccessBlockedError
 from app.proprietary.platforms.indeed_jobs.schemas import IndeedScrapeInput
 from app.proprietary.platforms.indeed_jobs.scraper import iter_indeed, scrape_indeed
 
@@ -38,16 +39,21 @@ def _detail_html(job_key: str) -> str:
 class _FakeSession:
     """Returns per-``start`` search pages (or a /viewjob detail) and records URLs."""
 
-    def __init__(self, pages: dict[int, list[str]]) -> None:
+    def __init__(
+        self, pages: dict[int, list[str]], blocked_starts: set[int] | None = None
+    ) -> None:
         self._pages = pages
+        self._blocked = blocked_starts or set()
         self.fetched: list[str] = []
 
-    async def fetch_html(self, url: str) -> str:
+    async def fetch_html(self, url: str, *, max_rotations: int | None = None) -> str:
         self.fetched.append(url)
         query = parse_qs(urlparse(url).query)
         if "/viewjob" in url:
             return _detail_html(query.get("jk", [""])[0])
         start = int(query.get("start", ["0"])[0])
+        if start in self._blocked:
+            raise IndeedAccessBlockedError(f"gated at start={start}")
         return _page_html(self._pages.get(start, []))
 
 
@@ -75,6 +81,25 @@ async def test_stops_when_a_page_is_all_duplicates():
     assert 20 not in {
         int(parse_qs(urlparse(u).query).get("start", ["0"])[0]) for u in session.fetched
     }
+
+
+@pytest.mark.asyncio
+async def test_pagination_gate_keeps_earlier_pages():
+    # Indeed gates anonymous pagination: page 0 serves, start=10 is blocked.
+    # The already-yielded page-0 items must survive; paging just stops.
+    session = _FakeSession({0: ["k1", "k2"], 10: ["k3"]}, blocked_starts={10})
+    items = await _collect(
+        IndeedScrapeInput(queries=["dev"], maxItemsPerQuery=100), session
+    )
+    assert [i["jobKey"] for i in items] == ["k1", "k2"]
+
+
+@pytest.mark.asyncio
+async def test_first_page_block_propagates():
+    # A block on the very first page yielded nothing, so it surfaces as an error.
+    session = _FakeSession({}, blocked_starts={0})
+    with pytest.raises(IndeedAccessBlockedError):
+        await _collect(IndeedScrapeInput(queries=["dev"]), session)
 
 
 @pytest.mark.asyncio

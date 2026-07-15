@@ -2,7 +2,9 @@
 
 :func:`iter_indeed` streams flat job items from one warmed browser session:
 ``startUrls`` (search/company pages) or ``queries`` are paged by the ``start``
-offset, deduped by ``jobKey``, and stopped on the first page that adds nothing.
+offset, deduped by ``jobKey``, and stopped on the first page that adds nothing
+or that Indeed gates (anonymous pagination is bounced past page 1, so a gated
+page ends that target and keeps the pages already yielded).
 :func:`scrape_indeed` collects the stream under a caller ``limit``.
 
 Targets run sequentially on a single session — a browser per target would cost
@@ -16,7 +18,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-from .fetch import IndeedSession, now_iso, open_session
+from .fetch import IndeedAccessBlockedError, IndeedSession, now_iso, open_session
 from .parsers import (
     extract_jobcards_blob,
     job_results,
@@ -60,7 +62,21 @@ async def _paginate(
     seen: set[str] = set()
     emitted = 0
     for page in range(_MAX_PAGES):
-        html = await session.fetch_html(_with_start(first_url, page * _PAGE_STEP))
+        try:
+            # Rotate to establish first-page access, but fail fast on deeper
+            # pages: Indeed gates anonymous pagination to secure.indeed.com, a
+            # block no fresh IP clears — retrying it only burns the time budget.
+            # ponytail: deeper pages are dropped rather than retried; lift the
+            # cap with an async job if full-depth pagination is ever needed.
+            html = await session.fetch_html(
+                _with_start(first_url, page * _PAGE_STEP),
+                max_rotations=None if page == 0 else 0,
+            )
+        except IndeedAccessBlockedError:
+            if page == 0:
+                raise  # never got in on this target; surface the block
+            logger.info("[indeed] pagination gated at start=%d; stopping", page * _PAGE_STEP)
+            return  # keep the pages already yielded
         raws = job_results(extract_jobcards_blob(html))
         if not raws:
             return
@@ -127,7 +143,10 @@ async def _enrich(session: IndeedSession, item: dict[str, Any], base_url: str) -
     if not isinstance(job_url, str):
         return
     try:
-        detail = parse_job_detail(await session.fetch_html(job_url), base_url=base_url)
+        # Fail fast: enrichment is best-effort, so a gated detail page must not
+        # rotate IPs and eat the run's time budget for one job's description.
+        html = await session.fetch_html(job_url, max_rotations=0)
+        detail = parse_job_detail(html, base_url=base_url)
     except Exception as exc:
         logger.warning("[indeed] detail fetch failed for %s: %s", job_url, exc)
         return
