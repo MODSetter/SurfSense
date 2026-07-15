@@ -1,0 +1,48 @@
+---
+title: Amazon
+description: Scrape public Amazon product data as structured JSON
+---
+
+The Amazon scraper returns public product data as structured JSON: price and list price, rating and review breakdown, availability, marketplace offers, sellers, best-seller ranks, product variants, and on-page reviews. It only uses public, anonymous data — no login or seller account. Give it search terms or Amazon product, search, category, or best-seller URLs.
+
+## Endpoint
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/amazon/scrape
+```
+
+## Inputs
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | — | Amazon product, search, category, best-seller, or short (`a.co` / `amzn.to`) URLs. Provide `urls` or `search_terms` |
+| `search_terms` | — | Search phrases run on the domain, e.g. `wireless earbuds`. Provide `search_terms` or `urls` |
+| `max_items` | `10` | Max products per search term or category/best-seller URL (1–100) |
+| `domain` | `www.amazon.com` | Amazon marketplace domain, e.g. `www.amazon.co.uk` |
+| `include_details` | `true` | Fetch full product detail pages; `false` returns faster card-only results |
+| `max_offers` | `0` | Extra marketplace offers per product (0–100); `0` = featured offer only |
+| `include_sellers` | `false` | Enrich the product and each offer with the seller's public profile |
+| `max_variants` | `0` | Product variants to return as separate results (0–100) |
+| `include_variant_prices` | `false` | Attach per-variant prices (one extra request per variant) |
+| `country_code` | — | Two-letter delivery country for localized pricing, e.g. `us` |
+| `zip_code` | — | Delivery ZIP/postal code for localized availability, e.g. `10001` |
+| `language` | — | Content language for the domain, e.g. `en` |
+
+At least one of `urls` or `search_terms` is required, with up to 20 combined sources per call.
+
+## Example
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/amazon/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_terms": ["mechanical keyboard"],
+    "max_items": 5,
+    "max_offers": 3
+  }'
+```
+
+The response is `{ "items": [...] }` — one item per product, plus structured error items for any input that could not be resolved. Billing is per returned product; error items are never billed.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Amazon → Scrape** in your workspace.
