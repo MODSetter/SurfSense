@@ -44,6 +44,20 @@ const DocumentTabContent = dynamic(
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
 const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
+function persistPlaygroundSidebarCollapsedCookie(isCollapsed: boolean) {
+	void window.cookieStore
+		?.set({
+			name: PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE,
+			value: String(isCollapsed),
+			path: "/",
+			expires: Date.now() + PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE * 1000,
+			sameSite: "lax",
+		})
+		.catch(() => {
+			// Ignore preference persistence failures.
+		});
+}
+
 function MacDesktopTitleBar({
 	isSidebarCollapsed,
 	onToggleSidebar,
@@ -242,8 +256,7 @@ export function LayoutShell({
 	const handlePlaygroundSidebarToggle = () => {
 		setIsPlaygroundSidebarCollapsed((collapsed) => {
 			const nextCollapsed = !collapsed;
-			const secureAttribute = window.location.protocol === "https:" ? "; Secure" : "";
-			document.cookie = `${PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE}=${nextCollapsed}; Path=/; Max-Age=${PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax${secureAttribute}`;
+			persistPlaygroundSidebarCollapsedCookie(nextCollapsed);
 			return nextCollapsed;
 		});
 	};
