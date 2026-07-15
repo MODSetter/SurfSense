@@ -20,9 +20,7 @@ def get_geo_proxy_url(country: str | None = None) -> str | None:
     return get_active_provider().get_geo_proxy_url(country)
 
 
-def get_sticky_proxy_url(
-    session_id: str, country: str | None = None
-) -> str | None:
+def get_sticky_proxy_url(session_id: str, country: str | None = None) -> str | None:
     """Proxy URL pinned to a stable vendor session when supported."""
     return get_active_provider().get_sticky_proxy_url(session_id, country)
 

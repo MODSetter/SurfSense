@@ -58,8 +58,12 @@ def test_block_detection_handles_waf_header_and_body_markers():
         200,
         {"X-Amzn-Waf-Action": "challenge"},
     )
-    assert is_blocked("<script src='https://token.awswaf.com/challenge.js'></script>", 200)
-    assert is_blocked('<meta http-equiv="refresh" content="5; URL=/s?bm-verify=x">', 200)
+    assert is_blocked(
+        "<script src='https://token.awswaf.com/challenge.js'></script>", 200
+    )
+    assert is_blocked(
+        '<meta http-equiv="refresh" content="5; URL=/s?bm-verify=x">', 200
+    )
 
 
 def test_float_handles_us_and_eu_price_formats():

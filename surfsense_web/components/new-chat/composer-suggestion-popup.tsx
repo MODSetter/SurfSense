@@ -181,13 +181,13 @@ function ComposerSuggestionSkeleton({
 }
 
 export {
-	ComposerSuggestionPopoverContent,
-	ComposerSuggestionList,
 	ComposerSuggestionGroup,
 	ComposerSuggestionGroupHeading,
 	ComposerSuggestionHeader,
 	ComposerSuggestionItem,
-	ComposerSuggestionSeparator,
+	ComposerSuggestionList,
 	ComposerSuggestionMessage,
+	ComposerSuggestionPopoverContent,
+	ComposerSuggestionSeparator,
 	ComposerSuggestionSkeleton,
 };

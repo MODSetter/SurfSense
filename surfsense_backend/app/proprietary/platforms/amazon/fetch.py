@@ -232,9 +232,7 @@ async def resolve_shortlink(
     url: str, *, country: str | None = None, accept_language: str | None = None
 ) -> str | None:
     """Follow a shortened Amazon URL and return its final destination."""
-    result = await fetch_page(
-        url, country=country, accept_language=accept_language
-    )
+    result = await fetch_page(url, country=country, accept_language=accept_language)
     return result.url if result is not None and result.status == 200 else None
 
 

@@ -92,9 +92,7 @@ def _float(value: str | None) -> float | None:
         grouping = "." if decimal == "," else ","
         token = token.replace(grouping, "").replace(decimal, ".")
     elif (
-        token.count(",") == 1
-        and "." not in token
-        and len(token.rsplit(",", 1)[1]) <= 2
+        token.count(",") == 1 and "." not in token and len(token.rsplit(",", 1)[1]) <= 2
     ):
         token = token.replace(",", ".")
     else:
