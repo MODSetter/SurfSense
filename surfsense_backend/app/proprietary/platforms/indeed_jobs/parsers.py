@@ -22,7 +22,10 @@ _DEFAULT_BASE = "https://www.indeed.com"
 
 _JOBCARDS_ANCHOR = 'window.mosaic.providerData["mosaic-provider-jobcards"]='
 
-# A /viewjob page assigns the full posting to this global.
+# A /viewjob page carries the posting model in ``window._rootProps`` (JSON,
+# under ``preloadedVJData``); older pages inlined it as ``window._initialData``.
+_ROOT_PROPS_ANCHOR = "window._rootProps"
+_ROOT_PROPS_KEY = "preloadedVJData"
 _INITIAL_DATA_ANCHOR = "window._initialData"
 
 # Indeed's extractedSalary.type -> our SalaryPeriod.
@@ -82,14 +85,14 @@ def extract_jobcards_blob(html: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
-def extract_initial_data(html: str) -> dict | None:
-    """Decode the ``window._initialData`` assignment on a /viewjob page."""
+def _decode_assignment(html: str, anchor: str) -> dict | None:
+    """Decode the balanced JSON object assigned after ``anchor``, or ``None``."""
     import json
 
-    idx = html.find(_INITIAL_DATA_ANCHOR)
+    idx = html.find(anchor)
     if idx == -1:
         return None
-    brace = html.find("{", idx + len(_INITIAL_DATA_ANCHOR))
+    brace = html.find("{", idx + len(anchor))
     if brace == -1:
         return None
     blob = _brace_match(html, brace)
@@ -100,6 +103,25 @@ def extract_initial_data(html: str) -> dict | None:
     except ValueError:
         return None
     return data if isinstance(data, dict) else None
+
+
+def extract_initial_data(html: str) -> dict | None:
+    """Return a /viewjob posting model rooted at ``jobInfoWrapperModel``.
+
+    Prefers ``window._rootProps`` (JSON) unwrapped at ``preloadedVJData``; falls
+    back to a legacy inline ``window._initialData`` blob. ``window._initialData``
+    is now a JS object literal that references other globals, so it is not JSON
+    and is skipped when the JSON parse fails.
+    """
+    root = _decode_assignment(html, _ROOT_PROPS_ANCHOR)
+    if isinstance(root, dict):
+        vj = root.get(_ROOT_PROPS_KEY)
+        if isinstance(vj, dict) and vj.get("jobInfoWrapperModel"):
+            return vj
+    legacy = _decode_assignment(html, _INITIAL_DATA_ANCHOR)
+    if isinstance(legacy, dict) and legacy.get("jobInfoWrapperModel"):
+        return legacy
+    return None
 
 
 def job_results(blob: dict | None) -> list[dict[str, Any]]:

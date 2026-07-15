@@ -160,6 +160,26 @@ def test_parse_job_detail_extracts_description_and_fields():
     assert (sal["salaryMin"], sal["salaryMax"], sal["period"]) == (60000, 90000, "year")
 
 
+def test_parse_job_detail_reads_rootprops_shape():
+    # Live /viewjob assigns window._rootProps (JSON) with the model under
+    # preloadedVJData; window._initialData is now a non-JSON JS literal that
+    # references other globals and must be skipped, not misparsed.
+    html = (
+        "<html><script>window._initialData = { ssr: true, "
+        "viewJobClientSideModel: window._rootProps.preloadedVJData };</script>"
+        '<script>window._rootProps = {"url":"x","preloadedVJData":'
+        '{"jobInfoWrapperModel":{"jobInfoModel":'
+        '{"sanitizedJobDescription":"<p>Full JD text</p>",'
+        '"jobInfoHeaderModel":{"jobTitle":"Data Analyst",'
+        '"companyName":"Acme"}}}}};</script></html>'
+    )
+    detail = parse_job_detail(html)
+    assert detail["title"] == "Data Analyst"
+    assert detail["company"] == "Acme"
+    assert detail["descriptionHtml"] == "<p>Full JD text</p>"
+    assert detail["descriptionText"] == "Full JD text"
+
+
 def test_parse_job_detail_omits_blank_fields():
     # A page with a header but no salary/description must not emit those keys,
     # so a merge won't clobber listing values with blanks.
