@@ -22,8 +22,21 @@ def _page_html(job_keys: list[str]) -> str:
     )
 
 
+def _detail_html(job_key: str) -> str:
+    """A minimal /viewjob page carrying a full description for ``job_key``."""
+    data = {
+        "jobInfoWrapperModel": {
+            "jobInfoModel": {
+                "sanitizedJobDescription": f"<div>Full description for {job_key}</div>",
+                "jobInfoHeaderModel": {"jobTitle": f"Detailed {job_key}"},
+            }
+        }
+    }
+    return f"<html><script>window._initialData = {json.dumps(data)};</script></html>"
+
+
 class _FakeSession:
-    """Returns per-``start`` pages and records the URLs requested."""
+    """Returns per-``start`` search pages (or a /viewjob detail) and records URLs."""
 
     def __init__(self, pages: dict[int, list[str]]) -> None:
         self._pages = pages
@@ -31,7 +44,10 @@ class _FakeSession:
 
     async def fetch_html(self, url: str) -> str:
         self.fetched.append(url)
-        start = int(parse_qs(urlparse(url).query).get("start", ["0"])[0])
+        query = parse_qs(urlparse(url).query)
+        if "/viewjob" in url:
+            return _detail_html(query.get("jk", [""])[0])
+        start = int(query.get("start", ["0"])[0])
         return _page_html(self._pages.get(start, []))
 
 
@@ -81,7 +97,7 @@ async def test_global_dedupe_across_queries():
 
 
 @pytest.mark.asyncio
-async def test_start_urls_skip_viewjob_and_scrape_search():
+async def test_start_urls_scrape_search_and_job_url_detail():
     session = _FakeSession({0: ["k1"]})
     input_model = IndeedScrapeInput(
         startUrls=[
@@ -91,7 +107,28 @@ async def test_start_urls_skip_viewjob_and_scrape_search():
         maxItemsPerQuery=100,
     )
     items = await _collect(input_model, session)
-    assert [i["jobKey"] for i in items] == ["k1"]
+    assert len(items) == 2
+    search_item, job_item = items
+    assert search_item["jobKey"] == "k1"
+    # The /viewjob URL is scraped from its detail page alone.
+    assert job_item["jobUrl"].endswith("jk=abc")
+    assert job_item["title"] == "Detailed abc"
+    assert "Full description for abc" in job_item["descriptionText"]
+
+
+@pytest.mark.asyncio
+async def test_scrape_job_details_enriches_listing_items():
+    session = _FakeSession({0: ["k1", "k2"]})
+    items = await _collect(
+        IndeedScrapeInput(queries=["dev"], maxItemsPerQuery=100, scrapeJobDetails=True),
+        session,
+    )
+    assert [i["jobKey"] for i in items] == ["k1", "k2"]
+    for it in items:
+        assert it["descriptionHtml"].startswith("<div>Full description for")
+        assert "Full description for" in it["descriptionText"]
+    # One extra /viewjob load per listing item.
+    assert sum("/viewjob" in u for u in session.fetched) == 2
 
 
 @pytest.mark.asyncio
