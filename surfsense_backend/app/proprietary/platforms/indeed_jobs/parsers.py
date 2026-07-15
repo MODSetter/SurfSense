@@ -22,6 +22,9 @@ _DEFAULT_BASE = "https://www.indeed.com"
 
 _JOBCARDS_ANCHOR = 'window.mosaic.providerData["mosaic-provider-jobcards"]='
 
+# A /viewjob page assigns the full posting to this global.
+_INITIAL_DATA_ANCHOR = "window._initialData"
+
 # Indeed's extractedSalary.type -> our SalaryPeriod.
 _SALARY_PERIODS = {
     "HOURLY": "hour",
@@ -67,6 +70,26 @@ def extract_jobcards_blob(html: str) -> dict | None:
     if idx == -1:
         return None
     brace = html.find("{", idx + len(_JOBCARDS_ANCHOR))
+    if brace == -1:
+        return None
+    blob = _brace_match(html, brace)
+    if not blob:
+        return None
+    try:
+        data = json.loads(blob)
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def extract_initial_data(html: str) -> dict | None:
+    """Decode the ``window._initialData`` assignment on a /viewjob page."""
+    import json
+
+    idx = html.find(_INITIAL_DATA_ANCHOR)
+    if idx == -1:
+        return None
+    brace = html.find("{", idx + len(_INITIAL_DATA_ANCHOR))
     if brace == -1:
         return None
     blob = _brace_match(html, brace)
@@ -226,3 +249,57 @@ def parse_job(raw: dict[str, Any], *, base_url: str = _DEFAULT_BASE) -> dict[str
         "datePublished": _utc_from_ms(raw.get("pubDate")),
         "createdAt": _utc_from_ms(raw.get("createDate")),
     }
+
+
+def _detail_salary(hdr: dict[str, Any]) -> dict[str, Any] | None:
+    """Salary from the detail header's flat ``salaryMin/Max/Currency/Type`` fields."""
+    smin = hdr.get("salaryMin")
+    smax = hdr.get("salaryMax")
+    if smin is None and smax is None:
+        return None
+    return {
+        "salaryText": None,
+        "salaryMin": smin,
+        "salaryMax": smax,
+        "currency": hdr.get("salaryCurrency"),
+        "period": _SALARY_PERIODS.get(hdr.get("salaryType")),
+        "isEstimated": False,
+    }
+
+
+def parse_job_detail(html: str, *, base_url: str = _DEFAULT_BASE) -> dict[str, Any]:
+    """Map a /viewjob page to enrichment fields (empty dict if not a job page).
+
+    Returns only fields the detail page actually carries, so the caller can merge
+    it onto a listing item without clobbering known values with blanks. The full
+    description (``sanitizedJobDescription``) is the field listings never have.
+    """
+    data = extract_initial_data(html)
+    if not isinstance(data, dict):
+        return {}
+    jim = (data.get("jobInfoWrapperModel") or {}).get("jobInfoModel") or {}
+    if not isinstance(jim, dict):
+        return {}
+    hdr = jim.get("jobInfoHeaderModel")
+    hdr = hdr if isinstance(hdr, dict) else {}
+    taxo = _taxonomy(hdr)
+    desc_html = jim.get("sanitizedJobDescription")
+    desc_html = desc_html if isinstance(desc_html, str) and desc_html else None
+    remote_model = hdr.get("remoteWorkModel")
+    out: dict[str, Any] = {
+        "descriptionHtml": desc_html,
+        "descriptionText": _clean_snippet(desc_html),
+        "title": hdr.get("jobTitle"),
+        "company": hdr.get("companyName"),
+        "companyUrl": _abs_url(hdr.get("companyOverviewLink"), base_url),
+        "formattedLocation": hdr.get("formattedLocation") or data.get("jobLocation"),
+        "remoteType": remote_model.get("type")
+        if isinstance(remote_model, dict)
+        else None,
+        "jobTypes": _job_types(hdr, taxo),
+        "benefits": taxo.get("benefits", []),
+        "salary": _detail_salary(hdr),
+    }
+    if _is_remote(hdr, taxo):
+        out["isRemote"] = True
+    return {k: v for k, v in out.items() if v not in (None, [], {})}
