@@ -31,6 +31,7 @@ EXPECTED_TOOLS = {
     "surfsense_google_maps_reviews",
     "surfsense_instagram_scrape",
     "surfsense_instagram_details",
+    "surfsense_indeed_scrape",
     "surfsense_list_scraper_runs",
     "surfsense_get_scraper_run",
     # knowledge-base management
