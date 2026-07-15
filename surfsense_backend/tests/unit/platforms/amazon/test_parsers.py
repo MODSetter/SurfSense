@@ -10,6 +10,7 @@ from app.proprietary.platforms.amazon.fetch import (
     should_localize,
 )
 from app.proprietary.platforms.amazon.parsers import (
+    _float,
     parse_aod_offers,
     parse_bestsellers_page,
     parse_product,
@@ -49,6 +50,47 @@ def test_block_detection_handles_status_and_markup():
     assert is_blocked(blocked, 200)
     assert is_blocked("", 503)
     assert not is_blocked(_fixture("product.html"), 200)
+
+
+def test_block_detection_handles_waf_header_and_body_markers():
+    assert is_blocked(
+        "<html>ordinary status</html>",
+        200,
+        {"X-Amzn-Waf-Action": "challenge"},
+    )
+    assert is_blocked("<script src='https://token.awswaf.com/challenge.js'></script>", 200)
+    assert is_blocked('<meta http-equiv="refresh" content="5; URL=/s?bm-verify=x">', 200)
+
+
+def test_float_handles_us_and_eu_price_formats():
+    assert _float("1.234,56 €") == 1234.56
+    assert _float("12,99 €") == 12.99
+    assert _float("$1,234.56") == 1234.56
+    assert _float("1234") == 1234.0
+
+
+def test_block_retry_proxy_uses_fresh_country_session(monkeypatch):
+    geo_calls: list[str | None] = []
+    sticky_calls: list[tuple[str, str | None]] = []
+
+    def get_geo_proxy_url(country: str | None = None):
+        geo_calls.append(country)
+        return f"http://geo-{country}"
+
+    def get_sticky_proxy_url(session_id: str, country: str | None = None):
+        sticky_calls.append((session_id, country))
+        return f"http://sticky-{country}-{session_id}"
+
+    monkeypatch.setattr(fetch, "get_geo_proxy_url", get_geo_proxy_url)
+    monkeypatch.setattr(fetch, "get_sticky_proxy_url", get_sticky_proxy_url)
+
+    first = fetch._selected_proxy(None, "fr", 1, "https://www.amazon.fr/s?k=x")
+    second = fetch._selected_proxy(None, "fr", 2, "https://www.amazon.fr/s?k=x")
+
+    assert first == "http://geo-fr"
+    assert second.startswith("http://sticky-fr-amazon-fr-2-")
+    assert geo_calls == ["fr"]
+    assert sticky_calls[0][1] == "fr"
 
 
 def test_search_parser_extracts_cards_and_provenance():
@@ -94,7 +136,7 @@ async def test_location_session_mints_once_and_reuses_cache(monkeypatch):
     fetch._location_sessions.clear()
     calls: list[str] = []
 
-    async def sticky_proxy(_session_id: str):
+    async def sticky_proxy(_session_id: str, _country: str | None = None):
         return "http://sticky-proxy"
 
     async def fetch_page(url: str, **_kwargs):
