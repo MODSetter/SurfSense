@@ -87,7 +87,15 @@ def _float(value: str | None) -> float | None:
     if not match:
         return None
     token = match.group(0)
-    if token.count(",") == 1 and "." not in token and len(token.rsplit(",", 1)[1]) <= 2:
+    if "," in token and "." in token:
+        decimal = "," if token.rfind(",") > token.rfind(".") else "."
+        grouping = "." if decimal == "," else ","
+        token = token.replace(grouping, "").replace(decimal, ".")
+    elif (
+        token.count(",") == 1
+        and "." not in token
+        and len(token.rsplit(",", 1)[1]) <= 2
+    ):
         token = token.replace(",", ".")
     else:
         token = token.replace(",", "")
