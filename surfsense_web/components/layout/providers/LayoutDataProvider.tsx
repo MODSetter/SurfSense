@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
-import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { workspaceLimitsAtom, workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
@@ -43,6 +43,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
+import { getChatUrl, type ResolvedTab } from "@/hooks/use-resolved-tabs";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -273,19 +274,11 @@ export function LayoutDataProvider({
 	// Sync current chat route with tab state
 	useEffect(() => {
 		const chatId = currentChatId ?? null;
-		const chatUrl = chatId
-			? `/dashboard/${workspaceId}/new-chat/${chatId}`
-			: `/dashboard/${workspaceId}/new-chat`;
-		const thread = threadsData?.threads?.find((t) => t.id === chatId);
 		syncChatTab({
 			chatId,
-			// Avoid overwriting live SSE-updated tab titles with fallback values.
-			title: chatId ? (thread?.title ?? undefined) : "New Chat",
-			chatUrl,
 			workspaceId: Number(workspaceId),
-			...(thread?.visibility !== undefined ? { visibility: thread.visibility } : {}),
 		});
-	}, [currentChatId, workspaceId, threadsData?.threads, syncChatTab]);
+	}, [currentChatId, workspaceId, syncChatTab]);
 
 	const chats = useMemo(() => {
 		if (!threadsData?.threads) return [];
@@ -440,26 +433,24 @@ export function LayoutDataProvider({
 	}, [workspaceToLeave, refetchWorkspaces, workspaceId, router, t]);
 
 	const handleTabSwitch = useCallback(
-		(tab: Tab) => {
+		(tab: ResolvedTab) => {
 			if (tab.type === "chat") {
 				activateChatThread({
-					id: tab.chatId ?? null,
-					title: tab.title,
+					id: tab.entityId,
 					url: tab.chatUrl,
-					workspaceId: tab.workspaceId ?? workspaceId,
+					workspaceId: tab.workspaceId,
 					...(tab.visibility !== undefined ? { visibility: tab.visibility } : {}),
-					...(tab.hasComments !== undefined ? { hasComments: tab.hasComments } : {}),
 				});
 			}
 			// Document tabs are handled in-place by LayoutShell — no navigation needed
 		},
-		[activateChatThread, workspaceId]
+		[activateChatThread]
 	);
 
 	const handleTabPrefetch = useCallback(
-		(tab: Tab) => {
+		(tab: ResolvedTab) => {
 			if (tab.type === "chat") {
-				prefetchChatThread(tab.chatId);
+				prefetchChatThread(tab.entityId);
 			}
 		},
 		[prefetchChatThread]
@@ -573,16 +564,12 @@ export function LayoutDataProvider({
 			const fallbackTab = removeChatTab(chatToDelete.id);
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
-				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+				if (fallbackTab?.type === "chat") {
+					const fallbackWorkspaceId = fallbackTab.workspaceId || Number(workspaceId);
 					activateChatThread({
-						id: fallbackTab.chatId ?? null,
-						title: fallbackTab.title,
-						url: fallbackTab.chatUrl,
-						workspaceId: fallbackTab.workspaceId ?? workspaceId,
-						...(fallbackTab.visibility !== undefined ? { visibility: fallbackTab.visibility } : {}),
-						...(fallbackTab.hasComments !== undefined
-							? { hasComments: fallbackTab.hasComments }
-							: {}),
+						id: fallbackTab.entityId,
+						url: getChatUrl(fallbackWorkspaceId, fallbackTab.entityId),
+						workspaceId: fallbackWorkspaceId,
 					});
 				} else {
 					const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;

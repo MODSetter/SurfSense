@@ -85,6 +85,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			onLogout={() => router.push("/register")}
 			pageUsage={pageUsage}
 			isChatPage
+			showTabs={false}
 			isLoadingChats={false}
 		>
 			{children}

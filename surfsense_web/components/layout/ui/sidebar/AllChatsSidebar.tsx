@@ -41,6 +41,7 @@ import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getChatUrl } from "@/hooks/use-resolved-tabs";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
 import { formatRelativeDate } from "@/lib/format-date";
@@ -145,22 +146,12 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 
 				if (currentChatId === threadId) {
 					setTimeout(() => {
-						if (
-							fallbackTab?.type === "chat" &&
-							fallbackTab.chatUrl &&
-							fallbackTab.chatId !== undefined
-						) {
+						if (fallbackTab?.type === "chat") {
+							const fallbackWorkspaceId = fallbackTab.workspaceId || Number(workspaceId);
 							activateChatThread({
-								id: fallbackTab.chatId ?? null,
-								title: fallbackTab.title,
-								url: fallbackTab.chatUrl,
-								workspaceId: fallbackTab.workspaceId ?? workspaceId,
-								...(fallbackTab.visibility !== undefined
-									? { visibility: fallbackTab.visibility }
-									: {}),
-								...(fallbackTab.hasComments !== undefined
-									? { hasComments: fallbackTab.hasComments }
-									: {}),
+								id: fallbackTab.entityId,
+								url: getChatUrl(fallbackWorkspaceId, fallbackTab.entityId),
+								workspaceId: fallbackWorkspaceId,
 							});
 							return;
 						}
