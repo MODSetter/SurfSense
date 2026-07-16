@@ -24,6 +24,9 @@ export const newChatThreadTable = table("new_chat_threads")
 	.columns({
 		id: number(),
 		workspaceId: number().from("workspace_id"),
+		title: string(),
+		visibility: string(),
+		createdById: string().optional().from("created_by_id"),
 	})
 	.primaryKey("id");
 
