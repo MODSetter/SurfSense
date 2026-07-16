@@ -18,6 +18,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
@@ -444,39 +445,45 @@ export function ReportPanelContent({
 	return (
 		<>
 			{showDesktopHeader ? (
-				<>
+				<div className="shrink-0">
 					{/* Header — matches the Documents panel header pattern */}
-					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
-						<h2 className="select-none text-lg font-semibold">{isResume ? "Resume" : "Report"}</h2>
-						{onClose && (
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={onClose}
-								className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
-							>
-								<XIcon className="h-4 w-4" />
-								<span className="sr-only">Close report panel</span>
-							</Button>
-						)}
-					</div>
-
-					{!isResume && (
-						<div className="flex h-10 items-center justify-between gap-2 border-b px-4 shrink-0">
-							<div className="min-w-0 flex-1">
-								<p className="truncate text-sm text-muted-foreground">
-									{reportContent?.title || title}
-								</p>
-							</div>
-							<div className="flex items-center gap-1 shrink-0">
-								{versionSwitcher}
-								{exportButton}
-								{copyButton}
-								{editingActions}
-							</div>
+					<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+						<div className="min-w-0 flex flex-1 items-center gap-2">
+							<p className="truncate text-sm text-muted-foreground">
+								{isResume ? "Resume" : reportContent?.title || title}
+							</p>
 						</div>
-					)}
-				</>
+						<div className="flex items-center gap-1 shrink-0">
+							{!isResume && (
+								<>
+									{versionSwitcher}
+									{exportButton}
+									{copyButton}
+									{editingActions}
+								</>
+							)}
+							{onClose && (
+								<>
+									{!isResume && (
+										<Separator
+											orientation="vertical"
+											className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
+										/>
+									)}
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={onClose}
+										className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+									>
+										<XIcon className="size-4" />
+										<span className="sr-only">Close report panel</span>
+									</Button>
+								</>
+							)}
+						</div>
+					</div>
+				</div>
 			) : (
 				!isResume && (
 					<div className="flex h-14 items-center justify-between border-b px-4 shrink-0">
