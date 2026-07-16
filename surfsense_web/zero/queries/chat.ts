@@ -29,3 +29,13 @@ export const chatSessionQueries = {
 			.one()
 	),
 };
+
+export const threadQueries = {
+	byIds: defineQuery(z.object({ ids: z.array(z.number()) }), ({ args: { ids }, ctx }) =>
+		constrainToAllowedSpaces(zql.new_chat_threads, ctx)
+			.where("id", "IN", ids)
+			.where(({ or, cmp }) =>
+				or(cmp("createdById", ctx?.userId ?? ""), cmp("visibility", "SEARCH_SPACE"))
+			)
+	),
+};
