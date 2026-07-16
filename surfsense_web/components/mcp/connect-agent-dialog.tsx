@@ -43,7 +43,7 @@ export function ConnectAgentDialog({ className }: { className?: string }) {
 			</DialogTrigger>
 			<DialogContent className="max-h-[85vh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-2xl">
 				<DialogHeader>
-					<DialogTitle>Connect to Claude Code, Codex, OpenCode…</DialogTitle>
+					<DialogTitle>Connect your coding agent to SurfSense</DialogTitle>
 					<DialogDescription>
 						Give your coding agent access to SurfSense scrapers and your knowledge base. Create an API key under API Keys, choose your agent, then paste the config.
 					</DialogDescription>
