@@ -285,7 +285,7 @@ export function LayoutDataProvider({
 
 		return threadsData.threads.map<ChatItem>((thread) => ({
 			id: thread.id,
-			name: thread.title || `Chat ${thread.id}`,
+			name: thread.title || "New Chat",
 			url: `/dashboard/${workspaceId}/new-chat/${thread.id}`,
 			visibility: thread.visibility,
 			isOwnThread: thread.is_own_thread,

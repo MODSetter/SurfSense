@@ -66,7 +66,7 @@ export function resolveTabPointers({
 		const row = tab.entityId === null ? undefined : threads.get(tab.entityId);
 		return {
 			...tab,
-			title: row?.title || (tab.entityId === null ? "New Chat" : `Chat ${tab.entityId}`),
+			title: row?.title || "New Chat",
 			chatUrl: getChatUrl(tab.workspaceId, tab.entityId),
 			...(row?.visibility !== undefined ? { visibility: row.visibility as ChatVisibility } : {}),
 		};
