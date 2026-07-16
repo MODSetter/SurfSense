@@ -102,8 +102,8 @@ import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
-import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { canSubmitChat } from "@/lib/chat/can-submit-chat";
+import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
 import { findPlatform, type PlaygroundPlatform } from "@/lib/playground/catalog";
@@ -1715,10 +1715,10 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				)}
 				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
-			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
 				<ChatHeader
 					workspaceId={workspaceId}
-					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
+					className="h-9 max-w-[44vw] px-2 sm:max-w-none sm:px-3"
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
