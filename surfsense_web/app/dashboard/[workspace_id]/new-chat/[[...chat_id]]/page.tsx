@@ -299,11 +299,7 @@ export default function NewChatPage() {
 			setCurrentThread(thread);
 			syncChatTab({
 				chatId: thread.id,
-				title: thread.title,
-				chatUrl: `/dashboard/${thread.workspace_id ?? workspaceId}/new-chat/${thread.id}`,
 				workspaceId: thread.workspace_id ?? workspaceId,
-				visibility: thread.visibility,
-				hasComments: thread.has_comments ?? false,
 			});
 		}
 	}, [activeThreadId, workspaceId, syncChatTab, threadDetailQuery.data]);
