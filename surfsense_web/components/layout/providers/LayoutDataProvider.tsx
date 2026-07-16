@@ -14,7 +14,7 @@ import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
 import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
-import { workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { workspaceLimitsAtom, workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
@@ -84,6 +84,7 @@ export function LayoutDataProvider({
 		refetch: refetchWorkspaces,
 		isSuccess: workspacesLoaded,
 	} = useAtomValue(workspacesAtom);
+	const { data: workspaceLimits } = useAtomValue(workspaceLimitsAtom);
 	const { mutateAsync: deleteWorkspace } = useAtomValue(deleteWorkspaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
@@ -225,6 +226,13 @@ export function LayoutDataProvider({
 			createdAt: space.created_at,
 		}));
 	}, [workspacesData]);
+	const maxWorkspacesPerUser = workspaceLimits?.max_workspaces_per_user;
+	const ownedWorkspaceCount = workspaces.reduce(
+		(count, space) => count + (space.isOwner ? 1 : 0),
+		0
+	);
+	const isAtWorkspaceLimit =
+		maxWorkspacesPerUser !== undefined && ownedWorkspaceCount >= maxWorkspacesPerUser;
 
 	// Find active workspace from list, falling back to the route-scoped detail query.
 	const activeWorkspace: Workspace | null = useMemo(() => {
@@ -335,8 +343,14 @@ export function LayoutDataProvider({
 	);
 
 	const handleAddWorkspace = useCallback(() => {
+		if (isAtWorkspaceLimit) {
+			toast.error(
+				`Workspace limit reached. You can own at most ${maxWorkspacesPerUser} workspaces.`
+			);
+			return;
+		}
 		setIsCreateWorkspaceDialogOpen(true);
-	}, []);
+	}, [isAtWorkspaceLimit, maxWorkspacesPerUser]);
 
 	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
@@ -663,6 +677,8 @@ export function LayoutDataProvider({
 				onWorkspaceDelete={handleWorkspaceDeleteClick}
 				onWorkspaceSettings={handleWorkspaceSettings}
 				onAddWorkspace={handleAddWorkspace}
+				isAtWorkspaceLimit={isAtWorkspaceLimit}
+				maxWorkspacesPerUser={maxWorkspacesPerUser}
 				workspace={activeWorkspace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}

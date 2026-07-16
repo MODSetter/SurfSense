@@ -30,6 +30,13 @@ export const getWorkspacesRequest = z.object({
 export const getWorkspacesResponse = z.array(workspace);
 
 /**
+ * Workspace limits
+ */
+export const workspaceLimits = z.object({
+	max_workspaces_per_user: z.number(),
+});
+
+/**
  * Create workspace
  */
 export const createWorkspaceRequest = workspace.pick({ name: true, description: true }).extend({
@@ -94,6 +101,7 @@ export const leaveWorkspaceResponse = z.object({
 
 // Inferred types
 export type Workspace = z.infer<typeof workspace>;
+export type WorkspaceLimits = z.infer<typeof workspaceLimits>;
 export type GetWorkspacesRequest = z.infer<typeof getWorkspacesRequest>;
 export type GetWorkspacesResponse = z.infer<typeof getWorkspacesResponse>;
 export type CreateWorkspaceRequest = z.infer<typeof createWorkspaceRequest>;

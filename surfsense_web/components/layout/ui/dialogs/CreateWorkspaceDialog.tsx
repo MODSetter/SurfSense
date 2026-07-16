@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import * as z from "zod";
 import { createWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
 			);
 		} catch (error) {
 			console.error("Failed to create workspace:", error);
+			toast.error(error instanceof Error ? error.message : "Failed to create workspace");
 			setIsSubmitting(false);
 		}
 	};

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.auth.context import AuthContext
+from app.config import config
 from app.db import (
     Permission,
     Workspace,
@@ -81,6 +82,22 @@ async def create_workspace(
     user = auth.user
     try:
         workspace_data = workspace.model_dump()
+        not_deleting = ~Workspace.name.startswith("[DELETING] ")
+        owned_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(Workspace)
+                .filter(Workspace.user_id == user.id, not_deleting)
+            )
+        ).scalar_one()
+        if owned_count >= config.MAX_WORKSPACES_PER_USER:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Workspace limit reached. You can own at most "
+                    f"{config.MAX_WORKSPACES_PER_USER} workspaces."
+                ),
+            )
 
         # citations_enabled defaults to True (handled by Pydantic schema)
         # qna_custom_instructions defaults to None/empty (handled by DB)
@@ -205,6 +222,11 @@ async def read_workspaces(
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch workspaces: {e!s}"
         ) from e
+
+
+@router.get("/workspaces/limits")
+async def read_workspace_limits(_auth: AuthContext = Depends(allow_any_principal)):
+    return {"max_workspaces_per_user": config.MAX_WORKSPACES_PER_USER}
 
 
 @router.get("/workspaces/{workspace_id}", response_model=WorkspaceRead)

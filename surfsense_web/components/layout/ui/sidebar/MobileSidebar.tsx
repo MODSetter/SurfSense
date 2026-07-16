@@ -17,6 +17,8 @@ interface MobileSidebarProps {
 	activeWorkspaceId: number | null;
 	onWorkspaceSelect: (id: number) => void;
 	onAddWorkspace: () => void;
+	isAtWorkspaceLimit?: boolean;
+	maxWorkspacesPerUser?: number;
 	workspace: Workspace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
@@ -67,6 +69,8 @@ export function MobileSidebar({
 	onWorkspaceSelect,
 
 	onAddWorkspace,
+	isAtWorkspaceLimit = false,
+	maxWorkspacesPerUser,
 	workspace,
 	navItems,
 	onNavItemClick,
@@ -107,6 +111,10 @@ export function MobileSidebar({
 		onChatSelect(chat);
 		onOpenChange(false);
 	};
+	const addWorkspaceLabel =
+		isAtWorkspaceLimit && maxWorkspacesPerUser !== undefined
+			? `Workspace limit reached: ${maxWorkspacesPerUser}`
+			: "Add workspace";
 
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -136,10 +144,12 @@ export function MobileSidebar({
 								variant="ghost"
 								size="icon"
 								onClick={onAddWorkspace}
+								disabled={isAtWorkspaceLimit}
+								title={addWorkspaceLabel}
 								className="h-10 w-10 shrink-0 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
 							>
 								<Plus className="h-5 w-5 text-muted-foreground" />
-								<span className="sr-only">Add workspace</span>
+								<span className="sr-only">{addWorkspaceLabel}</span>
 							</Button>
 						</div>
 					</ScrollArea>

@@ -95,6 +95,8 @@ interface LayoutShellProps {
 	onWorkspaceDelete?: (workspace: Workspace) => void;
 	onWorkspaceSettings?: (workspace: Workspace) => void;
 	onAddWorkspace: () => void;
+	isAtWorkspaceLimit?: boolean;
+	maxWorkspacesPerUser?: number;
 	workspace: Workspace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
@@ -198,6 +200,8 @@ export function LayoutShell({
 	onWorkspaceDelete,
 	onWorkspaceSettings,
 	onAddWorkspace,
+	isAtWorkspaceLimit = false,
+	maxWorkspacesPerUser,
 	workspace,
 	navItems,
 	onNavItemClick,
@@ -280,6 +284,8 @@ export function LayoutShell({
 							activeWorkspaceId={activeWorkspaceId}
 							onWorkspaceSelect={onWorkspaceSelect}
 							onAddWorkspace={onAddWorkspace}
+							isAtWorkspaceLimit={isAtWorkspaceLimit}
+							maxWorkspacesPerUser={maxWorkspacesPerUser}
 							workspace={workspace}
 							navItems={navItems}
 							onNavItemClick={onNavItemClick}
@@ -352,6 +358,8 @@ export function LayoutShell({
 								onWorkspaceDelete={onWorkspaceDelete}
 								onWorkspaceSettings={onWorkspaceSettings}
 								onAddWorkspace={onAddWorkspace}
+								isAtWorkspaceLimit={isAtWorkspaceLimit}
+								maxWorkspacesPerUser={maxWorkspacesPerUser}
 								isSingleRailMode={false}
 								user={user}
 								onUserSettings={onUserSettings}
