@@ -3,10 +3,11 @@
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,7 @@ interface LayoutShellProps {
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
 	isAllChatsPage?: boolean;
+	showTabs?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
@@ -130,8 +132,8 @@ interface LayoutShellProps {
 	className?: string;
 	notifications?: NotificationsDropdownData;
 	isLoadingChats?: boolean;
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
 	playgroundSidebar?: React.ReactNode;
 	initialPlaygroundSidebarCollapsed?: boolean;
 }
@@ -141,19 +143,85 @@ function MainContentPanel({
 	onTabSwitch,
 	onTabPrefetch,
 	onNewChat,
+	showTabs = true,
 	showRightPanelExpandButton = true,
 	showTopBorder = false,
 	children,
 }: {
 	isChatPage: boolean;
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
+	showTabs?: boolean;
 	showRightPanelExpandButton?: boolean;
 	showTopBorder?: boolean;
 	children: React.ReactNode;
 }) {
-	const activeTab = useAtomValue(activeTabAtom);
+	if (!showTabs) {
+		return (
+			<UntabbedMainContentPanel isChatPage={isChatPage} showTopBorder={showTopBorder}>
+				{children}
+			</UntabbedMainContentPanel>
+		);
+	}
+
+	return (
+		<TabbedMainContentPanel
+			isChatPage={isChatPage}
+			onTabSwitch={onTabSwitch}
+			onTabPrefetch={onTabPrefetch}
+			onNewChat={onNewChat}
+			showRightPanelExpandButton={showRightPanelExpandButton}
+			showTopBorder={showTopBorder}
+		>
+			{children}
+		</TabbedMainContentPanel>
+	);
+}
+
+function UntabbedMainContentPanel({
+	isChatPage,
+	showTopBorder,
+	children,
+}: {
+	isChatPage: boolean;
+	showTopBorder: boolean;
+	children: React.ReactNode;
+}) {
+	return (
+		<div
+			className={cn("relative isolate flex flex-1 flex-col min-w-0", showTopBorder && "border-t")}
+		>
+			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
+				<Header />
+				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+					{children}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function TabbedMainContentPanel({
+	isChatPage,
+	onTabSwitch,
+	onTabPrefetch,
+	onNewChat,
+	showRightPanelExpandButton,
+	showTopBorder,
+	children,
+}: {
+	isChatPage: boolean;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
+	onNewChat?: () => void;
+	showRightPanelExpandButton: boolean;
+	showTopBorder: boolean;
+	children: React.ReactNode;
+}) {
+	const activeTabId = useAtomValue(activeTabIdAtom);
+	const tabs = useResolvedTabs();
+	const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
 	const isDocumentTab = activeTab?.type === "document";
 
 	return (
@@ -170,11 +238,11 @@ function MainContentPanel({
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
 
-				{isDocumentTab && activeTab.documentId && activeTab.workspaceId ? (
+				{isDocumentTab && activeTab.entityId && activeTab.workspaceId ? (
 					<div className="flex-1 overflow-hidden">
 						<DocumentTabContent
-							key={activeTab.documentId}
-							documentId={activeTab.documentId}
+							key={activeTab.entityId}
+							documentId={activeTab.entityId}
 							workspaceId={activeTab.workspaceId}
 							title={activeTab.title}
 						/>
@@ -228,6 +296,7 @@ export function LayoutShell({
 	defaultCollapsed = false,
 	isChatPage = false,
 	isAllChatsPage = false,
+	showTabs = true,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
@@ -476,6 +545,7 @@ export function LayoutShell({
 										onTabSwitch={onTabSwitch}
 										onTabPrefetch={onTabPrefetch}
 										onNewChat={onNewChat}
+										showTabs={showTabs}
 										showRightPanelExpandButton={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									>
