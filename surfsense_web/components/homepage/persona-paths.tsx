@@ -35,7 +35,7 @@ const PATHS: {
 		eyebrow: "For developers & agents",
 		title: "The whole platform is programmable",
 		description:
-			"Everything SurfSense agents can do is a typed REST API: scrape Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web, search the knowledge base, run automations. One key, JSON in and out, $5 free credit, pay as you go. Already running agents in Claude, Cursor, or your own harness? The SurfSense MCP server hands them the same tools natively.",
+			"Everything SurfSense agents can do is a typed REST API: scrape Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and the open web, search the knowledge base, run automations. One key, JSON in and out, $5 free credit, pay as you go. Already running agents in Claude, Cursor, or your own harness? The SurfSense MCP server hands them the same tools natively.",
 		links: [
 			{ label: "Read the docs", href: "/docs" },
 			{ label: "SurfSense MCP server", href: "/mcp-server" },

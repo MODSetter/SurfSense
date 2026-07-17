@@ -70,7 +70,6 @@ type HeroCategory = {
 };
 
 const HERO_TUTORIAL = "/homepage/hero_tutorial";
-const HERO_REALTIME = "/homepage/hero_realtime";
 
 /*
  * Every scripted demo below mirrors a task the SurfSense agent has actually run
@@ -659,7 +658,8 @@ export function HeroSection() {
 						>
 							SurfSense is an open-source open web research platform, like NotebookLM but with live
 							data connectors. Your AI agents research the live web with structured data from
-							Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and any page on the
+							Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, and any page on
+							the
 							open web.
 						</p>
 

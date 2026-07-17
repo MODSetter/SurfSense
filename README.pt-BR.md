@@ -22,7 +22,7 @@
 
 # SurfSense: NotebookLM para Pesquisa na Web Aberta
 
-O SurfSense é a **plataforma open source de pesquisa na web aberta para agentes de IA**, como o NotebookLM, mas com conectores de dados ao vivo. Seus agentes pesquisam a web ao vivo com dados estruturados do **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search e de qualquer página da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
+O SurfSense é a **plataforma open source de pesquisa na web aberta para agentes de IA**, como o NotebookLM, mas com conectores de dados ao vivo. Seus agentes pesquisam a web ao vivo com dados estruturados do **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search e de qualquer página da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
 
 > [!NOTE]
 > **📢 Um recado para nossos usuários que buscavam uma alternativa ao NotebookLM**
@@ -60,6 +60,7 @@ Pergunte a qualquer agente capaz "o que o Reddit está dizendo sobre este produt
 | **TikTok** | Vídeos, comentários, hashtags e perfis sem aprovação da Research API | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
 | **Google Maps** | Estabelecimentos, avaliações e reviews para pesquisa de negócios locais | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
 | **Google Search** | SERPs ao vivo para pesquisa e monitoramento de buscas | [Google Search API](https://www.surfsense.com/google-search) |
+| **Amazon** | Dados públicos de produtos: preços, avaliações, ofertas, vendedores e rankings de mais vendidos | [Amazon Product API](https://www.surfsense.com/amazon) |
 | **Web Crawl** (rastreamento web) | Qualquer página da web aberta como conteúdo limpo e estruturado | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **Conectores MCP externos** | Traga qualquer servidor MCP para seus agentes, com OAuth em um clique para Notion, Slack, Jira e outros | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
@@ -216,7 +217,7 @@ Ainda nos comparando como alternativa ao NotebookLM? Aqui está o comparativo ho
 
 | Recurso | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **Dados da web ao vivo para agentes** | Não | Conectores de Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search e rastreamento web via API REST e MCP |
+| **Dados da web ao vivo para agentes** | Não | Conectores de Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search e rastreamento web via API REST e MCP |
 | **Servidor MCP** | Não | Cada conector exposto como ferramenta nativa de agente, além de servidores MCP próprios com apps OAuth em um clique |
 | **Fontes por Notebook** | 50 (gratuito) a 600 (Ultra, US$ 249,99/mês) | Ilimitadas |
 | **Número de Notebooks** | 100 (gratuito) a 500 (planos pagos) | Ilimitado |

@@ -35,7 +35,7 @@ const demoPlans = [
 		billingText: "Your first $5 of credit is free. No subscription, ever",
 		features: [
 			"$5 of free credit to start, one balance for everything",
-			"Platform connectors: Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web",
+			"Platform connectors: Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and the open web",
 			"Call every connector as a REST API with your key or through the MCP server",
 			"Pay per item returned and per page crawled. Failed calls are never billed",
 			"Premium models like GPT-5.5, Claude Sonnet 5, Gemini 3.1 Pro billed at provider cost",

@@ -44,6 +44,7 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 		label: "Monitor Competitors",
 		prompts: [
 			"Extract every plan, price, and limit from [competitor]'s pricing page",
+			"Track the Amazon price, rating, and offers for [product] and its top rivals",
 			"Crawl [competitor]'s changelog and brief me on what they shipped this month",
 			"Measure the reaction to [competitor]'s launch across search, Reddit, and YouTube",
 			"Find the top-rated [category] businesses in [city], crawl their sites, and build a lead list with contacts",

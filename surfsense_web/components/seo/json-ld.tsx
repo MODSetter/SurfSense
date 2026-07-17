@@ -76,11 +76,11 @@ export function SoftwareApplicationJsonLd() {
 						"Free self-hosted from the open-source repo; cloud starts with $5 of free credit, then pay as you go",
 				},
 				description:
-					"SurfSense is an open-source open web research platform. AI agents research the live web with platform-native connectors for Reddit, YouTube, TikTok, Google Maps, Google Search, and any page on the open web, through one API or MCP server.",
+					"SurfSense is an open-source open web research platform. AI agents research the live web with platform-native connectors for Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and any page on the open web, through one API or MCP server.",
 				url: "https://www.surfsense.com",
 				downloadUrl: "https://github.com/MODSetter/SurfSense/releases",
 				featureList: [
-					"Platform-native connectors: Reddit, YouTube, TikTok, Google Maps, Google Search, Web Crawl",
+					"Platform-native connectors: Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, Web Crawl",
 					"MCP server that exposes every connector as a native agent tool",
 					"Agent harness with retries, structured output, and credit metering",
 					"Live web research with cited briefs and alerts",
