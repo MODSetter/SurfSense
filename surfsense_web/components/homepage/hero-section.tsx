@@ -466,8 +466,7 @@ const CATEGORIES: HeroCategory[] = [
 			{
 				id: "report",
 				title: "AI Report Generator",
-				description:
-					"Turn your research into cited reports, then export to PDF or Markdown.",
+				description: "Turn your research into cited reports, then export to PDF or Markdown.",
 				src: `${HERO_TUTORIAL}/ReportGenGif_compressed.mp4`,
 			},
 			{
@@ -658,8 +657,8 @@ export function HeroSection() {
 								"relative mb-8 max-w-2xl text-left text-sm text-neutral-600 antialiased sm:text-base md:text-lg dark:text-neutral-400"
 							)}
 						>
-							SurfSense is an open-source open web research platform, like NotebookLM but with
-							live data connectors. Your AI agents research the live web with structured data from
+							SurfSense is an open-source open web research platform, like NotebookLM but with live
+							data connectors. Your AI agents research the live web with structured data from
 							Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and any page on the
 							open web.
 						</p>

@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import statistics
 import sys
 import threading
 import time
@@ -181,7 +180,9 @@ async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--count", type=int, default=400)
     ap.add_argument("--rate", type=float, default=60.0, help="arrivals/sec (sim clock)")
-    ap.add_argument("--warm", type=float, default=0.10, help="warm render seconds (sim)")
+    ap.add_argument(
+        "--warm", type=float, default=0.10, help="warm render seconds (sim)"
+    )
     ap.add_argument("--solve", type=float, default=0.45, help="solve seconds (sim)")
     ap.add_argument("--precheck", type=float, default=0.01)
     args = ap.parse_args()
@@ -206,23 +207,37 @@ async def main() -> None:
     thru_real = thru_sim / scale
 
     print("\n=== Google Search scale simulation ===")
-    print(f"  gate (_MAX_CONCURRENT_PAGES) = {gate}"
-          + (f", warm-pool target = {pool}" if pool else "  (single-slot sticky IP)"))
+    print(
+        f"  gate (_MAX_CONCURRENT_PAGES) = {gate}"
+        + (f", warm-pool target = {pool}" if pool else "  (single-slot sticky IP)")
+    )
     print(f"  requests={args.count} arrival_rate={args.rate}/s (sim)")
-    print(f"  --- structure (scale-free) ---")
-    print(f"  paid solves           = {metrics.solves}  (want ~pool size, not ~requests)")
+    print("  --- structure (scale-free) ---")
+    print(
+        f"  paid solves           = {metrics.solves}  (want ~pool size, not ~requests)"
+    )
     print(f"  distinct sticky IPs   = {len(metrics.ip_hits)}")
-    print(f"  busiest IP carried    = {top_hits}/{metrics.renders} renders "
-          f"({top_share:.0f}%)  (funneling; want ~even spread)")
+    print(
+        f"  busiest IP carried    = {top_hits}/{metrics.renders} renders "
+        f"({top_share:.0f}%)  (funneling; want ~even spread)"
+    )
     print(f"  peak renders on 1 IP  = {hot_peak}  (concurrency; capped by gate)")
-    print(f"  --- throughput / latency (extrapolated to live @ warm={_REAL_WARM_S}s) ---")
-    print(f"  throughput  = {thru_real*60:.0f} SERP/min  ({thru_real:.2f}/s)")
-    print(f"  latency p50 = {_pct(lat,50)*scale:6.1f}s   p95 = {_pct(lat,95)*scale:6.1f}s   "
-          f"p99 = {_pct(lat,99)*scale:6.1f}s")
-    print(f"  ceiling (gate/warm) = {gate/_REAL_WARM_S*60:.0f} SERP/min per process")
+    print(
+        f"  --- throughput / latency (extrapolated to live @ warm={_REAL_WARM_S}s) ---"
+    )
+    print(f"  throughput  = {thru_real * 60:.0f} SERP/min  ({thru_real:.2f}/s)")
+    print(
+        f"  latency p50 = {_pct(lat, 50) * scale:6.1f}s   p95 = {_pct(lat, 95) * scale:6.1f}s   "
+        f"p99 = {_pct(lat, 99) * scale:6.1f}s"
+    )
+    print(
+        f"  ceiling (gate/warm) = {gate / _REAL_WARM_S * 60:.0f} SERP/min per process"
+    )
     need = 500 / (gate / _REAL_WARM_S * 60)
-    print(f"  -> to sustain 500 SERP/min you need ~{need:.0f} such processes "
-          f"(or a larger gate)\n")
+    print(
+        f"  -> to sustain 500 SERP/min you need ~{need:.0f} such processes "
+        f"(or a larger gate)\n"
+    )
 
 
 if __name__ == "__main__":

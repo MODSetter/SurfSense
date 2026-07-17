@@ -45,7 +45,8 @@ export function ConnectAgentDialog({ className }: { className?: string }) {
 				<DialogHeader>
 					<DialogTitle>Connect to Claude Code, Codex, OpenCode…</DialogTitle>
 					<DialogDescription>
-						Give your coding agent access to SurfSense scrapers and your knowledge base. Create an API key under API Keys, choose your agent, then paste the config.
+						Give your coding agent access to SurfSense scrapers and your knowledge base. Create an
+						API key under API Keys, choose your agent, then paste the config.
 					</DialogDescription>
 				</DialogHeader>
 				<AgentSetupTabs options={{ baseUrl: BACKEND_URL || undefined }} />

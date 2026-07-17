@@ -51,9 +51,7 @@ _INFO = [
 class _LogTally(logging.Handler):
     """Counts solves / renders / walls / pool-reuse from the live log stream."""
 
-    _RENDER = re.compile(
-        r"has_results=(\w+).*from_pool=(\w+) pool=(\d+)"
-    )
+    _RENDER = re.compile(r"has_results=(\w+).*from_pool=(\w+) pool=(\d+)")
     _SOLVE = re.compile(r"\[captcha\] solve (OK|did not)")
 
     def __init__(self) -> None:
@@ -147,7 +145,7 @@ async def main() -> None:
         lg.setLevel(logging.INFO)
         lg.addHandler(tally)
 
-    from app.proprietary.platforms.google_search.fetch import (  # noqa: E402
+    from app.proprietary.platforms.google_search.fetch import (
         _WARM_POOL_TARGET,
         close_sessions,
     )
@@ -157,9 +155,11 @@ async def main() -> None:
     total_serps = sum(w for _, w in plans)
     n_multi = sum(1 for _, w in plans if w > 1)
 
-    print(f"\n=== LIVE stress: {args.users} users "
-          f"({args.users - n_multi} single / {n_multi} multi), "
-          f"~{total_serps} SERPs, gate={args.gate}, pool_target={_WARM_POOL_TARGET} ===")
+    print(
+        f"\n=== LIVE stress: {args.users} users "
+        f"({args.users - n_multi} single / {n_multi} multi), "
+        f"~{total_serps} SERPs, gate={args.gate}, pool_target={_WARM_POOL_TARGET} ==="
+    )
     print("  (real solves + proxy spend; warming up...)\n")
 
     results: list[dict] = []
@@ -184,17 +184,25 @@ async def main() -> None:
     print("=== results ===")
     print(f"  wall time            = {wall:.0f}s")
     print(f"  requests ok/failed   = {len(results) - len(fails)}/{len(fails)}")
-    print(f"  SERPs got/expected   = {got_serps}/{total_serps}"
-          + (f"  ({len(short)} short)" if short else ""))
+    print(
+        f"  SERPs got/expected   = {got_serps}/{total_serps}"
+        + (f"  ({len(short)} short)" if short else "")
+    )
     print(f"  throughput           = {got_serps / wall * 60:.0f} SERP/min")
-    print(f"  request latency p50={pct(50):.0f}s  p95={pct(95):.0f}s  "
-          f"max={lat[-1] if lat else 0:.0f}s")
+    print(
+        f"  request latency p50={pct(50):.0f}s  p95={pct(95):.0f}s  "
+        f"max={lat[-1] if lat else 0:.0f}s"
+    )
     print("  --- pipeline (from live logs) ---")
-    print(f"  paid solves ok/fail  = {tally.solves_ok}/{tally.solves_fail}  "
-          f"(bounded by pool target {_WARM_POOL_TARGET})")
+    print(
+        f"  paid solves ok/fail  = {tally.solves_ok}/{tally.solves_fail}  "
+        f"(bounded by pool target {_WARM_POOL_TARGET})"
+    )
     print(f"  renders ok/walled    = {tally.renders_ok}/{tally.renders_walled}")
-    print(f"  pool reuse/grow      = {tally.reuse}/{tally.grow}  "
-          f"(reuse share {100 * tally.reuse / max(1, tally.reuse + tally.grow):.0f}%)")
+    print(
+        f"  pool reuse/grow      = {tally.reuse}/{tally.grow}  "
+        f"(reuse share {100 * tally.reuse / max(1, tally.reuse + tally.grow):.0f}%)"
+    )
     print(f"  peak pool size       = {tally.max_pool}")
     if fails:
         print("  --- failures ---")

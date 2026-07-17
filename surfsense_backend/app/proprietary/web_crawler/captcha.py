@@ -299,11 +299,10 @@ def _is_unrecoverable(exc: Exception) -> bool:
     """True for solver errors that must latch solving off.
 
     Covers the in-house seam's typed errors (``SolverBalanceError`` /
-    ``SolverAuthError`` / ``SolverUnsupported``) plus legacy/no-balance shapes.
+    ``SolverAuthError`` / ``SolverUnsupportedError``) plus legacy/no-balance shapes.
     Matched by class name so no solver module must be imported here.
     """
     name = type(exc).__name__.lower()
     return any(
-        k in name
-        for k in ("balance", "apikey", "auth", "unsupported", "wronguser")
+        k in name for k in ("balance", "apikey", "auth", "unsupported", "wronguser")
     )

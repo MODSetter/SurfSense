@@ -10,7 +10,7 @@ the reCAPTCHA-*Enterprise* ``/sorry`` wall). Both express the Enterprise pieces
 Google needs — the widget sitekey plus the page's dynamic ``data-s`` token
 (something ``captchatools`` could not). More vendors (anticaptcha / capmonster)
 are added progressively as new entries in :data:`_PROVIDERS`; until then an
-unconfigured provider raises :class:`SolverUnsupported` so callers latch off
+unconfigured provider raises :class:`SolverUnsupportedError` so callers latch off
 cleanly instead of leaking the API key to the wrong service.
 """
 
@@ -41,7 +41,7 @@ class SolverBalanceError(SolverError):
     """Solver account is out of balance — unrecoverable this process."""
 
 
-class SolverUnsupported(SolverError):
+class SolverUnsupportedError(SolverError):
     """Configured provider has no in-house client yet — unrecoverable."""
 
 
@@ -108,7 +108,11 @@ def _twocaptcha(
             "min_score": cfg.v3_min_score,
         }
     else:  # v2, optionally the Enterprise variant (adds enterprise=1 + data-s)
-        payload |= {"method": "userrecaptcha", "googlekey": sitekey, "pageurl": page_url}
+        payload |= {
+            "method": "userrecaptcha",
+            "googlekey": sitekey,
+            "pageurl": page_url,
+        }
         if enterprise:
             payload["enterprise"] = 1
         if data_s:
@@ -295,7 +299,7 @@ def solve(
     """
     client = _PROVIDERS.get((cfg.solving_site or "").lower())
     if client is None:
-        raise SolverUnsupported(
+        raise SolverUnsupportedError(
             f"captcha provider {cfg.solving_site!r} has no in-house client "
             f"(supported: {supported_providers()})"
         )

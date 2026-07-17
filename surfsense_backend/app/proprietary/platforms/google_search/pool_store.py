@@ -15,7 +15,7 @@ never block the request loop and don't care which loop the caller is on.
 
 ``ponytail:`` the shared store holds only exemptions (the costly artifact), not
 per-process render concurrency — global per-IP load is still governed by each
-process's local per-IP cap × the number of processes, so size the pool for the
+process's local per-IP cap x the number of processes, so size the pool for the
 fleet (see ``GOOGLE_SEARCH_WARM_POOL_TARGET``). Full distributed inflight
 accounting is the upgrade path if a single shared IP ever gets overloaded.
 """

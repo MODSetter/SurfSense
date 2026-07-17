@@ -34,7 +34,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 					MCP Connectors
 				</DialogTitle>
 				<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
-				    Connect external tools and services through MCP.
+					Connect external tools and services through MCP.
 				</DialogDescription>
 			</DialogHeader>
 

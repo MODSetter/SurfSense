@@ -37,7 +37,10 @@ def test_proxy_login_form_strips_scheme():
 
 
 def test_proxy_login_form_without_credentials():
-    assert solvers.proxy_login_form("http://gw.dataimpulse.com:823") == "gw.dataimpulse.com:823"
+    assert (
+        solvers.proxy_login_form("http://gw.dataimpulse.com:823")
+        == "gw.dataimpulse.com:823"
+    )
 
 
 def test_proxy_login_form_none_on_missing_or_bad():
@@ -54,7 +57,10 @@ def test_capsolver_proxy_colon_delimited_with_creds():
 
 
 def test_capsolver_proxy_without_credentials():
-    assert solvers.capsolver_proxy("http://gw.dataimpulse.com:823") == "http:gw.dataimpulse.com:823"
+    assert (
+        solvers.capsolver_proxy("http://gw.dataimpulse.com:823")
+        == "http:gw.dataimpulse.com:823"
+    )
 
 
 def test_capsolver_proxy_none_on_missing_or_bad():
@@ -68,14 +74,14 @@ def test_capsolver_proxy_none_on_missing_or_bad():
 def test_unsupported_provider_raises_solvererror():
     # An unconfigured provider must fail loudly (latch) rather than POST the key
     # to a wired vendor's endpoint under the wrong account.
-    with pytest.raises(solvers.SolverUnsupported):
+    with pytest.raises(solvers.SolverUnsupportedError):
         solvers.solve(
             _cfg(solving_site="anticaptcha"),
             challenge_type="v2",
             sitekey="SK",
             page_url="https://t.test",
         )
-    assert issubclass(solvers.SolverUnsupported, solvers.SolverError)
+    assert issubclass(solvers.SolverUnsupportedError, solvers.SolverError)
 
 
 def test_wired_providers_are_registered():

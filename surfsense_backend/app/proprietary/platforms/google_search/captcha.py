@@ -29,8 +29,7 @@ import re
 import time
 from typing import Any
 
-from app.utils.captcha import CaptchaConfig
-from app.utils.captcha import solvers
+from app.utils.captcha import CaptchaConfig, solvers
 
 logger = logging.getLogger(__name__)
 

@@ -77,8 +77,7 @@ export const googleSearch: ConnectorPageContent = {
 		},
 		{
 			label: "Related searches",
-			description:
-				"Suggested and related queries, to map how people actually phrase the search.",
+			description: "Suggested and related queries, to map how people actually phrase the search.",
 		},
 		{
 			label: "SERP metadata",

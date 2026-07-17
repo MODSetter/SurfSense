@@ -221,9 +221,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 									className={cn(
 										"absolute inset-0 flex items-center justify-center transition-opacity",
 										canMention &&
-											(isMentioned
-												? "opacity-0"
-												: "max-sm:opacity-0 group-hover/item:opacity-0")
+											(isMentioned ? "opacity-0" : "max-sm:opacity-0 group-hover/item:opacity-0")
 									)}
 								>
 									{getDocumentTypeIcon(

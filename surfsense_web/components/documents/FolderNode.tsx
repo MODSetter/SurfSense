@@ -390,75 +390,75 @@ export const FolderNode = React.memo(function FolderNode({
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end" className="w-40">
-								{isWatched && onRescan && (
+									{isWatched && onRescan && (
+										<DropdownMenuItem
+											onClick={(e) => {
+												e.stopPropagation();
+												handleRescan();
+											}}
+										>
+											<RefreshCw className={cn("mr-2 h-4 w-4", isRescanning && "animate-spin")} />
+											Re-scan
+										</DropdownMenuItem>
+									)}
+									{isWatched && onStopWatching && (
+										<DropdownMenuItem
+											onClick={(e) => {
+												e.stopPropagation();
+												onStopWatching(folder);
+											}}
+										>
+											<EyeOff className="mr-2 h-4 w-4" />
+											Stop watching
+										</DropdownMenuItem>
+									)}
 									<DropdownMenuItem
 										onClick={(e) => {
 											e.stopPropagation();
-											handleRescan();
+											onCreateSubfolder(folder.id);
 										}}
 									>
-										<RefreshCw className={cn("mr-2 h-4 w-4", isRescanning && "animate-spin")} />
-										Re-scan
+										<FolderPlus className="mr-2 h-4 w-4" />
+										New subfolder
 									</DropdownMenuItem>
-								)}
-								{isWatched && onStopWatching && (
 									<DropdownMenuItem
 										onClick={(e) => {
 											e.stopPropagation();
-											onStopWatching(folder);
+											startRename();
 										}}
 									>
-										<EyeOff className="mr-2 h-4 w-4" />
-										Stop watching
+										<Pencil className="mr-2 h-4 w-4" />
+										Rename
 									</DropdownMenuItem>
-								)}
-								<DropdownMenuItem
-									onClick={(e) => {
-										e.stopPropagation();
-										onCreateSubfolder(folder.id);
-									}}
-								>
-									<FolderPlus className="mr-2 h-4 w-4" />
-									New subfolder
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={(e) => {
-										e.stopPropagation();
-										startRename();
-									}}
-								>
-									<Pencil className="mr-2 h-4 w-4" />
-									Rename
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={(e) => {
-										e.stopPropagation();
-										onMove(folder);
-									}}
-								>
-									<Move className="mr-2 h-4 w-4" />
-									Move to...
-								</DropdownMenuItem>
-								{onExportFolder && (
 									<DropdownMenuItem
 										onClick={(e) => {
 											e.stopPropagation();
-											onExportFolder(folder);
+											onMove(folder);
 										}}
 									>
-										<Download className="mr-2 h-4 w-4" />
-										Export folder
+										<Move className="mr-2 h-4 w-4" />
+										Move to...
 									</DropdownMenuItem>
-								)}
-								<DropdownMenuItem
-									onClick={(e) => {
-										e.stopPropagation();
-										onDelete(folder);
-									}}
-								>
-									<Trash2 className="mr-2 h-4 w-4" />
-									Delete
-								</DropdownMenuItem>
+									{onExportFolder && (
+										<DropdownMenuItem
+											onClick={(e) => {
+												e.stopPropagation();
+												onExportFolder(folder);
+											}}
+										>
+											<Download className="mr-2 h-4 w-4" />
+											Export folder
+										</DropdownMenuItem>
+									)}
+									<DropdownMenuItem
+										onClick={(e) => {
+											e.stopPropagation();
+											onDelete(folder);
+										}}
+									>
+										<Trash2 className="mr-2 h-4 w-4" />
+										Delete
+									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</div>

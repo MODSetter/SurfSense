@@ -42,8 +42,10 @@ from urllib.parse import urlsplit, urlunsplit
 
 from scrapling.fetchers import AsyncFetcher
 
-from app.proprietary.platforms.google_search import captcha as _captcha
-from app.proprietary.platforms.google_search import pool_store as _store
+from app.proprietary.platforms.google_search import (
+    captcha as _captcha,
+    pool_store as _store,
+)
 from app.utils.captcha import captcha_enabled, get_captcha_config
 from app.utils.proxy import get_proxy_url
 
@@ -374,9 +376,8 @@ def _make_page_action(proxy: str | None, cfg):
     """
 
     async def page_action(page):
-        if _captcha.on_sorry(page):
-            if await _captcha.solve_sorry(page, proxy, cfg):
-                _exemption_jar[proxy or ""] = await _captcha.exemption_cookies(page)
+        if _captcha.on_sorry(page) and await _captcha.solve_sorry(page, proxy, cfg):
+            _exemption_jar[proxy or ""] = await _captcha.exemption_cookies(page)
         return await _expand_blocks(page)
 
     return page_action
