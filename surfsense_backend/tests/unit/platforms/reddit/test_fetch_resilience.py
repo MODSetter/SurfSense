@@ -266,3 +266,7 @@ async def test_fan_out_closes_all_sessions_on_early_stop(monkeypatch):
 async def test_fan_out_empty_jobs_is_noop():
     out = [x async for x in scraper.fan_out([])]
     assert out == []
+
+
+# Cross-country rotation lives in app.utils.proxy.rotation and is shared with the
+# TikTok sibling; its unit tests live in tests/unit/utils/proxy/test_rotation.py.

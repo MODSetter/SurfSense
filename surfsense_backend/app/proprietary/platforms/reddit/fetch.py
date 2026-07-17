@@ -37,7 +37,15 @@ from urllib.parse import urlencode
 
 from scrapling.fetchers import AsyncFetcher, FetcherSession
 
-from app.utils.proxy import get_proxy_url
+from app.utils.proxy import get_geo_proxy_url, get_proxy_url
+
+# Shared cross-country rotation walk (also used by the TikTok sibling). Kept under
+# the historical private names this module and its tests reference.
+from app.utils.proxy.rotation import (
+    FALLBACK_COUNTRIES as _FALLBACK_COUNTRIES,
+    country_for_rotation as _country_for_rotation,
+    rotation_countries as _rotation_countries,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +76,16 @@ _current_session: ContextVar[_RotatingSession | None] = ContextVar(
 # different handling per status (spec section 3).
 _ROTATE_STATUS = 403
 _BACKOFF_STATUS = 429
-_MAX_ROTATIONS = 3
+# Rotating an IP is cheap (close + reopen one keep-alive connection through the
+# gateway + a 2-request warm ≈ a few seconds) and each rotation also walks to the
+# next country pool, so we spend rotations liberally: neither a dirty IP nor a
+# wholly-blocked country pool should fail a job. 8 ≥ len(_FALLBACK_COUNTRIES), so
+# a job tries every country at least once before giving up. Worst case (a genuine
+# global block) costs _MAX_ROTATIONS bounded warm attempts before
+# RedditAccessBlockedError.
+# ponytail: 8 caps that worst case at ~30s; raise if every pool gets dirty at
+# once, lower if a real global block is wasting time.
+_MAX_ROTATIONS = 8
 _MAX_BACKOFFS = 4
 _BACKOFF_BASE_S = 5.0
 
@@ -155,11 +172,13 @@ class _RotatingSession:
     """Owns one live ``FetcherSession`` (sticky IP) and can swap it for a fresh one.
 
     ``rotate()`` closes the current keep-alive connection and opens a new one, so
-    the rotating gateway hands out a different residential exit IP. Because the
-    ``loid`` cookie binds to the exit IP, ``rotate()`` also drops the warmed
-    state — the next fetch re-warms on the new IP. Used sequentially within a
-    single flow (never shared across concurrent tasks), so no locking is needed.
-    ``session`` is ``None`` only when no proxy is configured.
+    the rotating gateway hands out a different residential exit IP — walking to
+    the next country pool (see :func:`_country_for_rotation`) so a wholly-blocked
+    pool can't fail the flow. Because the ``loid`` cookie binds to the exit IP,
+    ``rotate()`` also drops the warmed state — the next fetch re-warms on the new
+    IP. Used sequentially within a single flow (never shared across concurrent
+    tasks), so no locking is needed. ``session`` is ``None`` only when no proxy
+    is configured.
     """
 
     def __init__(self) -> None:
@@ -167,11 +186,13 @@ class _RotatingSession:
         self.session: Any | None = None
         self.rotations = 0
         self.warmed = False
+        self.country = ""
         self._last_at = 0.0
 
     async def _open(self) -> None:
-        proxy = get_proxy_url()
         self.warmed = False
+        self.country = _country_for_rotation(self.rotations)
+        proxy = get_geo_proxy_url(self.country)
         if proxy is None:
             self._cm = self.session = None
             return
@@ -194,7 +215,11 @@ class _RotatingSession:
         await self.close()
         self.rotations += 1
         await self._open()
-        logger.info("[reddit] rotated proxy session (rotation #%d)", self.rotations)
+        logger.info(
+            "[reddit] rotated proxy session (rotation #%d, country=%s)",
+            self.rotations,
+            self.country,
+        )
         return self.session
 
     async def pace(self) -> None:
