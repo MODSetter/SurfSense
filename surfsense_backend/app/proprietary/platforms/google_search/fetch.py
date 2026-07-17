@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import random
 import sys
 import threading
@@ -41,6 +42,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 from scrapling.fetchers import AsyncFetcher
 
+from app.proprietary.platforms.google_search import captcha as _captcha
+from app.proprietary.platforms.google_search import pool_store as _store
+from app.utils.captcha import captcha_enabled, get_captcha_config
 from app.utils.proxy import get_proxy_url
 
 try:  # browser tier is optional (needs `scrapling[fetchers]` browsers installed)
@@ -54,6 +58,23 @@ logger = logging.getLogger(__name__)
 # Consent cookies to dodge the EU interstitial (mirrors the Maps/YouTube seams).
 CONSENT_COOKIES = {"CONSENT": "PENDING+987", "SOCS": "CAESHAgBEhIaAB"}
 _HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
+
+# Context-cookie form of the consent cookies, injected before a render's
+# navigation (page_setup) when captcha solving is on, so the browser skips the
+# EU interstitial exactly like the curl precheck does.
+_CONSENT_CTX = [
+    {"name": k, "value": v, "domain": ".google.com", "path": "/"}
+    for k, v in CONSENT_COOKIES.items()
+]
+
+# GOOGLE_ABUSE_EXEMPTION cookies harvested per sticky proxy after a solve. A hit
+# lets a later render on the same IP skip straight to results (no re-solve),
+# amortizing the one paid solve across the sticky session.
+# ponytail: keyed by the full proxy URL (incl. sticky port). When that port's
+# exit IP rotates the cached cookie goes stale -> the next render re-hits
+# /sorry, re-solves, and overwrites the entry. Self-correcting; the sticky-port
+# space is small so the dict never grows unbounded in practice.
+_exemption_jar: dict[str, list[dict]] = {}
 
 # Gateways whose sticky sessions are selected by destination port. A random port
 # in this range pins one residential IP for the duration of a browser session.
@@ -73,11 +94,37 @@ _VET_CONCURRENCY = 4
 # the budget in a couple of seconds.
 _WALLED_ROUND_BACKOFF_S = 3.0
 
-# The sticky IP that most recently served a real SERP; the strongest hint for
-# the next fetch. Re-vetted (cheap) before reuse, dropped on failure.
-# ponytail: a single slot, not a pool — concurrent fetches share (and race)
-# it; worst case a loser re-vets a fresh IP, which is the normal path anyway.
-_last_good_proxy: str | None = None
+# Warm sticky-IP pool. Concurrent fetches spread renders across the pool's IPs
+# instead of funneling every render onto one sticky IP (a single hot residential
+# IP is exactly what Google re-walls), and each pool IP is solved **once** — so
+# steady-state paid solves track the pool size, not the request count. Replaces
+# the old single "_last_good_proxy" slot, which both funneled load and forced a
+# fresh solve whenever it was raced to None.
+#
+# State is touched from two loops (fetch_serp_html on the request loop; the
+# exemption write in page_action on the browser loop), so a small lock guards
+# every mutation. No awaits are held under the lock — every critical section is
+# a handful of dict ops.
+_pool: dict[str, float] = {}  # warm proxy url -> last-used monotonic ts
+_pool_inflight: dict[str, int] = {}  # proxy url -> renders currently pinned to it
+_pool_pending = 0  # fresh vets/solves in flight (growing the pool toward target)
+_pool_lock = threading.Lock()
+
+# Target number of warm IPs to keep. Sized for throughput: it must cover
+# (target SERP/min) / (safe SERP/min per IP), so a fleet serving 500/min across
+# a handful of processes wants this in the low tens. Env-tunable without a code
+# change; per-IP concurrency is a soft cap (exceeded only when the pool is full
+# and every IP is busy, because reusing a warm IP always beats a fresh solve).
+_WARM_POOL_TARGET = int(os.getenv("GOOGLE_SEARCH_WARM_POOL_TARGET", "8"))
+_WARM_IP_MAX_CONCURRENCY = int(os.getenv("GOOGLE_SEARCH_IP_MAX_CONCURRENCY", "2"))
+# When the pool is full and every IP is at its cap, wait this long for a slot to
+# free instead of vetting+solving a fresh IP (this backpressure is what bounds
+# solves to ~pool size under a burst).
+_POOL_WAIT_S = 0.25
+# Absolute per-fetch budget. A cold solve is ~45 s and we may retry a couple of
+# walled IPs, but a fetch that can't get results within this window fails rather
+# than hanging a request forever under saturation.
+_FETCH_DEADLINE_S = float(os.getenv("GOOGLE_SEARCH_FETCH_DEADLINE_S", "180"))
 
 # A usable precheck responds in <1 s; anything slower is a dead/slow sticky IP
 # (seen hanging ~60 s). Abandon it on this deadline so a slow IP costs no more
@@ -172,6 +219,83 @@ async def _vet_fresh_ip(url: str, base: str) -> str | None:
     return winner
 
 
+def _pool_take() -> tuple[str, str | None]:
+    """Decide how the next render gets an IP. Returns one of:
+
+    * ``("reuse", url)`` — an existing warm IP under its soft concurrency cap
+      (its inflight count is already incremented; caller must ``_pool_settle``),
+    * ``("grow", None)`` — pool is below target, caller should vet a fresh IP
+      and solve on it (a pending slot is reserved),
+    * ``("wait", None)`` — pool is full and every IP is busy; caller should wait
+      briefly and retry rather than burn a fresh solve.
+
+    Reuse prefers the least-loaded, least-recently-used warm IP so concurrent
+    renders fan out across the pool instead of piling onto one IP.
+    """
+    global _pool_pending
+    with _pool_lock:
+        best: tuple[str, int, float] | None = None
+        for url, last in _pool.items():
+            n = _pool_inflight.get(url, 0)
+            if n < _WARM_IP_MAX_CONCURRENCY and (
+                best is None or (n, last) < (best[1], best[2])
+            ):
+                best = (url, n, last)
+        if best is not None:
+            _pool_inflight[best[0]] = _pool_inflight.get(best[0], 0) + 1
+            return ("reuse", best[0])
+        if len(_pool) + _pool_pending < _WARM_POOL_TARGET:
+            _pool_pending += 1
+            return ("grow", None)
+        return ("wait", None)
+
+
+def _pool_bind_fresh(url: str) -> None:
+    """Pin the first render onto a just-vetted fresh IP (grow path)."""
+    with _pool_lock:
+        _pool_inflight[url] = _pool_inflight.get(url, 0) + 1
+
+
+def _pool_adopt(url: str) -> None:
+    """Turn a reserved grow slot into an IP adopted from the shared store: it
+    joins the warm pool without a local solve, so release the pending reservation
+    and pin this render onto it."""
+    global _pool_pending
+    with _pool_lock:
+        _pool_pending = max(0, _pool_pending - 1)
+        _pool[url] = time.monotonic()
+        _pool_inflight[url] = _pool_inflight.get(url, 0) + 1
+
+
+def _pool_abort_grow() -> None:
+    """Release a reserved grow slot when the fresh vet found no usable IP."""
+    global _pool_pending
+    with _pool_lock:
+        _pool_pending = max(0, _pool_pending - 1)
+
+
+def _pool_settle(url: str, *, good: bool, grew: bool) -> None:
+    """Finish a render: drop its inflight hold, then admit or evict the IP.
+
+    A good render (re)admits the IP to the warm pool (refreshing its LRU stamp);
+    a walled render evicts it and drops its now-worthless cached exemption.
+    """
+    global _pool_pending
+    with _pool_lock:
+        n = _pool_inflight.get(url, 0) - 1
+        if n <= 0:
+            _pool_inflight.pop(url, None)
+        else:
+            _pool_inflight[url] = n
+        if grew:
+            _pool_pending = max(0, _pool_pending - 1)
+        if good:
+            _pool[url] = time.monotonic()
+        else:
+            _pool.pop(url, None)
+            _exemption_jar.pop(url, None)
+
+
 # People-also-ask answers only load when a question is expanded (clicked).
 # We expand just the initially-served questions (~4); each expansion appends
 # more questions we deliberately leave collapsed, or the loop never ends.
@@ -197,6 +321,7 @@ async def _expand_blocks(page):
     Both are free on pages without the block, and best-effort: a failed click
     just leaves that section collapsed rather than failing the render.
     """
+    _t0 = time.perf_counter()
     clicked = 0
     try:
         more = await page.query_selector(_AIO_SHOW_MORE_SEL)
@@ -218,7 +343,43 @@ async def _expand_blocks(page):
     if clicked:
         # One shared wait while all the answer XHRs land in parallel.
         await page.wait_for_timeout(_PAA_ANSWER_WAIT_MS)
+    logger.info(
+        "[google_search][perf] expand_ms=%.0f clicked=%d",
+        (time.perf_counter() - _t0) * 1000,
+        clicked,
+    )
     return page
+
+
+def _make_page_setup(proxy: str | None):
+    """Per-fetch ``page_setup``: seed consent + any cached exemption for this IP."""
+
+    async def page_setup(page):
+        jar = list(_CONSENT_CTX)
+        cached = _exemption_jar.get(proxy or "")
+        if cached:
+            jar += cached
+        with contextlib.suppress(Exception):
+            await page.context.add_cookies(jar)
+
+    return page_setup
+
+
+def _make_page_action(proxy: str | None, cfg):
+    """Per-fetch ``page_action``: solve the /sorry wall if hit, then expand blocks.
+
+    Overrides the session default (:func:`_expand_blocks`) so it must still call
+    it afterwards. On a successful solve the resulting ``GOOGLE_ABUSE_EXEMPTION``
+    cookie is cached against this sticky proxy for reuse.
+    """
+
+    async def page_action(page):
+        if _captcha.on_sorry(page):
+            if await _captcha.solve_sorry(page, proxy, cfg):
+                _exemption_jar[proxy or ""] = await _captcha.exemption_cookies(page)
+        return await _expand_blocks(page)
+
+    return page_action
 
 
 # Firefox-on-Android UA to make Google serve its mobile lightweight layout.
@@ -279,9 +440,16 @@ _session_lock = asyncio.Lock()
 # second concurrent render raised RuntimeError('Maximum page limit (1)
 # reached'); the failure handler then closed the shared browser under the
 # sibling render (the TargetClosedError cascade seen in production when
-# several scrape runs overlap). The pool and this gate are sized together:
-# the gate queues excess renders instead of tripping the pool.
-_MAX_CONCURRENT_PAGES = 4
+# several scrape runs overlap). The pool and this gate are sized together
+# (the session's max_pages is set from this): the gate queues excess renders
+# instead of tripping the pool.
+#
+# This is THE throughput lever: per-process ceiling = this / warm-render-secs
+# (≈ 4/14 s ≈ 17 SERP/min at the default). Renders drop images/fonts/media
+# (`disable_resources`), so a single Chromium can hold well more than 4 text
+# contexts — raise this (env) to trade RAM/CPU for throughput before adding
+# processes. e.g. 16 → ~68/min/process, so ~8 processes cover 500/min.
+_MAX_CONCURRENT_PAGES = int(os.getenv("GOOGLE_SEARCH_MAX_CONCURRENT_PAGES", "4"))
 # Only ever awaited from coroutines running on the browser loop.
 _render_gate = asyncio.Semaphore(_MAX_CONCURRENT_PAGES)
 
@@ -350,7 +518,23 @@ async def _render_on_loop(url: str, proxy: str | None, mobile: bool):
         session = await _get_session(mobile)
         _inflight[session] = _inflight.get(session, 0) + 1
         try:
-            return await session.fetch(url, proxy=proxy)
+            kwargs: dict = {}
+            # Drop image/font/media/stylesheet requests: the SERP DOM we parse is
+            # text/attribute-only, so these are dead weight (a warm render moved
+            # ~2-7 MB per page) that also keeps `network_idle` from settling.
+            # AI Mode streams its answer into the DOM, so leave its resources on
+            # (dropping websockets/media can starve the stream) — detected by the
+            # udm=50 marker its URL always carries.
+            if "udm=50" not in url:
+                kwargs["disable_resources"] = True
+            # Only wire the solver when it's configured AND still viable this
+            # process; otherwise the session's default page_action (expand-only)
+            # runs and the stealth tier is unchanged.
+            if proxy and captcha_enabled() and not _captcha.solver_latched():
+                cfg = get_captcha_config()
+                kwargs["page_setup"] = _make_page_setup(proxy)
+                kwargs["page_action"] = _make_page_action(proxy, cfg)
+            return await session.fetch(url, proxy=proxy, **kwargs)
         finally:
             _inflight[session] -= 1
             if not _inflight[session]:
@@ -374,35 +558,61 @@ async def _render(url: str, proxy: str | None, mobile: bool = False):
 async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
     """Return fully-rendered SERP HTML for ``url``, or ``None`` if unobtainable.
 
-    Reuses the last known-good sticky IP when it still passes the cheap
-    precheck; otherwise races prechecks on fresh sticky IPs and renders on the
-    first that passes. Retries until a render returns real results or the IP
-    budget runs out. Requires the browser tier — without it we cannot get
-    JS-built results. ``mobile`` renders with a phone UA/viewport (the
-    ``mobileResults`` input).
+    Renders on a **warm sticky-IP pool**: it reuses an already-solved IP under
+    its soft concurrency cap (spreading concurrent renders across the pool),
+    grows the pool by vetting+solving a fresh IP when it's below target, and
+    applies backpressure (a short wait) when the pool is full and busy rather
+    than burning an extra solve. Retries walled IPs until real results land or
+    the per-fetch deadline / IP budget runs out. Requires the browser tier —
+    without it we cannot get JS-built results. ``mobile`` renders with a phone
+    UA/viewport (the ``mobileResults`` input).
     """
-    global _last_good_proxy
     if AsyncStealthySession is None:
         logger.error("[google_search] browser tier unavailable; cannot render SERPs")
         return None
 
     base = get_proxy_url()
+    if not base:
+        # No proxy configured: a single direct render, no pool bookkeeping.
+        with contextlib.suppress(Exception):
+            page = await _render(url, None, mobile=mobile)
+            html = page.html_content or ""
+            return html if (page.status == 200 and _has_results(html)) else None
+        return None
+
+    deadline = time.monotonic() + _FETCH_DEADLINE_S
     ips_tried = 0
-    while ips_tried < _MAX_IP_ATTEMPTS:
-        if base:
-            if _last_good_proxy and await _precheck(url, _last_good_proxy):
-                proxy = _last_good_proxy
+    while time.monotonic() < deadline and ips_tried < _MAX_IP_ATTEMPTS:
+        action, proxy = _pool_take()
+        if action == "wait":
+            # Pool full and every IP busy: wait for a warm slot instead of
+            # solving a fresh IP. The render gate drains continuously, so a slot
+            # frees shortly; this is the queue that bounds solves to ~pool size.
+            await asyncio.sleep(_POOL_WAIT_S)
+            continue
+        solved_fresh = False
+        vet_ms = 0.0
+        if action == "grow":
+            # Before paying for a solve, try to adopt an IP another process
+            # already solved (fleet-shared exemption). Only if none is available
+            # do we vet a fresh IP and solve on it ourselves.
+            adopted = await _store.adopt(set(_pool))
+            if adopted is not None:
+                proxy, cookies = adopted
+                _exemption_jar[proxy] = cookies
+                _pool_adopt(proxy)
             else:
-                _last_good_proxy = None
+                vt = time.perf_counter()
                 proxy = await _vet_fresh_ip(url, base)
+                vet_ms = (time.perf_counter() - vt) * 1000
                 ips_tried += _VET_CONCURRENCY
                 if proxy is None:
+                    _pool_abort_grow()
                     logger.debug("[google_search] vetting round: all IPs walled")
                     await asyncio.sleep(_WALLED_ROUND_BACKOFF_S)
                     continue
-        else:
-            proxy = None
-            ips_tried += 1
+                _pool_bind_fresh(proxy)
+                solved_fresh = True
         started = time.perf_counter()
         try:
             page = await _render(url, proxy, mobile=mobile)
@@ -411,23 +621,32 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
             # browser side is broken, so relaunch it rather than limp along.
             # repr(), not str(): e.g. NotImplementedError stringifies to "".
             logger.warning("[google_search] render failed: %r", e)
-            _last_good_proxy = None
+            _pool_settle(proxy, good=False, grew=solved_fresh)
+            await _store.evict(proxy)
             await _drop_session(mobile)
             continue
         fetch_ms = (time.perf_counter() - started) * 1000
         html = page.html_content or ""
         good = page.status == 200 and _has_results(html)
+        _pool_settle(proxy, good=good, grew=solved_fresh)
         logger.info(
-            "[google_search][perf] status=%s bytes=%d has_results=%s fetch_ms=%.0f reused_ip=%s",
+            "[google_search][perf] status=%s bytes=%d has_results=%s vet_ms=%.0f render_ms=%.0f from_pool=%s pool=%d",
             page.status,
             len(html),
             good,
+            vet_ms,
             fetch_ms,
-            proxy == _last_good_proxy,
+            not solved_fresh,
+            len(_pool),
         )
         if good:
-            _last_good_proxy = proxy
+            # Share a freshly-solved IP with the fleet; a walled IP is poison,
+            # so make sure no process keeps its stale exemption.
+            if solved_fresh and _exemption_jar.get(proxy):
+                await _store.publish(proxy, _exemption_jar[proxy])
             return html
-        _last_good_proxy = None
-    logger.warning("[google_search] exhausted %d IPs for %s", _MAX_IP_ATTEMPTS, url)
+        await _store.evict(proxy)
+    logger.warning(
+        "[google_search] gave up on %s (deadline/%d-IP budget)", url, _MAX_IP_ATTEMPTS
+    )
     return None

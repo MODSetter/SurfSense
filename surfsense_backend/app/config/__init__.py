@@ -1102,7 +1102,8 @@ class Config:
     PROXY_URLS = os.getenv("PROXY_URLS")
 
     # =====================================================================
-    # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha) via captchatools.
+    # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha, v2-Enterprise) via
+    # the in-house solver seam (app/utils/captcha/solvers.py).
     # The LAST-resort bypass tier: only fires on the StealthyFetcher browser
     # tier, only when a sitekey is detected, and only when explicitly enabled.
     # Cloudflare Turnstile is already handled free in-framework (03a), NOT here.
@@ -1114,9 +1115,9 @@ class Config:
     CAPTCHA_SOLVING_ENABLED = (
         os.getenv("CAPTCHA_SOLVING_ENABLED", "FALSE").upper() == "TRUE"
     )
-    # captchatools "solving_site": capmonster | 2captcha | anticaptcha |
-    # capsolver | captchaai. captchatools is itself the provider registry, so we
-    # do not rebuild a vendor hierarchy.
+    # Solver vendor. "capsolver" (AI-native, fastest on reCAPTCHA-Enterprise) and
+    # "2captcha" have in-house clients today; anticaptcha / capmonster are added
+    # progressively in solvers._PROVIDERS.
     CAPTCHA_SOLVER_PROVIDER = os.getenv("CAPTCHA_SOLVER_PROVIDER", "capsolver")
     CAPTCHA_SOLVER_API_KEY = os.getenv("CAPTCHA_SOLVER_API_KEY")
     # Per-URL solve cap so one hostile page can't burn unbounded solver credit.
