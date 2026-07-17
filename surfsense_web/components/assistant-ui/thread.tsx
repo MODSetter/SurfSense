@@ -173,7 +173,7 @@ const ThreadContent: FC<ThreadProps> = ({
 				footer={
 					<>
 						<PremiumQuotaPinnedAlert />
-						<Composer isLoadingMessages={isLoadingMessages} />
+						<Composer hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />
 					</>
 				}
 			>
@@ -531,10 +531,14 @@ const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> 
 };
 
 interface ComposerProps {
+	hasActiveThread?: boolean;
 	isLoadingMessages?: boolean;
 }
 
-const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
+const Composer: FC<ComposerProps> = ({
+	hasActiveThread = false,
+	isLoadingMessages = false,
+}) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
@@ -1068,7 +1072,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
 					/>
 				</div>
 				<ConnectToolsBanner
-					isThreadEmpty={isThreadEmpty && !isLoadingMessages}
+					isThreadEmpty={!hasActiveThread && isThreadEmpty}
 					onVisibleChange={setConnectToolsTrayVisible}
 				/>
 				{!isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
