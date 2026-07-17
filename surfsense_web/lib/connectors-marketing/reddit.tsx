@@ -29,23 +29,23 @@ export const reddit: ConnectorPageContent = {
 		"The SurfSense Reddit API extracts posts, comments, subreddits, and user data without the official Reddit API's rate limits or per-call pricing. Give your AI agents a live feed of what Reddit actually says about any brand, product, or topic, so you hear it first.",
 
 	transcript: {
-		prompt: "See what r/webscraping is saying about our competitor this week",
+		prompt: "See what r/SaaS is saying about our competitor this week",
 		toolCall:
-			'reddit.scrape({ search_queries: ["competitor"], community: "webscraping",\n  sort: "top", time_filter: "week", max_comments: 50 })',
+			'reddit.scrape({ search_queries: ["competitor"], community: "SaaS",\n  sort: "top", time_filter: "week", max_comments: 50 })',
 		rows: [
 			{
 				primary: "Switched off Competitor after the API price hike",
-				secondary: "r/webscraping · 312 upvotes · 0.94 ratio",
+				secondary: "r/SaaS · 312 upvotes · 0.94 ratio",
 				tag: "pricing pain",
 			},
 			{
 				primary: "Anyone got a Competitor alternative that does comments?",
-				secondary: "r/webscraping · 148 upvotes · 61 comments",
+				secondary: "r/SaaS · 148 upvotes · 61 comments",
 				tag: "buying intent",
 			},
 			{
 				primary: "Competitor keeps rate-limiting my agent, help",
-				secondary: "r/webscraping · 89 upvotes · 44 comments",
+				secondary: "r/SaaS · 89 upvotes · 44 comments",
 				tag: "churn signal",
 			},
 		],
@@ -146,7 +146,7 @@ export const reddit: ConnectorPageContent = {
 		mcpTool: "reddit.scrape",
 		requestBody: {
 			search_queries: ["your brand"],
-			community: "webscraping",
+			community: "SaaS",
 			sort: "top",
 			time_filter: "week",
 			max_comments: 50,

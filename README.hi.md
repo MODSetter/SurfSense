@@ -79,7 +79,7 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
   -H "Content-Type: application/json" \
   -d '{
     "search_queries": ["your brand"],
-    "community": "webscraping",
+    "community": "SaaS",
     "sort": "top",
     "time_filter": "week"
   }'
