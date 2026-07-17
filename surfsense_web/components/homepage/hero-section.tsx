@@ -1,15 +1,27 @@
 "use client";
+import { ChevronDown, Download } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
 import { HeroChatDemo, type HeroChatDemoScript } from "@/components/homepage/hero-chat-demo";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	GITHUB_RELEASES_URL,
+	getAssetLabel,
+	usePrimaryDownload,
+} from "@/lib/desktop-download-utils";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -68,7 +80,7 @@ const HERO_REALTIME = "/homepage/hero_realtime";
 const CATEGORIES: HeroCategory[] = [
 	{
 		id: "live-research",
-		label: "Research the Live Web",
+		label: "Live Web Research",
 		useCases: [
 			{
 				id: "deep-research",
@@ -102,6 +114,82 @@ const CATEGORIES: HeroCategory[] = [
 				},
 			},
 			{
+				id: "academic-research",
+				title: "Academic Literature Scan",
+				description:
+					"Sweep recent papers, preprints, and technical blogs on a topic and get the main approaches mapped with citations.",
+				src: null,
+				demo: {
+					prompt:
+						"Survey the last year of research on LLM hallucination detection and map the main approaches.",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["12 SERPs · arXiv, ACL, technical blogs"],
+						},
+						{
+							title: "Web Crawler",
+							items: ["Reading 21 papers and posts", "Extracting methods and benchmarks"],
+						},
+						{
+							title: "Generate report",
+							items: ["Literature brief · grouped by approach"],
+						},
+					],
+					rows: [
+						{
+							primary: "4 approach families mapped",
+							secondary: "self-consistency, retrieval grounding, probes, uncertainty",
+						},
+						{
+							primary: "Benchmarks converge on 2 suites",
+							secondary: "used in 9 of the 21 papers reviewed",
+						},
+					],
+					summary: "Literature brief saved · every claim links to its paper",
+				},
+			},
+			{
+				id: "financial-research",
+				title: "Financial & Market Research",
+				description:
+					"Pull earnings coverage, analyst breakdowns, and retail sentiment on any company into one cited brief.",
+				src: null,
+				demo: {
+					prompt:
+						"Summarize the reaction to NVIDIA's latest earnings across news, YouTube, and Reddit.",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["10 SERPs · earnings coverage and recaps"],
+						},
+						{
+							title: "Youtube",
+							items: ["8 analyst breakdowns · transcripts pulled"],
+						},
+						{
+							title: "Reddit",
+							items: ["r/investing + r/stocks · 31 threads"],
+						},
+					],
+					rows: [
+						{
+							primary: "Data-center revenue beat leads coverage",
+							secondary: "cited in 7 of 10 top results",
+						},
+						{
+							primary: "Analyst take split on guidance",
+							secondary: "transcripts: 5 bullish · 3 cautious",
+						},
+						{
+							primary: "Retail sentiment net positive",
+							secondary: "top threads focus on supply constraints",
+						},
+					],
+					summary: "Cited earnings brief saved to your workspace",
+				},
+			},
+			{
 				id: "geo-monitoring",
 				title: "AI Overview & GEO Tracking",
 				description:
@@ -132,42 +220,11 @@ const CATEGORIES: HeroCategory[] = [
 					summary: "Citation gap report saved · weekly re-check scheduled",
 				},
 			},
-			{
-				id: "cited-briefs",
-				title: "Cited Briefs & Alerts",
-				description:
-					"Everything the agents gather lands in your workspace as briefs and alerts with sources you can check.",
-				src: null,
-				demo: {
-					prompt: "Send me a Monday brief of every change my agents detected last week.",
-					steps: [
-						{
-							title: "Plan tasks",
-							items: ["Collect pricing, changelog, SERP, Reddit signals"],
-						},
-						{
-							title: "Create automation",
-							items: ["Weekly brief · Mondays 8:00 · workspace + email"],
-						},
-					],
-					rows: [
-						{
-							primary: "Sources: pricing, changelogs, SERPs, Reddit",
-							secondary: "everything your agents tracked this week",
-						},
-						{
-							primary: "Delivered to workspace + email",
-							secondary: "every claim links to its source",
-						},
-					],
-					summary: "Automation created · first brief lands Monday 8:00",
-				},
-			},
 		],
 	},
 	{
-		id: "connector-workflows",
-		label: "Multi-Connector Workflows",
+		id: "ci-workflows",
+		label: "Competitive Intelligence Workflows",
 		useCases: [
 			{
 				id: "launch-impact",
@@ -253,60 +310,6 @@ const CATEGORIES: HeroCategory[] = [
 					summary: "Maps + Crawler + Search in one run · teardown saved",
 				},
 			},
-			{
-				id: "competitor-360",
-				title: "Competitor 360, on a Schedule",
-				description:
-					"An automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.",
-				src: null,
-				demo: {
-					prompt:
-						"Every Monday, build me a 360 on our top competitor: site changes, rankings, Reddit, and YouTube.",
-					steps: [
-						{
-							title: "Web Crawler",
-							items: ["pricing + changelog pages · 2 changes detected"],
-						},
-						{
-							title: "Google Search",
-							items: ["12 shared keywords · rank movements captured"],
-						},
-						{
-							title: "Reddit",
-							items: ["18 mentions this week · sentiment tagged"],
-						},
-						{
-							title: "Youtube",
-							items: ["2 new videos · comments and transcripts pulled"],
-						},
-						{
-							title: "Create automation",
-							items: ["Weekly 360 brief · Mondays 8:00"],
-						},
-					],
-					rows: [
-						{
-							primary: "Shipped: usage-based pricing page",
-							secondary: "pricing + changelog diff · detected Jul 3",
-						},
-						{
-							primary: 'Took #2 on "reddit scraper api"',
-							secondary: "you hold #4 · gap widened two weeks in a row",
-						},
-						{
-							primary: "Reddit sentiment down 12 pts since the change",
-							secondary: "churn signals in 5 threads · quotes linked",
-						},
-					],
-					summary: "4 connectors, 1 automation · first brief lands Monday 8:00",
-				},
-			},
-		],
-	},
-	{
-		id: "competitor-monitoring",
-		label: "Competitor Monitoring",
-		useCases: [
 			{
 				id: "pricing-watch",
 				title: "Competitor Pricing Watch",
@@ -420,202 +423,6 @@ const CATEGORIES: HeroCategory[] = [
 					summary: "10 SERPs captured · 3 movements flagged · daily automation on",
 				},
 			},
-		],
-	},
-	{
-		id: "lead-generation",
-		label: "B2B Lead Generation",
-		useCases: [
-			{
-				id: "local-leads",
-				title: "Local Business Leads",
-				description:
-					"Turn a category and a territory into a lead list with phones, websites, ratings, and decision-maker contacts.",
-				src: null,
-				demo: {
-					prompt:
-						"Find the top 5 burger places in San Jose and pull staff contacts from their websites.",
-					steps: [
-						{
-							title: "Google Maps",
-							items: ['Searching "burger san jose" · top 5 by rating and reviews'],
-						},
-						{
-							title: "Web Crawler",
-							items: ["Visiting 5 business sites", "Extracting staff and contact pages"],
-						},
-						{
-							title: "Save document",
-							items: ["Lead list with phones, sites, contacts"],
-						},
-					],
-					rows: [
-						{
-							primary: "The Counter — 4.5★ (2,310 reviews)",
-							secondary: "+1 408-423-9200 · thecounter.com · 2 contacts found",
-						},
-						{
-							primary: "Paper Plane — 4.6★ (1,882 reviews)",
-							secondary: "site crawled · owner + events email found",
-						},
-						{
-							primary: "Smoking Pig BBQ — 4.4★ (3,041 reviews)",
-							secondary: "+1 408-380-4784 · catering contact found",
-						},
-					],
-					summary: "5 places · 9 contacts with provenance · saved as lead list",
-				},
-			},
-			{
-				id: "team-rosters",
-				title: "Team Rosters & Contacts",
-				description:
-					"Spider any company site and pull the full team with emails, socials, and provenance, exported to CSV.",
-				src: null,
-				demo: {
-					prompt: "Get the complete a16z team roster and save it as a CSV in my workspace.",
-					steps: [
-						{
-							title: "Web Crawler",
-							items: ["a16z.com/team · following profile links", "142 profiles found"],
-						},
-						{
-							title: "Plan tasks",
-							items: ["Enrich each profile with email or LinkedIn"],
-						},
-						{
-							title: "Write file",
-							items: ["a16z-team.csv · saved to workspace"],
-						},
-					],
-					rows: [
-						{
-							primary: "142 team profiles extracted",
-							secondary: "name, role, focus area, profile URL",
-						},
-						{
-							primary: "89 enriched with email or LinkedIn",
-							secondary: "pulled from bios and linked pages",
-						},
-						{ primary: "a16z-team.csv", secondary: "saved to your workspace · ready to export" },
-					],
-					summary: "Full roster in 94s · every row cites its source page",
-				},
-			},
-			{
-				id: "portfolio-mapping",
-				title: "Portfolio & Market Mapping",
-				description:
-					"Map an investor's portfolio or a whole category, then enrich every company with pricing and contacts.",
-				src: null,
-				demo: {
-					prompt: "Get the a16z team and their portfolio companies.",
-					steps: [
-						{
-							title: "Web Crawler",
-							items: ["a16z.com/team · 142 profiles", "a16z.com/portfolio · 312 companies"],
-						},
-						{
-							title: "Plan tasks",
-							items: [
-								"Match partners to their portfolio boards",
-								"Enrich your category with pricing",
-							],
-						},
-					],
-					rows: [
-						{
-							primary: "312 portfolio companies mapped",
-							secondary: "sector, stage, website, one-line pitch",
-						},
-						{
-							primary: "48 in your category",
-							secondary: "enriched with pricing page + team size",
-						},
-					],
-					summary: "Market map saved · new investments auto-added by automation",
-				},
-			},
-		],
-	},
-	{
-		id: "brand-listening",
-		label: "Brand & Community Listening",
-		useCases: [
-			{
-				id: "reddit-listening",
-				title: "Reddit Brand Monitoring",
-				description:
-					"Hear what Reddit says about you, your competitors, and your category in the threads where people speak candidly.",
-				src: null,
-				demo: {
-					prompt: "Give me 20 posts on Reddit where people ask for an alternative to NotebookLM.",
-					steps: [
-						{
-							title: "Reddit",
-							items: [
-								'Searching "notebooklm alternative" across Reddit',
-								"37 posts found · ranking by relevance and upvotes",
-							],
-						},
-						{
-							title: "Plan tasks",
-							items: ["Tag each post: buying intent, churn signal, question"],
-						},
-					],
-					rows: [
-						{
-							primary: "Best NotebookLM alternative that's open source?",
-							secondary: "r/selfhosted · 214 upvotes · buying intent",
-						},
-						{
-							primary: "NotebookLM keeps losing my sources, what else?",
-							secondary: "r/artificial · 96 upvotes · churn signal",
-						},
-						{
-							primary: "Anything like NotebookLM but with an API?",
-							secondary: "r/LocalLLaMA · 71 upvotes · developer intent",
-						},
-					],
-					summary: "20 posts · 8 with buying intent · daily tracking automation on",
-				},
-			},
-			{
-				id: "youtube-sentiment",
-				title: "YouTube Audience Sentiment",
-				description:
-					"Pull videos, transcripts, and comments at scale to mine what audiences praise and complain about.",
-				src: null,
-				demo: {
-					prompt:
-						"Analyze the comments on our competitor's last 10 videos and cluster the complaints.",
-					steps: [
-						{
-							title: "Youtube",
-							items: ["Fetching last 10 videos", "4,812 comments pulled"],
-						},
-						{
-							title: "Plan tasks",
-							items: ["Cluster complaints by theme", "Score sentiment per cluster"],
-						},
-					],
-					rows: [
-						{
-							primary: "Pricing complaints — 31% of negative comments",
-							secondary: '"went from free to $20/mo overnight"',
-						},
-						{
-							primary: "Export limits — 22%",
-							secondary: '"can\'t get my own data out"',
-						},
-						{
-							primary: "Praise: onboarding — 18% positive",
-							secondary: "worth copying in your messaging",
-						},
-					],
-					summary: "4,812 comments clustered · sentiment report saved",
-				},
-			},
 			{
 				id: "switcher-mining",
 				title: "Switcher & Intent Mining",
@@ -653,21 +460,14 @@ const CATEGORIES: HeroCategory[] = [
 		],
 	},
 	{
-		id: "platform-agent",
-		label: "SurfSense Agent",
+		id: "artifacts",
+		label: "Artifacts (Podcasts, Videos & More)",
 		useCases: [
-			{
-				id: "chat-workspace",
-				title: "Chat With Everything You Gather",
-				description:
-					"Ask questions across every crawl, mention, and document in your workspace and get answers with inline citations.",
-				src: `${HERO_TUTORIAL}/BQnaGif_compressed.mp4`,
-			},
 			{
 				id: "report",
 				title: "AI Report Generator",
 				description:
-					"Turn your intelligence into cited research reports, then export to PDF or Markdown.",
+					"Turn your research into cited reports, then export to PDF or Markdown.",
 				src: `${HERO_TUTORIAL}/ReportGenGif_compressed.mp4`,
 			},
 			{
@@ -683,17 +483,158 @@ const CATEGORIES: HeroCategory[] = [
 				src: `${HERO_TUTORIAL}/video_gen_surf.mp4`,
 			},
 			{
-				id: "connect",
-				title: "Build Your Knowledge Base",
+				id: "image-gen",
+				title: "AI Image Generation",
+				description: "Generate images inside your workspace for decks, briefs, and posts.",
+				src: `${HERO_TUTORIAL}/ImageGenGif.mp4`,
+			},
+		],
+	},
+	{
+		id: "automations",
+		label: "Automations",
+		useCases: [
+			{
+				id: "competitor-360",
+				title: "Competitor 360, on a Schedule",
 				description:
-					"Upload files or sync Google Drive, OneDrive, and Dropbox into one searchable knowledge base alongside everything your agents gather.",
-				src: `${HERO_TUTORIAL}/ConnectorFlowGif.mp4`,
+					"An automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.",
+				src: null,
+				demo: {
+					prompt:
+						"Every Monday, build me a 360 on our top competitor: site changes, rankings, Reddit, and YouTube.",
+					steps: [
+						{
+							title: "Web Crawler",
+							items: ["pricing + changelog pages · 2 changes detected"],
+						},
+						{
+							title: "Google Search",
+							items: ["12 shared keywords · rank movements captured"],
+						},
+						{
+							title: "Reddit",
+							items: ["18 mentions this week · sentiment tagged"],
+						},
+						{
+							title: "Youtube",
+							items: ["2 new videos · comments and transcripts pulled"],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly 360 brief · Mondays 8:00"],
+						},
+					],
+					rows: [
+						{
+							primary: "Shipped: usage-based pricing page",
+							secondary: "pricing + changelog diff · detected Jul 3",
+						},
+						{
+							primary: 'Took #2 on "reddit scraper api"',
+							secondary: "you hold #4 · gap widened two weeks in a row",
+						},
+						{
+							primary: "Reddit sentiment down 12 pts since the change",
+							secondary: "churn signals in 5 threads · quotes linked",
+						},
+					],
+					summary: "4 connectors, 1 automation · first brief lands Monday 8:00",
+				},
 			},
 			{
-				id: "collab",
-				title: "Collaborative AI Chat",
-				description: "Work on AI conversations with your team in real time.",
-				src: `${HERO_REALTIME}/RealTimeChatGif.mp4`,
+				id: "cited-briefs",
+				title: "Scheduled Briefs & Alerts",
+				description:
+					"Everything the agents gather lands in your workspace as briefs and alerts with sources you can check.",
+				src: null,
+				demo: {
+					prompt: "Send me a Monday brief of every change my agents detected last week.",
+					steps: [
+						{
+							title: "Plan tasks",
+							items: ["Collect pricing, changelog, SERP, Reddit signals"],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly brief · Mondays 8:00 · workspace + email"],
+						},
+					],
+					rows: [
+						{
+							primary: "Sources: pricing, changelogs, SERPs, Reddit",
+							secondary: "everything your agents tracked this week",
+						},
+						{
+							primary: "Delivered to workspace + email",
+							secondary: "every claim links to its source",
+						},
+					],
+					summary: "Automation created · first brief lands Monday 8:00",
+				},
+			},
+			{
+				id: "event-triggers",
+				title: "Event-Triggered Workflows",
+				description:
+					"Automations can fire on events, not just schedules: a document landing in a folder kicks off the workflow.",
+				src: null,
+				demo: {
+					prompt:
+						"Whenever a new file lands in my Research folder, summarize it and post the summary to Slack.",
+					steps: [
+						{
+							title: "Create automation",
+							items: [
+								"Trigger: new document in Research folder",
+								"Action: summarize → post to #research",
+							],
+						},
+					],
+					rows: [
+						{
+							primary: "Automation armed on the Research folder",
+							secondary: "fires the moment a document lands",
+						},
+						{
+							primary: "First run: competitor-teardown.pdf",
+							secondary: "summary posted to #research · 42s after upload",
+						},
+					],
+					summary: "Event-triggered automation live · no schedule needed",
+				},
+			},
+		],
+	},
+	{
+		id: "desktop-app",
+		label: "Desktop App",
+		useCases: [
+			{
+				id: "general-assist",
+				title: "General Assist",
+				description:
+					"Launch SurfSense from any application on your computer with a global shortcut.",
+				src: `${HERO_TUTORIAL}/general_assist.mp4`,
+			},
+			{
+				id: "quick-assist",
+				title: "Quick Assist",
+				description: "Select text anywhere, then ask AI to explain, rewrite, or act on it.",
+				src: `${HERO_TUTORIAL}/quick_assist.mp4`,
+			},
+			{
+				id: "screenshot-assist",
+				title: "Screenshot Assist",
+				description: "Capture any region of your screen and ask AI about it.",
+				src: `${HERO_TUTORIAL}/screenshot_assist.mp4`,
+			},
+			{
+				id: "folder-watch",
+				title: "Watch Local Folder",
+				description:
+					"Auto-sync a local folder to your knowledge base. Point it at your Obsidian vault to keep your notes searchable.",
+				src: `${HERO_TUTORIAL}/folder_watch.mp4`,
 			},
 		],
 	},
@@ -725,6 +666,7 @@ export function HeroSection() {
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
 							<GetStartedButton />
+							<DownloadButton />
 						</div>
 					</div>
 				</div>
@@ -764,6 +706,88 @@ function GetStartedButton() {
 				<Link href="/login">Get Started</Link>
 			</Button>
 		</>
+	);
+}
+
+function DownloadButton() {
+	const { os, primary, alternatives, isMobileOS } = usePrimaryDownload();
+
+	const fallbackUrl = GITHUB_RELEASES_URL;
+	const mobileDisabledLabel = "Desktop app unavailable on mobile";
+
+	if (isMobileOS) {
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				disabled
+				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+			>
+				<Download className="size-4" />
+				{mobileDisabledLabel}
+			</Button>
+		);
+	}
+
+	if (!primary) {
+		return (
+			<Button
+				asChild
+				variant="ghost"
+				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+			>
+				<a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+					<Download className="size-4" />
+					Download for {os}
+				</a>
+			</Button>
+		);
+	}
+
+	return (
+		<div className="flex h-14 w-full items-stretch sm:w-auto">
+			<Button
+				asChild
+				variant="ghost"
+				className="h-auto flex-1 gap-2 rounded-l-lg rounded-r-none border border-r-0 border-neutral-200 bg-white px-5 text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-[0.99] hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+			>
+				<a href={primary.url}>
+					<Download className="size-4 shrink-0" />
+					Download for {os}
+				</a>
+			</Button>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						type="button"
+						variant="ghost"
+						className="h-auto rounded-l-none rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
+					>
+						<ChevronDown className="size-4" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-64">
+					{alternatives.map((asset) => (
+						<DropdownMenuItem key={asset.name} asChild>
+							<a href={asset.url} className="cursor-pointer">
+								<Download className="mr-2 size-3.5" />
+								{getAssetLabel(asset.name)}
+							</a>
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuItem asChild>
+						<a
+							href={fallbackUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="cursor-pointer"
+						>
+							All downloads
+						</a>
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</div>
 	);
 }
 
