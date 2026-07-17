@@ -253,7 +253,7 @@ export default function ExternalMcpConnectorsPage() {
 						<p className="mt-3 max-w-2xl text-muted-foreground leading-relaxed">
 							These apps run on their official hosted MCP servers. Sign in once with OAuth and
 							SurfSense manages the tokens and curates each tool list, so your agents can search
-							Notion, read Slack threads, or file Jira issues alongside your market intelligence.
+							Notion, read Slack threads, or file Jira issues alongside your live web research.
 						</p>
 					</Reveal>
 					<Reveal>
@@ -330,7 +330,7 @@ export default function ExternalMcpConnectorsPage() {
 							<p className="mx-auto mt-3 max-w-xl text-muted-foreground leading-relaxed">
 								External MCP connectors are part of the SurfSense{" "}
 								<Link href="/" className="font-medium text-foreground underline underline-offset-4">
-									competitive intelligence platform
+									open web research platform
 								</Link>
 								. Start free, no credit card required.
 							</p>

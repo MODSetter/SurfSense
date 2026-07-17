@@ -115,7 +115,7 @@ import {
 } from "../new-chat/document-mention-picker";
 
 const COMPOSER_PLACEHOLDER =
-	"Track competitors, scrape platforms, automate briefs. Use / for prompts, @ for docs";
+	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
 
 type ComposerSuggestionAnchorPoint = {
 	left: number;

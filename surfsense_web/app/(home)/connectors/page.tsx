@@ -6,7 +6,7 @@ import { getAllConnectors } from "@/lib/connectors-marketing";
 const canonicalUrl = "https://www.surfsense.com/connectors";
 
 const metaDescription =
-	"Platform-native scraper APIs for AI agents. Pull live data from the platforms your market uses through one typed API or the SurfSense MCP server. Explore every connector.";
+	"Platform-native scraper APIs for AI agents. Pull live, structured data from the platforms where answers live through one typed API or the SurfSense MCP server. Explore every connector.";
 
 export const metadata: Metadata = {
 	title: "Scraper APIs for AI Agents: All Connectors | SurfSense",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 		"scraper api for ai agents",
 		"data connectors",
 		"mcp server",
-		"competitive intelligence platform",
+		"open web research platform",
 	],
 	alternates: { canonical: canonicalUrl },
 	openGraph: {
@@ -38,13 +38,13 @@ export default function ConnectorsIndexPage() {
 			<div className="mx-auto w-full max-w-7xl px-2 md:px-8 xl:px-0">
 				<header className="max-w-2xl">
 					<h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-						Connectors for every platform your market uses
+						Connectors for every platform where answers live
 					</h1>
 					<p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
 						Each connector is a platform-native scraper API your AI agents can call directly, or
 						through the SurfSense MCP server. They are the live data behind the SurfSense{" "}
 						<Link href="/" className="font-medium text-foreground underline underline-offset-4">
-							competitive intelligence platform
+							open web research platform
 						</Link>
 						.
 					</p>

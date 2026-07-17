@@ -20,43 +20,43 @@ export interface ChatExampleCategory {
 
 export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 	{
+		id: "research",
+		label: "Research the Web",
+		prompts: [
+			"Research [topic] across the live web and give me a cited brief",
+			"Map who ranks for [keyword], crawl each result, and compare their claims in one table",
+			"Pull the Google Maps reviews for [business] and summarize the top complaints",
+			"Which queries about [topic] trigger an AI Overview, and who gets cited?",
+		],
+	},
+	{
+		id: "listen",
+		label: "Community Listening",
+		prompts: [
+			"Find 20 Reddit posts where people ask for an alternative to [product]",
+			"Analyze the comments on [channel]'s last 10 videos and cluster the complaints",
+			"What is Reddit saying about [topic] this week?",
+			"Pull the top TikTok videos for [hashtag] and summarize the trend",
+		],
+	},
+	{
 		id: "monitor",
 		label: "Monitor Competitors",
 		prompts: [
 			"Extract every plan, price, and limit from [competitor]'s pricing page",
 			"Crawl [competitor]'s changelog and brief me on what they shipped this month",
-			"Track who ranks and runs ads for [keyword] in the US",
-			"Which of our target keywords trigger an AI Overview, and who gets cited?",
-		],
-	},
-	{
-		id: "listen",
-		label: "Market Listening",
-		prompts: [
-			"Find 20 Reddit posts where people ask for an alternative to [product]",
-			"Analyze the comments on [channel]'s last 10 videos and cluster the complaints",
-			"Pull the Google Maps reviews for [business] and summarize the top complaints",
-			"Find people actively looking to switch away from [competitor] this month",
-		],
-	},
-	{
-		id: "workflows",
-		label: "Multi-Connector",
-		prompts: [
 			"Measure the reaction to [competitor]'s launch across search, Reddit, and YouTube",
 			"Find the top-rated [category] businesses in [city], crawl their sites, and build a lead list with contacts",
-			"Map who ranks for [keyword], crawl each result, and compare their pricing in one table",
-			"Build a 360 on [competitor]: site changes, rank movements, Reddit sentiment, and YouTube reaction",
 		],
 	},
 	{
 		id: "automate",
 		label: "Automate",
 		prompts: [
-			"Re-check [competitor]'s pricing page daily and alert me on any change",
-			"Every Monday, crawl our competitors' changelogs and send me a brief",
+			"Watch [url] daily and alert me on any change",
 			"Track our brand mentions on Reddit daily and tag buying intent",
 			"Send me a weekly report on [keyword] rankings and AI Overview citations",
+			"Every Monday, crawl [site]'s changelog and send me a brief",
 		],
 	},
 	{

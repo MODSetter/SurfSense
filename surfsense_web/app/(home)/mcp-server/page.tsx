@@ -369,12 +369,12 @@ export default function McpServerPage() {
 					<Reveal>
 						<div className="rounded-2xl border bg-card p-8 text-center sm:p-12">
 							<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-								Put live market data inside your agents
+								Put live web data inside your agents
 							</h2>
 							<p className="mx-auto mt-3 max-w-xl text-muted-foreground leading-relaxed">
 								The MCP server is part of the SurfSense{" "}
 								<Link href="/" className="font-medium text-foreground underline underline-offset-4">
-									competitive intelligence platform
+									open web research platform
 								</Link>
 								. Start with $5 of free credit, no credit card required.
 							</p>

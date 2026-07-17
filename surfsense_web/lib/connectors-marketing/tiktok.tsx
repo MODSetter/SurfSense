@@ -32,7 +32,7 @@ export const tiktok: ConnectorPageContent = {
 
 	h1: "TikTok Scraper API for Videos, Comments, and Trend Research",
 	heroLede:
-		"The SurfSense TikTok scraper extracts public videos by hashtag, creator profile, or URL, plus comment threads and trending feeds, without TikTok's approval-gated Research API. Give your AI agents a live feed of what your market watches and shares, so you catch a trend while it is still rising.",
+		"The SurfSense TikTok scraper extracts public videos by hashtag, creator profile, or URL, plus comment threads and trending feeds, without TikTok's approval-gated Research API. Give your AI agents a live feed of what people watch and share, so you catch a trend while it is still rising.",
 
 	transcript: {
 		prompt: "Find trending TikToks about meal prep this week",

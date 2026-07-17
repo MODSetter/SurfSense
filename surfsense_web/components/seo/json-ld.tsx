@@ -19,7 +19,7 @@ export function OrganizationJsonLd() {
 				url: "https://www.surfsense.com",
 				logo: "https://www.surfsense.com/logo.png",
 				description:
-					"SurfSense is an open-source competitive intelligence platform. AI agents monitor competitors, track rankings, and listen to your market through one API or MCP server.",
+					"SurfSense is an open-source open web research platform. AI agents research the live web with structured data through one API or MCP server.",
 				sameAs: [
 					"https://github.com/MODSetter/SurfSense",
 					"https://discord.gg/ejRNvftDp9",
@@ -45,7 +45,7 @@ export function WebSiteJsonLd() {
 				name: "SurfSense",
 				url: "https://www.surfsense.com",
 				description:
-					"SurfSense is an open-source competitive intelligence platform for AI agents, with live data connectors served through one API or MCP server.",
+					"SurfSense is an open-source open web research platform for AI agents, with live data connectors served through one API or MCP server.",
 				potentialAction: {
 					"@type": "SearchAction",
 					target: {
@@ -76,14 +76,14 @@ export function SoftwareApplicationJsonLd() {
 						"Free self-hosted from the open-source repo; cloud starts with $5 of free credit, then pay as you go",
 				},
 				description:
-					"SurfSense is an open-source competitive intelligence platform. AI agents monitor competitors, track rankings, and listen to your market with platform-native connectors for Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web, through one API or MCP server.",
+					"SurfSense is an open-source open web research platform. AI agents research the live web with platform-native connectors for Reddit, YouTube, TikTok, Google Maps, Google Search, and any page on the open web, through one API or MCP server.",
 				url: "https://www.surfsense.com",
 				downloadUrl: "https://github.com/MODSetter/SurfSense/releases",
 				featureList: [
 					"Platform-native connectors: Reddit, YouTube, TikTok, Google Maps, Google Search, Web Crawl",
 					"MCP server that exposes every connector as a native agent tool",
 					"Agent harness with retries, structured output, and credit metering",
-					"Competitor, brand, and rank monitoring with briefs and alerts",
+					"Live web research with cited briefs and alerts",
 					"AI automations and agents (scheduled and event-triggered workflows)",
 					"AI-powered semantic search across connected tools and documents",
 					"Knowledge base with file uploads and Google Drive, OneDrive, and Dropbox sync",

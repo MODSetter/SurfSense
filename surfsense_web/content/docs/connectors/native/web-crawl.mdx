@@ -51,7 +51,7 @@ curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/web/crawl" \
 
 One item per fetched page (in crawl order) with its markdown, metadata (title, description), crawl provenance (depth, referrer), links classified as internal/external/social/email/tel, and page-level contacts. The response also includes a site-wide `contacts` summary that deduplicates every email, phone, and social profile found — `siteWide: true` marks header/footer values (the company's own contacts) versus page-local finds like individual team members.
 
-Contact details often live on about/contact/privacy pages, so crawl with `maxCrawlDepth >= 1` to surface them — useful for lead generation and competitive intelligence.
+Contact details often live on about/contact/privacy pages, so crawl with `maxCrawlDepth >= 1` to surface them — useful for lead generation and company research.
 
 Billing is per successfully fetched page.
 

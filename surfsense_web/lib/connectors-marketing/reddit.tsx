@@ -8,7 +8,7 @@ export const reddit: ConnectorPageContent = {
 
 	metaTitle: "Reddit Scraper API for Brand Monitoring | SurfSense",
 	metaDescription:
-		"Track every brand and competitor mention across Reddit with the SurfSense Reddit Scraper API. No official API rate limits or pricing, plus a free tier. Start now.",
+		"Track every mention of any brand, product, or topic across Reddit with the SurfSense Reddit Scraper API. No official API rate limits or pricing, plus a free tier. Start now.",
 	keywords: [
 		"reddit scraper",
 		"reddit scraper api",
@@ -24,9 +24,9 @@ export const reddit: ConnectorPageContent = {
 		"brand monitoring tool",
 	],
 
-	h1: "Reddit Scraper API for Brand Monitoring and Market Research",
+	h1: "Reddit Scraper API for Brand Monitoring and Community Research",
 	heroLede:
-		"The SurfSense Reddit API extracts posts, comments, subreddits, and user data without the official Reddit API's rate limits or per-call pricing. Give your AI agents a live feed of what your market says about your brand, your competitors, and your category, so you hear it first.",
+		"The SurfSense Reddit API extracts posts, comments, subreddits, and user data without the official Reddit API's rate limits or per-call pricing. Give your AI agents a live feed of what Reddit actually says about any brand, product, or topic, so you hear it first.",
 
 	transcript: {
 		prompt: "See what r/webscraping is saying about our competitor this week",
@@ -97,7 +97,7 @@ export const reddit: ConnectorPageContent = {
 		{
 			title: "Reddit sentiment analysis",
 			description:
-				"Pull comment trees at depth and score them for sentiment, so you can measure how a launch, a price change, or a competitor's move actually landed with your market.",
+				"Pull comment trees at depth and score them for sentiment, so you can measure how a launch, a price change, or an announcement actually landed with the community.",
 		},
 		{
 			title: "Community research for go-to-market",

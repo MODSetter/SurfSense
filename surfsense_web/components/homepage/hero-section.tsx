@@ -67,6 +67,105 @@ const HERO_REALTIME = "/homepage/hero_realtime";
  */
 const CATEGORIES: HeroCategory[] = [
 	{
+		id: "live-research",
+		label: "Research the Live Web",
+		useCases: [
+			{
+				id: "deep-research",
+				title: "Deep Research on the Live Web",
+				description:
+					"The agent crawls dozens of live sources on a question and synthesizes a cited answer, not a stale index.",
+				src: null,
+				demo: {
+					prompt: "Research the AI note-taking market and build a landscape brief with citations.",
+					steps: [
+						{
+							title: "Research",
+							items: ["Crawling 38 live sources", "Vendor sites, reviews, pricing pages"],
+						},
+						{
+							title: "Generate report",
+							items: ["Landscape brief · 24 inline citations"],
+						},
+					],
+					rows: [
+						{
+							primary: "23 vendors mapped across 4 segments",
+							secondary: "consumer, prosumer, team, developer-first",
+						},
+						{
+							primary: "Pricing clusters at $10 and $20/mo",
+							secondary: "3 vendors moved upmarket this quarter",
+						},
+					],
+					summary: "Landscape brief saved · 24 inline citations you can check",
+				},
+			},
+			{
+				id: "geo-monitoring",
+				title: "AI Overview & GEO Tracking",
+				description:
+					"Capture when Google's AI Overviews answer the queries you care about, and exactly which sources they cite.",
+				src: null,
+				demo: {
+					prompt: "Which of our target keywords trigger an AI Overview, and who gets cited?",
+					steps: [
+						{
+							title: "Google Search",
+							items: ["Scraping 25 SERPs", "Capturing AI Overviews and citations"],
+						},
+						{
+							title: "Plan tasks",
+							items: ["Map citations to competitors", "Compute your citation gap"],
+						},
+					],
+					rows: [
+						{
+							primary: "9 of 25 keywords trigger an AI Overview",
+							secondary: "up from 6 last month",
+						},
+						{
+							primary: "Competitor A cited on 4 · you on 1",
+							secondary: "their listicle wins 3 of those citations",
+						},
+					],
+					summary: "Citation gap report saved · weekly re-check scheduled",
+				},
+			},
+			{
+				id: "cited-briefs",
+				title: "Cited Briefs & Alerts",
+				description:
+					"Everything the agents gather lands in your workspace as briefs and alerts with sources you can check.",
+				src: null,
+				demo: {
+					prompt: "Send me a Monday brief of every change my agents detected last week.",
+					steps: [
+						{
+							title: "Plan tasks",
+							items: ["Collect pricing, changelog, SERP, Reddit signals"],
+						},
+						{
+							title: "Create automation",
+							items: ["Weekly brief · Mondays 8:00 · workspace + email"],
+						},
+					],
+					rows: [
+						{
+							primary: "Sources: pricing, changelogs, SERPs, Reddit",
+							secondary: "everything your agents tracked this week",
+						},
+						{
+							primary: "Delivered to workspace + email",
+							secondary: "every claim links to its source",
+						},
+					],
+					summary: "Automation created · first brief lands Monday 8:00",
+				},
+			},
+		],
+	},
+	{
 		id: "connector-workflows",
 		label: "Multi-Connector Workflows",
 		useCases: [
@@ -191,7 +290,7 @@ const CATEGORIES: HeroCategory[] = [
 							secondary: "pricing + changelog diff · detected Jul 3",
 						},
 						{
-							primary: 'Took #2 on "competitive intelligence api"',
+							primary: 'Took #2 on "reddit scraper api"',
 							secondary: "you hold #4 · gap widened two weeks in a row",
 						},
 						{
@@ -290,7 +389,7 @@ const CATEGORIES: HeroCategory[] = [
 				id: "serp-watch",
 				title: "Rank & Ad Monitoring",
 				description:
-					"Automations track the Google rankings, paid ads, and AI Overview citations your market actually sees.",
+					"Automations track the Google rankings, paid ads, and AI Overview citations your audience actually sees.",
 				src: null,
 				demo: {
 					prompt: "Track who ranks and runs ads for our top 10 keywords in the US.",
@@ -310,7 +409,7 @@ const CATEGORIES: HeroCategory[] = [
 					],
 					rows: [
 						{
-							primary: '"competitive intelligence tools" — you #4, ↓1',
+							primary: '"ai research tools" — you #4, ↓1',
 							secondary: "Competitor A took #3 · runs 2 sponsored ads",
 						},
 						{
@@ -441,13 +540,13 @@ const CATEGORIES: HeroCategory[] = [
 	},
 	{
 		id: "brand-listening",
-		label: "Brand & Market Listening",
+		label: "Brand & Community Listening",
 		useCases: [
 			{
 				id: "reddit-listening",
 				title: "Reddit Brand Monitoring",
 				description:
-					"Hear what your market says about you, your competitors, and your category in the threads where buyers speak candidly.",
+					"Hear what Reddit says about you, your competitors, and your category in the threads where people speak candidly.",
 				src: null,
 				demo: {
 					prompt: "Give me 20 posts on Reddit where people ask for an alternative to NotebookLM.",
@@ -554,105 +653,6 @@ const CATEGORIES: HeroCategory[] = [
 		],
 	},
 	{
-		id: "market-research",
-		label: "Market Research",
-		useCases: [
-			{
-				id: "deep-research",
-				title: "Deep Research on the Live Web",
-				description:
-					"The agent crawls dozens of live sources on a question and synthesizes a cited answer, not a stale index.",
-				src: null,
-				demo: {
-					prompt: "Research the AI note-taking market and build a landscape brief with citations.",
-					steps: [
-						{
-							title: "Research",
-							items: ["Crawling 38 live sources", "Vendor sites, reviews, pricing pages"],
-						},
-						{
-							title: "Generate report",
-							items: ["Landscape brief · 24 inline citations"],
-						},
-					],
-					rows: [
-						{
-							primary: "23 vendors mapped across 4 segments",
-							secondary: "consumer, prosumer, team, developer-first",
-						},
-						{
-							primary: "Pricing clusters at $10 and $20/mo",
-							secondary: "3 vendors moved upmarket this quarter",
-						},
-					],
-					summary: "Landscape brief saved · 24 inline citations you can check",
-				},
-			},
-			{
-				id: "geo-monitoring",
-				title: "AI Overview & GEO Tracking",
-				description:
-					"Capture when Google's AI Overviews answer your market's queries, and exactly which sources they cite.",
-				src: null,
-				demo: {
-					prompt: "Which of our target keywords trigger an AI Overview, and who gets cited?",
-					steps: [
-						{
-							title: "Google Search",
-							items: ["Scraping 25 SERPs", "Capturing AI Overviews and citations"],
-						},
-						{
-							title: "Plan tasks",
-							items: ["Map citations to competitors", "Compute your citation gap"],
-						},
-					],
-					rows: [
-						{
-							primary: "9 of 25 keywords trigger an AI Overview",
-							secondary: "up from 6 last month",
-						},
-						{
-							primary: "Competitor A cited on 4 · you on 1",
-							secondary: "their listicle wins 3 of those citations",
-						},
-					],
-					summary: "Citation gap report saved · weekly re-check scheduled",
-				},
-			},
-			{
-				id: "cited-briefs",
-				title: "Cited Briefs & Alerts",
-				description:
-					"Everything the agents gather lands in your workspace as briefs and alerts with sources you can check.",
-				src: null,
-				demo: {
-					prompt: "Send me a Monday brief of every competitor change detected last week.",
-					steps: [
-						{
-							title: "Plan tasks",
-							items: ["Collect pricing, changelog, SERP, Reddit signals"],
-						},
-						{
-							title: "Create automation",
-							items: ["Weekly brief · Mondays 8:00 · workspace + email"],
-						},
-					],
-					rows: [
-						{
-							primary: "Sources: pricing, changelogs, SERPs, Reddit",
-							secondary: "everything your agents tracked this week",
-						},
-						{
-							primary: "Delivered to workspace + email",
-							secondary: "every claim links to its source",
-						},
-					],
-					summary: "Automation created · first brief lands Monday 8:00",
-				},
-			},
-		],
-	},
-	{
 		id: "platform-agent",
 		label: "SurfSense Agent",
 		useCases: [
@@ -708,7 +708,7 @@ export function HeroSection() {
 						"relative mt-4 max-w-4xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl dark:text-neutral-50"
 					)}
 				>
-					<Balancer>NotebookLM for competitive intelligence research.</Balancer>
+					<Balancer>NotebookLM for open web research.</Balancer>
 				</h1>
 				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-8 md:flex-row md:items-end md:gap-10">
 					<div>
@@ -717,10 +717,10 @@ export function HeroSection() {
 								"relative mb-8 max-w-2xl text-left text-sm text-neutral-600 antialiased sm:text-base md:text-lg dark:text-neutral-400"
 							)}
 						>
-							SurfSense is an open-source competitive intelligence platform, like NotebookLM but
-							with live scraping connectors. Your AI agents monitor competitors, track rankings, and
-							listen to your market with live data from platforms like Reddit, YouTube, Instagram,
-							TikTok, Google Maps, Google Search, and the open web.
+							SurfSense is an open-source open web research platform, like NotebookLM but with
+							live data connectors. Your AI agents research the live web with structured data from
+							Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and any page on the
+							open web.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">

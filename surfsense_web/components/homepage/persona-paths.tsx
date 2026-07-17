@@ -21,9 +21,9 @@ const PATHS: {
 		icon: Megaphone,
 		art: "chat",
 		eyebrow: "For founders & marketing teams",
-		title: "Competitor and market intelligence without the enterprise price tag",
+		title: "Live web research without the enterprise price tag",
 		description:
-			"Ask for a competitor teardown, a lead list, or a weekly market brief in plain English. The agent gathers live data, cites its sources, and automations keep watch so you hear about changes first. Start free, pay only for what you use.",
+			"Ask for a research brief, a lead list, or a competitor teardown in plain English. The agent gathers live data, cites its sources, and automations keep watch so you hear about changes first. Start free, pay only for what you use.",
 		links: [
 			{ label: "See what teams build", href: "/connectors" },
 			{ label: "Pricing", href: "/pricing" },

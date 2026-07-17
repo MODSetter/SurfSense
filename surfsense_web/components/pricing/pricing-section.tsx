@@ -145,12 +145,12 @@ const faqData: FAQSection[] = [
 			{
 				question: "Do agents and automations cost extra?",
 				answer:
-					"No. There is no add-on fee for agents or automations. A scheduled competitor brief or an event-triggered alert draws from the same credit balance: connector items and crawled pages at their per-unit rates, and model usage at provider cost. A workflow that uses free models and no scraping costs nothing.",
+					"No. There is no add-on fee for agents or automations. A scheduled research brief or an event-triggered alert draws from the same credit balance: connector items and crawled pages at their per-unit rates, and model usage at provider cost. A workflow that uses free models and no scraping costs nothing.",
 			},
 			{
 				question: "What can the agents actually do?",
 				answer:
-					"You describe the job in plain English and SurfSense sets up the agent, no code needed. Agents can watch competitor pricing pages, track brand mentions on Reddit and YouTube, monitor Google rankings and Maps reviews, then turn what they find into briefs and alerts, and write results back to Notion, Slack, Linear, and Jira.",
+					"You describe the job in plain English and SurfSense sets up the agent, no code needed. Agents can watch any page for changes, track mentions on Reddit and YouTube, monitor Google rankings and Maps reviews, then turn what they find into briefs and alerts, and write results back to Notion, Slack, Linear, and Jira.",
 			},
 		],
 	},
@@ -363,7 +363,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Give your agents competitive intelligence. Self-host for free, or start with $5 of credit and pay as you go. No subscriptions."
+				description="Give your agents the live web. Self-host for free, or start with $5 of credit and pay as you go. No subscriptions."
 			/>
 			<PricingFAQ />
 		</>

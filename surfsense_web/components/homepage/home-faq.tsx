@@ -6,9 +6,9 @@ import { FAQJsonLd } from "@/components/seo/json-ld";
 /** Answers are 40-60 words, written as quotable definitions for AI Overviews. */
 export const HOME_FAQ = [
 	{
-		question: "What is competitive intelligence?",
+		question: "What is open web research?",
 		answer:
-			"Competitive intelligence is the practice of gathering and analyzing public information about competitors and your market to make better decisions. It covers pricing, product moves, rankings, reviews, and what customers say online. SurfSense automates it: AI agents collect the live data and turn it into briefs and alerts.",
+			"Open web research is gathering and analyzing live public information from across the web: search results, community discussions, reviews, videos, and any page. Unlike asking a chatbot that reasons over a stale index, it works from what the web says right now. SurfSense automates it: AI agents collect the live data and turn it into cited briefs and alerts.",
 	},
 	{
 		question: "What is an MCP server?",
@@ -28,7 +28,7 @@ export const HOME_FAQ = [
 	{
 		question: "Can I self-host SurfSense?",
 		answer:
-			"Yes. SurfSense is open source and self-hostable, so you can run the entire platform on your own infrastructure and keep sensitive competitive research in-house. Use the cloud version to start in minutes, or deploy from the GitHub repository when you need full control.",
+			"Yes. SurfSense is open source and self-hostable, so you can run the entire platform on your own infrastructure and keep sensitive research in-house. Use the cloud version to start in minutes, or deploy from the GitHub repository when you need full control.",
 	},
 ];
 
