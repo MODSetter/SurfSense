@@ -1,4 +1,4 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, AI एजेंट्स के लिए ओपन सोर्स ओपन वेब रिसर्च प्लेटफ़ॉर्म" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, ओपन वेब रिसर्च के लिए ओपन सोर्स NotebookLM विकल्प" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: ओपन वेब रिसर्च के लिए NotebookLM
+# SurfSense: ओपन वेब रिसर्च के लिए ओपन सोर्स NotebookLM विकल्प
 
-SurfSense **AI एजेंट्स के लिए ओपन सोर्स ओपन वेब रिसर्च प्लेटफ़ॉर्म** है, बिलकुल NotebookLM जैसा, पर लाइव डेटा कनेक्टर्स के साथ। आपके एजेंट **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search और ओपन वेब के किसी भी पेज** से स्ट्रक्चर्ड डेटा के साथ लाइव वेब पर रिसर्च करते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
+SurfSense **AI एजेंट्स के लिए ओपन सोर्स NotebookLM विकल्प** है, लाइव डेटा कनेक्टर्स के साथ एक ओपन वेब रिसर्च प्लेटफ़ॉर्म। आपके एजेंट **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search और ओपन वेब के किसी भी पेज** से स्ट्रक्चर्ड डेटा के साथ लाइव वेब पर रिसर्च करते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
 
 > [!NOTE]
 > **📢 हमारे NotebookLM-विकल्प उपयोगकर्ताओं के लिए एक सूचना**

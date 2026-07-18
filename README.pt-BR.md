@@ -1,4 +1,4 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, a plataforma open source de pesquisa na web aberta para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, a alternativa open source ao NotebookLM para pesquisa na web aberta" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: NotebookLM para Pesquisa na Web Aberta
+# SurfSense: A Alternativa Open Source ao NotebookLM para Pesquisa na Web Aberta
 
-O SurfSense é a **plataforma open source de pesquisa na web aberta para agentes de IA**, como o NotebookLM, mas com conectores de dados ao vivo. Seus agentes pesquisam a web ao vivo com dados estruturados do **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search e de qualquer página da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
+O SurfSense é a **alternativa open source ao NotebookLM para agentes de IA**, uma plataforma de pesquisa na web aberta com conectores de dados ao vivo. Seus agentes pesquisam a web ao vivo com dados estruturados do **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search e de qualquer página da web aberta**, por meio de uma única **API REST** ou de um **servidor MCP**. Agentes agendados ou acionados por eventos transformam o que encontram em relatórios e alertas, e uma base de conhecimento integrada mantém cada descoberta pesquisável, com citações.
 
 > [!NOTE]
 > **📢 Um recado para nossos usuários que buscavam uma alternativa ao NotebookLM**

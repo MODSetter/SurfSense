@@ -1,4 +1,4 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源开放网络研究平台" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源 NotebookLM 替代品" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense：面向开放网络研究的 NotebookLM
+# SurfSense：面向开放网络研究的开源 NotebookLM 替代品
 
-SurfSense 是**面向 AI 智能体的开源开放网络研究平台**，就像 NotebookLM，但配备了实时数据连接器。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Amazon、Google Maps、Google Search 以及开放网络上任意页面**的结构化数据研究实时网络。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
+SurfSense 是**面向 AI 智能体的开源 NotebookLM 替代品**，一个配备实时数据连接器的开放网络研究平台。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Amazon、Google Maps、Google Search 以及开放网络上任意页面**的结构化数据研究实时网络。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
 
 > [!NOTE]
 > **📢 致我们的 NotebookLM 替代品用户**

@@ -1,4 +1,4 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, la plataforma de código abierto de investigación de la web abierta para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, la alternativa de código abierto a NotebookLM para investigación de la web abierta" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: NotebookLM para investigación de la web abierta
+# SurfSense: La alternativa de código abierto a NotebookLM para la investigación de la web abierta
 
-SurfSense es la **plataforma de código abierto de investigación de la web abierta para agentes de IA**, como NotebookLM pero con conectores de datos en vivo. Tus agentes investigan la web en vivo con datos estructurados de **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search y cualquier página de la web abierta**, a través de una única **API REST** o un **servidor MCP**. Agentes programados y activados por eventos convierten lo que encuentran en informes y alertas, y una base de conocimiento integrada mantiene cada hallazgo disponible para búsqueda con citas.
+SurfSense es la **alternativa de código abierto a NotebookLM para agentes de IA**, una plataforma de investigación de la web abierta con conectores de datos en vivo. Tus agentes investigan la web en vivo con datos estructurados de **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search y cualquier página de la web abierta**, a través de una única **API REST** o un **servidor MCP**. Agentes programados y activados por eventos convierten lo que encuentran en informes y alertas, y una base de conocimiento integrada mantiene cada hallazgo disponible para búsqueda con citas.
 
 > [!NOTE]
 > **📢 Una nota para nuestros usuarios de la alternativa a NotebookLM**
