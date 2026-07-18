@@ -6,7 +6,7 @@ export const reddit: ConnectorPageContent = {
 	name: "Reddit",
 	icon: IconBrandReddit,
 
-	metaTitle: "Reddit Scraper API for Brand Monitoring | SurfSense",
+	metaTitle: "Reddit API for Brand Monitoring | SurfSense",
 	metaDescription:
 		"Track every mention of any brand, product, or topic across Reddit with the SurfSense Reddit Scraper API. No official API rate limits or pricing, plus a free tier. Start now.",
 	keywords: [
@@ -24,7 +24,7 @@ export const reddit: ConnectorPageContent = {
 		"brand monitoring tool",
 	],
 
-	h1: "Reddit Scraper API for Brand Monitoring and Community Research",
+	h1: "Reddit API for Brand Monitoring and Community Research",
 	heroLede:
 		"The SurfSense Reddit API extracts posts, comments, subreddits, and user data without the official Reddit API's rate limits or per-call pricing. Give your AI agents a live feed of what Reddit actually says about any brand, product, or topic, so you hear it first.",
 

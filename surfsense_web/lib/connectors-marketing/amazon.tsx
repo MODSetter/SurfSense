@@ -7,7 +7,7 @@ export const amazon: ConnectorPageContent = {
 	cardTitle: "Amazon Product API",
 	icon: IconBrandAmazon,
 
-	metaTitle: "Amazon Product Scraper API for Price & Review Data | SurfSense",
+	metaTitle: "Amazon Product API for Price and Review Data | SurfSense",
 	metaDescription:
 		"Scrape public Amazon product data as structured JSON across US, UK, Germany, Italy, and Spain: prices, ratings, offers, sellers, and ranks. Start free.",
 	keywords: [
@@ -25,7 +25,7 @@ export const amazon: ConnectorPageContent = {
 		"ecommerce product api",
 	],
 
-	h1: "Amazon Product Scraper API for Price, Review, and Offer Data",
+	h1: "Amazon Product API for Price, Review, and Offer Data",
 	heroLede:
 		"The SurfSense Amazon Product API scrapes public Amazon listings as structured JSON: price and list price, rating and review breakdown, availability, marketplace offers, sellers, best-seller ranks, and on-page reviews. Point your AI agents at a search term or product URL and track prices across US, UK, German, Italian, and Spanish marketplaces — no login, only public data.",
 

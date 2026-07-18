@@ -6,7 +6,7 @@ export const youtube: ConnectorPageContent = {
 	name: "YouTube",
 	icon: IconBrandYoutube,
 
-	metaTitle: "YouTube Scraper API for Audience Sentiment | SurfSense",
+	metaTitle: "YouTube Data API for Comments and Transcripts | SurfSense",
 	metaDescription:
 		"Scrape YouTube videos, comments, and transcripts at scale with the SurfSense YouTube Scraper API. No Data API quotas, plus a free tier for AI agents. Start now.",
 	keywords: [
@@ -23,7 +23,7 @@ export const youtube: ConnectorPageContent = {
 		"audience research tools",
 	],
 
-	h1: "YouTube Scraper API for Audience Sentiment and Content Intelligence",
+	h1: "YouTube Data API for Comments, Transcripts, and Audience Sentiment",
 	heroLede:
 		"The SurfSense YouTube API pulls videos, channel stats, comments, and transcripts at scale, without YouTube Data API quotas. Feed your AI agents every comment and transcript that matters to your research, so you know what audiences actually think about any product, topic, or channel.",
 

@@ -6,7 +6,7 @@ export const tiktok: ConnectorPageContent = {
 	name: "TikTok",
 	icon: IconBrandTiktok,
 
-	metaTitle: "TikTok Scraper API for Videos and Comments | SurfSense",
+	metaTitle: "TikTok API for Videos, Comments, and Trends | SurfSense",
 	metaDescription:
 		"TikTok scraper API for public videos, comments, hashtags, and profiles. No Research API approval. Structured data for AI agents, plus a free tier. Start now.",
 	keywords: [
@@ -30,7 +30,7 @@ export const tiktok: ConnectorPageContent = {
 		"influencer research tool",
 	],
 
-	h1: "TikTok Scraper API for Videos, Comments, and Trend Research",
+	h1: "TikTok API for Videos, Comments, and Trend Research",
 	heroLede:
 		"The SurfSense TikTok scraper extracts public videos by hashtag, creator profile, or URL, plus comment threads and trending feeds, without TikTok's approval-gated Research API. Give your AI agents a live feed of what people watch and share, so you catch a trend while it is still rising.",
 

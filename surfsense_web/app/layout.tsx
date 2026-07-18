@@ -50,9 +50,9 @@ export const metadata: Metadata = {
 	alternates: {
 		canonical: "https://www.surfsense.com",
 	},
-	title: "SurfSense - NotebookLM for Open Web Research",
+	title: "SurfSense - Open-Source NotebookLM Alternative for Web Research",
 	description:
-		"SurfSense is an open-source open web research platform. Your AI agents research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, Google Search, and any page, through one API or MCP server.",
+		"The open-source NotebookLM for open web research. Your AI agents pull live, structured data from Reddit, YouTube, Amazon, and any page via one API or MCP server.",
 	keywords: [
 		"open web research platform",
 		"web research for AI agents",
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "SurfSense - NotebookLM for Open Web Research",
 		description:
-			"SurfSense is an open-source open web research platform. Your AI agents research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, Google Search, and any page, through one API or MCP server.",
+			"The open-source NotebookLM alternative for AI agents. Research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, and Google Search, through one API or MCP server.",
 		url: "https://www.surfsense.com",
 		siteName: "SurfSense",
 		type: "website",
@@ -78,7 +78,7 @@ export const metadata: Metadata = {
 				url: "/og-image.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense - Open Web Research Platform for AI Agents",
+				alt: "SurfSense, open-source NotebookLM alternative for AI agents",
 			},
 		],
 		locale: "en_US",
@@ -87,7 +87,7 @@ export const metadata: Metadata = {
 		card: "summary_large_image",
 		title: "SurfSense - NotebookLM for Open Web Research",
 		description:
-			"SurfSense is an open-source open web research platform. Your AI agents research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, Google Search, and any page, through one API or MCP server.",
+			"The open-source NotebookLM alternative for AI agents. Research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, and Google Search, through one API or MCP server.",
 		creator: "@SurfSenseAI",
 		site: "@SurfSenseAI",
 		images: [
@@ -95,7 +95,7 @@ export const metadata: Metadata = {
 				url: "/og-image-twitter.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense - Open Web Research Platform for AI Agents",
+				alt: "SurfSense, open-source NotebookLM alternative for AI agents",
 			},
 		],
 	},

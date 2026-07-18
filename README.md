@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the open-source open web research platform for AI agents" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the open-source NotebookLM alternative for open web research" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,9 +20,9 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: NotebookLM for Open Web Research
+# SurfSense: The Open-Source NotebookLM Alternative for Open Web Research
 
-SurfSense is the **open-source open web research platform for AI agents**, like NotebookLM but with live data connectors. Your agents research the live web with structured data from **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, and any page on the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
+SurfSense is the **open-source NotebookLM alternative for AI agents**, an open web research platform with live data connectors. Your agents research the live web with structured data from **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, and any page on the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
 
 > [!NOTE]
 > **📢 A note for our NotebookLM-alternative users**

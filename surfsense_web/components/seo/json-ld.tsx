@@ -19,7 +19,7 @@ export function OrganizationJsonLd() {
 				url: "https://www.surfsense.com",
 				logo: "https://www.surfsense.com/logo.png",
 				description:
-					"SurfSense is an open-source open web research platform. AI agents research the live web with structured data through one API or MCP server.",
+					"SurfSense is an open-source NotebookLM alternative for AI agents. It researches the live web with structured data through one API or MCP server.",
 				sameAs: [
 					"https://github.com/MODSetter/SurfSense",
 					"https://discord.gg/ejRNvftDp9",
@@ -45,7 +45,7 @@ export function WebSiteJsonLd() {
 				name: "SurfSense",
 				url: "https://www.surfsense.com",
 				description:
-					"SurfSense is an open-source open web research platform for AI agents, with live data connectors served through one API or MCP server.",
+					"SurfSense is an open-source NotebookLM alternative for AI agents, an open web research platform with live data connectors served through one API or MCP server.",
 				potentialAction: {
 					"@type": "SearchAction",
 					target: {
@@ -76,7 +76,7 @@ export function SoftwareApplicationJsonLd() {
 						"Free self-hosted from the open-source repo; cloud starts with $5 of free credit, then pay as you go",
 				},
 				description:
-					"SurfSense is an open-source open web research platform. AI agents research the live web with platform-native connectors for Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and any page on the open web, through one API or MCP server.",
+					"SurfSense is an open-source NotebookLM alternative for AI agents. It researches the live web with platform-native connectors for Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and any page on the open web, through one API or MCP server.",
 				url: "https://www.surfsense.com",
 				downloadUrl: "https://github.com/MODSetter/SurfSense/releases",
 				featureList: [

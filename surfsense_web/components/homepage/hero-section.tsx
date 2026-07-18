@@ -647,7 +647,7 @@ export function HeroSection() {
 						"relative mt-4 max-w-4xl text-left text-4xl font-bold tracking-tight text-balance text-neutral-900 sm:text-5xl md:text-6xl dark:text-neutral-50"
 					)}
 				>
-					<Balancer>NotebookLM for open web research.</Balancer>
+					<Balancer>The open-source NotebookLM alternative for open web research.</Balancer>
 				</h1>
 				<div className="mt-4 flex w-full flex-col items-start justify-between gap-4 md:mt-8 md:flex-row md:items-end md:gap-10">
 					<div>
@@ -656,11 +656,10 @@ export function HeroSection() {
 								"relative mb-8 max-w-2xl text-left text-sm text-neutral-600 antialiased sm:text-base md:text-lg dark:text-neutral-400"
 							)}
 						>
-							SurfSense is an open-source open web research platform, like NotebookLM but with live
-							data connectors. Your AI agents research the live web with structured data from
-							Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, and any page on
-							the
-							open web.
+							SurfSense is the open-source NotebookLM alternative for AI agents, an open web
+							research platform with live data connectors. Your AI agents research the live web with
+							structured data from Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google
+							Search, and any page on the open web.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
