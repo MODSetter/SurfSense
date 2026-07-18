@@ -759,9 +759,10 @@ function DownloadButton() {
 					<Button
 						type="button"
 						variant="ghost"
+						aria-label="More download options"
 						className="h-auto rounded-l-none rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
 					>
-						<ChevronDown className="size-4" />
+						<ChevronDown className="size-4" aria-hidden />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-64">
@@ -869,9 +870,9 @@ const UseCasePane = memo(function UseCasePane({
 		<div className="relative overflow-hidden rounded-tl-xl rounded-tr-xl bg-white shadow-sm ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-950">
 			<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
 				<div className="min-w-0">
-					<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
+					<h2 className="truncate text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
 						{useCase.title}
-					</h3>
+					</h2>
 					<p className="text-sm text-neutral-500 text-pretty dark:text-neutral-400">
 						{useCase.description}
 					</p>

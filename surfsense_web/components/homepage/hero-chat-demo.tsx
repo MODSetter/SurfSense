@@ -77,6 +77,7 @@ function DemoTimeline({
 			<Button
 				variant="ghost"
 				type="button"
+				tabIndex={-1}
 				onClick={() => setIsOpen((prev) => !prev)}
 				className="h-auto w-full justify-start gap-1.5 p-0 text-left text-sm font-normal text-muted-foreground transition-colors hover:bg-transparent hover:text-accent-foreground"
 			>
