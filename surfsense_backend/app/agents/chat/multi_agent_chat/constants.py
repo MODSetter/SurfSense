@@ -29,6 +29,7 @@ CONNECTOR_TYPE_TO_CONNECTOR_AGENT_MAPS: dict[str, str] = {
 # connected app. Tokens are searchable-type strings (Composio Gmail/Calendar
 # map to the GOOGLE_* tokens in connector_searchable_types).
 SUBAGENT_TO_REQUIRED_CONNECTOR_MAP: dict[str, frozenset[str]] = {
+    "amazon": frozenset(),
     "deliverables": frozenset(),
     "knowledge_base": frozenset(),
     "web_crawler": frozenset(),

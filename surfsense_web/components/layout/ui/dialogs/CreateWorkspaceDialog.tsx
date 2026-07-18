@@ -28,6 +28,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { trackWorkspaceCreated } from "@/lib/posthog/events";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { queryClient } from "@/lib/query-client/client";
 
 const formSchema = z.object({
 	name: z.string().min(1, "Name is required"),
@@ -67,7 +69,20 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
 
 			trackWorkspaceCreated(result.id, values.name);
 
-			router.push(`/dashboard/${result.id}/new-chat`);
+			// Seed the gate's query so it resolves without a loader flash, and
+			// route straight to onboarding vs. new-chat on the first hop.
+			if (result.llm_setup) {
+				queryClient.setQueryData(
+					cacheKeys.modelConnections.setupStatus(result.id),
+					result.llm_setup
+				);
+			}
+			// A fresh workspace can never be recovery, so this matches the gate,
+			// which is the authoritative net regardless.
+			const isInitialSetup = result.llm_setup?.stage === "initial_setup";
+			router.push(
+				isInitialSetup ? `/dashboard/${result.id}/onboard` : `/dashboard/${result.id}/new-chat`
+			);
 		} catch (error) {
 			console.error("Failed to create workspace:", error);
 			setIsSubmitting(false);

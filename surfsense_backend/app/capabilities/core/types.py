@@ -23,6 +23,7 @@ class BillingUnit(StrEnum):
     GOOGLE_SEARCH_SERP = "google_search_serp"
     GOOGLE_MAPS_PLACE = "google_maps_place"
     GOOGLE_MAPS_REVIEW = "google_maps_review"
+    AMAZON_PRODUCT = "amazon_product"
     YOUTUBE_VIDEO = "youtube_video"
     YOUTUBE_COMMENT = "youtube_comment"
     INSTAGRAM_ITEM = "instagram_item"

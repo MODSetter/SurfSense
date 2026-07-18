@@ -59,7 +59,7 @@ def _due_connector(connector_type: SearchSourceConnectorType) -> SimpleNamespace
     return SimpleNamespace(
         id=42,
         connector_type=connector_type,
-        search_space_id=7,
+        workspace_id=7,
         user_id="00000000-0000-0000-0000-000000000001",
         config={},
         periodic_indexing_enabled=True,
@@ -86,13 +86,8 @@ async def _run_checker(monkeypatch: pytest.MonkeyPatch, connector: SimpleNamespa
 
 
 @pytest.mark.asyncio
-async def test_due_bookstack_connector_dispatches_indexing_task(monkeypatch):
-    """A due BookStack connector must dispatch index_bookstack_pages_task.
-
-    Regression test for the connector type missing from the scheduler's
-    task_map, which made periodic BookStack syncs silently no-op with only a
-    "No task found" warning.
-    """
+async def test_due_bookstack_connector_disables_deprecated_indexing(monkeypatch):
+    """A due BookStack connector is retired from periodic indexing, not dispatched."""
     from app.tasks.celery_tasks import connector_tasks
 
     task_mock = MagicMock()
@@ -101,16 +96,9 @@ async def test_due_bookstack_connector_dispatches_indexing_task(monkeypatch):
     connector = _due_connector(SearchSourceConnectorType.BOOKSTACK_CONNECTOR)
     session = await _run_checker(monkeypatch, connector)
 
-    task_mock.delay.assert_called_once_with(
-        connector.id,
-        connector.search_space_id,
-        str(connector.user_id),
-        None,
-        None,
-    )
-    # The next run must be rescheduled, otherwise the connector stays "due"
-    # and is re-examined every minute.
-    assert connector.next_scheduled_at > datetime.now(UTC)
+    task_mock.delay.assert_not_called()
+    assert connector.periodic_indexing_enabled is False
+    assert connector.next_scheduled_at is None
     assert session.commits == 1
 
 

@@ -8,6 +8,7 @@
 		"google-maps",
 		"google-search",
 		"indeed",
+		"amazon",
 		"web-crawl"
 	],
 	"defaultOpen": false

@@ -4,15 +4,9 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
-import { myAccessAtom } from "@/atoms/members/members-query.atoms";
-import {
-	globalLlmConfigStatusAtom,
-	globalModelConnectionsAtom,
-	modelConnectionsAtom,
-	modelRolesAtom,
-} from "@/atoms/model-connections/model-connections-query.atoms";
+import { llmSetupStatusAtomFamily } from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
@@ -22,14 +16,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useFolderSync } from "@/hooks/use-folder-sync";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { isLlmOnboardingComplete } from "@/lib/onboarding";
 
 export function DashboardClientLayout({
 	children,
 	workspaceId,
+	initialPlaygroundSidebarCollapsed,
 }: {
 	children: React.ReactNode;
 	workspaceId: string;
+	initialPlaygroundSidebarCollapsed: boolean;
 }) {
 	const t = useTranslations("dashboard");
 	const router = useRouter();
@@ -39,85 +34,38 @@ export function DashboardClientLayout({
 	const setActiveWorkspaceIdState = useSetAtom(activeWorkspaceIdAtom);
 	const setPendingUserImageUrls = useSetAtom(pendingUserImageDataUrlsAtom);
 
-	const { data: modelRoles = {}, isLoading: loading, error } = useAtomValue(modelRolesAtom);
-	const { data: globalConnections = [], isLoading: globalConfigsLoading } = useAtomValue(
-		globalModelConnectionsAtom
-	);
-	const { data: modelConnections = [], isLoading: modelConnectionsLoading } =
-		useAtomValue(modelConnectionsAtom);
-	const { data: globalConfigStatus, isLoading: globalConfigStatusLoading } =
-		useAtomValue(globalLlmConfigStatusAtom);
-
-	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
-	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
+	// Single source of truth for the onboarding gate. Keyed by the route
+	// workspaceId so the verdict can never lag behind a workspace switch.
+	const {
+		data: setupStatus,
+		isLoading: setupLoading,
+		error: setupError,
+	} = useAtomValue(llmSetupStatusAtomFamily(Number(workspaceId)));
 
 	const isOnboardingPage = pathname?.includes("/onboard");
-	const isOwner = access?.is_owner ?? false;
 	const isWorkspaceReady = activeWorkspaceId === workspaceId;
 
+	const isReady = setupStatus?.status === "ready";
+
+	// First-run (initial_setup) is the only not-ready state that redirects, so
+	// recovery falls through to the inline composer notice and an established
+	// user who lost their models is never re-onboarded. The other direction
+	// leaves onboarding once the workspace can chat.
 	useEffect(() => {
-		if (isWorkspaceReady) return;
-		setHasCheckedOnboarding(false);
-	}, [isWorkspaceReady]);
-
-	useEffect(() => {
-		if (isOnboardingPage) {
-			setHasCheckedOnboarding(true);
-			return;
-		}
-
-		if (
-			isWorkspaceReady &&
-			!loading &&
-			!accessLoading &&
-			!globalConfigsLoading &&
-			!globalConfigStatusLoading &&
-			!modelConnectionsLoading &&
-			!hasCheckedOnboarding
-		) {
-			// Onboarding is only relevant when no operator-provided
-			// global_llm_config.yaml exists. When it does, workspaces inherit
-			// the global config and should never be forced into onboarding.
-			if (globalConfigStatus?.exists) {
-				setHasCheckedOnboarding(true);
-				return;
-			}
-
-			const onboardingComplete = isLlmOnboardingComplete(
-				modelRoles.chat_model_id,
-				globalConnections,
-				modelConnections
-			);
-
-			if (onboardingComplete) {
-				setHasCheckedOnboarding(true);
-				return;
-			}
-
-			if (!isOwner) {
-				setHasCheckedOnboarding(true);
-				return;
-			}
-
-			router.push(`/dashboard/${workspaceId}/onboard`);
-			setHasCheckedOnboarding(true);
+		if (setupLoading || setupError) return;
+		if (setupStatus?.stage === "initial_setup" && !isOnboardingPage) {
+			router.replace(`/dashboard/${workspaceId}/onboard`);
+		} else if (isReady && isOnboardingPage) {
+			router.replace(`/dashboard/${workspaceId}/new-chat`);
 		}
 	}, [
-		isWorkspaceReady,
-		loading,
-		accessLoading,
-		globalConfigsLoading,
-		globalConfigStatusLoading,
-		globalConfigStatus,
-		modelConnectionsLoading,
-		modelRoles.chat_model_id,
-		globalConnections,
-		modelConnections,
+		setupLoading,
+		setupError,
+		setupStatus?.stage,
+		isReady,
 		isOnboardingPage,
-		isOwner,
 		router,
 		workspaceId,
-		hasCheckedOnboarding,
 	]);
 
 	const electronAPI = useElectronAPI();
@@ -167,18 +115,19 @@ export function DashboardClientLayout({
 		}
 	}, [workspace_id, setActiveWorkspaceIdState, electronAPI]);
 
-	// Determine if we should show loading
-	const shouldShowLoading =
-		!hasCheckedOnboarding &&
-		(!isWorkspaceReady ||
-			loading ||
-			accessLoading ||
-			globalConfigsLoading ||
-			globalConfigStatusLoading ||
-			modelConnectionsLoading) &&
-		!isOnboardingPage;
+	// Suppress children during either pending redirect so neither /new-chat nor
+	// /onboard flashes for a frame.
+	const isLeavingOnboarding = isReady && isOnboardingPage;
+	const isEnteringOnboarding = setupStatus?.stage === "initial_setup" && !isOnboardingPage;
+	const isRedirecting =
+		!setupLoading && !setupError && (isLeavingOnboarding || isEnteringOnboarding);
 
-	// Use global loading screen - spinner animation won't reset
+	// Block children until the workspace is synced and the initial verdict is
+	// in; afterwards the composer renders its own not-ready state in place, so
+	// recovery (e.g. deleting the last model) never triggers a full-screen
+	// loader or a redirect.
+	const shouldShowLoading = !setupError && (!isWorkspaceReady || setupLoading || isRedirecting);
+
 	useGlobalLoadingEffect(shouldShowLoading);
 
 	// Wire desktop app file watcher -> single-file re-index API
@@ -188,7 +137,7 @@ export function DashboardClientLayout({
 		return null;
 	}
 
-	if (error && !hasCheckedOnboarding && !isOnboardingPage) {
+	if (setupError) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
@@ -200,7 +149,7 @@ export function DashboardClientLayout({
 					</CardHeader>
 					<CardContent>
 						<p className="text-sm text-muted-foreground">
-							{error instanceof Error ? error.message : String(error)}
+							{setupError instanceof Error ? setupError.message : String(setupError)}
 						</p>
 					</CardContent>
 				</Card>
@@ -215,7 +164,10 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider workspaceId={workspaceId}>
+			<LayoutDataProvider
+				workspaceId={workspaceId}
+				initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
+			>
 				{children}
 				<ConnectorIndicator showTrigger={false} />
 			</LayoutDataProvider>

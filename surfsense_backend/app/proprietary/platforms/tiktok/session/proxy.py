@@ -18,7 +18,8 @@ from typing import Any
 
 from scrapling.fetchers import FetcherSession
 
-from app.utils.proxy import get_proxy_url
+from app.utils.proxy import get_geo_proxy_url
+from app.utils.proxy.rotation import country_for_rotation
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,13 @@ _current_session: ContextVar[_RotatingSession | None] = ContextVar(
 class _RotatingSession:
     """Owns one live ``FetcherSession`` (sticky IP); ``rotate()`` swaps the IP.
 
-    Used sequentially within a single flow (never shared across concurrent
-    tasks), so no locking is needed. ``session`` is ``None`` only when no proxy
-    is configured.
+    Each open walks to the next country pool (see
+    :func:`app.utils.proxy.rotation.country_for_rotation`): TikTok withholds the
+    anonymous ``ttwid`` cookie from the provider's default worldwide pool but
+    mints it on country-pinned exits, so re-drawing within the same pool never
+    warms — spreading rotations across country pools does. Used sequentially
+    within a single flow (never shared across concurrent tasks), so no locking is
+    needed. ``session`` is ``None`` only when no proxy is configured.
     """
 
     def __init__(self) -> None:
@@ -47,11 +52,13 @@ class _RotatingSession:
         self.session: Any | None = None
         self.rotations = 0
         self.warmed = False
+        self.country = ""
         self._last_at = 0.0
 
     async def _open(self) -> None:
-        proxy = get_proxy_url()
         self.warmed = False
+        self.country = country_for_rotation(self.rotations)
+        proxy = get_geo_proxy_url(self.country)
         if proxy is None:
             self._cm = self.session = None
             return
@@ -74,7 +81,11 @@ class _RotatingSession:
         await self.close()
         self.rotations += 1
         await self._open()
-        logger.info("[tiktok] rotated proxy session (rotation #%d)", self.rotations)
+        logger.info(
+            "[tiktok] rotated proxy session (rotation #%d, country=%s)",
+            self.rotations,
+            self.country,
+        )
         return self.session
 
     async def pace(self) -> None:

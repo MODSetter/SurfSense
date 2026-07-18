@@ -1,6 +1,6 @@
 """Pure contact/social-signal extraction from raw HTML (Apache-2.0, generic).
 
-Lead-gen / competitive-intelligence crawls need the emails, phone numbers, and
+Lead-gen / company-research crawls need the emails, phone numbers, and
 social profiles a site publishes — which almost always live in the footer, the
 contact page, or the privacy/terms pages. Trafilatura's main-content extraction
 deliberately drops that boilerplate, so these signals must be pulled from the

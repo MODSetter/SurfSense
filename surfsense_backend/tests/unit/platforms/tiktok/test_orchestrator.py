@@ -169,6 +169,37 @@ async def test_listing_dedupes_then_caps_per_target():
     assert [i["id"] for i in items] == ["1", "2"]
 
 
+async def test_search_query_resolves_to_listing_target():
+    # searchQueries must produce a search target (not be silently dropped): a
+    # query with results flows through the listing parse/dedupe/cap path.
+    async def fake_listing(url: str, _count: int) -> list[dict]:
+        assert "search?q=meal%20prep" in url  # query wired into the search URL
+        return [{"id": "1", "author": {"uniqueId": "a"}}]
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(searchQueries=["meal prep"], resultsPerPage=5),
+        fetch=_no_html,
+        fetch_listing=fake_listing,
+    )
+    assert [i["id"] for i in items] == ["1"]
+
+
+async def test_empty_search_query_degrades_to_error_item():
+    # A withheld anonymous search feed must surface one honest ErrorItem tagged
+    # with the query, never a silent empty.
+    async def fake_listing(_url: str, _count: int) -> list[dict]:
+        return []
+
+    items = await scrape_tiktok(
+        TikTokScrapeInput(searchQueries=["meal prep"], resultsPerPage=5),
+        fetch=_no_html,
+        fetch_listing=fake_listing,
+    )
+    assert len(items) == 1
+    assert items[0]["errorCode"] == "no_items"
+    assert items[0]["input"] == "meal prep"
+
+
 async def test_empty_listing_emits_error_item():
     # A trust-gated/empty feed (0 videos) must surface one honest ErrorItem,
     # tagged with errorCode, rather than vanishing silently.

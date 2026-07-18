@@ -1,3 +1,4 @@
+import { amazon } from "./amazon";
 import { googleMaps } from "./google-maps";
 import { googleSearch } from "./google-search";
 import { indeed } from "./indeed";
@@ -19,6 +20,7 @@ const CONNECTOR_LIST: ConnectorPageContent[] = [
 	googleMaps,
 	googleSearch,
 	indeed,
+	amazon,
 	webCrawl,
 ];
 

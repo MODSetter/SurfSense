@@ -28,7 +28,7 @@ export type HeroChatDemoScript = {
 type Stage = "typing" | "steps" | "answer" | "done";
 
 const PLACEHOLDER =
-	"Track competitors, scrape platforms, automate briefs. Use / for prompts, @ for docs";
+	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
 
 /** Blinking caret for the typewriter (overlay only, never inside the real input). */
 function Caret() {
@@ -77,6 +77,7 @@ function DemoTimeline({
 			<Button
 				variant="ghost"
 				type="button"
+				tabIndex={-1}
 				onClick={() => setIsOpen((prev) => !prev)}
 				className="h-auto w-full justify-start gap-1.5 p-0 text-left text-sm font-normal text-muted-foreground transition-colors hover:bg-transparent hover:text-accent-foreground"
 			>

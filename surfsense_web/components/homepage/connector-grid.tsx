@@ -15,7 +15,7 @@ export function ConnectorGrid() {
 			<Reveal>
 				<div className="flex flex-wrap items-center gap-3">
 					<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-						Connectors for every platform your market uses
+						Connectors for every platform where answers live
 					</h2>
 					<Badge variant="outline" className="py-1">
 						{connectors.length} connectors and growing

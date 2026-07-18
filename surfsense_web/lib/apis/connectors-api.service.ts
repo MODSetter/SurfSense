@@ -426,6 +426,6 @@ export interface ObsidianStats {
 	last_sync_at: string | null;
 }
 
-export type { SlackChannel, DiscordChannel };
+export type { DiscordChannel, SlackChannel };
 
 export const connectorsApiService = new ConnectorsApiService();

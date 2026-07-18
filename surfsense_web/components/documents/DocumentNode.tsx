@@ -37,6 +37,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SidebarListItem } from "../layout/ui/sidebar/SidebarListItem";
 import { DND_TYPES } from "./FolderNode";
@@ -92,6 +93,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isMemoryDocument =
 		doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
 	const isSelectable = canMention && !isUnavailable;
+	const isMobile = useIsMobile();
 
 	const handleCheckChange = useCallback(() => {
 		if (isSelectable) {
@@ -164,9 +166,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 			<ContextMenuTrigger asChild>
 				<SidebarListItem
 					ref={attachRef}
-					active={isMentioned}
+					active={isMentioned || dropdownOpen}
 					dragging={isDragging}
-					className="gap-2.5 px-1"
+					className="group/item relative gap-2.5 px-1"
 					style={{ paddingLeft: `${depth * 16 + 4}px` }}
 					role="button"
 					tabIndex={isUnavailable ? -1 : 0}
@@ -214,32 +216,34 @@ export const DocumentNode = React.memo(function DocumentNode({
 							);
 						}
 						return (
-							<>
-								{isMemoryDocument ? (
-									<span aria-disabled="true" className="h-3.5 w-3.5 shrink-0 cursor-default">
-										<Checkbox
-											checked={false}
-											disabled
-											aria-disabled
-											className="h-3.5 w-3.5 pointer-events-none"
-										/>
-									</span>
-								) : canMention ? (
+							<span className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+								<span
+									className={cn(
+										"absolute inset-0 flex items-center justify-center transition-opacity",
+										canMention &&
+											(isMentioned ? "opacity-0" : "max-sm:opacity-0 group-hover/item:opacity-0")
+									)}
+								>
+									{getDocumentTypeIcon(
+										doc.document_type as DocumentTypeEnum,
+										"h-3.5 w-3.5 text-muted-foreground"
+									)}
+								</span>
+								{canMention ? (
 									<Checkbox
 										checked={isMentioned}
+										aria-label={`Select ${doc.title}`}
 										onCheckedChange={handleCheckChange}
 										onClick={(e) => e.stopPropagation()}
-										className="h-3.5 w-3.5 shrink-0"
-									/>
-								) : (
-									<span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-										{getDocumentTypeIcon(
-											doc.document_type as DocumentTypeEnum,
-											"h-3.5 w-3.5 text-muted-foreground"
+										className={cn(
+											"absolute h-3.5 w-3.5 transition-opacity max-sm:pointer-events-auto max-sm:opacity-100",
+											isMentioned
+												? "opacity-100"
+												: "pointer-events-none opacity-0 group-hover/item:pointer-events-auto group-hover/item:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
 										)}
-									</span>
-								)}
-							</>
+									/>
+								) : null}
+							</span>
 						);
 					})()}
 
@@ -260,36 +264,30 @@ export const DocumentNode = React.memo(function DocumentNode({
 						</TooltipContent>
 					</Tooltip>
 
-					<span className="relative shrink-0 flex items-center justify-center h-6 w-6">
-						{getDocumentTypeIcon(
-							doc.document_type as DocumentTypeEnum,
-							"h-3.5 w-3.5 text-muted-foreground"
-						) && (
-							<span
-								className={cn(
-									"absolute inset-0 flex items-center justify-center transition-opacity pointer-events-none",
-									dropdownOpen ? "opacity-0" : "group-hover:opacity-0"
-								)}
-							>
-								{getDocumentTypeIcon(
-									doc.document_type as DocumentTypeEnum,
-									"h-3.5 w-3.5 text-muted-foreground"
-								)}
-							</span>
+					<div
+						className={cn(
+							"pointer-events-none absolute top-0 right-0 bottom-0 flex items-center rounded-r-md pr-1 pl-6",
+							isMentioned || dropdownOpen
+								? "bg-gradient-to-l from-accent from-60% to-transparent"
+								: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
+							isMobile
+								? "opacity-0"
+								: isMentioned || dropdownOpen
+									? "opacity-100"
+									: "opacity-0 group-hover/item:opacity-100"
 						)}
-
+					>
 						<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 							<DropdownMenuTrigger asChild>
 								<Button
 									variant="ghost"
 									size="icon"
 									className={cn(
-										"hidden sm:inline-flex h-6 w-6 shrink-0 hover:bg-transparent",
-										dropdownOpen
-											? "opacity-100 bg-accent hover:bg-accent"
-											: "opacity-0 group-hover:opacity-100"
+										"pointer-events-auto hidden h-6 w-6 shrink-0 hover:bg-transparent sm:inline-flex",
+										dropdownOpen && "bg-accent hover:bg-accent"
 									)}
 									onClick={(e) => e.stopPropagation()}
+									aria-label={`Document actions for ${doc.title}`}
 								>
 									<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 								</Button>
@@ -341,7 +339,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 								)}
 							</DropdownMenuContent>
 						</DropdownMenu>
-					</span>
+					</div>
 				</SidebarListItem>
 			</ContextMenuTrigger>
 

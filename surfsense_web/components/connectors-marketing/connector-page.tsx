@@ -277,7 +277,7 @@ export function ConnectorPage({ content }: { content: ConnectorPageContent }) {
 						<p className="mx-auto mt-3 max-w-xl text-muted-foreground leading-relaxed">
 							The {content.name} connector is one of many in the SurfSense{" "}
 							<Link href="/" className="font-medium text-foreground underline underline-offset-4">
-								competitive intelligence platform
+								open web research platform
 							</Link>
 							. Start free, no credit card required.
 						</p>

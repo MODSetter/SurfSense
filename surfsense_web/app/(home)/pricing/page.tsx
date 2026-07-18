@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 		"open source ai agent platform",
 		"self-hosted ai workspace",
 		"ai automation pricing",
-		"competitive intelligence pricing",
+		"web scraping api pricing",
 	],
 	alternates: {
 		canonical: canonicalUrl,

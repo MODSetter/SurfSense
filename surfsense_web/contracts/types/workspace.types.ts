@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { paginationQueryParams } from ".";
+import { llmSetupStatus } from "./model-connections.types";
 
 export const workspace = z.object({
 	id: z.number(),
@@ -36,7 +37,9 @@ export const createWorkspaceRequest = workspace.pick({ name: true, description: 
 	qna_custom_instructions: z.string().nullable().optional(),
 });
 
-export const createWorkspaceResponse = workspace.omit({ member_count: true, is_owner: true });
+export const createWorkspaceResponse = workspace
+	.omit({ member_count: true, is_owner: true })
+	.extend({ llm_setup: llmSetupStatus.nullable().optional() });
 
 /**
  * Get workspace

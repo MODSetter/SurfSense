@@ -6,10 +6,10 @@
 """Captcha detection + token-injection ``page_action`` (Phase 3d).
 
 This is the **bypass logic** (hence proprietary); the generic, vendor-agnostic
-config lives in the Apache-2.0 ``app/utils/captcha/`` package. ``captchatools``
-is the multi-vendor solver registry — we only detect the challenge, harvest a
-token egressing from **the crawl's own proxy IP** (token IP-binding), inject it,
-and submit.
+config and the vendor API clients live in the Apache-2.0 ``app/utils/captcha/``
+package (:mod:`app.utils.captcha.solvers`). We only detect the challenge,
+harvest a token through that seam egressing from **the crawl's own proxy IP**
+(token IP-binding), inject it, and submit.
 
 Why a closure cell: Scrapling runs ``page_action`` after navigation but
 **swallows its exceptions and discards its return value** (see
@@ -29,7 +29,6 @@ import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from typing import Any
-from urllib.parse import urlsplit
 
 from app.utils.captcha import CaptchaConfig
 
@@ -118,26 +117,6 @@ def detect_challenge(page: Any, cfg: CaptchaConfig) -> tuple[str, str] | None:
 # --- proxy / harvest -------------------------------------------------------
 
 
-def proxy_url_to_captchatools(proxy_url: str | None) -> str | None:
-    """Reformat ``http://user:pass@host:port`` -> ``host:port:user:pass``.
-
-    captchatools wants the colon-delimited form. Returns ``None`` for a missing
-    or unparseable proxy so the solver harvests proxyless (the token may then be
-    IP-mismatched, but that's better than crashing the fetch).
-    """
-    if not proxy_url:
-        return None
-    try:
-        p = urlsplit(proxy_url)
-        if not p.hostname or not p.port:
-            return None
-        if p.username and p.password:
-            return f"{p.hostname}:{p.port}:{p.username}:{p.password}"
-        return f"{p.hostname}:{p.port}"
-    except Exception:
-        return None
-
-
 def _harvest_token(
     cfg: CaptchaConfig,
     challenge_type: str,
@@ -146,26 +125,21 @@ def _harvest_token(
     proxy: str | None,
     user_agent: str | None,
 ) -> str | None:
-    """Harvest a token from the solver. Raises on solver errors so the caller
-    can latch on the unrecoverable ones; returns ``None`` on an empty token.
+    """Harvest a token from the in-house solver seam. Raises on solver errors so
+    the caller can latch on the unrecoverable ones; returns ``None`` on an empty
+    token. ``proxy`` is a raw ``http://user:pass@host:port`` URL (the seam
+    reformats it per vendor).
     """
-    import captchatools
+    from app.utils.captcha import solvers
 
-    harvester = captchatools.new_harvester(
-        api_key=cfg.api_key,
-        solving_site=cfg.solving_site,
+    return solvers.solve(
+        cfg,
+        challenge_type=challenge_type,
         sitekey=sitekey,
-        captcha_url=page_url,
-        captcha_type=challenge_type,
-        min_score=cfg.v3_min_score,
-        action=cfg.v3_action,
-    )
-    token = harvester.get_token(
-        proxy=proxy,
-        proxy_type="HTTP",
+        page_url=page_url,
+        proxy_url=proxy,
         user_agent=user_agent,
     )
-    return token or None
 
 
 # --- injection -------------------------------------------------------------
@@ -247,7 +221,9 @@ def build_captcha_page_action(
     if not cfg.enabled or solver_latched():
         return None
 
-    captcha_proxy = proxy_url_to_captchatools(proxy_url)
+    # Raw URL; the solver seam reformats it per vendor and binds the token to
+    # this exit IP.
+    captcha_proxy = proxy_url
 
     def page_action(page: Any) -> Any:
         # Hard cap: never exceed the per-URL budget even across proxy-retry
@@ -320,10 +296,13 @@ def build_captcha_page_action(
 
 
 def _is_unrecoverable(exc: Exception) -> bool:
-    """True for solver errors that must latch solving off (no balance / bad key).
+    """True for solver errors that must latch solving off.
 
-    Matched by class name to avoid a hard import of ``captchatools.exceptions``
-    at module load (the dep is optional / lazily imported).
+    Covers the in-house seam's typed errors (``SolverBalanceError`` /
+    ``SolverAuthError`` / ``SolverUnsupportedError``) plus legacy/no-balance shapes.
+    Matched by class name so no solver module must be imported here.
     """
     name = type(exc).__name__.lower()
-    return "nobalance" in name or "wrongapikey" in name or "apikey" in name
+    return any(
+        k in name for k in ("balance", "apikey", "auth", "unsupported", "wronguser")
+    )

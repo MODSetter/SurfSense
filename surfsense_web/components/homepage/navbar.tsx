@@ -250,17 +250,22 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 					href="https://discord.gg/ejRNvftDp9"
 					target="_blank"
 					rel="noopener noreferrer"
+					aria-label="SurfSense on Discord"
 					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
 				>
-					<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+					<IconBrandDiscord
+						className="h-5 w-5 text-neutral-600 dark:text-neutral-300"
+						aria-hidden
+					/>
 				</Link>
 				<Link
 					href="https://www.reddit.com/r/SurfSense/"
 					target="_blank"
 					rel="noopener noreferrer"
+					aria-label="SurfSense on Reddit"
 					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
 				>
-					<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+					<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" aria-hidden />
 				</Link>
 				<NavbarGitHubStars className="hidden md:flex" />
 				<ThemeTogglerComponent />
@@ -362,17 +367,25 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 								href="https://discord.gg/ejRNvftDp9"
 								target="_blank"
 								rel="noopener noreferrer"
+								aria-label="SurfSense on Discord"
 								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 							>
-								<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+								<IconBrandDiscord
+									className="h-5 w-5 text-neutral-600 dark:text-neutral-300"
+									aria-hidden
+								/>
 							</Link>
 							<Link
 								href="https://www.reddit.com/r/SurfSense/"
 								target="_blank"
 								rel="noopener noreferrer"
+								aria-label="SurfSense on Reddit"
 								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 							>
-								<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+								<IconBrandReddit
+									className="h-5 w-5 text-neutral-600 dark:text-neutral-300"
+									aria-hidden
+								/>
 							</Link>
 							<NavbarGitHubStars className="rounded-lg" />
 							<ThemeTogglerComponent />

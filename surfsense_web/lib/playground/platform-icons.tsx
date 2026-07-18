@@ -22,6 +22,7 @@ function brandIcon(src: string, alt: string) {
 	};
 }
 
+export const AmazonIcon = brandIcon("/connectors/amazon.svg", "Amazon");
 export const RedditIcon = brandIcon("/connectors/reddit.svg", "Reddit");
 export const YouTubeIcon = brandIcon("/connectors/youtube.svg", "YouTube");
 export const InstagramIcon = brandIcon("/connectors/instagram.svg", "Instagram");

@@ -7,15 +7,15 @@ import pytest
 from app.capabilities import (
     youtube,  # noqa: F401  — importing the namespace registers its verbs
 )
+from app.capabilities.core import BillingUnit
 from app.capabilities.core.store import get_capability
-from app.capabilities.core.types import BillingUnit
 from app.capabilities.youtube.comments.schemas import CommentsInput, CommentsOutput
 from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
 
 pytestmark = pytest.mark.unit
 
 
-def test_youtube_scrape_is_registered_and_billed_per_video():
+def test_youtube_scrape_is_registered_and_billable():
     cap = get_capability("youtube.scrape")
 
     assert cap.name == "youtube.scrape"
@@ -24,7 +24,7 @@ def test_youtube_scrape_is_registered_and_billed_per_video():
     assert cap.billing_unit is BillingUnit.YOUTUBE_VIDEO
 
 
-def test_youtube_comments_is_registered_and_billed_per_comment():
+def test_youtube_comments_is_registered_and_billable():
     cap = get_capability("youtube.comments")
 
     assert cap.name == "youtube.comments"

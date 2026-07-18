@@ -29,6 +29,7 @@ EXPECTED_TOOLS = {
     "surfsense_tiktok_trending",
     "surfsense_google_maps_scrape",
     "surfsense_google_maps_reviews",
+    "surfsense_amazon_scrape",
     "surfsense_instagram_scrape",
     "surfsense_instagram_details",
     "surfsense_indeed_scrape",

@@ -8,6 +8,8 @@ import {
 	connectionUpdateRequest,
 	type GlobalLlmConfigStatus,
 	globalLlmConfigStatus,
+	type LlmSetupStatus,
+	llmSetupStatus,
 	type ModelCreateRequest,
 	type ModelPreviewRead,
 	type ModelProviderRead,
@@ -38,6 +40,10 @@ class ModelConnectionsApiService {
 
 	getGlobalLlmConfigStatus = async (): Promise<GlobalLlmConfigStatus> => {
 		return baseApiService.get(`/api/v1/global-llm-config-status`, globalLlmConfigStatus);
+	};
+
+	getLlmSetupStatus = async (workspaceId: number): Promise<LlmSetupStatus> => {
+		return baseApiService.get(`/api/v1/workspaces/${workspaceId}/llm-setup-status`, llmSetupStatus);
 	};
 
 	getModelProviders = async (): Promise<ModelProviderRead[]> => {

@@ -135,8 +135,8 @@ export const GenerateImageToolUI = ({
 };
 
 export {
-	GenerateImageArgsSchema,
-	GenerateImageResultSchema,
 	type GenerateImageArgs,
+	GenerateImageArgsSchema,
 	type GenerateImageResult,
+	GenerateImageResultSchema,
 };

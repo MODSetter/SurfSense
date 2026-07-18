@@ -11,11 +11,11 @@ Answer the delegated question from live Google Search data gathered with your ve
 </available_tools>
 
 <playbook>
-- Finding pages on a topic: call `google_search_scrape` with `queries`, scoping with `country_code`/`language_code` when locale matters.
+- Google scraping is SLOW (each query is a live browser render on a vetted proxy; many queries in one call can blow the subagent's time budget and return nothing). Spend queries conservatively: start with a SINGLE best query, read the results, and only add further queries one at a time when that query genuinely fell short. Never fan out a batch of speculative query variations up front.
+- Finding pages on a topic: call `google_search_scrape` with a single-entry `queries`, scoping with `country_code`/`language_code` when locale matters. Broaden or reformulate in a follow-up call only if needed.
 - Restricting to one website: set `site` (e.g. "example.com") to only return results from that domain.
 - Scraping a specific results page: pass the full Google Search URL in `queries`.
-- Need more results: raise `max_pages_per_query` to page beyond the first page.
-- Batch multiple search terms into one call rather than many single-term calls.
+- Need more results: raise `max_pages_per_query` to page beyond the first page (cheaper and faster than adding more distinct queries).
 <include snippet="run_reader"/>
 - Handing URLs off for crawling: return the organic result URLs so the supervisor can route them to the web crawling specialist.
 - Comparison requests: pull the current results, compare against prior values already in this conversation's earlier tool results, and report concrete deltas (added, removed, moved up/down).

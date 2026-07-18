@@ -1,25 +1,30 @@
-"""Proxy-aware fetch seam for the Reddit scraper (no browser).
+"""Proxy-aware fetch seam for the Reddit scraper (browser-warm, HTTP-fetch).
 
 All network I/O flows through :func:`fetch_json` and always egresses through the
 residential proxy (a direct hit would expose and risk-block the server IP).
 
-Reddit deprecated *cold* unauthenticated ``.json`` (a bare anonymous GET now
-403s). The maintained anonymous recipe (proven live 2026-07-04, see
-``scripts/e2e_reddit_scraper.py`` step 0) is:
+Reddit shut anonymous ``.json`` (~May 2026) and, crucially, put a JavaScript
+challenge in front of minting the anonymous ``loid`` session cookie: a plain
+HTTP GET (even Chrome-impersonated) can no longer mint ``loid`` — it just 403s
+on the bot wall (confirmed live 2026-07-18, and yt-dlp #16877). So the recipe is
+now two-phase on ONE sticky exit IP:
 
-    warm one anonymous session cookie (``loid``) with a plain GET to
-    ``www.reddit.com/svc/shreddit/<slug>`` (``old.reddit.com`` fallback), then
-    GET ``www.reddit.com/<path>/.json?raw_json=1`` through that same
-    Chrome-impersonated, sticky-IP session. Which warm URL mints ``loid`` is
-    exit-IP dependent, so the order is a tiebreak — see :func:`warm_session`.
+    1. WARM (once per session): open a real patchright-Chromium stealth browser
+       (:func:`warm_session`) on a sticky proxy IP, load a public HTML page so
+       the JS challenge runs and mints the anonymous cookie jar (incl. ``loid``).
+    2. FETCH (many, fast): replay that minted jar through a plain-HTTP,
+       Chrome-impersonated ``FetcherSession`` pinned to the SAME sticky IP,
+       GETting ``www.reddit.com/<path>/.json?raw_json=1``. The ``.json`` body
+       comes back as raw JSON (no browser HTML wrapper) because this phase is
+       plain HTTP, keeping the fast/cheap fan-out — browser cost is paid ONCE
+       per warm, not per fetch.
 
-``loid`` is Reddit's equivalent of Google Maps' ``NID`` session cookie: an
-anonymous, logged-out id that unlocks the public API — no account, no browser.
-This module is a direct port of ``../youtube/innertube.py``'s rotate-on-block
-sticky-session pattern (``_RotatingSession`` + ``_current_session`` ContextVar +
-``open_proxy_holder``/``bind_proxy_holder``/``proxy_session``), with a
-Reddit-specific :func:`warm_session` bolted on and a ``.json``-shaped
-:func:`fetch_json` instead of an InnerTube POST.
+``loid`` binds to the exit IP, so both phases share one sticky proxy session id
+(see :meth:`_RotatingSession._open`); a 403/blocked IP rotates to a fresh sticky
+id + country and re-warms. This module is a port of ``../youtube/innertube.py``'s
+rotate-on-block sticky-session pattern (``_RotatingSession`` + ``_current_session``
+ContextVar + ``open_proxy_holder``/``bind_proxy_holder``/``proxy_session``), with
+the browser warm bolted on and a ``.json``-shaped :func:`fetch_json`.
 """
 
 from __future__ import annotations
@@ -29,15 +34,22 @@ import json
 import logging
 import random
 import time
+import uuid
 from contextlib import asynccontextmanager, suppress
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
-from scrapling.fetchers import AsyncFetcher, FetcherSession
+from scrapling.fetchers import AsyncFetcher, AsyncStealthySession, FetcherSession
 
-from app.utils.proxy import get_proxy_url
+from app.utils.proxy import get_proxy_url, get_sticky_proxy_url
+
+# Shared cross-country rotation walk (also used by the TikTok sibling). Kept under
+# the historical private names this module and its tests reference.
+from app.utils.proxy.rotation import (
+    country_for_rotation as _country_for_rotation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +80,16 @@ _current_session: ContextVar[_RotatingSession | None] = ContextVar(
 # different handling per status (spec section 3).
 _ROTATE_STATUS = 403
 _BACKOFF_STATUS = 429
-_MAX_ROTATIONS = 3
+# Rotating an IP is cheap (close + reopen one keep-alive connection through the
+# gateway + a 2-request warm ≈ a few seconds) and each rotation also walks to the
+# next country pool, so we spend rotations liberally: neither a dirty IP nor a
+# wholly-blocked country pool should fail a job. 8 ≥ len(_FALLBACK_COUNTRIES), so
+# a job tries every country at least once before giving up. Worst case (a genuine
+# global block) costs _MAX_ROTATIONS bounded warm attempts before
+# RedditAccessBlockedError.
+# ponytail: 8 caps that worst case at ~30s; raise if every pool gets dirty at
+# once, lower if a real global block is wasting time.
+_MAX_ROTATIONS = 8
 _MAX_BACKOFFS = 4
 _BACKOFF_BASE_S = 5.0
 
@@ -96,16 +117,26 @@ _HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
 # (the caller filters on ``includeNSFW`` downstream). Mirrors the probe.
 _OVER18_COOKIES = {"over18": "1"}
 
-# ``svc/shreddit`` needs *a* path to render; any always-public subreddit mints
-# ``loid`` just the same. ``r/popular`` always exists, so it's a safe default
-# regardless of which target this session ends up serving.
-_WARM_SLUG = "r/popular"
-_SHREDDIT_URL = (
-    "https://www.reddit.com/svc/shreddit/{slug}"
-    "?render-mode=partial&seeker-session=false"
-)
-_OLD_REDDIT_URL = "https://old.reddit.com/"
+# The browser warm loads *a* public HTML page so Reddit's JS challenge runs and
+# mints the anonymous jar; any always-public subreddit works. ``r/popular``
+# always exists, so it's a safe default regardless of this session's target.
+_WARM_HTML_URL = "https://www.reddit.com/r/popular/"
 _LOID_COOKIE = "loid"
+
+# The stealth browser warm (cold start + the page's own ``load``) lands in
+# ~6-15s once the solve_cloudflare/network_idle dead-waits are dropped (see
+# warm_session), so 30s is a generous ceiling that still bounds a dead exit; the
+# fast HTTP ``.json`` fetches keep the tight _REQUEST_TIMEOUT_S above.
+_WARM_TIMEOUT_MS = 30_000
+
+# Bound concurrent browser warms so a wide fan-out (up to _FANOUT_CONCURRENCY=16
+# workers, each warming once) can't spawn 16 Chromiums at once and OOM the box.
+# Warms are staggered, not serialized: a freed slot starts the next worker's warm
+# while already-warmed workers fetch over plain HTTP.
+# ponytail: 4 is tuned for a ~2GB container; raise on a bigger box, lower if warm
+# spikes push memory. Ceiling: a burst of >4 cold workers queues behind this.
+_WARM_CONCURRENCY = 4
+_warm_slots = asyncio.Semaphore(_WARM_CONCURRENCY)
 
 
 def now_iso() -> str:
@@ -113,12 +144,22 @@ def now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-def _response_cookie_names(page: Any) -> set[str]:
-    """Cookie names set by a response (best-effort across scrapling shapes)."""
+def _browser_cookie_jar(page: Any) -> dict[str, str]:
+    """Extract a ``{name: value}`` jar from a browser Response (best-effort).
+
+    Scrapling's browser Response exposes cookies as a list of ``{name, value,
+    ...}`` dicts (patchright/playwright shape); tolerate a plain ``{name: value}``
+    dict too so a shape change or a fake in tests still works.
+    """
     cookies = getattr(page, "cookies", None)
     if isinstance(cookies, dict):
-        return set(cookies.keys())
-    return set()
+        return {str(k): str(v) for k, v in cookies.items()}
+    jar: dict[str, str] = {}
+    if isinstance(cookies, (list, tuple)):
+        for item in cookies:
+            if isinstance(item, dict) and "name" in item and "value" in item:
+                jar[str(item["name"])] = str(item["value"])
+    return jar
 
 
 def _parse_json(page: Any) -> Any | None:
@@ -155,11 +196,13 @@ class _RotatingSession:
     """Owns one live ``FetcherSession`` (sticky IP) and can swap it for a fresh one.
 
     ``rotate()`` closes the current keep-alive connection and opens a new one, so
-    the rotating gateway hands out a different residential exit IP. Because the
-    ``loid`` cookie binds to the exit IP, ``rotate()`` also drops the warmed
-    state — the next fetch re-warms on the new IP. Used sequentially within a
-    single flow (never shared across concurrent tasks), so no locking is needed.
-    ``session`` is ``None`` only when no proxy is configured.
+    the rotating gateway hands out a different residential exit IP — walking to
+    the next country pool (see :func:`_country_for_rotation`) so a wholly-blocked
+    pool can't fail the flow. Because the ``loid`` cookie binds to the exit IP,
+    ``rotate()`` also drops the warmed state — the next fetch re-warms on the new
+    IP. Used sequentially within a single flow (never shared across concurrent
+    tasks), so no locking is needed. ``session`` is ``None`` only when no proxy
+    is configured.
     """
 
     def __init__(self) -> None:
@@ -167,21 +210,44 @@ class _RotatingSession:
         self.session: Any | None = None
         self.rotations = 0
         self.warmed = False
+        self.country = ""
+        # Sticky proxy URL shared by the browser warm AND the HTTP fetch session
+        # so both egress the SAME exit IP (``loid`` binds to that IP). The minted
+        # cookie jar is replayed on every ``.json`` fetch.
+        self.proxy: str | None = None
+        self.cookies: dict[str, str] = {}
         self._last_at = 0.0
 
     async def _open(self) -> None:
-        proxy = get_proxy_url()
         self.warmed = False
-        if proxy is None:
+        self.cookies = {}
+        self.country = _country_for_rotation(self.rotations)
+        # A fresh vendor session id per (re)open pins a distinct sticky exit IP,
+        # so rotating drops the dirty IP AND its dead cookie jar in one step.
+        session_id = uuid.uuid4().hex[:12]
+        self.proxy = get_sticky_proxy_url(session_id, self.country)
+        if self.proxy is None:
             self._cm = self.session = None
             return
         self._cm = FetcherSession(
-            proxy=proxy,
+            proxy=self.proxy,
             stealthy_headers=True,
             impersonate="chrome",
             timeout=_REQUEST_TIMEOUT_S,
         )
         self.session = await self._cm.__aenter__()
+
+    async def warm(self) -> bool:
+        """Browser-mint the anonymous cookie jar on this session's sticky IP.
+
+        Returns ``True`` and stores the jar (:attr:`cookies`) when ``loid`` was
+        minted, else ``False`` (caller rotates the IP and retries).
+        """
+        jar = await warm_session(self.proxy)
+        if jar:
+            self.cookies = jar
+            return True
+        return False
 
     async def close(self) -> None:
         if self._cm is not None:
@@ -194,7 +260,11 @@ class _RotatingSession:
         await self.close()
         self.rotations += 1
         await self._open()
-        logger.info("[reddit] rotated proxy session (rotation #%d)", self.rotations)
+        logger.info(
+            "[reddit] rotated proxy session (rotation #%d, country=%s)",
+            self.rotations,
+            self.country,
+        )
         return self.session
 
     async def pace(self) -> None:
@@ -237,49 +307,58 @@ async def proxy_session():
         await holder.close()
 
 
-async def warm_session(session: Any, *, slug: str = _WARM_SLUG) -> bool:
-    """Mint an anonymous ``loid`` cookie on a freshly opened session.
+async def warm_session(proxy: str | None) -> dict[str, str] | None:
+    """Browser-mint the anonymous cookie jar (incl. ``loid``) on a sticky IP.
 
-    Returns ``True`` when a ``loid`` was issued (the session can now reach
-    ``.json``), else ``False`` (caller rotates the IP and retries).
+    Reddit gates ``loid`` minting behind a JS challenge that a plain-HTTP client
+    can't clear, so this spins up patchright-Chromium ONCE per session on the
+    given sticky proxy IP, loads a public HTML page so the challenge runs, and
+    returns the minted ``{name: value}`` cookie jar. Returns ``None`` when
+    ``loid`` wasn't minted (a dirty exit IP), so the caller rotates to a fresh
+    sticky IP and retries. Proven live 2026-07-18 (see e2e step 0).
 
-    Tries ``svc/shreddit`` first, then ``old.reddit`` (yt-dlp's primary) as
-    the fallback. Live probes 2026-07-04 saw both directions across exit IPs,
-    but a live run 2026-07-06 had ``old.reddit`` 403 on 12/12 fresh IPs while
-    ``shreddit`` minted every time — Reddit appears to have shut old.reddit to
-    anonymous traffic, so shreddit-first saves one guaranteed-403 round trip
-    per warm-up. The fallback is what actually matters — it preserves
-    correctness if a given IP (or Reddit) flips back the other way. That cost
-    is amortized: ``fan_out`` reuses one warmed session per worker across many
-    jobs, so warm-up runs once per worker, not per fetch.
+    Takes the sticky ``proxy`` URL (never the fetch session) so the browser
+    egresses the SAME exit IP the HTTP ``.json`` fetches will replay the jar on.
+    A module-level semaphore bounds concurrent browser launches under fan-out.
 
-    ponytail: sequential two-source warm burns 1 wasted request on ~half of new
-    sessions. A parallel warm (gather both, take whichever mints) removes the
-    latency but always spends 2 requests; not worth it while warm-up is
-    once-per-worker. Revisit only if session churn (not reuse) dominates.
-
-    Takes an already-open ``session`` (never constructs one) so tests can drive
-    warm/rotate deterministically with a fake session, exactly like the youtube
-    sibling's fetch-resilience tests.
+    What actually clears Reddit's wall is the stealth browser + ``google_search``
+    referer, NOT captcha solving. ``solve_cloudflare`` and ``network_idle`` were
+    each ~60s of dead wait per warm (Reddit's wall isn't Cloudflare, so the solver
+    hunts a challenge that never appears; and its long-lived connections never go
+    network-idle) — dropping both took the warm from ~133s to ~10s with ``loid``
+    still minting 3/3 across us/gb/de exits (measured 2026-07-18). A rare miss
+    still self-heals: :func:`fetch_json` rotates to a fresh sticky IP and re-warms.
     """
-    seen: set[str] = set()
-    with suppress(Exception):
-        page = await session.get(_SHREDDIT_URL.format(slug=slug), headers=_HEADERS)
-        seen |= _response_cookie_names(page)
-    if _LOID_COOKIE in seen:
-        return True
+    if proxy is None:
+        return None
+    async with _warm_slots:
+        try:
+            async with AsyncStealthySession(
+                headless=True,
+                google_search=True,
+                network_idle=False,
+                proxy=proxy,
+                timeout=_WARM_TIMEOUT_MS,
+            ) as sess:
+                page = await sess.fetch(_WARM_HTML_URL)
+                jar = _browser_cookie_jar(page)
+                return jar if _LOID_COOKIE in jar else None
+        except Exception as e:  # a browser crash must not abort the flow
+            logger.warning("[reddit] browser warm failed: %s", e)
+            return None
 
-    # Fallback: mints loid on exit IPs where shreddit 403s instead.
-    with suppress(Exception):
-        page = await session.get(_OLD_REDDIT_URL, headers=_HEADERS)
-        seen |= _response_cookie_names(page)
-    return _LOID_COOKIE in seen
 
+async def _get_page(session: Any, url: str, cookies: dict[str, str]) -> Any:
+    """GET through the warmed sticky session, or a one-shot proxied fetch.
 
-async def _get_page(session: Any, url: str) -> Any:
-    """GET through the warmed sticky session, or a one-shot proxied fetch."""
+    ``cookies`` is the browser-minted jar; ``over18`` is merged so NSFW listings
+    aren't blanked. The one-shot path (no bound session) has no minted jar and is
+    a best-effort fallback only — it can't clear the JS challenge.
+    """
     if session is not None:
-        return await session.get(url, headers=_HEADERS, cookies=_OVER18_COOKIES)
+        return await session.get(
+            url, headers=_HEADERS, cookies={**cookies, **_OVER18_COOKIES}
+        )
     return await AsyncFetcher.get(
         url,
         headers=_HEADERS,
@@ -313,7 +392,7 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
         session = holder.session
         try:
             if session is not None and not holder.warmed:
-                warmed_ok = await warm_session(session)
+                warmed_ok = await holder.warm()
                 holder.warmed = True  # attempted; don't re-warm this IP
                 if not warmed_ok:
                     if attempt < _MAX_ROTATIONS:
@@ -325,7 +404,7 @@ async def fetch_json(path: str, params: dict[str, Any] | None = None) -> Any | N
                     )
 
             await holder.pace()
-            page = await _get_page(session, url)
+            page = await _get_page(session, url, holder.cookies)
             status = page.status
 
             if status == 200:

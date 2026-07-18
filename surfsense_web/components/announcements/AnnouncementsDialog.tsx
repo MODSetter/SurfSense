@@ -11,7 +11,7 @@ import { useAnnouncements } from "@/hooks/use-announcements";
 
 export function AnnouncementsDialog() {
 	const [open, setOpen] = useAtom(announcementsDialogAtom);
-	const { announcements, markAllRead } = useAnnouncements();
+	const { announcements, markAllRead } = useAnnouncements({ includeExpired: true });
 
 	// Auto-mark all visible announcements as read when the dialog opens
 	useEffect(() => {

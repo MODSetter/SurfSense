@@ -1,3 +1,4 @@
+import { atomFamily } from "jotai-family";
 import { atomWithQuery } from "jotai-tanstack-query";
 import { modelConnectionsApiService } from "@/lib/apis/model-connections-api.service";
 import { isAuthenticated } from "@/lib/auth-utils";
@@ -44,3 +45,18 @@ export const modelRolesAtom = atomWithQuery((get) => {
 		queryFn: () => modelConnectionsApiService.getModelRoles(workspaceId),
 	};
 });
+
+// Keyed by the route workspaceId (not activeWorkspaceIdAtom) so the onboarding
+// gate's verdict can never be computed against a stale workspace during a
+// workspace switch.
+export const llmSetupStatusAtomFamily = atomFamily((workspaceId: number) =>
+	atomWithQuery(() => ({
+		queryKey: cacheKeys.modelConnections.setupStatus(workspaceId),
+		enabled: workspaceId > 0 && isAuthenticated(),
+		staleTime: 5 * 60 * 1000,
+		// Recovery is event-driven: mutations invalidate this key; external fixes
+		// are caught on window focus. No polling, so not-ready tabs cost nothing.
+		refetchOnWindowFocus: true,
+		queryFn: () => modelConnectionsApiService.getLlmSetupStatus(workspaceId),
+	}))
+);
