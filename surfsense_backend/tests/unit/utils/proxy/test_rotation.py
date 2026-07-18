@@ -49,5 +49,5 @@ def test_caller_budgets_cover_every_country():
     from app.proprietary.platforms.reddit import fetch as reddit_fetch
     from app.proprietary.platforms.tiktok.session import client as tiktok_client
 
-    assert reddit_fetch._MAX_ROTATIONS >= len(rotation.FALLBACK_COUNTRIES)
-    assert tiktok_client._MAX_ROTATIONS >= len(rotation.FALLBACK_COUNTRIES)
+    assert len(rotation.FALLBACK_COUNTRIES) <= reddit_fetch._MAX_ROTATIONS
+    assert len(rotation.FALLBACK_COUNTRIES) <= tiktok_client._MAX_ROTATIONS

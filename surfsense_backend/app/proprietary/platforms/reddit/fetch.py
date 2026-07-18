@@ -42,9 +42,7 @@ from app.utils.proxy import get_geo_proxy_url, get_proxy_url
 # Shared cross-country rotation walk (also used by the TikTok sibling). Kept under
 # the historical private names this module and its tests reference.
 from app.utils.proxy.rotation import (
-    FALLBACK_COUNTRIES as _FALLBACK_COUNTRIES,
     country_for_rotation as _country_for_rotation,
-    rotation_countries as _rotation_countries,
 )
 
 logger = logging.getLogger(__name__)
