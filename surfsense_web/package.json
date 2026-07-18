@@ -1,6 +1,6 @@
 {
 	"name": "surfsense_web",
-	"version": "0.0.33",
+	"version": "0.0.34",
 	"private": true,
 	"packageManager": "pnpm@10.26.0",
 	"description": "SurfSense Frontend",

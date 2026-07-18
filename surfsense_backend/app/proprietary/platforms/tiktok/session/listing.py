@@ -10,10 +10,11 @@ signs correctly for whatever version TikTok ships.
 The pure response-shape parsing lives in :func:`items_from_response`; this module
 is the untested browser-I/O glue (covered by the e2e smoke, not unit tests).
 
-Needs a residential proxy; datacenter IPs get empty bodies and 429s. The profile
-feed returns an empty 200 to headless sessions, so :func:`fetch_item_list` goes
-headful only when ``CRAWL_HEADED_XVFB_ENABLED`` promises an Xvfb display — else it
-stays headless and degrades to an ``ErrorItem`` instead of crashing on launch.
+Needs a residential proxy; datacenter IPs get empty bodies and 429s. TikTok also
+withholds the feed (empty 200, or a redirect to /login) from the provider's
+unpinned worldwide pool, so :func:`_fetch_with_rotation` walks country-pinned
+exits until a draw is non-empty — the same escape the Reddit/ttwid warm path uses
+(see :mod:`app.utils.proxy.rotation`).
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlsplit
 
 from scrapling.fetchers import StealthyFetcher
 
@@ -30,7 +32,8 @@ from app.proprietary.web_crawler.stealth import (
     build_stealthy_kwargs,
     get_stealth_config,
 )
-from app.utils.proxy import get_proxy_url
+from app.utils.proxy import get_geo_proxy_url
+from app.utils.proxy.rotation import country_for_rotation
 
 from ..extraction import (
     comments_from_response,
@@ -224,6 +227,20 @@ def _build_page_action(
     return page_action
 
 
+def _primer_url(url: str) -> str:
+    """A tiny same-origin URL (``/robots.txt``) for the initial navigation.
+
+    Scrapling's outer ``page.goto`` waits for the ``load`` event, which TikTok's
+    SPA feed pages never fire — so navigating straight to the target burns the
+    full 30s timeout every fetch. Priming on ``robots.txt`` (a plain-text 200 that
+    fires ``load`` at once, same origin so referer/cookies stay coherent) lets the
+    ``page_action`` then reach the real target with ``domcontentloaded`` — ~4x
+    faster on profile feeds with no loss of capture.
+    """
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}/robots.txt"
+
+
 def _fetch_sync(
     url: str,
     target_count: int,
@@ -231,15 +248,16 @@ def _fetch_sync(
     extract: ExtractFn,
     interact: InteractFn,
     *,
+    proxy: str | None,
     headless: bool = True,
 ) -> list[dict[str, Any]]:
     collected: list[dict[str, Any]] = []
     kwargs = build_stealthy_kwargs(get_stealth_config())
     StealthyFetcher.fetch(
-        url,
+        _primer_url(url),
         headless=headless,
         network_idle=False,
-        proxy=get_proxy_url(),
+        proxy=proxy,
         page_action=_build_page_action(
             collected, url, target_count, markers, extract, interact
         ),
@@ -248,40 +266,68 @@ def _fetch_sync(
     return collected[:target_count]
 
 
-async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, Any]]:
-    """Return up to ``target_count`` itemStructs from a listing page's XHRs.
+async def _fetch_with_rotation(
+    page_url: str,
+    target_count: int,
+    markers: tuple[str, ...],
+    extract: ExtractFn,
+    interact: InteractFn,
+    *,
+    headless: bool = True,
+) -> list[dict[str, Any]]:
+    """Capture matching XHRs, walking exit *countries* until a draw is non-empty.
 
-    Headful when ``CRAWL_HEADED_XVFB_ENABLED`` promises a display (the profile feed
-    is empty to headless sessions); headless otherwise so launch never fails.
-    Retries an empty draw up to ``TIKTOK_LISTING_MAX_ATTEMPTS`` for a fresh exit IP.
+    TikTok withholds ``item_list``/``comment`` bodies from DataImpulse's unpinned
+    worldwide pool (the pool ``PROXY_URL`` uses for SERP health) but serves them on
+    country-pinned exits, so each empty draw retries on a fresh country rather than
+    the same flagged pool (see :mod:`app.utils.proxy.rotation`). Non-geo providers
+    ignore the country and re-draw their one URL, so this stays a safe no-op there.
     """
-    headless = not config.CRAWL_HEADED_XVFB_ENABLED
     attempts = max(1, config.TIKTOK_LISTING_MAX_ATTEMPTS)
-    for attempt in range(1, attempts + 1):
+    for attempt in range(attempts):
+        proxy = get_geo_proxy_url(country_for_rotation(attempt))
         items = await asyncio.to_thread(
             _fetch_sync,
             page_url,
             target_count,
-            _ITEM_LIST_MARKERS,
-            items_from_response,
-            _scroll_page,
+            markers,
+            extract,
+            interact,
+            proxy=proxy,
             headless=headless,
         )
-        if items or attempt == attempts:
+        if items or attempt == attempts - 1:
             return items
         logger.info(
-            "[tiktok] empty item_list for %s (attempt %d/%d); retrying on a fresh exit IP",
+            "[tiktok] empty %s for %s (attempt %d/%d); retrying on a fresh exit country",
+            markers[0],
             page_url,
-            attempt,
+            attempt + 1,
             attempts,
         )
     return []
 
 
+async def fetch_item_list(page_url: str, target_count: int) -> list[dict[str, Any]]:
+    """Return up to ``target_count`` itemStructs from a listing page's XHRs.
+
+    Headful when ``CRAWL_HEADED_XVFB_ENABLED`` promises a display, headless
+    otherwise so launch never fails. Retries empty draws across a spread of exit
+    countries (``TIKTOK_LISTING_MAX_ATTEMPTS``) to escape a TikTok-flagged pool.
+    """
+    return await _fetch_with_rotation(
+        page_url,
+        target_count,
+        _ITEM_LIST_MARKERS,
+        items_from_response,
+        _scroll_page,
+        headless=not config.CRAWL_HEADED_XVFB_ENABLED,
+    )
+
+
 async def fetch_user_search(page_url: str, target_count: int) -> list[dict[str, Any]]:
     """Return up to ``target_count`` ``user_info`` records from a user-search page."""
-    return await asyncio.to_thread(
-        _fetch_sync,
+    return await _fetch_with_rotation(
         page_url,
         target_count,
         _USER_SEARCH_MARKERS,
@@ -292,8 +338,7 @@ async def fetch_user_search(page_url: str, target_count: int) -> list[dict[str, 
 
 async def fetch_comments(page_url: str, target_count: int) -> list[dict[str, Any]]:
     """Return up to ``target_count`` raw comment records from a video page's XHRs."""
-    return await asyncio.to_thread(
-        _fetch_sync,
+    return await _fetch_with_rotation(
         page_url,
         target_count,
         _COMMENT_MARKERS,
@@ -304,8 +349,7 @@ async def fetch_comments(page_url: str, target_count: int) -> list[dict[str, Any
 
 async def fetch_trending(page_url: str, target_count: int) -> list[dict[str, Any]]:
     """Return up to ``target_count`` trending itemStructs from the Explore feed."""
-    return await asyncio.to_thread(
-        _fetch_sync,
+    return await _fetch_with_rotation(
         page_url,
         target_count,
         _EXPLORE_MARKERS,
