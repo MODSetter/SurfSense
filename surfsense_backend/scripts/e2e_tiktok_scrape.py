@@ -39,6 +39,12 @@ from urllib.parse import urlsplit
 from dotenv import load_dotenv
 
 # --- bootstrap: load .env and put the backend root on sys.path before app.* ---
+# Scraped captions carry arbitrary Unicode (emoji, CJK, decorative glyphs); the
+# Windows cp1252 console can't encode it and would abort the whole run on a single
+# character. Emit UTF-8 and replace anything un-encodable instead of crashing.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 for _candidate in (_BACKEND_ROOT / ".env", _BACKEND_ROOT.parent / ".env"):
@@ -50,7 +56,7 @@ _FIXTURES = _BACKEND_ROOT / "tests" / "fixtures" / "tiktok"
 
 # Evergreen public targets: a regular high-volume creator, a broad hashtag, and
 # a common search term.
-_PROFILE = "nasa"
+_PROFILE = "tiktok"
 _HASHTAG = "food"
 _SEARCH = "meal prep"
 _COUNT = 5

@@ -9,10 +9,10 @@ This is NOT a pytest test (it needs live network + a residential/custom proxy).
 It:
 
   Step 0 — go/no-go probe (folds in the old scripts/reddit_probe.py): open a
-      proxy session, warm a ``loid`` (svc/shreddit first, old.reddit fallback),
-      then do sequential ``.json`` fetches on the SAME sticky IP and assert each
-      returns a Reddit Listing. If this fails the whole approach is invalid —
-      later steps are skipped.
+      proxy session, browser-warm a ``loid`` cookie jar on the sticky exit IP,
+      then do sequential plain-HTTP ``.json`` fetches on the SAME sticky IP
+      (replaying the jar) and assert each returns a Reddit Listing. If this fails
+      the whole approach is invalid — later steps are skipped.
   Step 1 — scrape a discovered post URL (post + a few comments).
   Step 2 — scrape a subreddit listing.
   Step 3 — run a search query.
@@ -96,8 +96,11 @@ async def step0_probe() -> bool:
             return _check(
                 "proxy configured", False, "no proxy -> set PROXY_PROVIDER + creds"
             )
-        minted = await warm_session(holder.session)
+        jar = await warm_session(holder.proxy)
+        if jar:
+            holder.cookies = jar
         holder.warmed = True  # don't let fetch_json re-warm; we just warmed it
+        minted = bool(jar)
         _check("loid warm-up minted a session", minted)
         oks: list[bool] = []
         for path in (f"r/{_SUBREDDIT}/hot", "r/programming/new", f"r/{_SUBREDDIT}/hot"):
