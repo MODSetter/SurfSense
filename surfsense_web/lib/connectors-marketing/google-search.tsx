@@ -7,9 +7,9 @@ export const googleSearch: ConnectorPageContent = {
 	cardTitle: "SERP API",
 	icon: IconBrandGoogle,
 
-	metaTitle: "SERP API for Rank Tracking and Competitor Intel | SurfSense",
+	metaTitle: "SERP API for Rank Tracking and AI Overview Monitoring | SurfSense",
 	metaDescription:
-		"Track rankings, competitor ads, and Google AI Overviews with the SurfSense SERP API. Scrape Google Search results as structured JSON via API or MCP. Start free.",
+		"Track rankings, ads, and Google AI Overviews with the SurfSense SERP API. Scrape Google Search results as structured JSON via API or MCP. Start free.",
 	keywords: [
 		"serp api",
 		"serp api alternative",
@@ -25,9 +25,9 @@ export const googleSearch: ConnectorPageContent = {
 		"serp analysis",
 	],
 
-	h1: "SERP API for Rank Tracking and Competitor SERP Intelligence",
+	h1: "SERP API for Rank Tracking and AI Overview Monitoring",
 	heroLede:
-		"The SurfSense SERP API scrapes Google Search results as structured JSON: organic rankings, paid ads, AI Overviews, and People Also Ask. Point your AI agents at the queries that matter to your market and know the moment a rank moves, an ad appears, or an AI answer starts citing a competitor.",
+		"The SurfSense SERP API scrapes Google Search results as structured JSON: organic rankings, paid ads, AI Overviews, and People Also Ask. Point your AI agents at the queries you care about and know the moment a rank moves, an ad appears, or an AI answer changes its sources.",
 
 	transcript: {
 		prompt: "Track who's ranking and running ads for 'competitor pricing' in the US",
@@ -77,8 +77,7 @@ export const googleSearch: ConnectorPageContent = {
 		},
 		{
 			label: "Related searches",
-			description:
-				"Suggested and related queries, to map how your market actually phrases its search.",
+			description: "Suggested and related queries, to map how people actually phrase the search.",
 		},
 		{
 			label: "SERP metadata",

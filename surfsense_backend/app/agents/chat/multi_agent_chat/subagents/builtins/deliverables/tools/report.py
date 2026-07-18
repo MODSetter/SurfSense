@@ -773,7 +773,7 @@ def create_generate_report_tool(
 
             if not llm:
                 error_msg = (
-                    "No LLM configured. Please configure a language model in Settings."
+                    "No LLM configured. Please configure a chat model in Settings."
                 )
                 report_id = await _save_failed_report(error_msg)
                 return _failed(

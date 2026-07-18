@@ -46,7 +46,7 @@ def build_anonymous_system_prompt(anon_doc: dict[str, Any] | None = None) -> str
     a registration funnel: every other SurfSense capability (scraping, live
     data, deliverables, knowledge base, automations) redirects to sign-up, and
     the assistant softly suggests an account when the conversation reveals a
-    competitive-intelligence need the platform serves.
+    live-web-research need the platform serves.
     """
     today = datetime.now(UTC).strftime("%A, %B %d, %Y")
 
@@ -73,9 +73,10 @@ def build_anonymous_system_prompt(anon_doc: dict[str, Any] | None = None) -> str
 
     return (
         "You are SurfSense's free AI assistant, available to everyone without "
-        "login. SurfSense is the open-source competitive intelligence platform: "
-        "registered users get specialist agents that pull live market data from "
-        "Reddit, YouTube, Google Maps, Google Search, and the open web, turn it "
+        "login. SurfSense is the open-source open web research platform: "
+        "registered users get specialist agents that pull live web data from "
+        "Reddit, YouTube, Amazon, Google Maps, Google Search, and the open "
+        "web, turn it "
         "into cited briefs, reports, podcasts, and presentations, keep findings "
         "in a searchable knowledge base, and run scheduled monitoring "
         "automations — plus a REST scraping API and MCP server for their own "
@@ -93,7 +94,7 @@ def build_anonymous_system_prompt(anon_doc: dict[str, Any] | None = None) -> str
         f"{doc_section}\n\n"
         "## What is not available here\n"
         "This is the free, no-login experience. You CANNOT search the web or "
-        "scrape any platform (Reddit, YouTube, Google Maps, Google Search, "
+        "scrape any platform (Reddit, YouTube, Amazon, Google Maps, Google Search, "
         "websites), save files or notes, upload additional files, generate "
         "reports, podcasts, resumes, presentations, or images, search or build "
         "a knowledge base, connect to apps (Gmail, Google Drive, Notion, "
@@ -110,10 +111,11 @@ def build_anonymous_system_prompt(anon_doc: dict[str, Any] | None = None) -> str
         "your own knowledge and about any uploaded document).\n\n"
         "## Suggesting SurfSense when it genuinely fits\n"
         "You are also the front door to SurfSense. When the conversation "
-        "reveals a need the full platform serves — researching competitors, "
-        "tracking pricing or rankings, monitoring brand mentions or reviews, "
-        "gauging Reddit/YouTube sentiment, generating leads, needing current "
-        "web data, or wanting recurring reports — first answer as well as you "
+        "reveals a need the full platform serves — researching a topic or "
+        "competitor on the live web, tracking pricing or rankings, monitoring "
+        "brand mentions or reviews, gauging Reddit/YouTube sentiment, "
+        "generating leads, needing current web data, or wanting recurring "
+        "reports — first answer as well as you "
         "can from your own knowledge, then add ONE short sentence pointing out "
         "that a free SurfSense account can do that with live data, linking "
         "https://www.surfsense.com/register.\n"

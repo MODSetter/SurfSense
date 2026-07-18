@@ -697,9 +697,8 @@ class Config:
     # per item; retune with an env change + restart (no code/migration):
     #   <KEY> = round(USD_per_1000_items * 1_000)
     #   $3.50/1000 -> 3500 | $5.00/1000 -> 5000 | $2.00/1000 -> 2000
-    # Defaults sit at/above Apify's first-party actor rates (Jul 2026), which
-    # is justified because SurfSense charges no subscription tiers, no
-    # per-run actor-start fees, and no separate proxy/compute/storage billing.
+    # Defaults include margin for proxy, compute, and storage costs while
+    # remaining independently adjustable for each platform.
     PLATFORM_SCRAPE_BILLING_ENABLED = (
         os.getenv("PLATFORM_SCRAPE_BILLING_ENABLED", "FALSE").upper() == "TRUE"
     )
@@ -715,6 +714,7 @@ class Config:
     GOOGLE_MAPS_MICROS_PER_REVIEW = int(
         os.getenv("GOOGLE_MAPS_MICROS_PER_REVIEW", "1500")
     )
+    AMAZON_MICROS_PER_PRODUCT = int(os.getenv("AMAZON_MICROS_PER_PRODUCT", "3500"))
     YOUTUBE_MICROS_PER_VIDEO = int(os.getenv("YOUTUBE_MICROS_PER_VIDEO", "2500"))
     # Kept separate from the video rate so comments can be re-tuned toward the
     # cheaper per-comment market ($0.40-2.00/1k) without touching video pricing.
@@ -1102,7 +1102,8 @@ class Config:
     PROXY_URLS = os.getenv("PROXY_URLS")
 
     # =====================================================================
-    # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha) via captchatools.
+    # Phase 3d — Captcha solving (reCAPTCHA v2/v3, hCaptcha, v2-Enterprise) via
+    # the in-house solver seam (app/utils/captcha/solvers.py).
     # The LAST-resort bypass tier: only fires on the StealthyFetcher browser
     # tier, only when a sitekey is detected, and only when explicitly enabled.
     # Cloudflare Turnstile is already handled free in-framework (03a), NOT here.
@@ -1114,9 +1115,9 @@ class Config:
     CAPTCHA_SOLVING_ENABLED = (
         os.getenv("CAPTCHA_SOLVING_ENABLED", "FALSE").upper() == "TRUE"
     )
-    # captchatools "solving_site": capmonster | 2captcha | anticaptcha |
-    # capsolver | captchaai. captchatools is itself the provider registry, so we
-    # do not rebuild a vendor hierarchy.
+    # Solver vendor. "capsolver" (AI-native, fastest on reCAPTCHA-Enterprise) and
+    # "2captcha" have in-house clients today; anticaptcha / capmonster are added
+    # progressively in solvers._PROVIDERS.
     CAPTCHA_SOLVER_PROVIDER = os.getenv("CAPTCHA_SOLVER_PROVIDER", "capsolver")
     CAPTCHA_SOLVER_API_KEY = os.getenv("CAPTCHA_SOLVER_API_KEY")
     # Per-URL solve cap so one hostile page can't burn unbounded solver credit.

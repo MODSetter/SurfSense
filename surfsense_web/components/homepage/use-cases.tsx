@@ -13,17 +13,17 @@ const USE_CASES: {
 	art: UseCaseArtVariant;
 }[] = [
 	{
-		title: "Competitor price monitoring",
+		title: "Search & AI answer research",
 		description:
-			"Crawl competitor pricing and product pages on a schedule and get an alert the day something changes, not the quarter after.",
-		href: "/web-crawl",
-		anchor: "Web Crawl API",
-		art: "price",
+			"Watch the rankings, ads, and AI Overviews people actually see for the queries you care about, and know the moment they change.",
+		href: "/google-search",
+		anchor: "SERP API",
+		art: "serp",
 	},
 	{
-		title: "Brand monitoring",
+		title: "Community & brand listening",
 		description:
-			"Track every mention of your brand, your competitors, and your category across the communities where buyers speak candidly.",
+			"Track every mention of your brand, your competitors, and your category across the communities where people speak candidly.",
 		href: "/reddit",
 		anchor: "Reddit API",
 		art: "brand",
@@ -31,7 +31,7 @@ const USE_CASES: {
 	{
 		title: "Social sentiment mining",
 		description:
-			"Pull public posts, reels, and full comment threads from any creator or competitor, then score how audiences actually react to launches and campaigns.",
+			"Pull public posts, reels, and full comment threads from any creator or brand, then score how audiences actually react to launches and campaigns.",
 		href: "/instagram",
 		anchor: "Instagram API",
 		art: "chat",
@@ -45,12 +45,12 @@ const USE_CASES: {
 		art: "leads",
 	},
 	{
-		title: "Market research",
+		title: "Competitor price monitoring",
 		description:
-			"Watch the rankings, ads, and AI answers your market actually sees, and mine audience sentiment at scale.",
-		href: "/google-search",
-		anchor: "SERP API",
-		art: "serp",
+			"Crawl competitor pricing and product pages on a schedule and get an alert the day something changes, not the quarter after.",
+		href: "/web-crawl",
+		anchor: "Web Crawl API",
+		art: "price",
 	},
 ];
 

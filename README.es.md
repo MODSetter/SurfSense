@@ -1,4 +1,4 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, la plataforma de inteligencia competitiva de código abierto para agentes de IA" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, la alternativa de código abierto a NotebookLM para investigación de la web abierta" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,95 +20,51 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: NotebookLM para investigación de inteligencia competitiva
+# SurfSense: La alternativa de código abierto a NotebookLM para la investigación de la web abierta
 
-SurfSense es la **plataforma de inteligencia competitiva de código abierto para agentes de IA**, como NotebookLM pero con conectores de scraping en vivo. Tus agentes monitorean a la competencia, siguen los rankings y escuchan a tu mercado con datos en vivo de **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search y la web abierta**, a través de una única **API REST** o un **servidor MCP**. Agentes programados y activados por eventos convierten lo que encuentran en informes y alertas, y una base de conocimiento integrada mantiene cada hallazgo disponible para búsqueda con citas.
+SurfSense es la **alternativa de código abierto a NotebookLM para agentes de IA**, una plataforma de investigación de la web abierta con conectores de datos en vivo. Tus agentes investigan la web en vivo con datos estructurados de **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search y cualquier página de la web abierta**, a través de una única **API REST** o un **servidor MCP**. Agentes programados y activados por eventos convierten lo que encuentran en informes y alertas, y una base de conocimiento integrada mantiene cada hallazgo disponible para búsqueda con citas.
 
 > [!NOTE]
 > **📢 Una nota para nuestros usuarios de la alternativa a NotebookLM**
 >
-> Durante los últimos meses construimos SurfSense como el mejor agente de investigación general para tu propio conocimiento, y ese capítulo nos dio una comunidad de la que estamos genuinamente orgullosos. Herramientas agénticas como Claude, OpenCode, Hermes y OpenClaw ya han demostrado que los agentes son el futuro, y la investigación general se está convirtiendo en algo que todo agente capaz hace de fábrica. Lo que a los agentes todavía les falta son **datos de mercado en vivo y los flujos de trabajo a su alrededor**, así que ahí es donde estamos dirigiendo toda nuestra energía: convertirnos en la plataforma definitiva de agentes de inteligencia competitiva de código abierto.
+> Durante los últimos meses construimos SurfSense como el mejor agente de investigación general para tu propio conocimiento, y ese capítulo nos dio una comunidad de la que estamos genuinamente orgullosos. Herramientas agénticas como Claude, OpenCode, Hermes y OpenClaw ya han demostrado que los agentes son el futuro, y razonar sobre un índice estático se está convirtiendo en algo que todo agente capaz hace de fábrica. Lo que a los agentes todavía les falta son **datos en vivo de los lugares donde realmente viven las respuestas, y los flujos de trabajo a su alrededor**. Ahí es donde estamos dirigiendo toda nuestra energía: darles a los agentes las primitivas para investigar la web abierta.
 >
 > **Nada de lo que dependes va a desaparecer.** Tu base de conocimiento, el chat con citas, los informes, los podcasts, las presentaciones, las automatizaciones y los chats colaborativos siguen funcionando, y el autoalojamiento sigue siendo gratuito y de código abierto. Lee el anuncio completo en [nuestro changelog](https://www.surfsense.com/changelog).
 
 ## Tabla de contenidos
 
 - [Por qué los agentes necesitan SurfSense](#por-qué-los-agentes-necesitan-surfsense)
-- [¿Qué puedes hacer con SurfSense?](#qué-puedes-hacer-con-surfsense)
 - [Conectores de datos en vivo](#conectores-de-datos-en-vivo)
 - [Inicio rápido](#inicio-rápido)
 - [Todo lo demás que viene incluido](#todo-lo-demás-que-viene-incluido)
-- [SurfSense vs Google NotebookLM](#surfsense-vs-google-notebooklm)
+- [Cómo se compara SurfSense](#cómo-se-compara-surfsense)
 - [Hoja de ruta](#hoja-de-ruta)
 - [Contribuye](#contribuye)
 
 ## Por qué los agentes necesitan SurfSense
 
-Pregúntale a cualquier agente capaz "¿cuánto están cobrando los competidores esta semana?" o "¿qué está diciendo Reddit sobre nosotros desde el lanzamiento?" y no tiene ningún lugar confiable donde buscar. Las APIs oficiales de las plataformas tienen límites de tasa, precios pensados para empresas grandes o directamente no existen, y la infraestructura de scraping es frágil. SurfSense cierra esa brecha:
+Pregúntale a cualquier agente capaz "¿qué está diciendo Reddit sobre este producto desde el lanzamiento?" o "¿de qué se quejan realmente las reseñas de estos diez lugares?" y no tiene ningún lugar confiable donde buscar. Las APIs oficiales de las plataformas tienen límites de tasa, precios pensados para empresas grandes o directamente no existen; la infraestructura de scraping es frágil; y manejar un navegador con un LLM quema minutos y tokens por página. SurfSense les da a los agentes las primitivas en su lugar:
 
-- **Conectores nativos por plataforma**, cada uno un endpoint REST tipado que devuelve JSON estructurado. Sin ruleta de límites de tasa, sin parsear HTML.
+- **Una única superficie tipada para dondequiera que vivan los datos.** Cada conector es un endpoint REST que devuelve JSON estructurado: publicaciones, comentarios, transcripciones, reseñas, SERPs, páginas. Sin ruleta de límites de tasa, sin parsear HTML, sin bucles de navegador.
 - **Un servidor MCP** que expone cada conector como una herramienta nativa (`surfsense_reddit_scrape`, `surfsense_google_search` y más) para Claude, Cursor o cualquier framework de agentes.
-- **Un arnés de agentes**, no solo datos en bruto: reintentos, salida estructurada y medición de créditos vienen integrados, así que los agentes pasan de una pregunta a un informe sin que tú construyas la infraestructura.
-- **Código abierto y autoalojable**, para que tu investigación competitiva se quede en tu propia infraestructura.
-
-## ¿Qué puedes hacer con SurfSense?
-
-Cada caso de uso a continuación es una tarea real que el agente de SurfSense ejecuta de principio a fin hoy, con una sola instrucción o según un horario.
-
-### Flujos de trabajo multi-conector
-
-Encadena varios conectores en una sola ejecución del agente y recibe un único informe con citas.
-
-- **Impacto de un lanzamiento, en todas las plataformas** — "Nuestro competidor lanzó la v2 ayer. Mide la reacción en búsquedas, Reddit y YouTube." El agente extrae SERPs, hilos de Reddit y comentarios de YouTube, y luego fusiona las tres señales en un solo informe de impacto del lanzamiento.
-- **Análisis de competidores locales** — Google Maps encuentra a los jugadores, el rastreador web lee sus páginas de precios y Google Search muestra quién gana la búsqueda, todo en una sola ejecución.
-- **Competidor 360, según un horario** — una automatización encadena cuatro conectores cada semana: cambios en el sitio, movimientos de ranking, sentimiento en Reddit y reacción en YouTube.
-
-### Monitoreo de competidores
-
-- **Vigilancia de precios** — extrae cada plan, precio y límite de las páginas de precios de tus competidores en una sola tabla, luego vuelve a verificarlas a diario y alerta ante cualquier cambio.
-- **Seguimiento de producto y changelog** — rastrea las páginas de changelog, producto y empleo de tus rivales cada lunes y recibe un informe de lo que lanzaron.
-- **Monitoreo de rankings y anuncios** — sigue los rankings de Google, los anuncios pagados y las citas en AI Overviews que tu mercado realmente ve, y señala los movimientos día a día.
-
-### Generación de leads B2B
-
-- **Leads de negocios locales** — convierte una categoría y un territorio ("hamburgueserías en San José") en una lista de leads con teléfonos, sitios web, calificaciones y contactos de decisores extraídos de sus sitios.
-- **Equipos y contactos** — rastrea el sitio de cualquier empresa y extrae el equipo completo con correos, redes sociales y la procedencia de cada dato, exportado a CSV.
-- **Mapeo de portafolios y mercados** — mapea el portafolio de un inversor o una categoría completa, y luego enriquece cada empresa con precios y contactos.
-
-### Escucha de marca y mercado
-
-- **Monitoreo de marca en Reddit** — escucha lo que tu mercado dice sobre ti, tus competidores y tu categoría en los hilos donde los compradores hablan con franqueza.
-- **Sentimiento de audiencia en YouTube** — extrae videos, transcripciones y comentarios a escala, y luego agrupa lo que las audiencias elogian y critican.
-- **Minería de intención y cambios de proveedor** — encuentra a las personas que buscan activamente una alternativa a un competidor, ordenadas por qué tan listas están para cambiarse.
-
-### Investigación de mercado
-
-- **Investigación profunda en la web en vivo** — el agente rastrea docenas de fuentes en vivo sobre una pregunta y sintetiza una respuesta con citas, no un índice desactualizado.
-- **Seguimiento de AI Overviews y GEO** — captura cuándo los AI Overviews de Google responden las búsquedas de tu mercado, y exactamente qué fuentes citan.
-- **Informes y alertas con citas** — todo lo que los agentes recopilan aterriza en tu espacio de trabajo como informes y alertas con fuentes que puedes verificar.
-
-### Automatiza cualquiera de estas tareas, sin código
-
-Las automatizaciones ejecutan turnos completos de agente según un horario o en respuesta a eventos, y luego escriben los resultados en Notion, Slack, Linear y Jira. Describe el flujo de trabajo en lenguaje natural y SurfSense lo construye. Prueba con instrucciones como:
-
-- "Vigila las páginas de precios de nuestros 3 principales competidores y avísame en Slack cuando cambie un plan o un precio."
-- "Rastrea cada mención de nuestra marca en Reddit y YouTube y envíame un resumen diario."
-- "Monitorea nuestro ranking en Google para nuestras 10 palabras clave principales y señala las caídas semana a semana."
-- "Extrae las nuevas reseñas de Google Maps de nuestras ubicaciones y las de nuestros competidores cada lunes."
-- "Ejecuta un informe mensual de análisis de la competencia y guárdalo en mi espacio de trabajo."
+- **Un arnés de agentes**, no solo datos en bruto: reintentos, salida estructurada y medición de créditos vienen integrados, así que los agentes pasan de una pregunta a un informe con citas sin que tú construyas la infraestructura.
+- **Código abierto y autoalojable**, para que tu investigación se quede en tu propia infraestructura.
 
 ## Conectores de datos en vivo
 
 | Conector | Qué obtienen tus agentes | Más información |
 |---|---|---|
 | **Reddit** | Publicaciones, comentarios y flujos de subreddits sin los límites de tasa de la API oficial | [Reddit Scraper API](https://www.surfsense.com/reddit) |
-| **YouTube** | Videos, transcripciones e hilos de comentarios para escuchar a tu marca y productos | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **YouTube** | Videos, transcripciones e hilos de comentarios a escala | [YouTube Scraper API](https://www.surfsense.com/youtube) |
 | **Instagram** | Perfiles, publicaciones y reels públicos sin la Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
 | **TikTok** | Videos, comentarios, hashtags y perfiles sin aprobación de la Research API | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
-| **Google Maps** | Lugares, calificaciones y reseñas para investigar competidores locales y prospectos | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
-| **Google Search** | SERPs en vivo para seguimiento de posiciones y monitoreo de mercado | [Google Search API](https://www.surfsense.com/google-search) |
+| **Google Maps** | Lugares, calificaciones y reseñas para investigar negocios locales | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
+| **Google Search** | SERPs en vivo para investigación y monitoreo de búsquedas | [Google Search API](https://www.surfsense.com/google-search) |
+| **Amazon** | Datos públicos de productos: precios, calificaciones, ofertas, vendedores y rankings de más vendidos | [Amazon Product API](https://www.surfsense.com/amazon) |
 | **Web Crawl** (rastreo web) | Cualquier página de la web abierta como contenido limpio y estructurado | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **Conectores MCP externos** | Conecta cualquier servidor MCP a tus agentes, con OAuth de un clic para Notion, Slack, Jira y más | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
+
+El catálogo de conectores está creciendo más allá de las plataformas sociales y la búsqueda; cada nueva fuente llega como un endpoint tipado sobre la misma API y el mismo servidor MCP.
 
 La facturación es de pago por uso: los conectores facturan por elemento realmente devuelto, los rastreos por página obtenida con éxito, y las llamadas fallidas nunca se facturan. Las instalaciones autoalojadas funcionan con la facturación desactivada. Consulta los [precios](https://www.surfsense.com/pricing).
 
@@ -124,7 +80,7 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
   -H "Content-Type: application/json" \
   -d '{
     "search_queries": ["your brand"],
-    "community": "webscraping",
+    "community": "SaaS",
     "sort": "top",
     "time_filter": "week"
   }'
@@ -151,8 +107,7 @@ Tu agente ahora puede llamar a cada conector como una herramienta nativa. Consul
 
 ### Usa la nube
 
-Ve a [surfsense.com](https://www.surfsense.com), inicia sesión y pídele al agente datos de mercado en vivo en lenguaje natural. Las cuentas nuevas comienzan con $5 de crédito gratuito y sin suscripción.
-
+Ve a [surfsense.com](https://www.surfsense.com), inicia sesión y pídele al agente datos de la web en vivo en lenguaje natural. Las cuentas nuevas comienzan con $5 de crédito gratuito y sin suscripción.
 
 ### Autoalójalo gratis
 
@@ -193,6 +148,10 @@ El espacio de trabajo de investigación que convirtió a SurfSense en la alterna
 - Presentaciones de diapositivas editables, resúmenes en video narrados y generación de imágenes con IA.
 
 <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="Generador de informes con IA" /></p>
+
+**Automatizaciones**
+
+- Ejecuta turnos completos de agente según un horario o en respuesta a eventos, descritos en lenguaje natural, con los resultados escritos en Notion, Slack, Linear y Jira.
 
 **Colaboración en equipo**
 
@@ -240,13 +199,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Comentarios en tiempo real" /></p>
 
-## SurfSense vs Google NotebookLM
+## Cómo se compara SurfSense
+
+SurfSense es el único producto de código abierto que combina un espacio de trabajo de investigación al estilo NotebookLM para personas con primitivas de datos en vivo para agentes. Así se compara frente a cada clase de herramienta.
+
+**vs agentes de navegador (Browserbase, Browser Use).** Los agentes de navegador manejan un navegador real con un LLM en el bucle: la herramienta correcta cuando una tarea requiere hacer clic, iniciar sesión o rellenar formularios. Pero la mayor parte de la investigación es recuperación de solo lectura, y para recuperar información el bucle de LLM-en-un-navegador te cuesta minutos y miles de tokens por página. Una llamada a un conector de SurfSense es una sola petición HTTP: segundos, determinista y cero tokens gastados en decidir dónde hacer clic.
+
+**vs APIs de scraping (Firecrawl).** Las APIs de scraping son excelentes para convertir una página genérica en markdown, pero un bloque de markdown sigue dejando a tu agente extrayendo la estructura de la prosa, y se degradan en plataformas protegidas contra bots como Reddit, TikTok e Instagram. Los conectores de SurfSense devuelven elementos estructurados nativos de cada plataforma — publicaciones, comentarios, transcripciones, reseñas — y facturan solo por los elementos realmente devueltos; las llamadas fallidas nunca se facturan.
+
+**vs APIs de búsqueda (Exa, Tavily, Parallel).** Las APIs de búsqueda responden desde un índice de la web, que es la herramienta correcta para "encuéntrame páginas sobre X". No pueden extraer los comentarios de un hilo de Reddit, las reacciones de TikTok, las transcripciones de YouTube ni las reseñas de Google Maps: los lugares donde la respuesta suele vivir realmente.
+
+**vs marketplaces de scrapers (Apify).** Los marketplaces te dan miles de actores de la comunidad, cada uno con su propio esquema, calidad y precio. SurfSense es una única API tipada y un único servidor MCP con un arnés de agentes y un espacio de trabajo de investigación detrás, y es de código abierto.
+
+### SurfSense vs Google NotebookLM
 
 ¿Todavía nos comparas como una alternativa a NotebookLM? Aquí tienes el desglose honesto.
 
 | Característica | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **Datos de mercado en vivo para agentes** | No | Conectores de Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search y rastreo web vía API REST y MCP |
+| **Datos web en vivo para agentes** | No | Conectores de Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search y rastreo web vía API REST y MCP |
 | **Servidor MCP** | No | Cada conector expuesto como herramienta nativa de agente, más servidores MCP propios con aplicaciones OAuth de un clic |
 | **Fuentes por Notebook** | 50 (gratis) a 600 (Ultra, $249.99/mes) | Ilimitadas |
 | **Número de Notebooks** | 100 (gratis) a 500 (niveles de pago) | Ilimitado |

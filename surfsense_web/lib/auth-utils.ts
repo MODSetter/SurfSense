@@ -45,6 +45,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/google-maps",
 	"/google-search",
 	"/web-crawl",
+	"/amazon",
 ];
 
 /**

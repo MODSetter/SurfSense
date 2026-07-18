@@ -76,7 +76,7 @@ function Show-Banner {
                                                                            
 
 "@ -ForegroundColor White
-    Write-Host "         OSS Alternative to NotebookLM for Teams" -ForegroundColor Yellow
+    Write-Host "           NotebookLM for Open Web Research" -ForegroundColor Yellow
     Write-Host ("=" * 62) -ForegroundColor Cyan
     Write-Info "This installer will create $InstallDir\ and start SurfSense with Docker Compose."
 }

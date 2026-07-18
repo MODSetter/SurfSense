@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from .base import IDModel, TimestampModel
+from .model_connections import LlmSetupStatusRead
 
 
 class WorkspaceBase(BaseModel):
@@ -35,6 +36,9 @@ class WorkspaceRead(WorkspaceBase, IDModel, TimestampModel):
     api_access_enabled: bool = False
     qna_custom_instructions: str | None = None
     shared_memory_md: str | None = None
+    # Populated only by create_workspace so the client can route straight to
+    # onboarding vs. new-chat on the first hop. Null everywhere else.
+    llm_setup: LlmSetupStatusRead | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

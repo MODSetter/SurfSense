@@ -41,13 +41,12 @@ export function ConnectAgentDialog({ className }: { className?: string }) {
 					<SidebarButtonBadge>New</SidebarButtonBadge>
 				</span>
 			</DialogTrigger>
-			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+			<DialogContent className="max-h-[85vh] min-w-0 overflow-x-hidden overflow-y-auto sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>Connect to Claude Code, Codex, OpenCode…</DialogTitle>
 					<DialogDescription>
-						The SurfSense MCP server gives any coding agent these scrapers and your knowledge base
-						as native tools. You need an API key (create one under API Keys) — then pick your agent
-						and paste its config.
+						Give your coding agent access to SurfSense scrapers and your knowledge base. Create an
+						API key under API Keys, choose your agent, then paste the config.
 					</DialogDescription>
 				</DialogHeader>
 				<AgentSetupTabs options={{ baseUrl: BACKEND_URL || undefined }} />

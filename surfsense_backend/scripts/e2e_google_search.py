@@ -28,9 +28,12 @@ sys.path.insert(0, str(_ROOT))
 load_dotenv(_ROOT / ".env")
 
 logging.basicConfig(level=logging.WARNING)
-logging.getLogger("app.proprietary.platforms.google_search.scraper").setLevel(
-    logging.INFO
-)
+for _name in (
+    "app.proprietary.platforms.google_search.scraper",
+    "app.proprietary.platforms.google_search.fetch",
+    "app.proprietary.platforms.google_search.captcha",
+):
+    logging.getLogger(_name).setLevel(logging.INFO)
 
 from app.proprietary.platforms.google_search import (  # noqa: E402
     GoogleSearchScrapeInput,
@@ -146,6 +149,9 @@ async def run(
 
 _CASES = {
     "plain": lambda: run("plain query", queries="python asyncio tutorial"),
+    # Prod incident 2026-07-17: single-word brand/navigational queries were
+    # exhausting all 24 IPs (precheck 200 but the browser render 429-walled).
+    "brand": lambda: run("brand query (notebooklm, prod repro)", queries="notebooklm"),
     "site": lambda: run("site: filter", queries="machine learning", site="arxiv.org"),
     "ads": lambda: run("text ads", queries="car insurance quotes", expect_ads=True),
     "products": lambda: run(

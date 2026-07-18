@@ -17,11 +17,19 @@ import { Textarea } from "@/components/ui/textarea";
 import type { FormField } from "@/lib/playground/json-schema";
 import { cn } from "@/lib/utils";
 
+export interface FieldOption {
+	label: string;
+	value: string;
+}
+
+type FieldOptionsResolver = (field: FormField) => FieldOption[] | undefined;
+
 interface SchemaFormProps {
 	fields: FormField[];
 	values: Record<string, unknown>;
 	onChange: (name: string, value: unknown) => void;
 	disabled?: boolean;
+	getFieldOptions?: FieldOptionsResolver;
 	/** Field names flagged by a 422 response, shown with error styling. */
 	fieldErrors?: Record<string, string>;
 }
@@ -32,12 +40,14 @@ function FieldControl({
 	onChange,
 	disabled,
 	invalid,
+	options,
 }: {
 	field: FormField;
 	value: unknown;
 	onChange: (value: unknown) => void;
 	disabled?: boolean;
 	invalid?: boolean;
+	options?: FieldOption[];
 }) {
 	const id = `field-${field.name}`;
 
@@ -61,6 +71,27 @@ function FieldControl({
 					{field.enumValues.map((option) => (
 						<SelectItem key={option} value={option}>
 							{option}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+		);
+	}
+
+	if (options) {
+		return (
+			<Select
+				value={value ? String(value) : options[0]?.value}
+				onValueChange={onChange}
+				disabled={disabled}
+			>
+				<SelectTrigger id={id} className={cn("w-full", invalid && "border-destructive")}>
+					<SelectValue placeholder="Select…" />
+				</SelectTrigger>
+				<SelectContent>
+					{options.map((option) => (
+						<SelectItem key={option.value} value={option.value}>
+							{option.label} ({option.value})
 						</SelectItem>
 					))}
 				</SelectContent>
@@ -116,12 +147,14 @@ function FieldRow({
 	onChange,
 	disabled,
 	error,
+	options,
 }: {
 	field: FormField;
 	value: unknown;
 	onChange: (value: unknown) => void;
 	disabled?: boolean;
 	error?: string;
+	options?: FieldOption[];
 }) {
 	return (
 		<div className="space-y-1.5">
@@ -143,13 +176,21 @@ function FieldRow({
 				onChange={onChange}
 				disabled={disabled}
 				invalid={!!error}
+				options={options}
 			/>
 			{error && <p className="text-xs text-destructive">{error}</p>}
 		</div>
 	);
 }
 
-export function SchemaForm({ fields, values, onChange, disabled, fieldErrors }: SchemaFormProps) {
+export function SchemaForm({
+	fields,
+	values,
+	onChange,
+	disabled,
+	getFieldOptions,
+	fieldErrors,
+}: SchemaFormProps) {
 	const [showAdvanced, setShowAdvanced] = useState(false);
 
 	const { primary, advanced } = useMemo(() => {
@@ -168,6 +209,7 @@ export function SchemaForm({ fields, values, onChange, disabled, fieldErrors }: 
 					onChange={(value) => onChange(field.name, value)}
 					disabled={disabled}
 					error={fieldErrors?.[field.name]}
+					options={getFieldOptions?.(field)}
 				/>
 			))}
 
@@ -197,6 +239,7 @@ export function SchemaForm({ fields, values, onChange, disabled, fieldErrors }: 
 									onChange={(value) => onChange(field.name, value)}
 									disabled={disabled}
 									error={fieldErrors?.[field.name]}
+									options={getFieldOptions?.(field)}
 								/>
 							))}
 						</div>

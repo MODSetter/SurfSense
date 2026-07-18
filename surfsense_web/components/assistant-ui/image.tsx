@@ -233,4 +233,4 @@ Image.Preview = ImagePreview;
 Image.Filename = ImageFilename;
 Image.Zoom = ImageZoom;
 
-export { Image, ImageRoot, ImagePreview, ImageFilename, ImageZoom, imageVariants };
+export { Image, ImageFilename, ImagePreview, ImageRoot, ImageZoom, imageVariants };

@@ -6,7 +6,7 @@ export const youtube: ConnectorPageContent = {
 	name: "YouTube",
 	icon: IconBrandYoutube,
 
-	metaTitle: "YouTube Scraper API for Audience Sentiment | SurfSense",
+	metaTitle: "YouTube Data API for Comments and Transcripts | SurfSense",
 	metaDescription:
 		"Scrape YouTube videos, comments, and transcripts at scale with the SurfSense YouTube Scraper API. No Data API quotas, plus a free tier for AI agents. Start now.",
 	keywords: [
@@ -23,9 +23,9 @@ export const youtube: ConnectorPageContent = {
 		"audience research tools",
 	],
 
-	h1: "YouTube Scraper API for Audience Sentiment and Content Intelligence",
+	h1: "YouTube Data API for Comments, Transcripts, and Audience Sentiment",
 	heroLede:
-		"The SurfSense YouTube API pulls videos, channel stats, comments, and transcripts at scale, without YouTube Data API quotas. Feed your AI agents every comment and transcript that matters to your market, so you know what people actually think about your product and your competitors' content.",
+		"The SurfSense YouTube API pulls videos, channel stats, comments, and transcripts at scale, without YouTube Data API quotas. Feed your AI agents every comment and transcript that matters to your research, so you know what audiences actually think about any product, topic, or channel.",
 
 	transcript: {
 		prompt: "Summarize how people reacted in the comments on our launch video",
@@ -88,9 +88,9 @@ export const youtube: ConnectorPageContent = {
 				"Read every comment on your launch video or a competitor's ad, not a sample. Score product feedback and ad reaction so your team knows what actually resonated with the audience.",
 		},
 		{
-			title: "Competitor channel analysis",
+			title: "Channel analysis",
 			description:
-				"Pull a rival channel's full catalog with views, likes, and cadence to see which content wins in your niche, then brief an agent to spot the patterns you should copy.",
+				"Pull any channel's full catalog with views, likes, and cadence to see which content wins in a niche, then brief an agent to spot the patterns worth copying.",
 		},
 		{
 			title: "Influencer vetting",

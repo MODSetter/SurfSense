@@ -18,7 +18,7 @@ export function BasicsSection({ name, description, errors, onChange }: BasicsSec
 					id="automation-name"
 					value={name}
 					maxLength={200}
-					placeholder="Weekly competitor digest"
+					placeholder="Weekly research digest"
 					onChange={(e) => onChange({ name: e.target.value })}
 				/>
 			</Field>
