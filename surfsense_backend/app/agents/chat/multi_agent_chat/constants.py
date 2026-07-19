@@ -39,6 +39,7 @@ SUBAGENT_TO_REQUIRED_CONNECTOR_MAP: dict[str, frozenset[str]] = {
     "reddit": frozenset(),
     "instagram": frozenset(),
     "tiktok": frozenset(),
+    "walmart": frozenset(),
     "mcp_discovery": frozenset(
         {
             "SLACK_CONNECTOR",
