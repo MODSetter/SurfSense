@@ -41,6 +41,8 @@ _PLATFORM_RATE_KEYS: dict[BillingUnit, str] = {
     BillingUnit.TIKTOK_VIDEO: "TIKTOK_MICROS_PER_VIDEO",
     BillingUnit.TIKTOK_USER: "TIKTOK_MICROS_PER_USER",
     BillingUnit.TIKTOK_COMMENT: "TIKTOK_MICROS_PER_COMMENT",
+    BillingUnit.WALMART_PRODUCT: "WALMART_MICROS_PER_PRODUCT",
+    BillingUnit.WALMART_REVIEW: "WALMART_MICROS_PER_REVIEW",
 }
 
 
@@ -63,6 +65,8 @@ _UNIT_NOUNS: dict[BillingUnit, str] = {
     BillingUnit.TIKTOK_VIDEO: "video",
     BillingUnit.TIKTOK_USER: "profile",
     BillingUnit.TIKTOK_COMMENT: "comment",
+    BillingUnit.WALMART_PRODUCT: "product",
+    BillingUnit.WALMART_REVIEW: "review",
 }
 
 

@@ -736,6 +736,12 @@ class Config:
     # Comments are the cheapest per-item TikTok data, matching the per-comment
     # market (and YouTube's comment meter).
     TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Walmart products come from server-rendered JSON behind residential proxies,
+    # priced alongside Amazon's per-product meter.
+    WALMART_MICROS_PER_PRODUCT = int(os.getenv("WALMART_MICROS_PER_PRODUCT", "3500"))
+    # Reviews are 10 per page (many light requests per product), priced on the
+    # cheaper per-review market like the Google Maps review meter.
+    WALMART_MICROS_PER_REVIEW = int(os.getenv("WALMART_MICROS_PER_REVIEW", "1500"))
     # Retry an empty listing draw on a fresh rotating IP. Set to 1 for a static
     # proxy, where every retry re-hits the same exit.
     TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
