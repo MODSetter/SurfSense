@@ -7,7 +7,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 # SurfSense MCP Server
 
-The SurfSense MCP server exposes your workspace to any [Model Context Protocol](https://modelcontextprotocol.io/) client. Your agent gets 25 native, typed tools: every scraper (Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, web crawl), full knowledge-base access (search, read, add, upload, update, delete), and a workspace selector.
+The SurfSense MCP server exposes your workspace to any [Model Context Protocol](https://modelcontextprotocol.io/) client. Your agent gets 26 native, typed tools: every scraper (Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, Indeed, Amazon, web crawl), full knowledge-base access (search, read, add, upload, update, delete), and a workspace selector.
 
 Connect it two ways: the **hosted** server at `https://mcp.surfsense.com/mcp` (nothing to install — just an API key), or run it yourself over **stdio** against any SurfSense backend, cloud or self-hosted.
 
@@ -264,7 +264,7 @@ For self-host (stdio), all settings are environment variables passed by the clie
 | Group | Tools |
 |-------|-------|
 | Workspaces | `surfsense_list_workspaces`, `surfsense_select_workspace` |
-| Scrapers | `surfsense_reddit_scrape`, `surfsense_youtube_scrape`, `surfsense_youtube_comments`, `surfsense_instagram_scrape`, `surfsense_instagram_details`, `surfsense_tiktok_scrape`, `surfsense_tiktok_comments`, `surfsense_tiktok_user_search`, `surfsense_tiktok_trending`, `surfsense_google_maps_scrape`, `surfsense_google_maps_reviews`, `surfsense_google_search`, `surfsense_web_crawl`, `surfsense_list_scraper_runs`, `surfsense_get_scraper_run` |
+| Scrapers | `surfsense_reddit_scrape`, `surfsense_youtube_scrape`, `surfsense_youtube_comments`, `surfsense_instagram_scrape`, `surfsense_instagram_details`, `surfsense_tiktok_scrape`, `surfsense_tiktok_comments`, `surfsense_tiktok_user_search`, `surfsense_tiktok_trending`, `surfsense_google_maps_scrape`, `surfsense_google_maps_reviews`, `surfsense_google_search`, `surfsense_indeed_scrape`, `surfsense_web_crawl`, `surfsense_list_scraper_runs`, `surfsense_get_scraper_run` |
 | Knowledge base | `surfsense_search_knowledge_base`, `surfsense_list_documents`, `surfsense_get_document`, `surfsense_add_document`, `surfsense_upload_file`, `surfsense_update_document`, `surfsense_delete_document` |
 
 Usage is billed exactly like the REST API — scraper tools are metered per returned item, and every call is recorded under **API Playground → Runs**.

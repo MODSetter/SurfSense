@@ -36,6 +36,7 @@ SUBAGENT_TO_REQUIRED_CONNECTOR_MAP: dict[str, frozenset[str]] = {
     "youtube": frozenset(),
     "google_maps": frozenset(),
     "google_search": frozenset(),
+    "indeed": frozenset(),
     "reddit": frozenset(),
     "instagram": frozenset(),
     "tiktok": frozenset(),
