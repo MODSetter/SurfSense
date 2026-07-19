@@ -1,7 +1,8 @@
 """Scraper tools: one MCP surface per SurfSense platform capability.
 
-Web crawl, Google Search, Reddit, YouTube, and Google Maps each get a tool that
-maps a natural-language request to the workspace's scraper. Two run-history tools
+Web crawl, Google Search, Reddit, YouTube, Google Maps, Amazon, and Walmart each
+get a tool that maps a natural-language request to the workspace's scraper. Two
+run-history tools
 list and fetch past runs, so a large result truncated inline can be retrieved in
 full later. Each platform lives in its own module under platforms/.
 """
@@ -20,6 +21,7 @@ from .platforms import (
     instagram,
     reddit,
     tiktok,
+    walmart,
     web,
     youtube,
 )
@@ -33,6 +35,7 @@ _REGISTRARS = (
     tiktok,
     google_maps,
     amazon,
+    walmart,
     run_history,
 )
 
