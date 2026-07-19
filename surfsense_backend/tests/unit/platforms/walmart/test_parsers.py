@@ -35,6 +35,9 @@ def test_product_parser_extracts_core_fields_and_review_sample():
         "https://i5.walmartimages.com/1.jpg",
         "https://i5.walmartimages.com/2.jpg",
     ]
+    # Walmart ships category.path as breadcrumb objects, not a string.
+    assert item["breadCrumbs"] == ["Home", "Air Conditioners"]
+    assert item["category"] == "Air Conditioners"
     assert item["reviewsSample"]["totalReviewCount"] == 6287
     assert item["reviewsSample"]["topReviews"][0]["verifiedPurchase"] is True
 

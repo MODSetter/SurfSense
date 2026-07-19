@@ -122,6 +122,19 @@ def _images(image_info: dict[str, Any]) -> list[str]:
     return images
 
 
+def _breadcrumbs(product: dict[str, Any]) -> list[str]:
+    """Category breadcrumb names, root→leaf.
+
+    Walmart ships ``category.path`` as a list of ``{name, url}`` nodes, e.g.
+    ``[{"name": "Home Improvement"}, ..., {"name": "Air Conditioners"}]`` — not
+    a string.
+    """
+    path = dig(product, "category", "path")
+    if not isinstance(path, list):
+        return []
+    return [node["name"] for node in path if isinstance(node, dict) and node.get("name")]
+
+
 def _reviews_sample(
     reviews: dict[str, Any] | None, limit: int = 10
 ) -> dict[str, Any] | None:
@@ -151,6 +164,7 @@ def parse_product(
     price_info = product.get("priceInfo") or {}
     image_info = product.get("imageInfo") or {}
     availability = product.get("availabilityStatus")
+    breadcrumbs = _breadcrumbs(product)
 
     fields: dict[str, Any] = {
         "usItemId": str(product.get("usItemId") or product.get("id") or "") or None,
@@ -172,7 +186,8 @@ def parse_product(
         else None,
         "thumbnailImage": image_info.get("thumbnailUrl"),
         "images": _images(image_info),
-        "category": dig(product, "category", "path"),
+        "category": breadcrumbs[-1] if breadcrumbs else None,
+        "breadCrumbs": breadcrumbs,
         "variants": product.get("variantCriteria") or [],
     }
     if include_reviews_sample:
