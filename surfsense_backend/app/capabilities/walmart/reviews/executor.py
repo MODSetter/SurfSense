@@ -13,7 +13,7 @@ ReviewsFn = Callable[..., Awaitable[list[dict]]]
 
 
 def build_reviews_executor(scrape_fn: ReviewsFn | None = None) -> Executor:
-    """Bind the executor to a reviews scraper fn (defaults to the proprietary actor)."""
+    """Bind the capability input mapping to a replaceable reviews scraper function."""
     scrape_fn = scrape_fn or scrape_reviews
 
     async def execute(payload: ReviewsInput) -> ReviewsOutput:
