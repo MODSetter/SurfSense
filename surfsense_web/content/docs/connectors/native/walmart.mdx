@@ -1,0 +1,71 @@
+---
+title: Walmart
+description: Scrape public Walmart product data and deep reviews as structured JSON
+---
+
+The Walmart scraper returns public product data as structured JSON: price and list price, rating and review count, availability, 1P and marketplace sellers, variants, specifications, and a free on-page review sample. A second verb pages the full public review history for a product. It only uses public, anonymous data — no login or seller account. Give it search terms or Walmart product, search, category, or browse URLs.
+
+Walmart data is the US marketplace (`walmart.com`). The scraper reads the JSON Walmart server-renders into each page rather than the rendered DOM, which keeps extraction stable against the frequent front-end A/B testing on the site.
+
+## Scrape products
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/walmart/scrape
+```
+
+### Inputs
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | — | Walmart product (`/ip/`), search (`/search`), category (`/cp/`), or browse (`/browse/`) URLs. Provide `urls` or `search_terms` |
+| `search_terms` | — | Search phrases run on `walmart.com`, e.g. `air fryer`. Provide `search_terms` or `urls` |
+| `max_items` | `10` | Max products per search term or category/browse URL (1–100) |
+| `include_details` | `true` | Fetch full product detail pages; `false` returns faster card-only results |
+| `include_reviews_sample` | `true` | Attach the free on-page review sample from each detail page. For full history use the reviews verb |
+
+At least one of `urls` or `search_terms` is required, with up to 20 combined sources per call.
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/walmart/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_terms": ["air fryer"],
+    "max_items": 5,
+    "include_reviews_sample": true
+  }'
+```
+
+The response is `{ "items": [...] }` — one item per product, plus structured error items for any input that could not be resolved. Billing is per returned product; error items are never billed.
+
+## Fetch reviews
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/walmart/reviews
+```
+
+### Inputs
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | — | Walmart product (`/ip/`) or reviews URLs to fetch reviews for. Provide `urls` or `item_ids` |
+| `item_ids` | — | Walmart numeric item ids (`usItemId`) to fetch reviews for. Provide `item_ids` or `urls` |
+| `max_reviews` | `200` | Max reviews per product (1–5000); reviews are paged 10 at a time |
+| `sort_by` | `most-recent` | Review ordering: `most-recent`, `most-helpful`, `rating-high`, or `rating-low` |
+
+At least one of `urls` or `item_ids` is required, with up to 20 combined sources per call.
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/walmart/reviews" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": ["https://www.walmart.com/ip/1234567890"],
+    "max_reviews": 500,
+    "sort_by": "most-recent"
+  }'
+```
+
+The response is `{ "items": [...] }` — one item per review with rating, title, text, author, date, verified-purchase flag, helpful votes, images, and any seller response. Billing is per returned review; error items are never billed.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Walmart** in your workspace.
