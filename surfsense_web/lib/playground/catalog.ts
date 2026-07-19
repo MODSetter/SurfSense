@@ -6,6 +6,7 @@ import {
 	InstagramIcon,
 	RedditIcon,
 	TikTokIcon,
+	WalmartIcon,
 	WebIcon,
 	YouTubeIcon,
 } from "./platform-icons";
@@ -95,6 +96,15 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 		label: "Amazon",
 		icon: AmazonIcon,
 		verbs: [{ name: "amazon.scrape", verb: "scrape", label: "Scrape" }],
+	},
+	{
+		id: "walmart",
+		label: "Walmart",
+		icon: WalmartIcon,
+		verbs: [
+			{ name: "walmart.scrape", verb: "scrape", label: "Scrape" },
+			{ name: "walmart.reviews", verb: "reviews", label: "Reviews" },
+		],
 	},
 	{
 		id: "web",
