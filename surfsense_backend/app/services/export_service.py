@@ -12,8 +12,25 @@ from sqlalchemy.future import select
 
 from app.db import Chunk, Document, Folder
 from app.services.folder_service import get_folder_subtree_ids
+from app.services.okf import (
+    INDEX_FILENAME,
+    LOG_FILENAME,
+    ConceptRef,
+    LogEntry,
+    SubdirRef,
+    document_to_concept,
+    folder_to_index,
+    folder_to_log,
+    okf_type,
+)
 
 logger = logging.getLogger(__name__)
+
+# Root index.md declares the targeted OKF version in frontmatter - the one place
+# the spec permits frontmatter in an index file.
+_ROOT_INDEX_FRONTMATTER = '---\nokf_version: "0.1"\n---\n\n'
+
+_RESERVED_STEMS = {"index", "log"}
 
 
 def _sanitize_filename(title: str) -> str:
@@ -43,7 +60,7 @@ def _build_folder_path_map(folders: list[Folder]) -> dict[int, str]:
     return cache
 
 
-async def _get_document_markdown(
+async def resolve_document_markdown(
     session: AsyncSession, document: Document
 ) -> str | None:
     """Resolve markdown content using the 3-tier fallback:
@@ -69,6 +86,67 @@ async def _get_document_markdown(
         return "\n\n".join(chunks)
 
     return None
+
+
+def _build_index_files(
+    dir_concepts: dict[str, list[ConceptRef]],
+) -> list[tuple[str, str]]:
+    """Build ``index.md`` files for every directory (and ancestor) with content.
+
+    Produces OKF progressive-disclosure listings: each directory lists its
+    concepts (grouped by type) and its immediate subdirectories. The bundle-root
+    index also declares ``okf_version``.
+    """
+    all_dirs: set[str] = {""}
+    for dir_path in dir_concepts:
+        all_dirs.add(dir_path)
+        parts = dir_path.split("/") if dir_path else []
+        for i in range(1, len(parts)):
+            all_dirs.add("/".join(parts[:i]))
+
+    children_by_dir: dict[str, list[str]] = {}
+    for dir_path in all_dirs:
+        if not dir_path:
+            continue
+        parent = dir_path.rsplit("/", 1)[0] if "/" in dir_path else ""
+        children_by_dir.setdefault(parent, []).append(dir_path)
+
+    index_files: list[tuple[str, str]] = []
+    for dir_path in all_dirs:
+        subdirs = [
+            SubdirRef(name=child.rsplit("/", 1)[-1])
+            for child in children_by_dir.get(dir_path, [])
+        ]
+        body = folder_to_index(
+            concepts=dir_concepts.get(dir_path, []),
+            subdirectories=subdirs,
+        )
+        if not body:
+            continue
+        if dir_path:
+            index_files.append((f"{dir_path}/{INDEX_FILENAME}", body))
+        else:
+            index_files.append((INDEX_FILENAME, _ROOT_INDEX_FRONTMATTER + body))
+
+    return index_files
+
+
+def _build_log_files(
+    dir_logs: dict[str, list[LogEntry]],
+) -> list[tuple[str, str]]:
+    """Build ``log.md`` files for every directory that holds concepts.
+
+    Unlike ``index.md``, logs are only synthesized where documents actually live
+    (no ancestor synthesis): an empty intermediate directory has nothing to log.
+    """
+    log_files: list[tuple[str, str]] = []
+    for dir_path, entries in dir_logs.items():
+        body = folder_to_log(entries)
+        if not body:
+            continue
+        path = f"{dir_path}/{LOG_FILENAME}" if dir_path else LOG_FILENAME
+        log_files.append((path, body))
+    return log_files
 
 
 @dataclass
@@ -120,6 +198,10 @@ async def build_export_zip(
     used_paths: dict[str, int] = {}
     skipped_docs: list[str] = []
     is_first_batch = True
+    # dir path -> concepts it holds, accumulated across batches for index.md.
+    dir_concepts: dict[str, list[ConceptRef]] = {}
+    # dir path -> log entries it holds, accumulated across batches for log.md.
+    dir_logs: dict[str, list[LogEntry]] = {}
 
     try:
         offset = 0
@@ -143,7 +225,7 @@ async def build_export_zip(
                     skipped_docs.append(doc.title or "Untitled")
                     continue
 
-                markdown = await _get_document_markdown(session, doc)
+                markdown = await resolve_document_markdown(session, doc)
                 if not markdown or not markdown.strip():
                     continue
 
@@ -153,6 +235,9 @@ async def build_export_zip(
                     dir_path = ""
 
                 base_name = _sanitize_filename(doc.title or "Untitled")
+                # Never collide with reserved OKF filenames (index.md, log.md).
+                if base_name.lower() in _RESERVED_STEMS:
+                    base_name = f"{base_name}_"
                 file_path = (
                     f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
                 )
@@ -160,14 +245,41 @@ async def build_export_zip(
                 if file_path in used_paths:
                     used_paths[file_path] += 1
                     suffix = used_paths[file_path]
+                    base_name = f"{base_name}_{suffix}"
                     file_path = (
-                        f"{dir_path}/{base_name}_{suffix}.md"
+                        f"{dir_path}/{base_name}.md"
                         if dir_path
-                        else f"{base_name}_{suffix}.md"
+                        else f"{base_name}.md"
                     )
                 used_paths[file_path] = used_paths.get(file_path, 0) + 1
 
-                entries.append((file_path, markdown))
+                concept = document_to_concept(doc, body=markdown)
+                entries.append((file_path, concept))
+
+                metadata = (
+                    doc.document_metadata
+                    if isinstance(doc.document_metadata, dict)
+                    else {}
+                )
+                description = metadata.get("description")
+                dir_concepts.setdefault(dir_path, []).append(
+                    ConceptRef(
+                        title=doc.title or "Untitled",
+                        filename=f"{base_name}.md",
+                        type=okf_type(doc.document_type),
+                        description=description
+                        if isinstance(description, str) and description.strip()
+                        else None,
+                    )
+                )
+
+                changed_at = doc.updated_at or doc.created_at
+                dir_logs.setdefault(dir_path, []).append(
+                    LogEntry(
+                        title=doc.title or "Untitled",
+                        timestamp=changed_at.isoformat() if changed_at else None,
+                    )
+                )
 
             if entries:
                 mode = "w" if is_first_batch else "a"
@@ -182,6 +294,30 @@ async def build_export_zip(
                 is_first_batch = False
 
             offset += batch_size
+
+        index_files = _build_index_files(dir_concepts)
+        if index_files:
+            mode = "w" if is_first_batch else "a"
+
+            def _write_indexes(m: str = mode, e: list = index_files) -> None:
+                with zipfile.ZipFile(tmp_path, m, zipfile.ZIP_DEFLATED) as zf:
+                    for path, content in e:
+                        zf.writestr(path, content)
+
+            await asyncio.to_thread(_write_indexes)
+            is_first_batch = False
+
+        log_files = _build_log_files(dir_logs)
+        if log_files:
+            mode = "w" if is_first_batch else "a"
+
+            def _write_logs(m: str = mode, e: list = log_files) -> None:
+                with zipfile.ZipFile(tmp_path, m, zipfile.ZIP_DEFLATED) as zf:
+                    for path, content in e:
+                        zf.writestr(path, content)
+
+            await asyncio.to_thread(_write_logs)
+            is_first_batch = False
 
         export_name = "knowledge-base"
         if folder_id is not None and folder_id in folder_path_map:
