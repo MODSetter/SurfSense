@@ -736,6 +736,11 @@ class Config:
     # Comments are the cheapest per-item TikTok data, matching the per-comment
     # market (and YouTube's comment meter).
     TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Warmed-browser listings put Indeed on par with the other browser-driven
+    # scrapers (Reddit, Instagram) rather than the cheaper API-backed meters.
+    INDEED_SCRAPE_MICROS_PER_JOB = int(
+        os.getenv("INDEED_SCRAPE_MICROS_PER_JOB", "3500")
+    )
     # Walmart products come from server-rendered JSON behind residential proxies,
     # priced alongside Amazon's per-product meter.
     WALMART_MICROS_PER_PRODUCT = int(os.getenv("WALMART_MICROS_PER_PRODUCT", "3500"))

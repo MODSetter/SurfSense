@@ -30,4 +30,5 @@ export const InstagramIcon = brandIcon("/connectors/instagram.svg", "Instagram")
 export const TikTokIcon = brandIcon("/connectors/tiktok.svg", "TikTok");
 export const GoogleMapsIcon = brandIcon("/connectors/google-maps.svg", "Google Maps");
 export const GoogleSearchIcon = brandIcon("/connectors/google-search.svg", "Google Search");
+export const IndeedIcon = brandIcon("/connectors/indeed.svg", "Indeed");
 export const WebIcon = brandIcon("/connectors/web.svg", "Web");

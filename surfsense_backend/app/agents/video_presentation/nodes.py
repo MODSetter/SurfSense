@@ -17,6 +17,7 @@ from app.config import config as app_config
 from app.services.kokoro_tts_service import get_kokoro_tts_service
 from app.services.llm_service import get_agent_llm
 from app.utils.content_utils import extract_text_content, strip_markdown_fences
+from app.utils.file_io import write_bytes
 
 from .configuration import Configuration
 from .prompts import (
@@ -137,8 +138,7 @@ async def create_slide_audio(state: State, config: RunnableConfig) -> dict[str, 
                 kwargs["api_base"] = app_config.TTS_SERVICE_API_BASE
 
             response = await aspeech(**kwargs)
-            with open(chunk_path, "wb") as f:
-                f.write(response.content)
+            await write_bytes(chunk_path, response.content)
 
         return chunk_path
 
