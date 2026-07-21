@@ -1,6 +1,7 @@
 // Server component
-import type React from "react";
+
 import { cookies } from "next/headers";
+import type React from "react";
 import { DashboardClientLayout } from "./client-layout";
 
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";

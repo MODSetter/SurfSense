@@ -58,7 +58,9 @@ class TestGlobalCatalogHasUsableChat:
     """Usability, not file existence, is what counts."""
 
     def test_usable_when_enabled_connection_and_chat_model(self, monkeypatch):
-        monkeypatch.setattr(mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": True}])
+        monkeypatch.setattr(
+            mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": True}]
+        )
         monkeypatch.setattr(mc.config, "GLOBAL_MODELS", [_global_model()])
         assert mc._global_catalog_has_usable_chat() is True
 
@@ -68,17 +70,23 @@ class TestGlobalCatalogHasUsableChat:
         assert mc._global_catalog_has_usable_chat() is False
 
     def test_disabled_connection_is_not_usable(self, monkeypatch):
-        monkeypatch.setattr(mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": False}])
+        monkeypatch.setattr(
+            mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": False}]
+        )
         monkeypatch.setattr(mc.config, "GLOBAL_MODELS", [_global_model()])
         assert mc._global_catalog_has_usable_chat() is False
 
     def test_disabled_model_is_not_usable(self, monkeypatch):
-        monkeypatch.setattr(mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": True}])
+        monkeypatch.setattr(
+            mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": True}]
+        )
         monkeypatch.setattr(mc.config, "GLOBAL_MODELS", [_global_model(enabled=False)])
         assert mc._global_catalog_has_usable_chat() is False
 
     def test_non_chat_model_is_not_usable(self, monkeypatch):
-        monkeypatch.setattr(mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": True}])
+        monkeypatch.setattr(
+            mc.config, "GLOBAL_CONNECTIONS", [{"id": -1, "enabled": True}]
+        )
         monkeypatch.setattr(
             mc.config, "GLOBAL_MODELS", [_global_model(supports_chat=False)]
         )

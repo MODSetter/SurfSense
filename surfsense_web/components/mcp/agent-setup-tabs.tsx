@@ -96,7 +96,7 @@ export function AgentSetupTabs({ options }: { options?: Partial<McpSnippetOption
 					const snippet = client[transport];
 					const config = snippet.build(resolved);
 					return (
-					<TabsContent key={client.id} value={client.id} className="min-w-0 space-y-3">
+						<TabsContent key={client.id} value={client.id} className="min-w-0 space-y-3">
 							<ol className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-muted-foreground">
 								{snippet.steps.map((step) => (
 									<li key={step}>{step}</li>

@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the open-source competitive intelligence platform for AI agents" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the open-source NotebookLM alternative for open web research" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,95 +20,52 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense: NotebookLM for Competitive Intelligence Research
+# SurfSense: The Open-Source NotebookLM Alternative for Open Web Research
 
-SurfSense is the **open-source competitive intelligence platform for AI agents**, like NotebookLM but with live scraping connectors. Your agents monitor competitors, track rankings, and listen to your market with live data from **Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
+SurfSense is the **open-source NotebookLM alternative for AI agents**, an open web research platform with live data connectors. Your agents research the live web with structured data from **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, Indeed, and any page on the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
 
 > [!NOTE]
 > **📢 A note for our NotebookLM-alternative users**
 >
-> For the past couple of months we built SurfSense as the best general research agent for your own knowledge, and that chapter earned us a community we are genuinely proud of. Agentic tools like Claude, OpenCode, Hermes, and OpenClaw have now proven that agents are the future, and general research is becoming something every capable agent does out of the box. What agents still lack is **live market data and the workflows around it**, so that is where we are pointing all of our energy: becoming the definitive open-source competitive intelligence agent platform.
+> For the past couple of months we built SurfSense as the best general research agent for your own knowledge, and that chapter earned us a community we are genuinely proud of. Agentic tools like Claude, OpenCode, Hermes, and OpenClaw have now proven that agents are the future, and reasoning over a static index is becoming something every capable agent does out of the box. What agents still lack is **live data from the places where answers actually live, and the workflows around it**. That is where we are pointing all of our energy: giving agents the primitives to research the open web.
 >
 > **Nothing you rely on is going away.** Your knowledge base, chat with citations, reports, podcasts, presentations, automations, and collaborative chats all keep working, and self-hosting stays free and open source. Read the full announcement on [our changelog](https://www.surfsense.com/changelog).
 
 ## Table of contents
 
 - [Why agents need SurfSense](#why-agents-need-surfsense)
-- [What can you do with SurfSense?](#what-can-you-do-with-surfsense)
 - [Live data connectors](#live-data-connectors)
 - [Quick start](#quick-start)
 - [Everything else in the box](#everything-else-in-the-box)
-- [SurfSense vs Google NotebookLM](#surfsense-vs-google-notebooklm)
+- [How SurfSense compares](#how-surfsense-compares)
 - [Roadmap](#roadmap)
 - [Contribute](#contribute)
 
 ## Why agents need SurfSense
 
-Ask any capable agent "what are competitors charging this week?" or "what is Reddit saying about us since the launch?" and it has nowhere trustworthy to look. Official platform APIs are rate-limited, priced for enterprises, or missing entirely, and scraping plumbing is brittle. SurfSense closes that gap:
+Ask any capable agent "what is Reddit saying about this product since launch?" or "what do the reviews of these ten places actually complain about?" and it has nowhere trustworthy to look. Official platform APIs are rate-limited, priced for enterprises, or missing entirely; scraping plumbing is brittle; and driving a browser with an LLM burns minutes and tokens per page. SurfSense gives agents the primitives instead:
 
-- **Platform-native connectors**, each a typed REST endpoint returning structured JSON. No rate-limit roulette, no HTML parsing.
+- **One typed surface for wherever the data lives.** Every connector is a REST endpoint returning structured JSON — posts, comments, transcripts, reviews, SERPs, pages. No rate-limit roulette, no HTML parsing, no browser loop.
 - **An MCP server** that exposes every connector as a native tool (`surfsense_reddit_scrape`, `surfsense_google_search`, and more) to Claude, Cursor, or any agent framework.
-- **An agent harness**, not just raw data: retries, structured output, and credit metering are built in, so agents go from a question to a brief without you building the plumbing.
-- **Open source and self-hostable**, so your competitive research stays on your own infrastructure.
-
-## What can you do with SurfSense?
-
-Every use case below is a real task the SurfSense agent runs end-to-end today, in one prompt or on a schedule.
-
-### Multi-connector workflows
-
-Chain several connectors in a single agent run and get one cited brief back.
-
-- **Launch impact, across every platform** — "Our competitor launched v2 yesterday. Measure the reaction across search, Reddit, and YouTube." The agent scrapes SERPs, Reddit threads, and YouTube comments, then merges all three signals into one launch-impact brief.
-- **Local competitor teardown** — Google Maps finds the players, the web crawler reads their pricing pages, and Google Search shows who wins the query, in one run.
-- **Competitor 360, on a schedule** — an automation chains four connectors every week: site changes, rank movements, Reddit sentiment, and YouTube reaction.
-
-### Competitor monitoring
-
-- **Pricing watch** — extract every plan, price, and limit from competitors' pricing pages into one table, then re-check daily and alert on any change.
-- **Product & changelog tracking** — crawl rivals' changelog, product, and careers pages every Monday and get a brief on what they shipped.
-- **Rank & ad monitoring** — track the Google rankings, paid ads, and AI Overview citations your market actually sees, and flag movements day over day.
-
-### B2B lead generation
-
-- **Local business leads** — turn a category and a territory ("burger places in San Jose") into a lead list with phones, websites, ratings, and decision-maker contacts pulled from their sites.
-- **Team rosters & contacts** — spider any company site and pull the full team with emails, socials, and source provenance, exported to CSV.
-- **Portfolio & market mapping** — map an investor's portfolio or a whole category, then enrich every company with pricing and contacts.
-
-### Brand & market listening
-
-- **Reddit brand monitoring** — hear what your market says about you, your competitors, and your category in the threads where buyers speak candidly.
-- **YouTube audience sentiment** — pull videos, transcripts, and comments at scale, then cluster what audiences praise and complain about.
-- **Switcher & intent mining** — find the people actively asking for an alternative to a competitor, ranked by how ready they are to move.
-
-### Market research
-
-- **Deep research on the live web** — the agent crawls dozens of live sources on a question and synthesizes a cited answer, not a stale index.
-- **AI Overview & GEO tracking** — capture when Google's AI Overviews answer your market's queries, and exactly which sources they cite.
-- **Cited briefs & alerts** — everything the agents gather lands in your workspace as briefs and alerts with sources you can check.
-
-### Automate any of it, no code
-
-Automations run full agent turns on a schedule or in response to events, then write results back to Notion, Slack, Linear, and Jira. Describe the workflow in plain English and SurfSense builds it. Try prompts like:
-
-- "Watch our top 3 competitors' pricing pages and alert me in Slack when a plan or price changes."
-- "Track every mention of our brand on Reddit and YouTube and send me a daily digest."
-- "Monitor our Google ranking for our top 10 keywords and flag drops week over week."
-- "Pull new Google Maps reviews for our locations and our competitors' every Monday."
-- "Run a monthly competitor analysis report and save it to my workspace."
+- **An agent harness**, not just raw data: retries, structured output, and credit metering are built in, so agents go from a question to a cited brief without you building the plumbing.
+- **Open source and self-hostable**, so your research stays on your own infrastructure.
 
 ## Live data connectors
 
 | Connector | What your agents get | Learn more |
 |---|---|---|
 | **Reddit** | Posts, comments, and subreddit streams without the official API's rate limits | [Reddit Scraper API](https://www.surfsense.com/reddit) |
-| **YouTube** | Videos, transcripts, and comment threads for brand and product listening | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **YouTube** | Videos, transcripts, and comment threads at scale | [YouTube Scraper API](https://www.surfsense.com/youtube) |
 | **Instagram** | Public profiles, posts, and reels without the Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
 | **TikTok** | Videos, comments, hashtags, and profiles without Research API approval | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
-| **Google Maps** | Places, ratings, and reviews for local competitor and lead research | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
-| **Google Search** | Live SERPs for rank tracking and market monitoring | [Google Search API](https://www.surfsense.com/google-search) |
+| **Google Maps** | Places, ratings, and reviews for local business research | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
+| **Google Search** | Live SERPs for search research and monitoring | [Google Search API](https://www.surfsense.com/google-search) |
+| **Indeed** | Public job postings with salaries and full descriptions, by search or company | [Indeed Scraper API](https://www.surfsense.com/indeed) |
+| **Amazon** | Public product data: prices, ratings, offers, sellers, and best-seller ranks | [Amazon Product API](https://www.surfsense.com/amazon) |
 | **Web Crawl** | Any page on the open web as clean, structured content | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **External MCP Connectors** | Bring any MCP server to your agents, with one-click OAuth for Notion, Slack, Jira, and more | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
+
+The connector catalog is growing beyond social platforms and search; every new source lands as a typed endpoint on the same API and MCP server.
 
 Billing is pay as you go: connectors bill per item actually returned, crawls per page successfully fetched, and failed calls are never billed. Self-hosted installs run with billing off. See [pricing](https://www.surfsense.com/pricing).
 
@@ -124,7 +81,7 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
   -H "Content-Type: application/json" \
   -d '{
     "search_queries": ["your brand"],
-    "community": "webscraping",
+    "community": "SaaS",
     "sort": "top",
     "time_filter": "week"
   }'
@@ -151,7 +108,7 @@ Your agent can now call every connector as a native tool. See the [SurfSense MCP
 
 ### Use the cloud
 
-Go to [surfsense.com](https://www.surfsense.com), log in, and ask the agent for live market data in plain English. New accounts start with $5 of free credit and no subscription.
+Go to [surfsense.com](https://www.surfsense.com), log in, and ask the agent for live web data in plain English. New accounts start with $5 of free credit and no subscription.
 
 ### Self-host for free
 
@@ -192,6 +149,10 @@ The research workspace that made SurfSense the leading open-source NotebookLM al
 - Editable slide decks, narrated video overviews, and AI image generation.
 
 <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
+
+**Automations**
+
+- Run full agent turns on a schedule or in response to events, described in plain English, with results written back to Notion, Slack, Linear, and Jira.
 
 **Team collaboration**
 
@@ -239,13 +200,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Realtime Comments" /></p>
 
-## SurfSense vs Google NotebookLM
+## How SurfSense compares
+
+SurfSense is the only open-source product that combines a NotebookLM-style research workspace for people with live-data primitives for agents. Here is how that stacks up against each class of tool.
+
+**vs browser agents (Browserbase, Browser Use).** Browser agents drive a real browser with an LLM in the loop — the right tool when a task needs clicking, logging in, or filling forms. But most research is read-only retrieval, and for retrieval the LLM-in-a-browser loop costs you minutes and thousands of tokens per page. A SurfSense connector call is one HTTP request: seconds, deterministic, and zero tokens spent deciding where to click.
+
+**vs scraping APIs (Firecrawl).** Scraping APIs are great at turning a generic page into markdown, but a markdown blob still leaves your agent parsing structure out of prose, and they degrade on bot-protected platforms like Reddit, TikTok, and Instagram. SurfSense connectors return platform-native structured items — posts, comments, transcripts, reviews — and bill only for items actually returned; failed calls are never billed.
+
+**vs search APIs (Exa, Tavily, Parallel).** Search APIs answer from a web index, which is the right tool for "find me pages about X." They cannot pull a Reddit thread's comments, TikTok reactions, YouTube transcripts, or Google Maps reviews — the places where the answer often actually lives.
+
+**vs scraper marketplaces (Apify).** Marketplaces give you thousands of community actors, each with its own schema, quality, and pricing. SurfSense is one typed API and one MCP server with an agent harness and a research workspace behind it, and it is open source.
+
+### SurfSense vs Google NotebookLM
 
 Still comparing us as a NotebookLM alternative? Here is the honest breakdown.
 
 | Feature | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **Live market data for agents** | No | Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, and web crawl connectors via REST API and MCP |
+| **Live web data for agents** | No | Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, Indeed, and web crawl connectors via REST API and MCP |
 | **MCP server** | No | Every connector exposed as a native agent tool, plus bring-your-own MCP servers with one-click OAuth apps |
 | **Sources per Notebook** | 50 (Free) to 600 (Ultra, $249.99/mo) | Unlimited |
 | **Number of Notebooks** | 100 (Free) to 500 (paid tiers) | Unlimited |

@@ -51,8 +51,14 @@ from app.proprietary.platforms.instagram.fetch import (  # noqa: E402
 )
 from app.proprietary.platforms.instagram.url_resolver import resolve_url  # noqa: E402
 
-_PROFILE = "natgeo"
-_SEARCH_TERM = "national geographic"
+# Canonical public targets. Override from the CLI to test any real-world case:
+#   python scripts/e2e_instagram_scraper.py <profile> [search term]
+# Note: web_profile_info intermittently 400s for *business/creator* accounts
+# (IG server bug on the ig_business_category_subvertical schema); a regular
+# public account is the reliable smoke target.
+_DEFAULT_PROFILE = "natgeo"
+_PROFILE = sys.argv[1] if len(sys.argv) > 1 else _DEFAULT_PROFILE
+_SEARCH_TERM = sys.argv[2] if len(sys.argv) > 2 else "national geographic"
 
 _FIXTURE_DIR = _BACKEND_ROOT / "tests" / "unit" / "platforms" / "instagram" / "fixtures"
 
@@ -179,6 +185,12 @@ async def step5_search() -> bool:
 
 async def step6_dump_fixtures(post_url: str | None) -> bool:
     _hr("STEP 6 — dump trimmed, anonymized fixtures for offline tests")
+    if _PROFILE != _DEFAULT_PROFILE:
+        return _check(
+            "dumped fixtures",
+            True,
+            f"skipped (custom profile {_PROFILE!r} would clobber committed fixtures)",
+        )
     profile = await fetch_json("api/v1/users/web_profile_info/", {"username": _PROFILE})
     _FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     wrote = []

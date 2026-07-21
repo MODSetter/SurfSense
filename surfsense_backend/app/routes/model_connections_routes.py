@@ -863,7 +863,7 @@ async def _workspace_has_enabled_chat_model(
         .options(selectinload(Connection.models))
         .where(
             Connection.workspace_id == workspace_id,
-            Connection.enabled == True,
+            Connection.enabled,
         )
     )
     return any(

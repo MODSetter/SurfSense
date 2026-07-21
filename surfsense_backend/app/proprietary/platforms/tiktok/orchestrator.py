@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
+from urllib.parse import quote
 
 from .extraction.timestamps import now_iso
 from .flows import FetchCommentsFn, FetchFn, FetchListingFn, FetchUsersFn
@@ -31,15 +32,18 @@ from .targets.types import TikTokTarget
 
 _PROFILE_URL = "https://www.tiktok.com/@{name}"
 _HASHTAG_URL = "https://www.tiktok.com/tag/{tag}"
+_SEARCH_URL = "https://www.tiktok.com/search?q={query}"
 _EXPLORE_URL = "https://www.tiktok.com/explore"
 
 
 def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
-    """Build the target list from the URL/profile/hashtag sources.
+    """Build the target list from every input source.
 
-    A raw ``tiktok.com/search?...`` URL passed explicitly in
-    ``startUrls``/``postURLs`` still resolves here and keeps its native listing
-    routing; there is no keyword-search shortcut.
+    ``searchQueries`` map to the same ``tiktok.com/search?q=`` targets that a raw
+    search URL in ``startUrls``/``postURLs`` resolves to, so both share the
+    listing flow's parse/dedupe/cap/empty-ErrorItem contract (the anonymous
+    search feed often withholds results, degrading to one honest ErrorItem rather
+    than a silent empty).
     """
     targets: list[TikTokTarget] = []
     for entry in input_model.startUrls:
@@ -55,6 +59,10 @@ def _resolve_targets(input_model: TikTokScrapeInput) -> list[TikTokTarget]:
         targets.append(TikTokTarget("profile", name, _PROFILE_URL.format(name=name)))
     for tag in input_model.hashtags:
         targets.append(TikTokTarget("hashtag", tag, _HASHTAG_URL.format(tag=tag)))
+    for query in input_model.searchQueries:
+        resolved = resolve_target(_SEARCH_URL.format(query=quote(query)))
+        if resolved is not None:
+            targets.append(resolved)
     return targets
 
 

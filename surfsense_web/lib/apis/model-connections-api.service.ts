@@ -43,10 +43,7 @@ class ModelConnectionsApiService {
 	};
 
 	getLlmSetupStatus = async (workspaceId: number): Promise<LlmSetupStatus> => {
-		return baseApiService.get(
-			`/api/v1/workspaces/${workspaceId}/llm-setup-status`,
-			llmSetupStatus
-		);
+		return baseApiService.get(`/api/v1/workspaces/${workspaceId}/llm-setup-status`, llmSetupStatus);
 	};
 
 	getModelProviders = async (): Promise<ModelProviderRead[]> => {

@@ -9,7 +9,7 @@ export const webCrawl: ConnectorPageContent = {
 
 	metaTitle: "Web Scraping and Crawl API for AI Agents | SurfSense",
 	metaDescription:
-		"Point your agents at any URL and get clean, LLM-ready markdown, links, and contacts back. The SurfSense Web Crawl API for deep research and competitor monitoring. Start free.",
+		"Point your agents at any URL and get clean, LLM-ready markdown, links, and contacts back. The SurfSense Web Crawl API for deep research and site monitoring. Start free.",
 	keywords: [
 		"web crawl api",
 		"web scraping api",
@@ -20,7 +20,7 @@ export const webCrawl: ConnectorPageContent = {
 		"agentic web scraping",
 		"deep research api",
 		"web scraping mcp",
-		"competitor price monitoring",
+		"website change monitoring",
 		"crawl website for ai",
 		"website to markdown",
 		"web data for ai",
@@ -283,6 +283,7 @@ export const webCrawl: ConnectorPageContent = {
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "Reddit API", href: "/reddit" },
 		{ label: "Instagram API", href: "/instagram" },
+		{ label: "Indeed API", href: "/indeed" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 		{ label: "Read the docs", href: "/docs" },
 	],

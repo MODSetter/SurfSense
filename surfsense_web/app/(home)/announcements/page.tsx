@@ -10,7 +10,7 @@ import { useAnnouncements } from "@/hooks/use-announcements";
 // ---------------------------------------------------------------------------
 
 export default function AnnouncementsPage() {
-	const { announcements, markAllRead } = useAnnouncements();
+	const { announcements, markAllRead } = useAnnouncements({ includeExpired: true });
 
 	// Auto-mark all visible announcements as read when the page is opened
 	useEffect(() => {

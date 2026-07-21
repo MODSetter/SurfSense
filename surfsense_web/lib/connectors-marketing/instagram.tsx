@@ -6,7 +6,7 @@ export const instagram: ConnectorPageContent = {
 	name: "Instagram",
 	icon: IconBrandInstagram,
 
-	metaTitle: "Instagram Scraper API for Profiles and Reels | SurfSense",
+	metaTitle: "Instagram API for Profiles, Posts, and Reels | SurfSense",
 	metaDescription:
 		"Instagram scraper API for public profiles, posts, and reels. No login or Graph API review. Structured data for AI agents, plus a free tier. Start now.",
 	keywords: [
@@ -29,7 +29,7 @@ export const instagram: ConnectorPageContent = {
 		"social listening",
 	],
 
-	h1: "Instagram Scraper API for Profiles, Posts, and Reels",
+	h1: "Instagram API for Profiles, Posts, and Reels",
 	heroLede:
 		"The SurfSense Instagram scraper extracts public profiles, posts, and reels without logging in or registering for the Instagram Graph API. Give your AI agents a live feed of what creators post, so you spot trends and shifts in engagement first.",
 
@@ -288,6 +288,7 @@ export const instagram: ConnectorPageContent = {
 		{ label: "Reddit API", href: "/reddit" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
+		{ label: "Indeed API", href: "/indeed" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 	],
 };

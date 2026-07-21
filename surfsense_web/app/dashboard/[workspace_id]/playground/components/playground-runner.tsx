@@ -14,6 +14,11 @@ import { AppError } from "@/lib/error";
 import { findVerb } from "@/lib/playground/catalog";
 import { formatCost, formatDuration, formatPricing } from "@/lib/playground/format";
 import { buildPayload, initialFormValues, parseSchemaFields } from "@/lib/playground/json-schema";
+import {
+	AmazonMarketplaceHint,
+	getAmazonFieldOptions,
+	hasAmazonFranceValue,
+} from "@/lib/playground/platform-overrides/amazon";
 import { ApiReference } from "./api-reference";
 import { OutputViewer } from "./output-viewer";
 import { RunProgressPanel } from "./run-progress-panel";
@@ -171,6 +176,8 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 		[run.detail]
 	);
 	const endpoint = `POST /workspaces/${workspaceId}/scrapers/${platform}/${verb}`;
+	const isAmazonScrape = platform === "amazon" && verb === "scrape";
+	const hasAmazonFranceUrl = useMemo(() => hasAmazonFranceValue(values), [values]);
 
 	useEffect(() => {
 		const previousStatus = previousStatusRef.current;
@@ -260,7 +267,9 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 						values={values}
 						onChange={handleChange}
 						disabled={isRunning}
+						getFieldOptions={isAmazonScrape ? getAmazonFieldOptions : undefined}
 					/>
+					{isAmazonScrape ? <AmazonMarketplaceHint showFranceWarning={hasAmazonFranceUrl} /> : null}
 
 					<div className="flex items-center gap-2">
 						<Button type="button" onClick={handleRun} disabled={isRunning} className="relative">

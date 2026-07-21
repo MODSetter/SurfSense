@@ -27,22 +27,75 @@ traffic" wall, and the IPs that pass serve a JavaScript shell whose organic
 results only materialize after the page's JS runs. So `fetch.py` needs both a
 **non-blocked IP** and a **real browser render**, on the same IP:
 
-1. Reuse the last known-good sticky IP if it still passes a cheap re-precheck;
-   otherwise race prechecks on several fresh sticky IPs at once (DataImpulse
-   maps ports → sessions) and take the first that passes,
+1. Take a **warm sticky IP from the pool** (`_pool`): reuse an already-solved IP
+   under its soft per-IP concurrency cap — concurrent fetches fan out across the
+   pool's IPs (least-loaded first) instead of funneling onto one hot IP (which
+   Google re-walls). If the pool is below target, grow it: first try to **adopt**
+   an IP another process already solved (see the shared store below), else race
+   prechecks on several fresh sticky IPs at once (DataImpulse maps ports →
+   sessions) and solve on the first that passes. If the pool is full and every
+   IP is busy, wait briefly for a slot rather than burn a fresh solve,
 2. render on that IP using a **shared long-lived browser** (launched once per
    process, per layout; each fetch only opens a fresh context carrying its
-   vetted proxy) — during which the render clicks the AI Overview's "Show
-   more" clamp and the initially-served People-Also-Ask questions open (all
-   clicks fired first, then one shared wait) so their content lands in the DOM;
-3. retry on fresh IPs until one returns the results container.
+   vetted proxy). Renders drop image/font/media/stylesheet requests
+   (`disable_resources`; the parsed DOM is text/attributes only) — except AI
+   Mode, whose answer streams in. During the render it clicks the AI Overview's
+   "Show more" clamp and the initially-served People-Also-Ask questions open
+   (all clicks fired first, then one shared wait) so their content lands in the
+   DOM;
+3. on success (re)admit the IP to the pool; a walled render evicts it (and drops
+   its exemption fleet-wide). Retry until a render returns the results container
+   or the per-fetch deadline / IP budget runs out.
 
-A warm fetch (browser up, IP cached) runs ~8 s; the first fetch of a process
-also pays the ~5 s Chromium launch and a vetting round. Requires the browser
-tier (patchright Chromium via Scrapling's `AsyncStealthySession`) and a
-residential proxy — set `PROXY_PROVIDER` + `PROXY_URL` (see
-`.env`). Long-running callers can `await fetch.close_sessions()` on shutdown;
-scripts that exit anyway can skip it.
+**The reCAPTCHA wall.** A curl-vetted IP is only *half* the battle: the initial
+`/search` GET returns a 200 JS shell, but the shell's JS reloads `/search` with
+a `sei` token, which Google 302s into a reCAPTCHA-**Enterprise** `/sorry` page.
+This trips *every* real browser (the block is on the browser access pattern, not
+the IP — curl "passes" only because it never runs the reload, and so never gets
+results either). When a solver is configured (`CAPTCHA_SOLVING_ENABLED=TRUE` +
+`CAPTCHA_SOLVER_API_KEY`, see `app/utils/captcha/`), `captcha.py` runs inside the
+render's `page_action`: on landing at `/sorry` it harvests an Enterprise token
+(with the page's dynamic `data-s`) from the solver **egressing through the same
+sticky proxy**, injects it, and submits. Google then issues a
+`GOOGLE_ABUSE_EXEMPTION` cookie, which the fetch seam caches per proxy
+(`_exemption_jar`) and replays via `page_setup` so **one solve unlocks the
+sticky IP for all subsequent queries** on it. That solve is also **published to
+Redis** (`pool_store.py`), so any *other* worker process can adopt the same
+warm IP instead of re-solving — cost then tracks the shared pool size, not the
+worker count (best-effort: no Redis ⇒ each process just keeps its own pool).
+Without a solver configured the stealth tier is unchanged (and
+brand/navigational queries will 429-wall).
+
+Timings (measured): a fetch that must solve runs **~40–110 s and is entirely
+dominated by the solver** — the reCAPTCHA-Enterprise harvest alone measured
+**27–39 s on capsolver** (the configured default; AI-native, tighter spread) and
+37–100 s on 2captcha (pure vendor worker latency, not our overhead). NB the
+sub-10 s figures both vendors advertise are for the plain reCAPTCHA *demo*
+sitekey; Google's Enterprise `/sorry` wall is genuinely harder and slower for
+everyone. Every *subsequent* fetch on that sticky IP reuses the cached exemption
+and runs **~12–16 s** (two proxy navigations for Google's `sei` reload + ~3–4 s
+of block expansion; the vet precheck is skipped, `render_ms` is the whole
+render). The first fetch of a process also pays the ~5 s Chromium launch. So the
+one lever that actually moves the needle is **solving less often** (the pool +
+Redis-shared exemptions already amortize it) — or a faster solver.
+
+**Scale.** Per-process throughput ceiling = `GOOGLE_SEARCH_MAX_CONCURRENT_PAGES`
+÷ warm-render-secs ≈ **4 / 14 s ≈ 17 SERP/min** at the default. Because renders
+drop images/fonts/media, one Chromium holds well more than 4 text contexts, so
+raise `GOOGLE_SEARCH_MAX_CONCURRENT_PAGES` to trade RAM/CPU for throughput
+before adding processes (e.g. 16 → ~69/min/process ⇒ ~7 processes cover 500/min;
+the sim in `scripts/scale_google_search.py` reproduces these numbers offline).
+`GOOGLE_SEARCH_WARM_POOL_TARGET` sizes the shared warm-IP pool: steady-state
+paid solves ≈ pool size (not request count), and it must be large enough that
+fleet-wide per-IP load (local `GOOGLE_SEARCH_IP_MAX_CONCURRENCY` × processes)
+stays gentle enough that Google doesn't re-wall a pool IP. Requires the
+browser tier (patchright Chromium via
+Scrapling's `AsyncStealthySession`) and a residential proxy — set
+`PROXY_PROVIDER` + `PROXY_URL` (see `.env`; **do not** pin a `__cr.<country>`
+suffix — DataImpulse's per-country sub-pools are 429-walled even for the curl
+precheck, which starves vetting; `gl=` in the URL sets result locale instead).
+Long-running callers can `await fetch.close_sessions()` on shutdown; scripts
+that exit anyway can skip it.
 
 ## Scope
 
@@ -98,7 +151,9 @@ the progressive rollout.)
 | `schemas.py`       | Pydantic input/output models mirroring the Apify camelCase spec. `extra="allow"` on outputs keeps the contract open.      |
 | `scraper.py`       | Orchestrator. `iter_serps` dispatches each `queries` line to `_term_flow` / `_url_flow` (+ `_ai_mode_flow` per term).      |
 | `query_builder.py` | Pure: classify `queries` lines, fold advanced filters into search operators, resolve relative dates, build the URL.        |
-| `fetch.py`         | Proxy-vetted two-phase fetch: cheap precheck GET + headless render on a shared sticky IP, retrying across IPs.             |
+| `fetch.py`         | Proxy-vetted two-phase fetch: cheap precheck GET + headless render on a **warm sticky-IP pool** (spread across IPs, per-IP soft cap, grow-to-target), retrying across IPs. Caches per-IP reCAPTCHA exemptions. |
+| `pool_store.py`    | Best-effort Redis cache of solved-IP exemptions so a solve on one worker warms that IP for the whole fleet (adopt/publish/evict); silent no-op without Redis. |
+| `captcha.py`       | Async reCAPTCHA-Enterprise solve for the `/sorry` wall (via the `app.utils.captcha` solver seam — capsolver/2captcha, `enterprise`+`data-s`), run inside the render's `page_action`.  |
 | `parsers.py`       | Rendered SERP HTML → organic / text ads / product ads / related / People-Also-Ask / `resultsTotal` (degrades per-field). |
 
 ## Input semantics (matching Apify)

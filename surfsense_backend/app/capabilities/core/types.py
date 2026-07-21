@@ -23,6 +23,7 @@ class BillingUnit(StrEnum):
     GOOGLE_SEARCH_SERP = "google_search_serp"
     GOOGLE_MAPS_PLACE = "google_maps_place"
     GOOGLE_MAPS_REVIEW = "google_maps_review"
+    AMAZON_PRODUCT = "amazon_product"
     YOUTUBE_VIDEO = "youtube_video"
     YOUTUBE_COMMENT = "youtube_comment"
     INSTAGRAM_ITEM = "instagram_item"
@@ -30,6 +31,7 @@ class BillingUnit(StrEnum):
     TIKTOK_VIDEO = "tiktok_video"
     TIKTOK_USER = "tiktok_user"
     TIKTOK_COMMENT = "tiktok_comment"
+    INDEED_JOB = "indeed_job"
 
 
 class BillableInput(Protocol):

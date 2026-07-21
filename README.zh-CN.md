@@ -1,4 +1,4 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源竞争情报平台" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源 NotebookLM 替代品" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -20,95 +20,52 @@
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense：面向竞争情报研究的 NotebookLM
+# SurfSense：面向开放网络研究的开源 NotebookLM 替代品
 
-SurfSense 是**面向 AI 智能体的开源竞争情报平台**，就像 NotebookLM，但配备了实时抓取连接器。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Google Maps、Google Search 和开放网络**的实时数据，监控竞争对手、追踪排名、倾听市场动态。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
+SurfSense 是**面向 AI 智能体的开源 NotebookLM 替代品**，一个配备实时数据连接器的开放网络研究平台。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Amazon、Google Maps、Google Search、Indeed 以及开放网络上任意页面**的结构化数据研究实时网络。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
 
 > [!NOTE]
 > **📢 致我们的 NotebookLM 替代品用户**
 >
-> 在过去几个月里，我们把 SurfSense 打造成了针对个人知识的最佳通用研究智能体，这段旅程为我们赢得了一个令我们由衷自豪的社区。如今，Claude、OpenCode、Hermes、OpenClaw 等智能体工具已经证明智能体就是未来，通用研究正在成为每个有能力的智能体开箱即用的功能。而智能体仍然缺少的是**实时市场数据以及围绕它的工作流**，所以这正是我们全力投入的方向：成为标杆级的开源竞争情报智能体平台。
+> 在过去几个月里，我们把 SurfSense 打造成了针对个人知识的最佳通用研究智能体，这段旅程为我们赢得了一个令我们由衷自豪的社区。如今，Claude、OpenCode、Hermes、OpenClaw 等智能体工具已经证明智能体就是未来，在静态索引上进行推理正在成为每个有能力的智能体开箱即用的功能。而智能体仍然缺少的是**来自答案真正所在之处的实时数据，以及围绕它的工作流**。这正是我们全力投入的方向：为智能体提供研究开放网络的基础原语。
 >
 > **你所依赖的一切功能都不会消失。**你的知识库、带引用的对话、报告、播客、演示文稿、自动化以及协作聊天都会继续可用，自托管也依然免费且开源。完整公告请阅读[我们的更新日志](https://www.surfsense.com/changelog)。
 
 ## 目录
 
 - [为什么智能体需要 SurfSense](#为什么智能体需要-surfsense)
-- [你可以用 SurfSense 做什么？](#你可以用-surfsense-做什么)
 - [实时数据连接器](#实时数据连接器)
 - [快速开始](#快速开始)
 - [开箱即用的其他能力](#开箱即用的其他能力)
-- [SurfSense 对比 Google NotebookLM](#surfsense-对比-google-notebooklm)
+- [SurfSense 与同类工具的对比](#surfsense-与同类工具的对比)
 - [路线图](#路线图)
 - [参与贡献](#参与贡献)
 
 ## 为什么智能体需要 SurfSense
 
-问任何一个有能力的智能体"竞争对手这周的定价是多少？"或者"自发布以来 Reddit 上对我们的评价如何？"，它都找不到可信赖的数据来源。官方平台 API 要么有速率限制，要么按企业级定价，要么根本不存在，而自建抓取管线又非常脆弱。SurfSense 正是为填补这一空白而生：
+问任何一个有能力的智能体“自发布以来 Reddit 上对这款产品的评价如何？”或者“这十个地点的评论到底在抱怨什么？”，它都找不到可信赖的数据来源。官方平台 API 要么有速率限制、要么按企业级定价、要么根本不存在；自建抓取管线非常脆弱；而用 LLM 驱动浏览器，每个页面都要消耗数分钟和大量 token。SurfSense 转而为智能体提供这些基础原语：
 
-- **平台原生连接器**，每个都是返回结构化 JSON 的强类型 REST 端点。不用赌速率限制，也不用解析 HTML。
+- **一个覆盖所有数据来源的强类型接口。**每个连接器都是返回结构化 JSON 的 REST 端点——帖子、评论、字幕转录、点评、搜索结果页、网页。不用赌速率限制，不用解析 HTML，也没有浏览器循环。
 - **一个 MCP 服务器**，把每个连接器都作为原生工具（`surfsense_reddit_scrape`、`surfsense_google_search` 等）暴露给 Claude、Cursor 或任何智能体框架。
-- **一套智能体运行框架**，而不只是原始数据：重试、结构化输出和额度计量都已内置，智能体可以从一个问题直达一份简报，无需你自己搭建管线。
-- **开源且可自托管**，你的竞争研究数据始终留在你自己的基础设施上。
-
-## 你可以用 SurfSense 做什么？
-
-下面的每个用例都是 SurfSense 智能体如今能够端到端完成的真实任务，一条提示语或一个定时计划即可触发。
-
-### 多连接器工作流
-
-在一次智能体运行中串联多个连接器，最终得到一份带引用的简报。
-
-- **发布影响力分析，覆盖所有平台** — "我们的竞争对手昨天发布了 v2。评估搜索、Reddit 和 YouTube 上的反应。"智能体会抓取搜索结果页、Reddit 帖子和 YouTube 评论，然后把三路信号汇总成一份发布影响力简报。
-- **本地竞争对手拆解** — Google Maps 找到本地玩家，网页爬虫读取他们的定价页面，Google Search 展示谁在搜索中胜出，全部在一次运行中完成。
-- **定时执行的竞争对手 360 全景** — 一条自动化每周串联四个连接器：网站变更、排名变动、Reddit 舆情和 YouTube 反应。
-
-### 竞争对手监控
-
-- **定价监控** — 从竞争对手的定价页面提取每个套餐、价格和限制，汇总到一张表格，然后每天复查，任何变动即时预警。
-- **产品与更新日志追踪** — 每周一爬取对手的更新日志、产品页和招聘页面，收到一份他们发布了什么的简报。
-- **排名与广告监控** — 追踪你的市场真正看到的 Google 排名、付费广告和 AI Overview 引用，并逐日标记变动。
-
-### B2B 潜在客户开发
-
-- **本地商户线索** — 把一个品类加一个地区（"圣何塞的汉堡店"）变成一份线索清单，包含电话、网站、评分，以及从他们网站上提取的决策人联系方式。
-- **团队名录与联系方式** — 爬取任意公司网站，提取完整团队名单，附带邮箱、社交账号和数据来源，导出为 CSV。
-- **投资组合与市场地图** — 绘制一家投资机构的投资组合或整个品类的全景图，再为每家公司补充定价和联系方式。
-
-### 品牌与市场舆情监听
-
-- **Reddit 品牌监控** — 在买家坦诚发言的帖子里，倾听你的市场对你、你的竞争对手和你所在品类的真实评价。
-- **YouTube 观众情绪分析** — 大规模拉取视频、字幕转录和评论，然后聚类分析观众在称赞什么、抱怨什么。
-- **换用意向挖掘** — 找到正在积极寻找某竞争对手替代品的人群，并按他们的换用意愿排序。
-
-### 市场调研
-
-- **实时网络深度研究** — 智能体针对一个问题爬取数十个实时来源，并综合出一份带引用的答案，而不是过时的索引。
-- **AI Overview 与 GEO 追踪** — 捕捉 Google 的 AI Overviews 何时回答了你市场的搜索，以及它们究竟引用了哪些来源。
-- **带引用的简报与预警** — 智能体收集到的一切都会以简报和预警的形式汇入你的工作区，每条结论都附带可核查的来源。
-
-### 把以上任何任务自动化，无需代码
-
-自动化功能可以按计划或响应事件运行完整的智能体回合，然后把结果写回 Notion、Slack、Linear 和 Jira。用自然语言描述工作流，SurfSense 就会替你构建。可以试试这些提示语：
-
-- "盯住我们前 3 名竞争对手的定价页面，一旦套餐或价格变动就在 Slack 上提醒我。"
-- "追踪 Reddit 和 YouTube 上对我们品牌的每一次提及，每天给我发一份摘要。"
-- "监控我们前 10 个关键词的 Google 排名，按周标记下滑情况。"
-- "每周一拉取我们门店以及竞争对手门店的最新 Google Maps 评论。"
-- "每月生成一份竞争对手分析报告并保存到我的工作区。"
+- **一套智能体运行框架**，而不只是原始数据：重试、结构化输出和额度计量都已内置，智能体可以从一个问题直达一份带引用的简报，无需你自己搭建管线。
+- **开源且可自托管**，你的研究数据始终留在你自己的基础设施上。
 
 ## 实时数据连接器
 
 | 连接器 | 你的智能体能获得什么 | 了解更多 |
 |---|---|---|
 | **Reddit** | 帖子、评论和子版块信息流，不受官方 API 速率限制 | [Reddit Scraper API](https://www.surfsense.com/reddit) |
-| **YouTube** | 视频、字幕转录和评论串，用于品牌和产品舆情监听 | [YouTube Scraper API](https://www.surfsense.com/youtube) |
+| **YouTube** | 大规模获取视频、字幕转录和评论串 | [YouTube Scraper API](https://www.surfsense.com/youtube) |
 | **Instagram** | 公开主页、帖子和 Reels，无需 Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
 | **TikTok** | 视频、评论、话题标签和主页，无需 Research API 审批 | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
-| **Google Maps** | 地点、评分和评论，用于本地竞争对手和潜在客户调研 | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
-| **Google Search** | 实时搜索结果页，用于排名追踪和市场监控 | [Google Search API](https://www.surfsense.com/google-search) |
+| **Google Maps** | 地点、评分和评论，用于本地商户研究 | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
+| **Google Search** | 实时搜索结果页，用于搜索研究和监控 | [Google Search API](https://www.surfsense.com/google-search) |
+| **Indeed** | 公开职位信息，含薪资与完整职位描述，按搜索或公司抓取 | [Indeed Scraper API](https://www.surfsense.com/indeed) |
+| **Amazon** | 公开商品数据：价格、评分、报价、卖家和畅销榜排名 | [Amazon Product API](https://www.surfsense.com/amazon) |
 | **Web Crawl** | 把开放网络上的任意页面转为干净、结构化的内容 | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **外部 MCP 连接器** | 将任意 MCP 服务器接入你的智能体，Notion、Slack、Jira 等支持一键 OAuth | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
+
+连接器目录正在向社交平台和搜索之外扩展；每个新数据源都会作为强类型端点落在同一套 API 和 MCP 服务器上。
 
 计费采用按量付费：连接器按实际返回的条目计费，爬取按成功抓取的页面计费，失败的调用永不计费。自托管部署默认关闭计费。详见[定价](https://www.surfsense.com/pricing)。
 
@@ -124,7 +81,7 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
   -H "Content-Type: application/json" \
   -d '{
     "search_queries": ["your brand"],
-    "community": "webscraping",
+    "community": "SaaS",
     "sort": "top",
     "time_filter": "week"
   }'
@@ -151,8 +108,7 @@ curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape
 
 ### 使用云端服务
 
-访问 [surfsense.com](https://www.surfsense.com)，登录后用自然语言向智能体索取实时市场数据。新账户自带 5 美元免费额度，无需订阅。
-
+访问 [surfsense.com](https://www.surfsense.com)，登录后用自然语言向智能体索取实时网络数据。新账户自带 5 美元免费额度，无需订阅。
 
 ### 免费自托管
 
@@ -193,6 +149,10 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 - 可编辑的幻灯片、带旁白的视频概览以及 AI 图像生成。
 
 <p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI 报告生成器" /></p>
+
+**自动化**
+
+- 按计划或响应事件运行完整的智能体回合，用自然语言描述即可，结果自动写回 Notion、Slack、Linear 和 Jira。
 
 **团队协作**
 
@@ -240,13 +200,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="实时评论" /></p>
 
-## SurfSense 对比 Google NotebookLM
+## SurfSense 与同类工具的对比
+
+SurfSense 是唯一一款把面向人的 NotebookLM 式研究工作区与面向智能体的实时数据原语结合在一起的开源产品。下面是它与每一类工具的对比。
+
+**对比浏览器智能体（Browserbase、Browser Use）。**浏览器智能体让 LLM 在循环中驱动一个真实浏览器——当任务需要点击、登录或填写表单时，这是正确的工具。但大多数研究都是只读的检索，而对于检索来说，“LLM 驱动浏览器”的循环每个页面都要花费数分钟和数千 token。一次 SurfSense 连接器调用只是一个 HTTP 请求：几秒完成、结果确定，而且不用花一个 token 去决定该点哪里。
+
+**对比抓取 API（Firecrawl）。**抓取 API 很擅长把通用网页转成 markdown，但一团 markdown 仍然需要你的智能体从行文中解析结构，而且它们在 Reddit、TikTok、Instagram 这类有反爬保护的平台上会明显退化。SurfSense 连接器返回平台原生的结构化条目——帖子、评论、字幕转录、点评——并且只按实际返回的条目计费；失败的调用永不计费。
+
+**对比搜索 API（Exa、Tavily、Parallel）。**搜索 API 基于网络索引作答，对于“帮我找关于 X 的页面”来说是正确的工具。但它们拉不到 Reddit 帖子串的评论、TikTok 的用户反应、YouTube 的字幕转录或 Google Maps 的点评——而答案往往就藏在这些地方。
+
+**对比爬虫市场（Apify）。**市场提供成千上万个社区 actor，每个都有自己的 schema、质量和定价。SurfSense 是一个强类型 API 加一个 MCP 服务器，背后还有智能体运行框架和研究工作区，而且它是开源的。
+
+### SurfSense 对比 Google NotebookLM
 
 还在把我们当作 NotebookLM 替代品来比较？这里是坦诚的对比。
 
 | 功能 | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **面向智能体的实时市场数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Google Maps、Google Search 和网页爬取连接器 |
+| **面向智能体的实时网络数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Amazon、Google Maps、Google Search、Indeed 和网页爬取连接器 |
 | **MCP 服务器** | 无 | 每个连接器都作为原生智能体工具暴露，还可自带 MCP 服务器并使用一键 OAuth 应用 |
 | **每个笔记本的来源数** | 50 个（免费版）至 600 个（Ultra 版，249.99 美元/月） | 无限制 |
 | **笔记本数量** | 100 个（免费版）至 500 个（付费档位） | 无限制 |

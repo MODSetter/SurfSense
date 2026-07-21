@@ -21,9 +21,9 @@ const PATHS: {
 		icon: Megaphone,
 		art: "chat",
 		eyebrow: "For founders & marketing teams",
-		title: "Competitor and market intelligence without the enterprise price tag",
+		title: "Live web research without the enterprise price tag",
 		description:
-			"Ask for a competitor teardown, a lead list, or a weekly market brief in plain English. The agent gathers live data, cites its sources, and automations keep watch so you hear about changes first. Start free, pay only for what you use.",
+			"Ask for a research brief, a lead list, or a competitor teardown in plain English. The agent gathers live data, cites its sources, and automations keep watch so you hear about changes first. Start free, pay only for what you use.",
 		links: [
 			{ label: "See what teams build", href: "/connectors" },
 			{ label: "Pricing", href: "/pricing" },
@@ -35,7 +35,7 @@ const PATHS: {
 		eyebrow: "For developers & agents",
 		title: "The whole platform is programmable",
 		description:
-			"Everything SurfSense agents can do is a typed REST API: scrape Reddit, YouTube, TikTok, Google Maps, Google Search, and the open web, search the knowledge base, run automations. One key, JSON in and out, $5 free credit, pay as you go. Already running agents in Claude, Cursor, or your own harness? The SurfSense MCP server hands them the same tools natively.",
+			"Everything SurfSense agents can do is a typed REST API: scrape Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and the open web, search the knowledge base, run automations. One key, JSON in and out, $5 free credit, pay as you go. Already running agents in Claude, Cursor, or your own harness? The SurfSense MCP server hands them the same tools natively.",
 		links: [
 			{ label: "Read the docs", href: "/docs" },
 			{ label: "SurfSense MCP server", href: "/mcp-server" },

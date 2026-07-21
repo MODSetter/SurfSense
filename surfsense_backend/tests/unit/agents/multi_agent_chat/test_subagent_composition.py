@@ -27,11 +27,13 @@ pytestmark = pytest.mark.unit
 # specialist is a deliberate product change and must be reflected here.
 _EXPECTED_SUBAGENTS = frozenset(
     {
+        "amazon",
         "deliverables",
         "dropbox",
         "google_drive",
         "google_maps",
         "google_search",
+        "indeed",
         "instagram",
         "knowledge_base",
         "mcp_discovery",

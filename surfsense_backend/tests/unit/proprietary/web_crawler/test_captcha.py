@@ -2,8 +2,9 @@
 
 The browser/solver boundary is mocked: a fake Playwright ``page`` and a
 monkeypatched ``_harvest_token`` / injection. We assert the glue logic —
-detection, proxy reformatting, attempt counting + state surfacing, the per-URL
-cap, and the no-balance process latch.
+detection, proxy pass-through, attempt counting + state surfacing, the per-URL
+cap, and the no-balance process latch. (Vendor proxy reformatting now lives in
+``app.utils.captcha.solvers`` and is tested there.)
 """
 
 import pytest
@@ -74,24 +75,6 @@ def _clear_latch():
     cap.reset_solver_latch()
     yield
     cap.reset_solver_latch()
-
-
-# --- proxy reformat --------------------------------------------------------
-
-
-class TestProxyReformat:
-    def test_with_auth(self):
-        assert (
-            cap.proxy_url_to_captchatools("http://user:pass@1.2.3.4:8080")
-            == "1.2.3.4:8080:user:pass"
-        )
-
-    def test_without_auth(self):
-        assert cap.proxy_url_to_captchatools("http://1.2.3.4:8080") == "1.2.3.4:8080"
-
-    def test_none_and_garbage(self):
-        assert cap.proxy_url_to_captchatools(None) is None
-        assert cap.proxy_url_to_captchatools("not-a-url") is None
 
 
 # --- detection -------------------------------------------------------------
@@ -175,8 +158,9 @@ class TestPageAction:
         action(page)
 
         assert state == {"attempts": 1, "solved": True}
-        # Solver egressed from the crawl's proxy, reformatted, with the page UA.
-        assert captured["proxy"] == "1.2.3.4:9000:u:p"
+        # Solver egressed from the crawl's proxy (raw URL; the seam reformats
+        # per vendor), with the page UA.
+        assert captured["proxy"] == "http://u:p@1.2.3.4:9000"
         assert captured["ua"] == "UA/1.0"
         assert captured["ctype"] == "v2"
         assert injected == {"ctype": "v2", "token": "TOKEN"}

@@ -87,7 +87,7 @@ show_banner() {
                                                                            
 
 EOF
-    printf "${YELLOW}         OSS Alternative to NotebookLM for Teams${NC}\n"
+    printf "${YELLOW}           NotebookLM for Open Web Research${NC}\n"
     printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n"
     info "This installer will create ${INSTALL_DIR}/ and start SurfSense with Docker Compose."
 }

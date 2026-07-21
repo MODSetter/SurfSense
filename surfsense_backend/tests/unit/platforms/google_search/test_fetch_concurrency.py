@@ -16,7 +16,7 @@ class _FakeSession:
         self.release = asyncio.Event()
         self.closed = 0
 
-    async def fetch(self, url, proxy=None):
+    async def fetch(self, url, proxy=None, **kwargs):
         await self.release.wait()
         return "page"
 

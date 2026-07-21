@@ -26,7 +26,12 @@ logger = logging.getLogger(__name__)
 # 403 => IP blocked; rotate and re-warm. 429 => rate limited; back off same IP.
 _ROTATE_STATUS = 403
 _BACKOFF_STATUS = 429
-_MAX_ROTATIONS = 3
+# Each rotation walks to the next country pool (see session/proxy.py). The bare
+# worldwide pool never mints ``ttwid`` (proven live 2026-07-17), so warming
+# relies on reaching a good country pool — budget enough rotations to try every
+# one at least once (>= len(rotation FALLBACK_COUNTRIES)). Rotating is cheap
+# (reopen one keep-alive connection + a 1-request warm), so spend liberally.
+_MAX_ROTATIONS = 8
 _MAX_BACKOFFS = 4
 _BACKOFF_BASE_S = 5.0
 

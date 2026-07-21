@@ -44,6 +44,51 @@ def test_location_stops_at_next_param(monkeypatch: pytest.MonkeyPatch) -> None:
     assert DataImpulseProvider().get_location() == "de"
 
 
+def test_geo_proxy_url_rewrites_country_suffix(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Config, "PROXY_URL", _URL)
+
+    result = DataImpulseProvider().get_geo_proxy_url("gb")
+
+    assert result == "http://tok123__cr.gb:secret@gw.dataimpulse.com:823"
+
+
+def test_geo_proxy_url_replaces_existing_country_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        Config,
+        "PROXY_URL",
+        "http://tok123__cr.us__sid.old:secret@gw.dataimpulse.com:823",
+    )
+
+    result = DataImpulseProvider().get_geo_proxy_url("de")
+
+    assert "__cr.us" not in result
+    assert result.count("__cr.de") == 1
+    assert "__sid.old" not in result
+
+
+def test_geo_proxy_url_without_country_keeps_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(Config, "PROXY_URL", _URL)
+
+    assert DataImpulseProvider().get_geo_proxy_url(None) == _URL
+    assert DataImpulseProvider().get_geo_proxy_url("") == _URL
+
+
+def test_sticky_proxy_url_composes_country_and_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(Config, "PROXY_URL", _URL)
+
+    result = DataImpulseProvider().get_sticky_proxy_url("location-123", "gb")
+
+    assert result == (
+        "http://tok123__cr.gb__sid.location-123:secret@gw.dataimpulse.com:823"
+    )
+
+
 def test_no_country_suffix_yields_empty_location(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

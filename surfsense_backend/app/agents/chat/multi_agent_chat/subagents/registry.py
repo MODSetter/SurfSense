@@ -12,6 +12,9 @@ from langchain_core.tools import BaseTool
 from app.agents.chat.multi_agent_chat.constants import (
     SUBAGENT_TO_REQUIRED_CONNECTOR_MAP,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.amazon.agent import (
+    build_subagent as build_amazon_subagent,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent import (
     build_subagent as build_deliverables_subagent,
 )
@@ -20,6 +23,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.google_maps.agent impor
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.google_search.agent import (
     build_subagent as build_google_search_subagent,
+)
+from app.agents.chat.multi_agent_chat.subagents.builtins.indeed.agent import (
+    build_subagent as build_indeed_subagent,
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.instagram.agent import (
     build_subagent as build_instagram_subagent,
@@ -80,11 +86,13 @@ class SubagentBuilder(Protocol):
 
 
 SUBAGENT_BUILDERS_BY_NAME: dict[str, SubagentBuilder] = {
+    "amazon": build_amazon_subagent,
     "deliverables": build_deliverables_subagent,
     "dropbox": build_dropbox_subagent,
     "google_drive": build_google_drive_subagent,
     "google_maps": build_google_maps_subagent,
     "google_search": build_google_search_subagent,
+    "indeed": build_indeed_subagent,
     "instagram": build_instagram_subagent,
     "knowledge_base": build_knowledge_base_subagent,
     "mcp_discovery": build_mcp_discovery_subagent,

@@ -82,9 +82,7 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
 			// which is the authoritative net regardless.
 			const isInitialSetup = result.llm_setup?.stage === "initial_setup";
 			router.push(
-				isInitialSetup
-					? `/dashboard/${result.id}/onboard`
-					: `/dashboard/${result.id}/new-chat`
+				isInitialSetup ? `/dashboard/${result.id}/onboard` : `/dashboard/${result.id}/new-chat`
 			);
 		} catch (error) {
 			console.error("Failed to create workspace:", error);
