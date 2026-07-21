@@ -37,6 +37,7 @@ export const CHAT_EXAMPLE_CATEGORIES: ChatExampleCategory[] = [
 			"Analyze the comments on [channel]'s last 10 videos and cluster the complaints",
 			"What is Reddit saying about [topic] this week?",
 			"Pull the top TikTok videos for [hashtag] and summarize the trend",
+			"Summarize the top complaints in the Walmart reviews for [product]",
 		],
 	},
 	{

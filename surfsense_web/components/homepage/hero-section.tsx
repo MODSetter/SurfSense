@@ -658,8 +658,8 @@ export function HeroSection() {
 						>
 							SurfSense is the open-source NotebookLM alternative for AI agents, an open web
 							research platform with live data connectors. Your AI agents research the live web with
-							structured data from Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google
-							Search, and any page on the open web.
+							structured data from Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google
+							Maps, Google Search, and any page on the open web.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">

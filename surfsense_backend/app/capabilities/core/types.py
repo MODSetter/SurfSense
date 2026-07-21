@@ -32,6 +32,8 @@ class BillingUnit(StrEnum):
     TIKTOK_USER = "tiktok_user"
     TIKTOK_COMMENT = "tiktok_comment"
     INDEED_JOB = "indeed_job"
+    WALMART_PRODUCT = "walmart_product"
+    WALMART_REVIEW = "walmart_review"
 
 
 class BillableInput(Protocol):

@@ -9,6 +9,7 @@
 		"google-search",
 		"indeed",
 		"amazon",
+		"walmart",
 		"web-crawl"
 	],
 	"defaultOpen": false
