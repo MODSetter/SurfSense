@@ -17,6 +17,7 @@ class CitationSourceType(StrEnum):
     WEB_RESULT = "web_result"
     CHAT_TURN = "chat_turn"
     ANON_CHUNK = "anon_chunk"
+    RUN = "run"
 
 
 class CitationEntry(BaseModel):
