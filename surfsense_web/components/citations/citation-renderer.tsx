@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
+import { RunCitation } from "@/components/citations/run-citation";
 import {
 	type CitationToken,
 	type CitationUrlMap,
@@ -20,6 +21,9 @@ import {
 export function renderCitationToken(token: CitationToken, ordinalKey: number): ReactNode {
 	if (token.kind === "url") {
 		return <UrlCitation key={`citation-url-${ordinalKey}`} url={token.url} />;
+	}
+	if (token.kind === "run") {
+		return <RunCitation key={`citation-run-${token.runId}-${ordinalKey}`} runId={token.runId} />;
 	}
 	return (
 		<InlineCitation

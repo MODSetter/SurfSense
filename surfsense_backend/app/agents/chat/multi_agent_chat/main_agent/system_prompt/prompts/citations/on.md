@@ -1,8 +1,9 @@
 <citations>
 Cite with one token: the bracket label `[n]`. Every citable result —
 prose from a `task` knowledge_base/research specialist (including the
-knowledge_base specialist's `[n]`-labelled workspace findings) — already
-carries `[n]` labels on a single shared count.
+knowledge_base specialist's `[n]`-labelled workspace findings) and
+scraper specialists' run-backed findings — already carries `[n]` labels
+on a single shared count.
 Those labels are the only citation you write; the server resolves each one
 back to its source after the turn.
 
