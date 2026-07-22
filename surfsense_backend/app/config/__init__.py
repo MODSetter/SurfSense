@@ -861,6 +861,9 @@ class Config:
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE", "LOCAL")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
+    # Max workspaces a user may own. The frontend reads this through the
+    # workspace limits route; do not duplicate this value client-side.
+    MAX_WORKSPACES_PER_USER = int(os.getenv("MAX_WORKSPACES_PER_USER", "400"))
 
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")

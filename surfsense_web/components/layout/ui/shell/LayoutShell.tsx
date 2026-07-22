@@ -3,10 +3,11 @@
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,20 @@ const DocumentTabContent = dynamic(
 
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
 const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function persistPlaygroundSidebarCollapsedCookie(isCollapsed: boolean) {
+	void window.cookieStore
+		?.set({
+			name: PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE,
+			value: String(isCollapsed),
+			path: "/",
+			expires: Date.now() + PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE * 1000,
+			sameSite: "lax",
+		})
+		.catch(() => {
+			// Ignore preference persistence failures.
+		});
+}
 
 function MacDesktopTitleBar({
 	isSidebarCollapsed,
@@ -81,6 +96,8 @@ interface LayoutShellProps {
 	onWorkspaceDelete?: (workspace: Workspace) => void;
 	onWorkspaceSettings?: (workspace: Workspace) => void;
 	onAddWorkspace: () => void;
+	isAtWorkspaceLimit?: boolean;
+	maxWorkspacesPerUser?: number;
 	workspace: Workspace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
@@ -92,6 +109,7 @@ interface LayoutShellProps {
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
+	onChatsClick?: () => void;
 	onViewAllChats?: () => void;
 	user: User;
 	onSettings?: () => void;
@@ -106,6 +124,7 @@ interface LayoutShellProps {
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
 	isAllChatsPage?: boolean;
+	showTabs?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
@@ -113,8 +132,8 @@ interface LayoutShellProps {
 	className?: string;
 	notifications?: NotificationsDropdownData;
 	isLoadingChats?: boolean;
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
 	playgroundSidebar?: React.ReactNode;
 	initialPlaygroundSidebarCollapsed?: boolean;
 }
@@ -124,19 +143,85 @@ function MainContentPanel({
 	onTabSwitch,
 	onTabPrefetch,
 	onNewChat,
+	showTabs = true,
 	showRightPanelExpandButton = true,
 	showTopBorder = false,
 	children,
 }: {
 	isChatPage: boolean;
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
+	showTabs?: boolean;
 	showRightPanelExpandButton?: boolean;
 	showTopBorder?: boolean;
 	children: React.ReactNode;
 }) {
-	const activeTab = useAtomValue(activeTabAtom);
+	if (!showTabs) {
+		return (
+			<UntabbedMainContentPanel isChatPage={isChatPage} showTopBorder={showTopBorder}>
+				{children}
+			</UntabbedMainContentPanel>
+		);
+	}
+
+	return (
+		<TabbedMainContentPanel
+			isChatPage={isChatPage}
+			onTabSwitch={onTabSwitch}
+			onTabPrefetch={onTabPrefetch}
+			onNewChat={onNewChat}
+			showRightPanelExpandButton={showRightPanelExpandButton}
+			showTopBorder={showTopBorder}
+		>
+			{children}
+		</TabbedMainContentPanel>
+	);
+}
+
+function UntabbedMainContentPanel({
+	isChatPage,
+	showTopBorder,
+	children,
+}: {
+	isChatPage: boolean;
+	showTopBorder: boolean;
+	children: React.ReactNode;
+}) {
+	return (
+		<div
+			className={cn("relative isolate flex flex-1 flex-col min-w-0", showTopBorder && "border-t")}
+		>
+			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
+				<Header />
+				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+					{children}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function TabbedMainContentPanel({
+	isChatPage,
+	onTabSwitch,
+	onTabPrefetch,
+	onNewChat,
+	showRightPanelExpandButton,
+	showTopBorder,
+	children,
+}: {
+	isChatPage: boolean;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
+	onNewChat?: () => void;
+	showRightPanelExpandButton: boolean;
+	showTopBorder: boolean;
+	children: React.ReactNode;
+}) {
+	const activeTabId = useAtomValue(activeTabIdAtom);
+	const tabs = useResolvedTabs();
+	const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
 	const isDocumentTab = activeTab?.type === "document";
 
 	return (
@@ -153,11 +238,11 @@ function MainContentPanel({
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
 
-				{isDocumentTab && activeTab.documentId && activeTab.workspaceId ? (
+				{isDocumentTab && activeTab.entityId && activeTab.workspaceId ? (
 					<div className="flex-1 overflow-hidden">
 						<DocumentTabContent
-							key={activeTab.documentId}
-							documentId={activeTab.documentId}
+							key={activeTab.entityId}
+							documentId={activeTab.entityId}
 							workspaceId={activeTab.workspaceId}
 							title={activeTab.title}
 						/>
@@ -183,6 +268,8 @@ export function LayoutShell({
 	onWorkspaceDelete,
 	onWorkspaceSettings,
 	onAddWorkspace,
+	isAtWorkspaceLimit = false,
+	maxWorkspacesPerUser,
 	workspace,
 	navItems,
 	onNavItemClick,
@@ -194,6 +281,7 @@ export function LayoutShell({
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
+	onChatsClick,
 	onViewAllChats,
 	user,
 	onSettings,
@@ -208,6 +296,7 @@ export function LayoutShell({
 	defaultCollapsed = false,
 	isChatPage = false,
 	isAllChatsPage = false,
+	showTabs = true,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
@@ -242,8 +331,7 @@ export function LayoutShell({
 	const handlePlaygroundSidebarToggle = () => {
 		setIsPlaygroundSidebarCollapsed((collapsed) => {
 			const nextCollapsed = !collapsed;
-			const secureAttribute = window.location.protocol === "https:" ? "; Secure" : "";
-			document.cookie = `${PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE}=${nextCollapsed}; Path=/; Max-Age=${PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax${secureAttribute}`;
+			persistPlaygroundSidebarCollapsedCookie(nextCollapsed);
 			return nextCollapsed;
 		});
 	};
@@ -265,6 +353,8 @@ export function LayoutShell({
 							activeWorkspaceId={activeWorkspaceId}
 							onWorkspaceSelect={onWorkspaceSelect}
 							onAddWorkspace={onAddWorkspace}
+							isAtWorkspaceLimit={isAtWorkspaceLimit}
+							maxWorkspacesPerUser={maxWorkspacesPerUser}
 							workspace={workspace}
 							navItems={navItems}
 							onNavItemClick={onNavItemClick}
@@ -276,6 +366,7 @@ export function LayoutShell({
 							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
+							onChatsClick={onChatsClick}
 							onViewAllChats={onViewAllChats}
 							isAllChatsActive={isAllChatsPage}
 							user={user}
@@ -336,6 +427,8 @@ export function LayoutShell({
 								onWorkspaceDelete={onWorkspaceDelete}
 								onWorkspaceSettings={onWorkspaceSettings}
 								onAddWorkspace={onAddWorkspace}
+								isAtWorkspaceLimit={isAtWorkspaceLimit}
+								maxWorkspacesPerUser={maxWorkspacesPerUser}
 								isSingleRailMode={false}
 								user={user}
 								onUserSettings={onUserSettings}
@@ -375,6 +468,7 @@ export function LayoutShell({
 								onChatRename={onChatRename}
 								onChatDelete={onChatDelete}
 								onChatArchive={onChatArchive}
+								onChatsClick={onChatsClick}
 								onViewAllChats={onViewAllChats}
 								isAllChatsActive={isAllChatsPage}
 								user={user}
@@ -451,6 +545,7 @@ export function LayoutShell({
 										onTabSwitch={onTabSwitch}
 										onTabPrefetch={onTabPrefetch}
 										onNewChat={onNewChat}
+										showTabs={showTabs}
 										showRightPanelExpandButton={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									>

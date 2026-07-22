@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 
@@ -16,7 +17,6 @@ const DEFAULT_CHUNK_WINDOW = 5;
 interface CitationPanelContentProps {
 	chunkId: number;
 	onClose?: () => void;
-	showHeader?: boolean;
 }
 
 /**
@@ -25,11 +25,7 @@ interface CitationPanelContentProps {
  * with the cited one visually highlighted and auto-scrolled into view.
  * The user can jump to the full document via the editor panel.
  */
-export const CitationPanelContent: FC<CitationPanelContentProps> = ({
-	chunkId,
-	onClose,
-	showHeader = true,
-}) => {
+export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, onClose }) => {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 
 	const chunkWindow = DEFAULT_CHUNK_WINDOW;
@@ -85,32 +81,13 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 	return (
 		<>
 			<div className="shrink-0">
-				{showHeader && (
-					<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
-						<h2 className="select-none text-lg font-semibold">Citation</h2>
-						<div className="flex items-center gap-1 shrink-0">
-							{onClose && (
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={onClose}
-									className="h-8 w-8 rounded-full shrink-0 text-muted-foreground hover:text-accent-foreground"
-								>
-									<XIcon className="h-4 w-4" />
-									<span className="sr-only">Close citation panel</span>
-								</Button>
-							)}
-						</div>
-					</div>
-				)}
-				<div className="grid h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+				<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
 					<div className="min-w-0 flex flex-1 items-center gap-2">
 						<p className="truncate text-sm text-muted-foreground">
 							{data?.title ?? (isLoading ? "Loading…" : `Chunk #${chunkId}`)}
 						</p>
 					</div>
-					<div className="flex items-center gap-3 shrink-0 text-[11px] text-muted-foreground">
-						{totalChunks > 0 && <span>{totalChunks} chunks</span>}
+					<div className="flex items-center gap-1 shrink-0">
 						{!isLoading && !error && data && (
 							<Button
 								variant="default"
@@ -120,6 +97,23 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({
 							>
 								Open
 							</Button>
+						)}
+						{onClose && (
+							<>
+								<Separator
+									orientation="vertical"
+									className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
+								/>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={onClose}
+									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+								>
+									<XIcon className="size-4" />
+									<span className="sr-only">Close citation panel</span>
+								</Button>
+							</>
 						)}
 					</div>
 				</div>

@@ -11,10 +11,10 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
-import { removeChatTabAtom, syncChatTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
-import { workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { workspaceLimitsAtom, workspacesAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { ActionLogDialog } from "@/components/agent-action-log/action-log-dialog";
 import { AnnouncementSpotlight } from "@/components/announcements/AnnouncementSpotlight";
 import { AnnouncementsDialog } from "@/components/announcements/AnnouncementsDialog";
@@ -43,6 +43,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
+import { getChatUrl, type ResolvedTab } from "@/hooks/use-resolved-tabs";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -84,6 +85,7 @@ export function LayoutDataProvider({
 		refetch: refetchWorkspaces,
 		isSuccess: workspacesLoaded,
 	} = useAtomValue(workspacesAtom);
+	const { data: workspaceLimits } = useAtomValue(workspaceLimitsAtom);
 	const { mutateAsync: deleteWorkspace } = useAtomValue(deleteWorkspaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
@@ -225,6 +227,13 @@ export function LayoutDataProvider({
 			createdAt: space.created_at,
 		}));
 	}, [workspacesData]);
+	const maxWorkspacesPerUser = workspaceLimits?.max_workspaces_per_user;
+	const ownedWorkspaceCount = workspaces.reduce(
+		(count, space) => count + (space.isOwner ? 1 : 0),
+		0
+	);
+	const isAtWorkspaceLimit =
+		maxWorkspacesPerUser !== undefined && ownedWorkspaceCount >= maxWorkspacesPerUser;
 
 	// Find active workspace from list, falling back to the route-scoped detail query.
 	const activeWorkspace: Workspace | null = useMemo(() => {
@@ -265,26 +274,18 @@ export function LayoutDataProvider({
 	// Sync current chat route with tab state
 	useEffect(() => {
 		const chatId = currentChatId ?? null;
-		const chatUrl = chatId
-			? `/dashboard/${workspaceId}/new-chat/${chatId}`
-			: `/dashboard/${workspaceId}/new-chat`;
-		const thread = threadsData?.threads?.find((t) => t.id === chatId);
 		syncChatTab({
 			chatId,
-			// Avoid overwriting live SSE-updated tab titles with fallback values.
-			title: chatId ? (thread?.title ?? undefined) : "New Chat",
-			chatUrl,
 			workspaceId: Number(workspaceId),
-			...(thread?.visibility !== undefined ? { visibility: thread.visibility } : {}),
 		});
-	}, [currentChatId, workspaceId, threadsData?.threads, syncChatTab]);
+	}, [currentChatId, workspaceId, syncChatTab]);
 
 	const chats = useMemo(() => {
 		if (!threadsData?.threads) return [];
 
 		return threadsData.threads.map<ChatItem>((thread) => ({
 			id: thread.id,
-			name: thread.title || `Chat ${thread.id}`,
+			name: thread.title || "New Chat",
 			url: `/dashboard/${workspaceId}/new-chat/${thread.id}`,
 			visibility: thread.visibility,
 			isOwnThread: thread.is_own_thread,
@@ -335,8 +336,14 @@ export function LayoutDataProvider({
 	);
 
 	const handleAddWorkspace = useCallback(() => {
+		if (isAtWorkspaceLimit) {
+			toast.error(
+				`Workspace limit reached. You can own at most ${maxWorkspacesPerUser} workspaces.`
+			);
+			return;
+		}
 		setIsCreateWorkspaceDialogOpen(true);
-	}, []);
+	}, [isAtWorkspaceLimit, maxWorkspacesPerUser]);
 
 	const setAnnouncementsDialog = useSetAtom(announcementsDialogAtom);
 
@@ -426,26 +433,24 @@ export function LayoutDataProvider({
 	}, [workspaceToLeave, refetchWorkspaces, workspaceId, router, t]);
 
 	const handleTabSwitch = useCallback(
-		(tab: Tab) => {
+		(tab: ResolvedTab) => {
 			if (tab.type === "chat") {
 				activateChatThread({
-					id: tab.chatId ?? null,
-					title: tab.title,
+					id: tab.entityId,
 					url: tab.chatUrl,
-					workspaceId: tab.workspaceId ?? workspaceId,
+					workspaceId: tab.workspaceId,
 					...(tab.visibility !== undefined ? { visibility: tab.visibility } : {}),
-					...(tab.hasComments !== undefined ? { hasComments: tab.hasComments } : {}),
 				});
 			}
 			// Document tabs are handled in-place by LayoutShell — no navigation needed
 		},
-		[activateChatThread, workspaceId]
+		[activateChatThread]
 	);
 
 	const handleTabPrefetch = useCallback(
-		(tab: Tab) => {
+		(tab: ResolvedTab) => {
 			if (tab.type === "chat") {
-				prefetchChatThread(tab.chatId);
+				prefetchChatThread(tab.entityId);
 			}
 		},
 		[prefetchChatThread]
@@ -559,16 +564,12 @@ export function LayoutDataProvider({
 			const fallbackTab = removeChatTab(chatToDelete.id);
 			if (currentChatId === chatToDelete.id) {
 				resetCurrentThread();
-				if (fallbackTab?.type === "chat" && fallbackTab.chatUrl) {
+				if (fallbackTab?.type === "chat") {
+					const fallbackWorkspaceId = fallbackTab.workspaceId || Number(workspaceId);
 					activateChatThread({
-						id: fallbackTab.chatId ?? null,
-						title: fallbackTab.title,
-						url: fallbackTab.chatUrl,
-						workspaceId: fallbackTab.workspaceId ?? workspaceId,
-						...(fallbackTab.visibility !== undefined ? { visibility: fallbackTab.visibility } : {}),
-						...(fallbackTab.hasComments !== undefined
-							? { hasComments: fallbackTab.hasComments }
-							: {}),
+						id: fallbackTab.entityId,
+						url: getChatUrl(fallbackWorkspaceId, fallbackTab.entityId),
+						workspaceId: fallbackWorkspaceId,
 					});
 				} else {
 					const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
@@ -631,6 +632,9 @@ export function LayoutDataProvider({
 	const isArtifactsPage = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundPage = pathname?.includes("/playground") === true;
 	const isAllChatsPage = pathname?.endsWith("/chats") === true;
+	const handleChatsClick = useCallback(() => {
+		router.push(`/dashboard/${workspaceId}/chats`);
+	}, [router, workspaceId]);
 	const handleViewAllChats = useCallback(() => {
 		router.push(
 			isAllChatsPage ? `/dashboard/${workspaceId}/new-chat` : `/dashboard/${workspaceId}/chats`
@@ -660,6 +664,8 @@ export function LayoutDataProvider({
 				onWorkspaceDelete={handleWorkspaceDeleteClick}
 				onWorkspaceSettings={handleWorkspaceSettings}
 				onAddWorkspace={handleAddWorkspace}
+				isAtWorkspaceLimit={isAtWorkspaceLimit}
+				maxWorkspacesPerUser={maxWorkspacesPerUser}
 				workspace={activeWorkspace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
@@ -671,6 +677,7 @@ export function LayoutDataProvider({
 				onChatRename={handleChatRename}
 				onChatDelete={handleChatDelete}
 				onChatArchive={handleChatArchive}
+				onChatsClick={handleChatsClick}
 				onViewAllChats={handleViewAllChats}
 				user={{
 					email: user?.email || "",

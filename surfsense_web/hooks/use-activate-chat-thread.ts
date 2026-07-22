@@ -45,17 +45,13 @@ export function useActivateChatThread() {
 	);
 
 	const activateChatThread = useCallback(
-		({ id, title, url, workspaceId, visibility, hasComments }: ActivateChatThreadInput) => {
+		({ id, url, workspaceId, visibility, hasComments }: ActivateChatThreadInput) => {
 			const numericWorkspaceId = getWorkspaceId(workspaceId);
 			const chatUrl = url ?? getChatUrl(workspaceId, id);
 
 			syncChatTab({
 				chatId: id,
-				title: id ? title : (title ?? "New Chat"),
-				chatUrl,
 				workspaceId: numericWorkspaceId,
-				...(visibility !== undefined ? { visibility } : {}),
-				...(hasComments !== undefined ? { hasComments } : {}),
 			});
 
 			setCurrentThreadMetadata({

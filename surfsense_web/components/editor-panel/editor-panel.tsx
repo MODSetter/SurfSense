@@ -4,7 +4,6 @@ import { useAtomValue, useSetAtom } from "jotai";
 import {
 	Check,
 	Copy,
-	Download,
 	FileQuestionMark,
 	FileText,
 	Pencil,
@@ -163,7 +162,6 @@ export function EditorPanelContent({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
-	const [downloading, setDownloading] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
 	const [memoryLimits, setMemoryLimits] = useState<MemoryLimits | null>(null);
 
@@ -514,62 +512,6 @@ export function EditorPanelContent({
 		setIsEditing(false);
 	}, [editorDoc?.source_markdown]);
 
-	const handleDownloadMarkdown = useCallback(async () => {
-		if (!workspaceId || !documentId) return;
-		setDownloading(true);
-		try {
-			const response = await authenticatedFetch(
-				buildBackendUrl(
-					`/api/v1/workspaces/${workspaceId}/documents/${documentId}/download-markdown`
-				),
-				{ method: "GET" }
-			);
-			if (!response.ok) throw new Error("Download failed");
-			const blob = await response.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			const disposition = response.headers.get("content-disposition");
-			const match = disposition?.match(/filename="(.+)"/);
-			a.download = match?.[1] ?? `${editorDoc?.title || "document"}.md`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
-			toast.success("Download started");
-		} catch {
-			toast.error("Failed to download document");
-		} finally {
-			setDownloading(false);
-		}
-	}, [documentId, editorDoc?.title, workspaceId]);
-
-	const largeDocAlert = viewerMode === "monaco" && !isLocalFileMode && editorDoc && (
-		<Alert className="m-4 shrink-0">
-			<FileText className="size-4" />
-			<AlertDescription className="flex items-center justify-between gap-4">
-				<span>
-					This document is too large for the editor (
-					{formatBytes(editorDoc.content_size_bytes ?? 0)}, {docLineCount.toLocaleString()} lines,{" "}
-					{editorDoc.chunk_count ?? 0} chunks). Showing raw markdown below.
-				</span>
-				<Button
-					variant="outline"
-					size="sm"
-					className="relative shrink-0"
-					disabled={downloading}
-					onClick={handleDownloadMarkdown}
-				>
-					<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
-						<Download className="size-3.5" />
-						Download .md
-					</span>
-					{downloading && <Spinner size="sm" className="absolute" />}
-				</Button>
-			</AlertDescription>
-		</Alert>
-	);
-
 	return (
 		<>
 			{showDesktopHeader ? (
@@ -807,7 +749,6 @@ export function EditorPanelContent({
 				) : viewerMode === "monaco" && !isLocalFileMode ? (
 					// Large doc — raw markdown in Monaco. Rich renderers are intentionally skipped.
 					<div className="flex h-full min-h-0 flex-col">
-						{largeDocAlert}
 						<div className="min-h-0 flex-1 overflow-hidden">
 							<SourceCodeEditor
 								path={`${editorDoc.title || "document"}.md`}

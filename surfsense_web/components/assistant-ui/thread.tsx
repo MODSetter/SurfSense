@@ -102,6 +102,7 @@ import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
+import { canSubmitChat } from "@/lib/chat/can-submit-chat";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
@@ -147,13 +148,19 @@ function getComposerSuggestionAnchorPoint(
 
 interface ThreadProps {
 	hasActiveThread?: boolean;
+	isLoadingMessages?: boolean;
 }
 
-export const Thread: FC<ThreadProps> = ({ hasActiveThread = false }) => {
-	return <ThreadContent hasActiveThread={hasActiveThread} />;
+export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
+	return (
+		<ThreadContent hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />
+	);
 };
 
-const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
+const ThreadContent: FC<ThreadProps> = ({
+	hasActiveThread = false,
+	isLoadingMessages = false,
+}) => {
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
@@ -162,16 +169,19 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
 			}}
 		>
 			<ChatViewport
+				footerAlwaysVisible={hasActiveThread}
 				footer={
-					<AuiIf condition={({ thread }) => hasActiveThread || !thread.isEmpty}>
+					<>
 						<PremiumQuotaPinnedAlert />
-						<Composer />
-					</AuiIf>
+						<Composer hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />
+					</>
 				}
 			>
 				<AuiIf condition={({ thread }) => !hasActiveThread && thread.isEmpty}>
 					<ThreadWelcome />
 				</AuiIf>
+
+				{isLoadingMessages ? <ThreadMessagesSkeletonBody /> : null}
 
 				<ThreadPrimitive.Messages
 					components={{
@@ -182,6 +192,36 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
 				/>
 			</ChatViewport>
 		</ThreadPrimitive.Root>
+	);
+};
+
+const ThreadMessagesSkeletonBody: FC = () => {
+	return (
+		<div className="mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col gap-6 py-8">
+			<div className="flex justify-end">
+				<Skeleton className="h-12 w-[65%] max-w-56 rounded-2xl" />
+			</div>
+
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-4 w-full" />
+				<Skeleton className="h-4 w-[85%]" />
+				<Skeleton className="h-18 w-[40%]" />
+			</div>
+
+			<div className="flex justify-end gap-2">
+				<Skeleton className="h-12 w-[78%] max-w-72 rounded-2xl" />
+			</div>
+
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-10 w-[30%]" />
+				<Skeleton className="h-4 w-[90%]" />
+				<Skeleton className="h-6 w-[60%]" />
+			</div>
+
+			<div className="flex justify-end gap-2">
+				<Skeleton className="h-12 w-[85%] max-w-96 rounded-2xl" />
+			</div>
+		</div>
 	);
 };
 
@@ -490,7 +530,15 @@ const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> 
 	);
 };
 
-const Composer: FC = () => {
+interface ComposerProps {
+	hasActiveThread?: boolean;
+	isLoadingMessages?: boolean;
+}
+
+const Composer: FC<ComposerProps> = ({
+	hasActiveThread = false,
+	isLoadingMessages = false,
+}) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
@@ -823,7 +871,7 @@ const Composer: FC = () => {
 	);
 
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning || isBlockedByOtherUser) return;
+		if (isLoadingMessages || isThreadRunning || isBlockedByOtherUser) return;
 		if (showDocumentPopover || showPromptPicker) return;
 
 		if (clipboardInitialText) {
@@ -844,6 +892,7 @@ const Composer: FC = () => {
 	}, [
 		showDocumentPopover,
 		showPromptPicker,
+		isLoadingMessages,
 		isThreadRunning,
 		isBlockedByOtherUser,
 		clipboardInitialText,
@@ -1016,15 +1065,17 @@ const Composer: FC = () => {
 					</div>
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
+						isLoadingMessages={isLoadingMessages}
+						isThreadRunning={isThreadRunning}
 						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>
 				</div>
 				<ConnectToolsBanner
-					isThreadEmpty={isThreadEmpty}
+					isThreadEmpty={!hasActiveThread && isThreadEmpty}
 					onVisibleChange={setConnectToolsTrayVisible}
 				/>
-				{isThreadEmpty && isComposerInputEmpty ? (
+				{!isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
 					<div className="absolute top-full left-0 right-0 z-20">
 						<ChatExamplePrompts onSelect={handleExampleSelect} />
 					</div>
@@ -1087,12 +1138,16 @@ const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => 
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
+	isLoadingMessages?: boolean;
+	isThreadRunning?: boolean;
 	workspaceId: number;
 	onChatModelSelected?: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
 	isBlockedByOtherUser = false,
+	isLoadingMessages = false,
+	isThreadRunning = false,
 	workspaceId,
 	onChatModelSelected,
 }) => {
@@ -1210,7 +1265,20 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	// send that lacks a resolvable model, making this defense-in-depth.
 	const isWorkspaceChatReady = setupStatus?.status === "ready";
 
-	const isSendDisabled = isComposerEmpty || !isWorkspaceChatReady || isBlockedByOtherUser;
+	const isSendDisabled = !canSubmitChat({
+		isLoadingMessages,
+		isThreadRunning,
+		isBlockedByOtherUser,
+		isComposerEmpty,
+		isWorkspaceChatReady,
+	});
+	const sendTooltip = isLoadingMessages
+		? "Loading conversation..."
+		: isBlockedByOtherUser
+			? "Wait for AI to finish responding"
+			: isComposerEmpty
+				? "Enter a message or add a screenshot to send"
+				: "Send message";
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
@@ -1652,22 +1720,16 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				)}
 				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
-			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
 				<ChatHeader
 					workspaceId={workspaceId}
-					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
+					className="h-9 max-w-[44vw] px-2 sm:max-w-none sm:px-3"
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
-							tooltip={
-								isBlockedByOtherUser
-									? "Wait for AI to finish responding"
-									: isComposerEmpty
-										? "Enter a message or add a screenshot to send"
-										: "Send message"
-							}
+							tooltip={sendTooltip}
 							side="bottom"
 							type="submit"
 							variant="default"

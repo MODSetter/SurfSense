@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, SquarePen, Zap } from "lucide-react";
+import { CreditCard, MessageCircleMore, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -62,6 +62,7 @@ interface SidebarProps {
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
+	onChatsClick?: () => void;
 	onViewAllChats?: () => void;
 	isAllChatsActive?: boolean;
 	user: User;
@@ -101,6 +102,7 @@ export function Sidebar({
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
+	onChatsClick,
 	onViewAllChats,
 	isAllChatsActive = false,
 	user,
@@ -222,6 +224,16 @@ export function Sidebar({
 				onScroll={(event) => setIsSidebarNavScrolled(event.currentTarget.scrollTop > 0)}
 			>
 				<div className="flex flex-col gap-0.5 pt-0.5 pb-1.5">
+					{onChatsClick && (
+						<SidebarButton
+							icon={MessageCircleMore}
+							label={t("chats") || "Chats"}
+							onClick={onChatsClick}
+							isCollapsed={isCollapsed}
+							isActive={isAllChatsActive}
+							tooltipContent={isCollapsed ? t("chats") || "Chats" : undefined}
+						/>
+					)}
 					{automationsItem && (
 						<SidebarButton
 							icon={automationsItem.icon}

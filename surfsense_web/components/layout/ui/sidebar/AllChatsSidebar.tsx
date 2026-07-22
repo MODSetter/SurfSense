@@ -37,14 +37,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getChatUrl } from "@/hooks/use-resolved-tabs";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
-import { formatThreadTimestamp } from "@/lib/format-date";
+import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 interface AllChatsContentProps {
@@ -94,7 +94,9 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 	const {
 		data: threadsData,
 		error: threadsError,
+		isFetching: isFetchingThreads,
 		isLoading: isLoadingThreads,
+		isPlaceholderData,
 	} = useQuery({
 		queryKey: ["all-threads", workspaceId],
 		queryFn: () => fetchThreads(Number(workspaceId)),
@@ -144,22 +146,12 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 
 				if (currentChatId === threadId) {
 					setTimeout(() => {
-						if (
-							fallbackTab?.type === "chat" &&
-							fallbackTab.chatUrl &&
-							fallbackTab.chatId !== undefined
-						) {
+						if (fallbackTab?.type === "chat") {
+							const fallbackWorkspaceId = fallbackTab.workspaceId || Number(workspaceId);
 							activateChatThread({
-								id: fallbackTab.chatId ?? null,
-								title: fallbackTab.title,
-								url: fallbackTab.chatUrl,
-								workspaceId: fallbackTab.workspaceId ?? workspaceId,
-								...(fallbackTab.visibility !== undefined
-									? { visibility: fallbackTab.visibility }
-									: {}),
-								...(fallbackTab.hasComments !== undefined
-									? { hasComments: fallbackTab.hasComments }
-									: {}),
+								id: fallbackTab.entityId,
+								url: getChatUrl(fallbackWorkspaceId, fallbackTab.entityId),
+								workspaceId: fallbackWorkspaceId,
 							});
 							return;
 						}
@@ -228,6 +220,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 	}, []);
 
 	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
+	const isLoadingMoreThreads = !isSearchMode && isFetchingThreads && isPlaceholderData;
 	const error = isSearchMode ? searchError : threadsError;
 
 	const selectedFilterLabel = showArchived ? "Archived" : "Active";
@@ -285,7 +278,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 						placeholder={t("search_chats") || "Search chats..."}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="h-12 border-0 bg-muted pl-10 pr-9 text-base shadow-none"
+						className="h-10 border-0 bg-muted pl-10 pr-9 text-base shadow-none"
 					/>
 					{searchQuery && (
 						<Button
@@ -307,10 +300,12 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
 							<div
 								key={`skeleton-${titleWidth}`}
-								className="flex items-center gap-2.5 rounded-md px-3 py-2.5"
+								className="rounded-md px-3 py-1.5 md:py-2"
 							>
-								<Skeleton className="h-4 w-4 shrink-0 rounded" />
-								<Skeleton className="h-5 rounded" style={{ width: `${titleWidth}%` }} />
+								<Skeleton
+									className="h-4 rounded md:h-4.5"
+									style={{ width: `${titleWidth}%` }}
+								/>
 							</div>
 						))}
 					</div>
@@ -355,7 +350,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												thread.visibility === "SEARCH_SPACE" && "pr-16",
+												thread.visibility === "SEARCH_SPACE" ? "pr-44" : "pr-36",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
@@ -363,35 +358,24 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
 										</Button>
 									) : (
-										<Tooltip delayDuration={600}>
-											<TooltipTrigger asChild>
-												<Button
-													type="button"
-													variant="ghost"
-													onClick={() => handleThreadClick(thread)}
-													onMouseEnter={() => prefetchChatThread(thread.id)}
-													onFocus={() => prefetchChatThread(thread.id)}
-													disabled={isBusy}
-													className={cn(
-														"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
-														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
-														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-														thread.visibility === "SEARCH_SPACE" && "pr-16",
-														isActive && "bg-accent text-accent-foreground",
-														isBusy && "opacity-50 pointer-events-none"
-													)}
-												>
-													<span className="min-w-0 flex-1 truncate">
-														{thread.title || "New Chat"}
-													</span>
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" align="start">
-												<p>
-													{t("updated") || "Updated"}: {formatThreadTimestamp(thread.updatedAt)}
-												</p>
-											</TooltipContent>
-										</Tooltip>
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={() => handleThreadClick(thread)}
+											onMouseEnter={() => prefetchChatThread(thread.id)}
+											onFocus={() => prefetchChatThread(thread.id)}
+											disabled={isBusy}
+											className={cn(
+												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
+												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
+												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+												thread.visibility === "SEARCH_SPACE" ? "pr-44" : "pr-36",
+												isActive && "bg-accent text-accent-foreground",
+												isBusy && "opacity-50 pointer-events-none"
+											)}
+										>
+											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
+										</Button>
 									)}
 
 									<div
@@ -400,28 +384,30 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 											isActive
 												? "bg-gradient-to-l from-accent from-60% to-transparent"
 												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
-											isMobile
-												? "opacity-0"
-												: thread.visibility === "SEARCH_SPACE" || openDropdownId === thread.id
-													? "opacity-100"
-													: "opacity-0 group-hover/item:opacity-100"
+											"opacity-100"
 										)}
 									>
-										<div className="relative flex h-7 w-14 items-center justify-end">
-											{thread.visibility === "SEARCH_SPACE" ? (
-												<Badge
-													variant="secondary"
-													className={cn(
-														"absolute right-0 h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground transition-opacity hover:bg-popover-foreground/10",
-														!isMobile &&
-															(openDropdownId === thread.id
-																? "opacity-0"
-																: "opacity-100 group-hover/item:opacity-0")
-													)}
-												>
-													Shared
-												</Badge>
-											) : null}
+										<div className="relative flex h-7 w-40 items-center justify-end">
+											<div
+												className={cn(
+													"absolute right-1 flex items-center justify-end gap-2 transition-opacity",
+													openDropdownId === thread.id
+														? "opacity-0"
+														: "opacity-100 group-hover/item:opacity-0"
+												)}
+											>
+												{thread.visibility === "SEARCH_SPACE" ? (
+													<Badge
+														variant="secondary"
+														className="h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10"
+													>
+														Shared
+													</Badge>
+												) : null}
+												<span className="whitespace-nowrap text-xs text-muted-foreground">
+													{formatRelativeDate(thread.updatedAt)}
+												</span>
+											</div>
 											<DropdownMenu
 												open={openDropdownId === thread.id}
 												onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
@@ -431,11 +417,9 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 														variant="ghost"
 														size="icon"
 														className={cn(
-															"pointer-events-auto h-7 w-7 hover:bg-transparent",
+															"pointer-events-auto absolute right-0 h-7 w-7 hover:bg-transparent",
 															openDropdownId === thread.id && "bg-accent hover:bg-accent",
-															!isMobile &&
-																openDropdownId !== thread.id &&
-																"opacity-0 group-hover/item:opacity-100"
+															openDropdownId !== thread.id && "opacity-0 group-hover/item:opacity-100"
 														)}
 														disabled={isBusy}
 													>
@@ -485,6 +469,21 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 								</div>
 							);
 						})}
+						{isLoadingMoreThreads ? (
+							<div className="mt-1 space-y-1">
+								{[62, 48, 56].map((titleWidth) => (
+									<div
+										key={`tail-skeleton-${titleWidth}`}
+										className="rounded-md px-3 py-1.5 md:py-2"
+									>
+										<Skeleton
+											className="h-4 rounded md:h-4.5"
+											style={{ width: `${titleWidth}%` }}
+										/>
+									</div>
+								))}
+							</div>
+						) : null}
 					</div>
 				) : isSearchMode ? (
 					<div className="text-center py-8">

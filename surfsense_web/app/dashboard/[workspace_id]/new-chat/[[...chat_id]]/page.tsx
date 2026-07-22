@@ -39,7 +39,6 @@ import {
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSyncChatArtifacts } from "@/features/chat-artifacts";
 import {
 	type HitlDecision,
@@ -104,6 +103,7 @@ const MobileArtifactsPanel = dynamic(
 
 /** Stable empty reference so idle threads don't re-render the interrupt provider. */
 const EMPTY_PENDING_INTERRUPTS: PendingInterruptState[] = [];
+const EMPTY_MESSAGES: ThreadMessageLike[] = [];
 
 function parseUrlChatId(id: string | string[] | undefined): number {
 	let parsed = 0;
@@ -113,61 +113,6 @@ function parseUrlChatId(id: string | string[] | undefined): number {
 		parsed = Number.parseInt(id, 10);
 	}
 	return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function ThreadMessagesSkeleton() {
-	return (
-		<div
-			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-panel"
-			style={{
-				["--thread-max-width" as string]: "42rem",
-			}}
-		>
-			<div
-				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 scroll-smooth"
-				style={{ scrollbarGutter: "stable" }}
-			>
-				<div
-					aria-hidden
-					className="aui-chat-viewport-top-fade pointer-events-none sticky top-0 z-10 -mx-4 h-2 shrink-0 bg-gradient-to-b from-panel from-20% to-transparent"
-				/>
-				<div className="mx-auto w-full max-w-(--thread-max-width) flex flex-1 flex-col gap-6 py-8">
-					<div className="flex justify-end">
-						<Skeleton className="h-12 w-[65%] max-w-56 rounded-2xl" />
-					</div>
-
-					<div className="flex flex-col gap-2">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-[85%]" />
-						<Skeleton className="h-18 w-[40%]" />
-					</div>
-
-					<div className="flex gap-2 justify-end">
-						<Skeleton className="h-12 w-[78%] max-w-72 rounded-2xl" />
-					</div>
-
-					<div className="flex flex-col gap-2">
-						<Skeleton className="h-10 w-[30%]" />
-						<Skeleton className="h-4 w-[90%]" />
-						<Skeleton className="h-6 w-[60%]" />
-					</div>
-
-					<div className="flex gap-2 justify-end">
-						<Skeleton className="h-12 w-[85%] max-w-96 rounded-2xl" />
-					</div>
-				</div>
-
-				<div
-					className="aui-chat-composer-footer sticky bottom-0 z-20 -mx-4 mt-auto flex flex-col items-stretch bg-gradient-to-t from-panel from-60% to-transparent px-4 pt-6"
-					style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
-				>
-					<div className="aui-chat-composer-area relative mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-3 overflow-visible">
-						<Skeleton className="h-28 w-full rounded-3xl" />
-					</div>
-				</div>
-			</div>
-		</div>
-	);
 }
 
 export default function NewChatPage() {
@@ -226,6 +171,16 @@ export default function NewChatPage() {
 
 	const threadDetailQuery = useThreadDetail(activeThreadId);
 	const threadMessagesQuery = useThreadMessages(activeThreadId);
+	const hydratedMessagesRef = useRef<{
+		threadId: number | null;
+		data: typeof threadMessagesQuery.data;
+	}>({ threadId: null, data: undefined });
+	const hasLiveStream = !!streamState && streamState.messages.length > 0;
+	const isActiveThreadHydrated = hydratedMessagesRef.current.threadId === activeThreadId;
+	const shouldHideStaleMessages = !!activeThreadId && !hasLiveStream && !isActiveThreadHydrated;
+	const isThreadMessagesLoading =
+		shouldHideStaleMessages && !threadMessagesQuery.error;
+	const runtimeMessages = shouldHideStaleMessages ? EMPTY_MESSAGES : displayMessages;
 
 	// Live collaboration: sync session state and messages via Zero. Kept on the
 	// page because "AI responding" reflects the currently-viewed thread.
@@ -296,8 +251,8 @@ export default function NewChatPage() {
 
 	// Latest displayed messages, read by the engine wrappers at call time so
 	// history/slice seeds stay fresh without re-creating the callbacks.
-	const messagesRef = useRef<ThreadMessageLike[]>(displayMessages);
-	messagesRef.current = displayMessages;
+	const messagesRef = useRef<ThreadMessageLike[]>(runtimeMessages);
+	messagesRef.current = runtimeMessages;
 
 	const buildCtx = useCallback(
 		(): EngineContext => ({
@@ -308,11 +263,6 @@ export default function NewChatPage() {
 		}),
 		[workspaceId, activeThreadId]
 	);
-
-	const hydratedMessagesRef = useRef<{
-		threadId: number | null;
-		data: typeof threadMessagesQuery.data;
-	}>({ threadId: null, data: undefined });
 
 	// Reset thread-local runtime state on route/workspace changes. The durable
 	// streaming overlay is preserved for any still-running thread (and the newly
@@ -349,11 +299,7 @@ export default function NewChatPage() {
 			setCurrentThread(thread);
 			syncChatTab({
 				chatId: thread.id,
-				title: thread.title,
-				chatUrl: `/dashboard/${thread.workspace_id ?? workspaceId}/new-chat/${thread.id}`,
 				workspaceId: thread.workspace_id ?? workspaceId,
-				visibility: thread.visibility,
-				hasComments: thread.has_comments ?? false,
 			});
 		}
 	}, [activeThreadId, workspaceId, syncChatTab, threadDetailQuery.data]);
@@ -517,8 +463,11 @@ export default function NewChatPage() {
 
 	// Handle new message from user
 	const onNew = useCallback(
-		(message: AppendMessage) => startNewChat(buildCtx(), message),
-		[buildCtx]
+		(message: AppendMessage) => {
+			if (isThreadMessagesLoading) return Promise.resolve();
+			return startNewChat(buildCtx(), message);
+		},
+		[buildCtx, isThreadMessagesLoading]
 	);
 
 	// Cancel the in-flight turn (targets the active stream's owner thread).
@@ -747,11 +696,11 @@ export default function NewChatPage() {
 	}, [buildCtx, pendingInterrupts, activeThreadId]);
 
 	// Surface the thread's deliverables to the layout-level artifacts sidebar.
-	useSyncChatArtifacts(displayMessages);
+	useSyncChatArtifacts(runtimeMessages);
 
 	// Create external store runtime
 	const runtime = useExternalStoreRuntime({
-		messages: displayMessages,
+		messages: runtimeMessages,
 		isRunning,
 		onNew,
 		onEdit,
@@ -764,12 +713,7 @@ export default function NewChatPage() {
 		? (threadDetailQuery.error ?? threadMessagesQuery.error)
 		: null;
 	const shouldShowThreadLoadError =
-		!!threadLoadError && !!activeThreadId && !currentThread && displayMessages.length === 0;
-	const isThreadMessagesLoading =
-		!!activeThreadId &&
-		threadMessagesQuery.isPending &&
-		displayMessages.length === 0 &&
-		!threadMessagesQuery.error;
+		!!threadLoadError && !!activeThreadId && !currentThread && runtimeMessages.length === 0;
 
 	if (shouldShowThreadLoadError) {
 		return (
@@ -798,12 +742,10 @@ export default function NewChatPage() {
 				>
 					<div key={workspaceId} className="flex h-full overflow-hidden">
 						<div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
-							<Thread hasActiveThread={!!activeThreadId} />
-							{isThreadMessagesLoading ? (
-								<div className="absolute inset-0 z-10 bg-panel">
-									<ThreadMessagesSkeleton />
-								</div>
-							) : null}
+							<Thread
+								hasActiveThread={!!activeThreadId}
+								isLoadingMessages={isThreadMessagesLoading}
+							/>
 						</div>
 						<MobileReportPanel />
 						<MobileEditorPanel />

@@ -8,7 +8,7 @@ import {
 	ChevronRight,
 	Files,
 	Folder as FolderIcon,
-	MessageSquare,
+	MessageCircleMore,
 	Unplug,
 } from "lucide-react";
 import {
@@ -146,7 +146,7 @@ export function promoteRecentMention(workspaceId: number, mention: MentionedDocu
 
 function getMentionIcon(mention: MentionedDocumentInfo) {
 	if (mention.kind === "folder") return <FolderIcon className="size-4" />;
-	if (mention.kind === "thread") return <MessageSquare className="size-4" />;
+	if (mention.kind === "thread") return <MessageCircleMore className="size-4" />;
 	if (mention.kind === "connector") {
 		return getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />;
 	}
@@ -517,7 +517,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: "chats",
 				label: "Chats",
 				subtitle: "Reference another conversation",
-				icon: <MessageSquare className="size-4" />,
+				icon: <MessageCircleMore className="size-4" />,
 				type: "branch",
 				value: { kind: "view", view: { kind: "chats" } },
 			});
@@ -565,7 +565,7 @@ export const DocumentMentionPicker = forwardRef<
 			id: getMentionDocKey(mention),
 			label: mention.title,
 			subtitle: "Chat",
-			icon: <MessageSquare className="size-4" />,
+			icon: <MessageCircleMore className="size-4" />,
 			type: "item" as const,
 			disabled: selectedKeys.has(getMentionDocKey(mention)),
 			value: { kind: "mention" as const, mention },
@@ -625,7 +625,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: getMentionDocKey(mention),
 				label: mention.title,
 				subtitle: "Chat",
-				icon: <MessageSquare className="size-4" />,
+				icon: <MessageCircleMore className="size-4" />,
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
