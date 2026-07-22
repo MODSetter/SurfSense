@@ -1,11 +1,19 @@
 "use client";
 
-import { useQuery } from "@rocicorp/zero/react";
+import { useQueries } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useMemo } from "react";
 import { pruneMissingChatTabsAtom, type Tab, tabsAtom } from "@/atoms/tabs/tabs.atom";
-import type { ChatVisibility } from "@/lib/chat/thread-persistence";
-import { queries } from "@/zero/queries";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { type ChatVisibility, getThreadFull } from "@/lib/chat/thread-persistence";
+import { NotFoundError } from "@/lib/error";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+
+// Thread/document metadata is read-only for tabs: the DB is the single source
+// of truth and react-query is the cache. Titles/visibility stay fresh because
+// the rename/visibility/delete mutations patch these same query caches (see
+// lib/chat/thread-cache.ts), so a rename reflects in the tab bar immediately.
+const METADATA_STALE_TIME_MS = 60 * 1000;
 
 interface ThreadRow {
 	id: number;
@@ -38,6 +46,13 @@ function rowById<T extends { id: number }>(rows: readonly T[] | undefined): Map<
 	return new Map((rows ?? []).map((row) => [row.id, row]));
 }
 
+// Retry transient failures (network, 5xx) but never a definitive 404 — a
+// missing thread/document is authoritative and should settle immediately so
+// the tab can be pruned rather than spun on.
+function retryUnlessNotFound(failureCount: number, error: Error): boolean {
+	return !(error instanceof NotFoundError) && failureCount < 2;
+}
+
 export function getChatUrl(workspaceId: number, threadId: number | null): string {
 	return threadId
 		? `/dashboard/${workspaceId}/new-chat/${threadId}`
@@ -59,7 +74,9 @@ export function resolveTabPointers({
 	return tabs.map((tab) => {
 		if (tab.type === "document") {
 			const title =
-				tab.entityId === null ? "Document" : (documents.get(tab.entityId)?.title ?? `Document ${tab.entityId}`);
+				tab.entityId === null
+					? "Document"
+					: (documents.get(tab.entityId)?.title ?? `Document ${tab.entityId}`);
 			return { ...tab, title };
 		}
 
@@ -73,23 +90,23 @@ export function resolveTabPointers({
 	});
 }
 
-export function getMissingCompleteChatIds({
+/**
+ * A chat tab is prunable only once its thread metadata fetch has settled as a
+ * definitive 404 (thread deleted). Transient network/5xx errors are excluded so
+ * an outage never wrongly closes open tabs.
+ */
+export function getMissingChatIds({
 	tabs,
-	threadRows,
-	resultType,
+	notFoundIds,
 }: {
 	tabs: Tab[];
-	threadRows?: readonly ThreadRow[];
-	resultType: string;
+	notFoundIds: Set<number>;
 }): Set<number> {
-	if (resultType !== "complete") return new Set();
-
-	const threadIds = new Set((threadRows ?? []).map((row) => row.id));
 	return new Set(
 		tabs
 			.filter(
 				(tab): tab is Tab & { type: "chat"; entityId: number } =>
-					tab.type === "chat" && tab.entityId !== null && !threadIds.has(tab.entityId)
+					tab.type === "chat" && tab.entityId !== null && notFoundIds.has(tab.entityId)
 			)
 			.map((tab) => tab.entityId)
 	);
@@ -101,29 +118,48 @@ export function useResolvedTabs(): ResolvedTab[] {
 
 	const chatIds = useMemo(() => uniqueEntityIds(tabs, "chat"), [tabs]);
 	const documentIds = useMemo(() => uniqueEntityIds(tabs, "document"), [tabs]);
-	const [threadRows, threadResult] = useQuery(
-		queries.threads.byIds({ ids: chatIds.length > 0 ? chatIds : [-1] })
+
+	const threadResults = useQueries({
+		queries: chatIds.map((id) => ({
+			queryKey: cacheKeys.threads.detail(id),
+			queryFn: () => getThreadFull(id),
+			staleTime: METADATA_STALE_TIME_MS,
+			retry: retryUnlessNotFound,
+		})),
+	});
+
+	const documentResults = useQueries({
+		queries: documentIds.map((id) => ({
+			queryKey: cacheKeys.documents.document(String(id)),
+			queryFn: () => documentsApiService.getDocument({ id }),
+			staleTime: METADATA_STALE_TIME_MS,
+			retry: retryUnlessNotFound,
+		})),
+	});
+
+	const threadRows: ThreadRow[] = threadResults.flatMap((result, index) =>
+		result.data
+			? [{ id: chatIds[index], title: result.data.title, visibility: result.data.visibility }]
+			: []
 	);
-	const [documentRows] = useQuery(
-		queries.documents.byIds({ ids: documentIds.length > 0 ? documentIds : [-1] })
+	const documentRows: DocumentRow[] = documentResults.flatMap((result, index) =>
+		result.data ? [{ id: documentIds[index], title: result.data.title }] : []
 	);
 
-	const missingChatIds = useMemo(
-		() =>
-			getMissingCompleteChatIds({
-				tabs,
-				threadRows,
-				resultType: threadResult.type,
-			}),
-		[tabs, threadRows, threadResult.type]
-	);
+	// Stable primitive key of the threads that settled as 404, so the prune
+	// effect fires only when that set changes — not on every react-query render.
+	const notFoundChatIdsKey = threadResults
+		.flatMap((result, index) => (result.error instanceof NotFoundError ? [chatIds[index]] : []))
+		.sort((a, b) => a - b)
+		.join(",");
 
 	useEffect(() => {
-		pruneMissingChatTabs(missingChatIds);
-	}, [missingChatIds, pruneMissingChatTabs]);
+		const notFoundIds = new Set(
+			notFoundChatIdsKey ? notFoundChatIdsKey.split(",").map(Number) : []
+		);
+		const missing = getMissingChatIds({ tabs, notFoundIds });
+		if (missing.size > 0) pruneMissingChatTabs(missing);
+	}, [notFoundChatIdsKey, tabs, pruneMissingChatTabs]);
 
-	return useMemo(
-		() => resolveTabPointers({ tabs, threadRows, documentRows }),
-		[tabs, threadRows, documentRows]
-	);
+	return resolveTabPointers({ tabs, threadRows, documentRows });
 }

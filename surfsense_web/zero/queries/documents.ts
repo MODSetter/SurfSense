@@ -9,9 +9,6 @@ export const documentQueries = {
 		if (!canReadSpace(ctx, workspaceId)) return denySpace(query).orderBy("createdAt", "desc");
 		return constrainToAllowedSpaces(query, ctx).orderBy("createdAt", "desc");
 	}),
-	byIds: defineQuery(z.object({ ids: z.array(z.number()) }), ({ args: { ids }, ctx }) =>
-		constrainToAllowedSpaces(zql.documents, ctx).where("id", "IN", ids)
-	),
 };
 
 export const connectorQueries = {

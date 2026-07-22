@@ -1,30 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-	getMissingCompleteChatIds,
-	resolveTabPointers,
-	type ResolvedTab,
-} from "./use-resolved-tabs";
+import { getMissingChatIds, resolveTabPointers, type ResolvedTab } from "./use-resolved-tabs";
 
 // Run with: pnpm exec tsx --test hooks/use-resolved-tabs.test.ts
-test("does not prune unresolved chat tabs before Zero completes", () => {
-	const missing = getMissingCompleteChatIds({
+test("does not prune chat tabs that have not resolved as missing", () => {
+	const missing = getMissingChatIds({
 		tabs: [{ id: "chat-42", type: "chat", entityId: 42, workspaceId: 7 }],
-		threadRows: [],
-		resultType: "unknown",
+		notFoundIds: new Set<number>(),
 	});
 
 	assert.equal(missing.size, 0);
 });
 
-test("prunes unresolved chat tabs only after Zero completes", () => {
-	const missing = getMissingCompleteChatIds({
+test("prunes only chat tabs whose thread resolved as not found", () => {
+	const missing = getMissingChatIds({
 		tabs: [
 			{ id: "chat-42", type: "chat", entityId: 42, workspaceId: 7 },
 			{ id: "chat-43", type: "chat", entityId: 43, workspaceId: 7 },
 		],
-		threadRows: [{ id: 43, title: "Present", visibility: "PRIVATE" }],
-		resultType: "complete",
+		notFoundIds: new Set([42]),
 	});
 
 	assert.deepEqual([...missing], [42]);

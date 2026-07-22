@@ -20,13 +20,13 @@ export const newChatMessageTable = table("new_chat_messages")
 	})
 	.primaryKey("id");
 
+// Published only as the authz parent of chat messages/comments/session-state
+// (whereExists("thread") + space constraint). Title/visibility are resolved
+// over REST (react-query) for the tab bar, not synced through Zero.
 export const newChatThreadTable = table("new_chat_threads")
 	.columns({
 		id: number(),
 		workspaceId: number().from("workspace_id"),
-		title: string(),
-		visibility: string(),
-		createdById: string().optional().from("created_by_id"),
 	})
 	.primaryKey("id");
 

@@ -57,12 +57,12 @@ AUTOMATION_COLS = [
     "workspace_id",
 ]
 
+# Only the columns Zero needs as the authz *parent* of chat messages/comments/
+# session-state (``whereExists("thread")`` + space constraint). Tab titles and
+# visibility are resolved over REST (react-query), not pushed via Zero.
 NEW_CHAT_THREAD_COLS = [
     "id",
     "workspace_id",
-    "title",
-    "visibility",
-    "created_by_id",
 ]
 
 # Enough to drive the lifecycle UI by push: status, the reviewable brief, and
