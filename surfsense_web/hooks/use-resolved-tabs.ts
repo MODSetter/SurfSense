@@ -10,11 +10,10 @@ import { NotFoundError } from "@/lib/error";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 // Thread/document metadata is read-only for tabs: the DB is the single source
-// of truth and react-query is the cache. Titles/visibility stay fresh because
-// the rename/visibility/delete mutations patch these same query caches (see
-// lib/chat/thread-cache.ts), so a rename reflects in the tab bar immediately.
-const METADATA_STALE_TIME_MS = 60 * 1000;
-
+// of truth and react-query is the cache (default staleTime from the shared
+// QueryClient). Titles/visibility stay fresh because the rename/visibility/
+// delete mutations patch these same query caches (see lib/chat/thread-cache.ts),
+// so a rename reflects in the tab bar immediately regardless of staleness.
 interface ThreadRow {
 	id: number;
 	title: string;
@@ -123,7 +122,6 @@ export function useResolvedTabs(): ResolvedTab[] {
 		queries: chatIds.map((id) => ({
 			queryKey: cacheKeys.threads.detail(id),
 			queryFn: () => getThreadFull(id),
-			staleTime: METADATA_STALE_TIME_MS,
 			retry: retryUnlessNotFound,
 		})),
 	});
@@ -132,7 +130,6 @@ export function useResolvedTabs(): ResolvedTab[] {
 		queries: documentIds.map((id) => ({
 			queryKey: cacheKeys.documents.document(String(id)),
 			queryFn: () => documentsApiService.getDocument({ id }),
-			staleTime: METADATA_STALE_TIME_MS,
 			retry: retryUnlessNotFound,
 		})),
 	});
