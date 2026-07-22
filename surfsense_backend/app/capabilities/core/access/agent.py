@@ -157,6 +157,9 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
             }
         )
 
+    # Un-stringify for StructuredTool's signature-based runtime injection.
+    _run.__annotations__["runtime"] = ToolRuntime
+
     return StructuredTool.from_function(
         coroutine=_run,
         name=name.replace(".", "_"),
