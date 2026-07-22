@@ -19,13 +19,13 @@ export const RunCitation: FC<{ runId: string }> = ({ runId }) => {
 					variant="ghost"
 					onClick={() => openRunPanel({ runId })}
 					className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
-					aria-label="View scraper run"
+					aria-label="See where this came from"
 				>
 					<Database className="size-3" />
-					run
+					Source
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>View scraper run</TooltipContent>
+			<TooltipContent>See where this came from</TooltipContent>
 		</Tooltip>
 	);
 };
