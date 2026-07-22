@@ -69,6 +69,12 @@ def _verb_tool(tools, name: str):
     return next(t for t in tools if t.name == name)
 
 
+def _invoke(tool, text: str, *, state=None):
+    """Call the coroutine with a stand-in runtime (ToolNode injects it in prod)."""
+    runtime = SimpleNamespace(state=state or {}, tool_call_id="tc_1", context=None)
+    return tool.coroutine(runtime, text=text)
+
+
 async def test_registry_becomes_one_tool_per_verb_plus_readers(isolate):
     caps = [
         _capability(name="web.scrape", output=_EchoOutput(echoed="a")),
@@ -104,11 +110,31 @@ async def test_tool_runs_executor_and_returns_serialized_output(isolate):
     tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
     tool = _verb_tool(tools, "web_scrape")
 
-    result = await tool.ainvoke({"text": "ping"})
+    result = await _invoke(tool, "ping")
 
     # Fake session makes record_run fail -> no run_id key, plain serialized output.
     assert result == {"echoed": "hi there"}
     assert cap.executor.seen.text == "ping"
+
+
+async def test_tool_registers_run_citation_when_stored(isolate, monkeypatch):
+    from langgraph.types import Command
+
+    cap = _capability(name="web.scrape", output=_EchoOutput(echoed="hi"))
+    monkeypatch.setattr(isolate.module, "record_run", AsyncMock(return_value="abc-123"))
+    tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tool = _verb_tool(tools, "web_scrape")
+
+    result = await _invoke(tool, "ping")
+
+    assert isinstance(result, Command)
+    registry = result.update["citation_registry"]
+    entry = registry.resolve(1)
+    assert entry is not None
+    assert entry.locator["run_id"] == "run_abc-123"
+    message = result.update["messages"][0]
+    assert "[1]" in message.content
+    assert "run_abc-123" in message.content
 
 
 async def test_tool_charges_owner(isolate):
@@ -117,7 +143,7 @@ async def test_tool_charges_owner(isolate):
     tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
     tool = _verb_tool(tools, "web_scrape")
 
-    await tool.ainvoke({"text": "ping"})
+    await _invoke(tool, "ping")
 
     isolate.charge.assert_awaited_once()
     (charged_output, unit, ctx), _ = isolate.charge.call_args
@@ -136,7 +162,7 @@ async def test_over_budget_returns_friendly_message(isolate):
     tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
     tool = _verb_tool(tools, "web_scrape")
 
-    result = await tool.ainvoke({"text": "ping"})
+    result = await _invoke(tool, "ping")
 
     assert isinstance(result, str)
     assert "credit" in result.lower()
