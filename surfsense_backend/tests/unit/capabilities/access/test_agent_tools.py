@@ -137,6 +137,17 @@ async def test_tool_registers_run_citation_when_stored(isolate, monkeypatch):
     assert "run_abc-123" in message.content
 
 
+async def test_runtime_survives_langchain_arg_parsing(isolate):
+    """runtime must survive langchain arg parsing (else ToolNode drops it)."""
+    cap = _capability(name="web.scrape", output=_EchoOutput(echoed="hi"))
+    tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])
+    tool = _verb_tool(tools, "web_scrape")
+
+    parsed = tool._parse_input({"text": "x", "runtime": "RT"}, "tc_1")
+
+    assert parsed["runtime"] == "RT"
+
+
 async def test_tool_charges_owner(isolate):
     output = _EchoOutput(echoed="hi")
     cap = _capability(name="web.scrape", output=output)
