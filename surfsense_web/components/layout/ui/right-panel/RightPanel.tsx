@@ -35,6 +35,14 @@ const CitationPanelContent = dynamic(
 	{ ssr: false, loading: () => null }
 );
 
+const RunCitationPanelContent = dynamic(
+	() =>
+		import("@/components/citations/run-citation-panel").then((m) => ({
+			default: m.RunCitationPanelContent,
+		})),
+	{ ssr: false, loading: () => null }
+);
+
 const HitlEditPanelContent = dynamic(
 	() =>
 		import("@/features/chat-messages/hitl").then((m) => ({
@@ -89,7 +97,7 @@ export function RightPanelToggleButton({
 				? !!editorState.memoryScope
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
-	const citationOpen = citationState.isOpen && citationState.chunkId != null;
+	const citationOpen = citationState.isOpen && citationState.target != null;
 	const hasContent = reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 	const label = collapsed ? "Expand panel" : "Collapse panel";
 
@@ -141,7 +149,7 @@ export function RightPanelExpandButton() {
 				? !!editorState.memoryScope
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
-	const citationOpen = citationState.isOpen && citationState.chunkId != null;
+	const citationOpen = citationState.isOpen && citationState.target != null;
 	const hasContent = reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 
 	if (!collapsed || !hasContent) return null;
@@ -212,7 +220,7 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 				? !!editorState.memoryScope
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
-	const citationOpen = citationState.isOpen && citationState.chunkId != null;
+	const citationOpen = citationState.isOpen && citationState.target != null;
 
 	useEffect(() => {
 		if (!reportOpen && !editorOpen && !hitlEditOpen && !citationOpen && !artifactsOpen) return;
@@ -306,9 +314,19 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 									/>
 								</div>
 							)}
-							{effectiveTab === "citation" && citationOpen && citationState.chunkId != null && (
+							{effectiveTab === "citation" && citationOpen && citationState.target && (
 								<div className="h-full flex flex-col">
-									<CitationPanelContent chunkId={citationState.chunkId} onClose={closeCitation} />
+									{citationState.target.kind === "run" ? (
+										<RunCitationPanelContent
+											runId={citationState.target.runId}
+											onClose={closeCitation}
+										/>
+									) : (
+										<CitationPanelContent
+											chunkId={citationState.target.chunkId}
+											onClose={closeCitation}
+										/>
+									)}
 								</div>
 							)}
 							{effectiveTab === "artifacts" && artifactsOpen && (
