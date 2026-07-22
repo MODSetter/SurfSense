@@ -11,9 +11,13 @@ subagent can follow a truncation reference without extra wiring.
 
 from __future__ import annotations
 
+import json
 import time
 
+from langchain.tools import ToolRuntime
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
+from langgraph.types import Command
 
 from app.capabilities.core.billing import charge_capability, gate_capability
 from app.capabilities.core.progress import progress_scope
@@ -64,7 +68,7 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
     executor = capability.executor
     name = capability.name
 
-    async def _run(**kwargs: object) -> dict | str:
+    async def _run(runtime: ToolRuntime, **kwargs: object) -> dict | str | Command:
         payload = input_model(**kwargs)
         input_dump = payload.model_dump(exclude_none=True)
         thread_id = _current_thread_id()
@@ -119,13 +123,39 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
                     progress=reporter.coarse,
                 )
 
+        # No stored run to cite: keep the legacy return shape, no citation.
+        if run_id is None:
+            if serialized.char_count <= RUN_OUTPUT_CHAR_CAP:
+                return output.model_dump(exclude_none=True)
+            return _build_preview(serialized, run_id)
+
+        run_external_id = f"run_{run_id}"
         if serialized.char_count <= RUN_OUTPUT_CHAR_CAP:
             dump = output.model_dump(exclude_none=True)
-            if run_id is not None:
-                dump["run_id"] = f"run_{run_id}"
-            return dump
+            dump["run_id"] = run_external_id
+            content = json.dumps(dump, ensure_ascii=False, default=str)
+        else:
+            content = _build_preview(serialized, run_id)
 
-        return _build_preview(serialized, run_id)
+        # Deferred import: the citation spine imports from here; lazy avoids a cycle.
+        from app.agents.chat.multi_agent_chat.shared.citations import load_registry
+        from app.capabilities.core.access.run_citation import attach_run_citation
+
+        registry = load_registry(getattr(runtime, "state", None))
+        _, label = attach_run_citation(
+            registry, run_external_id=run_external_id, capability=name
+        )
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content=content + label,
+                        tool_call_id=runtime.tool_call_id,
+                    )
+                ],
+                "citation_registry": registry,
+            }
+        )
 
     return StructuredTool.from_function(
         coroutine=_run,
