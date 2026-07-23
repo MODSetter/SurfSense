@@ -9,12 +9,8 @@ import { usePlatform } from "@/hooks/use-platform";
 import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
-	CONNECTOR_CATEGORY_LABELS,
-	type ConnectorCategory,
 	CRAWLERS,
 	DEPRECATED_CONNECTOR_TYPES,
-	getConnectorCategory,
-	IMPORT_CONNECTOR_TYPES,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
@@ -83,63 +79,39 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	const passesDeploymentFilter = (c: DeploymentFilterableConnector) =>
 		(!c.selfHostedOnly || selfHosted) && (!c.desktopOnly || isDesktop);
 
-	// Import connectors (Drive/OneDrive/Dropbox) are managed via the Documents
-	// sidebar "Import" menu, so they never appear in the MCP connector catalog.
-	const notImport = (c: { connectorType?: string }) =>
-		!c.connectorType || !IMPORT_CONNECTOR_TYPES.has(c.connectorType);
-
-	// Filter connectors based on search, deployment mode, and import exclusion
+	// Filter connectors based on search and deployment mode
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
-		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c) && notImport(c)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	const filteredCrawlers = CRAWLERS.filter(
-		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c) && notImport(c)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	const filteredOther = OTHER_CONNECTORS.filter(
-		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c) && notImport(c)
+		(c) => matchesSearch(c.title, c.description) && passesDeploymentFilter(c)
 	);
 
 	// Filter Composio connectors
 	const filteredComposio = COMPOSIO_CONNECTORS.filter(
 		(c) =>
-			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
-			notImport(c)
+			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			c.description.toLowerCase().includes(searchQuery.toLowerCase())
 	);
 
-	const isDeprecated = (c: { connectorType?: string }) =>
-		!!c.connectorType && DEPRECATED_CONNECTOR_TYPES.has(c.connectorType);
-
-	const inCategory =
-		(category: ConnectorCategory) =>
-		<T extends { connectorType?: string }>(connector: T): boolean =>
-			!isDeprecated(connector) &&
-			!!connector.connectorType &&
-			getConnectorCategory(connector.connectorType) === category;
-
-	const knowledgeBase = {
-		oauth: filteredOAuth.filter(inCategory("knowledge_base")),
-		composio: filteredComposio.filter(inCategory("knowledge_base")),
-		other: filteredOther.filter(inCategory("knowledge_base")),
-		crawlers: filteredCrawlers.filter(inCategory("knowledge_base")),
-	};
-	const toolsLive = {
-		oauth: filteredOAuth.filter(inCategory("tools_live")),
-		composio: filteredComposio.filter(inCategory("tools_live")),
-		other: filteredOther.filter(inCategory("tools_live")),
-		crawlers: filteredCrawlers.filter(inCategory("tools_live")),
-	};
-
-	// Deprecated cards render in a single section at the very bottom. Discord and
-	// Teams come from OAUTH_CONNECTORS; Luma, Tavily, Linkup, Baidu, Elasticsearch
-	// from OTHER_CONNECTORS (SearXNG has no catalog card); YouTube and Web Pages
-	// from CRAWLERS.
-	const deprecated = {
-		oauth: filteredOAuth.filter(isDeprecated),
-		other: filteredOther.filter(isDeprecated),
-		crawlers: filteredCrawlers.filter(isDeprecated),
+	// One flat grid, no separate "Deprecated" section. A deprecated connector is
+	// shown only if the user already connected it (before deprecation), so it
+	// stays manageable/disconnectable; never-connected deprecated connectors are
+	// hidden entirely. See DEPRECATED_CONNECTOR_TYPES for the full list.
+	const isVisible = <T extends { connectorType?: string }>(c: T) =>
+		!c.connectorType ||
+		!DEPRECATED_CONNECTOR_TYPES.has(c.connectorType) ||
+		connectedTypes.has(c.connectorType);
+	const available = {
+		oauth: filteredOAuth.filter(isVisible),
+		composio: filteredComposio.filter(isVisible),
+		other: filteredOther.filter(isVisible),
+		crawlers: filteredCrawlers.filter(isVisible),
 	};
 
 	const renderOAuthCard = (connector: OAuthConnector | ComposioConnector) => {
@@ -169,7 +141,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				documentCount={documentCount}
 				accountCount={accountCount}
 				isIndexing={isIndexing}
-				deprecated={DEPRECATED_CONNECTOR_TYPES.has(connector.connectorType)}
 				onConnect={() => onConnectOAuth(connector)}
 				onManage={
 					isConnected && onViewAccountsList
@@ -218,7 +189,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				documentCount={documentCount}
 				connectorCount={mcpConnectorCount}
 				isIndexing={isIndexing}
-				deprecated={DEPRECATED_CONNECTOR_TYPES.has(connector.connectorType)}
 				onConnect={handleConnect}
 				onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 			/>
@@ -267,29 +237,17 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				isConnecting={isConnecting}
 				documentCount={documentCount}
 				isIndexing={isIndexing}
-				deprecated={
-					!!crawler.connectorType && DEPRECATED_CONNECTOR_TYPES.has(crawler.connectorType)
-				}
 				onConnect={handleConnect}
 				onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 			/>
 		);
 	};
 
-	const hasKnowledgeBase =
-		knowledgeBase.oauth.length > 0 ||
-		knowledgeBase.composio.length > 0 ||
-		knowledgeBase.other.length > 0 ||
-		knowledgeBase.crawlers.length > 0;
-	const hasToolsLive =
-		toolsLive.oauth.length > 0 ||
-		toolsLive.composio.length > 0 ||
-		toolsLive.other.length > 0 ||
-		toolsLive.crawlers.length > 0;
-	const hasDeprecated =
-		deprecated.oauth.length > 0 || deprecated.other.length > 0 || deprecated.crawlers.length > 0;
-
-	const hasAnyResults = hasKnowledgeBase || hasToolsLive || hasDeprecated;
+	const hasAnyResults =
+		available.oauth.length > 0 ||
+		available.composio.length > 0 ||
+		available.other.length > 0 ||
+		available.crawlers.length > 0;
 
 	if (!hasAnyResults && searchQuery) {
 		return (
@@ -303,50 +261,12 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 	return (
 		<div className="space-y-8">
-			{hasKnowledgeBase && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">
-							{CONNECTOR_CATEGORY_LABELS.knowledge_base}
-						</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{knowledgeBase.oauth.map(renderOAuthCard)}
-						{knowledgeBase.composio.map(renderOAuthCard)}
-						{knowledgeBase.crawlers.map(renderCrawlerCard)}
-						{knowledgeBase.other.map(renderOtherCard)}
-					</div>
-				</section>
-			)}
-
-			{hasToolsLive && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">
-							{CONNECTOR_CATEGORY_LABELS.tools_live}
-						</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{toolsLive.oauth.map(renderOAuthCard)}
-						{toolsLive.composio.map(renderOAuthCard)}
-						{toolsLive.crawlers.map(renderCrawlerCard)}
-						{toolsLive.other.map(renderOtherCard)}
-					</div>
-				</section>
-			)}
-
-			{hasDeprecated && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">Deprecated</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{deprecated.oauth.map(renderOAuthCard)}
-						{deprecated.crawlers.map(renderCrawlerCard)}
-						{deprecated.other.map(renderOtherCard)}
-					</div>
-				</section>
-			)}
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				{available.oauth.map(renderOAuthCard)}
+				{available.composio.map(renderOAuthCard)}
+				{available.crawlers.map(renderCrawlerCard)}
+				{available.other.map(renderOtherCard)}
+			</div>
 		</div>
 	);
 };
