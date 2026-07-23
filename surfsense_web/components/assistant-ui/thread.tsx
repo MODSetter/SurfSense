@@ -22,7 +22,6 @@ import {
 	Wrench,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -89,7 +88,6 @@ import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
 	CONNECTOR_TOOL_ICON_PATHS,
@@ -172,7 +170,7 @@ const ThreadContent: FC<ThreadProps> = ({
 				footer={
 					<>
 						<PremiumQuotaPinnedAlert />
-						<Composer hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />
+						<Composer isLoadingMessages={isLoadingMessages} />
 					</>
 				}
 			>
@@ -312,103 +310,6 @@ const ThreadWelcome: FC = () => {
 	);
 };
 
-const BANNER_CONNECTORS = [
-	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
-	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
-	{ type: "NOTION_CONNECTOR", label: "Notion" },
-	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
-	{ type: "SLACK_CONNECTOR", label: "Slack" },
-] as const;
-
-const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
-
-const ConnectToolsBanner: FC<{
-	isThreadEmpty: boolean;
-	onVisibleChange?: (visible: boolean) => void;
-}> = ({ isThreadEmpty, onVisibleChange }) => {
-	const { data: connectors } = useAtomValue(connectorsAtom);
-	const router = useRouter();
-	const params = useParams();
-	const bannerWorkspaceId = getWorkspaceIdNumber(params);
-	const [dismissed, setDismissed] = useState(() => {
-		if (typeof window === "undefined") return false;
-		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
-	});
-	const [dismissRequested, setDismissRequested] = useState(false);
-
-	const hasConnectors = (connectors?.length ?? 0) > 0;
-	const isVisible = !dismissed && !hasConnectors && isThreadEmpty;
-	const shouldShowTray = isVisible && !dismissRequested;
-
-	useEffect(() => {
-		onVisibleChange?.(isVisible);
-	}, [isVisible, onVisibleChange]);
-
-	const handleDismiss = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		setDismissRequested(true);
-	};
-
-	return (
-		<AnimatePresence
-			initial={false}
-			onExitComplete={() => {
-				if (!dismissRequested) return;
-				setDismissed(true);
-				localStorage.setItem(BANNER_DISMISSED_KEY, "true");
-			}}
-		>
-			{shouldShowTray ? (
-				<motion.div
-					key="connect-tools-tray"
-					initial={{ opacity: 0, y: -10 }}
-					animate={{ opacity: 1, y: 0 }}
-					exit={{ opacity: 0, y: -14 }}
-					transition={{ duration: 0.18, ease: "easeOut" }}
-					className="relative z-0 -mt-5 flex min-w-0 items-center gap-2 rounded-b-3xl border border-input bg-muted/40 px-4 pt-7 pb-3 shadow-sm shadow-black/5 dark:shadow-black/10"
-				>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
-						onClick={() => {
-							if (bannerWorkspaceId) router.push(`/dashboard/${bannerWorkspaceId}/connectors`);
-						}}
-					>
-						<Unplug className="size-4 shrink-0" />
-						<span className="truncate">Connect your tools</span>
-					</Button>
-					<div className="min-w-0 flex-1" />
-					<AvatarGroup className="shrink-0">
-						{BANNER_CONNECTORS.map(({ type }, i) => (
-							<Avatar
-								key={type}
-								className="size-5"
-								style={{ zIndex: BANNER_CONNECTORS.length - i }}
-							>
-								<AvatarFallback className="bg-accent text-[10px]">
-									{getConnectorIcon(type, "size-3")}
-								</AvatarFallback>
-							</Avatar>
-						))}
-					</AvatarGroup>
-					<Button
-						type="button"
-						onClick={handleDismiss}
-						variant="ghost"
-						size="icon"
-						className="size-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-transparent hover:text-foreground"
-						aria-label="Dismiss"
-					>
-						<X className="size-3.5" />
-					</Button>
-				</motion.div>
-			) : null}
-		</AnimatePresence>
-	);
-};
-
 const PendingScreenImageStrip: FC = () => {
 	const [urls, setUrls] = useAtom(pendingUserImageDataUrlsAtom);
 	if (urls.length === 0) return null;
@@ -488,8 +389,7 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 };
 
 /**
- * Inline "this workspace can't chat yet" tray, mirrored on top of the composer
- * (same visual treatment as the "Connect your tools" tray below it).
+ * Inline "this workspace can't chat yet" tray, mirrored on top of the composer.
  *
  * Replaces the old full-screen onboarding redirect: a workspace with no usable
  * chat model (fresh install, or an admin deleted the last model) renders the
@@ -534,14 +434,10 @@ const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> 
 };
 
 interface ComposerProps {
-	hasActiveThread?: boolean;
 	isLoadingMessages?: boolean;
 }
 
-const Composer: FC<ComposerProps> = ({
-	hasActiveThread = false,
-	isLoadingMessages = false,
-}) => {
+const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
@@ -578,7 +474,6 @@ const Composer: FC<ComposerProps> = ({
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
-	const [connectToolsTrayVisible, setConnectToolsTrayVisible] = useState(false);
 
 	const { data: chatSetupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId ?? 0));
 	const isChatUnavailable = !!chatSetupStatus && chatSetupStatus.status !== "ready";
@@ -1040,7 +935,6 @@ const Composer: FC<ComposerProps> = ({
 				<div
 					className={cn(
 						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
-						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none",
 						isChatUnavailable && "shadow-none dark:shadow-none"
 					)}
 				>
@@ -1074,10 +968,6 @@ const Composer: FC<ComposerProps> = ({
 						onChatModelSelected={handleChatModelSelected}
 					/>
 				</div>
-				<ConnectToolsBanner
-					isThreadEmpty={!hasActiveThread && isThreadEmpty}
-					onVisibleChange={setConnectToolsTrayVisible}
-				/>
 				{!isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
 					<div className="absolute top-full left-0 right-0 z-20">
 						<ChatExamplePrompts onSelect={handleExampleSelect} />
