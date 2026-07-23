@@ -5,15 +5,14 @@ import {
 	ChevronRight,
 	LayoutGrid,
 	Settings2,
+	TriangleAlert,
 	Unplug,
 	Upload,
 	Wrench,
 } from "lucide-react";
 import Image from "next/image";
 import { type ReactNode, useCallback, useRef, useState } from "react";
-import type {
-	ConnectorTypeRow,
-} from "@/components/assistant-ui/connector-popup/constants/connector-constants";
+import type { ConnectorRow } from "@/components/assistant-ui/connector-popup/hooks/use-connector-rows";
 import { Button } from "@/components/ui/button";
 import {
 	Drawer,
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
@@ -45,10 +45,10 @@ interface ComposerAddMenuDrawerProps {
 	/** The `+` button; rendered as the drawer trigger. */
 	trigger: ReactNode;
 	onUploadFiles: () => void;
-	/** Connected connectors, one row per type (see `groupConnectorsByType`). */
-	connectorRows: ConnectorTypeRow[];
+	/** Connected connectors: one row per type, with live indexing health (`useConnectorRows`). */
+	connectorRows: ConnectorRow[];
 	/** Open a connector's manage view (deep-links via importConnectorRequestAtom). */
-	onSelectConnector: (row: ConnectorTypeRow) => void;
+	onSelectConnector: (row: ConnectorRow) => void;
 	/** Navigate to the full connectors catalog. */
 	onBrowseConnectors: () => void;
 	regularToolGroups: ToolGroupView[];
@@ -194,7 +194,14 @@ export function ComposerAddMenuDrawer({
 							>
 								{getConnectorIcon(row.type, "size-4 shrink-0 text-muted-foreground")}
 								<span className="min-w-0 flex-1 truncate text-left">{row.title}</span>
-								{row.accountCount > 1 ? (
+								{row.health === "syncing" ? (
+									<Spinner size="xs" className="shrink-0" />
+								) : row.health === "failed" ? (
+									<TriangleAlert
+										className="size-4 shrink-0 text-destructive"
+										aria-label={row.errorMessage ?? "Indexing failed"}
+									/>
+								) : row.accountCount > 1 ? (
 									<span className="shrink-0 text-xs text-muted-foreground">{row.accountCount}</span>
 								) : null}
 							</button>
