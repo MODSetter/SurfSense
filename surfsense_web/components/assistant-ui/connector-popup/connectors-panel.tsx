@@ -3,7 +3,6 @@
 import { useAtomValue } from "jotai";
 import { ChevronRight, LayoutGrid, Search, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +18,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { connectorIndexingMetadata } from "@/contracts/types/inbox.types";
 import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { useZeroDocumentTypeCounts } from "@/hooks/use-zero-document-type-counts";
 import { cn } from "@/lib/utils";
@@ -28,24 +26,14 @@ import { ConnectorEditView } from "./connector-configs/views/connector-edit-view
 import { IndexingConfigurationView } from "./connector-configs/views/indexing-configuration-view";
 import {
 	COMPOSIO_CONNECTORS,
-	type ConnectorTypeRow,
 	getConnectorTitle,
-	groupConnectorsByType,
 	OAUTH_CONNECTORS,
 } from "./constants/connector-constants";
+import { type ConnectorRow, useConnectorRows } from "./hooks/use-connector-rows";
 import { useConnectorDialog } from "./hooks/use-connector-dialog";
-import { useIndexingConnectors } from "./hooks/use-indexing-connectors";
 import { AllConnectorsTab } from "./tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./views/youtube-crawler-view";
-
-/** Health of a connected connector type, derived from indexing + inbox state. */
-type ConnectorHealth = "syncing" | "failed" | "ok";
-
-interface ConnectedRow extends ConnectorTypeRow {
-	health: ConnectorHealth;
-	errorMessage?: string;
-}
 
 /**
  * Connector management surface (single `/connectors` route) rendered inside the
@@ -63,13 +51,7 @@ interface ConnectedRow extends ConnectorTypeRow {
 export function ConnectorsSection() {
 	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const documentTypeCounts = useZeroDocumentTypeCounts(workspaceId);
-	const statusInboxItems = useAtomValue(statusInboxItemsAtom);
 	const [drawerOpen, setDrawerOpen] = useState(false);
-
-	const inboxItems = useMemo(
-		() => statusInboxItems.filter((item) => item.type === "connector_indexing"),
-		[statusInboxItems]
-	);
 
 	const {
 		connectingId,
@@ -141,54 +123,19 @@ export function ConnectorsSection() {
 		}
 	};
 
-	const { indexingConnectorIds, startIndexing, stopIndexing } = useIndexingConnectors(
-		connectors,
-		inboxItems
-	);
+	// "Your connectors" rows with live indexing health, plus the shared indexing
+	// controls the flow views reuse (single source of truth via useConnectorRows).
+	const {
+		rows: connectedRows,
+		indexingConnectorIds,
+		startIndexing,
+		stopIndexing,
+	} = useConnectorRows(connectors);
 
 	const connectedTypes = useMemo(
 		() => new Set<string>(connectors.map((c) => c.connector_type)),
 		[connectors]
 	);
-
-	// Latest indexing status per connector id, parsed from the status inbox. Used
-	// to drive the "Your connectors" status glyphs (syncing / failed).
-	const statusByConnectorId = useMemo(() => {
-		const map = new Map<number, { status?: string; error?: string; at: string }>();
-		for (const item of inboxItems) {
-			const parsed = connectorIndexingMetadata.safeParse(item.metadata);
-			if (!parsed.success) continue;
-			const at = item.updated_at ?? item.created_at;
-			const prev = map.get(parsed.data.connector_id);
-			if (!prev || at > prev.at) {
-				map.set(parsed.data.connector_id, {
-					status: parsed.data.status,
-					error: parsed.data.error_message ?? undefined,
-					at,
-				});
-			}
-		}
-		return map;
-	}, [inboxItems]);
-
-	// Flat "Your connectors" rows: one per connected type, alphabetized, with a
-	// derived health (syncing > failed > ok) and account count.
-	const connectedRows = useMemo<ConnectedRow[]>(() => {
-		return groupConnectorsByType(connectors).map((row) => {
-			const ids = row.connectors.map((c) => c.id);
-			const syncing = ids.some(
-				(id) => indexingConnectorIds.has(id) || statusByConnectorId.get(id)?.status === "in_progress"
-			);
-			const failedEntry = syncing
-				? undefined
-				: ids.map((id) => statusByConnectorId.get(id)).find((s) => s?.status === "failed");
-			return {
-				...row,
-				health: syncing ? "syncing" : failedEntry ? "failed" : "ok",
-				errorMessage: failedEntry?.error,
-			} satisfies ConnectedRow;
-		});
-	}, [connectors, indexingConnectorIds, statusByConnectorId]);
 
 	if (!workspaceId) return null;
 
@@ -362,7 +309,7 @@ export function ConnectorsSection() {
 		setDrawerOpen(false);
 		resetFlow();
 	};
-	const manageRow = (row: ConnectedRow) => {
+	const manageRow = (row: ConnectorRow) => {
 		setDrawerOpen(false);
 		resetFlow();
 		if (row.type === EnumConnectorName.MCP_CONNECTOR) {
