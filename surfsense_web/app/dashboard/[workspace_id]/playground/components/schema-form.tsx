@@ -32,6 +32,8 @@ interface SchemaFormProps {
 	getFieldOptions?: FieldOptionsResolver;
 	/** Field names flagged by a 422 response, shown with error styling. */
 	fieldErrors?: Record<string, string>;
+	/** Client-side, non-blocking URL warnings keyed by field name. */
+	fieldWarnings?: Record<string, string>;
 }
 
 function FieldControl({
@@ -147,6 +149,7 @@ function FieldRow({
 	onChange,
 	disabled,
 	error,
+	warning,
 	options,
 }: {
 	field: FormField;
@@ -154,6 +157,7 @@ function FieldRow({
 	onChange: (value: unknown) => void;
 	disabled?: boolean;
 	error?: string;
+	warning?: string;
 	options?: FieldOption[];
 }) {
 	return (
@@ -179,6 +183,7 @@ function FieldRow({
 				options={options}
 			/>
 			{error && <p className="text-xs text-destructive">{error}</p>}
+			{!error && warning && <p className="text-xs text-amber-600 dark:text-amber-500">{warning}</p>}
 		</div>
 	);
 }
@@ -190,6 +195,7 @@ export function SchemaForm({
 	disabled,
 	getFieldOptions,
 	fieldErrors,
+	fieldWarnings,
 }: SchemaFormProps) {
 	const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -209,6 +215,7 @@ export function SchemaForm({
 					onChange={(value) => onChange(field.name, value)}
 					disabled={disabled}
 					error={fieldErrors?.[field.name]}
+					warning={fieldWarnings?.[field.name]}
 					options={getFieldOptions?.(field)}
 				/>
 			))}
@@ -239,6 +246,7 @@ export function SchemaForm({
 									onChange={(value) => onChange(field.name, value)}
 									disabled={disabled}
 									error={fieldErrors?.[field.name]}
+									warning={fieldWarnings?.[field.name]}
 									options={getFieldOptions?.(field)}
 								/>
 							))}
