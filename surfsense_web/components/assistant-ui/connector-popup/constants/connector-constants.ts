@@ -1,4 +1,5 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 /**
  * Connectors retired during the MCP migration (no viable official MCP server).
@@ -276,6 +277,37 @@ export function getConnectorTitle(connectorType: string): string {
 		CONNECTOR_DISPLAY_DEFINITIONS.find((connector) => connector.connectorType === connectorType)
 			?.title ?? connectorType
 	);
+}
+
+/** One row per connected connector type (multiple accounts collapsed into one). */
+export interface ConnectorTypeRow {
+	type: string;
+	title: string;
+	connectors: SearchSourceConnector[];
+	accountCount: number;
+}
+
+/**
+ * Collapse a flat connector list into one row per `connector_type`, titled for
+ * display (MCP collapses to "MCP Servers") and sorted alphabetically. Shared by
+ * the connectors panel's "Your connectors" rail and the composer add-menu so the
+ * two lists never drift; callers layer their own extras (e.g. health) on top.
+ */
+export function groupConnectorsByType(connectors: SearchSourceConnector[]): ConnectorTypeRow[] {
+	const byType = new Map<string, SearchSourceConnector[]>();
+	for (const c of connectors) {
+		const arr = byType.get(c.connector_type) ?? [];
+		arr.push(c);
+		byType.set(c.connector_type, arr);
+	}
+	return [...byType.entries()]
+		.map(([type, list]) => ({
+			type,
+			title: type === EnumConnectorName.MCP_CONNECTOR ? "MCP Servers" : getConnectorTitle(type),
+			connectors: list,
+			accountCount: list.length,
+		}))
+		.sort((a, b) => a.title.localeCompare(b.title));
 }
 
 // Composio Toolkits (available integrations via Composio)
