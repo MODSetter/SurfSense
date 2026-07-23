@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.youtube import CommentItem
 
 MAX_COMMENT_VIDEOS = 20
@@ -17,7 +18,7 @@ MAX_COMMENT_VIDEOS = 20
 
 
 class CommentsInput(BaseModel):
-    urls: list[str] = Field(
+    urls: list[HttpUrlStr] = Field(
         min_length=1,
         max_length=MAX_COMMENT_VIDEOS,
         description="YouTube video URLs to fetch comments (and replies) for (1-20).",
