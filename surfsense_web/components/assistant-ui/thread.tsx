@@ -17,6 +17,7 @@ import {
 	Plus,
 	Settings2,
 	SquareIcon,
+	TriangleAlert,
 	Unplug,
 	Upload,
 	Wrench,
@@ -53,9 +54,9 @@ import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status
 import { ChatViewport } from "@/components/assistant-ui/chat-viewport";
 import { ComposerAddMenuDrawer } from "@/components/assistant-ui/composer-add-menu-drawer";
 import {
-	type ConnectorTypeRow,
-	groupConnectorsByType,
-} from "@/components/assistant-ui/connector-popup/constants/connector-constants";
+	type ConnectorRow,
+	useConnectorRows,
+} from "@/components/assistant-ui/connector-popup/hooks/use-connector-rows";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
@@ -85,6 +86,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -1087,15 +1089,12 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		() => new Set<string>((connectors ?? []).map((c) => c.connector_type)),
 		[connectors]
 	);
-	// "Your connectors" rows for the add-menu (desktop submenu + mobile drawer),
-	// grouped by type via the same helper the connectors panel rail uses.
-	const connectorRows = useMemo(
-		() => groupConnectorsByType((connectors ?? []) as SearchSourceConnector[]),
-		[connectors]
-	);
+	// "Your connectors" rows for the add-menu (desktop submenu + mobile drawer):
+	// same hook the connectors panel rail uses, so grouping + health glyphs match.
+	const { rows: connectorRows } = useConnectorRows((connectors ?? []) as SearchSourceConnector[]);
 	const setImportRequest = useSetAtom(importConnectorRequestAtom);
 	const openConnectorManage = useCallback(
-		(row: ConnectorTypeRow) => {
+		(row: ConnectorRow) => {
 			// Deep-link into the connector's manage view: the panel's
 			// useConnectorDialog consumes this atom and routes by account count
 			// (none -> connect, one -> edit, many -> accounts list).
@@ -1265,7 +1264,14 @@ const ComposerAction: FC<ComposerActionProps> = ({
 												>
 													{getConnectorIcon(row.type, "h-4 w-4")}
 													<span className="min-w-0 flex-1 truncate">{row.title}</span>
-													{row.accountCount > 1 ? (
+													{row.health === "syncing" ? (
+														<Spinner size="xs" className="shrink-0" />
+													) : row.health === "failed" ? (
+														<TriangleAlert
+															className="h-3.5 w-3.5 shrink-0 text-destructive"
+															aria-label={row.errorMessage ?? "Indexing failed"}
+														/>
+													) : row.accountCount > 1 ? (
 														<span className="shrink-0 text-xs text-muted-foreground">
 															{row.accountCount}
 														</span>
