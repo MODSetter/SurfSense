@@ -1,11 +1,19 @@
 export const SURFSENSE_ISSUES_URL = "https://github.com/MODSetter/SurfSense/issues";
 
+/** One field-level failure from a 422 validation response. */
+export interface ValidationFieldError {
+	loc: string[];
+	msg: string;
+}
+
 export class AppError extends Error {
 	status?: number;
 	statusText?: string;
 	code?: string;
 	requestId?: string;
 	reportUrl?: string;
+	/** Per-field failures from a 422 response, keyed by their location path. */
+	fields?: ValidationFieldError[];
 	constructor(
 		message: string,
 		status?: number,

@@ -10,6 +10,7 @@ import {
 	AuthorizationError,
 	NetworkError,
 	NotFoundError,
+	type ValidationFieldError,
 } from "../error";
 
 enum ResponseType {
@@ -165,6 +166,9 @@ class BaseApiService {
 				const requestId: string | undefined =
 					envelope?.request_id ?? response.headers.get("X-Request-ID") ?? undefined;
 				const reportUrl: string | undefined = envelope?.report_url;
+				const validationFields: ValidationFieldError[] | undefined = Array.isArray(envelope?.fields)
+					? envelope.fields
+					: undefined;
 
 				// Handle 401 - try to refresh token first (only once)
 				if (response.status === 401) {
@@ -209,8 +213,8 @@ class BaseApiService {
 							response.status,
 							response.statusText
 						);
-					default:
-						throw new AppError(
+					default: {
+						const appError = new AppError(
 							errorMessage || "Something went wrong",
 							response.status,
 							response.statusText,
@@ -218,6 +222,9 @@ class BaseApiService {
 							requestId,
 							reportUrl
 						);
+						appError.fields = validationFields;
+						throw appError;
+					}
 				}
 			}
 			refreshRetryBlockedUntil.delete(getRefreshRetryKey(mergedOptions.method, url));
