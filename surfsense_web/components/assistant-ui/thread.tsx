@@ -44,7 +44,6 @@ import {
 	clearPremiumAlertForThreadAtom,
 	premiumAlertByThreadAtom,
 } from "@/atoms/chat/premium-alert.atom";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { llmSetupStatusAtomFamily } from "@/atoms/model-connections/model-connections-query.atoms";
@@ -328,7 +327,9 @@ const ConnectToolsBanner: FC<{
 	onVisibleChange?: (visible: boolean) => void;
 }> = ({ isThreadEmpty, onVisibleChange }) => {
 	const { data: connectors } = useAtomValue(connectorsAtom);
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const router = useRouter();
+	const params = useParams();
+	const bannerWorkspaceId = getWorkspaceIdNumber(params);
 	const [dismissed, setDismissed] = useState(() => {
 		if (typeof window === "undefined") return false;
 		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
@@ -371,7 +372,9 @@ const ConnectToolsBanner: FC<{
 						variant="ghost"
 						size="sm"
 						className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
-						onClick={() => setConnectorDialogOpen(true)}
+						onClick={() => {
+							if (bannerWorkspaceId) router.push(`/dashboard/${bannerWorkspaceId}/connectors`);
+						}}
 					>
 						<Unplug className="size-4 shrink-0" />
 						<span className="truncate">Connect your tools</span>
@@ -1152,7 +1155,11 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	onChatModelSelected,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const router = useRouter();
+	const openConnectors = useCallback(
+		() => router.push(`/dashboard/${workspaceId}/connectors`),
+		[router, workspaceId]
+	);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
 	const [expandedConnectorGroups, setExpandedConnectorGroups] = useState<Set<string>>(
@@ -1302,7 +1309,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									<Upload className="size-4" />
 									Upload Files
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
+								<DropdownMenuItem onSelect={openConnectors}>
 									<Unplug className="size-4" />
 									MCP Connectors
 								</DropdownMenuItem>
@@ -1327,7 +1334,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin pb-6">
 									{regularToolGroups.map((group) => (
 										<div key={group.label}>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground font-semibold select-none">
 												{group.label}
 											</div>
 											{group.tools.map((tool) => {
@@ -1354,7 +1361,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									))}
 									{connectorToolGroups.length > 0 && (
 										<div>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground font-semibold select-none">
 												Connector Actions
 											</div>
 											{connectorToolGroups.map((group) => {
@@ -1435,7 +1442,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									)}
 									{otherToolGroup && (
 										<div>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground font-semibold select-none">
 												{otherToolGroup.label}
 											</div>
 											{otherToolGroup.tools.map((tool) => {
@@ -1522,7 +1529,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								<Camera className="h-4 w-4" />
 								Take a screenshot
 							</DropdownMenuItem>
-							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
+							<DropdownMenuItem onSelect={openConnectors}>
 								<Unplug className="h-4 w-4" />
 								MCP Connectors
 							</DropdownMenuItem>
@@ -1546,7 +1553,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									>
 										{regularToolGroups.map((group) => (
 											<div key={group.label}>
-												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+												<div className="px-2 pt-1.5 pb-0.5 text-xs text-muted-foreground font-semibold select-none">
 													{group.label}
 												</div>
 												{group.tools.map((tool) => {
@@ -1581,7 +1588,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 										))}
 										{connectorToolGroups.length > 0 && (
 											<div>
-												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+												<div className="px-2 pt-1.5 pb-0.5 text-xs text-muted-foreground font-semibold select-none">
 													Connector Actions
 												</div>
 												{connectorToolGroups.map((group) => {
@@ -1667,7 +1674,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 										)}
 										{otherToolGroup && (
 											<div>
-												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+												<div className="px-2 pt-1.5 pb-0.5 text-xs text-muted-foreground font-semibold select-none">
 													{otherToolGroup.label}
 												</div>
 												{otherToolGroup.tools.map((tool) => {
