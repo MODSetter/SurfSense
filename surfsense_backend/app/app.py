@@ -8,6 +8,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from threading import Lock
+from typing import Any
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
@@ -94,17 +95,21 @@ def _build_error_response(
     code: str = "INTERNAL_ERROR",
     request_id: str = "",
     extra_headers: dict[str, str] | None = None,
+    fields: list[dict[str, Any]] | None = None,
 ) -> JSONResponse:
     """Build the standardized error envelope (new ``error`` + legacy ``detail``)."""
+    error: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "status": status_code,
+        "request_id": request_id,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "report_url": ISSUES_URL,
+    }
+    if fields:
+        error["fields"] = fields
     body = {
-        "error": {
-            "code": code,
-            "message": message,
-            "status": status_code,
-            "request_id": request_id,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "report_url": ISSUES_URL,
-        },
+        "error": error,
         "detail": message,
     }
     headers = {"X-Request-ID": request_id}
@@ -222,16 +227,30 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
 def _validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """Return 422 with field-level detail in the standard envelope."""
+    """Return 422 with field-level detail in the standard envelope.
+
+    ``error.fields`` carries each failure's location path and message so clients
+    can attach errors to the offending input; ``message`` is the flat summary.
+    """
     rid = _get_request_id(request)
-    fields = []
-    for err in exc.errors():
-        loc = " -> ".join(str(part) for part in err.get("loc", []))
-        fields.append(f"{loc}: {err.get('msg', 'invalid')}")
-    message = (
-        f"Validation failed: {'; '.join(fields)}" if fields else "Validation failed."
+    fields = [
+        {
+            "loc": [str(part) for part in err.get("loc", ())],
+            # Drop pydantic's "Value error, " prefix so messages read for humans.
+            "msg": str(err.get("msg", "invalid")).removeprefix("Value error, "),
+        }
+        for err in exc.errors()
+    ]
+
+    def _segment(field: dict[str, Any]) -> str:
+        loc = " -> ".join(field["loc"])
+        return f"{loc}: {field['msg']}" if loc else field["msg"]
+
+    summary = "; ".join(_segment(f) for f in fields)
+    message = f"Validation failed: {summary}" if fields else "Validation failed."
+    return _build_error_response(
+        422, message, code="VALIDATION_ERROR", request_id=rid, fields=fields
     )
-    return _build_error_response(422, message, code="VALIDATION_ERROR", request_id=rid)
 
 
 def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
