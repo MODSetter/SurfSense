@@ -209,11 +209,21 @@ export function PlaygroundRunner({ workspaceId, platform, verb }: PlaygroundRunn
 		}
 
 		if (run.status === "error") {
-			setFieldErrors(fieldErrorsFromError(run.error));
+			const nextFieldErrors = fieldErrorsFromError(run.error);
+			setFieldErrors(nextFieldErrors);
 			const key = `${run.runId ?? "run"}:error`;
 			if (notifiedRunRef.current === key) return;
 			notifiedRunRef.current = key;
-			toast.error(getRunErrorMessage(run.error));
+			// Field-level failures are shown inline (the form reveals + focuses the
+			// first one), so only toast global failures that have no field to anchor to.
+			// Keep run errors until dismissed — they're actionable and shouldn't
+			// vanish before the user reads them.
+			if (Object.keys(nextFieldErrors).length === 0) {
+				toast.error(getRunErrorMessage(run.error), {
+					duration: Number.POSITIVE_INFINITY,
+					closeButton: true,
+				});
+			}
 		}
 	}, [run.status, run.runId, run.error]);
 

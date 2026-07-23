@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -204,6 +204,25 @@ export function SchemaForm({
 		const advancedFields = fields.filter((f) => !f.required);
 		return { primary: primaryFields, advanced: advancedFields };
 	}, [fields]);
+
+	// First invalid field in display order; drives reveal + focus below.
+	const firstErrorName = useMemo(
+		() => (fieldErrors ? fields.find((f) => fieldErrors[f.name])?.name : undefined),
+		[fields, fieldErrors]
+	);
+
+	// Reveal the section holding an invalid field, then move focus to it, so an
+	// error is never left hidden inside the collapsed "Advanced" group.
+	useEffect(() => {
+		if (!firstErrorName) return;
+		if (advanced.some((f) => f.name === firstErrorName)) setShowAdvanced(true);
+		const raf = requestAnimationFrame(() => {
+			const el = document.getElementById(`field-${firstErrorName}`);
+			el?.focus();
+			el?.scrollIntoView({ block: "center", behavior: "smooth" });
+		});
+		return () => cancelAnimationFrame(raf);
+	}, [firstErrorName, advanced]);
 
 	return (
 		<div className="space-y-5">
