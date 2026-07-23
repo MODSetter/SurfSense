@@ -275,8 +275,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 									<div className="mt-3 pt-3 border-t border-green-500/20">
 										<p className="font-semibold mb-2">Available tools:</p>
 										<ul className="list-disc list-inside text-xs space-y-0.5">
-											{testResult.tools.map((tool, i) => (
-												<li key={i}>{tool.name}</li>
+											{testResult.tools.map((tool) => (
+												<li key={tool.name}>{tool.name}</li>
 											))}
 										</ul>
 									</div>
