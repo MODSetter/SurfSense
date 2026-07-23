@@ -217,7 +217,7 @@ export function ComposerAddMenuDrawer({
 						}}
 					>
 						<LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
-						<span className="flex-1 text-left">Browse all connectors</span>
+						<span className="flex-1 text-left">Manage connectors</span>
 					</button>
 				</>
 			);

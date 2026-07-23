@@ -1281,7 +1281,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 											<DropdownMenuSeparator />
 											<DropdownMenuItem onSelect={openConnectors} className="gap-2">
 												<LayoutGrid className="h-4 w-4" />
-												Browse all connectors
+												Manage connectors
 											</DropdownMenuItem>
 										</DropdownMenuSubContent>
 									</DropdownMenuPortal>
