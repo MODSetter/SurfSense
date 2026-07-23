@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { JsonView } from "@/components/json-view";
 import { Spinner } from "@/components/ui/spinner";
 import { useScraperRun } from "@/hooks/use-scraper-runs";
 import { OutputViewer } from "./output-viewer";
@@ -69,7 +70,7 @@ export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: 
 			{run.progress && run.progress.length > 0 && (
 				<div>
 					<h4 className="mb-1.5 text-xs font-medium text-muted-foreground">Progress</h4>
-					<div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border/60 bg-background p-3 font-mono text-xs text-muted-foreground">
+					<div className="space-y-1 rounded-md border border-border/60 bg-background p-3 font-mono text-xs text-muted-foreground">
 						{run.progress.map((event, i) => (
 							<div key={i} className="truncate">
 								{progressLine(event)}
@@ -81,9 +82,9 @@ export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: 
 
 			<div>
 				<h4 className="mb-1.5 text-xs font-medium text-muted-foreground">Input</h4>
-				<pre className="max-h-64 overflow-auto rounded-md border border-border/60 bg-background p-3 text-xs">
-					<code>{JSON.stringify(run.input ?? {}, null, 2)}</code>
-				</pre>
+				<div className="rounded-md border border-border/60 bg-background p-3">
+					<JsonView src={run.input ?? {}} collapsed={2} />
+				</div>
 			</div>
 
 			<div>
