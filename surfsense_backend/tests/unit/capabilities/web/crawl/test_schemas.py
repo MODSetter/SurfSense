@@ -20,6 +20,11 @@ def test_requires_at_least_one_start_url() -> None:
         CrawlInput(startUrls=[])
 
 
+def test_rejects_malformed_start_url() -> None:
+    with pytest.raises(ValidationError):
+        CrawlInput(startUrls=["not-a-url"])
+
+
 def test_camelcase_fields_and_defaults() -> None:
     model = CrawlInput(startUrls=["https://e.com"])
     assert model.startUrls == ["https://e.com"]
