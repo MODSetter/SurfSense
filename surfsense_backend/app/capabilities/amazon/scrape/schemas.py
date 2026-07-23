@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.amazon import ProductItem
 
 MAX_AMAZON_SOURCES = 20
@@ -13,7 +14,7 @@ MAX_AMAZON_RESULTS = 1000
 class ScrapeInput(BaseModel):
     """Agent-facing controls for public product discovery and enrichment."""
 
-    urls: list[str] = Field(default_factory=list, max_length=MAX_AMAZON_SOURCES)
+    urls: list[HttpUrlStr] = Field(default_factory=list, max_length=MAX_AMAZON_SOURCES)
     search_terms: list[str] = Field(default_factory=list, max_length=MAX_AMAZON_SOURCES)
     max_items: int = Field(default=10, ge=1, le=100)
     domain: str = Field(
