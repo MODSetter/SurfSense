@@ -243,7 +243,12 @@ def _validation_error_handler(
     ]
 
     def _segment(field: dict[str, Any]) -> str:
-        loc = " -> ".join(field["loc"])
+        # Drop the "body" request root so model-level errors read as a plain
+        # sentence and field errors read as "field -> sub", not "body -> field".
+        path = field["loc"]
+        if path and path[0] == "body":
+            path = path[1:]
+        loc = " -> ".join(path)
         return f"{loc}: {field['msg']}" if loc else field["msg"]
 
     summary = "; ".join(_segment(f) for f in fields)
