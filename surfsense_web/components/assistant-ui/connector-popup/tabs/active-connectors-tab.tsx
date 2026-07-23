@@ -11,7 +11,6 @@ import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 import { cn } from "@/lib/utils";
 import {
 	COMPOSIO_CONNECTORS,
-	IMPORT_CONNECTOR_TYPES,
 	LIVE_CONNECTOR_TYPES,
 	OAUTH_CONNECTORS,
 } from "../constants/connector-constants";
@@ -40,11 +39,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	onManage,
 	onViewAccountsList,
 }) => {
-	// Import connectors (Drive/OneDrive/Dropbox) are managed via the Documents
-	// sidebar "Import" menu, so they are excluded from the MCP connector list.
-	const connectors = allActiveConnectors.filter(
-		(c) => !IMPORT_CONNECTOR_TYPES.has(c.connector_type)
-	);
+	const connectors = allActiveConnectors;
 	// Convert activeDocumentTypes array to Record for utility function
 	const documentTypeCounts = activeDocumentTypes.reduce(
 		(acc, [docType, count]) => {
