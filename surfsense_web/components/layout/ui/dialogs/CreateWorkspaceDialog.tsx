@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { trackWorkspaceCreated } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 
@@ -68,7 +67,8 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
 				description: values.description || "",
 			});
 
-			trackWorkspaceCreated(result.id, values.name);
+			// workspace_created is now emitted server-side (workspaces_routes.py)
+			// so PAT/MCP-created workspaces are also counted.
 
 			// Seed the gate's query so it resolves without a loader flash, and
 			// route straight to onboarding vs. new-chat on the first hop.

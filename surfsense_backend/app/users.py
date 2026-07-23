@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.auth.session_cookies import access_expires_at, write_session
 from app.config import config
+from app.observability import analytics as ph_analytics
 from app.db import (
     Prompt,
     User,
@@ -144,6 +145,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except Exception as e:
             logger.warning(f"Failed to update last_login for user {user.id}: {e}")
 
+        # Authoritative login event (vs. the frontend's optimistic capture).
+        ph_analytics.capture("auth_login_success", distinct_id=str(user.id))
+
     async def on_after_register(self, user: User, request: Request | None = None):
         """
         Called after a user registers. Creates a default workspace for the user
@@ -205,6 +209,17 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 await session.commit()
                 logger.info(
                     f"Created default workspace (ID: {default_workspace.id}) for user {user.id}"
+                )
+
+                # Authoritative registration + auto-created default workspace.
+                ph_analytics.capture(
+                    "auth_registration_success", distinct_id=str(user.id)
+                )
+                ph_analytics.capture(
+                    "workspace_created",
+                    distinct_id=str(user.id),
+                    properties={"client": "auto_register"},
+                    groups={"workspace": str(default_workspace.id)},
                 )
         except Exception as e:
             logger.error(f"Failed to create default workspace for user {user.id}: {e}")
@@ -338,6 +353,13 @@ async def get_auth_context(
     FastAPI-Users still handles JWT mechanics; PATs are resolved here so RBAC
     receives the full SurfSense principal instead of a bare User.
     """
+    def _stash(ctx: AuthContext) -> AuthContext:
+        # Expose the resolved principal on request.state so downstream
+        # middleware (e.g. PostHog pat_api_request attribution) can read it
+        # without re-resolving auth.
+        request.state.auth_context = ctx
+        return ctx
+
     auth_header = request.headers.get("Authorization")
     if auth_header:
         scheme, _, credential = auth_header.partition(" ")
@@ -348,7 +370,7 @@ async def get_auth_context(
             pat = await resolve_pat(session, token)
             if pat and pat.user and pat.user.is_active:
                 maybe_touch_last_used(pat)
-                return AuthContext.pat_auth(pat.user, pat)
+                return _stash(AuthContext.pat_auth(pat.user, pat))
 
         if is_bearer and _token_meets_epoch(token):
             try:
@@ -358,7 +380,7 @@ async def get_auth_context(
                 user = None
 
             if user and user.is_active:
-                return AuthContext.session(user)
+                return _stash(AuthContext.session(user))
 
     cookie_token = request.cookies.get(config.SESSION_COOKIE_NAME)
     if cookie_token and _token_meets_epoch(cookie_token):
@@ -369,7 +391,7 @@ async def get_auth_context(
             user = None
 
         if user and user.is_active:
-            return AuthContext.session(user)
+            return _stash(AuthContext.session(user))
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

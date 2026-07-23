@@ -39,6 +39,30 @@ function blockRefreshRetry(key: string): void {
 	refreshRetryBlockedUntil.set(key, Date.now() + REFRESH_RETRY_BLOCK_MS);
 }
 
+/**
+ * Send an API failure to PostHog error tracking. Scoped by the caller to only
+ * 5xx server faults + network outages — 4xx responses are expected behavior.
+ * Lazy-imports posthog-js so an ad-blocker can never break the request path.
+ */
+function captureApiException(error: unknown, url: string, method?: RequestOptions["method"]): void {
+	import("posthog-js")
+		.then(({ default: posthog }) => {
+			posthog.captureException(error, {
+				api_url: url,
+				api_method: method ?? "GET",
+				...(error instanceof AppError && {
+					status_code: error.status,
+					status_text: error.statusText,
+					error_code: error.code,
+					request_id: error.requestId,
+				}),
+			});
+		})
+		.catch(() => {
+			console.error("Failed to capture exception in PostHog");
+		});
+}
+
 export type RequestOptions = {
 	method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	headers?: Record<string, string>;
@@ -281,29 +305,20 @@ class BaseApiService {
 				throw new AbortedError();
 			}
 			if (error instanceof TypeError && !(error instanceof AppError)) {
-				throw new NetworkError(
+				const networkError = new NetworkError(
 					"Unable to connect to the server. Check your internet connection and try again."
 				);
+				// Network failures are genuine outages worth tracking.
+				captureApiException(networkError, url, options?.method);
+				throw networkError;
 			}
 
 			console.error("Request failed:", JSON.stringify(error));
-			if (!(error instanceof AuthenticationError)) {
-				import("posthog-js")
-					.then(({ default: posthog }) => {
-						posthog.captureException(error, {
-							api_url: url,
-							api_method: options?.method ?? "GET",
-							...(error instanceof AppError && {
-								status_code: error.status,
-								status_text: error.statusText,
-								error_code: error.code,
-								request_id: error.requestId,
-							}),
-						});
-					})
-					.catch(() => {
-						console.error("Failed to capture exception in PostHog");
-					});
+			// Only 5xx server faults are unexpected. 4xx (validation, authz, 404)
+			// are expected behavior — capturing them was billable error-tracking
+			// noise. AuthenticationError (401) is a 4xx and stays excluded.
+			if (error instanceof AppError && error.status >= 500) {
+				captureApiException(error, url, options?.method);
 			}
 			throw error;
 		}

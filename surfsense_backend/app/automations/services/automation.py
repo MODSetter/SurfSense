@@ -29,6 +29,7 @@ from app.automations.services.model_policy import (
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
 from app.db import Permission, Workspace, get_async_session
+from app.observability import analytics as ph_analytics
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
@@ -75,6 +76,18 @@ class AutomationService:
 
         self.session.add(automation)
         await self.session.commit()
+
+        # Authoritative creation (migrated from automations-mutation.atoms.ts).
+        ph_analytics.capture_for(
+            self.auth,
+            "automation_created",
+            {
+                "automation_id": automation.id,
+                "workspace_id": automation.workspace_id,
+                "trigger_count": len(payload.triggers),
+            },
+            groups={"workspace": str(automation.workspace_id)},
+        )
         return await self._get_with_triggers_or_raise(automation.id)
 
     async def list(
@@ -150,6 +163,31 @@ class AutomationService:
             automation.version += 1
 
         await self.session.commit()
+
+        # Migrated from automations-mutation.atoms.ts: a status-only change is a
+        # distinct event; other field edits are ``automation_updated``.
+        if "status" in data:
+            ph_analytics.capture_for(
+                self.auth,
+                "automation_status_changed",
+                {
+                    "automation_id": automation.id,
+                    "workspace_id": automation.workspace_id,
+                    "next_status": str(data["status"]),
+                },
+                groups={"workspace": str(automation.workspace_id)},
+            )
+        if any(k in data for k in ("name", "description", "definition")):
+            ph_analytics.capture_for(
+                self.auth,
+                "automation_updated",
+                {
+                    "automation_id": automation.id,
+                    "workspace_id": automation.workspace_id,
+                    "has_definition_change": "definition" in data,
+                },
+                groups={"workspace": str(automation.workspace_id)},
+            )
         return await self._get_with_triggers_or_raise(automation_id)
 
     async def delete(self, automation_id: int) -> None:
@@ -158,8 +196,17 @@ class AutomationService:
         await self._authorize(
             automation.workspace_id, Permission.AUTOMATIONS_DELETE.value
         )
+        workspace_id = automation.workspace_id
         await self.session.delete(automation)
         await self.session.commit()
+
+        # Authoritative deletion (migrated from automations-mutation.atoms.ts).
+        ph_analytics.capture_for(
+            self.auth,
+            "automation_deleted",
+            {"automation_id": automation_id, "workspace_id": workspace_id},
+            groups={"workspace": str(workspace_id)},
+        )
 
     async def _get_or_raise(self, automation_id: int) -> Automation:
         automation = await self.session.get(Automation, automation_id)

@@ -3,24 +3,20 @@ import type { ChatErrorKind, ChatErrorSeverity, ChatFlow } from "@/lib/chat/chat
 import { getConnectorTelemetryMeta } from "@/lib/connector-telemetry";
 
 /**
- * PostHog Analytics Event Definitions
+ * PostHog Analytics Event Definitions (frontend)
  *
  * All capture/identify/reset calls are wrapped in try-catch so that
  * ad-blockers that interfere with posthog-js can never break app
  * functionality (e.g. the chat flow).
  *
- * Events follow a consistent naming convention: category_action
+ * SCOPE: this file now holds only *intent* and client-perceived *UX* events.
+ * Authoritative *outcome* events (resource creation, task/ingestion/indexing
+ * completion, auth success, billing) are emitted server-side in
+ * surfsense_backend/app/observability/analytics.py — they are reliable
+ * regardless of ad-blockers, tab-close, or non-browser (MCP/PAT/OAuth)
+ * clients. Do NOT re-add optimistic outcome captures here; they double-count.
  *
- * Categories:
- * - auth: Authentication events
- * - workspace: Search space management
- * - document: Document management
- * - chat: Chat and messaging (authenticated + anonymous)
- * - connector: External connector events (all lifecycle stages)
- * - contact: Contact form events
- * - settings: Settings changes
- * - automation: Automation lifecycle (create/update/delete/trigger/chat)
- * - marketing: Marketing/referral tracking
+ * Events follow a consistent naming convention: category_action
  */
 
 function safeCapture(event: string, properties?: Record<string, unknown>) {
@@ -43,15 +39,11 @@ function compact<T extends object>(obj: T): Record<string, unknown> {
 }
 
 // ============================================
-// AUTH EVENTS
+// AUTH EVENTS (attempts + failures only; successes are server-side)
 // ============================================
 
 export function trackLoginAttempt(method: "local" | "google") {
 	safeCapture("auth_login_attempt", { method });
-}
-
-export function trackLoginSuccess(method: "local" | "google") {
-	safeCapture("auth_login_success", { method });
 }
 
 export function trackLoginFailure(method: "local" | "google", error?: string) {
@@ -60,10 +52,6 @@ export function trackLoginFailure(method: "local" | "google", error?: string) {
 
 export function trackRegistrationAttempt() {
 	safeCapture("auth_registration_attempt");
-}
-
-export function trackRegistrationSuccess() {
-	safeCapture("auth_registration_success");
 }
 
 export function trackRegistrationFailure(error?: string) {
@@ -75,55 +63,8 @@ export function trackLogout() {
 }
 
 // ============================================
-// SEARCH SPACE EVENTS
+// CHAT EVENTS (client-perceived UX)
 // ============================================
-
-export function trackWorkspaceCreated(workspaceId: number, name: string) {
-	safeCapture("workspace_created", {
-		workspace_id: workspaceId,
-		name,
-	});
-}
-
-export function trackWorkspaceDeleted(workspaceId: number) {
-	safeCapture("workspace_deleted", {
-		workspace_id: workspaceId,
-	});
-}
-
-export function trackWorkspaceViewed(workspaceId: number) {
-	safeCapture("workspace_viewed", {
-		workspace_id: workspaceId,
-	});
-}
-
-// ============================================
-// ACTIVE-USER (WAU) EVENT
-// ============================================
-
-/**
- * Single signal for active-user counting. Fired whenever a user sends a
- * chat message or starts an API run, so a "weekly unique users on
- * weekly_users" insight in PostHog is our WAU number.
- *
- * ponytail: frontend-only capture — API runs made directly against the
- * backend (PAT/curl, no browser) are not counted. Upgrade path is a
- * server-side capture in the backend if that ever matters.
- */
-export function trackWeeklyUser(source: "chat_message" | "api_run", workspaceId?: number) {
-	safeCapture("weekly_users", compact({ source, workspace_id: workspaceId }));
-}
-
-// ============================================
-// CHAT EVENTS
-// ============================================
-
-export function trackChatCreated(workspaceId: number, chatId: number) {
-	safeCapture("chat_created", {
-		workspace_id: workspaceId,
-		chat_id: chatId,
-	});
-}
 
 export function trackChatMessageSent(
 	workspaceId: number,
@@ -141,7 +82,6 @@ export function trackChatMessageSent(
 		has_mentioned_documents: options?.hasMentionedDocuments ?? false,
 		message_length: options?.messageLength,
 	});
-	trackWeeklyUser("chat_message", workspaceId);
 }
 
 export function trackChatResponseReceived(workspaceId: number, chatId: number) {
@@ -213,6 +153,10 @@ export function trackChatErrorDetailed(
  * flow. This is intentionally a separate event from `chat_message_sent`
  * so WAU / retention queries on the authenticated event stay clean while
  * still giving us visibility into top-of-funnel usage on /free/*.
+ *
+ * Kept frontend-side despite the backend's `anon_chat_turn_completed`: the
+ * frontend anon distinct id is what merges into the person at signup,
+ * powering the anonymous-to-registered conversion funnel.
  */
 export function trackAnonymousChatMessageSent(options: {
 	modelSlug: string;
@@ -229,7 +173,7 @@ export function trackAnonymousChatMessageSent(options: {
 }
 
 // ============================================
-// DOCUMENT EVENTS
+// DOCUMENT EVENTS (intent only; ingestion outcome is server-side)
 // ============================================
 
 export function trackDocumentUploadStarted(
@@ -244,59 +188,20 @@ export function trackDocumentUploadStarted(
 	});
 }
 
-export function trackDocumentUploadSuccess(workspaceId: number, fileCount: number) {
-	safeCapture("document_upload_success", {
-		workspace_id: workspaceId,
-		file_count: fileCount,
-	});
-}
-
-export function trackDocumentUploadFailure(workspaceId: number, error?: string) {
-	safeCapture("document_upload_failure", {
-		workspace_id: workspaceId,
-		error,
-	});
-}
-
-export function trackDocumentDeleted(workspaceId: number, documentId: number) {
-	safeCapture("document_deleted", {
-		workspace_id: workspaceId,
-		document_id: documentId,
-	});
-}
-
-export function trackDocumentBulkDeleted(workspaceId: number, count: number) {
-	safeCapture("document_bulk_deleted", {
-		workspace_id: workspaceId,
-		count,
-	});
-}
-
-export function trackYouTubeImport(workspaceId: number, url: string) {
-	safeCapture("youtube_import_started", {
-		workspace_id: workspaceId,
-		url,
-	});
-}
-
 // ============================================
-// CONNECTOR EVENTS (generic lifecycle dispatcher)
+// CONNECTOR EVENTS (setup intent/UX; connected/deleted are server-side)
 // ============================================
 //
 // All connector events go through `trackConnectorEvent`. The connector's
-// human-readable title and its group (oauth/composio/crawler/other) are
-// auto-attached from the shared registry in `connector-constants.ts`, so
-// adding a new connector to that list is the only change required for it
-// to show up correctly in PostHog dashboards.
+// group (oauth/composio/crawler/other) is auto-attached from the shared
+// registry, so adding a new connector to that list is the only change
+// required for it to show up correctly in PostHog dashboards.
 
 export type ConnectorEventStage =
 	| "setup_started"
 	| "setup_success"
 	| "setup_failure"
-	| "oauth_initiated"
-	| "connected"
-	| "deleted"
-	| "synced";
+	| "oauth_initiated";
 
 export interface ConnectorEventOptions {
 	workspaceId?: number | null;
@@ -312,6 +217,9 @@ export interface ConnectorEventOptions {
 /**
  * Generic connector lifecycle tracker. Every connector analytics event
  * should funnel through here so the enrichment stays consistent.
+ *
+ * ``connector_title`` is intentionally NOT sent — it's a display label with
+ * no aggregation value; segment on ``connector_type`` / ``connector_group``.
  */
 export function trackConnectorEvent(
 	stage: ConnectorEventStage,
@@ -327,7 +235,6 @@ export function trackConnectorEvent(
 			error: options.error,
 		}),
 		connector_type: meta.connector_type,
-		connector_title: meta.connector_title,
 		connector_group: meta.connector_group,
 		is_oauth: meta.is_oauth,
 		...(options.extra ?? {}),
@@ -365,58 +272,9 @@ export function trackConnectorSetupFailure(
 	});
 }
 
-export function trackConnectorDeleted(
-	workspaceId: number,
-	connectorType: string,
-	connectorId: number
-) {
-	trackConnectorEvent("deleted", connectorType, { workspaceId, connectorId });
-}
-
-export function trackConnectorSynced(
-	workspaceId: number,
-	connectorType: string,
-	connectorId: number
-) {
-	trackConnectorEvent("synced", connectorType, { workspaceId, connectorId });
-}
-
-// ============================================
-// SETTINGS EVENTS
-// ============================================
-
-export function trackSettingsViewed(workspaceId: number, section: string) {
-	safeCapture("settings_viewed", {
-		workspace_id: workspaceId,
-		section,
-	});
-}
-
-export function trackSettingsUpdated(workspaceId: number, section: string, setting: string) {
-	safeCapture("settings_updated", {
-		workspace_id: workspaceId,
-		section,
-		setting,
-	});
-}
-
 // ============================================
 // FEATURE USAGE EVENTS
 // ============================================
-
-export function trackPodcastGenerated(workspaceId: number, chatId: number) {
-	safeCapture("podcast_generated", {
-		workspace_id: workspaceId,
-		chat_id: chatId,
-	});
-}
-
-export function trackSourcesTabViewed(workspaceId: number, tab: string) {
-	safeCapture("sources_tab_viewed", {
-		workspace_id: workspaceId,
-		tab,
-	});
-}
 
 export function trackDesktopDownloadClicked(options: {
 	os: string;
@@ -429,84 +287,7 @@ export function trackDesktopDownloadClicked(options: {
 }
 
 // ============================================
-// SEARCH SPACE INVITE EVENTS
-// ============================================
-
-export function trackWorkspaceInviteSent(
-	workspaceId: number,
-	options?: {
-		roleName?: string;
-		hasExpiry?: boolean;
-		hasMaxUses?: boolean;
-	}
-) {
-	safeCapture("workspace_invite_sent", {
-		workspace_id: workspaceId,
-		role_name: options?.roleName,
-		has_expiry: options?.hasExpiry ?? false,
-		has_max_uses: options?.hasMaxUses ?? false,
-	});
-}
-
-export function trackWorkspaceInviteAccepted(
-	workspaceId: number,
-	workspaceName: string,
-	roleName?: string | null
-) {
-	safeCapture("workspace_invite_accepted", {
-		workspace_id: workspaceId,
-		workspace_name: workspaceName,
-		role_name: roleName,
-	});
-}
-
-export function trackWorkspaceInviteDeclined(workspaceName?: string) {
-	safeCapture("workspace_invite_declined", {
-		workspace_name: workspaceName,
-	});
-}
-
-export function trackWorkspaceUserAdded(
-	workspaceId: number,
-	workspaceName: string,
-	roleName?: string | null
-) {
-	safeCapture("workspace_user_added", {
-		workspace_id: workspaceId,
-		workspace_name: workspaceName,
-		role_name: roleName,
-	});
-}
-
-export function trackWorkspaceUsersViewed(
-	workspaceId: number,
-	userCount: number,
-	ownerCount: number
-) {
-	safeCapture("workspace_users_viewed", {
-		workspace_id: workspaceId,
-		user_count: userCount,
-		owner_count: ownerCount,
-	});
-}
-
-// ============================================
-// CONNECTOR CONNECTION EVENTS
-// ============================================
-
-export function trackConnectorConnected(
-	workspaceId: number,
-	connectorType: string,
-	connectorId?: number
-) {
-	trackConnectorEvent("connected", connectorType, {
-		workspaceId,
-		connectorId: connectorId ?? undefined,
-	});
-}
-
-// ============================================
-// INDEXING EVENTS
+// INDEXING EVENTS (intent/UX; indexing outcome is server-side)
 // ============================================
 
 export function trackIndexWithDateRangeOpened(
@@ -578,19 +359,18 @@ export function trackPeriodicIndexingStarted(
 }
 
 // ============================================
-// INCENTIVE TASKS EVENTS
+// SEARCH SPACE INVITE EVENTS (decline is client-only; sent/accepted server-side)
 // ============================================
 
-export function trackIncentivePageViewed() {
-	safeCapture("incentive_page_viewed");
-}
-
-export function trackIncentiveTaskCompleted(taskType: string, creditMicrosRewarded: number) {
-	safeCapture("incentive_task_completed", {
-		task_type: taskType,
-		credit_micros_rewarded: creditMicrosRewarded,
+export function trackWorkspaceInviteDeclined(workspaceName?: string) {
+	safeCapture("workspace_invite_declined", {
+		workspace_name: workspaceName,
 	});
 }
+
+// ============================================
+// INCENTIVE TASKS EVENTS (click intent only; completion is server-side)
+// ============================================
 
 export function trackIncentiveTaskClicked(taskType: string) {
 	safeCapture("incentive_task_clicked", {
@@ -616,81 +396,23 @@ export function trackReferralLanding(refCode: string, landingUrl: string) {
 }
 
 // ============================================
-// AUTOMATION EVENTS
+// AUTOMATION EVENTS (failures + chat-builder UX; CRUD outcomes are server-side)
 // ============================================
-
-interface AutomationCreatedProps {
-	workspace_id: number;
-	automation_id: number;
-	task_count?: number;
-	trigger_type?: string;
-	has_schedule?: boolean;
-	chat_model_id?: number;
-	image_gen_model_id?: number;
-	vision_model_id?: number;
-	tags_count?: number;
-}
-
-export function trackAutomationCreated(props: AutomationCreatedProps) {
-	safeCapture("automation_created", compact(props));
-}
 
 export function trackAutomationCreateFailed(props: { workspace_id?: number; error?: string }) {
 	safeCapture("automation_create_failed", compact(props));
-}
-
-export function trackAutomationUpdated(props: {
-	automation_id: number;
-	workspace_id?: number;
-	has_definition_change?: boolean;
-	has_name_change?: boolean;
-	has_description_change?: boolean;
-	task_count?: number;
-}) {
-	safeCapture("automation_updated", compact(props));
-}
-
-export function trackAutomationStatusChanged(props: {
-	automation_id: number;
-	workspace_id?: number;
-	next_status: string;
-}) {
-	safeCapture("automation_status_changed", compact(props));
 }
 
 export function trackAutomationUpdateFailed(props: { automation_id: number; error?: string }) {
 	safeCapture("automation_update_failed", compact(props));
 }
 
-export function trackAutomationDeleted(props: { automation_id: number; workspace_id?: number }) {
-	safeCapture("automation_deleted", compact(props));
-}
-
 export function trackAutomationDeleteFailed(props: { automation_id: number; error?: string }) {
 	safeCapture("automation_delete_failed", compact(props));
 }
 
-export function trackAutomationTriggerAdded(props: {
-	automation_id: number;
-	trigger_id?: number;
-	trigger_type?: string;
-	enabled?: boolean;
-	has_cron?: boolean;
-}) {
-	safeCapture("automation_trigger_added", compact(props));
-}
-
 export function trackAutomationTriggerAddFailed(props: { automation_id: number; error?: string }) {
 	safeCapture("automation_trigger_add_failed", compact(props));
-}
-
-export function trackAutomationTriggerUpdated(props: {
-	automation_id: number;
-	trigger_id: number;
-	change?: "enabled" | "params" | "other";
-	enabled?: boolean;
-}) {
-	safeCapture("automation_trigger_updated", compact(props));
 }
 
 export function trackAutomationTriggerUpdateFailed(props: {
@@ -699,13 +421,6 @@ export function trackAutomationTriggerUpdateFailed(props: {
 	error?: string;
 }) {
 	safeCapture("automation_trigger_update_failed", compact(props));
-}
-
-export function trackAutomationTriggerRemoved(props: {
-	automation_id: number;
-	trigger_id: number;
-}) {
-	safeCapture("automation_trigger_removed", compact(props));
 }
 
 export function trackAutomationTriggerRemoveFailed(props: {

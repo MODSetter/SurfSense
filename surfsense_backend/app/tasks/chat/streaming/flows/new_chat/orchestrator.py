@@ -97,6 +97,10 @@ from app.tasks.chat.streaming.flows.shared.rate_limit_recovery import (
     log_rate_limit_recovered,
     reroute_to_next_auto_pin,
 )
+from app.tasks.chat.streaming.flows.shared.analytics import (
+    build_llm_callback_handler,
+    capture_chat_turn_completed,
+)
 from app.tasks.chat.streaming.flows.shared.span import (
     close_chat_request_span,
     open_chat_request_span,
@@ -487,6 +491,23 @@ async def stream_new_chat(
             "recursion_limit": 10_000,
         }
 
+        # PostHog LLM analytics: attach a callback so the full agent trace
+        # tree (LLM calls, tools, subagents) is captured per turn. No-op when
+        # PostHog is unconfigured.
+        _llm_handler = build_llm_callback_handler(
+            distinct_id=user_id,
+            trace_id=stream_result.turn_id,
+            properties={
+                "workspace_id": workspace_id,
+                "chat_id": chat_id,
+                "$ai_session_id": str(chat_id),
+                "flow": flow,
+            },
+            groups={"workspace": str(workspace_id)},
+        )
+        if _llm_handler is not None:
+            config["callbacks"] = [_llm_handler]
+
         # --- Block 4: First SSE frames ---
 
         for sse in iter_initial_frames(
@@ -828,6 +849,27 @@ async def stream_new_chat(
                 user_id=user_id,
                 accumulator=accumulator,
                 log_prefix="stream_new_chat",
+            )
+
+            # Authoritative server-side product event. Inside the shield so it
+            # survives client-disconnect cancellation (abandoned tabs still
+            # produce a turn event), and while ``stream_result`` is still live
+            # (it's dropped to None below for GC).
+            capture_chat_turn_completed(
+                flow=flow,
+                outcome=chat_outcome,
+                error_category=chat_error_category,
+                workspace_id=workspace_id,
+                chat_id=chat_id,
+                user_id=user_id,
+                auth_context=auth_context,
+                agent_mode=chat_agent_mode,
+                client_platform=fs_platform,
+                filesystem_mode=fs_mode,
+                turn_id=getattr(stream_result, "turn_id", None),
+                request_id=request_id,
+                duration_ms=int((time.perf_counter() - _t_total) * 1000),
+                accumulator=accumulator,
             )
 
         # Persist any sandbox-produced files to local storage so they remain

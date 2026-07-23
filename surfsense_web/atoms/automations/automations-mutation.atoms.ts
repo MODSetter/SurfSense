@@ -8,18 +8,11 @@ import type {
 } from "@/contracts/types/automation.types";
 import { automationsApiService } from "@/lib/apis/automations-api.service";
 import {
-	trackAutomationCreated,
 	trackAutomationCreateFailed,
-	trackAutomationDeleted,
 	trackAutomationDeleteFailed,
-	trackAutomationStatusChanged,
-	trackAutomationTriggerAdded,
 	trackAutomationTriggerAddFailed,
-	trackAutomationTriggerRemoved,
 	trackAutomationTriggerRemoveFailed,
-	trackAutomationTriggerUpdated,
 	trackAutomationTriggerUpdateFailed,
-	trackAutomationUpdated,
 	trackAutomationUpdateFailed,
 } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -48,20 +41,10 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 	mutationFn: async (request: AutomationCreateRequest) => {
 		return automationsApiService.createAutomation(request);
 	},
-	onSuccess: (automation, variables) => {
+	onSuccess: (_automation, variables) => {
 		invalidateList(variables.workspace_id);
 		toast.success("Automation created");
-		trackAutomationCreated({
-			workspace_id: variables.workspace_id,
-			automation_id: automation.id,
-			task_count: variables.definition.plan.length,
-			trigger_type: variables.triggers?.[0]?.type ?? "none",
-			has_schedule: (variables.triggers?.length ?? 0) > 0,
-			chat_model_id: variables.definition.models?.chat_model_id,
-			image_gen_model_id: variables.definition.models?.image_gen_model_id,
-			vision_model_id: variables.definition.models?.vision_model_id,
-			tags_count: variables.definition.metadata?.tags?.length,
-		});
+		// automation_created is now emitted server-side (AutomationService.create).
 	},
 	onError: (error: Error, variables) => {
 		console.error("Error creating automation:", error);
@@ -82,24 +65,8 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 		invalidateDetail(vars.automationId);
 		invalidateList(automation.workspace_id);
 		toast.success("Automation updated");
-		// A status-only patch (pause/resume/archive) is a distinct action from a
-		// definition/name edit, so split it into its own event.
-		if (vars.patch.status && !vars.patch.definition) {
-			trackAutomationStatusChanged({
-				automation_id: vars.automationId,
-				workspace_id: automation.workspace_id,
-				next_status: vars.patch.status,
-			});
-		} else {
-			trackAutomationUpdated({
-				automation_id: vars.automationId,
-				workspace_id: automation.workspace_id,
-				has_definition_change: !!vars.patch.definition,
-				has_name_change: vars.patch.name != null,
-				has_description_change: vars.patch.description !== undefined,
-				task_count: vars.patch.definition?.plan?.length,
-			});
-		}
+		// automation_updated / automation_status_changed are now emitted
+		// server-side (AutomationService.update).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error updating automation:", error);
@@ -121,10 +88,7 @@ export const deleteAutomationMutationAtom = atomWithMutation(() => ({
 		invalidateList(vars.workspaceId);
 		invalidateDetail(vars.automationId);
 		toast.success("Automation deleted");
-		trackAutomationDeleted({
-			automation_id: vars.automationId,
-			workspace_id: vars.workspaceId,
-		});
+		// automation_deleted is now emitted server-side (AutomationService.delete).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error deleting automation:", error);
@@ -141,16 +105,10 @@ export const addTriggerMutationAtom = atomWithMutation(() => ({
 	mutationFn: async (vars: { automationId: number; payload: TriggerCreateRequest }) => {
 		return automationsApiService.addTrigger(vars.automationId, vars.payload);
 	},
-	onSuccess: (trigger, vars) => {
+	onSuccess: (_trigger, vars) => {
 		invalidateDetail(vars.automationId);
 		toast.success("Trigger added");
-		trackAutomationTriggerAdded({
-			automation_id: vars.automationId,
-			trigger_id: trigger.id,
-			trigger_type: trigger.type,
-			enabled: trigger.enabled,
-			has_cron: !!trigger.params?.cron,
-		});
+		// automation_trigger_added is now emitted server-side (TriggerService.add).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error adding trigger:", error);
@@ -174,17 +132,7 @@ export const updateTriggerMutationAtom = atomWithMutation(() => ({
 	onSuccess: (_, vars) => {
 		invalidateDetail(vars.automationId);
 		toast.success("Trigger updated");
-		const change: "enabled" | "params" | "other" = vars.patch.params
-			? "params"
-			: vars.patch.enabled !== undefined && vars.patch.enabled !== null
-				? "enabled"
-				: "other";
-		trackAutomationTriggerUpdated({
-			automation_id: vars.automationId,
-			trigger_id: vars.triggerId,
-			change,
-			enabled: vars.patch.enabled ?? undefined,
-		});
+		// automation_trigger_updated is now emitted server-side (TriggerService.update).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error updating trigger:", error);
@@ -206,10 +154,7 @@ export const removeTriggerMutationAtom = atomWithMutation(() => ({
 	onSuccess: (vars) => {
 		invalidateDetail(vars.automationId);
 		toast.success("Trigger removed");
-		trackAutomationTriggerRemoved({
-			automation_id: vars.automationId,
-			trigger_id: vars.triggerId,
-		});
+		// automation_trigger_removed is now emitted server-side (TriggerService.remove).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error removing trigger:", error);

@@ -96,7 +96,6 @@ import type { Role } from "@/contracts/types/roles.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { formatRelativeDate } from "@/lib/format-date";
-import { trackWorkspaceInviteSent, trackWorkspaceUsersViewed } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
@@ -226,12 +225,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 	const canPrev = pageIndex > 0;
 	const canNext = displayEnd < totalItems;
 
-	useEffect(() => {
-		if (members.length > 0 && !membersLoading) {
-			const ownerCount = members.filter((m) => m.is_owner).length;
-			trackWorkspaceUsersViewed(workspaceId, members.length, ownerCount);
-		}
-	}, [members, membersLoading, workspaceId]);
+	// workspace_users_viewed removed — redundant with $pageview.
 
 	if (accessLoading || membersLoading) {
 		return (
@@ -342,11 +336,7 @@ export function TeamContent({ workspaceId }: TeamContentProps) {
 								Invite members
 							</Button>
 						) : (
-							<CreateInviteDialog
-								roles={roles}
-								onCreateInvite={handleCreateInvite}
-								workspaceId={workspaceId}
-							/>
+							<CreateInviteDialog roles={roles} onCreateInvite={handleCreateInvite} />
 						)}
 						{invitesLoading ? (
 							<Button
@@ -617,11 +607,9 @@ function MemberRow({
 function CreateInviteDialog({
 	roles,
 	onCreateInvite,
-	workspaceId,
 }: {
 	roles: Role[];
 	onCreateInvite: (data: CreateInviteRequest["data"]) => Promise<Invite>;
-	workspaceId: number;
 }) {
 	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
@@ -653,12 +641,7 @@ function CreateInviteDialog({
 			const invite = await onCreateInvite(data);
 			setCreatedInvite(invite);
 
-			const roleName = roleId ? roles.find((r) => r.id.toString() === roleId)?.name : undefined;
-			trackWorkspaceInviteSent(workspaceId, {
-				roleName,
-				hasExpiry: !!expiresAt,
-				hasMaxUses: !!maxUses,
-			});
+			// workspace_invite_sent is now emitted server-side (rbac_routes.create_invite).
 		} catch (error) {
 			console.error("Failed to create invite:", error);
 			toast.error("Failed to create invite. Please try again.");
