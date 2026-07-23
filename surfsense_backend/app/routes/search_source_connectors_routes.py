@@ -29,6 +29,7 @@ import redis
 from dateutil.parser import isoparse
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import event as sa_event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -44,6 +45,7 @@ from app.db import (
     get_async_session,
 )
 from app.notifications.service import NotificationService
+from app.observability import analytics as ph_analytics
 from app.observability import metrics as ot_metrics, otel as ot
 from app.schemas import (
     GoogleDriveIndexRequest,
@@ -133,6 +135,45 @@ def _get_heartbeat_key(notification_id: int) -> str:
 
 
 router = APIRouter()
+
+
+def _connector_type_value(connector_type) -> str:
+    """Low-cardinality connector_type string for analytics (enum -> its value)."""
+    return getattr(connector_type, "value", None) or str(connector_type)
+
+
+def _emit_connector_connected(_mapper, _connection, target) -> None:
+    """SQLAlchemy after_insert hook: one guard for every connector-creation path.
+
+    Fires ``connector_connected`` for the form route here AND all 15 OAuth
+    callback routes (each builds ``SearchSourceConnector(...)`` inline with no
+    shared helper), so we don't instrument 16 call sites. ``distinct_id`` comes
+    off the row itself (``user_id``) — the same person the web app identifies.
+
+    ponytail: fires during flush, so a post-flush rollback would over-count
+    (rare; connector creation commits immediately after add). No-op without a
+    PostHog key. Upgrade path: move to an after_commit collector if over-count
+    ever shows up in the data.
+    """
+    if not ph_analytics.is_enabled():
+        return
+    user_id = getattr(target, "user_id", None)
+    if not user_id:
+        return
+    workspace_id = getattr(target, "workspace_id", None)
+    ph_analytics.capture(
+        "connector_connected",
+        distinct_id=str(user_id),
+        properties={
+            "workspace_id": workspace_id,
+            "connector_id": target.id,
+            "connector_type": _connector_type_value(target.connector_type),
+        },
+        groups={"workspace": str(workspace_id)} if workspace_id is not None else None,
+    )
+
+
+sa_event.listen(SearchSourceConnector, "after_insert", _emit_connector_connected)
 
 
 # Use Pydantic's BaseModel here
@@ -243,6 +284,10 @@ async def create_search_source_connector(
         session.add(db_connector)
         await session.commit()
         await session.refresh(db_connector)
+
+        # ``connector_connected`` is emitted by the after_insert listener below,
+        # so it fires once for this form route AND all 15 OAuth callback routes
+        # without instrumenting each — see _emit_connector_connected.
 
         # Create periodic schedule if periodic indexing is enabled
         if (
@@ -679,9 +724,22 @@ async def delete_search_source_connector(
 
         # Delete the connector record
         workspace_id = db_connector.workspace_id
+        deleted_connector_type = db_connector.connector_type
         is_mcp = db_connector.connector_type == SearchSourceConnectorType.MCP_CONNECTOR
         await session.delete(db_connector)
         await session.commit()
+
+        # Authoritative deletion (migrated from use-connector-dialog.ts).
+        ph_analytics.capture_for(
+            auth,
+            "connector_deleted",
+            {
+                "workspace_id": workspace_id,
+                "connector_id": connector_id,
+                "connector_type": _connector_type_value(deleted_connector_type),
+            },
+            groups={"workspace": str(workspace_id)},
+        )
 
         if is_mcp:
             from app.agents.chat.multi_agent_chat.shared.tools.mcp.tool import (

@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from app.auth.context import AuthContext
 from app.config import config
 from app.db import PersonalAccessToken, get_async_session
+from app.observability import analytics as ph_analytics
 from app.schemas.pat import PATCreate, PATCreated, PATRead
 from app.users import require_session_context
 from app.utils.pat import generate_pat, hash_pat, token_prefix
@@ -57,6 +58,13 @@ async def create_personal_access_token(
     await session.commit()
     await session.refresh(pat)
 
+    # Leading indicator of MCP / programmatic-API adoption.
+    ph_analytics.capture_for(
+        auth,
+        "pat_created",
+        {"pat_id": pat.id, "has_expiry": pat.expires_at is not None},
+    )
+
     return PATCreated(
         id=pat.id,
         label=pat.label,
@@ -102,3 +110,5 @@ async def delete_personal_access_token(
         )
     )
     await session.commit()
+
+    ph_analytics.capture_for(auth, "pat_revoked", {"pat_id": pat_id})

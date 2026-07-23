@@ -15,9 +15,36 @@ from app.automations.schemas.definition.envelope import (
 )
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import build_run_context
+from app.observability import analytics as ph_analytics
 
 from . import repository
 from .step import execute_step
+
+
+def _capture_run_outcome(run: AutomationRun, status: str) -> None:
+    """Emit ``automation_run_completed`` — headless runs the frontend never sees.
+
+    No-op when PostHog is unconfigured or the owning user is unknown.
+    """
+    automation = run.automation
+    creator_id = getattr(automation, "created_by_user_id", None)
+    if not creator_id:
+        return
+    workspace_id = getattr(automation, "workspace_id", None)
+    ph_analytics.capture(
+        "automation_run_completed",
+        distinct_id=str(creator_id),
+        properties={
+            "automation_id": run.automation_id,
+            "run_id": run.id,
+            "workspace_id": workspace_id,
+            "status": status,
+            "trigger_type": run.trigger.type.value if run.trigger else None,
+        },
+        groups={"workspace": str(workspace_id)}
+        if workspace_id is not None
+        else None,
+    )
 
 
 async def execute_run(session: AsyncSession, run_id: int) -> None:
@@ -41,6 +68,7 @@ async def execute_run(session: AsyncSession, run_id: int) -> None:
             },
         )
         await session.commit()
+        _capture_run_outcome(run, "failed")
         return
 
     await repository.mark_running(session, run)
@@ -66,6 +94,7 @@ async def execute_run(session: AsyncSession, run_id: int) -> None:
             await _run_on_failure(session, run, definition)
             await repository.mark_failed(session, run, result.get("error"))
             await session.commit()
+            _capture_run_outcome(run, "failed")
             return
 
         if result["status"] == "succeeded":
@@ -73,6 +102,7 @@ async def execute_run(session: AsyncSession, run_id: int) -> None:
 
     await repository.mark_succeeded(session, run)
     await session.commit()
+    _capture_run_outcome(run, "succeeded")
 
 
 async def _run_on_failure(

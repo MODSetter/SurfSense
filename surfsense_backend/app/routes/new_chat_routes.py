@@ -51,6 +51,7 @@ from app.db import (
     get_async_session,
     shielded_async_session,
 )
+from app.observability import analytics as ph_analytics
 from app.schemas.new_chat import (
     AgentToolInfo,
     CancelActiveTurnResponse,
@@ -823,6 +824,15 @@ async def create_thread(
         session.add(db_thread)
         await session.commit()
         await session.refresh(db_thread)
+
+        # Authoritative thread creation (migrated from stream-engine/engine.ts).
+        # get_auth_context => covers PAT/MCP callers the frontend never sees.
+        ph_analytics.capture_for(
+            auth,
+            "chat_created",
+            {"workspace_id": db_thread.workspace_id, "chat_id": db_thread.id},
+            groups={"workspace": str(db_thread.workspace_id)},
+        )
         return db_thread
 
     except HTTPException:

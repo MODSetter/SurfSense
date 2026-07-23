@@ -15,11 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/hooks/use-session";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AppError, ValidationError } from "@/lib/error";
-import {
-	trackRegistrationAttempt,
-	trackRegistrationFailure,
-	trackRegistrationSuccess,
-} from "@/lib/posthog/events";
+import { trackRegistrationAttempt, trackRegistrationFailure } from "@/lib/posthog/events";
 import { AmbientBackground } from "../login/AmbientBackground";
 
 export default function RegisterPage() {
@@ -81,8 +77,8 @@ export default function RegisterPage() {
 				is_verified: false,
 			});
 
-			// Track successful registration
-			trackRegistrationSuccess();
+			// auth_registration_success is now emitted server-side
+			// (UserManager.on_after_register) — authoritative vs. optimistic.
 
 			// Success toast
 			toast.success(t("register_success"), {

@@ -16,6 +16,7 @@ from app.automations.schemas.api import TriggerCreate, TriggerUpdate
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
 from app.db import Permission, get_async_session
+from app.observability import analytics as ph_analytics
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
@@ -48,6 +49,18 @@ class TriggerService:
         self.session.add(trigger)
         await self.session.commit()
         await self.session.refresh(trigger)
+
+        # Migrated from automations-mutation.atoms.ts.
+        ph_analytics.capture_for(
+            self.auth,
+            "automation_trigger_added",
+            {
+                "automation_id": automation_id,
+                "trigger_id": trigger.id,
+                "trigger_type": getattr(trigger.type, "value", str(trigger.type)),
+                "enabled": trigger.enabled,
+            },
+        )
         return trigger
 
     async def update(
@@ -82,6 +95,26 @@ class TriggerService:
 
         await self.session.commit()
         await self.session.refresh(trigger)
+
+        # Migrated from automations-mutation.atoms.ts. ``change`` mirrors the
+        # frontend's coarse categorisation.
+        _change = (
+            "enabled"
+            if "enabled" in data and "params" not in data
+            else "params"
+            if "params" in data
+            else "other"
+        )
+        ph_analytics.capture_for(
+            self.auth,
+            "automation_trigger_updated",
+            {
+                "automation_id": automation_id,
+                "trigger_id": trigger_id,
+                "change": _change,
+                "enabled": trigger.enabled,
+            },
+        )
         return trigger
 
     async def remove(self, *, automation_id: int, trigger_id: int) -> None:
@@ -91,6 +124,13 @@ class TriggerService:
         trigger = await self._get_trigger_or_raise(automation_id, trigger_id)
         await self.session.delete(trigger)
         await self.session.commit()
+
+        # Migrated from automations-mutation.atoms.ts.
+        ph_analytics.capture_for(
+            self.auth,
+            "automation_trigger_removed",
+            {"automation_id": automation_id, "trigger_id": trigger_id},
+        )
 
     async def _authorize_automation(
         self, automation_id: int, permission: str

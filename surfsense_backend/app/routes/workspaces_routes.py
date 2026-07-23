@@ -15,6 +15,7 @@ from app.db import (
     get_async_session,
     get_default_roles_config,
 )
+from app.observability import analytics as ph_analytics
 from app.routes.model_connections_routes import compute_llm_setup_status
 from app.schemas import (
     WorkspaceApiAccessUpdate,
@@ -111,6 +112,16 @@ async def create_workspace(
 
         await session.commit()
         await session.refresh(db_workspace)
+
+        # Authoritative creation event (migrated from the frontend
+        # CreateWorkspaceDialog). Workspace name is intentionally NOT sent —
+        # it's user content with no aggregation value.
+        ph_analytics.capture_for(
+            auth,
+            "workspace_created",
+            {"workspace_id": db_workspace.id},
+            groups={"workspace": str(db_workspace.id)},
+        )
 
         response = WorkspaceRead.model_validate(db_workspace)
         response.llm_setup = await compute_llm_setup_status(

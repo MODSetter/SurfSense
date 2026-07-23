@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScraperRunDetail, ScraperRunEvent } from "@/contracts/types/scraper.types";
 import { scrapersApiService } from "@/lib/apis/scrapers-api.service";
-import { trackWeeklyUser } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export type RunStatus = "idle" | "running" | "success" | "error" | "cancelled";
@@ -110,7 +109,8 @@ export function useRunStream(workspaceId: number) {
 			try {
 				const started = await scrapersApiService.runAsync(workspaceId, platform, verb, payload);
 				runIdRef.current = started.run_id;
-				trackWeeklyUser("api_run", workspaceId);
+				// weekly_users removed — WAU is derived server-side from
+				// scraper_run_completed / chat_turn_completed.
 				setState((s) => ({ ...s, runId: started.run_id }));
 				void consume(started.run_id, controller.signal);
 			} catch (e) {
