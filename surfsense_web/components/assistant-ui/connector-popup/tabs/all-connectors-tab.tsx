@@ -1,6 +1,5 @@
 "use client";
 
-import { Search } from "lucide-react";
 import type { FC } from "react";
 import { useIsSelfHosted } from "@/components/providers/runtime-config";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -252,9 +251,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	if (!hasAnyResults && searchQuery) {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-center">
-				<Search className="size-8 text-muted-foreground mb-3" />
 				<p className="text-sm text-muted-foreground">No connectors found</p>
-				<p className="text-xs text-muted-foreground/60 mt-1">Try a different search term</p>
 			</div>
 		);
 	}
