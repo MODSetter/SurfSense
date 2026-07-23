@@ -13,6 +13,7 @@ import {
 	DrawerTitle,
 	DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -25,7 +26,13 @@ import { cn } from "@/lib/utils";
 import { ConnectorConnectView } from "./connector-configs/views/connector-connect-view";
 import { ConnectorEditView } from "./connector-configs/views/connector-edit-view";
 import { IndexingConfigurationView } from "./connector-configs/views/indexing-configuration-view";
-import { COMPOSIO_CONNECTORS, getConnectorTitle, OAUTH_CONNECTORS } from "./constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	type ConnectorTypeRow,
+	getConnectorTitle,
+	groupConnectorsByType,
+	OAUTH_CONNECTORS,
+} from "./constants/connector-constants";
 import { useConnectorDialog } from "./hooks/use-connector-dialog";
 import { useIndexingConnectors } from "./hooks/use-indexing-connectors";
 import { AllConnectorsTab } from "./tabs/all-connectors-tab";
@@ -35,11 +42,7 @@ import { YouTubeCrawlerView } from "./views/youtube-crawler-view";
 /** Health of a connected connector type, derived from indexing + inbox state. */
 type ConnectorHealth = "syncing" | "failed" | "ok";
 
-interface ConnectedRow {
-	type: string;
-	title: string;
-	connectors: SearchSourceConnector[];
-	accountCount: number;
+interface ConnectedRow extends ConnectorTypeRow {
 	health: ConnectorHealth;
 	errorMessage?: string;
 }
@@ -171,32 +174,20 @@ export function ConnectorsSection() {
 	// Flat "Your connectors" rows: one per connected type, alphabetized, with a
 	// derived health (syncing > failed > ok) and account count.
 	const connectedRows = useMemo<ConnectedRow[]>(() => {
-		const byType = new Map<string, SearchSourceConnector[]>();
-		for (const c of connectors) {
-			const arr = byType.get(c.connector_type) ?? [];
-			arr.push(c);
-			byType.set(c.connector_type, arr);
-		}
-		return [...byType.entries()]
-			.map(([type, list]) => {
-				const ids = list.map((c) => c.id);
-				const syncing = ids.some(
-					(id) => indexingConnectorIds.has(id) || statusByConnectorId.get(id)?.status === "in_progress"
-				);
-				const failedEntry = syncing
-					? undefined
-					: ids.map((id) => statusByConnectorId.get(id)).find((s) => s?.status === "failed");
-				return {
-					type,
-					title:
-						type === EnumConnectorName.MCP_CONNECTOR ? "MCP Servers" : getConnectorTitle(type),
-					connectors: list,
-					accountCount: list.length,
-					health: syncing ? "syncing" : failedEntry ? "failed" : "ok",
-					errorMessage: failedEntry?.error,
-				} satisfies ConnectedRow;
-			})
-			.sort((a, b) => a.title.localeCompare(b.title));
+		return groupConnectorsByType(connectors).map((row) => {
+			const ids = row.connectors.map((c) => c.id);
+			const syncing = ids.some(
+				(id) => indexingConnectorIds.has(id) || statusByConnectorId.get(id)?.status === "in_progress"
+			);
+			const failedEntry = syncing
+				? undefined
+				: ids.map((id) => statusByConnectorId.get(id)).find((s) => s?.status === "failed");
+			return {
+				...row,
+				health: syncing ? "syncing" : failedEntry ? "failed" : "ok",
+				errorMessage: failedEntry?.error,
+			} satisfies ConnectedRow;
+		});
 	}, [connectors, indexingConnectorIds, statusByConnectorId]);
 
 	if (!workspaceId) return null;
@@ -461,17 +452,14 @@ export function ConnectorsSection() {
 
 	const catalog = (
 		<div className="flex flex-col gap-8">
-			<div className="w-full sm:max-w-xs">
+			<div className="w-full">
 				<div className="relative">
-					<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-					<input
+					<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
+					<Input
 						type="text"
 						autoComplete="off"
 						placeholder="Search connectors"
-						className={cn(
-							"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-accent hover:text-accent-foreground focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
-							searchQuery ? "pr-9" : "pr-4"
-						)}
+						className="h-10 border-0 bg-muted pl-10 pr-9 text-base shadow-none"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
@@ -481,10 +469,10 @@ export function ConnectorsSection() {
 							size="icon"
 							type="button"
 							onClick={() => setSearchQuery("")}
-							className="absolute right-1.5 top-1/2 size-7 -translate-y-1/2 text-muted-foreground transition-colors hover:bg-transparent hover:text-accent-foreground"
+							className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							aria-label="Clear search"
 						>
-							<X data-icon="inline-start" />
+							<X className="h-4.5 w-4.5" />
 						</Button>
 					)}
 				</div>
