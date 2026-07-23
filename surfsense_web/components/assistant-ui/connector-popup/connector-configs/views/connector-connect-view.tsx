@@ -89,7 +89,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Header */}
-			<div className="flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
+			<div className="flex-shrink-0">
 				<Button
 					variant="ghost"
 					type="button"
@@ -123,7 +123,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			{/* Form Content - Scrollable */}
 			<div
 				ref={formContainerRef}
-				className="connector-connect-form-root flex-1 min-h-0 overflow-y-auto px-6 sm:px-12"
+				className="connector-connect-form-root flex-1 min-h-0 overflow-y-auto"
 			>
 				<ConnectFormComponent
 					onSubmit={onSubmit}
@@ -134,15 +134,15 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-popover">
-				<Button
+			<div className="flex-shrink-0 flex items-center justify-end py-6 bg-transparent">
+				{/* <Button
 					variant="ghost"
 					onClick={onBack}
 					disabled={isSubmitting}
 					className="text-xs sm:text-sm"
 				>
 					Cancel
-				</Button>
+				</Button> */}
 				<Button
 					type="button"
 					onClick={handleFormSubmit}

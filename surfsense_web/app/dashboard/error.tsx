@@ -43,21 +43,15 @@ export default function DashboardError({
 				<Button type="button" onClick={reset}>
 					Try again
 				</Button>
-				<Link
-					href="/dashboard"
-					className="rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-				>
-					Go to dashboard home
-				</Link>
-				<a
-					href={issueUrl}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-				>
-					<ExternalLink className="h-3.5 w-3.5" />
-					Report Issue
-				</a>
+				<Button asChild variant="ghost">
+					<Link href="/dashboard">Back to dashboard</Link>
+				</Button>
+				<Button asChild variant="ghost">
+					<a href={issueUrl} target="_blank" rel="noopener noreferrer">
+						Report Issue
+						<ExternalLink className="h-3.5 w-3.5" />
+					</a>
+				</Button>
 			</div>
 		</div>
 	);

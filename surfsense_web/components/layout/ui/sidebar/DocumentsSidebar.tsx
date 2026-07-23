@@ -8,25 +8,18 @@ import {
 	FolderPlus,
 	FolderSync,
 	ListFilter,
-	Plus,
-	Settings2,
 	SlidersVertical,
 	Trash2,
-	Upload,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { importConnectorRequestAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
-import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import { useConnectorStatus } from "@/components/assistant-ui/connector-popup/hooks/use-connector-status";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
 import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
@@ -34,7 +27,7 @@ import type { FolderDisplay } from "@/components/documents/FolderNode";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
-import { useOptionalRuntimeConfig, useRuntimeConfig } from "@/components/providers/runtime-config";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	DEFAULT_EXCLUDE_PATTERNS,
@@ -57,7 +50,6 @@ import {
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuSub,
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
@@ -67,9 +59,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
-import { EnumConnectorName } from "@/contracts/enums/connector";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
@@ -239,11 +228,9 @@ export function EmbeddedDocumentsMenu({
 }
 
 /**
- * Import menu: local file upload plus the cloud-drive import connectors
- * (Google Drive / OneDrive / Dropbox). Drive/OneDrive/Dropbox set
- * `importConnectorRequestAtom`, which the connector dialog consumes to run
- * OAuth or open the existing account's config. In anonymous mode, `gate`
- * intercepts every item to trigger the login flow.
+ * Desktop-only "Watch Local Folder" entry point. File uploads now live in the
+ * chat composer and cloud drives in the connector catalog, so this renders
+ * nothing on web. `gate` login-gates the action in anonymous mode.
  */
 export function EmbeddedImportMenu({
 	gate,
@@ -252,30 +239,14 @@ export function EmbeddedImportMenu({
 	gate?: (feature: string) => void;
 	onFolderWatched?: () => void;
 }) {
-	const { openDialog } = useDocumentUploadDialog();
-	const setImportRequest = useSetAtom(importConnectorRequestAtom);
-	// Provider is absent on anonymous /free pages, where every item is login-gated
-	// anyway — defaulting to hosted (Composio) there is cosmetic.
-	const selfHosted = useOptionalRuntimeConfig()?.deploymentMode === "self-hosted";
-	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
-	const { data: connectors } = useAtomValue(connectorsAtom);
-
 	// Watch Local Folder is a desktop-app feature (needs the Electron folder watcher).
 	const { isDesktop } = usePlatform();
 	const params = useParams();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
 
-	// Native Google Drive connector self-hosted only; hosted deployments use Composio.
-	const driveType = selfHosted
-		? EnumConnectorName.GOOGLE_DRIVE_CONNECTOR
-		: EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR;
-
-	const cloudItems = [
-		{ type: driveType, label: "Google Drive" },
-		{ type: EnumConnectorName.ONEDRIVE_CONNECTOR, label: "OneDrive" },
-		{ type: EnumConnectorName.DROPBOX_CONNECTOR, label: "Dropbox" },
-	];
+	// Nothing to import on web anymore — hide the button rather than show an empty menu.
+	if (!isDesktop) return null;
 
 	return (
 		<DropdownMenu>
@@ -285,99 +256,20 @@ export function EmbeddedImportMenu({
 					variant="ghost"
 					size="icon"
 					className="h-6 w-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-					aria-label="Import documents"
+					aria-label="Watch local folder"
 				>
 					<FilePlus className="size-3.5" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-56">
-				<DropdownMenuItem onSelect={() => (gate ? gate("upload files") : openDialog())}>
-					<Upload className="h-4 w-4" />
-					Upload Files
+				<DropdownMenuItem
+					onSelect={() => (gate ? gate("watch local folders") : setFolderWatchOpen(true))}
+				>
+					<FolderSync className="h-4 w-4" />
+					Watch Local Folder
 				</DropdownMenuItem>
-				{isDesktop && (
-					<DropdownMenuItem
-						onSelect={() => (gate ? gate("watch local folders") : setFolderWatchOpen(true))}
-					>
-						<FolderSync className="h-4 w-4" />
-						Watch Local Folder
-					</DropdownMenuItem>
-				)}
-				<DropdownMenuSeparator />
-				{cloudItems.map((item) => {
-					const enabled = gate ? true : isConnectorEnabled(item.type);
-					const statusMessage = enabled ? null : getConnectorStatusMessage(item.type);
-					const icon = getConnectorIcon(item.type, "h-4 w-4");
-					// gate = anonymous mode; treat every connector as unconnected so items
-					// route through the login gate rather than reading workspace connectors.
-					const accountCount = gate
-						? 0
-						: (connectors ?? []).filter(
-								(c: SearchSourceConnector) => c.connector_type === item.type
-							).length;
-
-					// Unavailable (e.g. maintenance): non-actionable item explaining why.
-					if (!enabled) {
-						return (
-							<DropdownMenuItem key={item.type} disabled title={statusMessage ?? undefined}>
-								{icon}
-								{item.label}
-							</DropdownMenuItem>
-						);
-					}
-
-					// Connected: manage the existing account(s) or add another.
-					if (accountCount > 0) {
-						return (
-							<DropdownMenuSub key={item.type}>
-								<DropdownMenuSubTrigger>
-									{icon}
-									<span className="min-w-0 flex-1 truncate">{item.label}</span>
-									<span className="ml-auto text-xs text-muted-foreground">{accountCount}</span>
-								</DropdownMenuSubTrigger>
-								<DropdownMenuSubContent className="w-48">
-									<DropdownMenuItem
-										onSelect={() =>
-											gate
-												? gate("manage import connectors")
-												: setImportRequest({ connectorType: item.type, mode: "auto" })
-										}
-									>
-										<Settings2 className="h-4 w-4" />
-										{accountCount > 1 ? "Manage accounts" : "Manage"}
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onSelect={() =>
-											gate
-												? gate("import from cloud storage")
-												: setImportRequest({ connectorType: item.type, mode: "connect" })
-										}
-									>
-										<Plus className="h-4 w-4" />
-										Add another account
-									</DropdownMenuItem>
-								</DropdownMenuSubContent>
-							</DropdownMenuSub>
-						);
-					}
-
-					// Not connected: single click starts the first OAuth connect.
-					return (
-						<DropdownMenuItem
-							key={item.type}
-							onSelect={() =>
-								gate
-									? gate("import from cloud storage")
-									: setImportRequest({ connectorType: item.type, mode: "auto" })
-							}
-						>
-							{icon}
-							{item.label}
-						</DropdownMenuItem>
-					);
-				})}
 			</DropdownMenuContent>
-			{isDesktop && !gate && (
+			{!gate && (
 				<FolderWatchDialog
 					open={folderWatchOpen}
 					onOpenChange={setFolderWatchOpen}

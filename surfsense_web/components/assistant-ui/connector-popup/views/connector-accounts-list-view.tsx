@@ -111,7 +111,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 bg-popover">
+			<div className="pb-1 sm:pb-4 bg-transparent">
 				{/* Back button */}
 				<Button
 					type="button"
@@ -165,7 +165,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 			</div>
 
 			{/* Content */}
-			<div className="flex-1 overflow-y-auto px-6 sm:px-12 pt-0 sm:pt-6 pb-6 sm:pb-8">
+			<div className="flex-1 overflow-y-auto pt-0 sm:pt-6 pb-6 sm:pb-8">
 				{/* Connected Accounts Grid */}
 				{typeConnectors.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-12 text-center">
