@@ -1,4 +1,4 @@
-"""Scraper capability registry — typed, stateless verbs. See plans/backend/04-capabilities.md."""
+"""Scraper capability registry — typed, stateless verbs."""
 
 from __future__ import annotations
 
