@@ -293,24 +293,36 @@ class BaseApiService {
 				);
 			}
 
-			console.error("Request failed:", JSON.stringify(error));
-			if (!(error instanceof AuthenticationError)) {
-				import("posthog-js")
-					.then(({ default: posthog }) => {
-						posthog.captureException(error, {
-							api_url: url,
-							api_method: options?.method ?? "GET",
-							...(error instanceof AppError && {
-								status_code: error.status,
-								status_text: error.statusText,
-								error_code: error.code,
-								request_id: error.requestId,
-							}),
+			// Handled client errors (validation, credits, auth, not-found, ...) are
+			// expected outcomes surfaced to the user via typed errors + toasts — not
+			// app faults. Skip logging/telemetry for them so they don't spam the
+			// console, PostHog, or Next.js's dev error overlay.
+			const isHandledClientError =
+				error instanceof AppError &&
+				typeof error.status === "number" &&
+				error.status >= 400 &&
+				error.status < 500;
+
+			if (!isHandledClientError) {
+				console.error("Request failed:", JSON.stringify(error));
+				if (!(error instanceof AuthenticationError)) {
+					import("posthog-js")
+						.then(({ default: posthog }) => {
+							posthog.captureException(error, {
+								api_url: url,
+								api_method: options?.method ?? "GET",
+								...(error instanceof AppError && {
+									status_code: error.status,
+									status_text: error.statusText,
+									error_code: error.code,
+									request_id: error.requestId,
+								}),
+							});
+						})
+						.catch(() => {
+							console.error("Failed to capture exception in PostHog");
 						});
-					})
-					.catch(() => {
-						console.error("Failed to capture exception in PostHog");
-					});
+				}
 			}
 			throw error;
 		}
