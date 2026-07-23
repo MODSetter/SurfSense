@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Shapes, SquareTerminal } from "lucide-react";
+import { AlarmClock, AlertTriangle, Shapes, SquareTerminal, Unplug } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -300,6 +300,7 @@ export function LayoutDataProvider({
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundRoute = pathname?.includes("/playground") === true;
+	const isConnectorsRoute = pathname?.includes("/connectors") === true;
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -317,6 +318,12 @@ export function LayoutDataProvider({
 						isActive: isArtifactsActive,
 					},
 					{
+						title: "Connectors",
+						url: `/dashboard/${workspaceId}/connectors`,
+						icon: Unplug,
+						isActive: isConnectorsRoute,
+					},
+					{
 						title: "Playground",
 						url: `/dashboard/${workspaceId}/playground`,
 						icon: SquareTerminal,
@@ -324,7 +331,7 @@ export function LayoutDataProvider({
 					},
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[workspaceId, isAutomationsActive, isArtifactsActive, isPlaygroundRoute]
+		[workspaceId, isAutomationsActive, isArtifactsActive, isConnectorsRoute, isPlaygroundRoute]
 	);
 
 	// Handlers
@@ -631,6 +638,7 @@ export function LayoutDataProvider({
 	const isAutomationsPage = pathname?.includes("/automations") === true;
 	const isArtifactsPage = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundPage = pathname?.includes("/playground") === true;
+	const isConnectorsPage = pathname?.includes("/connectors") === true;
 	const isAllChatsPage = pathname?.endsWith("/chats") === true;
 	const handleChatsClick = useCallback(() => {
 		router.push(`/dashboard/${workspaceId}/chats`);
@@ -650,6 +658,7 @@ export function LayoutDataProvider({
 		isAutomationsPage ||
 		isArtifactsPage ||
 		isPlaygroundPage ||
+		isConnectorsPage ||
 		isAllChatsPage;
 
 	return (
@@ -702,6 +711,7 @@ export function LayoutDataProvider({
 					isAutomationsPage ||
 					isArtifactsPage ||
 					isPlaygroundPage ||
+					isConnectorsPage ||
 					isAllChatsPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:pb-10 md:pt-16"
 						: undefined

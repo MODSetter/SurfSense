@@ -140,6 +140,10 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/artifacts")),
 		[navItems]
 	);
+	const connectorsItem = useMemo(
+		() => navItems.find((item) => item.url.endsWith("/connectors")),
+		[navItems]
+	);
 	const playgroundItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/playground")),
 		[navItems]
@@ -150,6 +154,7 @@ export function Sidebar({
 				(item) =>
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
+					!item.url.endsWith("/connectors") &&
 					!item.url.endsWith("/playground")
 			),
 		[navItems]
@@ -252,6 +257,16 @@ export function Sidebar({
 							isCollapsed={isCollapsed}
 							isActive={artifactsItem.isActive}
 							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
+						/>
+					)}
+					{connectorsItem && (
+						<SidebarButton
+							icon={connectorsItem.icon}
+							label={connectorsItem.title}
+							onClick={() => onNavItemClick?.(connectorsItem)}
+							isCollapsed={isCollapsed}
+							isActive={connectorsItem.isActive}
+							tooltipContent={isCollapsed ? connectorsItem.title : undefined}
 						/>
 					)}
 					{playgroundItem && (
