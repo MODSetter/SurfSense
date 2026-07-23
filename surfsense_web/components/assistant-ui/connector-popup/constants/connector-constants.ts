@@ -2,39 +2,34 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 
 /**
  * Connectors retired during the MCP migration (no viable official MCP server).
- * The catalog card is shown disabled with a "Deprecated" badge so existing
- * users understand why; the backend `/add` routes also refuse with HTTP 410.
- * Reinstate by removing the type here and in the backend
- * `DEPRECATED_CONNECTOR_TYPES` if demand returns.
+ *
+ * UI behavior: a deprecated connector is hidden from the catalog entirely unless
+ * the user already connected it before deprecation — in that case it still shows
+ * as a normal card (inline, no "Deprecated" section) so they can manage/disconnect
+ * it. New connections are refused by the backend `/add` routes with HTTP 410.
+ * Reinstate by removing the type here and in the backend `DEPRECATED_CONNECTOR_TYPES`
+ * if demand returns.
+ *
+ * Full deprecated list (for devs):
+ *  - DISCORD_CONNECTOR, TEAMS_CONNECTOR, LUMA_CONNECTOR
+ *  - Search APIs (superseded by the Google-only web-search consolidation; the
+ *    google_search subagent handles public web search, and Tavily/Linkup can
+ *    still be added via the generic Custom MCP connector with API-key headers):
+ *    TAVILY_API, SEARXNG_API, LINKUP_API, BAIDU_SEARCH_API
+ *  - Legacy content crawlers/search (superseded by the file Import menu and
+ *    hosted MCP tooling): YOUTUBE_CONNECTOR, WEBCRAWLER_CONNECTOR, ELASTICSEARCH_CONNECTOR
  */
 export const DEPRECATED_CONNECTOR_TYPES = new Set<string>([
 	EnumConnectorName.DISCORD_CONNECTOR,
 	EnumConnectorName.TEAMS_CONNECTOR,
 	EnumConnectorName.LUMA_CONNECTOR,
-	// Search APIs retired by the Google-only web-search consolidation. Public
-	// web search now runs through the google_search subagent; Tavily/Linkup can
-	// still be added via the generic Custom MCP connector (API-key headers).
 	EnumConnectorName.TAVILY_API,
 	EnumConnectorName.SEARXNG_API,
 	EnumConnectorName.LINKUP_API,
 	EnumConnectorName.BAIDU_SEARCH_API,
-	// Legacy content crawlers/search retired in favor of the file Import menu and
-	// hosted MCP tooling. Existing rows stay manageable; new connections refused.
 	EnumConnectorName.YOUTUBE_CONNECTOR,
 	EnumConnectorName.WEBCRAWLER_CONNECTOR,
 	EnumConnectorName.ELASTICSEARCH_CONNECTOR,
-]);
-
-/**
- * File-import connectors surfaced through the Documents sidebar "Import" menu
- * instead of the external-MCP connector catalog. They index remote files into
- * the knowledge base, so they belong with uploads, not with live MCP tools.
- */
-export const IMPORT_CONNECTOR_TYPES = new Set<string>([
-	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.ONEDRIVE_CONNECTOR,
-	EnumConnectorName.DROPBOX_CONNECTOR,
 ]);
 
 /**
@@ -281,38 +276,6 @@ export function getConnectorTitle(connectorType: string): string {
 		CONNECTOR_DISPLAY_DEFINITIONS.find((connector) => connector.connectorType === connectorType)
 			?.title ?? connectorType
 	);
-}
-
-/**
- * Primary way a user interacts with a connector.
- * Drives the two top-level groupings in the connector catalog UI.
- */
-export type ConnectorCategory = "knowledge_base" | "tools_live";
-
-export const CONNECTOR_CATEGORY_LABELS: Record<ConnectorCategory, string> = {
-	knowledge_base: "Knowledge Base",
-	tools_live: "Tools & Live Sources",
-};
-
-const KNOWLEDGE_BASE_CONNECTOR_TYPES = new Set<string>([
-	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.ONEDRIVE_CONNECTOR,
-	EnumConnectorName.DROPBOX_CONNECTOR,
-	EnumConnectorName.NOTION_CONNECTOR,
-	EnumConnectorName.CONFLUENCE_CONNECTOR,
-	EnumConnectorName.YOUTUBE_CONNECTOR,
-	EnumConnectorName.WEBCRAWLER_CONNECTOR,
-	EnumConnectorName.BOOKSTACK_CONNECTOR,
-	EnumConnectorName.GITHUB_CONNECTOR,
-	EnumConnectorName.ELASTICSEARCH_CONNECTOR,
-	EnumConnectorName.CIRCLEBACK_CONNECTOR,
-	EnumConnectorName.OBSIDIAN_CONNECTOR,
-]);
-
-/** Unmapped connectors surface under Tools & Live Sources. */
-export function getConnectorCategory(connectorType: string): ConnectorCategory {
-	return KNOWLEDGE_BASE_CONNECTOR_TYPES.has(connectorType) ? "knowledge_base" : "tools_live";
 }
 
 // Composio Toolkits (available integrations via Composio)
