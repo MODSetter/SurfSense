@@ -105,3 +105,66 @@ Every decision traces to a proven, battle-tested reference. The only SurfSense-s
 ### The counter-example we explicitly reject
 
 **Wiki.js** git module = DB is truth, git is a two-way mirror. This creates two sources of truth and a reconciliation cursor; it has a known class of silent-sync bugs (see requarks/wiki discussion #7860). We use **one-way derivation** (git → Postgres), never two-way sync.
+
+---
+
+## Scope: v1 (keep it simple)
+
+Ship the smallest thing that removes the maintenance pain:
+
+1. **Git repo per workspace** (dulwich) holding indexed content as markdown.
+2. **One commit per agent turn / editor save.** No branches, no merge, no review workflow.
+3. **Delete** the three versioning systems; history/undo = git log + `git revert`.
+4. **pgvector stays**, rebuilt from git, keyed by blob SHA (point existing `chunk_reconciler` at blob SHA so unchanged files skip re-embedding).
+5. **Per-workspace lock/queue** around commits (git is single-writer; this is a data-integrity boundary, not a feature — non-negotiable).
+6. **One `reindex(workspace)` function** that wipes and rebuilds Postgres chunks from the git repo (the Fossil `rebuild` discipline — makes the system safe to ship early).
+
+### Deferred (v2+, explicitly out of v1)
+
+- Connect-your-own-remote (GitHub/GitLab) — free later because the repo is real git.
+- CRDT / Yjs real-time collaboration.
+- Review / merge workflows (kherad's reviewer layer).
+- Graphiti / bi-temporal fact graph.
+- Karpathy `raw/` + `wiki/` content model, contradiction-flagging, lint.
+
+---
+
+## Consequences
+
+### Positive
+
+- Large net **deletion** of bespoke code (the maintenance win).
+- Storage and search **decouple** → the team can improve semantic search independently (Rohan's stated goal).
+- Postgres becomes disposable/rebuildable → simpler recovery, fewer consistency bugs.
+- Unlocks future "user owns their KB as a real git repo" differentiator.
+
+### Negative / risks
+
+- **Concurrency:** git is single-writer per repo → requires the per-workspace lock (mitigated in v1).
+- **Repo hygiene:** many small commits → periodic `git gc`/repack (operational, manageable).
+- **Migration:** existing Postgres KBs must be exported into git repos once, preserving `unique_identifier_hash` mapping.
+- **Real-time UI (Zero):** currently driven by Postgres logical replication; still needs a git → Postgres projection to keep the web client live. This is *new* code that partially offsets deletions.
+
+---
+
+## Open questions (for team discussion)
+
+1. **Zero / real-time UI:** confirm the git → Postgres projection path and whether Zero stays as-is.
+2. **Binaries:** keep blob store vs. adopt Git-LFS.
+3. **Migration cutover:** big-bang vs. per-workspace feature flag (recommend feature-flag rollout).
+4. **Merge UX later:** CRDT (Yjs) vs. review-gate (kherad) when multi-writer becomes a requirement.
+
+---
+
+## Appendix: key file index (current implementation)
+
+| Topic | Path |
+|---|---|
+| Virtual path resolver | `surfsense_backend/app/agents/chat/runtime/path_resolver.py` |
+| Virtual FS read backend | `.../filesystem/backends/kb_postgres.py` |
+| Virtual FS write commit | `.../main_agent/middleware/kb_persistence/middleware.py` |
+| Hybrid search | `.../shared/retrieval/hybrid_search.py` |
+| Chunk reconciliation | `surfsense_backend/app/indexing_pipeline/chunk_reconciler.py` |
+| User version history | `surfsense_backend/app/utils/document_versioning.py` |
+| Agent revert | `surfsense_backend/app/services/revert_service.py` |
+| ORM models | `surfsense_backend/app/db.py` |
