@@ -129,3 +129,65 @@ Every decision traces to a proven source (full list + links in the ADR):
 - The web UI is driven by Zero (Postgres logical replication, `zero_publication.py`). Git is not a real-time source, so add a **git → Postgres projection** that keeps the Zero-published `documents`/`folders` rows in sync after each commit (thin metadata rows, not content-authoritative).
 - Decide: reuse the indexer's post-commit hook to upsert Zero rows vs. a separate projector.
 - Tests: after a commit, the Zero-published rows reflect the new tree within the projection cycle; deleting a file removes its row.
+
+## Sequencing (critical path vs. parallel)
+
+- **Critical path:** `01 → 02 → 03` (storage → backend → write path). These deliver the core swap.
+- **Parallelizable:** `04` (indexer/reindex) can develop alongside `03`; both only need `01`'s `commit`/`log`.
+- **After core:** `05` (migration) then `06` (Zero projection). `06` is the only genuinely *new* subsystem (partly offsets the deletions) and must land before flagging a workspace whose UI must stay live.
+- Recommended: `01 → 02 → 03` (+`04` in parallel) → `06` → `05` → flip flag per workspace.
+
+## Deferred — out of this umbrella
+
+- **Connect-your-own-remote** (push/pull to user GitHub/GitLab/Gitea). Free later because the repo is real git.
+- **CRDT / Yjs real-time collaboration** (multi-writer). Keep single-writer for now.
+- **Review / merge workflows** (kherad's reviewer layer).
+- **Karpathy `raw/` + `wiki/` content model, contradiction-flagging, lint.**
+- **Graphiti / bi-temporal fact graph** (agent memory time-travel).
+- **Git-LFS for binaries** (blob store stays).
+- **Frontend/client umbrella** (version-history UI removal, any UX changes).
+
+## Open items to confirm during subplanning
+
+1. **Repo location & layout** — one bare repo + ephemeral working tree per workspace, vs. a persistent checkout. Where on disk relative to the blob store root.
+2. **Zero projection owner** — post-commit indexer hook vs. a dedicated projector (Phase 6).
+3. **Binaries** — keep blob store (default) vs. Git-LFS (deferred); confirm markdown-only in git.
+4. **Lock granularity** — per-workspace process lock vs. a Redis lock (multi-worker deploys).
+5. **`content_hash` vs blob SHA** — collapse the existing `content_hash` onto git blob SHA, or keep both during migration.
+6. **Migration cutover** — per-workspace flag flip criteria + rollback window.
+
+## Resolved decisions log
+
+- **(2026-07-24) PIVOT ADOPTED — Git as source of truth, Postgres as derived index.** Outcome of the KB maintenance investigation (ADR 0001). Git owns all *indexed* content; Postgres holds only chunks+embeddings and is rebuildable via `reindex()`. One-way derivation only (git→Postgres); two-way sync explicitly rejected (Wiki.js #7860). Live connectors (Slack/Gmail) unchanged and out of scope. Agent tool interface unchanged; only the backend behind it swaps. Three hand-rolled versioning systems to be deleted in favor of git history/`revert`. Engine = dulwich. Rollout behind a per-workspace feature flag.
+- **(2026-07-24) Connectors clarified — only `is_indexable` content enters git.** Document connectors (Notion, Drive, Obsidian) are indexed → they go into git. Live connectors (Slack, Gmail) are queried at chat time and never stored → they never touch git or Postgres chunks. (Corrects an earlier draft that carved *all* connectors out of git.)
+- **(2026-07-24) Borrowing, not inventing.** Architecture assembled from proven references (Fossil, Gollum, kherad, Coregit, dulwich, vector-cache best-practices); the only SurfSense-specific work is the adaptation glue. Wiki.js retained as the explicit counter-example.
+
+## Subplan index (backend)
+
+| Phase | Subplan file | Status |
+|-------|--------------|--------|
+| 1 | `01-git-storage-core.md` | PLANNED |
+| 2 | `02-git-working-tree-backend.md` | PLANNED |
+| 3 | `03-commit-write-path.md` | PLANNED |
+| 4 | `04-derived-index.md` | PLANNED |
+| 5 | `05-migration.md` | PLANNED |
+| 6 | `06-zero-projection.md` | PLANNED |
+| — | `00b-diagrams.md` | companion flow diagrams |
+
+Frontend & client subplans will be added under a separate umbrella later (see "Deferred").
+
+## Appendix — current implementation file index (what each phase touches)
+
+| Topic | Path |
+|---|---|
+| Virtual path resolver (retire) | `surfsense_backend/app/agents/chat/runtime/path_resolver.py` |
+| Virtual FS read backend (replace) | `.../filesystem/backends/kb_postgres.py` |
+| Backend resolver (rewire) | `.../filesystem/backends/resolver.py` |
+| Write commit middleware (repoint) | `.../main_agent/middleware/kb_persistence/middleware.py` |
+| Hybrid search (unchanged) | `.../shared/retrieval/hybrid_search.py` |
+| Chunk reconciliation (key by blob SHA) | `surfsense_backend/app/indexing_pipeline/chunk_reconciler.py` |
+| Indexing pipeline | `surfsense_backend/app/indexing_pipeline/indexing_pipeline_service.py` |
+| User version history (delete) | `surfsense_backend/app/utils/document_versioning.py` |
+| Agent revert (delete) | `surfsense_backend/app/services/revert_service.py` |
+| Zero publication (project into) | `surfsense_backend/app/zero_publication.py` |
+| ORM models | `surfsense_backend/app/db.py` |
