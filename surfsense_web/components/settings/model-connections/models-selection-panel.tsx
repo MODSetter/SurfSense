@@ -109,10 +109,25 @@ export function ModelsSelectionPanel({
 				</div>
 			) : null}
 
-			<div className="h-80 overflow-y-auto rounded-xl border bg-muted/20 p-2">
+			<div
+				className={`overflow-y-auto rounded-xl border bg-muted/20 p-2 ${
+					models.length === 0 ? "h-auto border-dashed border-border/100" : "h-80"
+				}`}
+			>
 				{models.length === 0 ? (
-					<div className="rounded-lg px-3 py-6 text-center text-sm text-muted-foreground">
+					<div className="flex flex-col items-center gap-3 rounded-lg px-3 py-6 text-center text-sm text-muted-foreground">
 						{emptyMessage}
+						{onRefresh ? (
+							<Button
+								variant="secondary"
+								size="sm"
+								type="button"
+								onClick={onRefresh}
+								disabled={isRefreshing || isRefreshDisabled}
+							>
+								{isRefreshing ? "Refreshing..." : "Refresh"}
+							</Button>
+						) : null}
 					</div>
 				) : null}
 				{filteredModels.length === 0 && modelFilter ? (
@@ -128,12 +143,13 @@ export function ModelsSelectionPanel({
 					{filteredModels.map((model) => (
 						<div
 							key={model.id ?? model.model_id}
-							className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-background"
+							className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-popover"
 						>
 							<Checkbox
 								checked={model.enabled}
 								onCheckedChange={(checked) => onToggleModel?.(model, checked === true)}
 								disabled={!onToggleModel || isUpdatingModel}
+								className="border-muted-foreground/20"
 							/>
 							<div className="min-w-0 flex-1">
 								<div className="flex items-center gap-2 text-sm font-medium">
