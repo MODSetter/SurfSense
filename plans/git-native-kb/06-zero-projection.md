@@ -8,8 +8,9 @@ Keep the real-time web UI working after git becomes the source of truth. The UI 
 
 ## Locked model
 
+- **Two UI channels, both must survive** (see [`00c-shared-contract.md`](00c-shared-contract.md) C5): (1) Zero logical replication of the `documents`/`folders` rows (`zero_publication.py`); (2) the `dispatch_custom_event` SSE (`document_created/updated/deleted`, `folder_deleted`) from the commit path. The projection must keep the rows current **and** the events must keep firing.
 - **One-way projection (git → Postgres rows), not a second source of truth.** The projected `documents`/`folders` rows are **thin metadata for the UI** (title, path, folder tree, timestamps) — content authority stays in git; chunks/embeddings stay derived (Phase 4). This preserves the "no two-way sync" rule.
-- **Driven by the commit event** (Phase 3). Simplest owner: extend the Phase-4 post-commit indexer to also upsert/delete the Zero-published rows in the same pass.
+- **Driven by the commit event** (Phase 3). Simplest owner: extend the Phase-4 post-commit indexer to also upsert/delete the Zero-published rows in the same pass (index + project together).
 - Zero publication column lists (`zero_publication.py`) stay as-is; we just keep the rows current from git.
 
 ## Work items
@@ -29,8 +30,12 @@ Keep the real-time web UI working after git becomes the source of truth. The UI 
 - Replacing Zero with a git-aware sync (not now).
 - Frontend changes beyond keeping current behavior (separate umbrella).
 
+## Resolved (see [`00c-shared-contract.md`](00c-shared-contract.md))
+
+- **Projection owner:** fold into the Phase-4 post-commit indexer (index + project one pass) (C5).
+- **Both channels preserved:** upsert/delete `documents`/`folders` rows for Zero **and** keep emitting the SSE custom events (C5).
+
 ## Open questions
 
-1. Projection owner: indexer hook vs. dedicated projector (default: indexer hook).
-2. Consistency model: are index + projection in one transaction/pass, or eventually consistent with a short lag?
-3. Do any Zero-published columns need content that isn't cheap to derive from the tree (forces a richer projection)?
+1. Consistency model: index + projection in one pass, or eventually consistent with a short lag (default: one pass).
+2. Do any Zero-published columns need content that isn't cheap to derive from the tree (forces a richer projection)?
