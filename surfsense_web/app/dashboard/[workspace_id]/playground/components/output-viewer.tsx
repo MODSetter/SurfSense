@@ -46,7 +46,7 @@ function ResultTable({ items }: { items: Record<string, unknown>[] }) {
 	return (
 		<div className="max-h-[480px] overflow-auto overscroll-contain rounded-md border border-border/60">
 			<table className="w-full caption-bottom text-sm">
-				<TableHeader className="sticky top-0 z-10 bg-background">
+				<TableHeader className="sticky top-0 z-10 bg-muted">
 					<TableRow>
 						{columns.map((col) => (
 							<TableHead key={col} className="whitespace-nowrap">
