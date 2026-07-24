@@ -2,6 +2,7 @@ import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	capability,
 	capabilityLabels,
@@ -124,8 +125,10 @@ export function ModelsSelectionPanel({
 								type="button"
 								onClick={onRefresh}
 								disabled={isRefreshing || isRefreshDisabled}
+								className="relative"
 							>
-								{isRefreshing ? "Refreshing..." : "Refresh"}
+								<span className={isRefreshing ? "opacity-0" : ""}>Reload models</span>
+								{isRefreshing ? <Spinner size="sm" className="absolute" /> : null}
 							</Button>
 						) : null}
 					</div>
