@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import sys
+
 import pytest
 
 from app.proprietary.platforms.indeed_jobs.fetch import (
@@ -93,6 +96,36 @@ async def test_max_rotations_zero_fails_fast():
     with pytest.raises(IndeedAccessBlockedError):
         await session.fetch_html(_URL, max_rotations=0)
     assert session.rotations == 0
+
+
+def test_browser_work_marshalled_off_selector_loop():
+    """The Windows regression this guards: main.py runs the server on a
+    SelectorEventLoop (psycopg needs it), and Selector loops cannot spawn
+    subprocesses — patchright's Chromium launch died with NotImplementedError.
+    A fake session that really spawns a subprocess proves the whole session
+    lifecycle now runs on the shared subprocess-capable browser loop.
+    """
+
+    class _SpawningSession:
+        async def start(self) -> None:
+            # The exact call that used to blow up on the server loop.
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable, "-c", "print('ok')", stdout=asyncio.subprocess.PIPE
+            )
+            await proc.communicate()
+
+        async def close(self) -> None:
+            pass
+
+        async def fetch(self, url: str, **_: object) -> _FakePage:
+            return _FakePage(_OK_HTML if "/jobs" in url else "<html>home</html>", url)
+
+    async def main() -> None:
+        session = IndeedSession(_SpawningSession)
+        assert await session.fetch_html(_URL) == _OK_HTML
+        await session.close()
+
+    asyncio.run(main(), loop_factory=asyncio.SelectorEventLoop)
 
 
 @pytest.mark.asyncio
