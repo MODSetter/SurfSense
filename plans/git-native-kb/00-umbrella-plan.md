@@ -78,6 +78,10 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ## Backend phases (active — this umbrella)
 
+### Phase 0 — Shared contract [`subplan: 00c-shared-contract.md`]
+
+> **READ FIRST.** Pins the five cross-phase contracts (repo/tree layout, read contract, lock, write path, index/Zero realities) grounded in the current code. Resolves what were per-phase "open questions" and corrects three first-draft oversimplifications: reads are rendered-from-chunks (not raw git blobs), the lock must be Redis (multi-process deploy), and there is no embedding cache to "extend".
+
 ### Phase 1 — Git storage core [`subplan: 01-git-storage-core.md`]
 
 > **PLANNED. Build first** — every later phase uses it.
@@ -132,6 +136,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ## Sequencing (critical path vs. parallel)
 
+- **Phase 0 first:** `00c` is a design agreement (no code) — sign off on the five contracts before starting `01`.
 - **Critical path:** `01 → 02 → 03` (storage → backend → write path). These deliver the core swap.
 - **Parallelizable:** `04` (indexer/reindex) can develop alongside `03`; both only need `01`'s `commit`/`log`.
 - **After core:** `05` (migration) then `06` (Zero projection). `06` is the only genuinely *new* subsystem (partly offsets the deletions) and must land before flagging a workspace whose UI must stay live.
@@ -147,14 +152,16 @@ Every decision traces to a proven source (full list + links in the ADR):
 - **Git-LFS for binaries** (blob store stays).
 - **Frontend/client umbrella** (version-history UI removal, any UX changes).
 
-## Open items to confirm during subplanning
+## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
-1. **Repo location & layout** — one bare repo + ephemeral working tree per workspace, vs. a persistent checkout. Where on disk relative to the blob store root.
-2. **Zero projection owner** — post-commit indexer hook vs. a dedicated projector (Phase 6).
-3. **Binaries** — keep blob store (default) vs. Git-LFS (deferred); confirm markdown-only in git.
-4. **Lock granularity** — per-workspace process lock vs. a Redis lock (multi-worker deploys).
-5. **`content_hash` vs blob SHA** — collapse the existing `content_hash` onto git blob SHA, or keep both during migration.
-6. **Migration cutover** — per-workspace flag flip criteria + rollback window.
+1. ~~Repo location & layout~~ → **persistent working tree at `{blob parent}/.kb_git/{workspace_id}`, layout = virtual path minus `/documents`** (C1).
+2. ~~Zero projection owner~~ → **folded into the Phase-4 post-commit indexer** (C5).
+3. **Binaries** — keep blob store (confirmed markdown/text-only in git); Git-LFS deferred.
+4. ~~Lock granularity~~ → **Redis lock, from v1** (deploy is multi-process: uvicorn + Celery) (C3).
+5. ~~`content_hash` vs blob SHA~~ → **different values (content_hash is workspace-salted); key reuse by blob SHA, keep content_hash through migration** (C5).
+6. **Migration cutover** — per-workspace flag flip after parity check; rollback = keep Postgres content until verified (Phase 5).
+
+Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduling, `reindex` observability.
 
 ## Resolved decisions log
 
@@ -166,6 +173,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 | Phase | Subplan file | Status |
 |-------|--------------|--------|
+| 0 | `00c-shared-contract.md` | PLANNED — read first |
 | 1 | `01-git-storage-core.md` | PLANNED |
 | 2 | `02-git-working-tree-backend.md` | PLANNED |
 | 3 | `03-commit-write-path.md` | PLANNED |
