@@ -15,10 +15,10 @@ Make Postgres a **derived, rebuildable** chunk/embedding index of the git repo: 
 ## Work items
 
 1. `app/kb_git/indexer.py` — `index_commit(workspace_id, sha)`: tree-diff parent→sha, map changed paths→documents/chunks, re-chunk changed files, embed only new blob SHAs, upsert chunks; delete chunks for removed paths.
-2. Blob-SHA cache key: reuse/extend the embedding cache to `(model_version, blob_sha)`; feed `chunk_reconciler` blob identity so unchanged content keeps vectors.
-3. `reindex(workspace_id)` — wipe + full rebuild from HEAD; wire a CLI/task entrypoint.
+2. Blob-SHA reuse is **new** (there is no embedding cache today — `embed_texts` calls the model directly; current reuse is `chunk_reconciler` matching by chunk *text*). Add a `(embedding_model_version, blob_sha)` reuse layer, or generalize the reconciler from chunk-text identity to blob identity. **`content_hash` is workspace-salted, so it is NOT the git blob SHA** — do not alias them. See [`00c-shared-contract.md`](00c-shared-contract.md) C5.
+3. `reindex(workspace_id)` — wipe + full rebuild from HEAD; wire a Celery task entrypoint (Celery already runs; keep long rebuilds off the API process).
 4. Trigger `index_commit` off the Phase-3 commit event.
-5. Delete the three versioning systems + Alembic migration dropping `document_versions`, `document_revisions`, `folder_revisions`.
+5. Delete the three versioning systems + Alembic migration dropping `document_versions`, `document_revisions`, `folder_revisions`. This also removes the snapshot code embedded in `commit_staged_filesystem_state` (Phase 3) — coordinate the two.
 
 ## Tests
 
@@ -33,7 +33,12 @@ Make Postgres a **derived, rebuildable** chunk/embedding index of the git repo: 
 - Live connectors (Slack/Gmail) — never indexed.
 - Zero row projection → Phase 6. Reranker/chunking strategy changes (separate search work).
 
+## Resolved (see [`00c-shared-contract.md`](00c-shared-contract.md))
+
+- **content_hash vs blob SHA:** they differ (content_hash is workspace-salted); key embedding reuse by blob SHA, keep `content_hash` through migration, drop later if redundant (C5).
+- **Cache location:** none exists today — the reuse layer is new (C5).
+- **Where `reindex` runs:** Celery task (C5).
+
 ## Open questions
 
-1. Collapse `documents.content_hash` onto blob SHA vs. keep both through migration (see umbrella Open items).
-2. Where `reindex` runs (Celery task vs. sync admin command) and its progress/observability.
+1. `reindex` progress/observability surface (log vs. status row) — cosmetic, not blocking.
