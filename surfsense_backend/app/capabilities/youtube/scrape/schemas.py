@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.youtube import VideoItem
 
 MAX_YOUTUBE_SOURCES = 20
@@ -17,7 +18,7 @@ MAX_YOUTUBE_SOURCES = 20
 
 
 class ScrapeInput(BaseModel):
-    urls: list[str] = Field(
+    urls: list[HttpUrlStr] = Field(
         default_factory=list,
         max_length=MAX_YOUTUBE_SOURCES,
         description=(

@@ -93,8 +93,10 @@ def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -
         ] = False,
         country_code: Annotated[
             str | None,
-            Field(description="Two-letter delivery country for localized pricing, "
-            "e.g. 'us'."),
+            Field(
+                description="Two-letter delivery country for localized pricing, "
+                "e.g. 'us'."
+            ),
         ] = None,
         zip_code: Annotated[
             str | None,

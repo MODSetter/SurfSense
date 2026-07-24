@@ -58,7 +58,6 @@ import {
 import { buildBackendUrl } from "@/lib/env-config";
 import {
 	trackChatBlocked,
-	trackChatCreated,
 	trackChatErrorDetailed,
 	trackChatMessageSent,
 	trackChatResponseReceived,
@@ -384,7 +383,8 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 			queryClient.setQueryData(cacheKeys.threads.detail(newThread.id), newThread);
 			queryClient.setQueryData(cacheKeys.threads.messages(newThread.id), { messages: [] });
 
-			trackChatCreated(workspaceId, currentThreadId);
+			// chat_created is now emitted server-side (new_chat_routes.create_thread)
+			// so PAT/MCP-created threads are also counted.
 
 			isNewThread = true;
 			// Update URL silently using browser API (not router.replace) to avoid

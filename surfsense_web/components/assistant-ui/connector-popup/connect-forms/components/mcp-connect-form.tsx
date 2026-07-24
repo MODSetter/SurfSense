@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, ChevronUp, Loader2, Server, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, XCircle } from "lucide-react";
 import { type FC, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -136,10 +136,10 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
-				<Server className="h-4 w-4 shrink-0" />
-				<AlertDescription className="text-[10px] sm:text-xs">
-					Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate
+			<Alert>
+				<Info />
+				<AlertDescription>
+					Connect to a Model Context Protocol server. Each MCP server is added as a separate
 					connector.
 				</AlertDescription>
 			</Alert>
@@ -275,8 +275,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 									<div className="mt-3 pt-3 border-t border-green-500/20">
 										<p className="font-semibold mb-2">Available tools:</p>
 										<ul className="list-disc list-inside text-xs space-y-0.5">
-											{testResult.tools.map((tool, i) => (
-												<li key={i}>{tool.name}</li>
+											{testResult.tools.map((tool) => (
+												<li key={tool.name}>{tool.name}</li>
 											))}
 										</ul>
 									</div>

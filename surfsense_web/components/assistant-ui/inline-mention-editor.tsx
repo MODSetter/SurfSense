@@ -733,15 +733,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const editableProps = useMemo(
 			() => ({
 				placeholder,
-				onPaste: (e: React.ClipboardEvent<HTMLDivElement>) => {
-					e.preventDefault();
-					const text = e.clipboardData.getData("text/plain");
-					const tf = editor.tf as { insertText: (value: string) => void };
-					tf.insertText(text);
-				},
 				onKeyDown: handleKeyDown,
 			}),
-			[editor, handleKeyDown, placeholder]
+			[handleKeyDown, placeholder]
 		);
 
 		const mentionEditorContextValue = useMemo<MentionEditorContextValue>(

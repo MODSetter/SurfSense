@@ -1,10 +1,12 @@
 import { amazon } from "./amazon";
 import { googleMaps } from "./google-maps";
 import { googleSearch } from "./google-search";
+import { indeed } from "./indeed";
 import { instagram } from "./instagram";
 import { reddit } from "./reddit";
 import { tiktok } from "./tiktok";
 import type { ConnectorPageContent } from "./types";
+import { walmart } from "./walmart";
 import { webCrawl } from "./web-crawl";
 import { youtube } from "./youtube";
 
@@ -18,7 +20,9 @@ const CONNECTOR_LIST: ConnectorPageContent[] = [
 	tiktok,
 	googleMaps,
 	googleSearch,
+	indeed,
 	amazon,
+	walmart,
 	webCrawl,
 ];
 

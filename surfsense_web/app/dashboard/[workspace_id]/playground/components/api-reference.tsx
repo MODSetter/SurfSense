@@ -2,6 +2,7 @@
 
 import { Check, ChevronRight, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
+import { JsonView } from "@/components/json-view";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BACKEND_URL } from "@/lib/env-config";
@@ -51,9 +52,9 @@ function SchemaBlock({ title, schema }: { title: string; schema: Record<string, 
 			</summary>
 			<div className="relative border-t border-border/60">
 				<CopyButton text={json} />
-				<pre className="max-h-[360px] overflow-auto p-3 pr-20 text-xs">
-					<code>{json}</code>
-				</pre>
+				<div className="max-h-[360px] overflow-auto p-3 pr-20">
+					<JsonView src={schema} collapsed={2} />
+				</div>
 			</div>
 		</details>
 	);

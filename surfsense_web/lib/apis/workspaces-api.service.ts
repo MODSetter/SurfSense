@@ -19,11 +19,16 @@ import {
 	updateWorkspaceApiAccessResponse,
 	updateWorkspaceRequest,
 	updateWorkspaceResponse,
+	workspaceLimits,
 } from "@/contracts/types/workspace.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
 class WorkspacesApiService {
+	getWorkspaceLimits = async () => {
+		return baseApiService.get(`/api/v1/workspaces/limits`, workspaceLimits);
+	};
+
 	/**
 	 * Get a list of workspaces with optional filtering and pagination
 	 */

@@ -1,0 +1,1633 @@
+{
+  "metaData": {
+    "mosaicProviderJobCardsModel": {
+      "results": [
+        {
+          "adBlob": "-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N1lyYEY1nzdWnmTq7hlQAqMT4EZoUMRYAQrNEOj5nb4ZE_F_ZCNcUyWwXqUnsb3IFHbnllXq0f5pYhflUexN3LD6mf9j8U6fPKOFmTQuul154CxQeo8aExEApf08b2iFfAx7Eci6fsR4i5wlRjvKA5EumK1U1Eauxzua2oUUaLKdAW9137H0CYgdcoAMF84PbbBCj5eW5R0p7Tfgi9NmbhJFRaEZv-u8JEg9U1zcdmaIh6RuPDU7bjQIuak5MO3DwaEJlHXEg4v7-XpR0uTAehVEkbNEFQdl0EwMnI32HxxwGJ_r7Xy7viI3kh6lEdrpZeF1ca18i9FlF_nce_H7BdzO2qmsM11dLrzIwGnipd9-NCmqh-jZJbJLooc2Yl3D8379SRHWpbfMz_a9aa1x_miN7s9YFssX_W8wrIqe3eHIaV-pRMzXMJYIxrcyPztopcC5udht92l9RFkJ8GjCK-zMHwiJRuCIqjML2cMsQblSxIpv5pb9M88dlUMlDd6dMpQBDYRrFe1PYyRu_QTWc_ggES6VZu7PJ7BcMPSFZ7cSuzuPT49lMRw7lYs3P1aakqoiFThrgWJAWATgalPtzZy754uEQG6ez5Gh-KW-nvDhDDfUS-fhvIMcDFftBf6gyU6_wEuH9GI7sOTR8b7jnHS285ryLd212LhBy0GJjliQdMxRmWK0qDqFr8z9q7Ufi9AHPafSIWTFw==",
+          "adId": "464623129",
+          "advn": "9533474731693465",
+          "appliedOrGreater": false,
+          "applyCount": -1,
+          "assistedApply": false,
+          "autoSourcerJob": false,
+          "bidPosition": 1,
+          "blobKey": "SoBj6_M3hwflOvyN8p0LbzkdCdPP",
+          "company": "TherapyNotes.com",
+          "companyBrandingAttributes": {
+            "brandingReasons": [
+              "PAID_BRANDING"
+            ],
+            "brandingReasonsAsString": [
+              "PAID_BRANDING"
+            ],
+            "headerImageUrl": "https://d2q79iu7y748jz.cloudfront.net/s/_headerimage/1960x400/9d05368a0956c3266ea4291e95d34331",
+            "logoUrl": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/eac29e66f882990ae917c959915eb291",
+            "paidBrandingDealIds": [
+              "58664",
+              "95349"
+            ],
+            "showJobBranding": true,
+            "shownForBrandedJobPackage": false
+          },
+          "companyIdEncrypted": "d10e9cc0e75a9595",
+          "companyOverviewLink": "/cmp/Therapynotes",
+          "companyOverviewLinkCampaignId": "serp-linkcompanyname-content",
+          "companyRating": 3.8,
+          "companyReviewCount": 30,
+          "companyReviewLink": "/cmp/Therapynotes/reviews",
+          "companyReviewLinkCampaignId": "cmplinktst2",
+          "country": "US",
+          "createDate": 1774276267415,
+          "d2iEnabled": false,
+          "displayTitle": "Software Developer",
+          "dradisJob": false,
+          "employerAssistEnabled": false,
+          "employerResponseTime": 1,
+          "employerResponsive": true,
+          "encryptedFccompanyId": "c5ef9b9375a8bbf1",
+          "encryptedResultData": "VwIPTVJ1cTn5AN7Q-tSqGRXGNe2wB2UYx73qSczFnGU",
+          "enhancedAttributesModel": {},
+          "enticers": [],
+          "expired": false,
+          "extractTrackingUrls": "",
+          "extractedSalary": {
+            "max": 115000,
+            "min": 65000,
+            "type": "YEARLY"
+          },
+          "fccompanyId": -1,
+          "featuredCompanyAttributes": {},
+          "featuredEmployer": false,
+          "featuredEmployerCandidate": false,
+          "feedId": 822778,
+          "formattedLocation": "Philadelphia, PA",
+          "formattedRelativeTime": "30+ days ago",
+          "gatedVjp": false,
+          "hideMetaData": false,
+          "highVolumeHiringModel": {
+            "highVolumeHiring": false
+          },
+          "hiringEventJob": false,
+          "homepageJobFeedSectionId": "0",
+          "indeedApplyEnabled": true,
+          "indeedApplyFinishAppUrlEnabled": false,
+          "indeedApplyResumeType": "required",
+          "indeedApplyable": true,
+          "isJobVisited": false,
+          "isMobileThirdPartyApplyable": false,
+          "isNoResumeJob": false,
+          "isSubsidiaryJob": false,
+          "isTopRatedEmployer": false,
+          "jobCardRequirementsModel": {
+            "additionalRequirementsCount": 0,
+            "jobOnlyRequirements": [],
+            "jobTagRequirements": [],
+            "requirementsHeaderShown": false,
+            "screenerQuestionRequirements": []
+          },
+          "jobFlairPackageEnabled": false,
+          "jobLocationCity": "Philadelphia",
+          "jobLocationState": "PA",
+          "jobSeekerMatchSummaryModel": {
+            "sortedEntityDisplayText": [],
+            "sortedMatchingEntityDisplayText": [],
+            "sortedMisMatchingEntityDisplayText": [
+              ".NET Core",
+              "Agile software development",
+              "Bachelor's degree",
+              "Communication skills",
+              "Computer Science",
+              "Computer science",
+              "Design (software development lifecycle)",
+              "Developing and maintaining backend systems",
+              "Entity Framework",
+              "Event-driven architecture",
+              "Front-end component implementation",
+              "HTML",
+              "JavaScript frameworks",
+              "Planning (software development lifecycle)",
+              "PostgreSQL",
+              "Project development phase management",
+              "Providing code feedback",
+              "Responsive design",
+              "SASS/LESS",
+              "SQL databases",
+              "Scalability",
+              "Scalable systems",
+              "Software Engineering",
+              "Software engineering",
+              "TypeScript",
+              "Web applications",
+              "Web services design"
+            ],
+            "taxoEntityMatchesNegative": [
+              {
+                "displayText": "SASS/LESS",
+                "id": "",
+                "rawName": "SASS/LESS",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "FE6SC"
+              },
+              {
+                "displayText": "Computer science",
+                "id": "",
+                "rawName": "Computer science",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4E4WW"
+              },
+              {
+                "displayText": "JavaScript frameworks",
+                "id": "",
+                "rawName": "JavaScript frameworks",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "EUPT5"
+              },
+              {
+                "displayText": "HTML",
+                "id": "",
+                "rawName": "HTML",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Y7U37"
+              },
+              {
+                "displayText": "Developing and maintaining backend systems",
+                "id": "",
+                "rawName": "Developing and maintaining backend systems",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Q3QNF"
+              },
+              {
+                "displayText": "Design (software development lifecycle)",
+                "id": "",
+                "rawName": "Design (software development lifecycle)",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "XA6CW"
+              },
+              {
+                "displayText": "Responsive design",
+                "id": "",
+                "rawName": "Responsive design",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "36ZHE"
+              },
+              {
+                "displayText": "Scalable systems",
+                "id": "",
+                "rawName": "Scalable systems",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "DP9CS"
+              },
+              {
+                "displayText": "SQL databases",
+                "id": "",
+                "rawName": "SQL databases",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "7G8UN"
+              },
+              {
+                "displayText": "Software Engineering",
+                "id": "",
+                "rawName": "Software Engineering",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "7F6H9"
+              },
+              {
+                "displayText": "Web applications",
+                "id": "",
+                "rawName": "Web applications",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "QM3S8"
+              },
+              {
+                "displayText": "Entity Framework",
+                "id": "",
+                "rawName": "Entity Framework",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "X5HXD"
+              },
+              {
+                "displayText": "Computer Science",
+                "id": "",
+                "rawName": "Computer Science",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "6XNCP"
+              },
+              {
+                "displayText": "Providing code feedback",
+                "id": "",
+                "rawName": "Providing code feedback",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Z4F5N"
+              },
+              {
+                "displayText": "PostgreSQL",
+                "id": "",
+                "rawName": "PostgreSQL",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "JCKB4"
+              },
+              {
+                "displayText": ".NET Core",
+                "id": "",
+                "rawName": ".NET Core",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "AGW49"
+              },
+              {
+                "displayText": "TypeScript",
+                "id": "",
+                "rawName": "TypeScript",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "WD7PP"
+              },
+              {
+                "displayText": "Scalability",
+                "id": "",
+                "rawName": "Scalability",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "PYTWK"
+              },
+              {
+                "displayText": "Agile software development",
+                "id": "",
+                "rawName": "Agile software development",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "QWGDE"
+              },
+              {
+                "displayText": "Web services design",
+                "id": "",
+                "rawName": "Web services design",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "ZN5SR"
+              },
+              {
+                "displayText": "Project development phase management",
+                "id": "",
+                "rawName": "Project development phase management",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4UEV6"
+              },
+              {
+                "displayText": "Bachelor's degree",
+                "id": "",
+                "rawName": "Bachelor's degree",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "HFDVW"
+              },
+              {
+                "displayText": "Software engineering",
+                "id": "",
+                "rawName": "Software engineering",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4R4AM"
+              },
+              {
+                "displayText": "Event-driven architecture",
+                "id": "",
+                "rawName": "Event-driven architecture",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "G82AR"
+              },
+              {
+                "displayText": "Front-end component implementation",
+                "id": "",
+                "rawName": "Front-end component implementation",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "RP4CB"
+              },
+              {
+                "displayText": "Communication skills",
+                "id": "",
+                "rawName": "Communication skills",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "WSBNK"
+              },
+              {
+                "displayText": "Planning (software development lifecycle)",
+                "id": "",
+                "rawName": "Planning (software development lifecycle)",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "X9WB7"
+              }
+            ],
+            "taxoEntityMatchesPositive": [],
+            "trafficLight": "yellow"
+          },
+          "jobTypes": [],
+          "jobkey": "7b993d015f4b257a",
+          "jsiEnabled": false,
+          "link": "/pagead/clk?mo=r&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N1lyYEY1nzdWnmTq7hlQAqMT4EZoUMRYAQrNEOj5nb4ZE_F_ZCNcUyWwXqUnsb3IFHbnllXq0f5pYhflUexN3LD6mf9j8U6fPKOFmTQuul154CxQeo8aExEApf08b2iFfAx7Eci6fsR4i5wlRjvKA5EumK1U1Eauxzua2oUUaLKdAW9137H0CYgdcoAMF84PbbBCj5eW5R0p7Tfgi9NmbhJFRaEZv-u8JEg9U1zcdmaIh6RuPDU7bjQIuak5MO3DwaEJlHXEg4v7-XpR0uTAehVEkbNEFQdl0EwMnI32HxxwGJ_r7Xy7viI3kh6lEdrpZeF1ca18i9FlF_nce_H7BdzO2qmsM11dLrzIwGnipd9-NCmqh-jZJbJLooc2Yl3D8379SRHWpbfMz_a9aa1x_miN7s9YFssX_W8wrIqe3eHIaV-pRMzXMJYIxrcyPztopcC5udht92l9RFkJ8GjCK-zMHwiJRuCIqjML2cMsQblSxIpv5pb9M88dlUMlDd6dMpQBDYRrFe1PYyRu_QTWc_ggES6VZu7PJ7BcMPSFZ7cSuzuPT49lMRw7lYs3P1aakqoiFThrgWJAWATgalPtzZy754uEQG6ez5Gh-KW-nvDhDDfUS-fhvIMcDFftBf6gyU6_wEuH9GI7sOTR8b7jnHS285ryLd212LhBy0GJjliQdMxRmWK0qDqFr8z9q7Ufi9AHPafSIWTFw==&xkcb=SoBj6_M3hwflOvyN8p0LbzkdCdPP&p=0&camk=C3EPSzFlQw-JWkl1H7Zuog==&vjs=3",
+          "locationCount": 1,
+          "minimumCount": 1,
+          "mobtk": "1jtgbqmn921k6001",
+          "moreLocUrl": "/jobs?q=software+engineer&nl=&l=Remote&radius=50&jtid=6804610d02b67694&jcid=d10e9cc0e75a9595&grp=tcl",
+          "mouseDownHandlerOption": {
+            "adId": 464623129,
+            "advn": "9533474731693465",
+            "extractTrackingUrls": [],
+            "from": "vjs",
+            "jobKey": "7b993d015f4b257a",
+            "link": "/pagead/clk?mo=r&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N1lyYEY1nzdWnmTq7hlQAqMT4EZoUMRYAQrNEOj5nb4ZE_F_ZCNcUyWwXqUnsb3IFHbnllXq0f5pYhflUexN3LD6mf9j8U6fPKOFmTQuul154CxQeo8aExEApf08b2iFfAx7Eci6fsR4i5wlRjvKA5EumK1U1Eauxzua2oUUaLKdAW9137H0CYgdcoAMF84PbbBCj5eW5R0p7Tfgi9NmbhJFRaEZv-u8JEg9U1zcdmaIh6RuPDU7bjQIuak5MO3DwaEJlHXEg4v7-XpR0uTAehVEkbNEFQdl0EwMnI32HxxwGJ_r7Xy7viI3kh6lEdrpZeF1ca18i9FlF_nce_H7BdzO2qmsM11dLrzIwGnipd9-NCmqh-jZJbJLooc2Yl3D8379SRHWpbfMz_a9aa1x_miN7s9YFssX_W8wrIqe3eHIaV-pRMzXMJYIxrcyPztopcC5udht92l9RFkJ8GjCK-zMHwiJRuCIqjML2cMsQblSxIpv5pb9M88dlUMlDd6dMpQBDYRrFe1PYyRu_QTWc_ggES6VZu7PJ7BcMPSFZ7cSuzuPT49lMRw7lYs3P1aakqoiFThrgWJAWATgalPtzZy754uEQG6ez5Gh-KW-nvDhDDfUS-fhvIMcDFftBf6gyU6_wEuH9GI7sOTR8b7jnHS285ryLd212LhBy0GJjliQdMxRmWK0qDqFr8z9q7Ufi9AHPafSIWTFw==&xkcb=SoBj6_M3hwflOvyN8p0LbzkdCdPP&p=0&camk=C3EPSzFlQw-JWkl1H7Zuog==&vjs=3",
+            "tk": "1jtgbqmn921k6001"
+          },
+          "newJob": false,
+          "normTitle": "Software Engineer",
+          "numHires": 0,
+          "openInterviewsInterviewsOnTheSpot": false,
+          "openInterviewsJob": false,
+          "openInterviewsOffersOnTheSpot": false,
+          "openInterviewsPhoneJob": false,
+          "organicApplyStartCount": 6979,
+          "overrideIndeedApplyText": true,
+          "packageTier": "NONE",
+          "preciseLocationModel": {
+            "obfuscateLocation": false,
+            "overrideJCMPreciseLocationModel": true
+          },
+          "pubDate": 1774242000000,
+          "rankedBenefits": {
+            "GENERIC": [
+              "YQ98H",
+              "RZAT2",
+              "FQJ2X",
+              "CFRGS",
+              "4C2ZW"
+            ],
+            "OCCUPATION_TFIDF": [
+              "4C2ZW",
+              "CFRGS",
+              "FQJ2X",
+              "RZAT2",
+              "YQ98H"
+            ]
+          },
+          "rankingScoresModel": {
+            "bid": 123996,
+            "bidPosition": 1,
+            "eApply": 0.020990705,
+            "eAttainability": 0.08190364,
+            "eQualified": 0
+          },
+          "recommendationReasonModel": {
+            "reason": null
+          },
+          "redirectToThirdPartySite": false,
+          "remoteLocation": false,
+          "remoteWorkModel": {
+            "inlineText": true,
+            "text": "Remote",
+            "type": "REMOTE_ALWAYS"
+          },
+          "resultBeforeExpansion": false,
+          "resumeMatch": false,
+          "salarySnippet": {
+            "currency": "USD",
+            "salaryTextFormatted": false,
+            "source": "EXTRACTION",
+            "text": "$65,000 - $115,000 a year"
+          },
+          "saved": false,
+          "savedApplication": false,
+          "screenerQuestionsURL": "iqp://JOB/69c158406b0a663247e222ee?sourceUrl=iqp%3A%2F%2FINDEXEDJOB%2F10074441540%3Fcountry%3DUS&advertiserId=32113445&aggJobId=10074441540&country=US&language=en",
+          "searchUID": "1jtgbqmn921k6001",
+          "showCommutePromo": false,
+          "showEarlyApply": false,
+          "showJobType": false,
+          "showRelativeDate": true,
+          "showSponsoredLabel": false,
+          "showStrongerAppliedLabel": false,
+          "smartFillEnabled": false,
+          "smbD2iEnabled": false,
+          "snippet": "<ul style=\"list-style-type:circle;margin-top: 0px;margin-bottom: 0px;padding-left:20px;\">\n <li>We are looking for a passionate <b>engineer</b> skilled in building scalable and responsive web applications and services using Angular and ASP.</li>\n</ul>",
+          "sourceId": 3368918,
+          "sponsored": true,
+          "taxoAttributes": [
+            "Profit sharing"
+          ],
+          "taxoAttributesDisplayLimit": 3,
+          "taxoLogAttributes": [
+            "4C2ZW"
+          ],
+          "taxonomyAttributes": [
+            {
+              "attributes": [
+                {
+                  "label": "Full-time",
+                  "suid": "CF3CP"
+                }
+              ],
+              "label": "job-types"
+            },
+            {
+              "attributes": [],
+              "label": "shifts"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Remote",
+                  "suid": "DSQF7"
+                }
+              ],
+              "label": "remote"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Dental insurance",
+                  "suid": "FQJ2X"
+                },
+                {
+                  "label": "Disability insurance",
+                  "suid": "CFRGS"
+                },
+                {
+                  "label": "Retirement plan",
+                  "suid": "YQ98H"
+                },
+                {
+                  "label": "Vision insurance",
+                  "suid": "RZAT2"
+                },
+                {
+                  "label": "Profit sharing",
+                  "suid": "4C2ZW"
+                }
+              ],
+              "label": "benefits"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Full-time",
+                  "suid": "CF3CP"
+                }
+              ],
+              "label": "job-types-cc"
+            },
+            {
+              "attributes": [],
+              "label": "schedules"
+            }
+          ],
+          "thirdPartyApplyUrl": "http://www.indeed.com//applystart?jk=7b993d015f4b257a&from=jobsearch&mvj=0&jobsearchTk=1jtgbqmn921k6001&spon=1&adid=464623129&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N1lyYEY1nzdWnmTq7hlQAqMT4EZoUMRYAQrNEOj5nb4ZE_F_ZCNcUyWwXqUnsb3IFHbnllXq0f5pYhflUexN3LD6mf9j8U6fPKOFmTQuul154CxQeo8aExEApf08b2iFfAx7Eci6fsR4i5wlRjvKA5EumK1U1Eauxzua2oUUaLKdAW9137H0CYgdcoAMF84PbbBCj5eW5R0p7Tfgi9NmbhJFRaEZv-u8JEg9U1zcdmaIh6RuPDU7bjQIuak5MO3DwaEJlHXEg4v7-XpR0uTAehVEkbNEFQdl0EwMnI32HxxwGJ_r7Xy7viI3kh6lEdrpZeF1ca18i9FlF_nce_H7BdzO2qmsM11dLrzIwGnipd9-NCmqh-jZJbJLooc2Yl3D8379SRHWpbfMz_a9aa1x_miN7s9YFssX_W8wrIqe3eHIaV-pRMzXMJYIxrcyPztopcC5udht92l9RFkJ8GjCK-zMHwiJRuCIqjML2cMsQblSxIpv5pb9M88dlUMlDd6dMpQBDYRrFe1PYyRu_QTWc_ggES6VZu7PJ7BcMPSFZ7cSuzuPT49lMRw7lYs3P1aakqoiFThrgWJAWATgalPtzZy754uEQG6ez5Gh-KW-nvDhDDfUS-fhvIMcDFftBf6gyU6_wEuH9GI7sOTR8b7jnHS285ryLd212LhBy0GJjliQdMxRmWK0qDqFr8z9q7Ufi9AHPafSIWTFw%3D%3D&xkcb=SoBj6_M3hwflOvyN8p0LbzkdCdPP&sjdu=Xbbwb0dbVlAPs0TIG7JumEX25uTOF1Oj2WnXk16AywHWA2PUcrZQMHMXHdXk2eTvbAixkyUF3j-OOmJlYeYtIjeDAvq7rEASgcC0zRMWutBvuyCgKBpkTMsm3zcuFYK1uIzH-8PzvPSrzMEzGtRTg5jv-iXDq5yVFQaIv8kgOWkCg9YikGZNJgeIivR2iCfdxWXtDkF3x7BjrIiI14W0QsCgmbR1Dg8qS-_CO9vND2NLAJoHK8df0UY8vlo7n1P7mzaDYyEyfb0INk3TiuEWMemQii8wUThkfLKJY9xDEST1O0JfmjdhQ3CuSF3QpabBfwaJIpgPfWh5SU8ES2tfW40LHQ6gsm9PLZCCJd2RWBsAg-ynqMVmNvHBgTO9S5FFBEcILkSKcC_MyVjNUK-8qfhKnQQPXgamiQj-imh4f5H-01jn0qSbiIaNBBbWs8WaiEDX1JaFE1ANmzavVGRxShPILHL_US7TCQ871Vr89ga7Y0v9ivrNvS2rdS5oF4sLUvcuVq9FhTVrjZpfmMNrEcehBwAJB_oy0hwGoit3I9QwJBE7yTcTRuabRpUOY8NGnuBwzl_YpEii8y3zKUv_S56bGdV6hXrIYnlrC_lQUZISI14iKUD-Dc7DUmh-vDl7MpfMvKQUktHpIeGdJMdxqweC1QdHFvhFbZkfRgjDhnNc0jNtP6Mr34zH5R5LQ8XbdLc6hlCebmo1Cv6kdjNRaLtdI6Mq1Y9Gq0gPMRVyTIPtovc7LsBlfXwcpxl21GixCJ_-bI6UaPK3TmPi0p_29vNanWx2E5_SGwELeYDW3egDxwPLtz4Smx_kFWcH6inYTsQbi68YonwAEahac1GjyjGvrjYKsoS680WKuzZS0Mutx0IkRyRloqlBvNHBK06L-Wx8ojMF4axEl43YmtkRZeyfVWrwEc9a9vcONhKAJbgOACubfzVac9cjNyYppXgW-XK5SWGo9lcjkVg5r63SM4pv1skycGMDMD2AbX8kTiFoukUeCElgDzeLhXKgJGiMwyYHrbKUQRUDVrgVJ81WasDodKiQH-yZ_-PiXCHPergRl5I31036jtOI1ylLDUgKg6ut2knm_9eRe_tC2EEhxXtT7ZaLatnvaE4b2G0o_Q-izpmOx92rL3gkpo33T97hPc7J1sZW7kwt9HXHyZBXX5xZ6pdvi2b3fmxnjLYK0Ro&vjfrom=vjs&astse=d6aae2e110970c59&assa=588",
+          "tier": {
+            "matchedPreferences": {
+              "longMatchedPreferences": [],
+              "stringMatchedPreferences": []
+            },
+            "type": "DEFAULT"
+          },
+          "title": "Software Developer",
+          "translatedAttributes": [],
+          "translatedCmiJobTags": [],
+          "truncatedCompany": "TherapyNotes.com",
+          "urgentlyHiring": false,
+          "viewJobLink": "/viewjob?jk=7b993d015f4b257a&from=vjs&tk=1jtgbqmn921k6001&viewtype=embedded&advn=9533474731693465&adid=464623129&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N1lyYEY1nzdWnmTq7hlQAqMT4EZoUMRYAQrNEOj5nb4ZE_F_ZCNcUyWwXqUnsb3IFHbnllXq0f5pYhflUexN3LD6mf9j8U6fPKOFmTQuul154CxQeo8aExEApf08b2iFfAx7Eci6fsR4i5wlRjvKA5EumK1U1Eauxzua2oUUaLKdAW9137H0CYgdcoAMF84PbbBCj5eW5R0p7Tfgi9NmbhJFRaEZv-u8JEg9U1zcdmaIh6RuPDU7bjQIuak5MO3DwaEJlHXEg4v7-XpR0uTAehVEkbNEFQdl0EwMnI32HxxwGJ_r7Xy7viI3kh6lEdrpZeF1ca18i9FlF_nce_H7BdzO2qmsM11dLrzIwGnipd9-NCmqh-jZJbJLooc2Yl3D8379SRHWpbfMz_a9aa1x_miN7s9YFssX_W8wrIqe3eHIaV-pRMzXMJYIxrcyPztopcC5udht92l9RFkJ8GjCK-zMHwiJRuCIqjML2cMsQblSxIpv5pb9M88dlUMlDd6dMpQBDYRrFe1PYyRu_QTWc_ggES6VZu7PJ7BcMPSFZ7cSuzuPT49lMRw7lYs3P1aakqoiFThrgWJAWATgalPtzZy754uEQG6ez5Gh-KW-nvDhDDfUS-fhvIMcDFftBf6gyU6_wEuH9GI7sOTR8b7jnHS285ryLd212LhBy0GJjliQdMxRmWK0qDqFr8z9q7Ufi9AHPafSIWTFw%3D%3D&xkcb=SoBj6_M3hwflOvyN8p0LbzkdCdPP&continueUrl=%2Fjobs%3Fq%3Dsoftware%2Bengineer%26l%3DRemote",
+          "vjFeaturedEmployerCandidate": false
+        },
+        {
+          "adBlob": "-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N2MhaGUtj2kz1cGhiRJCPZR4-FTtJq5aUy42k66aUDfG-jeElTJaJF_uhS-sSFhT8XjUynnZ9RdOuIClMgX3_QeGQ1eZ8ZugnnoExqs4lHbEtd3kidPweUJRF0MyFycMxMCn9PPBMAr2RWtUUo1uwl1XqX3eSw72oEa1W-RXDX2rtTZXHOprn3W7VUJ7KBfEuz9dn-7yLd2EqAKhhT-rHN9Lm1ES3UePr384UySNQNOC05nSAXRD7sWGEFSLN7BMYsDwZMQA39fRPGioSyhsoNKnGbkEiEgeUpRce_grNxxR7lU_oVHb-QemsQv_jZWwwZ9Q2j74LtVfpNdO_U1is58Hju2-BHih_ov1gUxcwRJGEIQcmQGtqsaarwGZalEQeCafsMzlN1QpmPGpH55FsGE3d_71A39-xRsCn0gFkouk_KEV0G8g_DoU5G9ZMEGdSbPDpLHYwszFA6QFKKjcTqzcy7hntV6BtA5gVnr_pQWNY3XNhrT59XGBm34NnzOfGGT8kCDoyd8juFITsfyMFHEMDkIrek0JfU-1Y-FPzmaLCpVNxPkRC3e8xXPqqzzcXshv5_ZRxpTNgBuUrd_EdhZtv-yKLdC0FtfGSSl8rm9Aqexw0CS7Wivy6DdNTGpHNsOybkoisYqEDeYaDN_zuSYmznXafHCwT-FgULG5_GSI2d9kU__07ht6bD0RzHr-Jk=",
+          "adId": "464623129",
+          "advn": "9533474731693465",
+          "appliedOrGreater": false,
+          "applyCount": -1,
+          "assistedApply": false,
+          "autoSourcerJob": false,
+          "bidPosition": 4,
+          "blobKey": "SoDX6_M3hwflOvyN8p0KbzkdCdPP",
+          "company": "TherapyNotes.com",
+          "companyBrandingAttributes": {
+            "brandingReasons": [
+              "PAID_BRANDING"
+            ],
+            "brandingReasonsAsString": [
+              "PAID_BRANDING"
+            ],
+            "headerImageUrl": "https://d2q79iu7y748jz.cloudfront.net/s/_headerimage/1960x400/9d05368a0956c3266ea4291e95d34331",
+            "logoUrl": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/eac29e66f882990ae917c959915eb291",
+            "paidBrandingDealIds": [
+              "58664",
+              "95349"
+            ],
+            "showJobBranding": true,
+            "shownForBrandedJobPackage": false
+          },
+          "companyIdEncrypted": "d10e9cc0e75a9595",
+          "companyOverviewLink": "/cmp/Therapynotes",
+          "companyOverviewLinkCampaignId": "serp-linkcompanyname-content",
+          "companyRating": 3.8,
+          "companyReviewCount": 30,
+          "companyReviewLink": "/cmp/Therapynotes/reviews",
+          "companyReviewLinkCampaignId": "cmplinktst2",
+          "country": "US",
+          "createDate": 1782827792000,
+          "d2iEnabled": false,
+          "displayTitle": "Senior Software Developer (Agentic Development)",
+          "dradisJob": false,
+          "employerAssistEnabled": false,
+          "employerResponseTime": 1,
+          "employerResponsive": true,
+          "encryptedFccompanyId": "c5ef9b9375a8bbf1",
+          "encryptedResultData": "VwIPTVJ1cTn5AN7Q-tSqGRXGNe2wB2UYx73qSczFnGU",
+          "enhancedAttributesModel": {},
+          "enticers": [],
+          "expired": false,
+          "extractTrackingUrls": "",
+          "extractedSalary": {
+            "max": 135000,
+            "min": 110000,
+            "type": "YEARLY"
+          },
+          "fccompanyId": -1,
+          "featuredCompanyAttributes": {},
+          "featuredEmployer": false,
+          "featuredEmployerCandidate": false,
+          "feedId": 822778,
+          "formattedLocation": "Philadelphia, PA",
+          "formattedRelativeTime": "13 days ago",
+          "gatedVjp": false,
+          "hideMetaData": false,
+          "highVolumeHiringModel": {
+            "highVolumeHiring": false
+          },
+          "hiringEventJob": false,
+          "homepageJobFeedSectionId": "0",
+          "indeedApplyEnabled": true,
+          "indeedApplyFinishAppUrlEnabled": false,
+          "indeedApplyResumeType": "required",
+          "indeedApplyable": true,
+          "isJobVisited": false,
+          "isMobileThirdPartyApplyable": false,
+          "isNoResumeJob": false,
+          "isSubsidiaryJob": false,
+          "isTopRatedEmployer": false,
+          "jobCardRequirementsModel": {
+            "additionalRequirementsCount": 0,
+            "jobOnlyRequirements": [],
+            "jobTagRequirements": [],
+            "requirementsHeaderShown": false,
+            "screenerQuestionRequirements": []
+          },
+          "jobFlairPackageEnabled": false,
+          "jobLocationCity": "Philadelphia",
+          "jobLocationState": "PA",
+          "jobSeekerMatchSummaryModel": {
+            "sortedEntityDisplayText": [],
+            "sortedMatchingEntityDisplayText": [],
+            "sortedMisMatchingEntityDisplayText": [
+              ".NET Core",
+              "AI models",
+              "AI platforms (beyond public GPTs)",
+              "AI use case identification",
+              "AI-driven automation",
+              "API integrations",
+              "Agile software development",
+              "Automation software",
+              "Bachelor's degree",
+              "Collaboration with product development teams",
+              "Communication skills",
+              "Computer Science",
+              "Computer science",
+              "Continuous improvement for developers",
+              "Cross-functional communication",
+              "Design (software development lifecycle)",
+              "Developer tools",
+              "Employee onboarding",
+              "Engineering process optimization",
+              "Entity Framework",
+              "Full-stack development",
+              "Generative AI",
+              "HTML",
+              "IT quality control",
+              "JavaScript frameworks",
+              "Mentoring",
+              "PostgreSQL",
+              "Process design",
+              "Product management",
+              "Prompt engineering",
+              "Providing code feedback",
+              "Quality assurance experience within IT",
+              "Quality control",
+              "Release management",
+              "SASS/LESS",
+              "SQL databases",
+              "SaaS",
+              "Scalability",
+              "Scalable systems",
+              "Software Engineering",
+              "Software engineering",
+              "Software testing",
+              "System design",
+              "System design for system development",
+              "Team training",
+              "Technology security practices",
+              "Tooling",
+              "TypeScript"
+            ],
+            "taxoEntityMatchesNegative": [
+              {
+                "displayText": "SASS/LESS",
+                "id": "",
+                "rawName": "SASS/LESS",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "FE6SC"
+              },
+              {
+                "displayText": "Software testing",
+                "id": "",
+                "rawName": "Software testing",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "PZP9P"
+              },
+              {
+                "displayText": "Computer science",
+                "id": "",
+                "rawName": "Computer science",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4E4WW"
+              },
+              {
+                "displayText": "JavaScript frameworks",
+                "id": "",
+                "rawName": "JavaScript frameworks",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "EUPT5"
+              },
+              {
+                "displayText": "HTML",
+                "id": "",
+                "rawName": "HTML",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Y7U37"
+              },
+              {
+                "displayText": "System design",
+                "id": "",
+                "rawName": "System design",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "C5C2F"
+              },
+              {
+                "displayText": "Mentoring",
+                "id": "",
+                "rawName": "Mentoring",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "MGSEB"
+              },
+              {
+                "displayText": "Cross-functional communication",
+                "id": "",
+                "rawName": "Cross-functional communication",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Y8657"
+              },
+              {
+                "displayText": "Process design",
+                "id": "",
+                "rawName": "Process design",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "C4MUU"
+              },
+              {
+                "displayText": "AI use case identification",
+                "id": "",
+                "rawName": "AI use case identification",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4KV6M"
+              },
+              {
+                "displayText": "Design (software development lifecycle)",
+                "id": "",
+                "rawName": "Design (software development lifecycle)",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "XA6CW"
+              },
+              {
+                "displayText": "Scalable systems",
+                "id": "",
+                "rawName": "Scalable systems",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "DP9CS"
+              },
+              {
+                "displayText": "Quality control",
+                "id": "",
+                "rawName": "Quality control",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "K9VX6"
+              },
+              {
+                "displayText": "AI models",
+                "id": "",
+                "rawName": "AI models",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "22JPW"
+              },
+              {
+                "displayText": "SQL databases",
+                "id": "",
+                "rawName": "SQL databases",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "7G8UN"
+              },
+              {
+                "displayText": "Continuous improvement for developers",
+                "id": "",
+                "rawName": "Continuous improvement for developers",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "TZQ7R"
+              },
+              {
+                "displayText": "Software Engineering",
+                "id": "",
+                "rawName": "Software Engineering",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "7F6H9"
+              },
+              {
+                "displayText": "Quality assurance experience within IT",
+                "id": "",
+                "rawName": "Quality assurance experience within IT",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "EC9V5"
+              },
+              {
+                "displayText": "Entity Framework",
+                "id": "",
+                "rawName": "Entity Framework",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "X5HXD"
+              },
+              {
+                "displayText": "Computer Science",
+                "id": "",
+                "rawName": "Computer Science",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "6XNCP"
+              },
+              {
+                "displayText": "Product management",
+                "id": "",
+                "rawName": "Product management",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "JT9DE"
+              },
+              {
+                "displayText": "Providing code feedback",
+                "id": "",
+                "rawName": "Providing code feedback",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Z4F5N"
+              },
+              {
+                "displayText": "Engineering process optimization",
+                "id": "",
+                "rawName": "Engineering process optimization",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "CCQ9J"
+              },
+              {
+                "displayText": "Collaboration with product development teams",
+                "id": "",
+                "rawName": "Collaboration with product development teams",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "GEYN2"
+              },
+              {
+                "displayText": "PostgreSQL",
+                "id": "",
+                "rawName": "PostgreSQL",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "JCKB4"
+              },
+              {
+                "displayText": "AI-driven automation",
+                "id": "",
+                "rawName": "AI-driven automation",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "TX6QF"
+              },
+              {
+                "displayText": "IT quality control",
+                "id": "",
+                "rawName": "IT quality control",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "AHSXR"
+              },
+              {
+                "displayText": "Release management",
+                "id": "",
+                "rawName": "Release management",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "J3CT2"
+              },
+              {
+                "displayText": "Prompt engineering",
+                "id": "",
+                "rawName": "Prompt engineering",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "EV2FP"
+              },
+              {
+                "displayText": "Tooling",
+                "id": "",
+                "rawName": "Tooling",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "93YM8"
+              },
+              {
+                "displayText": "AI platforms (beyond public GPTs)",
+                "id": "",
+                "rawName": "AI platforms (beyond public GPTs)",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "DP8RP"
+              },
+              {
+                "displayText": ".NET Core",
+                "id": "",
+                "rawName": ".NET Core",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "AGW49"
+              },
+              {
+                "displayText": "TypeScript",
+                "id": "",
+                "rawName": "TypeScript",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "WD7PP"
+              },
+              {
+                "displayText": "Developer tools",
+                "id": "",
+                "rawName": "Developer tools",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "WE46Y"
+              },
+              {
+                "displayText": "SaaS",
+                "id": "",
+                "rawName": "SaaS",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "UC5ZW"
+              },
+              {
+                "displayText": "Team training",
+                "id": "",
+                "rawName": "Team training",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "JSNTU"
+              },
+              {
+                "displayText": "Full-stack development",
+                "id": "",
+                "rawName": "Full-stack development",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "8PA9N"
+              },
+              {
+                "displayText": "Scalability",
+                "id": "",
+                "rawName": "Scalability",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "PYTWK"
+              },
+              {
+                "displayText": "Automation software",
+                "id": "",
+                "rawName": "Automation software",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "ANHQ8"
+              },
+              {
+                "displayText": "Agile software development",
+                "id": "",
+                "rawName": "Agile software development",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "QWGDE"
+              },
+              {
+                "displayText": "System design for system development",
+                "id": "",
+                "rawName": "System design for system development",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "FNWKU"
+              },
+              {
+                "displayText": "Generative AI",
+                "id": "",
+                "rawName": "Generative AI",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Y6B2U"
+              },
+              {
+                "displayText": "Bachelor's degree",
+                "id": "",
+                "rawName": "Bachelor's degree",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "HFDVW"
+              },
+              {
+                "displayText": "API integrations",
+                "id": "",
+                "rawName": "API integrations",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "TXVT6"
+              },
+              {
+                "displayText": "Software engineering",
+                "id": "",
+                "rawName": "Software engineering",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4R4AM"
+              },
+              {
+                "displayText": "Communication skills",
+                "id": "",
+                "rawName": "Communication skills",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "WSBNK"
+              },
+              {
+                "displayText": "Technology security practices",
+                "id": "",
+                "rawName": "Technology security practices",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "EKUZN"
+              },
+              {
+                "displayText": "Employee onboarding",
+                "id": "",
+                "rawName": "Employee onboarding",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "3ERWX"
+              }
+            ],
+            "taxoEntityMatchesPositive": [],
+            "trafficLight": "yellow"
+          },
+          "jobTypes": [],
+          "jobkey": "1964995584dc3547",
+          "jsiEnabled": false,
+          "link": "/pagead/clk?mo=r&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N2MhaGUtj2kz1cGhiRJCPZR4-FTtJq5aUy42k66aUDfG-jeElTJaJF_uhS-sSFhT8XjUynnZ9RdOuIClMgX3_QeGQ1eZ8ZugnnoExqs4lHbEtd3kidPweUJRF0MyFycMxMCn9PPBMAr2RWtUUo1uwl1XqX3eSw72oEa1W-RXDX2rtTZXHOprn3W7VUJ7KBfEuz9dn-7yLd2EqAKhhT-rHN9Lm1ES3UePr384UySNQNOC05nSAXRD7sWGEFSLN7BMYsDwZMQA39fRPGioSyhsoNKnGbkEiEgeUpRce_grNxxR7lU_oVHb-QemsQv_jZWwwZ9Q2j74LtVfpNdO_U1is58Hju2-BHih_ov1gUxcwRJGEIQcmQGtqsaarwGZalEQeCafsMzlN1QpmPGpH55FsGE3d_71A39-xRsCn0gFkouk_KEV0G8g_DoU5G9ZMEGdSbPDpLHYwszFA6QFKKjcTqzcy7hntV6BtA5gVnr_pQWNY3XNhrT59XGBm34NnzOfGGT8kCDoyd8juFITsfyMFHEMDkIrek0JfU-1Y-FPzmaLCpVNxPkRC3e8xXPqqzzcXshv5_ZRxpTNgBuUrd_EdhZtv-yKLdC0FtfGSSl8rm9Aqexw0CS7Wivy6DdNTGpHNsOybkoisYqEDeYaDN_zuSYmznXafHCwT-FgULG5_GSI2d9kU__07ht6bD0RzHr-Jk=&xkcb=SoDX6_M3hwflOvyN8p0KbzkdCdPP&p=1&camk=C3EPSzFlQw-JWkl1H7Zuog==&vjs=3",
+          "locationCount": 1,
+          "minimumCount": 1,
+          "mobtk": "1jtgbqmn921k6001",
+          "moreLocUrl": "/jobs?q=software+engineer&nl=&l=Remote&radius=50&jtid=7ca63af8b5ec590b&jcid=d10e9cc0e75a9595&grp=tcl",
+          "mouseDownHandlerOption": {
+            "adId": 464623129,
+            "advn": "9533474731693465",
+            "extractTrackingUrls": [],
+            "from": "vjs",
+            "jobKey": "1964995584dc3547",
+            "link": "/pagead/clk?mo=r&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N2MhaGUtj2kz1cGhiRJCPZR4-FTtJq5aUy42k66aUDfG-jeElTJaJF_uhS-sSFhT8XjUynnZ9RdOuIClMgX3_QeGQ1eZ8ZugnnoExqs4lHbEtd3kidPweUJRF0MyFycMxMCn9PPBMAr2RWtUUo1uwl1XqX3eSw72oEa1W-RXDX2rtTZXHOprn3W7VUJ7KBfEuz9dn-7yLd2EqAKhhT-rHN9Lm1ES3UePr384UySNQNOC05nSAXRD7sWGEFSLN7BMYsDwZMQA39fRPGioSyhsoNKnGbkEiEgeUpRce_grNxxR7lU_oVHb-QemsQv_jZWwwZ9Q2j74LtVfpNdO_U1is58Hju2-BHih_ov1gUxcwRJGEIQcmQGtqsaarwGZalEQeCafsMzlN1QpmPGpH55FsGE3d_71A39-xRsCn0gFkouk_KEV0G8g_DoU5G9ZMEGdSbPDpLHYwszFA6QFKKjcTqzcy7hntV6BtA5gVnr_pQWNY3XNhrT59XGBm34NnzOfGGT8kCDoyd8juFITsfyMFHEMDkIrek0JfU-1Y-FPzmaLCpVNxPkRC3e8xXPqqzzcXshv5_ZRxpTNgBuUrd_EdhZtv-yKLdC0FtfGSSl8rm9Aqexw0CS7Wivy6DdNTGpHNsOybkoisYqEDeYaDN_zuSYmznXafHCwT-FgULG5_GSI2d9kU__07ht6bD0RzHr-Jk=&xkcb=SoDX6_M3hwflOvyN8p0KbzkdCdPP&p=1&camk=C3EPSzFlQw-JWkl1H7Zuog==&vjs=3",
+            "tk": "1jtgbqmn921k6001"
+          },
+          "newJob": false,
+          "normTitle": "Senior Software Engineer",
+          "numHires": 0,
+          "openInterviewsInterviewsOnTheSpot": false,
+          "openInterviewsJob": false,
+          "openInterviewsOffersOnTheSpot": false,
+          "openInterviewsPhoneJob": false,
+          "organicApplyStartCount": 55,
+          "overrideIndeedApplyText": true,
+          "packageTier": "NONE",
+          "preciseLocationModel": {
+            "obfuscateLocation": false,
+            "overrideJCMPreciseLocationModel": true
+          },
+          "pubDate": 1782795600000,
+          "rankedBenefits": {
+            "GENERIC": [
+              "YQ98H",
+              "RZAT2",
+              "FQJ2X",
+              "CFRGS",
+              "4C2ZW"
+            ],
+            "OCCUPATION_TFIDF": [
+              "4C2ZW",
+              "CFRGS",
+              "FQJ2X",
+              "RZAT2",
+              "YQ98H"
+            ]
+          },
+          "rankingScoresModel": {
+            "bid": 90638,
+            "bidPosition": 4,
+            "eApply": 0.011701469,
+            "eAttainability": 0,
+            "eQualified": 0
+          },
+          "recommendationReasonModel": {
+            "reason": null
+          },
+          "redirectToThirdPartySite": false,
+          "remoteLocation": false,
+          "remoteWorkModel": {
+            "inlineText": true,
+            "text": "Remote",
+            "type": "REMOTE_ALWAYS"
+          },
+          "resultBeforeExpansion": false,
+          "resumeMatch": false,
+          "salarySnippet": {
+            "currency": "USD",
+            "salaryTextFormatted": false,
+            "source": "EXTRACTION",
+            "text": "$110,000 - $135,000 a year"
+          },
+          "saved": false,
+          "savedApplication": false,
+          "screenerQuestionsURL": "iqp://INDEXEDJOB/10183863070?country=US",
+          "searchUID": "1jtgbqmn921k6001",
+          "showCommutePromo": false,
+          "showEarlyApply": false,
+          "showJobType": false,
+          "showRelativeDate": true,
+          "showSponsoredLabel": false,
+          "showStrongerAppliedLabel": false,
+          "smartFillEnabled": false,
+          "smbD2iEnabled": false,
+          "snippet": "<ul style=\"list-style-type:circle;margin-top: 0px;margin-bottom: 0px;padding-left:20px;\">\n <li style=\"margin-bottom:0px;\">Ability to design reliable, maintainable, and scalable <b>software</b> architectures.</li>\n <li>You <b>engineer</b> tools, processes and workflows that meaningfully reduce friction in\u2026</li>\n</ul>",
+          "sourceId": 3368918,
+          "sponsored": true,
+          "taxoAttributes": [
+            "Profit sharing"
+          ],
+          "taxoAttributesDisplayLimit": 3,
+          "taxoLogAttributes": [
+            "4C2ZW"
+          ],
+          "taxonomyAttributes": [
+            {
+              "attributes": [
+                {
+                  "label": "Full-time",
+                  "suid": "CF3CP"
+                }
+              ],
+              "label": "job-types"
+            },
+            {
+              "attributes": [],
+              "label": "shifts"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Remote",
+                  "suid": "DSQF7"
+                }
+              ],
+              "label": "remote"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Dental insurance",
+                  "suid": "FQJ2X"
+                },
+                {
+                  "label": "Disability insurance",
+                  "suid": "CFRGS"
+                },
+                {
+                  "label": "Vision insurance",
+                  "suid": "RZAT2"
+                },
+                {
+                  "label": "Retirement plan",
+                  "suid": "YQ98H"
+                },
+                {
+                  "label": "Profit sharing",
+                  "suid": "4C2ZW"
+                }
+              ],
+              "label": "benefits"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Full-time",
+                  "suid": "CF3CP"
+                }
+              ],
+              "label": "job-types-cc"
+            },
+            {
+              "attributes": [],
+              "label": "schedules"
+            }
+          ],
+          "thirdPartyApplyUrl": "http://www.indeed.com//applystart?jk=1964995584dc3547&from=jobsearch&mvj=0&jobsearchTk=1jtgbqmn921k6001&spon=1&adid=464623129&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N2MhaGUtj2kz1cGhiRJCPZR4-FTtJq5aUy42k66aUDfG-jeElTJaJF_uhS-sSFhT8XjUynnZ9RdOuIClMgX3_QeGQ1eZ8ZugnnoExqs4lHbEtd3kidPweUJRF0MyFycMxMCn9PPBMAr2RWtUUo1uwl1XqX3eSw72oEa1W-RXDX2rtTZXHOprn3W7VUJ7KBfEuz9dn-7yLd2EqAKhhT-rHN9Lm1ES3UePr384UySNQNOC05nSAXRD7sWGEFSLN7BMYsDwZMQA39fRPGioSyhsoNKnGbkEiEgeUpRce_grNxxR7lU_oVHb-QemsQv_jZWwwZ9Q2j74LtVfpNdO_U1is58Hju2-BHih_ov1gUxcwRJGEIQcmQGtqsaarwGZalEQeCafsMzlN1QpmPGpH55FsGE3d_71A39-xRsCn0gFkouk_KEV0G8g_DoU5G9ZMEGdSbPDpLHYwszFA6QFKKjcTqzcy7hntV6BtA5gVnr_pQWNY3XNhrT59XGBm34NnzOfGGT8kCDoyd8juFITsfyMFHEMDkIrek0JfU-1Y-FPzmaLCpVNxPkRC3e8xXPqqzzcXshv5_ZRxpTNgBuUrd_EdhZtv-yKLdC0FtfGSSl8rm9Aqexw0CS7Wivy6DdNTGpHNsOybkoisYqEDeYaDN_zuSYmznXafHCwT-FgULG5_GSI2d9kU__07ht6bD0RzHr-Jk%3D&xkcb=SoDX6_M3hwflOvyN8p0KbzkdCdPP&sjdu=Xbbwb0dbVlAPs0TIG7JumEX25uTOF1Oj2WnXk16AywHWA2PUcrZQMHMXHdXk2eTvbAixkyUF3j-OOmJlYeYtIjeDAvq7rEASgcC0zRMWutD3E9nQwSeMuCzdft7Qzt3FrQrTab10PIp0rWyA5dpjRE_z_G8OF7DNUc4gvnFFI-gpZwJRNYrOmZ5GZc_T8c2uHtcA7yEHKanT-ZgKiAexbe5qjDvO2kXqUnLLpW7YdwVJyc9eBIFg_vfY1-syU0GBwcsCuyrZU8nv0Xq8G93mw-7llCMyNJkF-WtwsM9Ue6aeLchHe0XGbSYl1Qcgf0sY-JQpXW7ju_Bk-MDoBCtis20YCc1bVmoQthnzEBWFp_9TYbQKJLr11DQp75s5Vdmsf-d5IQTi2PMp0iW7xymdYEQ3LDGdq2iavfaMS8A8OQ6rOQXa9jJFvJk9Ta5XeU_mpy5fSFg1oxkr0xp2QA2Utj3433zpiWFKDsr3Df6bWNvXjJoRzwIWKUpx2esmkKj7JybAVwMqmDoSkpfVABPfjuxY1hcCETtdEgmRbv6rBt0LOZX4H3srbX-kBOf6bWogp0PCe91mjDN2aw61THWKieSLyEzPUCYuoYr2onoda8SvUcksZX8zNPm_6b_s-yzzK9gO8ayTD6J-4jLltcKnpVPDYlxxCOFzCE00ROrg3Fdsv5xMIDVLwW7-zd6Rj8UrSVI77Ngt6Xuv4QptvZuF1trAUcMXIh9eq5jBrwb3_p3iAChwWpQm2LoaxnbeXmY4lWLNx-GuVCMQC9PPCdO2IZVUI2AHBR-WjvuESBVvRXlAXYLKObNGVDkrcUxV8nvoCcVndtP9TF5ZORGRAdWScvy63d0aKgnOkxJ3fSSHwTlRDOEY_tIYg31V8b1f21PG3DeLB17KWd6yFJNAPxgz99fRLl22swix5fq0lRJsIkN8K5eNtzDQ8b2M5QNT_-vr7ydAs3NiWqZbkns80Rhva-g4ppYeirl4F-oE27jkbsyR0mT19gIbooC-0xxw5rhbJVd3xcU-Qns5G3Nr8utN_PCj8MNuo8AomjLddrI-OA_DFCxJ9dMx4OQltXVjCk4TJI5pSLZxWVsDOsIirhwPN4O6LTFptkPn8PQP0M-MqfFUyGuzU73dybEBIAltr8aORGKf6dZx5anCwoZfBAU3zQ&vjfrom=vjs&astse=da7fff3285780cc4&assa=589",
+          "tier": {
+            "matchedPreferences": {
+              "longMatchedPreferences": [],
+              "stringMatchedPreferences": []
+            },
+            "type": "DEFAULT"
+          },
+          "title": "Senior Software Developer (Agentic Development)",
+          "translatedAttributes": [],
+          "translatedCmiJobTags": [],
+          "truncatedCompany": "TherapyNotes.com",
+          "urgentlyHiring": false,
+          "viewJobLink": "/viewjob?jk=1964995584dc3547&from=vjs&tk=1jtgbqmn921k6001&viewtype=embedded&advn=9533474731693465&adid=464623129&ad=-6NYlbfkN0AfEq5j7saNRG5aU_mvVTuWOB9eeCeHIli2OtKfZJ_lU68CQK3WO6fr1U8P9BG_8N2MhaGUtj2kz1cGhiRJCPZR4-FTtJq5aUy42k66aUDfG-jeElTJaJF_uhS-sSFhT8XjUynnZ9RdOuIClMgX3_QeGQ1eZ8ZugnnoExqs4lHbEtd3kidPweUJRF0MyFycMxMCn9PPBMAr2RWtUUo1uwl1XqX3eSw72oEa1W-RXDX2rtTZXHOprn3W7VUJ7KBfEuz9dn-7yLd2EqAKhhT-rHN9Lm1ES3UePr384UySNQNOC05nSAXRD7sWGEFSLN7BMYsDwZMQA39fRPGioSyhsoNKnGbkEiEgeUpRce_grNxxR7lU_oVHb-QemsQv_jZWwwZ9Q2j74LtVfpNdO_U1is58Hju2-BHih_ov1gUxcwRJGEIQcmQGtqsaarwGZalEQeCafsMzlN1QpmPGpH55FsGE3d_71A39-xRsCn0gFkouk_KEV0G8g_DoU5G9ZMEGdSbPDpLHYwszFA6QFKKjcTqzcy7hntV6BtA5gVnr_pQWNY3XNhrT59XGBm34NnzOfGGT8kCDoyd8juFITsfyMFHEMDkIrek0JfU-1Y-FPzmaLCpVNxPkRC3e8xXPqqzzcXshv5_ZRxpTNgBuUrd_EdhZtv-yKLdC0FtfGSSl8rm9Aqexw0CS7Wivy6DdNTGpHNsOybkoisYqEDeYaDN_zuSYmznXafHCwT-FgULG5_GSI2d9kU__07ht6bD0RzHr-Jk%3D&xkcb=SoDX6_M3hwflOvyN8p0KbzkdCdPP&continueUrl=%2Fjobs%3Fq%3Dsoftware%2Bengineer%26l%3DRemote",
+          "vjFeaturedEmployerCandidate": false
+        },
+        {
+          "adBlob": "-6NYlbfkN0CnM4TERr6XuVBW3VTRACvDXDx9S3Pbn6a0SwhkmoLTiLCFUpITpg4QVB7SR39MoP0BLR841cgbHYPJopI9fiQa67MfGt-TS3gF6m2xSij4aAarTk90jQV5vKgeHuaG-dJ4P0bDI4Zj_HA51wzDk11uApXr5YRiDtyBwiQNLf5d9Lyctn13orSbPQeRCVH0zqauP5hiYL4ZkfdYeGe3I1Wbq855uSspMHp95AmMxgY4r8gBmfjoH2ZckgGERlYYLnGOotBKSI7i1CVIHtUDpAaF8MlAFpdDsF7JJ3NyS5QmqxHMQDQvH-MTyCDpC3bADAnfw6-khs-18fT3MQkZxaiHCnFCeCieu5HX8FLJW0Vbld4azqHzvV6iSucVFTJi1AKqwERerK9DWIfC0zose7qxVHyZkCqyCO7MtebmgcFgz8G-TMEKd3KEBdjQHW4g989DJ5vUEw0r_96qW6vxxph2br8GDqh0gRdNttZbE8iRAL2dJQGEiGkx-SEOJbw4SoVYUwpjBejBIJ-rdG4cyC5ppwrlxPXTlnAcqq9Ie16k5dyg-_YEGJgAXpTkGiS_jUefF4WFy9TLA5mJmWV1UGK991Seolocw55nIqu8uewnGZrKlzn_URF3fqCCkPEu048MFp3V5B32llPFdw6ecDZM4ixH_Y6Ex2ja_KQrD-VhNLIsQT0l0xiRsuD4NxCSVzIO3oh4AR-qxkF088JN5s0b7vYNrPpc20UUPEMmP9UTsO9TnPKrxhEPZX0qoIvEdXQwWA__4p652c_mTlKFK9F-VOq0Af-rMFWJFT2H9Cstjh4J7RyLp70DgUD5IJYLysP3eEEvknyDAOnB3IbnpMF4vePgU0vTSD-QHvvd-GxNquZ1d-hGjAfcdG70mwq736OitfXAGrZBSH7tm4yOCxSllF5t1z0TIE-LuM1UKKvYFt1H8B8TI-mhgtXwx6FhLAytzRKYOQlO5A==",
+          "adId": "461480873",
+          "advn": "7831672186689475",
+          "appliedOrGreater": false,
+          "applyCount": -1,
+          "assistedApply": false,
+          "autoSourcerJob": false,
+          "bidPosition": 3,
+          "blobKey": "SoBK6_M3hwflOvyN8p0JbzkdCdPP",
+          "company": "DataAnnotation",
+          "companyBrandingAttributes": {
+            "brandingReasons": [
+              "PAID_BRANDING"
+            ],
+            "brandingReasonsAsString": [
+              "PAID_BRANDING"
+            ],
+            "headerImageUrl": "https://d2q79iu7y748jz.cloudfront.net/s/_headerimage/1960x400/e42fbb2b9f70343758932438638f973c",
+            "logoUrl": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/cc8dc489da5211695773d9f9020812b0",
+            "paidBrandingDealIds": [
+              "88129"
+            ],
+            "showJobBranding": true,
+            "shownForBrandedJobPackage": false
+          },
+          "companyIdEncrypted": "342de9268ba1a972",
+          "companyOverviewLink": "/cmp/Dataannotation",
+          "companyOverviewLinkCampaignId": "serp-linkcompanyname-content",
+          "companyRating": 4.1,
+          "companyReviewCount": 1661,
+          "companyReviewLink": "/cmp/Dataannotation/reviews",
+          "companyReviewLinkCampaignId": "cmplinktst2",
+          "country": "US",
+          "createDate": 1778281962938,
+          "d2iEnabled": false,
+          "displayTitle": "Java Developer - AI Trainer",
+          "dradisJob": false,
+          "employerAssistEnabled": false,
+          "employerResponsive": false,
+          "encryptedFccompanyId": "e3735f59dc6a6354",
+          "encryptedResultData": "VwIPTVJ1cTn5AN7Q-tSqGRXGNe2wB2UYx73qSczFnGU",
+          "enhancedAttributesModel": {},
+          "enticers": [],
+          "expired": false,
+          "extractTrackingUrls": "",
+          "extractedSalary": {
+            "max": 100,
+            "min": 0,
+            "type": "HOURLY"
+          },
+          "fccompanyId": -1,
+          "featuredCompanyAttributes": {},
+          "featuredEmployer": false,
+          "featuredEmployerCandidate": false,
+          "feedId": 915432,
+          "formattedLocation": "Remote",
+          "formattedRelativeTime": "30+ days ago",
+          "gatedVjp": false,
+          "hideMetaData": false,
+          "highVolumeHiringModel": {
+            "highVolumeHiring": false
+          },
+          "hiringEventJob": false,
+          "homepageJobFeedSectionId": "0",
+          "indeedApplyEnabled": true,
+          "indeedApplyFinishAppUrlEnabled": true,
+          "indeedApplyResumeType": "required",
+          "indeedApplyable": true,
+          "isJobVisited": false,
+          "isMobileThirdPartyApplyable": false,
+          "isNoResumeJob": false,
+          "isSubsidiaryJob": false,
+          "isTopRatedEmployer": false,
+          "jobCardRequirementsModel": {
+            "additionalRequirementsCount": 0,
+            "jobOnlyRequirements": [],
+            "jobTagRequirements": [],
+            "requirementsHeaderShown": false,
+            "screenerQuestionRequirements": []
+          },
+          "jobFlairPackageEnabled": false,
+          "jobLocationCity": "Remote",
+          "jobSeekerMatchSummaryModel": {
+            "sortedEntityDisplayText": [],
+            "sortedMatchingEntityDisplayText": [],
+            "sortedMisMatchingEntityDisplayText": [
+              "AI models",
+              "Bachelor's degree",
+              "C#",
+              "Data analytics",
+              "Data visualization",
+              "English",
+              "Go",
+              "Grammar Experience",
+              "JavaScript frameworks",
+              "Kotlin",
+              "Model training",
+              "Providing code feedback",
+              "Software coding",
+              "Software design",
+              "Software engineering",
+              "Swift",
+              "TypeScript",
+              "Writing skills"
+            ],
+            "taxoEntityMatchesNegative": [
+              {
+                "displayText": "Software design",
+                "id": "",
+                "rawName": "Software design",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "7DZKQ"
+              },
+              {
+                "displayText": "Go",
+                "id": "",
+                "rawName": "Go",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "6ETQT"
+              },
+              {
+                "displayText": "JavaScript frameworks",
+                "id": "",
+                "rawName": "JavaScript frameworks",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "EUPT5"
+              },
+              {
+                "displayText": "English",
+                "id": "",
+                "rawName": "English",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "D866K"
+              },
+              {
+                "displayText": "TypeScript",
+                "id": "",
+                "rawName": "TypeScript",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "WD7PP"
+              },
+              {
+                "displayText": "Model training",
+                "id": "",
+                "rawName": "Model training",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "QZ89D"
+              },
+              {
+                "displayText": "AI models",
+                "id": "",
+                "rawName": "AI models",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "22JPW"
+              },
+              {
+                "displayText": "Kotlin",
+                "id": "",
+                "rawName": "Kotlin",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4KE5P"
+              },
+              {
+                "displayText": "Data visualization",
+                "id": "",
+                "rawName": "Data visualization",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "TKG4S"
+              },
+              {
+                "displayText": "Bachelor's degree",
+                "id": "",
+                "rawName": "Bachelor's degree",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "HFDVW"
+              },
+              {
+                "displayText": "Software engineering",
+                "id": "",
+                "rawName": "Software engineering",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "4R4AM"
+              },
+              {
+                "displayText": "Data analytics",
+                "id": "",
+                "rawName": "Data analytics",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "NGW4T"
+              },
+              {
+                "displayText": "Software coding",
+                "id": "",
+                "rawName": "Software coding",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "9MWQS"
+              },
+              {
+                "displayText": "Writing skills",
+                "id": "",
+                "rawName": "Writing skills",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "A7SFW"
+              },
+              {
+                "displayText": "Grammar Experience",
+                "id": "",
+                "rawName": "Grammar Experience",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "VTSX9"
+              },
+              {
+                "displayText": "Providing code feedback",
+                "id": "",
+                "rawName": "Providing code feedback",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "Z4F5N"
+              },
+              {
+                "displayText": "C#",
+                "id": "",
+                "rawName": "C#",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "AP3T4"
+              },
+              {
+                "displayText": "Swift",
+                "id": "",
+                "rawName": "Swift",
+                "source": "JOB",
+                "strictness": "",
+                "suid": "U5AXZ"
+              }
+            ],
+            "taxoEntityMatchesPositive": [],
+            "trafficLight": "yellow"
+          },
+          "jobTypes": [],
+          "jobkey": "40da1d788bab69b0",
+          "jsiEnabled": false,
+          "link": "/pagead/clk?mo=r&ad=-6NYlbfkN0CnM4TERr6XuVBW3VTRACvDXDx9S3Pbn6a0SwhkmoLTiLCFUpITpg4QVB7SR39MoP0BLR841cgbHYPJopI9fiQa67MfGt-TS3gF6m2xSij4aAarTk90jQV5vKgeHuaG-dJ4P0bDI4Zj_HA51wzDk11uApXr5YRiDtyBwiQNLf5d9Lyctn13orSbPQeRCVH0zqauP5hiYL4ZkfdYeGe3I1Wbq855uSspMHp95AmMxgY4r8gBmfjoH2ZckgGERlYYLnGOotBKSI7i1CVIHtUDpAaF8MlAFpdDsF7JJ3NyS5QmqxHMQDQvH-MTyCDpC3bADAnfw6-khs-18fT3MQkZxaiHCnFCeCieu5HX8FLJW0Vbld4azqHzvV6iSucVFTJi1AKqwERerK9DWIfC0zose7qxVHyZkCqyCO7MtebmgcFgz8G-TMEKd3KEBdjQHW4g989DJ5vUEw0r_96qW6vxxph2br8GDqh0gRdNttZbE8iRAL2dJQGEiGkx-SEOJbw4SoVYUwpjBejBIJ-rdG4cyC5ppwrlxPXTlnAcqq9Ie16k5dyg-_YEGJgAXpTkGiS_jUefF4WFy9TLA5mJmWV1UGK991Seolocw55nIqu8uewnGZrKlzn_URF3fqCCkPEu048MFp3V5B32llPFdw6ecDZM4ixH_Y6Ex2ja_KQrD-VhNLIsQT0l0xiRsuD4NxCSVzIO3oh4AR-qxkF088JN5s0b7vYNrPpc20UUPEMmP9UTsO9TnPKrxhEPZX0qoIvEdXQwWA__4p652c_mTlKFK9F-VOq0Af-rMFWJFT2H9Cstjh4J7RyLp70DgUD5IJYLysP3eEEvknyDAOnB3IbnpMF4vePgU0vTSD-QHvvd-GxNquZ1d-hGjAfcdG70mwq736OitfXAGrZBSH7tm4yOCxSllF5t1z0TIE-LuM1UKKvYFt1H8B8TI-mhgtXwx6FhLAytzRKYOQlO5A==&xkcb=SoBK6_M3hwflOvyN8p0JbzkdCdPP&p=2&camk=C3EPSzFlQw95L2GYPjH5nw==&vjs=3",
+          "locationCount": 1,
+          "minimumCount": 1,
+          "mobtk": "1jtgbqmn921k6001",
+          "moreLocUrl": "/jobs?q=software+engineer&nl=&l=Remote&radius=50&jtid=c1b76b0304ad72c6&jcid=342de9268ba1a972&grp=tcl",
+          "mouseDownHandlerOption": {
+            "adId": 461480873,
+            "advn": "7831672186689475",
+            "extractTrackingUrls": [],
+            "from": "vjs",
+            "jobKey": "40da1d788bab69b0",
+            "link": "/pagead/clk?mo=r&ad=-6NYlbfkN0CnM4TERr6XuVBW3VTRACvDXDx9S3Pbn6a0SwhkmoLTiLCFUpITpg4QVB7SR39MoP0BLR841cgbHYPJopI9fiQa67MfGt-TS3gF6m2xSij4aAarTk90jQV5vKgeHuaG-dJ4P0bDI4Zj_HA51wzDk11uApXr5YRiDtyBwiQNLf5d9Lyctn13orSbPQeRCVH0zqauP5hiYL4ZkfdYeGe3I1Wbq855uSspMHp95AmMxgY4r8gBmfjoH2ZckgGERlYYLnGOotBKSI7i1CVIHtUDpAaF8MlAFpdDsF7JJ3NyS5QmqxHMQDQvH-MTyCDpC3bADAnfw6-khs-18fT3MQkZxaiHCnFCeCieu5HX8FLJW0Vbld4azqHzvV6iSucVFTJi1AKqwERerK9DWIfC0zose7qxVHyZkCqyCO7MtebmgcFgz8G-TMEKd3KEBdjQHW4g989DJ5vUEw0r_96qW6vxxph2br8GDqh0gRdNttZbE8iRAL2dJQGEiGkx-SEOJbw4SoVYUwpjBejBIJ-rdG4cyC5ppwrlxPXTlnAcqq9Ie16k5dyg-_YEGJgAXpTkGiS_jUefF4WFy9TLA5mJmWV1UGK991Seolocw55nIqu8uewnGZrKlzn_URF3fqCCkPEu048MFp3V5B32llPFdw6ecDZM4ixH_Y6Ex2ja_KQrD-VhNLIsQT0l0xiRsuD4NxCSVzIO3oh4AR-qxkF088JN5s0b7vYNrPpc20UUPEMmP9UTsO9TnPKrxhEPZX0qoIvEdXQwWA__4p652c_mTlKFK9F-VOq0Af-rMFWJFT2H9Cstjh4J7RyLp70DgUD5IJYLysP3eEEvknyDAOnB3IbnpMF4vePgU0vTSD-QHvvd-GxNquZ1d-hGjAfcdG70mwq736OitfXAGrZBSH7tm4yOCxSllF5t1z0TIE-LuM1UKKvYFt1H8B8TI-mhgtXwx6FhLAytzRKYOQlO5A==&xkcb=SoBK6_M3hwflOvyN8p0JbzkdCdPP&p=2&camk=C3EPSzFlQw95L2GYPjH5nw==&vjs=3",
+            "tk": "1jtgbqmn921k6001"
+          },
+          "newJob": false,
+          "normTitle": "Java Developer",
+          "numHires": 1096,
+          "openInterviewsInterviewsOnTheSpot": false,
+          "openInterviewsJob": false,
+          "openInterviewsOffersOnTheSpot": false,
+          "openInterviewsPhoneJob": false,
+          "organicApplyStartCount": 47202,
+          "overrideIndeedApplyText": true,
+          "packageTier": "NONE",
+          "preciseLocationModel": {
+            "obfuscateLocation": false,
+            "overrideJCMPreciseLocationModel": true
+          },
+          "pubDate": 1778216400000,
+          "rankedBenefits": {
+            "GENERIC": [
+              "WZ9TD"
+            ],
+            "OCCUPATION_TFIDF": [
+              "WZ9TD"
+            ]
+          },
+          "rankingScoresModel": {
+            "bid": 106902,
+            "bidPosition": 3,
+            "eApply": 0.014480283,
+            "eAttainability": 0,
+            "eQualified": 0
+          },
+          "recommendationReasonModel": {
+            "reason": null
+          },
+          "redirectToThirdPartySite": false,
+          "remoteLocation": true,
+          "remoteWorkModel": {
+            "inlineText": true,
+            "text": "Remote",
+            "type": "REMOTE_ALWAYS"
+          },
+          "resultBeforeExpansion": false,
+          "resumeMatch": false,
+          "salarySnippet": {
+            "currency": "USD",
+            "salaryTextFormatted": false,
+            "source": "EXTRACTION",
+            "text": "Up to $100 an hour"
+          },
+          "saved": false,
+          "savedApplication": false,
+          "screenerQuestionsURL": "iqp://INDEXEDJOB/10128416810?sourceUrl=https%3A%2F%2Fapp.dataannotation.tech%2Fpartners%2Findeed%2Fscreener-questions%2FPROG_SA&country=US&language=en",
+          "searchUID": "1jtgbqmn921k6001",
+          "showCommutePromo": false,
+          "showEarlyApply": false,
+          "showJobType": false,
+          "showRelativeDate": true,
+          "showSponsoredLabel": false,
+          "showStrongerAppliedLabel": false,
+          "smartFillEnabled": false,
+          "smbD2iEnabled": false,
+          "snippet": "<ul style=\"list-style-type:circle;margin-top: 0px;margin-bottom: 0px;padding-left:20px;\">\n <li style=\"margin-bottom:0px;\">Help train AI chatbots while gaining the flexibility of remote work and choosing your own schedule.</li>\n <li>We are looking for an existing Java Developer - AI Trainer\u2026</li>\n</ul>",
+          "sourceId": 44932918,
+          "sponsored": true,
+          "taxoAttributes": [
+            "Hourly pay"
+          ],
+          "taxoAttributesDisplayLimit": 3,
+          "taxoLogAttributes": [
+            "8AD9K"
+          ],
+          "taxonomyAttributes": [
+            {
+              "attributes": [
+                {
+                  "label": "Full-time",
+                  "suid": "CF3CP"
+                }
+              ],
+              "label": "job-types"
+            },
+            {
+              "attributes": [],
+              "label": "shifts"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Remote",
+                  "suid": "DSQF7"
+                }
+              ],
+              "label": "remote"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Flexible schedule",
+                  "suid": "WZ9TD"
+                }
+              ],
+              "label": "benefits"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "Full-time",
+                  "suid": "CF3CP"
+                }
+              ],
+              "label": "job-types-cc"
+            },
+            {
+              "attributes": [
+                {
+                  "label": "On demand",
+                  "suid": "KPAXE"
+                }
+              ],
+              "label": "schedules"
+            }
+          ],
+          "thirdPartyApplyUrl": "http://www.indeed.com//applystart?jk=40da1d788bab69b0&from=jobsearch&mvj=0&jobsearchTk=1jtgbqmn921k6001&spon=1&adid=461480873&ad=-6NYlbfkN0CnM4TERr6XuVBW3VTRACvDXDx9S3Pbn6a0SwhkmoLTiLCFUpITpg4QVB7SR39MoP0BLR841cgbHYPJopI9fiQa67MfGt-TS3gF6m2xSij4aAarTk90jQV5vKgeHuaG-dJ4P0bDI4Zj_HA51wzDk11uApXr5YRiDtyBwiQNLf5d9Lyctn13orSbPQeRCVH0zqauP5hiYL4ZkfdYeGe3I1Wbq855uSspMHp95AmMxgY4r8gBmfjoH2ZckgGERlYYLnGOotBKSI7i1CVIHtUDpAaF8MlAFpdDsF7JJ3NyS5QmqxHMQDQvH-MTyCDpC3bADAnfw6-khs-18fT3MQkZxaiHCnFCeCieu5HX8FLJW0Vbld4azqHzvV6iSucVFTJi1AKqwERerK9DWIfC0zose7qxVHyZkCqyCO7MtebmgcFgz8G-TMEKd3KEBdjQHW4g989DJ5vUEw0r_96qW6vxxph2br8GDqh0gRdNttZbE8iRAL2dJQGEiGkx-SEOJbw4SoVYUwpjBejBIJ-rdG4cyC5ppwrlxPXTlnAcqq9Ie16k5dyg-_YEGJgAXpTkGiS_jUefF4WFy9TLA5mJmWV1UGK991Seolocw55nIqu8uewnGZrKlzn_URF3fqCCkPEu048MFp3V5B32llPFdw6ecDZM4ixH_Y6Ex2ja_KQrD-VhNLIsQT0l0xiRsuD4NxCSVzIO3oh4AR-qxkF088JN5s0b7vYNrPpc20UUPEMmP9UTsO9TnPKrxhEPZX0qoIvEdXQwWA__4p652c_mTlKFK9F-VOq0Af-rMFWJFT2H9Cstjh4J7RyLp70DgUD5IJYLysP3eEEvknyDAOnB3IbnpMF4vePgU0vTSD-QHvvd-GxNquZ1d-hGjAfcdG70mwq736OitfXAGrZBSH7tm4yOCxSllF5t1z0TIE-LuM1UKKvYFt1H8B8TI-mhgtXwx6FhLAytzRKYOQlO5A%3D%3D&xkcb=SoBK6_M3hwflOvyN8p0JbzkdCdPP&sjdu=Xbbwb0dbVlAPs0TIG7JumKleoDYenFeEkrm-BS2RFumAMJVRHnJnPXPQ1w4iVi_Bv12mcQcytWIaRGXVXpPFAJNHnyyAVakdybx_o10fpZKWxZ_XE6bUgpYqVY9LTx2dtS2-wQGVvKfiJXE4sfR0wlJijxkADwfaIzsQvfCpeWTbIoPN703ijAiPmVd-0iRuRqKLUPp4vg4qLycQPkInGwEJ8mAfOsifjoMlENy_ja0-fFKe71EIu7Z9bTd7syIkw1kTIG9N_3xV2F-5GZy3Y5T0JNFK-0qbOVkES4SHQ0SfH4NnnAa-f9nnHhIvvjmnptIrPbrObVWz49O6dy2-oLq1ZJUrsmKgOZzFKNCYYNCUbKfW-PqPLgNFoMJ1bqVan-wqq3U_828sw_TKiEbPLGBrX0Smwsv_nfNl645h88Ku6u2wUb1_sbeLBjNQYL-D2HF0NWgGwnwCdIgq-ovHBLz2azumxzGoE7sQwq5WgQU6Ejv27DnhAx3OksPVD9Q467ScvhtHyYiswIKxB_GqzPnKFzVfX6KlLlncqFzPtAdqUh6kbE--RtzZcE3CpSZy49vbhsBa3mK5jcKTo3kAW8OQHj80D0t3tmm_5Bz3HzmhEYtbc0mGitHUCyNLpy3-KmOMQ52bBemf2QzlsBwZM_s0P_i5BUDL-dg7xq4JOcYWtazSiL6AGCmfQ3-IZ66NzjFoAZecxXabAkK3Z3yS8YOicXGVy9B8QF5rlp7N10RoPP4JgHEDSdDTCZF8Vqkr81cMtwirsl6Ces3MDG_-lU8Qog1PeQs_BLn7VE7fnL8sFLH5stKSKIMHqtDXLFkv6ca-q2HsMP3KDd9l8Thw_GraXIfi1zP_-1dJJVesjBKRddONqBtekJ0dg4wz_0QGaCgpsJqAKTEWNu1jykb1WSIDsEyBoXQ6XBTbTgoVJg9W_pQ9pnl27ulNi4MRUUOuGkAhqGRX-suSwgxeatDCu6YGnLoNIz5_owj5ofazOCNHfLb8VF1mNhHIbmk41BvwrTMMyFcwLRwY5Zl6HRqlWTvnfRX_o71GiRqG-mo84veWnqey2tja4ynd5oGGEpJW9fAHiF_dYhtRE6_ZSH5JlkPuii5VUVatLa1wS1_UqHMTfm4yTZQ3k9qHVV5U6scDQUCqNBl8S_CEc8NZr2mHRzBoow79YUEPkNKI4KY03N1pG38fj16ZXK2GuKr1y3OpndPSDTO2ELdmaqpPn6H5V1YnWYL95pWEI_Zy8NrxXVDtYzPclQ0xpJHTWANEIb5vatND9npl3p-ADGXXrn291chTmlJv9lkd31Zosvlcvtn6BtL5lqZmS4Z29H6UBAhS-m4v2dwNroX8_PDn_lwGbwDY1d5uBB3EHNFQRlK-uGR-5UJ1eDDjSJ6uQi4hk6R-Z8H9h0Q5tm1cqEFUnMMiQpxZ6pdvi2b3fmxnjLYK0Ro&vjfrom=vjs&astse=da7fff3285780cc4&assa=589",
+          "tier": {
+            "matchedPreferences": {
+              "longMatchedPreferences": [],
+              "stringMatchedPreferences": []
+            },
+            "type": "DEFAULT"
+          },
+          "title": "Java Developer - AI Trainer",
+          "translatedAttributes": [],
+          "translatedCmiJobTags": [],
+          "truncatedCompany": "DataAnnotation",
+          "urgentlyHiring": false,
+          "viewJobLink": "/viewjob?jk=40da1d788bab69b0&from=vjs&tk=1jtgbqmn921k6001&viewtype=embedded&advn=7831672186689475&adid=461480873&ad=-6NYlbfkN0CnM4TERr6XuVBW3VTRACvDXDx9S3Pbn6a0SwhkmoLTiLCFUpITpg4QVB7SR39MoP0BLR841cgbHYPJopI9fiQa67MfGt-TS3gF6m2xSij4aAarTk90jQV5vKgeHuaG-dJ4P0bDI4Zj_HA51wzDk11uApXr5YRiDtyBwiQNLf5d9Lyctn13orSbPQeRCVH0zqauP5hiYL4ZkfdYeGe3I1Wbq855uSspMHp95AmMxgY4r8gBmfjoH2ZckgGERlYYLnGOotBKSI7i1CVIHtUDpAaF8MlAFpdDsF7JJ3NyS5QmqxHMQDQvH-MTyCDpC3bADAnfw6-khs-18fT3MQkZxaiHCnFCeCieu5HX8FLJW0Vbld4azqHzvV6iSucVFTJi1AKqwERerK9DWIfC0zose7qxVHyZkCqyCO7MtebmgcFgz8G-TMEKd3KEBdjQHW4g989DJ5vUEw0r_96qW6vxxph2br8GDqh0gRdNttZbE8iRAL2dJQGEiGkx-SEOJbw4SoVYUwpjBejBIJ-rdG4cyC5ppwrlxPXTlnAcqq9Ie16k5dyg-_YEGJgAXpTkGiS_jUefF4WFy9TLA5mJmWV1UGK991Seolocw55nIqu8uewnGZrKlzn_URF3fqCCkPEu048MFp3V5B32llPFdw6ecDZM4ixH_Y6Ex2ja_KQrD-VhNLIsQT0l0xiRsuD4NxCSVzIO3oh4AR-qxkF088JN5s0b7vYNrPpc20UUPEMmP9UTsO9TnPKrxhEPZX0qoIvEdXQwWA__4p652c_mTlKFK9F-VOq0Af-rMFWJFT2H9Cstjh4J7RyLp70DgUD5IJYLysP3eEEvknyDAOnB3IbnpMF4vePgU0vTSD-QHvvd-GxNquZ1d-hGjAfcdG70mwq736OitfXAGrZBSH7tm4yOCxSllF5t1z0TIE-LuM1UKKvYFt1H8B8TI-mhgtXwx6FhLAytzRKYOQlO5A%3D%3D&xkcb=SoBK6_M3hwflOvyN8p0JbzkdCdPP&continueUrl=%2Fjobs%3Fq%3Dsoftware%2Bengineer%26l%3DRemote",
+          "vjFeaturedEmployerCandidate": false
+        }
+      ],
+      "pageNumber": 1,
+      "what": "software engineer",
+      "where": "Remote"
+    }
+  }
+}

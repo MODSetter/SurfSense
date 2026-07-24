@@ -275,6 +275,7 @@ export const youtube: ConnectorPageContent = {
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "SERP API", href: "/google-search" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
+		{ label: "Indeed API", href: "/indeed" },
 		{ label: "SurfSense MCP Server", href: "/mcp-server" },
 	],
 };

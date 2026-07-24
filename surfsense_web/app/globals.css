@@ -54,7 +54,7 @@
 	--sidebar-ring: oklch(0.708 0 0);
 	--main-panel: var(--panel);
 	--syntax-bg: #f5f5f5;
-	--brand: oklch(0.623 0.214 259.815);
+	--brand: oklch(0.546 0.245 262.881);
 	--highlight: oklch(0.852 0.199 91.936);
 }
 
@@ -103,7 +103,7 @@ html[data-surfsense-auth-type="LOCAL"] .runtime-auth-google {
 	--sidebar-ring: oklch(0.439 0 0);
 	--main-panel: var(--panel);
 	--syntax-bg: #1e1e1e;
-	--brand: oklch(0.707 0.165 254.624);
+	--brand: oklch(0.546 0.245 262.881);
 	--highlight: oklch(0.852 0.199 91.936);
 }
 

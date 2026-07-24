@@ -37,7 +37,11 @@ class SurfSenseClient:
         self._fallback_api_key = fallback_api_key
         self._http = httpx.AsyncClient(
             base_url=api_base,
-            headers={"Accept": "application/json"},
+            # ``X-SurfSense-Client`` lets the backend distinguish PAT traffic
+            # originating from this MCP server vs. raw PAT scripts, so
+            # "documents added via MCP" / "searches via MCP" are queryable.
+            # Server-to-server, so no CORS implications.
+            headers={"Accept": "application/json", "X-SurfSense-Client": "mcp"},
             timeout=timeout,
         )
 
@@ -61,13 +65,17 @@ class SurfSenseClient:
         json: Any | None = None,
         data: dict[str, Any] | None = None,
         files: Any | None = None,
+        headers: dict[str, str] | None = None,
     ) -> Any:
-        """Send a request and return the parsed body, or raise ``ToolError``."""
+        """Send a request and return the parsed body, or raise ``ToolError``.
+
+        ``headers`` overrides the client defaults for this call.
+        """
         # Omit unset query params: sending them empty makes the API parse ""
         # as a value (e.g. int("") on folder_id) and fail.
         if params is not None:
             params = {key: value for key, value in params.items() if value is not None}
-        headers = self._auth_headers()
+        headers = {**self._auth_headers(), **(headers or {})}
         try:
             response = await self._http.request(
                 method,

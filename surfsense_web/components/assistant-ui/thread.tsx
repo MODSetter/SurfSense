@@ -12,17 +12,17 @@ import {
 	ArrowUpIcon,
 	Camera,
 	ChevronDown,
-	ChevronRight,
 	Clipboard,
+	LayoutGrid,
 	Plus,
 	Settings2,
 	SquareIcon,
+	TriangleAlert,
 	Unplug,
 	Upload,
 	Wrench,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -44,7 +44,7 @@ import {
 	clearPremiumAlertForThreadAtom,
 	premiumAlertByThreadAtom,
 } from "@/atoms/chat/premium-alert.atom";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import { importConnectorRequestAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { llmSetupStatusAtomFamily } from "@/atoms/model-connections/model-connections-query.atoms";
@@ -52,6 +52,11 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ChatViewport } from "@/components/assistant-ui/chat-viewport";
+import { ComposerAddMenuDrawer } from "@/components/assistant-ui/composer-add-menu-drawer";
+import {
+	type ConnectorRow,
+	useConnectorRows,
+} from "@/components/assistant-ui/connector-popup/hooks/use-connector-rows";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
@@ -68,19 +73,12 @@ import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-	Drawer,
-	DrawerContent,
-	DrawerHandle,
-	DrawerHeader,
-	DrawerTitle,
-} from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuPortal,
+	DropdownMenuSeparator,
 	DropdownMenuSub,
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
@@ -88,6 +86,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -97,11 +96,13 @@ import {
 	getToolDisplayName,
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
+import { canSubmitChat } from "@/lib/chat/can-submit-chat";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
@@ -147,13 +148,14 @@ function getComposerSuggestionAnchorPoint(
 
 interface ThreadProps {
 	hasActiveThread?: boolean;
+	isLoadingMessages?: boolean;
 }
 
-export const Thread: FC<ThreadProps> = ({ hasActiveThread = false }) => {
-	return <ThreadContent hasActiveThread={hasActiveThread} />;
+export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
+	return <ThreadContent hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />;
 };
 
-const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
+const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
@@ -162,16 +164,19 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
 			}}
 		>
 			<ChatViewport
+				footerAlwaysVisible={hasActiveThread}
 				footer={
-					<AuiIf condition={({ thread }) => hasActiveThread || !thread.isEmpty}>
+					<>
 						<PremiumQuotaPinnedAlert />
-						<Composer />
-					</AuiIf>
+						<Composer isLoadingMessages={isLoadingMessages} />
+					</>
 				}
 			>
 				<AuiIf condition={({ thread }) => !hasActiveThread && thread.isEmpty}>
 					<ThreadWelcome />
 				</AuiIf>
+
+				{isLoadingMessages ? <ThreadMessagesSkeletonBody /> : null}
 
 				<ThreadPrimitive.Messages
 					components={{
@@ -182,6 +187,36 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false }) => {
 				/>
 			</ChatViewport>
 		</ThreadPrimitive.Root>
+	);
+};
+
+const ThreadMessagesSkeletonBody: FC = () => {
+	return (
+		<div className="mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col gap-6 py-8">
+			<div className="flex justify-end">
+				<Skeleton className="h-12 w-[65%] max-w-56 rounded-2xl" />
+			</div>
+
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-4 w-full" />
+				<Skeleton className="h-4 w-[85%]" />
+				<Skeleton className="h-18 w-[40%]" />
+			</div>
+
+			<div className="flex justify-end gap-2">
+				<Skeleton className="h-12 w-[78%] max-w-72 rounded-2xl" />
+			</div>
+
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-10 w-[30%]" />
+				<Skeleton className="h-4 w-[90%]" />
+				<Skeleton className="h-6 w-[60%]" />
+			</div>
+
+			<div className="flex justify-end gap-2">
+				<Skeleton className="h-12 w-[85%] max-w-96 rounded-2xl" />
+			</div>
+		</div>
 	);
 };
 
@@ -273,99 +308,6 @@ const ThreadWelcome: FC = () => {
 	);
 };
 
-const BANNER_CONNECTORS = [
-	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
-	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
-	{ type: "NOTION_CONNECTOR", label: "Notion" },
-	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
-	{ type: "SLACK_CONNECTOR", label: "Slack" },
-] as const;
-
-const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
-
-const ConnectToolsBanner: FC<{
-	isThreadEmpty: boolean;
-	onVisibleChange?: (visible: boolean) => void;
-}> = ({ isThreadEmpty, onVisibleChange }) => {
-	const { data: connectors } = useAtomValue(connectorsAtom);
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
-	const [dismissed, setDismissed] = useState(() => {
-		if (typeof window === "undefined") return false;
-		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
-	});
-	const [dismissRequested, setDismissRequested] = useState(false);
-
-	const hasConnectors = (connectors?.length ?? 0) > 0;
-	const isVisible = !dismissed && !hasConnectors && isThreadEmpty;
-	const shouldShowTray = isVisible && !dismissRequested;
-
-	useEffect(() => {
-		onVisibleChange?.(isVisible);
-	}, [isVisible, onVisibleChange]);
-
-	const handleDismiss = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		setDismissRequested(true);
-	};
-
-	return (
-		<AnimatePresence
-			initial={false}
-			onExitComplete={() => {
-				if (!dismissRequested) return;
-				setDismissed(true);
-				localStorage.setItem(BANNER_DISMISSED_KEY, "true");
-			}}
-		>
-			{shouldShowTray ? (
-				<motion.div
-					key="connect-tools-tray"
-					initial={{ opacity: 0, y: -10 }}
-					animate={{ opacity: 1, y: 0 }}
-					exit={{ opacity: 0, y: -14 }}
-					transition={{ duration: 0.18, ease: "easeOut" }}
-					className="relative z-0 -mt-5 flex min-w-0 items-center gap-2 rounded-b-3xl border border-input bg-muted/40 px-4 pt-7 pb-3 shadow-sm shadow-black/5 dark:shadow-black/10"
-				>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="h-7 min-w-0 cursor-pointer justify-start gap-2 rounded-md px-0 text-[13px] font-normal text-muted-foreground select-none hover:bg-transparent hover:text-foreground"
-						onClick={() => setConnectorDialogOpen(true)}
-					>
-						<Unplug className="size-4 shrink-0" />
-						<span className="truncate">Connect your tools</span>
-					</Button>
-					<div className="min-w-0 flex-1" />
-					<AvatarGroup className="shrink-0">
-						{BANNER_CONNECTORS.map(({ type }, i) => (
-							<Avatar
-								key={type}
-								className="size-5"
-								style={{ zIndex: BANNER_CONNECTORS.length - i }}
-							>
-								<AvatarFallback className="bg-accent text-[10px]">
-									{getConnectorIcon(type, "size-3")}
-								</AvatarFallback>
-							</Avatar>
-						))}
-					</AvatarGroup>
-					<Button
-						type="button"
-						onClick={handleDismiss}
-						variant="ghost"
-						size="icon"
-						className="size-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-transparent hover:text-foreground"
-						aria-label="Dismiss"
-					>
-						<X className="size-3.5" />
-					</Button>
-				</motion.div>
-			) : null}
-		</AnimatePresence>
-	);
-};
-
 const PendingScreenImageStrip: FC = () => {
 	const [urls, setUrls] = useAtom(pendingUserImageDataUrlsAtom);
 	if (urls.length === 0) return null;
@@ -445,8 +387,7 @@ const ClipboardChip: FC<{ text: string; onDismiss: () => void }> = ({ text, onDi
 };
 
 /**
- * Inline "this workspace can't chat yet" tray, mirrored on top of the composer
- * (same visual treatment as the "Connect your tools" tray below it).
+ * Inline "this workspace can't chat yet" tray, mirrored on top of the composer.
  *
  * Replaces the old full-screen onboarding redirect: a workspace with no usable
  * chat model (fresh install, or an admin deleted the last model) renders the
@@ -490,7 +431,11 @@ const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> 
 	);
 };
 
-const Composer: FC = () => {
+interface ComposerProps {
+	isLoadingMessages?: boolean;
+}
+
+const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
@@ -527,7 +472,6 @@ const Composer: FC = () => {
 
 	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
-	const [connectToolsTrayVisible, setConnectToolsTrayVisible] = useState(false);
 
 	const { data: chatSetupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId ?? 0));
 	const isChatUnavailable = !!chatSetupStatus && chatSetupStatus.status !== "ready";
@@ -823,7 +767,7 @@ const Composer: FC = () => {
 	);
 
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning || isBlockedByOtherUser) return;
+		if (isLoadingMessages || isThreadRunning || isBlockedByOtherUser) return;
 		if (showDocumentPopover || showPromptPicker) return;
 
 		if (clipboardInitialText) {
@@ -844,6 +788,7 @@ const Composer: FC = () => {
 	}, [
 		showDocumentPopover,
 		showPromptPicker,
+		isLoadingMessages,
 		isThreadRunning,
 		isBlockedByOtherUser,
 		clipboardInitialText,
@@ -988,7 +933,6 @@ const Composer: FC = () => {
 				<div
 					className={cn(
 						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
-						connectToolsTrayVisible && "rounded-b-3xl shadow-none dark:shadow-none",
 						isChatUnavailable && "shadow-none dark:shadow-none"
 					)}
 				>
@@ -1016,15 +960,13 @@ const Composer: FC = () => {
 					</div>
 					<ComposerAction
 						isBlockedByOtherUser={isBlockedByOtherUser}
+						isLoadingMessages={isLoadingMessages}
+						isThreadRunning={isThreadRunning}
 						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>
 				</div>
-				<ConnectToolsBanner
-					isThreadEmpty={isThreadEmpty}
-					onVisibleChange={setConnectToolsTrayVisible}
-				/>
-				{isThreadEmpty && isComposerInputEmpty ? (
+				{!isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
 					<div className="absolute top-full left-0 right-0 z-20">
 						<ChatExamplePrompts onSelect={handleExampleSelect} />
 					</div>
@@ -1087,22 +1029,27 @@ const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => 
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
+	isLoadingMessages?: boolean;
+	isThreadRunning?: boolean;
 	workspaceId: number;
 	onChatModelSelected?: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
 	isBlockedByOtherUser = false,
+	isLoadingMessages = false,
+	isThreadRunning = false,
 	workspaceId,
 	onChatModelSelected,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const router = useRouter();
+	const openConnectors = useCallback(
+		() => router.push(`/dashboard/${workspaceId}/connectors`),
+		[router, workspaceId]
+	);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
-	const [expandedConnectorGroups, setExpandedConnectorGroups] = useState<Set<string>>(
-		() => new Set()
-	);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
@@ -1137,6 +1084,20 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		() => new Set<string>((connectors ?? []).map((c) => c.connector_type)),
 		[connectors]
 	);
+	// "Your connectors" rows for the add-menu (desktop submenu + mobile drawer):
+	// same hook the connectors panel rail uses, so grouping + health glyphs match.
+	const { rows: connectorRows } = useConnectorRows((connectors ?? []) as SearchSourceConnector[]);
+	const setImportRequest = useSetAtom(importConnectorRequestAtom);
+	const openConnectorManage = useCallback(
+		(row: ConnectorRow) => {
+			// Deep-link into the connector's manage view: the panel's
+			// useConnectorDialog consumes this atom and routes by account count
+			// (none -> connect, one -> edit, many -> accounts list).
+			setImportRequest({ connectorType: row.type, mode: "auto" });
+			openConnectors();
+		},
+		[setImportRequest, openConnectors]
+	);
 
 	const toggleToolGroup = useCallback(
 		(toolNames: string[]) => {
@@ -1149,18 +1110,6 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		},
 		[disabledToolsSet, setDisabledTools]
 	);
-	const setConnectorGroupExpanded = useCallback((label: string, expanded: boolean) => {
-		setExpandedConnectorGroups((prev) => {
-			const next = new Set(prev);
-			if (expanded) {
-				next.add(label);
-			} else {
-				next.delete(label);
-			}
-			return next;
-		});
-	}, []);
-
 	const filteredTools = agentTools;
 	const groupedTools = useMemo(() => {
 		if (!filteredTools) return [];
@@ -1210,212 +1159,49 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	// send that lacks a resolvable model, making this defense-in-depth.
 	const isWorkspaceChatReady = setupStatus?.status === "ready";
 
-	const isSendDisabled = isComposerEmpty || !isWorkspaceChatReady || isBlockedByOtherUser;
+	const isSendDisabled = !canSubmitChat({
+		isLoadingMessages,
+		isThreadRunning,
+		isBlockedByOtherUser,
+		isComposerEmpty,
+		isWorkspaceChatReady,
+	});
+	const sendTooltip = isLoadingMessages
+		? "Loading conversation..."
+		: isBlockedByOtherUser
+			? "Wait for AI to finish responding"
+			: isComposerEmpty
+				? "Enter a message or add a screenshot to send"
+				: "Send message";
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				{!isDesktop ? (
-					<>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
-									aria-label="Upload files, manage tools and more"
-									data-joyride="connector-icon"
-								>
-									<Plus className="size-5" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent side="bottom" align="start" sideOffset={8}>
-								<DropdownMenuItem onSelect={() => openUploadDialog()}>
-									<Upload className="size-4" />
-									Upload Files
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
-									<Unplug className="size-4" />
-									MCP Connectors
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
-									<Settings2 className="size-4" />
-									Manage Tools
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-						<Drawer
-							open={toolsPopoverOpen}
-							onOpenChange={setToolsPopoverOpen}
-							shouldScaleBackground={false}
-						>
-							<DrawerContent className="h-[85vh] max-h-[85vh] z-80" overlayClassName="z-80">
-								<DrawerHandle />
-								<DrawerHeader className="px-4 pb-3 pt-2">
-									<DrawerTitle className="flex items-center justify-center gap-2 text-base font-semibold">
-										Manage Tools
-									</DrawerTitle>
-								</DrawerHeader>
-								<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin pb-6">
-									{regularToolGroups.map((group) => (
-										<div key={group.label}>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-												{group.label}
-											</div>
-											{group.tools.map((tool) => {
-												const isDisabled = disabledToolsSet.has(tool.name);
-												const ToolIcon = getToolIcon(tool.name);
-												return (
-													<div
-														key={tool.name}
-														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
-													>
-														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-sm font-medium truncate">
-															{formatToolName(tool.name)}
-														</span>
-														<Switch
-															checked={!isDisabled}
-															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0"
-														/>
-													</div>
-												);
-											})}
-										</div>
-									))}
-									{connectorToolGroups.length > 0 && (
-										<div>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-												Connector Actions
-											</div>
-											{connectorToolGroups.map((group) => {
-												const iconKey = group.connectorIcon ?? "";
-												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-												const toolNames = group.tools.map((t) => t.name);
-												const allDisabled = toolNames.every((n) => disabledToolsSet.has(n));
-												const isExpanded = expandedConnectorGroups.has(group.label);
-												return (
-													<Collapsible
-														key={group.label}
-														open={isExpanded}
-														onOpenChange={(open) => setConnectorGroupExpanded(group.label, open)}
-													>
-														<div className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors">
-															<CollapsibleTrigger asChild>
-																<Button
-																	type="button"
-																	variant="ghost"
-																	className="h-auto min-w-0 flex-1 justify-start gap-3 p-0 text-left hover:bg-transparent hover:text-inherit"
-																>
-																	{iconInfo ? (
-																		<Image
-																			src={iconInfo.src}
-																			alt={iconInfo.alt}
-																			width={18}
-																			height={18}
-																			className="size-[18px] shrink-0 select-none pointer-events-none"
-																			draggable={false}
-																		/>
-																	) : (
-																		<Wrench className="size-4 shrink-0 text-muted-foreground" />
-																	)}
-																	<span className="min-w-0 flex-1 truncate text-sm font-medium">
-																		{group.label}
-																	</span>
-																	{isExpanded ? (
-																		<ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-																	) : (
-																		<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-																	)}
-																</Button>
-															</CollapsibleTrigger>
-															<Switch
-																checked={!allDisabled}
-																onCheckedChange={() => toggleToolGroup(toolNames)}
-																className="shrink-0"
-															/>
-														</div>
-														<CollapsibleContent className="pb-1">
-															{group.tools.map((tool) => {
-																const isDisabled = disabledToolsSet.has(tool.name);
-																return (
-																	<div
-																		key={tool.name}
-																		className={cn(
-																			"ml-8 flex items-center gap-3 px-4 py-1.5 rounded-md transition-colors",
-																			"hover:bg-accent hover:text-accent-foreground",
-																			!isDisabled && "text-primary"
-																		)}
-																	>
-																		<span className="min-w-0 flex-1 truncate text-sm">
-																			{formatToolName(tool.name)}
-																		</span>
-																		<Switch
-																			checked={!isDisabled}
-																			onCheckedChange={() => toggleTool(tool.name)}
-																			className="shrink-0"
-																		/>
-																	</div>
-																);
-															})}
-														</CollapsibleContent>
-													</Collapsible>
-												);
-											})}
-										</div>
-									)}
-									{otherToolGroup && (
-										<div>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-												{otherToolGroup.label}
-											</div>
-											{otherToolGroup.tools.map((tool) => {
-												const isDisabled = disabledToolsSet.has(tool.name);
-												const ToolIcon = getToolIcon(tool.name);
-												return (
-													<div
-														key={tool.name}
-														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
-													>
-														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-sm font-medium truncate">
-															{formatToolName(tool.name)}
-														</span>
-														<Switch
-															checked={!isDisabled}
-															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0"
-														/>
-													</div>
-												);
-											})}
-										</div>
-									)}
-									{!filteredTools?.length && (
-										<div className="px-4 pt-3 pb-2">
-											<Skeleton className="h-3 w-16 mb-2" />
-											{["t1", "t2", "t3", "t4"].map((k) => (
-												<div key={k} className="flex items-center gap-3 py-2">
-													<Skeleton className="size-4 rounded shrink-0" />
-													<Skeleton className="h-3.5 flex-1" />
-													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
-												</div>
-											))}
-											<Skeleton className="h-3 w-24 mt-3 mb-2" />
-											{["c1", "c2", "c3"].map((k) => (
-												<div key={k} className="flex items-center gap-3 py-2">
-													<Skeleton className="size-4 rounded shrink-0" />
-													<Skeleton className="h-3.5 flex-1" />
-													<Skeleton className="h-5 w-9 rounded-full shrink-0" />
-												</div>
-											))}
-										</div>
-									)}
-								</div>
-							</DrawerContent>
-						</Drawer>
-					</>
+					<ComposerAddMenuDrawer
+						trigger={
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-9 w-9 rounded-full p-0 font-semibold text-xs text-muted-foreground transition-colors dark:border-muted-foreground/15 hover:bg-foreground/10 hover:text-foreground"
+								aria-label="Upload files, manage tools and more"
+								data-joyride="connector-icon"
+							>
+								<Plus className="size-5" />
+							</Button>
+						}
+						onUploadFiles={() => openUploadDialog()}
+						connectorRows={connectorRows}
+						onSelectConnector={openConnectorManage}
+						onBrowseConnectors={openConnectors}
+						regularToolGroups={regularToolGroups}
+						connectorToolGroups={connectorToolGroups}
+						otherToolGroup={otherToolGroup}
+						disabledToolsSet={disabledToolsSet}
+						onToggleTool={toggleTool}
+						onToggleToolGroup={toggleToolGroup}
+						toolsLoading={!filteredTools?.length}
+					/>
 				) : (
 					<DropdownMenu
 						onOpenChange={(open) => {
@@ -1454,10 +1240,53 @@ const ComposerAction: FC<ComposerActionProps> = ({
 								<Camera className="h-4 w-4" />
 								Take a screenshot
 							</DropdownMenuItem>
-							<DropdownMenuItem onSelect={() => setConnectorDialogOpen(true)}>
-								<Unplug className="h-4 w-4" />
-								MCP Connectors
-							</DropdownMenuItem>
+							{connectorRows.length > 0 ? (
+								<DropdownMenuSub>
+									<DropdownMenuSubTrigger>
+										<Unplug className="h-4 w-4" />
+										MCP Connectors
+									</DropdownMenuSubTrigger>
+									<DropdownMenuPortal>
+										<DropdownMenuSubContent
+											collisionPadding={8}
+											className="w-60 max-h-72 gap-1 overflow-y-auto overscroll-none"
+										>
+											{connectorRows.map((row) => (
+												<DropdownMenuItem
+													key={row.type}
+													onSelect={() => openConnectorManage(row)}
+													className="gap-2"
+												>
+													{getConnectorIcon(row.type, "h-4 w-4")}
+													<span className="min-w-0 flex-1 truncate">{row.title}</span>
+													{row.health === "syncing" ? (
+														<Spinner size="xs" className="shrink-0" />
+													) : row.health === "failed" ? (
+														<TriangleAlert
+															className="h-3.5 w-3.5 shrink-0 text-destructive"
+															aria-label={row.errorMessage ?? "Indexing failed"}
+														/>
+													) : row.accountCount > 1 ? (
+														<span className="shrink-0 text-xs text-muted-foreground">
+															{row.accountCount}
+														</span>
+													) : null}
+												</DropdownMenuItem>
+											))}
+											<DropdownMenuSeparator />
+											<DropdownMenuItem onSelect={openConnectors} className="gap-2">
+												<LayoutGrid className="h-4 w-4" />
+												Manage connectors
+											</DropdownMenuItem>
+										</DropdownMenuSubContent>
+									</DropdownMenuPortal>
+								</DropdownMenuSub>
+							) : (
+								<DropdownMenuItem onSelect={openConnectors}>
+									<Unplug className="h-4 w-4" />
+									MCP Connectors
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSub
 								open={toolsPopoverOpen}
 								onOpenChange={(open) => {
@@ -1478,7 +1307,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 									>
 										{regularToolGroups.map((group) => (
 											<div key={group.label}>
-												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+												<div className="px-2 pt-1.5 pb-0.5 text-xs text-muted-foreground font-semibold select-none">
 													{group.label}
 												</div>
 												{group.tools.map((tool) => {
@@ -1513,7 +1342,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 										))}
 										{connectorToolGroups.length > 0 && (
 											<div>
-												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+												<div className="px-2 pt-1.5 pb-0.5 text-xs text-muted-foreground font-semibold select-none">
 													Connector Actions
 												</div>
 												{connectorToolGroups.map((group) => {
@@ -1599,7 +1428,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 										)}
 										{otherToolGroup && (
 											<div>
-												<div className="px-2 pt-1.5 pb-0.5 text-[10px] text-muted-foreground/80 font-normal select-none">
+												<div className="px-2 pt-1.5 pb-0.5 text-xs text-muted-foreground font-semibold select-none">
 													{otherToolGroup.label}
 												</div>
 												{otherToolGroup.tools.map((tool) => {
@@ -1652,22 +1481,16 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				)}
 				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
-			<div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
 				<ChatHeader
 					workspaceId={workspaceId}
-					className="h-9 max-w-[44vw] px-2 sm:max-w-[220px] sm:px-3"
+					className="h-9 max-w-[44vw] px-2 sm:max-w-none sm:px-3"
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
-							tooltip={
-								isBlockedByOtherUser
-									? "Wait for AI to finish responding"
-									: isComposerEmpty
-										? "Enter a message or add a screenshot to send"
-										: "Send message"
-							}
+							tooltip={sendTooltip}
 							side="bottom"
 							type="submit"
 							variant="default"

@@ -6,14 +6,23 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export const activeWorkspaceIdAtom = atom<string | null>(null);
 
-export const workspacesQueryParamsAtom = atom<GetWorkspacesRequest["queryParams"]>({
-	skip: 0,
-	limit: 10,
-	owned_only: false,
+export const workspaceLimitsAtom = atomWithQuery(() => {
+	return {
+		queryKey: cacheKeys.workspaces.limits,
+		staleTime: Infinity,
+		queryFn: async () => {
+			return workspacesApiService.getWorkspaceLimits();
+		},
+	};
 });
 
 export const workspacesAtom = atomWithQuery((get) => {
-	const queryParams = get(workspacesQueryParamsAtom);
+	const workspaceLimits = get(workspaceLimitsAtom).data;
+	const queryParams: GetWorkspacesRequest["queryParams"] = {
+		skip: 0,
+		...(workspaceLimits ? { limit: workspaceLimits.max_workspaces_per_user } : {}),
+		owned_only: false,
+	};
 
 	return {
 		queryKey: cacheKeys.workspaces.withQueryParams(queryParams),

@@ -15,6 +15,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
+from app.agents.chat.multi_agent_chat.shared.middleware.citation_state import (
+    build_citation_state_mw,
+)
 from app.agents.chat.multi_agent_chat.shared.middleware.resilience import (
     ResilienceMiddlewares,
 )
@@ -45,6 +48,8 @@ def build_subagent_middleware_stack(
     return {
         "todos": build_todos_mw(),
         "permission": permission,
+        # Declares the citation_registry channel so run [n]s merge up from tools.
+        "citation": build_citation_state_mw(),
         "retry": resilience.retry,
         "fallback": resilience.fallback,
         "model_call_limit": resilience.model_call_limit,

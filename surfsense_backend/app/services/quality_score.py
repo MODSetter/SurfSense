@@ -26,8 +26,10 @@ from __future__ import annotations
 # Tunables (constants, not flags)
 # ---------------------------------------------------------------------------
 
-# Top-K size for deterministic spread inside the locked tier.
-_QUALITY_TOP_K: int = 5
+# Top-K size for deterministic spread inside the locked tier. Auto only
+# ever pins one of the K best-scoring candidates, so this is the effective
+# "shortlist" size regardless of how large the OpenRouter catalogue is.
+_QUALITY_TOP_K: int = 4
 
 # Hard health gate: any cfg whose best non-null uptime is below this %
 # is excluded from Auto-mode selection entirely.
@@ -74,39 +76,20 @@ _TINY_LEGACY_PENALTY_PATTERNS: tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 
 # OpenRouter-side provider slug (the prefix before ``/`` in the model id).
-# Tiers are coarse: frontier labs > strong open / fast-moving labs >
-# specialist labs > everything else.
+# Deliberately frontier-labs-only: anything not listed falls through to the
+# neutral default (15) so smaller labs can't out-prestige the big four and
+# crowd into the Auto top-K shortlist.
 PROVIDER_PRESTIGE_OR: dict[str, int] = {
-    # Frontier labs
     "openai": 50,
     "anthropic": 50,
     "google": 50,
     "x-ai": 50,
-    # Strong open / fast-moving labs
-    "deepseek": 38,
-    "qwen": 38,
-    "meta-llama": 38,
-    "mistralai": 38,
-    "cohere": 38,
-    "nvidia": 38,
-    "alibaba": 38,
-    # Specialist / regional / strong second-tier
-    "microsoft": 28,
-    "01-ai": 28,
-    "minimax": 28,
-    "moonshot": 28,
-    "z-ai": 28,
-    "nousresearch": 28,
-    "ai21": 28,
-    "perplexity": 28,
-    # Smaller / niche providers
-    "liquid": 18,
-    "cognitivecomputations": 18,
-    "venice": 18,
-    "inflection": 18,
 }
 
 # YAML provider field (the upstream API shape the operator selected).
+# Frontier-labs-only, mirroring PROVIDER_PRESTIGE_OR; unlisted providers get
+# the neutral default (15). ``ollama_chat`` / ``custom`` stay listed because
+# they sit *below* the default — removing them would raise their score.
 PROVIDER_PRESTIGE_YAML: dict[str, int] = {
     "azure": 50,
     "openai": 50,
@@ -114,16 +97,6 @@ PROVIDER_PRESTIGE_YAML: dict[str, int] = {
     "gemini": 50,
     "vertex_ai": 50,
     "xai": 50,
-    "mistral": 38,
-    "deepseek": 38,
-    "cohere": 38,
-    "groq": 30,
-    "together_ai": 28,
-    "fireworks_ai": 28,
-    "perplexity": 28,
-    "bedrock": 28,
-    "openrouter": 25,
-    "requesty": 25,
     "ollama_chat": 12,
     "custom": 12,
 }

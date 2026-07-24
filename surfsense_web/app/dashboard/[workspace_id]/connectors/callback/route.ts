@@ -19,7 +19,9 @@ export async function GET(
 	const response = new NextResponse(null, {
 		status: 302,
 		headers: {
-			Location: `/dashboard/${workspace_id}/new-chat`,
+			// Land on the connectors panel so `useConnectorDialog` (mounted there)
+			// consumes the result cookie and continues the indexing/edit flow.
+			Location: `/dashboard/${workspace_id}/connectors`,
 		},
 	});
 	response.cookies.set(OAUTH_RESULT_COOKIE, result, {

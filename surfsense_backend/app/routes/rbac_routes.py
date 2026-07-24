@@ -28,6 +28,7 @@ from app.db import (
     WorkspaceRole,
     get_async_session,
 )
+from app.observability import analytics as ph_analytics
 from app.schemas import (
     InviteAcceptRequest,
     InviteAcceptResponse,
@@ -782,6 +783,19 @@ async def create_invite(
         )
         db_invite = result.scalars().first()
 
+        # Authoritative invite creation (migrated from team-content.tsx).
+        ph_analytics.capture_for(
+            auth,
+            "workspace_invite_sent",
+            {
+                "workspace_id": workspace_id,
+                "role_name": db_invite.role.name if db_invite.role else None,
+                "has_expiry": db_invite.expires_at is not None,
+                "has_max_uses": db_invite.max_uses is not None,
+            },
+            groups={"workspace": str(workspace_id)},
+        )
+
         return db_invite
 
     except HTTPException:
@@ -1090,6 +1104,16 @@ async def accept_invite(
 
         role_name = invite.role.name if invite.role else "Default"
         workspace_name = invite.workspace.name if invite.workspace else ""
+
+        # Authoritative join (migrated from app/invite/[invite_code]/page.tsx,
+        # which fired both events). workspace_name dropped — user content.
+        for _evt in ("workspace_invite_accepted", "workspace_user_added"):
+            ph_analytics.capture_for(
+                auth,
+                _evt,
+                {"workspace_id": invite.workspace_id, "role_name": role_name},
+                groups={"workspace": str(invite.workspace_id)},
+            )
 
         return InviteAcceptResponse(
             message="Successfully joined the workspace",

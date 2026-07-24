@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, History, Info } from "lucide-react";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,14 +13,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import { scrapersApiService } from "@/lib/apis/scrapers-api.service";
 import { formatRelativeDate } from "@/lib/format-date";
 import { PLAYGROUND_PLATFORMS } from "@/lib/playground/catalog";
@@ -32,6 +24,12 @@ import { RunStatusBadge } from "./run-status-badge";
 
 const PAGE_SIZE = 25;
 const ALL = "__all__";
+
+// A grid (not a <table>) keeps an expanded row's detail out of a table-cell,
+// where overflow/max-height scroll containers get ignored. Tracks are fr/fixed
+// (never content-based auto) so separate per-row grids stay column-aligned.
+const ROW_GRID =
+	"grid grid-cols-[2rem_minmax(8rem,2fr)_minmax(4rem,1fr)_minmax(5rem,1fr)_4rem_5rem_5rem_minmax(6rem,1fr)] items-center gap-2 px-3";
 
 const CAPABILITY_OPTIONS = PLAYGROUND_PLATFORMS.flatMap((platform) =>
 	platform.verbs.map((verb) => verb.name)
@@ -122,63 +120,60 @@ export function RunsTable({ workspaceId }: { workspaceId: number }) {
 				</div>
 			) : (
 				<div className="overflow-hidden rounded-md border border-border/60">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead className="w-8" />
-								<TableHead>API</TableHead>
-								<TableHead>Origin</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead className="text-right">Items</TableHead>
-								<TableHead className="text-right">Duration</TableHead>
-								<TableHead className="text-right">Cost</TableHead>
-								<TableHead className="text-right">When</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{runs.map((run) => {
-								const isOpen = expanded === run.id;
-								return (
-									<Fragment key={run.id}>
-										<TableRow
-											className="cursor-pointer"
-											onClick={() => setExpanded(isOpen ? null : run.id)}
-										>
-											<TableCell>
-												{isOpen ? (
-													<ChevronDown className="h-4 w-4 text-muted-foreground" />
-												) : (
-													<ChevronRight className="h-4 w-4 text-muted-foreground" />
-												)}
-											</TableCell>
-											<TableCell className="font-mono text-xs">{run.capability}</TableCell>
-											<TableCell className="text-xs text-muted-foreground">{run.origin}</TableCell>
-											<TableCell>
-												<RunStatusBadge status={run.status} />
-											</TableCell>
-											<TableCell className="text-right tabular-nums">{run.item_count}</TableCell>
-											<TableCell className="text-right tabular-nums text-muted-foreground">
-												{formatDuration(run.duration_ms)}
-											</TableCell>
-											<TableCell className="text-right tabular-nums text-muted-foreground">
-												{formatCost(run.cost_micros)}
-											</TableCell>
-											<TableCell className="text-right text-xs text-muted-foreground">
-												{formatRelativeDate(run.created_at)}
-											</TableCell>
-										</TableRow>
-										{isOpen && (
-											<TableRow className="hover:bg-transparent">
-												<TableCell colSpan={8} className="p-0">
-													<RunDetail workspaceId={workspaceId} runId={run.id} />
-												</TableCell>
-											</TableRow>
-										)}
-									</Fragment>
-								);
-							})}
-						</TableBody>
-					</Table>
+					<div
+						className={cn(
+							ROW_GRID,
+							"border-b border-border/60 bg-muted/30 py-2 text-xs font-medium text-muted-foreground"
+						)}
+					>
+						<span />
+						<span>API</span>
+						<span>Origin</span>
+						<span>Status</span>
+						<span className="text-right">Items</span>
+						<span className="text-right">Duration</span>
+						<span className="text-right">Cost</span>
+						<span className="text-right">When</span>
+					</div>
+					{runs.map((run) => {
+						const isOpen = expanded === run.id;
+						return (
+							<div key={run.id} className="border-b border-border/60 last:border-b-0">
+								<button
+									type="button"
+									onClick={() => setExpanded(isOpen ? null : run.id)}
+									className={cn(
+										ROW_GRID,
+										"w-full py-2.5 text-left text-sm transition-colors hover:bg-muted/50"
+									)}
+								>
+									{isOpen ? (
+										<ChevronDown className="h-4 w-4 text-muted-foreground" />
+									) : (
+										<ChevronRight className="h-4 w-4 text-muted-foreground" />
+									)}
+									<span className="min-w-0 truncate font-mono text-xs">{run.capability}</span>
+									<span className="min-w-0 truncate text-xs text-muted-foreground">
+										{run.origin}
+									</span>
+									<span>
+										<RunStatusBadge status={run.status} />
+									</span>
+									<span className="text-right tabular-nums">{run.item_count}</span>
+									<span className="text-right tabular-nums text-muted-foreground">
+										{formatDuration(run.duration_ms)}
+									</span>
+									<span className="text-right tabular-nums text-muted-foreground">
+										{formatCost(run.cost_micros)}
+									</span>
+									<span className="text-right text-xs text-muted-foreground">
+										{formatRelativeDate(run.created_at)}
+									</span>
+								</button>
+								{isOpen && <RunDetail workspaceId={workspaceId} runId={run.id} />}
+							</div>
+						);
+					})}
 				</div>
 			)}
 

@@ -8,7 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isHttpUrl } from "@/lib/url";
+import { cn } from "@/lib/utils";
 import type { ConnectorConfigProps } from "../index";
+
+/** Return the malformed (non-http/https) lines from a newline-separated URL list. */
+function invalidUrlLines(value: string): string[] {
+	return value
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line && !isHttpUrl(line));
+}
 
 export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	// Initialize with existing config values
@@ -18,6 +28,8 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 	const [apiKey, setApiKey] = useState(existingApiKey);
 	const [initialUrls, setInitialUrls] = useState(existingUrls);
 	const [showApiKey, setShowApiKey] = useState(false);
+
+	const invalidUrls = invalidUrlLines(initialUrls);
 
 	const handleApiKeyChange = (value: string) => {
 		setApiKey(value);
@@ -108,11 +120,21 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 					placeholder="https://example.com&#10;https://docs.example.com&#10;https://blog.example.com"
 					value={initialUrls}
 					onChange={(e) => handleUrlsChange(e.target.value)}
-					className="min-h-[100px] font-mono text-xs sm:text-sm bg-slate-400/5 dark:bg-white/5 border-slate-400/20 resize-none"
+					aria-invalid={invalidUrls.length > 0}
+					className={cn(
+						"min-h-[100px] font-mono text-xs sm:text-sm bg-slate-400/5 dark:bg-white/5 border-slate-400/20 resize-none",
+						invalidUrls.length > 0 && "border-destructive"
+					)}
 				/>
-				<p className="text-[10px] sm:text-xs text-muted-foreground">
-					Enter URLs to crawl (one per line). You can add more URLs later.
-				</p>
+				{invalidUrls.length > 0 ? (
+					<p className="text-[10px] sm:text-xs text-destructive">
+						Not valid http(s) URLs: {invalidUrls.join(", ")}
+					</p>
+				) : (
+					<p className="text-[10px] sm:text-xs text-muted-foreground">
+						Enter URLs to crawl (one per line). You can add more URLs later.
+					</p>
+				)}
 			</div>
 
 			{/* Info Alert */}

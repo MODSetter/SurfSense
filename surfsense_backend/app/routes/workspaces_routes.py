@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.auth.context import AuthContext
+from app.config import config
 from app.db import (
     Permission,
     Workspace,
@@ -14,6 +15,7 @@ from app.db import (
     get_async_session,
     get_default_roles_config,
 )
+from app.observability import analytics as ph_analytics
 from app.routes.model_connections_routes import compute_llm_setup_status
 from app.schemas import (
     WorkspaceApiAccessUpdate,
@@ -81,6 +83,22 @@ async def create_workspace(
     user = auth.user
     try:
         workspace_data = workspace.model_dump()
+        not_deleting = ~Workspace.name.startswith("[DELETING] ")
+        owned_count = (
+            await session.execute(
+                select(func.count())
+                .select_from(Workspace)
+                .filter(Workspace.user_id == user.id, not_deleting)
+            )
+        ).scalar_one()
+        if owned_count >= config.MAX_WORKSPACES_PER_USER:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Workspace limit reached. You can own at most "
+                    f"{config.MAX_WORKSPACES_PER_USER} workspaces."
+                ),
+            )
 
         # citations_enabled defaults to True (handled by Pydantic schema)
         # qna_custom_instructions defaults to None/empty (handled by DB)
@@ -94,6 +112,16 @@ async def create_workspace(
 
         await session.commit()
         await session.refresh(db_workspace)
+
+        # Authoritative creation event (migrated from the frontend
+        # CreateWorkspaceDialog). Workspace name is intentionally NOT sent —
+        # it's user content with no aggregation value.
+        ph_analytics.capture_for(
+            auth,
+            "workspace_created",
+            {"workspace_id": db_workspace.id},
+            groups={"workspace": str(db_workspace.id)},
+        )
 
         response = WorkspaceRead.model_validate(db_workspace)
         response.llm_setup = await compute_llm_setup_status(
@@ -205,6 +233,11 @@ async def read_workspaces(
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch workspaces: {e!s}"
         ) from e
+
+
+@router.get("/workspaces/limits")
+async def read_workspace_limits(_auth: AuthContext = Depends(allow_any_principal)):
+    return {"max_workspaces_per_user": config.MAX_WORKSPACES_PER_USER}
 
 
 @router.get("/workspaces/{workspace_id}", response_model=WorkspaceRead)

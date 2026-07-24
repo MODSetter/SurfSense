@@ -27,6 +27,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.observability import analytics as ph_analytics
 from app.schemas.stripe import (
     AutoReloadSettingsResponse,
     CreateAutoReloadSetupSessionRequest,
@@ -45,6 +46,26 @@ from app.users import require_session_context
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/stripe", tags=["stripe"])
+
+
+def _capture_credits_purchased(user: User, purchase: CreditPurchase) -> None:
+    """Emit ``credits_purchased`` — revenue events only exist server-side.
+
+    Call only from the idempotent grant paths (which early-return on already
+    COMPLETED / non-PENDING rows) so Stripe retries never double-count. No-op
+    when PostHog is unconfigured.
+    """
+    ph_analytics.capture(
+        "credits_purchased",
+        distinct_id=str(user.id),
+        properties={
+            "credit_micros_granted": purchase.credit_micros_granted,
+            "quantity": purchase.quantity,
+            "amount_total": purchase.amount_total,
+            "currency": purchase.currency,
+            "source": purchase.source,
+        },
+    )
 
 
 def get_stripe_client() -> StripeClient:
@@ -309,6 +330,7 @@ async def _fulfill_completed_credit_purchase(
     )
 
     await db_session.commit()
+    _capture_credits_purchased(user, purchase)
     return StripeWebhookResponse()
 
 
@@ -448,6 +470,8 @@ async def _reconcile_auto_reload_payment_intent(
         purchase.status = CreditPurchaseStatus.FAILED
 
     await db_session.commit()
+    if succeeded:
+        _capture_credits_purchased(user, purchase)
     return StripeWebhookResponse()
 
 

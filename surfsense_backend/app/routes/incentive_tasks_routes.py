@@ -15,6 +15,7 @@ from app.db import (
     UserIncentiveTask,
     get_async_session,
 )
+from app.observability import analytics as ph_analytics
 from app.schemas.incentive_tasks import (
     CompleteTaskResponse,
     IncentiveTaskInfo,
@@ -124,6 +125,20 @@ async def complete_task(
 
     await session.commit()
     await session.refresh(user)
+
+    # Authoritative reward grant (migrated from earn-credits-content.tsx).
+    # Placed after the already-completed early-return so retries never
+    # double-count.
+    ph_analytics.capture_for(
+        auth,
+        "incentive_task_completed",
+        {
+            "task_type": task_type.value
+            if hasattr(task_type, "value")
+            else str(task_type),
+            "credit_micros_rewarded": credit_micros_reward,
+        },
+    )
 
     return CompleteTaskResponse(
         success=True,

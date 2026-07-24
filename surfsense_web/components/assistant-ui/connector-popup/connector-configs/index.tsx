@@ -55,12 +55,8 @@ const configMap: Record<string, () => Promise<{ default: FC<ConnectorConfigProps
 		import("./components/obsidian-config").then((m) => ({ default: m.ObsidianConfig })),
 	COMPOSIO_GOOGLE_DRIVE_CONNECTOR: () =>
 		import("./components/composio-drive-config").then((m) => ({ default: m.ComposioDriveConfig })),
-	COMPOSIO_GMAIL_CONNECTOR: () =>
-		import("./components/composio-gmail-config").then((m) => ({ default: m.ComposioGmailConfig })),
-	COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: () =>
-		import("./components/composio-calendar-config").then((m) => ({
-			default: m.ComposioCalendarConfig,
-		})),
+	// Composio Gmail/Calendar have nothing to configure; the edit view falls back
+	// to LiveConnectorConnectedCard for live connectors without a config here.
 };
 
 const componentCache = new Map<string, ConnectorConfigComponent>();

@@ -8,6 +8,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from threading import Lock
+from typing import Any
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
@@ -50,7 +51,7 @@ from app.gateway.inbox_worker import (
     start_gateway_inbox_worker,
     stop_gateway_inbox_worker,
 )
-from app.observability import metrics as ot_metrics
+from app.observability import analytics as ph_analytics, metrics as ot_metrics
 from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
@@ -94,17 +95,21 @@ def _build_error_response(
     code: str = "INTERNAL_ERROR",
     request_id: str = "",
     extra_headers: dict[str, str] | None = None,
+    fields: list[dict[str, Any]] | None = None,
 ) -> JSONResponse:
     """Build the standardized error envelope (new ``error`` + legacy ``detail``)."""
+    error: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "status": status_code,
+        "request_id": request_id,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "report_url": ISSUES_URL,
+    }
+    if fields:
+        error["fields"] = fields
     body = {
-        "error": {
-            "code": code,
-            "message": message,
-            "status": status_code,
-            "request_id": request_id,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "report_url": ISSUES_URL,
-        },
+        "error": error,
         "detail": message,
     }
     headers = {"X-Request-ID": request_id}
@@ -222,16 +227,35 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
 def _validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """Return 422 with field-level detail in the standard envelope."""
+    """Return 422 with field-level detail in the standard envelope.
+
+    ``error.fields`` carries each failure's location path and message so clients
+    can attach errors to the offending input; ``message`` is the flat summary.
+    """
     rid = _get_request_id(request)
-    fields = []
-    for err in exc.errors():
-        loc = " -> ".join(str(part) for part in err.get("loc", []))
-        fields.append(f"{loc}: {err.get('msg', 'invalid')}")
-    message = (
-        f"Validation failed: {'; '.join(fields)}" if fields else "Validation failed."
+    fields = [
+        {
+            "loc": [str(part) for part in err.get("loc", ())],
+            # Drop pydantic's "Value error, " prefix so messages read for humans.
+            "msg": str(err.get("msg", "invalid")).removeprefix("Value error, "),
+        }
+        for err in exc.errors()
+    ]
+
+    def _segment(field: dict[str, Any]) -> str:
+        # Drop the "body" request root so model-level errors read as a plain
+        # sentence and field errors read as "field -> sub", not "body -> field".
+        path = field["loc"]
+        if path and path[0] == "body":
+            path = path[1:]
+        loc = " -> ".join(path)
+        return f"{loc}: {field['msg']}" if loc else field["msg"]
+
+    summary = "; ".join(_segment(f) for f in fields)
+    message = f"Validation failed: {summary}" if fields else "Validation failed."
+    return _build_error_response(
+        422, message, code="VALIDATION_ERROR", request_id=rid, fields=fields
     )
-    return _build_error_response(422, message, code="VALIDATION_ERROR", request_id=rid)
 
 
 def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -690,6 +714,7 @@ async def lifespan(app: FastAPI):
         await stop_gateway_inbox_worker()
         _stop_openrouter_background_refresh()
         await close_checkpointer()
+        ph_analytics.shutdown()
         shutdown_otel()
 
 
@@ -795,6 +820,52 @@ class RequestPerfMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(RequestPerfMiddleware)
+
+
+# ---------------------------------------------------------------------------
+# PAT / MCP API attribution middleware
+# ---------------------------------------------------------------------------
+# Emits a PostHog ``pat_api_request`` event for any request authenticated by a
+# Personal Access Token, so "documents added via MCP", "searches via MCP" etc.
+# are queryable without instrumenting each route. Relies on ``get_auth_context``
+# stashing the resolved principal on ``request.state.auth_context``; requests
+# that never resolve a PAT principal are silently skipped. No-op when PostHog
+# is unconfigured.
+
+
+class PatApiAnalyticsMiddleware(BaseHTTPMiddleware):
+    """Capture PAT-authenticated API usage (incl. MCP) after each response."""
+
+    async def dispatch(
+        self, request: StarletteRequest, call_next: RequestResponseEndpoint
+    ) -> StarletteResponse:
+        response = await call_next(request)
+        with contextlib.suppress(Exception):
+            ctx = getattr(request.state, "auth_context", None)
+            if ctx is not None and ctx.method == "pat" and ph_analytics.is_enabled():
+                # Use the route *template* (e.g. /documents/{id}) to keep the
+                # ``route`` property low-cardinality; fall back to the raw path.
+                route = request.scope.get("route")
+                route_path = getattr(route, "path", None) or request.url.path
+                client = (
+                    "mcp"
+                    if request.headers.get("X-SurfSense-Client") == "mcp"
+                    else "pat_script"
+                )
+                ph_analytics.capture_for(
+                    ctx,
+                    "pat_api_request",
+                    {
+                        "route": route_path,
+                        "method": request.method,
+                        "status_code": response.status_code,
+                        "client": client,
+                    },
+                )
+        return response
+
+
+app.add_middleware(PatApiAnalyticsMiddleware)
 
 # Add SlowAPI middleware for automatic rate limiting
 # Uses Starlette BaseHTTPMiddleware (not the raw ASGI variant) to avoid

@@ -14,6 +14,7 @@ import json
 
 import pytest
 from fastapi import HTTPException
+from pydantic import BaseModel, model_validator
 from starlette.testclient import TestClient
 
 from app.exceptions import (
@@ -32,6 +33,23 @@ from app.exceptions import (
 pytestmark = pytest.mark.unit
 
 
+class _RequireOne(BaseModel):
+    """Body model with a cross-field rule, used to test the 422 summary.
+
+    Defined at module scope (not inside the app factory) so FastAPI's ``Body``
+    ``TypeAdapter`` can resolve the forward reference.
+    """
+
+    a: str | None = None
+    b: str | None = None
+
+    @model_validator(mode="after")
+    def _at_least_one(self):
+        if not self.a and not self.b:
+            raise ValueError("Provide at least one of 'a' or 'b'.")
+        return self
+
+
 # ---------------------------------------------------------------------------
 # Helpers - lightweight FastAPI app that re-uses the real global handlers
 # ---------------------------------------------------------------------------
@@ -39,7 +57,7 @@ pytestmark = pytest.mark.unit
 
 def _make_test_app():
     """Build a minimal FastAPI app with the same handlers as the real one."""
-    from fastapi import FastAPI
+    from fastapi import Body, FastAPI
     from fastapi.exceptions import RequestValidationError
     from pydantic import BaseModel
 
@@ -123,6 +141,10 @@ def _make_test_app():
     @app.post("/validated")
     async def validated(item: Item):
         return item.model_dump()
+
+    @app.post("/require-one")
+    async def require_one(payload: _RequireOne = Body(...)):
+        return payload.model_dump()
 
     return app
 
@@ -276,6 +298,26 @@ class TestValidationErrorHandler:
         resp = client.post("/validated", json={"name": "test", "count": "not-a-number"})
         body = _assert_envelope(resp, 422)
         assert body["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_field_error_drops_body_root(self, client):
+        # The "body" request root is noise in the human summary; the field name
+        # is kept so clients can still attach the error inline.
+        resp = client.post("/require-one", json={"a": 123})
+        body = _assert_envelope(resp, 422)
+        msg = body["error"]["message"]
+        assert "body" not in msg
+        assert "a:" in msg
+        assert body["error"]["fields"][0]["loc"] == ["body", "a"]
+
+    def test_model_level_error_reads_as_sentence(self, client):
+        # A cross-field rule (loc == ["body"]) must read as a plain sentence,
+        # not "body: ...", while fields still carry the location for clients.
+        resp = client.post("/require-one", json={})
+        body = _assert_envelope(resp, 422)
+        assert body["error"]["message"] == (
+            "Validation failed: Provide at least one of 'a' or 'b'."
+        )
+        assert body["error"]["fields"][0]["loc"] == ["body"]
 
 
 # ---------------------------------------------------------------------------

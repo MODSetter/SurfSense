@@ -45,6 +45,7 @@ from app.capabilities.core.store import all_capabilities
 from app.capabilities.core.types import Capability, CapabilityContext
 from app.db import Run, async_session_maker, get_async_session
 from app.exceptions import ExternalServiceError, SurfSenseError
+from app.observability import analytics as ph_analytics
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 from app.users import get_auth_context
 from app.utils.rbac import check_workspace_access
@@ -105,6 +106,41 @@ class RunDetail(RunSummary):
 def _origin_for(auth: AuthContext) -> str:
     """Session callers are the in-app UI; PAT/system callers are the public API."""
     return "ui" if getattr(auth, "method", None) == "session" else "api"
+
+
+def _capture_scraper_run(
+    *,
+    capability: str,
+    status: str,
+    user_id,
+    origin: str,
+    duration_ms: int | None = None,
+    item_count: int | None = None,
+    cost_micros: int | None = None,
+) -> None:
+    """Emit ``scraper_run_completed`` — scrapers are the highest-value MCP surface.
+
+    Covers both sync and async runs; the async background task never flows
+    through the PAT middleware, so this is the only place its outcome is
+    captured. No-op when PostHog is unconfigured.
+    """
+    if not ph_analytics.is_enabled() or not user_id:
+        return
+    platform, _, verb = capability.partition(".")
+    ph_analytics.capture(
+        "scraper_run_completed",
+        distinct_id=str(user_id),
+        properties={
+            "platform": platform,
+            "verb": verb,
+            "capability": capability,
+            "status": status,
+            "origin": origin,
+            "duration_ms": duration_ms,
+            "item_count": item_count,
+            "cost_micros": cost_micros,
+        },
+    )
 
 
 def _now_ms() -> int:
@@ -185,6 +221,8 @@ async def _execute_async_run(
     unit,
     executor,
     payload,
+    user_id=None,
+    origin: str = "api",
 ) -> None:
     """Run a scrape in the background: stream progress, charge, finalize the row.
 
@@ -218,6 +256,13 @@ async def _execute_async_run(
                 progress=reporter.coarse,
             )
             _publish_finished(run_id, "error", error=str(exc))
+            _capture_scraper_run(
+                capability=capability,
+                status="error",
+                user_id=user_id,
+                origin=origin,
+                duration_ms=int((time.perf_counter() - started) * 1000),
+            )
             return
         except Exception:
             logger.exception("async run %s failed with an upstream error", run_id)
@@ -229,6 +274,13 @@ async def _execute_async_run(
                 progress=reporter.coarse,
             )
             _publish_finished(run_id, "error", error="upstream error")
+            _capture_scraper_run(
+                capability=capability,
+                status="error",
+                user_id=user_id,
+                origin=origin,
+                duration_ms=int((time.perf_counter() - started) * 1000),
+            )
             return
 
         duration_ms = int((time.perf_counter() - started) * 1000)
@@ -252,6 +304,15 @@ async def _execute_async_run(
             progress=reporter.coarse,
         )
         _publish_finished(run_id, "success", item_count=serialized.item_count)
+        _capture_scraper_run(
+            capability=capability,
+            status="success",
+            user_id=user_id,
+            origin=origin,
+            duration_ms=duration_ms,
+            item_count=serialized.item_count,
+            cost_micros=cost_micros,
+        )
 
 
 async def _finalize_async(
@@ -358,6 +419,8 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
                     unit=unit,
                     executor=executor,
                     payload=payload,
+                    user_id=user_id,
+                    origin=origin,
                 )
             )
             run_event_bus.register_task(run_id, task)
@@ -373,6 +436,7 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
             try:
                 output = await executor(payload)
             except (SurfSenseError, HTTPException) as exc:
+                _sync_err_duration = int((time.perf_counter() - started) * 1000)
                 await _record_rest_run(
                     workspace_id=workspace_id,
                     capability=name,
@@ -381,11 +445,19 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
                     input=input_dump,
                     user_id=user_id,
                     error=str(exc),
-                    duration_ms=int((time.perf_counter() - started) * 1000),
+                    duration_ms=_sync_err_duration,
                     progress=reporter.coarse,
+                )
+                _capture_scraper_run(
+                    capability=name,
+                    status="error",
+                    user_id=user_id,
+                    origin=origin,
+                    duration_ms=_sync_err_duration,
                 )
                 raise
             except Exception as exc:
+                _sync_err_duration = int((time.perf_counter() - started) * 1000)
                 await _record_rest_run(
                     workspace_id=workspace_id,
                     capability=name,
@@ -394,8 +466,15 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
                     input=input_dump,
                     user_id=user_id,
                     error=str(exc),
-                    duration_ms=int((time.perf_counter() - started) * 1000),
+                    duration_ms=_sync_err_duration,
                     progress=reporter.coarse,
+                )
+                _capture_scraper_run(
+                    capability=name,
+                    status="error",
+                    user_id=user_id,
+                    origin=origin,
+                    duration_ms=_sync_err_duration,
                 )
                 raise ExternalServiceError(
                     f"The '{name}' capability failed due to an upstream error.",
@@ -417,6 +496,15 @@ def _register_verb(router: APIRouter, capability: Capability) -> None:
                 duration_ms=duration_ms,
                 cost_micros=cost_micros,
                 progress=reporter.coarse,
+            )
+            _capture_scraper_run(
+                capability=name,
+                status="success",
+                user_id=user_id,
+                origin=origin,
+                duration_ms=duration_ms,
+                item_count=serialized.item_count,
+                cost_micros=cost_micros,
             )
         if run_id is not None:
             response.headers["X-Run-Id"] = f"run_{run_id}"

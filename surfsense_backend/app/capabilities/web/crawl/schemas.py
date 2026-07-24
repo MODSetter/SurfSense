@@ -18,6 +18,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.capabilities.core.validation import HttpUrlStr
+
 MAX_START_URLS = 20
 """Per-call cap on seed URLs: bounds a synchronous request's fan-out (05)."""
 
@@ -29,7 +31,7 @@ MAX_CRAWL_PAGES = 200
 
 
 class CrawlInput(BaseModel):
-    startUrls: list[str] = Field(
+    startUrls: list[HttpUrlStr] = Field(
         min_length=1,
         max_length=MAX_START_URLS,
         description=(

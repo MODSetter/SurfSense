@@ -20,6 +20,8 @@ interface IconRailProps {
 	onWorkspaceDelete?: (workspace: Workspace) => void;
 	onWorkspaceSettings?: (workspace: Workspace) => void;
 	onAddWorkspace: () => void;
+	isAtWorkspaceLimit?: boolean;
+	maxWorkspacesPerUser?: number;
 	isSingleRailMode?: boolean;
 	onNewChat?: () => void;
 	navItems?: NavItem[];
@@ -42,6 +44,8 @@ export function IconRail({
 	onWorkspaceDelete,
 	onWorkspaceSettings,
 	onAddWorkspace,
+	isAtWorkspaceLimit = false,
+	maxWorkspacesPerUser,
 	isSingleRailMode = false,
 	onNewChat,
 	navItems = [],
@@ -78,6 +82,10 @@ export function IconRail({
 				})),
 			]
 		: [];
+	const addWorkspaceLabel =
+		isAtWorkspaceLimit && maxWorkspacesPerUser !== undefined
+			? `Workspace limit reached: ${maxWorkspacesPerUser}`
+			: "Add workspace";
 
 	return (
 		<div className={cn("flex h-full w-14 min-h-0 flex-col items-center", className)}>
@@ -99,18 +107,21 @@ export function IconRail({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={onAddWorkspace}
-								className="h-10 w-10 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
-							>
-								<Plus className="h-5 w-5 text-muted-foreground" />
-								<span className="sr-only">Add workspace</span>
-							</Button>
+							<span className="inline-flex">
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={onAddWorkspace}
+									disabled={isAtWorkspaceLimit}
+									className="h-10 w-10 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 disabled:opacity-50"
+								>
+									<Plus className="h-5 w-5 text-muted-foreground" />
+									<span className="sr-only">{addWorkspaceLabel}</span>
+								</Button>
+							</span>
 						</TooltipTrigger>
 						<TooltipContent side="right" sideOffset={8}>
-							Add workspace
+							{addWorkspaceLabel}
 						</TooltipContent>
 					</Tooltip>
 

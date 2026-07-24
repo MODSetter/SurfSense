@@ -13,7 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
 import { getPostLoginRedirectPath } from "@/lib/auth-utils";
 import { ValidationError } from "@/lib/error";
-import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
+import { trackLoginAttempt, trackLoginFailure } from "@/lib/posthog/events";
 
 export function LocalLoginForm() {
 	const t = useTranslations("auth");
@@ -45,8 +45,8 @@ export function LocalLoginForm() {
 				grant_type: "password",
 			});
 
-			// Track successful login
-			trackLoginSuccess("local");
+			// auth_login_success is now emitted server-side
+			// (UserManager.on_after_login) — authoritative vs. optimistic.
 
 			// Small delay to show success message
 			setTimeout(() => {

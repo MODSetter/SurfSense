@@ -32,7 +32,9 @@ about a brand, product, or topic is answered from the platform where they
 say it — `task(reddit, …)` for community discussion and threads,
 `task(youtube, …)` for video content, transcripts, and comment sections,
 `task(tiktok, …)` for short-form video trends by hashtag or search,
-`task(google_maps, …)` for customer reviews of physical businesses. Web
+`task(google_maps, …)` for customer reviews of physical businesses,
+`task(amazon, …)` / `task(walmart, …)` for product ratings and customer
+reviews of retail products (Walmart pages the full review history). Web
 search only finds articles *about* the conversation; the platform
 specialists return the conversation itself, structured and current. For
 competitive questions ("what are people saying about X", "how is Y

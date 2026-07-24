@@ -11,7 +11,10 @@ import logging
 import tempfile
 from pathlib import Path
 
+from sqlalchemy import select
+
 from app.celery_app import celery_app
+from app.observability import analytics as ph_analytics
 from app.podcasts.persistence import PodcastRepository
 from app.podcasts.rendering import PodcastRenderer
 from app.podcasts.service import (
@@ -76,6 +79,30 @@ async def _render_audio(podcast_id: int) -> dict:
                 podcast, storage_backend=backend_name, storage_key=key
             )
             await session.commit()
+
+            # Credit-consuming deliverable; the frontend never confirms the
+            # render finished. Owner (workspace.user_id) resolved lazily so
+            # disabled installs pay nothing for the extra query.
+            if ph_analytics.is_enabled():
+                # Local import: app.db <-> app.podcasts.persistence have a
+                # module-init cycle; deferring keeps this task importable.
+                from app.db import Workspace
+
+                owner_id = await session.scalar(
+                    select(Workspace.user_id).where(
+                        Workspace.id == podcast.workspace_id
+                    )
+                )
+                if owner_id:
+                    ph_analytics.capture(
+                        "podcast_generated",
+                        distinct_id=str(owner_id),
+                        properties={
+                            "workspace_id": podcast.workspace_id,
+                            "podcast_id": podcast_id,
+                        },
+                        groups={"workspace": str(podcast.workspace_id)},
+                    )
         except InvalidTransitionError:
             # A user back-out won the race (e.g. the regeneration was
             # reverted): drop the stale render and leave the row alone.

@@ -3,9 +3,11 @@ import {
 	AmazonIcon,
 	GoogleMapsIcon,
 	GoogleSearchIcon,
+	IndeedIcon,
 	InstagramIcon,
 	RedditIcon,
 	TikTokIcon,
+	WalmartIcon,
 	WebIcon,
 	YouTubeIcon,
 } from "./platform-icons";
@@ -91,10 +93,25 @@ export const PLAYGROUND_PLATFORMS: PlaygroundPlatform[] = [
 		verbs: [{ name: "google_search.scrape", verb: "scrape", label: "Scrape" }],
 	},
 	{
+		id: "indeed",
+		label: "Indeed",
+		icon: IndeedIcon,
+		verbs: [{ name: "indeed.scrape", verb: "scrape", label: "Scrape" }],
+	},
+	{
 		id: "amazon",
 		label: "Amazon",
 		icon: AmazonIcon,
 		verbs: [{ name: "amazon.scrape", verb: "scrape", label: "Scrape" }],
+	},
+	{
+		id: "walmart",
+		label: "Walmart",
+		icon: WalmartIcon,
+		verbs: [
+			{ name: "walmart.scrape", verb: "scrape", label: "Scrape" },
+			{ name: "walmart.reviews", verb: "reviews", label: "Reviews" },
+		],
 	},
 	{
 		id: "web",

@@ -1,0 +1,51 @@
+---
+title: Indeed
+description: Scrape public Indeed job postings by search, company, or URL
+---
+
+The Indeed scraper pulls structured public job postings from Indeed. Give it search terms and/or URLs (a search page, a company jobs page, or a single job), and it returns jobs with title, company, location, salary, job types, benefits, remote/hybrid flag, posting age, and description.
+
+## Endpoint
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/indeed/scrape
+```
+
+## Inputs
+
+At least one of `urls` or `search_queries` is required.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | — | Indeed URLs: a search page (`/jobs?q=&l=`), a company jobs page (`/cmp/<slug>/jobs`), or a single job (`/viewjob?jk=`) (max 20 sources per call, combined with queries) |
+| `search_queries` | — | Job search terms, e.g. `["data analyst"]` |
+| `country` | `us` | Country code selecting the Indeed domain, e.g. `us`, `gb`, `de` |
+| `location` | — | Where to search, e.g. `Remote`, `New York, NY` |
+| `radius` | — | Search radius in miles/km around `location` |
+| `job_type` | — | `fulltime`, `parttime`, `contract`, `internship`, `temporary`, `permanent`, `seasonal`, or `freelance` |
+| `level` | — | `entry_level`, `mid_level`, or `senior_level` |
+| `remote` | — | `remote` or `hybrid` |
+| `from_days` | — | Only return jobs posted within the last N days |
+| `sort` | `relevance` | `relevance` or `date` |
+| `scrape_job_details` | `false` | Fetch each job's detail page for the full description (slower: one extra page load per job) |
+| `max_items` | `25` | Max total jobs returned across all sources (hard cap 100) |
+| `max_items_per_query` | `25` | Max jobs per search/company target |
+
+## Example
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/indeed/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_queries": ["data analyst"],
+    "location": "Remote",
+    "remote": "remote",
+    "sort": "date",
+    "max_items": 30
+  }'
+```
+
+The response is `{ "items": [...] }` — one item per job posting. Billing is per returned job.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Indeed → Scrape** in your workspace.

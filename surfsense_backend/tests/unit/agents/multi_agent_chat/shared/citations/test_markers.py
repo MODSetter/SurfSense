@@ -37,6 +37,18 @@ def test_web_result_maps_to_url() -> None:
     assert to_frontend_payload(entry) == "https://example.com/a"
 
 
+def test_run_maps_to_run_handle() -> None:
+    entry = _entry(CitationSourceType.RUN, {"run_id": "run_abc-123"})
+
+    assert to_frontend_payload(entry) == "run_abc-123"
+
+
+def test_run_without_handle_is_dropped() -> None:
+    entry = _entry(CitationSourceType.RUN, {})
+
+    assert to_frontend_payload(entry) is None
+
+
 def test_not_yet_renderable_kind_is_dropped() -> None:
     entry = _entry(CitationSourceType.CHAT_TURN, {"thread_id": 1, "turn": 2})
 

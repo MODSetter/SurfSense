@@ -1,16 +1,22 @@
 "use client";
 
-import { CreditCard, SquarePen, Zap } from "lucide-react";
+import { useSetAtom } from "jotai";
+import { CreditCard, FolderSync, MessageCircleMore, SquarePen, Upload, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState } from "react";
+import { watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
+import { FolderWatchDialog } from "@/components/sources/FolderWatchDialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsAnonymous } from "@/contexts/anonymous-mode";
-import { getWorkspaceIdParam } from "@/lib/route-params";
+import { useLoginGate } from "@/contexts/login-gate";
+import { usePlatform } from "@/hooks/use-platform";
+import { getWorkspaceIdNumber, getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
@@ -62,6 +68,7 @@ interface SidebarProps {
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
+	onChatsClick?: () => void;
 	onViewAllChats?: () => void;
 	isAllChatsActive?: boolean;
 	user: User;
@@ -101,6 +108,7 @@ export function Sidebar({
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
+	onChatsClick,
 	onViewAllChats,
 	isAllChatsActive = false,
 	user,
@@ -138,6 +146,10 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/artifacts")),
 		[navItems]
 	);
+	const connectorsItem = useMemo(
+		() => navItems.find((item) => item.url.endsWith("/connectors")),
+		[navItems]
+	);
 	const playgroundItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/playground")),
 		[navItems]
@@ -148,6 +160,7 @@ export function Sidebar({
 				(item) =>
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
+					!item.url.endsWith("/connectors") &&
 					!item.url.endsWith("/playground")
 			),
 		[navItems]
@@ -222,6 +235,16 @@ export function Sidebar({
 				onScroll={(event) => setIsSidebarNavScrolled(event.currentTarget.scrollTop > 0)}
 			>
 				<div className="flex flex-col gap-0.5 pt-0.5 pb-1.5">
+					{onChatsClick && (
+						<SidebarButton
+							icon={MessageCircleMore}
+							label={t("chats") || "Chats"}
+							onClick={onChatsClick}
+							isCollapsed={isCollapsed}
+							isActive={isAllChatsActive}
+							tooltipContent={isCollapsed ? t("chats") || "Chats" : undefined}
+						/>
+					)}
 					{automationsItem && (
 						<SidebarButton
 							icon={automationsItem.icon}
@@ -240,6 +263,16 @@ export function Sidebar({
 							isCollapsed={isCollapsed}
 							isActive={artifactsItem.isActive}
 							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
+						/>
+					)}
+					{connectorsItem && (
+						<SidebarButton
+							icon={connectorsItem.icon}
+							label={connectorsItem.title}
+							onClick={() => onNavItemClick?.(connectorsItem)}
+							isCollapsed={isCollapsed}
+							isActive={connectorsItem.isActive}
+							tooltipContent={isCollapsed ? connectorsItem.title : undefined}
 						/>
 					)}
 					{playgroundItem && (
@@ -328,7 +361,8 @@ export function Sidebar({
 				)}
 
 				{!isCollapsed && (
-					<div className="shrink-0 py-1.5">
+					<div className="flex shrink-0 flex-col gap-0.5 py-1.5">
+						<SidebarImportActions />
 						<ConnectAgentDialog className="w-[calc(100%-1rem)]" />
 					</div>
 				)}
@@ -354,6 +388,47 @@ export function Sidebar({
 				)}
 			</div>
 		</div>
+	);
+}
+
+/**
+ * Sidebar-footer import actions rendered above "Connect your agent":
+ * "Watch Local Folder" (desktop app only) and "Upload Files". Both reuse the
+ * existing dialogs; in anonymous mode they open the login gate instead.
+ */
+function SidebarImportActions() {
+	const params = useParams();
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const { isDesktop } = usePlatform();
+	const isAnonymous = useIsAnonymous();
+	const { gate } = useLoginGate();
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
+	const bumpWatchedFoldersRefresh = useSetAtom(watchedFoldersRefreshAtom);
+
+	return (
+		<>
+			{isDesktop && (
+				<SidebarButton
+					icon={FolderSync}
+					label="Watch Local Folder"
+					onClick={() => (isAnonymous ? gate("watch local folders") : setFolderWatchOpen(true))}
+				/>
+			)}
+			<SidebarButton
+				icon={Upload}
+				label="Upload Files"
+				onClick={() => (isAnonymous ? gate("upload files") : openUploadDialog())}
+			/>
+			{isDesktop && !isAnonymous && (
+				<FolderWatchDialog
+					open={folderWatchOpen}
+					onOpenChange={setFolderWatchOpen}
+					workspaceId={workspaceId}
+					onSuccess={() => bumpWatchedFoldersRefresh((c) => c + 1)}
+				/>
+			)}
+		</>
 	);
 }
 

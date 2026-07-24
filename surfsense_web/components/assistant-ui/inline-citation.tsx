@@ -100,7 +100,7 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 						<DrawerTitle>Citation</DrawerTitle>
 					</DrawerHeader>
 					<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
-						<CitationPanelContent chunkId={chunkId} showHeader={false} />
+						<CitationPanelContent chunkId={chunkId} />
 					</div>
 				</DrawerContent>
 			</Drawer>

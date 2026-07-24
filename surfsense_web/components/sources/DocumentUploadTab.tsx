@@ -29,11 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import type { ProcessingMode } from "@/contracts/types/document.types";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import {
-	trackDocumentUploadFailure,
-	trackDocumentUploadStarted,
-	trackDocumentUploadSuccess,
-} from "@/lib/posthog/events";
+import { trackDocumentUploadStarted } from "@/lib/posthog/events";
 import {
 	getAcceptedFileTypes,
 	getSupportedExtensions,
@@ -380,13 +376,14 @@ export function DocumentUploadTab({
 				setUploadProgress(Math.round((uploaded / total) * 100));
 			}
 
-			trackDocumentUploadSuccess(Number(workspaceId), total);
+			// Ingestion outcome is now emitted server-side
+			// (document_processing_completed/_failed in document_tasks.py); the
+			// upload POST succeeding only means the file was accepted, not processed.
 			toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
 			setFolderUpload(null);
 			onSuccess?.();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Upload failed";
-			trackDocumentUploadFailure(Number(workspaceId), message);
 			toast(t("upload_error"), {
 				description: `${t("upload_error_desc")}: ${message}`,
 			});
@@ -421,7 +418,7 @@ export function DocumentUploadTab({
 				onSuccess: () => {
 					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(100);
-					trackDocumentUploadSuccess(Number(workspaceId), files.length);
+					// Ingestion outcome now server-side (document_processing_*).
 					toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
 					onSuccess?.();
 				},
@@ -429,7 +426,6 @@ export function DocumentUploadTab({
 					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(0);
 					const message = error instanceof Error ? error.message : "Upload failed";
-					trackDocumentUploadFailure(Number(workspaceId), message);
 					toast(t("upload_error"), {
 						description: `${t("upload_error_desc")}: ${message}`,
 					});

@@ -49,6 +49,7 @@ export const cacheKeys = {
 	},
 	workspaces: {
 		all: ["workspaces"] as const,
+		limits: ["workspaces", "limits"] as const,
 		withQueryParams: (queries: GetWorkspacesRequest["queryParams"]) =>
 			["workspaces", ...stableEntries(queries)] as const,
 		detail: (workspaceId: string) => ["workspaces", workspaceId] as const,

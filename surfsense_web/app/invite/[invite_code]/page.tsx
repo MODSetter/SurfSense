@@ -16,7 +16,7 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { use, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { acceptInviteMutationAtom } from "@/atoms/invites/invites-mutation.atoms";
 import { Button } from "@/components/ui/button";
@@ -33,11 +33,7 @@ import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
 import { useSession } from "@/hooks/use-session";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { setRedirectPath } from "@/lib/auth-utils";
-import {
-	trackWorkspaceInviteAccepted,
-	trackWorkspaceInviteDeclined,
-	trackWorkspaceUserAdded,
-} from "@/lib/posthog/events";
+import { trackWorkspaceInviteDeclined } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export default function InviteAcceptPage() {
@@ -96,9 +92,9 @@ export default function InviteAcceptPage() {
 				setAccepted(true);
 				setAcceptedData(result);
 
-				// Track invite accepted and user added events
-				trackWorkspaceInviteAccepted(result.workspace_id, result.workspace_name, result.role_name);
-				trackWorkspaceUserAdded(result.workspace_id, result.workspace_name, result.role_name);
+				// workspace_invite_accepted + workspace_user_added are now emitted
+				// server-side (rbac_routes.accept_invite) — the server redirect is
+				// the authoritative join point.
 			}
 		} catch (err: any) {
 			setError(err.message || "Failed to accept invite");

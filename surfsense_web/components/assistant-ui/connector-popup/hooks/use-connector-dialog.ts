@@ -21,8 +21,6 @@ import { OAUTH_RESULT_COOKIE, parseOAuthCallbackResult } from "@/contracts/types
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import {
-	trackConnectorConnected,
-	trackConnectorDeleted,
 	trackConnectorSetupFailure,
 	trackConnectorSetupStarted,
 	trackIndexWithDateRangeOpened,
@@ -296,11 +294,9 @@ export const useConnectorDialog = () => {
 				if (newConnector && oauthConnector) {
 					const connectorValidation = searchSourceConnector.safeParse(newConnector);
 					if (connectorValidation.success) {
-						trackConnectorConnected(
-							Number(workspaceId),
-							oauthConnector.connectorType,
-							newConnector.id
-						);
+						// connector_connected is now emitted server-side (after_insert
+						// listener in search_source_connectors_routes.py) — covers the
+						// OAuth callback redirect the frontend often never observes.
 
 						const isLiveConnector = LIVE_CONNECTOR_TYPES.has(oauthConnector.connectorType);
 
@@ -436,12 +432,7 @@ export const useConnectorDialog = () => {
 				if (connector) {
 					const connectorValidation = searchSourceConnector.safeParse(connector);
 					if (connectorValidation.success) {
-						// Track webcrawler connector connected
-						trackConnectorConnected(
-							Number(workspaceId),
-							EnumConnectorName.WEBCRAWLER_CONNECTOR,
-							connector.id
-						);
+						// connector_connected is now emitted server-side (after_insert).
 
 						const config = validateIndexingConfigState({
 							connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
@@ -540,8 +531,7 @@ export const useConnectorDialog = () => {
 							// Store connectingConnectorType before clearing it
 							const currentConnectorType = connectingConnectorType;
 
-							// Track connector connected event for non-OAuth connectors
-							trackConnectorConnected(Number(workspaceId), currentConnectorType, connector.id);
+							// connector_connected is now emitted server-side (after_insert).
 
 							// Find connector title from constants
 							const connectorInfo = OTHER_CONNECTORS.find(
@@ -1229,12 +1219,8 @@ export const useConnectorDialog = () => {
 					id: editingConnector.id,
 				});
 
-				// Track connector deleted event
-				trackConnectorDeleted(
-					Number(workspaceId),
-					editingConnector.connector_type,
-					editingConnector.id
-				);
+				// connector_deleted is now emitted server-side
+				// (search_source_connectors_routes.delete_search_source_connector).
 
 				toast.success(
 					editingConnector.connector_type === "MCP_CONNECTOR"

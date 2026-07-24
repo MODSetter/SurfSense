@@ -2,7 +2,6 @@ import { useAtomValue } from "jotai";
 import { Eye, EyeOff, Settings } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-	addManualModelMutationAtom,
 	bulkUpdateModelsMutationAtom,
 	discoverConnectionModelsMutationAtom,
 	testPreviewModelMutationAtom,
@@ -50,26 +49,17 @@ export function ConnectionSettingsDialog({
 	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
 	const testPreviewModel = useAtomValue(testPreviewModelMutationAtom);
 	const updateConnection = useAtomValue(updateModelConnectionMutationAtom);
-	const addManualModel = useAtomValue(addManualModelMutationAtom);
 	const bulkUpdateModels = useAtomValue(bulkUpdateModelsMutationAtom);
 
-	const allowlist = Array.isArray(connection.extra?.model_ids)
-		? (connection.extra.model_ids as string[])
-		: [];
 	const [isOpen, setIsOpen] = useState(false);
 	const [baseUrlDraft, setBaseUrlDraft] = useState(connection.base_url ?? "");
 	const [apiKeyDraft, setApiKeyDraft] = useState("");
 	const [showApiKey, setShowApiKey] = useState(false);
-	const [allowlistText, setAllowlistText] = useState(allowlist.join(", "));
 	const [isSavingConnectionSettings, setIsSavingConnectionSettings] = useState(false);
 	const [draftEnabledModelIds, setDraftEnabledModelIds] = useState(() =>
 		enabledModelIds(connection.models)
 	);
 
-	const isLocal =
-		connection.provider === "ollama_chat" ||
-		connection.provider === "lm_studio" ||
-		!connection.base_url?.startsWith("https");
 	const hasConnectionChanges =
 		baseUrlDraft.trim() !== (connection.base_url ?? "") ||
 		apiKeyDraft.trim() !== (connection.api_key ?? "");
@@ -93,7 +83,6 @@ export function ConnectionSettingsDialog({
 			setBaseUrlDraft(connection.base_url ?? "");
 			setApiKeyDraft(connection.api_key ?? "");
 			setShowApiKey(false);
-			setAllowlistText(allowlist.join(", "));
 			setIsSavingConnectionSettings(false);
 			setDraftEnabledModelIds(enabledModelIds(connection.models));
 		}
@@ -166,17 +155,6 @@ export function ConnectionSettingsDialog({
 		} finally {
 			setIsSavingConnectionSettings(false);
 		}
-	}
-
-	function saveAllowlist() {
-		const ids = allowlistText
-			.split(",")
-			.map((value) => value.trim())
-			.filter(Boolean);
-		updateConnection.mutate({
-			id: connection.id,
-			data: { extra: { ...(connection.extra ?? {}), model_ids: ids } },
-		});
 	}
 
 	function handleToggleModel(model: SelectableModel, enabled: boolean) {
@@ -276,41 +254,15 @@ export function ConnectionSettingsDialog({
 							</div>
 						</div>
 
-						{!isLocal ? (
-							<div className="space-y-2">
-								<Label className="text-xs">Model IDs filter (optional)</Label>
-								<div className="flex gap-2">
-									<Input
-										value={allowlistText}
-										onChange={(event) => setAllowlistText(event.target.value)}
-										placeholder="Comma-separated, e.g. anthropic/claude-sonnet-4-5, google/gemini-2.5-pro"
-									/>
-									<Button size="sm" onClick={saveAllowlist} disabled={updateConnection.isPending}>
-										Save filter
-									</Button>
-								</div>
-								<p className="text-xs text-muted-foreground">
-									Leave empty to discover all models. Recommended for providers with large catalogs.
-								</p>
-							</div>
-						) : null}
-
 						<Separator className="bg-muted-foreground/20" />
 
 						<ModelsSelectionPanel
 							models={draftModels}
 							isRefreshing={discoverModels.isPending}
-							isAddingManual={addManualModel.isPending}
 							isUpdatingModel={isSavingConnectionSettings}
 							isBulkUpdating={isSavingConnectionSettings || bulkUpdateModels.isPending}
 							refreshLabel={`Refresh ${providerLabel} models`}
 							onRefresh={() => discoverModels.mutate(connection.id)}
-							onAddManual={(modelId) =>
-								addManualModel.mutate({
-									connectionId: connection.id,
-									data: { model_id: modelId },
-								})
-							}
 							onToggleModel={handleToggleModel}
 							onBulkToggle={handleBulkToggle}
 						/>

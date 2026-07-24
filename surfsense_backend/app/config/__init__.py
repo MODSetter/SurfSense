@@ -736,6 +736,17 @@ class Config:
     # Comments are the cheapest per-item TikTok data, matching the per-comment
     # market (and YouTube's comment meter).
     TIKTOK_MICROS_PER_COMMENT = int(os.getenv("TIKTOK_MICROS_PER_COMMENT", "1500"))
+    # Warmed-browser listings put Indeed on par with the other browser-driven
+    # scrapers (Reddit, Instagram) rather than the cheaper API-backed meters.
+    INDEED_SCRAPE_MICROS_PER_JOB = int(
+        os.getenv("INDEED_SCRAPE_MICROS_PER_JOB", "3500")
+    )
+    # Walmart products come from server-rendered JSON behind residential proxies,
+    # priced alongside Amazon's per-product meter.
+    WALMART_MICROS_PER_PRODUCT = int(os.getenv("WALMART_MICROS_PER_PRODUCT", "3500"))
+    # Reviews are 10 per page (many light requests per product), priced on the
+    # cheaper per-review market like the Google Maps review meter.
+    WALMART_MICROS_PER_REVIEW = int(os.getenv("WALMART_MICROS_PER_REVIEW", "1500"))
     # Retry an empty listing draw on a fresh rotating IP. Set to 1 for a static
     # proxy, where every retry re-hits the same exit.
     TIKTOK_LISTING_MAX_ATTEMPTS = int(os.getenv("TIKTOK_LISTING_MAX_ATTEMPTS", "3"))
@@ -850,6 +861,9 @@ class Config:
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE", "LOCAL")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
+    # Max workspaces a user may own. The frontend reads this through the
+    # workspace limits route; do not duplicate this value client-side.
+    MAX_WORKSPACES_PER_USER = int(os.getenv("MAX_WORKSPACES_PER_USER", "400"))
 
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
@@ -1163,6 +1177,19 @@ class Config:
     # feed is empty to headless Chromium). Off keeps every browser headless.
     CRAWL_HEADED_XVFB_ENABLED = (
         os.getenv("CRAWL_HEADED_XVFB_ENABLED", "FALSE").upper() == "TRUE"
+    )
+
+    # PostHog server-side product analytics (opt-in, mirrors the OTel pattern:
+    # no key set => the analytics wrapper is a silent no-op). Use the SAME
+    # project key as the frontend's NEXT_PUBLIC_POSTHOG_KEY so server events
+    # merge onto the persons the web app already identifies by user id.
+    POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
+    POSTHOG_HOST = os.getenv("POSTHOG_HOST", "https://us.i.posthog.com")
+    # When true (default), the LLM-analytics LangChain handler suppresses
+    # prompt/completion bodies ($ai_input / $ai_output_choices) and captures
+    # only metrics — chat content includes users' private documents.
+    POSTHOG_AI_PRIVACY_MODE = (
+        os.getenv("POSTHOG_AI_PRIVACY_MODE", "TRUE").upper() == "TRUE"
     )
 
     # Litellm TTS Configuration

@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.google_maps import ReviewItem
 
 MAX_MAPS_REVIEW_SOURCES = 20
@@ -17,7 +18,7 @@ MAX_MAPS_REVIEW_SOURCES = 20
 
 
 class ReviewsInput(BaseModel):
-    urls: list[str] = Field(
+    urls: list[HttpUrlStr] = Field(
         default_factory=list,
         max_length=MAX_MAPS_REVIEW_SOURCES,
         description=(

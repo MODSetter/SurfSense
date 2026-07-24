@@ -123,11 +123,19 @@ def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -
         Use this after surfsense_search_knowledge_base or
         surfsense_list_documents to open a specific document — search results
         only include the matching passages, this returns the whole text.
+        The markdown form is an Open Knowledge Format (OKF) concept: a YAML
+        frontmatter block (type, title, tags, resource, timestamp) followed by
+        the document body.
         """
-        document = await client.request("GET", f"/documents/{document_id}")
         if response_format == "json":
+            document = await client.request("GET", f"/documents/{document_id}")
             return clip(to_json(document))
-        return _render_document(document)
+        concept = await client.request(
+            "GET",
+            f"/documents/{document_id}",
+            headers={"Accept": "text/markdown"},
+        )
+        return clip(concept if isinstance(concept, str) else str(concept))
 
 
 def _join(values: list[str] | None) -> str | None:
@@ -169,14 +177,3 @@ def _render_document_list(result: dict | None) -> str:
         + (" · more available_" if has_more else "_")
     )
     return "\n".join(lines)
-
-
-def _render_document(document: dict) -> str:
-    content = clip(document.get("content", "") or "(empty)")
-    return (
-        f"# {document.get('title', 'Untitled')} (id {document.get('id')})\n"
-        f"- type: {document.get('document_type')}\n"
-        f"- workspace: {document.get('workspace_id')}\n"
-        f"- updated: {document.get('updated_at')}\n\n"
-        f"{content}"
-    )

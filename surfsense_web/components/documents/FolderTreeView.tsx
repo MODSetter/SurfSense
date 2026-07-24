@@ -324,7 +324,6 @@ export function FolderTreeView({
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
 				<Search className="h-10 w-10" />
 				<p className="text-sm text-muted-foreground">No matching documents</p>
-				<p className="text-xs text-muted-foreground/70 mt-1">Try a different search term</p>
 			</div>
 		);
 	}
