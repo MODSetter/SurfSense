@@ -460,7 +460,7 @@ async def preview_connection_models(
     try:
         discovered = await discover_models(draft)
     except ModelDiscoveryError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=f"{exc}. Try typing the model id manually.") from exc
     return [_preview_model_read(item) for item in discovered]
 
 
