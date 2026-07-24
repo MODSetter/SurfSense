@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import secrets
 import uuid
@@ -13,6 +14,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import config
+from app.observability import analytics as ph_analytics
+from app.tasks.chat.streaming.flows.shared.analytics import (
+    build_llm_callback_handler,
+)
 from app.etl_pipeline.file_classifier import (
     DIRECT_CONVERT_EXTENSIONS,
     PLAINTEXT_EXTENSIONS,
@@ -337,11 +342,6 @@ async def stream_anonymous_chat(
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
             raise HTTPException(status_code=500, detail="Failed to create LLM instance")
 
-        # Server-side tool allow-list enforcement
-        anon_allowed_tools = {"web_search"}
-        client_disabled = set(body.disabled_tools) if body.disabled_tools else set()
-        enabled_for_agent = anon_allowed_tools - client_disabled
-
     except HTTPException:
         await TokenQuotaService.anon_release_stream_slot(client_ip)
         raise
@@ -359,6 +359,7 @@ async def stream_anonymous_chat(
 
         accumulator = start_turn()
         streaming_service = VercelStreamingService()
+        anon_outcome = "success"
 
         try:
             async with shielded_async_session():
@@ -369,15 +370,14 @@ async def stream_anonymous_chat(
                 # Load the optional uploaded document as read-only context.
                 anon_doc = await _load_anon_document(session_id)
 
-                # Minimal Q/A agent: web_search only (when enabled), no
-                # filesystem / persistence / subagents. The uploaded document
-                # is injected into the system prompt as read-only context.
+                # Minimal Q/A agent: no tools, no filesystem / persistence /
+                # subagents. The uploaded document is injected into the system
+                # prompt as read-only context.
                 agent = await create_anonymous_chat_agent(
                     llm=llm,
                     checkpointer=checkpointer,
                     anon_session_id=session_id,
                     anon_doc=anon_doc,
-                    enable_web_search="web_search" in enabled_for_agent,
                 )
 
                 langchain_messages = []
@@ -399,6 +399,21 @@ async def stream_anonymous_chat(
                     "configurable": {"thread_id": anon_thread_id},
                     "recursion_limit": 40,
                 }
+
+                # PostHog LLM analytics for the free tier — model spend per
+                # model is the highest-value cost insight. distinct_id is the
+                # anon session id (not joined to any registered person).
+                _anon_llm_handler = build_llm_callback_handler(
+                    distinct_id=session_id,
+                    trace_id=anon_thread_id,
+                    properties={
+                        "client": "anonymous",
+                        "model_slug": body.model_slug,
+                        "$ai_session_id": session_id,
+                    },
+                )
+                if _anon_llm_handler is not None:
+                    langgraph_config["callbacks"] = [_anon_llm_handler]
 
                 yield streaming_service.format_message_start()
                 yield streaming_service.format_start_step()
@@ -471,6 +486,7 @@ async def stream_anonymous_chat(
 
         except Exception as e:
             logger.exception("Anonymous chat stream error")
+            anon_outcome = "error"
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
             _, error_code, _, _, user_message, extra = classify_stream_exception(
                 e,
@@ -484,6 +500,26 @@ async def stream_anonymous_chat(
             yield streaming_service.format_done()
         finally:
             await TokenQuotaService.anon_release_stream_slot(client_ip)
+
+            # Server-truth free-tier volume/model/outcome/token-burn. distinct_id
+            # is the anon session id — deliberately NOT joined to the frontend's
+            # PostHog anonymous id (the point is server truth, not funnel merge).
+            with contextlib.suppress(Exception):
+                if ph_analytics.is_enabled():
+                    ph_analytics.capture(
+                        "anon_chat_turn_completed",
+                        distinct_id=session_id,
+                        properties={
+                            "client": "anonymous",
+                            "outcome": anon_outcome,
+                            "model_slug": body.model_slug,
+                            "model_name": model_cfg.get("model_name"),
+                            "total_tokens": accumulator.grand_total,
+                            "prompt_tokens": accumulator.total_prompt_tokens,
+                            "completion_tokens": accumulator.total_completion_tokens,
+                            "cost_micros": accumulator.total_cost_micros,
+                        },
+                    )
 
     return StreamingResponse(
         _generate(),

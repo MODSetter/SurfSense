@@ -11,7 +11,7 @@ pytestmark = pytest.mark.unit
 
 
 def _event(event_type: str = "document.indexed", **payload) -> Event:
-    return Event(event_type=event_type, payload=payload, search_space_id=7)
+    return Event(event_type=event_type, payload=payload, workspace_id=7)
 
 
 def test_matches_when_event_type_equal_and_filter_passes() -> None:

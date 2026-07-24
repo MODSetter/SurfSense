@@ -4,7 +4,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import enMessages from "../messages/en.json";
 
-type Locale = "en" | "es" | "pt" | "hi" | "zh";
+type Locale = "en" | "es" | "pt" | "hi" | "zh" | "ko";
 
 /**
  * Dynamically load locale messages on demand.
@@ -20,6 +20,8 @@ const loadMessages = async (locale: Locale): Promise<typeof enMessages> => {
 			return (await import("../messages/pt.json")).default;
 		case "zh":
 			return (await import("../messages/zh.json")).default;
+		case "ko":
+			return (await import("../messages/ko.json")).default;
 		default:
 			return enMessages;
 	}
@@ -47,7 +49,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 		setMounted(true);
 		if (typeof window !== "undefined") {
 			const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-			if (stored && (["en", "es", "pt", "hi", "zh"] as const).includes(stored as Locale)) {
+			if (stored && (["en", "es", "pt", "hi", "zh", "ko"] as const).includes(stored as Locale)) {
 				const storedLocale = stored as Locale;
 				setLocaleState(storedLocale);
 				// Load messages for non-English locale

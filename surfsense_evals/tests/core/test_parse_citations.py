@@ -91,7 +91,7 @@ def test_regex_pattern_matches_ts_source():
     assert "https?://" in pattern
     assert "urlcite" in pattern
     assert "doc-" in pattern
-    assert "\u200B" in pattern
+    assert "\u200b" in pattern
     assert "【" in pattern and "】" in pattern
 
 

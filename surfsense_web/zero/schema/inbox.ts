@@ -4,7 +4,7 @@ export const notificationTable = table("notifications")
 	.columns({
 		id: number(),
 		userId: string().from("user_id"),
-		searchSpaceId: number().optional().from("search_space_id"),
+		workspaceId: number().optional().from("workspace_id"),
 		type: string(),
 		title: string(),
 		message: string(),

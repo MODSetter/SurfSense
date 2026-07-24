@@ -412,7 +412,7 @@ async def finalize_assistant_turn(
     *,
     message_id: int,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     turn_id: str,
     content: list[dict[str, Any]],
@@ -517,7 +517,7 @@ async def finalize_assistant_turn(
                             call_details={"calls": accumulator.serialized_calls()},
                             thread_id=chat_id,
                             message_id=message_id,
-                            search_space_id=search_space_id,
+                            workspace_id=workspace_id,
                             user_id=user_uuid,
                         )
                         .on_conflict_do_nothing(

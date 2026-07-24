@@ -1,8 +1,8 @@
 """Access-checked lookup of chat threads the requester may read.
 
 The single place chat visibility is enforced: a thread is readable when it is
-shared with the search space, the requester created it, or it is a legacy
-null-creator thread and the requester owns the search space. Anything else is
+shared with the workspace, the requester created it, or it is a legacy
+null-creator thread and the requester owns the workspace. Anything else is
 dropped (fail-closed).
 """
 
@@ -14,7 +14,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ChatVisibility, NewChatThread, SearchSpace
+from app.db import ChatVisibility, NewChatThread, Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def _visibility_predicate(user_uuid: UUID | None, *, include_legacy: bool):
 async def accessible_threads(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     requesting_user_id: str | None,
     thread_ids: list[int],
     exclude_thread_id: int | None = None,
@@ -57,18 +57,18 @@ async def accessible_threads(
                 requesting_user_id,
             )
 
-    # Legacy null-creator threads are readable only by the search-space owner.
+    # Legacy null-creator threads are readable only by the workspace owner.
     include_legacy = False
     if user_uuid is not None:
         owner_id = await session.scalar(
-            select(SearchSpace.user_id).where(SearchSpace.id == search_space_id)
+            select(Workspace.user_id).where(Workspace.id == workspace_id)
         )
         include_legacy = owner_id == user_uuid
 
     rows = await session.execute(
         select(NewChatThread).where(
             NewChatThread.id.in_(requested),
-            NewChatThread.search_space_id == search_space_id,
+            NewChatThread.workspace_id == workspace_id,
             _visibility_predicate(user_uuid, include_legacy=include_legacy),
         )
     )

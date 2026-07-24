@@ -3,7 +3,7 @@ import { json, number, string, table } from "@rocicorp/zero";
 export const automationTable = table("automations")
 	.columns({
 		id: number(),
-		searchSpaceId: number().from("search_space_id"),
+		workspaceId: number().from("workspace_id"),
 	})
 	.primaryKey("id");
 

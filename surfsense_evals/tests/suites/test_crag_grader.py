@@ -7,8 +7,6 @@ exercise the deterministic shortcut + the special-case routing for
 
 from __future__ import annotations
 
-import pytest
-
 from surfsense_evals.suites.research.crag.grader import (
     CragGradeResult,
     _flags_false_premise,
@@ -154,7 +152,9 @@ class TestGradeDeterministicHappyPath:
 class TestGradeDeterministicRefusal:
     def test_idk_maps_to_missing(self) -> None:
         result = grade_deterministic(
-            pred="I don't know.", gold="Tim Cook", question_type="simple",
+            pred="I don't know.",
+            gold="Tim Cook",
+            question_type="simple",
         )
         assert result.grade == "missing"
         assert result.score == 0
@@ -227,8 +227,11 @@ class TestGradeDeterministicLexicalMiss:
 class TestGradeResultShape:
     def test_to_dict_round_trip(self) -> None:
         result = CragGradeResult(
-            grade="correct", score=1, method="exact",
-            normalised_pred="x", normalised_gold="x",
+            grade="correct",
+            score=1,
+            method="exact",
+            normalised_pred="x",
+            normalised_gold="x",
         )
         d = result.to_dict()
         assert d["grade"] == "correct"

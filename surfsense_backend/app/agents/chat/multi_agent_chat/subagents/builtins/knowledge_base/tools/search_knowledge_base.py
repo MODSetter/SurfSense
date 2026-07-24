@@ -38,13 +38,15 @@ _DEFAULT_TOP_K = 5
 _MAX_TOP_K = 20
 
 _TOOL_DESCRIPTION = (
-    "Search the user's knowledge base (their indexed documents, files, and "
-    "connector content) for passages relevant to a query, using hybrid "
-    "semantic + keyword retrieval.\n\n"
+    "Search the user's knowledge base — their own uploaded files, documents, "
+    "and notes — for passages relevant to a query, using hybrid semantic + "
+    "keyword retrieval.\n\n"
     "Use this FIRST to ground any factual or informational answer about the "
-    "user's own documents, notes, or connected sources. It returns a "
-    "<retrieved_context> block: each matched passage is labelled [n]. Cite a "
-    "passage by writing that [n] after the statement it supports.\n\n"
+    "user's personal files and notes. It returns a <retrieved_context> block: "
+    "each matched passage is labelled [n]. Cite a passage by writing that [n] "
+    "after the statement it supports.\n\n"
+    "This searches only the user's stored files and notes — live data in "
+    "connected apps (Slack, Jira, Notion, Gmail, etc.) is not indexed here.\n\n"
     "Write a focused, specific query containing the concrete entities, "
     "acronyms, people, projects, or terms you are looking for."
 )
@@ -89,7 +91,7 @@ def _resolve_mention_pins(
 async def _build_search_scope(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     document_types: tuple[str, ...] | None,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
 ) -> SearchScope:
@@ -97,7 +99,7 @@ async def _build_search_scope(
     mentioned_document_ids, mentioned_folder_ids = _resolve_mention_pins(runtime)
     document_ids = await referenced_document_ids(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         document_ids=mentioned_document_ids,
         folder_ids=mentioned_folder_ids,
     )
@@ -109,13 +111,13 @@ async def _build_search_scope(
 
 def create_search_knowledge_base_tool(
     *,
-    search_space_id: int,
+    workspace_id: int,
     available_connectors: list[str] | None = None,
     available_document_types: list[str] | None = None,
 ) -> BaseTool:
     """Factory for the on-demand ``search_knowledge_base`` tool."""
 
-    _space_id = search_space_id
+    _space_id = workspace_id
     _document_types = _search_types(available_connectors, available_document_types)
 
     async def _impl(
@@ -140,13 +142,13 @@ def create_search_knowledge_base_tool(
         async with shielded_async_session() as session:
             scope = await _build_search_scope(
                 session,
-                search_space_id=_space_id,
+                workspace_id=_space_id,
                 document_types=_document_types,
                 runtime=runtime,
             )
             hits = await search_chunks(
                 session,
-                search_space_id=_space_id,
+                workspace_id=_space_id,
                 query=cleaned_query,
                 scope=scope,
                 top_k=clamped_top_k,

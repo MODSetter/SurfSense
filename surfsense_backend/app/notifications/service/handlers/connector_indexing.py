@@ -24,7 +24,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         connector_id: int,
         connector_name: str,
         connector_type: str,
-        search_space_id: int,
+        workspace_id: int,
         start_date: str | None = None,
         end_date: str | None = None,
     ) -> Notification:
@@ -49,7 +49,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             operation_id=operation_id,
             title=title,
             message=message,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             initial_metadata=metadata,
         )
 
@@ -144,7 +144,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         connector_id: int,
         connector_name: str,
         connector_type: str,
-        search_space_id: int,
+        workspace_id: int,
         folder_count: int,
         file_count: int,
         folder_names: list[str] | None = None,
@@ -178,6 +178,6 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             operation_id=operation_id,
             title=title,
             message=message,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             initial_metadata=metadata,
         )

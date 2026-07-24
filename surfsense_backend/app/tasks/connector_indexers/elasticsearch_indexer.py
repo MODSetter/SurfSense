@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 async def index_elasticsearch_documents(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -58,7 +58,7 @@ async def index_elasticsearch_documents(
     Args:
         session: Database session
         connector_id: Elasticsearch connector ID
-        search_space_id: Search space ID
+        workspace_id: Workspace ID
         user_id: User ID
         start_date: Start date for indexing (not used for Elasticsearch, kept for compatibility)
         end_date: End date for indexing (not used for Elasticsearch, kept for compatibility)
@@ -68,7 +68,7 @@ async def index_elasticsearch_documents(
     Returns:
         Tuple of (number of documents processed, error message if any)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="elasticsearch_indexing",
         source="connector_indexing_task",
@@ -231,14 +231,14 @@ async def index_elasticsearch_documents(
                         continue
 
                     # Create content hash
-                    content_hash = generate_content_hash(content, search_space_id)
+                    content_hash = generate_content_hash(content, workspace_id)
 
                     # Build source-unique identifier and hash (prefer source id dedupe)
                     source_identifier = f"{hit.get('_index', index_name)}:{doc_id}"
                     unique_identifier_hash = generate_unique_identifier_hash(
                         DocumentType.ELASTICSEARCH_CONNECTOR,
                         source_identifier,
-                        search_space_id,
+                        workspace_id,
                     )
 
                     # Two-step duplicate detection: first by source-unique id, then by content hash
@@ -304,7 +304,7 @@ async def index_elasticsearch_documents(
                         unique_identifier_hash=unique_identifier_hash,
                         document_type=DocumentType.ELASTICSEARCH_CONNECTOR,
                         document_metadata=metadata,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         embedding=None,
                         chunks=[],  # Empty at creation - safe for async
                         status=DocumentStatus.pending(),  # Pending until processing starts

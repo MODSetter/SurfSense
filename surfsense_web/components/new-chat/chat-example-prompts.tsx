@@ -2,11 +2,12 @@
 
 import {
 	AlarmClock,
-	FilePlus2,
 	type LucideIcon,
-	Search,
+	MessagesSquare,
+	Radar,
 	Settings2,
 	WandSparkles,
+	Workflow,
 	X,
 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
@@ -20,8 +21,9 @@ interface ChatExamplePromptsProps {
 }
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
-	search: Search,
-	create: FilePlus2,
+	monitor: Radar,
+	listen: MessagesSquare,
+	workflows: Workflow,
 	automate: AlarmClock,
 	tools: Settings2,
 };

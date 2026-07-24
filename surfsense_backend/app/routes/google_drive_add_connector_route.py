@@ -46,7 +46,7 @@ from app.utils.oauth_security import (
     TokenEncryption,
     generate_code_verifier,
 )
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 # Relax token scope validation for Google OAuth
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -119,7 +119,7 @@ async def connect_drive(
     Initiate Google Drive OAuth flow.
 
     Query params:
-        space_id: Search space ID to add connector to
+        space_id: Workspace ID to add connector to
 
     Returns:
         JSON with auth_url to redirect user to Google authorization
@@ -177,7 +177,7 @@ async def reauth_drive(
     Initiate Google Drive re-authentication to upgrade OAuth scopes.
 
     Query params:
-        space_id: Search space ID the connector belongs to
+        space_id: Workspace ID the connector belongs to
         connector_id: ID of the existing connector to re-authenticate
 
     Returns:
@@ -189,7 +189,7 @@ async def reauth_drive(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
             )
@@ -349,7 +349,7 @@ async def drive_callback(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == reauth_connector_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.workspace_id == space_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
                 )
@@ -415,7 +415,7 @@ async def drive_callback(
                 **creds_dict,
                 "start_page_token": None,  # Will be set on first index
             },
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user_id,
             is_indexable=True,
         )
@@ -517,7 +517,7 @@ async def list_google_drive_folders(
                 detail="Google Drive connector not found or access denied",
             )
 
-        await check_search_space_access(session, auth, connector.search_space_id)
+        await check_workspace_access(session, auth, connector.workspace_id)
 
         # Initialize Drive client (credentials will be loaded on first API call)
         drive_client = GoogleDriveClient(session, connector_id)

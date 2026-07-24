@@ -205,6 +205,8 @@ export function Pricing({
 
 							<Link
 								href={plan.href}
+								target={plan.href.startsWith("http") ? "_blank" : undefined}
+								rel={plan.href.startsWith("http") ? "noopener noreferrer" : undefined}
 								className={cn(
 									buttonVariants({
 										variant: "outline",

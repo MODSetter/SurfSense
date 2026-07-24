@@ -1,14 +1,13 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState } from "react";
-import { activeTabAtom, type Tab } from "@/atoms/tabs/tabs.atom";
+import { useMemo, useState } from "react";
+import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { InboxItem } from "@/hooks/use-inbox";
+import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
@@ -18,7 +17,7 @@ import {
 	SIDEBAR_MIN_WIDTH,
 	useSidebarResize,
 } from "../../hooks/useSidebarResize";
-import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import {
@@ -26,16 +25,8 @@ import {
 	RightPanelExpandButton,
 	RightPanelToggleButton,
 } from "../right-panel/RightPanel";
-import {
-	AllChatsSidebarContent,
-	DocumentsSidebar,
-	InboxSidebarContent,
-	MobileSidebar,
-	MobileSidebarTrigger,
-	Sidebar,
-	SidebarCollapseButton,
-} from "../sidebar";
-import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
+import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } from "../sidebar";
+import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
 import { WorkspacePanel } from "./WorkspacePanel";
 
@@ -50,6 +41,23 @@ const DocumentTabContent = dynamic(
 		),
 	}
 );
+
+const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
+const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function persistPlaygroundSidebarCollapsedCookie(isCollapsed: boolean) {
+	void window.cookieStore
+		?.set({
+			name: PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE,
+			value: String(isCollapsed),
+			path: "/",
+			expires: Date.now() + PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE * 1000,
+			sameSite: "lax",
+		})
+		.catch(() => {
+			// Ignore preference persistence failures.
+		});
+}
 
 function MacDesktopTitleBar({
 	isSidebarCollapsed,
@@ -81,36 +89,16 @@ function MacDesktopTitleBar({
 	);
 }
 
-// Per-tab data source
-interface TabDataSource {
-	items: InboxItem[];
-	unreadCount: number;
-	loading: boolean;
-	loadingMore: boolean;
-	hasMore: boolean;
-	loadMore: () => void;
-	markAsRead: (id: number) => Promise<boolean>;
-	markAllAsRead: () => Promise<boolean>;
-}
-
-export type ActiveSlideoutPanel = "inbox" | "chats" | null;
-
-// Inbox-related props — per-tab data sources with independent loading/pagination
-interface InboxProps {
-	isOpen: boolean;
-	totalUnreadCount: number;
-	comments: TabDataSource;
-	status: TabDataSource;
-}
-
 interface LayoutShellProps {
-	searchSpaces: SearchSpace[];
-	activeSearchSpaceId: number | null;
-	onSearchSpaceSelect: (id: number) => void;
-	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
-	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
-	onAddSearchSpace: () => void;
-	searchSpace: SearchSpace | null;
+	workspaces: Workspace[];
+	activeWorkspaceId: number | null;
+	onWorkspaceSelect: (id: number) => void;
+	onWorkspaceDelete?: (workspace: Workspace) => void;
+	onWorkspaceSettings?: (workspace: Workspace) => void;
+	onAddWorkspace: () => void;
+	isAtWorkspaceLimit?: boolean;
+	maxWorkspacesPerUser?: number;
+	workspace: Workspace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
@@ -121,6 +109,7 @@ interface LayoutShellProps {
 	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
+	onChatsClick?: () => void;
 	onViewAllChats?: () => void;
 	user: User;
 	onSettings?: () => void;
@@ -134,27 +123,19 @@ interface LayoutShellProps {
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
+	isAllChatsPage?: boolean;
+	showTabs?: boolean;
 	useWorkspacePanel?: boolean;
 	workspacePanelViewportClassName?: string;
 	workspacePanelContentClassName?: string;
 	children: React.ReactNode;
 	className?: string;
-	// Unified slide-out panel state
-	activeSlideoutPanel?: ActiveSlideoutPanel;
-	onSlideoutPanelChange?: (panel: ActiveSlideoutPanel) => void;
-	// Inbox props
-	inbox?: InboxProps;
+	notifications?: NotificationsDropdownData;
 	isLoadingChats?: boolean;
-	// All chats panel props
-	allChatsPanel?: {
-		searchSpaceId: string;
-	};
-	documentsPanel?: {
-		open: boolean;
-		onOpenChange: (open: boolean) => void;
-	};
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
+	playgroundSidebar?: React.ReactNode;
+	initialPlaygroundSidebarCollapsed?: boolean;
 }
 
 function MainContentPanel({
@@ -162,19 +143,85 @@ function MainContentPanel({
 	onTabSwitch,
 	onTabPrefetch,
 	onNewChat,
+	showTabs = true,
 	showRightPanelExpandButton = true,
 	showTopBorder = false,
 	children,
 }: {
 	isChatPage: boolean;
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
+	showTabs?: boolean;
 	showRightPanelExpandButton?: boolean;
 	showTopBorder?: boolean;
 	children: React.ReactNode;
 }) {
-	const activeTab = useAtomValue(activeTabAtom);
+	if (!showTabs) {
+		return (
+			<UntabbedMainContentPanel isChatPage={isChatPage} showTopBorder={showTopBorder}>
+				{children}
+			</UntabbedMainContentPanel>
+		);
+	}
+
+	return (
+		<TabbedMainContentPanel
+			isChatPage={isChatPage}
+			onTabSwitch={onTabSwitch}
+			onTabPrefetch={onTabPrefetch}
+			onNewChat={onNewChat}
+			showRightPanelExpandButton={showRightPanelExpandButton}
+			showTopBorder={showTopBorder}
+		>
+			{children}
+		</TabbedMainContentPanel>
+	);
+}
+
+function UntabbedMainContentPanel({
+	isChatPage,
+	showTopBorder,
+	children,
+}: {
+	isChatPage: boolean;
+	showTopBorder: boolean;
+	children: React.ReactNode;
+}) {
+	return (
+		<div
+			className={cn("relative isolate flex flex-1 flex-col min-w-0", showTopBorder && "border-t")}
+		>
+			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
+				<Header />
+				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+					{children}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function TabbedMainContentPanel({
+	isChatPage,
+	onTabSwitch,
+	onTabPrefetch,
+	onNewChat,
+	showRightPanelExpandButton,
+	showTopBorder,
+	children,
+}: {
+	isChatPage: boolean;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
+	onNewChat?: () => void;
+	showRightPanelExpandButton: boolean;
+	showTopBorder: boolean;
+	children: React.ReactNode;
+}) {
+	const activeTabId = useAtomValue(activeTabIdAtom);
+	const tabs = useResolvedTabs();
+	const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
 	const isDocumentTab = activeTab?.type === "document";
 
 	return (
@@ -191,12 +238,12 @@ function MainContentPanel({
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
 
-				{isDocumentTab && activeTab.documentId && activeTab.searchSpaceId ? (
+				{isDocumentTab && activeTab.entityId && activeTab.workspaceId ? (
 					<div className="flex-1 overflow-hidden">
 						<DocumentTabContent
-							key={activeTab.documentId}
-							documentId={activeTab.documentId}
-							searchSpaceId={activeTab.searchSpaceId}
+							key={activeTab.entityId}
+							documentId={activeTab.entityId}
+							workspaceId={activeTab.workspaceId}
 							title={activeTab.title}
 						/>
 					</div>
@@ -215,13 +262,15 @@ function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
 }
 
 export function LayoutShell({
-	searchSpaces,
-	activeSearchSpaceId,
-	onSearchSpaceSelect,
-	onSearchSpaceDelete,
-	onSearchSpaceSettings,
-	onAddSearchSpace,
-	searchSpace,
+	workspaces,
+	activeWorkspaceId,
+	onWorkspaceSelect,
+	onWorkspaceDelete,
+	onWorkspaceSettings,
+	onAddWorkspace,
+	isAtWorkspaceLimit = false,
+	maxWorkspacesPerUser,
+	workspace,
 	navItems,
 	onNavItemClick,
 	chats,
@@ -232,6 +281,7 @@ export function LayoutShell({
 	onChatRename,
 	onChatDelete,
 	onChatArchive,
+	onChatsClick,
 	onViewAllChats,
 	user,
 	onSettings,
@@ -245,24 +295,27 @@ export function LayoutShell({
 	setTheme,
 	defaultCollapsed = false,
 	isChatPage = false,
+	isAllChatsPage = false,
+	showTabs = true,
 	useWorkspacePanel = false,
 	workspacePanelViewportClassName,
 	workspacePanelContentClassName,
 	children,
 	className,
-	activeSlideoutPanel = null,
-	onSlideoutPanelChange,
-	inbox,
+	notifications,
 	isLoadingChats = false,
-	allChatsPanel,
-	documentsPanel,
 	onTabSwitch,
 	onTabPrefetch,
+	playgroundSidebar,
+	initialPlaygroundSidebarCollapsed = false,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const electronAPI = useElectronAPI();
 	const isMacDesktop = electronAPI?.versions.platform === "darwin";
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [isPlaygroundSidebarCollapsed, setIsPlaygroundSidebarCollapsed] = useState(
+		initialPlaygroundSidebarCollapsed
+	);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const {
 		sidebarWidth,
@@ -275,18 +328,13 @@ export function LayoutShell({
 		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
 		[isCollapsed, setIsCollapsed, toggleCollapsed]
 	);
-
-	const closeSlideout = useCallback(
-		(open: boolean) => {
-			if (!open) onSlideoutPanelChange?.(null);
-		},
-		[onSlideoutPanelChange]
-	);
-
-	const anySlideOutOpen = activeSlideoutPanel !== null;
-
-	const panelAriaLabel =
-		activeSlideoutPanel === "inbox" ? "Inbox" : activeSlideoutPanel === "chats" ? "Chats" : "Panel";
+	const handlePlaygroundSidebarToggle = () => {
+		setIsPlaygroundSidebarCollapsed((collapsed) => {
+			const nextCollapsed = !collapsed;
+			persistPlaygroundSidebarCollapsedCookie(nextCollapsed);
+			return nextCollapsed;
+		});
+	};
 
 	// Mobile layout
 	if (isMobile) {
@@ -301,11 +349,13 @@ export function LayoutShell({
 						<MobileSidebar
 							isOpen={mobileMenuOpen}
 							onOpenChange={setMobileMenuOpen}
-							searchSpaces={searchSpaces}
-							activeSearchSpaceId={activeSearchSpaceId}
-							onSearchSpaceSelect={onSearchSpaceSelect}
-							onAddSearchSpace={onAddSearchSpace}
-							searchSpace={searchSpace}
+							workspaces={workspaces}
+							activeWorkspaceId={activeWorkspaceId}
+							onWorkspaceSelect={onWorkspaceSelect}
+							onAddWorkspace={onAddWorkspace}
+							isAtWorkspaceLimit={isAtWorkspaceLimit}
+							maxWorkspacesPerUser={maxWorkspacesPerUser}
+							workspace={workspace}
 							navItems={navItems}
 							onNavItemClick={onNavItemClick}
 							chats={chats}
@@ -316,14 +366,16 @@ export function LayoutShell({
 							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
+							onChatsClick={onChatsClick}
 							onViewAllChats={onViewAllChats}
-							isChatsPanelOpen={activeSlideoutPanel === "chats"}
+							isAllChatsActive={isAllChatsPage}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
 							onUserSettings={onUserSettings}
 							onAnnouncements={onAnnouncements}
 							announcementUnreadCount={announcementUnreadCount}
+							notifications={notifications}
 							onLogout={onLogout}
 							pageUsage={pageUsage}
 							theme={theme}
@@ -342,58 +394,6 @@ export function LayoutShell({
 							<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
 							</main>
-						)}
-
-						{/* Mobile unified slide-out panel */}
-						<SidebarSlideOutPanel
-							open={anySlideOutOpen}
-							onOpenChange={closeSlideout}
-							ariaLabel={panelAriaLabel}
-						>
-							<AnimatePresence mode="popLayout" initial={false}>
-								{activeSlideoutPanel === "inbox" && inbox && (
-									<motion.div
-										key="inbox"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<InboxSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-											comments={inbox.comments}
-											status={inbox.status}
-											totalUnreadCount={inbox.totalUnreadCount}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
-								{activeSlideoutPanel === "chats" && allChatsPanel && (
-									<motion.div
-										key="chats"
-										className="h-full flex flex-col"
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 0 }}
-										transition={{ duration: 0.15 }}
-									>
-										<AllChatsSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-											searchSpaceId={allChatsPanel.searchSpaceId}
-											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-										/>
-									</motion.div>
-								)}
-							</AnimatePresence>
-						</SidebarSlideOutPanel>
-
-						{/* Mobile Documents Sidebar - separate (not part of slide-out group) */}
-						{documentsPanel && (
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-							/>
 						)}
 					</div>
 				</TooltipProvider>
@@ -421,17 +421,20 @@ export function LayoutShell({
 							)}
 						>
 							<IconRail
-								searchSpaces={searchSpaces}
-								activeSearchSpaceId={activeSearchSpaceId}
-								onSearchSpaceSelect={onSearchSpaceSelect}
-								onSearchSpaceDelete={onSearchSpaceDelete}
-								onSearchSpaceSettings={onSearchSpaceSettings}
-								onAddSearchSpace={onAddSearchSpace}
+								workspaces={workspaces}
+								activeWorkspaceId={activeWorkspaceId}
+								onWorkspaceSelect={onWorkspaceSelect}
+								onWorkspaceDelete={onWorkspaceDelete}
+								onWorkspaceSettings={onWorkspaceSettings}
+								onAddWorkspace={onAddWorkspace}
+								isAtWorkspaceLimit={isAtWorkspaceLimit}
+								maxWorkspacesPerUser={maxWorkspacesPerUser}
 								isSingleRailMode={false}
 								user={user}
 								onUserSettings={onUserSettings}
 								onAnnouncements={onAnnouncements}
 								announcementUnreadCount={announcementUnreadCount}
+								notifications={notifications}
 								onLogout={onLogout}
 								theme={theme}
 								setTheme={setTheme}
@@ -442,15 +445,21 @@ export function LayoutShell({
 						<div
 							className={cn(
 								"relative hidden md:flex shrink-0 z-20 -mr-2 bg-panel",
-								isMacDesktop ? "rounded-tl-xl border-t border-r border-l" : "border-r"
+								isMacDesktop ? "rounded-tl-xl border-l border-t border-r" : "border-r"
 							)}
 						>
 							<Sidebar
-								searchSpace={searchSpace}
+								workspace={workspace}
 								isCollapsed={isCollapsed}
 								onToggleCollapse={toggleCollapsed}
 								navItems={navItems}
 								onNavItemClick={onNavItemClick}
+								onPlaygroundItemClick={
+									playgroundSidebar ? handlePlaygroundSidebarToggle : undefined
+								}
+								isPlaygroundSidebarOpen={
+									playgroundSidebar ? !isPlaygroundSidebarCollapsed : undefined
+								}
 								chats={chats}
 								activeChatId={activeChatId}
 								onNewChat={onNewChat}
@@ -459,8 +468,9 @@ export function LayoutShell({
 								onChatRename={onChatRename}
 								onChatDelete={onChatDelete}
 								onChatArchive={onChatArchive}
+								onChatsClick={onChatsClick}
 								onViewAllChats={onViewAllChats}
-								isChatsPanelOpen={activeSlideoutPanel === "chats"}
+								isAllChatsActive={isAllChatsPage}
 								user={user}
 								onSettings={onSettings}
 								onManageMembers={onManageMembers}
@@ -501,49 +511,22 @@ export function LayoutShell({
 									)}
 								/>
 							)}
-
-							{/* Unified slide-out panel — shell stays open, content cross-fades */}
-							<SidebarSlideOutPanel
-								open={anySlideOutOpen}
-								onOpenChange={closeSlideout}
-								ariaLabel={panelAriaLabel}
-							>
-								<AnimatePresence mode="popLayout" initial={false}>
-									{activeSlideoutPanel === "inbox" && inbox && (
-										<motion.div
-											key="inbox"
-											className="h-full flex flex-col"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.15 }}
-										>
-											<InboxSidebarContent
-												onOpenChange={(open) => closeSlideout(open)}
-												comments={inbox.comments}
-												status={inbox.status}
-												totalUnreadCount={inbox.totalUnreadCount}
-											/>
-										</motion.div>
-									)}
-									{activeSlideoutPanel === "chats" && allChatsPanel && (
-										<motion.div
-											key="chats"
-											className="h-full flex flex-col"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.15 }}
-										>
-											<AllChatsSidebarContent
-												onOpenChange={(open) => closeSlideout(open)}
-												searchSpaceId={allChatsPanel.searchSpaceId}
-											/>
-										</motion.div>
-									)}
-								</AnimatePresence>
-							</SidebarSlideOutPanel>
 						</div>
+
+						{playgroundSidebar ? (
+							<div
+								aria-hidden={isPlaygroundSidebarCollapsed}
+								className={cn(
+									"hidden md:flex shrink-0 overflow-hidden -mr-2 bg-panel transition-[width,opacity] duration-200 ease-out",
+									isPlaygroundSidebarCollapsed
+										? "w-0 opacity-0 pointer-events-none"
+										: "w-[240px] opacity-100",
+									isMacDesktop && !isPlaygroundSidebarCollapsed && "border-t"
+								)}
+							>
+								<div className="w-[240px] shrink-0">{playgroundSidebar}</div>
+							</div>
+						) : null}
 
 						<DesktopWorkspaceRegion>
 							{useWorkspacePanel ? (
@@ -562,23 +545,15 @@ export function LayoutShell({
 										onTabSwitch={onTabSwitch}
 										onTabPrefetch={onTabPrefetch}
 										onNewChat={onNewChat}
+										showTabs={showTabs}
 										showRightPanelExpandButton={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									>
 										{children}
 									</MainContentPanel>
 
-									{/* Right panel — tabbed Sources/Report (desktop only) */}
-									{documentsPanel ? (
-										<RightPanel
-											documentsPanel={{
-												open: documentsPanel.open,
-												onOpenChange: documentsPanel.onOpenChange,
-											}}
-											showCollapseButton={!isMacDesktop}
-											showTopBorder={isMacDesktop}
-										/>
-									) : null}
+									{/* Right panel — Report/Editor/Citations/Artifacts (desktop only) */}
+									<RightPanel showTopBorder={isMacDesktop} />
 								</>
 							)}
 						</DesktopWorkspaceRegion>

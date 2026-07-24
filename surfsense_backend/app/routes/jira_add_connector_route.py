@@ -83,7 +83,7 @@ async def connect_jira(
     Initiate Jira OAuth flow.
 
     Args:
-        space_id: The search space ID
+        space_id: The workspace ID
         user: Current authenticated user
 
     Returns:
@@ -326,7 +326,7 @@ async def jira_callback(
                 sa_select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == reauth_connector_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.workspace_id == space_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.JIRA_CONNECTOR,
                 )
@@ -392,7 +392,7 @@ async def jira_callback(
             connector_type=SearchSourceConnectorType.JIRA_CONNECTOR,
             is_indexable=False,
             config=connector_config,
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user_id,
         )
         session.add(new_connector)
@@ -454,7 +454,7 @@ async def reauth_jira(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.JIRA_CONNECTOR,
             )

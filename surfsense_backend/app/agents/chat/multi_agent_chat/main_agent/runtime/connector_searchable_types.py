@@ -1,10 +1,10 @@
 """Map configured connectors to the searchable document/connector types.
 
 This is agent-agnostic infrastructure shared by every agent factory (single-
-and multi-agent). It translates the connectors a search space has enabled into
-the set of searchable type strings that pre-search middleware and ``web_search``
-understand, and always layers in the document types that exist independently of
-any connector (uploads, notes, extension captures, YouTube).
+and multi-agent). It translates the connectors a workspace has enabled into
+the set of searchable type strings that pre-search middleware understands, and
+always layers in the document types that exist independently of any connector
+(uploads, notes, extension captures, YouTube).
 
 It lives in its own module — rather than inside a specific agent factory — so
 that retiring or moving any single agent never disturbs the others' access to
@@ -16,15 +16,8 @@ from __future__ import annotations
 from typing import Any
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
-# used by pre-search middleware and web_search.
-# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
-# the web_search tool; all others are considered local/indexed data.
+# used by KB pre-search middleware. All entries are local/indexed data.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
-    # Live search connectors (handled by web_search tool)
-    "TAVILY_API": "TAVILY_API",
-    "LINKUP_API": "LINKUP_API",
-    "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
-    # Local/indexed connectors (handled by KB pre-search middleware)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
     "NOTION_CONNECTOR": "NOTION_CONNECTOR",
@@ -40,12 +33,14 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "AIRTABLE_CONNECTOR": "AIRTABLE_CONNECTOR",
     "LUMA_CONNECTOR": "LUMA_CONNECTOR",
     "ELASTICSEARCH_CONNECTOR": "ELASTICSEARCH_CONNECTOR",
-    "WEBCRAWLER_CONNECTOR": "CRAWLED_URL",  # Maps to document type
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
     "DROPBOX_CONNECTOR": "DROPBOX_FILE",  # Connector type differs from document type
     "ONEDRIVE_CONNECTOR": "ONEDRIVE_FILE",  # Connector type differs from document type
+    # Generic user-defined MCP server: unlocks the mcp_discovery subagent even
+    # in a workspace with no hosted-service connectors.
+    "MCP_CONNECTOR": "MCP_CONNECTOR",
     # Composio connectors (unified to native document types).
     # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
     "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",

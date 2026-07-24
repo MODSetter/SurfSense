@@ -1,7 +1,7 @@
 """Workspace-tree middleware for the SurfSense agent.
 
 Renders the full ``Folder``+``Document`` tree under ``/documents/`` once per
-turn (cloud only), caches it by ``(search_space_id, tree_version)``, and
+turn (cloud only), caches it by ``(workspace_id, tree_version)``, and
 injects the result as a ``<workspace_tree>`` system message immediately
 before the latest human turn.
 
@@ -106,14 +106,14 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     def __init__(
         self,
         *,
-        search_space_id: int,
+        workspace_id: int,
         filesystem_mode: FilesystemMode,
         llm: BaseChatModel | None = None,
         max_entries: int = MAX_TREE_ENTRIES,
         max_tokens: int = MAX_TREE_TOKENS,
         inject_system_message: bool = True,  # For backwards compatibility
     ) -> None:
-        self.search_space_id = search_space_id
+        self.workspace_id = workspace_id
         self.filesystem_mode = filesystem_mode
         self.llm = llm
         self.max_entries = max_entries
@@ -141,7 +141,7 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             cache_outcome = "anon"
         else:
             version = int(state.get("tree_version") or 0)
-            cache_key = (self.search_space_id, version, False)
+            cache_key = (self.workspace_id, version, False)
             cache_outcome = "hit" if cache_key in self._cache else "miss"
             tree_msg = await self._render_kb_tree(state)
 
@@ -158,7 +158,7 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             cache_outcome,
             len(tree_msg),
             time.perf_counter() - start,
-            self.search_space_id,
+            self.workspace_id,
         )
         return update
 
@@ -190,17 +190,17 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
     async def _render_kb_tree(self, state: AgentState) -> str:
         version = int(state.get("tree_version") or 0)
-        cache_key = (self.search_space_id, version, False)
+        cache_key = (self.workspace_id, version, False)
         cached = self._cache.get(cache_key)
         if cached is not None:
             return cached
 
         try:
             async with shielded_async_session() as session:
-                index = await build_path_index(session, self.search_space_id)
+                index = await build_path_index(session, self.workspace_id)
                 doc_rows = await session.execute(
                     select(Document.id, Document.title, Document.folder_id).where(
-                        Document.search_space_id == self.search_space_id
+                        Document.workspace_id == self.workspace_id
                     )
                 )
                 docs = list(doc_rows.all())

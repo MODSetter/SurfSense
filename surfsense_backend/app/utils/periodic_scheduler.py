@@ -22,14 +22,13 @@ CONNECTOR_TASK_MAP = {
     SearchSourceConnectorType.GITHUB_CONNECTOR: "index_github_repos",
     SearchSourceConnectorType.CONFLUENCE_CONNECTOR: "index_confluence_pages",
     SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: "index_elasticsearch_documents",
-    SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: "index_crawled_urls",
     SearchSourceConnectorType.BOOKSTACK_CONNECTOR: "index_bookstack_pages",
 }
 
 
 def create_periodic_schedule(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     connector_type: SearchSourceConnectorType,
     frequency_minutes: int,
@@ -44,7 +43,7 @@ def create_periodic_schedule(
 
     Args:
         connector_id: ID of the connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: User ID
         connector_type: Type of connector
         frequency_minutes: Frequency in minutes (used for logging)
@@ -54,20 +53,6 @@ def create_periodic_schedule(
         True if successful, False otherwise
     """
     try:
-        # Special handling for connectors that require config validation
-        if connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
-            from app.utils.webcrawler_utils import parse_webcrawler_urls
-
-            config = connector_config or {}
-            urls = parse_webcrawler_urls(config.get("INITIAL_URLS"))
-
-            if not urls:
-                logger.info(
-                    f"Webcrawler connector {connector_id} has no URLs configured, "
-                    "skipping first indexing run (will run when URLs are added)"
-                )
-                return True  # Return success - schedule is created, just no first run
-
         logger.info(
             f"Periodic indexing enabled for connector {connector_id} "
             f"(frequency: {frequency_minutes} minutes). Triggering first run..."
@@ -76,7 +61,6 @@ def create_periodic_schedule(
         from app.tasks.celery_tasks.connector_tasks import (
             index_bookstack_pages_task,
             index_confluence_pages_task,
-            index_crawled_urls_task,
             index_elasticsearch_documents_task,
             index_github_repos_task,
             index_notion_pages_task,
@@ -87,14 +71,13 @@ def create_periodic_schedule(
             SearchSourceConnectorType.GITHUB_CONNECTOR: index_github_repos_task,
             SearchSourceConnectorType.CONFLUENCE_CONNECTOR: index_confluence_pages_task,
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
-            SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
             SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,
         }
 
         # Trigger the first run immediately
         task = task_map.get(connector_type)
         if task:
-            task.delay(connector_id, search_space_id, user_id, None, None)
+            task.delay(connector_id, workspace_id, user_id, None, None)
             logger.info(
                 f"✓ First indexing run triggered for connector {connector_id}. "
                 f"Periodic indexing will continue automatically every {frequency_minutes} minutes."
@@ -133,7 +116,7 @@ def delete_periodic_schedule(connector_id: int) -> bool:
 
 def update_periodic_schedule(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     connector_type: SearchSourceConnectorType,
     frequency_minutes: int,
@@ -146,7 +129,7 @@ def update_periodic_schedule(
 
     Args:
         connector_id: ID of the connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: User ID
         connector_type: Type of connector
         frequency_minutes: New frequency in minutes
@@ -160,5 +143,5 @@ def update_periodic_schedule(
     )
     # Optionally trigger an immediate run with the new schedule
     # Uncomment the line below if you want immediate execution on schedule update
-    # return create_periodic_schedule(connector_id, search_space_id, user_id, connector_type, frequency_minutes)
+    # return create_periodic_schedule(connector_id, workspace_id, user_id, connector_type, frequency_minutes)
     return True

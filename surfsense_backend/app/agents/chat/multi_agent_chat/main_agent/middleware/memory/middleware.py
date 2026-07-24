@@ -18,7 +18,7 @@ from langgraph.runtime import Runtime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ChatVisibility, SearchSpace, User, shielded_async_session
+from app.db import ChatVisibility, User, Workspace, shielded_async_session
 from app.services.memory import MEMORY_HARD_LIMIT, MEMORY_SOFT_LIMIT
 from app.utils.perf import get_perf_logger
 
@@ -35,11 +35,11 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self,
         *,
         user_id: str | UUID | None,
-        search_space_id: int,
+        workspace_id: int,
         thread_visibility: ChatVisibility | None = None,
     ) -> None:
         self.user_id = UUID(user_id) if isinstance(user_id, str) else user_id
-        self.search_space_id = search_space_id
+        self.workspace_id = workspace_id
         self.visibility = thread_visibility or ChatVisibility.PRIVATE
 
     async def abefore_agent(  # type: ignore[override]
@@ -149,8 +149,8 @@ class MemoryInjectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     async def _load_team_memory(self, session: AsyncSession) -> str | None:
         try:
             result = await session.execute(
-                select(SearchSpace.shared_memory_md).where(
-                    SearchSpace.id == self.search_space_id
+                select(Workspace.shared_memory_md).where(
+                    Workspace.id == self.workspace_id
                 )
             )
             row = result.scalar_one_or_none()

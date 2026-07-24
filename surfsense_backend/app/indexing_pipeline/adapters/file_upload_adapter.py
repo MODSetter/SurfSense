@@ -16,7 +16,7 @@ class UploadDocumentAdapter:
         markdown_content: str,
         filename: str,
         etl_service: str,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> None:
         connector_doc = ConnectorDocument(
@@ -24,7 +24,7 @@ class UploadDocumentAdapter:
             source_markdown=markdown_content,
             unique_id=filename,
             document_type=DocumentType.FILE,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             created_by_id=user_id,
             connector_id=None,
             should_use_code_chunker=False,
@@ -59,7 +59,7 @@ class UploadDocumentAdapter:
             source_markdown=document.source_markdown,
             unique_id=document.title,
             document_type=document.document_type,
-            search_space_id=document.search_space_id,
+            workspace_id=document.workspace_id,
             created_by_id=str(document.created_by_id),
             connector_id=document.connector_id,
             should_use_code_chunker=False,

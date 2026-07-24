@@ -12,13 +12,13 @@ from .middleware import KnowledgeTreeMiddleware
 def build_knowledge_tree_mw(
     *,
     filesystem_mode: FilesystemMode,
-    search_space_id: int,
+    workspace_id: int,
     llm: BaseChatModel,
 ) -> KnowledgeTreeMiddleware | None:
     if filesystem_mode != FilesystemMode.CLOUD:
         return None
     return KnowledgeTreeMiddleware(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         filesystem_mode=filesystem_mode,
         llm=llm,
         inject_system_message=False,

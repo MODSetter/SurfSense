@@ -1,0 +1,16 @@
+{
+	"title": "Native Connectors",
+	"pages": [
+		"reddit",
+		"youtube",
+		"instagram",
+		"tiktok",
+		"google-maps",
+		"google-search",
+		"indeed",
+		"amazon",
+		"walmart",
+		"web-crawl"
+	],
+	"defaultOpen": false
+}

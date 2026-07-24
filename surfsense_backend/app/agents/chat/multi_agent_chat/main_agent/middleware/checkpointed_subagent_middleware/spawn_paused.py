@@ -1,12 +1,12 @@
-"""Per-search-space spawn-paused kill switch for the ``task`` boundary.
+"""Per-workspace spawn-paused kill switch for the ``task`` boundary.
 
 When operators see a runaway loop, a vendor outage, or a billing event
 that requires immediate cessation of subagent traffic for a specific
 workspace, they flip a Redis flag and the ``task`` tool short-circuits
-without touching downstream services. The flag is **per-search-space**
+without touching downstream services. The flag is **per-workspace**
 so one tenant's incident never silences the rest of the deployment.
 
-Flag key:    ``surfsense:spawn_paused:{search_space_id}``
+Flag key:    ``surfsense:spawn_paused:{workspace_id}``
 Flag value:  any string-truthy value (we read presence, not contents).
 TTL:         set by whoever toggles the flag — this module never expires
              keys on its own, since "the flag is on" is itself the signal
@@ -43,18 +43,18 @@ _DISABLED = os.environ.get(
 }
 
 
-def _flag_key(search_space_id: int) -> str:
-    return f"surfsense:spawn_paused:{search_space_id}"
+def _flag_key(workspace_id: int) -> str:
+    return f"surfsense:spawn_paused:{workspace_id}"
 
 
-async def is_spawn_paused(search_space_id: int | None) -> bool:
+async def is_spawn_paused(workspace_id: int | None) -> bool:
     """Return ``True`` iff the workspace's spawn-paused flag is set in Redis.
 
-    A ``None`` search-space (e.g. dev paths that did not plumb the id
+    A ``None`` workspace (e.g. dev paths that did not plumb the id
     through yet) bypasses the check. So does a Redis outage — see module
     docstring for the fail-open rationale.
     """
-    if _DISABLED or search_space_id is None:
+    if _DISABLED or workspace_id is None:
         return False
     try:
         # Local import keeps the cold-path import cheap and lets routes
@@ -63,7 +63,7 @@ async def is_spawn_paused(search_space_id: int | None) -> bool:
 
         client = aioredis.from_url(config.REDIS_APP_URL, decode_responses=True)
         try:
-            raw = await client.get(_flag_key(search_space_id))
+            raw = await client.get(_flag_key(workspace_id))
         finally:
             # ``aclose()`` is the async-safe variant on redis-py >=5; fall back
             # to ``close()`` for older clients pinned in tests.
@@ -74,8 +74,8 @@ async def is_spawn_paused(search_space_id: int | None) -> bool:
         return bool(raw)
     except Exception:
         logger.warning(
-            "spawn_paused check failed for search_space_id=%s; failing open.",
-            search_space_id,
+            "spawn_paused check failed for workspace_id=%s; failing open.",
+            workspace_id,
             exc_info=True,
         )
         return False

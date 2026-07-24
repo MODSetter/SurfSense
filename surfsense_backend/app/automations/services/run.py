@@ -65,9 +65,9 @@ class RunService:
         await check_permission(
             self.session,
             self.auth,
-            automation.search_space_id,
+            automation.workspace_id,
             permission,
-            f"You don't have permission to {permission.split(':')[1]} automations in this search space",
+            f"You don't have permission to {permission.split(':')[1]} automations in this workspace",
         )
         return automation
 

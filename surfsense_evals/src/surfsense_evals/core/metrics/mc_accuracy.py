@@ -46,9 +46,7 @@ _Z_FOR_LEVEL: dict[float, float] = {
 }
 
 
-def wilson_ci(
-    n_correct: int, n_total: int, *, level: float = 0.95
-) -> tuple[float, float]:
+def wilson_ci(n_correct: int, n_total: int, *, level: float = 0.95) -> tuple[float, float]:
     """Two-sided Wilson score confidence interval for a proportion.
 
     Returns ``(low, high)``. ``n_total == 0`` returns ``(0.0, 1.0)`` —
@@ -70,9 +68,7 @@ def wilson_ci(
     return low, high
 
 
-def accuracy_with_wilson_ci(
-    n_correct: int, n_total: int, *, level: float = 0.95
-) -> AccuracyResult:
+def accuracy_with_wilson_ci(n_correct: int, n_total: int, *, level: float = 0.95) -> AccuracyResult:
     if n_total < 0:
         raise ValueError(f"n_total must be >= 0, got {n_total}")
     if n_correct < 0 or n_correct > n_total:
@@ -109,10 +105,7 @@ def per_task_accuracy(
         bucket[1] += 1
         if row.get(correct_key):
             bucket[0] += 1
-    return {
-        task: accuracy_with_wilson_ci(c[0], c[1], level=level)
-        for task, c in counts.items()
-    }
+    return {task: accuracy_with_wilson_ci(c[0], c[1], level=level) for task, c in counts.items()}
 
 
 def macro_accuracy(per_task: Mapping[str, AccuracyResult]) -> float:

@@ -68,10 +68,12 @@ class Podcast(BaseModel, TimestampMixin):
     # Legacy local audio path; retained for back-compat until cutover.
     file_location = Column(Text, nullable=True)
 
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    workspace_id = Column(
+        Integer,
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    search_space = relationship("SearchSpace", back_populates="podcasts")
+    workspace = relationship("Workspace", back_populates="podcasts")
 
     thread_id = Column(
         Integer,

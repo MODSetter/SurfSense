@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { getPostLoginRedirectPath } from "@/lib/auth-utils";
 
 type ShortcutKey = "generalAssist" | "quickAsk" | "screenshotAssist";
@@ -239,7 +239,7 @@ export default function DesktopLoginPage() {
 		setIsGoogleRedirecting(true);
 		try {
 			await api?.startGoogleOAuth?.();
-			await autoSetSearchSpace();
+			await autoSetWorkspace();
 			router.push(getPostLoginRedirectPath());
 		} catch (error) {
 			setIsGoogleRedirecting(false);
@@ -247,13 +247,13 @@ export default function DesktopLoginPage() {
 		}
 	};
 
-	const autoSetSearchSpace = async () => {
+	const autoSetWorkspace = async () => {
 		try {
-			const stored = await api?.getActiveSearchSpace?.();
+			const stored = await api?.getActiveWorkspace?.();
 			if (stored) return;
-			const spaces = await searchSpacesApiService.getSearchSpaces();
+			const spaces = await workspacesApiService.getWorkspaces();
 			if (spaces?.length) {
-				await api?.setActiveSearchSpace?.(String(spaces[0].id));
+				await api?.setActiveWorkspace?.(String(spaces[0].id));
 			}
 		} catch {
 			// non-critical — dashboard-sync will catch it later
@@ -272,7 +272,7 @@ export default function DesktopLoginPage() {
 			}
 			await api.loginPassword(email, password);
 
-			await autoSetSearchSpace();
+			await autoSetWorkspace();
 
 			setTimeout(() => {
 				router.push(getPostLoginRedirectPath());

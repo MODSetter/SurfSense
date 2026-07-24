@@ -34,10 +34,7 @@ _FORMAT_HINTS: dict[str, str] = {
         "Respond with the answer as a short phrase, no full sentence. "
         "Format your final line as `Answer: <text>`."
     ),
-    "int": (
-        "Respond with a single integer only. "
-        "Format your final line as `Answer: <integer>`."
-    ),
+    "int": ("Respond with a single integer only. Format your final line as `Answer: <integer>`."),
     "float": (
         "Respond with a single decimal number only (no units). "
         "Format your final line as `Answer: <number>`."
@@ -69,11 +66,7 @@ _BASE_INSTRUCTION = (
 def build_native_pdf_prompt(question: str, *, answer_format: str) -> str:
     """Prompt for ``NativePdfArm`` — PDF attached separately as a file part."""
 
-    return (
-        f"{_BASE_INSTRUCTION}\n\n"
-        f"Question: {question.strip()}\n\n"
-        f"{_format_hint(answer_format)}\n"
-    )
+    return f"{_BASE_INSTRUCTION}\n\nQuestion: {question.strip()}\n\n{_format_hint(answer_format)}\n"
 
 
 def build_surfsense_prompt(question: str, *, answer_format: str) -> str:
@@ -82,11 +75,7 @@ def build_surfsense_prompt(question: str, *, answer_format: str) -> str:
     # SurfSense's agent already injects retrieved chunks via its tool
     # loop; the prompt only carries the user-visible question + format
     # hint, mirroring how a human asks the SurfSense UI.
-    return (
-        f"{_BASE_INSTRUCTION}\n\n"
-        f"Question: {question.strip()}\n\n"
-        f"{_format_hint(answer_format)}\n"
-    )
+    return f"{_BASE_INSTRUCTION}\n\nQuestion: {question.strip()}\n\n{_format_hint(answer_format)}\n"
 
 
 def build_long_context_prompt(
@@ -105,7 +94,7 @@ def build_long_context_prompt(
 
     return (
         f"{_BASE_INSTRUCTION}\n\n"
-        f"<document name=\"{document_label}\">\n"
+        f'<document name="{document_label}">\n'
         f"{document_markdown.strip()}\n"
         f"</document>\n\n"
         f"Question: {question.strip()}\n\n"

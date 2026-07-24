@@ -28,7 +28,7 @@ def test_clear_ignored_for_non_task_tool() -> None:
     open_task_span(state, run_id="run-1")
     sid = state.active_span_id
     clear_task_span_if_delegating_task_ended(
-        state, tool_name="web_search", run_id="run-1"
+        state, tool_name="scrape_webpage", run_id="run-1"
     )
     assert state.active_span_id == sid
     assert state.active_task_run_id == "run-1"

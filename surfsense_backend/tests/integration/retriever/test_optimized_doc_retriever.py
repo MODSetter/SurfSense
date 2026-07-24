@@ -17,13 +17,13 @@ pytestmark = pytest.mark.integration
 
 async def test_per_doc_chunk_limit_respected(db_session, seed_large_doc):
     """A document with 35 chunks should have at most _MAX_FETCH_CHUNKS_PER_DOC chunks returned."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = DocumentHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 
@@ -39,13 +39,13 @@ async def test_per_doc_chunk_limit_respected(db_session, seed_large_doc):
 
 async def test_doc_metadata_populated(db_session, seed_large_doc):
     """Document metadata should be present from the RRF results."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = DocumentHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 
@@ -61,13 +61,13 @@ async def test_doc_metadata_populated(db_session, seed_large_doc):
 
 async def test_chunks_ordered_by_id(db_session, seed_large_doc):
     """Chunks within each document should be ordered by chunk ID."""
-    space_id = seed_large_doc["search_space"].id
+    space_id = seed_large_doc["workspace"].id
 
     retriever = DocumentHybridSearchRetriever(db_session)
     results = await retriever.hybrid_search(
         query_text="quarterly performance review",
         top_k=10,
-        search_space_id=space_id,
+        workspace_id=space_id,
         query_embedding=DUMMY_EMBEDDING,
     )
 

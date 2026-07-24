@@ -13,13 +13,13 @@ import { normalizeFolder, parseExcludePatterns } from "./excludes";
 import { FolderSuggestModal } from "./folder-suggest-modal";
 import type SurfSensePlugin from "./main";
 import { STATUS_VISUALS } from "./status-visuals";
-import type { SearchSpace } from "./types";
+import type { Workspace } from "./types";
 
 /** Plugin settings tab. */
 
 export class SurfSenseSettingTab extends PluginSettingTab {
 	private readonly plugin: SurfSensePlugin;
-	private searchSpaces: SearchSpace[] = [];
+	private workspaces: Workspace[] = [];
 	private loadingSpaces = false;
 	private connectionIndicator: HTMLElement | null = null;
 	private readonly onStatusChange = (): void => this.updateConnectionIndicator();
@@ -51,7 +51,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 						const next = value.trim();
 						const previous = this.plugin.settings.serverUrl;
 						if (previous !== "" && next !== previous) {
-							this.plugin.settings.searchSpaceId = null;
+							this.plugin.settings.workspaceId = null;
 							this.plugin.settings.connectorId = null;
 						}
 						this.plugin.settings.serverUrl = next;
@@ -80,7 +80,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 						const next = value.trim();
 						const previous = this.plugin.settings.apiToken;
 						if (previous !== "" && next !== previous) {
-							this.plugin.settings.searchSpaceId = null;
+							this.plugin.settings.workspaceId = null;
 							this.plugin.settings.connectorId = null;
 						}
 						this.plugin.settings.apiToken = next;
@@ -102,7 +102,7 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 						await this.plugin.api.verifyToken();
 						new Notice("Surfsense: token verified.");
 						this.plugin.engine.refreshStatus({ force: true });
-						await this.refreshSearchSpaces();
+						await this.refreshWorkspaces();
 						this.display();
 					} catch (err) {
 						this.handleApiError(err);
@@ -115,21 +115,21 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Search space")
 			.setDesc(
-				"Which Surfsense search space this vault syncs into. Reload after changing your token.",
+				"Which Surfsense workspace this vault syncs into. Reload after changing your token.",
 			)
 			.addDropdown((drop) => {
-				drop.addOption("", this.loadingSpaces ? "Loading…" : "Select a search space");
-				for (const space of this.searchSpaces) {
+				drop.addOption("", this.loadingSpaces ? "Loading…" : "Select a workspace");
+				for (const space of this.workspaces) {
 					drop.addOption(String(space.id), space.name);
 				}
-				if (settings.searchSpaceId !== null) {
-					drop.setValue(String(settings.searchSpaceId));
+				if (settings.workspaceId !== null) {
+					drop.setValue(String(settings.workspaceId));
 				}
 				drop.onChange(async (value) => {
-					this.plugin.settings.searchSpaceId = value ? Number(value) : null;
+					this.plugin.settings.workspaceId = value ? Number(value) : null;
 					this.plugin.settings.connectorId = null;
 					await this.plugin.saveSettings();
-					if (this.plugin.settings.searchSpaceId !== null) {
+					if (this.plugin.settings.workspaceId !== null) {
 						try {
 							await this.plugin.engine.ensureConnected();
 							await this.plugin.engine.maybeReconcile(true);
@@ -144,9 +144,9 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 			.addExtraButton((btn) =>
 				btn
 					.setIcon("refresh-ccw")
-					.setTooltip("Reload search spaces")
+					.setTooltip("Reload workspaces")
 					.onClick(async () => {
-						await this.refreshSearchSpaces();
+						await this.refreshWorkspaces();
 						this.display();
 					}),
 			);
@@ -319,13 +319,13 @@ export class SurfSenseSettingTab extends PluginSettingTab {
 		indicator.setAttr("title", visual.label);
 	}
 
-	private async refreshSearchSpaces(): Promise<void> {
+	private async refreshWorkspaces(): Promise<void> {
 		this.loadingSpaces = true;
 		try {
-			this.searchSpaces = await this.plugin.api.listSearchSpaces();
+			this.workspaces = await this.plugin.api.listWorkspaces();
 		} catch (err) {
 			this.handleApiError(err);
-			this.searchSpaces = [];
+			this.workspaces = [];
 		} finally {
 			this.loadingSpaces = false;
 		}

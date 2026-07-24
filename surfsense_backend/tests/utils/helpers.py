@@ -40,17 +40,17 @@ async def get_auth_token(client: httpx.AsyncClient) -> str:
     return response.json()["access_token"]
 
 
-async def get_search_space_id(client: httpx.AsyncClient, token: str) -> int:
-    """Fetch the first search space owned by the test user."""
+async def get_workspace_id(client: httpx.AsyncClient, token: str) -> int:
+    """Fetch the first workspace owned by the test user."""
     resp = await client.get(
-        "/api/v1/searchspaces",
+        "/api/v1/workspaces",
         headers=auth_headers(token),
     )
     assert resp.status_code == 200, (
-        f"Failed to list search spaces ({resp.status_code}): {resp.text}"
+        f"Failed to list workspaces ({resp.status_code}): {resp.text}"
     )
     spaces = resp.json()
-    assert len(spaces) > 0, "No search spaces found for test user"
+    assert len(spaces) > 0, "No workspaces found for test user"
     return spaces[0]["id"]
 
 
@@ -64,7 +64,7 @@ async def upload_file(
     headers: dict[str, str],
     fixture_name: str,
     *,
-    search_space_id: int,
+    workspace_id: int,
     filename_override: str | None = None,
 ) -> httpx.Response:
     """Upload a single fixture file and return the raw response."""
@@ -75,7 +75,7 @@ async def upload_file(
             "/api/v1/documents/fileupload",
             headers=headers,
             files={"files": (upload_name, f)},
-            data={"search_space_id": str(search_space_id)},
+            data={"workspace_id": str(workspace_id)},
         )
 
 
@@ -84,7 +84,7 @@ async def upload_multiple_files(
     headers: dict[str, str],
     fixture_names: list[str],
     *,
-    search_space_id: int,
+    workspace_id: int,
 ) -> httpx.Response:
     """Upload multiple fixture files in a single request."""
     files = []
@@ -99,7 +99,7 @@ async def upload_multiple_files(
             "/api/v1/documents/fileupload",
             headers=headers,
             files=files,
-            data={"search_space_id": str(search_space_id)},
+            data={"workspace_id": str(workspace_id)},
         )
     finally:
         for fh in open_handles:
@@ -111,7 +111,7 @@ async def poll_document_status(
     headers: dict[str, str],
     document_ids: list[int],
     *,
-    search_space_id: int,
+    workspace_id: int,
     timeout: float = 180.0,
     interval: float = 3.0,
 ) -> dict[int, dict]:
@@ -135,7 +135,7 @@ async def poll_document_status(
                 "/api/v1/documents/status",
                 headers=headers,
                 params={
-                    "search_space_id": search_space_id,
+                    "workspace_id": workspace_id,
                     "document_ids": ids_param,
                 },
             )
@@ -199,15 +199,15 @@ async def get_notifications(
     headers: dict[str, str],
     *,
     type_filter: str | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     limit: int = 50,
 ) -> list[dict]:
     """Fetch notifications for the authenticated user, optionally filtered by type."""
     params: dict[str, str | int] = {"limit": limit}
     if type_filter:
         params["type"] = type_filter
-    if search_space_id is not None:
-        params["search_space_id"] = search_space_id
+    if workspace_id is not None:
+        params["workspace_id"] = workspace_id
 
     resp = await client.get(
         "/api/v1/notifications",

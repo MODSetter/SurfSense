@@ -10,7 +10,7 @@ class ConnectorDocument(BaseModel):
     source_markdown: str
     unique_id: str
     document_type: DocumentType
-    search_space_id: int = Field(gt=0)
+    workspace_id: int = Field(gt=0)
     should_use_code_chunker: bool = False
     metadata: dict = {}
     connector_id: int | None = None

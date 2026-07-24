@@ -37,7 +37,7 @@ async def composio_gmail(async_engine):
         name_prefix="gmail-composio",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @pytest_asyncio.fixture
@@ -49,7 +49,7 @@ async def composio_gmail_no_id(async_engine):
         name_prefix="gmail-noid",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @pytest_asyncio.fixture
@@ -67,7 +67,7 @@ async def native_gmail(async_engine):
         name_prefix="gmail-native",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @patch(_GET_ACCESS_TOKEN)
@@ -101,7 +101,7 @@ async def test_composio_gmail_uses_composio_service(
         await index_google_gmail_messages(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
         )
 
@@ -140,7 +140,7 @@ async def test_composio_gmail_without_account_id_returns_error(
         count, _skipped, error = await index_google_gmail_messages(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
         )
 
@@ -180,7 +180,7 @@ async def test_native_gmail_uses_google_gmail_connector(
         await index_google_gmail_messages(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
         )
 

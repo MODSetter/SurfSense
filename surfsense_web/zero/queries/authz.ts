@@ -4,8 +4,8 @@ type SpaceScopedQuery = {
 	where: (...args: unknown[]) => SpaceScopedQuery;
 };
 
-export function canReadSpace(ctx: Context, searchSpaceId: number): boolean {
-	return !!ctx?.allowedSpaceIds?.includes(searchSpaceId);
+export function canReadSpace(ctx: Context, workspaceId: number): boolean {
+	return !!ctx?.allowedSpaceIds?.includes(workspaceId);
 }
 
 export function denySpace<T extends SpaceScopedQuery>(query: T): T {
@@ -18,7 +18,7 @@ export function constrainToAllowedSpaces<T extends SpaceScopedQuery>(query: T, c
 		return denySpace(query);
 	}
 	if (allowedSpaceIds.length === 1) {
-		return query.where("searchSpaceId", allowedSpaceIds[0]) as T;
+		return query.where("workspaceId", allowedSpaceIds[0]) as T;
 	}
 	return query.where(
 		({
@@ -27,6 +27,6 @@ export function constrainToAllowedSpaces<T extends SpaceScopedQuery>(query: T, c
 		}: {
 			cmp: (column: string, value: number) => unknown;
 			or: (...args: unknown[]) => unknown;
-		}) => or(...allowedSpaceIds.map((id) => cmp("searchSpaceId", id)))
+		}) => or(...allowedSpaceIds.map((id) => cmp("workspaceId", id)))
 	) as T;
 }

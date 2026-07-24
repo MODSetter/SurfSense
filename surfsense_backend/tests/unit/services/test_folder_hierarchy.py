@@ -49,8 +49,8 @@ async def test_creates_missing_folders_in_chain():
         session.flush = mock_flush
 
         segments = [
-            {"name": "Slack", "metadata": {"ai_sort": True, "ai_sort_level": 1}},
-            {"name": "2025-03-15", "metadata": {"ai_sort": True, "ai_sort_level": 2}},
+            {"name": "Slack", "metadata": {"source": "slack"}},
+            {"name": "2025-03-15", "metadata": {"source": "slack"}},
         ]
 
         result = await ensure_folder_hierarchy_with_depth_validation(

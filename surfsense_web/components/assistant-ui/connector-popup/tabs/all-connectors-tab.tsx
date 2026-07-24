@@ -1,6 +1,5 @@
 "use client";
 
-import { Search } from "lucide-react";
 import type { FC } from "react";
 import { useIsSelfHosted } from "@/components/providers/runtime-config";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -9,10 +8,8 @@ import { usePlatform } from "@/hooks/use-platform";
 import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
-	CONNECTOR_CATEGORY_LABELS,
-	type ConnectorCategory,
 	CRAWLERS,
-	getConnectorCategory,
+	DEPRECATED_CONNECTOR_TYPES,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
 } from "../constants/connector-constants";
@@ -43,7 +40,7 @@ export function getConnectorDisplayName(fullName: string): string {
 
 interface AllConnectorsTabProps {
 	searchQuery: string;
-	searchSpaceId: string;
+	workspaceId: string;
 	connectedTypes: Set<string>;
 	connectingId: string | null;
 	allConnectors: SearchSourceConnector[] | undefined;
@@ -101,22 +98,19 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			c.description.toLowerCase().includes(searchQuery.toLowerCase())
 	);
 
-	const inCategory =
-		(category: ConnectorCategory) =>
-		<T extends { connectorType?: string }>(connector: T): boolean =>
-			!!connector.connectorType && getConnectorCategory(connector.connectorType) === category;
-
-	const knowledgeBase = {
-		oauth: filteredOAuth.filter(inCategory("knowledge_base")),
-		composio: filteredComposio.filter(inCategory("knowledge_base")),
-		other: filteredOther.filter(inCategory("knowledge_base")),
-		crawlers: filteredCrawlers.filter(inCategory("knowledge_base")),
-	};
-	const toolsLive = {
-		oauth: filteredOAuth.filter(inCategory("tools_live")),
-		composio: filteredComposio.filter(inCategory("tools_live")),
-		other: filteredOther.filter(inCategory("tools_live")),
-		crawlers: filteredCrawlers.filter(inCategory("tools_live")),
+	// One flat grid, no separate "Deprecated" section. A deprecated connector is
+	// shown only if the user already connected it (before deprecation), so it
+	// stays manageable/disconnectable; never-connected deprecated connectors are
+	// hidden entirely. See DEPRECATED_CONNECTOR_TYPES for the full list.
+	const isVisible = <T extends { connectorType?: string }>(c: T) =>
+		!c.connectorType ||
+		!DEPRECATED_CONNECTOR_TYPES.has(c.connectorType) ||
+		connectedTypes.has(c.connectorType);
+	const available = {
+		oauth: filteredOAuth.filter(isVisible),
+		composio: filteredComposio.filter(isVisible),
+		other: filteredOther.filter(isVisible),
+		crawlers: filteredCrawlers.filter(isVisible),
 	};
 
 	const renderOAuthCard = (connector: OAuthConnector | ComposioConnector) => {
@@ -248,62 +242,28 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 		);
 	};
 
-	const hasKnowledgeBase =
-		knowledgeBase.oauth.length > 0 ||
-		knowledgeBase.composio.length > 0 ||
-		knowledgeBase.other.length > 0 ||
-		knowledgeBase.crawlers.length > 0;
-	const hasToolsLive =
-		toolsLive.oauth.length > 0 ||
-		toolsLive.composio.length > 0 ||
-		toolsLive.other.length > 0 ||
-		toolsLive.crawlers.length > 0;
-
-	const hasAnyResults = hasKnowledgeBase || hasToolsLive;
+	const hasAnyResults =
+		available.oauth.length > 0 ||
+		available.composio.length > 0 ||
+		available.other.length > 0 ||
+		available.crawlers.length > 0;
 
 	if (!hasAnyResults && searchQuery) {
 		return (
 			<div className="flex flex-col items-center justify-center py-20 text-center">
-				<Search className="size-8 text-muted-foreground mb-3" />
 				<p className="text-sm text-muted-foreground">No connectors found</p>
-				<p className="text-xs text-muted-foreground/60 mt-1">Try a different search term</p>
 			</div>
 		);
 	}
 
 	return (
 		<div className="space-y-8">
-			{hasKnowledgeBase && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">
-							{CONNECTOR_CATEGORY_LABELS.knowledge_base}
-						</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{knowledgeBase.oauth.map(renderOAuthCard)}
-						{knowledgeBase.composio.map(renderOAuthCard)}
-						{knowledgeBase.crawlers.map(renderCrawlerCard)}
-						{knowledgeBase.other.map(renderOtherCard)}
-					</div>
-				</section>
-			)}
-
-			{hasToolsLive && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">
-							{CONNECTOR_CATEGORY_LABELS.tools_live}
-						</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{toolsLive.oauth.map(renderOAuthCard)}
-						{toolsLive.composio.map(renderOAuthCard)}
-						{toolsLive.crawlers.map(renderCrawlerCard)}
-						{toolsLive.other.map(renderOtherCard)}
-					</div>
-				</section>
-			)}
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				{available.oauth.map(renderOAuthCard)}
+				{available.composio.map(renderOAuthCard)}
+				{available.crawlers.map(renderCrawlerCard)}
+				{available.other.map(renderOtherCard)}
+			</div>
 		</div>
 	);
 };

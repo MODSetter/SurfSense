@@ -39,7 +39,7 @@ def _build_connector_doc(
     issue_content: str,
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     """Map a raw Linear issue dict to a ConnectorDocument."""
@@ -67,7 +67,7 @@ def _build_connector_doc(
         source_markdown=issue_content,
         unique_id=issue_id,
         document_type=DocumentType.LINEAR_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata=metadata,
@@ -77,7 +77,7 @@ def _build_connector_doc(
 async def index_linear_issues(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -90,7 +90,7 @@ async def index_linear_issues(
     Returns:
         Tuple of (indexed_count, skipped_count, warning_or_error_message)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     log_entry = await task_logger.log_task_start(
         task_name="linear_issues_indexing",
@@ -213,7 +213,7 @@ async def index_linear_issues(
                 title=f"{issue.get('identifier', '')}: {issue.get('title', '')}",
                 document_type=DocumentType.LINEAR_CONNECTOR,
                 unique_id=issue.get("id", ""),
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 created_by_id=user_id,
                 metadata={
@@ -267,7 +267,7 @@ async def index_linear_issues(
                     formatted_issue,
                     issue_content,
                     connector_id=connector_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
 
@@ -317,7 +317,7 @@ async def index_linear_issues(
             await mark_connector_documents_failed(
                 session,
                 document_type=DocumentType.LINEAR_CONNECTOR,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 failures=stuck_placeholders,
             )
 

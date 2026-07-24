@@ -15,14 +15,14 @@ pytestmark = pytest.mark.integration
 
 
 def _drive_doc(
-    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+    *, unique_id: str, workspace_id: int, connector_id: int, user_id: str
 ) -> ConnectorDocument:
     return ConnectorDocument(
         title=f"File {unique_id}.pdf",
         source_markdown=f"## Document Content\n\nText from file {unique_id}",
         unique_id=unique_id,
         document_type=DocumentType.GOOGLE_DRIVE_FILE,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata={
@@ -35,13 +35,13 @@ def _drive_doc(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_drive_pipeline_creates_ready_document(
-    db_session, db_search_space, db_connector, db_user, mocker
+    db_session, db_workspace, db_connector, db_user, mocker
 ):
     """A Drive ConnectorDocument flows through prepare + index to a READY document."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     doc = _drive_doc(
         unique_id="file-abc",
-        search_space_id=space_id,
+        workspace_id=space_id,
         connector_id=db_connector.id,
         user_id=str(db_user.id),
     )
@@ -53,7 +53,7 @@ async def test_drive_pipeline_creates_ready_document(
     await service.index(prepared[0], doc)
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == space_id)
+        select(Document).filter(Document.workspace_id == space_id)
     )
     row = result.scalars().first()
 
@@ -64,10 +64,10 @@ async def test_drive_pipeline_creates_ready_document(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_drive_legacy_doc_migrated(
-    db_session, db_search_space, db_connector, db_user, mocker
+    db_session, db_workspace, db_connector, db_user, mocker
 ):
     """A legacy Composio Drive doc is migrated and reused."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     user_id = str(db_user.id)
     file_id = "file-legacy-drive"
 
@@ -81,7 +81,7 @@ async def test_drive_legacy_doc_migrated(
         content_hash=f"ch-{legacy_hash[:12]}",
         unique_identifier_hash=legacy_hash,
         source_markdown="## Old file content",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
         embedding=[0.1] * _EMBEDDING_DIM,
         status={"state": "ready"},
@@ -92,7 +92,7 @@ async def test_drive_legacy_doc_migrated(
 
     connector_doc = _drive_doc(
         unique_id=file_id,
-        search_space_id=space_id,
+        workspace_id=space_id,
         connector_id=db_connector.id,
         user_id=user_id,
     )
@@ -114,7 +114,7 @@ async def test_drive_legacy_doc_migrated(
 
 async def test_should_skip_file_skips_failed_document(
     db_session,
-    db_search_space,
+    db_workspace,
     db_user,
 ):
     """A FAILED document with unchanged md5 must be skipped — user can manually retry via Quick Index."""
@@ -139,7 +139,7 @@ async def test_should_skip_file_skips_failed_document(
         if stub:
             sys.modules.pop(pkg, None)
 
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     file_id = "file-failed-drive"
     md5 = "abc123deadbeef"
 
@@ -153,7 +153,7 @@ async def test_should_skip_file_skips_failed_document(
         content_hash=f"ch-{doc_hash[:12]}",
         unique_identifier_hash=doc_hash,
         source_markdown="## Real content",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=str(db_user.id),
         embedding=[0.1] * _EMBEDDING_DIM,
         status=DocumentStatus.failed("LLM rate limit exceeded"),
@@ -182,7 +182,7 @@ async def test_should_skip_file_skips_failed_document(
 @pytest.mark.parametrize("stuck_state", ["pending", "processing"])
 async def test_should_skip_file_retries_stuck_document(
     db_session,
-    db_search_space,
+    db_workspace,
     db_user,
     stuck_state,
 ):
@@ -208,7 +208,7 @@ async def test_should_skip_file_retries_stuck_document(
         if stub:
             sys.modules.pop(pkg, None)
 
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     file_id = f"file-{stuck_state}-drive"
     md5 = "stuck123checksum"
 
@@ -227,7 +227,7 @@ async def test_should_skip_file_retries_stuck_document(
         content_hash=f"ch-{doc_hash[:12]}",
         unique_identifier_hash=doc_hash,
         source_markdown="",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=str(db_user.id),
         status=status,
         document_metadata={

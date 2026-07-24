@@ -140,12 +140,12 @@ def _set_global_llm_configs(monkeypatch, config, configs: list[dict]):
 
 def _thread(
     *,
-    search_space_id: int = 10,
+    workspace_id: int = 10,
     pinned_llm_config_id: int | None = None,
 ):
     return SimpleNamespace(
         id=1,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         pinned_llm_config_id=pinned_llm_config_id,
     )
 
@@ -186,7 +186,7 @@ async def test_auto_first_turn_pins_one_model(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -234,7 +234,7 @@ async def test_premium_eligible_auto_prefers_premium_over_free(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -321,7 +321,7 @@ async def test_premium_eligible_auto_uses_quality_pool_not_single_preferred_mode
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -361,7 +361,7 @@ async def test_next_turn_reuses_existing_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -400,7 +400,7 @@ async def test_premium_eligible_auto_can_pin_premium(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -445,7 +445,7 @@ async def test_premium_ineligible_auto_pins_free_only(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -490,7 +490,7 @@ async def test_pinned_premium_stays_premium_after_quota_exhaustion(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -535,7 +535,7 @@ async def test_force_repin_free_switches_auto_premium_pin_to_free(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
         force_repin_free=True,
@@ -567,7 +567,7 @@ async def test_explicit_user_model_change_clears_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=7,
     )
@@ -605,7 +605,7 @@ async def test_invalid_pinned_config_repairs_with_new_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -664,7 +664,7 @@ async def test_health_gated_config_is_excluded_from_selection(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -716,7 +716,7 @@ async def test_tier_a_locks_first_premium_user_skips_or(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -768,7 +768,7 @@ async def test_tier_a_falls_through_to_or_when_a_pool_empty_for_user(monkeypatch
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -825,7 +825,7 @@ async def test_top_k_picks_only_high_score_models(monkeypatch):
         result = await resolve_or_get_pinned_llm_config_id(
             session,
             thread_id=thread_id,
-            search_space_id=10,
+            workspace_id=10,
             user_id="00000000-0000-0000-0000-000000000001",
             selected_llm_config_id=0,
         )
@@ -889,7 +889,7 @@ async def test_pin_reuse_survives_health_gating_for_existing_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -941,7 +941,7 @@ async def test_pin_reuse_regression_existing_healthy_pin(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -1001,7 +1001,7 @@ async def test_runtime_cooled_down_pin_is_not_reused(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -1069,7 +1069,7 @@ async def test_shared_runtime_cooldown_blocks_pin_across_workers(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -1113,7 +1113,7 @@ async def test_clearing_runtime_cooldown_restores_pin_reuse(monkeypatch):
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
     )
@@ -1165,7 +1165,7 @@ async def test_auto_pin_repin_excludes_previous_config_on_runtime_retry(monkeypa
     result = await resolve_or_get_pinned_llm_config_id(
         session,
         thread_id=1,
-        search_space_id=10,
+        workspace_id=10,
         user_id="00000000-0000-0000-0000-000000000001",
         selected_llm_config_id=0,
         exclude_config_ids={-1},

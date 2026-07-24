@@ -25,6 +25,7 @@ export function LanguageSwitcher() {
 		{ code: "pt" as const, name: "Português", flag: "🇧🇷" },
 		{ code: "hi" as const, name: "हिन्दी", flag: "🇮🇳" },
 		{ code: "zh" as const, name: "简体中文", flag: "🇨🇳" },
+		{ code: "ko" as const, name: "한국어", flag: "🇰🇷" },
 	];
 
 	/**
@@ -32,7 +33,7 @@ export function LanguageSwitcher() {
 	 * Updates locale in context and localStorage
 	 */
 	const handleLanguageChange = (newLocale: string) => {
-		setLocale(newLocale as "en" | "es" | "pt" | "hi" | "zh");
+		setLocale(newLocale as "en" | "es" | "pt" | "hi" | "zh" | "ko");
 	};
 
 	return (

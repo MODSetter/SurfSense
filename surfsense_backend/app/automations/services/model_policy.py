@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from app.db import SearchSpace
+    from app.db import Workspace
 
 ModelKind = Literal["chat", "image", "vision"]
 
@@ -58,7 +58,7 @@ def _classify(kind: ModelKind, model_id: int | None) -> tuple[bool, str]:
         )
 
     if model_id > 0:
-        # Positive id -> user/search-space BYOK model. Always allowed.
+        # Positive id -> user/workspace BYOK model. Always allowed.
         return True, ""
 
     # Negative id -> global model. Allowed only if premium.
@@ -80,7 +80,7 @@ def get_model_eligibility(
 ) -> dict:
     """Return ``{"allowed": bool, "violations": [...]}`` for explicit model ids.
 
-    The ID-based core shared by both the search-space path (creation/eligibility)
+    The ID-based core shared by both the workspace path (creation/eligibility)
     and the captured-snapshot path (runtime backstop). Each violation is
     ``{"kind", "model_id", "reason"}``.
     """
@@ -99,21 +99,21 @@ def get_model_eligibility(
     return {"allowed": not violations, "violations": violations}
 
 
-def get_automation_model_eligibility(search_space: SearchSpace) -> dict:
-    """Return ``{"allowed": bool, "violations": [...]}`` for a search space.
+def get_automation_model_eligibility(workspace: Workspace) -> dict:
+    """Return ``{"allowed": bool, "violations": [...]}`` for a workspace.
 
     Used by the eligibility endpoint and the chat tool's early check. Thin
     wrapper over :func:`get_model_eligibility`.
     """
     return get_model_eligibility(
-        chat_model_id=search_space.chat_model_id,
-        image_gen_model_id=search_space.image_gen_model_id,
-        vision_model_id=search_space.vision_model_id,
+        chat_model_id=workspace.chat_model_id,
+        image_gen_model_id=workspace.image_gen_model_id,
+        vision_model_id=workspace.vision_model_id,
     )
 
 
 class AutomationModelPolicyError(Exception):
-    """Raised when a search space's models are not billable for automations."""
+    """Raised when a workspace's models are not billable for automations."""
 
     def __init__(self, violations: list[dict]) -> None:
         self.violations = violations
@@ -143,8 +143,8 @@ def assert_models_billable(
         raise AutomationModelPolicyError(result["violations"])
 
 
-def assert_automation_models_billable(search_space: SearchSpace) -> None:
+def assert_automation_models_billable(workspace: Workspace) -> None:
     """Raise :class:`AutomationModelPolicyError` if any model slot is not billable."""
-    result = get_automation_model_eligibility(search_space)
+    result = get_automation_model_eligibility(workspace)
     if not result["allowed"]:
         raise AutomationModelPolicyError(result["violations"])

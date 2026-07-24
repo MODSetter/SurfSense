@@ -87,7 +87,7 @@ show_banner() {
                                                                            
 
 EOF
-    printf "${YELLOW}         OSS Alternative to NotebookLM for Teams${NC}\n"
+    printf "${YELLOW}           NotebookLM for Open Web Research${NC}\n"
     printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n"
     info "This installer will create ${INSTALL_DIR}/ and start SurfSense with Docker Compose."
 }
@@ -332,7 +332,6 @@ SELECTED_VARIANT=$(resolve_variant)
 step "Downloading SurfSense files"
 info "Installation directory: ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}/scripts"
-mkdir -p "${INSTALL_DIR}/searxng"
 mkdir -p "${INSTALL_DIR}/proxy"
 
 FILES=(
@@ -342,8 +341,6 @@ FILES=(
     "docker/proxy/Caddyfile:proxy/Caddyfile"
     "docker/postgresql.conf:postgresql.conf"
     "docker/scripts/migrate-database.sh:scripts/migrate-database.sh"
-    "docker/searxng/settings.yml:searxng/settings.yml"
-    "docker/searxng/limiter.toml:searxng/limiter.toml"
 )
 
 for entry in "${FILES[@]}"; do

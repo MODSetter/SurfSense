@@ -4,15 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import {
 	ArchiveIcon,
-	ChevronLeft,
-	MessageCircleMore,
+	Check,
+	ChevronDown,
 	MoreHorizontal,
 	Pencil,
 	RotateCcwIcon,
 	Search,
 	Trash2,
-	User,
-	Users,
 	X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -20,7 +18,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { removeChatTabAtom } from "@/atoms/tabs/tabs.atom";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -39,32 +37,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getChatUrl } from "@/hooks/use-resolved-tabs";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { fetchThreads, searchThreads, type ThreadListItem } from "@/lib/chat/thread-persistence";
-import { formatThreadTimestamp } from "@/lib/format-date";
+import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
-import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-export interface AllChatsSidebarContentProps {
-	onOpenChange: (open: boolean) => void;
-	searchSpaceId: string;
-	onCloseMobileSidebar?: () => void;
+interface AllChatsContentProps {
+	workspaceId: string;
+	className?: string;
 }
 
-interface AllChatsSidebarProps extends AllChatsSidebarContentProps {
-	open: boolean;
-}
-
-export function AllChatsSidebarContent({
-	onOpenChange,
-	searchSpaceId,
-	onCloseMobileSidebar,
-}: AllChatsSidebarContentProps) {
+function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -72,9 +60,9 @@ export function AllChatsSidebarContent({
 	const isMobile = useIsMobile();
 	const removeChatTab = useSetAtom(removeChatTabAtom);
 	const { activateChatThread, prefetchChatThread } = useActivateChatThread();
-	const { mutateAsync: deleteThread } = useDeleteThread(searchSpaceId);
-	const { mutateAsync: archiveThread } = useArchiveThread(searchSpaceId);
-	const { mutateAsync: renameThread } = useRenameThread(searchSpaceId);
+	const { mutateAsync: deleteThread } = useDeleteThread(workspaceId);
+	const { mutateAsync: archiveThread } = useArchiveThread(workspaceId);
+	const { mutateAsync: renameThread } = useRenameThread(workspaceId);
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -106,12 +94,14 @@ export function AllChatsSidebarContent({
 	const {
 		data: threadsData,
 		error: threadsError,
+		isFetching: isFetchingThreads,
 		isLoading: isLoadingThreads,
+		isPlaceholderData,
 	} = useQuery({
-		queryKey: ["all-threads", searchSpaceId],
-		queryFn: () => fetchThreads(Number(searchSpaceId)),
-		enabled: !!searchSpaceId && !isSearchMode,
-		placeholderData: () => queryClient.getQueryData(["threads", searchSpaceId, { limit: 40 }]),
+		queryKey: ["all-threads", workspaceId],
+		queryFn: () => fetchThreads(Number(workspaceId)),
+		enabled: !!workspaceId && !isSearchMode,
+		placeholderData: () => queryClient.getQueryData(["threads", workspaceId, { limit: 6 }]),
 	});
 
 	const {
@@ -119,41 +109,31 @@ export function AllChatsSidebarContent({
 		error: searchError,
 		isLoading: isLoadingSearch,
 	} = useQuery({
-		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
-		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
-		enabled: !!searchSpaceId && isSearchMode,
+		queryKey: ["search-threads", workspaceId, debouncedSearchQuery],
+		queryFn: () => searchThreads(Number(workspaceId), debouncedSearchQuery.trim()),
+		enabled: !!workspaceId && isSearchMode,
 	});
 
-	const { activeChats, archivedChats } = useMemo(() => {
+	const threads = useMemo(() => {
 		if (isSearchMode) {
-			return {
-				activeChats: (searchData ?? []).filter((t) => !t.archived),
-				archivedChats: (searchData ?? []).filter((t) => t.archived),
-			};
+			return (searchData ?? []).filter((thread) => thread.archived === showArchived);
 		}
 
-		if (!threadsData) return { activeChats: [], archivedChats: [] };
+		if (!threadsData) return [];
 
-		return {
-			activeChats: threadsData.threads,
-			archivedChats: threadsData.archived_threads,
-		};
-	}, [threadsData, searchData, isSearchMode]);
-
-	const threads = showArchived ? archivedChats : activeChats;
+		return showArchived ? threadsData.archived_threads : threadsData.threads;
+	}, [threadsData, searchData, isSearchMode, showArchived]);
 
 	const handleThreadClick = useCallback(
 		(thread: ThreadListItem) => {
 			activateChatThread({
 				id: thread.id,
 				title: thread.title || "New Chat",
-				searchSpaceId,
+				workspaceId,
 				visibility: thread.visibility,
 			});
-			onOpenChange(false);
-			onCloseMobileSidebar?.();
 		},
-		[activateChatThread, onOpenChange, searchSpaceId, onCloseMobileSidebar]
+		[activateChatThread, workspaceId]
 	);
 
 	const handleDeleteThread = useCallback(
@@ -165,28 +145,17 @@ export function AllChatsSidebarContent({
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 
 				if (currentChatId === threadId) {
-					onOpenChange(false);
 					setTimeout(() => {
-						if (
-							fallbackTab?.type === "chat" &&
-							fallbackTab.chatUrl &&
-							fallbackTab.chatId !== undefined
-						) {
+						if (fallbackTab?.type === "chat") {
+							const fallbackWorkspaceId = fallbackTab.workspaceId || Number(workspaceId);
 							activateChatThread({
-								id: fallbackTab.chatId ?? null,
-								title: fallbackTab.title,
-								url: fallbackTab.chatUrl,
-								searchSpaceId: fallbackTab.searchSpaceId ?? searchSpaceId,
-								...(fallbackTab.visibility !== undefined
-									? { visibility: fallbackTab.visibility }
-									: {}),
-								...(fallbackTab.hasComments !== undefined
-									? { hasComments: fallbackTab.hasComments }
-									: {}),
+								id: fallbackTab.entityId,
+								url: getChatUrl(fallbackWorkspaceId, fallbackTab.entityId),
+								workspaceId: fallbackWorkspaceId,
 							});
 							return;
 						}
-						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+						router.push(`/dashboard/${workspaceId}/new-chat`);
 					}, 250);
 				}
 			} catch (error) {
@@ -196,16 +165,7 @@ export function AllChatsSidebarContent({
 				setDeletingThreadId(null);
 			}
 		},
-		[
-			activateChatThread,
-			deleteThread,
-			t,
-			currentChatId,
-			router,
-			onOpenChange,
-			removeChatTab,
-			searchSpaceId,
-		]
+		[activateChatThread, deleteThread, t, currentChatId, router, removeChatTab, workspaceId]
 	);
 
 	const handleToggleArchive = useCallback(
@@ -260,91 +220,92 @@ export function AllChatsSidebarContent({
 	}, []);
 
 	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
+	const isLoadingMoreThreads = !isSearchMode && isFetchingThreads && isPlaceholderData;
 	const error = isSearchMode ? searchError : threadsError;
 
-	const activeCount = activeChats.length;
-	const archivedCount = archivedChats.length;
+	const selectedFilterLabel = showArchived ? "Archived" : "Active";
 
 	return (
-		<>
-			<div className="shrink-0 p-3 pb-1.5 space-y-2">
-				<div className="flex items-center gap-2">
-					{isMobile && (
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-							onClick={() => onOpenChange(false)}
-						>
-							<ChevronLeft className="h-4 w-4" />
-							<span className="sr-only">{t("close") || "Close"}</span>
-						</Button>
+		<div className={cn("flex h-full min-h-0 w-full flex-1 flex-col", className)}>
+			<div className="shrink-0 space-y-4 px-3 pb-3">
+				<div className="flex items-center justify-between gap-4 flex-wrap">
+					<div className="flex items-baseline gap-3">
+						<h1 className="text-xl md:text-2xl font-semibold text-foreground">
+							{t("chats") || "Chats"}
+						</h1>
+					</div>
+					{!isSearchMode && (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									type="button"
+									variant="secondary"
+									className="h-7 gap-1.5 rounded-md px-2.5 text-xs font-medium"
+								>
+									<span className="font-semibold text-muted-foreground">Filter by</span>
+									<span>{selectedFilterLabel}</span>
+									<ChevronDown className="h-3 w-3 text-muted-foreground" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-32">
+								<DropdownMenuItem onClick={() => setShowArchived(false)}>
+									<span className="flex-1">Active</span>
+									<Check
+										className={cn(
+											"h-4 w-4 text-primary",
+											showArchived ? "opacity-0" : "opacity-100"
+										)}
+									/>
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setShowArchived(true)}>
+									<span className="flex-1">Archived</span>
+									<Check
+										className={cn(
+											"h-4 w-4 text-primary",
+											showArchived ? "opacity-100" : "opacity-0"
+										)}
+									/>
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					)}
-					<h2 className="text-lg font-semibold">{t("chats") || "Chats"}</h2>
 				</div>
 
 				<div className="relative">
-					<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+					<Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
 					<Input
 						type="text"
 						placeholder={t("search_chats") || "Search chats..."}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="h-8 border-0 bg-muted pl-8 pr-7 text-sm shadow-none"
+						className="h-10 border-0 bg-muted pl-10 pr-9 text-base shadow-none"
 					/>
 					{searchQuery && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 							onClick={handleClearSearch}
 						>
-							<X className="h-3.5 w-3.5" />
+							<X className="h-4.5 w-4.5" />
 							<span className="sr-only">{t("clear_search") || "Clear search"}</span>
 						</Button>
 					)}
 				</div>
 			</div>
 
-			{!isSearchMode && (
-				<Tabs
-					value={showArchived ? "archived" : "active"}
-					onValueChange={(value) => setShowArchived(value === "archived")}
-					className="shrink-0 mx-3 mt-1.5"
-				>
-					<TabsList stretch showBottomBorder size="sm">
-						<TabsTrigger value="active">
-							<span className="inline-flex items-center gap-1.5">
-								<MessageCircleMore className="h-3.5 w-3.5" />
-								<span>Active</span>
-								<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
-									{activeCount}
-								</span>
-							</span>
-						</TabsTrigger>
-						<TabsTrigger value="archived">
-							<span className="inline-flex items-center gap-1.5">
-								<ArchiveIcon className="h-3.5 w-3.5" />
-								<span>Archived</span>
-								<span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-muted-foreground">
-									{archivedCount}
-								</span>
-							</span>
-						</TabsTrigger>
-					</TabsList>
-				</Tabs>
-			)}
-
-			<div className="flex-1 overflow-y-auto overflow-x-hidden p-1.5">
+			<div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-1.5">
 				{isLoading ? (
 					<div className="space-y-1">
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
 							<div
 								key={`skeleton-${titleWidth}`}
-								className="flex items-center gap-2 rounded-md px-2 py-1.5"
+								className="rounded-md px-3 py-1.5 md:py-2"
 							>
-								<Skeleton className="h-4 w-4 shrink-0 rounded" />
-								<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
+								<Skeleton
+									className="h-4 rounded md:h-4.5"
+									style={{ width: `${titleWidth}%` }}
+								/>
 							</div>
 						))}
 					</div>
@@ -353,15 +314,21 @@ export function AllChatsSidebarContent({
 						{t("error_loading_chats") || "Error loading chats"}
 					</div>
 				) : threads.length > 0 ? (
-					<div className="space-y-1">
-						{threads.map((thread) => {
+					<div>
+						{threads.map((thread, index) => {
 							const isDeleting = deletingThreadId === thread.id;
 							const isArchiving = archivingThreadId === thread.id;
 							const isBusy = isDeleting || isArchiving;
 							const isActive = currentChatId === thread.id;
 
 							return (
-								<div key={thread.id} className="group/item relative w-full">
+								<div
+									key={thread.id}
+									className={cn(
+										"group/item relative w-full hover:border-t-transparent [&:hover+div]:border-t-transparent",
+										index > 0 && "border-t border-border/60"
+									)}
+								>
 									{isMobile ? (
 										<Button
 											type="button"
@@ -380,10 +347,10 @@ export function AllChatsSidebarContent({
 											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
 											className={cn(
-												"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
+												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
 												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												thread.visibility === "SEARCH_SPACE" && "pr-9",
+												thread.visibility === "SEARCH_SPACE" ? "pr-44" : "pr-36",
 												isActive && "bg-accent text-accent-foreground",
 												isBusy && "opacity-50 pointer-events-none"
 											)}
@@ -391,63 +358,56 @@ export function AllChatsSidebarContent({
 											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
 										</Button>
 									) : (
-										<Tooltip delayDuration={600}>
-											<TooltipTrigger asChild>
-												<Button
-													type="button"
-													variant="ghost"
-													onClick={() => handleThreadClick(thread)}
-													onMouseEnter={() => prefetchChatThread(thread.id)}
-													onFocus={() => prefetchChatThread(thread.id)}
-													disabled={isBusy}
-													className={cn(
-														"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
-														"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
-														"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-														thread.visibility === "SEARCH_SPACE" && "pr-9",
-														isActive && "bg-accent text-accent-foreground",
-														isBusy && "opacity-50 pointer-events-none"
-													)}
-												>
-													<span className="min-w-0 flex-1 truncate">
-														{thread.title || "New Chat"}
-													</span>
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent side="bottom" align="start">
-												<p>
-													{t("updated") || "Updated"}: {formatThreadTimestamp(thread.updatedAt)}
-												</p>
-											</TooltipContent>
-										</Tooltip>
+										<Button
+											type="button"
+											variant="ghost"
+											onClick={() => handleThreadClick(thread)}
+											onMouseEnter={() => prefetchChatThread(thread.id)}
+											onFocus={() => prefetchChatThread(thread.id)}
+											disabled={isBusy}
+											className={cn(
+												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
+												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
+												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+												thread.visibility === "SEARCH_SPACE" ? "pr-44" : "pr-36",
+												isActive && "bg-accent text-accent-foreground",
+												isBusy && "opacity-50 pointer-events-none"
+											)}
+										>
+											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
+										</Button>
 									)}
 
 									<div
 										className={cn(
-											"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center rounded-r-md pl-6 pr-1",
+											"pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md pl-6 pr-1",
 											isActive
 												? "bg-gradient-to-l from-accent from-60% to-transparent"
 												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
-											isMobile
-												? "opacity-0"
-												: thread.visibility === "SEARCH_SPACE" || openDropdownId === thread.id
-													? "opacity-100"
-													: "opacity-0 group-hover/item:opacity-100"
+											"opacity-100"
 										)}
 									>
-										<div className="relative h-6 w-6">
-											{thread.visibility === "SEARCH_SPACE" ? (
-												<Users
-													aria-label={t("shared_chat") || "Shared chat"}
-													className={cn(
-														"absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/50",
-														!isMobile &&
-															(openDropdownId === thread.id
-																? "opacity-0"
-																: "opacity-100 group-hover/item:opacity-0")
-													)}
-												/>
-											) : null}
+										<div className="relative flex h-7 w-40 items-center justify-end">
+											<div
+												className={cn(
+													"absolute right-1 flex items-center justify-end gap-2 transition-opacity",
+													openDropdownId === thread.id
+														? "opacity-0"
+														: "opacity-100 group-hover/item:opacity-0"
+												)}
+											>
+												{thread.visibility === "SEARCH_SPACE" ? (
+													<Badge
+														variant="secondary"
+														className="h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10"
+													>
+														Shared
+													</Badge>
+												) : null}
+												<span className="whitespace-nowrap text-xs text-muted-foreground">
+													{formatRelativeDate(thread.updatedAt)}
+												</span>
+											</div>
 											<DropdownMenu
 												open={openDropdownId === thread.id}
 												onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
@@ -457,18 +417,16 @@ export function AllChatsSidebarContent({
 														variant="ghost"
 														size="icon"
 														className={cn(
-															"pointer-events-auto h-6 w-6 hover:bg-transparent",
+															"pointer-events-auto absolute right-0 h-7 w-7 hover:bg-transparent",
 															openDropdownId === thread.id && "bg-accent hover:bg-accent",
-															!isMobile &&
-																openDropdownId !== thread.id &&
-																"opacity-0 group-hover/item:opacity-100"
+															openDropdownId !== thread.id && "opacity-0 group-hover/item:opacity-100"
 														)}
 														disabled={isBusy}
 													>
 														{isDeleting ? (
 															<Spinner size="xs" />
 														) : (
-															<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+															<MoreHorizontal className="h-4 w-4 text-muted-foreground" />
 														)}
 														<span className="sr-only">{t("more_options") || "More options"}</span>
 													</Button>
@@ -511,30 +469,35 @@ export function AllChatsSidebarContent({
 								</div>
 							);
 						})}
+						{isLoadingMoreThreads ? (
+							<div className="mt-1 space-y-1">
+								{[62, 48, 56].map((titleWidth) => (
+									<div
+										key={`tail-skeleton-${titleWidth}`}
+										className="rounded-md px-3 py-1.5 md:py-2"
+									>
+										<Skeleton
+											className="h-4 rounded md:h-4.5"
+											style={{ width: `${titleWidth}%` }}
+										/>
+									</div>
+								))}
+							</div>
+						) : null}
 					</div>
 				) : isSearchMode ? (
 					<div className="text-center py-8">
-						<Search className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
-						<p className="text-xs text-muted-foreground">
+						<p className="text-sm text-muted-foreground">
 							{t("no_chats_found") || "No chats found"}
-						</p>
-						<p className="mt-1 text-[11px] text-muted-foreground/70">
-							{t("try_different_search") || "Try a different search term"}
 						</p>
 					</div>
 				) : (
 					<div className="text-center py-8">
-						<User className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
-						<p className="text-xs text-muted-foreground">
+						<p className="text-base font-medium text-muted-foreground">
 							{showArchived
 								? t("no_archived_chats") || "No archived chats"
 								: t("no_chats") || "No chats"}
 						</p>
-						{!showArchived && (
-							<p className="mt-1 text-[11px] text-muted-foreground/70">
-								{t("start_new_chat_hint") || "Start a new chat from the chat page"}
-							</p>
-						)}
 					</div>
 				)}
 			</div>
@@ -584,25 +547,14 @@ export function AllChatsSidebarContent({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</>
+		</div>
 	);
 }
 
-export function AllChatsSidebar({
-	open,
-	onOpenChange,
-	searchSpaceId,
-	onCloseMobileSidebar,
-}: AllChatsSidebarProps) {
-	const t = useTranslations("sidebar");
-
+export function AllChatsWorkspaceContent({ workspaceId }: { workspaceId: string }) {
 	return (
-		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("chats") || "Chats"}>
-			<AllChatsSidebarContent
-				onOpenChange={onOpenChange}
-				searchSpaceId={searchSpaceId}
-				onCloseMobileSidebar={onCloseMobileSidebar}
-			/>
-		</SidebarSlideOutPanel>
+		<div className="flex h-full min-h-0 w-full overflow-hidden text-sidebar-foreground">
+			<AllChatsContent workspaceId={workspaceId} />
+		</div>
 	);
 }

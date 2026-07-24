@@ -30,6 +30,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     dos2unix \
     git \
+    # ── Phase 3e stealth hardening ──────────────────────────────────────────
+    # Xvfb: virtual display so the browser can run headful without real hardware
+    # (entrypoint starts it when CRAWL_HEADED_XVFB_ENABLED; used by TikTok's profile
+    # feed). Real fonts make canvas/emoji/font fingerprints look like a real desktop.
+    xvfb \
+    fonts-noto-color-emoji \
+    fonts-unifont \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    fonts-tlwg-loma-otf \
+    fonts-dejavu \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 RUN which ffmpeg && ffmpeg -version
@@ -109,7 +121,7 @@ RUN --mount=type=secret,id=HF_TOKEN \
     HF_TOKEN="$(cat /run/secrets/HF_TOKEN 2>/dev/null || true)" \
     python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('${EMBEDDING_MODEL}')"
 
-# Install Scrapling's browser engines (patchright Chromium + Camoufox).
+# Install Scrapling's browser engines (patchright Chromium).
 # Scrapling pulls playwright/patchright via the `fetchers` extra; `scrapling install`
 # downloads the matching browser binaries used by DynamicFetcher/StealthyFetcher.
 RUN scrapling install

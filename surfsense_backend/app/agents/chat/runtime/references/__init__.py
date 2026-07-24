@@ -29,7 +29,7 @@ from .reference_pointers import render_reference_pointers
 async def resolve_references(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     requesting_user_id: str | None,
     current_chat_id: int,
     document_ids: list[int] | None = None,
@@ -46,18 +46,18 @@ async def resolve_references(
     references: list[Reference] = []
 
     if document_ids or folder_ids:
-        index = await build_path_index(session, search_space_id)
+        index = await build_path_index(session, workspace_id)
         if document_ids:
             references += await resolve_document_references(
                 session,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 document_ids=document_ids,
                 index=index,
             )
         if folder_ids:
             references += await resolve_folder_references(
                 session,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 folder_ids=folder_ids,
                 index=index,
             )
@@ -65,7 +65,7 @@ async def resolve_references(
     if connector_ids:
         references += await resolve_connector_references(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             connector_ids=connector_ids,
             chips=connector_chips,
         )
@@ -73,7 +73,7 @@ async def resolve_references(
     if thread_ids:
         references += await resolve_chat_references(
             session,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             requesting_user_id=requesting_user_id,
             current_chat_id=current_chat_id,
             thread_ids=thread_ids,

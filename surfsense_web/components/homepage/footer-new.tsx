@@ -2,6 +2,7 @@ import {
 	IconBrandDiscord,
 	IconBrandGithub,
 	IconBrandLinkedin,
+	IconBrandReddit,
 	IconBrandTwitter,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -21,6 +22,10 @@ export function FooterNew() {
 		//   title: "Clients",
 		//   href: "#",
 		// },
+		{
+			title: "Connectors",
+			href: "/connectors",
+		},
 		{
 			title: "Pricing",
 			href: "/pricing",
@@ -64,6 +69,11 @@ export function FooterNew() {
 			href: "https://discord.gg/ejRNvftDp9",
 			icon: IconBrandDiscord,
 		},
+		{
+			title: "Reddit",
+			href: "https://www.reddit.com/r/SurfSense/",
+			icon: IconBrandReddit,
+		},
 	];
 	const legals = [
 		{
@@ -96,7 +106,7 @@ export function FooterNew() {
 	];
 	return (
 		<div className="border-t border-neutral-100 dark:border-white/[0.1] px-8 py-20 bg-white dark:bg-neutral-950 w-full relative overflow-hidden">
-			<div className="max-w-7xl mx-auto text-sm text-neutral-500 flex sm:flex-row flex-col justify-between items-start  md:px-8">
+			<div className="max-w-7xl mx-auto text-sm text-neutral-600 dark:text-neutral-400 flex sm:flex-row flex-col justify-between items-start  md:px-8">
 				<div>
 					<div className="mr-0 md:mr-4  md:flex mb-4">
 						<Logo className="h-6 w-6 rounded-md mr-2" />

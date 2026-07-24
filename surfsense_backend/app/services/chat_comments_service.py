@@ -17,8 +17,8 @@ from app.db import (
     NewChatMessageRole,
     NewChatThread,
     Permission,
-    SearchSpaceMembership,
     User,
+    WorkspaceMembership,
     has_permission,
 )
 from app.notifications.service import NotificationService
@@ -64,7 +64,7 @@ async def process_mentions(
     session: AsyncSession,
     comment_id: int,
     content: str,
-    search_space_id: int,
+    workspace_id: int,
 ) -> dict[UUID, int]:
     """
     Parse mentions from content, validate users are members, and insert mention records.
@@ -73,7 +73,7 @@ async def process_mentions(
         session: Database session
         comment_id: ID of the comment containing mentions
         content: Comment text with @[uuid] mentions
-        search_space_id: ID of the search space for membership validation
+        workspace_id: ID of the workspace for membership validation
 
     Returns:
         Dictionary mapping mentioned user UUID to their mention record ID
@@ -84,9 +84,9 @@ async def process_mentions(
 
     # Get valid members from the mentioned UUIDs
     result = await session.execute(
-        select(SearchSpaceMembership.user_id).filter(
-            SearchSpaceMembership.search_space_id == search_space_id,
-            SearchSpaceMembership.user_id.in_(mentioned_uuids),
+        select(WorkspaceMembership.user_id).filter(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id.in_(mentioned_uuids),
         )
     )
     valid_member_ids = result.scalars().all()
@@ -166,19 +166,19 @@ async def get_comments_for_message(
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
 
-    search_space_id = message.thread.search_space_id
+    workspace_id = message.thread.workspace_id
 
     # Check permission to read comments
     await check_permission(
         session,
         auth,
-        search_space_id,
+        workspace_id,
         Permission.COMMENTS_READ.value,
-        "You don't have permission to read comments in this search space",
+        "You don't have permission to read comments in this workspace",
     )
 
     # Get user permissions for can_delete computation
-    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    user_permissions = await get_user_permissions(session, user.id, workspace_id)
     can_delete_any = has_permission(user_permissions, Permission.COMMENTS_DELETE.value)
 
     # Get top-level comments (parent_id IS NULL) with their authors and replies
@@ -276,7 +276,7 @@ async def get_comments_for_messages_batch(
     """
     Batch-fetch comments for multiple messages in a single DB round-trip.
 
-    Validates that all messages exist and belong to search spaces the user
+    Validates that all messages exist and belong to workspaces the user
     can read comments in, then loads all comments with eager-loaded authors
     and replies.
     """
@@ -293,15 +293,15 @@ async def get_comments_for_messages_batch(
     messages = result.scalars().all()
     msg_map = {m.id: m for m in messages}
 
-    search_space_ids = {m.thread.search_space_id for m in messages}
+    workspace_ids = {m.thread.workspace_id for m in messages}
     permissions_cache: dict[int, set] = {}
-    for ss_id in search_space_ids:
+    for ss_id in workspace_ids:
         await check_permission(
             session,
             auth,
             ss_id,
             Permission.COMMENTS_READ.value,
-            "You don't have permission to read comments in this search space",
+            "You don't have permission to read comments in this workspace",
         )
         permissions_cache[ss_id] = await get_user_permissions(session, user.id, ss_id)
 
@@ -338,7 +338,7 @@ async def get_comments_for_messages_batch(
             comments_by_message[mid] = CommentListResponse(comments=[], total_count=0)
             continue
 
-        ss_id = msg.thread.search_space_id
+        ss_id = msg.thread.workspace_id
         user_perms = permissions_cache.get(ss_id, set())
         can_delete_any = has_permission(user_perms, Permission.COMMENTS_DELETE.value)
 
@@ -447,14 +447,14 @@ async def create_comment(
             detail="Comments can only be added to AI responses",
         )
 
-    search_space_id = message.thread.search_space_id
+    workspace_id = message.thread.workspace_id
 
     # Check permission to create comments
-    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    user_permissions = await get_user_permissions(session, user.id, workspace_id)
     if not has_permission(user_permissions, Permission.COMMENTS_CREATE.value):
         raise HTTPException(
             status_code=403,
-            detail="You don't have permission to create comments in this search space",
+            detail="You don't have permission to create comments in this workspace",
         )
 
     thread = message.thread
@@ -468,7 +468,7 @@ async def create_comment(
     await session.flush()
 
     # Process mentions - returns map of user_id -> mention_id
-    mentions_map = await process_mentions(session, comment.id, content, search_space_id)
+    mentions_map = await process_mentions(session, comment.id, content, workspace_id)
 
     await session.commit()
     await session.refresh(comment)
@@ -495,7 +495,7 @@ async def create_comment(
             author_avatar_url=user.avatar_url,
             author_email=user.email,
             content_preview=content_preview[:200],
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
 
     author = AuthorResponse(
@@ -561,14 +561,14 @@ async def create_reply(
             detail="Cannot reply to a reply",
         )
 
-    search_space_id = parent_comment.message.thread.search_space_id
+    workspace_id = parent_comment.message.thread.workspace_id
 
     # Check permission to create comments
-    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    user_permissions = await get_user_permissions(session, user.id, workspace_id)
     if not has_permission(user_permissions, Permission.COMMENTS_CREATE.value):
         raise HTTPException(
             status_code=403,
-            detail="You don't have permission to create comments in this search space",
+            detail="You don't have permission to create comments in this workspace",
         )
 
     thread = parent_comment.message.thread
@@ -583,7 +583,7 @@ async def create_reply(
     await session.flush()
 
     # Process mentions - returns map of user_id -> mention_id
-    mentions_map = await process_mentions(session, reply.id, content, search_space_id)
+    mentions_map = await process_mentions(session, reply.id, content, workspace_id)
 
     await session.commit()
     await session.refresh(reply)
@@ -610,7 +610,7 @@ async def create_reply(
             author_avatar_url=user.avatar_url,
             author_email=user.email,
             content_preview=content_preview[:200],
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
 
     # Notify thread participants (excluding replier and mentioned users)
@@ -635,7 +635,7 @@ async def create_reply(
             author_avatar_url=user.avatar_url,
             author_email=user.email,
             content_preview=content_preview[:200],
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
 
     author = AuthorResponse(
@@ -699,7 +699,7 @@ async def update_comment(
             detail="You can only edit your own comments",
         )
 
-    search_space_id = comment.message.thread.search_space_id
+    workspace_id = comment.message.thread.workspace_id
 
     # Get existing mentioned user IDs
     existing_result = await session.execute(
@@ -712,12 +712,12 @@ async def update_comment(
     # Parse new mentions from updated content
     new_mention_uuids = set(parse_mentions(content))
 
-    # Validate new mentions are search space members
+    # Validate new mentions are workspace members
     if new_mention_uuids:
         valid_result = await session.execute(
-            select(SearchSpaceMembership.user_id).filter(
-                SearchSpaceMembership.search_space_id == search_space_id,
-                SearchSpaceMembership.user_id.in_(new_mention_uuids),
+            select(WorkspaceMembership.user_id).filter(
+                WorkspaceMembership.workspace_id == workspace_id,
+                WorkspaceMembership.user_id.in_(new_mention_uuids),
             )
         )
         valid_new_mentions = set(valid_result.scalars().all())
@@ -777,7 +777,7 @@ async def update_comment(
                 author_avatar_url=user.avatar_url,
                 author_email=user.email,
                 content_preview=content_preview[:200],
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
             )
 
     author = AuthorResponse(
@@ -833,8 +833,8 @@ async def delete_comment(
     is_author = comment.author_id == user.id
 
     # Check if user has COMMENTS_DELETE permission
-    search_space_id = comment.message.thread.search_space_id
-    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    workspace_id = comment.message.thread.workspace_id
+    user_permissions = await get_user_permissions(session, user.id, workspace_id)
     can_delete_any = has_permission(user_permissions, Permission.COMMENTS_DELETE.value)
 
     if not is_author and not can_delete_any:
@@ -852,21 +852,21 @@ async def delete_comment(
 async def get_user_mentions(
     session: AsyncSession,
     auth: AuthContext,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
 ) -> MentionListResponse:
     user = auth.user
     """
-    Get mentions for the current user, optionally filtered by search space.
+    Get mentions for the current user, optionally filtered by workspace.
 
     Args:
         session: Database session
         user: The current authenticated user
-        search_space_id: Optional search space ID to filter mentions
+        workspace_id: Optional workspace ID to filter mentions
 
     Returns:
         MentionListResponse with mentions and total count
     """
-    # Build query with joins for filtering by search_space_id
+    # Build query with joins for filtering by workspace_id
     query = (
         select(ChatCommentMention)
         .join(ChatComment, ChatCommentMention.comment_id == ChatComment.id)
@@ -880,18 +880,18 @@ async def get_user_mentions(
         .order_by(ChatCommentMention.created_at.desc())
     )
 
-    if search_space_id is not None:
-        query = query.filter(NewChatThread.search_space_id == search_space_id)
+    if workspace_id is not None:
+        query = query.filter(NewChatThread.workspace_id == workspace_id)
 
     result = await session.execute(query)
     mention_records = result.scalars().all()
 
-    # Fetch search space info for context (single query for all unique search spaces)
+    # Fetch workspace info for context (single query for all unique workspaces)
     thread_ids = {m.comment.message.thread_id for m in mention_records}
     if thread_ids:
         thread_result = await session.execute(
             select(NewChatThread)
-            .options(selectinload(NewChatThread.search_space))
+            .options(selectinload(NewChatThread.workspace))
             .filter(NewChatThread.id.in_(thread_ids))
         )
         threads_map = {t.id: t for t in thread_result.scalars().all()}
@@ -903,7 +903,7 @@ async def get_user_mentions(
         comment = mention.comment
         message = comment.message
         thread = threads_map.get(message.thread_id)
-        search_space = thread.search_space if thread else None
+        workspace = thread.workspace if thread else None
 
         author = None
         if comment.author:
@@ -934,8 +934,8 @@ async def get_user_mentions(
                     thread_id=thread.id if thread else 0,
                     thread_title=thread.title or "Untitled" if thread else "Unknown",
                     message_id=message.id,
-                    search_space_id=search_space.id if search_space else 0,
-                    search_space_name=search_space.name if search_space else "Unknown",
+                    workspace_id=workspace.id if workspace else 0,
+                    workspace_name=workspace.name if workspace else "Unknown",
                 ),
             )
         )

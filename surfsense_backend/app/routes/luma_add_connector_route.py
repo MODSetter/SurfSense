@@ -13,6 +13,7 @@ from app.db import (
     get_async_session,
 )
 from app.users import require_session_context
+from app.utils.validators import raise_if_connector_deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class AddLumaConnectorRequest(BaseModel):
     """Request model for adding a Luma connector."""
 
     api_key: str = Field(..., description="Luma API key")
-    space_id: int = Field(..., description="Search space ID")
+    space_id: int = Field(..., description="Workspace ID")
 
 
 @router.post("/connectors/luma/add")
@@ -48,10 +49,12 @@ async def add_luma_connector(
     """
     user = auth.user
     try:
-        # Check if a Luma connector already exists for this search space and user
+        raise_if_connector_deprecated(SearchSourceConnectorType.LUMA_CONNECTOR)
+
+        # Check if a Luma connector already exists for this workspace and user
         result = await session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == request.space_id,
+                SearchSourceConnector.workspace_id == request.space_id,
                 SearchSourceConnector.user_id == user.id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.LUMA_CONNECTOR,
@@ -81,7 +84,7 @@ async def add_luma_connector(
             name="Luma Event Connector",
             connector_type=SearchSourceConnectorType.LUMA_CONNECTOR,
             config={"api_key": request.api_key},
-            search_space_id=request.space_id,
+            workspace_id=request.space_id,
             user_id=user.id,
             is_indexable=False,
         )
@@ -123,10 +126,10 @@ async def delete_luma_connector(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Delete the Luma connector for the authenticated user in a specific search space.
+    Delete the Luma connector for the authenticated user in a specific workspace.
 
     Args:
-        space_id: Search space ID
+        space_id: Workspace ID
         user: Current authenticated user
         session: Database session
 
@@ -140,7 +143,7 @@ async def delete_luma_connector(
     try:
         result = await session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.user_id == user.id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.LUMA_CONNECTOR,
@@ -179,10 +182,10 @@ async def test_luma_connector(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Test the Luma connector for the authenticated user in a specific search space.
+    Test the Luma connector for the authenticated user in a specific workspace.
 
     Args:
-        space_id: Search space ID
+        space_id: Workspace ID
         user: Current authenticated user
         session: Database session
 
@@ -194,10 +197,10 @@ async def test_luma_connector(
     """
     user = auth.user
     try:
-        # Get the Luma connector for this search space and user
+        # Get the Luma connector for this workspace and user
         result = await session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.user_id == user.id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.LUMA_CONNECTOR,

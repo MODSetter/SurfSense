@@ -52,8 +52,8 @@ export const mentionContext = z.object({
 	thread_id: z.number(),
 	thread_title: z.string(),
 	message_id: z.number(),
-	search_space_id: z.number(),
-	search_space_name: z.string(),
+	workspace_id: z.number(),
+	workspace_name: z.string(),
 });
 
 export const mentionComment = z.object({
@@ -144,7 +144,7 @@ export const deleteCommentResponse = z.object({
  * Get mentions
  */
 export const getMentionsRequest = z.object({
-	search_space_id: z.number().optional(),
+	workspace_id: z.number().optional(),
 });
 
 export const getMentionsResponse = z.object({

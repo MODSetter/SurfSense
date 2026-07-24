@@ -1,4 +1,37 @@
 import { EnumConnectorName } from "@/contracts/enums/connector";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+
+/**
+ * Connectors retired during the MCP migration (no viable official MCP server).
+ *
+ * UI behavior: a deprecated connector is hidden from the catalog entirely unless
+ * the user already connected it before deprecation — in that case it still shows
+ * as a normal card (inline, no "Deprecated" section) so they can manage/disconnect
+ * it. New connections are refused by the backend `/add` routes with HTTP 410.
+ * Reinstate by removing the type here and in the backend `DEPRECATED_CONNECTOR_TYPES`
+ * if demand returns.
+ *
+ * Full deprecated list (for devs):
+ *  - DISCORD_CONNECTOR, TEAMS_CONNECTOR, LUMA_CONNECTOR
+ *  - Search APIs (superseded by the Google-only web-search consolidation; the
+ *    google_search subagent handles public web search, and Tavily/Linkup can
+ *    still be added via the generic Custom MCP connector with API-key headers):
+ *    TAVILY_API, SEARXNG_API, LINKUP_API, BAIDU_SEARCH_API
+ *  - Legacy content crawlers/search (superseded by the file Import menu and
+ *    hosted MCP tooling): YOUTUBE_CONNECTOR, WEBCRAWLER_CONNECTOR, ELASTICSEARCH_CONNECTOR
+ */
+export const DEPRECATED_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.DISCORD_CONNECTOR,
+	EnumConnectorName.TEAMS_CONNECTOR,
+	EnumConnectorName.LUMA_CONNECTOR,
+	EnumConnectorName.TAVILY_API,
+	EnumConnectorName.SEARXNG_API,
+	EnumConnectorName.LINKUP_API,
+	EnumConnectorName.BAIDU_SEARCH_API,
+	EnumConnectorName.YOUTUBE_CONNECTOR,
+	EnumConnectorName.WEBCRAWLER_CONNECTOR,
+	EnumConnectorName.ELASTICSEARCH_CONNECTOR,
+]);
 
 /**
  * Connectors that operate in real time (no background indexing).
@@ -17,6 +50,9 @@ export const LIVE_CONNECTOR_TYPES = new Set<string>([
 	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
 	EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
 	EnumConnectorName.LUMA_CONNECTOR,
+	// Migrated to hosted MCP: real-time agent tools, no background indexing.
+	EnumConnectorName.NOTION_CONNECTOR,
+	EnumConnectorName.CONFLUENCE_CONNECTOR,
 ]);
 
 // OAuth Connectors (Quick Connect)
@@ -55,9 +91,9 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "notion-connector",
 		title: "Notion",
-		description: "Search your Notion pages",
+		description: "Search, read, and create pages",
 		connectorType: EnumConnectorName.NOTION_CONNECTOR,
-		authEndpoint: "/api/v1/auth/notion/connector/add",
+		authEndpoint: "/api/v1/auth/mcp/notion/connector/add/",
 	},
 	{
 		id: "linear-connector",
@@ -104,16 +140,16 @@ export const OAUTH_CONNECTORS = [
 	{
 		id: "jira-connector",
 		title: "Jira",
-		description: "Rework in progress.",
+		description: "Search, read, and manage issues",
 		connectorType: EnumConnectorName.JIRA_CONNECTOR,
 		authEndpoint: "/api/v1/auth/mcp/jira/connector/add/",
 	},
 	{
 		id: "confluence-connector",
 		title: "Confluence",
-		description: "Rework in progress.",
+		description: "Search, read, and create pages",
 		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
-		authEndpoint: "/api/v1/auth/confluence/connector/add/",
+		authEndpoint: "/api/v1/auth/mcp/confluence/connector/add/",
 	},
 	{
 		id: "clickup-connector",
@@ -243,36 +279,35 @@ export function getConnectorTitle(connectorType: string): string {
 	);
 }
 
+/** One row per connected connector type (multiple accounts collapsed into one). */
+export interface ConnectorTypeRow {
+	type: string;
+	title: string;
+	connectors: SearchSourceConnector[];
+	accountCount: number;
+}
+
 /**
- * Primary way a user interacts with a connector.
- * Drives the two top-level groupings in the connector catalog UI.
+ * Collapse a flat connector list into one row per `connector_type`, titled for
+ * display (MCP collapses to "MCP Servers") and sorted alphabetically. Shared by
+ * the connectors panel's "Your connectors" rail and the composer add-menu so the
+ * two lists never drift; callers layer their own extras (e.g. health) on top.
  */
-export type ConnectorCategory = "knowledge_base" | "tools_live";
-
-export const CONNECTOR_CATEGORY_LABELS: Record<ConnectorCategory, string> = {
-	knowledge_base: "Knowledge Base",
-	tools_live: "Tools & Live Sources",
-};
-
-const KNOWLEDGE_BASE_CONNECTOR_TYPES = new Set<string>([
-	EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-	EnumConnectorName.ONEDRIVE_CONNECTOR,
-	EnumConnectorName.DROPBOX_CONNECTOR,
-	EnumConnectorName.NOTION_CONNECTOR,
-	EnumConnectorName.CONFLUENCE_CONNECTOR,
-	EnumConnectorName.YOUTUBE_CONNECTOR,
-	EnumConnectorName.WEBCRAWLER_CONNECTOR,
-	EnumConnectorName.BOOKSTACK_CONNECTOR,
-	EnumConnectorName.GITHUB_CONNECTOR,
-	EnumConnectorName.ELASTICSEARCH_CONNECTOR,
-	EnumConnectorName.CIRCLEBACK_CONNECTOR,
-	EnumConnectorName.OBSIDIAN_CONNECTOR,
-]);
-
-/** Unmapped connectors surface under Tools & Live Sources. */
-export function getConnectorCategory(connectorType: string): ConnectorCategory {
-	return KNOWLEDGE_BASE_CONNECTOR_TYPES.has(connectorType) ? "knowledge_base" : "tools_live";
+export function groupConnectorsByType(connectors: SearchSourceConnector[]): ConnectorTypeRow[] {
+	const byType = new Map<string, SearchSourceConnector[]>();
+	for (const c of connectors) {
+		const arr = byType.get(c.connector_type) ?? [];
+		arr.push(c);
+		byType.set(c.connector_type, arr);
+	}
+	return [...byType.entries()]
+		.map(([type, list]) => ({
+			type,
+			title: type === EnumConnectorName.MCP_CONNECTOR ? "MCP Servers" : getConnectorTitle(type),
+			connectors: list,
+			accountCount: list.length,
+		}))
+		.sort((a, b) => a.title.localeCompare(b.title));
 }
 
 // Composio Toolkits (available integrations via Composio)

@@ -216,13 +216,13 @@ class GmailToolMetadataService:
             )
 
     async def _get_accounts(
-        self, search_space_id: int, user_id: str
+        self, workspace_id: int, user_id: str
     ) -> list[GmailAccount]:
         result = await self._db_session.execute(
             select(SearchSourceConnector)
             .filter(
                 and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type.in_(
                         [
@@ -237,8 +237,8 @@ class GmailToolMetadataService:
         connectors = result.scalars().all()
         return [GmailAccount.from_connector(c) for c in connectors]
 
-    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
-        accounts = await self._get_accounts(search_space_id, user_id)
+    async def get_creation_context(self, workspace_id: int, user_id: str) -> dict:
+        accounts = await self._get_accounts(workspace_id, user_id)
 
         if not accounts:
             return {
@@ -289,10 +289,10 @@ class GmailToolMetadataService:
         return {"accounts": accounts_with_status}
 
     async def get_update_context(
-        self, search_space_id: int, user_id: str, email_ref: str
+        self, workspace_id: int, user_id: str, email_ref: str
     ) -> dict:
         document, connector = await self._resolve_email(
-            search_space_id, user_id, email_ref
+            workspace_id, user_id, email_ref
         )
 
         if not document or not connector:
@@ -478,10 +478,10 @@ class GmailToolMetadataService:
         return text_content.strip() if text_content.strip() else None
 
     async def get_trash_context(
-        self, search_space_id: int, user_id: str, email_ref: str
+        self, workspace_id: int, user_id: str, email_ref: str
     ) -> dict:
         document, connector = await self._resolve_email(
-            search_space_id, user_id, email_ref
+            workspace_id, user_id, email_ref
         )
 
         if not document or not connector:
@@ -509,7 +509,7 @@ class GmailToolMetadataService:
         }
 
     async def _resolve_email(
-        self, search_space_id: int, user_id: str, email_ref: str
+        self, workspace_id: int, user_id: str, email_ref: str
     ) -> tuple[Document | None, SearchSourceConnector | None]:
         result = await self._db_session.execute(
             select(Document, SearchSourceConnector)
@@ -519,7 +519,7 @@ class GmailToolMetadataService:
             )
             .filter(
                 and_(
-                    Document.search_space_id == search_space_id,
+                    Document.workspace_id == workspace_id,
                     Document.document_type.in_(
                         [
                             DocumentType.GOOGLE_GMAIL_CONNECTOR,

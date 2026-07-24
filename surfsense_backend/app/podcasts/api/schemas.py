@@ -30,7 +30,7 @@ class CreatePodcastRequest(BaseModel):
     """Create a podcast and kick off brief proposal."""
 
     title: str = Field(..., min_length=1, max_length=500)
-    search_space_id: int
+    workspace_id: int
     source_content: str = Field(..., min_length=1)
     thread_id: int | None = None
     speaker_count: int = Field(default=DEFAULT_SPEAKER_COUNT, ge=1, le=6)
@@ -83,7 +83,7 @@ class PodcastSummary(BaseModel):
     title: str
     status: PodcastStatus
     created_at: datetime
-    search_space_id: int
+    workspace_id: int
     thread_id: int | None = None
 
 
@@ -100,7 +100,7 @@ class PodcastDetail(BaseModel):
     duration_seconds: int | None
     error: str | None
     created_at: datetime
-    search_space_id: int
+    workspace_id: int
     thread_id: int | None
 
     @classmethod
@@ -116,6 +116,6 @@ class PodcastDetail(BaseModel):
             duration_seconds=podcast.duration_seconds,
             error=podcast.error,
             created_at=podcast.created_at,
-            search_space_id=podcast.search_space_id,
+            workspace_id=podcast.workspace_id,
             thread_id=podcast.thread_id,
         )

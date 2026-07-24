@@ -23,9 +23,7 @@ SAFE_CHARS = (CTX_TOKENS - PROMPT_OVERHEAD_TOKENS - MAX_OUTPUT_TOKENS) * CHARS_P
 
 def main() -> None:
     rows = [
-        json.loads(line)
-        for line in MAP.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in MAP.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
     total = len(rows)

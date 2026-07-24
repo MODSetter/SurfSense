@@ -38,6 +38,32 @@ export function announcementMatchesAudience(
 }
 
 /**
+ * Returns true when the announcement has been published (startTime has
+ * passed), regardless of whether its visibility window has expired.
+ * Used for archive views like the announcements page.
+ */
+export function isAnnouncementPublished(announcement: Announcement, now = new Date()): boolean {
+	const start = new Date(announcement.startTime).getTime();
+	if (Number.isNaN(start)) return false;
+	return now.getTime() >= start;
+}
+
+/**
+ * Filter announcements to all published ones (including expired) targeted
+ * at the given audience. Powers archive views; use getActiveAnnouncements
+ * for toasts, spotlights, and unread badges.
+ */
+export function getPublishedAnnouncements(
+	announcements: Announcement[],
+	isAuthenticated: boolean,
+	now = new Date()
+): Announcement[] {
+	return announcements.filter(
+		(a) => isAnnouncementPublished(a, now) && announcementMatchesAudience(a, isAuthenticated)
+	);
+}
+
+/**
  * Filter announcements to only those that are currently active and
  * targeted at the given audience.
  */

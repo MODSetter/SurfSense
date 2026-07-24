@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { USER_QUERY_KEY } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,8 @@ import { Spinner } from "@/components/ui/spinner";
 import type { IncentiveTaskInfo } from "@/contracts/types/incentive-tasks.types";
 import { incentiveTasksApiService } from "@/lib/apis/incentive-tasks-api.service";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
-import {
-	trackIncentivePageViewed,
-	trackIncentiveTaskClicked,
-	trackIncentiveTaskCompleted,
-} from "@/lib/posthog/events";
+import { trackIncentiveTaskClicked } from "@/lib/posthog/events";
+import { getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 
 // Compact dollar label for a task's reward (e.g. "+$0.03").
@@ -32,11 +28,9 @@ const formatRewardUsd = (micros: number) => {
 export function EarnCreditsContent() {
 	const params = useParams();
 	const queryClient = useQueryClient();
-	const searchSpaceId = params?.search_space_id ?? "";
+	const workspaceId = getWorkspaceIdParam(params) ?? "";
 
-	useEffect(() => {
-		trackIncentivePageViewed();
-	}, []);
+	// incentive_page_viewed removed — redundant with $pageview.
 
 	const { data, isLoading } = useQuery({
 		queryKey: ["incentive-tasks"],
@@ -50,13 +44,11 @@ export function EarnCreditsContent() {
 
 	const completeMutation = useMutation({
 		mutationFn: incentiveTasksApiService.completeTask,
-		onSuccess: (response, taskType) => {
+		onSuccess: (response) => {
 			if (response.success) {
 				toast.success(response.message);
-				const task = data?.tasks.find((t) => t.task_type === taskType);
-				if (task) {
-					trackIncentiveTaskCompleted(taskType, task.credit_micros_reward);
-				}
+				// incentive_task_completed is now emitted server-side
+				// (incentive_tasks_routes.complete_task) where credit is granted.
 				queryClient.invalidateQueries({ queryKey: ["incentive-tasks"] });
 				queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
 			}
@@ -162,7 +154,7 @@ export function EarnCreditsContent() {
 				<p className="text-sm text-muted-foreground">Need more?</p>
 				{creditBuyingEnabled ? (
 					<Button asChild variant="link" className="text-emerald-600 dark:text-emerald-400">
-						<Link href={`/dashboard/${searchSpaceId}/buy-more`}>Buy credits at $1 per $1</Link>
+						<Link href={`/dashboard/${workspaceId}/buy-more`}>Buy credits at $1 per $1</Link>
 					</Button>
 				) : (
 					<p className="text-xs text-muted-foreground">

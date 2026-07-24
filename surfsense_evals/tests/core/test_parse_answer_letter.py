@@ -11,7 +11,11 @@ from surfsense_evals.core.parse.answer_letter import AnswerLetterResult
 @pytest.mark.parametrize(
     "text,expected_letter,expected_strategy",
     [
-        ('```json\n{"step_by_step_thinking": "...", "answer_choice": "B"}\n```', "B", "json_envelope"),
+        (
+            '```json\n{"step_by_step_thinking": "...", "answer_choice": "B"}\n```',
+            "B",
+            "json_envelope",
+        ),
         ('Reasoning... {"step_by_step_thinking": "x", "answer_choice": "C"}', "C", "json_envelope"),
         ("Long reasoning.\nAnswer: D", "D", "answer_line"),
         ("The correct answer is (A).", "A", "answer_line"),

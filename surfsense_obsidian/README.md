@@ -52,7 +52,7 @@ Open **Settings → SurfSense** in Obsidian and fill in:
 | --- | --- |
 | Server URL | `https://surfsense.com` for SurfSense Cloud, or your self-hosted URL |
 | API token | Create a personal access token from the *Connectors → Obsidian* dialog or *User settings → API access* in the SurfSense web app |
-| Search space | Pick the search space this vault should sync into |
+| Search space | Pick the workspace this vault should sync into |
 | Vault name | Defaults to your Obsidian vault name; rename if you have multiple vaults |
 | Sync mode | *Auto* (recommended) or *Manual* |
 | Exclude patterns | Glob patterns of folders/files to skip (e.g. `.trash`, `_attachments`, `templates/**`) |
@@ -82,7 +82,7 @@ addendum.
 
 - `vault_id`: a random UUID minted in the plugin's `data.json` on first run
 - `vault_name`: the Obsidian vault folder name
-- `search_space_id`: the SurfSense search space you picked
+- `workspace_id`: the SurfSense workspace you picked
 
 **Sent per note on `/sync`, `/rename`, `/delete`:**
 

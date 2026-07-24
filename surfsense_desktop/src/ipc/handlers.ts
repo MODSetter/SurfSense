@@ -27,7 +27,7 @@ import {
 } from '../modules/folder-watcher';
 import { getShortcuts, setShortcuts, type ShortcutConfig } from '../modules/shortcuts';
 import { getAutoLaunchState, setAutoLaunch } from '../modules/auto-launch';
-import { getActiveSearchSpaceId, setActiveSearchSpaceId } from '../modules/active-search-space';
+import { getActiveWorkspaceId, setActiveWorkspaceId } from '../modules/active-workspace';
 import { reregisterQuickAsk } from '../modules/quick-ask';
 import { reregisterGeneralAssist, reregisterScreenshotAssist } from '../modules/tray';
 import {
@@ -205,9 +205,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT,
-    async (_event, virtualPath: string, searchSpaceId?: number | null) => {
+    async (_event, virtualPath: string, workspaceId?: number | null) => {
     try {
-      const result = await readAgentLocalFileText(virtualPath, searchSpaceId);
+      const result = await readAgentLocalFileText(virtualPath, workspaceId);
       return { ok: true, path: result.path, content: result.content };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to read local file';
@@ -218,9 +218,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT,
-    async (_event, virtualPath: string, content: string, searchSpaceId?: number | null) => {
+    async (_event, virtualPath: string, content: string, workspaceId?: number | null) => {
       try {
-        const result = await writeAgentLocalFileText(virtualPath, content, searchSpaceId);
+        const result = await writeAgentLocalFileText(virtualPath, content, workspaceId);
         return { ok: true, path: result.path };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to write local file';
@@ -321,10 +321,10 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE, () => getActiveSearchSpaceId());
+  ipcMain.handle(IPC_CHANNELS.GET_ACTIVE_WORKSPACE, () => getActiveWorkspaceId());
 
-  ipcMain.handle(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, (_event, id: string) =>
-    setActiveSearchSpaceId(id)
+  ipcMain.handle(IPC_CHANNELS.SET_ACTIVE_WORKSPACE, (_event, id: string) =>
+    setActiveWorkspaceId(id)
   );
 
   ipcMain.handle(IPC_CHANNELS.SET_SHORTCUTS, async (_event, config: Partial<ShortcutConfig>) => {
@@ -370,12 +370,12 @@ export function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, (_event, searchSpaceId?: number | null) =>
-    getAgentFilesystemSettings(searchSpaceId)
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, (_event, workspaceId?: number | null) =>
+    getAgentFilesystemSettings(workspaceId)
   );
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, (_event, searchSpaceId?: number | null) =>
-    getAgentFilesystemMounts(searchSpaceId)
+  ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, (_event, workspaceId?: number | null) =>
+    getAgentFilesystemMounts(workspaceId)
   );
 
   ipcMain.handle(
@@ -384,7 +384,7 @@ export function registerIpcHandlers(): void {
       _event,
       options: {
         rootPath: string;
-        searchSpaceId?: number | null;
+        workspaceId?: number | null;
         excludePatterns?: string[] | null;
         fileExtensions?: string[] | null;
       }
@@ -397,10 +397,10 @@ export function registerIpcHandlers(): void {
     (
       _event,
       payload: {
-        searchSpaceId?: number | null;
+        workspaceId?: number | null;
         settings: { mode?: 'cloud' | 'desktop_local_folder'; localRootPaths?: string[] | null };
       }
-    ) => setAgentFilesystemSettings(payload?.searchSpaceId, payload?.settings ?? {})
+    ) => setAgentFilesystemSettings(payload?.workspaceId, payload?.settings ?? {})
   );
 
   ipcMain.handle(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT, () =>
@@ -415,7 +415,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP,
-    (_event, searchSpaceId?: number | null) =>
-      stopAgentFilesystemTreeWatch(searchSpaceId)
+    (_event, workspaceId?: number | null) =>
+      stopAgentFilesystemTreeWatch(workspaceId)
   );
 }

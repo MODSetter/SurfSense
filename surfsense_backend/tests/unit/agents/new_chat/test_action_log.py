@@ -94,7 +94,7 @@ def fake_session_factory():
 class TestActionLogMiddlewareDisabled:
     @pytest.mark.asyncio
     async def test_no_op_when_flag_off(self, patch_get_flags) -> None:
-        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=1, workspace_id=1, user_id=None)
         request = _FakeRequest(
             tool_call={
                 "name": "make_widget",
@@ -110,7 +110,7 @@ class TestActionLogMiddlewareDisabled:
 
     @pytest.mark.asyncio
     async def test_no_op_when_thread_id_none(self, patch_get_flags) -> None:
-        mw = ActionLogMiddleware(thread_id=None, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=None, workspace_id=1, user_id=None)
         request = _FakeRequest(
             tool_call={"name": "make_widget", "args": {}, "id": "tc1"}
         )
@@ -126,7 +126,7 @@ class TestActionLogMiddlewarePersistence:
         self, patch_get_flags, fake_session_factory
     ) -> None:
         captured, factory = fake_session_factory
-        mw = ActionLogMiddleware(thread_id=42, search_space_id=7, user_id="u1")
+        mw = ActionLogMiddleware(thread_id=42, workspace_id=7, user_id="u1")
         request = _FakeRequest(
             tool_call={
                 "name": "make_widget",
@@ -150,7 +150,7 @@ class TestActionLogMiddlewarePersistence:
         assert len(captured["rows"]) == 1
         row = captured["rows"][0]
         assert row.thread_id == 42
-        assert row.search_space_id == 7
+        assert row.workspace_id == 7
         assert row.user_id == "u1"
         assert row.tool_name == "make_widget"
         assert row.args == {"color": "red", "size": 3}
@@ -170,7 +170,7 @@ class TestActionLogMiddlewarePersistence:
     ) -> None:
         """``chat_turn_id`` falls back to NULL when ``runtime.config`` is absent."""
         captured, factory = fake_session_factory
-        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=1, workspace_id=1, user_id=None)
         request = _FakeRequest(
             tool_call={"name": "make_widget", "args": {}, "id": "tc-1"},
             runtime=None,
@@ -190,7 +190,7 @@ class TestActionLogMiddlewarePersistence:
         self, patch_get_flags, fake_session_factory
     ) -> None:
         captured, factory = fake_session_factory
-        mw = ActionLogMiddleware(thread_id=42, search_space_id=7, user_id="u1")
+        mw = ActionLogMiddleware(thread_id=42, workspace_id=7, user_id="u1")
         request = _FakeRequest(
             tool_call={"name": "make_widget", "args": {"color": "red"}, "id": "tc1"}
         )
@@ -214,7 +214,7 @@ class TestActionLogMiddlewarePersistence:
         self, patch_get_flags
     ) -> None:
         """Even if the DB write blows up, the tool's result must reach the model."""
-        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=1, workspace_id=1, user_id=None)
         request = _FakeRequest(
             tool_call={"name": "make_widget", "args": {}, "id": "tc1"}
         )
@@ -250,7 +250,7 @@ class TestReverseDescriptor:
         )
         mw = ActionLogMiddleware(
             thread_id=1,
-            search_space_id=1,
+            workspace_id=1,
             user_id="u",
             tool_definitions={"make_widget": tool_def},
         )
@@ -296,7 +296,7 @@ class TestReverseDescriptor:
         )
         mw = ActionLogMiddleware(
             thread_id=1,
-            search_space_id=1,
+            workspace_id=1,
             user_id=None,
             tool_definitions={"make_widget": tool_def},
         )
@@ -321,7 +321,7 @@ class TestReverseDescriptor:
         self, patch_get_flags, fake_session_factory
     ) -> None:
         captured, factory = fake_session_factory
-        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=1, workspace_id=1, user_id=None)
         request = _FakeRequest(
             tool_call={"name": "unknown_tool", "args": {}, "id": "tc1"}
         )
@@ -343,7 +343,7 @@ class TestActionLogDispatch:
         self, patch_get_flags, fake_session_factory
     ) -> None:
         _captured, factory = fake_session_factory
-        mw = ActionLogMiddleware(thread_id=42, search_space_id=7, user_id="u1")
+        mw = ActionLogMiddleware(thread_id=42, workspace_id=7, user_id="u1")
         request = _FakeRequest(
             tool_call={
                 "name": "make_widget",
@@ -383,7 +383,7 @@ class TestActionLogDispatch:
     @pytest.mark.asyncio
     async def test_no_dispatch_when_persistence_fails(self, patch_get_flags) -> None:
         """If commit fails the dispatch is suppressed (no row to surface)."""
-        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=1, workspace_id=1, user_id=None)
         request = _FakeRequest(
             tool_call={"name": "make_widget", "args": {}, "id": "tc1"}
         )
@@ -411,7 +411,7 @@ class TestArgsTruncation:
         self, patch_get_flags, fake_session_factory
     ) -> None:
         captured, factory = fake_session_factory
-        mw = ActionLogMiddleware(thread_id=1, search_space_id=1, user_id=None)
+        mw = ActionLogMiddleware(thread_id=1, workspace_id=1, user_id=None)
         # Build a > 32KB string so the persisted payload triggers the truncation path.
         huge = "x" * (40 * 1024)
         request = _FakeRequest(

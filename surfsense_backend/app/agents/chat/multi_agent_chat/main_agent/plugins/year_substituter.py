@@ -7,7 +7,7 @@ result. This particular plugin is read-only and only transforms the
 mutation).
 
 The plugin is built as a factory function so the entry-point loader can
-inject :class:`PluginContext` (containing the agent's LLM, search-space
+inject :class:`PluginContext` (containing the agent's LLM, workspace
 ID, etc.). The factory signature
 ``Callable[[PluginContext], AgentMiddleware]`` is the only contract --
 SurfSense doesn't define a custom plugin protocol on top of LangChain's

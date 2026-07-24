@@ -28,28 +28,28 @@ def load_tools(
     d = {**(dependencies or {}), **kwargs}
     return [
         create_generate_podcast_tool(
-            search_space_id=d["search_space_id"],
+            workspace_id=d["workspace_id"],
             db_session=d["db_session"],
             thread_id=d["thread_id"],
         ),
         create_generate_video_presentation_tool(
-            search_space_id=d["search_space_id"],
+            workspace_id=d["workspace_id"],
             db_session=d["db_session"],
             thread_id=d["thread_id"],
         ),
         create_generate_report_tool(
-            search_space_id=d["search_space_id"],
+            workspace_id=d["workspace_id"],
             thread_id=d["thread_id"],
             connector_service=d.get("connector_service"),
             available_connectors=d.get("available_connectors"),
             available_document_types=d.get("available_document_types"),
         ),
         create_generate_resume_tool(
-            search_space_id=d["search_space_id"],
+            workspace_id=d["workspace_id"],
             thread_id=d["thread_id"],
         ),
         create_generate_image_tool(
-            search_space_id=d["search_space_id"],
+            workspace_id=d["workspace_id"],
             db_session=d["db_session"],
             image_gen_model_id_override=d.get("image_gen_model_id_override"),
         ),

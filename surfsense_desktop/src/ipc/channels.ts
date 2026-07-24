@@ -50,8 +50,8 @@ export const IPC_CHANNELS = {
   GET_SHORTCUTS: 'shortcuts:get',
   SET_SHORTCUTS: 'shortcuts:set',
   // Active search space
-  GET_ACTIVE_SEARCH_SPACE: 'search-space:get-active',
-  SET_ACTIVE_SEARCH_SPACE: 'search-space:set-active',
+  GET_ACTIVE_WORKSPACE: 'workspace:get-active',
+  SET_ACTIVE_WORKSPACE: 'workspace:set-active',
   // Launch on system startup
   GET_AUTO_LAUNCH: 'auto-launch:get',
   SET_AUTO_LAUNCH: 'auto-launch:set',

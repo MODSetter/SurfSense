@@ -45,7 +45,7 @@ def test_every_subagent_has_description_md(name: str):
     [
         "core_behavior.md",
         "routing.md",
-        "tools/web_search/description.md",
+        "tools/task/description.md",
     ],
 )
 def test_main_agent_prompt_fragments_resolve(filename: str):

@@ -23,10 +23,11 @@ class StripeApiService {
 	createCreditCheckoutSession = async (
 		request: CreateCreditCheckoutSessionRequest
 	): Promise<CreateCreditCheckoutSessionResponse> => {
+		const { workspace_id, ...body } = request;
 		return baseApiService.post(
 			"/api/v1/stripe/create-credit-checkout-session",
 			createCreditCheckoutSessionResponse,
-			{ body: request }
+			{ body: { ...body, workspace_id } }
 		);
 	};
 
@@ -74,10 +75,11 @@ class StripeApiService {
 	createAutoReloadSetupSession = async (
 		request: CreateAutoReloadSetupSessionRequest
 	): Promise<CreateAutoReloadSetupSessionResponse> => {
+		const { workspace_id } = request;
 		return baseApiService.post(
 			"/api/v1/stripe/auto-reload/setup",
 			createAutoReloadSetupSessionResponse,
-			{ body: request }
+			{ body: { workspace_id } }
 		);
 	};
 }

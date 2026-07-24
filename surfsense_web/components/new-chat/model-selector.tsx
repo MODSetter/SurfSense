@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { providerDisplay } from "../settings/model-connections/provider-metadata";
 
 interface ModelSelectorProps {
-	searchSpaceId: number;
+	workspaceId: number;
 	className?: string;
 	onChatModelSelected?: () => void;
 }
@@ -96,11 +96,7 @@ function groupedModels(models: ChatModel[]) {
 	}, {});
 }
 
-export function ModelSelector({
-	searchSpaceId,
-	className,
-	onChatModelSelected,
-}: ModelSelectorProps) {
+export function ModelSelector({ workspaceId, className, onChatModelSelected }: ModelSelectorProps) {
 	const router = useRouter();
 	const isMobile = useIsMobile();
 	const [open, setOpen] = useState(false);
@@ -149,7 +145,7 @@ export function ModelSelector({
 
 	function manageModelConnections() {
 		setOpen(false);
-		router.push(`/dashboard/${searchSpaceId}/search-space-settings/models`);
+		router.push(`/dashboard/${workspaceId}/workspace-settings/models`);
 	}
 
 	const handleScroll = useCallback((event: UIEvent<HTMLDivElement>) => {

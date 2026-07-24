@@ -61,7 +61,7 @@ export const inputs = z.object({
 export type Inputs = z.infer<typeof inputs>;
 
 // Captured model snapshot (server-managed). Set at create time and preserved
-// across edits so runs are insulated from later chat/search-space model changes.
+// across edits so runs are insulated from later chat/workspace model changes.
 export const automationModels = z.object({
 	chat_model_id: z.number().int().default(0),
 	image_gen_model_id: z.number().int().default(0),
@@ -118,7 +118,7 @@ export type Trigger = z.infer<typeof trigger>;
 // =============================================================================
 
 export const automationCreateRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	name: z.string().min(1).max(200),
 	description: z.string().nullable().optional(),
 	definition: automationDefinition,
@@ -136,7 +136,7 @@ export type AutomationUpdateRequest = z.infer<typeof automationUpdateRequest>;
 
 export const automationSummary = z.object({
 	id: z.number(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	name: z.string(),
 	description: z.string().nullable().optional(),
 	status: automationStatus,
@@ -159,7 +159,7 @@ export const automationListResponse = z.object({
 export type AutomationListResponse = z.infer<typeof automationListResponse>;
 
 export const automationListParams = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	limit: z.number().int().min(1).max(200).default(50),
 	offset: z.number().int().min(0).default(0),
 });

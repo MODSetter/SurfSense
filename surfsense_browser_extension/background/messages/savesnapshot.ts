@@ -106,12 +106,12 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 				}));
 
 				const token = await storage.get("token");
-				const search_space_id = parseInt(await storage.get("search_space_id"), 10);
+				const workspace_id = parseInt(await storage.get("workspace_id"), 10);
 
 				const toSend = {
 					document_type: "EXTENSION",
 					content: content,
-					search_space_id: search_space_id,
+					workspace_id: workspace_id,
 				};
 
 				const requestOptions = {

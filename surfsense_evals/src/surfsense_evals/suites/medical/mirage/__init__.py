@@ -11,7 +11,7 @@ document — the corpus is millions of biomedical snippets.
 
 from __future__ import annotations
 
-from .runner import MirageBenchmark
 from ....core import registry as _registry
+from .runner import MirageBenchmark
 
 _registry.register(MirageBenchmark())

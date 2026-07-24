@@ -104,7 +104,9 @@ def load_config() -> Config:
     data_dir = Path(os.environ.get("EVAL_DATA_DIR") or (project_root / "data")).resolve()
     reports_dir = Path(os.environ.get("EVAL_REPORTS_DIR") or (project_root / "reports")).resolve()
     return Config(
-        surfsense_api_base=os.environ.get("SURFSENSE_API_BASE", "http://localhost:8000").rstrip("/"),
+        surfsense_api_base=os.environ.get("SURFSENSE_API_BASE", "http://localhost:8000").rstrip(
+            "/"
+        ),
         openrouter_api_key=os.environ.get("OPENROUTER_API_KEY") or None,
         openrouter_base_url=os.environ.get(
             "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
@@ -203,9 +205,7 @@ class SuiteState:
                 else None
             ),
             native_arm_model=(
-                str(payload["native_arm_model"])
-                if payload.get("native_arm_model")
-                else None
+                str(payload["native_arm_model"]) if payload.get("native_arm_model") else None
             ),
         )
 

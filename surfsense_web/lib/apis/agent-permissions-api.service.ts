@@ -7,7 +7,7 @@ export type AgentPermissionAction = z.infer<typeof ActionEnum>;
 
 const AgentPermissionRuleSchema = z.object({
 	id: z.number(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	user_id: z.string().nullable(),
 	thread_id: z.number().nullable(),
 	permission: z.string(),
@@ -42,15 +42,15 @@ const AgentPermissionRuleUpdateSchema = z.object({
 export type AgentPermissionRuleUpdate = z.infer<typeof AgentPermissionRuleUpdateSchema>;
 
 class AgentPermissionsApiService {
-	list = async (searchSpaceId: number): Promise<AgentPermissionRule[]> => {
+	list = async (workspaceId: number): Promise<AgentPermissionRule[]> => {
 		return baseApiService.get(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules`,
+			`/api/v1/workspaces/${workspaceId}/agent/permissions/rules`,
 			AgentPermissionRuleListSchema
 		);
 	};
 
 	create = async (
-		searchSpaceId: number,
+		workspaceId: number,
 		payload: AgentPermissionRuleCreate
 	): Promise<AgentPermissionRule> => {
 		const parsed = AgentPermissionRuleCreateSchema.safeParse(payload);
@@ -58,14 +58,14 @@ class AgentPermissionsApiService {
 			throw new ValidationError(parsed.error.issues.map((i) => i.message).join(", "));
 		}
 		return baseApiService.post(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules`,
+			`/api/v1/workspaces/${workspaceId}/agent/permissions/rules`,
 			AgentPermissionRuleSchema,
 			{ body: parsed.data }
 		);
 	};
 
 	update = async (
-		searchSpaceId: number,
+		workspaceId: number,
 		ruleId: number,
 		payload: AgentPermissionRuleUpdate
 	): Promise<AgentPermissionRule> => {
@@ -74,15 +74,15 @@ class AgentPermissionsApiService {
 			throw new ValidationError(parsed.error.issues.map((i) => i.message).join(", "));
 		}
 		return baseApiService.patch(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules/${ruleId}`,
+			`/api/v1/workspaces/${workspaceId}/agent/permissions/rules/${ruleId}`,
 			AgentPermissionRuleSchema,
 			{ body: parsed.data }
 		);
 	};
 
-	remove = async (searchSpaceId: number, ruleId: number): Promise<void> => {
+	remove = async (workspaceId: number, ruleId: number): Promise<void> => {
 		await baseApiService.delete(
-			`/api/v1/searchspaces/${searchSpaceId}/agent/permissions/rules/${ruleId}`
+			`/api/v1/workspaces/${workspaceId}/agent/permissions/rules/${ruleId}`
 		);
 	};
 }

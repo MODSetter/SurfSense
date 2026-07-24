@@ -1,22 +1,24 @@
 import { z } from "zod";
 
-export const role = z.object({
+const roleBase = z.object({
 	id: z.number(),
 	name: z.string().min(1).max(100),
 	description: z.string().max(500).nullable(),
 	permissions: z.array(z.string()),
 	is_default: z.boolean(),
 	is_system_role: z.boolean(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_at: z.string(),
 });
+
+export const role = roleBase;
 
 /**
  * Create role
  */
 export const createRoleRequest = z.object({
-	search_space_id: z.number(),
-	data: role.pick({
+	workspace_id: z.number(),
+	data: roleBase.pick({
 		name: true,
 		description: true,
 		permissions: true,
@@ -30,7 +32,7 @@ export const createRoleResponse = role;
  * Get roles
  */
 export const getRolesRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getRolesResponse = z.array(role);
@@ -39,7 +41,7 @@ export const getRolesResponse = z.array(role);
  * Get role by ID
  */
 export const getRoleByIdRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number(),
 });
 
@@ -49,9 +51,9 @@ export const getRoleByIdResponse = role;
  * Update role
  */
 export const updateRoleRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number(),
-	data: role
+	data: roleBase
 		.pick({
 			name: true,
 			description: true,
@@ -67,7 +69,7 @@ export const updateRoleResponse = role;
  * Delete role
  */
 export const deleteRoleRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number(),
 });
 

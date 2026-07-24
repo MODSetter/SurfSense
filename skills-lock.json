@@ -6,6 +6,12 @@
       "sourceType": "github",
       "computedHash": "f96aa6f7d8dd982a866ac090c1770e39cd0a01c63c9bc315895d3c210f80b393"
     },
+    "animation-vocabulary": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-vocabulary/SKILL.md",
+      "computedHash": "280c6688ef2568ad92f40c4dc638f0cc5cde0f49bdd6debd097410aa9945f44f"
+    },
     "backlink-analyzer": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
@@ -35,6 +41,12 @@
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
       "computedHash": "e97547ac36ea8e59a65bdfdda25b8d130cb7f5e2cf13dac56fd01f24e74718a5"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "ac3fc5b4e206488ffc408a2806f829bb2e5eaf518fded09be34790685c2b3a0d"
     },
     "entity-optimizer": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
@@ -86,6 +98,12 @@
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
       "computedHash": "2d4c9a44056713d946481031cc00b3113b6055af6f4bea0cfd8dcb8a9d5abbf9"
+    },
+    "review-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/review-animations/SKILL.md",
+      "computedHash": "57c681344448379fbec8c11b45e355b70799998427240662318d017f292571bd"
     },
     "schema-markup-generator": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",

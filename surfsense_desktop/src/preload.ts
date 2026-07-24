@@ -74,10 +74,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Browse files via native dialog
   browseFiles: () => ipcRenderer.invoke(IPC_CHANNELS.BROWSE_FILES),
   readLocalFiles: (paths: string[]) => ipcRenderer.invoke(IPC_CHANNELS.READ_LOCAL_FILES, paths),
-  readAgentLocalFileText: (virtualPath: string, searchSpaceId?: number | null) =>
-    ipcRenderer.invoke(IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT, virtualPath, searchSpaceId),
-  writeAgentLocalFileText: (virtualPath: string, content: string, searchSpaceId?: number | null) =>
-    ipcRenderer.invoke(IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT, virtualPath, content, searchSpaceId),
+  readAgentLocalFileText: (virtualPath: string, workspaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.READ_AGENT_LOCAL_FILE_TEXT, virtualPath, workspaceId),
+  writeAgentLocalFileText: (virtualPath: string, content: string, workspaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.WRITE_AGENT_LOCAL_FILE_TEXT, virtualPath, content, workspaceId),
 
   // Auth token sync across windows
   getAccessToken: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACCESS_TOKEN),
@@ -104,9 +104,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.SET_AUTO_LAUNCH, { enabled, openAsHidden }),
 
   // Active search space
-  getActiveSearchSpace: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_SEARCH_SPACE),
-  setActiveSearchSpace: (id: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.SET_ACTIVE_SEARCH_SPACE, id),
+  getActiveWorkspace: () => ipcRenderer.invoke(IPC_CHANNELS.GET_ACTIVE_WORKSPACE),
+  setActiveWorkspace: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.SET_ACTIVE_WORKSPACE, id),
 
   // Analytics bridge — lets posthog-js running inside the Next.js renderer
   // mirror identify/reset/capture into the Electron main-process PostHog
@@ -118,27 +118,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_CAPTURE, { event, properties }),
   getAnalyticsContext: () => ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_CONTEXT),
   // Agent filesystem mode
-  getAgentFilesystemSettings: (searchSpaceId?: number | null) =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, searchSpaceId),
-  getAgentFilesystemMounts: (searchSpaceId?: number | null) =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, searchSpaceId),
+  getAgentFilesystemSettings: (workspaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_SETTINGS, workspaceId),
+  getAgentFilesystemMounts: (workspaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_GET_MOUNTS, workspaceId),
   listAgentFilesystemFiles: (options: {
     rootPath: string;
-    searchSpaceId?: number | null;
+    workspaceId?: number | null;
     excludePatterns?: string[] | null;
     fileExtensions?: string[] | null;
   }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_LIST_FILES, options),
   startAgentFilesystemTreeWatch: (options: {
-    searchSpaceId?: number | null;
+    workspaceId?: number | null;
     rootPaths: string[];
     excludePatterns?: string[] | null;
     fileExtensions?: string[] | null;
   }) => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_START, options),
-  stopAgentFilesystemTreeWatch: (searchSpaceId?: number | null) =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP, searchSpaceId),
+  stopAgentFilesystemTreeWatch: (workspaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_TREE_WATCH_STOP, workspaceId),
   onAgentFilesystemTreeDirty: (
     callback: (data: {
-      searchSpaceId: number | null;
+      workspaceId: number | null;
       reason: 'watcher_event' | 'safety_poll';
       rootPath: string;
       changedPath: string | null;
@@ -148,7 +148,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (
       _event: unknown,
       data: {
-        searchSpaceId: number | null;
+        workspaceId: number | null;
         reason: 'watcher_event' | 'safety_poll';
         rootPath: string;
         changedPath: string | null;
@@ -163,7 +163,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setAgentFilesystemSettings: (settings: {
     mode?: "cloud" | "desktop_local_folder";
     localRootPaths?: string[] | null;
-  }, searchSpaceId?: number | null) =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS, { searchSpaceId, settings }),
+  }, workspaceId?: number | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_SET_SETTINGS, { workspaceId, settings }),
   pickAgentFilesystemRoot: () => ipcRenderer.invoke(IPC_CHANNELS.AGENT_FILESYSTEM_PICK_ROOT),
 });

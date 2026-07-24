@@ -90,10 +90,27 @@ def _normalise(s: str) -> str:
 
 
 _WORD_NUMBERS = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
-    "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
-    "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
 }
 
 _NUMERIC_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
@@ -194,7 +211,7 @@ _JUDGE_SYSTEM = (
     "expresses a different fact, omits the central answer, or hedges "
     "without committing.\n\n"
     "Respond with ONLY a JSON object on a single line:\n"
-    '{\"correct\": true|false, \"rationale\": \"<one short sentence>\"}'
+    '{"correct": true|false, "rationale": "<one short sentence>"}'
 )
 
 
@@ -324,10 +341,7 @@ async def grade_many(
 
     if not rows:
         return []
-    coros = [
-        grade_with_judge(pred=p, gold=g, question=q, judge=judge)
-        for _qid, q, g, p in rows
-    ]
+    coros = [grade_with_judge(pred=p, gold=g, question=q, judge=judge) for _qid, q, g, p in rows]
     return list(await asyncio.gather(*coros))
 
 

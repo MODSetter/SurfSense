@@ -19,12 +19,12 @@ def test_different_unique_id_produces_different_hash(make_connector_document):
     )
 
 
-def test_different_search_space_produces_different_identifier_hash(
+def test_different_workspace_produces_different_identifier_hash(
     make_connector_document,
 ):
-    """Same document in different search spaces produces different identifier hashes."""
-    doc_a = make_connector_document(search_space_id=1)
-    doc_b = make_connector_document(search_space_id=2)
+    """Same document in different workspaces produces different identifier hashes."""
+    doc_a = make_connector_document(workspace_id=1)
+    doc_b = make_connector_document(workspace_id=2)
     assert compute_unique_identifier_hash(doc_a) != compute_unique_identifier_hash(
         doc_b
     )
@@ -42,18 +42,18 @@ def test_different_document_type_produces_different_identifier_hash(
 
 
 def test_same_content_same_space_produces_same_content_hash(make_connector_document):
-    """Identical content in the same search space always produces the same content hash."""
-    doc_a = make_connector_document(source_markdown="Hello world", search_space_id=1)
-    doc_b = make_connector_document(source_markdown="Hello world", search_space_id=1)
+    """Identical content in the same workspace always produces the same content hash."""
+    doc_a = make_connector_document(source_markdown="Hello world", workspace_id=1)
+    doc_b = make_connector_document(source_markdown="Hello world", workspace_id=1)
     assert compute_content_hash(doc_a) == compute_content_hash(doc_b)
 
 
 def test_same_content_different_space_produces_different_content_hash(
     make_connector_document,
 ):
-    """Identical content in different search spaces produces different content hashes."""
-    doc_a = make_connector_document(source_markdown="Hello world", search_space_id=1)
-    doc_b = make_connector_document(source_markdown="Hello world", search_space_id=2)
+    """Identical content in different workspaces produces different content hashes."""
+    doc_a = make_connector_document(source_markdown="Hello world", workspace_id=1)
+    doc_b = make_connector_document(source_markdown="Hello world", workspace_id=2)
     assert compute_content_hash(doc_a) != compute_content_hash(doc_b)
 
 
@@ -69,7 +69,7 @@ def test_compute_identifier_hash_matches_connector_doc_hash(make_connector_docum
     doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-123",
-        search_space_id=5,
+        workspace_id=5,
     )
     raw_hash = compute_identifier_hash("GOOGLE_GMAIL_CONNECTOR", "msg-123", 5)
     assert raw_hash == compute_unique_identifier_hash(doc)

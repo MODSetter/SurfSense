@@ -22,8 +22,8 @@ from app.db import (
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
     User,
+    Workspace,
     get_async_session,
 )
 from app.notifications.service import NotificationService
@@ -54,7 +54,7 @@ from app.services.obsidian_plugin_indexer import (
 )
 from app.tasks.celery_tasks.obsidian_tasks import index_obsidian_attachment_task
 from app.users import allow_any_principal, get_auth_context
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ async def _start_obsidian_sync_notification(
         operation_id=operation_id,
         title=f"Syncing: {connector_name}",
         message="Syncing from Obsidian plugin",
-        search_space_id=connector.search_space_id,
+        workspace_id=connector.workspace_id,
         initial_metadata={
             "connector_id": connector.id,
             "connector_name": connector_name,
@@ -195,7 +195,7 @@ async def _resolve_vault_connector(
 
     connector = (await session.execute(stmt)).scalars().first()
     if connector is not None:
-        await check_search_space_access(session, auth, connector.search_space_id)
+        await check_workspace_access(session, auth, connector.workspace_id)
         return connector
 
     raise HTTPException(
@@ -222,17 +222,17 @@ def _queue_obsidian_attachment(
     )
 
 
-async def _ensure_search_space_access(
+async def _ensure_workspace_access(
     session: AsyncSession,
     *,
     auth: AuthContext,
-    search_space_id: int,
-) -> SearchSpace:
-    """Owner-only access to the search space (shared spaces are a follow-up)."""
+    workspace_id: int,
+) -> Workspace:
+    """Owner-only access to the workspace (shared spaces are a follow-up)."""
     user = auth.user
     result = await session.execute(
-        select(SearchSpace).where(
-            and_(SearchSpace.id == search_space_id, SearchSpace.user_id == user.id)
+        select(Workspace).where(
+            and_(Workspace.id == workspace_id, Workspace.user_id == user.id)
         )
     )
     space = result.scalars().first()
@@ -241,10 +241,10 @@ async def _ensure_search_space_access(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "SEARCH_SPACE_FORBIDDEN",
-                "message": "You don't own that search space.",
+                "message": "You don't own that workspace.",
             },
         )
-    await check_search_space_access(session, auth, search_space_id)
+    await check_workspace_access(session, auth, workspace_id)
     return space
 
 
@@ -326,8 +326,8 @@ async def obsidian_connect(
     Fingerprint collisions on (1) trigger ``merge_obsidian_connectors`` so
     the partial unique index can never produce two live rows for one vault.
     """
-    await _ensure_search_space_access(
-        session, auth=auth, search_space_id=payload.search_space_id
+    await _ensure_workspace_access(
+        session, auth=auth, workspace_id=payload.workspace_id
     )
     user = auth.user
 
@@ -354,7 +354,7 @@ async def obsidian_connect(
             response = ConnectResponse(
                 connector_id=collision.id,
                 vault_id=collision_cfg["vault_id"],
-                search_space_id=collision.search_space_id,
+                workspace_id=collision.workspace_id,
                 server_time_utc=datetime.now(UTC),
                 **_build_handshake(),
             )
@@ -363,12 +363,12 @@ async def obsidian_connect(
 
         existing_by_vid.name = display_name
         existing_by_vid.config = cfg
-        existing_by_vid.search_space_id = payload.search_space_id
+        existing_by_vid.workspace_id = payload.workspace_id
         existing_by_vid.is_indexable = False
         response = ConnectResponse(
             connector_id=existing_by_vid.id,
             vault_id=payload.vault_id,
-            search_space_id=existing_by_vid.search_space_id,
+            workspace_id=existing_by_vid.workspace_id,
             server_time_utc=datetime.now(UTC),
             **_build_handshake(),
         )
@@ -387,7 +387,7 @@ async def obsidian_connect(
         response = ConnectResponse(
             connector_id=existing_by_fp.id,
             vault_id=survivor_cfg["vault_id"],
-            search_space_id=existing_by_fp.search_space_id,
+            workspace_id=existing_by_fp.workspace_id,
             server_time_utc=datetime.now(UTC),
             **_build_handshake(),
         )
@@ -406,12 +406,12 @@ async def obsidian_connect(
             is_indexable=False,
             config=cfg,
             user_id=user.id,
-            search_space_id=payload.search_space_id,
+            workspace_id=payload.workspace_id,
         )
         .on_conflict_do_nothing()
         .returning(
             SearchSourceConnector.id,
-            SearchSourceConnector.search_space_id,
+            SearchSourceConnector.workspace_id,
         )
     )
     inserted = (await session.execute(insert_stmt)).first()
@@ -419,7 +419,7 @@ async def obsidian_connect(
         response = ConnectResponse(
             connector_id=inserted.id,
             vault_id=payload.vault_id,
-            search_space_id=inserted.search_space_id,
+            workspace_id=inserted.workspace_id,
             server_time_utc=datetime.now(UTC),
             **_build_handshake(),
         )
@@ -441,7 +441,7 @@ async def obsidian_connect(
     response = ConnectResponse(
         connector_id=winner.id,
         vault_id=(winner.config or {})["vault_id"],
-        search_space_id=winner.search_space_id,
+        workspace_id=winner.workspace_id,
         server_time_utc=datetime.now(UTC),
         **_build_handshake(),
     )

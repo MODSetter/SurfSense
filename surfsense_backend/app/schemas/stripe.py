@@ -12,7 +12,7 @@ class CreateCreditCheckoutSessionRequest(BaseModel):
     """Request body for creating a credit-purchase checkout session."""
 
     quantity: int = Field(ge=1, le=10_000)
-    search_space_id: int = Field(ge=1)
+    workspace_id: int = Field(ge=1)
 
 
 class CreateCreditCheckoutSessionResponse(BaseModel):
@@ -114,7 +114,7 @@ class UpdateAutoReloadSettingsRequest(BaseModel):
 class CreateAutoReloadSetupSessionRequest(BaseModel):
     """Request body for starting the save-a-card (SetupIntent) checkout."""
 
-    search_space_id: int = Field(ge=1)
+    workspace_id: int = Field(ge=1)
 
 
 class CreateAutoReloadSetupSessionResponse(BaseModel):

@@ -118,14 +118,14 @@ def generate_connector_name_with_identifier(
 async def count_connectors_of_type(
     session: AsyncSession,
     connector_type: SearchSourceConnectorType,
-    search_space_id: int,
+    workspace_id: int,
     user_id: UUID,
 ) -> int:
-    """Count existing connectors of a type for a user in a search space."""
+    """Count existing connectors of a type for a user in a workspace."""
     result = await session.execute(
         select(func.count(SearchSourceConnector.id)).where(
             SearchSourceConnector.connector_type == connector_type,
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.user_id == user_id,
         )
     )
@@ -135,7 +135,7 @@ async def count_connectors_of_type(
 async def check_duplicate_connector(
     session: AsyncSession,
     connector_type: SearchSourceConnectorType,
-    search_space_id: int,
+    workspace_id: int,
     user_id: UUID,
     identifier: str | None,
 ) -> bool:
@@ -145,7 +145,7 @@ async def check_duplicate_connector(
     Args:
         session: Database session
         connector_type: The type of connector
-        search_space_id: The search space ID
+        workspace_id: The workspace ID
         user_id: The user ID
         identifier: User identifier (email, workspace name, etc.)
 
@@ -159,7 +159,7 @@ async def check_duplicate_connector(
     result = await session.execute(
         select(func.count(SearchSourceConnector.id)).where(
             SearchSourceConnector.connector_type == connector_type,
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.user_id == user_id,
             SearchSourceConnector.name == expected_name,
         )
@@ -170,11 +170,11 @@ async def check_duplicate_connector(
 async def ensure_unique_connector_name(
     session: AsyncSession,
     name: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: UUID,
 ) -> str:
     """
-    Ensure a connector name is unique within a user's search space.
+    Ensure a connector name is unique within a user's workspace.
 
     If the name already exists, appends a counter suffix: (2), (3), etc.
     Uses the same suffix format as generate_unique_connector_name.
@@ -182,7 +182,7 @@ async def ensure_unique_connector_name(
     Args:
         session: Database session
         name: Desired connector name
-        search_space_id: The search space ID
+        workspace_id: The workspace ID
         user_id: The user ID
 
     Returns:
@@ -190,7 +190,7 @@ async def ensure_unique_connector_name(
     """
     result = await session.execute(
         select(SearchSourceConnector.name).where(
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.user_id == user_id,
         )
     )
@@ -208,7 +208,7 @@ async def ensure_unique_connector_name(
 async def generate_unique_connector_name(
     session: AsyncSession,
     connector_type: SearchSourceConnectorType,
-    search_space_id: int,
+    workspace_id: int,
     user_id: UUID,
     identifier: str | None = None,
 ) -> str:
@@ -221,7 +221,7 @@ async def generate_unique_connector_name(
     Args:
         session: Database session
         connector_type: The type of connector
-        search_space_id: The search space ID
+        workspace_id: The workspace ID
         user_id: The user ID
         identifier: Optional user identifier (email, workspace name, etc.)
 
@@ -235,12 +235,12 @@ async def generate_unique_connector_name(
         return await ensure_unique_connector_name(
             session,
             name,
-            search_space_id,
+            workspace_id,
             user_id,
         )
 
     count = await count_connectors_of_type(
-        session, connector_type, search_space_id, user_id
+        session, connector_type, workspace_id, user_id
     )
 
     if count == 0:

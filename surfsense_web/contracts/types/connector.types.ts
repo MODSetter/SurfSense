@@ -47,7 +47,7 @@ export const searchSourceConnector = z.object({
 	periodic_indexing_enabled: z.boolean(),
 	indexing_frequency_minutes: z.number().nullable(),
 	next_scheduled_at: z.string().nullable(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	user_id: z.string(),
 	created_at: z.string(),
 });
@@ -72,7 +72,7 @@ export const getConnectorsRequest = z.object({
 	queryParams: paginationQueryParams
 		.pick({ skip: true, limit: true })
 		.extend({
-			search_space_id: z.number().or(z.string()).nullish(),
+			workspace_id: z.number().or(z.string()).nullish(),
 		})
 		.nullish(),
 });
@@ -103,7 +103,7 @@ export const createConnectorRequest = z.object({
 		next_scheduled_at: true,
 	}),
 	queryParams: z.object({
-		search_space_id: z.number().or(z.string()),
+		workspace_id: z.number().or(z.string()),
 	}),
 });
 
@@ -175,7 +175,7 @@ export const googleDriveIndexBody = z.object({
 export const indexConnectorRequest = z.object({
 	connector_id: z.number(),
 	queryParams: z.object({
-		search_space_id: z.number().or(z.string()),
+		workspace_id: z.number().or(z.string()),
 		start_date: z.string().optional(),
 		end_date: z.string().optional(),
 	}),
@@ -185,7 +185,7 @@ export const indexConnectorRequest = z.object({
 export const indexConnectorResponse = z.object({
 	message: z.string(),
 	connector_id: z.number(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	indexing_from: z.string(),
 	indexing_to: z.string(),
 });

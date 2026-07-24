@@ -6,14 +6,14 @@ interface WatchedFolderConfig {
 	excludePatterns: string[];
 	fileExtensions: string[] | null;
 	rootFolderId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	active: boolean;
 }
 
 interface FolderSyncFileChangedEvent {
 	id: string;
 	rootFolderId: number | null;
-	searchSpaceId: number;
+	workspaceId: number;
 	folderPath: string;
 	folderName: string;
 	relativePath: string;
@@ -56,20 +56,20 @@ interface AgentFilesystemMount {
 
 interface AgentFilesystemListOptions {
 	rootPath: string;
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	excludePatterns?: string[] | null;
 	fileExtensions?: string[] | null;
 }
 
 interface AgentFilesystemTreeWatchOptions {
-	searchSpaceId?: number | null;
+	workspaceId?: number | null;
 	rootPaths: string[];
 	excludePatterns?: string[] | null;
 	fileExtensions?: string[] | null;
 }
 
 interface AgentFilesystemTreeDirtyEvent {
-	searchSpaceId: number | null;
+	workspaceId: number | null;
 	reason: "watcher_event" | "safety_poll";
 	rootPath: string;
 	changedPath: string | null;
@@ -133,12 +133,12 @@ interface ElectronAPI {
 	readLocalFiles: (paths: string[]) => Promise<LocalFileData[]>;
 	readAgentLocalFileText: (
 		virtualPath: string,
-		searchSpaceId?: number | null
+		workspaceId?: number | null
 	) => Promise<LocalTextFileResult>;
 	writeAgentLocalFileText: (
 		virtualPath: string,
 		content: string,
-		searchSpaceId?: number | null
+		workspaceId?: number | null
 	) => Promise<LocalTextFileResult>;
 	// Auth token sync across windows
 	getAccessToken: () => Promise<string | null>;
@@ -172,9 +172,9 @@ interface ElectronAPI {
 		enabled: boolean,
 		openAsHidden?: boolean
 	) => Promise<{ enabled: boolean; openAsHidden: boolean; supported: boolean }>;
-	// Active search space
-	getActiveSearchSpace: () => Promise<string | null>;
-	setActiveSearchSpace: (id: string) => Promise<void>;
+	// Active workspace
+	getActiveWorkspace: () => Promise<string | null>;
+	setActiveWorkspace: (id: string) => Promise<void>;
 	// Analytics bridge (PostHog mirror into the Electron main process)
 	analyticsIdentify: (userId: string, properties?: Record<string, unknown>) => Promise<void>;
 	analyticsReset: () => Promise<void>;
@@ -186,13 +186,13 @@ interface ElectronAPI {
 		platform: string;
 	}>;
 	// Agent filesystem mode
-	getAgentFilesystemSettings: (searchSpaceId?: number | null) => Promise<AgentFilesystemSettings>;
-	getAgentFilesystemMounts: (searchSpaceId?: number | null) => Promise<AgentFilesystemMount[]>;
+	getAgentFilesystemSettings: (workspaceId?: number | null) => Promise<AgentFilesystemSettings>;
+	getAgentFilesystemMounts: (workspaceId?: number | null) => Promise<AgentFilesystemMount[]>;
 	listAgentFilesystemFiles: (options: AgentFilesystemListOptions) => Promise<FolderFileEntry[]>;
 	startAgentFilesystemTreeWatch: (
 		options: AgentFilesystemTreeWatchOptions
 	) => Promise<{ ok: true }>;
-	stopAgentFilesystemTreeWatch: (searchSpaceId?: number | null) => Promise<{ ok: true }>;
+	stopAgentFilesystemTreeWatch: (workspaceId?: number | null) => Promise<{ ok: true }>;
 	onAgentFilesystemTreeDirty: (
 		callback: (data: AgentFilesystemTreeDirtyEvent) => void
 	) => () => void;
@@ -201,7 +201,7 @@ interface ElectronAPI {
 			mode?: AgentFilesystemMode;
 			localRootPaths?: string[] | null;
 		},
-		searchSpaceId?: number | null
+		workspaceId?: number | null
 	) => Promise<AgentFilesystemSettings>;
 	pickAgentFilesystemRoot: () => Promise<string | null>;
 }

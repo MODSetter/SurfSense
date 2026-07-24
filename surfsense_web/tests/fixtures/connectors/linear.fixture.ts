@@ -1,18 +1,18 @@
 import { type ConnectorRow, deleteConnector, runLinearOAuth } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../search-space.fixture";
+import { workspaceFixtures } from "../workspace.fixture";
 
 export type LinearFixtures = {
 	/**
-	 * A pre-connected Linear connector inside the fixture's `searchSpace`.
+	 * A pre-connected Linear connector inside the fixture's `workspace`.
 	 * OAuth and MCP tool calls use E2E Linear fakes and are cleaned up
 	 * automatically after the test.
 	 */
 	linearConnector: ConnectorRow;
 };
 
-export const linearFixtures = searchSpaceFixtures.extend<LinearFixtures>({
-	linearConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runLinearOAuth(request, apiToken, searchSpace.id);
+export const linearFixtures = workspaceFixtures.extend<LinearFixtures>({
+	linearConnector: async ({ request, apiToken, workspace }, use) => {
+		const { connector } = await runLinearOAuth(request, apiToken, workspace.id);
 		if (!connector) {
 			throw new Error(
 				"linearConnector fixture: OAuth completed but no LINEAR_CONNECTOR was created. " +

@@ -1,0 +1,49 @@
+---
+title: Reddit
+description: Scrape public Reddit posts, comments, subreddits, and users
+---
+
+The Reddit scraper pulls structured public data from Reddit. Give it URLs (a post, a subreddit, a user page, or a search URL) and/or search terms, and it returns posts (title, body, score, comment count, subreddit, author), their comment trees, and community/user metadata.
+
+## Endpoint
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/reddit/scrape
+```
+
+## Inputs
+
+At least one of `urls`, `search_queries`, or `community` is required.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | — | Reddit URLs: a post, `/r/<subreddit>`, `/user/<name>`, or a search URL (max 20 sources per call, combined with queries) |
+| `search_queries` | — | Search terms to run on Reddit |
+| `community` | — | Subreddit name (without `r/`) to scope searches to; with no queries, its listing is scraped |
+| `sort` | `new` | `relevance`, `hot`, `top`, `new`, `rising`, or `comments` |
+| `time_filter` | — | Window for `top`/`controversial`: `hour`, `day`, `week`, `month`, `year`, `all` |
+| `max_items` | `10` | Max total items returned across all sources (hard cap 100) |
+| `max_posts` | `10` | Max posts per subreddit/user/search target |
+| `max_comments` | `10` | Max comments per post (`0` = none) |
+| `skip_comments` | `false` | Skip comment trees entirely (faster) |
+| `include_nsfw` | `true` | Include over-18 posts |
+| `post_date_limit` / `comment_date_limit` | — | ISO dates for incremental scrapes: only return newer content |
+
+## Example
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/reddit/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "search_queries": ["self-hosted AI research agent"],
+    "community": "selfhosted",
+    "sort": "top",
+    "time_filter": "month",
+    "max_items": 25
+  }'
+```
+
+The response is `{ "items": [...] }` — one item per post, comment, community, or user. Billing is per returned item.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → Reddit → Scrape** in your workspace.

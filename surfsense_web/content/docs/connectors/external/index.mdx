@@ -1,0 +1,101 @@
+---
+title: External Connectors
+description: Connect third-party services like Notion, Slack, Google, GitHub, and Obsidian
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+
+External connectors link SurfSense to third-party services. Open the **Connectors** dialog in your workspace, pick a service, and connect — via OAuth, an API token, a webhook, or a companion plugin, depending on the service. You can connect multiple accounts of the same service.
+
+Most of them act as **live tools for the AI agent** — when you chat, the agent can search your Notion pages, read Slack threads, or create Jira issues in real time. File sources (Google Drive, OneDrive, Dropbox) instead show up in the Documents sidebar's **Import** menu, where you pick files to index into your knowledge base.
+
+## One-click connectors (no setup)
+
+These work out of the box on every deployment — SurfSense connects to the service's hosted MCP server and the service issues credentials automatically. Just click **Connect**:
+
+| Connector | What the agent can do |
+|-----------|----------------------|
+| **Notion** | Search, read, create, and update pages |
+| **Linear** | Search, read, and manage issues and projects |
+| **Jira** | Search issues with JQL, browse projects, create and edit issues |
+| **Confluence** | Search and read spaces, create and update pages |
+| **ClickUp** | Search and read tasks |
+
+Write actions (creating a page, editing an issue) always ask for your confirmation in chat before they run.
+
+## Connectors that need OAuth credentials (self-hosted)
+
+For these, a self-hosted deployment needs its own OAuth app registered with the provider. Create the app once, put the credentials in your `.env` (each variable is documented in `.env.example`), restart, and the **Connect** button works for everyone on your instance:
+
+<Cards>
+  <Card
+    title="Google (Drive, Gmail, Calendar)"
+    description="One Google Cloud OAuth app powers all three connectors"
+    href="/docs/connectors/external/google"
+  />
+  <Card
+    title="Slack"
+    description="Search and read channels and threads"
+    href="/docs/connectors/external/slack"
+  />
+  <Card
+    title="Airtable"
+    description="Browse bases, tables, and records"
+    href="/docs/connectors/external/airtable"
+  />
+  <Card
+    title="Microsoft OneDrive"
+    description="Import your OneDrive files into the knowledge base"
+    href="/docs/connectors/external/onedrive"
+  />
+  <Card
+    title="Dropbox"
+    description="Import your Dropbox files into the knowledge base"
+    href="/docs/connectors/external/dropbox"
+  />
+</Cards>
+
+<Callout type="info">
+On SurfSense Cloud these are already configured — just click **Connect**. The setup guides above only apply to self-hosted deployments.
+</Callout>
+
+## Token, webhook, and plugin connectors
+
+These you configure yourself with an API token, a webhook, or a companion plugin:
+
+<Cards>
+  <Card
+    title="GitHub"
+    description="Index repositories into your knowledge base"
+    href="/docs/connectors/external/github"
+  />
+  <Card
+    title="BookStack"
+    description="Index your BookStack documentation"
+    href="/docs/connectors/external/bookstack"
+  />
+  <Card
+    title="Circleback"
+    description="Receive meeting notes and transcripts via webhook"
+    href="/docs/connectors/external/circleback"
+  />
+  <Card
+    title="Obsidian"
+    description="Sync your vault with the SurfSense Obsidian plugin"
+    href="/docs/connectors/external/obsidian"
+  />
+</Cards>
+
+There's also a generic **Custom MCP** connector in the catalog that lets you plug any MCP server into the agent — including API-key-based services like Tavily or Linkup.
+
+## Importing files from Drive, OneDrive, and Dropbox
+
+Google Drive, OneDrive, and Dropbox are file sources, so they don't appear in the connector catalog. Instead, open the **Documents** sidebar, click **Import**, and pick the service. After authorizing, browse and select the files you want — they're indexed into your knowledge base and kept searchable alongside your uploads and notes.
+
+## Managing connections
+
+Everything happens in the **Connectors** dialog:
+
+- **Active** tab — see connected accounts, live status, and document counts.
+- **Reconnect** — if a token expires, the connector card prompts you to re-authorize.
+- **Disconnect** — removes the connection. For knowledge-base connectors this also removes the documents it indexed.

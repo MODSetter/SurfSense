@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import User, Workspace
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration
@@ -14,7 +14,7 @@ handler = NotificationService.insufficient_credits
 
 
 async def test_insufficient_credits_message_and_action(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """An insufficient-credits notification states cost and carries a buy-credits link."""
     notification = await handler.notify_insufficient_credits(
@@ -22,7 +22,7 @@ async def test_insufficient_credits_message_and_action(
         user_id=db_user.id,
         document_name="short.pdf",
         document_type="FILE",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         balance_micros=250_000,
         required_micros=1_000_000,
     )
@@ -36,12 +36,12 @@ async def test_insufficient_credits_message_and_action(
     assert notification.notification_metadata["status"] == "failed"
     assert notification.notification_metadata["action_label"] == "Buy credits"
     assert notification.notification_metadata["action_url"] == (
-        f"/dashboard/{db_search_space.id}/buy-more"
+        f"/dashboard/{db_workspace.id}/buy-more"
     )
 
 
 async def test_insufficient_credits_truncates_long_name(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A long document name is truncated in the notification title."""
     long_name = "a" * 50
@@ -51,7 +51,7 @@ async def test_insufficient_credits_truncates_long_name(
         user_id=db_user.id,
         document_name=long_name,
         document_type="FILE",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         balance_micros=250_000,
         required_micros=1_000_000,
     )

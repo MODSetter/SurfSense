@@ -19,7 +19,7 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    SearchSpace,
+    Workspace,
 )
 from app.tasks.chat.llm_history_normalizer import (
     assistant_content_to_llm_text,
@@ -35,8 +35,8 @@ def _accessible_thread_filter(user_uuid: UUID | None, *, include_legacy: bool):
     """Visibility predicate mirroring ``new_chat_routes.search_threads``.
 
     A thread is referenceable when the requester created it, it is shared
-    with the search space, or it is a legacy null-creator thread and the
-    requester owns the search space (``include_legacy``). Anything else is
+    with the workspace, or it is a legacy null-creator thread and the
+    requester owns the workspace (``include_legacy``). Anything else is
     dropped (fail-closed).
     """
     conditions = [NewChatThread.visibility == ChatVisibility.SEARCH_SPACE]
@@ -50,7 +50,7 @@ def _accessible_thread_filter(user_uuid: UUID | None, *, include_legacy: bool):
 async def resolve_referenced_chats(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     requesting_user_id: str | None,
     current_chat_id: int,
     mentioned_thread_ids: list[int] | None,
@@ -82,19 +82,19 @@ async def resolve_referenced_chats(
     if not requested_ids:
         return []
 
-    # Legacy null-creator threads are referenceable only by the search-space
+    # Legacy null-creator threads are referenceable only by the workspace
     # owner, matching ``search_threads`` (the source the picker reads from).
     include_legacy = False
     if user_uuid is not None:
         owner_id = await session.scalar(
-            select(SearchSpace.user_id).where(SearchSpace.id == search_space_id)
+            select(Workspace.user_id).where(Workspace.id == workspace_id)
         )
         include_legacy = owner_id == user_uuid
 
     thread_rows = await session.execute(
         select(NewChatThread).where(
             NewChatThread.id.in_(requested_ids),
-            NewChatThread.search_space_id == search_space_id,
+            NewChatThread.workspace_id == workspace_id,
             _accessible_thread_filter(user_uuid, include_legacy=include_legacy),
         )
     )
@@ -103,7 +103,7 @@ async def resolve_referenced_chats(
         "resolve_referenced_chats: requested=%s accessible=%s space=%s user=%s",
         requested_ids,
         sorted(threads_by_id.keys()),
-        search_space_id,
+        workspace_id,
         user_uuid,
     )
     if not threads_by_id:
@@ -119,7 +119,7 @@ async def resolve_referenced_chats(
                 "resolve_referenced_chats: dropping thread id=%s "
                 "(not accessible in space=%s)",
                 thread_id,
-                search_space_id,
+                workspace_id,
             )
             continue
         turns = turns_by_thread.get(thread_id, [])

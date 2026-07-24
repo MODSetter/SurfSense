@@ -90,8 +90,8 @@ export const UpdateMemoryToolUI = ({
 // ============================================================================
 
 export {
-	UpdateMemoryArgsSchema,
-	UpdateMemoryResultSchema,
 	type UpdateMemoryArgs,
+	UpdateMemoryArgsSchema,
 	type UpdateMemoryResult,
+	UpdateMemoryResultSchema,
 };

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
-from app.db import Prompt, SearchSpaceMembership, get_async_session
+from app.db import Prompt, WorkspaceMembership, get_async_session
 from app.schemas.prompts import (
     PromptCreate,
     PromptRead,
@@ -18,14 +18,14 @@ router = APIRouter(tags=["Prompts"])
 
 @router.get("/prompts", response_model=list[PromptRead])
 async def list_prompts(
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(require_session_context),
 ):
     user = auth.user
     query = select(Prompt).where(Prompt.user_id == user.id)
-    if search_space_id is not None:
-        query = query.where(Prompt.search_space_id == search_space_id)
+    if workspace_id is not None:
+        query = query.where(Prompt.workspace_id == workspace_id)
     query = query.order_by(Prompt.created_at.desc())
     result = await session.execute(query)
     return result.scalars().all()
@@ -38,22 +38,22 @@ async def create_prompt(
     auth: AuthContext = Depends(require_session_context),
 ):
     user = auth.user
-    if body.search_space_id is not None:
+    if body.workspace_id is not None:
         membership = await session.execute(
-            select(SearchSpaceMembership).where(
-                SearchSpaceMembership.user_id == user.id,
-                SearchSpaceMembership.search_space_id == body.search_space_id,
+            select(WorkspaceMembership).where(
+                WorkspaceMembership.user_id == user.id,
+                WorkspaceMembership.workspace_id == body.workspace_id,
             )
         )
         if not membership.scalar_one_or_none():
             raise HTTPException(
                 status_code=403,
-                detail="You are not a member of this search space",
+                detail="You are not a member of this workspace",
             )
 
     prompt = Prompt(
         user_id=user.id,
-        search_space_id=body.search_space_id,
+        workspace_id=body.workspace_id,
         name=body.name,
         prompt=body.prompt,
         mode=body.mode,

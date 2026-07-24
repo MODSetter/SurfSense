@@ -84,7 +84,7 @@ def get_indexer_function(toolkit_id: str):
 async def index_composio_connector(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -101,7 +101,7 @@ async def index_composio_connector(
     Args:
         session: Database session
         connector_id: ID of the Composio connector
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
         start_date: Start date for filtering (YYYY-MM-DD format)
         end_date: End date for filtering (YYYY-MM-DD format)
@@ -112,7 +112,7 @@ async def index_composio_connector(
     Returns:
         Tuple of (number_of_indexed_items, number_of_skipped_items, error_message or None)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -180,7 +180,7 @@ async def index_composio_connector(
             "session": session,
             "connector": connector,
             "connector_id": connector_id,
-            "search_space_id": search_space_id,
+            "workspace_id": workspace_id,
             "user_id": user_id,
             "task_logger": task_logger,
             "log_entry": log_entry,

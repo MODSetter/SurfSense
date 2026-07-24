@@ -16,21 +16,21 @@ from app.podcasts.persistence import Podcast
 _AUDIO_CONTENT_TYPE = "audio/mpeg"
 
 
-def build_audio_key(*, search_space_id: int, podcast_id: int) -> str:
+def build_audio_key(*, workspace_id: int, podcast_id: int) -> str:
     """Object key for a podcast's audio.
 
-    Shape: ``podcasts/{search_space_id}/{podcast_id}/{uuid}.mp3``. The uuid lets
+    Shape: ``podcasts/{workspace_id}/{podcast_id}/{uuid}.mp3``. The uuid lets
     a re-render write a fresh object before the old one is purged.
     """
-    return f"podcasts/{search_space_id}/{podcast_id}/{uuid.uuid4().hex}.mp3"
+    return f"podcasts/{workspace_id}/{podcast_id}/{uuid.uuid4().hex}.mp3"
 
 
 async def store_audio(
-    *, search_space_id: int, podcast_id: int, data: bytes
+    *, workspace_id: int, podcast_id: int, data: bytes
 ) -> tuple[str, str]:
     """Persist audio bytes and return ``(backend_name, storage_key)``."""
     backend = get_storage_backend()
-    key = build_audio_key(search_space_id=search_space_id, podcast_id=podcast_id)
+    key = build_audio_key(workspace_id=workspace_id, podcast_id=podcast_id)
     await backend.put(key, data, content_type=_AUDIO_CONTENT_TYPE)
     return backend.backend_name, key
 

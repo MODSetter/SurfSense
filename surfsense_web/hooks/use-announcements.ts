@@ -11,6 +11,7 @@ import {
 } from "@/lib/announcements/announcements-storage";
 import {
 	getActiveAnnouncements,
+	getPublishedAnnouncements,
 	msUntilNextTransition,
 } from "@/lib/announcements/announcements-utils";
 import { isAuthenticated } from "@/lib/auth-utils";
@@ -56,10 +57,16 @@ export interface AnnouncementWithState extends Announcement {
 interface UseAnnouncementsOptions {
 	/** Filter by category */
 	category?: AnnouncementCategory;
+	/**
+	 * Include announcements whose visibility window has expired (archive
+	 * views). Defaults to false so spotlights, toasts, and unread badges
+	 * only consider currently-active announcements.
+	 */
+	includeExpired?: boolean;
 }
 
 export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
-	const { category } = options;
+	const { category, includeExpired = false } = options;
 
 	// Subscribe to state changes (re-renders when localStorage state is bumped)
 	useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -71,12 +78,13 @@ export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
 	const enriched: AnnouncementWithState[] = useMemo(() => {
 		const authed = isAuthenticated();
 		const now = new Date();
-		let items: AnnouncementWithState[] = getActiveAnnouncements(announcements, authed, now).map(
-			(a) => ({
-				...a,
-				isRead: isAnnouncementRead(a.id),
-			})
-		);
+		const visible = includeExpired
+			? getPublishedAnnouncements(announcements, authed, now)
+			: getActiveAnnouncements(announcements, authed, now);
+		let items: AnnouncementWithState[] = visible.map((a) => ({
+			...a,
+			isRead: isAnnouncementRead(a.id),
+		}));
 
 		if (category) {
 			items = items.filter((a) => a.category === category);
@@ -86,7 +94,7 @@ export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
 
 		return items;
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [category, stateVersion, tick]);
+	}, [category, includeExpired, stateVersion, tick]);
 
 	// Schedule a re-render when the next announcement starts or expires
 	useEffect(() => {

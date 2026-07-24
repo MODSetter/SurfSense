@@ -3,19 +3,14 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { Plus, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import {
-	activeTabIdAtom,
-	closeTabAtom,
-	switchTabAtom,
-	type Tab,
-	tabsAtom,
-} from "@/atoms/tabs/tabs.atom";
+import { activeTabIdAtom, closeTabAtom, switchTabAtom } from "@/atoms/tabs/tabs.atom";
 import { Button } from "@/components/ui/button";
+import { getChatUrl, type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { cn } from "@/lib/utils";
 
 interface TabBarProps {
-	onTabSwitch?: (tab: Tab) => void;
-	onTabPrefetch?: (tab: Tab) => void;
+	onTabSwitch?: (tab: ResolvedTab) => void;
+	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
 	leftActions?: React.ReactNode;
 	rightActions?: React.ReactNode;
@@ -43,7 +38,7 @@ export function TabBar({
 	rightActions,
 	className,
 }: TabBarProps) {
-	const tabs = useAtomValue(tabsAtom);
+	const tabs = useResolvedTabs();
 	const activeTabId = useAtomValue(activeTabIdAtom);
 	const switchTab = useSetAtom(switchTabAtom);
 	const closeTab = useSetAtom(closeTabAtom);
@@ -65,7 +60,7 @@ export function TabBar({
 	);
 
 	const handleTabClick = useCallback(
-		(tab: Tab) => {
+		(tab: ResolvedTab) => {
 			if (tab.id === activeTabId) return;
 			switchTab(tab.id);
 			onTabSwitch?.(tab);
@@ -74,7 +69,7 @@ export function TabBar({
 	);
 
 	const handleTabPrefetch = useCallback(
-		(tab: Tab) => {
+		(tab: ResolvedTab) => {
 			if (tab.type === "chat") {
 				onTabPrefetch?.(tab);
 			}
@@ -87,10 +82,21 @@ export function TabBar({
 			e.stopPropagation();
 			const fallback = closeTab(tabId);
 			if (fallback) {
-				onTabSwitch?.(fallback);
+				const resolvedFallback =
+					tabs.find((tab) => tab.id === fallback.id) ??
+					(fallback.type === "chat"
+						? {
+								...fallback,
+								title: "New Chat",
+								chatUrl: getChatUrl(fallback.workspaceId, fallback.entityId),
+							}
+						: undefined);
+				if (resolvedFallback) {
+					onTabSwitch?.(resolvedFallback);
+				}
 			}
 		},
-		[closeTab, onTabSwitch]
+		[closeTab, onTabSwitch, tabs]
 	);
 
 	// React to tab list growth via a MutationObserver so the scroll catches the

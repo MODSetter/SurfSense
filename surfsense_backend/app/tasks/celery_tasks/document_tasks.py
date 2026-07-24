@@ -10,6 +10,7 @@ from uuid import UUID
 from app.celery_app import celery_app
 from app.config import config
 from app.notifications.service import NotificationService
+from app.observability import analytics as ph_analytics
 from app.observability import metrics as ot_metrics
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -19,10 +20,47 @@ from app.tasks.connector_indexers.local_folder_indexer import (
 )
 from app.tasks.document_processors import (
     add_extension_received_document,
-    add_youtube_video_document,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _capture_doc_processing(
+    status: str,
+    *,
+    user_id: str | None,
+    workspace_id: int,
+    doc_type: str,
+    file_size: int | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    """Emit ``document_processing_completed``/``_failed`` from a Celery task.
+
+    The frontend only knows the upload POST succeeded, never whether ingestion
+    actually worked — this is the authoritative outcome. No-op when PostHog is
+    unconfigured. ``distinct_id`` is the owning user's id so it joins the same
+    person the web app identifies.
+    """
+    if not ph_analytics.is_enabled() or not user_id:
+        return
+    event = (
+        "document_processing_completed"
+        if status == "success"
+        else "document_processing_failed"
+    )
+    ph_analytics.capture(
+        event,
+        distinct_id=str(user_id),
+        properties={
+            "workspace_id": workspace_id,
+            "doc_type": doc_type,
+            "file_size": file_size,
+            "duration_ms": duration_ms,
+            "status": status,
+        },
+        groups={"workspace": str(workspace_id)},
+    )
+
 
 # ===== Redis heartbeat for document processing tasks =====
 # Same mechanism as connector indexing heartbeats (search_source_connectors_routes.py).
@@ -210,18 +248,16 @@ async def _delete_folder_documents(
     retry_backoff_max=300,
     max_retries=5,
 )
-def delete_search_space_task(self, search_space_id: int):
-    """Celery task to delete a search space and heavy child rows in batches."""
-    return run_async_celery_task(
-        lambda: _delete_search_space_background(search_space_id)
-    )
+def delete_workspace_task(self, workspace_id: int):
+    """Celery task to delete a workspace and heavy child rows in batches."""
+    return run_async_celery_task(lambda: _delete_workspace_background(workspace_id))
 
 
-async def _delete_search_space_background(search_space_id: int) -> None:
-    """Delete chunks/docs in batches first, then delete the search space."""
+async def _delete_workspace_background(workspace_id: int) -> None:
+    """Delete chunks/docs in batches first, then delete the workspace."""
     from sqlalchemy import delete as sa_delete, select
 
-    from app.db import Chunk, Document, SearchSpace
+    from app.db import Chunk, Document, Workspace
     from app.file_storage.service import purge_document_blobs
 
     async with get_celery_session_maker()() as session:
@@ -231,7 +267,7 @@ async def _delete_search_space_background(search_space_id: int) -> None:
             chunk_ids_result = await session.execute(
                 select(Chunk.id)
                 .join(Document, Chunk.document_id == Document.id)
-                .where(Document.search_space_id == search_space_id)
+                .where(Document.workspace_id == workspace_id)
                 .limit(batch_size)
             )
             chunk_ids = chunk_ids_result.scalars().all()
@@ -243,7 +279,7 @@ async def _delete_search_space_background(search_space_id: int) -> None:
         while True:
             doc_ids_result = await session.execute(
                 select(Document.id)
-                .where(Document.search_space_id == search_space_id)
+                .where(Document.workspace_id == workspace_id)
                 .limit(batch_size)
             )
             doc_ids = doc_ids_result.scalars().all()
@@ -254,7 +290,7 @@ async def _delete_search_space_background(search_space_id: int) -> None:
             await session.execute(sa_delete(Document).where(Document.id.in_(doc_ids)))
             await session.commit()
 
-        space = await session.get(SearchSpace, search_space_id)
+        space = await session.get(Workspace, workspace_id)
         if space:
             await session.delete(space)
             await session.commit()
@@ -262,25 +298,44 @@ async def _delete_search_space_background(search_space_id: int) -> None:
 
 @celery_app.task(name="process_extension_document", bind=True)
 def process_extension_document_task(
-    self, individual_document_dict, search_space_id: int, user_id: str
+    self, individual_document_dict, workspace_id: int, user_id: str
 ):
     """
     Celery task to process extension document.
 
     Args:
         individual_document_dict: Document data as dictionary
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
     """
-    return run_async_celery_task(
-        lambda: _process_extension_document(
-            individual_document_dict, search_space_id, user_id
+    _t0 = time.perf_counter()
+    try:
+        result = run_async_celery_task(
+            lambda: _process_extension_document(
+                individual_document_dict, workspace_id, user_id
+            )
         )
+    except Exception:
+        _capture_doc_processing(
+            "failed",
+            user_id=user_id,
+            workspace_id=workspace_id,
+            doc_type="extension",
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+        )
+        raise
+    _capture_doc_processing(
+        "success",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_type="extension",
+        duration_ms=int((time.perf_counter() - _t0) * 1000),
     )
+    return result
 
 
 async def _process_extension_document(
-    individual_document_dict, search_space_id: int, user_id: str
+    individual_document_dict, workspace_id: int, user_id: str
 ):
     """Process extension document with new session."""
     from pydantic import BaseModel, ConfigDict, Field
@@ -303,7 +358,7 @@ async def _process_extension_document(
     individual_document = IndividualDocument(**individual_document_dict)
 
     async with get_celery_session_maker()() as session:
-        task_logger = TaskLoggingService(session, search_space_id)
+        task_logger = TaskLoggingService(session, workspace_id)
 
         # Truncate title for notification display
         page_title = individual_document.metadata.VisitedWebPageTitle[:50]
@@ -317,7 +372,7 @@ async def _process_extension_document(
                 user_id=UUID(user_id),
                 document_type="EXTENSION",
                 document_name=page_title,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
             )
         )
 
@@ -343,7 +398,7 @@ async def _process_extension_document(
             )
 
             result = await add_extension_received_document(
-                session, individual_document, search_space_id, user_id
+                session, individual_document, workspace_id, user_id
             )
 
             if result:
@@ -405,134 +460,9 @@ async def _process_extension_document(
             raise
 
 
-@celery_app.task(name="process_youtube_video", bind=True)
-def process_youtube_video_task(self, url: str, search_space_id: int, user_id: str):
-    """
-    Celery task to process YouTube video.
-
-    Args:
-        url: YouTube video URL
-        search_space_id: ID of the search space
-        user_id: ID of the user
-    """
-    return run_async_celery_task(
-        lambda: _process_youtube_video(url, search_space_id, user_id)
-    )
-
-
-async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
-    """Process YouTube video with new session."""
-    async with get_celery_session_maker()() as session:
-        task_logger = TaskLoggingService(session, search_space_id)
-
-        # Extract video title from URL for notification (will be updated later)
-        video_name = url.split("v=")[-1][:11] if "v=" in url else url
-
-        # Create notification for document processing
-        notification = (
-            await NotificationService.document_processing.notify_processing_started(
-                session=session,
-                user_id=UUID(user_id),
-                document_type="YOUTUBE_VIDEO",
-                document_name=f"YouTube: {video_name}",
-                search_space_id=search_space_id,
-            )
-        )
-
-        # Start Redis heartbeat for stale task detection
-        _start_heartbeat(notification.id)
-        heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
-
-        log_entry = await task_logger.log_task_start(
-            task_name="process_youtube_video",
-            source="document_processor",
-            message=f"Starting YouTube video processing for: {url}",
-            metadata={"document_type": "YOUTUBE_VIDEO", "url": url, "user_id": user_id},
-        )
-
-        try:
-            # Update notification: parsing (fetching transcript)
-            await NotificationService.document_processing.notify_processing_progress(
-                session,
-                notification,
-                stage="parsing",
-                stage_message="Fetching video transcript",
-            )
-
-            result = await add_youtube_video_document(
-                session, url, search_space_id, user_id, notification=notification
-            )
-
-            if result:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Successfully processed YouTube video: {result.title}",
-                    {
-                        "document_id": result.id,
-                        "video_id": result.document_metadata.get("video_id"),
-                        "content_hash": result.content_hash,
-                    },
-                )
-
-                # Update notification on success
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
-                        session=session,
-                        notification=notification,
-                        document_id=result.id,
-                        chunks_count=None,
-                    )
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"YouTube video document already exists (duplicate): {url}",
-                    {"duplicate_detected": True},
-                )
-
-                # Update notification for duplicate
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
-                        session=session,
-                        notification=notification,
-                        error_message="Video already exists (duplicate)",
-                    )
-                )
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to process YouTube video: {url}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-
-            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
-            try:
-                # Refresh notification to ensure it's not stale after any rollback
-                await session.refresh(notification)
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
-                        session=session,
-                        notification=notification,
-                        error_message=str(e)[:100],
-                    )
-                )
-            except Exception as notif_error:
-                logger.error(
-                    f"Failed to update notification on failure: {notif_error!s}"
-                )
-
-            logger.error(f"Error processing YouTube video: {e!s}")
-            raise
-        finally:
-            # Stop heartbeat — key deleted on success, expires on crash
-            heartbeat_task.cancel()
-            _stop_heartbeat(notification.id)
-
-
 @celery_app.task(name="process_file_upload", bind=True)
 def process_file_upload_task(
-    self, file_path: str, filename: str, search_space_id: int, user_id: str
+    self, file_path: str, filename: str, workspace_id: int, user_id: str
 ):
     """
     Celery task to process uploaded file.
@@ -540,14 +470,14 @@ def process_file_upload_task(
     Args:
         file_path: Path to the uploaded file
         filename: Original filename
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
     """
     import traceback
 
     logger.info(
         f"[process_file_upload] Task started - file: {filename}, "
-        f"search_space_id: {search_space_id}, user_id: {user_id}"
+        f"workspace_id: {workspace_id}, user_id: {user_id}"
     )
     logger.info(f"[process_file_upload] File path: {file_path}")
 
@@ -559,15 +489,17 @@ def process_file_upload_task(
         )
         return
 
+    file_size: int | None = None
     try:
         file_size = os.path.getsize(file_path)
         logger.info(f"[process_file_upload] File size: {file_size} bytes")
     except Exception as e:
         logger.warning(f"[process_file_upload] Could not get file size: {e}")
 
+    _t0 = time.perf_counter()
     try:
         run_async_celery_task(
-            lambda: _process_file_upload(file_path, filename, search_space_id, user_id)
+            lambda: _process_file_upload(file_path, filename, workspace_id, user_id)
         )
         logger.info(
             f"[process_file_upload] Task completed successfully for: {filename}"
@@ -577,11 +509,27 @@ def process_file_upload_task(
             f"[process_file_upload] Task failed for {filename}: {e}\n"
             f"Traceback:\n{traceback.format_exc()}"
         )
+        _capture_doc_processing(
+            "failed",
+            user_id=user_id,
+            workspace_id=workspace_id,
+            doc_type="file_upload",
+            file_size=file_size,
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+        )
         raise
+    _capture_doc_processing(
+        "success",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_type="file_upload",
+        file_size=file_size,
+        duration_ms=int((time.perf_counter() - _t0) * 1000),
+    )
 
 
 async def _process_file_upload(
-    file_path: str, filename: str, search_space_id: int, user_id: str
+    file_path: str, filename: str, workspace_id: int, user_id: str
 ):
     """Process file upload with new session."""
     from app.tasks.document_processors.file_processors import process_file_in_background
@@ -590,7 +538,7 @@ async def _process_file_upload(
 
     async with get_celery_session_maker()() as session:
         logger.info(f"[_process_file_upload] Database session created for: {filename}")
-        task_logger = TaskLoggingService(session, search_space_id)
+        task_logger = TaskLoggingService(session, workspace_id)
 
         # Get file size for notification metadata
         try:
@@ -611,7 +559,7 @@ async def _process_file_upload(
                     user_id=UUID(user_id),
                     document_type="FILE",
                     document_name=filename,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     file_size=file_size,
                 )
             )
@@ -642,7 +590,7 @@ async def _process_file_upload(
             result = await process_file_in_background(
                 file_path,
                 filename,
-                search_space_id,
+                workspace_id,
                 user_id,
                 session,
                 task_logger,
@@ -709,7 +657,7 @@ async def _process_file_upload(
                         user_id=UUID(user_id),
                         document_name=filename,
                         document_type="FILE",
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         balance_micros=credit_error.balance_micros,
                         required_micros=credit_error.required_micros,
                     )
@@ -770,7 +718,7 @@ def process_file_upload_with_document_task(
     document_id: int,
     temp_path: str,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
@@ -786,14 +734,14 @@ def process_file_upload_with_document_task(
         document_id: ID of the pending document created in Phase 1
         temp_path: Path to the uploaded file
         filename: Original filename
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         user_id: ID of the user
     """
     import traceback
 
     logger.info(
         f"[process_file_upload_with_document] Task started - document_id: {document_id}, "
-        f"file: {filename}, search_space_id: {search_space_id}"
+        f"file: {filename}, workspace_id: {workspace_id}"
     )
 
     # Check if file exists and is accessible
@@ -811,13 +759,14 @@ def process_file_upload_with_document_task(
         )
         return
 
+    _t0 = time.perf_counter()
     try:
         run_async_celery_task(
             lambda: _process_file_with_document(
                 document_id,
                 temp_path,
                 filename,
-                search_space_id,
+                workspace_id,
                 user_id,
                 use_vision_llm=use_vision_llm,
                 processing_mode=processing_mode,
@@ -831,7 +780,21 @@ def process_file_upload_with_document_task(
             f"[process_file_upload_with_document] Task failed for {filename}: {e}\n"
             f"Traceback:\n{traceback.format_exc()}"
         )
+        _capture_doc_processing(
+            "failed",
+            user_id=user_id,
+            workspace_id=workspace_id,
+            doc_type="file_upload_2phase",
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+        )
         raise
+    _capture_doc_processing(
+        "success",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_type="file_upload_2phase",
+        duration_ms=int((time.perf_counter() - _t0) * 1000),
+    )
 
 
 async def _mark_document_failed(document_id: int, reason: str):
@@ -852,7 +815,7 @@ async def _process_file_with_document(
     document_id: int,
     temp_path: str,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     use_vision_llm: bool = False,
     processing_mode: str = "basic",
@@ -879,7 +842,7 @@ async def _process_file_with_document(
         logger.info(
             f"[_process_file_with_document] Database session created for: {filename}"
         )
-        task_logger = TaskLoggingService(session, search_space_id)
+        task_logger = TaskLoggingService(session, workspace_id)
 
         # Get the document
         document = await session.get(Document, document_id)
@@ -910,7 +873,7 @@ async def _process_file_with_document(
                     user_id=UUID(user_id),
                     document_type="FILE",
                     document_name=filename,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     file_size=file_size,
                 )
             )
@@ -958,7 +921,7 @@ async def _process_file_with_document(
                 document=document,
                 file_path=temp_path,
                 filename=filename,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 session=session,
                 task_logger=task_logger,
@@ -1033,7 +996,7 @@ async def _process_file_with_document(
                         user_id=UUID(user_id),
                         document_name=filename,
                         document_type="FILE",
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         balance_micros=credit_error.balance_micros,
                         required_micros=credit_error.required_micros,
                     )
@@ -1092,7 +1055,7 @@ def process_circleback_meeting_task(
     meeting_name: str,
     markdown_content: str,
     metadata: dict,
-    search_space_id: int,
+    workspace_id: int,
     connector_id: int | None = None,
 ):
     """
@@ -1103,7 +1066,7 @@ def process_circleback_meeting_task(
         meeting_name: Name of the meeting
         markdown_content: Meeting content formatted as markdown
         metadata: Meeting metadata dictionary
-        search_space_id: ID of the search space
+        workspace_id: ID of the workspace
         connector_id: ID of the Circleback connector (for deletion support)
     """
     return run_async_celery_task(
@@ -1112,7 +1075,7 @@ def process_circleback_meeting_task(
             meeting_name,
             markdown_content,
             metadata,
-            search_space_id,
+            workspace_id,
             connector_id,
         )
     )
@@ -1123,7 +1086,7 @@ async def _process_circleback_meeting(
     meeting_name: str,
     markdown_content: str,
     metadata: dict,
-    search_space_id: int,
+    workspace_id: int,
     connector_id: int | None = None,
 ):
     """Process Circleback meeting with new session."""
@@ -1132,7 +1095,7 @@ async def _process_circleback_meeting(
     )
 
     async with get_celery_session_maker()() as session:
-        task_logger = TaskLoggingService(session, search_space_id)
+        task_logger = TaskLoggingService(session, workspace_id)
 
         # Get user_id from metadata if available
         user_id = metadata.get("user_id")
@@ -1147,7 +1110,7 @@ async def _process_circleback_meeting(
                     user_id=UUID(user_id),
                     document_type="CIRCLEBACK",
                     document_name=f"Meeting: {meeting_name[:40]}",
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                 )
             )
 
@@ -1185,7 +1148,7 @@ async def _process_circleback_meeting(
                 meeting_name=meeting_name,
                 markdown_content=markdown_content,
                 metadata=metadata,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
             )
 
@@ -1261,7 +1224,7 @@ async def _process_circleback_meeting(
 @celery_app.task(name="index_local_folder", bind=True)
 def index_local_folder_task(
     self,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_path: str,
     folder_name: str,
@@ -1273,7 +1236,7 @@ def index_local_folder_task(
     """Celery task to index a local folder. Config is passed directly — no connector row."""
     return run_async_celery_task(
         lambda: _index_local_folder_async(
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             folder_path=folder_path,
             folder_name=folder_name,
@@ -1286,7 +1249,7 @@ def index_local_folder_task(
 
 
 async def _index_local_folder_async(
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_path: str,
     folder_name: str,
@@ -1317,7 +1280,7 @@ async def _index_local_folder_async(
                     user_id=UUID(user_id),
                     document_type="LOCAL_FOLDER_FILE",
                     document_name=doc_name,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                 )
             )
             notification_id = notification.id
@@ -1343,7 +1306,7 @@ async def _index_local_folder_async(
         try:
             _indexed, _skipped_or_failed, _rfid, err = await index_local_folder(
                 session=session,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 folder_path=folder_path,
                 folder_name=folder_name,
@@ -1402,7 +1365,7 @@ async def _index_local_folder_async(
 @celery_app.task(name="index_uploaded_folder_files", bind=True)
 def index_uploaded_folder_files_task(
     self,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_name: str,
     root_folder_id: int,
@@ -1413,7 +1376,7 @@ def index_uploaded_folder_files_task(
     """Celery task to index files uploaded from the desktop app."""
     return run_async_celery_task(
         lambda: _index_uploaded_folder_files_async(
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             folder_name=folder_name,
             root_folder_id=root_folder_id,
@@ -1425,7 +1388,7 @@ def index_uploaded_folder_files_task(
 
 
 async def _index_uploaded_folder_files_async(
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_name: str,
     root_folder_id: int,
@@ -1449,7 +1412,7 @@ async def _index_uploaded_folder_files_async(
                     user_id=UUID(user_id),
                     document_type="LOCAL_FOLDER_FILE",
                     document_name=doc_name,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                 )
             )
             notification_id = notification.id
@@ -1474,7 +1437,7 @@ async def _index_uploaded_folder_files_async(
         try:
             _indexed, _failed, err = await index_uploaded_files(
                 session=session,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 folder_name=folder_name,
                 root_folder_id=root_folder_id,
@@ -1522,109 +1485,3 @@ async def _index_uploaded_folder_files_async(
                 heartbeat_task.cancel()
             if notification_id is not None:
                 _stop_heartbeat(notification_id)
-
-
-# ===== AI File Sort tasks =====
-
-AI_SORT_LOCK_TTL_SECONDS = 600  # 10 minutes
-_ai_sort_redis = None
-
-
-def _get_ai_sort_redis():
-    import redis
-
-    global _ai_sort_redis
-    if _ai_sort_redis is None:
-        _ai_sort_redis = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
-    return _ai_sort_redis
-
-
-def _ai_sort_lock_key(search_space_id: int) -> str:
-    return f"ai_sort:search_space:{search_space_id}:lock"
-
-
-@celery_app.task(name="ai_sort_search_space", bind=True, max_retries=1)
-def ai_sort_search_space_task(self, search_space_id: int, user_id: str):
-    """Full AI sort for all documents in a search space."""
-    return run_async_celery_task(
-        lambda: _ai_sort_search_space_async(search_space_id, user_id)
-    )
-
-
-async def _ai_sort_search_space_async(search_space_id: int, user_id: str):
-    r = _get_ai_sort_redis()
-    lock_key = _ai_sort_lock_key(search_space_id)
-
-    if not r.set(lock_key, "running", nx=True, ex=AI_SORT_LOCK_TTL_SECONDS):
-        logger.info(
-            "AI sort already running for search_space=%d, skipping",
-            search_space_id,
-        )
-        return
-
-    t_start = time.perf_counter()
-    try:
-        from app.services.ai_file_sort_service import ai_sort_all_documents
-        from app.services.llm_service import get_agent_llm
-
-        async with get_celery_session_maker()() as session:
-            llm = await get_agent_llm(session, search_space_id, disable_streaming=True)
-            if llm is None:
-                logger.warning(
-                    "No LLM configured for search_space=%d, skipping AI sort",
-                    search_space_id,
-                )
-                return
-
-            sorted_count, failed_count = await ai_sort_all_documents(
-                session, search_space_id, llm
-            )
-            elapsed = time.perf_counter() - t_start
-            logger.info(
-                "AI sort search_space=%d done in %.1fs: sorted=%d failed=%d",
-                search_space_id,
-                elapsed,
-                sorted_count,
-                failed_count,
-            )
-    finally:
-        r.delete(lock_key)
-
-
-@celery_app.task(
-    name="ai_sort_document", bind=True, max_retries=2, default_retry_delay=10
-)
-def ai_sort_document_task(self, search_space_id: int, user_id: str, document_id: int):
-    """Incremental AI sort for a single document after indexing."""
-    return run_async_celery_task(
-        lambda: _ai_sort_document_async(search_space_id, user_id, document_id)
-    )
-
-
-async def _ai_sort_document_async(search_space_id: int, user_id: str, document_id: int):
-    from app.db import Document
-    from app.services.ai_file_sort_service import ai_sort_document
-    from app.services.llm_service import get_agent_llm
-
-    async with get_celery_session_maker()() as session:
-        document = await session.get(Document, document_id)
-        if document is None:
-            logger.warning("Document %d not found, skipping AI sort", document_id)
-            return
-
-        llm = await get_agent_llm(session, search_space_id, disable_streaming=True)
-        if llm is None:
-            logger.warning(
-                "No LLM for search_space=%d, skipping AI sort of doc=%d",
-                search_space_id,
-                document_id,
-            )
-            return
-
-        await ai_sort_document(session, document, llm)
-        await session.commit()
-        logger.info(
-            "AI sorted document=%d into search_space=%d",
-            document_id,
-            search_space_id,
-        )

@@ -34,15 +34,15 @@ class ImageGenerationCreate(BaseModel):
     size: str | None = Field(None, max_length=50)
     style: str | None = Field(None, max_length=50)
     response_format: str | None = Field(None, max_length=50)
-    search_space_id: int = Field(
-        ..., description="Search space ID to associate the generation with"
+    workspace_id: int = Field(
+        ..., description="Workspace ID to associate the generation with"
     )
     image_gen_model_id: int | None = Field(
         None,
         description=(
             "Image generation model ID. "
             "0 = Auto mode, negative = GLOBAL model, positive = BYOK Model row. "
-            "If not provided, uses the search space's image_gen_model_id preference."
+            "If not provided, uses the workspace's image_gen_model_id preference."
         ),
     )
 
@@ -61,7 +61,7 @@ class ImageGenerationRead(BaseModel):
     image_gen_model_id: int | None = None
     response_data: dict[str, Any] | None = None
     error_message: str | None = None
-    search_space_id: int
+    workspace_id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -76,7 +76,7 @@ class ImageGenerationListRead(BaseModel):
     n: int | None = None
     quality: str | None = None
     size: str | None = None
-    search_space_id: int
+    workspace_id: int
     created_at: datetime
     is_success: bool
     image_count: int | None = None
@@ -99,7 +99,7 @@ class ImageGenerationListRead(BaseModel):
             n=obj.n,
             quality=obj.quality,
             size=obj.size,
-            search_space_id=obj.search_space_id,
+            workspace_id=obj.workspace_id,
             created_at=obj.created_at,
             is_success=obj.response_data is not None,
             image_count=image_count,

@@ -2,7 +2,10 @@ import { format } from "date-fns";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import {
+	connectorDialogOpenAtom,
+	importConnectorRequestAtom,
+} from "@/atoms/connector-dialog/connector-dialog.atoms";
 import {
 	createConnectorMutationAtom,
 	deleteConnectorMutationAtom,
@@ -10,7 +13,7 @@ import {
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
@@ -18,8 +21,6 @@ import { OAUTH_RESULT_COOKIE, parseOAuthCallbackResult } from "@/contracts/types
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import {
-	trackConnectorConnected,
-	trackConnectorDeleted,
 	trackConnectorSetupFailure,
 	trackConnectorSetupStarted,
 	trackIndexWithDateRangeOpened,
@@ -58,7 +59,7 @@ function clearOAuthResultCookie(): void {
 }
 
 export const useConnectorDialog = () => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const { data: allConnectors, refetch: refetchAllConnectors } = useAtomValue(connectorsAtom);
 	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
@@ -67,6 +68,8 @@ export const useConnectorDialog = () => {
 
 	// Use global atom for dialog open state so it can be controlled from anywhere
 	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
+	// Import-flow request from the Documents sidebar "Import" menu
+	const [importConnectorRequest, setImportConnectorRequest] = useAtom(importConnectorRequestAtom);
 	const [activeTab, setActiveTab] = useState("all");
 	const [connectingId, setConnectingId] = useState<string | null>(null);
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -140,7 +143,7 @@ export const useConnectorDialog = () => {
 
 	const handleAutoIndex = useCallback(
 		async (connector: SearchSourceConnector, connectorTitle: string, connectorType: string) => {
-			if (!searchSpaceId || isAutoIndexingRef.current) return;
+			if (!workspaceId || isAutoIndexingRef.current) return;
 			isAutoIndexingRef.current = true;
 
 			const defaults = AUTO_INDEX_DEFAULTS[connectorType];
@@ -165,13 +168,13 @@ export const useConnectorDialog = () => {
 				await indexConnector({
 					connector_id: connector.id,
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: workspaceId,
 						start_date: format(startDate, "yyyy-MM-dd"),
 						end_date: format(endDate, "yyyy-MM-dd"),
 					},
 				});
 
-				trackIndexWithDateRangeStarted(Number(searchSpaceId), connectorType, connector.id, {
+				trackIndexWithDateRangeStarted(Number(workspaceId), connectorType, connector.id, {
 					hasStartDate: true,
 					hasEndDate: true,
 				});
@@ -188,13 +191,13 @@ export const useConnectorDialog = () => {
 				});
 			} finally {
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+					queryKey: cacheKeys.logs.summary(Number(workspaceId)),
 				});
 				await refetchAllConnectors();
 				isAutoIndexingRef.current = false;
 			}
 		},
-		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors]
+		[workspaceId, indexConnector, updateConnector, refetchAllConnectors]
 	);
 
 	// YouTube view state
@@ -206,7 +209,7 @@ export const useConnectorDialog = () => {
 	// Consume OAuth result from cookie (set by /connectors/callback route handler)
 	useEffect(() => {
 		const raw = readOAuthResultCookie();
-		if (!raw || !searchSpaceId) return;
+		if (!raw || !workspaceId) return;
 		clearOAuthResultCookie();
 
 		const result = parseOAuthCallbackResult(raw);
@@ -221,7 +224,7 @@ export const useConnectorDialog = () => {
 
 			if (oauthConnector) {
 				trackConnectorSetupFailure(
-					Number(searchSpaceId),
+					Number(workspaceId),
 					oauthConnector.connectorType,
 					result.error,
 					"oauth_callback"
@@ -291,11 +294,9 @@ export const useConnectorDialog = () => {
 				if (newConnector && oauthConnector) {
 					const connectorValidation = searchSourceConnector.safeParse(newConnector);
 					if (connectorValidation.success) {
-						trackConnectorConnected(
-							Number(searchSpaceId),
-							oauthConnector.connectorType,
-							newConnector.id
-						);
+						// connector_connected is now emitted server-side (after_insert
+						// listener in search_source_connectors_routes.py) — covers the
+						// OAuth callback redirect the frontend often never observes.
 
 						const isLiveConnector = LIVE_CONNECTOR_TYPES.has(oauthConnector.connectorType);
 
@@ -338,20 +339,20 @@ export const useConnectorDialog = () => {
 			});
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [searchSpaceId, handleAutoIndex, refetchAllConnectors, setIsOpen]);
+	}, [workspaceId, handleAutoIndex, refetchAllConnectors, setIsOpen]);
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
 		async (connector: (typeof OAUTH_CONNECTORS)[number] | (typeof COMPOSIO_CONNECTORS)[number]) => {
-			if (!searchSpaceId || !connector.authEndpoint) return;
+			if (!workspaceId || !connector.authEndpoint) return;
 
 			// Set connecting state immediately to disable button and show spinner
 			setConnectingId(connector.id);
 
-			trackConnectorSetupStarted(Number(searchSpaceId), connector.connectorType, "oauth_click");
+			trackConnectorSetupStarted(Number(workspaceId), connector.connectorType, "oauth_click");
 
 			try {
-				const url = buildBackendUrl(connector.authEndpoint, { space_id: searchSpaceId });
+				const url = buildBackendUrl(connector.authEndpoint, { space_id: workspaceId });
 
 				const response = await authenticatedFetch(url, { method: "GET" });
 
@@ -370,7 +371,7 @@ export const useConnectorDialog = () => {
 			} catch (error) {
 				console.error(`Error connecting to ${connector.title}:`, error);
 				trackConnectorSetupFailure(
-					Number(searchSpaceId),
+					Number(workspaceId),
 					connector.connectorType,
 					error instanceof Error ? error.message : "oauth_initiation_failed",
 					"oauth_init"
@@ -384,22 +385,22 @@ export const useConnectorDialog = () => {
 				setConnectingId(null);
 			}
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	// Handle creating YouTube crawler (not a connector, shows view in popup)
 	const handleCreateYouTubeCrawler = useCallback(() => {
-		if (!searchSpaceId) return;
+		if (!workspaceId) return;
 		setIsYouTubeView(true);
-	}, [searchSpaceId]);
+	}, [workspaceId]);
 
 	// Handle creating webcrawler connector
 	const handleCreateWebcrawler = useCallback(async () => {
-		if (!searchSpaceId) return;
+		if (!workspaceId) return;
 
 		setConnectingId("webcrawler-connector");
 		trackConnectorSetupStarted(
-			Number(searchSpaceId),
+			Number(workspaceId),
 			EnumConnectorName.WEBCRAWLER_CONNECTOR,
 			"webcrawler_quick_add"
 		);
@@ -418,7 +419,7 @@ export const useConnectorDialog = () => {
 					enable_vision_llm: false,
 				},
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 				},
 			});
 
@@ -431,12 +432,7 @@ export const useConnectorDialog = () => {
 				if (connector) {
 					const connectorValidation = searchSourceConnector.safeParse(connector);
 					if (connectorValidation.success) {
-						// Track webcrawler connector connected
-						trackConnectorConnected(
-							Number(searchSpaceId),
-							EnumConnectorName.WEBCRAWLER_CONNECTOR,
-							connector.id
-						);
+						// connector_connected is now emitted server-side (after_insert).
 
 						const config = validateIndexingConfigState({
 							connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
@@ -453,7 +449,7 @@ export const useConnectorDialog = () => {
 		} catch (error) {
 			console.error("Error creating webcrawler connector:", error);
 			trackConnectorSetupFailure(
-				Number(searchSpaceId),
+				Number(workspaceId),
 				EnumConnectorName.WEBCRAWLER_CONNECTOR,
 				error instanceof Error ? error.message : "webcrawler_create_failed",
 				"webcrawler_quick_add"
@@ -462,18 +458,18 @@ export const useConnectorDialog = () => {
 		} finally {
 			setConnectingId(null);
 		}
-	}, [searchSpaceId, createConnector, refetchAllConnectors, setIsOpen]);
+	}, [workspaceId, createConnector, refetchAllConnectors, setIsOpen]);
 
 	// Handle connecting non-OAuth connectors (like Tavily API, Obsidian plugin, etc.)
 	const handleConnectNonOAuth = useCallback(
 		(connectorType: string) => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 
-			trackConnectorSetupStarted(Number(searchSpaceId), connectorType, "non_oauth_click");
+			trackConnectorSetupStarted(Number(workspaceId), connectorType, "non_oauth_click");
 
 			setConnectingConnectorType(connectorType);
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	// Handle submitting connect form
@@ -495,7 +491,7 @@ export const useConnectorDialog = () => {
 			},
 			onIndexingStart?: (connectorId: number) => void
 		) => {
-			if (!searchSpaceId || !connectingConnectorType) {
+			if (!workspaceId || !connectingConnectorType) {
 				return;
 			}
 
@@ -519,7 +515,7 @@ export const useConnectorDialog = () => {
 						enable_vision_llm: false,
 					},
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: workspaceId,
 					},
 				});
 				// Refetch connectors to get the new one
@@ -535,8 +531,7 @@ export const useConnectorDialog = () => {
 							// Store connectingConnectorType before clearing it
 							const currentConnectorType = connectingConnectorType;
 
-							// Track connector connected event for non-OAuth connectors
-							trackConnectorConnected(Number(searchSpaceId), currentConnectorType, connector.id);
+							// connector_connected is now emitted server-side (after_insert).
 
 							// Find connector title from constants
 							const connectorInfo = OTHER_CONNECTORS.find(
@@ -612,7 +607,7 @@ export const useConnectorDialog = () => {
 								await indexConnector({
 									connector_id: connector.id,
 									queryParams: {
-										search_space_id: searchSpaceId,
+										workspace_id: workspaceId,
 										start_date: startDateStr,
 										end_date: endDateStr,
 									},
@@ -631,7 +626,7 @@ export const useConnectorDialog = () => {
 								setIndexingConnectorConfig(null);
 
 								queryClient.invalidateQueries({
-									queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+									queryKey: cacheKeys.logs.summary(Number(workspaceId)),
 								});
 
 								await refetchAllConnectors();
@@ -684,7 +679,7 @@ export const useConnectorDialog = () => {
 			} catch (error) {
 				console.error("Error creating connector:", error);
 				trackConnectorSetupFailure(
-					Number(searchSpaceId),
+					Number(workspaceId),
 					connectingConnectorType ?? formData.connector_type,
 					error instanceof Error ? error.message : "connector_create_failed",
 					"non_oauth_form"
@@ -698,7 +693,7 @@ export const useConnectorDialog = () => {
 		},
 		[
 			connectingConnectorType,
-			searchSpaceId,
+			workspaceId,
 			createConnector,
 			refetchAllConnectors,
 			updateConnector,
@@ -724,7 +719,7 @@ export const useConnectorDialog = () => {
 	// Handle viewing accounts list for OAuth connector type
 	const handleViewAccountsList = useCallback(
 		(connectorType: string, _connectorTitle?: string) => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 
 			const oauthConnector =
 				OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
@@ -736,7 +731,7 @@ export const useConnectorDialog = () => {
 				});
 			}
 		},
-		[searchSpaceId]
+		[workspaceId]
 	);
 
 	// Handle going back from accounts list view
@@ -746,9 +741,9 @@ export const useConnectorDialog = () => {
 
 	// Handle viewing MCP list
 	const handleViewMCPList = useCallback(() => {
-		if (!searchSpaceId) return;
+		if (!workspaceId) return;
 		setViewingMCPList(true);
-	}, [searchSpaceId]);
+	}, [workspaceId]);
 
 	// Handle going back from MCP list view
 	const handleBackFromMCPList = useCallback(() => {
@@ -765,7 +760,7 @@ export const useConnectorDialog = () => {
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
 		async (refreshConnectors: () => void) => {
-			if (!indexingConfig || !searchSpaceId) return;
+			if (!indexingConfig || !workspaceId) return;
 
 			// Validate date range (skip for Google Drive, Composio Drive, OneDrive, Dropbox, and Webcrawler)
 			if (
@@ -847,7 +842,7 @@ export const useConnectorDialog = () => {
 						await indexConnector({
 							connector_id: indexingConfig.connectorId,
 							queryParams: {
-								search_space_id: searchSpaceId,
+								workspace_id: workspaceId,
 							},
 							body: {
 								folders: selectedFolders || [],
@@ -870,14 +865,14 @@ export const useConnectorDialog = () => {
 					await indexConnector({
 						connector_id: indexingConfig.connectorId,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: workspaceId,
 						},
 					});
 				} else {
 					await indexConnector({
 						connector_id: indexingConfig.connectorId,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: workspaceId,
 							start_date: startDateStr,
 							end_date: endDateStr,
 						},
@@ -886,7 +881,7 @@ export const useConnectorDialog = () => {
 
 				// Track index with date range started event
 				trackIndexWithDateRangeStarted(
-					Number(searchSpaceId),
+					Number(workspaceId),
 					indexingConfig.connectorType,
 					indexingConfig.connectorId,
 					{
@@ -898,7 +893,7 @@ export const useConnectorDialog = () => {
 				// Track periodic indexing started if enabled
 				if (periodicEnabled) {
 					trackPeriodicIndexingStarted(
-						Number(searchSpaceId),
+						Number(workspaceId),
 						indexingConfig.connectorType,
 						indexingConfig.connectorId,
 						parseInt(frequencyMinutes, 10)
@@ -915,7 +910,7 @@ export const useConnectorDialog = () => {
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+					queryKey: cacheKeys.logs.summary(Number(workspaceId)),
 				});
 			} catch (error) {
 				console.error("Error starting indexing:", error);
@@ -926,7 +921,7 @@ export const useConnectorDialog = () => {
 		},
 		[
 			indexingConfig,
-			searchSpaceId,
+			workspaceId,
 			startDate,
 			endDate,
 			indexConnector,
@@ -951,7 +946,7 @@ export const useConnectorDialog = () => {
 	// Handle starting edit mode
 	const handleStartEdit = useCallback(
 		(connector: SearchSourceConnector) => {
-			if (!searchSpaceId) return;
+			if (!workspaceId) return;
 
 			// For MCP connectors from "All Connectors" tab, show the list view instead of directly editing
 			// (unless we're already in the MCP list view or on the Active tab where individual MCPs are shown)
@@ -986,11 +981,7 @@ export const useConnectorDialog = () => {
 
 			// Track index with date range opened event
 			if (connector.is_indexable) {
-				trackIndexWithDateRangeOpened(
-					Number(searchSpaceId),
-					connector.connector_type,
-					connector.id
-				);
+				trackIndexWithDateRangeOpened(Number(workspaceId), connector.connector_type, connector.id);
 			}
 
 			setEditingConnector(connector);
@@ -1001,13 +992,13 @@ export const useConnectorDialog = () => {
 			setStartDate(undefined);
 			setEndDate(undefined);
 		},
-		[searchSpaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
+		[workspaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
 	);
 
 	// Handle saving connector changes
 	const handleSaveConnector = useCallback(
 		async (refreshConnectors: () => void) => {
-			if (!editingConnector || !searchSpaceId || isSaving) return;
+			if (!editingConnector || !workspaceId || isSaving) return;
 
 			// Validate date range (skip for Google Drive/OneDrive/Dropbox which uses folder selection, Webcrawler which uses config, and non-indexable connectors)
 			if (
@@ -1114,7 +1105,7 @@ export const useConnectorDialog = () => {
 						await indexConnector({
 							connector_id: editingConnector.id,
 							queryParams: {
-								search_space_id: searchSpaceId,
+								workspace_id: workspaceId,
 							},
 							body: {
 								folders: selectedFolders || [],
@@ -1134,7 +1125,7 @@ export const useConnectorDialog = () => {
 					await indexConnector({
 						connector_id: editingConnector.id,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: workspaceId,
 						},
 					});
 					indexingDescription = "Re-indexing started with updated configuration.";
@@ -1143,7 +1134,7 @@ export const useConnectorDialog = () => {
 					await indexConnector({
 						connector_id: editingConnector.id,
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: workspaceId,
 							start_date: startDateStr,
 							end_date: endDateStr,
 						},
@@ -1157,7 +1148,7 @@ export const useConnectorDialog = () => {
 					(indexingDescription.includes("Re-indexing") || indexingDescription.includes("indexing"))
 				) {
 					trackIndexWithDateRangeStarted(
-						Number(searchSpaceId),
+						Number(workspaceId),
 						editingConnector.connector_type,
 						editingConnector.id,
 						{
@@ -1170,7 +1161,7 @@ export const useConnectorDialog = () => {
 				// Track periodic indexing if enabled
 				if (periodicEnabled && editingConnector.is_indexable) {
 					trackPeriodicIndexingStarted(
-						Number(searchSpaceId),
+						Number(workspaceId),
 						editingConnector.connector_type,
 						editingConnector.id,
 						frequency || parseInt(frequencyMinutes, 10)
@@ -1190,7 +1181,7 @@ export const useConnectorDialog = () => {
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+					queryKey: cacheKeys.logs.summary(Number(workspaceId)),
 				});
 			} catch (error) {
 				console.error("Error saving connector:", error);
@@ -1201,7 +1192,7 @@ export const useConnectorDialog = () => {
 		},
 		[
 			editingConnector,
-			searchSpaceId,
+			workspaceId,
 			isSaving,
 			startDate,
 			endDate,
@@ -1220,7 +1211,7 @@ export const useConnectorDialog = () => {
 	// Handle disconnecting connector
 	const handleDisconnectConnector = useCallback(
 		async (refreshConnectors: () => void) => {
-			if (!editingConnector || !searchSpaceId) return;
+			if (!editingConnector || !workspaceId) return;
 
 			setIsDisconnecting(true);
 			try {
@@ -1228,12 +1219,8 @@ export const useConnectorDialog = () => {
 					id: editingConnector.id,
 				});
 
-				// Track connector deleted event
-				trackConnectorDeleted(
-					Number(searchSpaceId),
-					editingConnector.connector_type,
-					editingConnector.id
-				);
+				// connector_deleted is now emitted server-side
+				// (search_source_connectors_routes.delete_search_source_connector).
 
 				toast.success(
 					editingConnector.connector_type === "MCP_CONNECTOR"
@@ -1255,7 +1242,7 @@ export const useConnectorDialog = () => {
 
 				refreshConnectors();
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+					queryKey: cacheKeys.logs.summary(Number(workspaceId)),
 				});
 			} catch (error) {
 				console.error("Error disconnecting connector:", error);
@@ -1264,7 +1251,7 @@ export const useConnectorDialog = () => {
 				setIsDisconnecting(false);
 			}
 		},
-		[editingConnector, searchSpaceId, deleteConnector, cameFromMCPList, setIsOpen]
+		[editingConnector, workspaceId, deleteConnector, cameFromMCPList, setIsOpen]
 	);
 
 	// Handle quick index (index with selected date range, or backend defaults if none selected)
@@ -1276,7 +1263,7 @@ export const useConnectorDialog = () => {
 			startDate?: Date,
 			endDate?: Date
 		) => {
-			if (!searchSpaceId) {
+			if (!workspaceId) {
 				if (stopIndexing) {
 					stopIndexing(connectorId);
 				}
@@ -1285,7 +1272,7 @@ export const useConnectorDialog = () => {
 
 			// Track quick index clicked event
 			if (connectorType) {
-				trackQuickIndexClicked(Number(searchSpaceId), connectorType, connectorId);
+				trackQuickIndexClicked(Number(workspaceId), connectorType, connectorId);
 			}
 
 			try {
@@ -1296,7 +1283,7 @@ export const useConnectorDialog = () => {
 				await indexConnector({
 					connector_id: connectorId,
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: workspaceId,
 						start_date: startDateStr,
 						end_date: endDateStr,
 					},
@@ -1305,7 +1292,7 @@ export const useConnectorDialog = () => {
 
 				// Invalidate queries to refresh data
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+					queryKey: cacheKeys.logs.summary(Number(workspaceId)),
 				});
 				// Note: Don't call stopIndexing here - let useIndexingConnectors hook
 				// detect when last_indexed_at changes via real-time sync
@@ -1318,7 +1305,7 @@ export const useConnectorDialog = () => {
 				}
 			}
 		},
-		[searchSpaceId, indexConnector]
+		[workspaceId, indexConnector]
 	);
 
 	// Handle going back from edit view
@@ -1376,6 +1363,47 @@ export const useConnectorDialog = () => {
 		[isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector, setIsOpen]
 	);
 
+	// Consume an import request from the Documents sidebar "Import" menu.
+	// mode "connect" -> always OAuth connect (add account). mode "auto" routes by
+	// account count: none -> connect, one -> edit view, many -> accounts list.
+	useEffect(() => {
+		if (!importConnectorRequest || !workspaceId) return;
+
+		const { connectorType, mode } = importConnectorRequest;
+		setImportConnectorRequest(null);
+
+		const connectorDef =
+			OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+			COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+
+		const existing = (allConnectors || []).filter(
+			(c: SearchSourceConnector) => c.connector_type === connectorType
+		);
+
+		if (mode === "connect" || existing.length === 0) {
+			if (connectorDef) {
+				handleConnectOAuth(connectorDef);
+			}
+			return;
+		}
+
+		setIsOpen(true);
+		if (existing.length === 1) {
+			handleStartEdit(existing[0]);
+		} else {
+			handleViewAccountsList(connectorType, connectorDef?.title);
+		}
+	}, [
+		importConnectorRequest,
+		workspaceId,
+		allConnectors,
+		setImportConnectorRequest,
+		handleConnectOAuth,
+		handleStartEdit,
+		handleViewAccountsList,
+		setIsOpen,
+	]);
+
 	const handleTabChange = useCallback((value: string) => {
 		setActiveTab(value);
 	}, []);
@@ -1406,7 +1434,7 @@ export const useConnectorDialog = () => {
 		periodicEnabled,
 		frequencyMinutes,
 		enableVisionLlm,
-		searchSpaceId,
+		workspaceId,
 		allConnectors,
 		viewingAccountsType,
 		viewingMCPList,

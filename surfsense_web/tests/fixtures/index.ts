@@ -7,7 +7,7 @@
  *
  * Inheritance chain:
  *   base (@playwright/test)
- *     └─ searchSpaceFixtures   — apiToken, searchSpace
+ *     └─ workspaceFixtures   — apiToken, workspace
  *         ├─ composioDriveFixtures — composioDriveConnector
  *         │   └─ composioDriveWithChatTest — chatThread
  *         └─ composioGmailFixtures — composioGmailConnector
@@ -36,7 +36,7 @@
  *             └─ clickupWithChatTest — chatThread
  *         └─ slackFixtures — slackConnector
  *             └─ slackWithChatTest — chatThread
- *         └─ manualUploadWithChatTest — chatThread (no connector; uses base search space)
+ *         └─ manualUploadWithChatTest — chatThread (no connector; uses base workspace)
  *
  * To add a new connector (Gmail, Slack, manual upload, etc.):
  *   1. Add a fixture file under `fixtures/connectors/<name>.fixture.ts`.
@@ -59,7 +59,7 @@ export { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 export { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 export { notionFixtures } from "./connectors/notion.fixture";
 export { slackFixtures } from "./connectors/slack.fixture";
-export { searchSpaceFixtures } from "./search-space.fixture";
+export { workspaceFixtures } from "./workspace.fixture";
 
 import { type ChatThreadFixtures, chatThreadFixtures } from "./chat-thread.fixture";
 import { clickupFixtures } from "./connectors/clickup.fixture";
@@ -76,10 +76,10 @@ import { nativeGmailFixtures } from "./connectors/native-gmail.fixture";
 import { nativeOneDriveFixtures } from "./connectors/native-onedrive.fixture";
 import { notionFixtures } from "./connectors/notion.fixture";
 import { slackFixtures } from "./connectors/slack.fixture";
-import { searchSpaceFixtures } from "./search-space.fixture";
+import { workspaceFixtures } from "./workspace.fixture";
 
-/** Default `test` for specs that just need auth + a clean search space. */
-export const test = searchSpaceFixtures;
+/** Default `test` for specs that just need auth + a clean workspace. */
+export const test = workspaceFixtures;
 /** `test` for specs that also need a pre-connected Composio Drive connector. */
 export const composioDriveTest = composioDriveFixtures;
 /** `test` for Drive specs that also need a chat thread. */
@@ -149,7 +149,7 @@ export const slackWithChatTest = slackFixtures.extend<ChatThreadFixtures>(chatTh
  * `test` for manual upload specs that also need a chat thread.
  *
  * Manual upload has no connector fixture — the user uploads files directly via
- * the Documents-sidebar UI — so this composes chat onto the bare search-space.
+ * the Documents-sidebar UI — so this composes chat onto the bare workspace.
  */
 export const manualUploadWithChatTest =
-	searchSpaceFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);
+	workspaceFixtures.extend<ChatThreadFixtures>(chatThreadFixtures);

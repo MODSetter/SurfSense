@@ -430,15 +430,15 @@ def install(active_patches: list[Any]) -> None:
         ("app.connectors.google_gmail_connector.build", _fake_build),
         ("app.connectors.google_calendar_connector.build", _fake_build),
         (
-            "app.agents.chat.multi_agent_chat.subagents.connectors.calendar.tools.create_event.build",
+            "app.agents.chat.multi_agent_chat.subagents.builtins.mcp_discovery.tools.calendar.create_event.build",
             _fake_build,
         ),
         (
-            "app.agents.chat.multi_agent_chat.subagents.connectors.calendar.tools.update_event.build",
+            "app.agents.chat.multi_agent_chat.subagents.builtins.mcp_discovery.tools.calendar.update_event.build",
             _fake_build,
         ),
         (
-            "app.agents.chat.multi_agent_chat.subagents.connectors.calendar.tools.delete_event.build",
+            "app.agents.chat.multi_agent_chat.subagents.builtins.mcp_discovery.tools.calendar.delete_event.build",
             _fake_build,
         ),
         ("googleapiclient.http.MediaIoBaseDownload", _FakeMediaIoBaseDownload),

@@ -8,33 +8,26 @@ import type {
 } from "@/contracts/types/automation.types";
 import { automationsApiService } from "@/lib/apis/automations-api.service";
 import {
-	trackAutomationCreated,
 	trackAutomationCreateFailed,
-	trackAutomationDeleted,
 	trackAutomationDeleteFailed,
-	trackAutomationStatusChanged,
-	trackAutomationTriggerAdded,
 	trackAutomationTriggerAddFailed,
-	trackAutomationTriggerRemoved,
 	trackAutomationTriggerRemoveFailed,
-	trackAutomationTriggerUpdated,
 	trackAutomationTriggerUpdateFailed,
-	trackAutomationUpdated,
 	trackAutomationUpdateFailed,
 } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 
 // Cache invalidation strategy:
-// - Automation writes invalidate the search-space list + the touched detail.
+// - Automation writes invalidate the workspace list + the touched detail.
 // - Trigger writes only invalidate the parent automation detail (triggers
 //   come back inline in AutomationDetail).
 // We deliberately invalidate the whole "automations" prefix on the list side
-// because list is keyed by (searchSpaceId, limit, offset) and we don't track
+// because list is keyed by (workspaceId, limit, offset) and we don't track
 // the active pagination in this layer.
 
-function invalidateList(searchSpaceId: number) {
-	queryClient.invalidateQueries({ queryKey: ["automations", "list", searchSpaceId] });
+function invalidateList(workspaceId: number) {
+	queryClient.invalidateQueries({ queryKey: ["automations", "list", workspaceId] });
 }
 
 function invalidateDetail(automationId: number) {
@@ -48,26 +41,16 @@ export const createAutomationMutationAtom = atomWithMutation(() => ({
 	mutationFn: async (request: AutomationCreateRequest) => {
 		return automationsApiService.createAutomation(request);
 	},
-	onSuccess: (automation, variables) => {
-		invalidateList(variables.search_space_id);
+	onSuccess: (_automation, variables) => {
+		invalidateList(variables.workspace_id);
 		toast.success("Automation created");
-		trackAutomationCreated({
-			search_space_id: variables.search_space_id,
-			automation_id: automation.id,
-			task_count: variables.definition.plan.length,
-			trigger_type: variables.triggers?.[0]?.type ?? "none",
-			has_schedule: (variables.triggers?.length ?? 0) > 0,
-			chat_model_id: variables.definition.models?.chat_model_id,
-			image_gen_model_id: variables.definition.models?.image_gen_model_id,
-			vision_model_id: variables.definition.models?.vision_model_id,
-			tags_count: variables.definition.metadata?.tags?.length,
-		});
+		// automation_created is now emitted server-side (AutomationService.create).
 	},
 	onError: (error: Error, variables) => {
 		console.error("Error creating automation:", error);
 		toast.error("Failed to create automation");
 		trackAutomationCreateFailed({
-			search_space_id: variables.search_space_id,
+			workspace_id: variables.workspace_id,
 			error: error.message,
 		});
 	},
@@ -80,26 +63,10 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 	},
 	onSuccess: (automation, vars) => {
 		invalidateDetail(vars.automationId);
-		invalidateList(automation.search_space_id);
+		invalidateList(automation.workspace_id);
 		toast.success("Automation updated");
-		// A status-only patch (pause/resume/archive) is a distinct action from a
-		// definition/name edit, so split it into its own event.
-		if (vars.patch.status && !vars.patch.definition) {
-			trackAutomationStatusChanged({
-				automation_id: vars.automationId,
-				search_space_id: automation.search_space_id,
-				next_status: vars.patch.status,
-			});
-		} else {
-			trackAutomationUpdated({
-				automation_id: vars.automationId,
-				search_space_id: automation.search_space_id,
-				has_definition_change: !!vars.patch.definition,
-				has_name_change: vars.patch.name != null,
-				has_description_change: vars.patch.description !== undefined,
-				task_count: vars.patch.definition?.plan?.length,
-			});
-		}
+		// automation_updated / automation_status_changed are now emitted
+		// server-side (AutomationService.update).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error updating automation:", error);
@@ -113,18 +80,15 @@ export const updateAutomationMutationAtom = atomWithMutation(() => ({
 
 export const deleteAutomationMutationAtom = atomWithMutation(() => ({
 	meta: { suppressGlobalErrorToast: true },
-	mutationFn: async (vars: { automationId: number; searchSpaceId: number }) => {
+	mutationFn: async (vars: { automationId: number; workspaceId: number }) => {
 		await automationsApiService.deleteAutomation(vars.automationId);
 		return vars;
 	},
 	onSuccess: (vars) => {
-		invalidateList(vars.searchSpaceId);
+		invalidateList(vars.workspaceId);
 		invalidateDetail(vars.automationId);
 		toast.success("Automation deleted");
-		trackAutomationDeleted({
-			automation_id: vars.automationId,
-			search_space_id: vars.searchSpaceId,
-		});
+		// automation_deleted is now emitted server-side (AutomationService.delete).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error deleting automation:", error);
@@ -141,16 +105,10 @@ export const addTriggerMutationAtom = atomWithMutation(() => ({
 	mutationFn: async (vars: { automationId: number; payload: TriggerCreateRequest }) => {
 		return automationsApiService.addTrigger(vars.automationId, vars.payload);
 	},
-	onSuccess: (trigger, vars) => {
+	onSuccess: (_trigger, vars) => {
 		invalidateDetail(vars.automationId);
 		toast.success("Trigger added");
-		trackAutomationTriggerAdded({
-			automation_id: vars.automationId,
-			trigger_id: trigger.id,
-			trigger_type: trigger.type,
-			enabled: trigger.enabled,
-			has_cron: !!trigger.params?.cron,
-		});
+		// automation_trigger_added is now emitted server-side (TriggerService.add).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error adding trigger:", error);
@@ -174,17 +132,7 @@ export const updateTriggerMutationAtom = atomWithMutation(() => ({
 	onSuccess: (_, vars) => {
 		invalidateDetail(vars.automationId);
 		toast.success("Trigger updated");
-		const change: "enabled" | "params" | "other" = vars.patch.params
-			? "params"
-			: vars.patch.enabled !== undefined && vars.patch.enabled !== null
-				? "enabled"
-				: "other";
-		trackAutomationTriggerUpdated({
-			automation_id: vars.automationId,
-			trigger_id: vars.triggerId,
-			change,
-			enabled: vars.patch.enabled ?? undefined,
-		});
+		// automation_trigger_updated is now emitted server-side (TriggerService.update).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error updating trigger:", error);
@@ -206,10 +154,7 @@ export const removeTriggerMutationAtom = atomWithMutation(() => ({
 	onSuccess: (vars) => {
 		invalidateDetail(vars.automationId);
 		toast.success("Trigger removed");
-		trackAutomationTriggerRemoved({
-			automation_id: vars.automationId,
-			trigger_id: vars.triggerId,
-		});
+		// automation_trigger_removed is now emitted server-side (TriggerService.remove).
 	},
 	onError: (error: Error, vars) => {
 		console.error("Error removing trigger:", error);

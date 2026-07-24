@@ -46,7 +46,7 @@ export const document = z.object({
 	unique_identifier_hash: z.string().nullable(),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	created_by_id: z.string().nullable().optional(),
 	created_by_name: z.string().nullable().optional(),
 	created_by_email: z.string().nullable().optional(),
@@ -85,7 +85,7 @@ export const sortOrderEnum = z.enum(["asc", "desc"]);
 export const getDocumentsRequest = z.object({
 	queryParams: paginationQueryParams
 		.extend({
-			search_space_id: z.number().or(z.string()).optional(),
+			workspace_id: z.number().or(z.string()).optional(),
 			document_types: z.array(documentTypeEnum).optional(),
 			sort_by: documentSortByEnum.optional(),
 			sort_order: sortOrderEnum.optional(),
@@ -112,7 +112,7 @@ export const getDocumentResponse = document;
  * Create documents
  */
 export const createDocumentRequest = document
-	.pick({ document_type: true, search_space_id: true })
+	.pick({ document_type: true, workspace_id: true })
 	.extend({
 		content: z.string().or(z.array(z.string())).or(z.array(extensionDocumentContent)),
 	});
@@ -129,7 +129,7 @@ export const processingModeEnum = z.enum(["basic", "premium"]);
 
 export const uploadDocumentRequest = z.object({
 	files: z.array(z.instanceof(File)),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	use_vision_llm: z.boolean().default(false),
 	processing_mode: processingModeEnum.default("basic"),
 });
@@ -148,7 +148,7 @@ export const uploadDocumentResponse = z.object({
  */
 export const getDocumentsStatusRequest = z.object({
 	queryParams: z.object({
-		search_space_id: z.number(),
+		workspace_id: z.number(),
 		document_ids: z.array(z.number()).min(1),
 	}),
 });
@@ -175,7 +175,7 @@ export const getDocumentsStatusResponse = z.object({
 export const searchDocumentsRequest = z.object({
 	queryParams: paginationQueryParams
 		.extend({
-			search_space_id: z.number().or(z.string()).optional(),
+			workspace_id: z.number().or(z.string()).optional(),
 			document_types: z.array(documentTypeEnum).optional(),
 			title: z.string().optional(),
 		})
@@ -201,7 +201,7 @@ export const documentTitleRead = z.object({
 
 export const searchDocumentTitlesRequest = z.object({
 	queryParams: z.object({
-		search_space_id: z.number(),
+		workspace_id: z.number(),
 		title: z.string().optional(),
 		page: z.number().optional(),
 		page_size: z.number().optional(),
@@ -219,7 +219,7 @@ export const searchDocumentTitlesResponse = z.object({
 export const getDocumentTypeCountsRequest = z.object({
 	queryParams: z
 		.object({
-			search_space_id: z.number().or(z.string()).optional(),
+			workspace_id: z.number().or(z.string()).optional(),
 		})
 		.nullish(),
 });
@@ -266,7 +266,7 @@ export const getDocumentChunksResponse = z.object({
  */
 export const updateDocumentRequest = z.object({
 	id: z.number(),
-	data: document.pick({ search_space_id: true, document_type: true, content: true }),
+	data: document.pick({ workspace_id: true, document_type: true, content: true }),
 });
 
 export const updateDocumentResponse = document;

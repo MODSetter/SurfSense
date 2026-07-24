@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 HF_REPO_ID = "yubo2333/MMLongBench-Doc"
 HF_REPO_TYPE = "dataset"
 
+
 # Lazy import: huggingface_hub + pyarrow are heavyweight; keep the
 # benchmark module importable on machines that have only the core
 # install (e.g. CI lint jobs).
@@ -63,11 +64,11 @@ def _list_repo_files() -> list[str]:
 
 @dataclass
 class MMLongBenchQuestion:
-    doc_id: str          # filename inside the documents/ folder
+    doc_id: str  # filename inside the documents/ folder
     doc_type: str
     question: str
     answer: str
-    answer_format: str   # Str / Int / Float / List / None
+    answer_format: str  # Str / Int / Float / List / None
     evidence_pages: list[int]
     evidence_sources: list[str]
 
@@ -161,7 +162,9 @@ def _download_questions_parquet(cache_dir: Path) -> Path:
         )
         parquet_paths.append(Path(local))
         logger.info("Cached MMLongBench parquet shard %s -> %s", rel, local)
-    return parquet_paths[0] if len(parquet_paths) == 1 else _merge_parquets(parquet_paths, cache_dir)
+    return (
+        parquet_paths[0] if len(parquet_paths) == 1 else _merge_parquets(parquet_paths, cache_dir)
+    )
 
 
 def _merge_parquets(paths: list[Path], cache_dir: Path) -> Path:
@@ -221,7 +224,7 @@ async def _upload_pdfs(
     name_to_id: dict[str, int] = {}
     pdf_list = list(pdf_paths)
     for batch_start in range(0, len(pdf_list), batch_size):
-        batch = pdf_list[batch_start:batch_start + batch_size]
+        batch = pdf_list[batch_start : batch_start + batch_size]
         result = await docs_client.upload(
             files=batch,
             search_space_id=ctx.search_space_id,
@@ -243,8 +246,10 @@ async def _upload_pdfs(
                 name_to_id[s.title] = s.document_id
         logger.info(
             "Uploaded MMLongBench batch %d-%d: %d new, %d duplicate",
-            batch_start, batch_start + len(batch),
-            len(result.document_ids), len(result.duplicate_document_ids),
+            batch_start,
+            batch_start + len(batch),
+            len(result.document_ids),
+            len(result.duplicate_document_ids),
         )
     return name_to_id
 
@@ -299,15 +304,20 @@ async def run_ingest(
     questions_jsonl = bench_dir / "questions.jsonl"
     with questions_jsonl.open("w", encoding="utf-8") as fh:
         for q in questions:
-            fh.write(json.dumps({
-                "doc_id": q.doc_id,
-                "doc_type": q.doc_type,
-                "question": q.question,
-                "answer": q.answer,
-                "answer_format": q.answer_format,
-                "evidence_pages": q.evidence_pages,
-                "evidence_sources": q.evidence_sources,
-            }) + "\n")
+            fh.write(
+                json.dumps(
+                    {
+                        "doc_id": q.doc_id,
+                        "doc_type": q.doc_type,
+                        "question": q.question,
+                        "answer": q.answer,
+                        "answer_format": q.answer_format,
+                        "evidence_pages": q.evidence_pages,
+                        "evidence_sources": q.evidence_sources,
+                    }
+                )
+                + "\n"
+            )
     logger.info("Wrote %d MMLongBench questions to %s", len(questions), questions_jsonl)
 
     # Step 2: download unique PDFs
@@ -348,12 +358,17 @@ async def run_ingest(
             local = pdf_paths.get(doc_id)
             if local is None:
                 continue
-            fh.write(json.dumps({
-                "doc_id": doc_id,
-                "document_id": name_to_id.get(local.name),
-                "pdf_path": str(local),
-                "n_questions": sum(1 for q in questions if q.doc_id == doc_id),
-            }) + "\n")
+            fh.write(
+                json.dumps(
+                    {
+                        "doc_id": doc_id,
+                        "document_id": name_to_id.get(local.name),
+                        "pdf_path": str(local),
+                        "n_questions": sum(1 for q in questions if q.doc_id == doc_id),
+                    }
+                )
+                + "\n"
+            )
     logger.info("Wrote MMLongBench doc map to %s", map_path)
 
     new_state = ctx.suite_state

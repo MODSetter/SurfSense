@@ -28,7 +28,6 @@ in the runner, so the format is mandatory.
 
 from __future__ import annotations
 
-
 _BASE_INSTRUCTIONS = (
     "You are a careful question-answering assistant. The question is a "
     "real-world factual question that may be about finance, music, "
@@ -38,7 +37,7 @@ _BASE_INSTRUCTIONS = (
     "is factually wrong), say so explicitly in your final answer "
     "rather than answering as if the premise were true.\n"
     "2. If you are not confident in an answer, prefer saying \"I don't "
-    "know\" over guessing. A wrong commit is penalised more than a "
+    'know" over guessing. A wrong commit is penalised more than a '
     "refusal.\n"
     "3. Keep the final answer short — a name, a number, a date, a "
     "phrase. Do not repeat the question.\n\n"
@@ -126,9 +125,7 @@ def build_long_context_prompt(
         if len(body) > per_page_char_cap:
             body = body[:per_page_char_cap].rstrip() + "\n[...truncated...]"
         title_clean = (title or f"page_{idx}").strip().replace("\n", " ")
-        blocks.append(
-            f"--- PAGE {idx}: {title_clean} ---\n{body}\n"
-        )
+        blocks.append(f"--- PAGE {idx}: {title_clean} ---\n{body}\n")
     contexts_block = "\n".join(blocks) if blocks else "(no pages retrieved)"
     return _LONG_CONTEXT_TEMPLATE.format(
         instructions=_BASE_INSTRUCTIONS,

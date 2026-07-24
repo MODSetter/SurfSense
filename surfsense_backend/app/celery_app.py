@@ -10,6 +10,7 @@ from celery.signals import (
     task_postrun,
     task_prerun,
     worker_process_init,
+    worker_process_shutdown,
 )
 from dotenv import load_dotenv
 
@@ -121,6 +122,18 @@ def init_worker(**kwargs):
     initialize_pricing_registration()
     initialize_llm_router()
     initialize_image_gen_router()
+
+
+@worker_process_shutdown.connect
+def shutdown_worker(**kwargs):
+    """Flush queued PostHog events before a Celery worker process exits.
+
+    The analytics client init is lazy (fork-safe), so there is nothing to
+    start here — only a flush to avoid dropping events captured by tasks.
+    """
+    from app.observability import analytics as ph_analytics
+
+    ph_analytics.shutdown()
 
 
 # Celery configuration, sourced from the central Config singleton
@@ -244,7 +257,6 @@ celery_app.conf.update(
         "index_google_gmail_messages": {"queue": CONNECTORS_QUEUE},
         "index_google_drive_files": {"queue": CONNECTORS_QUEUE},
         "index_elasticsearch_documents": {"queue": CONNECTORS_QUEUE},
-        "index_crawled_urls": {"queue": CONNECTORS_QUEUE},
         "index_bookstack_pages": {"queue": CONNECTORS_QUEUE},
         "index_composio_connector": {"queue": CONNECTORS_QUEUE},
         "index_obsidian_attachment": {"queue": CONNECTORS_QUEUE},

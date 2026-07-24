@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def create_delete_dropbox_file_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -57,7 +57,7 @@ def create_delete_dropbox_file_tool(
             f"delete_dropbox_file called: file_name='{file_name}', delete_from_kb={delete_from_kb}"
         )
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "Dropbox tool not properly configured.",
@@ -72,7 +72,7 @@ def create_delete_dropbox_file_tool(
                 )
                 .filter(
                     and_(
-                        Document.search_space_id == search_space_id,
+                        Document.workspace_id == workspace_id,
                         Document.document_type == DocumentType.DROPBOX_FILE,
                         func.lower(Document.title) == func.lower(file_name),
                         SearchSourceConnector.user_id == user_id,
@@ -92,7 +92,7 @@ def create_delete_dropbox_file_tool(
                     )
                     .filter(
                         and_(
-                            Document.search_space_id == search_space_id,
+                            Document.workspace_id == workspace_id,
                             Document.document_type == DocumentType.DROPBOX_FILE,
                             func.lower(
                                 cast(
@@ -140,7 +140,7 @@ def create_delete_dropbox_file_tool(
                 select(SearchSourceConnector).filter(
                     and_(
                         SearchSourceConnector.id == document.connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type
                         == SearchSourceConnectorType.DROPBOX_CONNECTOR,
@@ -202,7 +202,7 @@ def create_delete_dropbox_file_tool(
                     select(SearchSourceConnector).filter(
                         and_(
                             SearchSourceConnector.id == final_connector_id,
-                            SearchSourceConnector.search_space_id == search_space_id,
+                            SearchSourceConnector.workspace_id == workspace_id,
                             SearchSourceConnector.user_id == user_id,
                             SearchSourceConnector.connector_type
                             == SearchSourceConnectorType.DROPBOX_CONNECTOR,

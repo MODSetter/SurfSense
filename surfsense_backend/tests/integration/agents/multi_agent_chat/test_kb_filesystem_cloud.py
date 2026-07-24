@@ -40,16 +40,16 @@ _SEARCH_SPACE_ID = 1
 def _build_cloud_fs_mw():
     """Build the production filesystem middleware in cloud mode.
 
-    A non-None ``search_space_id`` makes the resolver hand out a
+    A non-None ``workspace_id`` makes the resolver hand out a
     ``KBPostgresBackend``, exactly as production does. Staging operations never
     touch the DB, so a dummy id is sufficient for these tests.
     """
     selection = FilesystemSelection(mode=FilesystemMode.CLOUD)
-    resolver = build_backend_resolver(selection, search_space_id=_SEARCH_SPACE_ID)
+    resolver = build_backend_resolver(selection, workspace_id=_SEARCH_SPACE_ID)
     return build_filesystem_mw(
         backend_resolver=resolver,
         filesystem_mode=FilesystemMode.CLOUD,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id="00000000-0000-0000-0000-000000000001",
         thread_id=_SEARCH_SPACE_ID,
         read_only=False,

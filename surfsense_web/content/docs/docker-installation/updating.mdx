@@ -3,11 +3,20 @@ title: Updating
 description: How to update your SurfSense Docker deployment
 ---
 
-## Watchtower Daemon (recommended)
+## Manual Update
 
-Auto-updates every 24 hours. If you used the [install script](/docs/docker-installation/install-script), Watchtower is already running. No extra setup needed.
+```bash
+cd surfsense   # or SurfSense/docker if you cloned manually
+docker compose pull && docker compose up -d
+```
 
-For [manual Docker Compose](/docs/docker-installation/docker-compose) installs, start Watchtower separately:
+Database migrations are applied automatically on every startup. GPU overlays and image variants set in `.env` are preserved.
+
+## Automatic Updates with Watchtower
+
+Auto-updates every 24 hours. If you used the [install script](/docs/docker-installation) and enabled updates, Watchtower is already running — no extra setup needed.
+
+For manual Docker Compose installs, start Watchtower separately:
 
 ```bash
 docker run -d --name watchtower \
@@ -18,7 +27,9 @@ docker run -d --name watchtower \
   --interval 86400
 ```
 
-## Watchtower One-Time Update
+SurfSense containers are labeled for Watchtower, so `--label-enable` limits updates to the SurfSense services.
+
+For a one-time update instead of a daemon:
 
 ```bash
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
@@ -30,21 +41,32 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 Use `nickfedor/watchtower`. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
 </Callout>
 
-## Manual Update
-
-```bash
-cd surfsense   # or SurfSense/docker if you cloned manually
-docker compose pull && docker compose up -d
-```
-
-Database migrations are applied automatically on every startup.
-
 ---
 
 ## Migrating from the All-in-One Container
 
-<Callout type="warn">
-If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-one `surfsense` container), your data lives in a `surfsense-data` volume and requires a **one-time migration** before switching to the current setup. PostgreSQL has been upgraded from version 14 to 17, so a simple volume swap will not work.
+If you previously ran the legacy all-in-one image (`ghcr.io/modsetter/surfsense:latest` via `docker-compose.quickstart.yml`), your data lives in a single `surfsense-data` volume and PostgreSQL has since been upgraded from version 14 to 17 — so a simple volume swap won't work. A one-time dump and restore is required, and the install script does it for you.
 
-See the full step-by-step guide: [Migrate from the All-in-One Container](/docs/docker-installation/migrate-from-allinone).
+Just run the normal install command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+It detects the legacy `surfsense-data` volume, stops the old container, dumps your database with a temporary PostgreSQL 14 container, recovers your `SECRET_KEY`, restores everything into PostgreSQL 17, and starts the new stack. Your original volume is **never deleted** — the dump is also saved to `./surfsense_migration_backup.sql` as a checkpoint, so if anything fails mid-way you can simply re-run the script.
+
+After it completes:
+
+1. Open SurfSense and confirm your data is intact.
+2. Remove the old volume (irreversible): `docker volume rm surfsense-data`
+3. Delete the dump file once you no longer need it: `rm ./surfsense_migration_backup.sql`
+
+<Callout type="info">
+If your old container used custom database credentials (`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`), run the migration script manually first with your credentials, then run the installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/migrate-database.sh -o migrate-database.sh
+bash migrate-database.sh --db-user myuser --db-password mypass --db-name mydb
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
 </Callout>

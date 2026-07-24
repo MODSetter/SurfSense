@@ -31,7 +31,7 @@ _SURFACE = "chunks"
 async def search_chunks(
     db_session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     query: str,
     scope: SearchScope,
     top_k: int,
@@ -44,14 +44,14 @@ async def search_chunks(
     """
     started = time.perf_counter()
     with otel.kb_search_span(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         query_chars=len(query),
         extra={"search.surface": _SURFACE, "search.mode": "hybrid"},
     ) as span:
         try:
             documents = await _search(
                 db_session,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 query=query,
                 scope=scope,
                 top_k=top_k,
@@ -60,14 +60,14 @@ async def search_chunks(
         finally:
             elapsed_ms = (time.perf_counter() - started) * 1000
             metrics.record_kb_search_duration(
-                elapsed_ms, search_space_id=search_space_id, surface=_SURFACE
+                elapsed_ms, workspace_id=workspace_id, surface=_SURFACE
             )
         span.set_attribute("result.count", len(documents))
         get_perf_logger().info(
             "[chunk_search] hybrid in %.3fs docs=%d space=%d",
             elapsed_ms / 1000,
             len(documents),
-            search_space_id,
+            workspace_id,
         )
         return documents
 
@@ -75,7 +75,7 @@ async def search_chunks(
 async def _search(
     db_session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     query: str,
     scope: SearchScope,
     top_k: int,
@@ -91,7 +91,7 @@ async def _search(
             config.embedding_model_instance.embed, query
         )
 
-    conditions = _base_conditions(search_space_id, scope, document_types)
+    conditions = _base_conditions(workspace_id, scope, document_types)
     rows = await _fused_chunks(
         db_session,
         query=query,
@@ -116,13 +116,13 @@ def _resolve_document_types(
 
 
 def _base_conditions(
-    search_space_id: int,
+    workspace_id: int,
     scope: SearchScope,
     document_types: list[DocumentType] | None,
 ) -> list:
     """Filters shared by both search legs."""
     conditions = [
-        Document.search_space_id == search_space_id,
+        Document.workspace_id == workspace_id,
         func.coalesce(Document.status["state"].astext, "ready") != "deleting",
     ]
     if document_types:

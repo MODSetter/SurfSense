@@ -34,7 +34,7 @@ import base64
 import logging
 import time
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +43,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-class PdfEngine(str, Enum):
+class PdfEngine(StrEnum):
     NATIVE = "native"
     MISTRAL_OCR = "mistral-ocr"
     CLOUDFLARE_AI = "cloudflare-ai"
@@ -121,9 +121,7 @@ class OpenRouterPdfProvider:
         body: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
-            "plugins": [
-                {"id": "file-parser", "pdf": {"engine": self._engine.value}}
-            ],
+            "plugins": [{"id": "file-parser", "pdf": {"engine": self._engine.value}}],
         }
         if max_tokens:
             body["max_tokens"] = max_tokens

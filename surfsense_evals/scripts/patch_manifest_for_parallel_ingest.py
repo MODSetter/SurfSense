@@ -27,7 +27,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[1]
 MAP_PATH = REPO / "data" / "multimodal_doc" / "maps" / "mmlongbench_doc_map.jsonl"
 PDF_DIR = REPO / "data" / "multimodal_doc" / "mmlongbench" / "pdfs"

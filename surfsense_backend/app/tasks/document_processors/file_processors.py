@@ -42,7 +42,7 @@ class _ProcessingContext:
     session: AsyncSession
     file_path: str
     filename: str
-    search_space_id: int
+    workspace_id: int
     user_id: str
     task_logger: TaskLoggingService
     log_entry: Log
@@ -135,7 +135,7 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
     if ctx.use_vision_llm:
         from app.services.llm_service import get_vision_llm
 
-        vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
+        vision_llm = await get_vision_llm(ctx.session, ctx.workspace_id)
 
     etl_result = await extract_with_cache(
         EtlRequest(file_path=ctx.file_path, filename=ctx.filename),
@@ -151,7 +151,7 @@ async def _process_non_document_upload(ctx: _ProcessingContext) -> Document | No
         ctx.session,
         ctx.filename,
         etl_result.markdown_content,
-        ctx.search_space_id,
+        ctx.workspace_id,
         ctx.user_id,
         ctx.connector,
     )
@@ -237,7 +237,7 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
     if ctx.use_vision_llm:
         from app.services.llm_service import get_vision_llm
 
-        vision_llm = await get_vision_llm(ctx.session, ctx.search_space_id)
+        vision_llm = await get_vision_llm(ctx.session, ctx.workspace_id)
 
     etl_result = await extract_with_cache(
         EtlRequest(
@@ -258,7 +258,7 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
         ctx.session,
         ctx.filename,
         etl_result.markdown_content,
-        ctx.search_space_id,
+        ctx.workspace_id,
         ctx.user_id,
         etl_result.etl_service,
         ctx.connector,
@@ -302,7 +302,7 @@ async def _process_document_upload(ctx: _ProcessingContext) -> Document | None:
 async def process_file_in_background(
     file_path: str,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     session: AsyncSession,
     task_logger: TaskLoggingService,
@@ -316,7 +316,7 @@ async def process_file_in_background(
         session=session,
         file_path=file_path,
         filename=filename,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         task_logger=task_logger,
         log_entry=log_entry,
@@ -368,7 +368,7 @@ async def process_file_in_background(
 async def _extract_file_content(
     file_path: str,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
     session: AsyncSession,
     user_id: str,
     task_logger: TaskLoggingService,
@@ -432,7 +432,7 @@ async def _extract_file_content(
     if use_vision_llm:
         from app.services.llm_service import get_vision_llm
 
-        vision_llm = await get_vision_llm(session, search_space_id)
+        vision_llm = await get_vision_llm(session, workspace_id)
 
     from app.etl_pipeline.cache import extract_with_cache
 
@@ -459,7 +459,7 @@ async def process_file_in_background_with_document(
     document: Document,
     file_path: str,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     session: AsyncSession,
     task_logger: TaskLoggingService,
@@ -491,7 +491,7 @@ async def process_file_in_background_with_document(
         markdown_content, etl_service, billable_pages = await _extract_file_content(
             file_path,
             filename,
-            search_space_id,
+            workspace_id,
             session,
             user_id,
             task_logger,
@@ -504,7 +504,7 @@ async def process_file_in_background_with_document(
         if not markdown_content:
             raise RuntimeError(f"Failed to extract content from file: {filename}")
 
-        content_hash = generate_content_hash(markdown_content, search_space_id)
+        content_hash = generate_content_hash(markdown_content, workspace_id)
         existing_by_content = await check_duplicate_document(session, content_hash)
         if existing_by_content and existing_by_content.id != doc_id:
             logging.info(
@@ -525,7 +525,7 @@ async def process_file_in_background_with_document(
             markdown_content=markdown_content,
             filename=filename,
             etl_service=etl_service,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
         )
 

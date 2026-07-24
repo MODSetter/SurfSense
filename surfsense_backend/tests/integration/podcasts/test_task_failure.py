@@ -17,10 +17,10 @@ pytestmark = pytest.mark.integration
 
 
 async def test_marking_failed_records_the_reason_on_a_running_podcast(
-    db_search_space, make_podcast, bind_task_session
+    db_workspace, make_podcast, bind_task_session
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
+        workspace_id=db_workspace.id, status=PodcastStatus.DRAFTING
     )
 
     await runtime.mark_failed(podcast.id, "tts provider unavailable")
@@ -30,10 +30,10 @@ async def test_marking_failed_records_the_reason_on_a_running_podcast(
 
 
 async def test_marking_failed_leaves_an_already_terminal_podcast_untouched(
-    db_search_space, make_podcast, bind_task_session
+    db_workspace, make_podcast, bind_task_session
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
 
     await runtime.mark_failed(podcast.id, "too late")

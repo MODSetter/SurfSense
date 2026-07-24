@@ -120,7 +120,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			{/* Fixed Header */}
 			<div
 				className={cn(
-					"shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+					"shrink-0 transition-shadow duration-200 relative z-10",
 					isScrolled && "shadow-sm"
 				)}
 			>
@@ -166,7 +166,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			<div className="flex-1 min-h-0 relative overflow-hidden">
 				<div
 					ref={scrollContainerRef}
-					className="h-full overflow-y-auto px-6 sm:px-12"
+					className="h-full overflow-y-auto"
 					onScroll={handleScroll}
 				>
 					<div className="space-y-6 pb-6 pt-2">
@@ -240,7 +240,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-popover">
+			<div className="flex-shrink-0 flex items-center justify-end py-6 bg-transparent">
 				{isLive ? (
 					<Button onClick={onSkip} className="text-xs sm:text-sm">
 						Done

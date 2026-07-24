@@ -82,7 +82,7 @@ async def test_index_calls_embed_and_chunk_via_to_thread(
     connector_doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-1",
-        search_space_id=1,
+        workspace_id=1,
     )
     document = MagicMock(spec=Document)
     document.id = 1
@@ -140,7 +140,7 @@ async def test_non_code_documents_use_hybrid_chunker(
     connector_doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-1",
-        search_space_id=1,
+        workspace_id=1,
         should_use_code_chunker=False,
     )
     document = MagicMock(spec=Document)
@@ -184,7 +184,7 @@ async def test_batch_parallel_indexes_all_documents(
         make_connector_document(
             document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
             unique_id=f"msg-{i}",
-            search_space_id=1,
+            workspace_id=1,
         )
         for i in range(3)
     ]
@@ -222,7 +222,7 @@ async def test_batch_parallel_one_failure_does_not_affect_others(
         make_connector_document(
             document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
             unique_id=f"msg-{i}",
-            search_space_id=1,
+            workspace_id=1,
         )
         for i in range(3)
     ]

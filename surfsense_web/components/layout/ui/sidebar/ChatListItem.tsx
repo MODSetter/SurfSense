@@ -14,11 +14,11 @@ import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import { cn } from "@/lib/utils";
+import { sidebarListItemClassName } from "./SidebarListItem";
 
 interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
-	isShared?: boolean;
 	archived?: boolean;
 	dropdownOpen?: boolean;
 	onDropdownOpenChange?: (open: boolean) => void;
@@ -47,6 +47,7 @@ export function ChatListItem({
 	const dropdownOpen = controlledOpen ?? internalOpen;
 	const setDropdownOpen = onDropdownOpenChange ?? setInternalOpen;
 	const animatedName = useTypewriter(name);
+	const isHighlighted = isActive || dropdownOpen;
 
 	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
 		useCallback(() => setDropdownOpen(true), [setDropdownOpen])
@@ -66,12 +67,11 @@ export function ChatListItem({
 				onMouseEnter={onPrefetch}
 				onFocus={onPrefetch}
 				{...(isMobile ? longPressHandlers : {})}
-				className={cn(
-					"h-auto w-full justify-start gap-2 overflow-hidden px-2 py-1.5 text-left font-normal",
-					"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
-					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-					isActive && "bg-accent text-accent-foreground"
-				)}
+				className={sidebarListItemClassName({
+					active: isHighlighted,
+					className:
+						"justify-start gap-2 overflow-hidden px-2 py-1.5 font-normal group-hover/item:bg-accent group-hover/item:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+				})}
 			>
 				<span className="min-w-0 flex-1 truncate">{animatedName}</span>
 			</Button>
@@ -80,7 +80,7 @@ export function ChatListItem({
 			<div
 				className={cn(
 					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
-					isActive
+					isHighlighted
 						? "bg-gradient-to-l from-accent from-60% to-transparent"
 						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
 					isMobile

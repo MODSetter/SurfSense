@@ -158,7 +158,10 @@ def _materialise_pages(
 
     logger.info(
         "CRAG page extraction: %s; empty=%d, total_files=%d across %d questions",
-        method_counts, n_empty, len(file_to_url), len(qid_to_files),
+        method_counts,
+        n_empty,
+        len(file_to_url),
+        len(qid_to_files),
     )
     return qid_to_files, file_to_url
 
@@ -215,8 +218,10 @@ async def _upload_pages(
                     name_to_id[f"{s.title}.md"] = s.document_id
         logger.info(
             "CRAG upload batch %d-%d: %d new, %d duplicate",
-            batch_start, batch_start + len(batch),
-            len(result.document_ids), len(result.duplicate_document_ids),
+            batch_start,
+            batch_start + len(batch),
+            len(result.document_ids),
+            len(result.duplicate_document_ids),
         )
     return name_to_id
 
@@ -243,24 +248,26 @@ def _resolve_question_doc_ids(
                 doc_ids.append(doc_id)
             else:
                 missing.append(fn)
-        rows.append({
-            "qid": q.qid,
-            "interaction_id": q.interaction_id,
-            "raw_index": q.raw_index,
-            "question": q.query,
-            "gold_answer": q.gold_answer,
-            "alt_answers": list(q.alt_answers),
-            "domain": q.domain,
-            "question_type": q.question_type,
-            "static_or_dynamic": q.static_or_dynamic,
-            "popularity": q.popularity,
-            "query_time": q.query_time,
-            "split": q.split,
-            "page_filenames": filenames,
-            "document_ids": doc_ids,
-            "missing_pages": missing,
-            "n_pages": len(filenames),
-        })
+        rows.append(
+            {
+                "qid": q.qid,
+                "interaction_id": q.interaction_id,
+                "raw_index": q.raw_index,
+                "question": q.query,
+                "gold_answer": q.gold_answer,
+                "alt_answers": list(q.alt_answers),
+                "domain": q.domain,
+                "question_type": q.question_type,
+                "static_or_dynamic": q.static_or_dynamic,
+                "popularity": q.popularity,
+                "query_time": q.query_time,
+                "split": q.split,
+                "page_filenames": filenames,
+                "document_ids": doc_ids,
+                "missing_pages": missing,
+                "n_pages": len(filenames),
+            }
+        )
     return rows
 
 
@@ -305,7 +312,7 @@ async def run_ingest(
     settings = settings or IngestSettings(
         use_vision_llm=False,
         processing_mode="basic",
-        )
+    )
     bench_dir = ctx.benchmark_data_dir()
     pages_dir = bench_dir / "pages"
     raw_cache = bench_dir / ".raw_cache"
@@ -336,10 +343,13 @@ async def run_ingest(
     n_pages_total = sum(len(q.pages) for q in questions)
     logger.info(
         "CRAG: extracting up to %d pages across %d questions ...",
-        n_pages_total, len(questions),
+        n_pages_total,
+        len(questions),
     )
     qid_to_files, file_to_url = _materialise_pages(
-        questions, pages_dir=pages_dir, overwrite=overwrite_extract,
+        questions,
+        pages_dir=pages_dir,
+        overwrite=overwrite_extract,
     )
     n_pages_extracted = sum(len(v) for v in qid_to_files.values())
 

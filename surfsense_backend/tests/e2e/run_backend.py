@@ -282,6 +282,7 @@ def _install_runtime_fakes() -> None:
         mcp_oauth_runtime as _fake_mcp_oauth_runtime,
         mcp_runtime as _fake_mcp_runtime,
         native_google as _fake_native_google,
+        notion_mcp_module as _fake_notion_mcp_module,
         notion_module as _fake_notion_module,
         onedrive_graph as _fake_onedrive_graph,
         slack_module as _fake_slack_module,
@@ -295,6 +296,7 @@ def _install_runtime_fakes() -> None:
     _fake_onedrive_graph.install(_active_patches)
     _fake_dropbox_api.install(_active_patches)
     _fake_notion_module.install(_active_patches)
+    _fake_notion_mcp_module.install(_active_patches)
     _fake_linear_module.install(_active_patches)
     _fake_jira_module.install(_active_patches)
     _fake_clickup_module.install(_active_patches)

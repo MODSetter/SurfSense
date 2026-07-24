@@ -9,11 +9,11 @@ import { queries } from "@/zero/queries";
  * Updates instantly as documents are created, deleted, or change type.
  */
 export function useZeroDocumentTypeCounts(
-	searchSpaceId: number | string | null
+	workspaceId: number | string | null
 ): Record<string, number> | undefined {
-	const numericId = searchSpaceId != null ? Number(searchSpaceId) : null;
+	const numericId = workspaceId != null ? Number(workspaceId) : null;
 
-	const [zeroDocuments] = useQuery(queries.documents.bySpace({ searchSpaceId: numericId ?? -1 }));
+	const [zeroDocuments] = useQuery(queries.documents.bySpace({ workspaceId: numericId ?? -1 }));
 
 	return useMemo(() => {
 		if (!zeroDocuments || numericId == null) return undefined;

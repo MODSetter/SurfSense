@@ -45,14 +45,14 @@ _JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 def create_create_automation_tool(
     *,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | UUID,
     llm: Any,
     auth_context: AuthContext | None = None,
 ):
     """Factory for the ``create_automation`` tool.
 
-    ``search_space_id`` is injected from the chat session (the model never
+    ``workspace_id`` is injected from the chat session (the model never
     has to guess it). ``llm`` is the drafting sub-model — we reuse the main
     agent's LLM and tag the call so it's identifiable in traces. A fresh
     ``AsyncSession`` is opened per call to avoid stale sessions on
@@ -101,12 +101,12 @@ def create_create_automation_tool(
         """
         # Models are chosen per-automation on the approval card (premium/BYOK
         # selectors) and validated when persisted by ``AutomationService.create``
-        # — so there's no fail-fast search-space eligibility gate here. The
-        # search space's current chat/role model selection no longer constrains
+        # — so there's no fail-fast workspace eligibility gate here. The
+        # workspace's current chat/role model selection no longer constrains
         # whether an automation can be drafted or saved.
 
         # --- 1. Draft via sub-LLM ---
-        prompt = build_draft_prompt(search_space_id=search_space_id, intent=intent)
+        prompt = build_draft_prompt(workspace_id=workspace_id, intent=intent)
         try:
             response = await llm.ainvoke(
                 [HumanMessage(content=prompt)],
@@ -125,8 +125,8 @@ def create_create_automation_tool(
                 "raw": raw_text,
             }
 
-        # search_space_id is injected here so the sub-LLM never has to guess.
-        draft["search_space_id"] = search_space_id
+        # workspace_id is injected here so the sub-LLM never has to guess.
+        draft["workspace_id"] = workspace_id
         try:
             validated_draft = AutomationCreate.model_validate(draft)
         except ValidationError as exc:
@@ -139,14 +139,14 @@ def create_create_automation_tool(
         # --- 2. HITL approval card ---
         try:
             card_params = validated_draft.model_dump(mode="json", by_alias=True)
-            # search_space_id is session-scoped, not user-editable.
-            card_params.pop("search_space_id", None)
+            # workspace_id is session-scoped, not user-editable.
+            card_params.pop("workspace_id", None)
 
             result = request_approval(
                 action_type="automation_create",
                 tool_name="create_automation",
                 params=card_params,
-                context={"search_space_id": search_space_id},
+                context={"workspace_id": workspace_id},
                 tool_call_id=runtime.tool_call_id,
             )
 
@@ -157,7 +157,7 @@ def create_create_automation_tool(
                 }
 
             # --- 3. Persist (re-validate in case the user edited) ---
-            final_payload = {**result.params, "search_space_id": search_space_id}
+            final_payload = {**result.params, "workspace_id": workspace_id}
             try:
                 final_validated = AutomationCreate.model_validate(final_payload)
             except ValidationError as exc:

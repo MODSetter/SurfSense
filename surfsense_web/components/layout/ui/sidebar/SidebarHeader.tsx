@@ -10,10 +10,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { SearchSpace } from "../../types/layout.types";
+import type { Workspace } from "../../types/layout.types";
 
 interface SidebarHeaderProps {
-	searchSpace: SearchSpace | null;
+	workspace: Workspace | null;
 	isCollapsed?: boolean;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -21,7 +21,7 @@ interface SidebarHeaderProps {
 }
 
 export function SidebarHeader({
-	searchSpace,
+	workspace,
 	isCollapsed,
 	onSettings,
 	onManageMembers,
@@ -40,9 +40,7 @@ export function SidebarHeader({
 							isCollapsed && "w-10"
 						)}
 					>
-						<span className="truncate text-sm">
-							{searchSpace?.name ?? t("select_search_space")}
-						</span>
+						<span className="truncate text-sm">{workspace?.name ?? t("select_workspace")}</span>
 						<ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 					</Button>
 				</DropdownMenuTrigger>
@@ -53,7 +51,7 @@ export function SidebarHeader({
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={onSettings}>
 						<Settings className="h-4 w-4" />
-						{t("search_space_settings")}
+						{t("workspace_settings")}
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

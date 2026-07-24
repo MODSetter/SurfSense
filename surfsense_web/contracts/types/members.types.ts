@@ -4,7 +4,7 @@ import { role } from "./roles.types";
 export const membership = z.object({
 	id: z.number(),
 	user_id: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	role_id: z.number().nullable(),
 	is_owner: z.boolean(),
 	joined_at: z.string(),
@@ -21,7 +21,7 @@ export const membership = z.object({
  * Get members
  */
 export const getMembersRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getMembersResponse = z.array(membership);
@@ -30,7 +30,7 @@ export const getMembersResponse = z.array(membership);
  * Update membership
  */
 export const updateMembershipRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	membership_id: z.number(),
 	data: z.object({
 		role_id: z.number().nullable(),
@@ -43,7 +43,7 @@ export const updateMembershipResponse = membership;
  * Delete membership
  */
 export const deleteMembershipRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	membership_id: z.number(),
 });
 
@@ -52,13 +52,13 @@ export const deleteMembershipResponse = z.object({
 });
 
 /**
- * Leave search space
+ * Leave workspace
  */
-export const leaveSearchSpaceRequest = z.object({
-	search_space_id: z.number(),
+export const leaveWorkspaceRequest = z.object({
+	workspace_id: z.number(),
 });
 
-export const leaveSearchSpaceResponse = z.object({
+export const leaveWorkspaceResponse = z.object({
 	message: z.string(),
 });
 
@@ -66,12 +66,12 @@ export const leaveSearchSpaceResponse = z.object({
  * Get my access
  */
 export const getMyAccessRequest = z.object({
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 });
 
 export const getMyAccessResponse = z.object({
-	search_space_name: z.string(),
-	search_space_id: z.number(),
+	workspace_name: z.string(),
+	workspace_id: z.number(),
 	is_owner: z.boolean(),
 	permissions: z.array(z.string()),
 	role_name: z.string().nullable(),
@@ -84,7 +84,7 @@ export type UpdateMembershipRequest = z.infer<typeof updateMembershipRequest>;
 export type UpdateMembershipResponse = z.infer<typeof updateMembershipResponse>;
 export type DeleteMembershipRequest = z.infer<typeof deleteMembershipRequest>;
 export type DeleteMembershipResponse = z.infer<typeof deleteMembershipResponse>;
-export type LeaveSearchSpaceRequest = z.infer<typeof leaveSearchSpaceRequest>;
-export type LeaveSearchSpaceResponse = z.infer<typeof leaveSearchSpaceResponse>;
+export type LeaveWorkspaceRequest = z.infer<typeof leaveWorkspaceRequest>;
+export type LeaveWorkspaceResponse = z.infer<typeof leaveWorkspaceResponse>;
 export type GetMyAccessRequest = z.infer<typeof getMyAccessRequest>;
 export type GetMyAccessResponse = z.infer<typeof getMyAccessResponse>;

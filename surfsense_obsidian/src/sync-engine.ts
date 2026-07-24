@@ -48,7 +48,7 @@ export interface SyncEngineSettings {
 	vaultId: string;
 	apiToken: string;
 	connectorId: number | null;
-	searchSpaceId: number | null;
+	workspaceId: number | null;
 	includeFolders: string[];
 	excludeFolders: string[];
 	excludePatterns: string[];
@@ -96,7 +96,7 @@ export class SyncEngine {
 		this.setStatus("syncing", "Connecting to SurfSense…");
 
 		const settings = this.deps.getSettings();
-		if (!settings.searchSpaceId) {
+		if (!settings.workspaceId) {
 			// No target yet — /health still surfaces auth/network errors.
 			try {
 				const health = await this.deps.apiClient.health();
@@ -124,7 +124,7 @@ export class SyncEngine {
 	 */
 	async ensureConnected(): Promise<boolean> {
 		const settings = this.deps.getSettings();
-		if (!settings.searchSpaceId) {
+		if (!settings.workspaceId) {
 			this.setStatus("idle");
 			return false;
 		}
@@ -132,7 +132,7 @@ export class SyncEngine {
 		try {
 			const fingerprint = await computeVaultFingerprint(this.deps.app);
 			const resp = await this.deps.apiClient.connect({
-				searchSpaceId: settings.searchSpaceId,
+				workspaceId: settings.workspaceId,
 				vaultId: settings.vaultId,
 				vaultName: this.deps.app.vault.getName(),
 				vaultFingerprint: fingerprint,
@@ -272,7 +272,7 @@ export class SyncEngine {
 			this.refreshStatus({ force: true });
 			return;
 		}
-		if (!settings.searchSpaceId) {
+		if (!settings.workspaceId) {
 			try {
 				const health = await this.deps.apiClient.health();
 				this.applyHealth(health);
@@ -543,7 +543,7 @@ export class SyncEngine {
 			const isError =
 				last === "auth-error" || last === "offline" || last === "error";
 			const s = this.deps.getSettings();
-			const setupComplete = !!(s.apiToken && s.searchSpaceId && s.connectorId);
+			const setupComplete = !!(s.apiToken && s.workspaceId && s.connectorId);
 			if (isError && setupComplete) return;
 		}
 		this.setStatus(this.queueStatusKind(), this.statusDetail());
@@ -571,7 +571,7 @@ export class SyncEngine {
 			kind = "needs-setup";
 			detail = this.setupHint(s);
 		} else if (kind !== "auth-error" && kind !== "offline" && kind !== "error") {
-			if (!s.searchSpaceId || !s.connectorId) {
+			if (!s.workspaceId || !s.connectorId) {
 				kind = "needs-setup";
 				detail = this.setupHint(s);
 			}
@@ -582,7 +582,7 @@ export class SyncEngine {
 
 	private setupHint(s: SyncEngineSettings): string {
 		if (!s.apiToken) return "Paste your API token in settings.";
-		if (!s.searchSpaceId) return "Pick a search space in settings.";
+		if (!s.workspaceId) return "Pick a workspace in settings.";
 		return "Connecting…";
 	}
 

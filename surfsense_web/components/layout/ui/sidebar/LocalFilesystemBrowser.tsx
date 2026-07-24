@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 interface LocalFilesystemBrowserProps {
 	rootPaths: string[];
-	searchSpaceId: number;
+	workspaceId: number;
 	active?: boolean;
 	searchQuery?: string;
 	onOpenFile: (fullPath: string) => void;
@@ -134,7 +134,7 @@ function getNormalizedExtension(pathValue: string): string {
 
 export function LocalFilesystemBrowser({
 	rootPaths,
-	searchSpaceId,
+	workspaceId,
 	active = true,
 	searchQuery,
 	onOpenFile,
@@ -184,7 +184,7 @@ export function LocalFilesystemBrowser({
 		}
 		const rootsToReload = rootEntries.filter(({ rootKey }) => {
 			const nonce = reloadNonceByRoot[rootKey] ?? 0;
-			const signature = `${searchSpaceId}:${rootKey}:${nonce}`;
+			const signature = `${workspaceId}:${rootKey}:${nonce}`;
 			return lastLoadedSignatureByRootRef.current.get(rootKey) !== signature;
 		});
 		if (rootsToReload.length === 0) {
@@ -192,7 +192,7 @@ export function LocalFilesystemBrowser({
 		}
 		for (const { rootKey } of rootsToReload) {
 			const nonce = reloadNonceByRoot[rootKey] ?? 0;
-			lastLoadedSignatureByRootRef.current.set(rootKey, `${searchSpaceId}:${rootKey}:${nonce}`);
+			lastLoadedSignatureByRootRef.current.set(rootKey, `${workspaceId}:${rootKey}:${nonce}`);
 		}
 		let cancelled = false;
 
@@ -212,7 +212,7 @@ export function LocalFilesystemBrowser({
 				try {
 					const files = (await electronAPI.listAgentFilesystemFiles({
 						rootPath,
-						searchSpaceId,
+						workspaceId,
 						excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
 					})) as LocalFolderFileEntry[];
 					if (cancelled) return;
@@ -241,7 +241,7 @@ export function LocalFilesystemBrowser({
 		return () => {
 			cancelled = true;
 		};
-	}, [active, electronAPI, isWindowsPlatform, reloadNonceByRoot, rootPaths, searchSpaceId]);
+	}, [active, electronAPI, isWindowsPlatform, reloadNonceByRoot, rootPaths, workspaceId]);
 
 	useEffect(() => {
 		if (active) return;
@@ -254,19 +254,19 @@ export function LocalFilesystemBrowser({
 		if (!electronAPI?.onAgentFilesystemTreeDirty) return;
 		if (!active) return;
 		if (rootPaths.length === 0) {
-			void electronAPI.stopAgentFilesystemTreeWatch(searchSpaceId);
+			void electronAPI.stopAgentFilesystemTreeWatch(workspaceId);
 			return;
 		}
 
 		const unsubscribe = electronAPI.onAgentFilesystemTreeDirty(
 			(event: {
-				searchSpaceId: number | null;
+				workspaceId: number | null;
 				reason: "watcher_event" | "safety_poll";
 				rootPath: string;
 				changedPath: string | null;
 				timestamp: number;
 			}) => {
-				if ((event.searchSpaceId ?? null) !== (searchSpaceId ?? null)) {
+				if ((event.workspaceId ?? null) !== (workspaceId ?? null)) {
 					return;
 				}
 				const eventRootKey = normalizeRootPathForLookup(event.rootPath, isWindowsPlatform);
@@ -290,16 +290,16 @@ export function LocalFilesystemBrowser({
 			}
 		);
 		void electronAPI.startAgentFilesystemTreeWatch({
-			searchSpaceId,
+			workspaceId,
 			rootPaths,
 			excludePatterns: DEFAULT_EXCLUDE_PATTERNS,
 		});
 
 		return () => {
 			unsubscribe();
-			void electronAPI.stopAgentFilesystemTreeWatch(searchSpaceId);
+			void electronAPI.stopAgentFilesystemTreeWatch(workspaceId);
 		};
-	}, [active, electronAPI, isWindowsPlatform, rootPaths, searchSpaceId]);
+	}, [active, electronAPI, isWindowsPlatform, rootPaths, workspaceId]);
 
 	useEffect(() => {
 		if (!electronAPI?.getAgentFilesystemMounts) {
@@ -322,7 +322,7 @@ export function LocalFilesystemBrowser({
 			setMountRefreshInFlight(true);
 		}
 		void electronAPI
-			.getAgentFilesystemMounts(searchSpaceId)
+			.getAgentFilesystemMounts(workspaceId)
 			.then((mounts: LocalRootMount[]) => {
 				if (cancelled) return;
 				const next = new Map<string, string>();
@@ -348,7 +348,7 @@ export function LocalFilesystemBrowser({
 		return () => {
 			cancelled = true;
 		};
-	}, [electronAPI, isWindowsPlatform, rootPaths, searchSpaceId]);
+	}, [electronAPI, isWindowsPlatform, rootPaths, workspaceId]);
 
 	const treeByRoot = useMemo(() => {
 		const query = searchQuery?.trim().toLowerCase() ?? "";

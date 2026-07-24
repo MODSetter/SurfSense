@@ -31,14 +31,14 @@ def _cached_multi_root_backend(
 def build_backend_resolver(
     selection: FilesystemSelection,
     *,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
 ) -> Callable[[ToolRuntime], BackendProtocol]:
     """Create deepagents backend resolver for the selected filesystem mode.
 
     In cloud mode the resolver returns a fresh :class:`KBPostgresBackend`
     bound to the current ``runtime`` so the backend can read staging state
     (``staged_dirs``, ``pending_moves``, ``files`` cache, ``kb_anon_doc``)
-    for each tool call. When no ``search_space_id``
+    for each tool call. When no ``workspace_id``
     is provided, the resolver falls back to :class:`StateBackend` (used by
     sub-agents and tests that don't need DB-backed reads).
 
@@ -55,10 +55,10 @@ def build_backend_resolver(
 
         return _resolve_local
 
-    if search_space_id is not None:
+    if workspace_id is not None:
 
         def _resolve_kb(runtime: ToolRuntime) -> BackendProtocol:
-            return KBPostgresBackend(search_space_id, runtime)
+            return KBPostgresBackend(workspace_id, runtime)
 
         return _resolve_kb
 

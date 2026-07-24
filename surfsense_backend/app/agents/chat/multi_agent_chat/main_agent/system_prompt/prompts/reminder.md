@@ -1,4 +1,5 @@
 <reminder>
-Concise · KB-grounded · delegation-first · one `task` per turn · no direct
-filesystem · persist memory when durable facts appear.
+Concise · grounded in this turn's specialist data, never stale general
+knowledge · delegation-first · no direct filesystem · persist memory when
+durable facts appear.
 </reminder>

@@ -145,14 +145,14 @@ async def test_billable_call_invoked_with_correct_kwargs_for_free_config(monkeyp
 
     user_id = uuid4()
 
-    async def _fake_resolver(sess, search_space_id, *, thread_id=None):
-        assert search_space_id == 777
+    async def _fake_resolver(sess, workspace_id, *, thread_id=None):
+        assert workspace_id == 777
         assert thread_id == 99
         return user_id, "free", "openrouter/some-free-model"
 
     monkeypatch.setattr(
         video_presentation_tasks,
-        "_resolve_agent_billing_for_search_space",
+        "_resolve_agent_billing_for_workspace",
         _fake_resolver,
     )
     monkeypatch.setattr(video_presentation_tasks, "billable_call", _ok_billable_call)
@@ -169,7 +169,7 @@ async def test_billable_call_invoked_with_correct_kwargs_for_free_config(monkeyp
     result = await video_presentation_tasks._generate_video_presentation(
         video_presentation_id=11,
         source_content="content",
-        search_space_id=777,
+        workspace_id=777,
         user_prompt=None,
     )
 
@@ -180,7 +180,7 @@ async def test_billable_call_invoked_with_correct_kwargs_for_free_config(monkeyp
     assert len(_CALL_LOG) == 1
     call = _CALL_LOG[0]
     assert call["user_id"] == user_id
-    assert call["search_space_id"] == 777
+    assert call["workspace_id"] == 777
     assert call["billing_tier"] == "free"
     assert call["base_model"] == "openrouter/some-free-model"
     assert call["usage_type"] == "video_presentation_generation"
@@ -213,12 +213,12 @@ async def test_billable_call_invoked_with_premium_tier(monkeypatch):
 
     user_id = uuid4()
 
-    async def _fake_resolver(sess, search_space_id, *, thread_id=None):
+    async def _fake_resolver(sess, workspace_id, *, thread_id=None):
         return user_id, "premium", "gpt-5.4"
 
     monkeypatch.setattr(
         video_presentation_tasks,
-        "_resolve_agent_billing_for_search_space",
+        "_resolve_agent_billing_for_workspace",
         _fake_resolver,
     )
     monkeypatch.setattr(video_presentation_tasks, "billable_call", _ok_billable_call)
@@ -235,7 +235,7 @@ async def test_billable_call_invoked_with_premium_tier(monkeypatch):
     await video_presentation_tasks._generate_video_presentation(
         video_presentation_id=11,
         source_content="content",
-        search_space_id=777,
+        workspace_id=777,
         user_prompt=None,
     )
 
@@ -256,12 +256,12 @@ async def test_quota_insufficient_marks_video_failed_and_skips_graph(monkeypatch
         lambda: _FakeSessionMaker(session),
     )
 
-    async def _fake_resolver(sess, search_space_id, *, thread_id=None):
+    async def _fake_resolver(sess, workspace_id, *, thread_id=None):
         return uuid4(), "premium", "gpt-5.4"
 
     monkeypatch.setattr(
         video_presentation_tasks,
-        "_resolve_agent_billing_for_search_space",
+        "_resolve_agent_billing_for_workspace",
         _fake_resolver,
     )
     monkeypatch.setattr(
@@ -283,7 +283,7 @@ async def test_quota_insufficient_marks_video_failed_and_skips_graph(monkeypatch
     result = await video_presentation_tasks._generate_video_presentation(
         video_presentation_id=12,
         source_content="content",
-        search_space_id=777,
+        workspace_id=777,
         user_prompt=None,
     )
 
@@ -309,12 +309,12 @@ async def test_billing_settlement_failure_marks_video_failed(monkeypatch):
         lambda: _FakeSessionMaker(session),
     )
 
-    async def _fake_resolver(sess, search_space_id, *, thread_id=None):
+    async def _fake_resolver(sess, workspace_id, *, thread_id=None):
         return uuid4(), "premium", "gpt-5.4"
 
     monkeypatch.setattr(
         video_presentation_tasks,
-        "_resolve_agent_billing_for_search_space",
+        "_resolve_agent_billing_for_workspace",
         _fake_resolver,
     )
     monkeypatch.setattr(
@@ -335,7 +335,7 @@ async def test_billing_settlement_failure_marks_video_failed(monkeypatch):
     result = await video_presentation_tasks._generate_video_presentation(
         video_presentation_id=14,
         source_content="content",
-        search_space_id=777,
+        workspace_id=777,
         user_prompt=None,
     )
 
@@ -360,12 +360,12 @@ async def test_resolver_failure_marks_video_failed(monkeypatch):
         lambda: _FakeSessionMaker(session),
     )
 
-    async def _failing_resolver(sess, search_space_id, *, thread_id=None):
-        raise ValueError("Search space 777 not found")
+    async def _failing_resolver(sess, workspace_id, *, thread_id=None):
+        raise ValueError("Workspace 777 not found")
 
     monkeypatch.setattr(
         video_presentation_tasks,
-        "_resolve_agent_billing_for_search_space",
+        "_resolve_agent_billing_for_workspace",
         _failing_resolver,
     )
 
@@ -384,7 +384,7 @@ async def test_resolver_failure_marks_video_failed(monkeypatch):
     result = await video_presentation_tasks._generate_video_presentation(
         video_presentation_id=13,
         source_content="content",
-        search_space_id=777,
+        workspace_id=777,
         user_prompt=None,
     )
 

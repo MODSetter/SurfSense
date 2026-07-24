@@ -40,13 +40,13 @@ class EventBus:
         event_type: str,
         payload: dict[str, Any] | None = None,
         *,
-        search_space_id: int,
+        workspace_id: int,
     ) -> None:
         """Stamp an :class:`Event` and fan it out. Call after your commit."""
         event = Event(
             event_type=event_type,
             payload=payload or {},
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
         await self.dispatch(event)
 

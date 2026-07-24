@@ -7,7 +7,7 @@ class PromptCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     prompt: str = Field(..., min_length=1)
     mode: str = Field(..., pattern="^(transform|explore)$")
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     is_public: bool = False
 
 
@@ -23,7 +23,7 @@ class PromptRead(BaseModel):
     name: str
     prompt: str
     mode: str
-    search_space_id: int | None
+    workspace_id: int | None
     is_public: bool
     version: int
     created_at: datetime

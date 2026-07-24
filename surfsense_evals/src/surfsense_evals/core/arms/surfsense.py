@@ -72,9 +72,7 @@ class SurfSenseArm(Arm):
                 try:
                     await self._client.delete_thread(thread_id)
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug(
-                        "Failed to delete thread %s: %s", thread_id, exc
-                    )
+                    logger.debug("Failed to delete thread %s: %s", thread_id, exc)
 
         letter = extract_answer_letter(answer.text)
         return ArmResult(

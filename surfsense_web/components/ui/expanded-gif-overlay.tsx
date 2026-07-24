@@ -91,4 +91,4 @@ const ExpandedGifOverlay = ExpandedMediaOverlay;
 /** @deprecated Use useExpandedMedia instead */
 const useExpandedGif = useExpandedMedia;
 
-export { ExpandedMediaOverlay, useExpandedMedia, ExpandedGifOverlay, useExpandedGif };
+export { ExpandedGifOverlay, ExpandedMediaOverlay, useExpandedGif, useExpandedMedia };

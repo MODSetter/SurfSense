@@ -7,6 +7,11 @@ retrieval are owned by the ``knowledge_base`` subagent and reached via the
 the main agent only sees the specialist's grounded summary. The stack here
 computes the workspace tree, commits any subagent-side staged writes at end of
 turn (cloud mode), and wires the supporting middleware.
+
+One deliberate, read-only exception to the pure-router stance: the main agent
+also carries the ``read_run``/``search_run`` tools (added in ``runtime/factory``)
+so it can follow the context-editing spill placeholder — evicted tool output is
+persisted to ``tool_output_spills`` and the placeholder advertises those tools.
 """
 
 from __future__ import annotations
@@ -99,7 +104,7 @@ def build_main_agent_deepagent_middleware(
     tools: Sequence[BaseTool],
     backend_resolver: Any,
     filesystem_mode: FilesystemMode,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     thread_id: int | None,
     visibility: ChatVisibility,
@@ -120,7 +125,7 @@ def build_main_agent_deepagent_middleware(
 
     memory_mw = build_memory_mw(
         user_id=user_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         visibility=visibility,
     )
 
@@ -232,19 +237,19 @@ def build_main_agent_deepagent_middleware(
         ),
         build_knowledge_tree_mw(
             filesystem_mode=filesystem_mode,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             llm=llm,
         ),
         build_kb_persistence_mw(
             filesystem_mode=filesystem_mode,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             thread_id=thread_id,
         ),
         build_skills_mw(
             flags=flags,
             filesystem_mode=filesystem_mode,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         ),
         SurfSenseCheckpointedSubAgentMiddleware(
             checkpointer=checkpointer,
@@ -252,7 +257,7 @@ def build_main_agent_deepagent_middleware(
             subagents=subagents,
             system_prompt=None,
             task_description=TASK_TOOL_DESCRIPTION,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         ),
         resilience.model_call_limit,
         resilience.tool_call_limit,
@@ -260,7 +265,7 @@ def build_main_agent_deepagent_middleware(
             flags=flags,
             max_input_tokens=max_input_tokens,
             tools=tools,
-            backend_resolver=backend_resolver,
+            workspace_id=workspace_id,
         ),
         build_compaction_mw(llm),
         build_noop_injection_mw(flags),
@@ -272,14 +277,14 @@ def build_main_agent_deepagent_middleware(
         build_action_log_mw(
             flags=flags,
             thread_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
         ),
         build_patch_tool_calls_mw(),
         build_dedup_hitl_mw(tools),
         *build_plugin_middlewares(
             flags=flags,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             visibility=visibility,
             llm=llm,

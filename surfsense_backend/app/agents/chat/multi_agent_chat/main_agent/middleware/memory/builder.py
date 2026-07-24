@@ -10,11 +10,11 @@ from .middleware import MemoryInjectionMiddleware
 def build_memory_mw(
     *,
     user_id: str | None,
-    search_space_id: int,
+    workspace_id: int,
     visibility: ChatVisibility,
 ) -> MemoryInjectionMiddleware:
     return MemoryInjectionMiddleware(
         user_id=user_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         thread_visibility=visibility,
     )

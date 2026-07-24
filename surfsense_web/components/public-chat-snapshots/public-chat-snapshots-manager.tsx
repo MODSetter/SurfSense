@@ -14,11 +14,21 @@ import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.ty
 import { PublicChatSnapshotsList } from "./public-chat-snapshots-list";
 
 interface PublicChatSnapshotsManagerProps {
-	searchSpaceId: number;
+	workspaceId: number;
 }
 
+const infoAlert = (
+	<Alert>
+		<Info />
+		<AlertDescription>
+			Public chats allow anyone with the URL to view a snapshot of a chat. They do not update when
+			the original chat changes.
+		</AlertDescription>
+	</Alert>
+);
+
 export function PublicChatSnapshotsManager({
-	searchSpaceId: _searchSpaceId,
+	workspaceId: _workspaceId,
 }: PublicChatSnapshotsManagerProps) {
 	const [deletingId, setDeletingId] = useState<number | undefined>();
 
@@ -81,14 +91,7 @@ export function PublicChatSnapshotsManager({
 	if (isLoading) {
 		return (
 			<div className="space-y-4 md:space-y-5">
-				<Alert>
-					<Info />
-					<AlertDescription>
-						<div className="flex min-h-[1.625em] items-center">
-							<Skeleton className="h-4 w-60 bg-accent-foreground/15" />
-						</div>
-					</AlertDescription>
-				</Alert>
+				{infoAlert}
 
 				{/* Cards grid skeleton */}
 				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
@@ -125,7 +128,7 @@ export function PublicChatSnapshotsManager({
 			<Alert>
 				<Info />
 				<AlertDescription>
-					You don't have permission to view public chats in this search space.
+					You don't have permission to view public chats in this workspace.
 				</AlertDescription>
 			</Alert>
 		);
@@ -135,13 +138,7 @@ export function PublicChatSnapshotsManager({
 
 	return (
 		<div className="space-y-4 md:space-y-5">
-			<Alert>
-				<Info />
-				<AlertDescription>
-					Public chats allow anyone with the URL to view a snapshot of a chat. They do not update
-					when the original chat changes.
-				</AlertDescription>
-			</Alert>
+			{infoAlert}
 
 			<PublicChatSnapshotsList
 				snapshots={snapshots}

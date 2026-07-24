@@ -49,7 +49,7 @@ class CommentReplyNotificationHandler(BaseNotificationHandler):
         author_avatar_url: str | None,
         author_email: str,
         content_preview: str,
-        search_space_id: int,
+        workspace_id: int,
     ) -> Notification:
         """Notify of a reply; idempotent on ``reply_id`` per user."""
         existing = await self.find_notification_by_reply(session, reply_id, user_id)
@@ -78,7 +78,7 @@ class CommentReplyNotificationHandler(BaseNotificationHandler):
         try:
             notification = Notification(
                 user_id=user_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 type=self.notification_type,
                 title=title,
                 message=message,

@@ -47,9 +47,7 @@ def _row_key(row: dict) -> tuple[str, str]:
 def _is_failure(row: dict) -> bool:
     if row.get("error"):
         return True
-    if not (row.get("raw_text") or "").strip():
-        return True
-    return False
+    return bool(not (row.get("raw_text") or "").strip())
 
 
 def _summarise(rows_by_arm: dict[str, list[dict]]) -> dict[str, dict]:
@@ -80,9 +78,11 @@ def _print_table(title: str, summary: dict[str, dict]) -> None:
     # stable order: highest accuracy first
     arms_sorted = sorted(summary.items(), key=lambda kv: -kv[1]["accuracy"])
     for arm, s in arms_sorted:
-        print(f"{arm:<25} {s['n']:>4} {s['n_correct']:>7} "
-              f"{s['accuracy']*100:>6.1f}% {s['f1_mean']*100:>6.1f}% "
-              f"{s['n_failures']:>6} {s['failure_rate']*100:>6.1f}%")
+        print(
+            f"{arm:<25} {s['n']:>4} {s['n_correct']:>7} "
+            f"{s['accuracy'] * 100:>6.1f}% {s['f1_mean'] * 100:>6.1f}% "
+            f"{s['n_failures']:>6} {s['failure_rate'] * 100:>6.1f}%"
+        )
 
 
 def main() -> int:
@@ -105,9 +105,7 @@ def main() -> int:
     raw_rows = _read_jsonl(raw_path)
     retry_rows = _read_jsonl(retry_path)
 
-    retry_by_key: dict[tuple[str, str], dict] = {
-        _row_key(r): r for r in retry_rows
-    }
+    retry_by_key: dict[tuple[str, str], dict] = {_row_key(r): r for r in retry_rows}
 
     merged_rows: list[dict] = []
     n_replaced_recovered = 0

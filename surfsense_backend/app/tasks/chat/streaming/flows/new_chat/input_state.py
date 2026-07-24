@@ -64,7 +64,7 @@ async def build_new_chat_input_state(
     session: AsyncSession,
     *,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_query: str,
     user_image_data_urls: list[str] | None,
     mentioned_document_ids: list[int] | None,
@@ -110,7 +110,7 @@ async def build_new_chat_input_state(
 
     agent_user_query, accepted_folder_ids = await _resolve_mentions_for_query(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_query=user_query,
         filesystem_mode=filesystem_mode,
         mentioned_document_ids=mentioned_document_ids,
@@ -122,7 +122,7 @@ async def build_new_chat_input_state(
     # filesystem mode (unlike the doc/folder mention substitution above).
     referenced_chats = await resolve_referenced_chats(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         requesting_user_id=requesting_user_id,
         current_chat_id=chat_id,
         mentioned_thread_ids=mentioned_thread_ids,
@@ -146,7 +146,7 @@ async def build_new_chat_input_state(
 
     input_state = {
         "messages": langchain_messages,
-        "search_space_id": search_space_id,
+        "workspace_id": workspace_id,
         "request_id": request_id or "unknown",
         "turn_id": turn_id,
     }
@@ -160,7 +160,7 @@ async def build_new_chat_input_state(
 async def _resolve_mentions_for_query(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     user_query: str,
     filesystem_mode: str,
     mentioned_document_ids: list[int] | None,
@@ -206,7 +206,7 @@ async def _resolve_mentions_for_query(
 
     resolved = await resolve_mentions(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         mentioned_documents=chip_objs,
         mentioned_document_ids=mentioned_document_ids,
         mentioned_folder_ids=mentioned_folder_ids,

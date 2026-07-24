@@ -74,7 +74,17 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case EnumConnectorName.CIRCLEBACK_CONNECTOR:
 			return <Image src="/connectors/circleback.svg" alt="Circleback" {...imgProps} />;
 		case EnumConnectorName.MCP_CONNECTOR:
-			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
+			// Masked so the black glyph inherits currentColor (white in dark mode).
+			return (
+				<span
+					aria-hidden="true"
+					className={`${className || "h-5 w-5"} bg-current select-none pointer-events-none`}
+					style={{
+						mask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+						WebkitMask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
+					}}
+				/>
+			);
 		case EnumConnectorName.OBSIDIAN_CONNECTOR:
 			return <Image src="/connectors/obsidian.svg" alt="Obsidian" {...imgProps} />;
 		case EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:

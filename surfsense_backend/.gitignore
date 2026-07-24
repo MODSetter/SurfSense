@@ -16,3 +16,7 @@ celerybeat-schedule.dir
 celerybeat-schedule.bak
 /app/config/global_llm_config.yaml
 app/templates/_generated/
+
+/tests/unit/platforms/instagram/fixtures/post.json
+/tests/unit/platforms/instagram/fixtures/profile.json
+/tests/unit/platforms/instagram/fixtures/tagged.json

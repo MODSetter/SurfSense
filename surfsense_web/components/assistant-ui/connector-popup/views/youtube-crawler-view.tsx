@@ -38,11 +38,11 @@ function extractYoutubeUrls(text: string): string[] {
 }
 
 interface YouTubeCrawlerViewProps {
-	searchSpaceId: string;
+	workspaceId: string;
 	onBack: () => void;
 }
 
-export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId, onBack }) => {
+export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ workspaceId, onBack }) => {
 	const t = useTranslations("add_youtube");
 	const [videoTags, setVideoTags] = useState<TagType[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
@@ -165,7 +165,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			{
 				document_type: "YOUTUBE_VIDEO",
 				content: videoUrls,
-				search_space_id: parseInt(searchSpaceId, 10),
+				workspace_id: parseInt(workspaceId, 10),
 			},
 			{
 				onSuccess: () => {
@@ -216,7 +216,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Header */}
-			<div className="shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
+			<div className="shrink-0">
 				<Button
 					variant="ghost"
 					type="button"
@@ -239,7 +239,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			</div>
 
 			{/* Form Content - Scrollable */}
-			<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-12">
+			<div className="flex-1 min-h-0 overflow-y-auto">
 				<div className="space-y-4 pb-6">
 					<div className="space-y-2">
 						<Label htmlFor="video-input" className="text-sm sm:text-base">
@@ -325,7 +325,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-popover">
+			<div className="shrink-0 flex items-center justify-between py-6 bg-transparent">
 				<Button
 					variant="ghost"
 					onClick={onBack}

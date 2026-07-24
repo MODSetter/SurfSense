@@ -45,10 +45,7 @@ def format_scenario_md(extra: Mapping[str, Any] | None) -> str:
             "(text-only model can't see images) — that's the point."
         )
     else:
-        body = (
-            f"- Scenario: head-to-head — both arms answer with `{surf_slug}` "
-            "via OpenRouter."
-        )
+        body = f"- Scenario: head-to-head — both arms answer with `{surf_slug}` via OpenRouter."
         if vision_slug:
             body += f" SurfSense ingest VLM: `{vision_slug}`."
 

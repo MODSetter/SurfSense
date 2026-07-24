@@ -11,7 +11,7 @@ from app.agents.chat.multi_agent_chat.main_agent.skills.backends import (
     SKILLS_BUILTIN_PREFIX,
     SKILLS_SPACE_PREFIX,
     BuiltinSkillsBackend,
-    SearchSpaceSkillsBackend,
+    WorkspaceSkillsBackend,
     build_skills_backend_factory,
     default_skills_sources,
 )
@@ -176,7 +176,7 @@ class _FakeKBBackend:
         return out
 
 
-class TestSearchSpaceSkillsBackend:
+class TestWorkspaceSkillsBackend:
     def test_remaps_paths_when_listing(self) -> None:
         listing = [
             {"path": "/documents/_skills/policy", "is_dir": True},
@@ -184,7 +184,7 @@ class TestSearchSpaceSkillsBackend:
             {"path": "/documents/other-folder/x.md", "is_dir": False},
         ]
         kb = _FakeKBBackend(listing=listing, file_contents={})
-        backend = SearchSpaceSkillsBackend(kb)
+        backend = WorkspaceSkillsBackend(kb)
         infos = asyncio.run(backend.als_info("/"))
         assert kb.last_ls_path == "/documents/_skills"
         paths = [info["path"] for info in infos]
@@ -200,7 +200,7 @@ class TestSearchSpaceSkillsBackend:
                 "/documents/_skills/policy/SKILL.md": b"---\nname: policy\n---\n",
             },
         )
-        backend = SearchSpaceSkillsBackend(kb)
+        backend = WorkspaceSkillsBackend(kb)
         responses = asyncio.run(backend.adownload_files(["/policy/SKILL.md"]))
         assert kb.last_download_paths == ["/documents/_skills/policy/SKILL.md"]
         assert responses[0].path == "/policy/SKILL.md"
@@ -208,7 +208,7 @@ class TestSearchSpaceSkillsBackend:
         assert responses[0].content is not None
 
     def test_sync_methods_raise_not_implemented(self) -> None:
-        backend = SearchSpaceSkillsBackend(_FakeKBBackend([], {}))
+        backend = WorkspaceSkillsBackend(_FakeKBBackend([], {}))
         with pytest.raises(NotImplementedError):
             backend.ls_info("/")
         with pytest.raises(NotImplementedError):
@@ -221,7 +221,7 @@ class TestSearchSpaceSkillsBackend:
             ],
             file_contents={},
         )
-        backend = SearchSpaceSkillsBackend(kb, kb_root="/skills_admin")
+        backend = WorkspaceSkillsBackend(kb, kb_root="/skills_admin")
         infos = asyncio.run(backend.als_info("/"))
         assert kb.last_ls_path == "/skills_admin"
         assert infos[0]["path"] == "/x"

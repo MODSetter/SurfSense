@@ -61,7 +61,7 @@ def _dcg_at_k(grades: Sequence[float], k: int) -> float:
     s = 0.0
     for i, grade in enumerate(grades[:k], start=1):
         # Standard log-base-2 discount; gain = 2^grade - 1 for graded relevance.
-        s += (2.0 ** grade - 1.0) / math.log2(i + 1)
+        s += (2.0**grade - 1.0) / math.log2(i + 1)
     return s
 
 
@@ -106,7 +106,9 @@ def score_run(
 
     qids = set(per_query_qrels.keys()) & set(per_query_retrieved.keys())
     if not qids:
-        return RetrievalScores(recall_at_k={k: 0.0 for k in ks}, mrr=0.0, ndcg_at_10=0.0, n_queries=0)
+        return RetrievalScores(
+            recall_at_k={k: 0.0 for k in ks}, mrr=0.0, ndcg_at_10=0.0, n_queries=0
+        )
 
     recall_totals = {k: 0.0 for k in ks}
     mrr_total = 0.0

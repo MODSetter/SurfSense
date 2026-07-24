@@ -28,7 +28,7 @@ export const connectionRead = z.object({
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: z.union([connectionScopeEnum, z.string()]),
-	search_space_id: z.number().nullable().optional(),
+	workspace_id: z.number().nullable().optional(),
 	user_id: z.string().nullable().optional(),
 	enabled: z.boolean(),
 	has_api_key: z.boolean(),
@@ -57,7 +57,7 @@ export const connectionCreateRequest = z.object({
 	api_key: z.string().nullable().optional(),
 	extra: z.record(z.string(), z.any()).default({}),
 	scope: connectionScopeEnum.default("SEARCH_SPACE"),
-	search_space_id: z.number().nullable().optional(),
+	workspace_id: z.number().nullable().optional(),
 	enabled: z.boolean().default(true),
 	models: z.array(modelSelection).default([]),
 });
@@ -106,6 +106,13 @@ export const globalLlmConfigStatus = z.object({
 	exists: z.boolean(),
 });
 
+export const llmSetupStatus = z.object({
+	status: z.enum(["ready", "needs_setup"]),
+	source: z.enum(["global_config", "models", "none"]),
+	can_configure: z.boolean(),
+	stage: z.enum(["initial_setup", "recovery", "ready"]),
+});
+
 export const modelProviderRead = z.object({
 	provider: z.string(),
 	transport: z.string(),
@@ -134,5 +141,6 @@ export type ModelUpdateRequest = z.infer<typeof modelUpdateRequest>;
 export type ModelsBulkUpdateRequest = z.infer<typeof modelsBulkUpdateRequest>;
 export type ModelRoles = z.infer<typeof modelRoles>;
 export type GlobalLlmConfigStatus = z.infer<typeof globalLlmConfigStatus>;
+export type LlmSetupStatus = z.infer<typeof llmSetupStatus>;
 export type VerifyConnectionResponse = z.infer<typeof verifyConnectionResponse>;
 export type ModelProviderRead = z.infer<typeof modelProviderRead>;

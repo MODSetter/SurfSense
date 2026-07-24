@@ -51,7 +51,7 @@ def _build_connector_doc(
     event_markdown: str,
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     """Map a raw Google Calendar API event dict to a ConnectorDocument."""
@@ -82,7 +82,7 @@ def _build_connector_doc(
         source_markdown=event_markdown,
         unique_id=event_id,
         document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata=metadata,
@@ -92,7 +92,7 @@ def _build_connector_doc(
 async def index_google_calendar_events(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -105,7 +105,7 @@ async def index_google_calendar_events(
     Args:
         session: Database session
         connector_id: ID of the Google Calendar connector
-        search_space_id: ID of the search space to store documents in
+        workspace_id: ID of the workspace to store documents in
         user_id: User ID
         start_date: Start date for indexing (YYYY-MM-DD format). Can be in the past or future.
         end_date: End date for indexing (YYYY-MM-DD format). Can be in the future to index upcoming events.
@@ -116,7 +116,7 @@ async def index_google_calendar_events(
     Returns:
         Tuple containing (number of documents indexed, number of documents skipped, error message or None)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     log_entry = await task_logger.log_task_start(
         task_name="google_calendar_events_indexing",
@@ -374,7 +374,7 @@ async def index_google_calendar_events(
                 title=event.get("summary", "No Title"),
                 document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
                 unique_id=event.get("id", ""),
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 created_by_id=user_id,
                 metadata={
@@ -413,7 +413,7 @@ async def index_google_calendar_events(
                     event,
                     event_markdown,
                     connector_id=connector_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
 
@@ -462,7 +462,7 @@ async def index_google_calendar_events(
             await mark_connector_documents_failed(
                 session,
                 document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 failures=stuck_placeholders,
             )
 

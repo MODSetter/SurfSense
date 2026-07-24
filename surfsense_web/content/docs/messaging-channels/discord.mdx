@@ -64,7 +64,7 @@ callback.
 
 1. Discord sends a `MESSAGE_CREATE` event over its WebSocket API.
 2. SurfSense stores the event in the durable gateway inbox.
-3. SurfSense resolves the Discord user binding to a SurfSense user and search space.
+3. SurfSense resolves the Discord user binding to a SurfSense user and workspace.
 4. SurfSense runs the backend agent with that user's permissions.
 5. The agent reply is posted back to the same Discord channel.
 

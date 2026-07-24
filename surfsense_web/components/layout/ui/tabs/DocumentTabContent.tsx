@@ -48,7 +48,7 @@ function DocumentSkeleton() {
 
 interface DocumentTabContentProps {
 	documentId: number;
-	searchSpaceId: number;
+	workspaceId: number;
 	title?: string;
 }
 
@@ -69,7 +69,7 @@ function formatBytes(bytes: number): string {
 	return `${bytes}B`;
 }
 
-export function DocumentTabContent({ documentId, searchSpaceId, title }: DocumentTabContentProps) {
+export function DocumentTabContent({ documentId, workspaceId, title }: DocumentTabContentProps) {
 	const [doc, setDoc] = useState<DocumentContent | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -104,7 +104,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 			try {
 				const response = await authenticatedFetch(
 					buildBackendUrl(
-						`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`
+						`/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content`
 					),
 					{ method: "GET" }
 				);
@@ -140,7 +140,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 
 		doFetch().catch(() => {});
 		return () => controller.abort();
-	}, [documentId, searchSpaceId]);
+	}, [documentId, workspaceId]);
 
 	const handleMarkdownChange = useCallback((md: string) => {
 		markdownRef.current = md;
@@ -154,7 +154,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		setSaving(true);
 		try {
 			const response = await authenticatedFetch(
-				buildBackendUrl(`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`),
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/save`),
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -183,7 +183,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 		} finally {
 			setSaving(false);
 		}
-	}, [documentId, plateMaxBytes, searchSpaceId]);
+	}, [documentId, plateMaxBytes, workspaceId]);
 
 	if (isLoading) return <DocumentSkeleton />;
 
@@ -313,7 +313,7 @@ export function DocumentTabContent({ documentId, searchSpaceId, title }: Documen
 										try {
 											const response = await authenticatedFetch(
 												buildBackendUrl(
-													`/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/download-markdown`
+													`/api/v1/workspaces/${workspaceId}/documents/${documentId}/download-markdown`
 												),
 												{ method: "GET" }
 											);

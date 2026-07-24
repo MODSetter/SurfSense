@@ -99,7 +99,7 @@ class TestResolveMentions:
         session.execute = AsyncMock()
         result = await resolve_mentions(
             session,
-            search_space_id=1,
+            workspace_id=1,
             mentioned_documents=None,
         )
         assert isinstance(result, ResolvedMentionSet)
@@ -134,7 +134,7 @@ class TestResolveMentions:
 
         out = await resolve_mentions(
             session,
-            search_space_id=5,
+            workspace_id=5,
             mentioned_documents=[chip],
         )
         assert len(out.mentions) == 1
@@ -170,7 +170,7 @@ class TestResolveMentions:
 
         out = await resolve_mentions(
             session,
-            search_space_id=3,
+            workspace_id=3,
             mentioned_documents=[chip],
         )
         assert len(out.mentions) == 1
@@ -201,7 +201,7 @@ class TestResolveMentions:
 
         out = await resolve_mentions(
             session,
-            search_space_id=1,
+            workspace_id=1,
             mentioned_documents=[chip],
         )
         assert out.mentions == []
@@ -238,7 +238,7 @@ class TestResolveMentions:
 
         out = await resolve_mentions(
             session,
-            search_space_id=1,
+            workspace_id=1,
             mentioned_documents=[chip_short, chip_long],
         )
         tokens = [tok for tok, _ in out.token_to_path]
@@ -265,7 +265,7 @@ class TestResolveMentions:
 
         out = await resolve_mentions(
             session,
-            search_space_id=2,
+            workspace_id=2,
             mentioned_documents=None,
             mentioned_document_ids=[7],
         )

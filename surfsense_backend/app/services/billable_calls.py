@@ -117,7 +117,7 @@ async def _record_audit_best_effort(
     *,
     session_factory: BillableSessionFactory,
     usage_type: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: UUID,
     prompt_tokens: int,
     completion_tokens: int,
@@ -156,7 +156,7 @@ async def _record_audit_best_effort(
                 await record_token_usage(
                     audit_session,
                     usage_type=usage_type,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
@@ -217,7 +217,7 @@ async def _record_audit_best_effort(
 async def billable_call(
     *,
     user_id: UUID,
-    search_space_id: int,
+    workspace_id: int,
     billing_tier: str,
     base_model: str,
     quota_reserve_tokens: int | None = None,
@@ -233,9 +233,9 @@ async def billable_call(
 
     Args:
         user_id: Owner of the credit pool to debit. For vision-LLM during
-            indexing this is the *search-space owner* (issue M), not the
+            indexing this is the *workspace owner* (issue M), not the
             triggering user.
-        search_space_id: Required — recorded on the ``TokenUsage`` audit row.
+        workspace_id: Required — recorded on the ``TokenUsage`` audit row.
         billing_tier: ``"premium"`` debits; anything else (``"free"``) skips
             the reserve/finalize dance but still records an audit row with
             the captured cost.
@@ -281,7 +281,7 @@ async def billable_call(
                 await _record_audit_best_effort(
                     session_factory=session_factory,
                     usage_type=usage_type,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                     prompt_tokens=acc.total_prompt_tokens,
                     completion_tokens=acc.total_completion_tokens,
@@ -423,7 +423,7 @@ async def billable_call(
         await _record_audit_best_effort(
             session_factory=session_factory,
             usage_type=usage_type,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             prompt_tokens=acc.total_prompt_tokens,
             completion_tokens=acc.total_completion_tokens,
@@ -438,21 +438,21 @@ async def billable_call(
         )
 
 
-async def _resolve_agent_billing_for_search_space(
+async def _resolve_agent_billing_for_workspace(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     *,
     thread_id: int | None = None,
 ) -> tuple[UUID, str, str]:
-    """Resolve ``(owner_user_id, billing_tier, base_model)`` for the search-space
+    """Resolve ``(owner_user_id, billing_tier, base_model)`` for the workspace
     chat model.
 
     Used by Celery tasks (podcast generation, video presentation) to bill the
-    search-space owner's premium credit pool when the chat model is premium.
+    workspace owner's premium credit pool when the chat model is premium.
 
     Resolution rules mirror the chat model role resolver:
 
-    - Search space not found / no ``chat_model_id``: raise ``ValueError``.
+    - Workspace not found / no ``chat_model_id``: raise ``ValueError``.
     - **Auto mode** (``id == AUTO_MODE_ID == 0``):
         * ``thread_id`` is set: delegate to
           ``resolve_or_get_pinned_llm_config_id`` (the same call chat uses) and
@@ -481,22 +481,20 @@ async def _resolve_agent_billing_for_search_space(
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
-    from app.db import Model, SearchSpace
+    from app.db import Model, Workspace
 
     result = await session.execute(
-        select(SearchSpace).where(SearchSpace.id == search_space_id)
+        select(Workspace).where(Workspace.id == workspace_id)
     )
-    search_space = result.scalars().first()
-    if search_space is None:
-        raise ValueError(f"Search space {search_space_id} not found")
+    workspace = result.scalars().first()
+    if workspace is None:
+        raise ValueError(f"Workspace {workspace_id} not found")
 
-    chat_model_id = search_space.chat_model_id
+    chat_model_id = workspace.chat_model_id
     if chat_model_id is None:
-        raise ValueError(
-            f"Search space {search_space_id} has no chat_model_id configured"
-        )
+        raise ValueError(f"Workspace {workspace_id} has no chat_model_id configured")
 
-    owner_user_id: UUID = search_space.user_id
+    owner_user_id: UUID = workspace.user_id
 
     from app.services.auto_model_pin_service import (
         AUTO_MODE_ID,
@@ -510,15 +508,15 @@ async def _resolve_agent_billing_for_search_space(
             resolution = await resolve_or_get_pinned_llm_config_id(
                 session,
                 thread_id=thread_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=str(owner_user_id),
                 selected_llm_config_id=AUTO_MODE_ID,
             )
         except ValueError:
             logger.warning(
                 "[agent_billing] Auto-mode pin resolution failed for "
-                "search_space=%s thread=%s; falling back to free",
-                search_space_id,
+                "workspace=%s thread=%s; falling back to free",
+                workspace_id,
                 thread_id,
                 exc_info=True,
             )
@@ -546,7 +544,7 @@ async def _resolve_agent_billing_for_search_space(
         and model.connection is not None
         and model.connection.enabled
         and (
-            model.connection.search_space_id in (None, search_space_id)
+            model.connection.workspace_id in (None, workspace_id)
             and model.connection.user_id in (None, owner_user_id)
         )
     ):
@@ -558,7 +556,7 @@ async def _resolve_agent_billing_for_search_space(
 __all__ = [
     "BillingSettlementError",
     "QuotaInsufficientError",
-    "_resolve_agent_billing_for_search_space",
+    "_resolve_agent_billing_for_workspace",
     "billable_call",
 ]
 

@@ -19,7 +19,7 @@ from app.podcasts.service import PodcastService, read_spec
 from app.services.billable_calls import (
     BillingSettlementError,
     QuotaInsufficientError,
-    _resolve_agent_billing_for_search_space,
+    _resolve_agent_billing_for_workspace,
     billable_call,
 )
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -31,10 +31,10 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="podcast.draft_transcript", bind=True)
-def draft_transcript_task(self, podcast_id: int, search_space_id: int) -> dict:
+def draft_transcript_task(self, podcast_id: int, workspace_id: int) -> dict:
     try:
         return run_async_celery_task(
-            lambda: _draft_transcript(podcast_id, search_space_id)
+            lambda: _draft_transcript(podcast_id, workspace_id)
         )
     except Exception as exc:
         logger.error("Podcast %s drafting failed: %s", podcast_id, exc)
@@ -43,7 +43,7 @@ def draft_transcript_task(self, podcast_id: int, search_space_id: int) -> dict:
         return {"status": "failed", "podcast_id": podcast_id}
 
 
-async def _draft_transcript(podcast_id: int, search_space_id: int) -> dict:
+async def _draft_transcript(podcast_id: int, workspace_id: int) -> dict:
     async with get_celery_session_maker()() as session:
         repo = PodcastRepository(session)
         service = PodcastService(session)
@@ -55,8 +55,8 @@ async def _draft_transcript(podcast_id: int, search_space_id: int) -> dict:
         if spec is None:
             raise ValueError(f"podcast {podcast_id} has no approved brief")
 
-        owner_id, tier, base_model = await _resolve_agent_billing_for_search_space(
-            session, search_space_id, thread_id=podcast.thread_id
+        owner_id, tier, base_model = await _resolve_agent_billing_for_workspace(
+            session, workspace_id, thread_id=podcast.thread_id
         )
 
         state = TranscriptState(
@@ -64,7 +64,7 @@ async def _draft_transcript(podcast_id: int, search_space_id: int) -> dict:
         )
         config = {
             "configurable": {
-                "search_space_id": search_space_id,
+                "workspace_id": workspace_id,
                 "spec": spec,
                 "focus": spec.focus,
             }
@@ -73,7 +73,7 @@ async def _draft_transcript(podcast_id: int, search_space_id: int) -> dict:
         try:
             async with billable_call(
                 user_id=owner_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 billing_tier=tier,
                 base_model=base_model,
                 quota_reserve_micros_override=app_config.QUOTA_DEFAULT_PODCAST_RESERVE_MICROS,

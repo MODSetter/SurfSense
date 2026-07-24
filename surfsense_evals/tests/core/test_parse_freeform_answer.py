@@ -44,11 +44,14 @@ class TestExtractFreeformAnswer:
         assert extract_freeform_answer("ANSWER: yes") == "yes"
         assert extract_freeform_answer("answer: no") == "no"
 
-    @pytest.mark.parametrize("text,expected", [
-        ("Answer: 1, 2, 3", "1, 2, 3"),
-        ("Answer: 3.14", "3.14"),
-        ("Answer:    spaced   ", "spaced"),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("Answer: 1, 2, 3", "1, 2, 3"),
+            ("Answer: 3.14", "3.14"),
+            ("Answer:    spaced   ", "spaced"),
+        ],
+    )
     def test_various_payloads(self, text: str, expected: str) -> None:
         assert extract_freeform_answer(text) == expected
 

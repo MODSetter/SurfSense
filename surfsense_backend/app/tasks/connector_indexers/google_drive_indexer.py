@@ -273,7 +273,7 @@ def _build_drive_client_for_connector(
 async def _should_skip_file(
     session: AsyncSession,
     file: dict,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[bool, str | None]:
     """Pre-filter: detect unchanged / rename-only files.
 
@@ -295,13 +295,13 @@ async def _should_skip_file(
 
     # --- locate existing document ---
     primary_hash = compute_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, search_space_id
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, workspace_id
     )
     existing = await check_document_by_unique_identifier(session, primary_hash)
 
     if not existing:
         legacy_hash = compute_identifier_hash(
-            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR.value, file_id, search_space_id
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR.value, file_id, workspace_id
         )
         existing = await check_document_by_unique_identifier(session, legacy_hash)
         if existing:
@@ -313,7 +313,7 @@ async def _should_skip_file(
     if not existing:
         result = await session.execute(
             select(Document).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.document_type.in_(
                     [
                         DocumentType.GOOGLE_DRIVE_FILE,
@@ -385,7 +385,7 @@ def _build_connector_doc(
     drive_metadata: dict,
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     """Build a ConnectorDocument from Drive file metadata + extracted markdown."""
@@ -404,7 +404,7 @@ def _build_connector_doc(
         source_markdown=markdown,
         unique_id=file_id,
         document_type=DocumentType.GOOGLE_DRIVE_FILE,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata=metadata,
@@ -416,7 +416,7 @@ async def _create_drive_placeholders(
     files: list[dict],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> None:
     """Create placeholder document rows for discovered Drive files.
@@ -438,7 +438,7 @@ async def _create_drive_placeholders(
                 title=file_name,
                 document_type=DocumentType.GOOGLE_DRIVE_FILE,
                 unique_id=file_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 created_by_id=user_id,
                 metadata={
@@ -460,7 +460,7 @@ async def _download_files_parallel(
     files: list[dict],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
@@ -494,7 +494,7 @@ async def _download_files_parallel(
                 markdown,
                 drive_metadata,
                 connector_id=connector_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
             )
             async with hb_lock:
@@ -538,7 +538,7 @@ async def _process_single_file(
     session: AsyncSession,
     file: dict,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     vision_llm=None,
 ) -> tuple[int, int, int]:
@@ -549,7 +549,7 @@ async def _process_single_file(
     file_name = file.get("name", "Unknown")
 
     try:
-        skip, msg = await _should_skip_file(session, file, search_space_id)
+        skip, msg = await _should_skip_file(session, file, workspace_id)
         if skip:
             if msg and "renamed" in msg.lower():
                 return 1, 0, 0
@@ -572,7 +572,7 @@ async def _process_single_file(
                 await mark_connector_documents_failed(
                     session,
                     document_type=DocumentType.GOOGLE_DRIVE_FILE,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     failures=[(file_id, f"Download/ETL failed: {reason}")],
                 )
             return 0, 1, 0
@@ -582,7 +582,7 @@ async def _process_single_file(
             markdown,
             drive_metadata,
             connector_id=connector_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
         )
 
@@ -611,23 +611,23 @@ async def _process_single_file(
         return 0, 0, 1
 
 
-async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
+async def _remove_document(session: AsyncSession, file_id: str, workspace_id: int):
     """Remove a document that was deleted in Drive."""
     primary_hash = compute_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, search_space_id
+        DocumentType.GOOGLE_DRIVE_FILE.value, file_id, workspace_id
     )
     existing = await check_document_by_unique_identifier(session, primary_hash)
 
     if not existing:
         legacy_hash = compute_identifier_hash(
-            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR.value, file_id, search_space_id
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR.value, file_id, workspace_id
         )
         existing = await check_document_by_unique_identifier(session, legacy_hash)
 
     if not existing:
         result = await session.execute(
             select(Document).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.document_type.in_(
                     [
                         DocumentType.GOOGLE_DRIVE_FILE,
@@ -651,7 +651,7 @@ async def _download_and_index(
     files: list[dict],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -664,7 +664,7 @@ async def _download_and_index(
         drive_client,
         files,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
@@ -676,7 +676,7 @@ async def _download_and_index(
         await mark_connector_documents_failed(
             session,
             document_type=DocumentType.GOOGLE_DRIVE_FILE,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             failures=failed_files,
         )
 
@@ -699,7 +699,7 @@ async def _index_selected_files(
     file_ids: list[tuple[str, str | None]],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -728,7 +728,7 @@ async def _index_selected_files(
             errors.append(f"File '{display}': {error or 'File not found'}")
             continue
 
-        skip, msg = await _should_skip_file(session, file, search_space_id)
+        skip, msg = await _should_skip_file(session, file, workspace_id)
         if skip:
             if msg and msg.startswith("unsupported:"):
                 unsupported_count += 1
@@ -757,7 +757,7 @@ async def _index_selected_files(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
     )
 
@@ -766,7 +766,7 @@ async def _index_selected_files(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
@@ -791,7 +791,7 @@ async def _index_full_scan(
     session: AsyncSession,
     connector: object,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_id: str | None,
     folder_name: str,
@@ -865,7 +865,7 @@ async def _index_full_scan(
 
                 files_processed += 1
 
-                skip, msg = await _should_skip_file(session, file, search_space_id)
+                skip, msg = await _should_skip_file(session, file, workspace_id)
                 if skip:
                     if msg and msg.startswith("unsupported:"):
                         unsupported_count += 1
@@ -920,7 +920,7 @@ async def _index_full_scan(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
     )
 
@@ -932,7 +932,7 @@ async def _index_full_scan(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
@@ -957,7 +957,7 @@ async def _index_with_delta_sync(
     session: AsyncSession,
     connector: object,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_id: str | None,
     start_page_token: str,
@@ -1018,14 +1018,14 @@ async def _index_with_delta_sync(
         if change_type in ["removed", "trashed"]:
             fid = change.get("fileId")
             if fid:
-                await _remove_document(session, fid, search_space_id)
+                await _remove_document(session, fid, workspace_id)
             continue
 
         file = change.get("file")
         if not file:
             continue
 
-        skip, msg = await _should_skip_file(session, file, search_space_id)
+        skip, msg = await _should_skip_file(session, file, workspace_id)
         if skip:
             if msg and msg.startswith("unsupported:"):
                 unsupported_count += 1
@@ -1062,7 +1062,7 @@ async def _index_with_delta_sync(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
     )
 
@@ -1074,7 +1074,7 @@ async def _index_with_delta_sync(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
@@ -1102,7 +1102,7 @@ async def _index_with_delta_sync(
 async def index_google_drive_files(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_id: str | None = None,
     folder_name: str | None = None,
@@ -1116,7 +1116,7 @@ async def index_google_drive_files(
 
     Returns (indexed, skipped, error_or_none, unsupported_count).
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_files_indexing",
         source="connector_indexing_task",
@@ -1166,7 +1166,7 @@ async def index_google_drive_files(
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
 
-            vision_llm = await get_vision_llm(session, search_space_id)
+            vision_llm = await get_vision_llm(session, workspace_id)
         if not folder_id:
             error_msg = "folder_id is required for Google Drive indexing"
             await task_logger.log_task_failure(
@@ -1198,7 +1198,7 @@ async def index_google_drive_files(
                 session,
                 connector,
                 connector_id,
-                search_space_id,
+                workspace_id,
                 user_id,
                 target_folder_id,
                 start_page_token,
@@ -1216,7 +1216,7 @@ async def index_google_drive_files(
                 session,
                 connector,
                 connector_id,
-                search_space_id,
+                workspace_id,
                 user_id,
                 target_folder_id,
                 target_folder_name,
@@ -1241,7 +1241,7 @@ async def index_google_drive_files(
                 session,
                 connector,
                 connector_id,
-                search_space_id,
+                workspace_id,
                 user_id,
                 target_folder_id,
                 target_folder_name,
@@ -1317,13 +1317,13 @@ async def index_google_drive_files(
 async def index_google_drive_single_file(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     file_id: str,
     file_name: str | None = None,
 ) -> tuple[int, str | None]:
     """Index a single Google Drive file by its ID."""
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_single_file_indexing",
         source="connector_indexing_task",
@@ -1366,7 +1366,7 @@ async def index_google_drive_single_file(
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
 
-            vision_llm = await get_vision_llm(session, search_space_id)
+            vision_llm = await get_vision_llm(session, workspace_id)
         file, error = await get_file_by_id(drive_client, file_id)
         if error or not file:
             error_msg = f"Failed to fetch file {file_id}: {error or 'File not found'}"
@@ -1382,7 +1382,7 @@ async def index_google_drive_single_file(
             session,
             file,
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             vision_llm=vision_llm,
         )
@@ -1430,7 +1430,7 @@ async def index_google_drive_single_file(
 async def index_google_drive_selected_files(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     files: list[tuple[str, str | None]],
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
@@ -1442,7 +1442,7 @@ async def index_google_drive_selected_files(
 
     Returns (indexed_count, skipped_count, errors).
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_selected_files_indexing",
         source="connector_indexing_task",
@@ -1485,13 +1485,13 @@ async def index_google_drive_selected_files(
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
 
-            vision_llm = await get_vision_llm(session, search_space_id)
+            vision_llm = await get_vision_llm(session, workspace_id)
         indexed, skipped, unsupported, errors = await _index_selected_files(
             drive_client,
             session,
             files,
             connector_id=connector_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             on_heartbeat=on_heartbeat_callback,
             vision_llm=vision_llm,

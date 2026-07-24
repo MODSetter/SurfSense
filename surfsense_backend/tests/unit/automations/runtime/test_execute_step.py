@@ -34,7 +34,7 @@ def _action_context() -> ActionContext:
         session=cast(AsyncSession, None),
         run_id=1,
         step_id="s1",
-        search_space_id=1,
+        workspace_id=1,
         creator_user_id=None,
     )
 

@@ -27,7 +27,7 @@ export function getClientPlatform(): ClientPlatform {
 }
 
 export async function getAgentFilesystemSelection(
-	searchSpaceId?: number | null,
+	workspaceId?: number | null,
 	options?: AgentFilesystemSelectionOptions
 ): Promise<AgentFilesystemSelection> {
 	const platform = getClientPlatform();
@@ -39,9 +39,9 @@ export async function getAgentFilesystemSelection(
 		return { ...DEFAULT_SELECTION, client_platform: platform };
 	}
 	try {
-		const settings = await window.electronAPI.getAgentFilesystemSettings(searchSpaceId);
+		const settings = await window.electronAPI.getAgentFilesystemSettings(workspaceId);
 		if (settings.mode === "desktop_local_folder") {
-			const mounts = await window.electronAPI.getAgentFilesystemMounts?.(searchSpaceId);
+			const mounts = await window.electronAPI.getAgentFilesystemMounts?.(workspaceId);
 			const localFilesystemMounts =
 				mounts?.map((entry) => ({
 					mount_id: entry.mount,

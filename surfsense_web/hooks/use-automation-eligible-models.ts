@@ -24,7 +24,7 @@ export interface EligibleModelOption {
 
 export interface EligibleModelKind {
 	options: EligibleModelOption[];
-	/** Default selection: the search-space pref when eligible, else first option. */
+	/** Default selection: the workspace pref when eligible, else first option. */
 	defaultId: number | null;
 	/** O(1) id → option lookup for trigger labels (avoids per-render `.find()`). */
 	byId: Map<number, EligibleModelOption>;
@@ -39,7 +39,7 @@ export interface AutomationEligibleModels {
 
 /**
  * Build the eligible option list for one model kind: premium globals
- * followed by all BYOK/search-space models.
+ * followed by all BYOK/workspace models.
  */
 function buildKind(
 	globals: ConnectionRead[] | undefined,
@@ -93,7 +93,7 @@ function buildKind(
 /**
  * Lists the LLM / image / vision models that are eligible for automations
  * (premium globals + user BYOK — never free globals or Auto mode), with a
- * default selection seeded from the search space's role preferences.
+ * default selection seeded from the workspace's role preferences.
  *
  * Everything is derived during render from the connection/model query atoms;
  * there are no effects, so option lists/maps keep stable references.

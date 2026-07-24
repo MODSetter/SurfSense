@@ -1,1 +1,1 @@
-export { CreateSearchSpaceDialog } from "./CreateSearchSpaceDialog";
+export { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";

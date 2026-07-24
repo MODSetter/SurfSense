@@ -2,7 +2,7 @@
 Circleback Webhook Route
 
 This module provides a webhook endpoint for receiving meeting data from Circleback.
-It processes the incoming webhook payload and saves it as a document in the specified search space.
+It processes the incoming webhook payload and saves it as a document in the specified workspace.
 """
 
 import logging
@@ -212,9 +212,9 @@ def format_circleback_meeting_to_markdown(payload: CirclebackWebhookPayload) -> 
     return "\n".join(lines)
 
 
-@router.post("/webhooks/circleback/{search_space_id}")
+@router.post("/webhooks/circleback/{workspace_id}")
 async def receive_circleback_webhook(
-    search_space_id: int,
+    workspace_id: int,
     payload: CirclebackWebhookPayload,
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -222,11 +222,11 @@ async def receive_circleback_webhook(
     Receive and process a Circleback webhook.
 
     This endpoint receives meeting data from Circleback and saves it as a document
-    in the specified search space. The meeting data is converted to Markdown format
+    in the specified workspace. The meeting data is converted to Markdown format
     and processed asynchronously.
 
     Args:
-        search_space_id: The ID of the search space to save the document to
+        workspace_id: The ID of the workspace to save the document to
         payload: The Circleback webhook payload containing meeting data
         session: Database session for looking up the connector
 
@@ -239,13 +239,13 @@ async def receive_circleback_webhook(
     """
     try:
         logger.info(
-            f"Received Circleback webhook for meeting {payload.id} in search space {search_space_id}"
+            f"Received Circleback webhook for meeting {payload.id} in workspace {workspace_id}"
         )
 
-        # Look up the Circleback connector for this search space
+        # Look up the Circleback connector for this workspace
         connector_result = await session.execute(
             select(SearchSourceConnector.id).where(
-                SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.workspace_id == workspace_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.CIRCLEBACK_CONNECTOR,
             )
@@ -254,11 +254,11 @@ async def receive_circleback_webhook(
 
         if connector_id:
             logger.info(
-                f"Found Circleback connector {connector_id} for search space {search_space_id}"
+                f"Found Circleback connector {connector_id} for workspace {workspace_id}"
             )
         else:
             logger.warning(
-                f"No Circleback connector found for search space {search_space_id}. "
+                f"No Circleback connector found for workspace {workspace_id}. "
                 "Document will be created without connector_id."
             )
 
@@ -289,19 +289,19 @@ async def receive_circleback_webhook(
             meeting_name=payload.name,
             markdown_content=markdown_content,
             metadata=meeting_metadata,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             connector_id=connector_id,
         )
 
         logger.info(
-            f"Queued Circleback meeting {payload.id} for processing in search space {search_space_id}"
+            f"Queued Circleback meeting {payload.id} for processing in workspace {workspace_id}"
         )
 
         return {
             "status": "accepted",
             "message": f"Meeting '{payload.name}' queued for processing",
             "meeting_id": payload.id,
-            "search_space_id": search_space_id,
+            "workspace_id": workspace_id,
         }
 
     except Exception as e:
@@ -312,9 +312,9 @@ async def receive_circleback_webhook(
         ) from e
 
 
-@router.get("/webhooks/circleback/{search_space_id}/info")
+@router.get("/webhooks/circleback/{workspace_id}/info")
 async def get_circleback_webhook_info(
-    search_space_id: int,
+    workspace_id: int,
 ):
     """
     Get information about the Circleback webhook endpoint.
@@ -323,7 +323,7 @@ async def get_circleback_webhook_info(
     webhook integration.
 
     Args:
-        search_space_id: The ID of the search space
+        workspace_id: The ID of the workspace
 
     Returns:
         Webhook configuration information
@@ -332,11 +332,11 @@ async def get_circleback_webhook_info(
 
     # Construct the webhook URL
     base_url = getattr(config, "API_BASE_URL", "http://localhost:8000")
-    webhook_url = f"{base_url}/api/v1/webhooks/circleback/{search_space_id}"
+    webhook_url = f"{base_url}/api/v1/webhooks/circleback/{workspace_id}"
 
     return {
         "webhook_url": webhook_url,
-        "search_space_id": search_space_id,
+        "workspace_id": workspace_id,
         "method": "POST",
         "content_type": "application/json",
         "description": "Use this URL in your Circleback automation to send meeting data to SurfSense",

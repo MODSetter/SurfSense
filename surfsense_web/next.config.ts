@@ -11,6 +11,13 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 // ships what desktop users actually need.
 const nextConfig: NextConfig = {
 	output: "standalone",
+	async redirects() {
+		return [
+			// /mcp-connector was split into the two MCP directions; the external
+			// (client) side kept the original content.
+			{ source: "/mcp-connector", destination: "/external-mcp-connectors", permanent: true },
+		];
+	},
 	outputFileTracingRoot: path.join(__dirname, ".."),
 	reactStrictMode: false,
 	typescript: {

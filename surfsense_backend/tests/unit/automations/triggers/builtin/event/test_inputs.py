@@ -14,7 +14,7 @@ def test_runtime_inputs_flatten_payload_with_event_metadata() -> None:
     event = Event(
         event_type="document.indexed",
         payload={"document_id": 42, "document_type": "FILE"},
-        search_space_id=7,
+        workspace_id=7,
     )
 
     inputs = event_runtime_inputs(event)

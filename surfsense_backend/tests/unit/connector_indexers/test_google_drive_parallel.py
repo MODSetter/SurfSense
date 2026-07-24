@@ -64,7 +64,7 @@ async def test_single_file_returns_one_connector_document(
         mock_drive_client,
         [_make_file_dict("f1", "test.txt")],
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -88,7 +88,7 @@ async def test_multiple_files_all_produce_documents(
         mock_drive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -115,7 +115,7 @@ async def test_one_download_exception_does_not_block_others(
         mock_drive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -141,7 +141,7 @@ async def test_etl_error_counts_as_download_failure(
         mock_drive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 
@@ -180,7 +180,7 @@ async def test_concurrency_bounded_by_semaphore(
         mock_drive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
         max_concurrency=2,
     )
@@ -219,7 +219,7 @@ async def test_heartbeat_fires_during_parallel_downloads(
         mock_drive_client,
         files,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
         on_heartbeat=_on_heartbeat,
     )
@@ -284,7 +284,7 @@ def full_scan_mocks(mock_drive_client, monkeypatch):
 
     skip_results: dict[str, tuple[bool, str | None]] = {}
 
-    async def _fake_skip(session, file, search_space_id):
+    async def _fake_skip(session, file, workspace_id):
         return skip_results.get(file["id"], (False, None))
 
     monkeypatch.setattr(_mod, "_should_skip_file", _fake_skip)
@@ -458,7 +458,7 @@ async def test_delta_sync_removals_serial_rest_parallel(monkeypatch):
 
     remove_calls: list[str] = []
 
-    async def _fake_remove(session, file_id, search_space_id):
+    async def _fake_remove(session, file_id, workspace_id):
         remove_calls.append(file_id)
 
     monkeypatch.setattr(_mod, "_remove_document", _fake_remove)
@@ -532,7 +532,7 @@ def selected_files_mocks(mock_drive_client, monkeypatch):
 
     skip_results: dict[str, tuple[bool, str | None]] = {}
 
-    async def _fake_skip(session, file, search_space_id):
+    async def _fake_skip(session, file, workspace_id):
         return skip_results.get(file["id"], (False, None))
 
     monkeypatch.setattr(_mod, "_should_skip_file", _fake_skip)
@@ -563,7 +563,7 @@ async def _run_selected(mocks, file_ids):
         mocks["session"],
         file_ids,
         connector_id=_CONNECTOR_ID,
-        search_space_id=_SEARCH_SPACE_ID,
+        workspace_id=_SEARCH_SPACE_ID,
         user_id=_USER_ID,
     )
 

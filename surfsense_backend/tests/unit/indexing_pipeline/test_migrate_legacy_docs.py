@@ -42,7 +42,7 @@ async def test_updates_hash_and_type_for_legacy_document(
     doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-abc",
-        search_space_id=1,
+        workspace_id=1,
     )
 
     legacy_hash = compute_identifier_hash("COMPOSIO_GMAIL_CONNECTOR", "msg-abc", 1)
@@ -70,7 +70,7 @@ async def test_noop_when_no_legacy_document_exists(
     doc = make_connector_document(
         document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
         unique_id="msg-xyz",
-        search_space_id=1,
+        workspace_id=1,
     )
 
     result_mock = MagicMock()
@@ -89,7 +89,7 @@ async def test_skips_non_google_doc_types(
     doc = make_connector_document(
         document_type=DocumentType.SLACK_CONNECTOR,
         unique_id="slack-123",
-        search_space_id=1,
+        workspace_id=1,
     )
 
     await pipeline.migrate_legacy_docs([doc])
@@ -111,7 +111,7 @@ async def test_handles_all_three_google_types(
         doc = make_connector_document(
             document_type=native_type,
             unique_id="id-1",
-            search_space_id=1,
+            workspace_id=1,
         )
 
         existing = MagicMock(spec=Document)

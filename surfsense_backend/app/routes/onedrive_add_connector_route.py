@@ -36,7 +36,7 @@ from app.utils.connector_naming import (
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.rbac import check_search_space_access
+from app.utils.rbac import check_workspace_access
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -134,7 +134,7 @@ async def reauth_onedrive(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.workspace_id == space_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
             )
@@ -312,7 +312,7 @@ async def onedrive_callback(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == reauth_connector_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.workspace_id == space_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
                 )
@@ -379,7 +379,7 @@ async def onedrive_callback(
             connector_type=SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
             is_indexable=True,
             config=connector_config,
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user_id,
         )
 
@@ -438,7 +438,7 @@ async def list_onedrive_folders(
                 status_code=404, detail="OneDrive connector not found or access denied"
             )
 
-        await check_search_space_access(session, auth, connector.search_space_id)
+        await check_workspace_access(session, auth, connector.workspace_id)
 
         onedrive_client = OneDriveClient(session, connector_id)
         items, error = await list_folder_contents(onedrive_client, parent_id=parent_id)

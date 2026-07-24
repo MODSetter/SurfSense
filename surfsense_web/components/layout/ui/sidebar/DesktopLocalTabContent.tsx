@@ -25,7 +25,7 @@ interface DesktopLocalTabContentProps {
 	localRootPaths: string[];
 	canAddMoreLocalRoots: boolean;
 	maxLocalFilesystemRoots: number;
-	searchSpaceId: number;
+	workspaceId: number;
 	onPickFilesystemRoot: () => Promise<void> | void;
 	onRemoveFilesystemRoot: (rootPath: string) => Promise<void> | void;
 	onClearFilesystemRoots: () => Promise<void> | void;
@@ -37,7 +37,7 @@ export function DesktopLocalTabContent({
 	localRootPaths,
 	canAddMoreLocalRoots,
 	maxLocalFilesystemRoots,
-	searchSpaceId,
+	workspaceId,
 	onPickFilesystemRoot,
 	onRemoveFilesystemRoot,
 	onClearFilesystemRoots,
@@ -49,17 +49,17 @@ export function DesktopLocalTabContent({
 	const localSearchInputRef = useRef<HTMLInputElement>(null);
 	const [expandedFolderKeyMap, setExpandedFolderKeyMap] = useAtom(localExpandedFolderKeysAtom);
 	const expandedFolderKeys = useMemo(
-		() => new Set(expandedFolderKeyMap[searchSpaceId] ?? []),
-		[expandedFolderKeyMap, searchSpaceId]
+		() => new Set(expandedFolderKeyMap[workspaceId] ?? []),
+		[expandedFolderKeyMap, workspaceId]
 	);
 	const handleExpandedFolderKeysChange = useCallback(
 		(nextExpandedKeys: Set<string>) => {
 			setExpandedFolderKeyMap((prev) => ({
 				...prev,
-				[searchSpaceId]: Array.from(nextExpandedKeys),
+				[workspaceId]: Array.from(nextExpandedKeys),
 			}));
 		},
-		[searchSpaceId, setExpandedFolderKeyMap]
+		[workspaceId, setExpandedFolderKeyMap]
 	);
 
 	return (
@@ -199,7 +199,7 @@ export function DesktopLocalTabContent({
 			</div>
 			<LocalFilesystemBrowser
 				rootPaths={localRootPaths}
-				searchSpaceId={searchSpaceId}
+				workspaceId={workspaceId}
 				active
 				searchQuery={debouncedLocalSearch.trim() || undefined}
 				onOpenFile={onOpenLocalFile}

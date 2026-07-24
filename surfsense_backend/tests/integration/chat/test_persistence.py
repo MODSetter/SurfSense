@@ -38,9 +38,9 @@ from app.db import (
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
-    SearchSpace,
     TokenUsage,
     User,
+    Workspace,
 )
 from app.services.token_tracking_service import TurnTokenAccumulator
 from app.tasks.chat import persistence as persistence_module
@@ -60,11 +60,11 @@ pytestmark = pytest.mark.integration
 
 @pytest_asyncio.fixture
 async def db_thread(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ) -> NewChatThread:
     thread = NewChatThread(
         title="Test Chat",
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         created_by_id=db_user.id,
         visibility=ChatVisibility.PRIVATE,
     )
@@ -537,13 +537,13 @@ class TestFinalizeAssistantTurn:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
     ):
         thread_id = db_thread.id
         user_id_uuid = db_user.id
         user_id_str = str(user_id_uuid)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:4000"
 
         msg_id = await persist_assistant_shell(
@@ -568,7 +568,7 @@ class TestFinalizeAssistantTurn:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=rich_content,
@@ -597,19 +597,19 @@ class TestFinalizeAssistantTurn:
         assert usage.total_tokens == 150
         assert usage.cost_micros == 12345
         assert usage.thread_id == thread_id
-        assert usage.search_space_id == search_space_id
+        assert usage.workspace_id == workspace_id
 
     async def test_empty_content_writes_status_marker(
         self,
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
     ):
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:5000"
 
         msg_id = await persist_assistant_shell(
@@ -624,7 +624,7 @@ class TestFinalizeAssistantTurn:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=[],
@@ -640,12 +640,12 @@ class TestFinalizeAssistantTurn:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
     ):
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:6000"
 
         msg_id = await persist_assistant_shell(
@@ -659,7 +659,7 @@ class TestFinalizeAssistantTurn:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=[{"type": "text", "text": "first finalize"}],
@@ -681,7 +681,7 @@ class TestFinalizeAssistantTurn:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=[{"type": "text", "text": "second finalize"}],
@@ -708,7 +708,7 @@ class TestFinalizeAssistantTurn:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
     ):
         """Cross-writer race: ``append_message`` arrives after ``finalize_assistant_turn``.
@@ -722,7 +722,7 @@ class TestFinalizeAssistantTurn:
         thread_id = db_thread.id
         user_uuid = db_user.id
         user_id_str = str(user_uuid)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
         turn_id = f"{thread_id}:7000"
 
         msg_id = await persist_assistant_shell(
@@ -735,7 +735,7 @@ class TestFinalizeAssistantTurn:
         await finalize_assistant_turn(
             message_id=msg_id,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id=turn_id,
             content=[{"type": "text", "text": "from server"}],
@@ -758,7 +758,7 @@ class TestFinalizeAssistantTurn:
                 call_details=None,
                 thread_id=thread_id,
                 message_id=msg_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_uuid,
             )
             .on_conflict_do_nothing(
@@ -783,19 +783,19 @@ class TestFinalizeAssistantTurn:
         db_session,
         db_user,
         db_thread,
-        db_search_space,
+        db_workspace,
         patched_shielded_session,
     ):
         thread_id = db_thread.id
         user_id_str = str(db_user.id)
-        search_space_id = db_search_space.id
+        workspace_id = db_workspace.id
 
         # message_id that doesn't exist — finalize must log+return,
         # never raise (called from shielded finally).
         await finalize_assistant_turn(
             message_id=999_999_999,
             chat_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id_str,
             turn_id="anything",
             content=[{"type": "text", "text": "x"}],

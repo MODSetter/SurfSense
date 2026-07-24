@@ -32,8 +32,8 @@ from app.auth.context import AuthContext
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
     User,
+    Workspace,
 )
 from app.routes.obsidian_plugin_routes import (
     obsidian_connect,
@@ -43,7 +43,7 @@ from app.routes.obsidian_plugin_routes import (
     obsidian_stats,
     obsidian_sync,
 )
-from app.routes.search_spaces_routes import create_default_roles_and_membership
+from app.routes.workspaces_routes import create_default_roles_and_membership
 from app.schemas.obsidian_plugin import (
     ConnectRequest,
     DeleteAck,
@@ -90,7 +90,7 @@ def _make_note_payload(vault_id: str, path: str, content_hash: str) -> NotePaylo
 
 @pytest_asyncio.fixture
 async def race_user_and_space(async_engine):
-    """User + SearchSpace committed via the live engine so the two
+    """User + Workspace committed via the live engine so the two
     concurrent /connect sessions in the race test can both see them.
 
     We can't use the savepoint-trapped ``db_session`` fixture here
@@ -106,7 +106,7 @@ async def race_user_and_space(async_engine):
             is_superuser=False,
             is_verified=True,
         )
-        space = SearchSpace(name="Race Space", user_id=user_id)
+        space = Workspace(name="Race Space", user_id=user_id)
         setup.add_all([user, space])
         await setup.flush()
         await create_default_roles_and_membership(setup, space.id, user_id)
@@ -125,15 +125,15 @@ async def race_user_and_space(async_engine):
             {"uid": user_id},
         )
         await cleanup.execute(
-            text("DELETE FROM search_space_memberships WHERE search_space_id = :id"),
+            text("DELETE FROM workspace_memberships WHERE workspace_id = :id"),
             {"id": space_id},
         )
         await cleanup.execute(
-            text("DELETE FROM search_space_roles WHERE search_space_id = :id"),
+            text("DELETE FROM workspace_roles WHERE workspace_id = :id"),
             {"id": space_id},
         )
         await cleanup.execute(
-            text("DELETE FROM searchspaces WHERE id = :id"),
+            text("DELETE FROM workspaces WHERE id = :id"),
             {"id": space_id},
         )
         await cleanup.execute(
@@ -167,7 +167,7 @@ class TestConnectRace:
                 payload = ConnectRequest(
                     vault_id=vault_id,
                     vault_name=f"My Vault {name_suffix}",
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                     vault_fingerprint=fingerprint,
                 )
                 await obsidian_connect(payload, auth=_auth(fresh_user), session=s)
@@ -207,7 +207,7 @@ class TestConnectRace:
                         "vault_fingerprint": "fp-1",
                     },
                     user_id=user_id,
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                 )
             )
             await s.commit()
@@ -226,7 +226,7 @@ class TestConnectRace:
                             "vault_fingerprint": "fp-2",
                         },
                         user_id=user_id,
-                        search_space_id=space_id,
+                        workspace_id=space_id,
                     )
                 )
                 await s.commit()
@@ -252,7 +252,7 @@ class TestConnectRace:
                         "vault_fingerprint": fingerprint,
                     },
                     user_id=user_id,
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                 )
             )
             await s.commit()
@@ -271,7 +271,7 @@ class TestConnectRace:
                             "vault_fingerprint": fingerprint,
                         },
                         user_id=user_id,
-                        search_space_id=space_id,
+                        workspace_id=space_id,
                     )
                 )
                 await s.commit()
@@ -294,7 +294,7 @@ class TestConnectRace:
                 ConnectRequest(
                     vault_id=vault_id_a,
                     vault_name="Shared Vault",
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                     vault_fingerprint=fingerprint,
                 ),
                 auth=_auth(fresh_user),
@@ -307,7 +307,7 @@ class TestConnectRace:
                 ConnectRequest(
                     vault_id=vault_id_b,
                     vault_name="Shared Vault",
-                    search_space_id=space_id,
+                    workspace_id=space_id,
                     vault_fingerprint=fingerprint,
                 ),
                 auth=_auth(fresh_user),
@@ -341,7 +341,7 @@ class TestWireContractSmoke:
     field renames the way the TypeScript decoder would catch them."""
 
     async def test_full_flow_returns_typed_payloads(
-        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+        self, db_session: AsyncSession, db_user: User, db_workspace: Workspace
     ):
         vault_id = str(uuid.uuid4())
 
@@ -350,7 +350,7 @@ class TestWireContractSmoke:
             ConnectRequest(
                 vault_id=vault_id,
                 vault_name="Smoke Vault",
-                search_space_id=db_search_space.id,
+                workspace_id=db_workspace.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
             auth=_auth(db_user),
@@ -488,14 +488,14 @@ class TestWireContractSmoke:
         assert stats_resp.last_sync_at is None
 
     async def test_sync_queues_binary_attachments(
-        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+        self, db_session: AsyncSession, db_user: User, db_workspace: Workspace
     ):
         vault_id = str(uuid.uuid4())
         await obsidian_connect(
             ConnectRequest(
                 vault_id=vault_id,
                 vault_name="Queue Vault",
-                search_space_id=db_search_space.id,
+                workspace_id=db_workspace.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
             auth=_auth(db_user),
@@ -539,14 +539,14 @@ class TestWireContractSmoke:
         queue_mock.assert_called_once()
 
     async def test_sync_rejects_unsupported_attachment_extension(
-        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+        self, db_session: AsyncSession, db_user: User, db_workspace: Workspace
     ):
         vault_id = str(uuid.uuid4())
         await obsidian_connect(
             ConnectRequest(
                 vault_id=vault_id,
                 vault_name="Reject Vault",
-                search_space_id=db_search_space.id,
+                workspace_id=db_workspace.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
             auth=_auth(db_user),
@@ -593,14 +593,14 @@ class TestWireContractSmoke:
         queue_mock.assert_not_called()
 
     async def test_sync_rejects_mime_extension_mismatch(
-        self, db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+        self, db_session: AsyncSession, db_user: User, db_workspace: Workspace
     ):
         vault_id = str(uuid.uuid4())
         await obsidian_connect(
             ConnectRequest(
                 vault_id=vault_id,
                 vault_name="Mismatch Vault",
-                search_space_id=db_search_space.id,
+                workspace_id=db_workspace.id,
                 vault_fingerprint="fp-" + uuid.uuid4().hex,
             ),
             auth=_auth(db_user),

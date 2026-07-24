@@ -47,7 +47,7 @@ def _markdown_to_docx(markdown_text: str) -> bytes:
 
 def create_create_onedrive_file_tool(
     db_session: AsyncSession | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
     user_id: str | None = None,
 ):
     @tool
@@ -72,7 +72,7 @@ def create_create_onedrive_file_tool(
         """
         logger.info(f"create_onedrive_file called: name='{name}'")
 
-        if db_session is None or search_space_id is None or user_id is None:
+        if db_session is None or workspace_id is None or user_id is None:
             return {
                 "status": "error",
                 "message": "OneDrive tool not properly configured.",
@@ -81,7 +81,7 @@ def create_create_onedrive_file_tool(
         try:
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.workspace_id == workspace_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
@@ -179,7 +179,7 @@ def create_create_onedrive_file_tool(
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == final_connector_id,
-                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.workspace_id == workspace_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type
                         == SearchSourceConnectorType.ONEDRIVE_CONNECTOR,
@@ -221,7 +221,7 @@ def create_create_onedrive_file_tool(
                     web_url=created.get("webUrl"),
                     content=final_content,
                     connector_id=connector.id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
                 if kb_result["status"] == "success":

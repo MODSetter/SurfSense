@@ -46,8 +46,8 @@ async def test_global_openrouter_image_gen_sets_explicit_api_base():
     image_gen.response_format = None
     image_gen.model = None
 
-    search_space = MagicMock()
-    search_space.image_gen_model_id = global_model["id"]
+    workspace = MagicMock()
+    workspace.image_gen_model_id = global_model["id"]
     session = MagicMock()
 
     with (
@@ -68,7 +68,7 @@ async def test_global_openrouter_image_gen_sets_explicit_api_base():
         ),
     ):
         await image_generation_routes._execute_image_generation(
-            session=session, image_gen=image_gen, search_space=search_space
+            session=session, image_gen=image_gen, workspace=workspace
         )
 
     assert captured.get("api_base") == "https://openrouter.ai/api/v1"
@@ -109,16 +109,16 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
         response._hidden_params = {"model": "openrouter/openai/gpt-image-1"}
         return response
 
-    search_space = MagicMock()
-    search_space.id = 1
-    search_space.image_gen_model_id = global_model["id"]
+    workspace = MagicMock()
+    workspace.id = 1
+    workspace.image_gen_model_id = global_model["id"]
 
     session_cm = AsyncMock()
     session = AsyncMock()
     session_cm.__aenter__.return_value = session
 
     scalars = MagicMock()
-    scalars.first.return_value = search_space
+    scalars.first.return_value = workspace
     exec_result = MagicMock()
     exec_result.scalars.return_value = scalars
     session.execute.return_value = exec_result
@@ -146,7 +146,7 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
         ),
     ):
         tool = gi_module.create_generate_image_tool(
-            search_space_id=1, db_session=MagicMock()
+            workspace_id=1, db_session=MagicMock()
         )
         # The live tool takes an injected ToolRuntime and returns a Command;
         # drive the raw coroutine with a minimal runtime (the tool only reads

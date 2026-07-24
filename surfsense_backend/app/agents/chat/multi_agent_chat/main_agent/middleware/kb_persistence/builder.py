@@ -12,14 +12,14 @@ from .middleware import (
 def build_kb_persistence_mw(
     *,
     filesystem_mode: FilesystemMode,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     thread_id: int | None,
 ) -> KnowledgeBasePersistenceMiddleware | None:
     if filesystem_mode != FilesystemMode.CLOUD:
         return None
     return KnowledgeBasePersistenceMiddleware(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         created_by_id=user_id,
         filesystem_mode=filesystem_mode,
         thread_id=thread_id,

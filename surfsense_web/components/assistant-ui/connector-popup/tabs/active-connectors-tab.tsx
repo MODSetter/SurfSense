@@ -33,12 +33,13 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	searchQuery,
 	hasSources,
 	activeDocumentTypes,
-	connectors,
+	connectors: allActiveConnectors,
 	indexingConnectorIds,
 	onTabChange: _onTabChange,
 	onManage,
 	onViewAccountsList,
 }) => {
+	const connectors = allActiveConnectors;
 	// Convert activeDocumentTypes array to Record for utility function
 	const documentTypeCounts = activeDocumentTypes.reduce(
 		(acc, [docType, count]) => {
@@ -146,7 +147,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 				<div className="flex flex-col items-center justify-center py-20 text-center">
 					<Search className="size-8 text-muted-foreground mb-3" />
 					<p className="text-sm text-muted-foreground">No connectors found</p>
-					<p className="text-xs text-muted-foreground/60 mt-1">Try a different search term</p>
 				</div>
 			) : hasSources ? (
 				<div className="space-y-6">

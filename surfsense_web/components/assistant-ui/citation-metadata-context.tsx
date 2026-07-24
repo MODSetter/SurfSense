@@ -1,7 +1,6 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
-import { createContext, type FC, type ReactNode, useContext, useMemo } from "react";
+import { createContext, type FC, type ReactNode, useContext } from "react";
 
 export interface CitationMeta {
 	title: string;
@@ -10,50 +9,16 @@ export interface CitationMeta {
 
 type CitationMetadataMap = ReadonlyMap<string, CitationMeta>;
 
-const CitationMetadataContext = createContext<CitationMetadataMap>(new Map());
+const EMPTY_CITATION_METADATA: CitationMetadataMap = new Map();
 
-interface ToolCallResult {
-	status?: string;
-	citations?: Record<string, { title: string; snippet?: string }>;
-}
+const CitationMetadataContext = createContext<CitationMetadataMap>(EMPTY_CITATION_METADATA);
 
-interface MessageContent {
-	type: string;
-	toolName?: string;
-	result?: unknown;
-}
-
+// The previous web-search citation spine (WEB_RESULT hover cards) was removed
+// with the multi-engine web_search tool. Agent citation logic is being reworked
+// wholesale, so this provider currently yields no web citation metadata.
 export const CitationMetadataProvider: FC<{ children: ReactNode }> = ({ children }) => {
-	const content = useAuiState(
-		({ message }) => (message as { content?: MessageContent[] })?.content
-	);
-
-	const metadataMap = useMemo<CitationMetadataMap>(() => {
-		if (!content || !Array.isArray(content)) return new Map();
-
-		const merged = new Map<string, CitationMeta>();
-
-		for (const part of content) {
-			if (part.type !== "tool-call" || part.toolName !== "web_search" || !part.result) {
-				continue;
-			}
-
-			const result = part.result as ToolCallResult;
-			const citations = result.citations;
-			if (!citations || typeof citations !== "object") continue;
-
-			for (const [url, meta] of Object.entries(citations)) {
-				if (url.startsWith("http") && meta.title && !merged.has(url)) {
-					merged.set(url, { title: meta.title, snippet: meta.snippet });
-				}
-			}
-		}
-
-		return merged;
-	}, [content]);
-
 	return (
-		<CitationMetadataContext.Provider value={metadataMap}>
+		<CitationMetadataContext.Provider value={EMPTY_CITATION_METADATA}>
 			{children}
 		</CitationMetadataContext.Provider>
 	);

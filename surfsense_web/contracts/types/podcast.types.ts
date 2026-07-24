@@ -151,7 +151,7 @@ export const podcastDetail = z.object({
 	duration_seconds: z.number().nullable(),
 	error: z.string().nullable(),
 	created_at: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	thread_id: z.number().nullable(),
 });
 export type PodcastDetail = z.infer<typeof podcastDetail>;
@@ -162,7 +162,7 @@ export const podcastSummary = z.object({
 	title: z.string(),
 	status: podcastStatus,
 	created_at: z.string(),
-	search_space_id: z.number(),
+	workspace_id: z.number(),
 	thread_id: z.number().nullish(),
 });
 export type PodcastSummary = z.infer<typeof podcastSummary>;

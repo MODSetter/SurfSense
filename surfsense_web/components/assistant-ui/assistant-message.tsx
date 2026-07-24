@@ -29,12 +29,13 @@ import {
 	globalModelConnectionsAtom,
 	modelConnectionsAtom,
 } from "@/atoms/model-connections/model-connections-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import {
 	CitationMetadataProvider,
 	useAllCitationMetadata,
 } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
 import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import {
@@ -62,6 +63,7 @@ import { withArtifactAnchor } from "@/features/chat-artifacts";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { formatMessageTimestamp } from "@/lib/format-date";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { tryGetHostname } from "@/lib/url";
 import { cn } from "@/lib/utils";
@@ -249,16 +251,6 @@ export const MessageError: FC = () => {
 	);
 };
 
-function formatMessageDate(date: Date): string {
-	return date.toLocaleDateString(undefined, {
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-		hour12: true,
-	});
-}
-
 /**
  * Format provider USD cost (in micro-USD) for inline display next to a
  * token count. Falls back to ``"<$0.001"`` for sub-tenth-of-a-cent
@@ -367,7 +359,7 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
 			>
 				{createdAt && (
 					<DropdownMenuLabel className="text-xs text-muted-foreground font-normal select-none">
-						{formatMessageDate(createdAt)}
+						{formatMessageTimestamp(createdAt)}
 					</DropdownMenuLabel>
 				)}
 				{hasUsage && (
@@ -463,6 +455,8 @@ const AssistantMessageInner: FC = () => {
 				<MessageError />
 			</div>
 
+			<MessageTimestamp className="ml-2 mt-2" />
+
 			{isMobile && (
 				<div className="ml-2 mt-2">
 					<MobileCitationDrawer />
@@ -491,7 +485,7 @@ export const AssistantMessage: FC = () => {
 	const commentPanelRef = useRef<HTMLDivElement>(null);
 	const commentTriggerRef = useRef<HTMLButtonElement>(null);
 	const messageId = useAuiState(({ message }) => message?.id);
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const dbMessageId = parseMessageId(messageId);
 	const commentsEnabled = useAtomValue(commentsEnabledAtom);
 
@@ -520,7 +514,7 @@ export const AssistantMessage: FC = () => {
 	const commentCount = commentsData?.total_count ?? 0;
 	const hasComments = commentCount > 0;
 
-	const showCommentTrigger = searchSpaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
+	const showCommentTrigger = workspaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
 
 	// Close floating panel when clicking outside (but not on portaled popover/dropdown content)
 	useEffect(() => {

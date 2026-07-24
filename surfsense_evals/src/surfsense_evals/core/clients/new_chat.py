@@ -145,7 +145,7 @@ class NewChatClient:
                 if attempt > max_busy_retries:
                     raise
                 # Cap wait at 30s; backend retry hint is exponential anyway.
-                wait = min(30.0, 0.5 * (2 ** attempt))
+                wait = min(30.0, 0.5 * (2**attempt))
                 logger.info(
                     "thread_id=%s busy (%s); retry %d/%d after %.1fs",
                     thread_id,

@@ -37,7 +37,7 @@ def sample_user_id() -> str:
 
 
 @pytest.fixture
-def sample_search_space_id() -> int:
+def sample_workspace_id() -> int:
     return 1
 
 
@@ -59,7 +59,7 @@ def make_connector_document():
             "source_markdown": "## Heading\n\nSome content.",
             "unique_id": "test-id-001",
             "document_type": DocumentType.CLICKUP_CONNECTOR,
-            "search_space_id": 1,
+            "workspace_id": 1,
             "connector_id": 1,
             "created_by_id": "00000000-0000-0000-0000-000000000001",
         }

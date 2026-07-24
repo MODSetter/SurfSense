@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class FolderCreate(BaseModel):
     name: str = Field(max_length=255, min_length=1)
     parent_id: int | None = None
-    search_space_id: int
+    workspace_id: int
 
 
 class FolderUpdate(BaseModel):
@@ -31,7 +31,7 @@ class FolderRead(BaseModel):
     name: str
     position: str
     parent_id: int | None
-    search_space_id: int
+    workspace_id: int
     created_by_id: UUID | None
     created_at: datetime
     updated_at: datetime

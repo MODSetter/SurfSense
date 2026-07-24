@@ -12,7 +12,7 @@ untouched. This keeps tool bodies (logging, metadata fetches, account
 fallbacks) symmetrical with the prompted path; the only behavior change is
 "no interrupt fires".
 
-Per-search-space ``agent_permission_rules`` (when wired) take precedence and
+Per-workspace ``agent_permission_rules`` (when wired) take precedence and
 can re-enable prompting for any of these.
 """
 

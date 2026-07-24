@@ -12,7 +12,7 @@ class Configuration:
     """The configuration for the video presentation agent."""
 
     video_title: str
-    search_space_id: int
+    workspace_id: int
     user_prompt: str | None = None
 
     @classmethod

@@ -16,7 +16,6 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[1]
 RUN_DIR = REPO / "data" / "multimodal_doc" / "runs" / "2026-05-14T00-53-19Z" / "parser_compare"
 RAW = RUN_DIR / "raw.jsonl"
@@ -24,7 +23,9 @@ ARTIFACT = RUN_DIR / "run_artifact.json"
 
 
 def main() -> None:
-    rows = [json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [
+        json.loads(line) for line in RAW.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     print(f"raw rows: {len(rows)}")
 
     by_qid: dict[str, list[dict]] = defaultdict(list)
@@ -32,11 +33,19 @@ def main() -> None:
         by_qid[row["qid"]].append(row)
     print(f"unique questions: {len(by_qid)}")
 
-    arm_metrics: dict[str, dict] = defaultdict(lambda: {
-        "n": 0, "n_correct": 0, "n_failed": 0, "n_empty": 0,
-        "costs": [], "in_tokens": [], "out_tokens": [], "latency_ms": [],
-        "by_format": defaultdict(lambda: {"n": 0, "correct": 0}),
-    })
+    arm_metrics: dict[str, dict] = defaultdict(
+        lambda: {
+            "n": 0,
+            "n_correct": 0,
+            "n_failed": 0,
+            "n_empty": 0,
+            "costs": [],
+            "in_tokens": [],
+            "out_tokens": [],
+            "latency_ms": [],
+            "by_format": defaultdict(lambda: {"n": 0, "correct": 0}),
+        }
+    )
 
     for row in rows:
         arm = row["arm"]
@@ -71,7 +80,9 @@ def main() -> None:
 
     print()
     print("=" * 100)
-    print(f"{'arm':<25} {'n':>4} {'acc%':>6} {'F1%':>6} {'fail':>5} {'$ mean':>10} {'$ median':>10} {'in tok mean':>12} {'out tok mean':>12} {'p50 ms':>8}")
+    print(
+        f"{'arm':<25} {'n':>4} {'acc%':>6} {'F1%':>6} {'fail':>5} {'$ mean':>10} {'$ median':>10} {'in tok mean':>12} {'out tok mean':>12} {'p50 ms':>8}"
+    )
     print("=" * 100)
     art = json.loads(ARTIFACT.read_text(encoding="utf-8"))
     per_arm_art = art["metrics"]["per_arm"]
@@ -91,7 +102,7 @@ def main() -> None:
 
     print()
     print("by answer_format (accuracy):")
-    formats = sorted({f for m in arm_metrics.values() for f in m["by_format"].keys()})
+    formats = sorted({f for m in arm_metrics.values() for f in m["by_format"]})
     header = f"{'arm':<25} " + " ".join(f"{f:>10}" for f in formats)
     print(header)
     print("-" * len(header))
@@ -111,7 +122,7 @@ def main() -> None:
     print("Aggregated cost (from run_artifact.json):")
     for arm, row in per_arm_art.items():
         print(
-            f"  {arm:<25}  acc={row['accuracy']*100:5.1f}% "
+            f"  {arm:<25}  acc={row['accuracy'] * 100:5.1f}% "
             f"  $/Q LLM={row['llm_cost_per_q']:.4f}  "
             f"  preprocess total=${row['preprocess_cost_total']:.2f}  "
             f"  $/Q total={row['total_cost_per_q']:.4f}"

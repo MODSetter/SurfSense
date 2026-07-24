@@ -7,9 +7,9 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import PersonalAccessToken, SearchSpace, User
-from app.routes.search_spaces_routes import create_default_roles_and_membership
-from app.utils.rbac import check_search_space_access, get_allowed_read_space_ids
+from app.db import PersonalAccessToken, User, Workspace
+from app.routes.workspaces_routes import create_default_roles_and_membership
+from app.utils.rbac import check_workspace_access, get_allowed_read_space_ids
 
 pytestmark = pytest.mark.integration
 
@@ -30,8 +30,8 @@ async def _space_with_membership(
     user: User,
     *,
     api_access_enabled: bool,
-) -> SearchSpace:
-    space = SearchSpace(
+) -> Workspace:
+    space = Workspace(
         name="Zero Authz Space",
         user_id=user.id,
         api_access_enabled=api_access_enabled,
@@ -43,10 +43,10 @@ async def _space_with_membership(
     return space
 
 
-async def test_zero_read_set_matches_session_search_space_access(
+async def test_zero_read_set_matches_session_workspace_access(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
     disabled_space = await _space_with_membership(
         db_session,
@@ -57,17 +57,17 @@ async def test_zero_read_set_matches_session_search_space_access(
 
     allowed_ids = set(await get_allowed_read_space_ids(db_session, session_auth))
 
-    for space in (db_search_space, disabled_space):
-        membership = await check_search_space_access(db_session, session_auth, space.id)
-        assert membership.search_space_id in allowed_ids
+    for space in (db_workspace, disabled_space):
+        membership = await check_workspace_access(db_session, session_auth, space.id)
+        assert membership.workspace_id in allowed_ids
 
 
 async def test_zero_read_set_applies_pat_api_access_gate(
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
-    db_search_space.api_access_enabled = True
+    db_workspace.api_access_enabled = True
     disabled_space = await _space_with_membership(
         db_session,
         db_user,
@@ -78,8 +78,8 @@ async def test_zero_read_set_applies_pat_api_access_gate(
 
     allowed_ids = set(await get_allowed_read_space_ids(db_session, pat_auth))
 
-    assert db_search_space.id in allowed_ids
+    assert db_workspace.id in allowed_ids
     assert disabled_space.id not in allowed_ids
     with pytest.raises(HTTPException) as exc_info:
-        await check_search_space_access(db_session, pat_auth, disabled_space.id)
+        await check_workspace_access(db_session, pat_auth, disabled_space.id)
     assert exc_info.value.status_code == 403

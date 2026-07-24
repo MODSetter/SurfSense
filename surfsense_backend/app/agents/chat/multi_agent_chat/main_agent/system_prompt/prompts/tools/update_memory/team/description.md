@@ -1,5 +1,5 @@
 - `update_memory` — Curate the team's **shared** long-term memory document
-  for this search space.
+  for this workspace.
   - The current memory (if any) appears in `<team_memory>` with usage vs limit.
   - Call when a team member asks to remember or forget something, or when
     the conversation surfaces durable team decisions, conventions,

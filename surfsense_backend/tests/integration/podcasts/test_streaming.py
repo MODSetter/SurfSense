@@ -16,10 +16,10 @@ BASE = "/api/v1/podcasts"
 
 
 async def test_stream_serves_stored_audio(
-    client, db_search_space, make_podcast, fake_storage
+    client, db_workspace, make_podcast, fake_storage
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
     fake_storage.objects["podcasts/audio.mp3"] = b"the-audio"
 
@@ -30,9 +30,9 @@ async def test_stream_serves_stored_audio(
     assert resp.content == b"the-audio"
 
 
-async def test_stream_409_while_in_flight(client, db_search_space, make_podcast):
+async def test_stream_409_while_in_flight(client, db_workspace, make_podcast):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.DRAFTING
+        workspace_id=db_workspace.id, status=PodcastStatus.DRAFTING
     )
 
     resp = await client.get(f"{BASE}/{podcast.id}/stream")
@@ -41,10 +41,10 @@ async def test_stream_409_while_in_flight(client, db_search_space, make_podcast)
 
 
 async def test_stream_404_when_object_missing(
-    client, db_search_space, make_podcast, fake_storage
+    client, db_workspace, make_podcast, fake_storage
 ):
     podcast = await make_podcast(
-        search_space_id=db_search_space.id, status=PodcastStatus.READY
+        workspace_id=db_workspace.id, status=PodcastStatus.READY
     )
 
     resp = await client.get(f"{BASE}/{podcast.id}/stream")

@@ -14,12 +14,12 @@ pytestmark = pytest.mark.integration
 BASE = "/api/v1/podcasts"
 
 
-async def test_create_proposes_brief_and_opens_gate(client, db_search_space):
+async def test_create_proposes_brief_and_opens_gate(client, db_workspace):
     resp = await client.post(
         BASE,
         json={
             "title": "My Episode",
-            "search_space_id": db_search_space.id,
+            "workspace_id": db_workspace.id,
             "source_content": "A long piece of source content about a topic.",
         },
     )
@@ -36,12 +36,12 @@ async def test_create_proposes_brief_and_opens_gate(client, db_search_space):
     assert body["has_audio"] is False
 
 
-async def test_create_honors_requested_speaker_count(client, db_search_space):
+async def test_create_honors_requested_speaker_count(client, db_workspace):
     resp = await client.post(
         BASE,
         json={
             "title": "Solo",
-            "search_space_id": db_search_space.id,
+            "workspace_id": db_workspace.id,
             "source_content": "Content.",
             "speaker_count": 3,
         },

@@ -11,12 +11,9 @@ We don't network-fetch trafilatura; we just verify the wrapper:
 
 from __future__ import annotations
 
-import pytest
-
 from surfsense_evals.suites.research.crag.html_extract import (
     extract_main_content,
 )
-
 
 _RICH_HTML = """\
 <!DOCTYPE html>
@@ -115,7 +112,9 @@ class TestFallbackStripper:
         </body></html>
         """
         result = extract_main_content(
-            html, url="https://x.test/", page_name="Title",
+            html,
+            url="https://x.test/",
+            page_name="Title",
         )
         assert result.ok
         assert "content one" in result.text

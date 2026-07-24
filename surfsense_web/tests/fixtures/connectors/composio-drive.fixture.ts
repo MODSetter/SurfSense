@@ -1,18 +1,18 @@
 import { type ConnectorRow, deleteConnector, runComposioOAuth } from "../../helpers/api/connectors";
-import { searchSpaceFixtures } from "../search-space.fixture";
+import { workspaceFixtures } from "../workspace.fixture";
 
 export type ComposioDriveFixtures = {
 	/**
 	 * A pre-connected Composio Google Drive connector inside the
-	 * fixture's `searchSpace`. OAuth happens against the strict fake
+	 * fixture's `workspace`. OAuth happens against the strict fake
 	 * (no real network). Cleaned up automatically after the test.
 	 */
 	composioDriveConnector: ConnectorRow;
 };
 
-export const composioDriveFixtures = searchSpaceFixtures.extend<ComposioDriveFixtures>({
-	composioDriveConnector: async ({ request, apiToken, searchSpace }, use) => {
-		const { connector } = await runComposioOAuth(request, apiToken, searchSpace.id, "googledrive");
+export const composioDriveFixtures = workspaceFixtures.extend<ComposioDriveFixtures>({
+	composioDriveConnector: async ({ request, apiToken, workspace }, use) => {
+		const { connector } = await runComposioOAuth(request, apiToken, workspace.id, "googledrive");
 		if (!connector) {
 			throw new Error(
 				"composioDriveConnector fixture: OAuth completed but no connector was created. " +

@@ -37,7 +37,7 @@ async def composio_calendar(async_engine):
         name_prefix="cal-composio",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @pytest_asyncio.fixture
@@ -49,7 +49,7 @@ async def composio_calendar_no_id(async_engine):
         name_prefix="cal-noid",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @pytest_asyncio.fixture
@@ -67,7 +67,7 @@ async def native_calendar(async_engine):
         name_prefix="cal-native",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @patch(_GET_ACCESS_TOKEN)
@@ -98,7 +98,7 @@ async def test_composio_calendar_uses_composio_service(
         await index_google_calendar_events(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
         )
 
@@ -137,7 +137,7 @@ async def test_composio_calendar_without_account_id_returns_error(
         count, _skipped, error = await index_google_calendar_events(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
         )
 
@@ -179,7 +179,7 @@ async def test_native_calendar_uses_google_calendar_connector(
         await index_google_calendar_events(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
         )
 

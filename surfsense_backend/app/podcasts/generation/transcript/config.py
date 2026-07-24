@@ -13,7 +13,7 @@ from app.podcasts.schemas import PodcastSpec
 class TranscriptConfig:
     """The approved spec and user focus that drive drafting."""
 
-    search_space_id: int
+    workspace_id: int
     spec: PodcastSpec
     focus: str | None = None
 

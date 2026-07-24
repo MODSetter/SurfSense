@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,7 +34,7 @@ class ConnectionRead(BaseModel):
     api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope | str
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     user_id: uuid.UUID | None = None
     enabled: bool
     has_api_key: bool
@@ -76,7 +76,7 @@ class ConnectionCreate(BaseModel):
     api_key: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
     scope: ConnectionScope = ConnectionScope.SEARCH_SPACE
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     enabled: bool = True
     models: list[ModelSelection] = Field(default_factory=list)
 
@@ -135,3 +135,18 @@ class ModelRolesUpdate(BaseModel):
     chat_model_id: int | None = None
     vision_model_id: int | None = None
     image_gen_model_id: int | None = None
+
+
+class LlmSetupStatusRead(BaseModel):
+    """Server-authoritative verdict for the per-workspace LLM onboarding gate.
+
+    ``status`` is the only thing the frontend gate acts on; ``source`` is
+    informational and ``can_configure`` selects the onboarding vs. blocked
+    screen for members who cannot manage models. ``stage`` refines a
+    ``needs_setup`` verdict into first-run (``initial_setup``) vs. recovery.
+    """
+
+    status: Literal["ready", "needs_setup"]
+    source: Literal["global_config", "models", "none"]
+    can_configure: bool
+    stage: Literal["initial_setup", "recovery", "ready"]

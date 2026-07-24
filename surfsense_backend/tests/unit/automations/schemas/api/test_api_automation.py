@@ -17,11 +17,11 @@ _VALID_DEFINITION = {
 
 
 def test_automation_create_accepts_valid_minimal_payload() -> None:
-    """Happy path: just search_space_id, name, and a valid definition.
+    """Happy path: just workspace_id, name, and a valid definition.
     Triggers default to ``[]`` so users can attach them later."""
     payload = AutomationCreate.model_validate(
         {
-            "search_space_id": 1,
+            "workspace_id": 1,
             "name": "Daily digest",
             "definition": _VALID_DEFINITION,
         }
@@ -39,7 +39,7 @@ def test_automation_create_cascades_validation_into_nested_definition() -> None:
     with pytest.raises(ValidationError):
         AutomationCreate.model_validate(
             {
-                "search_space_id": 1,
+                "workspace_id": 1,
                 "name": "Bad",
                 "definition": {"name": "X", "plan": []},  # empty plan
             }
@@ -51,7 +51,7 @@ def test_automation_create_rejects_unknown_top_level_field() -> None:
     with pytest.raises(ValidationError):
         AutomationCreate.model_validate(
             {
-                "search_space_id": 1,
+                "workspace_id": 1,
                 "name": "X",
                 "definition": _VALID_DEFINITION,
                 "owner": "tg",  # not allowed
@@ -64,7 +64,7 @@ def test_automation_create_rejects_empty_name() -> None:
     with pytest.raises(ValidationError):
         AutomationCreate.model_validate(
             {
-                "search_space_id": 1,
+                "workspace_id": 1,
                 "name": "",
                 "definition": _VALID_DEFINITION,
             }

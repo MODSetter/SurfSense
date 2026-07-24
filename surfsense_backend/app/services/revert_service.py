@@ -121,7 +121,7 @@ def can_revert(
     """Return True iff the requester is allowed to revert this action.
 
     The plan's rule: "requester must be the original `user_id` on the
-    action, or hold the search-space admin role." Anonymous actions
+    action, or hold the workspace admin role." Anonymous actions
     (``action.user_id is None``) can only be reverted by admins.
     """
     if is_admin:
@@ -215,7 +215,7 @@ async def _restore_in_place_document(
 
     if isinstance(revision.content_before, str):
         doc.content_hash = generate_content_hash(
-            revision.content_before, doc.search_space_id
+            revision.content_before, doc.workspace_id
         )
 
     virtual_path = await _virtual_path_from_snapshot(session, revision)
@@ -223,7 +223,7 @@ async def _restore_in_place_document(
         doc.unique_identifier_hash = generate_unique_identifier_hash(
             DocumentType.NOTE,
             virtual_path,
-            doc.search_space_id,
+            doc.workspace_id,
         )
 
     chunks_before = revision.chunks_before
@@ -285,15 +285,15 @@ async def _reinsert_document_from_revision(
             ),
         )
 
-    search_space_id = revision.search_space_id
+    workspace_id = revision.workspace_id
     unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.NOTE,
         virtual_path,
-        search_space_id,
+        workspace_id,
     )
     collision = await session.execute(
         select(Document.id).where(
-            Document.search_space_id == search_space_id,
+            Document.workspace_id == workspace_id,
             Document.unique_identifier_hash == unique_identifier_hash,
         )
     )
@@ -318,10 +318,10 @@ async def _reinsert_document_from_revision(
         document_type=DocumentType.NOTE,
         document_metadata=metadata,
         content=content,
-        content_hash=generate_content_hash(content, search_space_id),
+        content_hash=generate_content_hash(content, workspace_id),
         unique_identifier_hash=unique_identifier_hash,
         source_markdown=content,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         folder_id=revision.folder_id_before,
         updated_at=datetime.now(UTC),
     )
@@ -451,7 +451,7 @@ async def _reinsert_folder_from_revision(
         name=revision.name_before,
         parent_id=revision.parent_id_before,
         position=revision.position_before,
-        search_space_id=revision.search_space_id,
+        workspace_id=revision.workspace_id,
         updated_at=datetime.now(UTC),
     )
     session.add(new_folder)
@@ -608,7 +608,7 @@ async def revert_action(
     new_row = AgentActionLog(
         thread_id=action.thread_id,
         user_id=requester_user_id,
-        search_space_id=action.search_space_id,
+        workspace_id=action.workspace_id,
         turn_id=None,
         message_id=None,
         tool_name=f"_revert:{action.tool_name}",

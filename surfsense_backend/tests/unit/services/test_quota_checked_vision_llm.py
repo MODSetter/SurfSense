@@ -77,7 +77,7 @@ async def test_ainvoke_routes_through_billable_call(monkeypatch):
     wrapper = QuotaCheckedVisionLLM(
         inner,
         user_id=user_id,
-        search_space_id=99,
+        workspace_id=99,
         billing_tier="premium",
         base_model="openai/gpt-4o",
         quota_reserve_tokens=4000,
@@ -89,7 +89,7 @@ async def test_ainvoke_routes_through_billable_call(monkeypatch):
     assert len(captured_kwargs) == 1
     bc_kwargs = captured_kwargs[0]
     assert bc_kwargs["user_id"] == user_id
-    assert bc_kwargs["search_space_id"] == 99
+    assert bc_kwargs["workspace_id"] == 99
     assert bc_kwargs["billing_tier"] == "premium"
     assert bc_kwargs["base_model"] == "openai/gpt-4o"
     assert bc_kwargs["quota_reserve_tokens"] == 4000
@@ -120,7 +120,7 @@ async def test_ainvoke_propagates_quota_insufficient_error(monkeypatch):
     wrapper = QuotaCheckedVisionLLM(
         inner,
         user_id=uuid4(),
-        search_space_id=1,
+        workspace_id=1,
         billing_tier="premium",
         base_model="openai/gpt-4o",
         quota_reserve_tokens=4000,
@@ -146,7 +146,7 @@ async def test_proxies_non_overridden_attributes_to_inner():
     wrapper = QuotaCheckedVisionLLM(
         inner,
         user_id=uuid4(),
-        search_space_id=1,
+        workspace_id=1,
         billing_tier="premium",
         base_model="openai/gpt-4o",
         quota_reserve_tokens=4000,

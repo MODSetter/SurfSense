@@ -49,14 +49,14 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         *,
         backend: Any = None,
         filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
-        search_space_id: int | None = None,
+        workspace_id: int | None = None,
         created_by_id: str | None = None,
         thread_id: int | str | None = None,
         tool_token_limit_before_evict: int | None = 20000,
         read_only: bool = False,
     ) -> None:
         self._filesystem_mode = filesystem_mode
-        self._search_space_id = search_space_id
+        self._workspace_id = workspace_id
         self._created_by_id = created_by_id
         self._thread_id = thread_id
         self._read_only = read_only

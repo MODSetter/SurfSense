@@ -28,7 +28,7 @@ class GmailKBSyncService:
         date_str: str,
         body_text: str | None,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
         draft_id: str | None = None,
     ) -> dict:
@@ -41,7 +41,7 @@ class GmailKBSyncService:
 
         try:
             unique_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_GMAIL_CONNECTOR, message_id, search_space_id
+                DocumentType.GOOGLE_GMAIL_CONNECTOR, message_id, workspace_id
             )
 
             existing = await check_document_by_unique_identifier(
@@ -62,7 +62,7 @@ class GmailKBSyncService:
             if not indexable_content:
                 indexable_content = f"Gmail message: {subject}"
 
-            content_hash = generate_content_hash(indexable_content, search_space_id)
+            content_hash = generate_content_hash(indexable_content, workspace_id)
 
             with self.db_session.no_autoflush:
                 dup = await check_duplicate_document_by_hash(
@@ -103,7 +103,7 @@ class GmailKBSyncService:
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
                 embedding=summary_embedding,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 source_markdown=body_text,
                 updated_at=get_current_timestamp(),

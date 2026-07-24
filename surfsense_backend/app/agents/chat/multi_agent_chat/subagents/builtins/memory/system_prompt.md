@@ -6,7 +6,7 @@ Persist durable preferences/facts/instructions with `update_memory` while avoidi
 </goal>
 
 <visibility_scope>
-Memory is search-space-scoped; do not assume cross-workspace visibility.
+Memory is workspace-scoped; do not assume cross-workspace visibility.
 </visibility_scope>
 
 <available_tools>

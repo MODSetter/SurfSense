@@ -89,7 +89,7 @@ def _folder_virtual_path(folder_id: int, folder_paths: dict[int, str]) -> str:
     """Return ``/documents/Folder/Sub/`` for a folder id.
 
     Falls back to the documents root when the folder is missing from
-    the index (deleted or in a different search space). Trailing slash
+    the index (deleted or in a different workspace). Trailing slash
     matches ``KnowledgeTreeMiddleware`` (``/documents/MyFolder/``) so
     the agent's ``ls`` can dispatch on it as a directory.
     """
@@ -100,7 +100,7 @@ def _folder_virtual_path(folder_id: int, folder_paths: dict[int, str]) -> str:
 async def resolve_mentions(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     mentioned_documents: list[MentionedDocumentInfo] | None,
     mentioned_document_ids: list[int] | None = None,
     mentioned_folder_ids: list[int] | None = None,
@@ -151,13 +151,13 @@ async def resolve_mentions(
     if not doc_id_pool and not folder_id_pool:
         return ResolvedMentionSet()
 
-    index = await build_path_index(session, search_space_id)
+    index = await build_path_index(session, workspace_id)
 
     doc_rows: dict[int, Document] = {}
     if doc_id_pool:
         result = await session.execute(
             select(Document).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.id.in_(doc_id_pool),
             )
         )
@@ -168,7 +168,7 @@ async def resolve_mentions(
     if folder_id_pool:
         result = await session.execute(
             select(Folder).where(
-                Folder.search_space_id == search_space_id,
+                Folder.workspace_id == workspace_id,
                 Folder.id.in_(folder_id_pool),
             )
         )
@@ -185,7 +185,7 @@ async def resolve_mentions(
             logger.debug(
                 "mention_resolver: dropping doc id=%s (not found in space=%s)",
                 doc_id,
-                search_space_id,
+                workspace_id,
             )
             continue
         title = chip_titles_by_id.get(("doc", doc_id), str(row.title or ""))
@@ -206,7 +206,7 @@ async def resolve_mentions(
             logger.debug(
                 "mention_resolver: dropping folder id=%s (not found in space=%s)",
                 folder_id,
-                search_space_id,
+                workspace_id,
             )
             continue
         title = chip_titles_by_id.get(("folder", folder_id), str(row.name or ""))

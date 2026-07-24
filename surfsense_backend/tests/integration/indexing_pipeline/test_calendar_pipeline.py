@@ -15,14 +15,14 @@ pytestmark = pytest.mark.integration
 
 
 def _cal_doc(
-    *, unique_id: str, search_space_id: int, connector_id: int, user_id: str
+    *, unique_id: str, workspace_id: int, connector_id: int, user_id: str
 ) -> ConnectorDocument:
     return ConnectorDocument(
         title=f"Event {unique_id}",
         source_markdown=f"## Calendar Event\n\nDetails for {unique_id}",
         unique_id=unique_id,
         document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata={
@@ -36,13 +36,13 @@ def _cal_doc(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_calendar_pipeline_creates_ready_document(
-    db_session, db_search_space, db_connector, db_user, mocker
+    db_session, db_workspace, db_connector, db_user, mocker
 ):
     """A Calendar ConnectorDocument flows through prepare + index to a READY document."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     doc = _cal_doc(
         unique_id="evt-1",
-        search_space_id=space_id,
+        workspace_id=space_id,
         connector_id=db_connector.id,
         user_id=str(db_user.id),
     )
@@ -54,7 +54,7 @@ async def test_calendar_pipeline_creates_ready_document(
     await service.index(prepared[0], doc)
 
     result = await db_session.execute(
-        select(Document).filter(Document.search_space_id == space_id)
+        select(Document).filter(Document.workspace_id == space_id)
     )
     row = result.scalars().first()
 
@@ -65,10 +65,10 @@ async def test_calendar_pipeline_creates_ready_document(
 
 @pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_calendar_legacy_doc_migrated(
-    db_session, db_search_space, db_connector, db_user, mocker
+    db_session, db_workspace, db_connector, db_user, mocker
 ):
     """A legacy Composio Calendar doc is migrated and reused."""
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     user_id = str(db_user.id)
     evt_id = "evt-legacy-cal"
 
@@ -82,7 +82,7 @@ async def test_calendar_legacy_doc_migrated(
         content_hash=f"ch-{legacy_hash[:12]}",
         unique_identifier_hash=legacy_hash,
         source_markdown="## Old event",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
         embedding=[0.1] * _EMBEDDING_DIM,
         status={"state": "ready"},
@@ -93,7 +93,7 @@ async def test_calendar_legacy_doc_migrated(
 
     connector_doc = _cal_doc(
         unique_id=evt_id,
-        search_space_id=space_id,
+        workspace_id=space_id,
         connector_id=db_connector.id,
         user_id=user_id,
     )

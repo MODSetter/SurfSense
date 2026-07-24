@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
 
 from langchain_core.tools import BaseTool
 
@@ -25,7 +24,7 @@ def build_context_editing_mw(
     flags: AgentFeatureFlags,
     max_input_tokens: int | None,
     tools: Sequence[BaseTool],
-    backend_resolver: Any,
+    workspace_id: int | None = None,
 ) -> SpillingContextEditingMiddleware | None:
     if not enabled(flags, "enable_context_editing") or not max_input_tokens:
         return None
@@ -46,5 +45,5 @@ def build_context_editing_mw(
     )
     return SpillingContextEditingMiddleware(
         edits=[spill_edit, clear_edit],
-        backend_resolver=backend_resolver,
+        workspace_id=workspace_id,
     )

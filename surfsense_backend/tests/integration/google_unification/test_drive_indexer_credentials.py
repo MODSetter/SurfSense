@@ -62,7 +62,7 @@ async def committed_drive_connector(async_engine):
         name_prefix="drive-composio",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @pytest_asyncio.fixture
@@ -80,7 +80,7 @@ async def committed_native_drive_connector(async_engine):
         name_prefix="drive-native",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @pytest_asyncio.fixture
@@ -92,7 +92,7 @@ async def committed_composio_no_account_id(async_engine):
         name_prefix="drive-noid",
     )
     yield data
-    await cleanup_space(async_engine, data["search_space_id"])
+    await cleanup_space(async_engine, data["workspace_id"])
 
 
 @patch(_GET_ACCESS_TOKEN)
@@ -127,7 +127,7 @@ async def test_composio_drive_indexer_uses_composio_drive_client(
         await index_google_drive_files(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
             folder_id="test-folder-id",
         )
@@ -167,7 +167,7 @@ async def test_composio_connector_without_account_id_returns_error(
         count, _skipped, error, _unsupported = await index_google_drive_files(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
             folder_id="test-folder-id",
         )
@@ -207,7 +207,7 @@ async def test_native_connector_uses_google_drive_client(
         await index_google_drive_files(
             session=session,
             connector_id=data["connector_id"],
-            search_space_id=data["search_space_id"],
+            workspace_id=data["workspace_id"],
             user_id=data["user_id"],
             folder_id="test-folder-id",
         )

@@ -55,15 +55,15 @@ def _hf_hub_download(*args, **kwargs):
 
 @dataclass
 class MedXpertQuestion:
-    qid: str                         # e.g. "MM-26"
-    question: str                    # full question text (case + ask)
-    options: dict[str, str]          # A-E
-    label: str                       # "A".."E"
-    image_files: list[str]           # filenames inside images.zip
+    qid: str  # e.g. "MM-26"
+    question: str  # full question text (case + ask)
+    options: dict[str, str]  # A-E
+    label: str  # "A".."E"
+    image_files: list[str]  # filenames inside images.zip
     medical_task: str
     body_system: str
     question_type: str
-    split: str                       # "test" or "dev"
+    split: str  # "test" or "dev"
 
 
 def _load_jsonl(path: Path, *, split: str) -> list[MedXpertQuestion]:
@@ -84,17 +84,19 @@ def _load_jsonl(path: Path, *, split: str) -> list[MedXpertQuestion]:
             images = row.get("images") or []
             if not isinstance(images, list):
                 images = []
-            out.append(MedXpertQuestion(
-                qid=qid,
-                question=question,
-                options=opts,
-                label=label,
-                image_files=[str(x).strip() for x in images if str(x).strip()],
-                medical_task=str(row.get("medical_task") or "").strip(),
-                body_system=str(row.get("body_system") or "").strip(),
-                question_type=str(row.get("question_type") or "").strip(),
-                split=split,
-            ))
+            out.append(
+                MedXpertQuestion(
+                    qid=qid,
+                    question=question,
+                    options=opts,
+                    label=label,
+                    image_files=[str(x).strip() for x in images if str(x).strip()],
+                    medical_task=str(row.get("medical_task") or "").strip(),
+                    body_system=str(row.get("body_system") or "").strip(),
+                    question_type=str(row.get("question_type") or "").strip(),
+                    split=split,
+                )
+            )
     return out
 
 
@@ -204,7 +206,7 @@ async def _upload_pdfs(
     name_to_id: dict[str, int] = {}
     pdf_list = list(pdf_paths)
     for batch_start in range(0, len(pdf_list), batch_size):
-        batch = pdf_list[batch_start:batch_start + batch_size]
+        batch = pdf_list[batch_start : batch_start + batch_size]
         result = await docs_client.upload(
             files=batch,
             search_space_id=ctx.search_space_id,
@@ -226,8 +228,10 @@ async def _upload_pdfs(
                 name_to_id[s.title] = s.document_id
         logger.info(
             "Uploaded MedXpertQA batch %d-%d: %d new, %d duplicate",
-            batch_start, batch_start + len(batch),
-            len(result.document_ids), len(result.duplicate_document_ids),
+            batch_start,
+            batch_start + len(batch),
+            len(result.document_ids),
+            len(result.duplicate_document_ids),
         )
     return name_to_id
 
@@ -310,9 +314,11 @@ async def run_ingest(
         # Materialise into bench_dir so the path is stable.
         try:
             from os import link as _link
+
             _link(local_zip, images_zip_local)
         except OSError:
             from shutil import copy2
+
             copy2(local_zip, images_zip_local)
     _ensure_images_extracted(images_zip_local, images_dir)
 
@@ -354,17 +360,22 @@ async def run_ingest(
     questions_jsonl = bench_dir / "questions.jsonl"
     with questions_jsonl.open("w", encoding="utf-8") as fh:
         for q in questions:
-            fh.write(json.dumps({
-                "qid": q.qid,
-                "question": q.question,
-                "options": q.options,
-                "label": q.label,
-                "image_files": q.image_files,
-                "medical_task": q.medical_task,
-                "body_system": q.body_system,
-                "question_type": q.question_type,
-                "split": q.split,
-            }) + "\n")
+            fh.write(
+                json.dumps(
+                    {
+                        "qid": q.qid,
+                        "question": q.question,
+                        "options": q.options,
+                        "label": q.label,
+                        "image_files": q.image_files,
+                        "medical_task": q.medical_task,
+                        "body_system": q.body_system,
+                        "question_type": q.question_type,
+                        "split": q.split,
+                    }
+                )
+                + "\n"
+            )
     logger.info("Wrote %d MedXpertQA questions to %s", len(questions), questions_jsonl)
 
     map_path = ctx.maps_dir() / "medxpertqa_doc_map.jsonl"
@@ -376,13 +387,18 @@ async def run_ingest(
             local = pdf_paths.get(q.qid)
             if local is None:
                 continue
-            fh.write(json.dumps({
-                "qid": q.qid,
-                "document_id": name_to_id.get(local.name),
-                "pdf_path": str(local),
-                "n_images": len(q.image_files),
-                "split": q.split,
-            }) + "\n")
+            fh.write(
+                json.dumps(
+                    {
+                        "qid": q.qid,
+                        "document_id": name_to_id.get(local.name),
+                        "pdf_path": str(local),
+                        "n_images": len(q.image_files),
+                        "split": q.split,
+                    }
+                )
+                + "\n"
+            )
     logger.info("Wrote MedXpertQA doc map to %s", map_path)
 
     new_state = ctx.suite_state

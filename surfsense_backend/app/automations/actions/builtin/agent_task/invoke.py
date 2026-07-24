@@ -65,7 +65,7 @@ def _build_connector_block(connectors: list[dict[str, Any]]) -> str | None:
 async def _resolve_mention_context(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     query: str,
     mentioned_document_ids: list[int] | None,
     mentioned_folder_ids: list[int] | None,
@@ -94,7 +94,7 @@ async def _resolve_mention_context(
 
     resolved = await resolve_mentions(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         mentioned_documents=mentioned_documents,
         mentioned_document_ids=mentioned_document_ids,
         mentioned_folder_ids=mentioned_folder_ids,
@@ -109,7 +109,7 @@ async def _resolve_mention_context(
         agent_query = f"{connector_block}\n\n<user_query>{agent_query}</user_query>"
 
     runtime_context = SurfSenseContextSchema(
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         mentioned_document_ids=list(
             resolved.mentioned_document_ids or (mentioned_document_ids or [])
         ),
@@ -156,7 +156,7 @@ async def run_agent_task(
 
         deps = await build_dependencies(
             session=agent_session,
-            search_space_id=ctx.search_space_id,
+            workspace_id=ctx.workspace_id,
             chat_model_id=ctx.chat_model_id,
             image_gen_model_id=ctx.image_gen_model_id,
             vision_model_id=ctx.vision_model_id,
@@ -164,14 +164,13 @@ async def run_agent_task(
 
         agent = await create_multi_agent_chat_deep_agent(
             llm=deps.llm,
-            search_space_id=ctx.search_space_id,
+            workspace_id=ctx.workspace_id,
             db_session=agent_session,
             connector_service=deps.connector_service,
             checkpointer=deps.checkpointer,
             user_id=user_id,
             thread_id=None,
             agent_config=deps.agent_config,
-            firecrawl_api_key=deps.firecrawl_api_key,
             thread_visibility=ChatVisibility.PRIVATE,
             mentioned_document_ids=mentioned_document_ids,
             image_gen_model_id=ctx.image_gen_model_id,
@@ -180,7 +179,7 @@ async def run_agent_task(
 
         agent_query, runtime_context = await _resolve_mention_context(
             agent_session,
-            search_space_id=ctx.search_space_id,
+            workspace_id=ctx.workspace_id,
             query=query,
             mentioned_document_ids=mentioned_document_ids,
             mentioned_folder_ids=mentioned_folder_ids,
@@ -193,7 +192,7 @@ async def run_agent_task(
         turn_id = f"{request_id}:{int(time.time() * 1000)}"
         input_state: dict[str, Any] = {
             "messages": [HumanMessage(content=agent_query)],
-            "search_space_id": ctx.search_space_id,
+            "workspace_id": ctx.workspace_id,
             "request_id": request_id,
             "turn_id": turn_id,
         }

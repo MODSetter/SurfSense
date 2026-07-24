@@ -44,7 +44,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30
 async def index_airtable_records(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -58,7 +58,7 @@ async def index_airtable_records(
     Args:
         session: Database session
         connector_id: ID of the Airtable connector
-        search_space_id: ID of the search space to store documents in
+        workspace_id: ID of the workspace to store documents in
         user_id: ID of the user
         start_date: Start date for filtering records (YYYY-MM-DD)
         end_date: End date for filtering records (YYYY-MM-DD)
@@ -69,7 +69,7 @@ async def index_airtable_records(
     Returns:
         Tuple of (number_of_documents_processed, error_message)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="airtable_indexing",
         source="connector_indexing_task",
@@ -259,12 +259,12 @@ async def index_airtable_records(
                             unique_identifier_hash = generate_unique_identifier_hash(
                                 DocumentType.AIRTABLE_CONNECTOR,
                                 record_id,
-                                search_space_id,
+                                workspace_id,
                             )
 
                             # Generate content hash
                             content_hash = generate_content_hash(
-                                markdown_content, search_space_id
+                                markdown_content, workspace_id
                             )
 
                             # Check if document with this unique identifier already exists
@@ -323,7 +323,7 @@ async def index_airtable_records(
 
                             # Create new document with PENDING status (visible in UI immediately)
                             document = Document(
-                                search_space_id=search_space_id,
+                                workspace_id=workspace_id,
                                 title=record_id,
                                 document_type=DocumentType.AIRTABLE_CONNECTOR,
                                 document_metadata={

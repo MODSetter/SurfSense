@@ -3,7 +3,7 @@ import { useAtomValue } from "jotai";
 import { automationsListAtom } from "@/atoms/automations/automations-query.atoms";
 
 /**
- * List automations in the active search space (first page).
+ * List automations in the active workspace (first page).
  * Pagination knobs live in detail/list hooks below; v1 surfaces only the
  * first page since automation counts are expected to be small.
  */

@@ -6,7 +6,7 @@ export const folderTable = table("folders")
 		name: string(),
 		position: string(),
 		parentId: number().optional().from("parent_id"),
-		searchSpaceId: number().from("search_space_id"),
+		workspaceId: number().from("workspace_id"),
 		createdById: string().optional().from("created_by_id"),
 		createdAt: number().from("created_at"),
 		updatedAt: number().from("updated_at"),

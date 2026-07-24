@@ -1,5 +1,6 @@
 """Celery tasks for connector indexing."""
 
+import contextlib
 import logging
 import time
 import traceback
@@ -8,6 +9,7 @@ from collections.abc import Awaitable, Callable
 from celery import current_task
 
 from app.celery_app import celery_app
+from app.observability import analytics as ph_analytics
 from app.observability import metrics as ot_metrics, otel as ot
 from app.tasks.celery_tasks import (
     get_celery_session_maker,
@@ -17,8 +19,18 @@ from app.tasks.celery_tasks import (
 logger = logging.getLogger(__name__)
 
 
-def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
-    """Run connector sync work and record aggregate connector metrics."""
+def run_async_celery_task[T](
+    coro_factory: Callable[[], Awaitable[T]],
+    *,
+    workspace_id: int | None = None,
+    user_id: str | None = None,
+) -> T:
+    """Run connector sync work and record aggregate connector metrics.
+
+    When ``workspace_id``/``user_id`` are provided, also emits the PostHog
+    ``connector_indexing_completed``/``_failed`` outcome (the frontend only
+    knows indexing *started*, never whether it worked). No-op without a key.
+    """
     task_name = getattr(current_task, "name", None) or "unknown"
     t0 = time.perf_counter()
     status = "failed"
@@ -45,6 +57,29 @@ def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
             status=status,
             error_category=error_category,
         )
+        if user_id and ph_analytics.is_enabled():
+            event = (
+                "connector_indexing_completed"
+                if status == "success"
+                else "connector_indexing_failed"
+            )
+            with contextlib.suppress(Exception):
+                ph_analytics.capture(
+                    event,
+                    distinct_id=str(user_id),
+                    properties={
+                        "workspace_id": workspace_id,
+                        # ``connector_type`` is the Celery task name, e.g.
+                        # index_notion_pages / index_github_repos.
+                        "connector_type": task_name,
+                        "status": status,
+                        "error_category": error_category,
+                        "duration_ms": int(elapsed_s * 1000),
+                    },
+                    groups={"workspace": str(workspace_id)}
+                    if workspace_id is not None
+                    else None,
+                )
 
 
 def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> None:
@@ -64,7 +99,7 @@ def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> N
             f"GREENLET ERROR in {task_name} for connector {connector_id}: {error_str}\n"
             f"This error typically occurs when SQLAlchemy tries to lazy-load a relationship "
             f"outside of an async context. Check for:\n"
-            f"1. Accessing relationship attributes (e.g., document.chunks, connector.search_space) "
+            f"1. Accessing relationship attributes (e.g., document.chunks, connector.workspace) "
             f"without using selectinload() or joinedload()\n"
             f"2. Accessing model attributes after the session is closed\n"
             f"3. Passing ORM objects between different async contexts\n"
@@ -81,7 +116,7 @@ def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> N
 def index_notion_pages_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -90,8 +125,10 @@ def index_notion_pages_task(
     try:
         return run_async_celery_task(
             lambda: _index_notion_pages(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+                connector_id, workspace_id, user_id, start_date, end_date
+            ),
+            workspace_id=workspace_id,
+            user_id=user_id,
         )
     except Exception as e:
         _handle_greenlet_error(e, "index_notion_pages", connector_id)
@@ -100,7 +137,7 @@ def index_notion_pages_task(
 
 async def _index_notion_pages(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -112,7 +149,7 @@ async def _index_notion_pages(
 
     async with get_celery_session_maker()() as session:
         await run_notion_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -120,7 +157,7 @@ async def _index_notion_pages(
 def index_github_repos_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -128,14 +165,16 @@ def index_github_repos_task(
     """Celery task to index GitHub repositories."""
     return run_async_celery_task(
         lambda: _index_github_repos(
-            connector_id, search_space_id, user_id, start_date, end_date
-        )
+            connector_id, workspace_id, user_id, start_date, end_date
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_github_repos(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -147,7 +186,7 @@ async def _index_github_repos(
 
     async with get_celery_session_maker()() as session:
         await run_github_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -155,7 +194,7 @@ async def _index_github_repos(
 def index_confluence_pages_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -163,14 +202,16 @@ def index_confluence_pages_task(
     """Celery task to index Confluence pages."""
     return run_async_celery_task(
         lambda: _index_confluence_pages(
-            connector_id, search_space_id, user_id, start_date, end_date
-        )
+            connector_id, workspace_id, user_id, start_date, end_date
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_confluence_pages(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -182,7 +223,7 @@ async def _index_confluence_pages(
 
     async with get_celery_session_maker()() as session:
         await run_confluence_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -190,7 +231,7 @@ async def _index_confluence_pages(
 def index_google_calendar_events_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -199,8 +240,10 @@ def index_google_calendar_events_task(
     try:
         return run_async_celery_task(
             lambda: _index_google_calendar_events(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
+                connector_id, workspace_id, user_id, start_date, end_date
+            ),
+            workspace_id=workspace_id,
+            user_id=user_id,
         )
     except Exception as e:
         _handle_greenlet_error(e, "index_google_calendar_events", connector_id)
@@ -209,7 +252,7 @@ def index_google_calendar_events_task(
 
 async def _index_google_calendar_events(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -221,7 +264,7 @@ async def _index_google_calendar_events(
 
     async with get_celery_session_maker()() as session:
         await run_google_calendar_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -229,7 +272,7 @@ async def _index_google_calendar_events(
 def index_google_gmail_messages_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -237,14 +280,16 @@ def index_google_gmail_messages_task(
     """Celery task to index Google Gmail messages."""
     return run_async_celery_task(
         lambda: _index_google_gmail_messages(
-            connector_id, search_space_id, user_id, start_date, end_date
-        )
+            connector_id, workspace_id, user_id, start_date, end_date
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_google_gmail_messages(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -256,7 +301,7 @@ async def _index_google_gmail_messages(
 
     async with get_celery_session_maker()() as session:
         await run_google_gmail_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -264,7 +309,7 @@ async def _index_google_gmail_messages(
 def index_google_drive_files_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
@@ -272,16 +317,18 @@ def index_google_drive_files_task(
     return run_async_celery_task(
         lambda: _index_google_drive_files(
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
-        )
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_google_drive_files(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
@@ -294,7 +341,7 @@ async def _index_google_drive_files(
         await run_google_drive_indexing(
             session,
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
         )
@@ -304,7 +351,7 @@ async def _index_google_drive_files(
 def index_onedrive_files_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ):
@@ -312,16 +359,18 @@ def index_onedrive_files_task(
     return run_async_celery_task(
         lambda: _index_onedrive_files(
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
-        )
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_onedrive_files(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ):
@@ -334,7 +383,7 @@ async def _index_onedrive_files(
         await run_onedrive_indexing(
             session,
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
         )
@@ -344,7 +393,7 @@ async def _index_onedrive_files(
 def index_dropbox_files_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ):
@@ -352,16 +401,18 @@ def index_dropbox_files_task(
     return run_async_celery_task(
         lambda: _index_dropbox_files(
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
-        )
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_dropbox_files(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ):
@@ -374,7 +425,7 @@ async def _index_dropbox_files(
         await run_dropbox_indexing(
             session,
             connector_id,
-            search_space_id,
+            workspace_id,
             user_id,
             items_dict,
         )
@@ -384,7 +435,7 @@ async def _index_dropbox_files(
 def index_elasticsearch_documents_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -392,14 +443,16 @@ def index_elasticsearch_documents_task(
     """Celery task to index Elasticsearch documents."""
     return run_async_celery_task(
         lambda: _index_elasticsearch_documents(
-            connector_id, search_space_id, user_id, start_date, end_date
-        )
+            connector_id, workspace_id, user_id, start_date, end_date
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_elasticsearch_documents(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -411,46 +464,7 @@ async def _index_elasticsearch_documents(
 
     async with get_celery_session_maker()() as session:
         await run_elasticsearch_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-
-
-@celery_app.task(name="index_crawled_urls", bind=True)
-def index_crawled_urls_task(
-    self,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Celery task to index Web page Urls."""
-    try:
-        return run_async_celery_task(
-            lambda: _index_crawled_urls(
-                connector_id, search_space_id, user_id, start_date, end_date
-            )
-        )
-    except Exception as e:
-        _handle_greenlet_error(e, "index_crawled_urls", connector_id)
-        raise
-
-
-async def _index_crawled_urls(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Index Web page Urls with new session."""
-    from app.routes.search_source_connectors_routes import (
-        run_web_page_indexing,
-    )
-
-    async with get_celery_session_maker()() as session:
-        await run_web_page_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -458,7 +472,7 @@ async def _index_crawled_urls(
 def index_bookstack_pages_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -466,14 +480,16 @@ def index_bookstack_pages_task(
     """Celery task to index BookStack pages."""
     return run_async_celery_task(
         lambda: _index_bookstack_pages(
-            connector_id, search_space_id, user_id, start_date, end_date
-        )
+            connector_id, workspace_id, user_id, start_date, end_date
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_bookstack_pages(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
@@ -485,7 +501,7 @@ async def _index_bookstack_pages(
 
     async with get_celery_session_maker()() as session:
         await run_bookstack_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )
 
 
@@ -493,7 +509,7 @@ async def _index_bookstack_pages(
 def index_composio_connector_task(
     self,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None,
     end_date: str | None,
@@ -501,14 +517,16 @@ def index_composio_connector_task(
     """Celery task to index Composio connector content (Google Drive, Gmail, Calendar via Composio)."""
     return run_async_celery_task(
         lambda: _index_composio_connector(
-            connector_id, search_space_id, user_id, start_date, end_date
-        )
+            connector_id, workspace_id, user_id, start_date, end_date
+        ),
+        workspace_id=workspace_id,
+        user_id=user_id,
     )
 
 
 async def _index_composio_connector(
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None,
     end_date: str | None,
@@ -521,5 +539,5 @@ async def _index_composio_connector(
 
     async with get_celery_session_maker()() as session:
         await run_composio_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+            session, connector_id, workspace_id, user_id, start_date, end_date
         )

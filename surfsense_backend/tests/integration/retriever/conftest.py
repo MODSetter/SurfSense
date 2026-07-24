@@ -9,7 +9,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config as app_config
-from app.db import Chunk, Document, DocumentType, SearchSpace, User
+from app.db import Chunk, Document, DocumentType, User, Workspace
 
 EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 DUMMY_EMBEDDING = [0.1] * EMBEDDING_DIM
@@ -20,7 +20,7 @@ def _make_document(
     title: str,
     document_type: DocumentType,
     content: str,
-    search_space_id: int,
+    workspace_id: int,
     created_by_id: str,
     updated_at: datetime | None = None,
 ) -> Document:
@@ -32,7 +32,7 @@ def _make_document(
         content_hash=f"content-{uid}",
         unique_identifier_hash=f"uid-{uid}",
         source_markdown=content,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         created_by_id=created_by_id,
         embedding=DUMMY_EMBEDDING,
         updated_at=updated_at or datetime.now(UTC),
@@ -50,29 +50,29 @@ def _make_chunk(*, content: str, document_id: int) -> Chunk:
 
 @pytest_asyncio.fixture
 async def seed_large_doc(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Insert a document with 35 chunks (more than _MAX_FETCH_CHUNKS_PER_DOC=20).
 
     Also inserts a small 3-chunk document for diversity testing.
-    Returns a dict with ``large_doc``, ``small_doc``, ``search_space``, ``user``,
+    Returns a dict with ``large_doc``, ``small_doc``, ``workspace``, ``user``,
     and ``large_chunk_ids`` (all 35 chunk IDs).
     """
     user_id = str(db_user.id)
-    space_id = db_search_space.id
+    space_id = db_workspace.id
 
     large_doc = _make_document(
         title="Large PDF Document",
         document_type=DocumentType.FILE,
         content="large document about quarterly performance reviews and budgets",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
     )
     small_doc = _make_document(
         title="Small Note",
         document_type=DocumentType.NOTE,
         content="quarterly performance review summary note",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
     )
 
@@ -102,25 +102,25 @@ async def seed_large_doc(
         "small_doc": small_doc,
         "large_chunk_ids": [c.id for c in large_chunks],
         "small_chunk_ids": [c.id for c in small_chunks],
-        "search_space": db_search_space,
+        "workspace": db_workspace,
         "user": db_user,
     }
 
 
 @pytest_asyncio.fixture
 async def seed_date_filtered_docs(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Insert matching docs with different timestamps for date-filter tests."""
     user_id = str(db_user.id)
-    space_id = db_search_space.id
+    space_id = db_workspace.id
     now = datetime.now(UTC)
 
     recent_doc = _make_document(
         title="Recent OCV Notes",
         document_type=DocumentType.FILE,
         content="ocv meeting decisions and action items",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
         updated_at=now,
     )
@@ -128,7 +128,7 @@ async def seed_date_filtered_docs(
         title="Old OCV Notes",
         document_type=DocumentType.FILE,
         content="ocv meeting decisions and action items",
-        search_space_id=space_id,
+        workspace_id=space_id,
         created_by_id=user_id,
         updated_at=now - timedelta(days=730),
     )
@@ -153,6 +153,6 @@ async def seed_date_filtered_docs(
     return {
         "recent_doc": recent_doc,
         "old_doc": old_doc,
-        "search_space": db_search_space,
+        "workspace": db_workspace,
         "user": db_user,
     }

@@ -210,7 +210,7 @@ async def _resolve_slack_thread_binding(
     thread_binding = ExternalChatBinding(
         account_id=account.id,
         user_id=user_binding.user_id,
-        search_space_id=user_binding.search_space_id,
+        workspace_id=user_binding.workspace_id,
         state=ExternalChatBindingState.BOUND,
         external_peer_id=thread_peer_id,
         external_peer_kind=ExternalChatPeerKind.CHANNEL,
@@ -272,7 +272,7 @@ async def _resolve_discord_thread_binding(
     thread_binding = ExternalChatBinding(
         account_id=account.id,
         user_id=user_binding.user_id,
-        search_space_id=user_binding.search_space_id,
+        workspace_id=user_binding.workspace_id,
         state=ExternalChatBindingState.BOUND,
         external_peer_id=thread_peer_id,
         external_peer_kind=ExternalChatPeerKind.CHANNEL,
@@ -366,12 +366,12 @@ async def _dispatch_inbound_event(
             if (
                 bundle.auto_bind_owner
                 and account.owner_user_id
-                and account.owner_search_space_id
+                and account.owner_workspace_id
             ):
                 binding = ExternalChatBinding(
                     account_id=account.id,
                     user_id=account.owner_user_id,
-                    search_space_id=account.owner_search_space_id,
+                    workspace_id=account.owner_workspace_id,
                     state=ExternalChatBindingState.BOUND,
                     external_peer_id=parsed.external_peer_id,
                     external_peer_kind=parsed.external_peer_kind,

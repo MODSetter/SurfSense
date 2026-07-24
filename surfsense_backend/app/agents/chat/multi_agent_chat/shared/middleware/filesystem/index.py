@@ -13,7 +13,7 @@ def build_filesystem_mw(
     *,
     backend_resolver: Any,
     filesystem_mode: FilesystemMode,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     thread_id: int | None,
     read_only: bool = False,
@@ -21,7 +21,7 @@ def build_filesystem_mw(
     return SurfSenseFilesystemMiddleware(
         backend=backend_resolver,
         filesystem_mode=filesystem_mode,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         created_by_id=user_id,
         thread_id=thread_id,
         read_only=read_only,

@@ -1,0 +1,54 @@
+---
+title: YouTube
+description: Scrape public YouTube videos, channels, playlists, and comments
+---
+
+The YouTube scraper has two verbs: **scrape** for video metadata (and optionally subtitles) and **comments** for a video's comment threads.
+
+## Scrape videos
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/youtube/scrape
+```
+
+Give it YouTube URLs (video, channel `/@handle`, playlist, shorts, or hashtag pages) and/or search queries. Returns structured video items — title, views, likes, publish date, channel info, description, and optionally subtitles.
+
+At least one of `urls` or `search_queries` is required.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | — | Video, channel, playlist, shorts, or hashtag URLs (max 20 sources per call, combined with queries) |
+| `search_queries` | — | Search terms; each returns up to `max_results` videos |
+| `max_results` | `10` | Max items per source and per content type (a channel's videos, shorts, and streams are capped independently; max 1000) |
+| `download_subtitles` | `false` | Also fetch each video's subtitle track (slower) |
+| `subtitles_language` | `en` | Subtitle language code |
+
+```bash
+curl -X POST "$BASE_URL/api/v1/workspaces/1/scrapers/youtube/scrape" \
+  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": ["https://www.youtube.com/@surfsense"],
+    "max_results": 20
+  }'
+```
+
+Billing is per returned video/short/stream.
+
+## Fetch comments
+
+```bash
+POST /api/v1/workspaces/{workspace_id}/scrapers/youtube/comments
+```
+
+Give it video URLs; returns comment items with author, text, like count, reply relationships, and timestamps — useful for gauging sentiment on specific videos.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `urls` | required | 1–20 video URLs |
+| `max_comments` | `20` | Max items per video, counting top-level comments and replies (max 100,000) |
+| `sort_by` | `NEWEST_FIRST` | `TOP_COMMENTS` or `NEWEST_FIRST` |
+
+Billing is per returned comment or reply.
+
+For the full input and output JSON schemas and generated code snippets in your language, open **API Playground → YouTube** in your workspace.

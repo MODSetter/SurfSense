@@ -36,7 +36,11 @@ _ERROR_CATEGORY_HINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 
 def _package_version() -> str:
-    with contextlib.suppress(metadata.PackageNotFoundError):
+    # Best-effort telemetry tag only: never let a version lookup crash the
+    # request path. Besides PackageNotFoundError, a malformed/dynamic editable
+    # install can have distribution metadata with no "Version" field, which
+    # raises KeyError deep in importlib.metadata. Suppress broadly.
+    with contextlib.suppress(Exception):
         return metadata.version("surf-new-backend")
     return "unknown"
 
@@ -534,12 +538,12 @@ def record_tool_call_error(*, tool_name: str) -> None:
 
 
 def record_kb_search_duration(
-    duration_ms: float, *, search_space_id: int | None, surface: str
+    duration_ms: float, *, workspace_id: int | None, surface: str
 ) -> None:
     _record(
         _kb_search_duration(),
         duration_ms,
-        {"search_space.id": search_space_id, "search.surface": surface},
+        {"workspace.id": workspace_id, "search.surface": surface},
     )
 
 

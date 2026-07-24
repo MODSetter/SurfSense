@@ -51,7 +51,7 @@ def _build_desktop_fs_mw(root: Path):
     return build_filesystem_mw(
         backend_resolver=resolver,
         filesystem_mode=FilesystemMode.DESKTOP_LOCAL_FOLDER,
-        search_space_id=1,
+        workspace_id=1,
         user_id="00000000-0000-0000-0000-000000000001",
         thread_id=1,
         read_only=False,

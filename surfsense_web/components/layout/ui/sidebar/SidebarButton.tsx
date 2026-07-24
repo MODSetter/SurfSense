@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,26 @@ const baseClassName = cn(
 	"transition-colors hover:bg-accent hover:text-accent-foreground",
 	"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 );
+
+export function SidebarButtonBadge({
+	children,
+	className,
+}: {
+	children: React.ReactNode;
+	className?: string;
+}) {
+	return (
+		<Badge
+			variant="secondary"
+			className={cn(
+				"h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10",
+				className
+			)}
+		>
+			{children}
+		</Badge>
+	);
+}
 
 export function SidebarButton({
 	icon: Icon,
@@ -73,17 +94,19 @@ export function SidebarButton({
 						isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[260px] flex-1 opacity-100 ml-2"
 					)}
 				>
-					<span className="block truncate">{label}</span>
+					<span className="flex min-w-0 items-center gap-1.5">
+						<span className="truncate">{label}</span>
+						{!isCollapsed && badge && typeof badge !== "string" ? badge : null}
+						{!isCollapsed && badge && typeof badge === "string" ? (
+							<span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
+								{badge}
+							</span>
+						) : null}
+					</span>
 				</span>
 			</span>
 
 			{!isCollapsed && trailingContent}
-			{!isCollapsed && badge && typeof badge !== "string" ? badge : null}
-			{!isCollapsed && badge && typeof badge === "string" ? (
-				<span className="ml-1 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
-					{badge}
-				</span>
-			) : null}
 
 			{collapsedOverlay && (
 				<span

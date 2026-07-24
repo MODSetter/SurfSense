@@ -12,7 +12,7 @@ class ReportBase(BaseModel):
     title: str
     content: str | None = None
     report_style: str | None = None
-    search_space_id: int
+    workspace_id: int
 
 
 class ReportRead(BaseModel):

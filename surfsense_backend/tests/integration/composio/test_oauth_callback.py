@@ -9,8 +9,8 @@ from app.config import config
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
     User,
+    Workspace,
 )
 from app.utils.oauth_security import OAuthStateManager
 
@@ -29,12 +29,12 @@ async def _drive_connectors(
     session: AsyncSession,
     *,
     user_id: UUID,
-    search_space_id: int,
+    workspace_id: int,
 ) -> list[SearchSourceConnector]:
     result = await session.execute(
         select(SearchSourceConnector).where(
             SearchSourceConnector.user_id == user_id,
-            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.workspace_id == workspace_id,
             SearchSourceConnector.connector_type
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
         )
@@ -46,9 +46,9 @@ async def test_callback_with_error_param_redirects_to_denied_page(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
-    state = _state_for(db_search_space.id, db_user.id)
+    state = _state_for(db_workspace.id, db_user.id)
 
     response = await client.get(
         f"/api/v1/auth/composio/connector/callback?state={state}&error=access_denied"
@@ -57,14 +57,13 @@ async def test_callback_with_error_param_redirects_to_denied_page(
     assert response.status_code in {302, 303, 307}
     location = response.headers["location"]
     assert (
-        f"/dashboard/{db_search_space.id}/connectors/callback?"
-        "error=composio_oauth_denied"
+        f"/dashboard/{db_workspace.id}/connectors/callback?error=composio_oauth_denied"
     ) in location
 
     connectors = await _drive_connectors(
         db_session,
         user_id=db_user.id,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
     assert connectors == []
 
@@ -73,9 +72,9 @@ async def test_second_oauth_for_same_toolkit_takes_reconnection_branch(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
     db_user: User,
-    db_search_space: SearchSpace,
+    db_workspace: Workspace,
 ):
-    first_state = _state_for(db_search_space.id, db_user.id)
+    first_state = _state_for(db_workspace.id, db_user.id)
 
     first_response = await client.get(
         "/api/v1/auth/composio/connector/callback"
@@ -86,7 +85,7 @@ async def test_second_oauth_for_same_toolkit_takes_reconnection_branch(
     first_connectors = await _drive_connectors(
         db_session,
         user_id=db_user.id,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
     assert len(first_connectors) == 1
     first_connector = first_connectors[0]
@@ -94,7 +93,7 @@ async def test_second_oauth_for_same_toolkit_takes_reconnection_branch(
         "fake-acct-googledrive-first"
     )
 
-    second_state = _state_for(db_search_space.id, db_user.id)
+    second_state = _state_for(db_workspace.id, db_user.id)
     second_response = await client.get(
         "/api/v1/auth/composio/connector/callback"
         f"?state={second_state}&connectedAccountId=fake-acct-googledrive-second"
@@ -104,7 +103,7 @@ async def test_second_oauth_for_same_toolkit_takes_reconnection_branch(
     second_connectors = await _drive_connectors(
         db_session,
         user_id=db_user.id,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
     assert len(second_connectors) == 1
     assert second_connectors[0].id == first_connector.id

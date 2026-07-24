@@ -41,7 +41,7 @@ class SurfSenseContextSchema:
     are optional; consumers must None-check before reading.
 
     Phase 1.5 fields:
-        search_space_id: Search space the request is scoped to.
+        workspace_id: Workspace the request is scoped to.
         mentioned_document_ids: KB documents the user @-mentioned this turn.
             Read by the ``search_knowledge_base`` tool to pin these docs
             into the retrieval scope. Stays out of the compiled-agent cache
@@ -60,7 +60,7 @@ class SurfSenseContextSchema:
     by middleware ``__init__`` closures).
     """
 
-    search_space_id: int | None = None
+    workspace_id: int | None = None
     mentioned_document_ids: list[int] = field(default_factory=list)
     mentioned_folder_ids: list[int] = field(default_factory=list)
     mentioned_connector_ids: list[int] = field(default_factory=list)

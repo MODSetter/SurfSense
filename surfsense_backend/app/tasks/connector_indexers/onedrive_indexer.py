@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 async def _should_skip_file(
     session: AsyncSession,
     file: dict,
-    search_space_id: int,
+    workspace_id: int,
 ) -> tuple[bool, str | None]:
     """Pre-filter: detect unchanged / rename-only files."""
     file_id = file.get("id")
@@ -66,14 +66,14 @@ async def _should_skip_file(
         return True, "missing file_id"
 
     primary_hash = compute_identifier_hash(
-        DocumentType.ONEDRIVE_FILE.value, file_id, search_space_id
+        DocumentType.ONEDRIVE_FILE.value, file_id, workspace_id
     )
     existing = await check_document_by_unique_identifier(session, primary_hash)
 
     if not existing:
         result = await session.execute(
             select(Document).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.document_type == DocumentType.ONEDRIVE_FILE,
                 cast(Document.document_metadata["onedrive_file_id"], String) == file_id,
             )
@@ -137,7 +137,7 @@ def _build_connector_doc(
     onedrive_metadata: dict,
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     file_id = file.get("id", "")
@@ -155,7 +155,7 @@ def _build_connector_doc(
         source_markdown=markdown,
         unique_id=file_id,
         document_type=DocumentType.ONEDRIVE_FILE,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata=metadata,
@@ -167,7 +167,7 @@ async def _download_files_parallel(
     files: list[dict],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     max_concurrency: int = 3,
     on_heartbeat: HeartbeatCallbackType | None = None,
@@ -201,7 +201,7 @@ async def _download_files_parallel(
                 markdown,
                 od_metadata,
                 connector_id=connector_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
             )
             async with hb_lock:
@@ -246,7 +246,7 @@ async def _download_and_index(
     files: list[dict],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -256,7 +256,7 @@ async def _download_and_index(
         onedrive_client,
         files,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
@@ -267,7 +267,7 @@ async def _download_and_index(
         await mark_connector_documents_failed(
             session,
             document_type=DocumentType.ONEDRIVE_FILE,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             failures=failed_files,
         )
 
@@ -284,17 +284,17 @@ async def _download_and_index(
     return batch_indexed, len(failed_files) + batch_failed
 
 
-async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
+async def _remove_document(session: AsyncSession, file_id: str, workspace_id: int):
     """Remove a document that was deleted in OneDrive."""
     primary_hash = compute_identifier_hash(
-        DocumentType.ONEDRIVE_FILE.value, file_id, search_space_id
+        DocumentType.ONEDRIVE_FILE.value, file_id, workspace_id
     )
     existing = await check_document_by_unique_identifier(session, primary_hash)
 
     if not existing:
         result = await session.execute(
             select(Document).where(
-                Document.search_space_id == search_space_id,
+                Document.workspace_id == workspace_id,
                 Document.document_type == DocumentType.ONEDRIVE_FILE,
                 cast(Document.document_metadata["onedrive_file_id"], String) == file_id,
             )
@@ -312,7 +312,7 @@ async def _index_selected_files(
     file_ids: list[tuple[str, str | None]],
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     on_heartbeat: HeartbeatCallbackType | None = None,
     vision_llm=None,
@@ -335,7 +335,7 @@ async def _index_selected_files(
             errors.append(f"File '{display}': {error or 'File not found'}")
             continue
 
-        skip, msg = await _should_skip_file(session, file, search_space_id)
+        skip, msg = await _should_skip_file(session, file, workspace_id)
         if skip:
             if msg and msg.startswith("unsupported:"):
                 unsupported_count += 1
@@ -365,7 +365,7 @@ async def _index_selected_files(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat,
         vision_llm=vision_llm,
@@ -389,7 +389,7 @@ async def _index_full_scan(
     onedrive_client: OneDriveClient,
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_id: str,
     folder_name: str,
@@ -438,7 +438,7 @@ async def _index_full_scan(
         raise Exception(f"Failed to list OneDrive files: {error}")
 
     for file in all_files[:max_files]:
-        skip, msg = await _should_skip_file(session, file, search_space_id)
+        skip, msg = await _should_skip_file(session, file, workspace_id)
         if skip:
             if msg and msg.startswith("unsupported:"):
                 unsupported_count += 1
@@ -473,7 +473,7 @@ async def _index_full_scan(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
@@ -497,7 +497,7 @@ async def _index_with_delta_sync(
     onedrive_client: OneDriveClient,
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_id: str | None,
     delta_link: str,
@@ -553,7 +553,7 @@ async def _index_with_delta_sync(
         if change.get("deleted"):
             fid = change.get("id")
             if fid:
-                await _remove_document(session, fid, search_space_id)
+                await _remove_document(session, fid, workspace_id)
             continue
 
         if "folder" in change:
@@ -562,7 +562,7 @@ async def _index_with_delta_sync(
         if not change.get("file"):
             continue
 
-        skip, msg = await _should_skip_file(session, change, search_space_id)
+        skip, msg = await _should_skip_file(session, change, workspace_id)
         if skip:
             if msg and msg.startswith("unsupported:"):
                 unsupported_count += 1
@@ -597,7 +597,7 @@ async def _index_with_delta_sync(
         session,
         files_to_download,
         connector_id=connector_id,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         user_id=user_id,
         on_heartbeat=on_heartbeat_callback,
         vision_llm=vision_llm,
@@ -625,7 +625,7 @@ async def _index_with_delta_sync(
 async def index_onedrive_files(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     items_dict: dict,
 ) -> tuple[int, int, str | None, int]:
@@ -638,7 +638,7 @@ async def index_onedrive_files(
             "indexing_options": {"max_files": 500, "include_subfolders": true, "use_delta_sync": true}
         }
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="onedrive_files_indexing",
         source="connector_indexing_task",
@@ -673,7 +673,7 @@ async def index_onedrive_files(
         if connector_enable_vision_llm:
             from app.services.llm_service import get_vision_llm
 
-            vision_llm = await get_vision_llm(session, search_space_id)
+            vision_llm = await get_vision_llm(session, workspace_id)
 
         onedrive_client = OneDriveClient(session, connector_id)
 
@@ -695,7 +695,7 @@ async def index_onedrive_files(
                 session,
                 file_tuples,
                 connector_id=connector_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 user_id=user_id,
                 vision_llm=vision_llm,
             )
@@ -719,7 +719,7 @@ async def index_onedrive_files(
                     onedrive_client,
                     session,
                     connector_id,
-                    search_space_id,
+                    workspace_id,
                     user_id,
                     folder_id,
                     delta_link,
@@ -744,7 +744,7 @@ async def index_onedrive_files(
                     onedrive_client,
                     session,
                     connector_id,
-                    search_space_id,
+                    workspace_id,
                     user_id,
                     folder_id,
                     folder_name,
@@ -763,7 +763,7 @@ async def index_onedrive_files(
                     onedrive_client,
                     session,
                     connector_id,
-                    search_space_id,
+                    workspace_id,
                     user_id,
                     folder_id,
                     folder_name,

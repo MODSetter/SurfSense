@@ -6,7 +6,6 @@ import argparse
 from typing import Any
 
 from ....core.registry import (
-    Benchmark,
     ReportSection,
     RunArtifact,
     RunContext,

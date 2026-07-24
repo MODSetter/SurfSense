@@ -45,7 +45,7 @@ HEARTBEAT_INTERVAL_SECONDS = 30
 async def index_luma_events(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -58,7 +58,7 @@ async def index_luma_events(
     Args:
         session: Database session
         connector_id: ID of the Luma connector
-        search_space_id: ID of the search space to store documents in
+        workspace_id: ID of the workspace to store documents in
         user_id: User ID
         start_date: Start date for indexing (YYYY-MM-DD format). Can be in the past or future.
         end_date: End date for indexing (YYYY-MM-DD format). Can be in the future to index upcoming events.
@@ -69,7 +69,7 @@ async def index_luma_events(
     Returns:
         Tuple containing (number of documents indexed, error message or None)
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     # Log task start
     log_entry = await task_logger.log_task_start(
@@ -290,11 +290,11 @@ async def index_luma_events(
 
                 # Generate unique identifier hash for this Luma event
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.LUMA_CONNECTOR, event_id, search_space_id
+                    DocumentType.LUMA_CONNECTOR, event_id, workspace_id
                 )
 
                 # Generate content hash
-                content_hash = generate_content_hash(event_markdown, search_space_id)
+                content_hash = generate_content_hash(event_markdown, workspace_id)
 
                 # Check if document with this unique identifier already exists
                 existing_document = await check_document_by_unique_identifier(
@@ -355,7 +355,7 @@ async def index_luma_events(
 
                 # Create new document with PENDING status (visible in UI immediately)
                 document = Document(
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     title=event_name,
                     document_type=DocumentType.LUMA_CONNECTOR,
                     document_metadata={

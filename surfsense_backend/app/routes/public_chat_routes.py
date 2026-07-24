@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.db import get_async_session
+from app.observability import analytics as ph_analytics
 from app.schemas.new_chat import (
     CloneResponse,
     PublicChatResponse,
@@ -56,7 +57,20 @@ async def clone_public_chat(
     Creates thread and copies messages.
     Requires authentication.
     """
-    return await clone_from_snapshot(session, share_token, user)
+    result = await clone_from_snapshot(session, share_token, user)
+
+    # Share-link conversion — only observable server-side.
+    ph_analytics.capture_for(
+        auth,
+        "public_chat_cloned",
+        {
+            "workspace_id": result.workspace_id,
+            "chat_id": result.thread_id,
+        },
+        groups={"workspace": str(result.workspace_id)},
+    )
+
+    return result
 
 
 @router.get("/{share_token}/podcasts/{podcast_id}")

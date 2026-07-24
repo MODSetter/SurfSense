@@ -6,16 +6,16 @@ import { expect } from "@playwright/test";
  * route changes only require an update in one place.
  */
 
-export function newChatUrl(searchSpaceId: number): string {
-	return `/dashboard/${searchSpaceId}/new-chat`;
+export function newChatUrl(workspaceId: number): string {
+	return `/dashboard/${workspaceId}/new-chat`;
 }
 
-export function connectorsCallbackUrl(searchSpaceId: number): string {
-	return `/dashboard/${searchSpaceId}/connectors/callback`;
+export function connectorsCallbackUrl(workspaceId: number): string {
+	return `/dashboard/${workspaceId}/connectors/callback`;
 }
 
-export async function gotoNewChat(page: Page, searchSpaceId: number): Promise<void> {
-	const target = newChatUrl(searchSpaceId);
+export async function gotoNewChat(page: Page, workspaceId: number): Promise<void> {
+	const target = newChatUrl(workspaceId);
 	await page.goto(target, { waitUntil: "domcontentloaded" });
 	await expect(page).toHaveURL((url) => url.pathname === target);
 }

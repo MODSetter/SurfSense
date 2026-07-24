@@ -20,12 +20,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.auth.session_cookies import access_expires_at, write_session
 from app.config import config
+from app.observability import analytics as ph_analytics
 from app.db import (
     Prompt,
-    SearchSpace,
-    SearchSpaceMembership,
-    SearchSpaceRole,
     User,
+    Workspace,
+    WorkspaceMembership,
+    WorkspaceRole,
     async_session_maker,
     get_async_session,
     get_default_roles_config,
@@ -144,36 +145,39 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except Exception as e:
             logger.warning(f"Failed to update last_login for user {user.id}: {e}")
 
+        # Authoritative login event (vs. the frontend's optimistic capture).
+        ph_analytics.capture("auth_login_success", distinct_id=str(user.id))
+
     async def on_after_register(self, user: User, request: Request | None = None):
         """
-        Called after a user registers. Creates a default search space for the user
+        Called after a user registers. Creates a default workspace for the user
         so they can start chatting immediately without manual setup.
         """
-        logger.info(f"User {user.id} has registered. Creating default search space...")
+        logger.info(f"User {user.id} has registered. Creating default workspace...")
 
         try:
             async with async_session_maker() as session:
-                # Create default search space
-                default_search_space = SearchSpace(
-                    name="My Search Space",
-                    description="Your personal search space",
+                # Create default workspace
+                default_workspace = Workspace(
+                    name="My Workspace",
+                    description="Your personal workspace",
                     user_id=user.id,
                 )
-                session.add(default_search_space)
-                await session.flush()  # Get the search space ID
+                session.add(default_workspace)
+                await session.flush()  # Get the workspace ID
 
                 # Create default roles
                 default_roles = get_default_roles_config()
                 owner_role_id = None
 
                 for role_config in default_roles:
-                    db_role = SearchSpaceRole(
+                    db_role = WorkspaceRole(
                         name=role_config["name"],
                         description=role_config["description"],
                         permissions=role_config["permissions"],
                         is_default=role_config["is_default"],
                         is_system_role=role_config["is_system_role"],
-                        search_space_id=default_search_space.id,
+                        workspace_id=default_workspace.id,
                     )
                     session.add(db_role)
                     await session.flush()
@@ -182,9 +186,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                         owner_role_id = db_role.id
 
                 # Create owner membership
-                owner_membership = SearchSpaceMembership(
+                owner_membership = WorkspaceMembership(
                     user_id=user.id,
-                    search_space_id=default_search_space.id,
+                    workspace_id=default_workspace.id,
                     role_id=owner_role_id,
                     is_owner=True,
                 )
@@ -204,12 +208,21 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
                 await session.commit()
                 logger.info(
-                    f"Created default search space (ID: {default_search_space.id}) for user {user.id}"
+                    f"Created default workspace (ID: {default_workspace.id}) for user {user.id}"
+                )
+
+                # Authoritative registration + auto-created default workspace.
+                ph_analytics.capture(
+                    "auth_registration_success", distinct_id=str(user.id)
+                )
+                ph_analytics.capture(
+                    "workspace_created",
+                    distinct_id=str(user.id),
+                    properties={"client": "auto_register"},
+                    groups={"workspace": str(default_workspace.id)},
                 )
         except Exception as e:
-            logger.error(
-                f"Failed to create default search space for user {user.id}: {e}"
-            )
+            logger.error(f"Failed to create default workspace for user {user.id}: {e}")
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
@@ -326,7 +339,7 @@ def _token_meets_epoch(token: str) -> bool:
         return False
 
     issued_at = payload.get("iat")
-    return isinstance(issued_at, (int, float)) and int(issued_at) >= min_issued_at
+    return isinstance(issued_at, int | float) and int(issued_at) >= min_issued_at
 
 
 async def get_auth_context(
@@ -340,6 +353,13 @@ async def get_auth_context(
     FastAPI-Users still handles JWT mechanics; PATs are resolved here so RBAC
     receives the full SurfSense principal instead of a bare User.
     """
+    def _stash(ctx: AuthContext) -> AuthContext:
+        # Expose the resolved principal on request.state so downstream
+        # middleware (e.g. PostHog pat_api_request attribution) can read it
+        # without re-resolving auth.
+        request.state.auth_context = ctx
+        return ctx
+
     auth_header = request.headers.get("Authorization")
     if auth_header:
         scheme, _, credential = auth_header.partition(" ")
@@ -350,7 +370,7 @@ async def get_auth_context(
             pat = await resolve_pat(session, token)
             if pat and pat.user and pat.user.is_active:
                 maybe_touch_last_used(pat)
-                return AuthContext.pat_auth(pat.user, pat)
+                return _stash(AuthContext.pat_auth(pat.user, pat))
 
         if is_bearer and _token_meets_epoch(token):
             try:
@@ -360,7 +380,7 @@ async def get_auth_context(
                 user = None
 
             if user and user.is_active:
-                return AuthContext.session(user)
+                return _stash(AuthContext.session(user))
 
     cookie_token = request.cookies.get(config.SESSION_COOKIE_NAME)
     if cookie_token and _token_meets_epoch(cookie_token):
@@ -371,7 +391,7 @@ async def get_auth_context(
             user = None
 
         if user and user.is_active:
-            return AuthContext.session(user)
+            return _stash(AuthContext.session(user))
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -384,7 +404,7 @@ async def allow_any_principal(
 ) -> AuthContext:
     """Allow either session or PAT principals for bootstrap probes only.
 
-    Routes using this dependency intentionally have no search-space gate.
+    Routes using this dependency intentionally have no workspace gate.
     Adding a new call site is a security decision and must be covered by
     the fail-closed PAT allowlist test.
     """

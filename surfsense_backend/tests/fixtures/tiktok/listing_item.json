@@ -1,0 +1,559 @@
+{
+  "AIGCDescription": "",
+  "CategoryType": 111,
+  "IsHDBitrate": false,
+  "anchors": [
+    {
+      "description": "CapCut · Video Editor",
+      "extraInfo": {
+        "subtype": ""
+      },
+      "icon": {
+        "urlList": [
+          "https://p16-common-sign.tiktokcdn-us.com/tiktok-obj/capcut_logo_64px_bk.png~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=44xwWHkyYJdE%2FIwqS3zAAjU4XQ4%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+          "https://p19-common-sign.tiktokcdn-us.com/tiktok-obj/capcut_logo_64px_bk.png~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=lMwgk8e0wLaM3WkpnsMqYcxZN6w%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+          "https://p16-common-sign.tiktokcdn-us.com/tiktok-obj/capcut_logo_64px_bk.png~tplv-tiktokx-origin.jpeg?dr=9627&x-expires=1783544400&x-signature=1EMaRlc0Snbs9Ltwr0s95%2BDvpFk%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5"
+        ]
+      },
+      "id": "0",
+      "keyword": "CapCut · Editing made easy",
+      "logExtra": "{\"anchor_id\":0,\"anchor_name\":\"CapCut · Editing made easy\",\"anchor_title_detail\":\"None\",\"anchor_title_id\":21502485763,\"anchor_type\":\"TT_CAPCUT\",\"capability_key\":\"default\",\"ccep_vip\":0,\"if_race_trigger\":0,\"is_two_line\":0,\"landing_page_style_id\":21502486275,\"maker_source\":\"\",\"publish_key\":\"default\",\"template_id\":\"none\",\"tutorial_id\":\"none\",\"viamaker_anchor_capability_key_weight\":1,\"viamaker_anchor_style_idx\":-1,\"viamaker_anchor_style_source\":3,\"video_source\":0,\"video_type_id\":1}",
+      "schema": "https://www.capcut.com/editor?scenario=tiktok&utm_source=tiktok_anchor_tool&utm_medium=tiktok_anchor&utm_campaign=70361230",
+      "thumbnail": {
+        "height": 64,
+        "urlList": [
+          "https://p19-common-sign.tiktokcdn-us.com/tiktok-obj/64x_Capcut3x.png~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=GOZUldk%2BrxINygKT0jwxeJz9VLQ%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+          "https://p16-common-sign.tiktokcdn-us.com/tiktok-obj/64x_Capcut3x.png~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=SJ6q86bjtCoRArlVNS1DjDDFWoc%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+          "https://p19-common-sign.tiktokcdn-us.com/tiktok-obj/64x_Capcut3x.png~tplv-tiktokx-origin.jpeg?dr=9627&x-expires=1783544400&x-signature=c7mUcXdyEOFc0SMcLAkkib3v9RU%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5"
+        ],
+        "width": 64
+      },
+      "type": 54
+    }
+  ],
+  "author": {
+    "avatarLarger": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-avt-0068-tx2/b29bd2d826cffba1af22f99793a7d5dc~tplv-tiktokx-cropcenter:1080:1080.jpeg?dr=9640&refresh_token=c6d77c8a&x-expires=1783695600&x-signature=mUTuvDWLEGrAxXtWZlBE7gUxCl8%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+    "avatarMedium": "https://p16-common-sign.tiktokcdn-us.com/tos-useast8-avt-0068-tx2/b29bd2d826cffba1af22f99793a7d5dc~tplv-tiktokx-cropcenter:720:720.jpeg?dr=9640&refresh_token=dfe18cb8&x-expires=1783695600&x-signature=cP14vkr0ndxwhW%2B1pWfefXfTsls%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+    "avatarThumb": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-avt-0068-tx2/b29bd2d826cffba1af22f99793a7d5dc~tplv-tiktokx-cropcenter:100:100.jpeg?dr=9640&refresh_token=8c557171&x-expires=1783695600&x-signature=VaAysM3zFkbl%2FOT74d0h2kdkLqo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+    "commentSetting": 0,
+    "downloadSetting": 3,
+    "duetSetting": 0,
+    "ftc": false,
+    "id": "7501138183701103662",
+    "isADVirtual": false,
+    "isEmbedBanned": false,
+    "nickname": "Cookwithhali",
+    "openFavorite": false,
+    "privateAccount": false,
+    "relation": 0,
+    "secUid": "MS4wLjABAAAAywZ6lCXK3u4zKz8eQxxcjVblLiugz6zMysU98G7dyKVxu6IvMOJ97mpIfpDxUL4q",
+    "secret": false,
+    "shortDramaCreator": {},
+    "signature": "From my kitchen to your screen! 🍞\nFollow for more ✨\nIG: halikit25\n\n📩 Halikitchen25@gmail.com",
+    "stitchSetting": 0,
+    "uniqueId": "cookwithhali",
+    "verified": false
+  },
+  "authorStats": {
+    "diggCount": 223,
+    "followerCount": 372600,
+    "followingCount": 0,
+    "friendCount": 0,
+    "heart": 8000000,
+    "heartCount": 8000000,
+    "videoCount": 279
+  },
+  "authorStatsV2": {
+    "diggCount": "223",
+    "followerCount": "372600",
+    "followingCount": "0",
+    "friendCount": "0",
+    "heart": "8000000",
+    "heartCount": "8000000",
+    "videoCount": "279"
+  },
+  "backendSourceEventTracking": "",
+  "challenges": [
+    {
+      "coverLarger": "",
+      "coverMedium": "",
+      "coverThumb": "",
+      "desc": "",
+      "id": "6983",
+      "profileLarger": "",
+      "profileMedium": "",
+      "profileThumb": "",
+      "title": "bread"
+    },
+    {
+      "coverLarger": "",
+      "coverMedium": "",
+      "coverThumb": "",
+      "desc": "",
+      "id": "285169",
+      "profileLarger": "",
+      "profileMedium": "",
+      "profileThumb": "",
+      "title": "garlicbread"
+    },
+    {
+      "coverLarger": "",
+      "coverMedium": "",
+      "coverThumb": "",
+      "desc": "",
+      "id": "1643317566954502",
+      "profileLarger": "",
+      "profileMedium": "",
+      "profileThumb": "",
+      "title": "breadtok"
+    },
+    {
+      "coverLarger": "",
+      "coverMedium": "",
+      "coverThumb": "",
+      "desc": "Whether you're baking the perfect pie or just searching for a recipe, you've come to the right place for all things #Baking.",
+      "id": "7250",
+      "profileLarger": "https://p19-common-sign.tiktokcdn-us.com/musically-maliva-obj/1aa8a54136dc06390b83508fdd683160~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=nigLPQXvvDM%2BxFQezn3ELBH%2BLwQ%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+      "profileMedium": "https://p19-common-sign.tiktokcdn-us.com/musically-maliva-obj/1aa8a54136dc06390b83508fdd683160~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=nigLPQXvvDM%2BxFQezn3ELBH%2BLwQ%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+      "profileThumb": "https://p19-common-sign.tiktokcdn-us.com/musically-maliva-obj/1aa8a54136dc06390b83508fdd683160~tplv-tiktokx-origin.image?dr=9627&x-expires=1783544400&x-signature=nigLPQXvvDM%2BxFQezn3ELBH%2BLwQ%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=9b759fb9&idc=useast5",
+      "title": "baking"
+    },
+    {
+      "coverLarger": "",
+      "coverMedium": "",
+      "coverThumb": "",
+      "desc": "",
+      "id": "10488587",
+      "profileLarger": "",
+      "profileMedium": "",
+      "profileThumb": "",
+      "title": "homemadebread"
+    }
+  ],
+  "collected": false,
+  "contents": [
+    {
+      "desc": "Pull Apart Garlic Bread "
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "Ingredients"
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "* 1 tsp yeast"
+    },
+    {
+      "desc": "* 1 tbsp sugar"
+    },
+    {
+      "desc": "* 270g milk (about 1 cup + 2 tbsp)"
+    },
+    {
+      "desc": "* 380g flour (about 3 cups)"
+    },
+    {
+      "desc": "* 1 tsp salt"
+    },
+    {
+      "desc": "* 43g softened butter (about 3 tbsp)"
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "Butter Mixture"
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "* 100g butter, softened"
+    },
+    {
+      "desc": "* 1 tbsp chopped cilantro"
+    },
+    {
+      "desc": "* 1 garlic clove, minced"
+    },
+    {
+      "desc": "* Shredded cheese"
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "Instructions"
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "1. In a bowl, mix the sugar and yeast. Add the milk, then add the flour and mix until combined."
+    },
+    {
+      "desc": "2. Add the salt and softened butter, then coil fold until the butter is fully incorporated."
+    },
+    {
+      "desc": "3. Cover and let the dough rest for 2 hours or until doubled."
+    },
+    {
+      "desc": "4. Mix the softened butter with the cilantro and minced garlic."
+    },
+    {
+      "desc": "5. Roll the dough into a rectangle and spread the garlic butter mixture evenly over it. Sprinkle with shredded cheddar cheese."
+    },
+    {
+      "desc": "6. Cut the dough in half, stack one half on top of the other, then cut into strips. Transfer the pieces into a loaf pan."
+    },
+    {
+      "desc": "7. Cover and let rest for 20 minutes."
+    },
+    {
+      "desc": "8. Bake at 370°F for 30 minutes, or until golden brown."
+    },
+    {
+      "desc": "9. Brush with the remaining garlic butter mixture while still warm."
+    },
+    {
+      "desc": ""
+    },
+    {
+      "desc": "#bread #garlicbread #breadtok #baking #homemadebread ",
+      "textExtra": [
+        {
+          "awemeId": "",
+          "end": 6,
+          "hashtagName": "bread",
+          "isCommerce": false,
+          "start": 0,
+          "subType": 0,
+          "type": 1
+        },
+        {
+          "awemeId": "",
+          "end": 19,
+          "hashtagName": "garlicbread",
+          "isCommerce": false,
+          "start": 7,
+          "subType": 0,
+          "type": 1
+        },
+        {
+          "awemeId": "",
+          "end": 29,
+          "hashtagName": "breadtok",
+          "isCommerce": false,
+          "start": 20,
+          "subType": 0,
+          "type": 1
+        },
+        {
+          "awemeId": "",
+          "end": 37,
+          "hashtagName": "baking",
+          "isCommerce": false,
+          "start": 30,
+          "subType": 0,
+          "type": 1
+        },
+        {
+          "awemeId": "",
+          "end": 52,
+          "hashtagName": "homemadebread",
+          "isCommerce": false,
+          "start": 38,
+          "subType": 0,
+          "type": 1
+        }
+      ]
+    }
+  ],
+  "createTime": 1782509863,
+  "desc": "Pull Apart Garlic Bread  Ingredients * 1 tsp yeast * 1 tbsp sugar * 270g milk (about 1 cup + 2 tbsp) * 380g flour (about 3 cups) * 1 tsp salt * 43g softened butter (about 3 tbsp) Butter Mixture * 100g butter, softened * 1 tbsp chopped cilantro * 1 garlic clove, minced * Shredded cheese Instructions 1. In a bowl, mix the sugar and yeast. Add the milk, then add the flour and mix until combined. 2. Add the salt and softened butter, then coil fold until the butter is fully incorporated. 3. Cover and let the dough rest for 2 hours or until doubled. 4. Mix the softened butter with the cilantro and minced garlic. 5. Roll the dough into a rectangle and spread the garlic butter mixture evenly over it. Sprinkle with shredded cheddar cheese. 6. Cut the dough in half, stack one half on top of the other, then cut into strips. Transfer the pieces into a loaf pan. 7. Cover and let rest for 20 minutes. 8. Bake at 370°F for 30 minutes, or until golden brown. 9. Brush with the remaining garlic butter mixture while still warm. #bread #garlicbread #breadtok #baking #homemadebread ",
+  "digged": false,
+  "diversificationId": 10040,
+  "duetDisplay": 0,
+  "duetEnabled": true,
+  "forFriend": false,
+  "id": "7655821461772406047",
+  "isAd": false,
+  "isReviewing": false,
+  "itemCommentStatus": 0,
+  "item_control": {
+    "can_repost": true
+  },
+  "music": {
+    "authorName": "Cookwithhali",
+    "coverLarge": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-avt-0068-tx2/b29bd2d826cffba1af22f99793a7d5dc~tplv-tiktokx-cropcenter:1080:1080.jpeg?dr=9640&refresh_token=c6d77c8a&x-expires=1783695600&x-signature=mUTuvDWLEGrAxXtWZlBE7gUxCl8%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+    "coverMedium": "https://p16-common-sign.tiktokcdn-us.com/tos-useast8-avt-0068-tx2/b29bd2d826cffba1af22f99793a7d5dc~tplv-tiktokx-cropcenter:720:720.jpeg?dr=9640&refresh_token=dfe18cb8&x-expires=1783695600&x-signature=cP14vkr0ndxwhW%2B1pWfefXfTsls%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+    "coverThumb": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-avt-0068-tx2/b29bd2d826cffba1af22f99793a7d5dc~tplv-tiktokx-cropcenter:100:100.jpeg?dr=9640&refresh_token=8c557171&x-expires=1783695600&x-signature=VaAysM3zFkbl%2FOT74d0h2kdkLqo%3D&t=4d5b0474&ps=13740610&shp=a5d48078&shcp=81f88b70&idc=useast5",
+    "duration": 62,
+    "id": "7655821492566919966",
+    "isCopyrighted": false,
+    "is_commerce_music": true,
+    "is_unlimited_music": false,
+    "original": true,
+    "playUrl": "https://v16m.tiktokcdn-us.com/ecd83422a3e7bf5450bd92ebf07e6fce/6a4ec449/video/tos/useast8/tos-useast8-v-27dcd7-tx2/ocBIhANWILSemeAAINEGoTTPe58AJaRegg6eKS/?a=1233&bti=ODszNWYuMDE6&&bt=125&ft=GSDrKInz7Th2sbSGXq8Zmo&mime_type=audio_mpeg&rc=anY5cXA5cmRpOzMzaTU8NEBpanY5cXA5cmRpOzMzaTU8NEBpYzZrMmRjL3NhLS1kMTJzYSNpYzZrMmRjL3NhLS1kMTJzcw%3D%3D&vvpl=1&l=2026070815413036F7D0D0506FB569C78C&btag=e00050000",
+    "private": false,
+    "shoot_duration": 62,
+    "title": "original sound",
+    "tt2dsp": {}
+  },
+  "officalItem": false,
+  "originalItem": false,
+  "privateItem": false,
+  "secret": false,
+  "shareEnabled": true,
+  "stats": {
+    "collectCount": 396400,
+    "commentCount": 3720,
+    "diggCount": 754100,
+    "playCount": 8300000,
+    "shareCount": 144500
+  },
+  "statsV2": {
+    "collectCount": "396397",
+    "commentCount": "3720",
+    "diggCount": "754100",
+    "playCount": "8300000",
+    "repostCount": "0",
+    "shareCount": "144500"
+  },
+  "stickersOnItem": [
+    {
+      "stickerText": [
+        "Cheesy Pull Apart Garlic Bread! 🧄🧀\n",
+        "(Bakery-Style & No-Knead)"
+      ],
+      "stickerType": 4
+    }
+  ],
+  "stitchDisplay": 0,
+  "stitchEnabled": true,
+  "textExtra": [
+    {
+      "awemeId": "",
+      "end": 1030,
+      "hashtagName": "bread",
+      "isCommerce": false,
+      "start": 1024,
+      "subType": 0,
+      "type": 1
+    },
+    {
+      "awemeId": "",
+      "end": 1043,
+      "hashtagName": "garlicbread",
+      "isCommerce": false,
+      "start": 1031,
+      "subType": 0,
+      "type": 1
+    },
+    {
+      "awemeId": "",
+      "end": 1053,
+      "hashtagName": "breadtok",
+      "isCommerce": false,
+      "start": 1044,
+      "subType": 0,
+      "type": 1
+    },
+    {
+      "awemeId": "",
+      "end": 1061,
+      "hashtagName": "baking",
+      "isCommerce": false,
+      "start": 1054,
+      "subType": 0,
+      "type": 1
+    },
+    {
+      "awemeId": "",
+      "end": 1076,
+      "hashtagName": "homemadebread",
+      "isCommerce": false,
+      "start": 1062,
+      "subType": 0,
+      "type": 1
+    }
+  ],
+  "textLanguage": "en",
+  "textTranslatable": true,
+  "video": {
+    "PlayAddrStruct": {
+      "DataSize": 13761060,
+      "FileCs": "c:0-51456-f8d1",
+      "FileHash": "485174c8492db027adbbf6dca7c7c201",
+      "Height": 1280,
+      "Uri": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+      "UrlKey": "v15044gf0000d8vf0bvog65kkvkd8ohg_h264_720p_1773703",
+      "UrlList": [
+        "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oYDTerfAgGxvqFaEctpBAvVGEPIE8Q9ARoxPNB/?a=1988&bti=ODszNWYuMDE6&&bt=1732&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NWZnZDVoNDQzN2c1ZGU0Z0BpanJneW45cmVpOzMzaTczNEBgMTBgYjQuNWExLmNgXmI2YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=aa5be80671c4a73d54517ee8e4a471ad&tk=tt_chain_token&btag=e00088000",
+        "https://v19-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oYDTerfAgGxvqFaEctpBAvVGEPIE8Q9ARoxPNB/?a=1988&bti=ODszNWYuMDE6&&bt=1732&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NWZnZDVoNDQzN2c1ZGU0Z0BpanJneW45cmVpOzMzaTczNEBgMTBgYjQuNWExLmNgXmI2YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=aa5be80671c4a73d54517ee8e4a471ad&tk=tt_chain_token&btag=e00088000",
+        "https://www.tiktok.com/aweme/v1/play/?faid=1988&file_id=9de1abcaf21d44d081117ee2ca3d4cc2&is_play_url=1&item_id=7655821461772406047&line=0&ply_type=2&signaturev3=dmlkZW9faWQ7ZmlsZV9pZDtpdGVtX2lkLjcwMGExZmI3NDg4YzFiZTIwZjczM2IyMmM0OTk2YTI2&tk=tt_chain_token&video_id=v15044gf0000d8vf0bvog65kkvkd8ohg"
+      ],
+      "Width": 720
+    },
+    "VQScore": "69.69",
+    "bitrate": 1773703,
+    "bitrateInfo": [
+      {
+        "Bitrate": 1836180,
+        "BitrateFPS": 29,
+        "CodecType": "h265_hvc1",
+        "Format": "mp4",
+        "GearName": "adapt_lowest_1080_1",
+        "MVMAF": "{\"v2.0\": {\"srv1\": {\"v1080\": 96.83, \"v960\": 97.64, \"v864\": 98.256, \"v720\": 98.838}, \"ori\": {\"v1080\": 91.834, \"v960\": 93.423, \"v864\": 94.54, \"v720\": 95.872}}}",
+        "PlayAddr": {
+          "DataSize": 14245777,
+          "FileCs": "c:0-52754-ed06",
+          "FileHash": "38996a98cfeb2714fca1b94768090c37",
+          "Height": 1920,
+          "Uri": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+          "UrlKey": "v15044gf0000d8vf0bvog65kkvkd8ohg_bytevc1_1080p_1836180",
+          "UrlList": [
+            "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oIygxEfEVAP1qvGVTIBARoAvb9QYFGEKDp5v9e/?a=1988&bti=ODszNWYuMDE6&&bt=1793&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=aDlmNGg7ZTdlaGY5ZzUzZ0BpanJneW45cmVpOzMzaTczNEBjXl5hMzAvXy8xNDAuYmIyYSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=db26af0a98ff05e504d7121b25048527&tk=tt_chain_token&btag=e00088000",
+            "https://v19-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oIygxEfEVAP1qvGVTIBARoAvb9QYFGEKDp5v9e/?a=1988&bti=ODszNWYuMDE6&&bt=1793&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=aDlmNGg7ZTdlaGY5ZzUzZ0BpanJneW45cmVpOzMzaTczNEBjXl5hMzAvXy8xNDAuYmIyYSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=db26af0a98ff05e504d7121b25048527&tk=tt_chain_token&btag=e00088000",
+            "https://www.tiktok.com/aweme/v1/play/?faid=1988&file_id=5de0e21d367c4e2bb42b386ed1aca6fe&is_play_url=1&item_id=7655821461772406047&line=0&ply_type=2&signaturev3=dmlkZW9faWQ7ZmlsZV9pZDtpdGVtX2lkLjAzMmU1YzJlMTAwMDJiYjIwMmFiN2RhNTIzOWVhYWRk&tk=tt_chain_token&video_id=v15044gf0000d8vf0bvog65kkvkd8ohg"
+          ],
+          "Width": 1080
+        },
+        "QualityType": 2,
+        "VideoExtra": "{\"PktOffsetMap\":\"[{\\\"time\\\": 1, \\\"offset\\\": 385342}, {\\\"time\\\": 2, \\\"offset\\\": 561014}, {\\\"time\\\": 3, \\\"offset\\\": 703814}, {\\\"time\\\": 4, \\\"offset\\\": 855867}, {\\\"time\\\": 5, \\\"offset\\\": 1019333}, {\\\"time\\\": 10, \\\"offset\\\": 2028412}]\",\"mvmaf\":\"{\\\"v2.0\\\": {\\\"srv1\\\": {\\\"v1080\\\": 96.83, \\\"v960\\\": 97.64, \\\"v864\\\": 98.256, \\\"v720\\\": 98.838}, \\\"ori\\\": {\\\"v1080\\\": 91.834, \\\"v960\\\": 93.423, \\\"v864\\\": 94.54, \\\"v720\\\": 95.872}}}\",\"ufq\":\"{\\\"enh\\\":89.317,\\\"playback\\\":{\\\"ori\\\":85.151,\\\"srv1\\\":90.147},\\\"src\\\":85.957,\\\"trans\\\":85.151,\\\"version\\\":\\\"v1.2\\\"}\",\"volume_info_json\":\"\",\"transcode_feature_id\":\"11b0345f3bf185ddbe7c48bd7301980f\",\"dec_info\":\"\",\"gearvqm\":\"\",\"audio_bit_rate\":96215,\"ps_info\":\"{\\\"vps\\\": \\\"AQwC//8BYAAAAwAAAwAAAwAAAwCWAACdzkgS\\\", \\\"sps\\\": \\\"AQMBYAAAAwAAAwAAAwAAAwCWAACgAhyAHgWWdzkySUQs0RJJJJify4d/1+bPl/1+M4gQ5qAgICCAAAADAIAAAA8E\\\", \\\"pps\\\": \\\"AcElPAiQ\\\"}\"}"
+      },
+      {
+        "Bitrate": 1773703,
+        "BitrateFPS": 29,
+        "CodecType": "h264",
+        "Format": "mp4",
+        "GearName": "normal_720_0",
+        "MVMAF": "{\"v2.0\": {\"srv1\": {\"v1080\": 84.77, \"v960\": 88.554, \"v864\": 88.982, \"v720\": 92.772}, \"ori\": {\"v1080\": 84.77, \"v960\": 88.554, \"v864\": 88.982, \"v720\": 92.772}}}",
+        "PlayAddr": {
+          "DataSize": 13761060,
+          "FileCs": "c:0-51456-f8d1",
+          "FileHash": "485174c8492db027adbbf6dca7c7c201",
+          "Height": 1280,
+          "Uri": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+          "UrlKey": "v15044gf0000d8vf0bvog65kkvkd8ohg_h264_720p_1773703",
+          "UrlList": [
+            "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oYDTerfAgGxvqFaEctpBAvVGEPIE8Q9ARoxPNB/?a=1988&bti=ODszNWYuMDE6&&bt=1732&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NWZnZDVoNDQzN2c1ZGU0Z0BpanJneW45cmVpOzMzaTczNEBgMTBgYjQuNWExLmNgXmI2YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=aa5be80671c4a73d54517ee8e4a471ad&tk=tt_chain_token&btag=e00088000",
+            "https://v19-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oYDTerfAgGxvqFaEctpBAvVGEPIE8Q9ARoxPNB/?a=1988&bti=ODszNWYuMDE6&&bt=1732&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NWZnZDVoNDQzN2c1ZGU0Z0BpanJneW45cmVpOzMzaTczNEBgMTBgYjQuNWExLmNgXmI2YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=aa5be80671c4a73d54517ee8e4a471ad&tk=tt_chain_token&btag=e00088000",
+            "https://www.tiktok.com/aweme/v1/play/?faid=1988&file_id=9de1abcaf21d44d081117ee2ca3d4cc2&is_play_url=1&item_id=7655821461772406047&line=0&ply_type=2&signaturev3=dmlkZW9faWQ7ZmlsZV9pZDtpdGVtX2lkLjcwMGExZmI3NDg4YzFiZTIwZjczM2IyMmM0OTk2YTI2&tk=tt_chain_token&video_id=v15044gf0000d8vf0bvog65kkvkd8ohg"
+          ],
+          "Width": 720
+        },
+        "QualityType": 10,
+        "VideoExtra": "{\"PktOffsetMap\":\"[{\\\"time\\\": 1, \\\"offset\\\": 400712}, {\\\"time\\\": 2, \\\"offset\\\": 659243}, {\\\"time\\\": 3, \\\"offset\\\": 886968}, {\\\"time\\\": 4, \\\"offset\\\": 1101663}, {\\\"time\\\": 5, \\\"offset\\\": 1368565}, {\\\"time\\\": 10, \\\"offset\\\": 2375704}]\",\"mvmaf\":\"{\\\"v2.0\\\": {\\\"srv1\\\": {\\\"v1080\\\": 84.77, \\\"v960\\\": 88.554, \\\"v864\\\": 88.982, \\\"v720\\\": 92.772}, \\\"ori\\\": {\\\"v1080\\\": 84.77, \\\"v960\\\": 88.554, \\\"v864\\\": 88.982, \\\"v720\\\": 92.772}}}\",\"ufq\":\"\",\"volume_info_json\":\"\",\"transcode_feature_id\":\"65b88c41c0963253ad31b6f68981a242\",\"dec_info\":\"\",\"gearvqm\":\"\",\"audio_bit_rate\":64193}"
+      },
+      {
+        "Bitrate": 966380,
+        "BitrateFPS": 29,
+        "CodecType": "h265_hvc1",
+        "Format": "mp4",
+        "GearName": "adapt_lower_720_1",
+        "MVMAF": "{\"v2.0\": {\"srv1\": {\"v1080\": 90.05, \"v960\": 91.958, \"v864\": 93.608, \"v720\": 95.869}, \"ori\": {\"v1080\": 82.259, \"v960\": 85.339, \"v864\": 87.288, \"v720\": 90.851}}}",
+        "PlayAddr": {
+          "DataSize": 7497540,
+          "FileCs": "c:0-52786-7f65",
+          "FileHash": "1376df24c917669727b27273697fb826",
+          "Height": 1280,
+          "Uri": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+          "UrlKey": "v15044gf0000d8vf0bvog65kkvkd8ohg_bytevc1_720p_966380",
+          "UrlList": [
+            "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/og99rgOGqJED8xGeBpFEAADvEPARnbTIQTfoVv/?a=1988&bti=ODszNWYuMDE6&&bt=943&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=OTNkNDk2NzlmM2VkPGg7OkBpanJneW45cmVpOzMzaTczNEBeMmBiYWBfNWIxLzEyNF81YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=e3690d67b2ecae289320f5db6c338d05&tk=tt_chain_token&btag=e00088000",
+            "https://v19-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/og99rgOGqJED8xGeBpFEAADvEPARnbTIQTfoVv/?a=1988&bti=ODszNWYuMDE6&&bt=943&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=OTNkNDk2NzlmM2VkPGg7OkBpanJneW45cmVpOzMzaTczNEBeMmBiYWBfNWIxLzEyNF81YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=e3690d67b2ecae289320f5db6c338d05&tk=tt_chain_token&btag=e00088000",
+            "https://www.tiktok.com/aweme/v1/play/?faid=1988&file_id=87b87e594a2b40ec86b4c3d6e1ca50a6&is_play_url=1&item_id=7655821461772406047&line=0&ply_type=2&signaturev3=dmlkZW9faWQ7ZmlsZV9pZDtpdGVtX2lkLmRjNWNmZGVmMmFkNTIyNWQ1ZTA1NzExM2NjOTVlNzMy&tk=tt_chain_token&video_id=v15044gf0000d8vf0bvog65kkvkd8ohg"
+          ],
+          "Width": 720
+        },
+        "QualityType": 14,
+        "VideoExtra": "{\"PktOffsetMap\":\"[{\\\"time\\\": 1, \\\"offset\\\": 284307}, {\\\"time\\\": 2, \\\"offset\\\": 357012}, {\\\"time\\\": 3, \\\"offset\\\": 438159}, {\\\"time\\\": 4, \\\"offset\\\": 532720}, {\\\"time\\\": 5, \\\"offset\\\": 636824}, {\\\"time\\\": 10, \\\"offset\\\": 1142427}]\",\"mvmaf\":\"{\\\"v2.0\\\": {\\\"srv1\\\": {\\\"v1080\\\": 90.05, \\\"v960\\\": 91.958, \\\"v864\\\": 93.608, \\\"v720\\\": 95.869}, \\\"ori\\\": {\\\"v1080\\\": 82.259, \\\"v960\\\": 85.339, \\\"v864\\\": 87.288, \\\"v720\\\": 90.851}}}\",\"ufq\":\"{\\\"enh\\\":89.767,\\\"playback\\\":{\\\"ori\\\":76.711,\\\"srv1\\\":84.502},\\\"src\\\":85.957,\\\"trans\\\":76.711,\\\"version\\\":\\\"v1.2\\\"}\",\"volume_info_json\":\"\",\"transcode_feature_id\":\"97eb57dffd9e7a0333979f6ca6c9418d\",\"dec_info\":\"\",\"gearvqm\":\"{\\\"v3.0\\\": {\\\"ori\\\": 91.625, \\\"sr20\\\": 97.355}}\",\"audio_bit_rate\":96215,\"ps_info\":\"{\\\"vps\\\": \\\"AQwC//8BYAAAAwAAAwAAAwAAAwC6AACIJElgSA==\\\", \\\"sps\\\": \\\"AQMBYAAAAwAAAwAAAwAAAwC6AACgBaIAUBZYgkSXJIkQTPCEREREREYR8xPOX+/+v82fy/+v8yh+S/3/1/mz+X/1/jOEAg5qAgICCAAAAwAIAAADAPBA\\\", \\\"pps\\\": \\\"AcElPAiQ\\\"}\"}"
+      },
+      {
+        "Bitrate": 799620,
+        "BitrateFPS": 29,
+        "CodecType": "h265_hvc1",
+        "Format": "mp4",
+        "GearName": "adapt_540_1",
+        "MVMAF": "{\"v2.0\": {\"srv1\": {\"v1080\": 87.061, \"v960\": 89.844, \"v864\": 91.813, \"v720\": 94.499}, \"ori\": {\"v1080\": 77.717, \"v960\": 80.972, \"v864\": 83.632, \"v720\": 87.945}}}",
+        "PlayAddr": {
+          "DataSize": 6203756,
+          "FileCs": "c:0-52786-7f6d",
+          "FileHash": "41f62f740ad13045000450f28b9ff2cb",
+          "Height": 1024,
+          "Uri": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+          "UrlKey": "v15044gf0000d8vf0bvog65kkvkd8ohg_bytevc1_540p_799620",
+          "UrlList": [
+            "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-ve-0068c001-tx2/oogvkDPHIAVvTxgEpE9EMoALxQRRA1FGqeB9Gf/?a=1988&bti=ODszNWYuMDE6&&bt=780&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NThkNGRmNTo4MztpOTM3ZkBpanJneW45cmVpOzMzaTczNEAyNDMuNC0xNWExYjBiX2FgYSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=05aaeb04a6cf8d012bba46bb131f00af&tk=tt_chain_token&btag=e00088000",
+            "https://v19-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-ve-0068c001-tx2/oogvkDPHIAVvTxgEpE9EMoALxQRRA1FGqeB9Gf/?a=1988&bti=ODszNWYuMDE6&&bt=780&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NThkNGRmNTo4MztpOTM3ZkBpanJneW45cmVpOzMzaTczNEAyNDMuNC0xNWExYjBiX2FgYSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=05aaeb04a6cf8d012bba46bb131f00af&tk=tt_chain_token&btag=e00088000",
+            "https://www.tiktok.com/aweme/v1/play/?faid=1988&file_id=ccd4b0e63fe840d587420c7a116a7552&is_play_url=1&item_id=7655821461772406047&line=0&ply_type=2&signaturev3=dmlkZW9faWQ7ZmlsZV9pZDtpdGVtX2lkLmRlMWFkM2IxY2JkODUxODVlZDJjMDFjYTJmZWE0NTEx&tk=tt_chain_token&video_id=v15044gf0000d8vf0bvog65kkvkd8ohg"
+          ],
+          "Width": 576
+        },
+        "QualityType": 28,
+        "VideoExtra": "{\"PktOffsetMap\":\"[{\\\"time\\\": 1, \\\"offset\\\": 254747}, {\\\"time\\\": 2, \\\"offset\\\": 310409}, {\\\"time\\\": 3, \\\"offset\\\": 378126}, {\\\"time\\\": 4, \\\"offset\\\": 458158}, {\\\"time\\\": 5, \\\"offset\\\": 546764}, {\\\"time\\\": 10, \\\"offset\\\": 946117}]\",\"mvmaf\":\"{\\\"v2.0\\\": {\\\"srv1\\\": {\\\"v1080\\\": 87.061, \\\"v960\\\": 89.844, \\\"v864\\\": 91.813, \\\"v720\\\": 94.499}, \\\"ori\\\": {\\\"v1080\\\": 77.717, \\\"v960\\\": 80.972, \\\"v864\\\": 83.632, \\\"v720\\\": 87.945}}}\",\"ufq\":\"{\\\"enh\\\":89.767,\\\"playback\\\":{\\\"ori\\\":73.304,\\\"srv1\\\":82.648},\\\"src\\\":85.957,\\\"trans\\\":73.304,\\\"version\\\":\\\"v1.2\\\"}\",\"volume_info_json\":\"\",\"transcode_feature_id\":\"86fda13c754bde67159dea14b7d55d6a\",\"dec_info\":\"\",\"gearvqm\":\"{\\\"v3.0\\\": {\\\"ori\\\": 87.963, \\\"sr20\\\": 95.722}}\",\"audio_bit_rate\":64143,\"ps_info\":\"{\\\"vps\\\": \\\"AQwC//8BYAAAAwAAAwAAAwAAAwC6AACIJElgSA==\\\", \\\"sps\\\": \\\"AQMBYAAAAwAAAwAAAwAAAwC6AACgBIIAQBZYgkSXJIkQTPCEREREREYR8xPOX+/+v82fy/+v8yh+S/3/1/mz+X/1/jOEAg5qAgICCAAAAwAIAAADAPBA\\\", \\\"pps\\\": \\\"AcElPAiQ\\\"}\"}"
+      },
+      {
+        "Bitrate": 622546,
+        "BitrateFPS": 29,
+        "CodecType": "h264",
+        "Format": "mp4",
+        "GearName": "lowest_540_0",
+        "MVMAF": "{\"v2.0\": {\"srv1\": {\"v1080\": 72.483, \"v960\": 75.424, \"v864\": 79.843, \"v720\": 84.897}, \"ori\": {\"v1080\": 64.527, \"v960\": 67.93, \"v864\": 72.279, \"v720\": 74.495}}}",
+        "PlayAddr": {
+          "DataSize": 4829948,
+          "FileCs": "c:0-51513-3d83",
+          "FileHash": "a74fd8fabed8b36131a8e31bf78e9d1d",
+          "Height": 1024,
+          "Uri": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+          "UrlKey": "v15044gf0000d8vf0bvog65kkvkd8ohg_h264_540p_622546",
+          "UrlList": [
+            "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-ve-0068c001-tx2/o8vENAqIe9xD3BG8AvVUvfEqFEARhgPpHGoTJQ/?a=1988&bti=ODszNWYuMDE6&&bt=607&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=aGhoaDQ8ZTdlNGhmM2Q8ZkBpanJneW45cmVpOzMzaTczNEA1NjRgNTJjNi8xMl42NmIuYSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=fa8ddc2bcbad8ebb4394c4a8b55b28df&tk=tt_chain_token&btag=e00088000",
+            "https://v19-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-ve-0068c001-tx2/o8vENAqIe9xD3BG8AvVUvfEqFEARhgPpHGoTJQ/?a=1988&bti=ODszNWYuMDE6&&bt=607&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=aGhoaDQ8ZTdlNGhmM2Q8ZkBpanJneW45cmVpOzMzaTczNEA1NjRgNTJjNi8xMl42NmIuYSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=fa8ddc2bcbad8ebb4394c4a8b55b28df&tk=tt_chain_token&btag=e00088000",
+            "https://www.tiktok.com/aweme/v1/play/?faid=1988&file_id=1ce99a90ac5e412b94fb5981ce7e9e8e&is_play_url=1&item_id=7655821461772406047&line=0&ply_type=2&signaturev3=dmlkZW9faWQ7ZmlsZV9pZDtpdGVtX2lkLjU0ZWZiNDU4NWVmYzFlY2IyNmEyODAyMGY0ZWJjMGZj&tk=tt_chain_token&video_id=v15044gf0000d8vf0bvog65kkvkd8ohg"
+          ],
+          "Width": 576
+        },
+        "QualityType": 25,
+        "VideoExtra": "{\"PktOffsetMap\":\"[{\\\"time\\\": 1, \\\"offset\\\": 176720}, {\\\"time\\\": 2, \\\"offset\\\": 268125}, {\\\"time\\\": 3, \\\"offset\\\": 342814}, {\\\"time\\\": 4, \\\"offset\\\": 414132}, {\\\"time\\\": 5, \\\"offset\\\": 511717}, {\\\"time\\\": 10, \\\"offset\\\": 841405}]\",\"mvmaf\":\"{\\\"v2.0\\\": {\\\"srv1\\\": {\\\"v1080\\\": 72.483, \\\"v960\\\": 75.424, \\\"v864\\\": 79.843, \\\"v720\\\": 84.897}, \\\"ori\\\": {\\\"v1080\\\": 64.527, \\\"v960\\\": 67.93, \\\"v864\\\": 72.279, \\\"v720\\\": 74.495}}}\",\"ufq\":\"\",\"volume_info_json\":\"\",\"transcode_feature_id\":\"25b3faebdda74a9e438e851988a6efcc\",\"dec_info\":\"\",\"gearvqm\":\"\",\"audio_bit_rate\":32099}"
+      }
+    ],
+    "claInfo": {
+      "enableAutoCaption": true,
+      "hasOriginalAudio": true,
+      "noCaptionReason": 3
+    },
+    "codecType": "h264",
+    "cover": "https://p16-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oAiefnCIc6NNSgtgrKLRA8JGAMoVfgJSe8eiRS~tplv-tiktokx-origin.image?dr=9636&x-expires=1783695600&x-signature=ZIp3Rdhs6GNzMatSMsNWHFZX%2F7s%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5",
+    "definition": "720p",
+    "duration": 62,
+    "dynamicCover": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oYVoPG0RxQTGE89EEqvAuADpFvfGABVMxQBeza~tplv-tiktokx-origin.image?dr=9636&x-expires=1783695600&x-signature=JWF%2F5g2txpFXhNhJzOwleSJgKik%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5",
+    "encodeUserTag": "",
+    "encodedType": "normal",
+    "format": "mp4",
+    "height": 1280,
+    "id": "7655821461772406047",
+    "originCover": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oYVoQGFsU9VvLxieEDDAQAPpRTqA8B5EzvEGfF~tplv-tiktokx-origin.image?dr=9636&x-expires=1783695600&x-signature=yHDGczHGo3joyDeerZP6Dp4S1Jc%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5",
+    "playAddr": "https://v16-webapp-prime.us.tiktok.com/video/tos/useast8/tos-useast8-pve-0068-tx2/oYDTerfAgGxvqFaEctpBAvVGEPIE8Q9ARoxPNB/?a=1988&bti=ODszNWYuMDE6&&bt=1732&ft=aEeq8qT0mIoPD12CGneI3wUcfzAbMeF~O5&mime_type=video_mp4&rc=NWZnZDVoNDQzN2c1ZGU0Z0BpanJneW45cmVpOzMzaTczNEBgMTBgYjQuNWExLmNgXmI2YSNlNWhoMmRzLXNhLS1kMTJzcw%3D%3D&expire=1783698153&l=2026070815413036F7D0D0506FB569C78C&ply_type=2&policy=2&signature=aa5be80671c4a73d54517ee8e4a471ad&tk=tt_chain_token&btag=e00088000",
+    "ratio": "720p",
+    "size": 13761060,
+    "videoID": "v15044gf0000d8vf0bvog65kkvkd8ohg",
+    "videoQuality": "normal",
+    "volumeInfo": {
+      "Loudness": -48.5,
+      "Peak": 0.18408
+    },
+    "width": 720,
+    "zoomCover": {
+      "240": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oAiefnCIc6NNSgtgrKLRA8JGAMoVfgJSe8eiRS~tplv-photomode-zoomcover:240:240.avif?dr=9616&x-expires=1783695600&x-signature=ZONw1V50ZmupszDX0NiC%2Bf8BimU%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5&ftpl=1",
+      "480": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oAiefnCIc6NNSgtgrKLRA8JGAMoVfgJSe8eiRS~tplv-photomode-zoomcover:480:480.avif?dr=9616&x-expires=1783695600&x-signature=LztWYGkvUC4%2BvhtQb0TO0l1ky0s%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5&ftpl=1",
+      "720": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oAiefnCIc6NNSgtgrKLRA8JGAMoVfgJSe8eiRS~tplv-photomode-zoomcover:720:720.avif?dr=9616&x-expires=1783695600&x-signature=X%2F3HQ%2BkiKqEAxnuk%2BdFfBfeOsko%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5&ftpl=1",
+      "960": "https://p19-common-sign.tiktokcdn-us.com/tos-useast8-p-0068-tx2/oAiefnCIc6NNSgtgrKLRA8JGAMoVfgJSe8eiRS~tplv-photomode-zoomcover:960:960.avif?dr=9616&x-expires=1783695600&x-signature=aJaYG%2BDAo%2BhO7nZ8t8XP7g0DArU%3D&t=4d5b0474&ps=13740610&shp=81f88b70&shcp=43f4a2f9&idc=useast5&ftpl=1"
+    }
+  }
+}

@@ -29,6 +29,7 @@ from app.utils.connector_naming import (
     generate_unique_connector_name,
 )
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.validators import raise_if_connector_deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ async def connect_teams(
     Initiate Microsoft Teams OAuth flow.
 
     Args:
-        space_id: The search space ID
+        space_id: The workspace ID
         user: Current authenticated user
 
     Returns:
@@ -90,6 +91,8 @@ async def connect_teams(
     """
     user = auth.user
     try:
+        raise_if_connector_deprecated(SearchSourceConnectorType.TEAMS_CONNECTOR)
+
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 
@@ -327,7 +330,7 @@ async def teams_callback(
             connector_type=SearchSourceConnectorType.TEAMS_CONNECTOR,
             is_indexable=False,
             config=connector_config,
-            search_space_id=space_id,
+            workspace_id=space_id,
             user_id=user_id,
         )
 

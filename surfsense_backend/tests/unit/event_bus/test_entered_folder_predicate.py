@@ -14,7 +14,7 @@ pytestmark = pytest.mark.unit
 def _call(**overrides: Any) -> dict[str, Any] | None:
     defaults: dict[str, Any] = {
         "document_id": 1,
-        "search_space_id": 10,
+        "workspace_id": 10,
         "new_folder_id": 7,
         "previous_folder_id": None,
         "folder_id_changed": True,
@@ -33,7 +33,7 @@ def test_folder_set_ready_fires() -> None:
 
     assert result is not None
     assert result["event_type"] == "document.entered_folder"
-    assert result["search_space_id"] == 10
+    assert result["workspace_id"] == 10
     assert result["payload"]["folder_id"] == 7
     assert result["payload"]["previous_folder_id"] is None
 

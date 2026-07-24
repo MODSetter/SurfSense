@@ -38,13 +38,13 @@ class NotificationService:
         notification_type: str,
         title: str,
         message: str,
-        search_space_id: int | None = None,
+        workspace_id: int | None = None,
         notification_metadata: dict[str, Any] | None = None,
     ) -> Notification:
         """Create a generic notification of any ``notification_type``."""
         notification = Notification(
             user_id=user_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             type=notification_type,
             title=title,
             message=message,

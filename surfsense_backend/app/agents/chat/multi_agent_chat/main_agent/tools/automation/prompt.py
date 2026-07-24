@@ -34,7 +34,7 @@ into a SINGLE JSON object matching the AutomationCreate schema. Output
 ONLY that JSON object — no prose, no markdown fence, no commentary.
 
 Current UTC time (for cron context): {now}
-Target search_space_id: {search_space_id}
+Target workspace_id: {workspace_id}
 """
 
 
@@ -165,12 +165,12 @@ User intent:
 """
 
 
-def build_draft_prompt(*, search_space_id: int, intent: str) -> str:
+def build_draft_prompt(*, workspace_id: int, intent: str) -> str:
     """Render the drafting sub-LLM system prompt for the given intent."""
     return (
         _HEADER.format(
             now=datetime.now(UTC).isoformat(timespec="seconds"),
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
         )
         + _SCHEMA
         + _FEW_SHOTS

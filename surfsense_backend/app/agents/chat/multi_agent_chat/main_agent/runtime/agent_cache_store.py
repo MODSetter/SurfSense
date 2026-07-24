@@ -26,7 +26,7 @@ Why a per-thread key (not a global pool)
 ----------------------------------------
 
 Most middleware in the SurfSense stack captures per-thread state in
-``__init__`` closures (``thread_id``, ``user_id``, ``search_space_id``,
+``__init__`` closures (``thread_id``, ``user_id``, ``workspace_id``,
 ``filesystem_mode``, ``mentioned_document_ids``). Cross-thread reuse
 would silently leak state across users and threads. Keying the cache on
 ``(llm_config_id, thread_id, ...)`` gives us safe reuse for repeated
@@ -34,7 +34,7 @@ turns on the same thread without changing any middleware's behavior.
 
 Phase 2 will move those captured fields onto :class:`SurfSenseContextSchema`
 (read via ``runtime.context``) so the cache can collapse to a single
-``(llm_config_id, search_space_id, ...)`` key shared across threads. Until
+``(llm_config_id, workspace_id, ...)`` key shared across threads. Until
 then, per-thread keying is the only safe option.
 
 Cache shape
@@ -111,7 +111,7 @@ def tools_signature(
 
     * A tool is added or removed from the bound list (built-in toggles,
       MCP tools loaded for the user changes, gating rules flip, etc.).
-    * The available connectors / document types for the search space
+    * The available connectors / document types for the workspace
       change (new connector added, last connector removed, new document
       type indexed). Connector gating derives disabled tools from
       ``available_connectors``, so the tool surface is technically already

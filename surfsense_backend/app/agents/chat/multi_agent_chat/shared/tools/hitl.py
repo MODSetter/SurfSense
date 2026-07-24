@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # artifact in the user's own workspace with no external visibility (drafts
 # aren't sent; new files aren't shared). They still call ``request_approval``,
 # which returns ``decision_type="auto_approved"`` without firing an interrupt.
-# Per-search-space ``agent_permission_rules`` can re-enable prompting.
+# Per-workspace ``agent_permission_rules`` can re-enable prompting.
 DEFAULT_AUTO_APPROVED_TOOLS: frozenset[str] = frozenset(
     {
         "create_gmail_draft",

@@ -10,7 +10,8 @@ from collections import defaultdict
 def main() -> None:
     raw_path = sorted(glob.glob("data/research/runs/*/crag/raw.jsonl"))[-1]
     print(f"Reading: {raw_path}")
-    rows = [json.loads(line) for line in open(raw_path, encoding="utf-8") if line.strip()]
+    with open(raw_path, encoding="utf-8") as fh:
+        rows = [json.loads(line) for line in fh if line.strip()]
     by_q: dict[str, dict[str, dict]] = defaultdict(dict)
     for r in rows:
         by_q[r["qid"]][r["arm"]] = r

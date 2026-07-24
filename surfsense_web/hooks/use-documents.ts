@@ -13,7 +13,7 @@ export interface DocumentStatusType {
 
 export interface DocumentDisplay {
 	id: number;
-	search_space_id: number;
+	workspace_id: number;
 	document_type: string;
 	title: string;
 	created_by_id: string | null;
@@ -25,7 +25,7 @@ export interface DocumentDisplay {
 
 export interface ApiDocumentInput {
 	id: number;
-	search_space_id: number;
+	workspace_id: number;
 	document_type: string;
 	title: string;
 	created_by_id?: string | null;
@@ -38,7 +38,7 @@ export interface ApiDocumentInput {
 export function toDisplayDoc(item: ApiDocumentInput): DocumentDisplay {
 	return {
 		id: item.id,
-		search_space_id: item.search_space_id,
+		workspace_id: item.workspace_id,
 		document_type: item.document_type,
 		title: item.title,
 		created_by_id: item.created_by_id ?? null,
@@ -63,7 +63,7 @@ const SCROLL_PAGE_SIZE = 5;
  * 4. Server-side sorting via sort_by + sort_order params
  */
 export function useDocuments(
-	searchSpaceId: number | null,
+	workspaceId: number | null,
 	typeFilter: DocumentTypeEnum[] = EMPTY_TYPE_FILTER,
 	sortBy: DocumentSortBy = "created_at",
 	sortOrder: SortOrder = "desc"
@@ -116,7 +116,7 @@ export function useDocuments(
 	// EFFECT 1: Fetch first page + type counts when params change
 	// biome-ignore lint/correctness/useExhaustiveDependencies: typeFilterKey serializes typeFilter
 	useEffect(() => {
-		if (!searchSpaceId) return;
+		if (!workspaceId) return;
 
 		let cancelled = false;
 
@@ -142,7 +142,7 @@ export function useDocuments(
 				const [docsResponse, countsResponse] = await Promise.all([
 					documentsApiService.getDocuments({
 						queryParams: {
-							search_space_id: searchSpaceId,
+							workspace_id: workspaceId,
 							page: 0,
 							page_size: INITIAL_PAGE_SIZE,
 							...(typeFilter.length > 0 && { document_types: typeFilter }),
@@ -151,7 +151,7 @@ export function useDocuments(
 						},
 					}),
 					documentsApiService.getDocumentTypeCounts({
-						queryParams: { search_space_id: searchSpaceId },
+						queryParams: { workspace_id: workspaceId },
 					}),
 				]);
 
@@ -179,15 +179,13 @@ export function useDocuments(
 		return () => {
 			cancelled = true;
 		};
-	}, [searchSpaceId, typeFilterKey, sortBy, sortOrder, populateUserCache, apiToDisplayDoc]);
+	}, [workspaceId, typeFilterKey, sortBy, sortOrder, populateUserCache, apiToDisplayDoc]);
 
 	// EFFECT 2: Zero real-time sync for document updates
-	const [zeroDocuments] = useQuery(
-		queries.documents.bySpace({ searchSpaceId: searchSpaceId ?? -1 })
-	);
+	const [zeroDocuments] = useQuery(queries.documents.bySpace({ workspaceId: workspaceId ?? -1 }));
 
 	useEffect(() => {
-		if (!searchSpaceId || !zeroDocuments || !initialLoadDoneRef.current) return;
+		if (!workspaceId || !zeroDocuments || !initialLoadDoneRef.current) return;
 
 		const validItems = zeroDocuments.filter(
 			(doc) => doc.id != null && doc.title != null && doc.title !== ""
@@ -201,7 +199,7 @@ export function useDocuments(
 			documentsApiService
 				.getDocuments({
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: workspaceId,
 						page: 0,
 						page_size: 20,
 					},
@@ -232,7 +230,7 @@ export function useDocuments(
 				.filter((d) => !prevIds.has(d.id))
 				.map((doc) => ({
 					id: doc.id,
-					search_space_id: doc.searchSpaceId,
+					workspace_id: doc.workspaceId,
 					document_type: doc.documentType,
 					title: doc.title,
 					created_by_id: doc.createdById ?? null,
@@ -280,13 +278,13 @@ export function useDocuments(
 		}
 		setTypeCounts(counts);
 		setTotal(validItems.length);
-	}, [searchSpaceId, zeroDocuments, populateUserCache]);
+	}, [workspaceId, zeroDocuments, populateUserCache]);
 
-	// EFFECT 3: Reset on search space change
-	const prevSearchSpaceIdRef = useRef<number | null>(null);
+	// EFFECT 3: Reset on workspace change
+	const prevWorkspaceIdRef = useRef<number | null>(null);
 
 	useEffect(() => {
-		if (prevSearchSpaceIdRef.current !== null && prevSearchSpaceIdRef.current !== searchSpaceId) {
+		if (prevWorkspaceIdRef.current !== null && prevWorkspaceIdRef.current !== workspaceId) {
 			setDocuments([]);
 			setTypeCounts({});
 			setTotal(0);
@@ -296,19 +294,19 @@ export function useDocuments(
 			userCacheRef.current.clear();
 			emailCacheRef.current.clear();
 		}
-		prevSearchSpaceIdRef.current = searchSpaceId;
-	}, [searchSpaceId]);
+		prevWorkspaceIdRef.current = workspaceId;
+	}, [workspaceId]);
 
 	// Load more pages via API
 	// biome-ignore lint/correctness/useExhaustiveDependencies: typeFilterKey serializes typeFilter
 	const loadMore = useCallback(async () => {
-		if (loadingMore || !hasMore || !searchSpaceId) return;
+		if (loadingMore || !hasMore || !workspaceId) return;
 
 		setLoadingMore(true);
 		try {
 			const response = await documentsApiService.getDocuments({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 					skip: apiLoadedCountRef.current,
 					page_size: SCROLL_PAGE_SIZE,
 					...(typeFilter.length > 0 && { document_types: typeFilter }),
@@ -336,7 +334,7 @@ export function useDocuments(
 	}, [
 		loadingMore,
 		hasMore,
-		searchSpaceId,
+		workspaceId,
 		typeFilterKey,
 		sortBy,
 		sortOrder,

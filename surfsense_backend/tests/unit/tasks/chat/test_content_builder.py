@@ -128,14 +128,14 @@ class TestToolHeavyTurn:
 
         b.on_tool_input_start(
             ui_id="call_run123",
-            tool_name="web_search",
+            tool_name="scrape_webpage",
             langchain_tool_call_id="lc_tool_abc",
         )
         b.on_tool_input_delta("call_run123", '{"query":')
         b.on_tool_input_delta("call_run123", '"surfsense"}')
         b.on_tool_input_available(
             ui_id="call_run123",
-            tool_name="web_search",
+            tool_name="scrape_webpage",
             args={"query": "surfsense"},
             langchain_tool_call_id="lc_tool_abc",
         )
@@ -150,7 +150,7 @@ class TestToolHeavyTurn:
         tool_part = snap[1]
         assert tool_part["type"] == "tool-call"
         assert tool_part["toolCallId"] == "call_run123"
-        assert tool_part["toolName"] == "web_search"
+        assert tool_part["toolName"] == "scrape_webpage"
         assert tool_part["args"] == {"query": "surfsense"}
         # ``argsText`` is the pretty-printed final JSON, not the raw
         # streaming buffer (FE ``stream-pipeline.ts:128``).

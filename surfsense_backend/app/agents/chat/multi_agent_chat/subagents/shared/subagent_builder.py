@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time as _perf_time
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from deepagents import SubAgent
@@ -58,6 +59,19 @@ def _resolve_includes(prompt: str, *, subagent_name: str) -> str:
         return body
 
     return _INCLUDE_DIRECTIVE_RE.sub(_replace, prompt)
+
+
+def append_today_utc(prompt: str) -> str:
+    """Append the current UTC date so subagents share the main agent's clock.
+
+    The main agent injects ``Today (UTC): ...`` into its identity prompt, but
+    delegated subagents (calendar/gmail/drive, date-filtered searches, etc.)
+    never saw it and would guess the date. Appended at build time; the compiled
+    graph is cache-keyed on the main prompt hash (which carries the same date),
+    so a day rollover rebuilds both together and they stay consistent.
+    """
+    today = datetime.now(UTC).date().isoformat()
+    return f"{prompt}\n\nToday (UTC): {today}\n"
 
 
 def _user_allowlist_for(
@@ -115,6 +129,7 @@ def pack_subagent(
 
     _t0 = _perf_time.perf_counter()
     system_prompt = _resolve_includes(system_prompt, subagent_name=name)
+    system_prompt = append_today_utc(system_prompt)
     _t_resolve = _perf_time.perf_counter() - _t0
 
     flags = dependencies["flags"]

@@ -30,7 +30,7 @@ class _DummyMiddleware(AgentMiddleware):
 
 def _ctx() -> PluginContext:
     return PluginContext.build(
-        search_space_id=1,
+        workspace_id=1,
         user_id="u",
         thread_visibility="PRIVATE",  # type: ignore[arg-type]
         llm=MagicMock(),
@@ -165,12 +165,12 @@ class TestPluginContext:
     def test_build_includes_required_fields(self) -> None:
         llm = MagicMock()
         ctx = PluginContext.build(
-            search_space_id=42,
+            workspace_id=42,
             user_id="user-1",
             thread_visibility="PRIVATE",  # type: ignore[arg-type]
             llm=llm,
         )
-        assert ctx["search_space_id"] == 42
+        assert ctx["workspace_id"] == 42
         assert ctx["user_id"] == "user-1"
         assert ctx["llm"] is llm
 

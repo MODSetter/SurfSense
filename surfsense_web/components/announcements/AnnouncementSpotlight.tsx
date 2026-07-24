@@ -20,14 +20,10 @@ import { useAnnouncements } from "@/hooks/use-announcements";
  * Behaviour:
  * - On load, the first active, audience-matched, unread spotlight announcement
  *   is shown automatically.
- * - The user must explicitly acknowledge it ("Got it" or the CTA link), which
- *   marks it as read so it never shows again.
- * - Closing via the X / Escape / outside-click only hides it for the current
- *   session; it reappears on the next load until the user marks it as seen.
+ * - Any dismissal marks it as read so it never shows again.
  */
 export function AnnouncementSpotlight() {
 	const { announcements, markRead } = useAnnouncements();
-	const [sessionDismissed, setSessionDismissed] = useState<Set<string>>(() => new Set());
 	const [ready, setReady] = useState(false);
 
 	// Short delay so the spotlight doesn't flash during initial hydration/layout.
@@ -37,11 +33,8 @@ export function AnnouncementSpotlight() {
 	}, []);
 
 	const current = useMemo(
-		() =>
-			announcements.find(
-				(a) => a.spotlight && a.isImportant && !a.isRead && !sessionDismissed.has(a.id)
-			) ?? null,
-		[announcements, sessionDismissed]
+		() => announcements.find((a) => a.spotlight && a.isImportant && !a.isRead) ?? null,
+		[announcements]
 	);
 
 	if (!current) return null;
@@ -51,13 +44,7 @@ export function AnnouncementSpotlight() {
 	};
 
 	const handleOpenChange = (next: boolean) => {
-		if (!next) {
-			setSessionDismissed((prev) => {
-				const updated = new Set(prev);
-				updated.add(current.id);
-				return updated;
-			});
-		}
+		if (!next) markRead(current.id);
 	};
 
 	return (
@@ -82,7 +69,7 @@ export function AnnouncementSpotlight() {
 					</DialogDescription>
 					<DialogFooter className="mt-2">
 						{current.link && (
-							<Button variant="outline" asChild className="gap-1.5" onClick={handleAcknowledge}>
+							<Button variant="secondary" asChild className="gap-1.5" onClick={handleAcknowledge}>
 								<Link
 									href={current.link.url}
 									target={current.link.url.startsWith("http") ? "_blank" : undefined}

@@ -26,7 +26,7 @@ class GoogleDriveKBSyncService:
         web_view_link: str | None,
         content: str | None,
         connector_id: int,
-        search_space_id: int,
+        workspace_id: int,
         user_id: str,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
@@ -38,7 +38,7 @@ class GoogleDriveKBSyncService:
 
         try:
             unique_hash = generate_unique_identifier_hash(
-                DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
+                DocumentType.GOOGLE_DRIVE_FILE, file_id, workspace_id
             )
 
             existing = await check_document_by_unique_identifier(
@@ -58,7 +58,7 @@ class GoogleDriveKBSyncService:
                     f"Google Drive file: {file_name} (type: {mime_type})"
                 )
 
-            content_hash = generate_content_hash(indexable_content, search_space_id)
+            content_hash = generate_content_hash(indexable_content, workspace_id)
 
             with self.db_session.no_autoflush:
                 dup = await check_duplicate_document_by_hash(
@@ -95,7 +95,7 @@ class GoogleDriveKBSyncService:
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
                 embedding=summary_embedding,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 source_markdown=content,
                 updated_at=get_current_timestamp(),

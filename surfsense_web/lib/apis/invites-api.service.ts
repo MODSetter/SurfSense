@@ -36,7 +36,7 @@ class InvitesApiService {
 		}
 
 		return baseApiService.post(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/invites`,
 			createInviteResponse,
 			{
 				body: parsedRequest.data.data,
@@ -45,7 +45,7 @@ class InvitesApiService {
 	};
 
 	/**
-	 * Get all invites for a search space
+	 * Get all invites for a workspace
 	 */
 	getInvites = async (request: GetInvitesRequest) => {
 		const parsedRequest = getInvitesRequest.safeParse(request);
@@ -58,7 +58,7 @@ class InvitesApiService {
 		}
 
 		return baseApiService.get(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/invites`,
 			getInvitesResponse
 		);
 	};
@@ -77,7 +77,7 @@ class InvitesApiService {
 		}
 
 		return baseApiService.put(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/invites/${parsedRequest.data.invite_id}`,
 			updateInviteResponse,
 			{
 				body: parsedRequest.data.data,
@@ -99,7 +99,7 @@ class InvitesApiService {
 		}
 
 		return baseApiService.delete(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
+			`/api/v1/workspaces/${parsedRequest.data.workspace_id}/invites/${parsedRequest.data.invite_id}`,
 			deleteInviteResponse
 		);
 	};

@@ -1,10 +1,11 @@
 """Map a registered citation to the frontend ``[citation:<payload>]`` payload.
 
 The citation renderer understands a chunk id (``42``), a negative chunk id for
-anonymous uploads (``-3``), and a URL. This is the seam that turns a server-side
-source into one the renderer can resolve; it grows as more source kinds become
-renderable. Kinds with no renderable form yet return ``None`` so the marker is
-dropped rather than emitted broken.
+anonymous uploads (``-3``), a URL, and a scraper-run handle (``run_<uuid>``).
+This is the seam that turns a server-side source into one the renderer can
+resolve; it grows as more source kinds become renderable. Kinds with no
+renderable form yet return ``None`` so the marker is dropped rather than
+emitted broken.
 """
 
 from __future__ import annotations
@@ -22,6 +23,9 @@ def to_frontend_payload(entry: CitationEntry) -> str | None:
         case CitationSourceType.WEB_RESULT:
             url = locator.get("url")
             return url or None
+        case CitationSourceType.RUN:
+            run_id = locator.get("run_id")
+            return str(run_id) if run_id else None
         case _:
             # Connector items and chat turns have no client-side renderer yet
             # (the frontend resolves only chunk ids and URLs), so they stay

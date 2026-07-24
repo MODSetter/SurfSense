@@ -46,7 +46,7 @@ async def stream_agent_events(
     initial_step_title: str = "",
     initial_step_items: list[str] | None = None,
     *,
-    fallback_commit_search_space_id: int | None = None,
+    fallback_commit_workspace_id: int | None = None,
     fallback_commit_created_by_id: str | None = None,
     fallback_commit_filesystem_mode: FilesystemMode = FilesystemMode.CLOUD,
     fallback_commit_thread_id: int | None = None,
@@ -92,7 +92,7 @@ async def stream_agent_events(
     # so reducers fire as if the after_agent hook produced it.
     if (
         fallback_commit_filesystem_mode == FilesystemMode.CLOUD
-        and fallback_commit_search_space_id is not None
+        and fallback_commit_workspace_id is not None
         and (
             (state_values.get("dirty_paths") or [])
             or (state_values.get("staged_dirs") or [])
@@ -104,7 +104,7 @@ async def stream_agent_events(
         try:
             delta = await commit_staged_filesystem_state(
                 state_values,
-                search_space_id=fallback_commit_search_space_id,
+                workspace_id=fallback_commit_workspace_id,
                 created_by_id=fallback_commit_created_by_id,
                 filesystem_mode=fallback_commit_filesystem_mode,
                 thread_id=fallback_commit_thread_id,

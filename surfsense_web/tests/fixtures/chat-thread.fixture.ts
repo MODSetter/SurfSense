@@ -1,11 +1,11 @@
 import type { APIRequestContext } from "@playwright/test";
 import { authHeaders, BACKEND_URL } from "../helpers/api/auth";
-import type { SearchSpaceFixtures } from "./search-space.fixture";
+import type { WorkspaceFixtures } from "./workspace.fixture";
 
 export type ChatThreadRow = {
 	id: number;
 	title: string;
-	search_space_id: number;
+	workspace_id: number;
 	visibility: string;
 	created_by_id: string | null;
 	created_at: string;
@@ -16,20 +16,20 @@ export type ChatThreadFixtures = {
 	chatThread: ChatThreadRow;
 };
 
-type ChatThreadFixtureArgs = SearchSpaceFixtures & {
+type ChatThreadFixtureArgs = WorkspaceFixtures & {
 	request: APIRequestContext;
 };
 
 export const chatThreadFixtures = {
 	chatThread: async (
-		{ request, apiToken, searchSpace }: ChatThreadFixtureArgs,
+		{ request, apiToken, workspace }: ChatThreadFixtureArgs,
 		use: (thread: ChatThreadRow) => Promise<void>
 	) => {
 		const response = await request.post(`${BACKEND_URL}/api/v1/threads`, {
 			headers: authHeaders(apiToken),
 			data: {
 				title: "e2e-drive-journey",
-				search_space_id: searchSpace.id,
+				workspace_id: workspace.id,
 				visibility: "PRIVATE",
 			},
 		});

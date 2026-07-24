@@ -21,13 +21,13 @@ Base = app_db.Base
 DocumentType = app_db.DocumentType
 SearchSourceConnector = app_db.SearchSourceConnector
 SearchSourceConnectorType = app_db.SearchSourceConnectorType
-SearchSpace = app_db.SearchSpace
+Workspace = app_db.Workspace
 User = app_db.User
 ConnectorDocument = importlib.import_module(
     "app.indexing_pipeline.connector_document"
 ).ConnectorDocument
 create_default_roles_and_membership = importlib.import_module(
-    "app.routes.search_spaces_routes"
+    "app.routes.workspaces_routes"
 ).create_default_roles_and_membership
 TEST_DATABASE_URL = importlib.import_module("tests.conftest").TEST_DATABASE_URL
 
@@ -95,13 +95,13 @@ async def db_user(db_session: AsyncSession) -> User:
 
 @pytest_asyncio.fixture
 async def db_connector(
-    db_session: AsyncSession, db_user: User, db_search_space: "SearchSpace"
+    db_session: AsyncSession, db_user: User, db_workspace: "Workspace"
 ) -> SearchSourceConnector:
     connector = SearchSourceConnector(
         name="Test Connector",
         connector_type=SearchSourceConnectorType.CLICKUP_CONNECTOR,
         config={},
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user_id=db_user.id,
     )
     db_session.add(connector)
@@ -110,14 +110,14 @@ async def db_connector(
 
 
 @pytest_asyncio.fixture
-async def db_search_space(db_session: AsyncSession, db_user: User) -> SearchSpace:
-    space = SearchSpace(
+async def db_workspace(db_session: AsyncSession, db_user: User) -> Workspace:
+    space = Workspace(
         name="Test Space",
         user_id=db_user.id,
     )
     db_session.add(space)
     await db_session.flush()
-    # Mirror POST /searchspaces so routes guarded by check_permission find a membership.
+    # Mirror POST /workspaces so routes guarded by check_permission find a membership.
     await create_default_roles_and_membership(db_session, space.id, db_user.id)
     await db_session.flush()
     return space
@@ -180,7 +180,7 @@ def make_connector_document(db_connector, db_user):
             "source_markdown": "## Heading\n\nSome content.",
             "unique_id": "test-id-001",
             "document_type": DocumentType.CLICKUP_CONNECTOR,
-            "search_space_id": db_connector.search_space_id,
+            "workspace_id": db_connector.workspace_id,
             "connector_id": db_connector.id,
             "created_by_id": str(db_user.id),
         }

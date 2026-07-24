@@ -1,0 +1,5 @@
+# Everything under results/ is run-local output (timestamped scorecards,
+# latest.json pointer, screenshots, ad-hoc dumps). None of it is committed —
+# the dir is kept tracked only via this file so the harness has a write target.
+*
+!.gitignore

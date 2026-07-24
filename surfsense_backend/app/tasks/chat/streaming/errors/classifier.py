@@ -37,7 +37,7 @@ def log_chat_stream_error(
     is_expected: bool,
     request_id: str | None,
     thread_id: int | None,
-    search_space_id: int | None,
+    workspace_id: int | None,
     user_id: str | None,
     message: str,
     extra: dict[str, Any] | None = None,
@@ -51,7 +51,7 @@ def log_chat_stream_error(
         "is_expected": is_expected,
         "request_id": request_id or "unknown",
         "thread_id": thread_id,
-        "search_space_id": search_space_id,
+        "workspace_id": workspace_id,
         "user_id": user_id,
         "message": message,
     }

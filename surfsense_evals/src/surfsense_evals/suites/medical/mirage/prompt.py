@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-
 _PROMPT_TEMPLATE = """\
 You are a helpful medical expert. Answer the following multiple-choice
 question using the relevant medical knowledge available to you (and any

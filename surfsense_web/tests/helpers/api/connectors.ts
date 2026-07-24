@@ -13,10 +13,10 @@ export type ConnectorRow = {
 export async function listConnectors(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<ConnectorRow[]> {
 	const response = await request.get(
-		`${BACKEND_URL}/api/v1/search-source-connectors?search_space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors?workspace_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!response.ok()) {
@@ -111,11 +111,11 @@ export async function triggerIndex(
 	request: APIRequestContext,
 	token: string,
 	connectorId: number,
-	searchSpaceId: number,
+	workspaceId: number,
 	body: IndexBody
 ): Promise<{ ok: true }> {
 	const response = await request.post(
-		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?search_space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${workspaceId}`,
 		{ headers: authHeaders(token), data: body }
 	);
 	if (!response.ok()) {
@@ -130,11 +130,11 @@ export async function triggerIndexExpectDisabled(
 	request: APIRequestContext,
 	token: string,
 	connectorId: number,
-	searchSpaceId: number,
+	workspaceId: number,
 	body: IndexBody = {}
 ): Promise<{ indexing_started: false; message?: string }> {
 	const response = await request.post(
-		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?search_space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?workspace_id=${workspaceId}`,
 		{ headers: authHeaders(token), data: body }
 	);
 	if (!response.ok()) {
@@ -166,7 +166,7 @@ export async function triggerIndexExpectDisabled(
 export async function runComposioOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number,
+	workspaceId: number,
 	toolkitId: "googledrive" | "gmail" | "googlecalendar" = "googledrive"
 ): Promise<{
 	authUrl: string;
@@ -175,7 +175,7 @@ export async function runComposioOAuth(
 }> {
 	// Step 1: kick off OAuth, get auth_url.
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/composio/connector/add?space_id=${searchSpaceId}&toolkit_id=${toolkitId}`,
+		`${BACKEND_URL}/api/v1/auth/composio/connector/add?space_id=${workspaceId}&toolkit_id=${toolkitId}`,
 		{
 			headers: authHeaders(token),
 		}
@@ -202,7 +202,7 @@ export async function runComposioOAuth(
 	const location = callbackResp.headers().location ?? auth_url;
 
 	// Step 3: look up the resulting connector (if any).
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const composioType =
 		toolkitId === "googledrive"
 			? "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
@@ -223,14 +223,14 @@ export async function runComposioOAuth(
 export async function runNativeGoogleDriveOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/google/drive/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/google/drive/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -250,7 +250,7 @@ export async function runNativeGoogleDriveOAuth(
 	});
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "GOOGLE_DRIVE_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -266,14 +266,14 @@ export async function runNativeGoogleDriveOAuth(
 export async function runNativeOneDriveOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/onedrive/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/onedrive/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -306,7 +306,7 @@ export async function runNativeOneDriveOAuth(
 	}
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "ONEDRIVE_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -322,14 +322,14 @@ export async function runNativeOneDriveOAuth(
 export async function runNativeDropboxOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/dropbox/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/dropbox/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -362,7 +362,7 @@ export async function runNativeDropboxOAuth(
 	}
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "DROPBOX_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -377,14 +377,14 @@ export async function runNativeDropboxOAuth(
 export async function runNativeGoogleGmailOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/google/gmail/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/google/gmail/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -404,7 +404,7 @@ export async function runNativeGoogleGmailOAuth(
 	});
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "GOOGLE_GMAIL_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -419,14 +419,14 @@ export async function runNativeGoogleGmailOAuth(
 export async function runNativeGoogleCalendarOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/google/calendar/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/google/calendar/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -446,7 +446,7 @@ export async function runNativeGoogleCalendarOAuth(
 	});
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector =
 		connectors.find((c) => c.connector_type === "GOOGLE_CALENDAR_CONNECTOR") ?? null;
 
@@ -454,43 +454,43 @@ export async function runNativeGoogleCalendarOAuth(
 }
 
 /**
- * Drives the Notion OAuth flow programmatically.
+ * Drives the Notion MCP OAuth flow programmatically.
  *
- * The E2E backend keeps SurfSense's OAuth add/callback routes real and
- * patches only Notion's external token endpoint. Notion's authorization
- * URL stays off-origin, so this helper extracts the signed state and calls
- * the backend callback directly with the deterministic fake code.
+ * Notion migrated from indexed OAuth to the hosted Notion MCP server, so this
+ * uses SurfSense's generic MCP OAuth routes. The E2E backend keeps those routes
+ * real and patches Notion's external discovery/DCR/token/MCP tool boundaries
+ * (see surfsense_backend/tests/e2e/fakes/notion_mcp_module.py).
  */
 export async function runNotionOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/notion/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/notion/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
 		throw new Error(
-			`Notion initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+			`Notion MCP initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
 		);
 	}
 	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
 	if (!auth_url) {
-		throw new Error("Notion initiate response missing auth_url");
+		throw new Error("Notion MCP initiate response missing auth_url");
 	}
 
 	const state = new URL(auth_url).searchParams.get("state");
 	if (!state) {
-		throw new Error(`Notion auth_url missing state: ${auth_url}`);
+		throw new Error(`Notion MCP auth_url missing state: ${auth_url}`);
 	}
 
 	const callbackResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/notion/connector/callback?code=fake-notion-oauth-code&state=${encodeURIComponent(state)}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/notion/connector/callback?code=fake-notion-oauth-code&state=${encodeURIComponent(state)}`,
 		{
 			headers: authHeaders(token),
 			maxRedirects: 0,
@@ -499,48 +499,52 @@ export async function runNotionOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "NOTION_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
 }
 
 /**
- * Drives the Confluence OAuth flow programmatically.
+ * Drives the Confluence MCP OAuth flow programmatically.
  *
- * The E2E backend keeps SurfSense's OAuth add/callback routes real and
- * patches only Atlassian's external token/resource endpoints.
+ * Confluence migrated to the hosted Atlassian Rovo MCP server (shared with
+ * Jira), so this uses SurfSense's generic MCP OAuth routes. The E2E backend
+ * keeps those routes real and patches the shared Atlassian
+ * discovery/DCR/token/MCP tool boundaries (see
+ * surfsense_backend/tests/e2e/fakes/jira_module.py). The OAuth code is the
+ * shared Atlassian one because both connectors hit the same token endpoint.
  */
 export async function runConfluenceOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/confluence/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/confluence/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
 		throw new Error(
-			`Confluence initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
+			`Confluence MCP initiate failed (${initiateResp.status()}): ${await initiateResp.text()}`
 		);
 	}
 	const { auth_url } = (await initiateResp.json()) as { auth_url: string };
 	if (!auth_url) {
-		throw new Error("Confluence initiate response missing auth_url");
+		throw new Error("Confluence MCP initiate response missing auth_url");
 	}
 
 	const state = new URL(auth_url).searchParams.get("state");
 	if (!state) {
-		throw new Error(`Confluence auth_url missing state: ${auth_url}`);
+		throw new Error(`Confluence MCP auth_url missing state: ${auth_url}`);
 	}
 
 	const callbackResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/confluence/connector/callback?code=fake-confluence-oauth-code&state=${encodeURIComponent(state)}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/confluence/connector/callback?code=fake-jira-oauth-code&state=${encodeURIComponent(state)}`,
 		{
 			headers: authHeaders(token),
 			maxRedirects: 0,
@@ -549,7 +553,7 @@ export async function runConfluenceOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "CONFLUENCE_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -564,14 +568,14 @@ export async function runConfluenceOAuth(
 export async function runLinearOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/linear/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/linear/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -599,7 +603,7 @@ export async function runLinearOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "LINEAR_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -614,14 +618,14 @@ export async function runLinearOAuth(
 export async function runJiraOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/jira/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/jira/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -649,7 +653,7 @@ export async function runJiraOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "JIRA_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -664,14 +668,14 @@ export async function runJiraOAuth(
 export async function runClickupOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/clickup/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/clickup/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -699,7 +703,7 @@ export async function runClickupOAuth(
 	);
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "CLICKUP_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };
@@ -714,14 +718,14 @@ export async function runClickupOAuth(
 export async function runSlackOAuth(
 	request: APIRequestContext,
 	token: string,
-	searchSpaceId: number
+	workspaceId: number
 ): Promise<{
 	authUrl: string;
 	finalUrl: string;
 	connector: ConnectorRow | null;
 }> {
 	const initiateResp = await request.get(
-		`${BACKEND_URL}/api/v1/auth/mcp/slack/connector/add?space_id=${searchSpaceId}`,
+		`${BACKEND_URL}/api/v1/auth/mcp/slack/connector/add?space_id=${workspaceId}`,
 		{ headers: authHeaders(token) }
 	);
 	if (!initiateResp.ok()) {
@@ -754,7 +758,7 @@ export async function runSlackOAuth(
 	}
 	const location = callbackResp.headers().location ?? auth_url;
 
-	const connectors = await listConnectors(request, token, searchSpaceId);
+	const connectors = await listConnectors(request, token, workspaceId);
 	const connector = connectors.find((c) => c.connector_type === "SLACK_CONNECTOR") ?? null;
 
 	return { authUrl: auth_url, finalUrl: location, connector };

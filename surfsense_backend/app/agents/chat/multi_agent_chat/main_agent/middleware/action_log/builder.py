@@ -14,7 +14,7 @@ def build_action_log_mw(
     *,
     flags: AgentFeatureFlags,
     thread_id: int | None,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
 ) -> ActionLogMiddleware | None:
     if not enabled(flags, "enable_action_log") or thread_id is None:
@@ -25,7 +25,7 @@ def build_action_log_mw(
         # tool via ``ToolDefinition.reverse`` and can be wired here when used.
         return ActionLogMiddleware(
             thread_id=thread_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
         )
     except Exception:  # pragma: no cover - defensive

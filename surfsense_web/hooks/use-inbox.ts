@@ -43,7 +43,7 @@ function getSyncCutoffDate(): string {
  */
 export function useInbox(
 	userId: string | null,
-	searchSpaceId: number | null,
+	workspaceId: number | null,
 	category: NotificationCategory,
 	prefetchedUnread?: { total_unread: number; recent_unread: number } | null,
 	prefetchedUnreadReady = true
@@ -54,6 +54,7 @@ export function useInbox(
 	const [hasMore, setHasMore] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 	const [unreadCount, setUnreadCount] = useState(0);
+	const [totalCount, setTotalCount] = useState(0);
 
 	const initialLoadDoneRef = useRef(false);
 	const olderUnreadOffsetRef = useRef<number | null>(null);
@@ -63,7 +64,7 @@ export function useInbox(
 
 	// EFFECT 1: Fetch first page + unread count from API with category filter
 	useEffect(() => {
-		if (!userId || !searchSpaceId) return;
+		if (!userId || !workspaceId) return;
 		if (!prefetchedUnreadReady) return;
 
 		let cancelled = false;
@@ -71,6 +72,7 @@ export function useInbox(
 		setLoading(true);
 		setInboxItems([]);
 		setHasMore(false);
+		setTotalCount(0);
 		initialLoadDoneRef.current = false;
 		olderUnreadOffsetRef.current = null;
 		apiUnreadTotalRef.current = 0;
@@ -79,7 +81,7 @@ export function useInbox(
 			try {
 				const notificationsPromise = notificationsApiService.getNotifications({
 					queryParams: {
-						search_space_id: searchSpaceId,
+						workspace_id: workspaceId,
 						category,
 						limit: INITIAL_PAGE_SIZE,
 					},
@@ -87,7 +89,7 @@ export function useInbox(
 
 				const unreadPromise = prefetchedUnread
 					? Promise.resolve(prefetchedUnread)
-					: notificationsApiService.getUnreadCount(searchSpaceId, undefined, category);
+					: notificationsApiService.getUnreadCount(workspaceId, undefined, category);
 
 				const [notificationsResponse, unreadResponse] = await Promise.all([
 					notificationsPromise,
@@ -97,6 +99,7 @@ export function useInbox(
 				if (cancelled) return;
 
 				setInboxItems(notificationsResponse.items);
+				setTotalCount(notificationsResponse.total);
 				setHasMore(notificationsResponse.has_more);
 				setUnreadCount(unreadResponse.total_unread);
 				apiUnreadTotalRef.current = unreadResponse.total_unread;
@@ -115,20 +118,20 @@ export function useInbox(
 		return () => {
 			cancelled = true;
 		};
-	}, [userId, searchSpaceId, category, prefetchedUnread, prefetchedUnreadReady]);
+	}, [userId, workspaceId, category, prefetchedUnread, prefetchedUnreadReady]);
 
 	// EFFECT 2: Zero real-time sync for notification updates
 	const [zeroNotifications] = useQuery(queries.notifications.byUser({ userId: userId ?? "" }));
 
 	useEffect(() => {
-		if (!userId || !searchSpaceId || !zeroNotifications || !initialLoadDoneRef.current) return;
+		if (!userId || !workspaceId || !zeroNotifications || !initialLoadDoneRef.current) return;
 
 		const cutoff = new Date(getSyncCutoffDate());
 
 		const validItems = zeroNotifications.filter((item) => {
 			if (item.id == null) return false;
 			if (!categoryTypes.includes(item.type)) return false;
-			if (item.searchSpaceId !== null && item.searchSpaceId !== searchSpaceId) return false;
+			if (item.workspaceId !== null && item.workspaceId !== workspaceId) return false;
 			return true;
 		});
 
@@ -146,7 +149,7 @@ export function useInbox(
 						({
 							id: item.id,
 							user_id: item.userId,
-							search_space_id: item.searchSpaceId ?? undefined,
+							workspace_id: item.workspaceId ?? undefined,
 							type: item.type,
 							title: item.title,
 							message: item.message,
@@ -195,11 +198,11 @@ export function useInbox(
 			const recentUnreadCount = recentItems.filter((item) => !item.read).length;
 			setUnreadCount(olderUnreadOffsetRef.current + recentUnreadCount);
 		}
-	}, [userId, searchSpaceId, zeroNotifications, categoryTypes]);
+	}, [userId, workspaceId, zeroNotifications, categoryTypes]);
 
 	// Load more pages via API (cursor-based using before_date)
 	const loadMore = useCallback(async () => {
-		if (loadingMore || !hasMore || !userId || !searchSpaceId) return;
+		if (loadingMore || !hasMore || !userId || !workspaceId) return;
 
 		setLoadingMore(true);
 		try {
@@ -208,7 +211,7 @@ export function useInbox(
 
 			const response = await notificationsApiService.getNotifications({
 				queryParams: {
-					search_space_id: searchSpaceId,
+					workspace_id: workspaceId,
 					category,
 					before_date: beforeDate,
 					limit: SCROLL_PAGE_SIZE,
@@ -222,13 +225,14 @@ export function useInbox(
 				const deduped = newItems.filter((d) => !existingIds.has(d.id));
 				return [...prev, ...deduped];
 			});
+			setTotalCount(response.total);
 			setHasMore(response.has_more);
 		} catch (err) {
 			console.error(`[useInbox:${category}] Load more failed:`, err);
 		} finally {
 			setLoadingMore(false);
 		}
-	}, [loadingMore, hasMore, userId, searchSpaceId, inboxItems, category]);
+	}, [loadingMore, hasMore, userId, workspaceId, inboxItems, category]);
 
 	// Mark single item as read with optimistic update
 	const markAsRead = useCallback(
@@ -299,6 +303,7 @@ export function useInbox(
 	return {
 		inboxItems,
 		unreadCount,
+		totalCount,
 		markAsRead,
 		markAllAsRead,
 		loading,

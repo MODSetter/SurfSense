@@ -95,10 +95,7 @@ class IngestSettings:
     def render_label(self) -> str:
         """Human-readable single-line label for reports / log lines."""
 
-        return (
-            f"vision={'on' if self.use_vision_llm else 'off'}, "
-            f"mode={self.processing_mode}"
-        )
+        return f"vision={'on' if self.use_vision_llm else 'off'}, mode={self.processing_mode}"
 
 
 def _coerce_bool(value: Any, default: bool) -> bool:
@@ -122,9 +119,7 @@ def _coerce_mode(value: Any, default: str) -> str:
         return default
     val = str(value).strip().lower()
     if val not in PROCESSING_MODES:
-        raise ValueError(
-            f"Invalid processing_mode {val!r}; must be one of {PROCESSING_MODES}"
-        )
+        raise ValueError(f"Invalid processing_mode {val!r}; must be one of {PROCESSING_MODES}")
     return val
 
 
@@ -274,10 +269,7 @@ def format_ingest_settings_md(settings: Any) -> str:
         return "- SurfSense ingest settings: (not recorded — re-ingest to capture)"
     vision = "on" if settings.get("use_vision_llm") else "off"
     mode = settings.get("processing_mode") or "basic"
-    return (
-        f"- SurfSense ingest settings: vision_llm=`{vision}`, "
-        f"processing_mode=`{mode}`"
-    )
+    return f"- SurfSense ingest settings: vision_llm=`{vision}`, processing_mode=`{mode}`"
 
 
 __all__ = [

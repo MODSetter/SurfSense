@@ -24,7 +24,7 @@ Design notes
 
 The plugin's content hash and the backend's ``content_hash`` are computed
 differently (plugin uses raw SHA-256 of the markdown body; backend salts
-with ``search_space_id``). We persist the plugin's hash in
+with ``workspace_id``). We persist the plugin's hash in
 ``document_metadata['plugin_content_hash']`` so the manifest endpoint can
 return what the plugin sent — that's the only number the plugin can
 compare without re-downloading content.
@@ -217,7 +217,7 @@ async def _resolve_attachment_vision_llm(
     session: AsyncSession,
     *,
     connector: SearchSourceConnector,
-    search_space_id: int,
+    workspace_id: int,
     payload: NotePayload,
 ):
     """Match connector indexers: only fetch vision LLM for image attachments
@@ -231,7 +231,7 @@ async def _resolve_attachment_vision_llm(
 
     from app.services.llm_service import get_vision_llm
 
-    return await get_vision_llm(session, search_space_id)
+    return await get_vision_llm(session, workspace_id)
 
 
 def _require_extracted_attachment_content(
@@ -253,7 +253,7 @@ def _require_extracted_attachment_content(
 async def _find_existing_document(
     session: AsyncSession,
     *,
-    search_space_id: int,
+    workspace_id: int,
     vault_id: str,
     path: str,
 ) -> Document | None:
@@ -261,7 +261,7 @@ async def _find_existing_document(
     uid_hash = generate_unique_identifier_hash(
         DocumentType.OBSIDIAN_CONNECTOR,
         unique_id,
-        search_space_id,
+        workspace_id,
     )
     result = await session.execute(
         select(Document).where(Document.unique_identifier_hash == uid_hash)
@@ -287,11 +287,11 @@ async def upsert_note(
     a skip-because-unchanged hit).
     """
     vault_name: str = (connector.config or {}).get("vault_name") or "Vault"
-    search_space_id = connector.search_space_id
+    workspace_id = connector.workspace_id
 
     existing = await _find_existing_document(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         vault_id=payload.vault_id,
         path=payload.path,
     )
@@ -324,7 +324,7 @@ async def upsert_note(
         vision_llm = await _resolve_attachment_vision_llm(
             session,
             connector=connector,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             payload=payload,
         )
         content_for_index, etl_meta = await _extract_binary_attachment_markdown(
@@ -353,7 +353,7 @@ async def upsert_note(
         source_markdown=document_string,
         unique_id=_vault_path_unique_id(payload.vault_id, payload.path),
         document_type=DocumentType.OBSIDIAN_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector.id,
         created_by_id=str(user_id),
         metadata=metadata,
@@ -387,11 +387,11 @@ async def rename_note(
     the new path).
     """
     vault_name: str = (connector.config or {}).get("vault_name") or "Vault"
-    search_space_id = connector.search_space_id
+    workspace_id = connector.workspace_id
 
     existing = await _find_existing_document(
         session,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         vault_id=vault_id,
         path=old_path,
     )
@@ -402,7 +402,7 @@ async def rename_note(
     new_uid_hash = generate_unique_identifier_hash(
         DocumentType.OBSIDIAN_CONNECTOR,
         new_unique_id,
-        search_space_id,
+        workspace_id,
     )
 
     collision = await session.execute(
@@ -461,7 +461,7 @@ async def delete_note(
     """
     existing = await _find_existing_document(
         session,
-        search_space_id=connector.search_space_id,
+        workspace_id=connector.workspace_id,
         vault_id=vault_id,
         path=path,
     )
@@ -500,7 +500,7 @@ async def merge_obsidian_connectors(
         return
 
     target_vault_id = (target.config or {}).get("vault_id")
-    target_search_space_id = target.search_space_id
+    target_workspace_id = target.workspace_id
     if not target_vault_id:
         raise RuntimeError("merge target is missing vault_id")
 
@@ -539,13 +539,13 @@ async def merge_obsidian_connectors(
         new_uid_hash = generate_unique_identifier_hash(
             DocumentType.OBSIDIAN_CONNECTOR,
             new_unique_id,
-            target_search_space_id,
+            target_workspace_id,
         )
         meta["vault_id"] = target_vault_id
         meta["connector_id"] = target.id
         doc.document_metadata = meta
         doc.connector_id = target.id
-        doc.search_space_id = target_search_space_id
+        doc.workspace_id = target_workspace_id
         doc.unique_identifier_hash = new_uid_hash
         target_paths.add(path)
 
@@ -571,7 +571,7 @@ async def get_manifest(
     result = await session.execute(
         select(Document).where(
             and_(
-                Document.search_space_id == connector.search_space_id,
+                Document.workspace_id == connector.workspace_id,
                 Document.connector_id == connector.id,
                 Document.document_type == DocumentType.OBSIDIAN_CONNECTOR,
             )

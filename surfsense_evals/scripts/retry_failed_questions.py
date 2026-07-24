@@ -106,9 +106,7 @@ def _is_failure_row(row: dict[str, Any]) -> bool:
 
     if row.get("error"):
         return True
-    if not (row.get("raw_text") or "").strip():
-        return True
-    return False
+    return bool(not (row.get("raw_text") or "").strip())
 
 
 @dataclass
@@ -134,17 +132,19 @@ def _load_failed_rows(raw_path: Path) -> list[FailedRow]:
             row = json.loads(line)
             if not _is_failure_row(row):
                 continue
-            out.append(FailedRow(
-                arm=str(row["arm"]),
-                qid=str(row["qid"]),
-                doc_id=str(row["doc_id"]),
-                answer_format=str(row.get("answer_format") or ""),
-                gold=str(row.get("gold") or ""),
-                pages=int(row.get("pages") or 0),
-                document_id=row.get("document_id"),
-                original_error=row.get("error"),
-                original_row=row,
-            ))
+            out.append(
+                FailedRow(
+                    arm=str(row["arm"]),
+                    qid=str(row["qid"]),
+                    doc_id=str(row["doc_id"]),
+                    answer_format=str(row.get("answer_format") or ""),
+                    gold=str(row.get("gold") or ""),
+                    pages=int(row.get("pages") or 0),
+                    document_id=row.get("document_id"),
+                    original_error=row.get("error"),
+                    original_row=row,
+                )
+            )
     return out
 
 
@@ -204,8 +204,12 @@ def _qid_index(qid: str) -> int:
 
 
 def _build_native_request(
-    qid: str, question: str, answer_format: str, pdf_path: Path,
-    *, max_output_tokens: int,
+    qid: str,
+    question: str,
+    answer_format: str,
+    pdf_path: Path,
+    *,
+    max_output_tokens: int,
 ) -> ArmRequest:
     return ArmRequest(
         question_id=qid,
@@ -216,12 +220,14 @@ def _build_native_request(
 
 
 def _build_lc_request(
-    qid: str, question: str, answer_format: str, doc_id: str, md_path: Path,
+    qid: str,
+    question: str,
+    answer_format: str,
+    doc_id: str,
+    md_path: Path,
 ) -> ArmRequest:
     if not md_path.exists():
-        raise FileNotFoundError(
-            f"Missing parser extraction at {md_path}; cannot retry LC arm."
-        )
+        raise FileNotFoundError(f"Missing parser extraction at {md_path}; cannot retry LC arm.")
     markdown = md_path.read_text(encoding="utf-8")
     return ArmRequest(
         question_id=qid,
@@ -258,7 +264,9 @@ class RetryOutcome:
 
 
 async def _retry_one(
-    arm_obj: Any, request: ArmRequest, *,
+    arm_obj: Any,
+    request: ArmRequest,
+    *,
     arm_name: str,
     qid: str,
     max_attempts: int,
@@ -276,31 +284,44 @@ async def _retry_one(
         attempt_error = result.error
         if not attempt_error and not raw_text:
             attempt_error = "EmptyResponse: stream ended with no text"
-        attempts.append(AttemptLog(
-            attempt=attempt,
-            started_iso=started_iso,
-            latency_ms=latency_ms,
-            error=attempt_error,
-            raw_text_chars=len(raw_text),
-        ))
+        attempts.append(
+            AttemptLog(
+                attempt=attempt,
+                started_iso=started_iso,
+                latency_ms=latency_ms,
+                error=attempt_error,
+                raw_text_chars=len(raw_text),
+            )
+        )
         final = result
         if not attempt_error and raw_text:
             return RetryOutcome(
-                arm=arm_name, qid=qid, attempts=attempts,
-                final_result=result, recovered=True,
+                arm=arm_name,
+                qid=qid,
+                attempts=attempts,
+                final_result=result,
+                recovered=True,
             )
         if attempt < max_attempts:
             delay = min(max_delay, base_delay * (2 ** (attempt - 1)))
             delay = delay * (0.5 + random.random())
             logger.info(
                 "[%s::%s] attempt %d/%d failed (%s); sleeping %.1fs",
-                arm_name, qid, attempt, max_attempts, attempt_error, delay,
+                arm_name,
+                qid,
+                attempt,
+                max_attempts,
+                attempt_error,
+                delay,
             )
             await asyncio.sleep(delay)
     assert final is not None
     return RetryOutcome(
-        arm=arm_name, qid=qid, attempts=attempts,
-        final_result=final, recovered=False,
+        arm=arm_name,
+        qid=qid,
+        attempts=attempts,
+        final_result=final,
+        recovered=False,
     )
 
 
@@ -367,7 +388,8 @@ async def _run(args: argparse.Namespace) -> int:
         by_arm_count[f.arm] = by_arm_count.get(f.arm, 0) + 1
     logger.info(
         "Loaded %d failed rows across %d arms: %s",
-        len(failed), len(by_arm_count),
+        len(failed),
+        len(by_arm_count),
         ", ".join(f"{a}={n}" for a, n in sorted(by_arm_count.items())),
     )
 
@@ -385,7 +407,8 @@ async def _run(args: argparse.Namespace) -> int:
         engine=PdfEngine(args.pdf_engine),
     )
     native_arm = NativePdfArm(
-        provider=native_provider, max_output_tokens=args.max_output_tokens,
+        provider=native_provider,
+        max_output_tokens=args.max_output_tokens,
     )
 
     lc_arms: dict[str, BareLlmArm] = {}
@@ -415,7 +438,8 @@ async def _run(args: argparse.Namespace) -> int:
         if qrow is None:
             logger.error(
                 "Could not find question text for %s (idx %d) — skipping",
-                f.doc_id, q_idx,
+                f.doc_id,
+                q_idx,
             )
             continue
         question_text = str(qrow.get("question") or "").strip()
@@ -428,11 +452,14 @@ async def _run(args: argparse.Namespace) -> int:
 
         if f.arm == "native_pdf":
             pdf_path = Path(map_row["pdf_path"])
-            if not pdf_path.exists():
+            if not await asyncio.to_thread(pdf_path.exists):
                 logger.error("PDF missing on disk: %s — skipping", pdf_path)
                 continue
             request = _build_native_request(
-                f.qid, question_text, answer_format, pdf_path,
+                f.qid,
+                question_text,
+                answer_format,
+                pdf_path,
                 max_output_tokens=args.max_output_tokens,
             )
             arm_obj = native_arm
@@ -442,11 +469,16 @@ async def _run(args: argparse.Namespace) -> int:
             if not md_path_str or ext_blob.get("status") != "ok":
                 logger.error(
                     "Missing extraction for %s on %s — cannot retry; skipping",
-                    f.arm, f.doc_id,
+                    f.arm,
+                    f.doc_id,
                 )
                 continue
             request = _build_lc_request(
-                f.qid, question_text, answer_format, f.doc_id, Path(md_path_str),
+                f.qid,
+                question_text,
+                answer_format,
+                f.doc_id,
+                Path(md_path_str),
             )
             arm_obj = lc_arms[f.arm]
         else:
@@ -454,13 +486,17 @@ async def _run(args: argparse.Namespace) -> int:
             continue
 
         plan.append((f, request, arm_obj))
-        coros.append(_retry_one(
-            arm_obj, request,
-            arm_name=f.arm, qid=f.qid,
-            max_attempts=args.max_attempts,
-            base_delay=args.base_delay,
-            max_delay=args.max_delay,
-        ))
+        coros.append(
+            _retry_one(
+                arm_obj,
+                request,
+                arm_name=f.arm,
+                qid=f.qid,
+                max_attempts=args.max_attempts,
+                base_delay=args.base_delay,
+                max_delay=args.max_delay,
+            )
+        )
 
     if not coros:
         logger.warning("Nothing to retry after request building.")
@@ -469,13 +505,17 @@ async def _run(args: argparse.Namespace) -> int:
     logger.info(
         "Retrying %d failed rows with up to %d attempts each "
         "(base_delay=%.1fs, max_delay=%.1fs, concurrency=%d).",
-        len(coros), args.max_attempts, args.base_delay, args.max_delay,
+        len(coros),
+        args.max_attempts,
+        args.base_delay,
+        args.max_delay,
         args.concurrency,
     )
 
     started = time.monotonic()
     outcomes: list[RetryOutcome] = await _gather_with_limit(
-        coros, concurrency=args.concurrency,
+        coros,
+        concurrency=args.concurrency,
     )
     elapsed = time.monotonic() - started
     logger.info("Retry pass finished in %.1fs.", elapsed)
@@ -491,12 +531,8 @@ async def _run(args: argparse.Namespace) -> int:
         for (f, _req, _arm_obj), outcome in zip(plan, outcomes, strict=True):
             per_arm_total[outcome.arm] = per_arm_total.get(outcome.arm, 0) + 1
             if outcome.recovered:
-                per_arm_recovered[outcome.arm] = (
-                    per_arm_recovered.get(outcome.arm, 0) + 1
-                )
-            per_arm_attempts_dist.setdefault(outcome.arm, []).append(
-                len(outcome.attempts)
-            )
+                per_arm_recovered[outcome.arm] = per_arm_recovered.get(outcome.arm, 0) + 1
+            per_arm_attempts_dist.setdefault(outcome.arm, []).append(len(outcome.attempts))
 
             g = grade(
                 pred=extract_freeform_answer(outcome.final_result.raw_text or ""),
@@ -557,12 +593,11 @@ async def _run(args: argparse.Namespace) -> int:
             arm: {
                 "tried": per_arm_total.get(arm, 0),
                 "recovered": per_arm_recovered.get(arm, 0),
-                "still_failed": (
-                    per_arm_total.get(arm, 0) - per_arm_recovered.get(arm, 0)
-                ),
+                "still_failed": (per_arm_total.get(arm, 0) - per_arm_recovered.get(arm, 0)),
                 "recovery_rate": (
                     per_arm_recovered.get(arm, 0) / per_arm_total[arm]
-                    if per_arm_total.get(arm) else 0.0
+                    if per_arm_total.get(arm)
+                    else 0.0
                 ),
                 "attempts_distribution": sorted(per_arm_attempts_dist.get(arm, [])),
             }
@@ -595,8 +630,7 @@ async def _run(args: argparse.Namespace) -> int:
     rec_total = sum(per_arm_recovered.values())
     rate_total = (rec_total / total * 100) if total else 0.0
     print("-" * len(header))
-    print(f"{'TOTAL':<25} {total:>6} {rec_total:>10} {total - rec_total:>11} "
-          f"{rate_total:>6.1f}%")
+    print(f"{'TOTAL':<25} {total:>6} {rec_total:>10} {total - rec_total:>11} {rate_total:>6.1f}%")
     print()
     print(f"Wrote {out_path.relative_to(REPO)}")
     print(f"Wrote {summary_path.relative_to(REPO)}")
@@ -606,27 +640,37 @@ async def _run(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--run-id", default="2026-05-14T00-53-19Z",
+        "--run-id",
+        default="2026-05-14T00-53-19Z",
         help="Run timestamp under data/multimodal_doc/runs/. Default is the "
-             "n=171 production run we wrote up in the blog.",
+        "n=171 production run we wrote up in the blog.",
     )
     parser.add_argument("--max-attempts", type=int, default=5)
-    parser.add_argument("--base-delay", type=float, default=1.0,
-                        help="Base seconds for exponential backoff (default 1s).")
-    parser.add_argument("--max-delay", type=float, default=30.0,
-                        help="Cap on per-retry sleep (default 30s).")
-    parser.add_argument("--concurrency", type=int, default=2,
-                        help="Parallel retries in flight (default 2 — keep low "
-                             "to avoid the same transport stress that caused "
-                             "the original failures).")
+    parser.add_argument(
+        "--base-delay",
+        type=float,
+        default=1.0,
+        help="Base seconds for exponential backoff (default 1s).",
+    )
+    parser.add_argument(
+        "--max-delay", type=float, default=30.0, help="Cap on per-retry sleep (default 30s)."
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=2,
+        help="Parallel retries in flight (default 2 — keep low "
+        "to avoid the same transport stress that caused "
+        "the original failures).",
+    )
     parser.add_argument("--llm-model", default="anthropic/claude-sonnet-4.5")
-    parser.add_argument("--pdf-engine", default="native",
-                        choices=[e.value for e in PdfEngine])
+    parser.add_argument("--pdf-engine", default="native", choices=[e.value for e in PdfEngine])
     parser.add_argument("--max-output-tokens", type=int, default=512)
     parser.add_argument(
-        "--include-surfsense", action="store_true",
+        "--include-surfsense",
+        action="store_true",
         help="Also retry surfsense_agentic failures (requires backend + celery up). "
-             "Default is to skip them since the n=171 run had 0 SurfSense failures.",
+        "Default is to skip them since the n=171 run had 0 SurfSense failures.",
     )
     args = parser.parse_args()
     raise SystemExit(asyncio.run(_run(args)))

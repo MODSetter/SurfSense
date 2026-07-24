@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { ArrowLeft, Info, RefreshCw } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,6 +20,7 @@ import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { LiveConnectorConnectedCard } from "../components/live-connector-connected-card";
 import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
 
@@ -41,7 +42,7 @@ interface ConnectorEditViewProps {
 	isSaving: boolean;
 	isDisconnecting: boolean;
 	isIndexing?: boolean;
-	searchSpaceId?: string;
+	workspaceId?: string;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -65,7 +66,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	isSaving,
 	isDisconnecting,
 	isIndexing = false,
-	searchSpaceId,
+	workspaceId,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -78,7 +79,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
-	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceIdAtom = useAtomValue(activeWorkspaceIdAtom);
 	const isAuthExpired = connector.config?.auth_expired === true;
 	const reauthEndpoint = getReauthEndpoint(connector);
 	const [reauthing, setReauthing] = useState(false);
@@ -91,7 +92,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		(connector.is_indexable || connector.connector_type === EnumConnectorName.OBSIDIAN_CONNECTOR);
 
 	const handleReauth = useCallback(async () => {
-		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
+		const spaceId = workspaceId ?? workspaceIdAtom;
 		if (!spaceId || !reauthEndpoint) return;
 		setReauthing(true);
 		try {
@@ -119,13 +120,18 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		} finally {
 			setReauthing(false);
 		}
-	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
+	}, [workspaceId, workspaceIdAtom, reauthEndpoint, connector.id]);
 
 	// Get connector-specific config component (MCP-backed connectors use a generic view)
 	const ConnectorConfigComponent = useMemo(() => {
 		if (isMCPBacked) return MCPServiceConfig;
-		return getConnectorConfigComponent(connector.connector_type);
-	}, [connector.connector_type, isMCPBacked]);
+		// Live connectors without a dedicated config (native/Composio Gmail &
+		// Calendar) fall back to a simple "Connected" card instead of a blank body.
+		return (
+			getConnectorConfigComponent(connector.connector_type) ??
+			(isLive ? LiveConnectorConnectedCard : null)
+		);
+	}, [connector.connector_type, isMCPBacked, isLive]);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -201,7 +207,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			{/* Fixed Header */}
 			<div
 				className={cn(
-					"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+					"flex-shrink-0 transition-shadow duration-200 relative z-10",
 					isScrolled && "shadow-sm"
 				)}
 			>
@@ -262,7 +268,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			<div className="flex-1 min-h-0 relative overflow-hidden">
 				<div
 					ref={scrollContainerRef}
-					className="h-full overflow-y-auto px-6 sm:px-12"
+					className="h-full overflow-y-auto"
 					onScroll={handleScroll}
 				>
 					<div className="space-y-6 pb-6 pt-2">
@@ -273,7 +279,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}
-								searchSpaceId={searchSpaceId}
+								workspaceId={workspaceId}
 							/>
 						)}
 
@@ -362,7 +368,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-popover">
+			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 py-6 sm:py-6 bg-transparent">
 				{showDisconnectConfirm ? (
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">

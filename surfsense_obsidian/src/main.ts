@@ -119,7 +119,7 @@ export default class SurfSensePlugin extends Plugin {
 			name: "Sync current note",
 			checkCallback: (checking) => {
 				const file = this.app.workspace.getActiveFile();
-				if (!file || file.extension.toLowerCase() !== "md") return false;
+				if (file?.extension.toLowerCase() !== "md") return false;
 				if (checking) return true;
 				this.queue.enqueueUpsert(file.path);
 				void this.engine.flushQueue();
@@ -186,7 +186,7 @@ export default class SurfSensePlugin extends Plugin {
 		if (!changed) return;
 		this.engine?.refreshStatus();
 		this.notifyStatusChange();
-		if (this.settings.searchSpaceId !== null) {
+		if (this.settings.workspaceId !== null) {
 			void this.engine.ensureConnected();
 		}
 	}
@@ -252,16 +252,24 @@ export default class SurfSensePlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		const data = (await this.loadData()) as Partial<SurfsensePluginSettings> | null;
+		// One-time migration: the workspace was previously persisted as `searchSpaceId`.
+		// Destructure it out so the migrated value moves into `workspaceId` and the
+		// dead key is not spread back in / re-persisted.
+		const data = (await this.loadData()) as
+			| (Partial<SurfsensePluginSettings> & { searchSpaceId?: number | null })
+			| null;
+		const { searchSpaceId: legacyWorkspaceId, ...persisted } = data ?? {};
 		this.settings = {
 			...DEFAULT_SETTINGS,
-			...(data ?? {}),
-			queue: (data?.queue ?? []).map((i: QueueItem) => ({ ...i })),
-			tombstones: { ...(data?.tombstones ?? {}) },
-			includeFolders: [...(data?.includeFolders ?? [])],
-			excludeFolders: [...(data?.excludeFolders ?? [])],
-			excludePatterns: data?.excludePatterns?.length
-				? [...data.excludePatterns]
+			...persisted,
+			workspaceId:
+				persisted.workspaceId ?? legacyWorkspaceId ?? DEFAULT_SETTINGS.workspaceId,
+			queue: (persisted.queue ?? []).map((i: QueueItem) => ({ ...i })),
+			tombstones: { ...(persisted.tombstones ?? {}) },
+			includeFolders: [...(persisted.includeFolders ?? [])],
+			excludeFolders: [...(persisted.excludeFolders ?? [])],
+			excludePatterns: persisted.excludePatterns?.length
+				? [...persisted.excludePatterns]
 				: [...DEFAULT_SETTINGS.excludePatterns],
 		};
 	}

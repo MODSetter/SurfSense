@@ -52,9 +52,7 @@ async def test_acquire_token_local_mode_posts_desktop_login_json():
             200, json={"access_token": "T", "refresh_token": "R", "token_type": "bearer"}
         )
     )
-    config = _make_config(
-        surfsense_user_email="u@example.com", surfsense_user_password="pw"
-    )
+    config = _make_config(surfsense_user_email="u@example.com", surfsense_user_password="pw")
     bundle = await acquire_token(config)
     assert bundle.access_token == "T"
     assert bundle.refresh_token == "R"

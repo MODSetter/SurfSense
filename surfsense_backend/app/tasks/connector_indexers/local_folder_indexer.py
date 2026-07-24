@@ -173,15 +173,15 @@ async def _read_file_content(
     return result.markdown_content
 
 
-def _content_hash(content: str, search_space_id: int) -> str:
-    """SHA-256 hash of content scoped to a search space.
+def _content_hash(content: str, workspace_id: int) -> str:
+    """SHA-256 hash of content scoped to a workspace.
 
     Matches the format used by ``compute_content_hash`` in the unified
     pipeline so that dedup checks are consistent.
     """
     import hashlib
 
-    return hashlib.sha256(f"{search_space_id}:{content}".encode()).hexdigest()
+    return hashlib.sha256(f"{workspace_id}:{content}".encode()).hexdigest()
 
 
 def _compute_raw_file_hash(file_path: str) -> str:
@@ -203,7 +203,7 @@ def _compute_raw_file_hash(file_path: str) -> str:
 async def _compute_file_content_hash(
     file_path: str,
     filename: str,
-    search_space_id: int,
+    workspace_id: int,
     *,
     vision_llm=None,
     processing_mode: str = "basic",
@@ -215,14 +215,14 @@ async def _compute_file_content_hash(
     content = await _read_file_content(
         file_path, filename, vision_llm=vision_llm, processing_mode=processing_mode
     )
-    return content, _content_hash(content, search_space_id)
+    return content, _content_hash(content, workspace_id)
 
 
 async def _mirror_folder_structure(
     session: AsyncSession,
     folder_path: str,
     folder_name: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     root_folder_id: int | None = None,
     exclude_patterns: list[str] | None = None,
@@ -262,7 +262,7 @@ async def _mirror_folder_structure(
     if not root_folder_id:
         root_folder = Folder(
             name=folder_name,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             created_by_id=user_id,
             position="a0",
         )
@@ -283,7 +283,7 @@ async def _mirror_folder_structure(
                 select(Folder).where(
                     Folder.name == dir_name,
                     Folder.parent_id == parent_id,
-                    Folder.search_space_id == search_space_id,
+                    Folder.workspace_id == workspace_id,
                 )
             )
         ).scalar_one_or_none()
@@ -294,7 +294,7 @@ async def _mirror_folder_structure(
             new_folder = Folder(
                 name=dir_name,
                 parent_id=parent_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_id=user_id,
                 position="a0",
             )
@@ -310,7 +310,7 @@ async def _resolve_folder_for_file(
     session: AsyncSession,
     rel_path: str,
     root_folder_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> int:
     """Given a file's relative path, ensure all parent Folder rows exist and
@@ -333,7 +333,7 @@ async def _resolve_folder_for_file(
                 select(Folder).where(
                     Folder.name == part,
                     Folder.parent_id == current_parent_id,
-                    Folder.search_space_id == search_space_id,
+                    Folder.workspace_id == workspace_id,
                 )
             )
         ).scalar_one_or_none()
@@ -344,7 +344,7 @@ async def _resolve_folder_for_file(
             new_folder = Folder(
                 name=part,
                 parent_id=current_parent_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_id=user_id,
                 position="a0",
             )
@@ -416,7 +416,7 @@ async def _cleanup_empty_folder_chain(
 async def _cleanup_empty_folders(
     session: AsyncSession,
     root_folder_id: int,
-    search_space_id: int,
+    workspace_id: int,
     existing_dirs_on_disk: set[str],
     folder_mapping: dict[str, int],
     subtree_ids: list[int] | None = None,
@@ -427,7 +427,7 @@ async def _cleanup_empty_folders(
     id_to_rel: dict[int, str] = {fid: rel for rel, fid in folder_mapping.items() if rel}
 
     query = select(Folder).where(
-        Folder.search_space_id == search_space_id,
+        Folder.workspace_id == workspace_id,
         Folder.id != root_folder_id,
     )
     if subtree_ids is not None:
@@ -476,7 +476,7 @@ def _build_connector_doc(
     relative_path: str,
     folder_name: str,
     *,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     """Build a ConnectorDocument from a local file's extracted content."""
@@ -493,7 +493,7 @@ def _build_connector_doc(
         source_markdown=content,
         unique_id=unique_id,
         document_type=DocumentType.LOCAL_FOLDER_FILE,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=None,
         created_by_id=user_id,
         metadata=metadata,
@@ -502,7 +502,7 @@ def _build_connector_doc(
 
 async def index_local_folder(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_path: str,
     folder_name: str,
@@ -521,7 +521,7 @@ async def index_local_folder(
 
     Returns (indexed_count, skipped_count, root_folder_id, error_or_warning_message).
     """
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
 
     log_entry = await task_logger.log_task_start(
         task_name="local_folder_indexing",
@@ -564,7 +564,7 @@ async def index_local_folder(
                 if len(target_file_paths) == 1:
                     indexed, skipped, err = await _index_single_file(
                         session=session,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         folder_path=folder_path,
                         folder_name=folder_name,
@@ -576,7 +576,7 @@ async def index_local_folder(
                     return indexed, skipped, root_folder_id, err
 
                 indexed, failed, err = await _index_batch_files(
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                     folder_path=folder_path,
                     folder_name=folder_name,
@@ -613,7 +613,7 @@ async def index_local_folder(
             session=session,
             folder_path=folder_path,
             folder_name=folder_name,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             root_folder_id=root_folder_id,
             exclude_patterns=exclude_patterns,
@@ -654,7 +654,7 @@ async def index_local_folder(
                 unique_identifier_hash = compute_identifier_hash(
                     DocumentType.LOCAL_FOLDER_FILE.value,
                     unique_identifier,
-                    search_space_id,
+                    workspace_id,
                 )
                 seen_unique_hashes.add(unique_identifier_hash)
 
@@ -709,7 +709,7 @@ async def index_local_folder(
                         content, content_hash = await _compute_file_content_hash(
                             file_path_abs,
                             file_info["relative_path"],
-                            search_space_id,
+                            workspace_id,
                         )
                     except Exception as read_err:
                         logger.warning(f"Could not read {file_path_abs}: {read_err}")
@@ -745,7 +745,7 @@ async def index_local_folder(
                         content, content_hash = await _compute_file_content_hash(
                             file_path_abs,
                             file_info["relative_path"],
-                            search_space_id,
+                            workspace_id,
                         )
                     except Exception as read_err:
                         logger.warning(f"Could not read {file_path_abs}: {read_err}")
@@ -765,7 +765,7 @@ async def index_local_folder(
                     content=content,
                     relative_path=relative_path,
                     folder_name=folder_name,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
                 connector_docs.append(doc)
@@ -789,7 +789,7 @@ async def index_local_folder(
             (
                 await session.execute(
                     select(Folder.id).where(
-                        Folder.search_space_id == search_space_id,
+                        Folder.workspace_id == workspace_id,
                     )
                 )
             )
@@ -803,7 +803,7 @@ async def index_local_folder(
                 await session.execute(
                     select(Document).where(
                         Document.document_type == DocumentType.LOCAL_FOLDER_FILE,
-                        Document.search_space_id == search_space_id,
+                        Document.workspace_id == workspace_id,
                         Document.folder_id.in_(list(all_root_folder_ids)),
                     )
                 )
@@ -886,7 +886,7 @@ async def index_local_folder(
             await _cleanup_empty_folders(
                 session,
                 root_fid,
-                search_space_id,
+                workspace_id,
                 existing_dirs,
                 folder_mapping,
                 subtree_ids=subtree_ids,
@@ -943,7 +943,7 @@ BATCH_CONCURRENCY = 5
 
 
 async def _index_batch_files(
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_path: str,
     folder_name: str,
@@ -968,7 +968,7 @@ async def _index_batch_files(
         async with semaphore:
             try:
                 async with get_celery_session_maker()() as file_session:
-                    task_logger = TaskLoggingService(file_session, search_space_id)
+                    task_logger = TaskLoggingService(file_session, workspace_id)
                     log_entry = await task_logger.log_task_start(
                         task_name="local_folder_indexing",
                         source="local_folder_batch_indexing",
@@ -977,7 +977,7 @@ async def _index_batch_files(
                     )
                     ix, _sk, err = await _index_single_file(
                         session=file_session,
-                        search_space_id=search_space_id,
+                        workspace_id=workspace_id,
                         user_id=user_id,
                         folder_path=folder_path,
                         folder_name=folder_name,
@@ -1017,7 +1017,7 @@ async def _index_batch_files(
 
 async def _index_single_file(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_path: str,
     folder_name: str,
@@ -1033,7 +1033,7 @@ async def _index_single_file(
             rel = str(full_path.relative_to(folder_path))
             unique_id = f"{folder_name}:{rel}"
             uid_hash = compute_identifier_hash(
-                DocumentType.LOCAL_FOLDER_FILE.value, unique_id, search_space_id
+                DocumentType.LOCAL_FOLDER_FILE.value, unique_id, workspace_id
             )
             existing = await check_document_by_unique_identifier(session, uid_hash)
             if existing:
@@ -1052,7 +1052,7 @@ async def _index_single_file(
 
         unique_id = f"{folder_name}:{rel_path}"
         uid_hash = compute_identifier_hash(
-            DocumentType.LOCAL_FOLDER_FILE.value, unique_id, search_space_id
+            DocumentType.LOCAL_FOLDER_FILE.value, unique_id, workspace_id
         )
 
         raw_hash = await asyncio.to_thread(_compute_raw_file_hash, str(full_path))
@@ -1081,7 +1081,7 @@ async def _index_single_file(
 
         try:
             content, content_hash = await _compute_file_content_hash(
-                str(full_path), full_path.name, search_space_id
+                str(full_path), full_path.name, workspace_id
             )
         except Exception as e:
             return 0, 1, f"Could not read file: {e}"
@@ -1108,13 +1108,13 @@ async def _index_single_file(
             content=content,
             relative_path=rel_path,
             folder_name=folder_name,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
         )
 
         if root_folder_id:
             connector_doc.folder_id = await _resolve_folder_for_file(
-                session, rel_path, root_folder_id, search_space_id, user_id
+                session, rel_path, root_folder_id, workspace_id, user_id
             )
 
         pipeline = IndexingPipelineService(session)
@@ -1166,7 +1166,7 @@ async def _mirror_folder_structure_from_paths(
     session: AsyncSession,
     relative_paths: list[str],
     folder_name: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     root_folder_id: int | None = None,
 ) -> tuple[dict[str, int], int]:
@@ -1203,7 +1203,7 @@ async def _mirror_folder_structure_from_paths(
     if not root_folder_id:
         root_folder = Folder(
             name=folder_name,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             created_by_id=user_id,
             position="a0",
         )
@@ -1224,7 +1224,7 @@ async def _mirror_folder_structure_from_paths(
                 select(Folder).where(
                     Folder.name == dir_name,
                     Folder.parent_id == parent_id,
-                    Folder.search_space_id == search_space_id,
+                    Folder.workspace_id == workspace_id,
                 )
             )
         ).scalar_one_or_none()
@@ -1235,7 +1235,7 @@ async def _mirror_folder_structure_from_paths(
             new_folder = Folder(
                 name=dir_name,
                 parent_id=parent_id,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 created_by_id=user_id,
                 position="a0",
             )
@@ -1252,7 +1252,7 @@ UPLOAD_BATCH_CONCURRENCY = 5
 
 async def index_uploaded_files(
     session: AsyncSession,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     folder_name: str,
     root_folder_id: int,
@@ -1274,7 +1274,7 @@ async def index_uploaded_files(
 
     mode = ProcessingMode.coerce(processing_mode)
 
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="local_folder_indexing",
         source="uploaded_folder_indexing",
@@ -1288,7 +1288,7 @@ async def index_uploaded_files(
             session=session,
             relative_paths=all_relative_paths,
             folder_name=folder_name,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             root_folder_id=root_folder_id,
         )
@@ -1303,7 +1303,7 @@ async def index_uploaded_files(
         if use_vision_llm:
             from app.services.llm_service import get_vision_llm
 
-            vision_llm_instance = await get_vision_llm(session, search_space_id)
+            vision_llm_instance = await get_vision_llm(session, workspace_id)
 
         indexed_count = 0
         failed_count = 0
@@ -1319,7 +1319,7 @@ async def index_uploaded_files(
                 uid_hash = compute_identifier_hash(
                     DocumentType.LOCAL_FOLDER_FILE.value,
                     unique_id,
-                    search_space_id,
+                    workspace_id,
                 )
 
                 raw_hash = await asyncio.to_thread(_compute_raw_file_hash, temp_path)
@@ -1357,7 +1357,7 @@ async def index_uploaded_files(
                     content, content_hash = await _compute_file_content_hash(
                         temp_path,
                         filename,
-                        search_space_id,
+                        workspace_id,
                         vision_llm=vision_llm_instance,
                         processing_mode=mode.value,
                     )
@@ -1391,7 +1391,7 @@ async def index_uploaded_files(
                     content=content,
                     relative_path=relative_path,
                     folder_name=folder_name,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
 
@@ -1399,7 +1399,7 @@ async def index_uploaded_files(
                     session,
                     relative_path,
                     root_folder_id,
-                    search_space_id,
+                    workspace_id,
                     user_id,
                 )
 

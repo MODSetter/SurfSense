@@ -99,7 +99,9 @@ class TestListFormat:
         assert 0.0 < r.f1 < 1.0
 
     def test_extra_items_lower_precision(self) -> None:
-        r = grade(pred="apple, banana, cherry, date", gold="apple, banana, cherry", answer_format="List")
+        r = grade(
+            pred="apple, banana, cherry, date", gold="apple, banana, cherry", answer_format="List"
+        )
         assert 0.0 < r.f1 < 1.0
         # Recall=1, precision=3/4 → F1 ~= 0.857
         assert r.f1 == pytest.approx(2 * (3 / 4) * 1 / (3 / 4 + 1), rel=1e-3)

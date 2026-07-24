@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SearchSpace, User
+from app.db import User, Workspace
 from app.notifications.service import NotificationService
 
 pytestmark = pytest.mark.integration
@@ -13,7 +13,7 @@ pytestmark = pytest.mark.integration
 handler = NotificationService.comment_reply
 
 
-async def _notify(db_session, db_user, db_search_space, *, reply_id=1, preview="hi"):
+async def _notify(db_session, db_user, db_workspace, *, reply_id=1, preview="hi"):
     """Raise a comment-reply notification for the assertions in the tests below."""
     return await handler.notify_comment_reply(
         session=db_session,
@@ -28,15 +28,15 @@ async def _notify(db_session, db_user, db_search_space, *, reply_id=1, preview="
         author_avatar_url=None,
         author_email="bob@surfsense.net",
         content_preview=preview,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
     )
 
 
 async def test_comment_reply_title_and_message(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A reply notification names the author and carries the comment preview."""
-    notification = await _notify(db_session, db_user, db_search_space, preview="thanks")
+    notification = await _notify(db_session, db_user, db_workspace, preview="thanks")
 
     assert notification.type == "comment_reply"
     assert notification.title == "Bob replied in a thread"
@@ -44,21 +44,19 @@ async def test_comment_reply_title_and_message(
 
 
 async def test_comment_reply_truncates_long_preview(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """A long comment preview is truncated in the reply message."""
-    notification = await _notify(
-        db_session, db_user, db_search_space, preview="y" * 150
-    )
+    notification = await _notify(db_session, db_user, db_workspace, preview="y" * 150)
 
     assert notification.message == "y" * 100 + "..."
 
 
 async def test_comment_reply_is_idempotent(
-    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
+    db_session: AsyncSession, db_user: User, db_workspace: Workspace
 ):
     """Re-notifying the same reply id reuses the existing notification row."""
-    first = await _notify(db_session, db_user, db_search_space, reply_id=5)
-    second = await _notify(db_session, db_user, db_search_space, reply_id=5)
+    first = await _notify(db_session, db_user, db_workspace, reply_id=5)
+    second = await _notify(db_session, db_user, db_workspace, reply_id=5)
 
     assert second.id == first.id

@@ -18,10 +18,7 @@ _FORMAT_HINTS: dict[str, str] = {
         "Respond with the answer as a short phrase, no full sentence. "
         "Format your final line as `Answer: <text>`."
     ),
-    "int": (
-        "Respond with a single integer only. "
-        "Format your final line as `Answer: <integer>`."
-    ),
+    "int": ("Respond with a single integer only. Format your final line as `Answer: <integer>`."),
     "float": (
         "Respond with a single decimal number only (no units). "
         "Format your final line as `Answer: <number>`."

@@ -34,7 +34,7 @@ def _build_connector_doc(
     full_content: str,
     *,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
 ) -> ConnectorDocument:
     """Map a raw Confluence page dict to a ConnectorDocument."""
@@ -58,7 +58,7 @@ def _build_connector_doc(
         source_markdown=full_content,
         unique_id=page_id,
         document_type=DocumentType.CONFLUENCE_CONNECTOR,
-        search_space_id=search_space_id,
+        workspace_id=workspace_id,
         connector_id=connector_id,
         created_by_id=user_id,
         metadata=metadata,
@@ -68,7 +68,7 @@ def _build_connector_doc(
 async def index_confluence_pages(
     session: AsyncSession,
     connector_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
@@ -76,7 +76,7 @@ async def index_confluence_pages(
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, str | None]:
     """Index Confluence pages and comments."""
-    task_logger = TaskLoggingService(session, search_space_id)
+    task_logger = TaskLoggingService(session, workspace_id)
     log_entry = await task_logger.log_task_start(
         task_name="confluence_pages_indexing",
         source="connector_indexing_task",
@@ -197,7 +197,7 @@ async def index_confluence_pages(
                 title=page.get("title", ""),
                 document_type=DocumentType.CONFLUENCE_CONNECTOR,
                 unique_id=page.get("id", ""),
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 connector_id=connector_id,
                 created_by_id=user_id,
                 metadata={
@@ -259,7 +259,7 @@ async def index_confluence_pages(
                     page,
                     full_content,
                     connector_id=connector_id,
-                    search_space_id=search_space_id,
+                    workspace_id=workspace_id,
                     user_id=user_id,
                 )
 
@@ -309,7 +309,7 @@ async def index_confluence_pages(
             await mark_connector_documents_failed(
                 session,
                 document_type=DocumentType.CONFLUENCE_CONNECTOR,
-                search_space_id=search_space_id,
+                workspace_id=workspace_id,
                 failures=stuck_placeholders,
             )
 

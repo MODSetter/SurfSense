@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.utils.validators import (
+    raise_if_connector_deprecated,
     validate_connector_config,
     validate_connectors,
     validate_document_ids,
@@ -11,10 +12,10 @@ from app.utils.validators import (
     validate_messages,
     validate_research_mode,
     validate_search_mode,
-    validate_search_space_id,
     validate_top_k,
     validate_url,
     validate_uuid,
+    validate_workspace_id,
 )
 
 pytestmark = pytest.mark.unit
@@ -34,8 +35,8 @@ pytestmark = pytest.mark.unit
         (" 42 ", 42),
     ],
 )
-def test_validate_search_space_id_valid(valid_input, expected):
-    assert validate_search_space_id(valid_input) == expected
+def test_validate_workspace_id_valid(valid_input, expected):
+    assert validate_workspace_id(valid_input) == expected
 
 
 @pytest.mark.parametrize(
@@ -54,9 +55,9 @@ def test_validate_search_space_id_valid(valid_input, expected):
         "-5",
     ],
 )
-def test_validate_search_space_id_invalid(invalid_input):
+def test_validate_workspace_id_invalid(invalid_input):
     with pytest.raises(HTTPException) as excinfo:
-        validate_search_space_id(invalid_input)
+        validate_workspace_id(invalid_input)
     assert excinfo.value.status_code == 400
 
 
@@ -332,9 +333,33 @@ def test_validate_connector_config_invalid():
     with pytest.raises(ValueError):
         validate_connector_config("SEARXNG_API", {"SEARXNG_HOST": "not-a-url"})
 
-    # Invalid email format (if JIRA was enabled, etc. We test with WEBCRAWLER's custom validation)
-    # Firecrawl key format error:
-    with pytest.raises(ValueError):
-        validate_connector_config(
-            "WEBCRAWLER_CONNECTOR", {"FIRECRAWL_API_KEY": "invalid-prefix-key"}
-        )
+
+@pytest.mark.parametrize(
+    "connector_type",
+    [
+        "DISCORD_CONNECTOR",
+        "TEAMS_CONNECTOR",
+        "LUMA_CONNECTOR",
+        "TAVILY_API",
+        "SEARXNG_API",
+        "LINKUP_API",
+        "BAIDU_SEARCH_API",
+        "YOUTUBE_CONNECTOR",
+        "WEBCRAWLER_CONNECTOR",
+        "ELASTICSEARCH_CONNECTOR",
+    ],
+)
+def test_raise_if_connector_deprecated_blocks(connector_type):
+    """Deprecated connector types are refused with HTTP 410."""
+    with pytest.raises(HTTPException) as excinfo:
+        raise_if_connector_deprecated(connector_type)
+    assert excinfo.value.status_code == 410
+
+
+@pytest.mark.parametrize(
+    "connector_type",
+    ["SLACK_CONNECTOR", "NOTION_CONNECTOR", "SERPER_API", "MCP_CONNECTOR"],
+)
+def test_raise_if_connector_deprecated_allows_active(connector_type):
+    """Active connector types pass through without raising."""
+    raise_if_connector_deprecated(connector_type)

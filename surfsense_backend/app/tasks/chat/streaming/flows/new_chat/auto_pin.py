@@ -1,7 +1,7 @@
 """Resolve the auto-pin for the *initial* turn config.
 
 Auto-pin (``selected_llm_config_id=0``) picks the best eligible LLM config for
-this thread / search space / user, optionally filtered to vision-capable
+this thread / workspace / user, optionally filtered to vision-capable
 configs when the turn carries images.
 
 Errors classified here:
@@ -45,7 +45,7 @@ async def resolve_initial_auto_pin(
     session: AsyncSession,
     *,
     chat_id: int,
-    search_space_id: int,
+    workspace_id: int,
     user_id: str | None,
     selected_llm_config_id: int,
     requires_image_input: bool,
@@ -62,7 +62,7 @@ async def resolve_initial_auto_pin(
         pinned = await resolve_or_get_pinned_llm_config_id(
             session,
             thread_id=chat_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
             selected_llm_config_id=selected_llm_config_id,
             requires_image_input=requires_image_input,

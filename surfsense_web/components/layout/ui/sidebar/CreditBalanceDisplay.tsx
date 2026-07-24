@@ -27,7 +27,7 @@ function formatUsd(micros: number): string {
  * premium-credit meters. Values come from Zero (live-replicated from Postgres)
  * as integer micro-USD (1_000_000 == $1.00). A low-balance warning highlights
  * the amount when it falls below $0.50 so the user knows to top up or enable
- * auto-reload.
+ * automatic top-ups.
  */
 export function CreditBalanceDisplay() {
 	const isAnonymous = useIsAnonymous();
@@ -46,7 +46,7 @@ export function CreditBalanceDisplay() {
 					"font-medium tabular-nums",
 					isLow ? "text-amber-600 dark:text-amber-500" : "text-foreground"
 				)}
-				title={isLow ? "Low balance — buy credits or enable auto-reload" : undefined}
+				title={isLow ? "Low balance: add credits or enable top-ups" : undefined}
 			>
 				{formatUsd(balanceMicros)}
 			</span>

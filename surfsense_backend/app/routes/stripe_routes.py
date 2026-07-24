@@ -27,6 +27,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.observability import analytics as ph_analytics
 from app.schemas.stripe import (
     AutoReloadSettingsResponse,
     CreateAutoReloadSetupSessionRequest,
@@ -47,6 +48,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/stripe", tags=["stripe"])
 
 
+def _capture_credits_purchased(user: User, purchase: CreditPurchase) -> None:
+    """Emit ``credits_purchased`` — revenue events only exist server-side.
+
+    Call only from the idempotent grant paths (which early-return on already
+    COMPLETED / non-PENDING rows) so Stripe retries never double-count. No-op
+    when PostHog is unconfigured.
+    """
+    ph_analytics.capture(
+        "credits_purchased",
+        distinct_id=str(user.id),
+        properties={
+            "credit_micros_granted": purchase.credit_micros_granted,
+            "quantity": purchase.quantity,
+            "amount_total": purchase.amount_total,
+            "currency": purchase.currency,
+            "source": purchase.source,
+        },
+    )
+
+
 def get_stripe_client() -> StripeClient:
     """Return a configured Stripe client or raise if Stripe is disabled."""
     if not config.STRIPE_SECRET_KEY:
@@ -65,7 +86,7 @@ def _ensure_credit_buying_enabled() -> None:
         )
 
 
-def _get_checkout_urls(search_space_id: int) -> tuple[str, str]:
+def _get_checkout_urls(workspace_id: int) -> tuple[str, str]:
     if not config.NEXT_FRONTEND_URL:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -79,10 +100,10 @@ def _get_checkout_urls(search_space_id: int) -> tuple[str, str]:
     # webhook-vs-redirect race where users land on /purchase-success before
     # checkout.session.completed has been delivered.
     success_url = (
-        f"{base_url}/dashboard/{search_space_id}/purchase-success"
+        f"{base_url}/dashboard/{workspace_id}/purchase-success"
         f"?session_id={{CHECKOUT_SESSION_ID}}"
     )
-    cancel_url = f"{base_url}/dashboard/{search_space_id}/purchase-cancel"
+    cancel_url = f"{base_url}/dashboard/{workspace_id}/purchase-cancel"
     return success_url, cancel_url
 
 
@@ -309,6 +330,7 @@ async def _fulfill_completed_credit_purchase(
     )
 
     await db_session.commit()
+    _capture_credits_purchased(user, purchase)
     return StripeWebhookResponse()
 
 
@@ -448,6 +470,8 @@ async def _reconcile_auto_reload_payment_intent(
         purchase.status = CreditPurchaseStatus.FAILED
 
     await db_session.commit()
+    if succeeded:
+        _capture_credits_purchased(user, purchase)
     return StripeWebhookResponse()
 
 
@@ -471,7 +495,7 @@ async def create_credit_checkout_session(
     _ensure_credit_buying_enabled()
     stripe_client = get_stripe_client()
     price_id = _get_required_credit_price_id()
-    success_url, cancel_url = _get_checkout_urls(body.search_space_id)
+    success_url, cancel_url = _get_checkout_urls(body.workspace_id)
     credit_micros_granted = body.quantity * config.STRIPE_CREDIT_MICROS_PER_UNIT
 
     try:
@@ -832,11 +856,11 @@ async def create_auto_reload_setup_session(
 
     base_url = config.NEXT_FRONTEND_URL.rstrip("/")
     success_url = (
-        f"{base_url}/dashboard/{body.search_space_id}/user-settings/purchases"
+        f"{base_url}/dashboard/{body.workspace_id}/user-settings/purchases"
         f"?auto_reload_setup=success"
     )
     cancel_url = (
-        f"{base_url}/dashboard/{body.search_space_id}/user-settings/purchases"
+        f"{base_url}/dashboard/{body.workspace_id}/user-settings/purchases"
         f"?auto_reload_setup=cancel"
     )
 

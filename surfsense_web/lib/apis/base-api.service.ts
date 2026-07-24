@@ -10,6 +10,7 @@ import {
 	AuthorizationError,
 	NetworkError,
 	NotFoundError,
+	type ValidationFieldError,
 } from "../error";
 
 enum ResponseType {
@@ -37,6 +38,30 @@ function isRefreshRetryBlocked(key: string): boolean {
 
 function blockRefreshRetry(key: string): void {
 	refreshRetryBlockedUntil.set(key, Date.now() + REFRESH_RETRY_BLOCK_MS);
+}
+
+/**
+ * Send an API failure to PostHog error tracking. Scoped by the caller to only
+ * 5xx server faults + network outages — 4xx responses are expected behavior.
+ * Lazy-imports posthog-js so an ad-blocker can never break the request path.
+ */
+function captureApiException(error: unknown, url: string, method?: RequestOptions["method"]): void {
+	import("posthog-js")
+		.then(({ default: posthog }) => {
+			posthog.captureException(error, {
+				api_url: url,
+				api_method: method ?? "GET",
+				...(error instanceof AppError && {
+					status_code: error.status,
+					status_text: error.statusText,
+					error_code: error.code,
+					request_id: error.requestId,
+				}),
+			});
+		})
+		.catch(() => {
+			console.error("Failed to capture exception in PostHog");
+		});
 }
 
 export type RequestOptions = {
@@ -108,6 +133,9 @@ class BaseApiService {
 
 			const refreshRetryKey = getRefreshRetryKey(mergedOptions.method, url);
 			if (this.isDesktopClient && !desktopAccessToken && !isNoAuthEndpoint) {
+				// Desktop refresh token is gone/revoked — send the user to /desktop/login
+				// (same treatment as a server 401 below) instead of erroring in place.
+				handleUnauthorized();
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
@@ -162,6 +190,9 @@ class BaseApiService {
 				const requestId: string | undefined =
 					envelope?.request_id ?? response.headers.get("X-Request-ID") ?? undefined;
 				const reportUrl: string | undefined = envelope?.report_url;
+				const validationFields: ValidationFieldError[] | undefined = Array.isArray(envelope?.fields)
+					? envelope.fields
+					: undefined;
 
 				// Handle 401 - try to refresh token first (only once)
 				if (response.status === 401) {
@@ -206,8 +237,8 @@ class BaseApiService {
 							response.status,
 							response.statusText
 						);
-					default:
-						throw new AppError(
+					default: {
+						const appError = new AppError(
 							errorMessage || "Something went wrong",
 							response.status,
 							response.statusText,
@@ -215,6 +246,9 @@ class BaseApiService {
 							requestId,
 							reportUrl
 						);
+						appError.fields = validationFields;
+						throw appError;
+					}
 				}
 			}
 			refreshRetryBlockedUntil.delete(getRefreshRetryKey(mergedOptions.method, url));
@@ -278,29 +312,31 @@ class BaseApiService {
 				throw new AbortedError();
 			}
 			if (error instanceof TypeError && !(error instanceof AppError)) {
-				throw new NetworkError(
+				const networkError = new NetworkError(
 					"Unable to connect to the server. Check your internet connection and try again."
 				);
+				// Network failures are genuine outages worth tracking.
+				captureApiException(networkError, url, options?.method);
+				throw networkError;
 			}
 
-			console.error("Request failed:", JSON.stringify(error));
-			if (!(error instanceof AuthenticationError)) {
-				import("posthog-js")
-					.then(({ default: posthog }) => {
-						posthog.captureException(error, {
-							api_url: url,
-							api_method: options?.method ?? "GET",
-							...(error instanceof AppError && {
-								status_code: error.status,
-								status_text: error.statusText,
-								error_code: error.code,
-								request_id: error.requestId,
-							}),
-						});
-					})
-					.catch(() => {
-						console.error("Failed to capture exception in PostHog");
-					});
+			// Handled client errors (validation, credits, auth, not-found, ...) are
+			// expected outcomes surfaced to the user via typed errors + toasts — not
+			// app faults. Skip logging/telemetry for them so they don't spam the
+			// console, PostHog, or Next.js's dev error overlay.
+			const isHandledClientError =
+				error instanceof AppError &&
+				typeof error.status === "number" &&
+				error.status >= 400 &&
+				error.status < 500;
+
+			if (!isHandledClientError) {
+				console.error("Request failed:", JSON.stringify(error));
+				// Only 5xx server faults are unexpected; 4xx are handled above and
+				// network outages were already captured before this point.
+				if (error instanceof AppError && error.status >= 500) {
+					captureApiException(error, url, options?.method);
+				}
 			}
 			throw error;
 		}

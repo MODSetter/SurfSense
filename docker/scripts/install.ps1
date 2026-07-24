@@ -76,7 +76,7 @@ function Show-Banner {
                                                                            
 
 "@ -ForegroundColor White
-    Write-Host "         OSS Alternative to NotebookLM for Teams" -ForegroundColor Yellow
+    Write-Host "           NotebookLM for Open Web Research" -ForegroundColor Yellow
     Write-Host ("=" * 62) -ForegroundColor Cyan
     Write-Info "This installer will create $InstallDir\ and start SurfSense with Docker Compose."
 }
@@ -329,7 +329,6 @@ Write-Step "Downloading SurfSense files"
 Write-Info "Installation directory: $InstallDir"
 
 New-Item -ItemType Directory -Path "$InstallDir\scripts" -Force | Out-Null
-New-Item -ItemType Directory -Path "$InstallDir\searxng" -Force | Out-Null
 New-Item -ItemType Directory -Path "$InstallDir\proxy" -Force | Out-Null
 
 $Files = @(
@@ -339,8 +338,6 @@ $Files = @(
     @{ Src = "docker/proxy/Caddyfile";                   Dest = "proxy/Caddyfile" }
     @{ Src = "docker/postgresql.conf";                   Dest = "postgresql.conf" }
     @{ Src = "docker/scripts/migrate-database.ps1";      Dest = "scripts/migrate-database.ps1" }
-    @{ Src = "docker/searxng/settings.yml";              Dest = "searxng/settings.yml" }
-    @{ Src = "docker/searxng/limiter.toml";              Dest = "searxng/limiter.toml" }
 )
 
 foreach ($f in $Files) {

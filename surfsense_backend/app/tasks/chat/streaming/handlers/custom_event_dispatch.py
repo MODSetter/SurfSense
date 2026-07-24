@@ -10,6 +10,7 @@ from app.tasks.chat.streaming.handlers.custom_events import (
     handle_action_log_updated,
     handle_document_created,
     handle_report_progress,
+    handle_scraper_progress,
 )
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 
@@ -27,6 +28,20 @@ def iter_custom_event_frames(
 
     if name == "report_progress":
         frame, state.last_active_step_items = handle_report_progress(
+            data,
+            last_active_step_id=state.last_active_step_id,
+            last_active_step_title=state.last_active_step_title,
+            last_active_step_items=state.last_active_step_items,
+            streaming_service=streaming_service,
+            content_builder=content_builder,
+            thinking_metadata=state.span_metadata_if_active(),
+        )
+        if frame:
+            yield frame
+        return
+
+    if name == "scraper_progress":
+        frame, state.last_active_step_items = handle_scraper_progress(
             data,
             last_active_step_id=state.last_active_step_id,
             last_active_step_title=state.last_active_step_title,

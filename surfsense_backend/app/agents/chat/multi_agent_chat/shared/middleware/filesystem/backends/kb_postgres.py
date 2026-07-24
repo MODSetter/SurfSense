@@ -120,8 +120,8 @@ class KBPostgresBackend(BackendProtocol):
 
     _IMAGE_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".gif", ".webp"})
 
-    def __init__(self, search_space_id: int, runtime: ToolRuntime) -> None:
-        self.search_space_id = search_space_id
+    def __init__(self, workspace_id: int, runtime: ToolRuntime) -> None:
+        self.workspace_id = workspace_id
         self.runtime = runtime
 
     @property
@@ -405,7 +405,7 @@ class KBPostgresBackend(BackendProtocol):
         if not normalized_path.startswith(DOCUMENTS_ROOT):
             return [], set()
 
-        index = await build_path_index(session, self.search_space_id)
+        index = await build_path_index(session, self.workspace_id)
         target_folder_id: int | None = None
         if normalized_path != DOCUMENTS_ROOT:
             target_path = normalized_path
@@ -418,7 +418,7 @@ class KBPostgresBackend(BackendProtocol):
 
         result = await session.execute(
             select(Document.id, Document.title, Document.folder_id, Document.updated_at)
-            .where(Document.search_space_id == self.search_space_id)
+            .where(Document.workspace_id == self.workspace_id)
             .where(
                 Document.folder_id == target_folder_id
                 if target_folder_id is not None
@@ -519,7 +519,7 @@ class KBPostgresBackend(BackendProtocol):
         async with shielded_async_session() as session:
             document_row = await virtual_path_to_doc(
                 session,
-                search_space_id=self.search_space_id,
+                workspace_id=self.workspace_id,
                 virtual_path=path,
             )
             if document_row is None:
@@ -667,10 +667,10 @@ class KBPostgresBackend(BackendProtocol):
         if normalized.startswith(DOCUMENTS_ROOT) or normalized == "/":
             try:
                 async with shielded_async_session() as session:
-                    index = await build_path_index(session, self.search_space_id)
+                    index = await build_path_index(session, self.workspace_id)
                     rows = await session.execute(
                         select(Document.id, Document.title, Document.folder_id).where(
-                            Document.search_space_id == self.search_space_id
+                            Document.workspace_id == self.workspace_id
                         )
                     )
                     for row in rows.all():
@@ -747,11 +747,11 @@ class KBPostgresBackend(BackendProtocol):
         if normalized.startswith(DOCUMENTS_ROOT) or normalized == "/":
             try:
                 async with shielded_async_session() as session:
-                    index = await build_path_index(session, self.search_space_id)
+                    index = await build_path_index(session, self.workspace_id)
                     sub = (
                         select(Chunk.document_id, Chunk.id, Chunk.content)
                         .join(Document, Document.id == Chunk.document_id)
-                        .where(Document.search_space_id == self.search_space_id)
+                        .where(Document.workspace_id == self.workspace_id)
                         .where(Chunk.content.ilike(f"%{pattern}%"))
                         .order_by(Chunk.document_id, Chunk.position, Chunk.id)
                     )
@@ -849,14 +849,14 @@ class KBPostgresBackend(BackendProtocol):
 
         try:
             async with shielded_async_session() as session:
-                index = await build_path_index(session, self.search_space_id)
+                index = await build_path_index(session, self.workspace_id)
                 doc_rows_raw = await session.execute(
                     select(
                         Document.id,
                         Document.title,
                         Document.folder_id,
                         Document.updated_at,
-                    ).where(Document.search_space_id == self.search_space_id)
+                    ).where(Document.workspace_id == self.workspace_id)
                 )
                 doc_rows = list(doc_rows_raw.all())
         except Exception as exc:  # pragma: no cover

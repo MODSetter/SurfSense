@@ -518,7 +518,7 @@ async def record_token_usage(
     session: AsyncSession,
     *,
     usage_type: str,
-    search_space_id: int,
+    workspace_id: int,
     user_id: UUID,
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
@@ -546,7 +546,7 @@ async def record_token_usage(
             call_details=call_details,
             thread_id=thread_id,
             message_id=message_id,
-            search_space_id=search_space_id,
+            workspace_id=workspace_id,
             user_id=user_id,
         )
         session.add(record)

@@ -156,6 +156,40 @@ transport.
    Celery runtime, and runtime gauges appear within one export interval.
 6. Confirm logs emitted inside a traced request show non-zero trace and span IDs.
 
+## Product Analytics (PostHog)
+
+Separate from OpenTelemetry, the backend can emit server-side product events to
+PostHog. This is the authoritative source for outcome events (chats, document
+ingestion, connector indexing, billing, automations) because it captures traffic
+the browser never sees — MCP clients, personal-access-token scripts, and Celery
+background jobs. It is fully opt-in and mirrors the OTel contract: with
+`POSTHOG_API_KEY` unset, every capture is a silent no-op.
+
+Use the **same** project key as the frontend's `NEXT_PUBLIC_POSTHOG_KEY` so
+server events merge onto the same PostHog persons the web app identifies by user
+id. Add these to `surfsense_backend/.env` (local) or `docker/.env` (production);
+they reach the API, Celery worker, and beat services via `env_file`, so no
+compose changes are needed:
+
+```dotenv
+POSTHOG_API_KEY=phc_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+POSTHOG_HOST=https://us.i.posthog.com
+POSTHOG_AI_PRIVACY_MODE=true
+```
+
+`POSTHOG_AI_PRIVACY_MODE` defaults to `true`; set it to `false` only if you want
+LLM prompt and completion bodies shipped to PostHog's AI observability views.
+
+Every backend event is stamped `source=backend` (so it is distinguishable from
+frontend captures), carries `auth_method` / `client` for surface attribution, and
+sends `disable_geoip=true` so the server IP never overwrites a person's real
+location. LangGraph chat turns additionally emit `$ai_generation` / `$ai_span`
+traces via the PostHog LangChain callback handler, keyed by turn and chat id.
+
+Keep event properties low-cardinality. Never attach user content — workspace
+names, connector titles, document titles, prompts, or raw queries — as event
+properties; they carry no aggregation value and are a privacy risk.
+
 ## Out Of Scope
 
 - Frontend/browser OpenTelemetry.

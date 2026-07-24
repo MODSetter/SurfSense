@@ -17,12 +17,12 @@ Two backends are provided:
 
 * :class:`BuiltinSkillsBackend` — disk-backed read of bundled skills from
   ``app/agents/shared/skills/builtin/``.
-* :class:`SearchSpaceSkillsBackend` — a thin read-only wrapper over
+* :class:`WorkspaceSkillsBackend` — a thin read-only wrapper over
   :class:`KBPostgresBackend` that filters notes under the privileged folder
   ``/documents/_skills/``.
 
 Both backends are intentionally read-only: skill authoring happens out of band
-(via filesystem or a search-space-admin route), so we never expose
+(via filesystem or a workspace-admin route), so we never expose
 ``write`` / ``edit`` / ``upload_files``. The base class' ``NotImplementedError``
 gives a clean failure mode if anything tries.
 """
@@ -181,12 +181,12 @@ class BuiltinSkillsBackend(BackendProtocol):
         return responses
 
 
-class SearchSpaceSkillsBackend(BackendProtocol):
-    """Read-only view of search-space-authored skills.
+class WorkspaceSkillsBackend(BackendProtocol):
+    """Read-only view of workspace-authored skills.
 
     Wraps a :class:`KBPostgresBackend` and only ever reads under the privileged
     folder ``/documents/_skills/`` (configurable). The folder is intended to be
-    writable only by search-space admins; this backend never writes.
+    writable only by workspace admins; this backend never writes.
 
     The skills middleware expects a layout like::
 
@@ -236,14 +236,14 @@ class SearchSpaceSkillsBackend(BackendProtocol):
         # path falls back to ``asyncio.to_thread(...)`` in the base class. We
         # keep this stub to satisfy abstract resolution; the middleware calls
         # ``als_info``.
-        raise NotImplementedError("SearchSpaceSkillsBackend is async-only")
+        raise NotImplementedError("WorkspaceSkillsBackend is async-only")
 
     async def als_info(self, path: str) -> list[FileInfo]:
         kb_path = self._to_kb(path)
         try:
             infos = await self._kb.als_info(kb_path)
         except Exception as exc:  # pragma: no cover - defensive
-            logger.warning("SearchSpaceSkillsBackend.als_info failed: %s", exc)
+            logger.warning("WorkspaceSkillsBackend.als_info failed: %s", exc)
             return []
         remapped: list[FileInfo] = []
         for info in infos:
@@ -254,7 +254,7 @@ class SearchSpaceSkillsBackend(BackendProtocol):
         return remapped
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        raise NotImplementedError("SearchSpaceSkillsBackend is async-only")
+        raise NotImplementedError("WorkspaceSkillsBackend is async-only")
 
     async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         kb_paths = [self._to_kb(p) for p in paths]
@@ -274,16 +274,16 @@ SKILLS_SPACE_PREFIX = "/skills/space/"
 def build_skills_backend_factory(
     *,
     builtin_root: Path | str | None = None,
-    search_space_id: int | None = None,
+    workspace_id: int | None = None,
 ) -> Callable[[ToolRuntime], BackendProtocol]:
     """Return a runtime-aware factory for the skills :class:`CompositeBackend`.
 
-    When ``search_space_id`` is provided the composite includes a
-    :class:`SearchSpaceSkillsBackend` route at ``/skills/space/`` over a fresh
+    When ``workspace_id`` is provided the composite includes a
+    :class:`WorkspaceSkillsBackend` route at ``/skills/space/`` over a fresh
     per-runtime :class:`KBPostgresBackend`, mirroring how
     :func:`build_backend_resolver` constructs the main filesystem backend.
 
-    When ``search_space_id`` is ``None`` (e.g., desktop-local mode or unit
+    When ``workspace_id`` is ``None`` (e.g., desktop-local mode or unit
     tests) only the bundled :class:`BuiltinSkillsBackend` is exposed.
 
     Returning a factory rather than a fixed instance is intentional: the
@@ -293,7 +293,7 @@ def build_skills_backend_factory(
     """
     builtin = BuiltinSkillsBackend(builtin_root)
 
-    if search_space_id is None:
+    if workspace_id is None:
 
         def _factory_builtin_only(runtime: ToolRuntime) -> BackendProtocol:
             # Default StateBackend is intentionally inert: any path outside the
@@ -314,8 +314,8 @@ def build_skills_backend_factory(
             KBPostgresBackend,
         )
 
-        kb = KBPostgresBackend(search_space_id, runtime)
-        space = SearchSpaceSkillsBackend(kb)
+        kb = KBPostgresBackend(workspace_id, runtime)
+        space = WorkspaceSkillsBackend(kb)
         return CompositeBackend(
             default=StateBackend(runtime),
             routes={
@@ -336,7 +336,7 @@ __all__ = [
     "SKILLS_BUILTIN_PREFIX",
     "SKILLS_SPACE_PREFIX",
     "BuiltinSkillsBackend",
-    "SearchSpaceSkillsBackend",
+    "WorkspaceSkillsBackend",
     "build_skills_backend_factory",
     "default_skills_sources",
 ]

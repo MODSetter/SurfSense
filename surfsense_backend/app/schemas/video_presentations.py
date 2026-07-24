@@ -20,7 +20,7 @@ class VideoPresentationBase(BaseModel):
     title: str
     slides: list[dict[str, Any]] | None = None
     scene_codes: list[dict[str, Any]] | None = None
-    search_space_id: int
+    workspace_id: int
 
 
 class VideoPresentationCreate(VideoPresentationBase):
@@ -65,7 +65,7 @@ class VideoPresentationRead(VideoPresentationBase):
             "title": obj.title,
             "slides": slides,
             "scene_codes": obj.scene_codes,
-            "search_space_id": obj.search_space_id,
+            "workspace_id": obj.workspace_id,
             "status": obj.status,
             "created_at": obj.created_at,
             "slide_count": len(obj.slides) if obj.slides else None,

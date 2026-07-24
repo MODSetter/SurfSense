@@ -12,9 +12,9 @@ from app.db import NewChatThread, PublicChatSnapshot, User
 pytestmark = pytest.mark.integration
 
 
-async def _snapshot(db_session, *, search_space_id, user: User, token: str, podcasts):
+async def _snapshot(db_session, *, workspace_id, user: User, token: str, podcasts):
     thread = NewChatThread(
-        title="Shared", search_space_id=search_space_id, created_by_id=user.id
+        title="Shared", workspace_id=workspace_id, created_by_id=user.id
     )
     db_session.add(thread)
     await db_session.flush()
@@ -30,11 +30,11 @@ async def _snapshot(db_session, *, search_space_id, user: User, token: str, podc
 
 
 async def test_public_stream_serves_audio_via_storage_key(
-    client, db_session, db_search_space, db_user, fake_storage
+    client, db_session, db_workspace, db_user, fake_storage
 ):
     await _snapshot(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user=db_user,
         token="tok-audio",
         podcasts=[{"original_id": 555, "storage_key": "podcasts/x.mp3"}],
@@ -49,11 +49,11 @@ async def test_public_stream_serves_audio_via_storage_key(
 
 
 async def test_public_stream_404_when_object_missing(
-    client, db_session, db_search_space, db_user, fake_storage
+    client, db_session, db_workspace, db_user, fake_storage
 ):
     await _snapshot(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user=db_user,
         token="tok-gone",
         podcasts=[{"original_id": 556, "storage_key": "podcasts/gone.mp3"}],
@@ -65,11 +65,11 @@ async def test_public_stream_404_when_object_missing(
 
 
 async def test_public_stream_404_when_podcast_absent_from_snapshot(
-    client, db_session, db_search_space, db_user
+    client, db_session, db_workspace, db_user
 ):
     await _snapshot(
         db_session,
-        search_space_id=db_search_space.id,
+        workspace_id=db_workspace.id,
         user=db_user,
         token="tok-empty",
         podcasts=[],

@@ -8,8 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	AutomationModelFields,
 	type AutomationModelSelection,
-} from "@/app/dashboard/[search_space_id]/automations/components/builder/automation-model-fields";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+} from "@/app/dashboard/[workspace_id]/automations/components/builder/automation-model-fields";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { JsonView } from "@/components/json-view";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,7 +27,7 @@ import {
 } from "@/lib/posthog/events";
 import { AutomationDraftPreview } from "./automation-draft-preview";
 
-const editArgsSchema = automationCreateRequest.omit({ search_space_id: true });
+const editArgsSchema = automationCreateRequest.omit({ workspace_id: true });
 
 // ----------------------------------------------------------------------------
 // Result discrimination — mirrors the backend return shapes in
@@ -35,7 +35,7 @@ const editArgsSchema = automationCreateRequest.omit({ search_space_id: true });
 // ----------------------------------------------------------------------------
 
 type AutomationCreateContext = {
-	search_space_id?: number;
+	workspace_id?: number;
 };
 
 interface SavedResult {
@@ -81,7 +81,7 @@ function hasStatus(value: unknown, status: string): boolean {
 //
 // Edit toggle reuses the same primitives as the Create-via-JSON page: raw
 // textarea, Format, Zod validation against ``AutomationCreate`` (minus the
-// ``search_space_id`` field, which the backend injects). Approve dispatches
+// ``workspace_id`` field, which the backend injects). Approve dispatches
 // an ``edit`` decision with the parsed args when edits are pending, otherwise
 // a plain ``approve``. Multi-turn chat refinement still works as a fallback.
 // ----------------------------------------------------------------------------
@@ -108,9 +108,9 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 	const draft = useMemo(() => extractDraft(effectiveArgs), [effectiveArgs]);
 
 	// Per-automation model selection. The card always supplies models (chosen
-	// here, not snapshotted from the search space), so Approve dispatches an
+	// here, not snapshotted from the workspace), so Approve dispatches an
 	// `edit` decision carrying `definition.models`.
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const eligibleModels = useAutomationEligibleModels();
 	const [modelSelection, setModelSelection] = useState<AutomationModelSelection>({
 		chatModelId: 0,
@@ -156,7 +156,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		const plan = Array.isArray(baseDefinition.plan) ? baseDefinition.plan : [];
 		const triggers = Array.isArray(baseArgs.triggers) ? baseArgs.triggers : [];
 		trackAutomationChatApproved({
-			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 			edited: pendingEdits !== null,
 			task_count: plan.length,
 			trigger_type:
@@ -184,17 +184,17 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 		args,
 		pendingEdits,
 		resolvedModels,
-		searchSpaceId,
+		workspaceId,
 	]);
 
 	const handleReject = useCallback(() => {
 		if (phase !== "pending" || !canReject || isEditing) return;
 		setRejected();
 		trackAutomationChatRejected({
-			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
 		onDecision({ type: "reject", message: "User rejected the automation draft." });
-	}, [phase, canReject, isEditing, setRejected, onDecision, searchSpaceId]);
+	}, [phase, canReject, isEditing, setRejected, onDecision, workspaceId]);
 
 	useEffect(() => {
 		if (isEditing) return;
@@ -268,7 +268,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 							setPendingEdits(parsed);
 							setIsEditing(false);
 							trackAutomationChatDraftEdited({
-								search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+								workspace_id: workspaceId ? Number(workspaceId) : undefined,
 							});
 						}}
 						onCancel={() => setIsEditing(false)}
@@ -284,7 +284,7 @@ function ApprovalCard({ args, interruptData, onDecision }: ApprovalCardProps) {
 					<div className="px-5 py-4">
 						<p className="mb-3 text-xs font-medium text-foreground">Models</p>
 						<AutomationModelFields
-							searchSpaceId={Number(searchSpaceId)}
+							workspaceId={Number(workspaceId)}
 							value={resolvedModels}
 							onChange={(patch) => setModelSelection((prev) => ({ ...prev, ...patch }))}
 						/>
@@ -385,7 +385,7 @@ function JsonEditor({ initialValue, onSave, onCancel }: JsonEditorProps) {
 // ----------------------------------------------------------------------------
 
 function SavedCard({ result }: { result: SavedResult }) {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const tracked = useRef(false);
 	useEffect(() => {
 		if (tracked.current) return;
@@ -393,12 +393,12 @@ function SavedCard({ result }: { result: SavedResult }) {
 		trackAutomationChatCreateSucceeded({
 			automation_id: result.automation_id,
 			name: result.name,
-			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
-	}, [result.automation_id, result.name, searchSpaceId]);
+	}, [result.automation_id, result.name, workspaceId]);
 
-	const detailHref = searchSpaceId
-		? `/dashboard/${searchSpaceId}/automations/${result.automation_id}`
+	const detailHref = workspaceId
+		? `/dashboard/${workspaceId}/automations/${result.automation_id}`
 		: null;
 
 	return (
@@ -429,7 +429,7 @@ function SavedCard({ result }: { result: SavedResult }) {
 }
 
 function InvalidCard({ result }: { result: InvalidResult }) {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const tracked = useRef(false);
 	useEffect(() => {
 		if (tracked.current) return;
@@ -437,9 +437,9 @@ function InvalidCard({ result }: { result: InvalidResult }) {
 		trackAutomationChatCreateFailed({
 			reason: "invalid",
 			issue_count: result.issues.length,
-			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
-	}, [result.issues.length, searchSpaceId]);
+	}, [result.issues.length, workspaceId]);
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
@@ -464,7 +464,7 @@ function InvalidCard({ result }: { result: InvalidResult }) {
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const tracked = useRef(false);
 	useEffect(() => {
 		if (tracked.current) return;
@@ -472,9 +472,9 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 		trackAutomationChatCreateFailed({
 			reason: "error",
 			message: result.message,
-			search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+			workspace_id: workspaceId ? Number(workspaceId) : undefined,
 		});
-	}, [result.message, searchSpaceId]);
+	}, [result.message, workspaceId]);
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
@@ -531,7 +531,7 @@ export const CreateAutomationToolUI = ({
  * Project raw args into the shape ``AutomationDraftPreview`` expects.
  *
  * The args dict is the full ``AutomationCreate`` payload (minus
- * ``search_space_id`` which is injected server-side), so we trust the
+ * ``workspace_id`` which is injected server-side), so we trust the
  * top-level fields but defend against missing nested defaults.
  */
 function extractDraft(args: Record<string, unknown>) {

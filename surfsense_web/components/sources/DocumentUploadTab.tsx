@@ -29,11 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import type { ProcessingMode } from "@/contracts/types/document.types";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import {
-	trackDocumentUploadFailure,
-	trackDocumentUploadStarted,
-	trackDocumentUploadSuccess,
-} from "@/lib/posthog/events";
+import { trackDocumentUploadStarted } from "@/lib/posthog/events";
 import {
 	getAcceptedFileTypes,
 	getSupportedExtensions,
@@ -41,7 +37,7 @@ import {
 } from "@/lib/supported-extensions";
 
 interface DocumentUploadTabProps {
-	searchSpaceId: string;
+	workspaceId: string;
 	onSuccess?: () => void;
 	onAccordionStateChange?: (isExpanded: boolean) => void;
 }
@@ -132,7 +128,7 @@ const toggleRowClass =
 	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
 export function DocumentUploadTab({
-	searchSpaceId,
+	workspaceId,
 	onSuccess,
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
@@ -319,7 +315,7 @@ export function DocumentUploadTab({
 		setUploadProgress(0);
 		setIsFolderUploading(true);
 		const total = folderUpload.entries.length;
-		trackDocumentUploadStarted(Number(searchSpaceId), total, totalFileSize);
+		trackDocumentUploadStarted(Number(workspaceId), total, totalFileSize);
 
 		try {
 			const batches: FolderEntry[][] = [];
@@ -364,7 +360,7 @@ export function DocumentUploadTab({
 					batch.map((e) => e.file),
 					{
 						folder_name: folderUpload.folderName,
-						search_space_id: Number(searchSpaceId),
+						workspace_id: Number(workspaceId),
 						relative_paths: batch.map((e) => e.relativePath),
 						root_folder_id: rootFolderId,
 						use_vision_llm: useVisionLlm,
@@ -380,13 +376,14 @@ export function DocumentUploadTab({
 				setUploadProgress(Math.round((uploaded / total) * 100));
 			}
 
-			trackDocumentUploadSuccess(Number(searchSpaceId), total);
+			// Ingestion outcome is now emitted server-side
+			// (document_processing_completed/_failed in document_tasks.py); the
+			// upload POST succeeding only means the file was accepted, not processed.
 			toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
 			setFolderUpload(null);
 			onSuccess?.();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Upload failed";
-			trackDocumentUploadFailure(Number(searchSpaceId), message);
 			toast(t("upload_error"), {
 				description: `${t("upload_error_desc")}: ${message}`,
 			});
@@ -403,7 +400,7 @@ export function DocumentUploadTab({
 		}
 
 		setUploadProgress(0);
-		trackDocumentUploadStarted(Number(searchSpaceId), files.length, totalFileSize);
+		trackDocumentUploadStarted(Number(workspaceId), files.length, totalFileSize);
 
 		progressIntervalRef.current = setInterval(() => {
 			setUploadProgress((prev) => (prev >= 90 ? prev : prev + Math.random() * 10));
@@ -413,7 +410,7 @@ export function DocumentUploadTab({
 		uploadDocuments(
 			{
 				files: rawFiles,
-				search_space_id: Number(searchSpaceId),
+				workspace_id: Number(workspaceId),
 				use_vision_llm: useVisionLlm,
 				processing_mode: processingMode,
 			},
@@ -421,7 +418,7 @@ export function DocumentUploadTab({
 				onSuccess: () => {
 					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(100);
-					trackDocumentUploadSuccess(Number(searchSpaceId), files.length);
+					// Ingestion outcome now server-side (document_processing_*).
 					toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
 					onSuccess?.();
 				},
@@ -429,7 +426,6 @@ export function DocumentUploadTab({
 					if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 					setUploadProgress(0);
 					const message = error instanceof Error ? error.message : "Upload failed";
-					trackDocumentUploadFailure(Number(searchSpaceId), message);
 					toast(t("upload_error"), {
 						description: `${t("upload_error_desc")}: ${message}`,
 					});
