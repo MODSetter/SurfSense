@@ -83,3 +83,25 @@ The agent's **tools are unchanged** (`ls`, `read`, `write`, `edit`, `mv`, `rm`).
 - Fractional indexing / bespoke move tracking → git tree operations.
 
 This pivot is **mostly deletion**, which is the point.
+
+---
+
+## We are borrowing from authoritative sources, not inventing
+
+Every decision traces to a proven, battle-tested reference. The only SurfSense-specific work is the *adaptation glue*.
+
+| Decision | Borrowed from |
+|---|---|
+| Git = truth, Postgres = rebuildable cache | **Fossil SCM** — canonical artifacts + SQL tables as a pure cache, recomputed via `fossil rebuild` (production since 2007). https://fossil-scm.org/home/doc/trunk/www/theory1.wiki |
+| Content in git, metadata/index in a DB | **Gollum** (GitHub/GitLab wikis): "storage abstraction layer... only some data in the DB". https://github.com/gollum/gollum · https://docs.gitlab.com/17.5/development/wikis/ |
+| Silent commit-per-save, hide git from users | **kherad**. https://github.com/mohammadmaso/kherad |
+| Embeddings keyed by blob SHA, incremental (not rebuild) | **Coregit LLM Wiki** (https://coregit.dev/blog/llm-wiki-launch) + vector-index-as-cache best practices (LangChain RecordManager, LlamaIndex docstore). Cache key = `(model_version, content_hash)`. |
+| Python git engine | **dulwich** — pure Python, deploy-friendly, real wire protocol. https://github.com/jelmer/dulwich |
+| "Don't put a firehose in git" / git limits | "Git is not a database" critiques — degrades past ~500k–1M files, no query engine, no concurrency control. |
+| Future content model (`raw/`+`wiki/`, lint, contradiction-flagging) | **Karpathy's LLM Wiki**. https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f |
+| Future real-time collab | **Yjs** (Notion, Linear). https://github.com/yjs/yjs |
+| Future fact-level temporal memory | **Zep / Graphiti** (bi-temporal, "invalidate don't delete"). https://arxiv.org/html/2501.13956 |
+
+### The counter-example we explicitly reject
+
+**Wiki.js** git module = DB is truth, git is a two-way mirror. This creates two sources of truth and a reconciliation cursor; it has a known class of silent-sync bugs (see requarks/wiki discussion #7860). We use **one-way derivation** (git → Postgres), never two-way sync.
