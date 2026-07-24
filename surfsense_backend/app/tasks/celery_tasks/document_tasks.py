@@ -4,11 +4,13 @@ import asyncio
 import contextlib
 import logging
 import os
+import time
 from uuid import UUID
 
 from app.celery_app import celery_app
 from app.config import config
 from app.notifications.service import NotificationService
+from app.observability import analytics as ph_analytics
 from app.observability import metrics as ot_metrics
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -21,6 +23,44 @@ from app.tasks.document_processors import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _capture_doc_processing(
+    status: str,
+    *,
+    user_id: str | None,
+    workspace_id: int,
+    doc_type: str,
+    file_size: int | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    """Emit ``document_processing_completed``/``_failed`` from a Celery task.
+
+    The frontend only knows the upload POST succeeded, never whether ingestion
+    actually worked — this is the authoritative outcome. No-op when PostHog is
+    unconfigured. ``distinct_id`` is the owning user's id so it joins the same
+    person the web app identifies.
+    """
+    if not ph_analytics.is_enabled() or not user_id:
+        return
+    event = (
+        "document_processing_completed"
+        if status == "success"
+        else "document_processing_failed"
+    )
+    ph_analytics.capture(
+        event,
+        distinct_id=str(user_id),
+        properties={
+            "workspace_id": workspace_id,
+            "doc_type": doc_type,
+            "file_size": file_size,
+            "duration_ms": duration_ms,
+            "status": status,
+        },
+        groups={"workspace": str(workspace_id)},
+    )
+
 
 # ===== Redis heartbeat for document processing tasks =====
 # Same mechanism as connector indexing heartbeats (search_source_connectors_routes.py).
@@ -268,11 +308,30 @@ def process_extension_document_task(
         workspace_id: ID of the workspace
         user_id: ID of the user
     """
-    return run_async_celery_task(
-        lambda: _process_extension_document(
-            individual_document_dict, workspace_id, user_id
+    _t0 = time.perf_counter()
+    try:
+        result = run_async_celery_task(
+            lambda: _process_extension_document(
+                individual_document_dict, workspace_id, user_id
+            )
         )
+    except Exception:
+        _capture_doc_processing(
+            "failed",
+            user_id=user_id,
+            workspace_id=workspace_id,
+            doc_type="extension",
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+        )
+        raise
+    _capture_doc_processing(
+        "success",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_type="extension",
+        duration_ms=int((time.perf_counter() - _t0) * 1000),
     )
+    return result
 
 
 async def _process_extension_document(
@@ -430,12 +489,14 @@ def process_file_upload_task(
         )
         return
 
+    file_size: int | None = None
     try:
         file_size = os.path.getsize(file_path)
         logger.info(f"[process_file_upload] File size: {file_size} bytes")
     except Exception as e:
         logger.warning(f"[process_file_upload] Could not get file size: {e}")
 
+    _t0 = time.perf_counter()
     try:
         run_async_celery_task(
             lambda: _process_file_upload(file_path, filename, workspace_id, user_id)
@@ -448,7 +509,23 @@ def process_file_upload_task(
             f"[process_file_upload] Task failed for {filename}: {e}\n"
             f"Traceback:\n{traceback.format_exc()}"
         )
+        _capture_doc_processing(
+            "failed",
+            user_id=user_id,
+            workspace_id=workspace_id,
+            doc_type="file_upload",
+            file_size=file_size,
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+        )
         raise
+    _capture_doc_processing(
+        "success",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_type="file_upload",
+        file_size=file_size,
+        duration_ms=int((time.perf_counter() - _t0) * 1000),
+    )
 
 
 async def _process_file_upload(
@@ -682,6 +759,7 @@ def process_file_upload_with_document_task(
         )
         return
 
+    _t0 = time.perf_counter()
     try:
         run_async_celery_task(
             lambda: _process_file_with_document(
@@ -702,7 +780,21 @@ def process_file_upload_with_document_task(
             f"[process_file_upload_with_document] Task failed for {filename}: {e}\n"
             f"Traceback:\n{traceback.format_exc()}"
         )
+        _capture_doc_processing(
+            "failed",
+            user_id=user_id,
+            workspace_id=workspace_id,
+            doc_type="file_upload_2phase",
+            duration_ms=int((time.perf_counter() - _t0) * 1000),
+        )
         raise
+    _capture_doc_processing(
+        "success",
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_type="file_upload_2phase",
+        duration_ms=int((time.perf_counter() - _t0) * 1000),
+    )
 
 
 async def _mark_document_failed(document_id: int, reason: str):

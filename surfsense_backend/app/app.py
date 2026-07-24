@@ -51,6 +51,7 @@ from app.gateway.inbox_worker import (
     start_gateway_inbox_worker,
     stop_gateway_inbox_worker,
 )
+from app.observability import analytics as ph_analytics
 from app.observability import metrics as ot_metrics
 from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
@@ -714,6 +715,7 @@ async def lifespan(app: FastAPI):
         await stop_gateway_inbox_worker()
         _stop_openrouter_background_refresh()
         await close_checkpointer()
+        ph_analytics.shutdown()
         shutdown_otel()
 
 
@@ -819,6 +821,56 @@ class RequestPerfMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(RequestPerfMiddleware)
+
+
+# ---------------------------------------------------------------------------
+# PAT / MCP API attribution middleware
+# ---------------------------------------------------------------------------
+# Emits a PostHog ``pat_api_request`` event for any request authenticated by a
+# Personal Access Token, so "documents added via MCP", "searches via MCP" etc.
+# are queryable without instrumenting each route. Relies on ``get_auth_context``
+# stashing the resolved principal on ``request.state.auth_context``; requests
+# that never resolve a PAT principal are silently skipped. No-op when PostHog
+# is unconfigured.
+
+
+class PatApiAnalyticsMiddleware(BaseHTTPMiddleware):
+    """Capture PAT-authenticated API usage (incl. MCP) after each response."""
+
+    async def dispatch(
+        self, request: StarletteRequest, call_next: RequestResponseEndpoint
+    ) -> StarletteResponse:
+        response = await call_next(request)
+        with contextlib.suppress(Exception):
+            ctx = getattr(request.state, "auth_context", None)
+            if (
+                ctx is not None
+                and ctx.method == "pat"
+                and ph_analytics.is_enabled()
+            ):
+                # Use the route *template* (e.g. /documents/{id}) to keep the
+                # ``route`` property low-cardinality; fall back to the raw path.
+                route = request.scope.get("route")
+                route_path = getattr(route, "path", None) or request.url.path
+                client = (
+                    "mcp"
+                    if request.headers.get("X-SurfSense-Client") == "mcp"
+                    else "pat_script"
+                )
+                ph_analytics.capture_for(
+                    ctx,
+                    "pat_api_request",
+                    {
+                        "route": route_path,
+                        "method": request.method,
+                        "status_code": response.status_code,
+                        "client": client,
+                    },
+                )
+        return response
+
+
+app.add_middleware(PatApiAnalyticsMiddleware)
 
 # Add SlowAPI middleware for automatic rate limiting
 # Uses Starlette BaseHTTPMiddleware (not the raw ASGI variant) to avoid

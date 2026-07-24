@@ -1179,6 +1179,19 @@ class Config:
         os.getenv("CRAWL_HEADED_XVFB_ENABLED", "FALSE").upper() == "TRUE"
     )
 
+    # PostHog server-side product analytics (opt-in, mirrors the OTel pattern:
+    # no key set => the analytics wrapper is a silent no-op). Use the SAME
+    # project key as the frontend's NEXT_PUBLIC_POSTHOG_KEY so server events
+    # merge onto the persons the web app already identifies by user id.
+    POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
+    POSTHOG_HOST = os.getenv("POSTHOG_HOST", "https://us.i.posthog.com")
+    # When true (default), the LLM-analytics LangChain handler suppresses
+    # prompt/completion bodies ($ai_input / $ai_output_choices) and captures
+    # only metrics — chat content includes users' private documents.
+    POSTHOG_AI_PRIVACY_MODE = (
+        os.getenv("POSTHOG_AI_PRIVACY_MODE", "TRUE").upper() == "TRUE"
+    )
+
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
     TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")

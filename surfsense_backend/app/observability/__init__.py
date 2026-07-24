@@ -6,4 +6,4 @@ wrapper is a no-op when OTEL is not configured, so importing it from
 performance-critical paths is safe.
 """
 
-__all__ = ["bootstrap", "metrics", "otel"]
+__all__ = ["analytics", "bootstrap", "metrics", "otel"]

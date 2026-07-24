@@ -1,6 +1,3 @@
-// Main component export
-export { ConnectorIndicator } from "../connector-popup";
-
 // Sub-components (if needed for external use)
 export { ConnectorCard } from "./components/connector-card";
 export { ConnectorDialogHeader } from "./components/connector-dialog-header";

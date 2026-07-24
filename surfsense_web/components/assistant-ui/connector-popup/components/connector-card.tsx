@@ -23,7 +23,6 @@ interface ConnectorCardProps {
 	accountCount?: number;
 	connectorCount?: number;
 	isIndexing?: boolean;
-	deprecated?: boolean;
 	onConnect?: () => void;
 	onManage?: () => void;
 }
@@ -53,15 +52,11 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	accountCount,
 	connectorCount,
 	isIndexing = false,
-	deprecated = false,
 	onConnect,
 	onManage,
 }) => {
 	const isMCP = connectorType === EnumConnectorName.MCP_CONNECTOR;
 	const isLive = !!connectorType && LIVE_CONNECTOR_TYPES.has(connectorType);
-	// Deprecated connectors can no longer be connected, but existing rows stay
-	// manageable (so users can disconnect them).
-	const isDeprecatedForConnect = deprecated && !isConnected;
 	// Get connector status
 	const { getConnectorStatus, isConnectorEnabled, getConnectorStatusMessage, shouldShowWarnings } =
 		useConnectorStatus();
@@ -76,10 +71,6 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		if (isConnected) {
 			// Don't show last indexed in overview tabs - only show in accounts list view
 			return null;
-		}
-
-		if (isDeprecatedForConnect) {
-			return "Deprecated. No longer available to connect.";
 		}
 
 		return description;
@@ -102,16 +93,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 						: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
 				)}
 			>
-				{isMCP ? (
-					<span
-						aria-hidden="true"
-						className="size-6 bg-current"
-						style={{
-							mask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
-							WebkitMask: "url('/connectors/modelcontextprotocol.svg') center / contain no-repeat",
-						}}
-					/>
-				) : connectorType ? (
+				{connectorType ? (
 					getConnectorIcon(connectorType, "size-6")
 				) : id === "youtube-crawler" ? (
 					<IconBrandYoutube className="size-6" />
@@ -169,20 +151,18 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					!isConnected && "shadow-xs"
 				)}
 				onClick={isConnected ? onManage : onConnect}
-				disabled={isConnecting || !isEnabled || isDeprecatedForConnect}
+				disabled={isConnecting || !isEnabled}
 			>
 				<span className={isConnecting ? "opacity-0" : ""}>
-					{isDeprecatedForConnect
-						? "Deprecated"
-						: !isEnabled
-							? "Unavailable"
-							: isConnected
-								? "Manage"
-								: id === "youtube-crawler"
-									? "Add"
-									: connectorType
-										? "Connect"
-										: "Add"}
+					{!isEnabled
+						? "Unavailable"
+						: isConnected
+							? "Manage"
+							: id === "youtube-crawler"
+								? "Add"
+								: connectorType
+									? "Connect"
+									: "Add"}
 				</span>
 				{isConnecting && <Spinner size="xs" className="absolute" />}
 			</Button>

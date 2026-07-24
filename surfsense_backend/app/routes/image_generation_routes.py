@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
+from app.observability import analytics as ph_analytics
 from app.config import config
 from app.db import (
     ImageGeneration,
@@ -327,6 +328,20 @@ async def create_image_generation(
 
             await session.commit()
             await session.refresh(db_image_gen)
+
+            # Credit-consuming deliverable; the frontend never confirms
+            # completion. ``error_message`` set => provider call failed.
+            ph_analytics.capture_for(
+                auth,
+                "image_generated",
+                {
+                    "workspace_id": data.workspace_id,
+                    "model": data.model,
+                    "n": data.n,
+                    "status": "error" if db_image_gen.error_message else "success",
+                },
+                groups={"workspace": str(data.workspace_id)},
+            )
             return db_image_gen
 
     except HTTPException:

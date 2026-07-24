@@ -487,12 +487,8 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 					</div>
 				) : isSearchMode ? (
 					<div className="text-center py-8">
-						<Search className="mx-auto mb-2.5 h-10 w-10 text-muted-foreground" />
-						<p className="text-xs text-muted-foreground">
+						<p className="text-sm text-muted-foreground">
 							{t("no_chats_found") || "No chats found"}
-						</p>
-						<p className="mt-1 text-[11px] text-muted-foreground/70">
-							{t("try_different_search") || "Try a different search term"}
 						</p>
 					</div>
 				) : (

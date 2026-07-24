@@ -12,6 +12,7 @@ from app.agents.video_presentation.state import State as VideoPresentationState
 from app.celery_app import celery_app
 from app.config import config as app_config
 from app.db import VideoPresentation, VideoPresentationStatus
+from app.observability import analytics as ph_analytics
 from app.services.billable_calls import (
     BillingSettlementError,
     QuotaInsufficientError,
@@ -238,6 +239,20 @@ async def _generate_video_presentation(
             logger.info("VideoPresentation %s: READY commit complete", video_pres.id)
 
             logger.info(f"Successfully generated video presentation: {video_pres.id}")
+
+            # Credit-consuming deliverable — the frontend never confirms
+            # completion. Attributed to the workspace owner resolved above.
+            if owner_user_id:
+                ph_analytics.capture(
+                    "video_presentation_generated",
+                    distinct_id=str(owner_user_id),
+                    properties={
+                        "workspace_id": workspace_id,
+                        "video_presentation_id": video_pres.id,
+                        "slide_count": len(serializable_slides),
+                    },
+                    groups={"workspace": str(workspace_id)},
+                )
 
             return {
                 "status": "ready",

@@ -20,6 +20,7 @@ import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { VisionLLMConfig } from "../../components/vision-llm-config";
 import { LIVE_CONNECTOR_TYPES } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { LiveConnectorConnectedCard } from "../components/live-connector-connected-card";
 import { MCPServiceConfig } from "../components/mcp-service-config";
 import { getConnectorConfigComponent } from "../index";
 
@@ -124,8 +125,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	// Get connector-specific config component (MCP-backed connectors use a generic view)
 	const ConnectorConfigComponent = useMemo(() => {
 		if (isMCPBacked) return MCPServiceConfig;
-		return getConnectorConfigComponent(connector.connector_type);
-	}, [connector.connector_type, isMCPBacked]);
+		// Live connectors without a dedicated config (native/Composio Gmail &
+		// Calendar) fall back to a simple "Connected" card instead of a blank body.
+		return (
+			getConnectorConfigComponent(connector.connector_type) ??
+			(isLive ? LiveConnectorConnectedCard : null)
+		);
+	}, [connector.connector_type, isMCPBacked, isLive]);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -201,7 +207,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			{/* Fixed Header */}
 			<div
 				className={cn(
-					"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+					"flex-shrink-0 transition-shadow duration-200 relative z-10",
 					isScrolled && "shadow-sm"
 				)}
 			>
@@ -262,7 +268,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			<div className="flex-1 min-h-0 relative overflow-hidden">
 				<div
 					ref={scrollContainerRef}
-					className="h-full overflow-y-auto px-6 sm:px-12"
+					className="h-full overflow-y-auto"
 					onScroll={handleScroll}
 				>
 					<div className="space-y-6 pb-6 pt-2">
@@ -362,7 +368,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-popover">
+			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 py-6 sm:py-6 bg-transparent">
 				{showDisconnectConfirm ? (
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
