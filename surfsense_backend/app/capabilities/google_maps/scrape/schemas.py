@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.google_maps import PlaceItem
 
 MAX_MAPS_SOURCES = 20
@@ -26,7 +27,7 @@ class ScrapeInput(BaseModel):
             "(at least one is required). Pair with location to scope a search."
         ),
     )
-    urls: list[str] = Field(
+    urls: list[HttpUrlStr] = Field(
         default_factory=list,
         max_length=MAX_MAPS_SOURCES,
         description=(

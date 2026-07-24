@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.tiktok import TikTokVideoItem
 
 MAX_TIKTOK_SOURCES = 20
@@ -22,7 +23,7 @@ MAX_TIKTOK_ITEMS = 100
 
 
 class ScrapeInput(BaseModel):
-    urls: list[str] = Field(
+    urls: list[HttpUrlStr] = Field(
         default_factory=list,
         max_length=MAX_TIKTOK_SOURCES,
         description=(

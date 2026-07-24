@@ -2,15 +2,9 @@
 
 import { Check, Copy, Download } from "lucide-react";
 import { useMemo, useState } from "react";
+import { JsonView } from "@/components/json-view";
 import { Button } from "@/components/ui/button";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadCsv, rowsToCsv } from "@/lib/playground/csv";
 
@@ -48,10 +42,11 @@ function ResultTable({ items }: { items: Record<string, unknown>[] }) {
 
 	const rows = items.slice(0, MAX_TABLE_ROWS);
 
+	// overscroll-contain keeps table scrolling from chaining to the page.
 	return (
-		<div className="overflow-x-auto rounded-md border border-border/60">
-			<Table>
-				<TableHeader>
+		<div className="max-h-[480px] overflow-auto overscroll-contain rounded-md border border-border/60">
+			<table className="w-full caption-bottom text-sm">
+				<TableHeader className="sticky top-0 z-10 bg-background">
 					<TableRow>
 						{columns.map((col) => (
 							<TableHead key={col} className="whitespace-nowrap">
@@ -72,7 +67,7 @@ function ResultTable({ items }: { items: Record<string, unknown>[] }) {
 						</TableRow>
 					))}
 				</TableBody>
-			</Table>
+			</table>
 		</div>
 	);
 }
@@ -152,9 +147,9 @@ export function OutputViewer({ data, filenameBase }: { data: unknown; filenameBa
 					)}
 				</>
 			) : (
-				<pre className="max-h-[480px] overflow-auto rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
-					<code>{json}</code>
-				</pre>
+				<div className="max-h-[480px] overflow-auto overscroll-contain rounded-md border border-border/60 bg-muted/20 p-3">
+					<JsonView src={data} collapsed={2} />
+				</div>
 			)}
 		</div>
 	);

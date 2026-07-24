@@ -946,8 +946,22 @@ def test_resolve_url(url, kind, value):
     assert resolved.value == value
 
 
-def test_resolve_url_unrecognized():
-    assert resolve_url("https://example.com/foo") is None
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/foo",
+        # Well-formed non-YouTube URLs whose path mimics a YouTube page must be
+        # rejected, not misclassified by path alone (host-spoof guard).
+        "https://evil.com/@Apify",
+        "https://evil.com/channel/UC123456789abc",
+        "https://evil.com/shorts/abc123",
+        "https://evil.com/playlist?list=PL123",
+        "https://evil.com/hashtag/tech",
+        "https://evil.com/results?search_query=web+scraping",
+    ],
+)
+def test_resolve_url_unrecognized(url):
+    assert resolve_url(url) is None
 
 
 # --- optional: exercise captured real fixtures if present --------------------

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.capabilities.tiktok.scrape.schemas import (
     MAX_TIKTOK_ITEMS,
     MAX_TIKTOK_SOURCES,
@@ -18,7 +19,7 @@ from app.proprietary.platforms.tiktok import CommentItem
 
 
 class CommentsInput(BaseModel):
-    video_urls: list[str] = Field(
+    video_urls: list[HttpUrlStr] = Field(
         min_length=1,
         max_length=MAX_TIKTOK_SOURCES,
         description="TikTok video URLs (/@<user>/video/<id>) to pull comments from.",

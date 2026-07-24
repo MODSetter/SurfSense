@@ -10,6 +10,7 @@ import {
 	AuthorizationError,
 	NetworkError,
 	NotFoundError,
+	type ValidationFieldError,
 } from "../error";
 
 enum ResponseType {
@@ -189,6 +190,9 @@ class BaseApiService {
 				const requestId: string | undefined =
 					envelope?.request_id ?? response.headers.get("X-Request-ID") ?? undefined;
 				const reportUrl: string | undefined = envelope?.report_url;
+				const validationFields: ValidationFieldError[] | undefined = Array.isArray(envelope?.fields)
+					? envelope.fields
+					: undefined;
 
 				// Handle 401 - try to refresh token first (only once)
 				if (response.status === 401) {
@@ -233,8 +237,8 @@ class BaseApiService {
 							response.status,
 							response.statusText
 						);
-					default:
-						throw new AppError(
+					default: {
+						const appError = new AppError(
 							errorMessage || "Something went wrong",
 							response.status,
 							response.statusText,
@@ -242,6 +246,9 @@ class BaseApiService {
 							requestId,
 							reportUrl
 						);
+						appError.fields = validationFields;
+						throw appError;
+					}
 				}
 			}
 			refreshRetryBlockedUntil.delete(getRefreshRetryKey(mergedOptions.method, url));
@@ -313,12 +320,23 @@ class BaseApiService {
 				throw networkError;
 			}
 
-			console.error("Request failed:", JSON.stringify(error));
-			// Only 5xx server faults are unexpected. 4xx (validation, authz, 404)
-			// are expected behavior — capturing them was billable error-tracking
-			// noise. AuthenticationError (401) is a 4xx and stays excluded.
-			if (error instanceof AppError && error.status >= 500) {
-				captureApiException(error, url, options?.method);
+			// Handled client errors (validation, credits, auth, not-found, ...) are
+			// expected outcomes surfaced to the user via typed errors + toasts — not
+			// app faults. Skip logging/telemetry for them so they don't spam the
+			// console, PostHog, or Next.js's dev error overlay.
+			const isHandledClientError =
+				error instanceof AppError &&
+				typeof error.status === "number" &&
+				error.status >= 400 &&
+				error.status < 500;
+
+			if (!isHandledClientError) {
+				console.error("Request failed:", JSON.stringify(error));
+				// Only 5xx server faults are unexpected; 4xx are handled above and
+				// network outages were already captured before this point.
+				if (error instanceof AppError && error.status >= 500) {
+					captureApiException(error, url, options?.method);
+				}
 			}
 			throw error;
 		}

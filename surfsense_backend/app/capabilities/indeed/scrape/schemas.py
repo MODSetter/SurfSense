@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.indeed_jobs import IndeedItem
 from app.proprietary.platforms.indeed_jobs.schemas import (
     IndeedJobType,
@@ -26,7 +27,7 @@ MAX_INDEED_ITEMS = 100
 
 
 class ScrapeInput(BaseModel):
-    urls: list[str] = Field(
+    urls: list[HttpUrlStr] = Field(
         default_factory=list,
         max_length=MAX_INDEED_SOURCES,
         description=(

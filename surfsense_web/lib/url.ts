@@ -12,3 +12,13 @@ export function tryGetHostname(url: string): string | undefined {
 		return undefined;
 	}
 }
+
+/** True when the value parses as an http(s) URL — mirrors the backend's boundary rule. */
+export function isHttpUrl(value: string): boolean {
+	try {
+		const { protocol } = new URL(value);
+		return protocol === "http:" || protocol === "https:";
+	} catch {
+		return false;
+	}
+}

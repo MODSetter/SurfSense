@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.capabilities.core.validation import HttpUrlStr
 from app.proprietary.platforms.walmart import ProductItem
 
 MAX_WALMART_SOURCES = 20
@@ -15,7 +16,7 @@ MAX_WALMART_RESULTS = 1000
 class ScrapeInput(BaseModel):
     """Agent-facing controls for public Walmart product discovery and enrichment."""
 
-    urls: list[str] = Field(default_factory=list, max_length=MAX_WALMART_SOURCES)
+    urls: list[HttpUrlStr] = Field(default_factory=list, max_length=MAX_WALMART_SOURCES)
     search_terms: list[str] = Field(
         default_factory=list, max_length=MAX_WALMART_SOURCES
     )
