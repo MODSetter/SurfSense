@@ -99,11 +99,17 @@ export function ModelsSelectionPanel({
 								type="button"
 								variant="secondary"
 								size="sm"
-								className={`h-7 rounded-full px-3 text-xs ${isActive ? "" : "opacity-80"}`}
+								className={`h-7 rounded-full px-3 text-xs ${
+									isActive
+										? "bg-brand text-white hover:bg-brand/90"
+										: "opacity-80"
+								}`}
 								onClick={() => setModelFilter(isActive ? null : filter.key)}
 							>
 								{filter.label}
-								<span className="ml-1 text-muted-foreground">{count}</span>
+								<span className={`ml-1 ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
+									{count}
+								</span>
 							</Button>
 						);
 					})}
