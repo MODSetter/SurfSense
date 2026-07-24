@@ -39,3 +39,47 @@ The team has been hand-implementing — on top of a relational DB never designed
 
 Hybrid chunk search: pgvector (HNSW) + Postgres FTS + RRF, optional reranking. Chunking via Chonkie; incremental via `chunk_reconciler.py`. See `.../shared/retrieval/hybrid_search.py`.
 
+---
+
+## Decision
+
+**Adopt Git as the single source of truth for all indexed KB content. Postgres becomes a derived, rebuildable index holding only chunks + embeddings.**
+
+### Core model
+
+```
+agent notes ─┐
+editor saves ─┤
+uploads ──────┤→  Git commit (source of truth)  →  indexer  →  Postgres (chunks + embeddings)
+Notion ───────┤
+Drive ────────┘
+(indexable connectors only)
+
+Slack / Gmail (live connectors) ──→ queried at chat time, bypass storage entirely
+```
+
+- **Git = truth** for everything that gets stored/indexed (agent/editor notes, uploads, and **indexable** connectors like Notion, Drive, Obsidian — the `is_indexable` connectors).
+- **Postgres = derived index only** (chunks + embeddings). It is a **cache**: it can be wiped and rebuilt from Git at any time via a single `reindex(workspace)` function.
+- **Live connectors (Slack, Gmail)** are never stored or indexed — they are queried live at chat time and are entirely out of scope for this design.
+- **Binary blobs** (original PDF/DOCX) stay in the existing local/Azure blob store (or Git-LFS later); Git holds the extracted markdown, not raw binaries.
+
+### What changes for the agent
+
+The agent's **tools are unchanged** (`ls`, `read`, `write`, `edit`, `mv`, `rm`). Only the backend behind them changes:
+
+| Agent action | Backed by |
+|---|---|
+| File ops (`ls`/`read`/`write`/`edit`/`mv`/`rm`) | **Git** working tree (real files) |
+| Semantic search | **Postgres** (derived chunk/embedding index) |
+
+- **Before:** `KBPostgresBackend` fakes files over Postgres rows.
+- **After:** a Git-working-tree backend operates on **real files**. `path_resolver` largely disappears (paths are real).
+- **Write flow:** agent edits → git working tree → **one commit at end of turn** (replaces the `kb_persistence` commit-to-Postgres step) → indexer refreshes Postgres chunks.
+
+### What we delete
+
+- The virtual-FS façade (`path_resolver`, `kb_postgres` staging).
+- `DocumentVersion`, `DocumentRevision` / `FolderRevision`, `revert_service` → replaced by git history + `git revert`.
+- Fractional indexing / bespoke move tracking → git tree operations.
+
+This pivot is **mostly deletion**, which is the point.
