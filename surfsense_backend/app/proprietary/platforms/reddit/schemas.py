@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 RedditSort = Literal["relevance", "hot", "top", "new", "rising", "comments"]
 RedditTime = Literal["all", "hour", "day", "week", "month", "year"]
@@ -43,6 +43,23 @@ class RedditScrapeInput(BaseModel):
     startUrls: list[StartUrl] = Field(default_factory=list)
     searches: list[str] = Field(default_factory=list)
     searchCommunityName: str | None = None
+
+    @field_validator("searchCommunityName", mode="after")
+    @classmethod
+    def _normalize_community(cls, v: str | None) -> str | None:
+        """Normalize the bare subreddit name at the trust boundary.
+
+        Both the in-subreddit search path and the community-only listing path
+        interpolate this straight into ``r/{name}/...``, so a pasted ``r/python``
+        or ``/r/python/`` would otherwise become ``r/r/python`` and 404. Strip a
+        leading ``r/`` and surrounding slashes/whitespace; empty coerces to None.
+        """
+        if v is None:
+            return None
+        name = v.strip().strip("/")
+        if name[:2].lower() == "r/":
+            name = name[2:].strip("/")
+        return name or None
 
     # Sort / filter
     sort: RedditSort = "new"
