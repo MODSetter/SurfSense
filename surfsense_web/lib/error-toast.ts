@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { AbortedError, AppError, AuthenticationError, SURFSENSE_ISSUES_URL } from "./error";
+import { detectEnvironment } from "./env-config";
 
 /**
  * Build a GitHub issue URL pre-filled with diagnostic context.
@@ -7,6 +8,8 @@ import { AbortedError, AppError, AuthenticationError, SURFSENSE_ISSUES_URL } fro
  */
 export function buildIssueUrl(error: unknown): string {
 	const params = new URLSearchParams();
+
+	const environment = detectEnvironment();
 
 	const lines: string[] = ["## Bug Report", "", "**Describe what happened:**", "", ""];
 
@@ -16,9 +19,11 @@ export function buildIssueUrl(error: unknown): string {
 		if (error.requestId) lines.push(`- **Request ID:** \`${error.requestId}\``);
 		if (error.status) lines.push(`- **HTTP status:** ${error.status}`);
 		lines.push(`- **Message:** ${error.message}`);
+		lines.push(`- **Environment:** ${environment}`);
 	} else if (error instanceof Error) {
 		lines.push("## Diagnostics (auto-filled)", "");
 		lines.push(`- **Error:** ${error.message}`);
+		lines.push(`- **Environment:** ${environment}`);
 	}
 
 	lines.push(`- **Timestamp:** ${new Date().toISOString()}`);
