@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, History, KeyRound, LayoutGrid } from "lucide-react";
+import { ArrowRight, ChevronRight, History, KeyRound, LayoutGrid, Unplug } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -216,6 +216,17 @@ export function PlaygroundSidebar({ workspaceId, className }: PlaygroundSidebarP
 					))}
 				</div>
 			</nav>
+			<div className="shrink-0 border-t p-2">
+				<Link
+					href={`/dashboard/${workspaceId}/connectors`}
+					prefetch
+					className="group inline-flex h-auto w-full items-center justify-start gap-3 rounded-md bg-transparent px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:outline-none"
+				>
+					<Unplug className="h-4 w-4 shrink-0" />
+					<span className="min-w-0 truncate">Add external connectors</span>
+					<ArrowRight className="ml-auto hidden h-4 w-4 shrink-0 -rotate-45 group-hover:block" />
+				</Link>
+			</div>
 		</aside>
 	);
 }
