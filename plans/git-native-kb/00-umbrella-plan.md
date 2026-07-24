@@ -48,3 +48,31 @@ flowchart TD
 ```
 
 </details>
+
+## Decisions locked
+
+- **Git = single source of truth** for all *indexed* KB content (agent/editor notes, uploads, indexable connectors — the `is_indexable` ones).
+- **Postgres = derived index only** (chunks + embeddings). It is a **cache**: wipe-and-rebuild from Git via one `reindex(workspace)`. Never authoritative.
+- **One-way derivation** (Git → Postgres). **Never** two-way sync (this is the Wiki.js anti-pattern we explicitly reject).
+- **Live connectors (Slack/Gmail) are untouched** — never stored/indexed, queried at chat time; entirely out of scope.
+- **Binary blobs stay in the existing blob store** (local/Azure). Git holds extracted markdown, not raw binaries (Git-LFS deferred).
+- **Agent tool interface is unchanged** (`ls/read/write/edit/mv/rm`). Only the backend behind the tools changes (Postgres-fake → real git working tree).
+- **History/undo = git log + `git revert`.** The three hand-rolled systems (`DocumentVersion`, `DocumentRevision`/`FolderRevision`+`revert_service`) are **deleted**.
+- **Engine = dulwich** (pure Python, deploy-friendly in Docker, real wire protocol for future remotes). Shell out to `git` only for heavy maintenance (`gc`/repack).
+- **Per-workspace write lock** is mandatory (git is single-writer) — a data-integrity boundary, not a feature.
+- **Rollout behind a feature flag**, per-workspace; no big-bang cutover.
+
+## References we are borrowing from (not inventing)
+
+Every decision traces to a proven source (full list + links in the ADR):
+
+| Decision | Borrowed from |
+|---|---|
+| Git = truth, Postgres = rebuildable cache | **Fossil SCM** (`fossil rebuild`, production since 2007) |
+| Content in git, metadata/index in a DB | **Gollum** (GitHub/GitLab wikis), **kherad** |
+| Silent commit-per-save, hide git from users | **kherad** |
+| Embeddings keyed by blob SHA, incremental | **Coregit** + vector-index-as-cache best practices (LangChain RecordManager / LlamaIndex docstore) |
+| Python git engine | **dulwich** |
+| "Don't put a firehose in git" | "Git is not a database" critiques (validates keeping live connectors out) |
+| Reject two-way DB↔git sync | **Wiki.js** counter-example (requarks/wiki #7860 silent-sync bug) |
+
