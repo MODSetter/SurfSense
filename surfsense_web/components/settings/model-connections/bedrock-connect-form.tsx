@@ -113,7 +113,7 @@ export function BedrockConnectForm({ onDraftChange }: ProviderConnectFormProps) 
 				</p>
 			) : null}
 			<p className="text-xs text-muted-foreground">
-				Add Bedrock model IDs from the provider&apos;s settings after connecting.
+				After entering credentials, refresh models to discover the Bedrock catalog for this region.
 			</p>
 		</div>
 	);
