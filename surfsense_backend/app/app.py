@@ -51,8 +51,7 @@ from app.gateway.inbox_worker import (
     start_gateway_inbox_worker,
     stop_gateway_inbox_worker,
 )
-from app.observability import analytics as ph_analytics
-from app.observability import metrics as ot_metrics
+from app.observability import analytics as ph_analytics, metrics as ot_metrics
 from app.observability.bootstrap import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
@@ -843,11 +842,7 @@ class PatApiAnalyticsMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         with contextlib.suppress(Exception):
             ctx = getattr(request.state, "auth_context", None)
-            if (
-                ctx is not None
-                and ctx.method == "pat"
-                and ph_analytics.is_enabled()
-            ):
+            if ctx is not None and ctx.method == "pat" and ph_analytics.is_enabled():
                 # Use the route *template* (e.g. /documents/{id}) to keep the
                 # ``route`` property low-cardinality; fall back to the raw path.
                 route = request.scope.get("route")

@@ -132,7 +132,9 @@ def _breadcrumbs(product: dict[str, Any]) -> list[str]:
     path = dig(product, "category", "path")
     if not isinstance(path, list):
         return []
-    return [node["name"] for node in path if isinstance(node, dict) and node.get("name")]
+    return [
+        node["name"] for node in path if isinstance(node, dict) and node.get("name")
+    ]
 
 
 def _reviews_sample(

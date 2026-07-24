@@ -105,9 +105,7 @@ def capture_chat_turn_completed(
     groups = {"workspace": str(workspace_id)}
 
     if auth_context is not None:
-        analytics.capture_for(
-            auth_context, "chat_turn_completed", props, groups=groups
-        )
+        analytics.capture_for(auth_context, "chat_turn_completed", props, groups=groups)
     else:
         analytics.capture(
             "chat_turn_completed",

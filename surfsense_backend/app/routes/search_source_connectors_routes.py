@@ -45,8 +45,11 @@ from app.db import (
     get_async_session,
 )
 from app.notifications.service import NotificationService
-from app.observability import analytics as ph_analytics
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability import (
+    analytics as ph_analytics,
+    metrics as ot_metrics,
+    otel as ot,
+)
 from app.schemas import (
     GoogleDriveIndexRequest,
     MCPConnectorCreate,

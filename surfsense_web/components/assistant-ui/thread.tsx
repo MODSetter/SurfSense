@@ -152,15 +152,10 @@ interface ThreadProps {
 }
 
 export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
-	return (
-		<ThreadContent hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />
-	);
+	return <ThreadContent hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />;
 };
 
-const ThreadContent: FC<ThreadProps> = ({
-	hasActiveThread = false,
-	isLoadingMessages = false,
-}) => {
+const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"

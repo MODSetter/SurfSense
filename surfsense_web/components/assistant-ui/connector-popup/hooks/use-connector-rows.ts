@@ -61,7 +61,8 @@ export function useConnectorRows(connectors: SearchSourceConnector[]) {
 		return groupConnectorsByType(connectors).map((row) => {
 			const ids = row.connectors.map((c) => c.id);
 			const syncing = ids.some(
-				(id) => indexingConnectorIds.has(id) || statusByConnectorId.get(id)?.status === "in_progress"
+				(id) =>
+					indexingConnectorIds.has(id) || statusByConnectorId.get(id)?.status === "in_progress"
 			);
 			const failedEntry = syncing
 				? undefined

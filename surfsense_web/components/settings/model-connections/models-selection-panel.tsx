@@ -100,9 +100,7 @@ export function ModelsSelectionPanel({
 								variant="secondary"
 								size="sm"
 								className={`h-7 rounded-full px-3 text-xs ${
-									isActive
-										? "bg-brand text-white hover:bg-brand/90"
-										: "opacity-80"
+									isActive ? "bg-brand text-white hover:bg-brand/90" : "opacity-80"
 								}`}
 								onClick={() => setModelFilter(isActive ? null : filter.key)}
 							>

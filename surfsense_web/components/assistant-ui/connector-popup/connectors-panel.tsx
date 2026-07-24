@@ -29,8 +29,8 @@ import {
 	getConnectorTitle,
 	OAUTH_CONNECTORS,
 } from "./constants/connector-constants";
-import { type ConnectorRow, useConnectorRows } from "./hooks/use-connector-rows";
 import { useConnectorDialog } from "./hooks/use-connector-dialog";
+import { type ConnectorRow, useConnectorRows } from "./hooks/use-connector-rows";
 import { AllConnectorsTab } from "./tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./views/youtube-crawler-view";
@@ -115,7 +115,9 @@ export function ConnectorsSection() {
 	} = useConnectorsSync(workspaceId);
 
 	const useSyncData = connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
-	const connectors = (useSyncData ? connectorsFromSync : allConnectors || []) as SearchSourceConnector[];
+	const connectors = (
+		useSyncData ? connectorsFromSync : allConnectors || []
+	) as SearchSourceConnector[];
 
 	const refreshConnectors = async () => {
 		if (useSyncData) {
@@ -174,9 +176,7 @@ export function ConnectorsSection() {
 					onManage={handleStartEdit}
 					onAddAccount={() => {
 						const oauthConnector =
-							OAUTH_CONNECTORS.find(
-								(c) => c.connectorType === viewingAccountsType.connectorType
-							) ||
+							OAUTH_CONNECTORS.find((c) => c.connectorType === viewingAccountsType.connectorType) ||
 							COMPOSIO_CONNECTORS.find(
 								(c) => c.connectorType === viewingAccountsType.connectorType
 							);

@@ -266,11 +266,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 			{/* Scrollable Content */}
 			<div className="flex-1 min-h-0 relative overflow-hidden">
-				<div
-					ref={scrollContainerRef}
-					className="h-full overflow-y-auto"
-					onScroll={handleScroll}
-				>
+				<div ref={scrollContainerRef} className="h-full overflow-y-auto" onScroll={handleScroll}>
 					<div className="space-y-6 pb-6 pt-2">
 						{/* Connector-specific configuration */}
 						{ConnectorConfigComponent && (

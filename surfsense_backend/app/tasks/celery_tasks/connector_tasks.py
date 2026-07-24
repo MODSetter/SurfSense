@@ -9,8 +9,11 @@ from collections.abc import Awaitable, Callable
 from celery import current_task
 
 from app.celery_app import celery_app
-from app.observability import analytics as ph_analytics
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability import (
+    analytics as ph_analytics,
+    metrics as ot_metrics,
+    otel as ot,
+)
 from app.tasks.celery_tasks import (
     get_celery_session_maker,
     run_async_celery_task as _run_async_celery_task,

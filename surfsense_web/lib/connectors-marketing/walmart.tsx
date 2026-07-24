@@ -131,7 +131,8 @@ export const walmart: ConnectorPageContent = {
 			{
 				feature: "Reviews",
 				official: "A separate paid endpoint, often capped shallow",
-				surfsense: "A dedicated verb pages the full public review history with photos and seller replies",
+				surfsense:
+					"A dedicated verb pages the full public review history with photos and seller replies",
 			},
 			{
 				feature: "Data access",

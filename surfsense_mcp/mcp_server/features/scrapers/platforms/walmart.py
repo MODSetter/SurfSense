@@ -42,7 +42,9 @@ def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -
         ] = None,
         max_items: Annotated[
             int,
-            Field(ge=1, le=100, description="Max products per search term or listing URL."),
+            Field(
+                ge=1, le=100, description="Max products per search term or listing URL."
+            ),
         ] = 10,
         include_details: Annotated[
             bool,

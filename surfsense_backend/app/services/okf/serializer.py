@@ -49,7 +49,11 @@ def build_frontmatter(document: Document) -> dict[str, Any]:
     Only ``type`` is required; recommended keys are included only when we have a
     value. Insertion order is preserved in the emitted YAML.
     """
-    metadata = document.document_metadata if isinstance(document.document_metadata, dict) else {}
+    metadata = (
+        document.document_metadata
+        if isinstance(document.document_metadata, dict)
+        else {}
+    )
 
     frontmatter: dict[str, Any] = {"type": okf_type(document.document_type)}
 

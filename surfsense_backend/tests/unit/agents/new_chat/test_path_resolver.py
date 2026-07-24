@@ -85,9 +85,7 @@ class TestConceptIdentityRoundTrip:
 
     def test_folder_nested_document_roundtrips(self):
         index = PathIndex(folder_paths={5: f"{DOCUMENTS_ROOT}/Research/AI"})
-        path = doc_to_virtual_path(
-            doc_id=2, title="My Note", folder_id=5, index=index
-        )
+        path = doc_to_virtual_path(doc_id=2, title="My Note", folder_id=5, index=index)
         assert path == f"{DOCUMENTS_ROOT}/Research/AI/My Note.xml"
         folder_parts, title = parse_documents_path(path)
         assert folder_parts == ["Research", "AI"]
@@ -97,9 +95,7 @@ class TestConceptIdentityRoundTrip:
         # Second doc with the same title gets a " (<id>)" suffix; parsing the
         # path must strip the disambiguator and recover the original title.
         index = PathIndex(occupants={f"{DOCUMENTS_ROOT}/Hello.xml": 7})
-        path = doc_to_virtual_path(
-            doc_id=8, title="Hello", folder_id=None, index=index
-        )
+        path = doc_to_virtual_path(doc_id=8, title="Hello", folder_id=None, index=index)
         assert path == f"{DOCUMENTS_ROOT}/Hello (8).xml"
         folder_parts, title = parse_documents_path(path)
         assert folder_parts == []

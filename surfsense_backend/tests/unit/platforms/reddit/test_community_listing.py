@@ -47,7 +47,9 @@ async def test_community_only_scrapes_listing(monkeypatch):
     assert [i["id"] for i in items] == ["movies", "movies-p1"]
 
 
-@pytest.mark.parametrize("raw", ["movies", "r/movies", "/r/movies/", " movies ", "R/movies"])
+@pytest.mark.parametrize(
+    "raw", ["movies", "r/movies", "/r/movies/", " movies ", "R/movies"]
+)
 async def test_community_name_normalized(monkeypatch, raw):
     seen: list[str] = []
     monkeypatch.setattr(scraper, "_subreddit_flow", _fake_subreddit_flow(seen))

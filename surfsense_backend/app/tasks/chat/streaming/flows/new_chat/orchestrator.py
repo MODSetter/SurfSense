@@ -68,6 +68,10 @@ from app.tasks.chat.streaming.flows.new_chat.title_gen import (
     maybe_emit_title_update,
     spawn_title_task,
 )
+from app.tasks.chat.streaming.flows.shared.analytics import (
+    build_llm_callback_handler,
+    capture_chat_turn_completed,
+)
 from app.tasks.chat.streaming.flows.shared.assistant_finalize import (
     finalize_assistant_message,
 )
@@ -96,10 +100,6 @@ from app.tasks.chat.streaming.flows.shared.rate_limit_recovery import (
     can_recover_provider_rate_limit,
     log_rate_limit_recovered,
     reroute_to_next_auto_pin,
-)
-from app.tasks.chat.streaming.flows.shared.analytics import (
-    build_llm_callback_handler,
-    capture_chat_turn_completed,
 )
 from app.tasks.chat.streaming.flows.shared.span import (
     close_chat_request_span,

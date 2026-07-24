@@ -75,9 +75,7 @@ async def step1_search(sess, state: dict) -> bool:
     )
     for it in items[:5]:
         print(f"    - {it.get('jobKey')} | {it.get('title')} @ {it.get('company')}")
-    state["job_url"] = next(
-        (it["jobUrl"] for it in items if it.get("jobUrl")), None
-    )
+    state["job_url"] = next((it["jobUrl"] for it in items if it.get("jobUrl")), None)
     return _check("search returned jobs", len(items) > 0, f"{len(items)} jobs")
 
 

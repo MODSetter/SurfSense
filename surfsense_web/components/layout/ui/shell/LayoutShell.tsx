@@ -7,9 +7,9 @@ import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
+import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { cn } from "@/lib/utils";
 import { SidebarProvider, useSidebarState } from "../../hooks";
 import {

@@ -65,7 +65,8 @@ export const indeed: ConnectorPageContent = {
 		},
 		{
 			label: "Location",
-			description: "Formatted location, city, state, postal code, country, and remote or hybrid flags.",
+			description:
+				"Formatted location, city, state, postal code, country, and remote or hybrid flags.",
 		},
 		{
 			label: "Salary",
@@ -157,8 +158,7 @@ export const indeed: ConnectorPageContent = {
 	},
 
 	schema: {
-		requestNote:
-			"Provide at least one source: urls or search_queries. Up to 20 sources per call.",
+		requestNote: "Provide at least one source: urls or search_queries. Up to 20 sources per call.",
 		request: [
 			{
 				name: "urls",

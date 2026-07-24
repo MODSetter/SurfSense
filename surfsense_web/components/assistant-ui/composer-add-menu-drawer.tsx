@@ -74,7 +74,8 @@ type Screen =
 	| { kind: "tools" }
 	| { kind: "toolGroup"; label: string };
 
-const ROW = "flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-accent hover:text-accent-foreground transition-colors";
+const ROW =
+	"flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-accent hover:text-accent-foreground transition-colors";
 
 export function ComposerAddMenuDrawer({
 	trigger,
@@ -156,11 +157,7 @@ export function ComposerAddMenuDrawer({
 						<Upload className="size-4 shrink-0 text-muted-foreground" />
 						<span className="flex-1 text-left">Upload Files</span>
 					</button>
-					<button
-						type="button"
-						className={ROW}
-						onClick={() => push({ kind: "connectors" })}
-					>
+					<button type="button" className={ROW} onClick={() => push({ kind: "connectors" })}>
 						<Unplug className="size-4 shrink-0 text-muted-foreground" />
 						<span className="flex-1 text-left">MCP Connectors</span>
 						<ChevronRight className="size-4 shrink-0 text-muted-foreground" />

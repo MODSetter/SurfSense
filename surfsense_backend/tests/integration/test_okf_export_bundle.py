@@ -52,12 +52,20 @@ async def test_export_bundle_is_okf_conformant(
     await db_session.flush()
 
     await _add_doc(
-        db_session, workspace=db_workspace, user=db_user,
-        title="Root Note", folder_id=None, uid="okf-export-root",
+        db_session,
+        workspace=db_workspace,
+        user=db_user,
+        title="Root Note",
+        folder_id=None,
+        uid="okf-export-root",
     )
     await _add_doc(
-        db_session, workspace=db_workspace, user=db_user,
-        title="Nested Note", folder_id=folder.id, uid="okf-export-nested",
+        db_session,
+        workspace=db_workspace,
+        user=db_user,
+        title="Nested Note",
+        folder_id=folder.id,
+        uid="okf-export-nested",
     )
 
     result = await build_export_zip(db_session, db_workspace.id)

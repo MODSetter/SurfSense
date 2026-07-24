@@ -14,16 +14,16 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import config
-from app.observability import analytics as ph_analytics
-from app.tasks.chat.streaming.flows.shared.analytics import (
-    build_llm_callback_handler,
-)
 from app.etl_pipeline.file_classifier import (
     DIRECT_CONVERT_EXTENSIONS,
     PLAINTEXT_EXTENSIONS,
 )
+from app.observability import analytics as ph_analytics
 from app.rate_limiter import limiter
 from app.tasks.chat.streaming.errors.classifier import classify_stream_exception
+from app.tasks.chat.streaming.flows.shared.analytics import (
+    build_llm_callback_handler,
+)
 
 logger = logging.getLogger(__name__)
 
