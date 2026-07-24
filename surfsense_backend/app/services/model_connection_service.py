@@ -93,6 +93,16 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
         raw,
     )
 
+    if status_code == 400:
+        if "api key" in normalized:
+            return VerifyResult(
+                "AUTH_FAILED",
+                False,
+                f"Authentication failed. Check your {provider_name} credentials and try again.",
+            )
+        
+
+
     if status_code in (401, 403) or "authentication" in exc_name or "401" in normalized:
         return VerifyResult(
             "AUTH_FAILED",
@@ -114,7 +124,7 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
         return VerifyResult(
             "RATE_LIMITED",
             False,
-            f"{provider_name} rate limited the model test. Try again later.",
+            f"{provider_name} rate limited the model test. Try again later or check your provider for possible insufficient quotas or unavailable model.",
         )
 
     if "timeout" in exc_name or "timed out" in normalized:
