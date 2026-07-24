@@ -76,3 +76,56 @@ Every decision traces to a proven source (full list + links in the ADR):
 | "Don't put a firehose in git" | "Git is not a database" critiques (validates keeping live connectors out) |
 | Reject two-way DB↔git sync | **Wiki.js** counter-example (requarks/wiki #7860 silent-sync bug) |
 
+## Backend phases (active — this umbrella)
+
+### Phase 1 — Git storage core [`subplan: 01-git-storage-core.md`]
+
+> **PLANNED. Build first** — every later phase uses it.
+
+- Add **dulwich**; a `GitRepoService` that opens/creates a **bare-ish repo per workspace** on disk (path derived from workspace id, alongside the existing blob store root).
+- Primitives: `read_file`, `write_file`, `list_tree`, `move`, `remove`, `commit(message, author)`, `log`, `read_at(commit)`, `revert`.
+- **Per-workspace lock/queue** around all writes (single-writer safety). `ponytail:` mark the lock ceiling (global per-repo lock; upgrade path = queue/worker).
+- Key files (new): `surfsense_backend/app/kb_git/` (service, lock, paths). No agent wiring yet.
+- Tests: create repo → write/commit → log shows commit → read_at(prev) returns old content → revert works; concurrent writes serialize under the lock.
+
+### Phase 2 — Git-working-tree backend [`subplan: 02-git-working-tree-backend.md`]
+
+> **PLANNED. Build after 01.** Replaces the read-side fake.
+
+- New backend implementing the deepagents `BackendProtocol` (`als_info`/`aread`/`awrite`/`aedit`/`aglob_info`/`agrep_raw`/`alist_tree_listing`) over the **real git working tree** instead of `KBPostgresBackend`.
+- Wire into the backend resolver (`.../filesystem/backends/resolver.py`) for cloud mode behind the feature flag.
+- **Retire the virtual-FS façade** (`path_resolver.py`, `kb_postgres.py`) for flagged workspaces — paths become real paths.
+- Tests: agent `ls`/`read`/`glob`/`grep` return real files identical to the previous fake for a seeded repo.
+
+### Phase 3 — Commit-per-turn write path [`subplan: 03-commit-write-path.md`]
+
+> **PLANNED. Build after 02.** Depends on 01's `commit`.
+
+- Replace `KnowledgeBasePersistenceMiddleware`'s "commit staged ops to Postgres" with **stage in working tree → one `git commit` at end of turn** (author = user/agent).
+- Editor saves and upload-extracted markdown route through the same commit path (one write path for all indexed content).
+- Tests: an agent turn with N edits produces exactly **one** commit; editor save produces one commit; commit author/message correct.
+
+### Phase 4 — Derived index + reindex [`subplan: 04-derived-index.md`]
+
+> **PLANNED. Can build alongside 03** (both consume 01's `commit`/`log`).
+
+- Post-commit indexer: **diff the commit tree**, re-chunk + re-embed **only changed blobs**, keying embeddings by **blob SHA** (point the existing `chunk_reconciler.py` at blob SHA). `web`/live paths untouched.
+- One idempotent **`reindex(workspace)`** that wipes and rebuilds all chunks/embeddings from the current git HEAD (the Fossil `rebuild` discipline).
+- **Delete** `document_versioning.py`, `revert_service.py`, `DocumentRevision`/`FolderRevision` (migration to drop tables) — history now = git.
+- Tests: change one file → only its chunks re-embed (unchanged blob SHAs reuse vectors); `reindex()` reproduces identical chunk set; search results unchanged vs. baseline.
+
+### Phase 5 — Migration [`subplan: 05-migration.md`]
+
+> **PLANNED. After 01–04.** One-time, per-workspace, flagged.
+
+- Export each existing workspace's Postgres documents/folders → an initial git repo (one seed commit), preserving `unique_identifier_hash` mapping.
+- Verify round-trip: seeded repo → `reindex()` → chunk set matches pre-migration search behavior.
+- Rollback = keep Postgres content until the flagged workspace is verified.
+
+### Phase 6 — Zero / real-time projection [`subplan: 06-zero-projection.md`]
+
+> **PLANNED. The one net-new integration cost.** Depends on 03/04.
+
+- The web UI is driven by Zero (Postgres logical replication, `zero_publication.py`). Git is not a real-time source, so add a **git → Postgres projection** that keeps the Zero-published `documents`/`folders` rows in sync after each commit (thin metadata rows, not content-authoritative).
+- Decide: reuse the indexer's post-commit hook to upsert Zero rows vs. a separate projector.
+- Tests: after a commit, the Zero-published rows reflect the new tree within the projection cycle; deleting a file removes its row.
