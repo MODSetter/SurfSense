@@ -9,9 +9,9 @@ A `GitRepoService` that owns one Git repository per workspace on disk and expose
 
 ## Locked model
 
-- **One repo per workspace.** Repo path derived from `workspace_id`, rooted alongside the existing blob store (`FILE_STORAGE_LOCAL_PATH` sibling, e.g. `{BASE_DIR}/.kb_git/{workspace_id}`).
+- **One repo per workspace**, persistent working tree, at `{FILE_STORAGE_LOCAL_PATH parent}/.kb_git/{workspace_id}` (see [`00c-shared-contract.md`](00c-shared-contract.md) C1 for the exact layout + filename rules — reuse `path_resolver`'s `safe_filename`/`safe_folder_segment`, keep `.xml`).
 - **Markdown/text only** in git; binaries stay in the blob store (Phase-agnostic; see umbrella).
-- **Single-writer per repo.** All mutating ops go through a per-workspace lock. `ponytail:` v1 ceiling = one in-process asyncio lock per workspace (upgrade path = Redis lock for multi-worker, see Open questions).
+- **Single-writer per repo via a Redis lock** keyed `kb_git:lock:{workspace_id}` — mandatory from v1, **not** an in-process `asyncio.Lock`. The backend runs as multiple OS processes (uvicorn workers + Celery workers), so an in-process lock gives false safety; Redis is already deployed. `ponytail:` v1 ceiling = one Redis lock held per commit; upgrade path = per-workspace write queue. Full rationale: [`00c-shared-contract.md`](00c-shared-contract.md) C3.
 - **dulwich for the hot path**, shell out to `git gc`/repack only for periodic maintenance (not in v1).
 
 ## Work items
@@ -24,7 +24,7 @@ A `GitRepoService` that owns one Git repository per workspace on disk and expose
      - `read_file(path)`, `write_file(path, content)`, `list_tree(prefix)`, `move(src, dst)`, `remove(path)`.
      - `commit(message, author) -> sha`, `log(path=None)`, `read_at(sha, path)`, `revert(sha)`.
      - `blob_sha(path)` (content-addressed id, consumed by Phase 4).
-   - `lock.py` — `workspace_lock(workspace_id)` async context manager (per-workspace).
+   - `lock.py` — `workspace_lock(workspace_id)` async context manager over the Redis lock (C3).
 3. Config flag `KB_GIT_ENABLED` (off by default) + repo root setting.
 
 ## Tests
@@ -33,15 +33,19 @@ A `GitRepoService` that owns one Git repository per workspace on disk and expose
 - write → `commit` → `log` shows the commit; `read_file` returns content; `read_at(prev)` returns the pre-commit content.
 - `move`/`remove` reflected in `list_tree`; `revert(sha)` restores prior state.
 - `blob_sha` is stable for identical content and differs after an edit.
-- Two concurrent `commit`s on the same workspace **serialize** under the lock (no corruption); different workspaces do not block each other.
+- Two concurrent `commit`s on the same workspace **serialize** under the Redis lock (no corruption); different workspaces do not block each other. Cover cross-process contention, not just async tasks.
 
 ## Out of scope
 
 - Agent/backend wiring → Phase 2. Commit-on-turn → Phase 3. Indexing → Phase 4.
 - Remotes (push/pull), Git-LFS, `gc`/repack scheduling — deferred (umbrella).
 
+## Resolved (see [`00c-shared-contract.md`](00c-shared-contract.md))
+
+- **Lock:** Redis lock, from v1 (C3) — deploy topology is multi-process, so in-process locks are out.
+- **Repo model:** persistent working tree per workspace (C1).
+- **Repo root:** `{blob store parent}/.kb_git/{workspace_id}` (C1); backup/retention folds into existing blob-store backup.
+
 ## Open questions
 
-1. Lock granularity: in-process asyncio lock (v1) vs. Redis lock (multi-worker deploys). Confirm deploy topology.
-2. Persistent working tree per workspace vs. bare repo + ephemeral checkout per operation (disk vs. speed trade-off).
-3. Repo root location relative to blob store + backup/retention implications.
+1. `gc`/repack scheduling threshold (deferred to a later ops pass, not v1).
