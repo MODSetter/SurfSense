@@ -22,7 +22,7 @@
 
 # SurfSense: ओपन वेब रिसर्च के लिए ओपन सोर्स NotebookLM विकल्प
 
-SurfSense **AI एजेंट्स के लिए ओपन सोर्स NotebookLM विकल्प** है, लाइव डेटा कनेक्टर्स के साथ एक ओपन वेब रिसर्च प्लेटफ़ॉर्म। आपके एजेंट **Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, Indeed और ओपन वेब के किसी भी पेज** से स्ट्रक्चर्ड डेटा के साथ लाइव वेब पर रिसर्च करते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
+SurfSense **AI एजेंट्स के लिए ओपन सोर्स NotebookLM विकल्प** है, लाइव डेटा कनेक्टर्स के साथ एक ओपन वेब रिसर्च प्लेटफ़ॉर्म। आपके एजेंट **Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, Indeed और ओपन वेब के किसी भी पेज** से स्ट्रक्चर्ड डेटा के साथ लाइव वेब पर रिसर्च करते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
 
 > [!NOTE]
 > **📢 हमारे NotebookLM-विकल्प उपयोगकर्ताओं के लिए एक सूचना**
@@ -62,6 +62,7 @@ SurfSense **AI एजेंट्स के लिए ओपन सोर्स 
 | **Google Search** | सर्च रिसर्च और मॉनिटरिंग के लिए लाइव SERP | [Google Search API](https://www.surfsense.com/google-search) |
 | **Indeed** | सार्वजनिक नौकरी लिस्टिंग, सैलरी और पूरे विवरण के साथ, सर्च या कंपनी के अनुसार | [Indeed Scraper API](https://www.surfsense.com/indeed) |
 | **Amazon** | सार्वजनिक प्रोडक्ट डेटा: कीमतें, रेटिंग, ऑफ़र, विक्रेता और बेस्ट-सेलर रैंक | [Amazon Product API](https://www.surfsense.com/amazon) |
+| **Walmart** | सार्वजनिक प्रोडक्ट डेटा और पूरा रिव्यू इतिहास: कीमतें, रेटिंग, विक्रेता और वेरिएंट | [Walmart Product & Review API](https://www.surfsense.com/walmart) |
 | **Web Crawl** | ओपन वेब का कोई भी पेज साफ़-सुथरे, स्ट्रक्चर्ड कंटेंट के रूप में | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **External MCP Connectors** | कोई भी MCP सर्वर अपने एजेंट्स से जोड़ें, Notion, Slack, Jira और अन्य के लिए वन-क्लिक OAuth के साथ | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
@@ -218,7 +219,7 @@ SurfSense एकमात्र ओपन सोर्स प्रोडक्�
 
 | फ़ीचर | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **एजेंट्स के लिए लाइव वेब डेटा** | नहीं | REST API और MCP के ज़रिए Reddit, YouTube, Instagram, TikTok, Amazon, Google Maps, Google Search, Indeed और वेब क्रॉल कनेक्टर |
+| **एजेंट्स के लिए लाइव वेब डेटा** | नहीं | REST API और MCP के ज़रिए Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, Indeed और वेब क्रॉल कनेक्टर |
 | **MCP सर्वर** | नहीं | हर कनेक्टर नेटिव एजेंट टूल के रूप में उपलब्ध, साथ ही वन-क्लिक OAuth ऐप्स के साथ अपने MCP सर्वर लाने की सुविधा |
 | **प्रति नोटबुक स्रोत** | 50 (Free) से 600 (Ultra, $249.99/माह) | असीमित |
 | **नोटबुक की संख्या** | 100 (Free) से 500 (सशुल्क टियर) | असीमित |
