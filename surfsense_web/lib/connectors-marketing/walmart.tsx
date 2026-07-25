@@ -7,25 +7,25 @@ export const walmart: ConnectorPageContent = {
 	cardTitle: "Walmart Product & Review API",
 	icon: IconBrandWalmart,
 
-	metaTitle: "Walmart Product & Review API | SurfSense",
+	metaTitle: "Walmart API for Product & Review Data | SurfSense",
 	metaDescription:
-		"Scrape public Walmart product data and deep customer reviews as structured JSON: prices, ratings, sellers, variants, availability, and full review history. Start free.",
+		"Scrape public Walmart product and review data with the SurfSense Walmart API: prices, ratings, sellers, variants, and full review history as JSON. Start free.",
 	keywords: [
+		"walmart api",
 		"walmart product api",
+		"walmart scraper",
 		"walmart scraper api",
 		"walmart review scraper",
 		"walmart reviews api",
-		"scrape walmart product data",
-		"walmart price scraper",
-		"walmart product data api",
+		"walmart price api",
 		"walmart price tracking api",
-		"walmart competitor monitoring",
-		"walmart seller data",
 		"walmart marketplace api",
-		"ecommerce product api",
+		"scrape walmart product data",
+		"walmart seller data",
+		"walmart competitor monitoring",
 	],
 
-	h1: "Walmart Product and Review API",
+	h1: "Walmart API for Product and Review Data",
 	heroLede:
 		"The SurfSense Walmart API scrapes public Walmart.com listings as structured JSON: price and list price, rating and review count, availability, 1P and marketplace sellers, variants, and specifications. A second verb pages the full public review history — ratings, text, authors, verified-purchase flags, images, and seller responses. Point your AI agents at a search term or product URL — no login, only public data.",
 
@@ -240,6 +240,16 @@ export const walmart: ConnectorPageContent = {
 			question: "What is the Walmart product API?",
 			answer:
 				"It returns a Walmart listing's data as structured JSON instead of raw HTML. The SurfSense Walmart API scrapes public product pages and gives you price, rating, seller, variants, availability, and specifications as clean JSON your agents can read.",
+		},
+		{
+			question: "Does Walmart have an API?",
+			answer:
+				"Walmart's official APIs — Marketplace and Walmart Connect — are for approved sellers and advertisers, and neither exposes public product or review data at scale. The SurfSense Walmart API is an independent alternative: one key, no seller account, and structured public product and review JSON back.",
+		},
+		{
+			question: "Can I track Walmart prices with it?",
+			answer:
+				"Yes. Each product returns its current price, list price, availability, and the seller behind the offer. Run the same URLs or search terms on a schedule and diff the results to build Walmart price tracking and buy-box alerts without maintaining scrapers or proxies yourself.",
 		},
 		{
 			question: "Can I get the full Walmart review history?",

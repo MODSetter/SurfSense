@@ -9,20 +9,22 @@ export const amazon: ConnectorPageContent = {
 
 	metaTitle: "Amazon Product API for Price and Review Data | SurfSense",
 	metaDescription:
-		"Scrape public Amazon product data as structured JSON across US, UK, Germany, Italy, and Spain: prices, ratings, offers, sellers, and ranks. Start free.",
+		"Amazon Product API: scrape public product data as JSON across US, UK, Germany, Italy, and Spain — prices, ratings, offers, sellers, and ranks. Start free.",
 	keywords: [
 		"amazon product api",
 		"amazon scraper api",
+		"amazon scraper",
+		"amazon price api",
 		"amazon price scraper",
-		"scrape amazon product data",
-		"amazon product data api",
 		"amazon review scraper",
-		"amazon best sellers api",
+		"amazon reviews api",
+		"scrape amazon reviews",
+		"scrape amazon product data",
 		"amazon asin lookup",
+		"amazon search api",
+		"amazon product advertising api alternative",
+		"amazon best sellers api",
 		"amazon price tracking api",
-		"amazon competitor monitoring",
-		"amazon offers scraper",
-		"ecommerce product api",
 	],
 
 	h1: "Amazon Product API for Price, Review, and Offer Data",
@@ -115,7 +117,7 @@ export const amazon: ConnectorPageContent = {
 	comparison: {
 		heading: "An Amazon scraper API built for agents",
 		intro:
-			"Most Amazon data APIs bill per request, meter add-ons separately, and leave the discovery-to-detail logic to you. Here is how SurfSense compares.",
+			"Amazon's official Product Advertising API requires an approved Associates account with qualifying sales, and most third-party Amazon data APIs bill per request, meter add-ons separately, and leave the discovery-to-detail logic to you. Here is how SurfSense compares.",
 		columnLabel: "Typical Amazon data API",
 		rows: [
 			{
@@ -298,9 +300,19 @@ export const amazon: ConnectorPageContent = {
 				"It does. The scraper collects public, anonymous product data only — no login, seller account, or authenticated APIs. That covers product details, ratings, on-page reviews, offers, public seller profiles, and best-seller rankings.",
 		},
 		{
-			question: "How do I look up a product by ASIN or search term?",
+			question: "How do I do an Amazon ASIN lookup?",
 			answer:
-				"Pass a product URL (which contains the ASIN) in urls, or a phrase in search_terms to discover products on the domain. You can also pass search, category, and best-seller URLs. One verb, amazon.scrape, handles all of them.",
+				"Pass a product URL (which contains the ASIN) in urls, or a phrase in search_terms to discover products on the domain. You can also pass search, category, and best-seller URLs. One verb, amazon.scrape, handles ASIN lookup and discovery alike.",
+		},
+		{
+			question: "Can I scrape Amazon reviews?",
+			answer:
+				"Yes. Each product returns its star rating, total review count, the 5-to-1-star histogram, and the on-page customer reviews with text, author, and date. To scrape Amazon reviews at scale, pass product URLs or search terms and read productPageReviews from each item.",
+		},
+		{
+			question: "Is this an alternative to the Amazon Product Advertising API?",
+			answer:
+				"Yes, for public catalog data. Amazon's Product Advertising API requires an approved Associates account with ongoing qualifying sales and is built for affiliate linking. SurfSense needs no Amazon account: it scrapes public listings and returns prices, ratings, offers, sellers, and ranks as JSON.",
 		},
 		{
 			question: "Which Amazon marketplaces are supported?",
@@ -310,6 +322,7 @@ export const amazon: ConnectorPageContent = {
 	],
 
 	related: [
+		{ label: "Walmart Product & Review API", href: "/walmart" },
 		{ label: "Google Search API", href: "/google-search" },
 		{ label: "Google Maps API", href: "/google-maps" },
 		{ label: "Web Crawl API", href: "/web-crawl" },
