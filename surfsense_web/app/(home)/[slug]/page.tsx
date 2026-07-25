@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 					url: "/og-image.png",
 					width: 1200,
 					height: 630,
-					alt: `${content.name} Scraper API on SurfSense`,
+					alt: `${content.cardTitle ?? `${content.name} API`} on SurfSense`,
 				},
 			],
 		},
@@ -64,7 +64,7 @@ export default async function ConnectorMarketingPage({ params }: PageProps) {
 				data={{
 					"@context": "https://schema.org",
 					"@type": "SoftwareApplication",
-					name: `${content.name} Scraper API`,
+					name: content.cardTitle ?? `${content.name} API`,
 					applicationCategory: "DeveloperApplication",
 					operatingSystem: "Web, API",
 					description: content.metaDescription,

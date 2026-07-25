@@ -22,7 +22,7 @@
 
 # SurfSense：面向开放网络研究的开源 NotebookLM 替代品
 
-SurfSense 是**面向 AI 智能体的开源 NotebookLM 替代品**，一个配备实时数据连接器的开放网络研究平台。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Amazon、Google Maps、Google Search、Indeed 以及开放网络上任意页面**的结构化数据研究实时网络。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
+SurfSense 是**面向 AI 智能体的开源 NotebookLM 替代品**，一个配备实时数据连接器的开放网络研究平台。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Amazon、Walmart、Google Maps、Google Search、Indeed 以及开放网络上任意页面**的结构化数据研究实时网络。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
 
 > [!NOTE]
 > **📢 致我们的 NotebookLM 替代品用户**
@@ -62,6 +62,7 @@ SurfSense 是**面向 AI 智能体的开源 NotebookLM 替代品**，一个配�
 | **Google Search** | 实时搜索结果页，用于搜索研究和监控 | [Google Search API](https://www.surfsense.com/google-search) |
 | **Indeed** | 公开职位信息，含薪资与完整职位描述，按搜索或公司抓取 | [Indeed Scraper API](https://www.surfsense.com/indeed) |
 | **Amazon** | 公开商品数据：价格、评分、报价、卖家和畅销榜排名 | [Amazon Product API](https://www.surfsense.com/amazon) |
+| **Walmart** | 公开商品数据及完整评论历史：价格、评分、卖家和商品变体 | [Walmart Product & Review API](https://www.surfsense.com/walmart) |
 | **Web Crawl** | 把开放网络上的任意页面转为干净、结构化的内容 | [Web Crawling API](https://www.surfsense.com/web-crawl) |
 | **外部 MCP 连接器** | 将任意 MCP 服务器接入你的智能体，Notion、Slack、Jira 等支持一键 OAuth | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
 
@@ -218,7 +219,7 @@ SurfSense 是唯一一款把面向人的 NotebookLM 式研究工作区与面向�
 
 | 功能 | Google NotebookLM | SurfSense |
 |---------|-------------------|-----------|
-| **面向智能体的实时网络数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Amazon、Google Maps、Google Search、Indeed 和网页爬取连接器 |
+| **面向智能体的实时网络数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Amazon、Walmart、Google Maps、Google Search、Indeed 和网页爬取连接器 |
 | **MCP 服务器** | 无 | 每个连接器都作为原生智能体工具暴露，还可自带 MCP 服务器并使用一键 OAuth 应用 |
 | **每个笔记本的来源数** | 50 个（免费版）至 600 个（Ultra 版，249.99 美元/月） | 无限制 |
 | **笔记本数量** | 100 个（免费版）至 500 个（付费档位） | 无限制 |

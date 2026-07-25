@@ -6,27 +6,27 @@ export const indeed: ConnectorPageContent = {
 	name: "Indeed",
 	icon: IconBriefcase,
 
-	metaTitle: "Indeed Scraper API for Jobs and Hiring Data | SurfSense",
+	metaTitle: "Indeed API for Job Postings & Hiring Data | SurfSense",
 	metaDescription:
-		"Scrape public Indeed job postings with the SurfSense Indeed Scraper API: titles, companies, salaries, and full descriptions by search or company. No Indeed API. Start free.",
+		"Scrape public Indeed job postings with the SurfSense Indeed API: titles, companies, salaries, and full descriptions by search query or company page. Start free.",
 	keywords: [
+		"indeed api",
 		"indeed scraper",
 		"indeed scraper api",
-		"indeed api",
 		"indeed jobs api",
-		"scrape indeed",
+		"indeed job search api",
+		"indeed api pricing",
 		"indeed job scraper",
+		"scrape indeed",
+		"indeed web scraping",
 		"job posting scraper",
 		"salary data api",
-		"hiring data api",
-		"indeed mcp",
 		"labor market data",
-		"recruiting data tool",
 	],
 
-	h1: "Indeed Scraper API for Job Postings and Hiring Data",
+	h1: "Indeed API for Job Postings and Hiring Data",
 	heroLede:
-		"The SurfSense Indeed API extracts public job postings, salaries, companies, and full descriptions by search query, company page, or job URL, without Indeed's official API. Give your AI agents a live feed of who is hiring, for what, at what pay, so you track the labor market as it moves.",
+		"The SurfSense Indeed API is an Indeed scraper that extracts public job postings, salaries, companies, and full descriptions by search query, company page, or job URL — no partner approval required. Give your AI agents a live feed of who is hiring, for what, at what pay, so you track the labor market as it moves.",
 
 	transcript: {
 		prompt: "Find remote data analyst roles posted this week and what they pay",
@@ -300,9 +300,14 @@ export const indeed: ConnectorPageContent = {
 				"SurfSense reads only public Indeed job postings, the same listings any logged-out visitor can see. It never logs in and cannot access private or applicant data. As always, review Indeed's terms and your own compliance needs before you run at scale.",
 		},
 		{
-			question: "Does Indeed have an official jobs API?",
+			question: "Does Indeed have an API?",
 			answer:
-				"Indeed retired its public Publisher jobs API and now gates job data behind partner and approval programs. SurfSense is an independent alternative: you call one API, or add the MCP server to your agent, and get structured public postings back.",
+				"Indeed retired its public Publisher jobs API and now gates job data behind partner and approval programs. SurfSense is an independent Indeed API alternative: you call one API, or add the MCP server to your agent, and get structured public postings back.",
+		},
+		{
+			question: "How much does the Indeed API cost?",
+			answer:
+				"SurfSense prices per job returned, not per request or seat, and there is a free tier to start — no partner application or Indeed API pricing negotiation. You control spend with max_items per call, and jobs that fail to return are never billed.",
 		},
 		{
 			question: "Can I get the full job description?",
