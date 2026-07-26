@@ -64,6 +64,36 @@ def test_openai_compatible_resolver_uses_explicit_api_base() -> None:
     assert ensure_v1("http://example.com/v1") == "http://example.com/v1"
 
 
+def test_openai_compatible_resolver_uses_base_url_verbatim() -> None:
+    # A bare host is NOT rewritten to append ``/v1``.
+    _model, kwargs = to_litellm(
+        {
+            "provider": "openai_compatible",
+            "base_url": "https://api.example.com",
+            "api_key": "ex-key",
+            "extra": {},
+        },
+        "some-model",
+    )
+
+    assert kwargs["api_base"] == "https://api.example.com"
+
+
+def test_openai_compatible_resolver_preserves_custom_path() -> None:
+    # Custom (non-/v1) paths survive verbatim, covering the old ``_raw`` case.
+    _model, kwargs = to_litellm(
+        {
+            "provider": "openai_compatible",
+            "base_url": "https://ark.cn-beijing.volces.com/api/v3/",
+            "api_key": "ark-key",
+            "extra": {},
+        },
+        "ep-20260101000000-test",
+    )
+
+    assert kwargs["api_base"] == "https://ark.cn-beijing.volces.com/api/v3"
+
+
 def test_lm_studio_resolver_supplies_dummy_api_key_when_empty() -> None:
     model, kwargs = to_litellm(
         {
