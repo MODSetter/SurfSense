@@ -125,8 +125,13 @@ jobs:
     if: always()
 
     steps:
-      - name: Check all test jobs
+      - name: Debug test results
         run: |
+          echo "=================================="
+          echo "Unit Test Result        : ${{ needs.unit-tests.result }}"
+          echo "Integration Test Result : ${{ needs.integration-tests.result }}"
+          echo "=================================="
+      
           if [[ "${{ needs.unit-tests.result }}" == "failure" ||
                 "${{ needs.integration-tests.result }}" == "failure" ]]; then
             echo "Backend tests failed"
