@@ -15,15 +15,6 @@ if TYPE_CHECKING:
 from app.services.provider_registry import spec_for
 
 
-def ensure_v1(base_url: str | None) -> str | None:
-    if not base_url:
-        return None
-    stripped = base_url.rstrip("/")
-    if stripped.endswith("/v1"):
-        return stripped
-    return f"{stripped}/v1"
-
-
 def strip_version_suffix(base_url: str | None) -> str | None:
     """Drop a trailing ``/v1`` segment from a base URL.
 
@@ -109,7 +100,6 @@ def native_connection_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
 
 
 __all__ = [
-    "ensure_v1",
     "native_connection_from_config",
     "strip_version_suffix",
     "to_litellm",
