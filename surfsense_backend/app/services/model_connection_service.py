@@ -149,7 +149,9 @@ async def verify_connection(conn: Connection) -> VerifyResult:
 
     if spec.transport == Transport.OLLAMA and base_url:
         url = f"{base_url.rstrip('/')}/api/version"
-    elif spec.discovery in {"openai_models", "openrouter", "requesty"} and base_url:
+    elif spec.discovery == "openai_models" and base_url:
+        url = f"{base_url.rstrip('/')}/models"  # verbatim; user owns the path
+    elif spec.discovery in {"openrouter", "requesty"} and base_url:
         url = f"{ensure_v1(base_url)}/models"
     elif spec.discovery == "anthropic_models" and base_url:
         url = f"{base_url.rstrip('/')}/models"
@@ -265,7 +267,7 @@ async def _discover_openai_shaped_models(
     if not resolved_base_url:
         return []
 
-    url = f"{ensure_v1(resolved_base_url)}/models"
+    url = f"{resolved_base_url.rstrip('/')}/models"  # verbatim; user owns the path
     async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
         response = await client.get(url, headers=_auth_headers(conn))
     response.raise_for_status()
