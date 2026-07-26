@@ -260,6 +260,7 @@ async def _default_unset_roles(
 async def list_model_providers(auth: AuthContext = Depends(require_session_context)):
     del auth
     local_only = {"ollama_chat", "lm_studio"}
+    hidden = {"openai_compatible_raw"}  # deprecated; superseded by openai_compatible
     return [
         ModelProviderRead(
             provider=provider,
@@ -271,6 +272,7 @@ async def list_model_providers(auth: AuthContext = Depends(require_session_conte
             local_only=provider in local_only,
         )
         for provider, spec in sorted(REGISTRY.items())
+        if provider not in hidden
     ]
 
 

@@ -59,7 +59,7 @@ Replace `<host>` with the LAN IP or domain for that machine.
 6. Select the models you want to enable.
 7. Save the connection.
 
-SurfSense discovers models from `/v1/models`. If you enter the URL without `/v1`, SurfSense adds it for requests.
+SurfSense discovers models from `/v1/models`. The URL is used exactly as entered, so include `/v1`.
 
 ## Verify
 
@@ -89,4 +89,4 @@ Load a model in LM Studio, then refresh model discovery in SurfSense.
 
 ### Endpoint returned 404
 
-Use an OpenAI compatible server URL. The models endpoint must be available at `/v1/models`.
+Check that your API Base URL includes `/v1`. The URL is used exactly as entered, so a missing `/v1` is the most common cause. The models endpoint must be available at `/v1/models`.

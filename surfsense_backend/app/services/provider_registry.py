@@ -97,6 +97,9 @@ REGISTRY: dict[str, ProviderSpec] = {
         "bearer",
         "OpenAI-compatible provider",
     ),
+    # DEPRECATED: hidden from the catalog; superseded by "openai_compatible"
+    # (now verbatim). Kept so existing connections still resolve. Remove once none
+    # remain (provider='openai_compatible_raw').
     "openai_compatible_raw": ProviderSpec(
         Transport.NATIVE,
         "openai",

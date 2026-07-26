@@ -12,7 +12,7 @@ import httpx
 import litellm
 
 from app.db import Connection, Model, ModelSource
-from app.services.model_resolver import ensure_v1, to_litellm
+from app.services.model_resolver import to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
 from app.services.requesty_model_normalizer import normalize_requesty_models
@@ -151,6 +151,10 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
     )
 
 
+def _openai_compatible_404_hint(url: str) -> str:
+    return f"Got 404 from {url}. Check your API Base URL."
+
+
 async def verify_connection(conn: Connection) -> VerifyResult:
     spec = spec_for(conn.provider)
     base_url = _base_url_or_default(conn)
@@ -160,7 +164,7 @@ async def verify_connection(conn: Connection) -> VerifyResult:
     if spec.transport == Transport.OLLAMA and base_url:
         url = f"{base_url.rstrip('/')}/api/version"
     elif spec.discovery in {"openai_models", "openrouter", "requesty"} and base_url:
-        url = f"{ensure_v1(base_url)}/models"
+        url = f"{base_url.rstrip('/')}/models"  # verbatim; user owns the path
     elif spec.discovery == "anthropic_models" and base_url:
         url = f"{base_url.rstrip('/')}/models"
     else:
@@ -182,9 +186,9 @@ async def verify_connection(conn: Connection) -> VerifyResult:
             if spec.transport == Transport.OLLAMA and url.endswith("/v1/models"):
                 message = "Ollama native API should not use /v1."
             elif spec.transport == Transport.OPENAI_COMPATIBLE:
-                message = "OpenAI-compatible servers should expose /v1/models."
+                message = _openai_compatible_404_hint(url)
             else:
-                message = "Endpoint returned 404."
+                message = f"Endpoint returned 404 for {url}."
             return VerifyResult("NOT_FOUND", False, message)
         response.raise_for_status()
         return VerifyResult("OK", True, "Connection verified.")
@@ -204,9 +208,10 @@ def _discovery_error_message(conn: Connection, exc: httpx.HTTPError) -> str:
             return "Authentication failed while discovering models."
         if status_code == 404:
             spec = spec_for(conn.provider)
+            attempted = str(exc.request.url)
             if spec.transport == Transport.OPENAI_COMPATIBLE:
-                return "OpenAI-compatible servers should expose /v1/models."
-            return "Model discovery endpoint returned 404."
+                return _openai_compatible_404_hint(attempted)
+            return f"Model discovery endpoint returned 404 for {attempted}."
         return f"Model discovery failed with HTTP {status_code}."
     if isinstance(exc, httpx.TimeoutException):
         return f"Model discovery timed out: {exc}"
@@ -275,7 +280,7 @@ async def _discover_openai_shaped_models(
     if not resolved_base_url:
         return []
 
-    url = f"{ensure_v1(resolved_base_url)}/models"
+    url = f"{resolved_base_url.rstrip('/')}/models"  # verbatim; user owns the path
     async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
         response = await client.get(url, headers=_auth_headers(conn))
     response.raise_for_status()
@@ -363,7 +368,7 @@ async def _openrouter_models(conn: Connection) -> list[dict[str, Any]]:
     base_url = _base_url_or_default(conn) or "https://openrouter.ai/api/v1"
     async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
         response = await client.get(
-            f"{ensure_v1(base_url)}/models", headers=_auth_headers(conn)
+            f"{base_url.rstrip('/')}/models", headers=_auth_headers(conn)
         )
     response.raise_for_status()
     return normalize_openrouter_models(response.json().get("data", []))
@@ -373,7 +378,7 @@ async def _requesty_models(conn: Connection) -> list[dict[str, Any]]:
     base_url = _base_url_or_default(conn) or "https://router.requesty.ai/v1"
     async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
         response = await client.get(
-            f"{ensure_v1(base_url)}/models", headers=_auth_headers(conn)
+            f"{base_url.rstrip('/')}/models", headers=_auth_headers(conn)
         )
     response.raise_for_status()
     return normalize_requesty_models(response.json().get("data", []))
