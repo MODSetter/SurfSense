@@ -1,5 +1,5 @@
 from app.services.global_model_catalog import materialize_global_model_catalog
-from app.services.model_resolver import ensure_v1, strip_version_suffix, to_litellm
+from app.services.model_resolver import strip_version_suffix, to_litellm
 
 
 def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:
@@ -61,7 +61,6 @@ def test_openai_compatible_resolver_uses_explicit_api_base() -> None:
     assert model == "openai/qwen/qwen3"
     assert kwargs["api_base"] == "http://host.docker.internal:1234/v1"
     assert kwargs["api_key"] == "local-key"
-    assert ensure_v1("http://example.com/v1") == "http://example.com/v1"
 
 
 def test_openai_compatible_resolver_uses_base_url_verbatim() -> None:
