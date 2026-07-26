@@ -141,6 +141,10 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
     )
 
 
+def _openai_compatible_404_hint(url: str) -> str:
+    return f"Got 404 from {url}. Check your API Base URL."
+
+
 async def verify_connection(conn: Connection) -> VerifyResult:
     spec = spec_for(conn.provider)
     base_url = _base_url_or_default(conn)
@@ -172,9 +176,9 @@ async def verify_connection(conn: Connection) -> VerifyResult:
             if spec.transport == Transport.OLLAMA and url.endswith("/v1/models"):
                 message = "Ollama native API should not use /v1."
             elif spec.transport == Transport.OPENAI_COMPATIBLE:
-                message = "OpenAI-compatible servers should expose /v1/models."
+                message = _openai_compatible_404_hint(url)
             else:
-                message = "Endpoint returned 404."
+                message = f"Endpoint returned 404 for {url}."
             return VerifyResult("NOT_FOUND", False, message)
         response.raise_for_status()
         return VerifyResult("OK", True, "Connection verified.")
@@ -194,9 +198,10 @@ def _discovery_error_message(conn: Connection, exc: httpx.HTTPError) -> str:
             return "Authentication failed while discovering models."
         if status_code == 404:
             spec = spec_for(conn.provider)
+            attempted = str(exc.request.url)
             if spec.transport == Transport.OPENAI_COMPATIBLE:
-                return "OpenAI-compatible servers should expose /v1/models."
-            return "Model discovery endpoint returned 404."
+                return _openai_compatible_404_hint(attempted)
+            return f"Model discovery endpoint returned 404 for {attempted}."
         return f"Model discovery failed with HTTP {status_code}."
     if isinstance(exc, httpx.TimeoutException):
         return f"Model discovery timed out: {exc}"
