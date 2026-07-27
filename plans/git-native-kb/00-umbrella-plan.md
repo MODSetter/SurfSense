@@ -82,15 +82,15 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 > **READ FIRST.** Pins the five cross-phase contracts (repo/tree layout, read contract, lock, write path, index/Zero realities) grounded in the current code. Resolves what were per-phase "open questions" and corrects three first-draft oversimplifications: reads are rendered-from-chunks (not raw git blobs), the lock must be Redis (multi-process deploy), and there is no embedding cache to "extend".
 
-### Phase 1 — Git storage core [`subplan: 01-git-storage-core.md`]
+### Phase 1 — Knowledge store core [`subplan: 01-git-storage-core.md`] ✅ implemented
 
-> **PLANNED. Build first** — every later phase uses it.
+> **DONE. Built first** — every later phase uses it.
 
-- Add **dulwich**; a `GitRepoService` that opens/creates a **bare-ish repo per workspace** on disk (path derived from workspace id, alongside the existing blob store root).
-- Primitives: `read_file`, `write_file`, `list_tree`, `move`, `remove`, `commit(message, author)`, `log`, `read_at(commit)`, `revert`.
-- **Per-workspace lock/queue** around all writes (single-writer safety). `ponytail:` mark the lock ceiling (global per-repo lock; upgrade path = queue/worker).
-- Key files (new): `surfsense_backend/app/kb_git/` (service, lock, paths). No agent wiring yet.
-- Tests: create repo → write/commit → log shows commit → read_at(prev) returns old content → revert works; concurrent writes serialize under the lock.
+- Added **dulwich**; a `KnowledgeStore` facade that opens/creates a **persistent working tree per workspace** on disk, nested under the shared blob-store volume (`{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`). Git lives behind the facade (`backends/git.py`).
+- API (intent verbs, no git vocabulary): `ensure`; `revise(message, author)` scope yielding a draft with `write`/`remove`/`move` that records one atomic revision on exit; `read_at`, `history`, `head`, `content_id`. Snapshot/batch is an engine detail. (Structure primitives → Phase 2; undo/forward-restore → Phase 4.)
+- **Per-workspace Redis write lock** around commits (single-writer safety across all OS processes). `ponytail:` lock ceiling = one lock per commit; upgrade path = queue/worker.
+- Key files (new): `surfsense_backend/app/knowledge_store/` (`service`, `write_lock`, `locations`, `settings`, `backends/{base,git}`). No agent wiring yet.
+- Tests (`tests/unit/knowledge_store/`): create → write/commit → history shows revision → read_at(prev) returns old content → no-op commit returns None → content_id matches `git hash-object`; lock wrapper acquire/fail paths.
 
 ### Phase 2 — Git-working-tree backend [`subplan: 02-git-working-tree-backend.md`]
 
@@ -154,7 +154,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
-1. ~~Repo location & layout~~ → **persistent working tree at `{blob parent}/.kb_git/{workspace_id}`, layout = virtual path minus `/documents`** (C1).
+1. ~~Repo location & layout~~ → **persistent working tree at `{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`, layout = virtual path minus `/documents`** (C1).
 2. ~~Zero projection owner~~ → **folded into the Phase-4 post-commit indexer** (C5).
 3. **Binaries** — keep blob store (confirmed markdown/text-only in git); Git-LFS deferred.
 4. ~~Lock granularity~~ → **Redis lock, from v1** (deploy is multi-process: uvicorn + Celery) (C3).
