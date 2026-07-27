@@ -538,6 +538,17 @@ class Config:
         "FILE_STORAGE_LOCAL_PATH", str(BASE_DIR / ".local_object_store")
     )
 
+    # Knowledge store (Git-native KB; feature-flagged, off by default).
+    # Repos live under the shared file-storage volume so every process (API
+    # workers, Celery workers) sees the same on-disk history.
+    KNOWLEDGE_STORE_ENABLED = (
+        os.getenv("KNOWLEDGE_STORE_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    KNOWLEDGE_STORE_ROOT = os.getenv(
+        "KNOWLEDGE_STORE_ROOT",
+        os.path.join(FILE_STORAGE_LOCAL_PATH, "knowledge_store"),
+    )
+
     # Daytona sandbox (code execution / filesystem sandbox)
     DAYTONA_SANDBOX_ENABLED = (
         os.getenv("DAYTONA_SANDBOX_ENABLED", "FALSE").upper() == "TRUE"
