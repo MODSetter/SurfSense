@@ -58,8 +58,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Last-resort fallback for the Google Search scraper (SEARXNG_URL).
-  # Nothing depends_on it: if it is down, searches degrade to Google alone.
   searxng:
     image: searxng/searxng:2026.3.13-3c1f68c59
     volumes:

@@ -76,7 +76,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Last-resort fallback for the Google Search scraper.
   searxng:
     image: searxng/searxng:2026.3.13-3c1f68c59
     ports:
