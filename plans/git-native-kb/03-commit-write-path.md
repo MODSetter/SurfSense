@@ -8,7 +8,7 @@ Turn staged agent/editor/upload writes into **one atomic git commit** per turn/s
 
 ## Locked model
 
-- **One commit per agent turn.** The commit body is the free function `commit_staged_filesystem_state(...)` in `.../kb_persistence/middleware.py` (called by both `aafter_agent` **and** the stream-task fallback — repoint the function, not just the middleware). Change it from "write folders/documents/chunks to Postgres" to "apply staged ops to the git working tree → one `GitRepoService.commit(message, author)`" under the Phase-1 Redis lock.
+- **One commit per agent turn.** The commit body is the free function `commit_staged_filesystem_state(...)` in `.../kb_persistence/middleware.py` (called by both `aafter_agent` **and** the stream-task fallback — repoint the function, not just the middleware). Change it from "write folders/documents/chunks to Postgres" to "replay the staged ops as intent verbs inside one `async with KnowledgeStore.revise(message=…, author=…) as draft:` scope (`draft.write` / `draft.remove` / `draft.move`)". The scope records exactly one revision on exit and takes the Phase-1 Redis lock internally.
 - **Preserve the existing op ordering** (already there for correctness): staged_dirs → moves → writes/edits (skip paths also queued for `rm`; `_final_path` chases move aliases) → file deletes → dir deletes. Apply that order to the working tree, then one commit. Full state-key list + author details: [`00c-shared-contract.md`](00c-shared-contract.md) C4.
 - **Author attribution.** Commit author = `created_by_id` (acting user id already passed to the middleware), or `agent` for autonomous writes; message summarizes the turn's ops.
 - **Editor saves & upload-extracted markdown use the same commit path** (one write path). Connector-indexable content (Notion/Drive) commits via the same service on sync.
@@ -16,9 +16,9 @@ Turn staged agent/editor/upload writes into **one atomic git commit** per turn/s
 
 ## Work items
 
-1. In `commit_staged_filesystem_state`: replace the ordered Postgres write pass with working-tree ops + `GitRepoService.commit(...)`, reading the staged ops from the existing state keys (`files`, `staged_dirs`, `pending_moves`, `pending_deletes`, `pending_dir_deletes`, `dirty_paths`, `doc_id_by_path`, …; see C4). Keep the same ordering and the `_final_path` move-alias resolution.
+1. In `commit_staged_filesystem_state`: replace the ordered Postgres write pass with a pass that replays the staged ops as `draft.write`/`draft.remove`/`draft.move` inside one `KnowledgeStore.revise(...)` scope, reading the staged ops from the existing state keys (`files`, `staged_dirs`, `pending_moves`, `pending_deletes`, `pending_dir_deletes`, `dirty_paths`, `doc_id_by_path`, …; see C4). Keep the same ordering and the `_final_path` move-alias resolution.
 2. Emit the new commit SHA into state/event so Phase 4's indexer and Phase 6's projector can consume it. Keep the `dispatch_custom_event` (`document_created/updated/deleted`, `folder_deleted`) calls — the UI depends on them.
-3. Route editor save (`source_markdown` write) and upload-extracted markdown through `GitRepoService.write_file` + commit (behind `KB_GIT_ENABLED`).
+3. Route editor save (`source_markdown` write) and upload-extracted markdown through a `KnowledgeStore.revise(...)` scope with a single `draft.write(path, content)` (behind `KNOWLEDGE_STORE_ENABLED`).
 4. Remove the now-dead "stage then persist to Postgres" branches for flagged workspaces (keep unflagged path intact during rollout). **Note:** the `DocumentRevision`/`FolderRevision` snapshot code (gated by `flags.enable_action_log`) lives inside this function — its removal is Phase 4; sequence the two together for flagged workspaces.
 
 ## Tests
