@@ -14,7 +14,7 @@ Make Postgres a **derived, rebuildable** chunk/embedding index of the git repo: 
 
 ## Work items
 
-1. `app/kb_git/indexer.py` — `index_commit(workspace_id, sha)`: tree-diff parent→sha, map changed paths→documents/chunks, re-chunk changed files, embed only new blob SHAs, upsert chunks; delete chunks for removed paths.
+1. `app/knowledge_store/indexer.py` — `index_commit(workspace_id, sha)`: tree-diff parent→sha, map changed paths→documents/chunks, re-chunk changed files, embed only new blob SHAs, upsert chunks; delete chunks for removed paths.
 2. Blob-SHA reuse is **new** (there is no embedding cache today — `embed_texts` calls the model directly; current reuse is `chunk_reconciler` matching by chunk *text*). Add a `(embedding_model_version, blob_sha)` reuse layer, or generalize the reconciler from chunk-text identity to blob identity. **`content_hash` is workspace-salted, so it is NOT the git blob SHA** — do not alias them. See [`00c-shared-contract.md`](00c-shared-contract.md) C5.
 3. `reindex(workspace_id)` — wipe + full rebuild from HEAD; wire a Celery task entrypoint (Celery already runs; keep long rebuilds off the API process).
 4. Trigger `index_commit` off the Phase-3 commit event.

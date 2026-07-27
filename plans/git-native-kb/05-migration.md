@@ -4,7 +4,7 @@
 
 ## Objective
 
-Move each existing workspace's KB from Postgres-as-truth to git-as-truth by exporting current documents/folders into an initial git repo, then flipping `KB_GIT_ENABLED` for that workspace once search parity is verified.
+Move each existing workspace's KB from Postgres-as-truth to git-as-truth by exporting current documents/folders into an initial git repo, then flipping `KNOWLEDGE_STORE_ENABLED` for that workspace once search parity is verified.
 
 ## Locked model
 
@@ -15,7 +15,7 @@ Move each existing workspace's KB from Postgres-as-truth to git-as-truth by expo
 
 ## Work items
 
-1. `app/kb_git/migrate.py` — `migrate_workspace(workspace_id)`: build the tree from `folders`/`documents` using the **same path/filename rules** as the live write path (`path_resolver` helpers; git path = virtual path minus `/documents`; see [`00c-shared-contract.md`](00c-shared-contract.md) C1), write `Document.source_markdown`/`content` as each file, preserve `unique_identifier_hash`, one seed commit.
+1. `app/knowledge_store/migrate.py` — `migrate_workspace(workspace_id)`: build the tree from `folders`/`documents` using the **same path/filename rules** as the live write path (`path_resolver` helpers; git path = virtual path minus `/documents`; see [`00c-shared-contract.md`](00c-shared-contract.md) C1), write `Document.source_markdown`/`content` as each file, preserve `unique_identifier_hash`, one seed commit.
 2. Parity check: seed → `reindex` → compare chunk counts and top-k search results against a captured pre-migration baseline.
 3. Per-workspace flag flip with a guard (refuse to flip if parity check fails).
 4. Dry-run mode (build repo, report diffs, do not flip).
