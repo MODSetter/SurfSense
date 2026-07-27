@@ -1,9 +1,6 @@
-"""Git-backed implementation of the versioned content store (via dulwich).
+"""Git implementation of the versioned content store (dulwich).
 
-All Git mechanics are confined here; callers see only the
-:class:`VersionedContentStore` contract. Every method is synchronous and
-self-contained (opens its own repo handle) so it is safe to run in a worker
-thread from the async facade.
+Methods are synchronous; the async facade runs them in a worker thread.
 """
 
 from __future__ import annotations
@@ -48,7 +45,7 @@ class GitContentStore(VersionedContentStore):
                 porcelain.add(repo, paths=[str(abs_path)])
 
             for rel_path in removes:
-                self._unstage_removal(repo, rel_path)
+                self._stage_removal(repo, rel_path)
 
             if not self._has_pending_changes(repo):
                 return None
@@ -95,7 +92,7 @@ class GitContentStore(VersionedContentStore):
         finally:
             repo.close()
 
-    def head(self) -> str | None:
+    def current_revision(self) -> str | None:
         repo = Repo(str(self._path))
         try:
             return repo.head().decode()
@@ -108,7 +105,7 @@ class GitContentStore(VersionedContentStore):
     def content_id(data: bytes) -> str:
         return Blob.from_string(data).id.decode()
 
-    def _unstage_removal(self, repo: Repo, rel_path: str) -> None:
+    def _stage_removal(self, repo: Repo, rel_path: str) -> None:
         """Stage a deletion, tolerating a path that was never tracked."""
         if rel_path.encode() not in repo.open_index():
             return
