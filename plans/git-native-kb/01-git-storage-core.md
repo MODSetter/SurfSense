@@ -19,20 +19,21 @@ A `KnowledgeStore` facade that owns one versioned history per workspace and expo
 1. `dulwich` added to `surfsense_backend` deps.
 2. Package `app/knowledge_store/`:
    - `settings.py` — `load_knowledge_store_settings()` (enabled flag + root, from central config).
-   - `locations.py` — `workspace_store_path(workspace_id)`: the sole owner of on-disk layout.
+   - `store_path.py` — `workspace_store_path(workspace_id)`: the sole owner of on-disk layout.
    - `write_lock.py` — `workspace_write_lock(workspace_id)` async context manager over the Redis lock (C3), with explicit TTL/wait constants and `KnowledgeStoreLockError`.
-   - `service.py` — `KnowledgeStore` async facade (runs the sync engine via `asyncio.to_thread`; reads are lock-free, writes serialized). Public surface — **intent verbs, no git vocabulary**:
-     - `ensure()` — init if absent (idempotent).
+   - `revision_draft.py` — `RevisionDraft`: the unit-of-work verbs (`write`/`remove`/`move`) and their collapse into a change set (`to_change_set`).
+   - `store.py` — `KnowledgeStore` async facade (runs the sync engine via `asyncio.to_thread`; reads are lock-free, writes serialized). Public surface — **intent verbs, no git vocabulary**:
+     - `ensure_exists()` — init if absent (idempotent).
      - `revise(message, author)` — a unit-of-work scope yielding a `RevisionDraft` with verbs `write(path, content)` / `remove(path)` / `move(src, dst)`. On clean exit it records **exactly one revision** under the write lock (`draft.revision` = the new id, `None` if nothing changed); on exception it records nothing. Whether that revision touches one file or fifty is an engine detail.
-     - `read_at(revision, path)`, `history(path=None, limit=None)`, `head()`.
+     - `read_at(revision, path)`, `history(path=None, limit=None)`, `current_revision()`.
      - `content_id(data)` — git blob SHA (content-addressed id, consumed by Phase 4).
-   - `backends/base.py` — `VersionedContentStore` contract (**engine boundary**: snapshot `commit(writes, removes)`, `read`, `read_at`, `history`, `head`, `content_id`) + `StoredRevision`. `backends/git.py` — `GitContentStore` (all dulwich mechanics; the swappable engine seam). The verb→snapshot translation lives in the facade, so the batch never surfaces in the API.
+   - `backends/base.py` — `VersionedContentStore` contract (**engine boundary**: snapshot `commit(writes, removes)`, `read`, `read_at`, `history`, `current_revision`, `content_id`) + `StoredRevision`. `backends/git.py` — `GitContentStore` (all dulwich mechanics; the swappable engine seam). The verb→snapshot translation lives in the facade, so the batch never surfaces in the API.
 3. Config flags `KNOWLEDGE_STORE_ENABLED` (off by default) + `KNOWLEDGE_STORE_ROOT`.
 
 ## Tests (`tests/unit/knowledge_store/`)
 
 - **Engine** (`GitContentStore`): `ensure()` idempotent; a mixed write+modify+delete lands in one revision; no-op commit returns `None`; removing an untracked path is tolerated; `history` newest-first, path-scoped, honors `limit`; revisions carry author + tz-aware timestamp; `content_id` equals real `git hash-object`.
-- **Facade** (`KnowledgeStore.revise`): a single `write` records one revision; `write`/`remove`/`move` in one scope batch into exactly one revision (two scopes → two revisions); an exception inside the scope records nothing (`head` stays `None`).
+- **Facade** (`KnowledgeStore.revise`): a single `write` records one revision; `write`/`remove`/`move` in one scope batch into exactly one revision (two scopes → two revisions); an exception inside the scope records nothing (`current_revision` stays `None`).
 - **Write-lock wrapper**: raises `KnowledgeStoreLockError` when unacquired; yields and releases on success. (Cross-process serialization is Redis's guarantee; not re-tested here.)
 
 ## Out of scope

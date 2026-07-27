@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 import pytest
 
 from app.knowledge_store.backends.git import GitContentStore
-from app.knowledge_store.service import KnowledgeStore
+from app.knowledge_store.store import KnowledgeStore
 from app.knowledge_store.write_lock import (
     KnowledgeStoreLockError,
     workspace_write_lock,
@@ -33,11 +33,11 @@ class TestGitContentStore:
         s.ensure()
         assert (tmp_path / "ws" / ".git").is_dir()
 
-    def test_empty_store_has_no_head_or_history(self, store):
-        assert store.head() is None
+    def test_empty_store_has_no_current_revision_or_history(self, store):
+        assert store.current_revision() is None
         assert store.history() == []
 
-    def test_commit_returns_revision_and_advances_head(self, store):
+    def test_commit_returns_revision_and_advances_current_revision(self, store):
         rev = store.commit(
             writes={"documents/a.xml": b"hello"},
             removes=[],
@@ -45,7 +45,7 @@ class TestGitContentStore:
             author=AUTHOR,
         )
         assert rev is not None
-        assert store.head() == rev
+        assert store.current_revision() == rev
         assert store.read_at(rev, "documents/a.xml") == b"hello"
 
     def test_mixed_write_modify_delete_in_one_revision(self, store):
@@ -159,22 +159,22 @@ class TestKnowledgeStoreFacade:
             yield
 
         monkeypatch.setattr(
-            "app.knowledge_store.service.workspace_write_lock", _no_lock
+            "app.knowledge_store.store.workspace_write_lock", _no_lock
         )
         return KnowledgeStore("ws1", GitContentStore(tmp_path / "ws1"))
 
     async def test_revise_write_records_one_revision(self, store):
-        await store.ensure()
+        await store.ensure_exists()
         async with store.revise(message="add", author=AUTHOR) as draft:
             draft.write("documents/a.xml", b"hi")
 
         rev = draft.revision
-        assert rev == await store.head()
+        assert rev == await store.current_revision()
         assert await store.read_at(rev, "documents/a.xml") == b"hi"
         assert [r.message for r in await store.history()] == ["add"]
 
     async def test_revise_batches_verbs_into_a_single_revision(self, store):
-        await store.ensure()
+        await store.ensure_exists()
         async with store.revise(message="seed", author=AUTHOR) as draft:
             draft.write("old.xml", b"content")
             draft.write("drop.xml", b"x")
@@ -194,13 +194,13 @@ class TestKnowledgeStoreFacade:
         assert len(await store.history()) == 2
 
     async def test_exception_in_scope_records_nothing(self, store):
-        await store.ensure()
+        await store.ensure_exists()
         with pytest.raises(RuntimeError):
             async with store.revise(message="nope", author=AUTHOR) as draft:
                 draft.write("a.xml", b"x")
                 raise RuntimeError("boom")
 
-        assert await store.head() is None
+        assert await store.current_revision() is None
         assert draft.revision is None
 
     async def test_content_id_delegates_to_engine(self, store):
