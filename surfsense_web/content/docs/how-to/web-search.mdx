@@ -21,18 +21,31 @@ When the assistant decides a request needs the open web:
 2. The specialist runs a Google search and returns ranked result items (title, URL, snippet).
 3. The assistant summarizes the findings and can follow up by crawling a specific result page.
 
-## Optional SearXNG fallback
+## SearXNG fallback
 
-Google occasionally walls every proxy exit, in which case a search returns nothing. You can point the scraper at a SearXNG instance to serve organic results as a last resort:
+Google occasionally walls every exit IP, in which case a search would return nothing. The Docker stack bundles a [SearXNG](https://docs.searxng.org/) container that serves organic results as a last resort in that case. It works out of the box — there is nothing to configure.
+
+It only fires after Google's own retry ladder is exhausted, and it only serves organic results plus query suggestions. Ads, People Also Ask, AI Overviews, and result totals are Google-only and come back empty, so requests that specifically ask for paid ads are never served from the fallback. Fallback pages are tagged with `resultsProvider: "searxng"` and are not billed at the Google SERP rate.
+
+The container is internal-only in production. The dev and deps-only stacks publish its UI on `http://localhost:8888` (`SEARXNG_PORT`) if you want to query it directly.
+
+### Configuration
 
 | Variable | Value |
 |----------|-------|
-| `SEARXNG_FALLBACK_URL` | Base URL of your instance, e.g. `https://searx.example.org` (unset = fallback off) |
+| `SEARXNG_FALLBACK_URL` | Where the scraper looks. Compose sets it to the bundled service; set it empty to turn the fallback off, or to another base URL to use your own instance |
 | `SEARXNG_FALLBACK_TIMEOUT_S` | Request timeout in seconds (default `10`) |
+| `SEARXNG_SECRET` | Session secret for the bundled container |
 
-Your instance must expose the JSON API — add `json` to `search.formats` in its `settings.yml`, or every fallback request is refused with HTTP 403.
+The instance's own settings live in `docker/searxng/settings.yml`. Two entries there are load-bearing. `search.formats` includes `json`, which is the API the scraper calls — remove it and every request comes back **HTTP 403**, with no environment variable to re-enable it. And the `google` engine is disabled on purpose: this instance only runs after Google walled you, so querying Google again from the same address is self-defeating. DuckDuckGo, Brave, Bing, and Wikipedia tolerate server IPs far better and are what make the fallback useful.
 
-The fallback only fires after Google's own retry ladder is exhausted, and it only serves organic results plus query suggestions. Ads, People Also Ask, AI Overviews, and result totals are Google-only and come back empty, so requests that specifically ask for paid ads are never served from the fallback. Fallback pages are tagged with `resultsProvider: "searxng"` and are not billed at the Google SERP rate.
+SearXNG reads that file only at startup, so restart the container after editing it.
+
+### Using your own instance
+
+Point `SEARXNG_FALLBACK_URL` at it and, if you like, remove the `searxng` service from your compose file. Your instance must have `json` in `search.formats` for the same reason as above; if it does not, SurfSense logs the 403 and names the setting.
+
+Nothing depends on the service being healthy, so a SearXNG that is down or misconfigured degrades searches to Google alone rather than blocking the stack.
 
 <Callout type="warn" title="Not the SearXNG connector">
 This is an operator-level setting for the Google Search scraper. The **SearXNG connector** remains deprecated and still cannot be connected.
