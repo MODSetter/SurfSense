@@ -1,10 +1,7 @@
-"""Single-writer serialization for a workspace's store.
+"""Cross-process single-writer lock per workspace.
 
-The backend runs as many OS processes (API workers, Celery workers) that share
-one on-disk repo, so an in-process lock is not enough. This holds a Redis lock
-per workspace: writers queue briefly under contention, and a write never
-proceeds unserialized — if the lock cannot be taken (including Redis being
-unreachable), the caller fails rather than racing another writer.
+A write never proceeds unserialized: if the lock cannot be acquired (contention
+timeout, or Redis unreachable), the caller fails instead of racing.
 """
 
 from __future__ import annotations
@@ -16,10 +13,9 @@ from redis.exceptions import LockError
 
 from app.config import config
 
-# Lock auto-expires so a crashed writer can't wedge a workspace forever. It must
-# comfortably exceed a normal commit; a stuck holder is recovered after this.
+# Auto-expiry so a crashed writer can't wedge a workspace; must exceed a commit.
 LOCK_TTL_SECONDS = 30.0
-# How long a contending writer waits in line before giving up.
+# How long a contender waits before giving up.
 LOCK_WAIT_SECONDS = 10.0
 
 _client: redis.Redis | None = None
@@ -42,11 +38,7 @@ def _lock_key(workspace_id: int | str) -> str:
 
 @asynccontextmanager
 async def workspace_write_lock(workspace_id: int | str):
-    """Hold the single-writer lock for ``workspace_id`` for the block's duration.
-
-    The lock is token-owned: release only clears our own hold, so an expired
-    lock reclaimed by another writer is never dropped by us.
-    """
+    """Hold ``workspace_id``'s single-writer lock for the block."""
     lock = _redis().lock(
         _lock_key(workspace_id),
         timeout=LOCK_TTL_SECONDS,
@@ -61,7 +53,6 @@ async def workspace_write_lock(workspace_id: int | str):
     try:
         yield
     finally:
-        # If our hold already expired (and was possibly reclaimed), the token
-        # check makes release a no-op rather than dropping another writer's lock.
+        # Release only our own token; a no-op if the hold already expired.
         with suppress(LockError):
             await lock.release()
