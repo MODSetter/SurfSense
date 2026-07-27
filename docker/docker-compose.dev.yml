@@ -127,6 +127,7 @@ services:
       - AUTH_TYPE=${AUTH_TYPE:-LOCAL}
       - NEXT_FRONTEND_URL=${NEXT_FRONTEND_URL:-http://localhost:3000}
       - WHATSAPP_BRIDGE_URL=${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
+      - SEARXNG_FALLBACK_URL=${SEARXNG_FALLBACK_URL:-http://searxng:8080}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # - DAYTONA_SANDBOX_ENABLED=TRUE
       # - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
@@ -184,6 +185,7 @@ services:
       - CELERY_TASK_DEFAULT_QUEUE=surfsense
       - PYTHONPATH=/app
       - FILE_STORAGE_LOCAL_PATH=/app/.local_object_store
+      - SEARXNG_FALLBACK_URL=${SEARXNG_FALLBACK_URL:-http://searxng:8080}
       - SERVICE_ROLE=worker
     depends_on:
       db:
