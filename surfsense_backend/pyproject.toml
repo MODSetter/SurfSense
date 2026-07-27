@@ -87,6 +87,7 @@ dependencies = [
     "croniter>=2.0.0",
     "scrapling[fetchers]>=0.4.11",
     "posthog>=6.0.0",
+    "dulwich>=0.22.0",
 ]
 
 [project.optional-dependencies]
