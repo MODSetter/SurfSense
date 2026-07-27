@@ -79,6 +79,12 @@ async def _fetch_json(params: dict[str, Any]) -> dict[str, Any] | None:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
             response = await client.get(f"{_HOST.rstrip('/')}/search", params=params)
+        if response.status_code == 403:
+            logger.warning(
+                "[google_search][searxng] instance refused the JSON API (403); "
+                "add 'json' to search.formats in its settings.yml"
+            )
+            return None
         response.raise_for_status()
         return response.json()
     except Exception as e:

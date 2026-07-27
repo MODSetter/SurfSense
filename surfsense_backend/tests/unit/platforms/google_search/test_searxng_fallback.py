@@ -5,6 +5,8 @@ aggregator's HTTP call is stubbed, so this exercises the real wiring: when the
 fallback fires, what it maps, and the cases where it must stay silent.
 """
 
+import logging
+
 import pytest
 
 from app.proprietary.platforms.google_search import (
@@ -116,6 +118,30 @@ async def test_no_fallback_for_url_without_readable_query(walled_google, searxng
         GoogleSearchScrapeInput(queries="https://www.google.com/search")
     )
     assert items == []
+
+
+async def test_json_api_disabled_names_the_fix(monkeypatch, caplog):
+    """A stock instance 403s ``format=json``; the log has to name the knob."""
+
+    class _Response:
+        status_code = 403
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, params=None):
+            return _Response()
+
+    monkeypatch.setattr(searxng, "_HOST", "https://searx.example")
+    monkeypatch.setattr(searxng.httpx, "AsyncClient", lambda **kw: _Client())
+
+    with caplog.at_level(logging.WARNING, logger=searxng.logger.name):
+        assert await searxng._fetch_json({"q": "x"}) is None
+    assert "search.formats" in caplog.text
 
 
 async def test_google_success_is_unstamped_and_untouched(monkeypatch, searxng_up):
