@@ -58,7 +58,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Last-resort fallback for the Google Search scraper (SEARXNG_FALLBACK_URL).
+  # Last-resort fallback for the Google Search scraper (SEARXNG_URL).
   # Nothing depends_on it: if it is down, searches degrade to Google alone.
   searxng:
     image: searxng/searxng:2026.3.13-3c1f68c59
@@ -149,7 +149,7 @@ services:
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       BACKEND_URL: ${BACKEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
-      SEARXNG_FALLBACK_URL: ${SEARXNG_FALLBACK_URL:-http://searxng:8080}
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # DAYTONA_SANDBOX_ENABLED: "TRUE"
       # DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
@@ -210,7 +210,7 @@ services:
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
       FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
-      SEARXNG_FALLBACK_URL: ${SEARXNG_FALLBACK_URL:-http://searxng:8080}
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
       SERVICE_ROLE: worker
     depends_on:
       db:

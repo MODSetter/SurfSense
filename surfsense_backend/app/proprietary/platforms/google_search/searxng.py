@@ -3,8 +3,8 @@
 When Google walls every vetted IP (``fetch_serp_html`` returns ``None`` after
 its pool/deadline budget), this returns the same ``SerpItem`` shape from a
 SearXNG instance's JSON API, so a search yields organic results instead of
-nothing. Keyed on ``SEARXNG_FALLBACK_URL``, which the Docker stack points at
-its bundled ``searxng`` service; unset elsewhere means off.
+nothing. Keyed on ``SEARXNG_URL``, which the Docker stack points at its
+bundled ``searxng`` service; unset elsewhere means off.
 
 SearXNG is a metasearch aggregator, not Google: only organic results (title,
 url, snippet) and query suggestions exist. Ads, People-Also-Ask, AI Overview,
@@ -40,8 +40,8 @@ PROVIDER = "searxng"
 
 # Read here rather than in app.config to match the sibling fetch seam, which
 # takes its own knobs straight from the environment.
-_HOST = os.getenv("SEARXNG_FALLBACK_URL", "").strip()
-_TIMEOUT_S = float(os.getenv("SEARXNG_FALLBACK_TIMEOUT_S", "10"))
+_HOST = os.getenv("SEARXNG_URL", "").strip()
+_TIMEOUT_S = float(os.getenv("SEARXNG_TIMEOUT_S", "10"))
 # A Google SERP page is 10 results; cap the aggregator to the same so a
 # fallback page never looks anomalously large to a caller that is paging.
 _MAX_RESULTS = 10

@@ -80,7 +80,7 @@ services:
       retries: 5
 
   # Google Search scraper fallback. The host-run backend reaches it with
-  # SEARXNG_FALLBACK_URL=http://localhost:8888.
+  # SEARXNG_URL=http://localhost:8888.
   searxng:
     image: searxng/searxng:2026.3.13-3c1f68c59
     ports:
