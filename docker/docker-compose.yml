@@ -58,6 +58,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Last-resort fallback for the Google Search scraper (SEARXNG_FALLBACK_URL).
+  # Nothing depends_on it: if it is down, searches degrade to Google alone.
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-surfsense-searxng-secret}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # otel-collector:
   #   image: otel/opentelemetry-collector-contrib:0.152.1
   #   profiles:
