@@ -14,7 +14,7 @@ contracts that phases 1–6 assume. Read it first.
 
 **Decided.**
 
-- **One repo per workspace** at `{FILE_STORAGE_LOCAL_PATH parent}/.kb_git/{workspace_id}` (sibling of the blob store). Persistent working tree per workspace (not bare + ephemeral checkout) — simpler, and the per-workspace lock (C3) makes a single live checkout safe.
+- **One repo per workspace** at `{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}` (nested **under** the shared blob-store volume, so every OS process sees the same history). Persistent working tree per workspace (not bare + ephemeral checkout) — simpler, and the per-workspace lock (C3) makes a single live checkout safe.
 - **Tree layout mirrors today's virtual paths, minus the `/documents` root.** A doc currently at virtual `/documents/<folder>/<title>.xml` lives in git at `<folder>/<title>.xml`.
 - **Reuse the existing filename rules** — do **not** reinvent them. `safe_filename`, `safe_folder_segment`, and the ` (<doc_id>).xml` collision suffix all come from `app/agents/chat/runtime/path_resolver.py`. Keep the `.xml` extension in v1 (changing to `.md` would break `unique_identifier_hash`, which is computed from the virtual path — see C2).
 - **Git stores the source text** (the agent's note = `Document.source_markdown`/`content`), one file per document. Not the rendered XML view (that's derived — see C2). Not binaries (stay in the blob store).
@@ -38,9 +38,9 @@ Net: Phase 2 replaces the **path/tree computation** (`path_resolver` + DB folder
 
 The backend runs as **multiple OS processes**: the API (`python main.py`, uvicorn, default **4** workers per `docker/.env.example`) **and** Celery workers (`SERVICE_ROLE=worker`, autoscale **2–10**), sometimes in one container (`SERVICE_ROLE=all`). An in-process `asyncio.Lock` **cannot** serialize writes across them — it would give false single-writer safety.
 
-- **Use a Redis lock** keyed `kb_git:lock:{workspace_id}`. Redis is already a hard dependency (Celery broker/result/app cache), so this adds no infra.
+- **Use a Redis lock** keyed `knowledge_store:write_lock:{workspace_id}` (token-owned release, TTL + queue-then-fail, fail-if-down). Redis is already a hard dependency (Celery broker/result/app cache), so this adds no infra.
 - `ponytail:` v1 ceiling = one Redis lock per workspace held for the duration of a commit; upgrade path = a per-workspace write queue/worker if contention shows up.
-- Alternative if Redis is ever removed: a Postgres advisory lock (`pg_advisory_xact_lock(hashtext('kb_git:'||workspace_id))`). Redis is the default.
+- Alternative if Redis is ever removed: a Postgres advisory lock (`pg_advisory_xact_lock(hashtext('knowledge_store:'||workspace_id))`). Redis is the default.
 
 ## C4 — Write path: repoint `commit_staged_filesystem_state` (Phase 3, 4)
 
