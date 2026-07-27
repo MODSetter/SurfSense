@@ -15,6 +15,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from . import searxng
 from .fetch import fetch_serp_html
 from .parsers import parse_ai_mode, parse_serp
 from .query_builder import (
@@ -38,15 +39,24 @@ _PAID_ADS_MAX_TRIES = 3
 
 
 def _search_query_stamp(
-    term: str | None, url: str, page: int, input_model: GoogleSearchScrapeInput
+    term: str | None,
+    url: str | None,
+    page: int,
+    input_model: GoogleSearchScrapeInput,
+    *,
+    domain: str = "google.com",
 ) -> SearchQuery:
-    """The ``searchQuery`` provenance block Apify stamps on every item."""
+    """The ``searchQuery`` provenance block Apify stamps on every item.
+
+    ``domain`` is overridden when a page came from the fallback provider, so an
+    aggregator result never claims to be a google.com SERP.
+    """
     return SearchQuery(
         term=term,
         url=url,
         device="MOBILE" if input_model.mobileResults else "DESKTOP",
         page=page,
-        domain="google.com",
+        domain=domain,
         countryCode=(input_model.countryCode or "US").upper(),
         languageCode=input_model.languageCode or None,
         locationUule=input_model.locationUule,
@@ -54,12 +64,13 @@ def _search_query_stamp(
 
 
 async def _serp_page_flow(
-    url: str, input_model: GoogleSearchScrapeInput
+    url: str, input_model: GoogleSearchScrapeInput, *, term: str | None, page: int
 ) -> SerpItem | None:
-    """Fetch and parse one SERP page into a :class:`SerpItem`.
+    """Fetch and parse one SERP page into a stamped :class:`SerpItem`.
 
     Renders ``url`` through the proxy and parses organic/paid/related/PAA blocks.
-    Returns ``None`` when the page could not be fetched (all IPs walled), so the
+    When every IP is walled the page falls through to the SearXNG fallback
+    (:func:`_searxng_page`); ``None`` means even that yielded nothing, so the
     caller stops paging.
 
     With ``focusOnPaidAds`` we re-render up to :data:`_PAID_ADS_MAX_TRIES` times
@@ -82,7 +93,8 @@ async def _serp_page_flow(
         if input_model.saveHtml:
             item.html = html
         if not input_model.focusOnPaidAds or item.paidResults or item.paidProducts:
-            return item
+            best = item
+            break
         # No ads yet; keep the render with the most organic results as fallback.
         if best is None or len(item.organicResults) > len(best.organicResults):
             best = item
@@ -91,7 +103,31 @@ async def _serp_page_flow(
             attempt,
             tries,
         )
+    if best is None:
+        return await _searxng_page(term, input_model, page=page)
+    best.searchQuery = _search_query_stamp(term, url, page, input_model)
     return best
+
+
+async def _searxng_page(
+    term: str | None, input_model: GoogleSearchScrapeInput, *, page: int
+) -> SerpItem | None:
+    """Last-resort aggregator page when Google walled every IP.
+
+    Skipped when the caller specifically wants ads (an aggregator serves none,
+    so a result here would be a guaranteed miss dressed up as data) or when
+    there is no plain term — a Google URL whose ``q`` we could not read has
+    nothing to re-search.
+    """
+    if input_model.focusOnPaidAds or not term or not searxng.enabled():
+        return None
+    item = await searxng.search_serp(term, input_model, page=page)
+    if item is None:
+        return None
+    item.searchQuery = _search_query_stamp(
+        term, None, page, input_model, domain=searxng.domain()
+    )
+    return item
 
 
 async def _term_flow(
@@ -102,10 +138,9 @@ async def _term_flow(
     pages = input_model.maxPagesPerQuery or 1
     for page in range(1, pages + 1):
         url = build_search_url(term, input_model, page=page)
-        item = await _serp_page_flow(url, input_model)
+        item = await _serp_page_flow(url, input_model, term=term, page=page)
         if item is None:
             return
-        item.searchQuery = _search_query_stamp(term, url, page, input_model)
         yield item.to_output()
         # An empty organic page means we've run past the last result page.
         if not item.organicResults:
@@ -119,10 +154,9 @@ async def _url_flow(
     over the localization inputs). ``maxPagesPerQuery`` paging (rewriting the
     ``start`` parameter) lands with the fetch implementation."""
     term = term_from_url(url)
-    item = await _serp_page_flow(url, input_model)
+    item = await _serp_page_flow(url, input_model, term=term, page=1)
     if item is None:
         return
-    item.searchQuery = _search_query_stamp(term, url, 1, input_model)
     yield item.to_output()
 
 
