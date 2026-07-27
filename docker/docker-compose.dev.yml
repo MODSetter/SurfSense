@@ -76,6 +76,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Last-resort fallback for the Google Search scraper.
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    ports:
+      - "${SEARXNG_PORT:-8888}:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-surfsense-searxng-secret}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   otel-lgtm:
     image: grafana/otel-lgtm:latest
     ports:
