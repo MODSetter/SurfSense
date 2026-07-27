@@ -1,8 +1,4 @@
-"""Where a workspace's versioned store lives on disk.
-
-Isolated so the on-disk layout has one owner: callers ask for a workspace's
-store by id and never assemble paths themselves.
-"""
+"""On-disk location of a workspace's versioned store (single owner of the layout)."""
 
 from __future__ import annotations
 
