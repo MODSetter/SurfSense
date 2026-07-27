@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any
-from urllib.parse import urlsplit
 
 import httpx
 
@@ -58,8 +57,9 @@ def enabled() -> bool:
 
 
 def domain() -> str:
-    """Instance hostname, for the ``searchQuery.domain`` provenance field."""
-    return urlsplit(_HOST).hostname or PROVIDER
+    """Provider label for ``searchQuery.domain`` — not the configured host,
+    which is often a private address that should not reach API output."""
+    return PROVIDER
 
 
 def _query(term: str, input_model: GoogleSearchScrapeInput) -> str:

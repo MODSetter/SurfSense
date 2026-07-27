@@ -63,7 +63,8 @@ async def test_fallback_serves_organic_results(walled_google, searxng_up):
     assert item["resultsTotal"] is None
     # Provenance survives to_output() so no consumer can mistake this for Google.
     assert item["resultsProvider"] == "searxng"
-    assert item["searchQuery"]["domain"] == "searx.example"
+    # The provider label, not the configured host.
+    assert item["searchQuery"]["domain"] == "searxng"
     assert item["searchQuery"]["term"] == "apple pie"
 
 
