@@ -21,6 +21,23 @@ When the assistant decides a request needs the open web:
 2. The specialist runs a Google search and returns ranked result items (title, URL, snippet).
 3. The assistant summarizes the findings and can follow up by crawling a specific result page.
 
+## Optional SearXNG fallback
+
+Google occasionally walls every proxy exit, in which case a search returns nothing. You can point the scraper at a SearXNG instance to serve organic results as a last resort:
+
+| Variable | Value |
+|----------|-------|
+| `SEARXNG_FALLBACK_URL` | Base URL of your instance, e.g. `https://searx.example.org` (unset = fallback off) |
+| `SEARXNG_FALLBACK_TIMEOUT_S` | Request timeout in seconds (default `10`) |
+
+Your instance must expose the JSON API — add `json` to `search.formats` in its `settings.yml`, or every fallback request is refused with HTTP 403.
+
+The fallback only fires after Google's own retry ladder is exhausted, and it only serves organic results plus query suggestions. Ads, People Also Ask, AI Overviews, and result totals are Google-only and come back empty, so requests that specifically ask for paid ads are never served from the fallback. Fallback pages are tagged with `resultsProvider: "searxng"` and are not billed at the Google SERP rate.
+
+<Callout type="warn" title="Not the SearXNG connector">
+This is an operator-level setting for the Google Search scraper. The **SearXNG connector** remains deprecated and still cannot be connected.
+</Callout>
+
 Google web search is workspace-scoped and is not available in the free / anonymous (no-login) chat, which answers purely from the model's own knowledge.
 
 ## Still want Tavily or Linkup?
