@@ -3,7 +3,8 @@
 When Google walls every vetted IP (``fetch_serp_html`` returns ``None`` after
 its pool/deadline budget), this returns the same ``SerpItem`` shape from a
 SearXNG instance's JSON API, so a search yields organic results instead of
-nothing. Off unless ``SEARXNG_FALLBACK_URL`` is set.
+nothing. Keyed on ``SEARXNG_FALLBACK_URL``, which the Docker stack points at
+its bundled ``searxng`` service; unset elsewhere means off.
 
 SearXNG is a metasearch aggregator, not Google: only organic results (title,
 url, snippet) and query suggestions exist. Ads, People-Also-Ask, AI Overview,
