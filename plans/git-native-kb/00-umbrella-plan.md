@@ -138,11 +138,13 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 3 — Commit-per-turn write path [`subplan: 03-commit-write-path.md`]
 
-> **PLANNED. Build after 02.** Depends on 01's `commit`.
+> **PLANNED. Build after 02.** Depends on 01's `transaction` and 02's working copies.
 
-- Replace `KnowledgeBasePersistenceMiddleware`'s "commit staged ops to Postgres" with **stage in working tree → one `git commit` at end of turn** (author = user/agent).
-- Editor saves and upload-extracted markdown route through the same commit path (one write path for all indexed content).
-- Tests: an agent turn with N edits produces exactly **one** commit; editor save produces one commit; commit author/message correct.
+- New small persistence middleware alongside `kb_persistence` (untouched until Phase 5 cut): end of turn → diff the working copy → one `transaction` → discard. Free-function commit body so the disconnect fallback runs the same routine.
+- Aider-style commit messages (weak-model generated, `Thread:` trailer); honest attribution (author = user, committer = agent).
+- Receipts flip from the recorded diff (revision id as `external_id`); Zero events move with Phase 4/6.
+- Editor saves and upload-extracted markdown route through the same commit path (one write path for all indexed content). Celery beat janitor prunes abandoned copies.
+- Tests: one revision per turn with net changes; KB-untouched turns record nothing; failed turns record nothing and recover next turn; receipts and janitor behavior.
 
 ### Phase 4 — Derived index + reindex [`subplan: 04-derived-index.md`]
 
