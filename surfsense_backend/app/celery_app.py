@@ -202,6 +202,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
         "app.tasks.celery_tasks.stripe_reconciliation_task",
         "app.tasks.celery_tasks.refresh_token_cleanup_task",
+        "app.tasks.celery_tasks.knowledge_store_janitor_task",
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.etl_pipeline.cache.eviction.task",
@@ -334,6 +335,12 @@ celery_app.conf.beat_schedule = {
     "evict-embedding-cache": {
         "task": "evict_embedding_cache",
         "schedule": crontab(hour="4", minute="30"),
+        "options": {"expires": 600},
+    },
+    # Prune knowledge-store working copies abandoned by crashed threads.
+    "prune-knowledge-store-working-copies": {
+        "task": "prune_knowledge_store_working_copies",
+        "schedule": crontab(hour="4", minute="45"),
         "options": {"expires": 600},
     },
     # Fire due automation schedule triggers (Beat entry owned by the schedule
