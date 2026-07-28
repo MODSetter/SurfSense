@@ -115,7 +115,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 0 — Shared contract [`subplan: 00c-shared-contract.md`]
 
-> **READ FIRST.** Pins the five cross-phase contracts (repo/tree layout, read contract, lock, write path, index/Zero realities) grounded in the current code. Resolves what were per-phase "open questions" and corrects three first-draft oversimplifications: reads are rendered-from-chunks (not raw git blobs), the lock must be Redis (multi-process deploy), and there is no embedding cache to "extend".
+> **READ FIRST.** Pins the five cross-phase contracts (repo/tree layout, read contract + citation model, lock, write path, index/Zero realities) grounded in the current code. Resolves what were per-phase "open questions". Two contracts were revised on 2026-07-28 after the adapter brainstorm: reads are **raw from the per-turn worktree** with one line-anchored citation pattern (C2), and in-turn writes live in a **per-turn worktree**, not the state overlay (C6).
 
 ### Phase 1 — Knowledge store core [`subplan: 01-git-storage-core.md`] ✅ implemented
 

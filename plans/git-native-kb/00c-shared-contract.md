@@ -20,19 +20,34 @@ contracts that phases 1–6 assume. Read it first.
 - **Git stores the source text** (the agent's note = `Document.source_markdown`/`content`), one file per document. Not the rendered XML view (that's derived — see C2). Not binaries (stay in the blob store).
 - **Identity mapping preserved.** `unique_identifier_hash = generate_unique_identifier_hash(DocumentType.NOTE, virtual_path, workspace_id)` (`app/utils/document_converters.py`) stays the stable doc identity across the git↔Postgres boundary and for connector re-sync. Store it in the derived `documents` row (as today); the git path is the human-facing identity.
 
-## C2 — Read contract: rendered-from-chunks, NOT raw blobs (Phase 2)
+## C2 — Read contract: raw reads + one citation pattern (Phase 2, 4)
 
-**Decided — this corrects subplan 02's "reads hit git".**
+**Decided 2026-07-28 — supersedes this contract's earlier rendered-from-chunks model.** Chunk-render preserved four defects: the agent read a citation-polluted artifact (markers baked into cached file bytes), citations pointed at chunk ids that dangle on every reindex, granularity was the chunker's whim, and reads depended on the derived index. Rohan flagged citation quality; this redesigns it instead of porting it.
 
-> **Under review (2026-07-28, [ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)).** Rohan flagged current citations as poor, so the citation model is a redesign candidate, not a preserve. Phase 2 decides raw-blob vs chunk-render explicitly (see `02`'s "Open"). The rest of C2 (structure from git; one-way derivation, no two-way sync) stands.
+**Reads are raw.** `read_file` returns the real file from the turn's worktree (C6), line-numbered, honest `offset`/`limit`. Citation markers never enter file bytes — the handle rides in the envelope only, so edits and commits operate on clean content.
 
-Today `read_file` does **not** return file bytes. `KBPostgresBackend.aload_document` builds a `RenderableDocument` from `Chunk` rows in document order, `render_full_document` wraps it as XML, and the `read_file` tool registers each chunk's `[n]` label into the conversation `CitationRegistry`. Citations are chunk-level.
+**One citation pattern through both doors (search excerpts and full reads).** All KB content reaches the agent as true-document-line-numbered text inside the same envelope, handle in the opening tag:
 
-- **v1 keeps the rendered-from-chunks read path** so agent citations don't regress. `GitTreeBackend` serves **structure** from the git tree (`ls`/`glob`/existence/`list_tree`) but **document content for `read_file` continues to render from the derived `Chunk` rows** (Postgres, one-way-derived from git — still no two-way sync).
-- `grep` may scan git working-tree files directly (raw source) — it already returns coarse `<chunk-match>` snippets, so raw-source matches are acceptable.
-- **Deferred:** serving raw markdown from git with per-document (coarse) citations. Revisit once the content model changes (Karpathy `raw/`+`wiki/`).
+```text
+<document title="…" path="…" cite="[3]" view="excerpts|full" revision="…">
+    340  ## Refunds — annual plans
+    341  Annual subscriptions may be refunded within 30 days…
+</document>
+```
 
-Net: Phase 2 replaces the **path/tree computation** (`path_resolver` + DB folder walk) with the real git tree; it does **not** move content rendering off chunks in v1.
+One agent rule, zero per-tool special cases: cite `[n]`, narrowed to the evidence lines seen — `[3:L341-L342]`. Multiple chunks of one document collapse into one envelope, one handle.
+
+**Citation currency = `(path, revision, evidence lines)`.**
+
+- Registry entries are per-document and **self-contained**: `{path, revision, title}`, snapshotted at render time, persisted with the chat. Never a chunk id — rebuilds can't dangle what they can't reach.
+- Evidence lines come from the **agent's emitted qualifier**; the normalizer parses the optional `:Lx-Ly` suffix and clamps it to the document length at that revision.
+- Resolution touches the chat's registry + git only: `read_as_of(revision, path)` → open at revision, highlight lines; the hover snippet is read from git at those exact lines. Chunk rows are never consulted after render.
+
+**Chunk spans exist only to render line numbers.** Phase 4 stores `start_line`/`end_line` at cut time; their sole consumer is the excerpt render, in the same query that fetched the row — never a stored downstream reference, so nothing to go stale.
+
+`ponytail:` evidence lines are agent-emitted (the Claude Code / Cursor precedent); a sloppy model can mis-cite. Clamp-only in v1; upgrade path = validate cited lines against what was actually shown in the turn.
+
+Structure (`ls`/`glob`/`grep`/`list_tree`) comes from the worktree; derivation stays one-way (git → Postgres, no two-way sync).
 
 ## C3 — Concurrency: Redis lock, from v1 (Phase 1, 3)
 

@@ -17,9 +17,9 @@ Give the agent real file ops (`ls/glob/grep/read/write/edit`) on a **per-turn pr
 - **`path_resolver` path computation retires for flagged workspaces** — folder walk + collision suffixing → real repo paths (filename rules still reused, C1). Keep `DOCUMENTS_ROOT` as the repo-relative prefix for continuity.
 - Selected via the resolver behind `KNOWLEDGE_STORE_ENABLED`.
 
-## Open — decide within this phase
+## Citation model — decided 2026-07-28 (full contract: C2)
 
-- **`read_file` citation model.** (a) chunk-render (`aload_document`/`render_full_document`, C2) so `[n]` doesn't regress, or (b) raw file with per-document/per-line citations (the coding-agent precedent). Current citations are poor (Rohan) — choose on citation quality, not on preserving today's path.
+Raw reads from the worktree; one citation pattern through both doors. Every KB surface (search excerpt or full read) renders as true-document-line-numbered text in one envelope with the handle in the opening tag (`cite="[n]"`); the agent cites `[n:Lx-Ly]` using the line numbers it sees. Registry entries are self-contained `{path, revision, title}` — no chunk ids, markers never enter file bytes. Retires `aload_document`/`render_full_document`'s chunk-render read path for flagged workspaces.
 
 ## Work items
 
@@ -31,7 +31,8 @@ Give the agent real file ops (`ls/glob/grep/read/write/edit`) on a **per-turn pr
 ## Tests
 
 - For a seeded repo, `ls`/`glob`/`grep`/`list_tree` return results **identical** to `KBPostgresBackend` for the same content (golden comparison).
-- `read_file` of a nested path returns the resolved document; **if** v1 keeps chunk-render, it registers the same `[n]` citations as the Postgres backend (contingent on the citation decision above).
+- `read_file` of a nested path returns the raw line-numbered file in the citation envelope (one `cite="[n]"` handle in the opening tag); the cached/edited file bytes contain **no** citation markers.
+- The normalizer resolves `[n:Lx-Ly]` to the registered `{path, revision}` with the emitted lines clamped to the document length at that revision.
 - Resolver returns the git-tree adapter only when the flag is on; falls back to `KBPostgresBackend`/`StateBackend` otherwise.
 
 ## Out of scope
