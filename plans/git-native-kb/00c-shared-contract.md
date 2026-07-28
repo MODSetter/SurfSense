@@ -46,10 +46,9 @@ The backend runs as **multiple OS processes**: the API (`python main.py`, uvicor
 
 ## C4 — Write path: repoint `commit_staged_filesystem_state` (Phase 3, 4)
 
-**Decided.** The end-of-turn commit body is `commit_staged_filesystem_state(...)` in `.../kb_persistence/middleware.py` (called by `aafter_agent` and the stream-task fallback). Repoint it from "write rows to Postgres" to "apply staged ops to the git working tree → one `commit`".
+**Decided — updated 2026-07-28 for the worktree model (C6).** The end-of-turn commit body is `commit_staged_filesystem_state(...)` in `.../kb_persistence/middleware.py` (called by `aafter_agent` and the stream-task fallback). For flagged workspaces, repoint it from "drain staged state keys to Postgres" to "**record the turn's worktree diff** as one revision" (C6: `porcelain.status` → change set → `store.transaction()`).
 
-- **State keys are already defined** (read them straight from state — no guesswork): `files`, `staged_dirs`, `staged_dir_tool_calls`, `pending_moves`, `pending_deletes`, `pending_dir_deletes`, `dirty_paths`, `dirty_path_tool_calls`, `doc_id_by_path`, `kb_anon_doc`, `tree_version`.
-- **Preserve the existing ordering**, which already exists for correctness: (1) folders/`staged_dirs`, (2) `pending_moves`, (3) `dirty_paths` writes/edits (skip paths also queued for `rm`; `_final_path` chases move aliases), (4) file `pending_deletes`, (5) dir `pending_dir_deletes`. Apply the same order to the working tree, then **one commit**.
+- **The staged-op state keys and their ordered drain are legacy-path only.** With the worktree, the tree already holds the netted outcome — moves are applied file ops, write-then-`rm` nets to nothing — so the key list (`files`, `staged_dirs`, `pending_moves`, `pending_deletes`, `pending_dir_deletes`, `dirty_paths`, `doc_id_by_path`, …) and the five-step ordering survive only on the unflagged Postgres path until migration deletes them (with `_pending_filesystem_view`, C6).
 - **Author** = `created_by_id` (the acting user id passed into the middleware); use `agent` for autonomous writes. **Message** summarizes the turn's ops.
 - **Coupling with Phase 4:** the `DocumentRevision`/`FolderRevision` snapshot logic (gated by `flags.enable_action_log`) lives *inside* this function. Deleting those systems (Phase 4) removes that snapshot code from here — sequence Phase 3's rewrite and Phase 4's deletion together for flagged workspaces.
 - **Emit the commit SHA** into state/event for Phase 4 (index) and Phase 6 (project). Keep the `dispatch_custom_event` calls (`document_created/updated/deleted`, `folder_deleted`) — the UI depends on them (C5).
@@ -62,28 +61,20 @@ The backend runs as **multiple OS processes**: the API (`python main.py`, uvicor
 - **`content_hash` ≠ git blob SHA.** `generate_content_hash(content, workspace_id)` is **workspace-salted**; a git blob SHA is content-only and unsalted. They are different values — you cannot just alias one onto the other. Recommend: key embedding reuse by **blob SHA**; keep `content_hash` for existing document-level checks through migration, drop later if redundant.
 - **Real-time UI has two channels, both must survive.** (1) Zero logical replication of the `documents`/`folders` rows (`app/zero_publication.py`); (2) `dispatch_custom_event` SSE from the commit path. Phase 6's git→Postgres projection must **upsert/delete the `documents`/`folders` rows** (so Zero streams them) **and** keep emitting the same custom events. Simplest owner: the Phase-4 post-commit pass does both (index + project) in one shot.
 
-## C6 — In-turn writes live in state, not the working tree (Phase 2, 3)
+## C6 — In-turn writes live in a per-turn private worktree (Phase 2, 3)
 
-**Decided — this corrects subplan 02's "writes stage in the working tree".**
+**Decided 2026-07-28 — supersedes this contract's earlier state-overlay model.** The overlay was Postgres-backend debt, not a framework requirement (deepagents' `FilesystemBackend` writes directly to disk). The worktree deletes `_pending_filesystem_view` and the six staged-state keys instead of porting them.
 
-> **Under review (2026-07-28, [ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)).** This captured the *current* Postgres backend's overlay. With a real working tree + deepagents `FilesystemBackend`, writes may go to the tree directly instead of the six-key `runtime.state` overlay. Phase 2 decides overlay-reuse vs direct-write + turn isolation (see `02`'s "Open"); confirm the overlay is needed before porting `_pending_filesystem_view`. The checkpoint/lock reasoning below bounds whichever option wins.
+Each turn that touches the KB gets a **private detached git worktree** of the workspace repo, checked out at the current revision:
 
-A turn's writes are **not** written to disk as they happen. The overridden tool wrappers in `SurfSenseFilesystemMiddleware` record each op as a `Command.update` into `runtime.state` (the keys in C4); the backend returns deltas and never mutates storage. Every read then **merges two sources, state winning over committed storage**:
+- **Created lazily** on the turn's first KB tool call (read or write); turns that never touch the KB pay nothing. Measured: ~90 ms checkout for a 500-doc workspace, once per turn.
+- **One tree serves the whole turn.** Every `read`/`write`/`edit`/`ls`/`glob`/`grep` in the turn (sub-agents included) is a plain file op on it — one code path, read-your-own-writes by construction, no overlay, no merge logic.
+- **Abort/crash = delete the directory.** An age-based janitor prunes orphans. Nothing uncommitted survives.
+- **Commit = diff, not snapshot.** At end of turn, `porcelain.status(worktree)` (dulwich; the detached HEAD *is* the base revision) yields the touched paths → mapped to a `writes`/`removes` change set → recorded via `store.transaction()` under the Redis lock (C3), on top of the current head. Committing only the diff means a parallel turn's already-committed work on untouched files is never reverted.
+- **Same-file overlap: last-writer-wins, with history.** No merge machinery in v1; the overwritten version stays reachable in the prior revision. `ponytail:` ceiling = no three-way merge / conflict surfacing; upgrade path = git's own three-way merge if concurrent same-file edits become real.
+- **Moves are stored as delete+add** — identical to git's own rename storage; no fidelity lost.
 
-- `aread` returns `state["files"][path]` if present, else falls back to committed content.
-- `als_info` / `aglob_info` / `agrep_raw` / `alist_tree_listing` union committed entries with the state overlay (`files`, `staged_dirs`, `pending_moves`, `pending_deletes`, `pending_dir_deletes`, `kb_anon_doc`) via `_pending_filesystem_view`, so a file written earlier in the same turn is visible to a later `ls`/`read`/`grep`.
-
-**Phase 2 keeps this exactly.** `GitTreeBackend` swaps only the *committed* source — DB folder-walk → **git working tree at HEAD** — and reuses the identical state-overlay logic. In-turn writes stay deltas in `runtime.state`; the working tree is **read-only during a turn**.
-
-**Why not physically stage to the working tree mid-turn:**
-
-1. **Checkpoints own state.** langgraph persists/replays `runtime.state`; rollback, replay, and branching restore state but cannot un-write disk. A dirty tree would desync from the checkpoint.
-2. **The lock is per-commit, not per-turn** (C3). Two concurrent turns/threads on one workspace would clobber each other's uncommitted files in the single shared working tree.
-3. **An aborted or disconnected turn must leave no trace.** State is dropped automatically; a dirty working tree would not be.
-
-**The working tree is mutated only at commit** (C4), inside the write lock, by `KnowledgeStore.transaction()` — one revision per turn.
-
-`ponytail:` v1 ceiling = one shared working tree per workspace + per-commit lock. If parallel turns on one workspace ever need isolation, upgrade path = a per-turn git worktree or temp index.
+`ponytail:` known trade: a mid-turn checkpoint fork/replay does not restore uncommitted worktree files (state staging would have). Accepted — SurfSense has no mid-turn fork feature; revisit only if one appears.
 
 ---
 
@@ -100,7 +91,7 @@ A turn's writes are **not** written to disk as they happen. The overridden tool 
 |---|---|
 | 01 lock granularity; repo layout; repo root | C3, C1 |
 | 02 read rendering; glob/grep source | C2 |
-| 02 in-turn write visibility; state overlay | C6 |
+| 02 in-turn write visibility; turn isolation (worktree) | C6 |
 | 03 author identity; staged-op keys | C4 |
 | 04 content_hash vs blob SHA; cache location | C5 |
 | 06 projection owner; consistency | C5 |
