@@ -9,8 +9,8 @@ from datetime import datetime
 
 
 @dataclass(frozen=True)
-class StoredRevision:
-    """One recorded point in a workspace's history."""
+class Revision:
+    """One recorded point in a workspace's history (a whole-tree snapshot)."""
 
     id: str
     author: str
@@ -22,11 +22,11 @@ class VersionedContentStore(ABC):
     """Append-only, content-addressed history for a single workspace."""
 
     @abstractmethod
-    def ensure(self) -> None:
+    def ensure_exists(self) -> None:
         """Create the store if absent; a no-op once it exists."""
 
     @abstractmethod
-    def commit(
+    def record(
         self,
         *,
         writes: Mapping[str, bytes],
@@ -34,7 +34,7 @@ class VersionedContentStore(ABC):
         message: str,
         author: str,
     ) -> str | None:
-        """Snapshot ``writes`` and ``removes`` as one revision.
+        """Append ``writes`` and ``removes`` to history as one revision.
 
         Returns the revision id, or ``None`` when nothing changed.
         """
@@ -44,20 +44,20 @@ class VersionedContentStore(ABC):
         """Current bytes of ``path``, or ``None`` if it does not exist."""
 
     @abstractmethod
-    def read_at(self, revision: str, path: str) -> bytes:
-        """Return a path's bytes as of ``revision``. Raises if absent there."""
+    def read_as_of(self, revision: str, path: str) -> bytes:
+        """Bytes of ``path`` as of ``revision``. Raises if absent there."""
 
     @abstractmethod
-    def history(
+    def list_revisions(
         self, *, path: str | None = None, limit: int | None = None
-    ) -> list[StoredRevision]:
+    ) -> list[Revision]:
         """Revisions newest-first, optionally scoped to a single path."""
 
     @abstractmethod
-    def current_revision(self) -> str | None:
-        """The current revision id, or ``None`` for an empty store."""
+    def get_current_revision(self) -> str | None:
+        """Id of the current whole-store snapshot, or ``None`` when empty."""
 
     @staticmethod
     @abstractmethod
-    def content_id(data: bytes) -> str:
+    def compute_content_id(data: bytes) -> str:
         """Stable content address for ``data``, independent of any path."""

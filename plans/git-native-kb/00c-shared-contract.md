@@ -81,7 +81,7 @@ A turn's writes are **not** written to disk as they happen. The overridden tool 
 2. **The lock is per-commit, not per-turn** (C3). Two concurrent turns/threads on one workspace would clobber each other's uncommitted files in the single shared working tree.
 3. **An aborted or disconnected turn must leave no trace.** State is dropped automatically; a dirty working tree would not be.
 
-**The working tree is mutated only at commit** (C4), inside the write lock, by `KnowledgeStore.revise()` — one revision per turn.
+**The working tree is mutated only at commit** (C4), inside the write lock, by `KnowledgeStore.transaction()` — one revision per turn.
 
 `ponytail:` v1 ceiling = one shared working tree per workspace + per-commit lock. If parallel turns on one workspace ever need isolation, upgrade path = a per-turn git worktree or temp index.
 

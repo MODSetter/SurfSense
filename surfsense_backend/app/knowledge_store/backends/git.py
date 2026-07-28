@@ -14,7 +14,7 @@ from dulwich.object_store import tree_lookup_path
 from dulwich.objects import Blob
 from dulwich.repo import Repo
 
-from app.knowledge_store.backends.base import StoredRevision, VersionedContentStore
+from app.knowledge_store.backends.content_store import Revision, VersionedContentStore
 
 
 class GitContentStore(VersionedContentStore):
@@ -23,12 +23,12 @@ class GitContentStore(VersionedContentStore):
     def __init__(self, path: Path) -> None:
         self._path = path
 
-    def ensure(self) -> None:
+    def ensure_exists(self) -> None:
         self._path.mkdir(parents=True, exist_ok=True)
         if not (self._path / ".git").exists():
             porcelain.init(str(self._path))
 
-    def commit(
+    def record(
         self,
         *,
         writes: Mapping[str, bytes],
@@ -65,7 +65,7 @@ class GitContentStore(VersionedContentStore):
         abs_path = self._path / path
         return abs_path.read_bytes() if abs_path.is_file() else None
 
-    def read_at(self, revision: str, path: str) -> bytes:
+    def read_as_of(self, revision: str, path: str) -> bytes:
         repo = Repo(str(self._path))
         try:
             tree_id = repo[revision.encode()].tree
@@ -74,9 +74,9 @@ class GitContentStore(VersionedContentStore):
         finally:
             repo.close()
 
-    def history(
+    def list_revisions(
         self, *, path: str | None = None, limit: int | None = None
-    ) -> list[StoredRevision]:
+    ) -> list[Revision]:
         repo = Repo(str(self._path))
         try:
             if repo.head() is None:  # pragma: no cover - guarded below
@@ -92,7 +92,7 @@ class GitContentStore(VersionedContentStore):
         finally:
             repo.close()
 
-    def current_revision(self) -> str | None:
+    def get_current_revision(self) -> str | None:
         repo = Repo(str(self._path))
         try:
             return repo.head().decode()
@@ -102,7 +102,7 @@ class GitContentStore(VersionedContentStore):
             repo.close()
 
     @staticmethod
-    def content_id(data: bytes) -> str:
+    def compute_content_id(data: bytes) -> str:
         return Blob.from_string(data).id.decode()
 
     def _stage_removal(self, repo: Repo, rel_path: str) -> None:
@@ -121,8 +121,8 @@ class GitContentStore(VersionedContentStore):
         return index_tree != head_tree
 
     @staticmethod
-    def _to_revision(commit) -> StoredRevision:
-        return StoredRevision(
+    def _to_revision(commit) -> Revision:
+        return Revision(
             id=commit.id.decode(),
             author=commit.author.decode(),
             message=commit.message.decode().strip(),

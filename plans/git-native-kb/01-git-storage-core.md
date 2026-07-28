@@ -21,25 +21,25 @@ A `KnowledgeStore` facade that owns one versioned history per workspace and expo
    - `settings.py` — `load_knowledge_store_settings()` (enabled flag + root, from central config).
    - `store_path.py` — `workspace_store_path(workspace_id)`: the sole owner of on-disk layout.
    - `write_lock.py` — `workspace_write_lock(workspace_id)` async context manager over the Redis lock (C3), with explicit TTL/wait constants and `KnowledgeStoreLockError`.
-   - `revision_draft.py` — `RevisionDraft`: the unit-of-work verbs (`write`/`remove`/`move`) and their collapse into a change set (`to_change_set`).
+   - `transaction.py` — `Transaction`: the unit-of-work verbs (`write`/`remove`/`move`) and their resolution into concrete writes/removes (`resolve`).
    - `store.py` — `KnowledgeStore` async facade (runs the sync engine via `asyncio.to_thread`; reads are lock-free, writes serialized). Public surface — **intent verbs, no git vocabulary**:
      - `ensure_exists()` — init if absent (idempotent).
-     - `revise(message, author)` — a unit-of-work scope yielding a `RevisionDraft` with verbs `write(path, content)` / `remove(path)` / `move(src, dst)`. On clean exit it records **exactly one revision** under the write lock (`draft.revision` = the new id, `None` if nothing changed); on exception it records nothing. Whether that revision touches one file or fifty is an engine detail.
-     - `read_at(revision, path)`, `history(path=None, limit=None)`, `current_revision()`.
-     - `content_id(data)` — git blob SHA (content-addressed id, consumed by Phase 4).
-   - `backends/base.py` — `VersionedContentStore` contract (**engine boundary**: snapshot `commit(writes, removes)`, `read`, `read_at`, `history`, `current_revision`, `content_id`) + `StoredRevision`. `backends/git.py` — `GitContentStore` (all dulwich mechanics; the swappable engine seam). The verb→snapshot translation lives in the facade, so the batch never surfaces in the API.
+     - `transaction(message, author)` — an atomic unit-of-work scope (SQL `BEGIN`/`COMMIT` shape, Django `transaction.atomic()` precedent) yielding a `Transaction` with verbs `write(path, content)` / `remove(path)` / `move(src, dst)`. On clean exit it records **exactly one revision** under the write lock (`tx.revision` = the new id, `None` if nothing changed); on exception it records nothing. Whether that revision touches one file or fifty is an engine detail.
+     - `read_as_of(revision, path)` (temporal read, SQL/Datomic "as of"), `list_revisions(path=None, limit=None)`, `get_current_revision()` (a revision is always a whole-workspace snapshot).
+     - `compute_content_id(data)` — git blob SHA (content-addressed id, consumed by Phase 4).
+   - `backends/content_store.py` — `VersionedContentStore` contract (**engine boundary**: `record(writes, removes)`, `read`, `read_as_of`, `list_revisions`, `get_current_revision`, `compute_content_id`) + `Revision`. `backends/git.py` — `GitContentStore` (all dulwich mechanics; the swappable engine seam — git vocabulary starts here, not in the port). The verb→snapshot translation lives in the facade, so the batch never surfaces in the API.
 3. Config flags `KNOWLEDGE_STORE_ENABLED` (off by default) + `KNOWLEDGE_STORE_ROOT`.
 
 ## Tests (`tests/unit/knowledge_store/`)
 
-- **Engine** (`GitContentStore`): `ensure()` idempotent; a mixed write+modify+delete lands in one revision; no-op commit returns `None`; removing an untracked path is tolerated; `history` newest-first, path-scoped, honors `limit`; revisions carry author + tz-aware timestamp; `content_id` equals real `git hash-object`.
-- **Facade** (`KnowledgeStore.revise`): a single `write` records one revision; `write`/`remove`/`move` in one scope batch into exactly one revision (two scopes → two revisions); an exception inside the scope records nothing (`current_revision` stays `None`).
+- **Engine** (`GitContentStore`): `ensure_exists()` idempotent; a mixed write+modify+delete lands in one revision; no-op record returns `None`; removing an untracked path is tolerated; `list_revisions` newest-first, path-scoped, honors `limit`; revisions carry author + tz-aware timestamp; `compute_content_id` equals real `git hash-object`.
+- **Facade** (`KnowledgeStore.transaction`): a single `write` records one revision; `write`/`remove`/`move` in one scope batch into exactly one revision (two scopes → two revisions); an exception inside the scope records nothing (`get_current_revision` stays `None`).
 - **Write-lock wrapper**: raises `KnowledgeStoreLockError` when unacquired; yields and releases on success. (Cross-process serialization is Redis's guarantee; not re-tested here.)
 
 ## Out of scope
 
 - Agent/backend wiring → Phase 2. Commit-on-turn → Phase 3. Indexing → Phase 4.
-- Structure primitives (`list_tree`/glob/grep) → added in Phase 2. Undo/forward-restore → Phase 4 (v1 is `read_at` + `history` only).
+- Structure primitives (`list_tree`/glob/grep) → added in Phase 2. Undo/forward-restore → Phase 4 (v1 is `read_as_of` + `history` only).
 - Remotes (push/pull), Git-LFS, `gc`/repack scheduling — deferred (umbrella).
 
 ## Resolved (see [`00c-shared-contract.md`](00c-shared-contract.md))

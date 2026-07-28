@@ -122,10 +122,10 @@ Every decision traces to a proven source (full list + links in the ADR):
 > **DONE. Built first** — every later phase uses it.
 
 - Added **dulwich**; a `KnowledgeStore` facade that opens/creates a **persistent working tree per workspace** on disk, nested under the shared blob-store volume (`{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`). Git lives behind the facade (`backends/git.py`).
-- API (intent verbs, no git vocabulary): `ensure`; `revise(message, author)` scope yielding a draft with `write`/`remove`/`move` that records one atomic revision on exit; `read_at`, `history`, `head`, `content_id`. Snapshot/batch is an engine detail. (Structure primitives → Phase 2; undo/forward-restore → Phase 4.)
+- API (SQL-transaction vocabulary, no git words; capabilities are verbs): `ensure_exists`; `transaction(message, author)` scope yielding a `Transaction` with `write`/`remove`/`move` that records one atomic revision on clean exit; `read_as_of`, `list_revisions`, `get_current_revision`, `compute_content_id`. Snapshot/batch is an engine detail. (Structure primitives → Phase 2; undo/forward-restore → Phase 4.)
 - **Per-workspace Redis write lock** around commits (single-writer safety across all OS processes). `ponytail:` lock ceiling = one lock per commit; upgrade path = queue/worker.
-- Key files (new): `surfsense_backend/app/knowledge_store/` (`store`, `revision_draft`, `write_lock`, `store_path`, `settings`, `backends/{base,git}`). No agent wiring yet.
-- Tests (`tests/unit/knowledge_store/`): create → write/commit → history shows revision → read_at(prev) returns old content → no-op commit returns None → content_id matches `git hash-object`; lock wrapper acquire/fail paths.
+- Key files (new): `surfsense_backend/app/knowledge_store/` (`store`, `transaction`, `write_lock`, `store_path`, `settings`, `backends/{content_store,git}`). No agent wiring yet.
+- Tests (`tests/unit/knowledge_store/`): create → write/record → revision listed → read_as_of(prev) returns old content → no-op record returns None → compute_content_id matches `git hash-object`; lock wrapper acquire/fail paths.
 
 ### Phase 2 — deepagents adapter over the core [`subplan: 02-git-working-tree-backend.md`]
 

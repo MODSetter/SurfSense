@@ -1,18 +1,18 @@
-"""A revision's staged changes, recorded as intent verbs."""
+"""One atomic unit of work; its staged verbs become a single revision."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 
 
-class RevisionDraft:
-    """Changes staged for one revision."""
+class Transaction:
+    """An open unit of work: stage intent verbs, recorded atomically on exit."""
 
     def __init__(self) -> None:
         self._writes: dict[str, bytes] = {}
         self._removes: list[str] = []
         self._moves: list[tuple[str, str]] = []
-        #: Recorded revision id, set on scope exit (``None`` when nothing changed).
+        #: Resulting revision id, set on scope exit (``None`` when nothing changed).
         self.revision: str | None = None
 
     def write(self, path: str, content: bytes) -> None:
@@ -31,10 +31,10 @@ class RevisionDraft:
         """Relocate ``src`` to ``dst``."""
         self._moves.append((src, dst))
 
-    def to_change_set(
+    def resolve(
         self, read_current: Callable[[str], bytes | None]
     ) -> tuple[dict[str, bytes], list[str]]:
-        """Collapse the staged verbs (moves included) into concrete writes/removes."""
+        """Resolve the staged verbs (moves included) into concrete writes/removes."""
         writes = dict(self._writes)
         removes = list(self._removes)
         for src, dst in self._moves:
