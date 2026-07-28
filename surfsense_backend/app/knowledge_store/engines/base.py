@@ -17,7 +17,10 @@ class Revision:
     """One recorded point in a workspace's history (a whole-tree snapshot)."""
 
     id: str
+    #: Whose content change this is (the acting user).
     author: str
+    #: Who recorded it (the agent for agent turns; equals author otherwise).
+    committer: str
     message: str
     created_at: datetime
 
@@ -64,10 +67,12 @@ class VersionedContentEngine(ABC):
         removes: Iterable[str],
         message: str,
         author: str,
+        committer: str | None = None,
     ) -> str | None:
         """Append ``writes`` and ``removes`` to history as one revision.
 
-        Returns the revision id, or ``None`` when nothing changed.
+        ``committer`` defaults to ``author``. Returns the revision id, or
+        ``None`` when nothing changed.
         """
 
     @abstractmethod

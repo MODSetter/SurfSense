@@ -89,6 +89,24 @@ class TestHistoryQueries:
         assert rev.author == AUTHOR
         assert rev.created_at.tzinfo is not None
 
+    def test_revision_distinguishes_author_from_committer(self, engine):
+        agent = "SurfSense Agent <agent@surfsense>"
+        engine.record(
+            writes={"a.xml": b"1"},
+            removes=[],
+            message="a1",
+            author=AUTHOR,
+            committer=agent,
+        )
+        rev = engine.list_revisions()[0]
+        assert rev.author == AUTHOR
+        assert rev.committer == agent
+
+    def test_committer_defaults_to_author(self, engine):
+        engine.record(writes={"a.xml": b"1"}, removes=[], message="a1", author=AUTHOR)
+        rev = engine.list_revisions()[0]
+        assert rev.committer == AUTHOR
+
     def test_list_changes_reports_kinds_and_content_ids(self, engine):
         first = engine.record(
             writes={"a.xml": b"a1", "b.xml": b"b1"},

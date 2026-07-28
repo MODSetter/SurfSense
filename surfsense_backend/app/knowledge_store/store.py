@@ -38,14 +38,19 @@ class KnowledgeStore:
         return cls(workspace_id, engine)
 
     @asynccontextmanager
-    async def transaction(self, *, message: str, author: str):
+    async def transaction(
+        self, *, message: str, author: str, committer: str | None = None
+    ):
         """Atomic unit of work: verbs staged in the scope become one revision
-        on clean exit; an exception records nothing."""
+        on clean exit; an exception records nothing.
+
+        ``author`` is whose content change this is; ``committer`` (default
+        ``author``) is who recorded it — the agent identity for agent turns."""
         tx = Transaction()
         yield tx
         async with workspace_write_lock(self._workspace_id):
             tx.revision = await asyncio.to_thread(
-                self._record_revision, tx, message, author
+                self._record_revision, tx, message, author, committer
             )
 
     async def read_as_of(self, revision: str, path: str) -> bytes:
@@ -100,10 +105,14 @@ class KnowledgeStore:
         return self._engine.compute_content_id(data)
 
     def _record_revision(
-        self, tx: Transaction, message: str, author: str
+        self, tx: Transaction, message: str, author: str, committer: str | None
     ) -> str | None:
         """Resolve the transaction into one change set and record it."""
         writes, removes = tx.resolve(self._engine.read)
         return self._engine.record(
-            writes=writes, removes=removes, message=message, author=author
+            writes=writes,
+            removes=removes,
+            message=message,
+            author=author,
+            committer=committer,
         )

@@ -62,6 +62,7 @@ class GitContentEngine(VersionedContentEngine):
         removes: Iterable[str],
         message: str,
         author: str,
+        committer: str | None = None,
     ) -> str | None:
         self._ensure_exists()
         repo = Repo(str(self._path))
@@ -78,12 +79,11 @@ class GitContentEngine(VersionedContentEngine):
             if not self._has_pending_changes(repo):
                 return None
 
-            author_bytes = author.encode()
             revision = porcelain.commit(
                 repo,
                 message=message.encode(),
-                author=author_bytes,
-                committer=author_bytes,
+                author=author.encode(),
+                committer=(committer or author).encode(),
             )
             return revision.decode()
         finally:
@@ -289,6 +289,7 @@ class GitContentEngine(VersionedContentEngine):
         return Revision(
             id=commit.id.decode(),
             author=commit.author.decode(),
+            committer=commit.committer.decode(),
             message=commit.message.decode().strip(),
             created_at=datetime.fromtimestamp(commit.commit_time, tz=UTC),
         )
