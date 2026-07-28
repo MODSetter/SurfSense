@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
 ChangeKind = Literal["added", "modified", "removed"]
@@ -39,12 +40,21 @@ class TrackedPath:
     content_id: str
 
 
-class VersionedContentStore(ABC):
-    """Append-only, content-addressed history for a single workspace."""
+@dataclass(frozen=True)
+class WorkingCopy:
+    """A private on-disk copy of the store's content, open for one unit of work."""
 
-    @abstractmethod
-    def ensure_exists(self) -> None:
-        """Create the store if absent; a no-op once it exists."""
+    id: str
+    path: Path
+    #: Revision the copy was opened at (``None`` when the store was empty).
+    base_revision: str | None
+
+
+class VersionedContentEngine(ABC):
+    """Append-only, content-addressed history for a single workspace.
+
+    First use bootstraps the store; callers never create it explicitly.
+    """
 
     @abstractmethod
     def record(
@@ -85,6 +95,25 @@ class VersionedContentStore(ABC):
     @abstractmethod
     def get_current_revision(self) -> str | None:
         """Id of the current whole-store snapshot, or ``None`` when empty."""
+
+    @abstractmethod
+    def open_working_copy(self, copy_id: str) -> WorkingCopy:
+        """Copy of the current content for ``copy_id``; reopens an existing one."""
+
+    @abstractmethod
+    def diff_working_copy(self, copy_id: str) -> tuple[dict[str, bytes], list[str]]:
+        """Net changes in ``copy_id``'s copy since its base, as ``(writes, removes)``.
+
+        Raises ``FileNotFoundError`` when the copy was never opened.
+        """
+
+    @abstractmethod
+    def discard_working_copy(self, copy_id: str) -> None:
+        """Delete ``copy_id``'s working copy; a no-op if absent."""
+
+    @abstractmethod
+    def prune_working_copies(self, *, older_than_seconds: float) -> list[str]:
+        """Delete abandoned working copies; returns the pruned ids."""
 
     @staticmethod
     @abstractmethod
