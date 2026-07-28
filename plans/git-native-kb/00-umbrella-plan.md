@@ -61,6 +61,41 @@ flowchart TD
 - **Engine = dulwich** (pure Python, deploy-friendly in Docker, real wire protocol for future remotes). Shell out to `git` only for heavy maintenance (`gc`/repack).
 - **Per-workspace write lock** is mandatory (git is single-writer) — a data-integrity boundary, not a feature.
 - **Rollout behind a feature flag**, per-workspace; no big-bang cutover.
+- **Ports & Adapters shape** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): the KB is a framework-agnostic **core** (`KnowledgeStore`); deepagents is one **adapter**, not the core. See "Architecture shape" below.
+
+## Architecture shape — Ports & Adapters (core + adapters)
+
+The KB is a **framework-agnostic core** (`KnowledgeStore`) surrounded by adapters. deepagents is **one driving adapter**, not the core — because the same knowledge already has several consumers (chat agent, a KB REST API, the vector-store sync, later MCP / remote git). Coupling the core to deepagents would force every other consumer through an agent framework. Rationale + sources (Cockburn Hexagonal, git plumbing/porcelain, libgit2): [ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md).
+
+```mermaid
+flowchart LR
+  subgraph ADAPTERS_IN["Driving adapters (world → core)"]
+    DA["deepagents backend<br/>(Phase 2 — build now)"]
+    API["KB REST API<br/>(deferred)"]
+    MCP["MCP server<br/>(deferred)"]
+  end
+  CORE["KnowledgeStore<br/>(framework-agnostic core)"]
+  ENGINE["VersionedContentStore → GitContentStore (dulwich)<br/>driven port — build now (Phase 1)"]
+  SYNC["Vector-store sync / derived index<br/>driven consumer (Phase 4 — build now)"]
+  REMOTE["Remote git (GitHub/GitLab)<br/>driven adapter (deferred)"]
+  DA --> CORE
+  API -.-> CORE
+  MCP -.-> CORE
+  CORE --> ENGINE
+  CORE -->|commits| SYNC
+  ENGINE -.-> REMOTE
+```
+
+| Role | Consumer | v1? |
+|---|---|---|
+| Driving adapter | deepagents agent backend | ✅ build now (Phase 2) |
+| Driving adapter | KB REST API (Rohan's artifact API) | deferred — next adapter after the core |
+| Driving adapter | MCP server | deferred |
+| Driven port (infra) | storage engine (dulwich via `VersionedContentStore`) | ✅ built (Phase 1) |
+| Driven consumer | vector-store sync / derived index | ✅ build now (Phase 4) |
+| Driven adapter | remote git (GitHub/GitLab) | deferred |
+
+**YAGNI:** build only the **core + deepagents adapter + vector-store-sync consumer**. Shape the ports so REST/MCP/remote-git slot in later, but **do not build them now**. Grow the port surface on demand — capabilities (`ls`/`grep`/`glob`, version/diff verbs) live once in the core, and each adapter takes the subset it needs; no speculative methods, no per-consumer reimplementation.
 
 ## References we are borrowing from (not inventing)
 
@@ -92,11 +127,11 @@ Every decision traces to a proven source (full list + links in the ADR):
 - Key files (new): `surfsense_backend/app/knowledge_store/` (`store`, `revision_draft`, `write_lock`, `store_path`, `settings`, `backends/{base,git}`). No agent wiring yet.
 - Tests (`tests/unit/knowledge_store/`): create → write/commit → history shows revision → read_at(prev) returns old content → no-op commit returns None → content_id matches `git hash-object`; lock wrapper acquire/fail paths.
 
-### Phase 2 — Git-working-tree backend [`subplan: 02-git-working-tree-backend.md`]
+### Phase 2 — deepagents adapter over the core [`subplan: 02-git-working-tree-backend.md`]
 
-> **PLANNED. Build after 01.** Replaces the read-side fake.
+> **PLANNED. Build after 01.** The **first driving adapter** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)) — deepagents talking to the core over the real git working tree, replacing the read-side fake.
 
-- New backend implementing the deepagents `BackendProtocol` (`als_info`/`aread`/`awrite`/`aedit`/`aglob_info`/`agrep_raw`/`alist_tree_listing`) over the **real git working tree** instead of `KBPostgresBackend`.
+- A deepagents backend (`BackendProtocol`: `als_info`/`aread`/`awrite`/`aedit`/`aglob_info`/`agrep_raw`/`alist_tree_listing`) over the **real git working tree** instead of `KBPostgresBackend`. **Reuse deepagents' own `FilesystemBackend`/git plumbing** for read-only structure (`ls`/`glob`/`grep`); route writes + commit through the core (`KnowledgeStore`) so the lock/commit/citation policy has one home. Do not reimplement filesystem ops the framework already ships.
 - Wire into the backend resolver (`.../filesystem/backends/resolver.py`) for cloud mode behind the feature flag.
 - **Retire the virtual-FS façade** (`path_resolver.py`, `kb_postgres.py`) for flagged workspaces — paths become real paths.
 - Tests: agent `ls`/`read`/`glob`/`grep` return real files identical to the previous fake for a seeded repo.
@@ -111,7 +146,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 4 — Derived index + reindex [`subplan: 04-derived-index.md`]
 
-> **PLANNED. Can build alongside 03** (both consume 01's `commit`/`log`).
+> **PLANNED. Can build alongside 03** (both consume 01's `commit`/`log`). This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to commits one-way; the core has no knowledge of it.
 
 - Post-commit indexer: **diff the commit tree**, re-chunk + re-embed **only changed blobs**, keying embeddings by **blob SHA** (point the existing `chunk_reconciler.py` at blob SHA). `web`/live paths untouched.
 - One idempotent **`reindex(workspace)`** that wipes and rebuilds all chunks/embeddings from the current git HEAD (the Fossil `rebuild` discipline).
@@ -168,14 +203,15 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 - **(2026-07-24) PIVOT ADOPTED — Git as source of truth, Postgres as derived index.** Outcome of the KB maintenance investigation (ADR 0001). Git owns all *indexed* content; Postgres holds only chunks+embeddings and is rebuildable via `reindex()`. One-way derivation only (git→Postgres); two-way sync explicitly rejected (Wiki.js #7860). Live connectors (Slack/Gmail) unchanged and out of scope. Agent tool interface unchanged; only the backend behind it swaps. Three hand-rolled versioning systems to be deleted in favor of git history/`revert`. Engine = dulwich. Rollout behind a per-workspace feature flag.
 - **(2026-07-24) Connectors clarified — only `is_indexable` content enters git.** Document connectors (Notion, Drive, Obsidian) are indexed → they go into git. Live connectors (Slack, Gmail) are queried at chat time and never stored → they never touch git or Postgres chunks. (Corrects an earlier draft that carved *all* connectors out of git.)
 - **(2026-07-24) Borrowing, not inventing.** Architecture assembled from proven references (Fossil, Gollum, kherad, Coregit, dulwich, vector-cache best-practices); the only SurfSense-specific work is the adaptation glue. Wiki.js retained as the explicit counter-example.
+- **(2026-07-28) Ports & Adapters — deepagents is an adapter, not the core** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)). The KB is a framework-agnostic core (`KnowledgeStore`); consumers (deepagents, the KB REST API, the vector-store sync, later MCP/remote-git) are adapters at the edge. **YAGNI:** v1 builds only the core + the deepagents adapter (Phase 2) + the vector-store-sync consumer (Phase 4); REST/MCP/remote-git are named-but-deferred. Ports grow on demand. Borrowed from Cockburn (Hexagonal), git plumbing/porcelain, libgit2.
 
 ## Subplan index (backend)
 
 | Phase | Subplan file | Status |
 |-------|--------------|--------|
 | 0 | `00c-shared-contract.md` | PLANNED — read first |
-| 1 | `01-git-storage-core.md` | PLANNED |
-| 2 | `02-git-working-tree-backend.md` | PLANNED |
+| 1 | `01-git-storage-core.md` (core) | ✅ implemented |
+| 2 | `02-git-working-tree-backend.md` (deepagents adapter) | PLANNED |
 | 3 | `03-commit-write-path.md` | PLANNED |
 | 4 | `04-derived-index.md` | PLANNED |
 | 5 | `05-migration.md` | PLANNED |

@@ -24,6 +24,8 @@ contracts that phases 1–6 assume. Read it first.
 
 **Decided — this corrects subplan 02's "reads hit git".**
 
+> **Under review (2026-07-28, [ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)).** Rohan flagged current citations as poor, so the citation model is a redesign candidate, not a preserve. Phase 2 decides raw-blob vs chunk-render explicitly (see `02`'s "Open"). The rest of C2 (structure from git; one-way derivation, no two-way sync) stands.
+
 Today `read_file` does **not** return file bytes. `KBPostgresBackend.aload_document` builds a `RenderableDocument` from `Chunk` rows in document order, `render_full_document` wraps it as XML, and the `read_file` tool registers each chunk's `[n]` label into the conversation `CitationRegistry`. Citations are chunk-level.
 
 - **v1 keeps the rendered-from-chunks read path** so agent citations don't regress. `GitTreeBackend` serves **structure** from the git tree (`ls`/`glob`/existence/`list_tree`) but **document content for `read_file` continues to render from the derived `Chunk` rows** (Postgres, one-way-derived from git — still no two-way sync).
@@ -60,6 +62,29 @@ The backend runs as **multiple OS processes**: the API (`python main.py`, uvicor
 - **`content_hash` ≠ git blob SHA.** `generate_content_hash(content, workspace_id)` is **workspace-salted**; a git blob SHA is content-only and unsalted. They are different values — you cannot just alias one onto the other. Recommend: key embedding reuse by **blob SHA**; keep `content_hash` for existing document-level checks through migration, drop later if redundant.
 - **Real-time UI has two channels, both must survive.** (1) Zero logical replication of the `documents`/`folders` rows (`app/zero_publication.py`); (2) `dispatch_custom_event` SSE from the commit path. Phase 6's git→Postgres projection must **upsert/delete the `documents`/`folders` rows** (so Zero streams them) **and** keep emitting the same custom events. Simplest owner: the Phase-4 post-commit pass does both (index + project) in one shot.
 
+## C6 — In-turn writes live in state, not the working tree (Phase 2, 3)
+
+**Decided — this corrects subplan 02's "writes stage in the working tree".**
+
+> **Under review (2026-07-28, [ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)).** This captured the *current* Postgres backend's overlay. With a real working tree + deepagents `FilesystemBackend`, writes may go to the tree directly instead of the six-key `runtime.state` overlay. Phase 2 decides overlay-reuse vs direct-write + turn isolation (see `02`'s "Open"); confirm the overlay is needed before porting `_pending_filesystem_view`. The checkpoint/lock reasoning below bounds whichever option wins.
+
+A turn's writes are **not** written to disk as they happen. The overridden tool wrappers in `SurfSenseFilesystemMiddleware` record each op as a `Command.update` into `runtime.state` (the keys in C4); the backend returns deltas and never mutates storage. Every read then **merges two sources, state winning over committed storage**:
+
+- `aread` returns `state["files"][path]` if present, else falls back to committed content.
+- `als_info` / `aglob_info` / `agrep_raw` / `alist_tree_listing` union committed entries with the state overlay (`files`, `staged_dirs`, `pending_moves`, `pending_deletes`, `pending_dir_deletes`, `kb_anon_doc`) via `_pending_filesystem_view`, so a file written earlier in the same turn is visible to a later `ls`/`read`/`grep`.
+
+**Phase 2 keeps this exactly.** `GitTreeBackend` swaps only the *committed* source — DB folder-walk → **git working tree at HEAD** — and reuses the identical state-overlay logic. In-turn writes stay deltas in `runtime.state`; the working tree is **read-only during a turn**.
+
+**Why not physically stage to the working tree mid-turn:**
+
+1. **Checkpoints own state.** langgraph persists/replays `runtime.state`; rollback, replay, and branching restore state but cannot un-write disk. A dirty tree would desync from the checkpoint.
+2. **The lock is per-commit, not per-turn** (C3). Two concurrent turns/threads on one workspace would clobber each other's uncommitted files in the single shared working tree.
+3. **An aborted or disconnected turn must leave no trace.** State is dropped automatically; a dirty working tree would not be.
+
+**The working tree is mutated only at commit** (C4), inside the write lock, by `KnowledgeStore.revise()` — one revision per turn.
+
+`ponytail:` v1 ceiling = one shared working tree per workspace + per-commit lock. If parallel turns on one workspace ever need isolation, upgrade path = a per-turn git worktree or temp index.
+
 ---
 
 ## What stays exactly as-is (do not touch)
@@ -75,6 +100,7 @@ The backend runs as **multiple OS processes**: the API (`python main.py`, uvicor
 |---|---|
 | 01 lock granularity; repo layout; repo root | C3, C1 |
 | 02 read rendering; glob/grep source | C2 |
+| 02 in-turn write visibility; state overlay | C6 |
 | 03 author identity; staged-op keys | C4 |
 | 04 content_hash vs blob SHA; cache location | C5 |
 | 06 projection owner; consistency | C5 |
