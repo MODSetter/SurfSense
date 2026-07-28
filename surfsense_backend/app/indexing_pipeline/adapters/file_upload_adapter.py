@@ -4,6 +4,7 @@ from app.db import Document, DocumentStatus, DocumentType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import compute_content_hash
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.services.document_revision_recorder import record_saved_document
 
 
 class UploadDocumentAdapter:
@@ -46,6 +47,16 @@ class UploadDocumentAdapter:
 
         indexed.content_needs_reindexing = False
         await self._session.commit()
+
+        await record_saved_document(
+            self._session,
+            workspace_id=workspace_id,
+            doc_id=indexed.id,
+            title=indexed.title,
+            folder_id=indexed.folder_id,
+            markdown=markdown_content,
+            author_user_id=user_id,
+        )
 
     async def reindex(self, document: Document) -> None:
         """Re-index an existing document after its source_markdown has been updated."""
