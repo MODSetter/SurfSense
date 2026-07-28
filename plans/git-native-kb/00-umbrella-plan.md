@@ -75,7 +75,7 @@ flowchart LR
     MCP["MCP server<br/>(deferred)"]
   end
   CORE["KnowledgeStore<br/>(framework-agnostic core)"]
-  ENGINE["VersionedContentStore → GitContentStore (dulwich)<br/>driven port — build now (Phase 1)"]
+  ENGINE["VersionedContentEngine → GitContentEngine (dulwich)<br/>driven port — build now (Phase 1)"]
   SYNC["Vector-store sync / derived index<br/>driven consumer (Phase 4 — build now)"]
   REMOTE["Remote git (GitHub/GitLab)<br/>driven adapter (deferred)"]
   DA --> CORE
@@ -91,7 +91,7 @@ flowchart LR
 | Driving adapter | deepagents agent backend | ✅ build now (Phase 2) |
 | Driving adapter | KB REST API (Rohan's artifact API) | deferred — next adapter after the core |
 | Driving adapter | MCP server | deferred |
-| Driven port (infra) | storage engine (dulwich via `VersionedContentStore`) | ✅ built (Phase 1) |
+| Driven port (infra) | storage engine (dulwich via `VersionedContentEngine`) | ✅ built (Phase 1) |
 | Driven consumer | vector-store sync / derived index | ✅ build now (Phase 4) |
 | Driven adapter | remote git (GitHub/GitLab) | deferred |
 
@@ -121,11 +121,11 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 > **DONE. Built first** — every later phase uses it.
 
-- Added **dulwich**; a `KnowledgeStore` facade that opens/creates a **persistent working tree per workspace** on disk, nested under the shared blob-store volume (`{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`). Git lives behind the facade (`backends/git.py`).
-- API (SQL-transaction vocabulary, no git words; capabilities are verbs): `ensure_exists`; `transaction(message, author)` scope yielding a `Transaction` with `write`/`remove`/`move` that records one atomic revision on clean exit; `read_as_of`, `list_revisions`, `list_changes`, `list_paths`, `get_current_revision`, `compute_content_id`. Snapshot/batch is an engine detail. (Structure primitives, if any prove needed → Phase 2; undo/forward-restore → Phase 4.)
+- Added **dulwich**; a `KnowledgeStore` facade that opens/creates a **persistent working tree per workspace** on disk, nested under the shared blob-store volume (`{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`). Git lives behind the facade (`engines/git.py`).
+- API (SQL-transaction vocabulary, no git words; capabilities are verbs): `transaction(message, author)` scope yielding a `Transaction` with `write`/`remove`/`move` that records one atomic revision on clean exit; `read_as_of`, `list_revisions`, `list_changes`, `list_paths`, `get_current_revision`, `compute_content_id`. First use bootstraps the store — no init ceremony. Snapshot/batch is an engine detail. (Structure primitives, if any prove needed → Phase 2; undo/forward-restore → Phase 4.)
 - **Per-workspace Redis write lock** around commits (single-writer safety across all OS processes). `ponytail:` lock ceiling = one lock per commit; upgrade path = queue/worker.
-- Key files (new): `surfsense_backend/app/knowledge_store/` (`store`, `transaction`, `write_lock`, `store_path`, `settings`, `backends/{base,git}`). No agent wiring yet.
-- Tests (`tests/unit/knowledge_store/`): create → write/record → revision listed → read_as_of(prev) returns old content → no-op record returns None → compute_content_id matches `git hash-object`; lock wrapper acquire/fail paths.
+- Key files (new): `surfsense_backend/app/knowledge_store/` (`store`, `transaction`, `write_lock`, `store_path`, `settings`, `engines/{base,git}`). No agent wiring yet.
+- Tests — unit (`tests/unit/knowledge_store/`): engine behavior on temp repos, pure `Transaction` logic; integration (`tests/integration/knowledge_store/`, real Redis): write-lock semantics and the facade `transaction` end to end.
 
 ### Phase 2 — deepagents adapter over the core [`subplan: 02-git-working-tree-backend.md`]
 

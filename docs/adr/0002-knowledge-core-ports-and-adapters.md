@@ -24,7 +24,7 @@ If the core were a deepagents backend, every other consumer would have to route 
 **Structure the KB as Hexagonal / Ports & Adapters.** A framework-agnostic **knowledge core** exposes capabilities through **ports**; every consumer is an **adapter** at the edge; the core imports no consumer framework.
 
 - **Core (inside the hexagon):** `KnowledgeStore` — versioned knowledge (content + history). Already framework-free (imports no deepagents).
-- **Driven port** (core → infrastructure): `VersionedContentStore` → `GitContentStore` (dulwich). Swappable, mirroring libgit2's pluggable backends.
+- **Driven port** (core → infrastructure): `VersionedContentEngine` → `GitContentEngine` (dulwich). Swappable, mirroring libgit2's pluggable backends.
 - **Driven consumer** (downstream of commits): the **vector-store sync / derived index** — subscribes to commits, one-way (git → Postgres). The core does not know it exists.
 - **Driving adapters** (world → core): the **deepagents backend** (build now), the **KB REST API** (later), **MCP / remote git** (future). The core is oblivious to all of them.
 - **Capabilities live once in the core; each adapter selects the subset it needs.** `ls`/`grep`/`glob` are offered for filesystem-shaped consumers (agent, MCP); document/version/diff verbs serve the REST API; commit-diff serves the sync. We never force one consumer's verbs on another, and never reimplement a capability per consumer.
@@ -35,7 +35,7 @@ If the core were a deepagents backend, every other consumer would have to route 
 |---|---|
 | Framework-agnostic core, many adapters per port | **Cockburn — Ports & Adapters (Hexagonal)**: "there will typically be multiple adapters for any one port." https://alistair.cockburn.us/hexagonal-architecture |
 | Agnostic core + thin consumer layer | **Git's own plumbing/porcelain split** — low-level toolkit as building blocks, user commands on top. https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain |
-| Linkable core + pluggable storage backends for long-running services | **libgit2** (built precisely because forking the git binary is wrong for services) — same reasoning that chose **dulwich** behind `VersionedContentStore`. |
+| Linkable core + pluggable storage backends for long-running services | **libgit2** (built precisely because forking the git binary is wrong for services) — same reasoning that chose **dulwich** behind `VersionedContentEngine`. |
 
 ## Scope — YAGNI (v1)
 

@@ -23,31 +23,101 @@ flowchart LR
 
 There is **no arrow from Postgres back into Git**. Postgres is disposable.
 
-## 2. Write path — everything indexed becomes a commit
-
-```mermaid
-flowchart TD
-  AG["Agent edits (turn)"] --> WT["Working tree (staged)"]
-  ED["Editor save"] --> WT
-  UP["Upload → extracted markdown"] --> WT
-  NOT["Indexable connector sync (Notion/Drive)"] --> WT
-  WT -->|"end of turn / save (03)"| C["git commit (per-workspace lock, 01)"]
-  C --> IDX["Indexer: diff tree → changed blobs (04)"]
-  IDX --> PG[("chunks + embeddings\n(embed keyed by blob SHA)")]
-  C --> ZP["Zero projection: upsert documents/folders rows (06)"]
-```
-
-## 3. Read path — file ops vs. search hit different stores
+## 2. The system — hexagon: agnostic core, one adapter per consumer
 
 ```mermaid
 flowchart LR
-  A["Agent"] -->|"ls/read/write/edit/mv/rm"| B["Git working-tree backend (02)"]
+  subgraph DRIVERS["Drivers (who mutates / reads content)"]
+    AG["Agent (deepagents tools)"]
+    ED["Editor / REST API"]
+    CN["Indexable connector sync"]
+  end
+  subgraph ADAPTERS["Adapters (consumer-specific glue)"]
+    GTB["deepagents adapter (02)\nserves file ops on the turn's\nprivate working copy"]
+    DIR["direct callers (03)\none transaction per save/sync"]
+  end
+  subgraph CORE["Knowledge store — agnostic core"]
+    KS["Facade\ntransaction · read_as_of · list_revisions\nlist_changes · list_paths · working copies"]
+    ENG["Versioned content engine\n(git today; swappable behind the port)"]
+  end
+  subgraph DRIVEN["Driven consumers (react to new revisions)"]
+    IDX["Vector-store sync (04)\nlist_changes → re-chunk / re-embed"]
+    ZP["Zero projection (06)"]
+  end
+  AG --> GTB --> KS
+  ED --> DIR --> KS
+  CN --> DIR
+  KS --> ENG
+  KS -->|"new revision"| IDX
+  KS -->|"new revision"| ZP
+  classDef core fill:#1f3a2e,stroke:#4f9d76,color:#e6f7ee;
+  classDef edge fill:#22314f,stroke:#5b7fbf,color:#e6edf7;
+  class KS,ENG core;
+  class AG,ED,CN,GTB,DIR,IDX,ZP edge;
+```
+
+Where each component lives (the code follows the dependency rule: the core
+never knows its consumers, so adapters sit with their consumer):
+
+| Component | Location |
+| --- | --- |
+| Facade, transaction, write lock, layout | `app/knowledge_store/` |
+| Engine port + git engine | `app/knowledge_store/engines/` |
+| deepagents adapter (`GitTreeBackend`) + resolver | `app/agents/.../middleware/filesystem/backends/` |
+| End-of-turn commit middleware (03, pending) | `app/agents/.../middleware/` |
+
+## 3. Turn lifecycle — git at the boundaries, plain files in between
+
+Two locks, two different races:
+**threading lock** (process-local, in `GitContentEngine`) serializes parallel tool
+calls creating the same copy; **redis lock** (cross-process) serializes revision
+recording against other workers.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant T as Agent tool call
+  participant A as GitTreeBackend (adapter)
+  participant S as KnowledgeStore (facade)
+  participant E as GitContentEngine (engine)
+  T->>A: first KB op of the turn
+  A->>S: open_working_copy("thread-{id}")
+  S->>E: checkout current revision (threading lock)
+  E-->>A: private copy path
+  Note over T,A: rest of the turn: plain file ops on the copy\n(MultiRootLocalFolderBackend — no git involved)
+  T->>A: end of turn (03, pending)
+  A->>S: diff_working_copy → transaction
+  S->>E: record one revision (redis write lock)
+  S->>E: discard_working_copy
+  Note over S,E: abandoned copies swept by janitor\n(prune_working_copies)
+```
+
+## 4. Write path — everything indexed becomes a commit
+
+```mermaid
+flowchart TD
+  AG["Agent edits (turn)"] --> WC["Private working copy per thread (02)"]
+  ED["Editor save"] --> TXD["KnowledgeStore.transaction"]
+  UP["Upload → extracted markdown"] --> TXD
+  NOT["Indexable connector sync (Notion/Drive)"] --> TXD
+  WC -->|"end of turn: diff → transaction (03)"| TXD
+  TXD --> C["one revision recorded\n(redis write lock, 01)"]
+  C --> IDX["Indexer: list_changes → changed blobs (04)"]
+  IDX --> PG[("chunks + embeddings\n(embed keyed by content id)")]
+  C --> ZP["Zero projection: upsert documents/folders rows (06)"]
+```
+
+## 5. Read path — file ops vs. search hit different stores
+
+```mermaid
+flowchart LR
+  A["Agent"] -->|"ls/read/write/edit/mv/rm"| B["GitTreeBackend → working copy (02)"]
   B --> GIT["Git (truth)"]
   A -->|"semantic search"| S["hybrid_search (unchanged)"]
   S --> PG[("Postgres chunks + embeddings")]
 ```
 
-## 4. Live connectors — never stored (out of scope)
+## 6. Live connectors — never stored (out of scope)
 
 ```mermaid
 flowchart LR
@@ -57,7 +127,7 @@ flowchart LR
   LC -.->|"never"| PG[("Postgres chunks")]
 ```
 
-## 5. History / undo — git replaces the three hand-rolled systems
+## 7. History / undo — git replaces the three hand-rolled systems
 
 ```mermaid
 flowchart TD
@@ -74,7 +144,7 @@ flowchart TD
   OLD -->|"replaced by (04)"| NEW
 ```
 
-## 6. Migration (05) — Postgres KB → seed git repo
+## 8. Migration (05) — Postgres KB → seed git repo
 
 ```mermaid
 sequenceDiagram
@@ -91,7 +161,7 @@ sequenceDiagram
   Note over M,GIT: Postgres content kept until verified (rollback window).
 ```
 
-## 7. Reindex (04) — the safety net (Fossil `rebuild`)
+## 9. Reindex (04) — the safety net (Fossil `rebuild`)
 
 ```mermaid
 flowchart LR
