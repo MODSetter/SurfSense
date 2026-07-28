@@ -11,3 +11,9 @@ def workspace_store_path(workspace_id: int | str) -> Path:
     """Absolute directory holding a single workspace's versioned history."""
     root = load_knowledge_store_settings().root
     return Path(root) / str(workspace_id)
+
+
+def workspace_working_copies_path(workspace_id: int | str) -> Path:
+    """Absolute directory holding a workspace's private working copies."""
+    root = load_knowledge_store_settings().root
+    return Path(root) / ".working_copies" / str(workspace_id)
