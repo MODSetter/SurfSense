@@ -1,0 +1,231 @@
+"""GitContentEngine: revision recording, history queries, and working copies.
+
+Exercises the real engine (dulwich) against temp-dir repositories.
+"""
+
+from __future__ import annotations
+
+import os
+import time
+
+import pytest
+
+pytestmark = pytest.mark.unit
+
+AUTHOR = "SurfSense <1@users.surfsense>"
+
+
+class TestRecord:
+    def test_empty_store_lists_no_revision(self, engine):
+        assert engine.get_current_revision() is None
+        assert engine.list_revisions() == []
+
+    def test_record_returns_revision_and_advances_current_revision(self, engine):
+        rev = engine.record(
+            writes={"documents/a.xml": b"hello"},
+            removes=[],
+            message="add a",
+            author=AUTHOR,
+        )
+        assert rev is not None
+        assert engine.get_current_revision() == rev
+        assert engine.read_as_of(rev, "documents/a.xml") == b"hello"
+
+    def test_mixed_write_modify_delete_in_one_revision(self, engine):
+        engine.record(
+            writes={"keep.xml": b"k1", "mod.xml": b"m1", "del.xml": b"d1"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        rev = engine.record(
+            writes={"mod.xml": b"m2", "sub/new.xml": b"n1"},
+            removes=["del.xml"],
+            message="change",
+            author=AUTHOR,
+        )
+        assert engine.read_as_of(rev, "keep.xml") == b"k1"
+        assert engine.read_as_of(rev, "mod.xml") == b"m2"
+        assert engine.read_as_of(rev, "sub/new.xml") == b"n1"
+        with pytest.raises(KeyError):
+            engine.read_as_of(rev, "del.xml")
+
+    def test_noop_record_returns_none(self, engine):
+        engine.record(
+            writes={"a.xml": b"same"}, removes=[], message="one", author=AUTHOR
+        )
+        again = engine.record(
+            writes={"a.xml": b"same"}, removes=[], message="two", author=AUTHOR
+        )
+        assert again is None
+
+    def test_removing_untracked_path_is_tolerated(self, engine):
+        rev = engine.record(
+            writes={"a.xml": b"x"},
+            removes=["never-existed.xml"],
+            message="add a",
+            author=AUTHOR,
+        )
+        assert rev is not None
+
+
+class TestHistoryQueries:
+    def test_list_revisions_is_newest_first_and_path_scoped(self, engine):
+        engine.record(writes={"a.xml": b"1"}, removes=[], message="a1", author=AUTHOR)
+        engine.record(writes={"b.xml": b"1"}, removes=[], message="b1", author=AUTHOR)
+        engine.record(writes={"a.xml": b"2"}, removes=[], message="a2", author=AUTHOR)
+
+        all_msgs = [r.message for r in engine.list_revisions()]
+        assert all_msgs == ["a2", "b1", "a1"]
+
+        a_msgs = [r.message for r in engine.list_revisions(path="a.xml")]
+        assert a_msgs == ["a2", "a1"]
+
+        assert len(engine.list_revisions(limit=2)) == 2
+
+    def test_revision_carries_author_and_timestamp(self, engine):
+        engine.record(writes={"a.xml": b"1"}, removes=[], message="a1", author=AUTHOR)
+        rev = engine.list_revisions()[0]
+        assert rev.author == AUTHOR
+        assert rev.created_at.tzinfo is not None
+
+    def test_list_changes_reports_kinds_and_content_ids(self, engine):
+        first = engine.record(
+            writes={"a.xml": b"a1", "b.xml": b"b1"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        second = engine.record(
+            writes={"a.xml": b"a2", "c.xml": b"c1"},
+            removes=["b.xml"],
+            message="change",
+            author=AUTHOR,
+        )
+
+        seeded = {c.path: c for c in engine.list_changes(first)}
+        assert {p: c.kind for p, c in seeded.items()} == {
+            "a.xml": "added",
+            "b.xml": "added",
+        }
+        assert seeded["a.xml"].content_id == engine.compute_content_id(b"a1")
+
+        changed = {c.path: c for c in engine.list_changes(second)}
+        assert {p: c.kind for p, c in changed.items()} == {
+            "a.xml": "modified",
+            "b.xml": "removed",
+            "c.xml": "added",
+        }
+        assert changed["a.xml"].content_id == engine.compute_content_id(b"a2")
+        assert changed["b.xml"].content_id is None
+
+    def test_list_paths_reflects_the_given_revision(self, engine):
+        first = engine.record(
+            writes={"a.xml": b"a1", "sub/b.xml": b"b1"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        second = engine.record(
+            writes={"c.xml": b"c1"}, removes=["a.xml"], message="change", author=AUTHOR
+        )
+
+        assert {t.path for t in engine.list_paths(first)} == {"a.xml", "sub/b.xml"}
+        latest = {t.path: t.content_id for t in engine.list_paths(second)}
+        assert set(latest) == {"sub/b.xml", "c.xml"}
+        assert latest["c.xml"] == engine.compute_content_id(b"c1")
+
+    def test_compute_content_id_matches_git_hash_object(self, engine):
+        # `printf hello | git hash-object --stdin`
+        assert (
+            engine.compute_content_id(b"hello")
+            == "b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0"
+        )
+        assert engine.compute_content_id(b"x") != engine.compute_content_id(b"y")
+
+
+class TestWorkingCopies:
+    def test_open_checks_out_current_content_and_reopens_in_place(self, engine):
+        rev = engine.record(
+            writes={"documents/a.xml": b"a1"}, removes=[], message="seed", author=AUTHOR
+        )
+
+        copy = engine.open_working_copy("turn-1")
+        assert copy.base_revision == rev
+        assert (copy.path / "documents/a.xml").read_bytes() == b"a1"
+
+        (copy.path / "scratch.xml").write_bytes(b"s")
+        reopened = engine.open_working_copy("turn-1")
+        assert reopened.path == copy.path
+        assert reopened.base_revision == rev
+        assert (reopened.path / "scratch.xml").read_bytes() == b"s"
+
+    def test_open_on_empty_store_yields_bare_directory(self, engine):
+        copy = engine.open_working_copy("turn-1")
+        assert copy.base_revision is None
+        assert copy.path.is_dir()
+        assert not (copy.path / ".git").exists()
+
+    def test_parallel_copies_are_isolated(self, engine):
+        engine.record(
+            writes={"a.xml": b"a1"}, removes=[], message="seed", author=AUTHOR
+        )
+        one = engine.open_working_copy("turn-1")
+        two = engine.open_working_copy("turn-2")
+
+        (one.path / "a.xml").write_bytes(b"turn-1 edit")
+        assert (two.path / "a.xml").read_bytes() == b"a1"
+
+    def test_diff_reports_net_changes_against_base(self, engine):
+        engine.record(
+            writes={"keep.xml": b"k", "edit.xml": b"e1", "gone.xml": b"g"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        copy = engine.open_working_copy("turn-1")
+        (copy.path / "edit.xml").write_bytes(b"e2")
+        (copy.path / "sub").mkdir()
+        (copy.path / "sub/new.xml").write_bytes(b"n")
+        (copy.path / "gone.xml").unlink()
+
+        writes, removes = engine.diff_working_copy("turn-1")
+        assert writes == {"edit.xml": b"e2", "sub/new.xml": b"n"}
+        assert removes == ["gone.xml"]
+
+    def test_diff_on_empty_base_reports_every_file_as_write(self, engine):
+        copy = engine.open_working_copy("turn-1")
+        (copy.path / "documents").mkdir()
+        (copy.path / "documents/a.xml").write_bytes(b"a")
+
+        writes, removes = engine.diff_working_copy("turn-1")
+        assert writes == {"documents/a.xml": b"a"}
+        assert removes == []
+
+    def test_untouched_copy_diffs_to_nothing(self, engine):
+        engine.record(writes={"a.xml": b"a"}, removes=[], message="seed", author=AUTHOR)
+        engine.open_working_copy("turn-1")
+        assert engine.diff_working_copy("turn-1") == ({}, [])
+
+    def test_diff_of_an_unopened_copy_raises(self, engine):
+        with pytest.raises(FileNotFoundError):
+            engine.diff_working_copy("never-opened")
+
+    def test_discard_removes_copy_and_tolerates_absence(self, engine):
+        engine.record(writes={"a.xml": b"a"}, removes=[], message="seed", author=AUTHOR)
+        copy = engine.open_working_copy("turn-1")
+        engine.discard_working_copy("turn-1")
+        assert not copy.path.exists()
+        engine.discard_working_copy("turn-1")  # absent: no-op
+
+    def test_prune_removes_only_stale_copies(self, engine):
+        engine.record(writes={"a.xml": b"a"}, removes=[], message="seed", author=AUTHOR)
+        stale = engine.open_working_copy("stale-turn")
+        fresh = engine.open_working_copy("fresh-turn")
+        old = time.time() - 3600
+        os.utime(stale.path, (old, old))
+
+        pruned = engine.prune_working_copies(older_than_seconds=1800)
+        assert pruned == ["stale-turn"]
+        assert not stale.path.exists()
+        assert fresh.path.exists()

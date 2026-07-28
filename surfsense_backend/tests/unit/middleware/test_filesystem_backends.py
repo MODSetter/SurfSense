@@ -50,6 +50,19 @@ def test_backend_resolver_uses_kb_postgres_in_cloud_with_workspace():
     assert backend.workspace_id == 42
 
 
+def test_backend_resolver_uses_git_tree_when_knowledge_store_enabled(
+    monkeypatch, tmp_path
+):
+    from app.config import config as app_config
+
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ROOT", str(tmp_path))
+    resolver = build_backend_resolver(FilesystemSelection(), workspace_id=42)
+    backend = resolver(_RuntimeStub())
+    assert backend.__class__.__name__ == "GitTreeBackend"
+    assert backend.workspace_id == 42
+
+
 def test_backend_resolver_returns_multi_root_backend_for_multiple_roots(tmp_path: Path):
     root_one = tmp_path / "resume"
     root_two = tmp_path / "notes"
