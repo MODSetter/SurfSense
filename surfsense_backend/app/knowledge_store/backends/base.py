@@ -6,6 +6,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
+
+ChangeKind = Literal["added", "modified", "removed"]
 
 
 @dataclass(frozen=True)
@@ -16,6 +19,24 @@ class Revision:
     author: str
     message: str
     created_at: datetime
+
+
+@dataclass(frozen=True)
+class Change:
+    """One path's change within a revision."""
+
+    path: str
+    kind: ChangeKind
+    #: Content address after the change (``None`` when removed).
+    content_id: str | None
+
+
+@dataclass(frozen=True)
+class TrackedPath:
+    """One path stored at a revision, with its content address."""
+
+    path: str
+    content_id: str
 
 
 class VersionedContentStore(ABC):
@@ -52,6 +73,14 @@ class VersionedContentStore(ABC):
         self, *, path: str | None = None, limit: int | None = None
     ) -> list[Revision]:
         """Revisions newest-first, optionally scoped to a single path."""
+
+    @abstractmethod
+    def list_changes(self, revision: str) -> list[Change]:
+        """Paths added, modified, or removed by ``revision`` (vs its parent)."""
+
+    @abstractmethod
+    def list_paths(self, revision: str) -> list[TrackedPath]:
+        """Every path stored at ``revision``, with its content address."""
 
     @abstractmethod
     def get_current_revision(self) -> str | None:

@@ -10,11 +10,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dulwich import porcelain
-from dulwich.object_store import tree_lookup_path
+from dulwich.diff_tree import CHANGE_ADD, CHANGE_DELETE, CHANGE_MODIFY, tree_changes
+from dulwich.object_store import iter_tree_contents, tree_lookup_path
 from dulwich.objects import Blob
 from dulwich.repo import Repo
 
-from app.knowledge_store.backends.content_store import Revision, VersionedContentStore
+from app.knowledge_store.backends.base import (
+    Change,
+    Revision,
+    TrackedPath,
+    VersionedContentStore,
+)
+
+_CHANGE_KINDS = {CHANGE_ADD: "added", CHANGE_MODIFY: "modified", CHANGE_DELETE: "removed"}
 
 
 class GitContentStore(VersionedContentStore):
@@ -89,6 +97,39 @@ class GitContentStore(VersionedContentStore):
                 max_entries=limit,
             )
             return [self._to_revision(entry.commit) for entry in walker]
+        finally:
+            repo.close()
+
+    def list_changes(self, revision: str) -> list[Change]:
+        repo = Repo(str(self._path))
+        try:
+            commit = repo[revision.encode()]
+            parent_tree = repo[commit.parents[0]].tree if commit.parents else None
+            changes = []
+            for change in tree_changes(repo.object_store, parent_tree, commit.tree):
+                kind = _CHANGE_KINDS.get(change.type)
+                if kind is None:
+                    continue
+                entry = change.old if kind == "removed" else change.new
+                changes.append(
+                    Change(
+                        path=entry.path.decode(),
+                        kind=kind,
+                        content_id=None if kind == "removed" else entry.sha.decode(),
+                    )
+                )
+            return changes
+        finally:
+            repo.close()
+
+    def list_paths(self, revision: str) -> list[TrackedPath]:
+        repo = Repo(str(self._path))
+        try:
+            tree_id = repo[revision.encode()].tree
+            return [
+                TrackedPath(path=entry.path.decode(), content_id=entry.sha.decode())
+                for entry in iter_tree_contents(repo.object_store, tree_id)
+            ]
         finally:
             repo.close()
 

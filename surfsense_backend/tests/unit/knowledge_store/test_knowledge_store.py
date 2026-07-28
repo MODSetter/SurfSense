@@ -104,6 +104,52 @@ class TestGitContentStore:
         assert rev.author == AUTHOR
         assert rev.created_at.tzinfo is not None
 
+    def test_list_changes_reports_kinds_and_content_ids(self, store):
+        first = store.record(
+            writes={"a.xml": b"a1", "b.xml": b"b1"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        second = store.record(
+            writes={"a.xml": b"a2", "c.xml": b"c1"},
+            removes=["b.xml"],
+            message="change",
+            author=AUTHOR,
+        )
+
+        seeded = {c.path: c for c in store.list_changes(first)}
+        assert {p: c.kind for p, c in seeded.items()} == {
+            "a.xml": "added",
+            "b.xml": "added",
+        }
+        assert seeded["a.xml"].content_id == store.compute_content_id(b"a1")
+
+        changed = {c.path: c for c in store.list_changes(second)}
+        assert {p: c.kind for p, c in changed.items()} == {
+            "a.xml": "modified",
+            "b.xml": "removed",
+            "c.xml": "added",
+        }
+        assert changed["a.xml"].content_id == store.compute_content_id(b"a2")
+        assert changed["b.xml"].content_id is None
+
+    def test_list_paths_reflects_the_given_revision(self, store):
+        first = store.record(
+            writes={"a.xml": b"a1", "sub/b.xml": b"b1"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        second = store.record(
+            writes={"c.xml": b"c1"}, removes=["a.xml"], message="change", author=AUTHOR
+        )
+
+        assert {t.path for t in store.list_paths(first)} == {"a.xml", "sub/b.xml"}
+        latest = {t.path: t.content_id for t in store.list_paths(second)}
+        assert set(latest) == {"sub/b.xml", "c.xml"}
+        assert latest["c.xml"] == store.compute_content_id(b"c1")
+
     def test_compute_content_id_matches_git_hash_object(self, store):
         # `printf hello | git hash-object --stdin`
         assert store.compute_content_id(b"hello") == "b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0"

@@ -5,7 +5,12 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 
-from app.knowledge_store.backends.content_store import Revision, VersionedContentStore
+from app.knowledge_store.backends.base import (
+    Change,
+    Revision,
+    TrackedPath,
+    VersionedContentStore,
+)
 from app.knowledge_store.backends.git import GitContentStore
 from app.knowledge_store.store_path import workspace_store_path
 from app.knowledge_store.transaction import Transaction
@@ -49,6 +54,14 @@ class KnowledgeStore:
     ) -> list[Revision]:
         """Revisions newest-first, optionally scoped to a single ``path``."""
         return await asyncio.to_thread(self._backend.list_revisions, path=path, limit=limit)
+
+    async def list_changes(self, revision: str) -> list[Change]:
+        """Paths added, modified, or removed by ``revision`` (vs its parent)."""
+        return await asyncio.to_thread(self._backend.list_changes, revision)
+
+    async def list_paths(self, revision: str) -> list[TrackedPath]:
+        """Every path stored at ``revision``, with its content address."""
+        return await asyncio.to_thread(self._backend.list_paths, revision)
 
     async def get_current_revision(self) -> str | None:
         """Id of the workspace's current revision (a whole-workspace snapshot),
