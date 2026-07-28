@@ -6,7 +6,7 @@ import pytest
 
 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
     GitTreeBackend,
-    turn_working_copy_id,
+    thread_working_copy_id,
 )
 from app.config import config as app_config
 from app.knowledge_store.engines.git import GitContentEngine
@@ -41,10 +41,10 @@ def _engine(knowledge_root) -> GitContentEngine:
 
 class TestTurnWorkingCopyId:
     def test_is_keyed_by_conversation_thread(self):
-        assert turn_working_copy_id(_RuntimeStub("abc")) == "thread-abc"
+        assert thread_working_copy_id("abc") == "thread-abc"
 
     def test_falls_back_when_thread_id_is_missing(self):
-        assert turn_working_copy_id(_RuntimeStub(None)) == "thread-adhoc"
+        assert thread_working_copy_id(None) == "thread-adhoc"
 
 
 class TestGitTreeBackend:

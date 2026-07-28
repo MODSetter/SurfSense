@@ -22,16 +22,15 @@ from app.knowledge_store import KnowledgeStore
 _DOCUMENTS_MOUNT = "documents"
 
 
-def turn_working_copy_id(runtime: ToolRuntime) -> str:
-    """Working-copy id shared by every tool call of the current turn.
+def thread_working_copy_id(thread_id: object | None) -> str:
+    """The one place the thread → working-copy-id convention lives.
 
-    Keyed by conversation thread: langgraph serializes turns per thread, and the
-    persistence middleware commits + discards the copy at end of turn.
+    The file-op backend (here) and the end-of-turn commit middleware must
+    resolve the same copy from the same thread: langgraph serializes turns per
+    thread, and the middleware commits + discards the copy at end of turn.
     ponytail: a copy left by a crashed turn is reused (and committed) by the
     thread's next turn — recovery semantics; abandoned threads are janitored.
     """
-    configurable = (runtime.config or {}).get("configurable") or {}
-    thread_id = configurable.get("thread_id")
     return f"thread-{thread_id}" if thread_id is not None else "thread-adhoc"
 
 
@@ -50,8 +49,10 @@ class GitTreeBackend:
 
     async def _backend(self) -> MultiRootLocalFolderBackend:
         if self._mounted is None:
+            configurable = (self._runtime.config or {}).get("configurable") or {}
+            copy_id = thread_working_copy_id(configurable.get("thread_id"))
             store = KnowledgeStore.for_workspace(self.workspace_id)
-            copy = await store.open_working_copy(turn_working_copy_id(self._runtime))
+            copy = await store.open_working_copy(copy_id)
             self._mounted = MultiRootLocalFolderBackend(
                 ((_DOCUMENTS_MOUNT, str(copy.path)),)
             )
