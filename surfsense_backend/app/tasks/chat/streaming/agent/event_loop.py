@@ -14,7 +14,11 @@ from typing import Any
 from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence import (
     commit_staged_filesystem_state,
 )
+from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence import (
+    commit_turn_working_copy,
+)
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.knowledge_store.settings import load_knowledge_store_settings
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.message_parts_normalizer import (
     final_assistant_parts_from_messages,
@@ -118,6 +122,33 @@ async def stream_agent_events(
                 )
         except Exception as exc:
             _perf_log.warning("[stream_agent_events] safety-net commit failed: %s", exc)
+
+    # Same safety net for the git-native path. The pending state is the turn's
+    # working copy on disk, so no state markers gate it: no copy (or aafter_agent
+    # already committed and discarded it) means the call is a no-op. No LLM on
+    # this path — the commit gets the deterministic fallback message.
+    if (
+        fallback_commit_filesystem_mode == FilesystemMode.CLOUD
+        and fallback_commit_workspace_id is not None
+        and load_knowledge_store_settings().enabled
+    ):
+        try:
+            delta = await commit_turn_working_copy(
+                workspace_id=fallback_commit_workspace_id,
+                thread_id=fallback_commit_thread_id,
+                created_by_id=fallback_commit_created_by_id,
+                llm=None,
+            )
+            if delta:
+                await agent.aupdate_state(
+                    config,
+                    delta,
+                    as_node="KnowledgeStorePersistenceMiddleware.after_agent",
+                )
+        except Exception as exc:
+            _perf_log.warning(
+                "[stream_agent_events] git-native safety-net commit failed: %s", exc
+            )
 
     contract_state = state_values.get("file_operation_contract") or {}
     contract_turn_id = contract_state.get("turn_id")
