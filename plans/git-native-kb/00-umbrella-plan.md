@@ -129,7 +129,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 2 — deepagents adapter over the core [`subplan: 02-git-working-tree-backend.md`]
 
-> **SHIPPED (file-op path, 2026-07-28).** The **first driving adapter** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)) — deepagents talking to the core over the real git working tree, replacing the read-side fake. Remaining in-phase: the C2 `read_file` citation envelope (after Phase 4's line spans, so search and read citations land as one model).
+> **SHIPPED (file-op path, 2026-07-28).** The **first driving adapter** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)) — deepagents talking to the core over the real git working tree, replacing the read-side fake. Remaining in-phase: the C2 `read_file` citation envelope (raw reads are line-numbered trivially; the normalizer's `:Lx-Ly` support, including the fail-closed strip for un-numbered entries, lands with it).
 
 - `GitTreeBackend` serves `/documents/...` from the turn's **private working copy** (lazy open on the first KB tool call; copy id = `thread-{thread_id}`), implemented as one `MultiRootLocalFolderBackend` mount — no staging, no state overlay.
 - Working-copy lifecycle (`open`/`diff`/`discard`/`prune`) lives in the core behind the port; wired into `resolver.py` behind `KNOWLEDGE_STORE_ENABLED`; mutation tools route down the direct-op branches.
@@ -150,7 +150,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 > **PLANNED. Can build alongside 03** (both consume 01's `transaction`/`list_changes`). This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to revisions one-way; the core has no knowledge of it.
 
-- Post-revision indexer: `list_changes(revision)` names the changed paths; re-chunk + re-embed **only those**, keying embeddings by **content id** so unchanged content reuses its vectors. Store each chunk's line span at cut time (C2 rendering). `web`/live paths untouched.
+- Post-revision indexer: `list_changes(revision)` names the changed paths; re-chunk + re-embed **only those**, reusing the existing embedding cache (`markdown_sha256` = content id; C5 corrected) so unchanged content reuses its vectors. Spans (`start_line`/`end_line`) stored at cut time, nullable, never backfilled by migration — legacy chunks cite at document level until the deadline-free daily fill job reaches them (C2). `web`/live paths untouched.
 - One idempotent **`reindex(workspace)`** that wipes and rebuilds all chunks/embeddings from the current revision (the Fossil `rebuild` discipline), as a Celery task.
 - The three hand-rolled versioning systems become dead code for flagged workspaces; their **deletion (code + table drops) is Phase 5 cut time**.
 - Tests: change one file → only its chunks re-embed (unchanged blob SHAs reuse vectors); `reindex()` reproduces identical chunk set; search results unchanged vs. baseline.
@@ -160,8 +160,8 @@ Every decision traces to a proven source (full list + links in the ADR):
 > **PLANNED. After 01–04.** One-time, per-workspace, flagged.
 
 - Export each existing workspace's Postgres documents/folders → an initial git repo (one seed commit), preserving `unique_identifier_hash` mapping.
-- Verify round-trip: seeded repo → `reindex()` → chunk set matches pre-migration search behavior.
-- Rollback = keep Postgres content until the flagged workspace is verified.
+- **Adopt, don't rebuild** (amended 2026-07-29): parity = per-document **byte identity** vs Postgres, not `reindex()` — the seed copies bytes out of Postgres, so existing chunks/vectors already are its derived index; a full reindex is the 21-day-class job for zero information. The seed revision is the indexer's starting point, never incrementally indexed (else "every file added" = workspace-wide re-embed storm).
+- Rollback = keep Postgres content until the flagged workspace is verified; `reindex()` demoted to disaster recovery + a one-time pilot spot check.
 
 ### Phase 6 — Zero / real-time projection [`subplan: 06-zero-projection.md`]
 
