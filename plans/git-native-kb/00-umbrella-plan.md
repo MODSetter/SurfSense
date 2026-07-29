@@ -191,7 +191,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
-1. ~~Repo location & layout~~ → **persistent working tree at `{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`, layout = virtual path minus `/documents`** (C1).
+1. ~~Repo location & layout~~ → **persistent working tree at `{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`, layout = the full virtual path (`documents/...`), as shipped by the Phase-3 recorder and matched by the Phase-5 seeder** (C1).
 2. ~~Zero projection owner~~ → **folded into the Phase-4 post-commit indexer** (C5).
 3. **Binaries** — keep blob store (confirmed markdown/text-only in git); Git-LFS deferred.
 4. ~~Lock granularity~~ → **Redis lock, from v1** (deploy is multi-process: uvicorn + Celery) (C3).
