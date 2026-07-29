@@ -22,7 +22,6 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_p
 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.multi_root_local_folder import (
     MultiRootLocalFolderBackend,
 )
-from app.knowledge_store.settings import load_knowledge_store_settings
 
 
 @lru_cache(maxsize=64)
@@ -36,14 +35,17 @@ def build_backend_resolver(
     selection: FilesystemSelection,
     *,
     workspace_id: int | None = None,
+    knowledge_store_enabled: bool = False,
 ) -> Callable[[ToolRuntime], BackendProtocol]:
     """Create deepagents backend resolver for the selected filesystem mode.
 
     In cloud mode the resolver returns a fresh :class:`KBPostgresBackend`
     bound to the current ``runtime`` so the backend can read staging state
     (``staged_dirs``, ``pending_moves``, ``files`` cache, ``kb_anon_doc``)
-    for each tool call — or, when the knowledge store is enabled, a
-    :class:`GitTreeBackend` serving the turn's private working copy.
+    for each tool call — or, when ``knowledge_store_enabled``, a
+    :class:`GitTreeBackend` serving the turn's private working copy. The
+    caller resolves that flag once per turn (global switch AND workspace
+    flip), so a turn keeps one backend for its whole lifetime.
     When no ``workspace_id`` is provided, the resolver falls back to
     :class:`StateBackend` (used by sub-agents and tests that don't need
     DB-backed reads).
@@ -62,7 +64,7 @@ def build_backend_resolver(
         return _resolve_local
 
     if workspace_id is not None:
-        if load_knowledge_store_settings().enabled:
+        if knowledge_store_enabled:
 
             def _resolve_git_tree(runtime: ToolRuntime) -> BackendProtocol:
                 return GitTreeBackend(workspace_id, runtime)

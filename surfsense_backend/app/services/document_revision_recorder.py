@@ -19,7 +19,10 @@ from app.agents.chat.runtime.path_resolver import (
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import user_identity
-from app.knowledge_store.settings import load_knowledge_store_settings
+from app.knowledge_store.settings import (
+    knowledge_store_enabled_for,
+    load_knowledge_store_settings,
+)
 
 if TYPE_CHECKING:
     from app.db import Document
@@ -66,7 +69,7 @@ async def record_saved_document(
     (until the Phase 5 cut), a recording failure must not fail the save
     that already committed — it is logged instead.
     """
-    if not load_knowledge_store_settings().enabled:
+    if not await knowledge_store_enabled_for(workspace_id):
         return None
     try:
         index = await build_path_index(session, workspace_id)
@@ -99,10 +102,12 @@ async def record_prepared_documents(
     durable — so chunking/embedding failures can never block the record.
     Never raises, for the same coexistence reason as ``record_saved_document``.
     """
-    if not documents or not load_knowledge_store_settings().enabled:
+    if not documents:
+        return None
+    workspace_id = documents[0].workspace_id
+    if not await knowledge_store_enabled_for(workspace_id):
         return None
     try:
-        workspace_id = documents[0].workspace_id
         index = await build_path_index(session, workspace_id)
         files: dict[str, str] = {}
         for doc in documents:
@@ -125,7 +130,7 @@ async def record_prepared_documents(
     except Exception:
         logger.warning(
             "Knowledge store recording failed for a sync batch in workspace %s",
-            documents[0].workspace_id,
+            workspace_id,
             exc_info=True,
         )
         return None

@@ -50,14 +50,11 @@ def test_backend_resolver_uses_kb_postgres_in_cloud_with_workspace():
     assert backend.workspace_id == 42
 
 
-def test_backend_resolver_uses_git_tree_when_knowledge_store_enabled(
-    monkeypatch, tmp_path
-):
-    from app.config import config as app_config
-
-    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
-    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ROOT", str(tmp_path))
-    resolver = build_backend_resolver(FilesystemSelection(), workspace_id=42)
+def test_backend_resolver_uses_git_tree_when_knowledge_store_enabled():
+    # The caller resolves the per-workspace verdict; the resolver only obeys it.
+    resolver = build_backend_resolver(
+        FilesystemSelection(), workspace_id=42, knowledge_store_enabled=True
+    )
     backend = resolver(_RuntimeStub())
     assert backend.__class__.__name__ == "GitTreeBackend"
     assert backend.workspace_id == 42

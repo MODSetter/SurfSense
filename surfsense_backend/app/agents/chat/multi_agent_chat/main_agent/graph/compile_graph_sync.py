@@ -45,6 +45,7 @@ def build_compiled_agent_graph_sync(
     subagent_dependencies: dict[str, Any],
     mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
+    knowledge_store_enabled: bool = False,
 ):
     """Sync compile: middleware + ``create_agent`` (run via ``asyncio.to_thread``)."""
     mw_start = time.perf_counter()
@@ -67,6 +68,7 @@ def build_compiled_agent_graph_sync(
         checkpointer=checkpointer,
         mcp_tools_by_agent=mcp_tools_by_agent,
         disabled_tools=disabled_tools,
+        knowledge_store_enabled=knowledge_store_enabled,
     )
     mw_elapsed = time.perf_counter() - mw_start
 

@@ -119,6 +119,7 @@ def build_main_agent_deepagent_middleware(
     checkpointer: Checkpointer,
     mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
+    knowledge_store_enabled: bool = False,
 ) -> list[Any]:
     """Ordered middleware for ``create_agent`` (None entries already stripped)."""
     stack_build_start = time.perf_counter()
@@ -256,6 +257,7 @@ def build_main_agent_deepagent_middleware(
             user_id=user_id,
             thread_id=thread_id,
             llm=llm,
+            knowledge_store_enabled=knowledge_store_enabled,
         ),
         build_skills_mw(
             flags=flags,

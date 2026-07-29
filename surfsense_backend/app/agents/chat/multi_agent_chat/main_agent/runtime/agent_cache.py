@@ -58,6 +58,7 @@ async def build_agent_with_cache(
     disabled_tools: list[str] | None,
     config_id: str | None,
     image_gen_model_id_override: int | None = None,
+    knowledge_store_enabled: bool = False,
 ) -> Any:
     """Compile the multi-agent graph, serving from cache when key components are stable."""
 
@@ -83,6 +84,7 @@ async def build_agent_with_cache(
             subagent_dependencies=subagent_dependencies,
             mcp_tools_by_agent=mcp_tools_by_agent,
             disabled_tools=disabled_tools,
+            knowledge_store_enabled=knowledge_store_enabled,
         )
 
     if not (flags.enable_agent_cache and not flags.disable_new_agent_stack):
@@ -122,6 +124,9 @@ async def build_agent_with_cache(
         # must key the compiled-agent cache to avoid leaking one automation's
         # image model into another with the same config_id/workspace.
         image_gen_model_id_override,
+        # Selects the filesystem backend and the persistence middleware at
+        # build time, so a workspace flip must rotate the cached graph.
+        knowledge_store_enabled,
     )
     return await get_cache().get_or_build(cache_key, builder=_build)
 

@@ -18,7 +18,7 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_pers
     commit_turn_working_copy,
 )
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.knowledge_store.settings import load_knowledge_store_settings
+from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.message_parts_normalizer import (
     final_assistant_parts_from_messages,
@@ -130,7 +130,7 @@ async def stream_agent_events(
     if (
         fallback_commit_filesystem_mode == FilesystemMode.CLOUD
         and fallback_commit_workspace_id is not None
-        and load_knowledge_store_settings().enabled
+        and await knowledge_store_enabled_for(fallback_commit_workspace_id)
     ):
         try:
             delta = await commit_turn_working_copy(
