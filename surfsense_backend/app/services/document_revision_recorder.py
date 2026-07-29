@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.runtime.path_resolver import (
     build_path_index,
     doc_to_virtual_path,
+    to_store_path,
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import user_identity
@@ -65,7 +66,7 @@ async def record_saved_document(
         )
         return await record_document_markdown(
             workspace_id=workspace_id,
-            store_path=virtual_path.lstrip("/"),
+            store_path=to_store_path(virtual_path),
             markdown=markdown,
             author_user_id=author_user_id,
         )
