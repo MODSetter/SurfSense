@@ -8,6 +8,9 @@ from __future__ import annotations
 #: Committer of every agent-recorded revision; author of autonomous writes.
 AGENT_IDENTITY = "SurfSense Agent <agent@surfsense>"
 
+#: Author of the one-time seed revision that migrates a workspace into the store.
+MIGRATION_IDENTITY = "SurfSense Migration <migration@surfsense>"
+
 
 def user_identity(user_id: str | None) -> str:
     """Revision author for a user action; autonomous actions author as the agent."""

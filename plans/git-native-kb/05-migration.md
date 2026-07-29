@@ -60,26 +60,37 @@ Re-embedding is never on that path.
 
 ## Work items
 
-1. `app/knowledge_store/migrate.py` — `migrate_workspace(workspace_id)`: build the tree
-   from `folders`/`documents` using the **same path/filename rules** as the live write
-   path (`path_resolver` helpers; git path = virtual path minus `/documents`; see C1),
-   one seed commit, preserve `unique_identifier_hash`.
-2. Parity check: per-document byte/hash comparison (git blob vs Postgres markdown) +
-   missing/extra path detection. Report, don't fix.
-3. Seed adoption: record the seed revision as the indexer's last-indexed point (C7 —
-   coordinate the bookkeeping shape with Phase 4's `index_revision`).
-4. Per-workspace flag flip with a guard (refuse to flip if parity fails).
-5. Dry-run mode (build repo, report parity diffs, flip nothing).
+1. ✅ `app/knowledge_store/migrate.py` (2026-07-29) — `migrate_workspace(session, workspace_id)`:
+   builds the tree from `documents` via the live path rules (`build_path_index` +
+   `doc_to_virtual_path`, identical paths to every write path), falls back to `content`
+   for rows predating `source_markdown`, one seed revision (`author=MIGRATION_IDENTITY`).
+   The DB-free core `seed_workspace(workspace_id, files, dry_run=)` carries the tests.
+   Seed = "make the tree exactly this": a catch-up re-seed also **removes** documents
+   deleted in Postgres since the prior seed, so seed→(activity)→re-seed→flip converges.
+   Unlike the recorder it does **not** guard on `KNOWLEDGE_STORE_ENABLED` — migration
+   runs before the flip by definition.
+2. ✅ Parity check (same run): content-address comparison via `list_paths` +
+   `compute_content_id` — zero file reads — reporting `missing`/`extra`/`mismatched`;
+   `MigrationReport.ok` is the flip guard's verdict. Report, don't fix.
+3. ⏳ Seed adoption: the report surfaces `seeded_revision`; recording it as the
+   indexer's last-indexed point is Phase 4's side of C7 (coordinate the bookkeeping
+   shape with `index_revision`).
+4. ⏳ Per-workspace flag flip guarded by `report.ok` — blocked on a per-workspace flag
+   mechanism (`KNOWLEDGE_STORE_ENABLED` is process-global today; the flip needs a
+   workspace-scoped flag, a cross-cutting change to every `settings.enabled` check).
+5. ✅ Dry-run mode: skips the write, reports parity against head, creates nothing for
+   fresh workspaces.
 
 ## Tests
 
-- Seed is idempotent: re-running on an unchanged workspace records nothing.
-- Parity: byte-identical workspace passes; one altered/missing/extra document fails
-  with the offending paths named.
-- `unique_identifier_hash` mapping preserved (connector docs still resolve).
-- Adopted seed: `index_revision` on the first post-seed revision touches only that
-  revision's changed paths (no workspace-wide re-embed).
-- Dry-run flips nothing; failed parity blocks the flip.
+- ✅ Seed records one revision, passes parity, migration-authored.
+- ✅ Idempotent: re-seeding unchanged content records nothing.
+- ✅ Parity names missing/extra/mismatched paths; drift fails `ok`.
+- ✅ Dry-run builds nothing on fresh workspaces; passes parity on seeded ones.
+- ⏳ `unique_identifier_hash` mapping preserved (connector docs still resolve) — needs a
+  Postgres-backed test or the pilot dry run.
+- ⏳ Adopted seed: `index_revision` on the first post-seed revision touches only that
+  revision's changed paths (lands with Phase 4).
 
 ## Out of scope
 
