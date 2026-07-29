@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
+import app.knowledge_store.write_lock as write_lock
 from app.knowledge_store.write_lock import (
     KnowledgeStoreLockError,
     workspace_write_lock,
@@ -42,3 +45,18 @@ async def test_lock_is_released_when_the_scope_raises(workspace_id, short_lock_w
 
     async with workspace_write_lock(workspace_id):
         pass
+
+
+async def test_hold_outliving_the_ttl_fails_loudly(workspace_id, monkeypatch):
+    monkeypatch.setattr(write_lock, "LOCK_TTL_SECONDS", 0.1)
+    with pytest.raises(KnowledgeStoreLockError, match="expired mid-write"):
+        async with workspace_write_lock(workspace_id):
+            await asyncio.sleep(0.3)
+
+
+async def test_scope_error_is_not_masked_by_an_expired_hold(workspace_id, monkeypatch):
+    monkeypatch.setattr(write_lock, "LOCK_TTL_SECONDS", 0.1)
+    with pytest.raises(RuntimeError, match="boom"):
+        async with workspace_write_lock(workspace_id):
+            await asyncio.sleep(0.3)
+            raise RuntimeError("boom")

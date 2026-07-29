@@ -1,7 +1,8 @@
 """Cross-process single-writer lock per workspace.
 
 A write never proceeds unserialized: if the lock cannot be acquired (contention
-timeout, or Redis unreachable), the caller fails instead of racing.
+timeout, or Redis unreachable), the caller fails instead of racing. A hold that
+outlives its TTL fails just as loudly — exclusivity was lost, never silently.
 """
 
 from __future__ import annotations
@@ -9,11 +10,11 @@ from __future__ import annotations
 from contextlib import asynccontextmanager, suppress
 
 import redis.asyncio as redis
-from redis.exceptions import LockError
+from redis.exceptions import LockError, LockNotOwnedError
 
 from app.config import config
 
-# Auto-expiry so a crashed writer can't wedge a workspace; must exceed a commit.
+# Auto-expiry so a crashed writer can't wedge a workspace; must outlast a write.
 LOCK_TTL_SECONDS = 30.0
 # How long a contender waits before giving up.
 LOCK_WAIT_SECONDS = 10.0
@@ -22,7 +23,7 @@ _client: redis.Redis | None = None
 
 
 class KnowledgeStoreLockError(RuntimeError):
-    """Raised when the workspace write lock could not be acquired."""
+    """The write lock could not be acquired, or a hold expired mid-write."""
 
 
 def _redis() -> redis.Redis:
@@ -52,7 +53,17 @@ async def workspace_write_lock(workspace_id: int | str):
         )
     try:
         yield
-    finally:
-        # Release only our own token; a no-op if the hold already expired.
+    except BaseException:
+        # The write itself failed; a lost hold must not mask that error.
         with suppress(LockError):
             await lock.release()
+        raise
+    try:
+        await lock.release()
+    except LockNotOwnedError:
+        # The hold outlived the TTL: the write landed, but its tail ran
+        # without exclusivity. Fail loudly instead of hiding the race.
+        raise KnowledgeStoreLockError(
+            f"Write lock for workspace {workspace_id} expired mid-write "
+            f"(hold exceeded the {LOCK_TTL_SECONDS}s TTL)"
+        ) from None
