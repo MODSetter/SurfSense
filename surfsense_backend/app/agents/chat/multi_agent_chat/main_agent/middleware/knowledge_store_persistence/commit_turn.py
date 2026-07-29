@@ -22,6 +22,7 @@ from app.agents.chat.multi_agent_chat.shared.receipts.receipt import (
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
+from app.knowledge_store.index_queue import enqueue_index
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ async def commit_turn_working_copy(
     await store.discard_working_copy(copy_id)
     if tx.revision is None:
         return None
+    enqueue_index(workspace_id)
     return {"receipts": await _recorded_receipts(store, tx.revision)}
 
 

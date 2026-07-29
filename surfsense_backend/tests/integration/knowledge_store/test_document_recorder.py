@@ -34,6 +34,30 @@ async def test_one_save_records_one_revision(knowledge_root, workspace_id):
     assert "meeting.md" in rev.message
 
 
+async def test_a_retitled_document_leaves_no_file_at_its_old_path(
+    knowledge_root, workspace_id
+):
+    """One document is one file. Without the removal a retitle forks it into two."""
+    await record_document_markdown(
+        workspace_id=workspace_id,
+        store_path="Old title.xml",
+        markdown="# Body",
+        author_user_id="1",
+    )
+
+    revision = await record_document_markdown(
+        workspace_id=workspace_id,
+        store_path="New title.xml",
+        markdown="# Body",
+        author_user_id="1",
+        stale_store_path="Old title.xml",
+    )
+
+    store = KnowledgeStore.for_workspace(workspace_id)
+    paths = {entry.path for entry in await store.list_paths(revision)}
+    assert paths == {"New title.xml"}
+
+
 async def test_disabled_store_records_nothing(monkeypatch, tmp_path, workspace_id):
     monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", False)
     monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ROOT", str(tmp_path))
