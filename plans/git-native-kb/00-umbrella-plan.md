@@ -143,7 +143,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 - Persistence middleware `knowledge_store_persistence/` alongside `kb_persistence` (untouched until Phase 5 cut): end of turn → diff the working copy → one `transaction` → receipts → discard. Free-function commit body; the disconnect fallback in `event_loop.py` runs the identical routine (no state markers — the copy on disk is the pending state).
 - Model-generated commit subjects with deterministic fallback (`Thread:` trailer); the model seam is wired with the agent LLM until a weak-model role exists. Honest attribution: author = user, committer = agent (`knowledge_store/identities.py`).
 - Receipts created post-commit from `list_changes(revision)`, revision id as `external_id`; commit failure returns `failed` receipts and keeps the copy for next-turn recovery. Zero events move with Phase 4/6.
-- Editor saves and upload-extracted markdown route through `document_revision_recorder` (same single write path); connector-indexable sync still pending. Daily Celery beat janitor prunes abandoned copies.
+- Editor saves route through `document_revision_recorder`; uploads and all connector indexers record at the `prepare_for_indexing` choke point, one revision per sync batch. Daily Celery beat janitor prunes abandoned copies.
 - Tests shipped: commit-turn scenarios against real git + Redis (net changes, no-op turns, contention recovery), message fallback, builder gating, recorder, janitor TTL.
 
 ### Phase 4 — Derived index + reindex [`subplan: 04-derived-index.md`]

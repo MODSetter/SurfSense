@@ -2,7 +2,7 @@
 
 > Build after Phase 2 (needs the working-copy backend) and Phase 1's `transaction`. Umbrella: [`00-umbrella-plan.md`](00-umbrella-plan.md).
 >
-> **Status: SHIPPED (2026-07-29).** All six work items landed; see per-item notes for the small deviations from the locked model (receipt derivation, message model seam, connector sync still pending).
+> **Status: SHIPPED (2026-07-29).** All six work items landed; see per-item notes for the small deviations from the locked model (receipt derivation, message model seam).
 
 ## Objective
 
@@ -17,7 +17,8 @@ Turn the agent turn's working copy — plus editor saves and upload-extracted ma
 - **Receipts survive, derived from the recorded diff.** *As built:* the middleware **creates** receipts post-commit from `list_changes(revision)` (same ground-truth discipline as the old commit body — no provisional flip needed on this path), revision id as `external_id`. On commit failure it returns `failed` receipts and **keeps the copy** so the thread's next turn recovers the work. Receipts are file-only: history tracks content, so a directory's existence is proven by the receipt of the first file written into it.
 - **No Zero events here.** `document_created/updated/deleted` dispatches move with the derived rows (Phase 4) and projection (Phase 6); flag-on workspaces are dev/test until then.
 - **Janitor.** Celery beat task (daily, 4:45) sweeps every workspace via `knowledge_store/janitor.py` → `prune_working_copies(older_than_seconds=24h)`. 24h far exceeds any turn; crashed-turn copies are reused (and committed) by the thread's next turn well before that.
-- **Editor saves & upload-extracted markdown use the same commit path** (one write path): `services/document_revision_recorder.py` resolves the document's canonical path with the existing `doc_to_virtual_path` resolver (the same `/documents/...` namespace agents see) and records one `transaction` per save, behind the flag. Editor messages are deterministic (`docs: save <filename>`) — there is no chat context to summarize. During coexistence a recording failure logs instead of failing the already-committed Postgres save; that flips at the Phase 5 cut. *Still pending:* connector-indexable content (Notion/Drive) routing through the same recorder on sync.
+- **Editor saves & upload-extracted markdown use the same commit path** (one write path): `services/document_revision_recorder.py` resolves the document's canonical path with the existing `doc_to_virtual_path` resolver (the same `/documents/...` namespace agents see) and records one `transaction` per save, behind the flag. Editor messages are deterministic (`docs: save <filename>`) — there is no chat context to summarize. During coexistence a recording failure logs instead of failing the already-committed Postgres save; that flips at the Phase 5 cut.
+- **Connector-indexable sync records at the pipeline choke point**: every indexer (Notion, Drive, Confluence, uploads, …) converges on `IndexingPipelineService.prepare_for_indexing`, so the recorder hooks there — right after the batch's markdown commits to Postgres — as **one revision per sync batch** (`sync: index N document(s)`), not one per document. Recording at content-durability time (not after chunking) means embedding/LLM failures can never block the record: git is truth, chunks are derived. This superseded the earlier per-upload call in `UploadDocumentAdapter.index`, which was deleted. Identical re-synced content is a natural no-op (unchanged tree → no revision).
 - **No Postgres content writes here** — chunk/embedding refresh is Phase 4 (triggered off the revision).
 
 ## Work items
@@ -26,7 +27,7 @@ Turn the agent turn's working copy — plus editor saves and upload-extracted ma
 2. ✅ `committer` parameter on `record`/`transaction`; `Revision` carries both identities.
 3. ✅ `event_loop.py` gained a second safety-net block calling the same free function — no state markers needed (the working copy on disk *is* the pending state; no copy = no-op, naturally idempotent).
 4. ✅ Revision id surfaced as every success receipt's `external_id` (reaches state via the existing receipts channel). A dedicated event for the indexer/projector lands with Phase 4's trigger wiring.
-5. ✅ Editor save (`editor_routes.save_document`) and upload markdown (`UploadDocumentAdapter.index`) call `record_saved_document`. ⏳ Connector-indexable sync not yet routed.
+5. ✅ Editor save (`editor_routes.save_document`) calls `record_saved_document`; uploads and all connector indexers are covered by `record_prepared_documents` inside `prepare_for_indexing` (one revision per sync batch).
 6. ✅ Celery beat janitor (`prune_knowledge_store_working_copies`, daily).
 
 ## Tests (shipped)
