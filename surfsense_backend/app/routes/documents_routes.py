@@ -21,6 +21,7 @@ from app.db import (
     WorkspaceMembership,
     get_async_session,
 )
+from app.knowledge_store.settings import load_knowledge_store_settings
 from app.schemas import (
     ChunkRead,
     DocumentRead,
@@ -1466,7 +1467,6 @@ async def list_document_versions(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """List all versions for a document, ordered by version_number descending."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1475,7 +1475,7 @@ async def list_document_versions(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.workspace_id, Permission.DOCUMENTS_READ.value
+        session, auth, document.workspace_id, Permission.DOCUMENTS_READ.value
     )
 
     versions = (
@@ -1508,7 +1508,6 @@ async def get_document_version(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Get full version content including source_markdown."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1517,7 +1516,7 @@ async def get_document_version(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.workspace_id, Permission.DOCUMENTS_READ.value
+        session, auth, document.workspace_id, Permission.DOCUMENTS_READ.value
     )
 
     version = (
@@ -1556,8 +1555,21 @@ async def restore_document_version(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.workspace_id, Permission.DOCUMENTS_UPDATE.value
+        session, auth, document.workspace_id, Permission.DOCUMENTS_UPDATE.value
     )
+
+    if load_knowledge_store_settings().enabled:
+        # Restore rewrites source_markdown and title without recording a
+        # revision, so git — the source of truth — would still hold the newer
+        # content: search would keep serving it and the next reindex would revert
+        # the restore outright. History is `git revert` for these workspaces.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Version restore is unavailable for git-backed workspaces; "
+                "revert the change in document history instead."
+            ),
+        )
 
     version = (
         await session.execute(
