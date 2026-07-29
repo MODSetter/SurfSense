@@ -67,14 +67,18 @@ class GitContentEngine(VersionedContentEngine):
         self._ensure_exists()
         repo = Repo(str(self._path))
         try:
+            staged: list[str] = []
             for rel_path, data in writes.items():
                 abs_path = self._path / rel_path
                 abs_path.parent.mkdir(parents=True, exist_ok=True)
                 abs_path.write_bytes(data)
-                porcelain.add(repo, paths=[str(abs_path)])
+                staged.append(str(abs_path))
+            if staged:
+                # One batched add: porcelain.add rewrites the whole index per
+                # call, so per-file adds turn an n-file revision into O(n^2).
+                porcelain.add(repo, paths=staged)
 
-            for rel_path in removes:
-                self._stage_removal(repo, rel_path)
+            self._stage_removals(repo, removes)
 
             if not self._has_pending_changes(repo):
                 return None
@@ -269,11 +273,12 @@ class GitContentEngine(VersionedContentEngine):
             if file.is_file() and ".git" not in file.relative_to(copy_path).parts
         }
 
-    def _stage_removal(self, repo: Repo, rel_path: str) -> None:
-        """Stage a deletion, tolerating a path that was never tracked."""
-        if rel_path.encode() not in repo.open_index():
-            return
-        porcelain.remove(repo, paths=[str(self._path / rel_path)])
+    def _stage_removals(self, repo: Repo, rel_paths: Iterable[str]) -> None:
+        """Stage deletions in one batch, tolerating never-tracked paths."""
+        index = repo.open_index()
+        tracked = [p for p in rel_paths if p.encode() in index]
+        if tracked:
+            porcelain.remove(repo, paths=[str(self._path / p) for p in tracked])
 
     def _has_pending_changes(self, repo: Repo) -> bool:
         """Whether the staged index differs from the current head tree."""
