@@ -26,6 +26,24 @@ from app.utils.document_converters import generate_unique_identifier_hash
 DOCUMENTS_ROOT = "/documents"
 """Root virtual folder for all KB documents."""
 
+
+def to_store_path(virtual_path: str) -> str:
+    """Convert an agent-facing ``/documents/...`` path to its git-repo path.
+
+    The knowledge store's tree is the virtual tree minus the ``/documents``
+    root (``plans/git-native-kb/00c-shared-contract.md`` C1), so ``documents/``
+    must never appear in a repo path. Raises rather than passing a
+    wrong-namespace path through: a silent mismatch here forks one document
+    into two identities on either side of the git↔Postgres boundary.
+    """
+    if virtual_path != DOCUMENTS_ROOT and not virtual_path.startswith(
+        f"{DOCUMENTS_ROOT}/"
+    ):
+        msg = f"Not a {DOCUMENTS_ROOT} path: {virtual_path!r}"
+        raise ValueError(msg)
+    return virtual_path[len(DOCUMENTS_ROOT) :].strip("/")
+
+
 _INVALID_FILENAME_CHARS = re.compile(r"[\\/:*?\"<>|]+")
 _WHITESPACE_RUN = re.compile(r"\s+")
 
@@ -346,5 +364,6 @@ __all__ = [
     "parse_documents_path",
     "safe_filename",
     "safe_folder_segment",
+    "to_store_path",
     "virtual_path_to_doc",
 ]
