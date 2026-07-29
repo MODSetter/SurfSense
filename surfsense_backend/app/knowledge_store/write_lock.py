@@ -1,7 +1,11 @@
-"""Cross-process single-writer lock per workspace.
+"""Cross-process per-workspace locks.
 
 A write never proceeds unserialized: if the lock cannot be acquired (contention
 timeout, or Redis unreachable), the caller fails instead of racing.
+
+Indexing takes a *separate* lock. It embeds, so it runs for far longer than a
+commit — sharing the write lock would stall agent writes behind embedding calls,
+and sizing one TTL for both would either wedge writes or expire mid-rebuild.
 """
 
 from __future__ import annotations
@@ -18,11 +22,17 @@ LOCK_TTL_SECONDS = 30.0
 # How long a contender waits before giving up.
 LOCK_WAIT_SECONDS = 10.0
 
+# Indexing a whole workspace embeds every document, so its ceiling is minutes.
+INDEX_LOCK_TTL_SECONDS = 1800.0
+# A contender gives up quickly: the holder converges to the current revision
+# anyway, and the drift sweep re-drives anything it missed.
+INDEX_LOCK_WAIT_SECONDS = 5.0
+
 _client: redis.Redis | None = None
 
 
 class KnowledgeStoreLockError(RuntimeError):
-    """Raised when the workspace write lock could not be acquired."""
+    """Raised when a workspace lock could not be acquired."""
 
 
 def _redis() -> redis.Redis:
@@ -32,23 +42,23 @@ def _redis() -> redis.Redis:
     return _client
 
 
-def _lock_key(workspace_id: int | str) -> str:
-    return f"knowledge_store:write_lock:{workspace_id}"
+def _lock_key(workspace_id: int | str, purpose: str) -> str:
+    return f"knowledge_store:{purpose}:{workspace_id}"
 
 
 @asynccontextmanager
-async def workspace_write_lock(workspace_id: int | str):
-    """Hold ``workspace_id``'s single-writer lock for the block."""
+async def _workspace_lock(
+    workspace_id: int | str, *, purpose: str, ttl: float, wait: float
+):
     lock = _redis().lock(
-        _lock_key(workspace_id),
-        timeout=LOCK_TTL_SECONDS,
+        _lock_key(workspace_id, purpose),
+        timeout=ttl,
         blocking=True,
-        blocking_timeout=LOCK_WAIT_SECONDS,
+        blocking_timeout=wait,
     )
     if not await lock.acquire():
         raise KnowledgeStoreLockError(
-            f"Could not acquire write lock for workspace {workspace_id} "
-            f"within {LOCK_WAIT_SECONDS}s"
+            f"Could not acquire {purpose} for workspace {workspace_id} within {wait}s"
         )
     try:
         yield
@@ -56,3 +66,31 @@ async def workspace_write_lock(workspace_id: int | str):
         # Release only our own token; a no-op if the hold already expired.
         with suppress(LockError):
             await lock.release()
+
+
+@asynccontextmanager
+async def workspace_write_lock(workspace_id: int | str):
+    """Hold ``workspace_id``'s single-writer lock for the block."""
+    async with _workspace_lock(
+        workspace_id,
+        purpose="write_lock",
+        ttl=LOCK_TTL_SECONDS,
+        wait=LOCK_WAIT_SECONDS,
+    ):
+        yield
+
+
+@asynccontextmanager
+async def workspace_index_lock(workspace_id: int | str):
+    """Hold ``workspace_id``'s single-indexer lock for the block.
+
+    ``ponytail:`` ceiling — a rebuild that outruns the TTL can be joined by a
+    second builder; upgrade path is a ``lock.extend()`` heartbeat while indexing.
+    """
+    async with _workspace_lock(
+        workspace_id,
+        purpose="index_lock",
+        ttl=INDEX_LOCK_TTL_SECONDS,
+        wait=INDEX_LOCK_WAIT_SECONDS,
+    ):
+        yield

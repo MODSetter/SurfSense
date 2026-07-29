@@ -44,6 +44,18 @@ def to_store_path(virtual_path: str) -> str:
     return virtual_path[len(DOCUMENTS_ROOT) :].strip("/")
 
 
+def to_virtual_path(store_path: str) -> str:
+    """Convert a git-repo path back to its agent-facing ``/documents/...`` path.
+
+    Inverse of :func:`to_store_path`. Every identity derived from the store — the
+    ``unique_identifier_hash`` and the ``virtual_path`` metadata marker — is keyed
+    on the virtual path, so callers convert once on the way in and stay in one
+    namespace from there.
+    """
+    relative = store_path.strip("/")
+    return f"{DOCUMENTS_ROOT}/{relative}" if relative else DOCUMENTS_ROOT
+
+
 _INVALID_FILENAME_CHARS = re.compile(r"[\\/:*?\"<>|]+")
 _WHITESPACE_RUN = re.compile(r"\s+")
 
@@ -365,5 +377,6 @@ __all__ = [
     "safe_filename",
     "safe_folder_segment",
     "to_store_path",
+    "to_virtual_path",
     "virtual_path_to_doc",
 ]
