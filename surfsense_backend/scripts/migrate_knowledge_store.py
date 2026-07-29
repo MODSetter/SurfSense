@@ -1,9 +1,10 @@
 """Fleet runner for the Phase 5 knowledge-store migration.
 
 Dry run by default: reports parity per workspace, writes nothing. Re-run with
---yes to seed for real. Every report is appended to a JSONL file, so a fleet
-pass is resumable and auditable; re-seeding is idempotent and convergent, so
-re-running after a partial pass only heals.
+--yes to seed for real, and --yes --flip to also turn seeded workspaces
+git-native (only ever on a passing parity report). Every report is appended
+to a JSONL file, so a fleet pass is resumable and auditable; re-seeding is
+idempotent and convergent, so re-running after a partial pass only heals.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import json
 from dataclasses import asdict
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db import Workspace, async_session_maker
 from app.knowledge_store.migrate import migrate_workspace
@@ -26,6 +27,16 @@ async def _workspace_ids(only: list[int]) -> list[int]:
     async with async_session_maker() as session:
         rows = await session.execute(select(Workspace.id).order_by(Workspace.id))
         return [row[0] for row in rows]
+
+
+async def _set_flip(workspace_id: int, enabled: bool) -> None:
+    async with async_session_maker() as session:
+        await session.execute(
+            update(Workspace)
+            .where(Workspace.id == workspace_id)
+            .values(knowledge_store_enabled=enabled)
+        )
+        await session.commit()
 
 
 async def main() -> None:
@@ -47,7 +58,27 @@ async def main() -> None:
         default="knowledge_store_migration_reports.jsonl",
         help="JSONL file the per-workspace reports are appended to.",
     )
+    parser.add_argument(
+        "--flip",
+        action="store_true",
+        help="With --yes: turn each workspace git-native after its parity passes.",
+    )
+    parser.add_argument(
+        "--unflip",
+        action="store_true",
+        help="Roll the listed workspaces back to the old write path. Does nothing else.",
+    )
     args = parser.parse_args()
+
+    if args.unflip:
+        if not args.workspace:
+            raise SystemExit("--unflip requires explicit --workspace ids")
+        for workspace_id in args.workspace:
+            await _set_flip(workspace_id, False)
+            print(f"workspace {workspace_id}: rolled back to the old write path")
+        return
+    if args.flip and not args.yes:
+        raise SystemExit("--flip requires --yes (never flip on a dry run)")
 
     ids = await _workspace_ids(args.workspace)
     ok = failed = 0
@@ -70,6 +101,9 @@ async def main() -> None:
             failed += not report.ok
             if report.ok:
                 status = "ok"
+                if args.flip:
+                    await _set_flip(workspace_id, True)
+                    status = "ok, flipped git-native"
             elif report.error:
                 status = f"error: {report.error}"
             else:

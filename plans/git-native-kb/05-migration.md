@@ -75,11 +75,21 @@ Re-embedding is never on that path.
 3. ⏳ Seed adoption: the report surfaces `seeded_revision`; recording it as the
    indexer's last-indexed point is Phase 4's side of C7 (coordinate the bookkeeping
    shape with `index_revision`).
-4. ⏳ Per-workspace flag flip guarded by `report.ok` — blocked on a per-workspace flag
-   mechanism (`KNOWLEDGE_STORE_ENABLED` is process-global today; the flip needs a
-   workspace-scoped flag, a cross-cutting change to every `settings.enabled` check).
+4. ✅ Per-workspace flag flip guarded by `report.ok` (2026-07-29) —
+   `workspaces.knowledge_store_enabled` (migration 175, default false) AND the global
+   `KNOWLEDGE_STORE_ENABLED` (kept as the master kill switch: env off = everything off,
+   instantly). `knowledge_store_enabled_for(workspace_id)` resolves the pair (30s
+   per-process cache on the workspace half). The agent factory resolves it **once per
+   turn** and passes the verdict down (resolver, persistence middleware, compiled-graph
+   cache key — the flag rotates cached graphs), so a turn never mixes write paths; the
+   recorder and the disconnect safety-net check per call. The fleet runner flips:
+   `--yes --flip` (only ever on a passing report), `--unflip --workspace N` rolls back.
+   Flipping back loses nothing — Postgres is updated in both modes; git goes stale and
+   a catch-up re-seed converges it.
 5. ✅ Dry-run mode: skips the write, reports parity against head, creates nothing for
    fresh workspaces.
+6. ✅ Fleet runner `scripts/migrate_knowledge_store.py`: dry-run by default, fresh
+   session per workspace, append-only JSONL reports, non-zero exit on any not-ok.
 
 ## Tests
 
