@@ -15,6 +15,7 @@ from app.agents.chat.runtime.path_resolver import (
     parse_documents_path,
     safe_filename,
     safe_folder_segment,
+    to_store_path,
     virtual_path_to_doc,
 )
 
@@ -41,6 +42,22 @@ class TestSafeFolderSegment:
 
     def test_falls_back(self):
         assert safe_folder_segment("") == "folder"
+
+
+class TestToStorePath:
+    def test_drops_the_documents_root(self):
+        assert to_store_path("/documents/Notes/Meeting.xml") == "Notes/Meeting.xml"
+
+    def test_root_itself_is_the_repo_root(self):
+        assert to_store_path(DOCUMENTS_ROOT) == ""
+
+    def test_rejects_a_foreign_namespace(self):
+        with pytest.raises(ValueError, match="/documents"):
+            to_store_path("/documentsimposter/Meeting.xml")
+
+    def test_rejects_a_relative_path(self):
+        with pytest.raises(ValueError, match="/documents"):
+            to_store_path("Notes/Meeting.xml")
 
 
 class TestParseDocIdSuffix:
