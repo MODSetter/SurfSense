@@ -29,7 +29,7 @@ Raw reads from the worktree; one citation pattern through both doors. Every KB s
 2. ✅ New `.../filesystem/backends/git_tree.py` — `GitTreeBackend`: lazy mount of the turn's working copy, **opened on the first KB tool call**. Copy id = `thread-{thread_id}` (langgraph serializes turns per thread; a copy left by a crashed turn is committed with the thread's next turn — recovery semantics; abandoned copies are janitored).
 3. ✅ Wired into `resolver.py::build_backend_resolver` behind `KNOWLEDGE_STORE_ENABLED`; mutation tools (`rm`/`rmdir`/`move_file`/`mkdir`) route `GitTreeBackend` down the existing direct-op branches instead of cloud state-staging. Root-cause fix along the way: `mkdir` was a silent no-op on every direct backend while `write` refuses missing parents — added real `mkdir` to `LocalFolderBackend` (+ multi-root passthrough) and made the tool surface backend errors.
 4. ⏳ `read_file` C2 citation envelope + normalizer `[n:Lx-Ly]` support (today the flagged path returns the raw line-numbered read with no envelope).
-5. ⏳ Janitor scheduling (who calls `prune_working_copies`, e.g. a periodic Celery task) — lands with Phase 3's end-of-turn commit.
+5. ✅ Janitor scheduling — shipped with Phase 3: daily Celery beat task via `knowledge_store/janitor.py` (see [`03-commit-write-path.md`](03-commit-write-path.md)).
 
 ## Tests
 

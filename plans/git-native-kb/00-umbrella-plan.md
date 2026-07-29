@@ -129,30 +129,30 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 2 — deepagents adapter over the core [`subplan: 02-git-working-tree-backend.md`]
 
-> **PLANNED. Build after 01.** The **first driving adapter** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)) — deepagents talking to the core over the real git working tree, replacing the read-side fake.
+> **SHIPPED (file-op path, 2026-07-28).** The **first driving adapter** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)) — deepagents talking to the core over the real git working tree, replacing the read-side fake. Remaining in-phase: the C2 `read_file` citation envelope (after Phase 4's line spans, so search and read citations land as one model).
 
-- A deepagents backend (`BackendProtocol`: `als_info`/`aread`/`awrite`/`aedit`/`aglob_info`/`agrep_raw`/`alist_tree_listing`) over the **real git working tree** instead of `KBPostgresBackend`. **Reuse deepagents' own `FilesystemBackend`/git plumbing** for read-only structure (`ls`/`glob`/`grep`); route writes + commit through the core (`KnowledgeStore`) so the lock/commit/citation policy has one home. Do not reimplement filesystem ops the framework already ships.
-- Wire into the backend resolver (`.../filesystem/backends/resolver.py`) for cloud mode behind the feature flag.
-- **Retire the virtual-FS façade** (`path_resolver.py`, `kb_postgres.py`) for flagged workspaces — paths become real paths.
-- Tests: agent `ls`/`read`/`glob`/`grep` return real files identical to the previous fake for a seeded repo.
+- `GitTreeBackend` serves `/documents/...` from the turn's **private working copy** (lazy open on the first KB tool call; copy id = `thread-{thread_id}`), implemented as one `MultiRootLocalFolderBackend` mount — no staging, no state overlay.
+- Working-copy lifecycle (`open`/`diff`/`discard`/`prune`) lives in the core behind the port; wired into `resolver.py` behind `KNOWLEDGE_STORE_ENABLED`; mutation tools route down the direct-op branches.
+- `path_resolver` + `KBPostgresBackend` retire for flagged workspaces (deleted at the Phase 5 cut).
+- Tests: lifecycle on temp repos, adapter behavior on real files, resolver gating.
 
 ### Phase 3 — Commit-per-turn write path [`subplan: 03-commit-write-path.md`]
 
-> **PLANNED. Build after 02.** Depends on 01's `transaction` and 02's working copies.
+> **SHIPPED (2026-07-29).** See the subplan's work items for the small as-built deviations.
 
-- New small persistence middleware alongside `kb_persistence` (untouched until Phase 5 cut): end of turn → diff the working copy → one `transaction` → discard. Free-function commit body so the disconnect fallback runs the same routine.
-- Aider-style commit messages (weak-model generated, `Thread:` trailer); honest attribution (author = user, committer = agent).
-- Receipts flip from the recorded diff (revision id as `external_id`); Zero events move with Phase 4/6.
-- Editor saves and upload-extracted markdown route through the same commit path (one write path for all indexed content). Celery beat janitor prunes abandoned copies.
-- Tests: one revision per turn with net changes; KB-untouched turns record nothing; failed turns record nothing and recover next turn; receipts and janitor behavior.
+- Persistence middleware `knowledge_store_persistence/` alongside `kb_persistence` (untouched until Phase 5 cut): end of turn → diff the working copy → one `transaction` → receipts → discard. Free-function commit body; the disconnect fallback in `event_loop.py` runs the identical routine (no state markers — the copy on disk is the pending state).
+- Model-generated commit subjects with deterministic fallback (`Thread:` trailer); the model seam is wired with the agent LLM until a weak-model role exists. Honest attribution: author = user, committer = agent (`knowledge_store/identities.py`).
+- Receipts created post-commit from `list_changes(revision)`, revision id as `external_id`; commit failure returns `failed` receipts and keeps the copy for next-turn recovery. Zero events move with Phase 4/6.
+- Editor saves and upload-extracted markdown route through `document_revision_recorder` (same single write path); connector-indexable sync still pending. Daily Celery beat janitor prunes abandoned copies.
+- Tests shipped: commit-turn scenarios against real git + Redis (net changes, no-op turns, contention recovery), message fallback, builder gating, recorder, janitor TTL.
 
 ### Phase 4 — Derived index + reindex [`subplan: 04-derived-index.md`]
 
-> **PLANNED. Can build alongside 03** (both consume 01's `commit`/`log`). This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to commits one-way; the core has no knowledge of it.
+> **PLANNED. Can build alongside 03** (both consume 01's `transaction`/`list_changes`). This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to revisions one-way; the core has no knowledge of it.
 
-- Post-commit indexer: **diff the commit tree**, re-chunk + re-embed **only changed blobs**, keying embeddings by **blob SHA** (point the existing `chunk_reconciler.py` at blob SHA). `web`/live paths untouched.
-- One idempotent **`reindex(workspace)`** that wipes and rebuilds all chunks/embeddings from the current git HEAD (the Fossil `rebuild` discipline).
-- **Delete** `document_versioning.py`, `revert_service.py`, `DocumentRevision`/`FolderRevision` (migration to drop tables) — history now = git.
+- Post-revision indexer: `list_changes(revision)` names the changed paths; re-chunk + re-embed **only those**, keying embeddings by **content id** so unchanged content reuses its vectors. Store each chunk's line span at cut time (C2 rendering). `web`/live paths untouched.
+- One idempotent **`reindex(workspace)`** that wipes and rebuilds all chunks/embeddings from the current revision (the Fossil `rebuild` discipline), as a Celery task.
+- The three hand-rolled versioning systems become dead code for flagged workspaces; their **deletion (code + table drops) is Phase 5 cut time**.
 - Tests: change one file → only its chunks re-embed (unchanged blob SHAs reuse vectors); `reindex()` reproduces identical chunk set; search results unchanged vs. baseline.
 
 ### Phase 5 — Migration [`subplan: 05-migration.md`]
