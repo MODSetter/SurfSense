@@ -203,6 +203,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.stripe_reconciliation_task",
         "app.tasks.celery_tasks.refresh_token_cleanup_task",
         "app.tasks.celery_tasks.knowledge_store_janitor_task",
+        "app.tasks.celery_tasks.knowledge_store_index_tasks",
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.etl_pipeline.cache.eviction.task",
@@ -261,6 +262,9 @@ celery_app.conf.update(
         "index_bookstack_pages": {"queue": CONNECTORS_QUEUE},
         "index_composio_connector": {"queue": CONNECTORS_QUEUE},
         "index_obsidian_attachment": {"queue": CONNECTORS_QUEUE},
+        # A whole-workspace rebuild embeds every document; the per-save index
+        # task stays on the fast queue because search freshness is user-facing.
+        "reindex_knowledge_store": {"queue": CONNECTORS_QUEUE},
         # Everything else (document processing, podcasts, reindexing,
         # schedule checker, cleanup) stays on the default fast queue.
         "gateway.reconcile_inbox": {"queue": f"{CELERY_TASK_DEFAULT_QUEUE}.gateway"},
@@ -341,6 +345,15 @@ celery_app.conf.beat_schedule = {
     "prune-knowledge-store-working-copies": {
         "task": "prune_knowledge_store_working_copies",
         "schedule": crontab(hour="4", minute="45"),
+        "options": {"expires": 600},
+    },
+    # Re-drive workspaces whose chunk index trails their store. Hourly, not
+    # daily: KNOWLEDGE_STORE_ENABLED is process-global, so the first sweep after
+    # enabling it is a fleet-wide backfill, and it is also the only recovery for
+    # an index task lost to a broker or worker failure.
+    "reindex-drifted-workspaces": {
+        "task": "reindex_drifted_workspaces",
+        "schedule": crontab(minute="20"),
         "options": {"expires": 600},
     },
     # Fire due automation schedule triggers (Beat entry owned by the schedule
