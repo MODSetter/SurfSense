@@ -21,14 +21,14 @@ def knowledge_root(tmp_path, monkeypatch):
 async def test_one_save_records_one_revision(knowledge_root, workspace_id):
     revision = await record_document_markdown(
         workspace_id=workspace_id,
-        store_path="documents/notes/meeting.md",
+        store_path="notes/meeting.md",
         markdown="# Meeting",
         author_user_id="1",
     )
 
     store = KnowledgeStore.for_workspace(workspace_id)
     assert revision is not None
-    assert await store.read_as_of(revision, "documents/notes/meeting.md") == b"# Meeting"
+    assert await store.read_as_of(revision, "notes/meeting.md") == b"# Meeting"
     rev = (await store.list_revisions())[0]
     assert "1" in rev.author
     assert "meeting.md" in rev.message
@@ -40,7 +40,7 @@ async def test_disabled_store_records_nothing(monkeypatch, tmp_path, workspace_i
 
     revision = await record_document_markdown(
         workspace_id=workspace_id,
-        store_path="documents/notes/meeting.md",
+        store_path="notes/meeting.md",
         markdown="# Meeting",
         author_user_id="1",
     )
