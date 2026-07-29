@@ -1737,6 +1737,13 @@ class Workspace(BaseModel, TimestampMixin):
     # verdict into first-run vs. recovery.
     llm_setup_completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
+    # Progressive git-native flip: this workspace uses the git-backed knowledge
+    # store only when this AND the global KNOWLEDGE_STORE_ENABLED are true.
+    # Flipped per workspace after its migration seed passes parity.
+    knowledge_store_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
