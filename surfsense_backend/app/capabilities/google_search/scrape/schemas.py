@@ -62,5 +62,11 @@ class ScrapeOutput(BaseModel):
 
     @property
     def billable_units(self) -> int:
-        """One fetched SERP page = one billable unit."""
-        return len(self.items)
+        """One fetched Google SERP page = one billable unit.
+
+        Fallback pages (``resultsProvider`` set) cost no proxy render and no
+        captcha solve, so they are not charged at the Google SERP rate.
+        """
+        return sum(
+            1 for item in self.items if not getattr(item, "resultsProvider", None)
+        )

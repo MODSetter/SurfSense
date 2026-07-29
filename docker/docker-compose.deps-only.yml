@@ -79,6 +79,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # Google Search scraper fallback. The host-run backend reaches it with
+  # SEARXNG_URL=http://localhost:8888.
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    ports:
+      - "${SEARXNG_PORT:-8888}:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-surfsense-searxng-secret}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # NOTE: zero-cache requires the `zero_publication` Postgres publication to
   # exist before it starts. In this deps-only stack there is no backend
   # container to run migrations, so you must run `uv run alembic upgrade head`

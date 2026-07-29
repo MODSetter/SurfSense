@@ -548,7 +548,9 @@ async def fetch_serp_html(url: str, *, mobile: bool = False) -> str | None:
         with contextlib.suppress(Exception):
             page = await _render(url, None, mobile=mobile)
             html = page.html_content or ""
-            return html if (page.status == 200 and _has_results(html)) else None
+            if page.status == 200 and _has_results(html):
+                return html
+        logger.warning("[google_search] gave up on %s (unproxied single render)", url)
         return None
 
     deadline = time.monotonic() + _FETCH_DEADLINE_S
