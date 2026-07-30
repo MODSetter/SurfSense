@@ -88,6 +88,40 @@ async def test_restore_is_refused_for_a_git_backed_workspace(
     assert await _version_count(db_session, db_document.id) == before
 
 
+async def test_restore_still_works_for_an_unflipped_workspace(
+    client, db_session, db_document, monkeypatch, workspace_flip
+):
+    """The 409 is per workspace, not per deployment.
+
+    With the global flag on but this workspace still on Postgres, restore is the
+    only way back — a guard keyed on the global flag would take it away from
+    every workspace on the fleet the moment the flag is turned on.
+    """
+    from app.config import config as app_config
+    from app.utils.document_versioning import create_version_snapshot
+
+    # Past the 30-minute window, so restore's own pre-restore snapshot adds a
+    # version instead of overwriting the one being restored.
+    t0 = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+    monkeypatch.setattr("app.utils.document_versioning._now", lambda: t0)
+    await create_version_snapshot(db_session, db_document)
+    db_document.source_markdown = "# Test\n\nLater content."
+    db_document.content_hash = "def456"
+    await db_session.commit()
+    later = t0 + timedelta(minutes=31)
+    monkeypatch.setattr("app.utils.document_versioning._now", lambda: later)
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
+    workspace_flip(False)
+
+    response = await client.post(
+        f"/api/v1/documents/{db_document.id}/versions/1/restore"
+    )
+
+    assert response.status_code == 200
+    await db_session.refresh(db_document)
+    assert db_document.source_markdown == "# Test\n\nOriginal content."
+
+
 async def _version_count(session: AsyncSession, document_id: int) -> int:
     result = await session.execute(
         select(func.count())
