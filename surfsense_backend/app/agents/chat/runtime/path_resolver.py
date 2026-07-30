@@ -15,7 +15,9 @@ commits.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -224,6 +226,36 @@ def doc_to_virtual_path(
     return path
 
 
+def virtual_path_of(
+    *,
+    metadata: Mapping[str, Any] | None,
+    doc_id: int | None,
+    title: str,
+    folder_id: int | None,
+    index: PathIndex,
+) -> str:
+    """Where a row's content lives, per its :data:`PATH_MARKER`.
+
+    Two writers name files: the seeder and the revision recorder derive a name
+    from the title, while the agent's ``write_file`` commits whatever name the
+    model chose. Deriving is therefore a guess about anything the agent authored,
+    and the marker is the only record that survives the disagreement. Rows with
+    no marker fall back to derivation — which is the name the seeder gave them.
+
+    Ask :func:`doc_to_virtual_path` instead when the question is where a document
+    *should* live: a retitle needs the title's answer to know what to move.
+    """
+    recorded = (metadata or {}).get(PATH_MARKER)
+    if isinstance(recorded, str) and recorded.startswith(f"{DOCUMENTS_ROOT}/"):
+        # Claim the slot, or a later derived path could be handed the same one.
+        if doc_id is not None:
+            index.occupants[recorded] = doc_id
+        return recorded
+    return doc_to_virtual_path(
+        doc_id=doc_id, title=title, folder_id=folder_id, index=index
+    )
+
+
 async def virtual_path_to_doc(
     session: AsyncSession,
     *,
@@ -387,5 +419,6 @@ __all__ = [
     "safe_folder_segment",
     "to_store_path",
     "to_virtual_path",
+    "virtual_path_of",
     "virtual_path_to_doc",
 ]

@@ -8,6 +8,7 @@ never guards on ``KNOWLEDGE_STORE_ENABLED``.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
@@ -15,13 +16,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.runtime.path_resolver import (
+    PATH_MARKER,
     build_path_index,
-    doc_to_virtual_path,
     to_store_path,
+    virtual_path_of,
 )
 from app.knowledge_store.engines.base import TrackedPath
 from app.knowledge_store.identities import MIGRATION_IDENTITY
 from app.knowledge_store.store import KnowledgeStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -145,11 +149,16 @@ async def migrate_workspace(
     *,
     dry_run: bool = False,
 ) -> MigrationReport:
-    """Seed one workspace's current documents, mapped by the live path rules.
+    """Seed one workspace's current documents at the paths they already live at.
 
-    Uses the same resolver as every write path (`doc_to_virtual_path`), so a
-    connector re-sync or agent write after migration lands on the exact same
-    path and updates instead of duplicating.
+    Placement must agree with every other writer, or one document forks into two
+    files. `virtual_path_of` reads the path a row already records and derives from
+    the title only for rows that have none — the agent's `write_file` names its
+    own files, so derivation alone disagrees with the store for anything it
+    authored.
+
+    A successful run records each seeded path back onto its row, so the retitle
+    that follows knows which file to drop from the tree.
 
     Never raises: a failure while fetching or mapping documents is returned
     as ``MigrationReport.error``, like every seed failure.
@@ -163,22 +172,65 @@ async def migrate_workspace(
                 Document.id,
                 Document.title,
                 Document.folder_id,
+                Document.document_metadata,
                 Document.source_markdown,
                 Document.content,
             ).where(Document.workspace_id == workspace_id)
         )
         files: dict[str, str] = {}
-        for doc_id, title, folder_id, source_markdown, content in rows:
+        seeded_paths: dict[int, str] = {}
+        for doc_id, title, folder_id, metadata, source_markdown, content in rows:
             # Rows predating the nullable source_markdown column hold text in
             # content only; "Pending..." is the pre-index placeholder, never
             # content.
             markdown = source_markdown or content
             if not markdown or markdown == "Pending...":
                 continue
-            virtual_path = doc_to_virtual_path(
-                doc_id=doc_id, title=title, folder_id=folder_id, index=index
+            virtual_path = virtual_path_of(
+                metadata=metadata,
+                doc_id=doc_id,
+                title=title,
+                folder_id=folder_id,
+                index=index,
             )
             files[to_store_path(virtual_path)] = markdown
+            seeded_paths[doc_id] = virtual_path
     except Exception as exc:
         return _failure_report(workspace_id, dry_run, 0, exc)
-    return await seed_workspace(workspace_id, files, dry_run=dry_run)
+
+    report = await seed_workspace(workspace_id, files, dry_run=dry_run)
+    if report.ok and not dry_run:
+        await _record_seeded_paths(session, seeded_paths)
+    return report
+
+
+async def _record_seeded_paths(
+    session: AsyncSession, seeded_paths: Mapping[int, str]
+) -> None:
+    """Mark each seeded row with the path its content was written to.
+
+    Only rows whose marker would change are touched, so a re-seed of an already
+    marked workspace writes nothing. Best-effort: the seed revision is already
+    committed, and an unmarked row still resolves by derivation — it just cannot
+    survive a retitle, which the next seed repairs.
+    """
+    from app.db import Document
+
+    if not seeded_paths:
+        return
+    try:
+        rows = await session.execute(
+            select(Document).where(Document.id.in_(list(seeded_paths)))
+        )
+        for document in rows.scalars().all():
+            path = seeded_paths[document.id]
+            metadata = dict(document.document_metadata or {})
+            if metadata.get(PATH_MARKER) == path:
+                continue
+            metadata[PATH_MARKER] = path
+            # Reassigned, not mutated: SQLAlchemy tracks JSON columns by identity.
+            document.document_metadata = metadata
+        await session.commit()
+    except Exception:
+        logger.warning("Could not record seeded paths", exc_info=True)
+        await session.rollback()
