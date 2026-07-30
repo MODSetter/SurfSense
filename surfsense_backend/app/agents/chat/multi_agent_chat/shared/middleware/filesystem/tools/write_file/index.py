@@ -11,6 +11,9 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
+    GitTreeBackend,
+)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
@@ -62,7 +65,11 @@ def create_write_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 )
             ],
         }
-        if is_cloud(mw._filesystem_mode):
+        # The git-tree backend has already applied the write to the turn's
+        # working copy, and the end-of-turn commit records it from that diff.
+        # Staging it for the legacy commit as well would record the same write
+        # twice: one revision plus a Postgres document git never hears about.
+        if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
             update["dirty_paths"] = [path]
             update["dirty_path_tool_calls"] = {path: runtime.tool_call_id}
         return Command(update=update)
