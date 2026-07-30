@@ -44,6 +44,31 @@ async def _turn_writes(workspace_id, files: dict[str, bytes]) -> KnowledgeStore:
     return store
 
 
+async def _commit(workspace_id, llm):
+    return await commit_turn_working_copy(
+        workspace_id=workspace_id,
+        thread_id=THREAD_ID,
+        created_by_id=USER_ID,
+        llm=llm,
+    )
+
+
+async def _committed_turn(workspace_id, llm, files: dict[str, bytes]) -> KnowledgeStore:
+    """Leave the store one revision in, so the next turn can edit or drop files."""
+    store = await _turn_writes(workspace_id, files)
+    await _commit(workspace_id, llm)
+    return store
+
+
+async def _next_turn_copy(store: KnowledgeStore):
+    """A fresh copy for the following turn, materialized from the committed tree."""
+    return await store.open_working_copy(f"thread-{THREAD_ID}")
+
+
+def _operations(delta) -> dict[str, str]:
+    return {r["preview"]: r["operation"] for r in delta["receipts"]}
+
+
 async def test_commits_the_turns_net_changes_as_one_revision(
     knowledge_root, workspace_id, llm
 ):
@@ -175,3 +200,91 @@ async def test_lock_contention_yields_failed_receipts_and_keeps_the_copy(
         llm=llm,
     )
     assert [r["status"] for r in retry["receipts"]] == ["success"]
+
+
+# --- Every kind of change a turn can make ---
+#
+# Receipts are the orchestrator's ground truth for what the agent did, so the
+# operation each kind maps to has to be pinned per kind — a turn that only ever
+# adds files leaves the modification and removal mappings unverified.
+
+
+async def test_an_edited_file_is_recorded_as_a_modification(
+    knowledge_root, workspace_id, llm
+):
+    store = await _committed_turn(workspace_id, llm, {"documents/note.md": b"hello"})
+
+    copy = await _next_turn_copy(store)
+    (copy.path / "documents/note.md").write_bytes(b"hello again")
+    delta = await _commit(workspace_id, llm)
+
+    assert _operations(delta) == {"documents/note.md": "edit_file"}
+    revision = (await store.list_revisions())[0].id
+    assert await store.read_as_of(revision, "documents/note.md") == b"hello again"
+
+
+async def test_a_deleted_file_is_recorded_as_a_removal(
+    knowledge_root, workspace_id, llm
+):
+    store = await _committed_turn(workspace_id, llm, {"documents/note.md": b"hello"})
+
+    copy = await _next_turn_copy(store)
+    (copy.path / "documents/note.md").unlink()
+    delta = await _commit(workspace_id, llm)
+
+    assert _operations(delta) == {"documents/note.md": "rm"}
+    revision = (await store.list_revisions())[0].id
+    assert await store.list_paths(revision) == []
+
+
+async def test_a_moved_file_is_recorded_as_a_removal_and_an_addition(
+    knowledge_root, workspace_id, llm
+):
+    """The store has no rename verb: a move is the two changes it decomposes into."""
+    store = await _committed_turn(workspace_id, llm, {"documents/old.md": b"hello"})
+
+    copy = await _next_turn_copy(store)
+    (copy.path / "documents/old.md").rename(copy.path / "documents/new.md")
+    delta = await _commit(workspace_id, llm)
+
+    assert _operations(delta) == {
+        "documents/old.md": "rm",
+        "documents/new.md": "write_file",
+    }
+    revision = (await store.list_revisions())[0].id
+    assert [e.path for e in await store.list_paths(revision)] == ["documents/new.md"]
+
+
+async def test_a_mixed_turn_records_one_receipt_per_change(
+    knowledge_root, workspace_id, llm
+):
+    store = await _committed_turn(
+        workspace_id, llm, {"documents/kept.md": b"a", "documents/dropped.md": b"b"}
+    )
+
+    copy = await _next_turn_copy(store)
+    (copy.path / "documents/kept.md").write_bytes(b"a edited")
+    (copy.path / "documents/dropped.md").unlink()
+    (copy.path / "documents/added.md").write_bytes(b"c")
+    delta = await _commit(workspace_id, llm)
+
+    assert _operations(delta) == {
+        "documents/kept.md": "edit_file",
+        "documents/dropped.md": "rm",
+        "documents/added.md": "write_file",
+    }
+    assert len(await store.list_revisions()) == 2
+
+
+async def test_failed_receipts_cover_removals_too(
+    knowledge_root, workspace_id, llm, short_lock_wait
+):
+    store = await _committed_turn(workspace_id, llm, {"documents/note.md": b"hello"})
+
+    copy = await _next_turn_copy(store)
+    (copy.path / "documents/note.md").unlink()
+    async with workspace_write_lock(workspace_id):
+        delta = await _commit(workspace_id, llm)
+
+    assert _operations(delta) == {"documents/note.md": "rm"}
+    assert [r["status"] for r in delta["receipts"]] == ["failed"]
