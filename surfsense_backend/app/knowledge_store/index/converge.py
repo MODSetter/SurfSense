@@ -1,14 +1,15 @@
 """Postgres as a derived index of the store.
 
 Git holds the content; ``documents`` + ``chunks`` are a rebuildable projection of
-it. :func:`index_revision` folds in what a revision changed; :func:`reindex`
-rebuilds from the whole tree. Both run the same convergence body, so the
-incremental and rebuild paths cannot drift apart.
+it. The two entry points differ only in scope: :func:`index_changes` folds in
+what moved since the last run, :func:`index_tree` reconciles against the whole
+tree and is therefore the only one that can notice a deletion it never saw.
+Both run the same convergence body, so the two paths cannot drift apart.
 
-Document rows **converge** — they are upserted by path and never wiped, because
-``documents``/``folders`` replicate to the browser and their ids must survive a
-rebuild. Chunk rows are the disposable layer, replaced per document by the
-existing indexing pipeline.
+Neither wipes. Document rows are upserted by path and keep their ids, because
+``documents``/``folders`` replicate to the browser and an id that changed under
+a reader would make every note vanish and reappear. Chunk rows are the
+disposable layer, replaced per document by the existing indexing pipeline.
 """
 
 from __future__ import annotations
@@ -44,9 +45,8 @@ from app.utils.document_converters import (
 
 logger = logging.getLogger(__name__)
 
-# PATH_MARKER (re-exported from path_resolver) marks a row as living at a store
-# path, i.e. owned by this indexer. Rows without it (Slack, Notion, the folder
-# indexers) are never pruned by a rebuild.
+# PATH_MARKER marks a row as living at a store path, i.e. owned by this indexer.
+# Rows without it (Slack, Notion, the folder indexers) are never pruned.
 
 _USER_AUTHOR = re.compile(r"<([^@>]+)@users\.surfsense>")
 
@@ -80,19 +80,25 @@ class _Plan:
     tree: set[str] | None = field(default=None)
 
 
-async def index_revision(session: AsyncSession, workspace_id: int) -> IndexOutcome:
-    """Bring the index up to the store's current revision.
+async def index_changes(session: AsyncSession, workspace_id: int) -> IndexOutcome:
+    """Fold the paths that moved since the last run into the index.
 
-    The triggering revision is deliberately not a parameter: two saves in a row
-    enqueue two tasks, the index lock serializes them without ordering them, and
-    stamping the older id last would leave a stale index. Converging to the
-    current revision under the lock makes task order irrelevant.
+    Always converges to whatever HEAD is now, never to the revision that
+    triggered the call: two saves in a row enqueue two tasks, the index lock
+    serializes them without ordering them, and stamping the older id last would
+    leave a stale index. Reading HEAD under the lock makes task order
+    irrelevant, which is why no revision is passed in.
     """
     return await _run(session, workspace_id, full=False)
 
 
-async def reindex(session: AsyncSession, workspace_id: int) -> IndexOutcome:
-    """Rebuild the whole index from the current tree (the Fossil ``rebuild``)."""
+async def index_tree(session: AsyncSession, workspace_id: int) -> IndexOutcome:
+    """Reconcile the index against every path in the tree (the Fossil rebuild).
+
+    Distrusts the stamp, so this is the only path that removes a row whose file
+    left the tree while the index was not watching — and the only repair for an
+    index that fell behind in a way the change log can no longer describe.
+    """
     return await _run(session, workspace_id, full=True)
 
 
@@ -401,8 +407,8 @@ async def _revision_author_id(
 ) -> str:
     """Actor for rows this run creates, derived from git — never passed in.
 
-    A caller-supplied id would be erased by the next ``reindex``, making the two
-    paths disagree. Autonomous agent writes author as the agent, which carries no
+    A caller-supplied id would be erased by the next :func:`index_tree`, making
+    the two paths disagree. Autonomous agent writes author as the agent, which carries no
     user id, so those fall back to the workspace owner: ``created_by_id`` is
     required and rejects blanks, and agent writes are the whole point of indexing.
     """

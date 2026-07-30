@@ -21,7 +21,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
-from app.knowledge_store.index.converge import PATH_MARKER, index_revision, reindex
+from app.knowledge_store.index.converge import PATH_MARKER, index_changes, index_tree
 from app.utils.document_converters import generate_unique_identifier_hash
 
 pytestmark = pytest.mark.integration
@@ -85,7 +85,7 @@ async def test_identical_content_at_two_paths_yields_two_documents(
     """The case prepare_for_indexing collapses; `cp a b` is legal git."""
     await commit(store, {"documents/a.xml": "# Same", "documents/b.xml": "# Same"})
 
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     rows = await titles(db_session, db_workspace.id)
     assert set(rows) == {"a", "b"}
@@ -115,7 +115,7 @@ async def test_uploaded_file_is_adopted_not_duplicated(
     upload_id, upload_hash = upload.id, upload.unique_identifier_hash
 
     await commit(store, {"documents/report.pdf.xml": "# Report"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     total = await db_session.scalar(
         select(func.count(Document.id)).where(Document.workspace_id == db_workspace.id)
@@ -135,11 +135,11 @@ async def test_existing_path_updates_in_place(
 ):
     """A second index of the same path is an update, not a unique-hash collision."""
     await commit(store, {"documents/note.xml": "# First"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     first_id = (await titles(db_session, db_workspace.id))["note"].id
 
     await commit(store, {"documents/note.xml": "# First\n\nSecond paragraph."})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     rows = await titles(db_session, db_workspace.id)
     assert len(rows) == 1
@@ -152,7 +152,7 @@ async def test_a_document_in_a_folder_lands_under_that_folder(
 ):
     await commit(store, {"documents/Research/paper.xml": "# Paper"})
 
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     row = (await titles(db_session, db_workspace.id))["paper"]
     assert row.folder_id is not None
@@ -168,13 +168,13 @@ async def test_editing_one_file_leaves_another_files_chunks_untouched(
     await commit(
         store, {"documents/a.xml": "# A\n\nAlpha.", "documents/b.xml": "# B\n\nBeta."}
     )
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     untouched = (await titles(db_session, db_workspace.id))["b"]
     before = await chunk_ids(db_session, untouched.id)
     assert before
 
     await commit(store, {"documents/a.xml": "# A\n\nAlpha, revised."})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     assert await chunk_ids(db_session, untouched.id) == before
 
@@ -183,12 +183,12 @@ async def test_removed_path_deletes_the_document_and_its_chunks(
     store, db_session, db_workspace, patched_embed_texts
 ):
     await commit(store, {"documents/a.xml": "# A", "documents/b.xml": "# B"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     doomed_id = (await titles(db_session, db_workspace.id))["a"].id
     assert await chunk_ids(db_session, doomed_id)
 
     await commit(store, removes=["documents/a.xml"])
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     assert set(await titles(db_session, db_workspace.id)) == {"b"}
     assert await chunk_ids(db_session, doomed_id) == []
@@ -199,12 +199,12 @@ async def test_a_rename_leaves_exactly_one_document(
 ):
     """Git reports a rename as add+delete, so both halves must be applied."""
     await commit(store, {"documents/old.xml": "# Content"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     await commit(
         store, {"documents/new.xml": "# Content"}, removes=["documents/old.xml"]
     )
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     assert set(await titles(db_session, db_workspace.id)) == {"new"}
 
@@ -217,10 +217,10 @@ async def test_reindex_keeps_document_ids(
 ):
     """Rebuild replaces chunks, never document rows: their ids reach the browser."""
     await commit(store, {"documents/a.xml": "# A", "documents/notes/b.xml": "# B"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     before = {t: d.id for t, d in (await titles(db_session, db_workspace.id)).items()}
 
-    await reindex(db_session, db_workspace.id)
+    await index_tree(db_session, db_workspace.id)
 
     after = {t: d.id for t, d in (await titles(db_session, db_workspace.id)).items()}
     assert after == before
@@ -230,17 +230,17 @@ async def test_reindex_reaches_the_same_state_as_the_incremental_path(
     store, db_session, db_workspace, patched_embed_texts
 ):
     await commit(store, {"documents/a.xml": "# A", "documents/b.xml": "# B"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     await commit(
         store, {"documents/b.xml": "# B\n\nEdited."}, removes=["documents/a.xml"]
     )
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     incremental = {
         title: document.source_markdown
         for title, document in (await titles(db_session, db_workspace.id)).items()
     }
 
-    await reindex(db_session, db_workspace.id)
+    await index_tree(db_session, db_workspace.id)
 
     rebuilt = {
         title: document.source_markdown
@@ -253,10 +253,10 @@ async def test_indexing_a_stamped_revision_does_nothing(
     store, db_session, db_workspace, patched_embed_texts
 ):
     await commit(store, {"documents/a.xml": "# A"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     calls = patched_embed_texts.call_count
 
-    outcome = await index_revision(db_session, db_workspace.id)
+    outcome = await index_changes(db_session, db_workspace.id)
 
     assert outcome.indexed == 0
     assert patched_embed_texts.call_count == calls
@@ -269,7 +269,7 @@ async def test_a_missed_revision_is_folded_in_by_the_next_run(
     await commit(store, {"documents/a.xml": "# A"})
     await commit(store, {"documents/b.xml": "# B"})  # no index run for this one
 
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     assert set(await titles(db_session, db_workspace.id)) == {"a", "b"}
     await db_session.refresh(db_workspace)
@@ -296,7 +296,7 @@ async def test_a_connector_document_survives_a_rebuild(
     await db_session.flush()
 
     await commit(store, {"documents/a.xml": "# A"})
-    await reindex(db_session, db_workspace.id)
+    await index_tree(db_session, db_workspace.id)
 
     assert "Slack thread" in await titles(db_session, db_workspace.id)
 
@@ -306,11 +306,11 @@ async def test_a_rebuild_prunes_a_row_whose_file_is_gone(
 ):
     """The rebuild path has no change list, so the tree is the only authority."""
     await commit(store, {"documents/a.xml": "# A", "documents/b.xml": "# B"})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     # Remove the file without letting the incremental path see the removal.
     await commit(store, removes=["documents/a.xml"])
-    await reindex(db_session, db_workspace.id)
+    await index_tree(db_session, db_workspace.id)
 
     assert set(await titles(db_session, db_workspace.id)) == {"b"}
 
@@ -326,7 +326,7 @@ async def test_an_agent_authored_revision_falls_back_to_the_workspace_owner(
         store, {"documents/agent.xml": "# Written by the agent"}, author=AGENT_IDENTITY
     )
 
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
 
     assert (await titles(db_session, db_workspace.id))["agent"].created_by_id == (
         db_user.id
@@ -343,7 +343,7 @@ async def test_unusable_blobs_are_skipped_and_the_stamp_still_advances(
         tx.write("documents/binary.xml", b"\xff\xfe\x00\x01")
     revision = tx.revision
 
-    outcome = await index_revision(db_session, db_workspace.id)
+    outcome = await index_changes(db_session, db_workspace.id)
 
     assert set(await titles(db_session, db_workspace.id)) == {"good"}
     assert (outcome.indexed, outcome.skipped) == (1, 2)
@@ -398,7 +398,7 @@ async def test_the_git_path_chunks_identically_to_the_connector_path(
     )
 
     await commit(store, {"documents/Report.xml": markdown})
-    await index_revision(db_session, db_workspace.id)
+    await index_changes(db_session, db_workspace.id)
     through_git = (await titles(db_session, db_workspace.id))["Report"]
 
     assert await chunk_shapes(db_session, through_git.id) == await chunk_shapes(
@@ -412,7 +412,7 @@ async def test_a_failed_document_withholds_the_stamp(
     """Without this the sweep has nothing to retry and the gap is permanent."""
     await commit(store, {"documents/a.xml": "# A"})
 
-    outcome = await index_revision(db_session, db_workspace.id)
+    outcome = await index_changes(db_session, db_workspace.id)
 
     assert outcome.failed == 1
     assert outcome.stamped is False

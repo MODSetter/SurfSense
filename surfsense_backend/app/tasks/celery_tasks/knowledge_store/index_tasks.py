@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.celery_app import celery_app
 from app.db import Workspace
-from app.knowledge_store.index.converge import index_revision, reindex
+from app.knowledge_store.index.converge import index_changes, index_tree
 from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,
@@ -80,9 +80,9 @@ async def _index(workspace_id: int, *, full: bool) -> int:
     async with session_maker() as session:
         try:
             outcome = await (
-                reindex(session, workspace_id)
+                index_tree(session, workspace_id)
                 if full
-                else index_revision(session, workspace_id)
+                else index_changes(session, workspace_id)
             )
         except KnowledgeStoreLockError:
             if full:

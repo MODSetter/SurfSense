@@ -36,8 +36,8 @@ def contended_workspace(monkeypatch):
 
     monkeypatch.setattr(index_tasks, "knowledge_store_enabled_for", enabled)
     monkeypatch.setattr(index_tasks, "get_celery_session_maker", lambda: _NullSession)
-    monkeypatch.setattr(index_tasks, "index_revision", locked)
-    monkeypatch.setattr(index_tasks, "reindex", locked)
+    monkeypatch.setattr(index_tasks, "index_changes", locked)
+    monkeypatch.setattr(index_tasks, "index_tree", locked)
 
 
 async def test_a_losing_rebuild_skips(contended_workspace):
