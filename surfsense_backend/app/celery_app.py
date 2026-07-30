@@ -357,7 +357,9 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="20"),
         "options": {"expires": 600},
     },
-    # Parity check flipped workspaces against Postgres; alarms on drift.
+    # Parity-check flipped workspaces against git by content address. Covers the
+    # half the hourly sweep cannot see (its predicate is git-vs-git), and enqueues
+    # a whole-tree converge for what it finds, capped per run.
     "check-knowledge-store-drift": {
         "task": "check_knowledge_store_drift",
         "schedule": crontab(hour="5", minute="15"),
