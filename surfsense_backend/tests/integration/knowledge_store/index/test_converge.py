@@ -209,6 +209,30 @@ async def test_a_rename_leaves_exactly_one_document(
     assert set(await titles(db_session, db_workspace.id)) == {"new"}
 
 
+async def test_a_rename_the_recorder_already_marked_keeps_its_document(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    """An editor retitle moves the row's marker before the index ever runs, and
+    leaves unique_identifier_hash on the old path. The removal half then resolves
+    by that hash to the row the upsert half just updated — dropping a document
+    whose file is still in the tree, invisible until the next full rebuild."""
+    await commit(store, {"documents/old.xml": "# Content"})
+    await index_changes(db_session, db_workspace.id)
+    row = (await titles(db_session, db_workspace.id))["old"]
+    document_id = row.id
+    row.document_metadata = {**row.document_metadata, PATH_MARKER: "/documents/new.xml"}
+    await db_session.commit()
+
+    await commit(
+        store, {"documents/new.xml": "# Content"}, removes=["documents/old.xml"]
+    )
+    await index_changes(db_session, db_workspace.id)
+
+    rows = await titles(db_session, db_workspace.id)
+    assert set(rows) == {"new"}
+    assert rows["new"].id == document_id
+
+
 # ── Convergence ─────────────────────────────────────────────────────────────
 
 

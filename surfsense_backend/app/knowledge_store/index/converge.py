@@ -362,6 +362,14 @@ async def _delete(
     document = await _resolve(session, workspace_id, virtual_path, owned)
     if document is None:
         return 0
+    marker = (document.document_metadata or {}).get(PATH_MARKER)
+    if marker and marker != virtual_path:
+        # The row moved, it did not go away. A rename arrives as a removal of the
+        # old path plus an upsert of the new one, and the upsert has already
+        # claimed this row; deleting on the removal would drop what the same run
+        # just wrote. Reachable because a retitle moves the marker and leaves
+        # unique_identifier_hash — which _resolve falls back to — on the old path.
+        return 0
     owned.pop(virtual_path, None)
     await session.delete(document)
     return 1
