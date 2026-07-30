@@ -8,6 +8,12 @@ export const MODEL_CAPABILITY_FILTERS: { key: ModelCapabilityFilter; label: stri
 	{ key: "image_gen", label: "Image" },
 ];
 
+const CAPABILITY_FIELDS = {
+	chat: "supports_chat",
+	vision: "supports_image_input",
+	image_gen: "supports_image_generation",
+} as const;
+
 export type SelectableModel = (ModelRead | ModelPreviewRead) & {
 	id?: number | string;
 	connection_id?: number;
@@ -18,9 +24,13 @@ export function modelLabel(model: SelectableModel) {
 }
 
 export function capability(model: SelectableModel, key: ModelCapabilityFilter) {
-	if (key === "chat") return Boolean(model.supports_chat);
-	if (key === "vision") return Boolean(model.supports_image_input);
-	return Boolean(model.supports_image_generation);
+	const field = CAPABILITY_FIELDS[key];
+	const overrides =
+		"capabilities_override" in model ? model.capabilities_override : undefined;
+
+	if (overrides && field in overrides) return Boolean(overrides[field]);
+	if (overrides && key in overrides) return Boolean(overrides[key]);
+	return Boolean(model[field]);
 }
 
 export function capabilityLabels(model: SelectableModel) {
