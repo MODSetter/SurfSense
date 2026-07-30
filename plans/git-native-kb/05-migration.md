@@ -1,5 +1,7 @@
 # Phase 5 — Migration
 
+> **Status: TOOLING SHIPPED (2026-07-30); fleet flips pending.** Seeder (`app/knowledge_store/migrate.py`), fleet runner (`scripts/migrate_knowledge_store.py`), per-workspace flag (`workspaces.knowledge_store_enabled`), drift monitor. No production workspace flipped yet; cut-time deletion (versioning code + table drops) runs after fleet verification.
+>
 > After Phases 1–4. One-time, per-workspace, behind the flag. Umbrella: [`00-umbrella-plan.md`](00-umbrella-plan.md).
 
 ## Objective

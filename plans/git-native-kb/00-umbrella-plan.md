@@ -157,7 +157,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 5 — Migration [`subplan: 05-migration.md`]
 
-> **PLANNED. After 01–04.** One-time, per-workspace, flagged.
+> **TOOLING SHIPPED (2026-07-30); fleet flips pending.** Seeder (`knowledge_store/migrate.py`), fleet runner (`scripts/migrate_knowledge_store.py`, seed → verify byte parity → flip only on pass), per-workspace flag (`workspaces.knowledge_store_enabled`, migration 175), daily drift monitor. No production workspace flipped yet; the cut-time deletion sweep (versioning code + table drops) runs after the fleet is verified.
 
 - Export each existing workspace's Postgres documents/folders → an initial git repo (one seed commit), preserving `unique_identifier_hash` mapping.
 - **Adopt, don't rebuild** (amended 2026-07-29): parity = per-document **byte identity** vs Postgres, not `reindex()` — the seed copies bytes out of Postgres, so existing chunks/vectors already are its derived index; a full reindex is the 21-day-class job for zero information. The seed revision is the indexer's starting point, never incrementally indexed (else "every file added" = workspace-wide re-embed storm).
@@ -211,12 +211,12 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 
 | Phase | Subplan file | Status |
 |-------|--------------|--------|
-| 0 | `00c-shared-contract.md` | PLANNED — read first |
-| 1 | `01-git-storage-core.md` (core) | ✅ implemented |
-| 2 | `02-git-working-tree-backend.md` (deepagents adapter) | PLANNED |
-| 3 | `03-commit-write-path.md` | PLANNED |
-| 4 | `04-derived-index.md` | PLANNED |
-| 5 | `05-migration.md` | PLANNED |
+| 0 | `00c-shared-contract.md` | LOCKED — read first |
+| 1 | `01-git-storage-core.md` (core) | ✅ SHIPPED |
+| 2 | `02-git-working-tree-backend.md` (deepagents adapter) | ✅ SHIPPED (2026-07-28) — C2 `read_file` citation envelope still open |
+| 3 | `03-commit-write-path.md` | ✅ SHIPPED (2026-07-29) |
+| 4 | `04-derived-index.md` | ✅ SHIPPED (2026-07-30) |
+| 5 | `05-migration.md` | TOOLING SHIPPED (2026-07-30) — fleet flips + cut-time deletion pending |
 | 6 | `06-zero-projection.md` | PLANNED |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
