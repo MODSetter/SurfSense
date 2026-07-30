@@ -32,7 +32,7 @@ def enqueue_index(workspace_id: int | str) -> None:
     try:
         # Imported here: the task module imports the indexer, which imports the
         # store — a module-level import would close that loop.
-        from app.tasks.celery_tasks.knowledge_store_index_tasks import (
+        from app.tasks.celery_tasks.knowledge_store.index_tasks import (
             index_knowledge_store_revision,
         )
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-import app.knowledge_store.index_queue as index_queue
+import app.knowledge_store.index.queue as index_queue
 from app.config import config as app_config
 
 pytestmark = pytest.mark.unit
@@ -23,7 +23,7 @@ def delayed(monkeypatch):
 
     monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
     monkeypatch.setattr(
-        "app.tasks.celery_tasks.knowledge_store_index_tasks."
+        "app.tasks.celery_tasks.knowledge_store.index_tasks."
         "index_knowledge_store_revision.delay",
         calls.append,
     )
@@ -58,6 +58,27 @@ def test_a_non_numeric_id_is_dropped(delayed):
     assert delayed == []
 
 
+def test_importing_the_queue_does_not_drag_in_the_converger():
+    """A writer's last step must stay cheap to import.
+
+    ``converge`` reaches into the ORM, the indexing pipeline and the agents
+    middleware; a convenience re-export in this package's ``__init__`` would put
+    all of it on the import path of every save.
+    """
+    import subprocess
+    import sys
+
+    probe = (
+        "import sys; import app.knowledge_store.index.queue; "
+        "print(any(m.startswith('app.indexing_pipeline') for m in sys.modules))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe], capture_output=True, text=True, check=True
+    )
+
+    assert result.stdout.strip().endswith("False")
+
+
 def test_a_broker_failure_does_not_reach_the_caller(monkeypatch, caplog):
     """The save already committed; the sweep is the backstop."""
 
@@ -66,7 +87,7 @@ def test_a_broker_failure_does_not_reach_the_caller(monkeypatch, caplog):
 
     monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
     monkeypatch.setattr(
-        "app.tasks.celery_tasks.knowledge_store_index_tasks."
+        "app.tasks.celery_tasks.knowledge_store.index_tasks."
         "index_knowledge_store_revision.delay",
         unreachable,
     )

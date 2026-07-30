@@ -21,7 +21,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
-from app.knowledge_store.indexer import PATH_MARKER, index_revision, reindex
+from app.knowledge_store.index.converge import PATH_MARKER, index_revision, reindex
 from app.utils.document_converters import generate_unique_identifier_hash
 
 pytestmark = pytest.mark.integration

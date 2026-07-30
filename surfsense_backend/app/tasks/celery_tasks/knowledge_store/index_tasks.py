@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.celery_app import celery_app
 from app.db import Workspace
-from app.knowledge_store.indexer import index_revision, reindex
+from app.knowledge_store.index.converge import index_revision, reindex
 from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,

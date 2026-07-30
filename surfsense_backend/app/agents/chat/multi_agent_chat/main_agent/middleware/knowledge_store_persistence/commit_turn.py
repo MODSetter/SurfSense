@@ -22,7 +22,7 @@ from app.agents.chat.multi_agent_chat.shared.receipts.receipt import (
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
-from app.knowledge_store.index_queue import enqueue_index
+from app.knowledge_store.index.queue import enqueue_index
 from app.observability import metrics
 
 logger = logging.getLogger(__name__)

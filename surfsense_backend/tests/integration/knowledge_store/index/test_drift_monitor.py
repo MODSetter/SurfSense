@@ -13,7 +13,7 @@ from dataclasses import replace
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-import app.tasks.celery_tasks.knowledge_store_drift_monitor_task as monitor
+import app.tasks.celery_tasks.knowledge_store.drift_monitor_task as monitor
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType, Workspace
 from app.knowledge_store.migrate import migrate_workspace

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-import app.tasks.celery_tasks.knowledge_store_index_tasks as index_tasks
+import app.tasks.celery_tasks.knowledge_store.index_tasks as index_tasks
 from app.knowledge_store.write_lock import KnowledgeStoreLockError
 
 pytestmark = pytest.mark.unit

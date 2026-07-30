@@ -22,7 +22,7 @@ from app.agents.chat.runtime.path_resolver import (
 from app.db import Document
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import user_identity
-from app.knowledge_store.index_queue import enqueue_index
+from app.knowledge_store.index.queue import enqueue_index
 from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,

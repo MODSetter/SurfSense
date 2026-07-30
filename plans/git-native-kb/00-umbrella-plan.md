@@ -150,7 +150,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 > **SHIPPED (2026-07-30).** This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to revisions one-way; the core has no knowledge of it. As-built record (with **Built as** deviation notes) in the subplan.
 
-- `app/knowledge_store/indexer.py`: one convergence body behind `index_revision` (incremental, fast queue) and `reindex` (wipe + rebuild, connectors queue), both converging to the store's current revision under a dedicated index lock; `workspaces.last_indexed_revision` is the stamp. Rows are adopted by ownership marker → NOTE hash → path; prune is keyed on the marker so connector rows are never touched.
+- `app/knowledge_store/index/converge.py`: one convergence body behind `index_revision` (incremental, fast queue) and `reindex` (wipe + rebuild, connectors queue), both converging to the store's current revision under a dedicated index lock; `workspaces.last_indexed_revision` is the stamp. Rows are adopted by ownership marker → NOTE hash → path; prune is keyed on the marker so connector rows are never touched.
 - Chunk line spans (`start_line`/`end_line`, migration 176) derived at the cache boundary by `attach_line_spans` — cached embeddings stay valid, no chunker-version bump, reconciler updates spans on moves (C2's consumer).
 - Writers enqueue indexing post-commit (`enqueue_index`), and an hourly capped sweep re-drives flipped workspaces whose stamp trails HEAD.
 - The three hand-rolled versioning systems are dead code for flagged workspaces (restore returns 409, editor reindex defers to the indexer); their **deletion (code + table drops) is Phase 5 cut time**.
