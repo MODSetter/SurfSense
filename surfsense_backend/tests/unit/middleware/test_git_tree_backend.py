@@ -46,6 +46,15 @@ class TestTurnWorkingCopyId:
     def test_falls_back_when_thread_id_is_missing(self):
         assert thread_working_copy_id(None) == "thread-adhoc"
 
+    def test_a_subagent_resolves_its_parent_turns_copy(self):
+        # Subagents run under a namespaced thread id. They are part of the
+        # parent's turn, not turns of their own, so they must land in the copy
+        # the end-of-turn commit reads — which is keyed by the parent thread.
+        assert thread_working_copy_id("21::task:call_x") == "thread-21"
+
+    def test_nested_subagents_resolve_the_same_copy(self):
+        assert thread_working_copy_id("21::task:call_x::task:call_y") == "thread-21"
+
 
 class TestGitTreeBackend:
     async def test_write_lands_on_the_turns_working_copy(self, knowledge_root):
@@ -120,6 +129,23 @@ class TestGitTreeBackend:
         backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())
         result = await backend.aread("/elsewhere/x.md")
         assert result.startswith("Error:")
+
+    async def test_a_subagents_write_is_visible_to_the_orchestrator(
+        self, knowledge_root
+    ):
+        # The delegated write and the orchestrator's own view are one tree, so
+        # the turn's single commit picks the subagent's work up.
+        await GitTreeBackend(WORKSPACE_ID, _RuntimeStub("t1::task:call_x")).awrite(
+            "/documents/delegated.md", "from the subagent"
+        )
+
+        orchestrator = GitTreeBackend(WORKSPACE_ID, _RuntimeStub("t1"))
+        assert "from the subagent" in await orchestrator.aread("/documents/delegated.md")
+        engine = _engine(knowledge_root)
+        assert engine.diff_working_copy("thread-t1") == (
+            {"documents/delegated.md": b"from the subagent"},
+            [],
+        )
 
     async def test_parallel_threads_get_isolated_copies(self, knowledge_root):
         await GitTreeBackend(WORKSPACE_ID, _RuntimeStub("t1")).awrite(

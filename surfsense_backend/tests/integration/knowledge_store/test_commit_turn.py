@@ -11,6 +11,9 @@ from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence.commit_turn import (
     commit_turn_working_copy,
 )
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
+    GitTreeBackend,
+)
 from app.config import config as app_config
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.write_lock import workspace_write_lock
@@ -67,6 +70,15 @@ async def _next_turn_copy(store: KnowledgeStore):
 
 def _operations(delta) -> dict[str, str]:
     return {r["preview"]: r["operation"] for r in delta["receipts"]}
+
+
+class _Runtime:
+    """Enough of ``ToolRuntime`` for the backend to resolve a working copy."""
+
+    def __init__(self, thread_id: str) -> None:
+        self.config = {"configurable": {"thread_id": thread_id}}
+        self.state: dict = {}
+        self.tool_call_id = "call_x"
 
 
 async def test_commits_the_turns_net_changes_as_one_revision(
@@ -274,6 +286,35 @@ async def test_a_mixed_turn_records_one_receipt_per_change(
         "documents/added.md": "write_file",
     }
     assert len(await store.list_revisions()) == 2
+
+
+async def test_a_delegated_write_is_committed_by_the_parent_turn(
+    knowledge_root, workspace_id, llm
+):
+    """A subagent's write must reach the turn's revision, not vanish.
+
+    The write goes through the backend rather than a hand-built copy id: the
+    defect was the backend and the commit deriving that id differently, so a
+    test that names the copy itself cannot see it. The commit is keyed by the
+    parent thread, as the middleware does — the subagent's namespaced id never
+    reaches it.
+    """
+    backend = GitTreeBackend(workspace_id, _Runtime(f"{THREAD_ID}::task:call_x"))
+    await backend.awrite("/documents/delegated.md", "from the subagent")
+
+    delta = await _commit(workspace_id, llm)
+
+    assert _operations(delta) == {"documents/delegated.md": "write_file"}
+    store = KnowledgeStore.for_workspace(workspace_id)
+    revision = (await store.list_revisions())[0].id
+    assert (
+        await store.read_as_of(revision, "documents/delegated.md")
+        == b"from the subagent"
+    )
+    # And the copy is discarded rather than left behind as an orphan.
+    assert not (
+        knowledge_root / ".working_copies" / str(workspace_id) / f"thread-{THREAD_ID}"
+    ).exists()
 
 
 async def test_failed_receipts_cover_removals_too(

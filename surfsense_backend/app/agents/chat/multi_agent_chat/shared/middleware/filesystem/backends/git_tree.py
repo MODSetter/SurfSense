@@ -28,10 +28,26 @@ def thread_working_copy_id(thread_id: object | None) -> str:
     The file-op backend (here) and the end-of-turn commit middleware must
     resolve the same copy from the same thread: langgraph serializes turns per
     thread, and the middleware commits + discards the copy at end of turn.
+
+    A copy is scoped to the *turn*, not to the actor. Subagents run under a
+    namespaced thread id — ``subagent_invoke_config`` appends ``::task:{id}``
+    once per nesting level — but they are work inside the parent's turn, so
+    they resolve the root segment and share its copy. Without that, a delegated
+    write lands in a copy the commit (which only knows the parent's id) never
+    reads: silently dropped, and the copy leaks. Sharing also keeps one turn to
+    one revision, which the receipts and citation revisions rely on.
+
     ponytail: a copy left by a crashed turn is reused (and committed) by the
     thread's next turn — recovery semantics; abandoned threads are janitored.
     """
-    return f"thread-{thread_id}" if thread_id is not None else "thread-adhoc"
+    if thread_id is None:
+        return "thread-adhoc"
+    root = str(thread_id).split("::", 1)[0]
+    # A parentless subagent's id is the bare ``task:{id}`` segment, which names
+    # no turn — the orchestrator would be on "adhoc", so join it there.
+    if not root or root.startswith("task:"):
+        return "thread-adhoc"
+    return f"thread-{root}"
 
 
 class GitTreeBackend:
