@@ -121,8 +121,7 @@ function flattenTree(
 const FOLDER_BATCH_SIZE_BYTES = 20 * 1024 * 1024;
 const FOLDER_BATCH_MAX_FILES = 10;
 
-const MAX_FILE_SIZE_MB = 500;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 
 const toggleRowClass =
 	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
@@ -133,7 +132,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
-	const { etlService } = useRuntimeConfig();
+	const { etlService, maxFileSizeMB } = useRuntimeConfig();
 	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
@@ -146,7 +145,8 @@ export function DocumentUploadTab({
 	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const [folderUpload, setFolderUpload] = useState<FolderUploadData | null>(null);
 	const [isFolderUploading, setIsFolderUploading] = useState(false);
-
+	const MAX_FILE_SIZE_BYTES = maxFileSizeMB * 1024 * 1024;
+	
 	useEffect(() => {
 		return () => {
 			if (progressIntervalRef.current) {
@@ -175,7 +175,7 @@ export function DocumentUploadTab({
 				toast.error(t("file_too_large"), {
 					description: t("file_too_large_desc", {
 						name: oversized[0].name,
-						maxMB: MAX_FILE_SIZE_MB,
+						maxMB: maxFileSizeMB,
 					}),
 				});
 			}
@@ -191,7 +191,7 @@ export function DocumentUploadTab({
 				return [...prev, ...newEntries];
 			});
 		},
-		[t]
+		[t, MAX_FILE_SIZE_BYTES, maxFileSizeMB]
 	);
 
 	const onDrop = useCallback(

@@ -56,7 +56,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB per file
+# Per-file upload cap. Operators raise MAX_FILE_SIZE_MB when self-hosting on
+# hardware that can take it; the frontend reads the same value for its
+# pre-upload check.
+MAX_FILE_SIZE_BYTES = int(os.getenv("MAX_FILE_SIZE_MB", "500")) * 1024 * 1024
 
 
 @router.post("/documents")

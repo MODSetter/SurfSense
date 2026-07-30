@@ -13,6 +13,7 @@ export async function RuntimeConfig({ children }: { children: React.ReactNode })
 		authType: process.env.AUTH_TYPE ?? BUILD_TIME_AUTH_TYPE,
 		etlService: process.env.ETL_SERVICE ?? BUILD_TIME_ETL_SERVICE,
 		deploymentMode: process.env.DEPLOYMENT_MODE ?? BUILD_TIME_DEPLOYMENT_MODE,
+		maxFileSizeMB: Number(process.env.MAX_FILE_SIZE_MB ?? "500")
 	};
 
 	return <RuntimeConfigProvider value={value}>{children}</RuntimeConfigProvider>;
