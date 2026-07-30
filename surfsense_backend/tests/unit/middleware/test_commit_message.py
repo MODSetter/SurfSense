@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
+from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence import (
+    commit_message as commit_message_module,
+)
 from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence.commit_message import (
     fallback_commit_message,
     generate_commit_message,
@@ -16,6 +21,13 @@ pytestmark = pytest.mark.unit
 class _BrokenModel:
     async def ainvoke(self, _input):
         raise RuntimeError("model down")
+
+
+class _StalledModel:
+    """Accepts the request, then never answers — a hang, not a failure."""
+
+    async def ainvoke(self, _input):
+        await asyncio.sleep(3600)
 
 
 async def test_uses_the_models_reply_as_subject():
@@ -35,6 +47,17 @@ async def test_falls_back_deterministically_when_the_model_fails():
     assert message == fallback_commit_message(
         writes={"a.md": b"1", "b.md": b"2"}, removes=["c.md"]
     )
+
+
+async def test_a_stalled_model_does_not_hold_the_commit(monkeypatch):
+    monkeypatch.setattr(
+        commit_message_module, "_GENERATION_TIMEOUT_SECONDS", 0.05, raising=True
+    )
+    message = await asyncio.wait_for(
+        generate_commit_message(_StalledModel(), writes={"a.md": b"1"}, removes=[]),
+        timeout=5,
+    )
+    assert message == fallback_commit_message(writes={"a.md": b"1"}, removes=[])
 
 
 async def test_no_model_uses_the_deterministic_subject():

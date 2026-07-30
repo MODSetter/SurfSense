@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -18,6 +19,12 @@ _SYSTEM_PROMPT = (
 # from the first files alone. Upgrade path: real unified diffs.
 _MAX_FILES_IN_PROMPT = 20
 _MAX_PREVIEW_CHARS = 300
+
+# The subject is a nicety on the path that ends a turn: the commit, the working
+# copy's discard and the turn's outcome all wait behind it. A provider that
+# accepts the request and then stalls never raises, so the deadline — not the
+# ``except`` below — is what keeps a hung generation from stranding the write.
+_GENERATION_TIMEOUT_SECONDS = 10.0
 
 
 def fallback_commit_message(
@@ -46,14 +53,20 @@ def _describe_changes(writes: Mapping[str, bytes], removes: Iterable[str]) -> st
 async def generate_commit_message(
     llm: Any | None, *, writes: Mapping[str, bytes], removes: Iterable[str]
 ) -> str:
-    """One-line subject for the turn's revision. Falls back rather than raise:
-    a commit must never be lost to message generation. ``llm=None`` (the
+    """One-line subject for the turn's revision. Falls back rather than raise or
+    hang: a commit must never be lost to message generation. ``llm=None`` (the
     disconnect fallback path) uses the deterministic subject directly."""
     if llm is None:
         return fallback_commit_message(writes=writes, removes=removes)
     try:
-        reply = await llm.ainvoke(
-            [("system", _SYSTEM_PROMPT), ("human", _describe_changes(writes, removes))]
+        reply = await asyncio.wait_for(
+            llm.ainvoke(
+                [
+                    ("system", _SYSTEM_PROMPT),
+                    ("human", _describe_changes(writes, removes)),
+                ]
+            ),
+            timeout=_GENERATION_TIMEOUT_SECONDS,
         )
         content = getattr(reply, "content", "")
         if not isinstance(content, str):
