@@ -6,6 +6,7 @@ import contextlib
 import logging
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import anyio
 import httpx
@@ -93,15 +94,12 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
         raw,
     )
 
-    if status_code == 400:
-        if "api key" in normalized:
-            return VerifyResult(
-                "AUTH_FAILED",
-                False,
-                f"Authentication failed. Check your {provider_name} credentials and try again.",
-            )
-        
-
+    if status_code == 400 and "api key" in normalized:
+        return VerifyResult(
+            "AUTH_FAILED",
+            False,
+            f"Authentication failed. Check your {provider_name} credentials and try again.",
+        )
 
     if status_code in (401, 403) or "authentication" in exc_name or "401" in normalized:
         return VerifyResult(
@@ -161,7 +159,19 @@ async def verify_connection(conn: Connection) -> VerifyResult:
     if spec.base_url_required and not base_url:
         return VerifyResult("UNREACHABLE", False, "Base URL is required.")
 
-    if spec.transport == Transport.OLLAMA and base_url:
+    if spec.discovery == "lm_studio_models":
+        try:
+            await _discover_lm_studio_models(conn)
+            return VerifyResult("OK", True, "Connection verified.")
+        except ModelDiscoveryError as exc:
+            return VerifyResult("UNREACHABLE", False, str(exc))
+        except httpx.ConnectError as exc:
+            return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
+        except httpx.TimeoutException as exc:
+            return VerifyResult("UNREACHABLE", False, f"Connection timed out: {exc}")
+        except httpx.HTTPError as exc:
+            return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
+    elif spec.transport == Transport.OLLAMA and base_url:
         url = f"{base_url.rstrip('/')}/api/version"
     elif spec.discovery in {"openai_models", "openrouter", "requesty"} and base_url:
         url = f"{base_url.rstrip('/')}/models"  # verbatim; user owns the path
@@ -300,6 +310,210 @@ async def _discover_openai_shaped_models(
             }
         )
     return results
+
+
+def _lm_studio_server_root(base_url: str) -> str:
+    parsed = urlsplit(base_url.rstrip("/"))
+    path = parsed.path.rstrip("/")
+    if path == "/v1":
+        path = ""
+    elif path.endswith("/v1"):
+        path = path[:-3]
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+
+def _lm_studio_optional_bool(
+    mapping: dict[str, Any], key: str, source: str
+) -> bool | None:
+    if key not in mapping:
+        return None
+    value = mapping[key]
+    if not isinstance(value, bool):
+        raise ModelDiscoveryError(
+            f"LM Studio {source} returned a non-boolean {key} capability."
+        )
+    return value
+
+
+def _lm_studio_context_length(item: dict[str, Any], source: str) -> int | None:
+    value = item.get("max_context_length")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ModelDiscoveryError(
+            f"LM Studio {source} returned an invalid max_context_length."
+        )
+    return value
+
+
+def _lm_studio_native_v1_models(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, list):
+        raise ModelDiscoveryError(
+            "LM Studio native v1 returned an unsupported model-list response."
+        )
+
+    results: list[dict[str, Any]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ModelDiscoveryError(
+                "LM Studio native v1 returned an invalid model record."
+            )
+        model_id = item.get("key")
+        if not isinstance(model_id, str) or not model_id.strip():
+            logger.warning(
+                "Skipping LM Studio native v1 model without a key",
+                extra={"provider": "lm_studio", "discovery_source": "native_v1"},
+            )
+            continue
+        model_id = model_id.strip()
+        if len(model_id) > 255:
+            raise ModelDiscoveryError(
+                "LM Studio native v1 returned a model key longer than 255 characters."
+            )
+
+        model_type = item.get("type")
+        capabilities = item.get("capabilities")
+        capabilities = capabilities if isinstance(capabilities, dict) else {}
+        is_llm = model_type == "llm"
+        is_embedding = model_type == "embedding"
+        vision = _lm_studio_optional_bool(capabilities, "vision", "native v1")
+        tools = _lm_studio_optional_bool(
+            capabilities, "trained_for_tool_use", "native v1"
+        )
+        if vision is not None:
+            supports_image_input = vision
+        elif is_embedding:
+            supports_image_input = False
+        else:
+            supports_image_input = None
+        if not is_llm and not is_embedding:
+            logger.warning(
+                "LM Studio native v1 returned an unknown model type",
+                extra={
+                    "provider": "lm_studio",
+                    "discovery_source": "native_v1",
+                    "model_type": model_type,
+                },
+            )
+
+        results.append(
+            {
+                "model_id": model_id,
+                "display_name": item.get("display_name") or model_id,
+                "source": ModelSource.DISCOVERED,
+                "supports_chat": is_llm,
+                "supports_image_input": supports_image_input,
+                "supports_tools": tools,
+                "supports_image_generation": False,
+                "max_input_tokens": _lm_studio_context_length(item, "native v1"),
+                "metadata": item,
+            }
+        )
+    return results
+
+
+def _lm_studio_native_v0_models(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+        raise ModelDiscoveryError(
+            "LM Studio legacy v0 returned an unsupported model-list response."
+        )
+
+    results: list[dict[str, Any]] = []
+    for item in payload["data"]:
+        if not isinstance(item, dict):
+            raise ModelDiscoveryError(
+                "LM Studio legacy v0 returned an invalid model record."
+            )
+        model_id = item.get("id")
+        if not isinstance(model_id, str) or not model_id.strip():
+            logger.warning(
+                "Skipping LM Studio legacy v0 model without an id",
+                extra={"provider": "lm_studio", "discovery_source": "native_v0"},
+            )
+            continue
+        model_id = model_id.strip()
+        if len(model_id) > 255:
+            raise ModelDiscoveryError(
+                "LM Studio legacy v0 returned a model id longer than 255 characters."
+            )
+        model_type = item.get("type")
+        results.append(
+            {
+                "model_id": model_id,
+                "display_name": item.get("name") or model_id,
+                "source": ModelSource.DISCOVERED,
+                "supports_chat": model_type in {"llm", "vlm"},
+                "supports_image_input": model_type == "vlm",
+                "supports_tools": None,
+                "supports_image_generation": False,
+                "max_input_tokens": _lm_studio_context_length(item, "legacy v0"),
+                "metadata": item,
+            }
+        )
+    return results
+
+
+async def _discover_lm_studio_models(conn: Connection) -> list[dict[str, Any]]:
+    base_url = _base_url_or_default(conn)
+    if not base_url:
+        return []
+
+    server_root = _lm_studio_server_root(base_url)
+    native_sources = (
+        ("native_v1", f"{server_root}/api/v1/models", _lm_studio_native_v1_models),
+        ("native_v0", f"{server_root}/api/v0/models", _lm_studio_native_v0_models),
+    )
+
+    async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
+        for source, url, normalize in native_sources:
+            response = await client.get(url, headers=_auth_headers(conn))
+            if response.status_code in {404, 405}:
+                logger.warning(
+                    "LM Studio model discovery endpoint unavailable; trying fallback",
+                    extra={
+                        "provider": "lm_studio",
+                        "discovery_source": source,
+                        "status_code": response.status_code,
+                    },
+                )
+                continue
+            response.raise_for_status()
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise ModelDiscoveryError(
+                    f"LM Studio {source} returned invalid JSON."
+                ) from exc
+            results = normalize(payload)
+            _log_lm_studio_discovery(source, results)
+            return results
+
+    logger.info(
+        "LM Studio native discovery unavailable; using OpenAI-compatible fallback",
+        extra={"provider": "lm_studio", "discovery_source": "openai_compatible"},
+    )
+    results = await _discover_openai_shaped_models(conn, base_url)
+    _log_lm_studio_discovery("openai_compatible", results)
+    return results
+
+
+def _log_lm_studio_discovery(source: str, models: list[dict[str, Any]]) -> None:
+    logger.info(
+        "LM Studio model discovery completed",
+        extra={
+            "provider": "lm_studio",
+            "discovery_source": source,
+            "models_total": len(models),
+            "chat_models": sum(bool(model.get("supports_chat")) for model in models),
+            "vision_models": sum(
+                bool(model.get("supports_image_input")) for model in models
+            ),
+            "embedding_models": sum(
+                (model.get("metadata") or {}).get("type") in {"embedding", "embeddings"}
+                for model in models
+            ),
+        },
+    )
 
 
 async def _discover_anthropic_models(conn: Connection) -> list[dict[str, Any]]:
@@ -470,6 +684,8 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             results = await _requesty_models(conn)
         elif spec.discovery == "anthropic_models":
             results = await _discover_anthropic_models(conn)
+        elif spec.discovery == "lm_studio_models":
+            results = await _discover_lm_studio_models(conn)
         elif spec.discovery == "openai_models":
             results = await _discover_openai_shaped_models(conn, conn.base_url)
         elif spec.discovery == "bedrock_models":
