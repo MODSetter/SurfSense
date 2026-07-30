@@ -123,12 +123,25 @@ async def stream_agent_events(
         except Exception as exc:
             _perf_log.warning("[stream_agent_events] safety-net commit failed: %s", exc)
 
+    # A turn paused for approval is not a finished turn: the graph resumes into
+    # this same working copy, so the copy has to outlive the stream.
+    pending_values = all_interrupt_values(state)
+
     # Same safety net for the git-native path. The pending state is the turn's
     # working copy on disk, so no state markers gate it: no copy (or aafter_agent
     # already committed and discarded it) means the call is a no-op. No LLM on
     # this path — the commit gets the deterministic fallback message.
+    #
+    # Skipped while paused, because the helper both commits and discards: it
+    # would cut the turn's writes so far into a revision of their own, and drop
+    # a folder the agent made on the way — unrecoverable, git storing no empty
+    # directories, which then fails the write the approval was granted for. The
+    # legacy net above keeps running: under this backend the tools stage nothing,
+    # so it is already a no-op here, and gating it would change the path that is
+    # still live for workspaces not yet flipped.
     if (
-        fallback_commit_filesystem_mode == FilesystemMode.CLOUD
+        not pending_values
+        and fallback_commit_filesystem_mode == FilesystemMode.CLOUD
         and fallback_commit_workspace_id is not None
         and await knowledge_store_enabled_for(fallback_commit_workspace_id)
     ):
@@ -201,7 +214,6 @@ async def stream_agent_events(
     result.accumulated_text = accumulated_text
     log_file_contract("turn_outcome", result)
 
-    pending_values = all_interrupt_values(state)
     if pending_values:
         result.is_interrupted = True
         # One frame per paused subagent so each parallel HITL renders its own
