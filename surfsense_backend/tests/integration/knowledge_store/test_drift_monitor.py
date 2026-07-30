@@ -1,0 +1,151 @@
+"""The always-on parity check: real documents, real repos, real comparison.
+
+This is what replaces reading migration reports by hand once workspaces are
+flipped, so its verdict has to be trustworthy on its own — a check that says
+``ok`` while git and Postgres disagree is worse than no check at all.
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import replace
+
+import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+import app.tasks.celery_tasks.knowledge_store_drift_monitor_task as monitor
+from app.config import config as app_config
+from app.db import Document, DocumentStatus, DocumentType, Workspace
+from app.knowledge_store.migrate import migrate_workspace
+
+pytestmark = pytest.mark.integration
+
+
+@pytest.fixture
+def knowledge_root(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ROOT", str(tmp_path))
+    return tmp_path
+
+
+@pytest.fixture
+def session_on_test_connection(db_session, monkeypatch):
+    """The monitor opens its own sessions; point them at the test transaction.
+
+    Patched on ``app.db`` rather than the task module because the monitor
+    imports the maker at call time, per workspace.
+    """
+    import app.db as db
+
+    maker = async_sessionmaker(
+        bind=db_session.bind,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
+    monkeypatch.setattr(db, "async_session_maker", maker)
+
+
+@pytest.fixture
+def drift_metrics(monkeypatch):
+    """Record what the monitor reports, in place of an OTel exporter."""
+    recorded: list[tuple[int, str]] = []
+
+    monkeypatch.setattr(
+        monitor.metrics,
+        "record_knowledge_store_drift_check",
+        lambda *, workspace_id, status: recorded.append((workspace_id, status)),
+    )
+    return recorded
+
+
+async def make_workspace(session, user_id, *, flipped: bool) -> Workspace:
+    space = Workspace(name="Watched", user_id=user_id, knowledge_store_enabled=flipped)
+    session.add(space)
+    await session.flush()
+    return space
+
+
+async def add_document(session, workspace, user_id) -> Document:
+    document = Document(
+        title="Note",
+        document_type=DocumentType.NOTE,
+        document_metadata={},
+        content="# Note",
+        content_hash=f"hash-{uuid.uuid4().hex}",
+        unique_identifier_hash=f"unique-{uuid.uuid4().hex}",
+        source_markdown="# Note\n\nBody.",
+        workspace_id=workspace.id,
+        created_by_id=user_id,
+        status=DocumentStatus.ready(),
+    )
+    session.add(document)
+    await session.flush()
+    return document
+
+
+async def test_a_seeded_workspace_reports_ok(
+    db_session, db_user, knowledge_root, session_on_test_connection, drift_metrics
+):
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+    await migrate_workspace(db_session, space.id)
+
+    assert await monitor._check_flipped_workspaces() == {"ok": 1}
+    assert drift_metrics == [(space.id, "ok")]
+
+
+async def test_a_document_missing_from_the_store_reports_drift(
+    db_session, db_user, knowledge_root, session_on_test_connection, drift_metrics
+):
+    """Postgres has content git never received — the exact case to alarm on."""
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+    await migrate_workspace(db_session, space.id)
+    await add_document(db_session, space, db_user.id)
+
+    assert await monitor._check_flipped_workspaces() == {"drift": 1}
+    assert drift_metrics == [(space.id, "drift")]
+
+
+async def test_an_unflipped_workspace_is_not_checked(
+    db_session, db_user, knowledge_root, session_on_test_connection, drift_metrics
+):
+    """Postgres is still its write model, so disagreeing with git is expected."""
+    space = await make_workspace(db_session, db_user.id, flipped=False)
+    await add_document(db_session, space, db_user.id)
+
+    assert await monitor._check_flipped_workspaces() == {}
+    assert drift_metrics == []
+
+
+async def test_a_failed_check_is_reported_and_the_sweep_continues(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    monkeypatch,
+):
+    """A workspace the check cannot read is its own status, not a lost run.
+
+    The fresh session per workspace exists so one failure cannot poison the
+    rest; a silent stop here would leave every later workspace unchecked while
+    the task still looks healthy.
+    """
+    broken = await make_workspace(db_session, db_user.id, flipped=True)
+    healthy = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, healthy, db_user.id)
+    await migrate_workspace(db_session, healthy.id)
+
+    real = monitor.migrate_workspace
+
+    async def fail_on_broken(session, workspace_id, **kwargs):
+        report = await real(session, workspace_id, **kwargs)
+        if workspace_id == broken.id:
+            return replace(report, error="repo unreadable")
+        return report
+
+    monkeypatch.setattr(monitor, "migrate_workspace", fail_on_broken)
+
+    assert await monitor._check_flipped_workspaces() == {"error": 1, "ok": 1}
+    assert (healthy.id, "ok") in drift_metrics
