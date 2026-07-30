@@ -32,9 +32,7 @@ if TYPE_CHECKING:
 
 
 def create_read_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
-    description = select_description(
-        mw._filesystem_mode, git_native=mw._knowledge_store_enabled
-    )
+    description = select_description(mw._filesystem_mode)
 
     async def async_read_file(
         file_path: Annotated[

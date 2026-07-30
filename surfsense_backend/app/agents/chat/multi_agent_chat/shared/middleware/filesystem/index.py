@@ -17,7 +17,6 @@ def build_filesystem_mw(
     user_id: str | None,
     thread_id: int | None,
     read_only: bool = False,
-    knowledge_store_enabled: bool = False,
 ) -> SurfSenseFilesystemMiddleware:
     return SurfSenseFilesystemMiddleware(
         backend=backend_resolver,
@@ -26,5 +25,4 @@ def build_filesystem_mw(
         created_by_id=user_id,
         thread_id=thread_id,
         read_only=read_only,
-        knowledge_store_enabled=knowledge_store_enabled,
     )

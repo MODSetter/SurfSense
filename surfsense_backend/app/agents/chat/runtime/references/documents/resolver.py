@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import PathIndex, virtual_path_of
+from app.agents.chat.runtime.path_resolver import PathIndex, doc_to_virtual_path
 from app.db import Document
 
 from ..models import DocumentReference
@@ -44,8 +44,7 @@ async def resolve_document_references(
             DocumentReference(
                 entity_id=document.id,
                 label=title,
-                path=virtual_path_of(
-                    metadata=document.document_metadata,
+                path=doc_to_virtual_path(
                     doc_id=document.id,
                     title=title,
                     folder_id=document.folder_id,

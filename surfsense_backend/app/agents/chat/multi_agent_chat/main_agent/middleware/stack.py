@@ -88,7 +88,6 @@ from .context_editing import build_context_editing_mw
 from .dedup_hitl import build_dedup_hitl_mw
 from .doom_loop import build_doom_loop_mw
 from .kb_persistence import build_kb_persistence_mw
-from .knowledge_store_persistence import build_knowledge_store_persistence_mw
 from .knowledge_tree import build_knowledge_tree_mw
 from .noop_injection import build_noop_injection_mw
 from .otel_span import build_otel_mw
@@ -119,7 +118,6 @@ def build_main_agent_deepagent_middleware(
     checkpointer: Checkpointer,
     mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
-    knowledge_store_enabled: bool = False,
 ) -> list[Any]:
     """Ordered middleware for ``create_agent`` (None entries already stripped)."""
     stack_build_start = time.perf_counter()
@@ -136,7 +134,6 @@ def build_main_agent_deepagent_middleware(
         "backend_resolver": backend_resolver,
         "filesystem_mode": filesystem_mode,
         "flags": flags,
-        "knowledge_store_enabled": knowledge_store_enabled,
     }
     shared_mw_start = time.perf_counter()
     shared_subagent_middleware = build_subagent_middleware_stack(
@@ -248,17 +245,6 @@ def build_main_agent_deepagent_middleware(
             workspace_id=workspace_id,
             user_id=user_id,
             thread_id=thread_id,
-        ),
-        # Git-native write path; coexists with kb_persistence until the
-        # Phase 5 cut (unflagged workspaces still stage state, flagged ones
-        # leave it empty so the old commit body no-ops).
-        build_knowledge_store_persistence_mw(
-            filesystem_mode=filesystem_mode,
-            workspace_id=workspace_id,
-            user_id=user_id,
-            thread_id=thread_id,
-            llm=llm,
-            knowledge_store_enabled=knowledge_store_enabled,
         ),
         build_skills_mw(
             flags=flags,

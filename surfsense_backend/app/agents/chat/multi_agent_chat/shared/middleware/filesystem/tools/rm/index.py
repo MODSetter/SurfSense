@@ -9,9 +9,6 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
-    GitTreeBackend,
-)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
@@ -45,10 +42,7 @@ def create_rm_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         except ValueError as exc:
             return f"Error: {exc}"
 
-        # The git-tree backend deletes directly on the working copy; no staging.
-        if is_cloud(mw._filesystem_mode) and not isinstance(
-            mw._get_backend(runtime), GitTreeBackend
-        ):
+        if is_cloud(mw._filesystem_mode):
             return await cloud_rm(mw, runtime, validated)
         return await desktop_rm(mw, runtime, validated)
 
