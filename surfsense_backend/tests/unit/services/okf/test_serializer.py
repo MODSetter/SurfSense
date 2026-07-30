@@ -62,7 +62,9 @@ def test_validator_rejects_non_conformant_documents() -> None:
 def test_folder_index_groups_by_type_and_lists_subdirs() -> None:
     index = folder_to_index(
         concepts=[
-            ConceptRef(title="Orders", filename="orders.md", type="Note", description="x"),
+            ConceptRef(
+                title="Orders", filename="orders.md", type="Note", description="x"
+            ),
         ],
         subdirectories=[SubdirRef(name="tables", description="Table docs")],
     )
@@ -114,11 +116,7 @@ def test_export_index_files_include_root_version_and_ancestors() -> None:
     # A concept nested two levels deep, with no direct docs in the middle dir.
     files = dict(
         _build_index_files(
-            {
-                "Research/AI": [
-                    ConceptRef(title="Note", filename="note.md", type="Note")
-                ]
-            }
+            {"Research/AI": [ConceptRef(title="Note", filename="note.md", type="Note")]}
         )
     )
 

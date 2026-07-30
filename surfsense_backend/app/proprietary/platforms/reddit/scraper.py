@@ -407,6 +407,18 @@ async def iter_reddit(
             yield item
         return
 
+    # Community-only: a bare subreddit name with no urls/searches. The capability
+    # schema promises "with no search_queries, its listing is scraped"; without
+    # this the searches loop below builds zero jobs and yields nothing. Reuse the
+    # same flow the URL path dispatches for /r/<sub>. (searches present => the
+    # name stays a search scope, handled below.)
+    if not input_model.searches and input_model.searchCommunityName:
+        async for item in _subreddit_flow(
+            input_model.searchCommunityName, input_model=input_model
+        ):
+            yield item
+        return
+
     # Fair-share the item budget across queries: with a shared cap, the
     # first-finishing (often broadest/noisiest) search would fill the whole
     # collector limit and starve the precise queries.

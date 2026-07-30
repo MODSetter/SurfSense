@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
-from app.observability import analytics as ph_analytics
 from app.config import config
 from app.db import (
     ImageGeneration,
@@ -27,6 +26,7 @@ from app.db import (
     WorkspaceMembership,
     get_async_session,
 )
+from app.observability import analytics as ph_analytics
 from app.schemas import (
     ImageGenerationCreate,
     ImageGenerationListRead,

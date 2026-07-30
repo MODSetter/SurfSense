@@ -65,6 +65,7 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
   });
 
   mainWindow.once('ready-to-show', () => {
+    mainWindow?.maximize();
     mainWindow?.show();
   });
 

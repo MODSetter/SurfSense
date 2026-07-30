@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.auth.session_cookies import access_expires_at, write_session
 from app.config import config
-from app.observability import analytics as ph_analytics
 from app.db import (
     Prompt,
     User,
@@ -32,6 +31,7 @@ from app.db import (
     get_default_roles_config,
     get_user_db,
 )
+from app.observability import analytics as ph_analytics
 from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
 from app.utils.pat import PAT_PREFIX, maybe_touch_last_used, resolve_pat
 from app.utils.refresh_tokens import create_refresh_token
@@ -353,6 +353,7 @@ async def get_auth_context(
     FastAPI-Users still handles JWT mechanics; PATs are resolved here so RBAC
     receives the full SurfSense principal instead of a bare User.
     """
+
     def _stash(ctx: AuthContext) -> AuthContext:
         # Expose the resolved principal on request.state so downstream
         # middleware (e.g. PostHog pat_api_request attribution) can read it

@@ -56,9 +56,7 @@ async def _roundtrip(
 
 
 @pytest_asyncio.fixture
-async def research_folder(
-    db_session: AsyncSession, db_workspace: Workspace
-) -> Folder:
+async def research_folder(db_session: AsyncSession, db_workspace: Workspace) -> Folder:
     folder = Folder(name="Research", position="0", workspace_id=db_workspace.id)
     db_session.add(folder)
     await db_session.flush()

@@ -43,6 +43,7 @@ from urllib.parse import urlencode
 
 from scrapling.fetchers import AsyncFetcher, AsyncStealthySession, FetcherSession
 
+from app.utils.browser_loop import in_browser_loop
 from app.utils.proxy import get_proxy_url, get_sticky_proxy_url
 
 # Shared cross-country rotation walk (also used by the TikTok sibling). Kept under
@@ -331,18 +332,24 @@ async def warm_session(proxy: str | None) -> dict[str, str] | None:
     """
     if proxy is None:
         return None
+
+    # Runs on the shared browser loop: patchright can't spawn Chromium from the
+    # server's Windows SelectorEventLoop (see app.utils.browser_loop).
+    async def _warm() -> dict[str, str] | None:
+        async with AsyncStealthySession(
+            headless=True,
+            google_search=True,
+            network_idle=False,
+            proxy=proxy,
+            timeout=_WARM_TIMEOUT_MS,
+        ) as sess:
+            page = await sess.fetch(_WARM_HTML_URL)
+            jar = _browser_cookie_jar(page)
+            return jar if _LOID_COOKIE in jar else None
+
     async with _warm_slots:
         try:
-            async with AsyncStealthySession(
-                headless=True,
-                google_search=True,
-                network_idle=False,
-                proxy=proxy,
-                timeout=_WARM_TIMEOUT_MS,
-            ) as sess:
-                page = await sess.fetch(_WARM_HTML_URL)
-                jar = _browser_cookie_jar(page)
-                return jar if _LOID_COOKIE in jar else None
+            return await in_browser_loop(_warm())
         except Exception as e:  # a browser crash must not abort the flow
             logger.warning("[reddit] browser warm failed: %s", e)
             return None

@@ -111,7 +111,7 @@ export function VertexConnectForm({ onDraftChange }: ProviderConnectFormProps) {
 				</div>
 			)}
 			<p className="text-xs text-muted-foreground">
-				Add Vertex AI model IDs from the provider&apos;s settings after connecting.
+				SurfSense will show supported Vertex AI models from the provider catalog.
 			</p>
 		</div>
 	);

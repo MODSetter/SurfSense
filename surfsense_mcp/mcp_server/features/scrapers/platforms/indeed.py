@@ -56,7 +56,9 @@ def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -
         ] = None,
         country: Annotated[
             str,
-            Field(description="Country code selecting the Indeed domain, e.g. 'us', 'gb'."),
+            Field(
+                description="Country code selecting the Indeed domain, e.g. 'us', 'gb'."
+            ),
         ] = "us",
         location: Annotated[
             str | None,

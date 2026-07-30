@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
+from app.utils.browser_loop import in_browser_loop
 from app.utils.proxy import get_proxy_url
 
 logger = logging.getLogger(__name__)
@@ -109,14 +110,23 @@ class IndeedSession:
         self._warmed: set[str] = set()
         self.rotations = 0
 
+    # The session's whole lifecycle (build, start, fetch, close) is marshalled
+    # onto the shared browser loop: patchright can't spawn Chromium from the
+    # server's Windows SelectorEventLoop (see app.utils.browser_loop), and its
+    # internals are bound to the loop they started on.
+
     async def start(self) -> None:
-        self._session = self._factory()
-        await self._session.start()
+        async def _build_and_start() -> _Session:
+            session = self._factory()
+            await session.start()
+            return session
+
+        self._session = await in_browser_loop(_build_and_start())
 
     async def close(self) -> None:
         if self._session is not None:
             with suppress(Exception):
-                await self._session.close()
+                await in_browser_loop(self._session.close())
             self._session = None
         self._warmed.clear()
 
@@ -130,7 +140,9 @@ class IndeedSession:
     async def _timed_fetch(self, url: str, **kwargs: Any) -> Any:
         assert self._session is not None
         coro: Awaitable[Any] = self._session.fetch(url, **kwargs)
-        return await asyncio.wait_for(coro, timeout=_PAGE_TIMEOUT_S)
+        # wait_for runs on the browser loop too, so its timeout task lives on
+        # the same loop as the fetch it cancels.
+        return await in_browser_loop(asyncio.wait_for(coro, timeout=_PAGE_TIMEOUT_S))
 
     async def _ensure_warm(self, domain: str) -> None:
         """Land on the domain home with a Google referer before scraping it."""

@@ -2,9 +2,7 @@ import { atom, type Getter, type Setter } from "jotai";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 
 /** The source the citation panel is showing: a KB chunk or a scraper run. */
-export type CitationTarget =
-	| { kind: "chunk"; chunkId: number }
-	| { kind: "run"; runId: string };
+export type CitationTarget = { kind: "chunk"; chunkId: number } | { kind: "run"; runId: string };
 
 interface CitationPanelState {
 	isOpen: boolean;

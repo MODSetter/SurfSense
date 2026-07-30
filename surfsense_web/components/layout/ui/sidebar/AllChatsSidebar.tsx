@@ -298,14 +298,8 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 				{isLoading ? (
 					<div className="space-y-1">
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
-							<div
-								key={`skeleton-${titleWidth}`}
-								className="rounded-md px-3 py-1.5 md:py-2"
-							>
-								<Skeleton
-									className="h-4 rounded md:h-4.5"
-									style={{ width: `${titleWidth}%` }}
-								/>
+							<div key={`skeleton-${titleWidth}`} className="rounded-md px-3 py-1.5 md:py-2">
+								<Skeleton className="h-4 rounded md:h-4.5" style={{ width: `${titleWidth}%` }} />
 							</div>
 						))}
 					</div>
@@ -419,7 +413,8 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 														className={cn(
 															"pointer-events-auto absolute right-0 h-7 w-7 hover:bg-transparent",
 															openDropdownId === thread.id && "bg-accent hover:bg-accent",
-															openDropdownId !== thread.id && "opacity-0 group-hover/item:opacity-100"
+															openDropdownId !== thread.id &&
+																"opacity-0 group-hover/item:opacity-100"
 														)}
 														disabled={isBusy}
 													>

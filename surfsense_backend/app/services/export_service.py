@@ -247,9 +247,7 @@ async def build_export_zip(
                     suffix = used_paths[file_path]
                     base_name = f"{base_name}_{suffix}"
                     file_path = (
-                        f"{dir_path}/{base_name}.md"
-                        if dir_path
-                        else f"{base_name}.md"
+                        f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
                     )
                 used_paths[file_path] = used_paths.get(file_path, 0) + 1
 

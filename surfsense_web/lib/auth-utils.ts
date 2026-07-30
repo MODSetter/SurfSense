@@ -47,6 +47,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/indeed",
 	"/web-crawl",
 	"/amazon",
+	"/walmart",
 ];
 
 /**

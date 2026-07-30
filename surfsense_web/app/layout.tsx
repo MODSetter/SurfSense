@@ -50,9 +50,9 @@ export const metadata: Metadata = {
 	alternates: {
 		canonical: "https://www.surfsense.com",
 	},
-	title: "SurfSense - Open-Source NotebookLM Alternative for Web Research",
+	title: "SurfSense: Open-Source NotebookLM Alternative & Web Research",
 	description:
-		"The open-source NotebookLM for open web research. Your AI agents pull live, structured data from Reddit, YouTube, Amazon, and any page via one API or MCP server.",
+		"The open-source NotebookLM alternative. Research the open web with live data from Reddit, YouTube, TikTok, Indeed & more, through one platform, API, or MCP server.",
 	keywords: [
 		"open web research platform",
 		"web research for AI agents",
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "SurfSense - NotebookLM for Open Web Research",
 		description:
-			"The open-source NotebookLM alternative for AI agents. Research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, and Google Search, through one API or MCP server.",
+			"The open-source NotebookLM alternative. Research the open web with live data from Reddit, YouTube, TikTok, Indeed & more, through one platform, API, or MCP server.",
 		url: "https://www.surfsense.com",
 		siteName: "SurfSense",
 		type: "website",
@@ -87,7 +87,7 @@ export const metadata: Metadata = {
 		card: "summary_large_image",
 		title: "SurfSense - NotebookLM for Open Web Research",
 		description:
-			"The open-source NotebookLM alternative for AI agents. Research the live web with structured data from Reddit, YouTube, Amazon, Google Maps, and Google Search, through one API or MCP server.",
+			"The open-source NotebookLM alternative. Research the open web with live data from Reddit, YouTube, TikTok, Indeed & more, through one platform, API, or MCP server.",
 		creator: "@SurfSenseAI",
 		site: "@SurfSenseAI",
 		images: [

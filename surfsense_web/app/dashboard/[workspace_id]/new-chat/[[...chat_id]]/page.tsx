@@ -178,8 +178,7 @@ export default function NewChatPage() {
 	const hasLiveStream = !!streamState && streamState.messages.length > 0;
 	const isActiveThreadHydrated = hydratedMessagesRef.current.threadId === activeThreadId;
 	const shouldHideStaleMessages = !!activeThreadId && !hasLiveStream && !isActiveThreadHydrated;
-	const isThreadMessagesLoading =
-		shouldHideStaleMessages && !threadMessagesQuery.error;
+	const isThreadMessagesLoading = shouldHideStaleMessages && !threadMessagesQuery.error;
 	const runtimeMessages = shouldHideStaleMessages ? EMPTY_MESSAGES : displayMessages;
 
 	// Live collaboration: sync session state and messages via Zero. Kept on the

@@ -47,6 +47,10 @@ from app.tasks.chat.streaming.flows.resume_chat.resume_routing import (
 from app.tasks.chat.streaming.flows.resume_chat.runtime_context import (
     build_resume_chat_runtime_context,
 )
+from app.tasks.chat.streaming.flows.shared.analytics import (
+    build_llm_callback_handler,
+    capture_chat_turn_completed,
+)
 from app.tasks.chat.streaming.flows.shared.assistant_finalize import (
     finalize_assistant_message,
 )
@@ -75,10 +79,6 @@ from app.tasks.chat.streaming.flows.shared.rate_limit_recovery import (
     can_recover_provider_rate_limit,
     log_rate_limit_recovered,
     reroute_to_next_auto_pin,
-)
-from app.tasks.chat.streaming.flows.shared.analytics import (
-    build_llm_callback_handler,
-    capture_chat_turn_completed,
 )
 from app.tasks.chat.streaming.flows.shared.span import (
     close_chat_request_span,

@@ -35,7 +35,6 @@ import contextlib
 import logging
 import os
 import random
-import sys
 import threading
 import time
 from urllib.parse import urlsplit, urlunsplit
@@ -46,6 +45,7 @@ from app.proprietary.platforms.google_search import (
     captcha as _captcha,
     pool_store as _store,
 )
+from app.utils.browser_loop import in_browser_loop as _in_browser_loop
 from app.utils.captcha import captcha_enabled, get_captcha_config
 from app.utils.proxy import get_proxy_url
 
@@ -393,41 +393,11 @@ _MOBILE_UA = "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132
 _MOBILE_VIEWPORT = {"width": 412, "height": 915}
 
 
-# patchright launches Chromium via asyncio.create_subprocess_exec, which the
-# server's main loop cannot do on Windows (main.py pins a SelectorEventLoop
-# for psycopg; Selector loops raise NotImplementedError on subprocess_exec).
-# All browser work therefore runs on ONE dedicated background loop that is
-# explicitly subprocess-capable; callers await it across threads. This also
-# keeps the persistent AsyncStealthySession (and its async page_action) intact
-# — the sync-fetcher-in-a-thread pattern the other scrapers use would tear
-# down the browser on every fetch.
-_browser_loop: asyncio.AbstractEventLoop | None = None
-_browser_loop_guard = threading.Lock()
-
-
-def _get_browser_loop() -> asyncio.AbstractEventLoop:
-    """The lazily-started, process-wide event loop the browser lives on."""
-    global _browser_loop
-    with _browser_loop_guard:
-        if _browser_loop is None:
-            loop = (
-                asyncio.ProactorEventLoop()
-                if sys.platform == "win32"
-                else asyncio.new_event_loop()
-            )
-            threading.Thread(
-                target=loop.run_forever, name="google-search-browser", daemon=True
-            ).start()
-            _browser_loop = loop
-        return _browser_loop
-
-
-async def _in_browser_loop(coro):
-    """Run ``coro`` on the browser loop and await its result from this loop."""
-    return await asyncio.wrap_future(
-        asyncio.run_coroutine_threadsafe(coro, _get_browser_loop())
-    )
-
+# All browser work runs on the shared subprocess-capable loop (Windows: the
+# server's SelectorEventLoop cannot spawn Chromium; see app.utils.browser_loop).
+# This also keeps the persistent AsyncStealthySession (and its async
+# page_action) intact — the sync-fetcher-in-a-thread pattern would tear down
+# the browser on every fetch.
 
 # One live browser per layout (desktop / mobile — the UA and viewport are
 # session-level context options). Launching Chromium costs ~5 s, so it's paid

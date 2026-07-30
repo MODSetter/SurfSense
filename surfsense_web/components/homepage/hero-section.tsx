@@ -656,10 +656,10 @@ export function HeroSection() {
 								"relative mb-8 max-w-2xl text-left text-sm text-neutral-600 antialiased sm:text-base md:text-lg dark:text-neutral-400"
 							)}
 						>
-							SurfSense is the open-source NotebookLM alternative for AI agents, an open web
-							research platform with live data connectors. Your AI agents research the live web with
-							structured data from Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google
-							Maps, Google Search, and any page on the open web.
+							SurfSense is the open-source NotebookLM alternative for open web research. You and
+							your AI agents pull live data from Reddit, YouTube, Instagram, TikTok, Indeed, Google
+							Maps, Google Search, and a growing catalog of connectors, all through one platform,
+							API, or MCP server.
 						</p>
 
 						<div className="relative mb-4 flex w-full flex-col justify-center gap-y-2 sm:flex-row sm:justify-start sm:space-y-0 sm:space-x-4">
@@ -870,9 +870,9 @@ const UseCasePane = memo(function UseCasePane({
 		<div className="relative overflow-hidden rounded-tl-xl rounded-tr-xl bg-white shadow-sm ring-1 shadow-black/10 ring-black/10 dark:bg-neutral-950">
 			<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
 				<div className="min-w-0">
-					<h2 className="truncate text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
+					<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-lg dark:text-white">
 						{useCase.title}
-					</h2>
+					</h3>
 					<p className="text-sm text-neutral-500 text-pretty dark:text-neutral-400">
 						{useCase.description}
 					</p>

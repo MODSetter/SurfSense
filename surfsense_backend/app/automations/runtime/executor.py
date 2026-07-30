@@ -41,9 +41,7 @@ def _capture_run_outcome(run: AutomationRun, status: str) -> None:
             "status": status,
             "trigger_type": run.trigger.type.value if run.trigger else None,
         },
-        groups={"workspace": str(workspace_id)}
-        if workspace_id is not None
-        else None,
+        groups={"workspace": str(workspace_id)} if workspace_id is not None else None,
     )
 
 

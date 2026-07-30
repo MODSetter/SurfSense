@@ -10,8 +10,7 @@ from uuid import UUID
 from app.celery_app import celery_app
 from app.config import config
 from app.notifications.service import NotificationService
-from app.observability import analytics as ph_analytics
-from app.observability import metrics as ot_metrics
+from app.observability import analytics as ph_analytics, metrics as ot_metrics
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.tasks.connector_indexers.local_folder_indexer import (

@@ -285,7 +285,11 @@ export const pruneMissingChatTabsAtom = atom(null, (get, set, missingChatIds: Se
 	}
 
 	const activeWasPruned = state.tabs.some(
-		(t) => t.id === state.activeTabId && t.type === "chat" && t.entityId !== null && missingChatIds.has(t.entityId)
+		(t) =>
+			t.id === state.activeTabId &&
+			t.type === "chat" &&
+			t.entityId !== null &&
+			missingChatIds.has(t.entityId)
 	);
 	const newActiveId = activeWasPruned
 		? remaining[Math.min(firstMissingIdx, remaining.length - 1)].id

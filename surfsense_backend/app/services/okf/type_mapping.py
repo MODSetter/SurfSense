@@ -50,7 +50,9 @@ OKF_TYPE_BY_DOCUMENT_TYPE: dict[DocumentType, str] = {
 }
 
 
-def _coerce_document_type(document_type: DocumentType | str | None) -> DocumentType | None:
+def _coerce_document_type(
+    document_type: DocumentType | str | None,
+) -> DocumentType | None:
     if document_type is None:
         return None
     try:

@@ -1,15 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-	Check,
-	Copy,
-	FileQuestionMark,
-	FileText,
-	Pencil,
-	RefreshCw,
-	XIcon,
-} from "lucide-react";
+import { Check, Copy, FileQuestionMark, FileText, Pencil, RefreshCw, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";

@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { expandedFolderIdsAtom } from "@/atoms/documents/folder.atoms";
+import { expandedFolderIdsAtom, watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
@@ -401,9 +401,12 @@ function AuthenticatedDocumentsSidebarBase({
 		setWatchedFolderIds(ids);
 	}, [workspaceId, electronAPI]);
 
+	// Re-runs when the sidebar-footer "Watch Local Folder" dialog bumps the atom.
+	const watchedFoldersRefreshTick = useAtomValue(watchedFoldersRefreshAtom);
 	useEffect(() => {
+		void watchedFoldersRefreshTick;
 		refreshWatchedIds();
-	}, [refreshWatchedIds]);
+	}, [refreshWatchedIds, watchedFoldersRefreshTick]);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
