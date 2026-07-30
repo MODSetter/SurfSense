@@ -1,6 +1,4 @@
 import re
-from collections.abc import Sequence
-from dataclasses import dataclass
 
 from app.config import config
 
@@ -59,42 +57,3 @@ def chunk_text_hybrid(text: str) -> list[str]:
         chunks.extend(chunk_text(trailing))
 
     return chunks
-
-
-@dataclass(frozen=True, slots=True)
-class LineChunk:
-    """A chunk text plus the 1-based inclusive line range it was cut from."""
-
-    text: str
-    start_line: int
-    end_line: int
-
-
-def attach_line_spans(text: str, chunks: Sequence[str]) -> list[LineChunk]:
-    """Locate ordered, non-overlapping ``chunks`` in ``text`` as line ranges.
-
-    Chunks arrive in document order, so a left-to-right cursor finds each one
-    unambiguously even in a document that repeats a line — the ambiguity only
-    exists for a whole-document search.
-
-    ``ponytail:`` located by ordered search rather than by chunker-reported
-    offsets, which leaves ``chunk_text``/``chunk_text_hybrid`` (and every test
-    seam that patches them) alone, and keeps the hybrid chunker's ``.strip()``
-    from needing offset bookkeeping. Ceiling: a chunker that emits overlapping
-    windows or rewrites chunk text falls back to the cursor line; upgrade path
-    is to thread the chunker's own ``start_index`` through instead.
-    """
-    spans: list[LineChunk] = []
-    cursor = 0
-    cursor_line = 1
-    for chunk in chunks:
-        found = text.find(chunk, cursor)
-        start = found if found >= 0 else cursor
-        start_line = cursor_line + text.count("\n", cursor, start)
-        end = start + len(chunk)
-        # ``end - 1`` so a chunk ending on a newline does not claim the next line.
-        end_line = start_line + text.count("\n", start, max(end - 1, start))
-        spans.append(LineChunk(text=chunk, start_line=start_line, end_line=end_line))
-        cursor = end
-        cursor_line = start_line + text.count("\n", start, end)
-    return spans

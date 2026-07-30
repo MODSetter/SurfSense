@@ -6,7 +6,6 @@ from app.indexing_pipeline.document_hashing import (
     compute_identifier_hash,
     compute_unique_identifier_hash,
 )
-from app.utils.document_converters import generate_unique_identifier_hash
 
 pytestmark = pytest.mark.unit
 
@@ -74,29 +73,6 @@ def test_compute_identifier_hash_matches_connector_doc_hash(make_connector_docum
     )
     raw_hash = compute_identifier_hash("GOOGLE_GMAIL_CONNECTOR", "msg-123", 5)
     assert raw_hash == compute_unique_identifier_hash(doc)
-
-
-def test_a_note_dto_hashes_the_same_as_a_row_at_that_virtual_path(
-    make_connector_document,
-):
-    """The seam the store indexer is built on: two formulas, two modules.
-
-    ``compute_identifier_hash`` here and ``generate_unique_identifier_hash`` in
-    ``utils.document_converters`` independently build ``{type}:{id}:{workspace}``.
-    The indexer hands the pipeline a synthetic NOTE DTO keyed on a virtual path
-    and looks the row up by the other function's hash, so if the two ever drift
-    every git-indexed document silently forks into two identities.
-    """
-    virtual_path = "/documents/notes/Meeting.xml"
-    doc = make_connector_document(
-        document_type=DocumentType.NOTE,
-        unique_id=virtual_path,
-        workspace_id=7,
-    )
-
-    assert compute_unique_identifier_hash(doc) == generate_unique_identifier_hash(
-        DocumentType.NOTE, virtual_path, 7
-    )
 
 
 def test_compute_identifier_hash_differs_for_different_inputs():

@@ -20,10 +20,7 @@ from app.db import (
     DocumentType,
 )
 from app.indexing_pipeline.cache import build_chunk_embeddings
-from app.indexing_pipeline.cache.cached_indexing import (
-    chunk_markdown_with_lines,
-    embed_batch,
-)
+from app.indexing_pipeline.cache.cached_indexing import chunk_markdown, embed_batch
 from app.indexing_pipeline.chunk_reconciler import ExistingChunk, reconcile
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import (
@@ -62,7 +59,6 @@ from app.indexing_pipeline.pipeline_logger import (
     log_unexpected_error,
 )
 from app.observability import metrics as ot_metrics, otel as ot
-from app.services.document_revision_recorder import record_prepared_documents
 from app.utils.perf import get_perf_logger
 
 
@@ -338,9 +334,6 @@ class IndexingPipelineService:
 
         try:
             await self.session.commit()
-            # Content is durable from here; record it as one revision per batch.
-            # Chunking/embedding failures below never block the record.
-            await record_prepared_documents(self.session, documents)
             perf.info(
                 "[indexing] prepare_for_indexing in %.3fs input=%d output=%d",
                 time.perf_counter() - t0,
@@ -494,22 +487,12 @@ class IndexingPipelineService:
 
     async def _load_existing_chunks(self, document_id: int) -> list[ExistingChunk]:
         result = await self.session.execute(
-            select(
-                Chunk.id,
-                Chunk.content,
-                Chunk.position,
-                Chunk.start_line,
-                Chunk.end_line,
-            ).where(Chunk.document_id == document_id)
+            select(Chunk.id, Chunk.content, Chunk.position).where(
+                Chunk.document_id == document_id
+            )
         )
         return [
-            ExistingChunk(
-                id=row.id,
-                content=row.content,
-                position=row.position,
-                start_line=row.start_line,
-                end_line=row.end_line,
-            )
+            ExistingChunk(id=row.id, content=row.content, position=row.position)
             for row in result
         ]
 
@@ -520,21 +503,15 @@ class IndexingPipelineService:
             delete(Chunk).where(Chunk.document_id == document.id)
         )
 
-        summary_embedding, embedded_chunks = await build_chunk_embeddings(
+        summary_embedding, chunk_pairs = await build_chunk_embeddings(
             content,
             use_code_chunker=connector_doc.should_use_code_chunker,
         )
 
         document.embedding = summary_embedding
         return [
-            Chunk(
-                content=chunk.text,
-                embedding=chunk.embedding,
-                position=i,
-                start_line=chunk.start_line,
-                end_line=chunk.end_line,
-            )
-            for i, chunk in enumerate(embedded_chunks)
+            Chunk(content=text, embedding=emb, position=i)
+            for i, (text, emb) in enumerate(chunk_pairs)
         ]
 
     async def _reindex_incrementally(
@@ -549,27 +526,19 @@ class IndexingPipelineService:
         Unchanged rows keep their embedding and their HNSW/GIN index entries;
         moved rows get a position-only UPDATE, which touches neither index.
         """
-        new_chunks = await chunk_markdown_with_lines(
+        new_texts = await chunk_markdown(
             content, use_code_chunker=connector_doc.should_use_code_chunker
         )
-        plan = reconcile(existing, new_chunks)
+        plan = reconcile(existing, new_texts)
 
         # One batch: the document-level summary vector plus the missing chunks.
-        embeddings = await embed_batch([content, *[c.text for c in plan.to_embed]])
+        embeddings = await embed_batch([content, *[t for _, t in plan.to_embed]])
         summary_embedding, *new_embeddings = embeddings
 
         if plan.reused:
             await self.session.execute(
                 update(Chunk),
-                [
-                    {
-                        "id": reused.id,
-                        "position": reused.position,
-                        "start_line": reused.start_line,
-                        "end_line": reused.end_line,
-                    }
-                    for reused in plan.reused
-                ],
+                [{"id": cid, "position": pos} for cid, pos in plan.reused],
             )
         if plan.to_delete:
             await self.session.execute(
@@ -577,14 +546,12 @@ class IndexingPipelineService:
             )
         self.session.add_all(
             Chunk(
-                content=pending.text,
+                content=text,
                 embedding=emb,
-                position=pending.position,
-                start_line=pending.start_line,
-                end_line=pending.end_line,
+                position=pos,
                 document_id=document.id,
             )
-            for pending, emb in zip(plan.to_embed, new_embeddings, strict=True)
+            for (pos, text), emb in zip(plan.to_embed, new_embeddings, strict=True)
         )
         document.embedding = summary_embedding
 
@@ -593,7 +560,7 @@ class IndexingPipelineService:
             embedded=len(plan.to_embed),
             deleted=len(plan.to_delete),
         )
-        return len(new_chunks)
+        return len(new_texts)
 
     async def index_batch_parallel(
         self,

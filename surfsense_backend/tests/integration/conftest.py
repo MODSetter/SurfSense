@@ -137,28 +137,6 @@ def _derivation_caches_disabled(monkeypatch):
 
 
 @pytest.fixture
-def workspace_flip(monkeypatch):
-    """Control the per-workspace knowledge-store flag for every workspace.
-
-    ``_read_workspace_flag`` opens its own session, which cannot see rows
-    inside the test transaction — so the DB read is the seam, exactly as in
-    ``tests/unit/knowledge_store/test_settings.py``.
-    """
-    import app.knowledge_store.settings as ks_settings
-
-    ks_settings._flag_cache.clear()
-
-    def _set(enabled: bool) -> None:
-        async def read(workspace_id: int) -> bool:
-            return enabled
-
-        monkeypatch.setattr(ks_settings, "_read_workspace_flag", read)
-
-    yield _set
-    ks_settings._flag_cache.clear()
-
-
-@pytest.fixture
 def patched_embed_texts(monkeypatch) -> MagicMock:
     mock = MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts])
     monkeypatch.setattr(

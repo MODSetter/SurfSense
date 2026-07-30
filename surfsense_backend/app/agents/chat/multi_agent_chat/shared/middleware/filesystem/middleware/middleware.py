@@ -54,12 +54,8 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
         thread_id: int | str | None = None,
         tool_token_limit_before_evict: int | None = 20000,
         read_only: bool = False,
-        knowledge_store_enabled: bool = False,
     ) -> None:
         self._filesystem_mode = filesystem_mode
-        # Only ``read_file`` reads this, to describe honestly whether its reads
-        # carry a citation envelope; the backend choice itself is the resolver's.
-        self._knowledge_store_enabled = knowledge_store_enabled
         self._workspace_id = workspace_id
         self._created_by_id = created_by_id
         self._thread_id = thread_id

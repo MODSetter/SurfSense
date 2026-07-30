@@ -11,9 +11,6 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
-    GitTreeBackend,
-)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
@@ -41,9 +38,7 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         except ValueError as exc:
             return f"Error: {exc}"
 
-        backend = mw._get_backend(runtime)
-        # The git-tree backend needs no staging: directories materialize with writes.
-        if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
+        if is_cloud(mw._filesystem_mode):
             if not (
                 validated.startswith(DOCUMENTS_ROOT + "/")
                 or validated == DOCUMENTS_ROOT
@@ -70,6 +65,7 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 }
             )
 
+        backend = mw._get_backend(runtime)
         local_method = getattr(backend, "amkdir", None) or getattr(
             backend, "mkdir", None
         )
@@ -77,16 +73,13 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
             try:
                 res: Any = local_method(validated, parents=True, exist_ok=True)
                 if asyncio.iscoroutine(res):
-                    res = await res
+                    await res
             except TypeError:
                 res = local_method(validated)
                 if asyncio.iscoroutine(res):
-                    res = await res
+                    await res
             except Exception as exc:  # pragma: no cover
                 return f"Error: {exc}"
-            error = getattr(res, "error", None)
-            if error:
-                return error
         return f"Created directory {validated}"
 
     def sync_mkdir(

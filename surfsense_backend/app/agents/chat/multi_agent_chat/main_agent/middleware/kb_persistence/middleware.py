@@ -80,7 +80,7 @@ def _basename(path: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-async def ensure_folder_hierarchy(
+async def _ensure_folder_hierarchy(
     session: AsyncSession,
     *,
     workspace_id: int,
@@ -190,7 +190,7 @@ async def _create_document(
     folder_parts, title = parse_documents_path(virtual_path)
     if not title:
         raise ValueError(f"invalid /documents path '{virtual_path}'")
-    folder_id = await ensure_folder_hierarchy(
+    folder_id = await _ensure_folder_hierarchy(
         session,
         workspace_id=workspace_id,
         created_by_id=created_by_id,
@@ -360,7 +360,7 @@ async def _apply_move(
     folder_parts, new_title = parse_documents_path(dest)
     if not new_title:
         return None
-    folder_id = await ensure_folder_hierarchy(
+    folder_id = await _ensure_folder_hierarchy(
         session,
         workspace_id=workspace_id,
         created_by_id=created_by_id,
@@ -810,7 +810,7 @@ async def commit_staged_filesystem_state(
                 folder_parts_full = _split_folder_path(folder_path)
                 if not folder_parts_full:
                     continue
-                folder_id = await ensure_folder_hierarchy(
+                folder_id = await _ensure_folder_hierarchy(
                     session,
                     workspace_id=workspace_id,
                     created_by_id=created_by_id,

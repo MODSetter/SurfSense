@@ -11,9 +11,6 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
-    GitTreeBackend,
-)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
@@ -52,9 +49,7 @@ def create_move_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         except ValueError as exc:
             return f"Error: {exc}"
 
-        backend = mw._get_backend(runtime)
-        # The git-tree backend moves directly on the working copy; no staging.
-        if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
+        if is_cloud(mw._filesystem_mode):
             return await cloud_move_file(
                 mw,
                 runtime,
@@ -63,6 +58,7 @@ def create_move_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 overwrite=overwrite,
             )
 
+        backend = mw._get_backend(runtime)
         res: WriteResult = await backend.amove(
             validated_source, validated_dest, overwrite=overwrite
         )

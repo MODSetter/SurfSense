@@ -36,7 +36,6 @@ from app.agents.chat.runtime.prompt_caching import (
 )
 from app.auth.context import AuthContext
 from app.db import ChatVisibility
-from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.services.connector_service import ConnectorService
 from app.services.user_tool_allowlist import (
     fetch_user_allowlist_rulesets,
@@ -87,18 +86,11 @@ async def create_multi_agent_chat_deep_agent(
     apply_litellm_prompt_caching(llm, agent_config=agent_config, thread_id=thread_id)
 
     filesystem_selection = filesystem_selection or FilesystemSelection()
-    # Resolved once here; the whole turn (backend, middleware, cached graph)
-    # inherits this verdict, so a mid-turn flip can't mix write paths.
-    git_native = (
-        filesystem_selection.mode == FilesystemMode.CLOUD
-        and await knowledge_store_enabled_for(workspace_id)
-    )
     backend_resolver = build_backend_resolver(
         filesystem_selection,
         workspace_id=workspace_id
         if filesystem_selection.mode == FilesystemMode.CLOUD
         else None,
-        knowledge_store_enabled=git_native,
     )
 
     available_connectors: list[str] | None = None
@@ -318,7 +310,6 @@ async def create_multi_agent_chat_deep_agent(
         disabled_tools=disabled_tools,
         config_id=config_id,
         image_gen_model_id_override=image_gen_model_id,
-        knowledge_store_enabled=git_native,
     )
     _perf_log.info(
         "[create_agent] Middleware stack + graph compiled in %.3fs",

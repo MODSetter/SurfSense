@@ -490,22 +490,6 @@ def _gateway_webhook_parse_errors():
     )
 
 
-@lru_cache(maxsize=1)
-def _knowledge_store_record_outcome():
-    return _get_meter().create_counter(
-        "surfsense.knowledge_store.record.outcome",
-        description="Count of knowledge-store recording outcomes per write flow.",
-    )
-
-
-@lru_cache(maxsize=1)
-def _knowledge_store_drift_checks():
-    return _get_meter().create_counter(
-        "surfsense.knowledge_store.drift.check",
-        description="Count of scheduled knowledge-store parity checks per outcome.",
-    )
-
-
 def record_model_call_duration(
     duration_ms: float, *, model: str | None, provider: str | None
 ) -> None:
@@ -888,33 +872,6 @@ def record_gateway_webhook_parse_error() -> None:
     _add(_gateway_webhook_parse_errors(), 1, {})
 
 
-def record_knowledge_store_record_outcome(
-    *, flow: str, status: str, error_category: str | None = None
-) -> None:
-    """Record one knowledge-store recording attempt.
-
-    ``flow`` names the write path (``editor_save``, ``sync_batch``,
-    ``turn_commit``); ``status`` is ``recorded``, ``noop``, or ``failed``.
-    A non-zero ``failed`` rate means git is drifting behind Postgres.
-    """
-    _add(
-        _knowledge_store_record_outcome(),
-        1,
-        _attrs_with_optional_error_category(
-            {"flow": flow, "status": status}, error_category
-        ),
-    )
-
-
-def record_knowledge_store_drift_check(*, workspace_id: int, status: str) -> None:
-    """Record one scheduled parity check. ``status`` is ``ok``, ``drift``, or ``error``."""
-    _add(
-        _knowledge_store_drift_checks(),
-        1,
-        {"workspace.id": workspace_id, "status": status},
-    )
-
-
 def _runtime_snapshot_value(key: str, transform: Any = None) -> list[Any]:
     from opentelemetry.metrics import Observation
 
@@ -1022,8 +979,6 @@ __all__ = [
     "record_indexing_document_outcome",
     "record_interrupt",
     "record_kb_search_duration",
-    "record_knowledge_store_drift_check",
-    "record_knowledge_store_record_outcome",
     "record_model_call_duration",
     "record_model_token_usage",
     "record_perf_elapsed",
