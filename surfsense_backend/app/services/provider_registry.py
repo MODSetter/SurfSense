@@ -19,6 +19,7 @@ class Transport(StrEnum):
 
 DiscoveryKind = Literal[
     "ollama",
+    "lm_studio_models",
     "openai_models",
     "anthropic_models",
     "bedrock_models",
@@ -112,7 +113,7 @@ REGISTRY: dict[str, ProviderSpec] = {
     "lm_studio": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
         "openai",
-        "openai_models",
+        "lm_studio_models",
         "http://host.docker.internal:1234/v1",
         True,
         "bearer",
