@@ -38,4 +38,7 @@ def test_skipped_when_the_workspace_is_not_flipped():
 
 
 def test_skipped_outside_cloud_mode():
-    assert _build(FilesystemMode.DESKTOP_LOCAL_FOLDER, knowledge_store_enabled=True) is None
+    assert (
+        _build(FilesystemMode.DESKTOP_LOCAL_FOLDER, knowledge_store_enabled=True)
+        is None
+    )

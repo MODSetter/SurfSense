@@ -89,7 +89,9 @@ async def test_reseeding_after_drift_converges(knowledge_root, workspace_id):
     store = KnowledgeStore.for_workspace(workspace_id)
     paths = {t.path for t in await store.list_paths(report.seeded_revision)}
     assert "welcome.md" not in paths
-    assert await store.read_as_of(report.seeded_revision, "notes/okrs.md") == b"# OKRs v2"
+    assert (
+        await store.read_as_of(report.seeded_revision, "notes/okrs.md") == b"# OKRs v2"
+    )
 
 
 async def test_parity_names_missing_extra_and_mismatched_paths(

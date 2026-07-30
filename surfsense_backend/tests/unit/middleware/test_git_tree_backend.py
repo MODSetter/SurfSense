@@ -136,7 +136,9 @@ class TestGitTreeBackend:
         )
 
         orchestrator = GitTreeBackend(WORKSPACE_ID, _RuntimeStub("t1"))
-        assert "from the subagent" in await orchestrator.aread("/documents/delegated.md")
+        assert "from the subagent" in await orchestrator.aread(
+            "/documents/delegated.md"
+        )
         engine = _engine(knowledge_root)
         assert engine.diff_working_copy("thread-t1") == (
             {"documents/delegated.md": b"from the subagent"},

@@ -75,5 +75,7 @@ async def generate_commit_message(
         if subject:
             return subject
     except Exception:
-        logger.warning("Commit message generation failed; using fallback", exc_info=True)
+        logger.warning(
+            "Commit message generation failed; using fallback", exc_info=True
+        )
     return fallback_commit_message(writes=writes, removes=removes)
