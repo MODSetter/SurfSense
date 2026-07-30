@@ -137,6 +137,76 @@ class TestHistoryQueries:
         assert changed["a.xml"].content_id == engine.compute_content_id(b"a2")
         assert changed["b.xml"].content_id is None
 
+    def test_list_changes_reports_a_move_as_one_rename(self, engine):
+        """A move must not read as an unrelated removal and addition: the index
+        would replace the document's row, cascading away its version history."""
+        body = b"# Note\n\nenough body text for git to recognise it again\n"
+        engine.record(
+            writes={"old.xml": body}, removes=[], message="seed", author=AUTHOR
+        )
+        moved = engine.record(
+            writes={"new.xml": body},
+            removes=["old.xml"],
+            message="move",
+            author=AUTHOR,
+        )
+
+        (change,) = engine.list_changes(moved)
+        assert (change.path, change.kind, change.previous_path) == (
+            "new.xml",
+            "renamed",
+            "old.xml",
+        )
+        assert change.content_id == engine.compute_content_id(body)
+
+    def test_a_move_that_rewrites_the_file_is_not_a_rename(self, engine):
+        """The ceiling of matching by similarity: with nothing left in common there
+        is no move to see, so the index falls back to replacing the row."""
+        engine.record(
+            writes={"old.xml": b"# Note\n\nthe original body\n"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        rewritten = engine.record(
+            writes={"new.xml": b"# Other\n\nnothing whatever in common\n"},
+            removes=["old.xml"],
+            message="rewrite",
+            author=AUTHOR,
+        )
+
+        assert {c.path: c.kind for c in engine.list_changes(rewritten)} == {
+            "old.xml": "removed",
+            "new.xml": "added",
+        }
+
+    def test_list_changes_since_reports_a_window_net(self, engine):
+        """What a queued index run needs: several revisions behind, it asks once
+        for the net effect rather than replaying each revision and folding."""
+        body = b"# Note\n\nenough body text for git to recognise it again\n"
+        base = engine.record(
+            writes={"old.xml": body}, removes=[], message="seed", author=AUTHOR
+        )
+        engine.record(
+            writes={"new.xml": body, "gone.xml": b"transient"},
+            removes=["old.xml"],
+            message="move",
+            author=AUTHOR,
+        )
+        head = engine.record(
+            writes={"new.xml": body + b"edited later\n"},
+            removes=["gone.xml"],
+            message="edit",
+            author=AUTHOR,
+        )
+
+        window = {c.path: c for c in engine.list_changes(head, since=base)}
+        # The move survives being edited afterwards, and a file that came and went
+        # inside the window is not reported at all.
+        assert window["new.xml"].kind == "renamed"
+        assert window["new.xml"].previous_path == "old.xml"
+        assert "gone.xml" not in window
+
     def test_list_paths_reflects_the_given_revision(self, engine):
         first = engine.record(
             writes={"a.xml": b"a1", "sub/b.xml": b"b1"},

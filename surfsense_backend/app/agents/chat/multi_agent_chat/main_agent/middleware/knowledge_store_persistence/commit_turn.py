@@ -27,7 +27,12 @@ from app.observability import metrics
 
 logger = logging.getLogger(__name__)
 
-_OPERATION_BY_KIND = {"added": "write_file", "modified": "edit_file", "removed": "rm"}
+_OPERATION_BY_KIND = {
+    "added": "write_file",
+    "modified": "edit_file",
+    "removed": "rm",
+    "renamed": "move_file",
+}
 
 
 async def commit_turn_working_copy(

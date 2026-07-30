@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-ChangeKind = Literal["added", "modified", "removed"]
+ChangeKind = Literal["added", "modified", "removed", "renamed"]
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,8 @@ class Change:
     kind: ChangeKind
     #: Content address after the change (``None`` when removed).
     content_id: str | None
+    #: Where a renamed path came from (``None`` for every other kind).
+    previous_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -90,8 +92,14 @@ class VersionedContentEngine(ABC):
         """Revisions newest-first, optionally scoped to a single path."""
 
     @abstractmethod
-    def list_changes(self, revision: str) -> list[Change]:
-        """Paths added, modified, or removed by ``revision`` (vs its parent)."""
+    def list_changes(self, revision: str, *, since: str | None = None) -> list[Change]:
+        """What ``revision`` changed, against its parent or against ``since``.
+
+        ``since`` compares two snapshots directly, so a path touched repeatedly
+        in between appears once, with its net effect. A path that moved is one
+        ``renamed`` change carrying both paths, not a removal plus an addition,
+        so callers can keep whatever they hold against the old path.
+        """
 
     @abstractmethod
     def list_paths(self, revision: str) -> list[TrackedPath]:

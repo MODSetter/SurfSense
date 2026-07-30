@@ -65,9 +65,11 @@ class KnowledgeStore:
             self._engine.list_revisions, path=path, limit=limit
         )
 
-    async def list_changes(self, revision: str) -> list[Change]:
-        """Paths added, modified, or removed by ``revision`` (vs its parent)."""
-        return await asyncio.to_thread(self._engine.list_changes, revision)
+    async def list_changes(
+        self, revision: str, *, since: str | None = None
+    ) -> list[Change]:
+        """What ``revision`` changed, against its parent or against ``since``."""
+        return await asyncio.to_thread(self._engine.list_changes, revision, since=since)
 
     async def list_paths(self, revision: str) -> list[TrackedPath]:
         """Every path stored at ``revision``, with its content address."""

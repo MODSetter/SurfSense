@@ -14,7 +14,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dulwich import porcelain
-from dulwich.diff_tree import CHANGE_ADD, CHANGE_DELETE, CHANGE_MODIFY, tree_changes
+from dulwich.diff_tree import (
+    CHANGE_ADD,
+    CHANGE_DELETE,
+    CHANGE_MODIFY,
+    CHANGE_RENAME,
+    RenameDetector,
+    tree_changes,
+)
 from dulwich.object_store import iter_tree_contents, tree_lookup_path
 from dulwich.objects import Blob
 from dulwich.repo import Repo
@@ -32,6 +39,7 @@ _CHANGE_KINDS = {
     CHANGE_ADD: "added",
     CHANGE_MODIFY: "modified",
     CHANGE_DELETE: "removed",
+    CHANGE_RENAME: "renamed",
 }
 
 # Serializes working-copy creation against parallel tool calls in one process.
@@ -126,13 +134,20 @@ class GitContentEngine(VersionedContentEngine):
         finally:
             repo.close()
 
-    def list_changes(self, revision: str) -> list[Change]:
+    def list_changes(self, revision: str, *, since: str | None = None) -> list[Change]:
         repo = Repo(str(self._path))
         try:
             commit = repo[revision.encode()]
-            parent_tree = repo[commit.parents[0]].tree if commit.parents else None
+            base_tree = self._base_tree(repo, commit, since)
+            # Renames come from git's own detection, not a guess of ours: identical
+            # content is matched by hash, so a plain move is always found. Only
+            # similarity matching (a move that also edits) is bounded — dulwich stops
+            # at 200 candidates, past which such a move reads as a removal and an add.
+            detector = RenameDetector(repo.object_store)
             changes = []
-            for change in tree_changes(repo.object_store, parent_tree, commit.tree):
+            for change in tree_changes(
+                repo.object_store, base_tree, commit.tree, rename_detector=detector
+            ):
                 kind = _CHANGE_KINDS.get(change.type)
                 if kind is None:
                     continue
@@ -142,6 +157,9 @@ class GitContentEngine(VersionedContentEngine):
                         path=entry.path.decode(),
                         kind=kind,
                         content_id=None if kind == "removed" else entry.sha.decode(),
+                        previous_path=(
+                            change.old.path.decode() if kind == "renamed" else None
+                        ),
                     )
                 )
             return changes
@@ -253,6 +271,13 @@ class GitContentEngine(VersionedContentEngine):
     @staticmethod
     def compute_content_id(data: bytes) -> str:
         return Blob.from_string(data).id.decode()
+
+    @staticmethod
+    def _base_tree(repo: Repo, commit, since: str | None):
+        """What to diff against: ``since``'s tree, else the commit's first parent."""
+        if since is not None:
+            return repo[since.encode()].tree
+        return repo[commit.parents[0]].tree if commit.parents else None
 
     @staticmethod
     def _working_copy_base(copy_path: Path) -> str | None:

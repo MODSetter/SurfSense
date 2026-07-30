@@ -249,20 +249,17 @@ async def test_a_deleted_file_is_recorded_as_a_removal(
     assert await store.list_paths(revision) == []
 
 
-async def test_a_moved_file_is_recorded_as_a_removal_and_an_addition(
-    knowledge_root, workspace_id, llm
-):
-    """The store has no rename verb: a move is the two changes it decomposes into."""
+async def test_a_moved_file_is_recorded_as_one_move(knowledge_root, workspace_id, llm):
+    """A move is committed as a removal plus a write, but read back as a rename:
+    git recognises the content, which is what lets the index move the document's
+    row instead of replacing it. The receipt reports the move it was."""
     store = await _committed_turn(workspace_id, llm, {"documents/old.md": b"hello"})
 
     copy = await _next_turn_copy(store)
     (copy.path / "documents/old.md").rename(copy.path / "documents/new.md")
     delta = await _commit(workspace_id, llm)
 
-    assert _operations(delta) == {
-        "documents/old.md": "rm",
-        "documents/new.md": "write_file",
-    }
+    assert _operations(delta) == {"documents/new.md": "move_file"}
     revision = (await store.list_revisions())[0].id
     assert [e.path for e in await store.list_paths(revision)] == ["documents/new.md"]
 

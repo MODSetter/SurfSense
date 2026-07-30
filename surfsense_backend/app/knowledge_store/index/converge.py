@@ -76,6 +76,8 @@ class _Plan:
 
     upserts: list[str]
     removals: list[str]
+    #: Paths that moved, as ``(from, to)``; the row follows instead of being remade.
+    renames: list[tuple[str, str]] = field(default_factory=list)
     #: Every path in the tree, when the run is a full rebuild; ``None`` otherwise.
     tree: set[str] | None = field(default=None)
 
@@ -132,6 +134,11 @@ async def _plan(store: KnowledgeStore, head: str, since: str | None) -> _Plan:
             return _Plan(
                 upserts=[c.path for c in changes if c.kind != "removed"],
                 removals=[c.path for c in changes if c.kind == "removed"],
+                renames=[
+                    (c.previous_path, c.path)
+                    for c in changes
+                    if c.kind == "renamed" and c.previous_path
+                ],
             )
     tracked = [entry.path for entry in await store.list_paths(head)]
     return _Plan(upserts=tracked, removals=[], tree=set(tracked))
@@ -140,11 +147,16 @@ async def _plan(store: KnowledgeStore, head: str, since: str | None) -> _Plan:
 async def _changes_since(
     store: KnowledgeStore, head: str, since: str
 ) -> list[Change] | None:
-    """Net change set from ``since`` (exclusive) to ``head``, newest write wins.
+    """Net change set from ``since`` (exclusive) to ``head``.
+
+    One diff of the two snapshots rather than a fold of each revision between
+    them, which matters because a queued task can be several commits behind by
+    the time it runs: a path written twice in that window appears once, a path
+    written then deleted appears not at all, and a move is a single ``renamed``
+    change that keeps both of its paths.
 
     ``None`` when ``since`` is not in the history any more, which asks the caller
-    for a full rebuild rather than a guess. Folding every revision in between
-    matters because a queued task can be two commits behind by the time it runs.
+    for a full rebuild rather than a guess.
 
     ``ponytail:`` walks the whole revision list to locate ``since``; upgrade path
     is a bounded walk once histories get long enough to notice.
@@ -152,12 +164,7 @@ async def _changes_since(
     ids = [revision.id for revision in await store.list_revisions()]
     if since not in ids:
         return None
-    newer = ids[: ids.index(since)]
-    merged: dict[str, Change] = {}
-    for revision_id in reversed(newer):
-        for change in await store.list_changes(revision_id):
-            merged[change.path] = change
-    return list(merged.values())
+    return await store.list_changes(head, since=since)
 
 
 async def _converge(
@@ -170,6 +177,14 @@ async def _converge(
     outcome = IndexOutcome(revision=head)
     owned = await _load_owned(session, workspace.id)
     author_id = await _revision_author_id(store, head, workspace)
+
+    for from_path, to_path in plan.renames:
+        _follow_rename(
+            owned,
+            workspace.id,
+            to_virtual_path(from_path),
+            to_virtual_path(to_path),
+        )
 
     for store_path in plan.upserts:
         virtual_path = to_virtual_path(store_path)
@@ -317,6 +332,39 @@ async def _index_one(
     return True
 
 
+def _follow_rename(
+    owned: dict[str, Document],
+    workspace_id: int,
+    from_virtual: str,
+    to_virtual: str,
+) -> None:
+    """Point the row living at ``from_virtual`` at the path it moved to.
+
+    A move has to leave the row's id alone: ``document_versions`` and an upload's
+    stored original both cascade from it, and citations saved in earlier answers
+    name it. Re-keying is the whole trick — the upsert of the new path then
+    resolves to this row and updates it in place, rather than inserting one row
+    and deleting the other.
+    """
+    document = owned.pop(from_virtual, None)
+    if document is None:
+        # Nothing marked at the old path: an unindexed file, or a recorder that
+        # already moved the marker. Either way the upsert resolves it by itself.
+        return
+    owned[to_virtual] = document
+    from_hash = generate_unique_identifier_hash(
+        DocumentType.NOTE, from_virtual, workspace_id
+    )
+    if document.unique_identifier_hash == from_hash:
+        # Carry _resolve's fallback key along with the marker, or a later file at
+        # the old path resolves to this row. Only when the key is the path's own:
+        # an upload identifies by filename, and rewriting that would let a
+        # re-upload of the same file insert a second row.
+        document.unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.NOTE, to_virtual, workspace_id
+        )
+
+
 async def _resolve(
     session: AsyncSession,
     workspace_id: int,
@@ -364,11 +412,11 @@ async def _delete(
         return 0
     marker = (document.document_metadata or {}).get(PATH_MARKER)
     if marker and marker != virtual_path:
-        # The row moved, it did not go away. A rename arrives as a removal of the
-        # old path plus an upsert of the new one, and the upsert has already
-        # claimed this row; deleting on the removal would drop what the same run
-        # just wrote. Reachable because a retitle moves the marker and leaves
-        # unique_identifier_hash — which _resolve falls back to — on the old path.
+        # The row moved, it did not go away: the upsert has already claimed it, so
+        # deleting here would drop what this same run just wrote. Reached when git
+        # cannot see the move — a rewrite in flight leaves nothing to match, so it
+        # arrives as a removal and an addition — while the recorder has moved the
+        # marker and left unique_identifier_hash, _resolve's fallback, behind.
         return 0
     owned.pop(virtual_path, None)
     await session.delete(document)

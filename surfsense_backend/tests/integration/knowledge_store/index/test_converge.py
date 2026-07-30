@@ -16,7 +16,7 @@ import pytest
 from sqlalchemy import func, select
 
 from app.config import config as app_config
-from app.db import Chunk, Document, DocumentStatus, DocumentType
+from app.db import Chunk, Document, DocumentStatus, DocumentType, DocumentVersion
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
@@ -25,6 +25,10 @@ from app.knowledge_store.index.converge import PATH_MARKER, index_changes, index
 from app.utils.document_converters import generate_unique_identifier_hash
 
 pytestmark = pytest.mark.integration
+
+# Content for the move tests. Git recognises a moved file by its content, so what
+# matters is that the same bytes land at the new path.
+MOVABLE = "# Content\n\na body git can match at its new path\n"
 
 
 @pytest.fixture
@@ -62,6 +66,15 @@ async def titles(session, workspace_id) -> dict[str, Document]:
 async def chunk_ids(session, document_id) -> list[int]:
     result = await session.execute(
         select(Chunk.id).where(Chunk.document_id == document_id).order_by(Chunk.id)
+    )
+    return list(result.scalars())
+
+
+async def versions(session, document_id) -> list[int]:
+    result = await session.execute(
+        select(DocumentVersion.version_number)
+        .where(DocumentVersion.document_id == document_id)
+        .order_by(DocumentVersion.version_number)
     )
     return list(result.scalars())
 
@@ -194,29 +207,66 @@ async def test_removed_path_deletes_the_document_and_its_chunks(
     assert await chunk_ids(db_session, doomed_id) == []
 
 
-async def test_a_rename_leaves_exactly_one_document(
+async def test_a_move_keeps_the_document_and_its_history(
     store, db_session, db_workspace, patched_embed_texts
 ):
-    """Git reports a rename as add+delete, so both halves must be applied."""
-    await commit(store, {"documents/old.xml": "# Content"})
+    """The row has to outlive a move, not just be replaced by an equivalent one.
+    Its version history cascades from the id, so a new row means an agent moving
+    a file silently destroys every saved version of it — and dangles the
+    ``document_id`` in citations already written into past answers."""
+    await commit(store, {"documents/old.xml": MOVABLE})
     await index_changes(db_session, db_workspace.id)
-
-    await commit(
-        store, {"documents/new.xml": "# Content"}, removes=["documents/old.xml"]
+    document_id = (await titles(db_session, db_workspace.id))["old"].id
+    db_session.add(
+        DocumentVersion(
+            document_id=document_id,
+            version_number=1,
+            source_markdown=MOVABLE,
+            content_hash=f"hash-{uuid.uuid4().hex}",
+            title="old",
+        )
     )
+    await db_session.commit()
+
+    await commit(store, {"documents/new.xml": MOVABLE}, removes=["documents/old.xml"])
     await index_changes(db_session, db_workspace.id)
 
-    assert set(await titles(db_session, db_workspace.id)) == {"new"}
+    rows = await titles(db_session, db_workspace.id)
+    assert set(rows) == {"new"}
+    assert rows["new"].id == document_id
+    assert await versions(db_session, document_id) == [1]
 
 
-async def test_a_rename_the_recorder_already_marked_keeps_its_document(
+async def test_a_new_file_at_a_moved_from_path_gets_its_own_row(
     store, db_session, db_workspace, patched_embed_texts
 ):
-    """An editor retitle moves the row's marker before the index ever runs, and
-    leaves unique_identifier_hash on the old path. The removal half then resolves
-    by that hash to the row the upsert half just updated — dropping a document
-    whose file is still in the tree, invisible until the next full rebuild."""
-    await commit(store, {"documents/old.xml": "# Content"})
+    """The moved row's fallback identity has to travel with it. Left behind on the
+    old path, it makes the next document written there resolve to the moved row —
+    one row claiming two paths, and the new file never getting a row of its own."""
+    await commit(store, {"documents/old.xml": MOVABLE})
+    await index_changes(db_session, db_workspace.id)
+    moved_id = (await titles(db_session, db_workspace.id))["old"].id
+
+    await commit(store, {"documents/new.xml": MOVABLE}, removes=["documents/old.xml"])
+    await index_changes(db_session, db_workspace.id)
+    await commit(store, {"documents/old.xml": "# Reused path\n\nnew note here\n"})
+    await index_changes(db_session, db_workspace.id)
+
+    rows = await titles(db_session, db_workspace.id)
+    assert set(rows) == {"new", "old"}
+    assert rows["new"].id == moved_id
+    assert rows["old"].id != moved_id
+
+
+async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    """With nothing in common git sees no move, so the halves arrive separately —
+    and an editor retitle has already moved the marker while leaving
+    unique_identifier_hash behind. The removal then resolves by that hash to the
+    row the upsert just updated, dropping a document whose file is still in the
+    tree, invisible until the next full rebuild."""
+    await commit(store, {"documents/old.xml": MOVABLE})
     await index_changes(db_session, db_workspace.id)
     row = (await titles(db_session, db_workspace.id))["old"]
     document_id = row.id
@@ -224,7 +274,9 @@ async def test_a_rename_the_recorder_already_marked_keeps_its_document(
     await db_session.commit()
 
     await commit(
-        store, {"documents/new.xml": "# Content"}, removes=["documents/old.xml"]
+        store,
+        {"documents/new.xml": "# Other\n\nnothing whatever in common\n"},
+        removes=["documents/old.xml"],
     )
     await index_changes(db_session, db_workspace.id)
 
