@@ -47,9 +47,7 @@ class TestTurnWorkingCopyId:
         assert thread_working_copy_id(None) == "thread-adhoc"
 
     def test_a_subagent_resolves_its_parent_turns_copy(self):
-        # Subagents run under a namespaced thread id. They are part of the
-        # parent's turn, not turns of their own, so they must land in the copy
-        # the end-of-turn commit reads — which is keyed by the parent thread.
+        # The copy the end-of-turn commit reads is keyed by the parent thread.
         assert thread_working_copy_id("21::task:call_x") == "thread-21"
 
     def test_nested_subagents_resolve_the_same_copy(self):
@@ -133,8 +131,6 @@ class TestGitTreeBackend:
     async def test_a_subagents_write_is_visible_to_the_orchestrator(
         self, knowledge_root
     ):
-        # The delegated write and the orchestrator's own view are one tree, so
-        # the turn's single commit picks the subagent's work up.
         await GitTreeBackend(WORKSPACE_ID, _RuntimeStub("t1::task:call_x")).awrite(
             "/documents/delegated.md", "from the subagent"
         )

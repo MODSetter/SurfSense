@@ -65,10 +65,7 @@ def create_write_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 )
             ],
         }
-        # The git-tree backend has already applied the write to the turn's
-        # working copy, and the end-of-turn commit records it from that diff.
-        # Staging it for the legacy commit as well would record the same write
-        # twice: one revision plus a Postgres document git never hears about.
+        # The git-tree backend already wrote to the working copy; no staging.
         if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
             update["dirty_paths"] = [path]
             update["dirty_path_tool_calls"] = {path: runtime.tool_call_id}

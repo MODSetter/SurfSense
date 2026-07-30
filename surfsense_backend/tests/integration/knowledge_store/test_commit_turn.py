@@ -293,11 +293,8 @@ async def test_a_delegated_write_is_committed_by_the_parent_turn(
 ):
     """A subagent's write must reach the turn's revision, not vanish.
 
-    The write goes through the backend rather than a hand-built copy id: the
-    defect was the backend and the commit deriving that id differently, so a
-    test that names the copy itself cannot see it. The commit is keyed by the
-    parent thread, as the middleware does — the subagent's namespaced id never
-    reaches it.
+    Writes through the backend rather than a hand-built copy id: the defect was
+    the backend and the commit deriving that id differently.
     """
     backend = GitTreeBackend(workspace_id, _Runtime(f"{THREAD_ID}::task:call_x"))
     await backend.awrite("/documents/delegated.md", "from the subagent")
@@ -311,7 +308,7 @@ async def test_a_delegated_write_is_committed_by_the_parent_turn(
         await store.read_as_of(revision, "documents/delegated.md")
         == b"from the subagent"
     )
-    # And the copy is discarded rather than left behind as an orphan.
+    # The copy is discarded, not left behind as an orphan.
     assert not (
         knowledge_root / ".working_copies" / str(workspace_id) / f"thread-{THREAD_ID}"
     ).exists()

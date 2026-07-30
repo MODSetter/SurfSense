@@ -98,8 +98,7 @@ def create_edit_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 )
             ],
         }
-        # See write_file: the git-tree backend's edit is already on the working
-        # copy, so staging it again would have the legacy commit record it too.
+        # The git-tree backend already edited the working copy; no staging.
         if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
             update["dirty_paths"] = [path]
             update["dirty_path_tool_calls"] = {path: runtime.tool_call_id}

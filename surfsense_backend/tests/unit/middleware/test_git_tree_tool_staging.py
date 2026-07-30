@@ -1,15 +1,9 @@
 """Git-native write tools must leave nothing for the legacy commit to redo.
 
-Both write paths coexist until the Phase 5 cut. On a flipped workspace the git
-backend owns the write and ``kb_persistence`` must find nothing staged: it turns
-``dirty_paths`` into Postgres documents, so a tool that stages anyway gets the
-same write recorded twice — once as a revision, once as a legacy document git
-never hears about. The four pure-staging tools (``mkdir``, ``move_file``,
-``rm``, ``rmdir``) already branch on the backend; these pin the two that stage
-as a side effect of a successful write.
-
-The backend is the real one on a temp repo — only the storage root is
-redirected.
+Both write paths coexist until the Phase 5 cut. ``kb_persistence`` turns
+``dirty_paths`` into Postgres documents, so a tool that stages under the git
+backend gets its write recorded twice — one revision plus a legacy document git
+never hears about. Real backend on a temp repo; only the root is redirected.
 """
 
 from __future__ import annotations
