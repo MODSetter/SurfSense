@@ -3,7 +3,7 @@
 > Build after Phase 1. Umbrella: [`00-umbrella-plan.md`](00-umbrella-plan.md). Shape: [ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md).
 > The **first driving adapter**: deepagents talking to the framework-agnostic core (`KnowledgeStore`) over the **real git working tree**, replacing the read-side fake (`KBPostgresBackend`). Agent tools are unchanged.
 >
-> **Status: file-op path implemented (2026-07-28).** Working-copy lifecycle in the core, `GitTreeBackend` adapter, resolver + tool routing behind `KNOWLEDGE_STORE_ENABLED`. Remaining in this phase: the C2 citation envelope on `read_file` (see Work items).
+> **Status: file-op path implemented (2026-07-28); flip-safe as of 2026-07-30.** Working-copy lifecycle in the core, `GitTreeBackend` adapter, resolver + tool routing behind `KNOWLEDGE_STORE_ENABLED`. The C2 citation envelope on `read_file` is **deferred to its own post-flip PR** — it is not a flip blocker; what was, the `read_file` description promising a citation envelope the git path never renders, is fixed (see work item 4).
 
 ## Objective
 
@@ -29,6 +29,10 @@ Raw reads from the worktree; one citation pattern through both doors. Every KB s
 2. ✅ New `.../filesystem/backends/git_tree.py` — `GitTreeBackend`: lazy mount of the turn's working copy, **opened on the first KB tool call**. Copy id = `thread-{thread_id}` (langgraph serializes turns per thread; a copy left by a crashed turn is committed with the thread's next turn — recovery semantics; abandoned copies are janitored).
 3. ✅ Wired into `resolver.py::build_backend_resolver` behind `KNOWLEDGE_STORE_ENABLED`; mutation tools (`rm`/`rmdir`/`move_file`/`mkdir`) route `GitTreeBackend` down the existing direct-op branches instead of cloud state-staging. Root-cause fix along the way: `mkdir` was a silent no-op on every direct backend while `write` refuses missing parents — added real `mkdir` to `LocalFolderBackend` (+ multi-root passthrough) and made the tool surface backend errors.
 4. ⏳ `read_file` C2 citation envelope + normalizer `[n:Lx-Ly]` support (today the flagged path returns the raw line-numbered read with no envelope).
+
+   **Flip-safety split off and shipped (2026-07-30); the envelope itself is deferred to its own post-flip PR.** The envelope is not a flip blocker — search citations are unaffected, since `search_knowledge_base` reads the `chunks` rows the indexer writes and resolves through `/documents/by-chunk/{id}` unchanged. The *description* was: `select_description` ignored its `mode` argument and told every mode that reads come back as `<document … view="full">` with `[n]`-labelled passages, adding "cite the same `[n]` you would use from `search_knowledge_base`". Only `KBPostgresBackend` renders that envelope, so on a flipped workspace the model was promised labels it never sees while holding search ordinals in context — a mis-citation surface (right ordinal, wrong source), which is worse than the missing citation it looks like. Now split by read format rather than by cloud-vs-desktop: the envelope text for cloud-on-Postgres, and a raw-file text that forbids reusing a search ordinal for everything else. This **also fixed desktop-local**, which had carried the same wrong description since before the flag existed. `knowledge_store_enabled` threads `stack.py` → subagent deps → `build_filesystem_mw` → middleware, and already keys the compiled-graph cache.
+
+   Remaining, as a separate PR, in four slices: (1) the envelope + registry entries carrying `{path, revision, title, numbered}` + normalizer `[n:Lx-Ly]` parsing with a fail-closed strip; (2) the line range carried through to a new payload, a `read_as_of` resolution endpoint, and the frontend panel — **this slice is cross-stack**, since `surfsense_web` resolves citations only by numeric chunk id today and C2's currency is `(path, revision, lines)`; (3) search excerpts through the same envelope using the stored spans; (4) the span-fill job for legacy `NULL`-span chunks. Slices 3 and 4 *depend on* the flip: spans exist only where the git indexer has run, and C2 defines the fill job as flipped-only, matching against the git blob because post-flip that is the source of truth.
 5. ✅ Janitor scheduling — shipped with Phase 3: daily Celery beat task via `knowledge_store/janitor.py` (see [`03-commit-write-path.md`](03-commit-write-path.md)).
 
 ## Tests
@@ -37,6 +41,7 @@ Raw reads from the worktree; one citation pattern through both doors. Every KB s
 - ✅ Adapter: writes land on the turn's copy; tool calls share one copy; committed content readable and deletable; mkdir→write; move; non-`/documents` paths rejected; per-thread isolation. (`tests/unit/middleware/test_git_tree_backend.py`)
 - ✅ Resolver returns the git-tree adapter only when the flag is on; falls back to `KBPostgresBackend`/`StateBackend` otherwise.
 - ⏳ `read_file` envelope: raw line-numbered file, one `cite="[n]"` handle in the opening tag, no markers in file bytes; normalizer resolves `[n:Lx-Ly]` clamped to the document length at that revision.
+- ✅ `read_file` description matches what each mode returns: cloud-on-Postgres is told about the `view="full"` envelope, while git-native **and desktop** are told their reads carry no `[n]` and must not reuse a search ordinal. (`tests/unit/middleware/test_read_file_description.py`)
 
 ## Out of scope
 

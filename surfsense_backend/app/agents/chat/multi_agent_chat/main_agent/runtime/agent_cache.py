@@ -124,8 +124,9 @@ async def build_agent_with_cache(
         # must key the compiled-agent cache to avoid leaking one automation's
         # image model into another with the same config_id/workspace.
         image_gen_model_id_override,
-        # Selects the filesystem backend and the persistence middleware at
-        # build time, so a workspace flip must rotate the cached graph.
+        # Selects the filesystem backend, the persistence middleware, and
+        # ``read_file``'s description at build time, so a workspace flip must
+        # rotate the cached graph.
         knowledge_store_enabled,
     )
     return await get_cache().get_or_build(cache_key, builder=_build)

@@ -136,6 +136,7 @@ def build_main_agent_deepagent_middleware(
         "backend_resolver": backend_resolver,
         "filesystem_mode": filesystem_mode,
         "flags": flags,
+        "knowledge_store_enabled": knowledge_store_enabled,
     }
     shared_mw_start = time.perf_counter()
     shared_subagent_middleware = build_subagent_middleware_stack(

@@ -119,6 +119,7 @@ def build_kb_middleware(
         user_id=dependencies.get("user_id"),
         thread_id=dependencies.get("thread_id"),
         read_only=read_only,
+        knowledge_store_enabled=bool(dependencies.get("knowledge_store_enabled")),
     )
     _t_fs = _perf_time.perf_counter() - _t0
 
