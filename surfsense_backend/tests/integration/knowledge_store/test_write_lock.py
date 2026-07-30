@@ -60,3 +60,21 @@ async def test_scope_error_is_not_masked_by_an_expired_hold(workspace_id, monkey
         async with workspace_write_lock(workspace_id):
             await asyncio.sleep(0.3)
             raise RuntimeError("boom")
+
+
+def test_a_second_lock_on_a_new_event_loop_still_works(workspace_id):
+    """Celery runs every task on its own loop, which is why the client cannot be
+    cached: connections bound to a closed loop failed inside ``acquire``, after
+    redis had set the key — leaking a lock nobody held for its whole TTL. Sync,
+    so the loops here are the only ones in play."""
+
+    async def take_the_lock():
+        async with workspace_write_lock(workspace_id):
+            pass
+
+    for _ in range(2):
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(take_the_lock())
+        finally:
+            loop.close()

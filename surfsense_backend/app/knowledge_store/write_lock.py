@@ -29,18 +29,9 @@ INDEX_LOCK_TTL_SECONDS = 1800.0
 # anyway, and the drift sweep re-drives anything it missed.
 INDEX_LOCK_WAIT_SECONDS = 5.0
 
-_client: redis.Redis | None = None
-
 
 class KnowledgeStoreLockError(RuntimeError):
     """A workspace lock could not be acquired, or a hold expired mid-block."""
-
-
-def _redis() -> redis.Redis:
-    global _client
-    if _client is None:
-        _client = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
-    return _client
 
 
 def _lock_key(workspace_id: int | str, purpose: str) -> str:
@@ -51,32 +42,44 @@ def _lock_key(workspace_id: int | str, purpose: str) -> str:
 async def _workspace_lock(
     workspace_id: int | str, *, purpose: str, ttl: float, wait: float
 ):
-    lock = _redis().lock(
-        _lock_key(workspace_id, purpose),
-        timeout=ttl,
-        blocking=True,
-        blocking_timeout=wait,
-    )
-    if not await lock.acquire():
-        raise KnowledgeStoreLockError(
-            f"Could not acquire {purpose} for workspace {workspace_id} within {wait}s"
+    # The client lives and dies with the block rather than being cached: celery
+    # runs every task on a fresh event loop, and a pooled connection bound to a
+    # closed one fails on the next task. It failed *inside* acquire, after redis
+    # had set the key but before the reply was read — leaving the lock held by
+    # nobody for its whole TTL. A connection per lock is cheap next to the write
+    # it guards.
+    client = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
+    try:
+        lock = client.lock(
+            _lock_key(workspace_id, purpose),
+            timeout=ttl,
+            blocking=True,
+            blocking_timeout=wait,
         )
-    try:
-        yield
-    except BaseException:
-        # The block itself failed; a lost hold must not mask that error.
-        with suppress(LockError):
+        if not await lock.acquire():
+            raise KnowledgeStoreLockError(
+                f"Could not acquire {purpose} for workspace {workspace_id} "
+                f"within {wait}s"
+            )
+        try:
+            yield
+        except BaseException:
+            # The block itself failed; a lost hold must not mask that error.
+            with suppress(LockError):
+                await lock.release()
+            raise
+        try:
             await lock.release()
-        raise
-    try:
-        await lock.release()
-    except LockNotOwnedError:
-        # The hold outlived the TTL: the work landed, but its tail ran
-        # without exclusivity. Fail loudly instead of hiding the race.
-        raise KnowledgeStoreLockError(
-            f"{purpose} for workspace {workspace_id} expired mid-block "
-            f"(hold exceeded the {ttl}s TTL)"
-        ) from None
+        except LockNotOwnedError:
+            # The hold outlived the TTL: the work landed, but its tail ran
+            # without exclusivity. Fail loudly instead of hiding the race.
+            raise KnowledgeStoreLockError(
+                f"{purpose} for workspace {workspace_id} expired mid-block "
+                f"(hold exceeded the {ttl}s TTL)"
+            ) from None
+    finally:
+        with suppress(Exception):
+            await client.aclose()
 
 
 @asynccontextmanager
