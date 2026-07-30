@@ -81,8 +81,11 @@ already does this after a release (`Merge commit 'a89b3aa2...' into dev`). Conte
 today: `git merge-tree --write-tree upstream/dev kb_git_mvp` also exits 0, so the two sets of changes
 don't overlap. Tell whoever owns `dev`, and do it before they open the next `dev → main` promotion.
 
-**Stop if** the test baseline has failures beyond the known pre-existing ones (currently 6, in
-`google_maps`, `automations`, and a PAT static check — confirm by stashing your work and re-running).
+**Stop if** the test baseline has failures beyond the known pre-existing ones. As of the merge:
+`6 failed, 3995 passed, 13 errors` — 3 in `automations`, 2 in `google_maps` parsers, 1 PAT static
+check, and the 13 errors are `google_maps` tests whose captured fixture JSON isn't in the repo
+(`FileNotFoundError` on `fixtures/boq_reviews_page.json`). None are in `knowledge_store`, and our diff
+touches none of those paths — confirm the same way: `git diff --name-only upstream/main...HEAD`.
 
 ---
 
