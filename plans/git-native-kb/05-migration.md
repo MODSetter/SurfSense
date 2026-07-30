@@ -3,6 +3,8 @@
 > **Status: TOOLING SHIPPED (2026-07-30); fleet flips pending.** Seeder (`app/knowledge_store/migrate.py`), fleet runner (`scripts/migrate_knowledge_store.py`), per-workspace flag (`workspaces.knowledge_store_enabled`), drift monitor. No production workspace flipped yet; cut-time deletion (versioning code + table drops) runs after fleet verification.
 >
 > After Phases 1–4. One-time, per-workspace, behind the flag. Umbrella: [`00-umbrella-plan.md`](00-umbrella-plan.md).
+>
+> **Executing it:** the ordered commands and checks for a production run live in [`05a-seed-runbook.md`](05a-seed-runbook.md) — merge, deploy, pre-flight, dry run, seed, verify, flip in batches, watch, roll back.
 
 ## Objective
 

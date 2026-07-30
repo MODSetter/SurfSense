@@ -217,6 +217,7 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 3 | `03-commit-write-path.md` | ✅ SHIPPED (2026-07-29) |
 | 4 | `04-derived-index.md` | ✅ SHIPPED (2026-07-30) |
 | 5 | `05-migration.md` | TOOLING SHIPPED (2026-07-30) — fleet flips + cut-time deletion pending |
+| 5a | `05a-seed-runbook.md` | operational runbook for the production seed + flip |
 | 6 | `06-zero-projection.md` | PLANNED |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
