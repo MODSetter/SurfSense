@@ -1,9 +1,15 @@
-"""Celery task detecting Postgres↔git drift on flipped workspaces.
+"""Celery task detecting — and repairing — Postgres↔git drift on flipped workspaces.
 
 The always-on version of the fleet runner's dry run: for every workspace with
 ``knowledge_store_enabled``, compare the store's head against Postgres by
 content address and emit one ``knowledge_store.drift.check`` data point.
 An alert on ``status != ok`` replaces reading JSONL reports by hand.
+
+The hourly sweep converges the drift it can see, which is only git running
+ahead of the stamp; drift on the Postgres side is invisible to it, because both
+sides of its comparison are git revisions. This check sees that drift, so it
+also closes it — leaving the fix as a runbook step would make repair depend on
+someone noticing the alert.
 """
 
 from __future__ import annotations
@@ -17,8 +23,20 @@ from app.celery_app import celery_app
 from app.knowledge_store.migrate import MigrationReport, migrate_workspace
 from app.knowledge_store.settings import load_knowledge_store_settings
 from app.observability import metrics
+from app.tasks.celery_tasks.knowledge_store.index_tasks import reindex_knowledge_store
 
 logger = logging.getLogger(__name__)
+
+#: Repairs enqueued per run. Drift should be rare, so a run wanting more than a
+#: handful is a systemic problem, and fanning out whole-tree converges would
+#: compound it rather than fix it; the rest wait for the next run.
+#:
+#: ponytail: drift ``index_tree`` cannot fix — a Postgres row carrying no path
+#: marker and having no file in the tree, i.e. some writer bypassing git — costs
+#: one rebuild per run until a human intervenes. The alarm persists throughout,
+#: so it stays visible; the upgrade path is a per-workspace attempt count to
+#: back off after a repair that changed nothing.
+REPAIR_ENQUEUE_CAP = 10
 
 
 @celery_app.task(name="check_knowledge_store_drift")
@@ -46,6 +64,7 @@ async def _check_flipped_workspaces() -> dict[str, int]:
         )
 
     counts: dict[str, int] = {}
+    repairs = 0
     for workspace_id in workspace_ids:
         # Fresh session per workspace, like the fleet runner: one workspace's
         # failure must not poison the next check.
@@ -67,6 +86,14 @@ async def _check_flipped_workspaces() -> dict[str, int]:
                 len(report.mismatched),
                 report.error,
             )
+        if status == "drift" and repairs < REPAIR_ENQUEUE_CAP:
+            # git is the truth, so the whole-tree converge is the repair: it
+            # upserts rows for paths Postgres lacks, overwrites content that
+            # disagrees, and prunes marked rows whose file is gone. `error` is
+            # deliberately excluded — a store the check could not read will not
+            # be fixed by indexing it harder.
+            reindex_knowledge_store.delay(workspace_id)
+            repairs += 1
     return counts
 
 

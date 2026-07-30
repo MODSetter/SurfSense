@@ -45,6 +45,23 @@ def session_on_test_connection(db_session, monkeypatch):
     monkeypatch.setattr(db, "async_session_maker", maker)
 
 
+@pytest.fixture(autouse=True)
+def repairs_enqueued(monkeypatch):
+    """Record repairs instead of handing them to a broker that is not running.
+
+    Autouse because ``.delay`` is the one outbound call in this module: a test
+    that drifts without the seam in place would reach for a real broker.
+    """
+    calls: list[int] = []
+
+    monkeypatch.setattr(
+        monitor.reindex_knowledge_store,
+        "delay",
+        lambda workspace_id: calls.append(workspace_id),
+    )
+    return calls
+
+
 @pytest.fixture
 def drift_metrics(monkeypatch):
     """Record what the monitor reports, in place of an OTel exporter."""
@@ -149,3 +166,99 @@ async def test_a_failed_check_is_reported_and_the_sweep_continues(
 
     assert await monitor._check_flipped_workspaces() == {"error": 1, "ok": 1}
     assert (healthy.id, "ok") in drift_metrics
+
+
+# ── Repair ──────────────────────────────────────────────────────────────────
+
+
+async def test_drift_enqueues_a_whole_tree_converge(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    repairs_enqueued,
+):
+    """The hourly sweep cannot see this drift, so the alarm has to close it.
+
+    Both sides of the sweep's comparison are git revisions, which leaves
+    Postgres-side disagreement to this check alone; if it only alarmed, repair
+    would depend on someone reading the alert.
+    """
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+    await migrate_workspace(db_session, space.id)
+    await add_document(db_session, space, db_user.id)
+
+    assert await monitor._check_flipped_workspaces() == {"drift": 1}
+    assert repairs_enqueued == [space.id]
+
+
+async def test_a_workspace_in_parity_is_not_repaired(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    repairs_enqueued,
+):
+    """A daily whole-tree converge per healthy workspace is the cost of a bug here."""
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+    await migrate_workspace(db_session, space.id)
+
+    assert await monitor._check_flipped_workspaces() == {"ok": 1}
+    assert repairs_enqueued == []
+
+
+async def test_a_failed_check_alarms_without_repairing(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    repairs_enqueued,
+    monkeypatch,
+):
+    """A store the check could not read will not be fixed by indexing it harder.
+
+    Repairing on ``error`` would also mean repairing on a verdict nobody
+    computed: the parity fields of a failed report describe nothing.
+    """
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+
+    real = monitor.migrate_workspace
+
+    async def fail(session, workspace_id, **kwargs):
+        return replace(await real(session, workspace_id, **kwargs), error="unreadable")
+
+    monkeypatch.setattr(monitor, "migrate_workspace", fail)
+
+    assert await monitor._check_flipped_workspaces() == {"error": 1}
+    assert repairs_enqueued == []
+
+
+async def test_the_cap_bounds_repairs_not_checks(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    repairs_enqueued,
+    monkeypatch,
+):
+    """Fleet-wide drift is a systemic fault; fanning out rebuilds compounds it.
+
+    Every workspace is still checked and still alarms — only the repair is
+    capped, so the signal stays complete while the work stays bounded.
+    """
+    monkeypatch.setattr(monitor, "REPAIR_ENQUEUE_CAP", 1)
+    for _ in range(2):
+        space = await make_workspace(db_session, db_user.id, flipped=True)
+        await add_document(db_session, space, db_user.id)
+        await migrate_workspace(db_session, space.id)
+        await add_document(db_session, space, db_user.id)
+
+    assert await monitor._check_flipped_workspaces() == {"drift": 2}
+    assert len(repairs_enqueued) == 1

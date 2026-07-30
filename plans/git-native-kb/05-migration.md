@@ -102,6 +102,23 @@ Re-embedding is never on that path.
    warning log naming the missing/extra/mismatched paths — the JSONL report as an
    always-on alarm instead of a by-hand check.
 
+   **Amended 2026-07-30 — the monitor repairs, it does not just alarm.** Phase 4's
+   hourly sweep compares a stored git revision against the store's HEAD, so *both*
+   sides of its predicate come from git: it is structurally blind to drift that
+   lives on the Postgres side, which is exactly what this check sees. Leaving that
+   half to `reindex_knowledge_store.delay(...)` typed by hand contradicted Phase 4's
+   own "runbook steps get forgotten; converging systems don't" — same class of
+   fault, two different answers. A `drift` verdict now enqueues the whole-tree
+   converge (`index_tree` upserts paths Postgres lacks, overwrites content that
+   disagrees, prunes marked rows whose file is gone), capped at
+   `REPAIR_ENQUEUE_CAP = 10` per run: fleet-wide drift is a systemic fault, and
+   fanning out rebuilds would compound it. `error` stays alarm-only — a store the
+   check could not read is not fixed by indexing it harder, and a failed report's
+   parity fields describe nothing. Known ceiling, marked in the code: drift
+   `index_tree` cannot fix (an unmarked Postgres row with no file in the tree, i.e.
+   a writer bypassing git) costs one rebuild per run until a human intervenes; the
+   alarm persists throughout, and the upgrade path is a per-workspace attempt count.
+
 ## Tests
 
 - ✅ Seed records one revision, passes parity, migration-authored.

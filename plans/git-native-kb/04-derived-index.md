@@ -49,6 +49,8 @@ Make Postgres a **derived, rebuildable** chunk/embedding index of the store: inc
 
    **Built as** `reindex_drifted_workspaces`, **hourly with a per-run enqueue cap**, not daily: hourly cuts recovery from a lost task from a day to an hour, and the cap bounds the fan-out, not the check — the drift check is one HEAD read per workspace, while each task it enqueues embeds. Candidates are **flipped workspaces only** (`workspaces.knowledge_store_enabled`, the Phase-5 per-workspace flag): a seeded-but-unflipped workspace has a repo too, but Postgres is still its write model, and indexing it would fight the legacy pipeline. A never-indexed candidate (stamp `NULL`) routes to the rebuild task on the connectors queue so a backfill can't bury user-facing saves; a stamped one takes the incremental task on the fast queue. The worker re-checks the flag before converging, because a queued task can outlive an unflip.
 
+   **This sweep only covers half the drift (2026-07-30).** Its predicate compares a stored git revision against the store's HEAD — both sides come from git, so it is structurally blind to drift on the Postgres side (a row git never received, content that disagrees, an orphan the change log never reported). Phase 5's `check_knowledge_store_drift` is what sees that half, comparing the two stores by content address, and it now **enqueues `index_tree` on a `drift` verdict** rather than logging for someone to act on — this item's own reasoning applied to the case it doesn't reach. Details and the capped fan-out: `05-migration.md` item 7.
+
 ## Tests
 
 - **Identical content at two paths yields two documents** — the case `prepare_for_indexing` gets wrong, and the reason the upsert is hand-written.
