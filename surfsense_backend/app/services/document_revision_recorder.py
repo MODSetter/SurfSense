@@ -18,6 +18,7 @@ from app.agents.chat.runtime.path_resolver import (
     build_path_index,
     doc_to_virtual_path,
     to_store_path,
+    virtual_path_of,
 )
 from app.db import Document
 from app.knowledge_store import KnowledgeStore
@@ -75,6 +76,7 @@ async def record_saved_document(
     folder_id: int | None,
     markdown: str,
     author_user_id: str | None,
+    title_is_explicit: bool = False,
 ) -> str | None:
     """Resolve one document's canonical store path and record the save.
 
@@ -84,6 +86,11 @@ async def record_saved_document(
     actually recorded: a marker without a file would make the row look
     indexer-owned and a later rebuild would prune it.
 
+    ``title_is_explicit`` means someone chose the title, so the file follows it.
+    A note's title is otherwise re-read from its first heading on every save,
+    and letting that place the file would rename whatever the agent named — for
+    a name the caller never asked to change.
+
     Never raises: while the store coexists with the Postgres write path
     (until the Phase 5 cut), a recording failure must not fail the save
     that already committed — it is logged instead.
@@ -92,12 +99,21 @@ async def record_saved_document(
         return None
     try:
         index = await build_path_index(session, workspace_id)
-        virtual_path = doc_to_virtual_path(
-            doc_id=doc_id, title=title, folder_id=folder_id, index=index
-        )
         document = await session.get(Document, doc_id)
-        previous = (
-            (document.document_metadata or {}).get(PATH_MARKER) if document else None
+        metadata = document.document_metadata if document else None
+        previous = (metadata or {}).get(PATH_MARKER)
+        virtual_path = (
+            doc_to_virtual_path(
+                doc_id=doc_id, title=title, folder_id=folder_id, index=index
+            )
+            if title_is_explicit
+            else virtual_path_of(
+                metadata=metadata,
+                doc_id=doc_id,
+                title=title,
+                folder_id=folder_id,
+                index=index,
+            )
         )
         filename = virtual_path.rsplit("/", 1)[-1]
         stale = _stale_store_path(previous, virtual_path)

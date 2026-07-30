@@ -149,7 +149,16 @@ async def _make_document(session, workspace, user, title: str) -> Document:
     return document
 
 
-async def _save(session, workspace, user, document, *, title, markdown="# Body"):
+async def _save(
+    session,
+    workspace,
+    user,
+    document,
+    *,
+    title,
+    markdown="# Body",
+    title_is_explicit=False,
+):
     return await record_saved_document(
         session,
         workspace_id=workspace.id,
@@ -158,6 +167,7 @@ async def _save(session, workspace, user, document, *, title, markdown="# Body")
         folder_id=None,
         markdown=markdown,
         author_user_id=str(user.id),
+        title_is_explicit=title_is_explicit,
     )
 
 
@@ -194,7 +204,12 @@ async def test_a_retitle_leaves_only_the_new_path(
 
     document.title = "New title"
     revision = await _save(
-        db_session, db_workspace, db_user, document, title="New title"
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="New title",
+        title_is_explicit=True,
     )
 
     paths = await _store_paths(db_workspace, revision)
@@ -212,10 +227,79 @@ async def test_a_retitle_records_the_move_as_one_revision(
     await _save(db_session, db_workspace, db_user, document, title="Old title")
 
     document.title = "New title"
-    await _save(db_session, db_workspace, db_user, document, title="New title")
+    await _save(
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="New title",
+        title_is_explicit=True,
+    )
 
     store = KnowledgeStore.for_workspace(db_workspace.id)
     assert len(await store.list_revisions()) == 2
+
+
+async def _agent_authored(session, workspace, user, path: str, markdown: str):
+    """A file under a name no title would derive, with the row that points at it."""
+    await record_markdown_files(
+        workspace_id=workspace.id,
+        files={path.lstrip("/"): markdown},
+        message="agent: write",
+        author_user_id=str(user.id),
+    )
+    document = await _make_document(session, workspace, user, path.rsplit("/", 1)[-1])
+    document.document_metadata = {PATH_MARKER: path}
+    await session.commit()
+    return document
+
+
+async def test_an_inferred_retitle_keeps_the_name_the_agent_chose(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """A note's title is re-read from its first heading on every save, so an
+    ordinary save arrives here looking like a retitle. Placing by that title
+    would rename the agent's file — and invalidate the path it is holding."""
+    workspace_flip(True)
+    document = await _agent_authored(
+        db_session, db_workspace, db_user, "/documents/summary.md", "# Key Points"
+    )
+
+    revision = await _save(
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="Key Points",
+        markdown="# Key Points\n\nEdited.",
+    )
+
+    assert await _store_paths(db_workspace, revision) == {"documents/summary.md"}
+    assert document.document_metadata[PATH_MARKER] == "/documents/summary.md"
+
+
+async def test_an_explicit_rename_still_moves_the_agent_s_file(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The gate narrows which titles place a file; it does not stop a rename."""
+    workspace_flip(True)
+    document = await _agent_authored(
+        db_session, db_workspace, db_user, "/documents/summary.md", "# Key Points"
+    )
+
+    revision = await _save(
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="Key Points",
+        markdown="# Key Points\n\nEdited.",
+        title_is_explicit=True,
+    )
+
+    paths = await _store_paths(db_workspace, revision)
+    assert paths == {"documents/Key Points.xml"}
+    assert document.document_metadata[PATH_MARKER] == "/documents/Key Points.xml"
 
 
 async def test_no_marker_is_left_when_nothing_was_recorded(
