@@ -19,6 +19,7 @@ from sqlalchemy import select, update
 
 from app.db import Workspace, async_session_maker
 from app.knowledge_store.migrate import migrate_workspace
+from app.knowledge_store.store import KnowledgeStore
 
 
 async def _workspace_ids(only: list[int]) -> list[int]:
@@ -30,11 +31,28 @@ async def _workspace_ids(only: list[int]) -> list[int]:
 
 
 async def _set_flip(workspace_id: int, enabled: bool) -> None:
+    """Flip one workspace, carrying its index stamp with it.
+
+    Stamping the store's head on the way in is what keeps the seed's promise:
+    passing parity *is* the assertion that the chunk index already matches this
+    revision, so a NULL stamp would have the drift sweep read the workspace as
+    never-indexed and re-embed the whole tree — the cost the seed exists to
+    avoid. Read from head rather than the report's ``seeded_revision``, which is
+    ``None`` on an idempotent re-seed.
+
+    Clearing it on the way out forces a full converge if the workspace is ever
+    flipped back, since the legacy pipeline owned the chunks in between.
+    """
+    revision = (
+        await KnowledgeStore.for_workspace(workspace_id).get_current_revision()
+        if enabled
+        else None
+    )
     async with async_session_maker() as session:
         await session.execute(
             update(Workspace)
             .where(Workspace.id == workspace_id)
-            .values(knowledge_store_enabled=enabled)
+            .values(knowledge_store_enabled=enabled, last_indexed_revision=revision)
         )
         await session.commit()
 
@@ -91,9 +109,7 @@ async def main() -> None:
                     session, workspace_id, dry_run=not args.yes
                 )
             out.write(
-                json.dumps(
-                    {"at": datetime.now(UTC).isoformat(), **asdict(report)}
-                )
+                json.dumps({"at": datetime.now(UTC).isoformat(), **asdict(report)})
                 + "\n"
             )
             out.flush()
