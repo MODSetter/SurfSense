@@ -148,12 +148,12 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 4 — Derived index + reindex [`subplan: 04-derived-index.md`]
 
-> **PLANNED. Can build alongside 03** (both consume 01's `transaction`/`list_changes`). This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to revisions one-way; the core has no knowledge of it.
+> **SHIPPED (2026-07-30).** This is the **vector-store-sync driven consumer** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)): it subscribes to revisions one-way; the core has no knowledge of it. As-built record (with **Built as** deviation notes) in the subplan.
 
-- Post-revision indexer: `list_changes(revision)` names the changed paths; re-chunk + re-embed **only those**, reusing the existing embedding cache (`markdown_sha256` = content id; C5 corrected) so unchanged content reuses its vectors. Spans (`start_line`/`end_line`) stored at cut time, nullable, never backfilled by migration — legacy chunks cite at document level until the deadline-free daily fill job reaches them (C2). `web`/live paths untouched.
-- One idempotent **`reindex(workspace)`** that wipes and rebuilds all chunks/embeddings from the current revision (the Fossil `rebuild` discipline), as a Celery task.
-- The three hand-rolled versioning systems become dead code for flagged workspaces; their **deletion (code + table drops) is Phase 5 cut time**.
-- Tests: change one file → only its chunks re-embed (unchanged blob SHAs reuse vectors); `reindex()` reproduces identical chunk set; search results unchanged vs. baseline.
+- `app/knowledge_store/indexer.py`: one convergence body behind `index_revision` (incremental, fast queue) and `reindex` (wipe + rebuild, connectors queue), both converging to the store's current revision under a dedicated index lock; `workspaces.last_indexed_revision` is the stamp. Rows are adopted by ownership marker → NOTE hash → path; prune is keyed on the marker so connector rows are never touched.
+- Chunk line spans (`start_line`/`end_line`, migration 176) derived at the cache boundary by `attach_line_spans` — cached embeddings stay valid, no chunker-version bump, reconciler updates spans on moves (C2's consumer).
+- Writers enqueue indexing post-commit (`enqueue_index`), and an hourly capped sweep re-drives flipped workspaces whose stamp trails HEAD.
+- The three hand-rolled versioning systems are dead code for flagged workspaces (restore returns 409, editor reindex defers to the indexer); their **deletion (code + table drops) is Phase 5 cut time**.
 
 ### Phase 5 — Migration [`subplan: 05-migration.md`]
 

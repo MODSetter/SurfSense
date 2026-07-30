@@ -32,6 +32,62 @@ async def db_document(
     return doc
 
 
+@pytest_asyncio.fixture
+async def client(db_session: AsyncSession, db_user: User):
+    """httpx over ASGI, bound to the transactional session and the owner."""
+    import httpx
+    from httpx import ASGITransport
+
+    from app.app import app
+    from app.auth.context import AuthContext
+    from app.db import get_async_session
+    from app.users import get_auth_context
+
+    async def override_session():
+        yield db_session
+
+    async def override_auth() -> AuthContext:
+        return AuthContext.session(db_user)
+
+    previous = app.dependency_overrides.copy()
+    app.dependency_overrides[get_async_session] = override_session
+    app.dependency_overrides[get_auth_context] = override_auth
+    try:
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", timeout=30.0
+        ) as c:
+            yield c
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+async def test_restore_is_refused_for_a_git_backed_workspace(
+    client, db_session, db_document, monkeypatch, workspace_flip
+):
+    """Restore rewrites content behind git's back, so it cannot be allowed.
+
+    It is also the only writer of ``DocumentVersion`` rows on the save path, so
+    this 409 is what makes "a save in a flagged workspace creates no version
+    rows" true rather than merely intended.
+    """
+    from app.config import config as app_config
+    from app.utils.document_versioning import create_version_snapshot
+
+    await create_version_snapshot(db_session, db_document)
+    await db_session.commit()
+    before = await _version_count(db_session, db_document.id)
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", True)
+    workspace_flip(True)
+
+    response = await client.post(
+        f"/api/v1/documents/{db_document.id}/versions/1/restore"
+    )
+
+    assert response.status_code == 409
+    assert await _version_count(db_session, db_document.id) == before
+
+
 async def _version_count(session: AsyncSession, document_id: int) -> int:
     result = await session.execute(
         select(func.count())

@@ -53,8 +53,13 @@ class GitTreeBackend:
             copy_id = thread_working_copy_id(configurable.get("thread_id"))
             store = KnowledgeStore.for_workspace(self.workspace_id)
             copy = await store.open_working_copy(copy_id)
+            # Mount the copy's documents/ subtree, not its root: the repo keeps
+            # the documents/ prefix (C1), so agent writes must land under it —
+            # the same paths the editor recorder and the migration seeder use.
+            documents_root = copy.path / _DOCUMENTS_MOUNT
+            documents_root.mkdir(exist_ok=True)
             self._mounted = MultiRootLocalFolderBackend(
-                ((_DOCUMENTS_MOUNT, str(copy.path)),)
+                ((_DOCUMENTS_MOUNT, str(documents_root)),)
             )
         return self._mounted
 

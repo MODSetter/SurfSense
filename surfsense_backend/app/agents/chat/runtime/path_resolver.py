@@ -26,6 +26,44 @@ from app.utils.document_converters import generate_unique_identifier_hash
 DOCUMENTS_ROOT = "/documents"
 """Root virtual folder for all KB documents."""
 
+PATH_MARKER = "virtual_path"
+"""``document_metadata`` key holding the virtual path a row's content lives at.
+
+Written by the store indexer on every converged row, and by the revision
+recorder when a recorded save lands at a new path. Its presence marks a row as
+path-addressed (indexer-owned for pruning); its value is the file a retitle
+must drop from the tree.
+"""
+
+
+def to_store_path(virtual_path: str) -> str:
+    """Convert an agent-facing ``/documents/...`` path to its git-repo path.
+
+    The repo tree keeps the ``documents/`` root (C1 as shipped — the top level
+    stays free for future sibling roots like ``.cache/``), so this only drops
+    the leading slash. It still raises on a foreign namespace: a silent
+    mismatch here forks one document into two identities on either side of the
+    git↔Postgres boundary.
+    """
+    if virtual_path != DOCUMENTS_ROOT and not virtual_path.startswith(
+        f"{DOCUMENTS_ROOT}/"
+    ):
+        msg = f"Not a {DOCUMENTS_ROOT} path: {virtual_path!r}"
+        raise ValueError(msg)
+    return virtual_path.lstrip("/")
+
+
+def to_virtual_path(store_path: str) -> str:
+    """Convert a git-repo path back to its agent-facing ``/documents/...`` path.
+
+    Inverse of :func:`to_store_path`. Every identity derived from the store — the
+    ``unique_identifier_hash`` and the ``PATH_MARKER`` metadata — is keyed on the
+    virtual path, so callers convert once on the way in and stay in one
+    namespace from there.
+    """
+    return f"/{store_path.strip('/')}"
+
+
 _INVALID_FILENAME_CHARS = re.compile(r"[\\/:*?\"<>|]+")
 _WHITESPACE_RUN = re.compile(r"\s+")
 
@@ -339,6 +377,7 @@ def parse_documents_path(virtual_path: str) -> tuple[list[str], str]:
 
 __all__ = [
     "DOCUMENTS_ROOT",
+    "PATH_MARKER",
     "PathIndex",
     "build_path_index",
     "doc_to_virtual_path",
@@ -346,5 +385,7 @@ __all__ = [
     "parse_documents_path",
     "safe_filename",
     "safe_folder_segment",
+    "to_store_path",
+    "to_virtual_path",
     "virtual_path_to_doc",
 ]

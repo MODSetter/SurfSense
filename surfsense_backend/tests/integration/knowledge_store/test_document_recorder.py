@@ -28,7 +28,9 @@ async def test_one_save_records_one_revision(knowledge_root, workspace_id):
 
     store = KnowledgeStore.for_workspace(workspace_id)
     assert revision is not None
-    assert await store.read_as_of(revision, "documents/notes/meeting.md") == b"# Meeting"
+    assert (
+        await store.read_as_of(revision, "documents/notes/meeting.md") == b"# Meeting"
+    )
     rev = (await store.list_revisions())[0]
     assert "1" in rev.author
     assert "meeting.md" in rev.message
@@ -72,6 +74,30 @@ async def test_empty_batch_records_nothing(knowledge_root, workspace_id):
 
     assert revision is None
     assert not (knowledge_root / str(workspace_id)).exists()
+
+
+async def test_a_retitled_document_leaves_no_file_at_its_old_path(
+    knowledge_root, workspace_id
+):
+    """One document is one file. Without the removal a retitle forks it into two."""
+    await record_markdown_files(
+        workspace_id=workspace_id,
+        files={"documents/Old title.xml": "# Body"},
+        message="docs: save Old title.xml",
+        author_user_id="1",
+    )
+
+    revision = await record_markdown_files(
+        workspace_id=workspace_id,
+        files={"documents/New title.xml": "# Body"},
+        message="docs: save New title.xml",
+        author_user_id="1",
+        removes=["documents/Old title.xml"],
+    )
+
+    store = KnowledgeStore.for_workspace(workspace_id)
+    paths = {entry.path for entry in await store.list_paths(revision)}
+    assert paths == {"documents/New title.xml"}
 
 
 async def test_disabled_store_records_nothing(monkeypatch, tmp_path, workspace_id):

@@ -15,6 +15,7 @@ from app.agents.chat.runtime.path_resolver import (
     parse_documents_path,
     safe_filename,
     safe_folder_segment,
+    to_store_path,
     virtual_path_to_doc,
 )
 
@@ -41,6 +42,25 @@ class TestSafeFolderSegment:
 
     def test_falls_back(self):
         assert safe_folder_segment("") == "folder"
+
+
+class TestToStorePath:
+    def test_keeps_the_documents_root(self):
+        assert (
+            to_store_path("/documents/Notes/Meeting.xml")
+            == "documents/Notes/Meeting.xml"
+        )
+
+    def test_root_itself_maps_to_the_documents_dir(self):
+        assert to_store_path(DOCUMENTS_ROOT) == "documents"
+
+    def test_rejects_a_foreign_namespace(self):
+        with pytest.raises(ValueError, match="/documents"):
+            to_store_path("/documentsimposter/Meeting.xml")
+
+    def test_rejects_a_relative_path(self):
+        with pytest.raises(ValueError, match="/documents"):
+            to_store_path("Notes/Meeting.xml")
 
 
 class TestParseDocIdSuffix:
@@ -85,9 +105,7 @@ class TestConceptIdentityRoundTrip:
 
     def test_folder_nested_document_roundtrips(self):
         index = PathIndex(folder_paths={5: f"{DOCUMENTS_ROOT}/Research/AI"})
-        path = doc_to_virtual_path(
-            doc_id=2, title="My Note", folder_id=5, index=index
-        )
+        path = doc_to_virtual_path(doc_id=2, title="My Note", folder_id=5, index=index)
         assert path == f"{DOCUMENTS_ROOT}/Research/AI/My Note.xml"
         folder_parts, title = parse_documents_path(path)
         assert folder_parts == ["Research", "AI"]
@@ -97,9 +115,7 @@ class TestConceptIdentityRoundTrip:
         # Second doc with the same title gets a " (<id>)" suffix; parsing the
         # path must strip the disambiguator and recover the original title.
         index = PathIndex(occupants={f"{DOCUMENTS_ROOT}/Hello.xml": 7})
-        path = doc_to_virtual_path(
-            doc_id=8, title="Hello", folder_id=None, index=index
-        )
+        path = doc_to_virtual_path(doc_id=8, title="Hello", folder_id=None, index=index)
         assert path == f"{DOCUMENTS_ROOT}/Hello (8).xml"
         folder_parts, title = parse_documents_path(path)
         assert folder_parts == []

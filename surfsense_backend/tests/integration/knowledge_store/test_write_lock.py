@@ -49,7 +49,7 @@ async def test_lock_is_released_when_the_scope_raises(workspace_id, short_lock_w
 
 async def test_hold_outliving_the_ttl_fails_loudly(workspace_id, monkeypatch):
     monkeypatch.setattr(write_lock, "LOCK_TTL_SECONDS", 0.1)
-    with pytest.raises(KnowledgeStoreLockError, match="expired mid-write"):
+    with pytest.raises(KnowledgeStoreLockError, match="expired mid-block"):
         async with workspace_write_lock(workspace_id):
             await asyncio.sleep(0.3)
 

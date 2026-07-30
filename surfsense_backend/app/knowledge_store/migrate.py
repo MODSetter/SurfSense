@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.runtime.path_resolver import (
     build_path_index,
     doc_to_virtual_path,
+    to_store_path,
 )
 from app.knowledge_store.engines.base import TrackedPath
 from app.knowledge_store.identities import MIGRATION_IDENTITY
@@ -177,7 +178,7 @@ async def migrate_workspace(
             virtual_path = doc_to_virtual_path(
                 doc_id=doc_id, title=title, folder_id=folder_id, index=index
             )
-            files[virtual_path.lstrip("/")] = markdown
+            files[to_store_path(virtual_path)] = markdown
     except Exception as exc:
         return _failure_report(workspace_id, dry_run, 0, exc)
     return await seed_workspace(workspace_id, files, dry_run=dry_run)

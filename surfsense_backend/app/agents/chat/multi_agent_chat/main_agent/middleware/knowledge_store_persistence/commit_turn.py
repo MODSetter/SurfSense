@@ -22,6 +22,8 @@ from app.agents.chat.multi_agent_chat.shared.receipts.receipt import (
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
+from app.knowledge_store.index_queue import enqueue_index
+from app.observability import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +72,20 @@ async def commit_turn_working_copy(
             thread_id,
             exc,
         )
+        metrics.record_knowledge_store_record_outcome(
+            flow="turn_commit",
+            status="failed",
+            error_category=metrics.categorize_exception(exc),
+        )
         return {"receipts": _failed_receipts(writes, removes, exc)}
 
     await store.discard_working_copy(copy_id)
+    metrics.record_knowledge_store_record_outcome(
+        flow="turn_commit", status="recorded" if tx.revision else "noop"
+    )
     if tx.revision is None:
         return None
+    enqueue_index(workspace_id)
     return {"receipts": await _recorded_receipts(store, tx.revision)}
 
 

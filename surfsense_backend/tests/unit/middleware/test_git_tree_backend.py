@@ -53,11 +53,14 @@ class TestGitTreeBackend:
         res = await backend.awrite("/documents/note.md", "hello")
         assert res.error is None
 
+        # The mount targets the copy's documents/ subtree, so the repo path
+        # keeps the prefix — the same path the recorder and seeder produce.
         copy_file = (
             knowledge_root
             / ".working_copies"
             / str(WORKSPACE_ID)
             / "thread-t1"
+            / "documents"
             / "note.md"
         )
         assert copy_file.read_text() == "hello"
@@ -75,12 +78,15 @@ class TestGitTreeBackend:
         assert "hello" in read_back
 
         engine = _engine(knowledge_root)
-        assert engine.diff_working_copy("thread-t1") == ({"note.md": b"hello"}, [])
+        assert engine.diff_working_copy("thread-t1") == (
+            {"documents/note.md": b"hello"},
+            [],
+        )
 
     async def test_committed_content_is_readable_and_deletable(self, knowledge_root):
         engine = _engine(knowledge_root)
         engine.record(
-            writes={"guides/setup.md": b"step one"},
+            writes={"documents/guides/setup.md": b"step one"},
             removes=[],
             message="seed",
             author=AUTHOR,
@@ -91,7 +97,10 @@ class TestGitTreeBackend:
 
         res = await backend.adelete_file("/documents/guides/setup.md")
         assert res.error is None
-        assert engine.diff_working_copy("thread-t1") == ({}, ["guides/setup.md"])
+        assert engine.diff_working_copy("thread-t1") == (
+            {},
+            ["documents/guides/setup.md"],
+        )
 
     async def test_mkdir_enables_writes_into_new_folders(self, knowledge_root):
         backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())

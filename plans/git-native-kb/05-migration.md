@@ -90,6 +90,15 @@ Re-embedding is never on that path.
    fresh workspaces.
 6. ✅ Fleet runner `scripts/migrate_knowledge_store.py`: dry-run by default, fresh
    session per workspace, append-only JSONL reports, non-zero exit on any not-ok.
+7. ✅ Drift instrumentation (2026-07-29) — the coexistence window is watched, not
+   trusted. Every recording attempt emits
+   `surfsense.knowledge_store.record.outcome` (`flow` = editor_save / sync_batch /
+   turn_commit; `status` = recorded / noop / failed): a non-zero `failed` rate means
+   git is falling behind Postgres. A daily beat task (`check_knowledge_store_drift`,
+   05:15) runs the seeder's dry-run parity over every **flipped** workspace and emits
+   `surfsense.knowledge_store.drift.check` (ok / drift / error) per workspace, with a
+   warning log naming the missing/extra/mismatched paths — the JSONL report as an
+   always-on alarm instead of a by-hand check.
 
 ## Tests
 

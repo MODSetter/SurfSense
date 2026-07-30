@@ -131,7 +131,7 @@ async def test_expired_write_lock_lands_in_the_report(
     report = await seed_workspace(workspace_id, FILES)
 
     assert not report.ok
-    assert "expired mid-write" in report.error
+    assert "expired mid-block" in report.error
     assert report.seeded_revision is None
     assert report.missing == report.extra == report.mismatched == []
 
