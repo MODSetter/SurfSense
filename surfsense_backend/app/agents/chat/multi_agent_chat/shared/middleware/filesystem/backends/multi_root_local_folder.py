@@ -300,6 +300,36 @@ class MultiRootLocalFolderBackend:
     async def adelete_file(self, file_path: str) -> WriteResult:
         return await asyncio.to_thread(self.delete_file, file_path)
 
+    def mkdir(
+        self,
+        dir_path: str,
+        parents: bool = True,
+        exist_ok: bool = True,
+    ) -> WriteResult:
+        try:
+            mount, local_path = self._split_mount_path(dir_path)
+        except ValueError as exc:
+            return WriteResult(error=f"Error: {exc}")
+        if local_path == "/":
+            # The mount root always exists.
+            return WriteResult(path=dir_path, files_update=None)
+        result = self._mount_to_backend[mount].mkdir(
+            local_path, parents=parents, exist_ok=exist_ok
+        )
+        if result.path:
+            result.path = self._prefix_mount_path(mount, result.path)
+        return result
+
+    async def amkdir(
+        self,
+        dir_path: str,
+        parents: bool = True,
+        exist_ok: bool = True,
+    ) -> WriteResult:
+        return await asyncio.to_thread(
+            self.mkdir, dir_path, parents=parents, exist_ok=exist_ok
+        )
+
     def rmdir(self, dir_path: str) -> WriteResult:
         try:
             mount, local_path = self._split_mount_path(dir_path)
