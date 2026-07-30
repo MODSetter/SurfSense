@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
+from app.agents.chat.runtime.path_resolver import PATH_MARKER
 from app.config import config as app_config
+from app.db import Document, DocumentStatus, DocumentType
 from app.knowledge_store import KnowledgeStore
-from app.services.document_revision_recorder import record_markdown_files
+from app.services import document_revision_recorder as recorder
+from app.services.document_revision_recorder import (
+    record_markdown_files,
+    record_prepared_documents,
+    record_saved_document,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -113,3 +122,234 @@ async def test_disabled_store_records_nothing(monkeypatch, tmp_path, workspace_i
 
     assert revision is None
     assert not (tmp_path / str(workspace_id)).exists()
+
+
+# --- record_saved_document: the editor's path resolution and retitle handling ---
+#
+# The tests above hand `removes` in ready-made, so they only prove the batch
+# primitive honours it. These drive the caller that has to *derive* the removal
+# from the row's path marker — the step a retitle depends on.
+
+
+async def _make_document(session, workspace, user, title: str) -> Document:
+    document = Document(
+        title=title,
+        document_type=DocumentType.NOTE,
+        document_metadata={},
+        content=f"# {title}",
+        content_hash=f"hash-{uuid.uuid4().hex}",
+        unique_identifier_hash=f"unique-{uuid.uuid4().hex}",
+        source_markdown=f"# {title}",
+        workspace_id=workspace.id,
+        created_by_id=user.id,
+        status=DocumentStatus.ready(),
+    )
+    session.add(document)
+    await session.commit()
+    return document
+
+
+async def _save(session, workspace, user, document, *, title, markdown="# Body"):
+    return await record_saved_document(
+        session,
+        workspace_id=workspace.id,
+        doc_id=document.id,
+        title=title,
+        folder_id=None,
+        markdown=markdown,
+        author_user_id=str(user.id),
+    )
+
+
+async def _store_paths(workspace, revision: str) -> set[str]:
+    store = KnowledgeStore.for_workspace(workspace.id)
+    return {entry.path for entry in await store.list_paths(revision)}
+
+
+async def test_a_save_records_the_document_and_remembers_its_path(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert revision is not None
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 1
+    assert "Meeting notes" in next(iter(paths))
+    # Remembered so the *next* save knows where the document used to live.
+    assert "Meeting notes" in document.document_metadata[PATH_MARKER]
+
+
+async def test_a_retitle_leaves_only_the_new_path(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The removal has to be derived from the marker, not supplied by the caller."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Old title")
+    await _save(db_session, db_workspace, db_user, document, title="Old title")
+
+    document.title = "New title"
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="New title"
+    )
+
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 1
+    assert "New title" in next(iter(paths))
+    assert "New title" in document.document_metadata[PATH_MARKER]
+
+
+async def test_a_retitle_records_the_move_as_one_revision(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """Two revisions, not three: the drop rides along with the write."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Old title")
+    await _save(db_session, db_workspace, db_user, document, title="Old title")
+
+    document.title = "New title"
+    await _save(db_session, db_workspace, db_user, document, title="New title")
+
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    assert len(await store.list_revisions()) == 2
+
+
+async def test_no_marker_is_left_when_nothing_was_recorded(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """A marker without a file makes the row look indexer-owned, so a later
+    whole-tree converge would prune it."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+
+    document.document_metadata = {}
+    await db_session.commit()
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert revision is None
+    assert PATH_MARKER not in document.document_metadata
+
+
+async def test_a_marker_outside_the_documents_namespace_is_not_dropped(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """Resolving it raises; swallowing that is what keeps the save recordable."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    document.document_metadata = {PATH_MARKER: "/elsewhere/foreign.xml"}
+    await db_session.commit()
+
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert revision is not None
+    assert len(await _store_paths(db_workspace, revision)) == 1
+
+
+async def test_a_save_in_an_unflipped_workspace_records_nothing(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(False)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert revision is None
+    assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_a_recording_failure_does_not_fail_the_save(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip, monkeypatch
+):
+    """The Postgres save already committed; the store is the coexisting copy."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    async def boom(**kwargs):
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert revision is None
+    assert PATH_MARKER not in document.document_metadata
+
+
+# --- record_prepared_documents: the connector sync batch ---
+
+
+async def test_a_sync_batch_records_every_document_with_markdown(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    first = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+    second = await _make_document(db_session, db_workspace, db_user, "OKRs")
+
+    revision = await record_prepared_documents(db_session, [first, second])
+
+    assert revision is not None
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 2
+    assert any("Roadmap" in path for path in paths)
+
+
+async def test_a_document_without_markdown_is_left_out_of_the_batch(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """An extraction that produced nothing must not land as an empty file."""
+    workspace_flip(True)
+    kept = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+    empty = await _make_document(db_session, db_workspace, db_user, "Unextracted")
+    empty.source_markdown = None
+    await db_session.commit()
+
+    revision = await record_prepared_documents(db_session, [kept, empty])
+
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 1
+    assert "Roadmap" in next(iter(paths))
+
+
+async def test_an_empty_sync_batch_records_nothing(
+    knowledge_root, db_session, workspace_flip
+):
+    workspace_flip(True)
+
+    assert await record_prepared_documents(db_session, []) is None
+
+
+async def test_a_sync_batch_in_an_unflipped_workspace_records_nothing(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(False)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    assert await record_prepared_documents(db_session, [document]) is None
+    assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_a_sync_batch_failure_does_not_reach_the_caller(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip, monkeypatch
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    async def boom(**kwargs):
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+
+    assert await record_prepared_documents(db_session, [document]) is None
