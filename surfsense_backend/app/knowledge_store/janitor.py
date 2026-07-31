@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.knowledge_store.store import KnowledgeStore
-from app.knowledge_store.store_path import working_copies_root
+from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.paths import working_copies_root
 
 #: Far beyond any turn; a crashed turn's copy is recovered (committed) by the
 #: thread's next turn well before this — only abandoned threads reach the TTL.

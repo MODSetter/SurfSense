@@ -23,7 +23,7 @@ from app.agents.chat.runtime.path_resolver import (
 )
 from app.knowledge_store.engines.base import TrackedPath
 from app.knowledge_store.identities import MIGRATION_IDENTITY
-from app.knowledge_store.store import KnowledgeStore
+from app.knowledge_store import KnowledgeStore
 
 logger = logging.getLogger(__name__)
 
