@@ -495,7 +495,7 @@ async def _discover_lm_studio_models(conn: Connection) -> list[dict[str, Any]]:
 
     raise ModelDiscoveryError(
         "LM Studio native model discovery is unavailable. "
-        "Upgrade LM Studio to version 0.4 or newer, or enter the model ID manually."
+        "Upgrade LM Studio to version 0.4 or newer."
     )
 
 
