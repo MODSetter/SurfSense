@@ -11,14 +11,14 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import func, select
 
-import app.knowledge_store.write_lock as write_lock
+import app.knowledge_store.locks as write_lock
 from app.config import config as app_config
 from app.db import Chunk, Document, Workspace
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import user_identity
 from app.knowledge_store.index.converge import index_changes
 from app.knowledge_store.index.project import project_revision
-from app.knowledge_store.write_lock import workspace_index_lock
+from app.knowledge_store.locks import workspace_index_lock
 
 pytestmark = pytest.mark.integration
 

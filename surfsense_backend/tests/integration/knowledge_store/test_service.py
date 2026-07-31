@@ -9,7 +9,7 @@ import pytest
 from app.agents.chat.runtime.path_resolver import PATH_MARKER
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType
-from app.knowledge_store import KnowledgeStore, service as recorder
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.service import (
     drop_workspace_store,
     record_deleted_documents,
@@ -362,10 +362,10 @@ async def test_a_recording_failure_does_not_fail_the_save(
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
 
-    async def boom(**kwargs):
+    async def boom(self, **kwargs):
         raise RuntimeError("store unavailable")
 
-    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
 
     revision = await _save(
         db_session, db_workspace, db_user, document, title="Meeting notes"
@@ -434,10 +434,10 @@ async def test_a_sync_batch_failure_does_not_reach_the_caller(
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
 
-    async def boom(**kwargs):
+    async def boom(self, **kwargs):
         raise RuntimeError("store unavailable")
 
-    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
 
     assert await record_prepared_documents(db_session, [document]) is None
 
@@ -510,10 +510,10 @@ async def test_a_delete_failure_does_not_reach_the_caller(
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
 
-    async def boom(**kwargs):
+    async def boom(self, **kwargs):
         raise RuntimeError("store unavailable")
 
-    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
 
     assert await record_deleted_documents(db_session, [document]) is None
 
@@ -659,10 +659,10 @@ async def test_a_move_failure_leaves_the_marker_alone(
     document = await _make_document(db_session, db_workspace, db_user, "Old name")
     await _save(db_session, db_workspace, db_user, document, title="Old name")
 
-    async def boom(**kwargs):
+    async def boom(self, **kwargs):
         raise RuntimeError("store unavailable")
 
-    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
     document.title = "New name"
 
     assert await record_moved_documents(db_session, [document]) is None

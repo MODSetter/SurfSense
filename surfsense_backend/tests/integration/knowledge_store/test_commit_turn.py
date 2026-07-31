@@ -21,7 +21,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
 from app.config import config as app_config
 from app.db import Document
 from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.write_lock import workspace_write_lock
+from app.knowledge_store.locks import workspace_write_lock
 
 pytestmark = pytest.mark.integration
 
@@ -334,7 +334,7 @@ async def test_the_turn_announces_the_rows_it_just_created(
     Uses a real workspace row because the announcement carries a document id,
     and that id only exists once the projection has written the row.
     """
-    monkeypatch.setattr(commit_turn, "shielded_async_session", _yielding(db_session))
+    monkeypatch.setattr("app.db.shielded_async_session", _yielding(db_session))
     events: list[tuple[str, dict]] = []
     monkeypatch.setattr(
         commit_turn,

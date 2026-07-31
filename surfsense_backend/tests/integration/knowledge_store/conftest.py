@@ -10,7 +10,7 @@ import uuid
 
 import pytest
 
-import app.knowledge_store.write_lock as write_lock
+import app.knowledge_store.locks as write_lock
 
 
 @pytest.fixture
