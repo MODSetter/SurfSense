@@ -148,7 +148,7 @@ async def test_lm_studio_falls_back_to_legacy_v0_only_when_v1_is_absent(
 
 
 @pytest.mark.asyncio
-async def test_lm_studio_falls_back_to_openai_models_after_native_apis(
+async def test_lm_studio_rejects_when_native_apis_are_unavailable(
     monkeypatch,
 ) -> None:
     root = "http://host.docker.internal:1234"
@@ -157,21 +157,19 @@ async def test_lm_studio_falls_back_to_openai_models_after_native_apis(
         {
             f"{root}/api/v1/models": (404, {"error": "not found"}),
             f"{root}/api/v0/models": (405, {"error": "method not allowed"}),
-            f"{root}/v1/models": (
-                200,
-                {"data": [{"id": "legacy-local-model"}]},
-            ),
         },
     )
 
-    models = await discover_models(_connection())
+    with pytest.raises(
+        ModelDiscoveryError,
+        match=r"Upgrade LM Studio to version 0\.4 or newer",
+    ):
+        await discover_models(_connection())
 
     assert [url for url, _headers in requests] == [
         f"{root}/api/v1/models",
         f"{root}/api/v0/models",
-        f"{root}/v1/models",
     ]
-    assert models[0]["model_id"] == "legacy-local-model"
 
 
 @pytest.mark.asyncio
