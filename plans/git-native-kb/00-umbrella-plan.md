@@ -165,11 +165,13 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 6 — Zero / real-time projection [`subplan: 06-zero-projection.md`]
 
-> **PLANNED. The one net-new integration cost.** Depends on 03/04.
+> **SHIPPED (2026-07-31).** The one net-new integration cost. Depends on 03/04. The subplan records the one place the build reversed the plan.
 
-- The web UI is driven by Zero (Postgres logical replication, `zero_publication.py`). Git is not a real-time source, so add a **git → Postgres projection** that keeps the Zero-published `documents`/`folders` rows in sync after each commit (thin metadata rows, not content-authoritative).
-- Decide: reuse the indexer's post-commit hook to upsert Zero rows vs. a separate projector.
-- Tests: after a commit, the Zero-published rows reflect the new tree within the projection cycle; deleting a file removes its row.
+- The web UI is driven by Zero (Postgres logical replication, `zero_publication.py`). Git is not a real-time source, so a **git → Postgres projection** keeps the Zero-published `documents`/`folders` rows in sync after each commit (thin metadata rows, not content-authoritative).
+- Owner decided **against** the planned default: the projection runs at **commit time** (`index/project.py`), not inside the Phase-4 indexer. Folding it in had made UI freshness wait on chunking and embedding, because the row — the only thing the UI needs — was written in the same transaction as the vectors. Row work is milliseconds and now runs inline; chunk/vector work stays async. Shared identity logic lives in `index/rows.py` so the two writers cannot disagree.
+- The commit path then dispatches `document_created/updated/deleted` with the real row ids, restoring the optimistic sidebar overlay the legacy path had.
+- Tests: projection upsert/rename/delete, stamp untouched, a following index adopts the same row, lock contention stands aside, and the turn announces its rows.
+- Known gap (documented, out of phase): an emptied `folders` row is never pruned and `folder_deleted` never fires — folders are implicit in git, so no diff announces one emptying.
 
 ## Sequencing (critical path vs. parallel)
 
@@ -192,7 +194,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 ## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
 1. ~~Repo location & layout~~ → **persistent working tree at `{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`, layout = the full virtual path (`documents/...`), as shipped by the Phase-3 recorder and matched by the Phase-5 seeder** (C1).
-2. ~~Zero projection owner~~ → **folded into the Phase-4 post-commit indexer** (C5).
+2. ~~Zero projection owner~~ → ~~folded into the Phase-4 post-commit indexer~~ (C5) → **reversed at build time (2026-07-31): the projection runs at commit, the indexer keeps converging the same rows.** Folding it in coupled UI freshness to embedding latency; see [`06-zero-projection.md`](06-zero-projection.md).
 3. **Binaries** — keep blob store (confirmed markdown/text-only in git); Git-LFS deferred.
 4. ~~Lock granularity~~ → **Redis lock, from v1** (deploy is multi-process: uvicorn + Celery) (C3).
 5. ~~`content_hash` vs blob SHA~~ → **different values (content_hash is workspace-salted); key reuse by blob SHA, keep content_hash through migration** (C5).
@@ -218,7 +220,7 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 4 | `04-derived-index.md` | ✅ SHIPPED (2026-07-30) |
 | 5 | `05-migration.md` | TOOLING SHIPPED (2026-07-30) — fleet flips + cut-time deletion pending |
 | 5a | `05a-seed-runbook.md` | operational runbook for the production seed + flip |
-| 6 | `06-zero-projection.md` | PLANNED |
+| 6 | `06-zero-projection.md` | ✅ SHIPPED (2026-07-31) — projection split out of the indexer, not folded in |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred").
