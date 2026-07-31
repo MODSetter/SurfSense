@@ -17,6 +17,13 @@ import redis.asyncio as redis
 from redis.exceptions import LockError, LockNotOwnedError
 
 from app.config import config
+from app.knowledge_store.exceptions import KnowledgeStoreLockError
+
+__all__ = [
+    "KnowledgeStoreLockError",
+    "workspace_index_lock",
+    "workspace_write_lock",
+]
 
 # Auto-expiry so a crashed writer can't wedge a workspace; must outlast a write.
 LOCK_TTL_SECONDS = 30.0
@@ -28,10 +35,6 @@ INDEX_LOCK_TTL_SECONDS = 1800.0
 # A contender gives up quickly: the holder converges to the current revision
 # anyway, and the drift sweep re-drives anything it missed.
 INDEX_LOCK_WAIT_SECONDS = 5.0
-
-
-class KnowledgeStoreLockError(RuntimeError):
-    """A workspace lock could not be acquired, or a hold expired mid-block."""
 
 
 def _lock_key(workspace_id: int | str, purpose: str) -> str:

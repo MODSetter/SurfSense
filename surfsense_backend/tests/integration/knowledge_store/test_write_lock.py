@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-import app.knowledge_store.write_lock as write_lock
-from app.knowledge_store.write_lock import (
+import app.knowledge_store.locks as write_lock
+from app.knowledge_store.locks import (
     KnowledgeStoreLockError,
     workspace_write_lock,
 )
