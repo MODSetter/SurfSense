@@ -33,8 +33,8 @@ from app.knowledge_store.index.rows import (
     revision_author_id,
     upsert_row,
 )
-from app.knowledge_store.store import KnowledgeStore
-from app.knowledge_store.write_lock import workspace_index_lock
+from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.locks import workspace_index_lock
 
 logger = logging.getLogger(__name__)
 

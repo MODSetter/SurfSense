@@ -29,8 +29,8 @@ from app.knowledge_store.index.rows import (
     revision_author_id,
     upsert_row,
 )
-from app.knowledge_store.store import KnowledgeStore
-from app.knowledge_store.write_lock import (
+from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.locks import (
     KnowledgeStoreLockError,
     workspace_index_lock,
 )

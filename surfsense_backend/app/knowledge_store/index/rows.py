@@ -27,7 +27,7 @@ from app.agents.chat.runtime.path_resolver import (
     virtual_path_to_doc,
 )
 from app.db import Document, DocumentStatus, DocumentType, Workspace
-from app.knowledge_store.store import KnowledgeStore
+from app.knowledge_store import KnowledgeStore
 from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     generate_content_hash,
