@@ -132,7 +132,9 @@ Re-embedding is never on that path.
    a workspace that just resurrected deleted content. Flip a real workspace before the
    delete path records a revision and user deletions come back on the next drift run.
    Any other HTTP write that bypasses the recorder has the same shape; auditing the
-   route surface is part of the fix, not a follow-up to it.
+   route surface is part of the fix, not a follow-up to it. The audit found about
+   twenty such writers, which turned the fix into its own phase —
+   [`07-direct-caller-adapter.md`](07-direct-caller-adapter.md). The flip waits on it.
 
 ## Tests
 

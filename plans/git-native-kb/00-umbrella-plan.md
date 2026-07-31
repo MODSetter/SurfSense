@@ -173,6 +173,15 @@ Every decision traces to a proven source (full list + links in the ADR):
 - Tests: projection upsert/rename/delete, stamp untouched, a following index adopts the same row, lock contention stands aside, and the turn announces its rows.
 - Known gap (documented, out of phase): an emptied `folders` row is never pruned and `folder_deleted` never fires — folders are implicit in git, so no diff announces one emptying.
 
+### Phase 7 — Direct-caller adapter [`subplan: 07-direct-caller-adapter.md`]
+
+> **IN PROGRESS (2026-07-31).** Not planned as a phase; forced by the canary. Blocks the Phase 5 flip.
+
+- The agent reaches git through the Phase-3 commit path, and the editor and the four ingestion flows reach it through `services/document_revision_recorder.py`. **About twenty other writers do not** — every delete, every move and rename, and the creates that skip `prepare_for_indexing`. A delete leaves its file behind, so the next rebuild resurrects the document and the drift check then reports `ok`.
+- Fixed at the adapter, not at the twenty call sites: the recorder grows `remove` and `move` verbs and the callers hand it documents, never paths. Twenty handlers each remembering is how six got wired and twenty did not.
+- A move records as `tx.move` so Phase 4's rename detection keeps the document id; deletes and moves record *before* the Postgres commit, because the path is read from the row that is about to disappear.
+- The two Core-level bulk deletes (connector, workspace) bypass the ORM entirely and are wired by hand — which is also why a session-event chokepoint was rejected.
+
 ## Sequencing (critical path vs. parallel)
 
 - **Phase 0 first:** `00c` is a design agreement (no code) — sign off on the five contracts before starting `01`.
@@ -190,9 +199,9 @@ Every decision traces to a proven source (full list + links in the ADR):
 - **Graphiti / bi-temporal fact graph** (agent memory time-travel).
 - **Git-LFS for binaries** (blob store stays).
 - **Frontend/client umbrella** (version-history UI removal, any UX changes).
-- **KB REST/HTTP adapter** (ADR 0002, named-but-deferred). Deferring it is not free while
-  the old routes stay: `DELETE /documents/{id}` drops the row and leaves the file in git,
-  so a rebuild resurrects it. Tracked as a pre-flip blocker — Phase 5, work item 8.
+- **KB REST/HTTP read side** (ADR 0002, named-but-deferred): serving document content from
+  git over HTTP. Rows still answer reads. The *write* half stopped being deferrable — see
+  Phase 7.
 
 ## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
@@ -224,6 +233,7 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 5 | `05-migration.md` | TOOLING SHIPPED (2026-07-30) — fleet flips + cut-time deletion pending |
 | 5a | `05a-seed-runbook.md` | operational runbook for the production seed + flip |
 | 6 | `06-zero-projection.md` | ✅ SHIPPED (2026-07-31) — projection split out of the indexer, not folded in |
+| 7 | `07-direct-caller-adapter.md` | IN PROGRESS (2026-07-31) — blocks the Phase 5 flip |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred").
