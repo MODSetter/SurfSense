@@ -347,13 +347,13 @@ def _lm_studio_context_length(item: dict[str, Any], source: str) -> int | None:
 
 
 def _lm_studio_native_v1_models(payload: Any) -> list[dict[str, Any]]:
-    if not isinstance(payload, list):
+    if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
         raise ModelDiscoveryError(
             "LM Studio native v1 returned an unsupported model-list response."
         )
 
     results: list[dict[str, Any]] = []
-    for item in payload:
+    for item in payload["models"]:
         if not isinstance(item, dict):
             raise ModelDiscoveryError(
                 "LM Studio native v1 returned an invalid model record."
