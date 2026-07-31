@@ -50,6 +50,16 @@ def test_backend_resolver_uses_kb_postgres_in_cloud_with_workspace():
     assert backend.workspace_id == 42
 
 
+def test_backend_resolver_uses_git_tree_when_knowledge_store_enabled():
+    # The caller resolves the per-workspace verdict; the resolver only obeys it.
+    resolver = build_backend_resolver(
+        FilesystemSelection(), workspace_id=42, knowledge_store_enabled=True
+    )
+    backend = resolver(_RuntimeStub())
+    assert backend.__class__.__name__ == "GitTreeBackend"
+    assert backend.workspace_id == 42
+
+
 def test_backend_resolver_returns_multi_root_backend_for_multiple_roots(tmp_path: Path):
     root_one = tmp_path / "resume"
     root_two = tmp_path / "notes"

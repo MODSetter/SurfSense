@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.celery_app import celery_app
 from app.db import Document
 from app.indexing_pipeline.adapters.file_upload_adapter import UploadDocumentAdapter
+from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
@@ -39,6 +40,20 @@ async def _reindex_document(document_id: int, user_id: str):
 
         if not document:
             logger.error(f"Document {document_id} not found")
+            return
+
+        if await knowledge_store_enabled_for(document.workspace_id):
+            # The store indexer owns this document's chunks. Both writers would
+            # otherwise reconcile the same rows from different sources — this one
+            # from Postgres `source_markdown` with the editor's first-heading
+            # title, the indexer from git with the filename stem — so the title
+            # would flip on every save. Guarded here rather than at the two call
+            # sites so neither can be missed.
+            logger.info(
+                "Skipping editor reindex of document %s; "
+                "the knowledge-store indexer owns its chunks",
+                document_id,
+            )
             return
 
         task_logger = TaskLoggingService(session, document.workspace_id)
