@@ -27,6 +27,7 @@ from app.routes.reports_routes import (
     _normalize_latex_delimiters,
     _strip_wrapping_code_fences,
 )
+from app.services.document_revision_recorder import record_saved_document
 from app.templates.export_helpers import (
     get_html_css_path,
     get_reference_docx_path,
@@ -284,9 +285,10 @@ async def save_document(
         raise HTTPException(status_code=400, detail="source_markdown must be a string")
 
     # For NOTE type, extract title from first heading line if present
+    provided_title = data.get("title")
     if document.document_type == DocumentType.NOTE:
         # If the frontend sends a title, use it; otherwise extract from markdown
-        new_title = data.get("title")
+        new_title = provided_title
         if not new_title:
             # Extract title from the first line of markdown (# Heading)
             for line in source_markdown.split("\n"):
@@ -310,6 +312,18 @@ async def save_document(
     document.content_needs_reindexing = True
 
     await session.commit()
+
+    await record_saved_document(
+        session,
+        workspace_id=workspace_id,
+        doc_id=document.id,
+        title=document.title,
+        folder_id=document.folder_id,
+        markdown=source_markdown,
+        author_user_id=str(user.id),
+        # A title read back off the heading above is not a rename request.
+        title_is_explicit=bool(provided_title),
+    )
 
     # Queue reindex task
     reindex_document_task.delay(document_id, str(user.id))

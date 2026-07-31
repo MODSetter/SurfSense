@@ -1475,6 +1475,13 @@ class Chunk(BaseModel, TimestampMixin):
     # building a position index on the large chunks table is not worth it.
     position = Column(Integer, nullable=False, server_default="0")
 
+    # 1-based inclusive line range this chunk was cut from, in the document's
+    # source markdown. Sole consumer is rendering true line numbers on search
+    # excerpts; never a stored reference, so a rebuild cannot strand it.
+    # NULL on rows written before spans existed.
+    start_line = Column(Integer, nullable=True)
+    end_line = Column(Integer, nullable=True)
+
     document_id = Column(
         Integer,
         ForeignKey("documents.id", ondelete="CASCADE"),
@@ -1736,6 +1743,18 @@ class Workspace(BaseModel, TimestampMixin):
     # NULL = never self-configured. Set once, never cleared; splits a needs_setup
     # verdict into first-run vs. recovery.
     llm_setup_completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    # Progressive git-native flip: this workspace uses the git-backed knowledge
+    # store only when this AND the global KNOWLEDGE_STORE_ENABLED are true.
+    # Flipped per workspace after its migration seed passes parity.
+    knowledge_store_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    # Revision the derived index (chunks + embeddings) was last built from.
+    # NULL means never indexed; ``!= store.get_current_revision()`` is the drift
+    # predicate the sweep uses to re-drive a workspace.
+    last_indexed_revision = Column(String(64), nullable=True)
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False

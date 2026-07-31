@@ -392,6 +392,33 @@ class LocalFolderBackend:
     async def adelete_file(self, file_path: str) -> WriteResult:
         return await asyncio.to_thread(self.delete_file, file_path)
 
+    def mkdir(
+        self,
+        dir_path: str,
+        parents: bool = True,
+        exist_ok: bool = True,
+    ) -> WriteResult:
+        """Create a directory under root so subsequent writes into it succeed."""
+        try:
+            path = self._resolve_virtual(dir_path)
+        except ValueError:
+            return WriteResult(error=f"Error: Invalid path '{dir_path}'")
+        try:
+            path.mkdir(parents=parents, exist_ok=exist_ok)
+        except OSError as exc:
+            return WriteResult(error=f"Error: failed to mkdir '{dir_path}': {exc}")
+        return WriteResult(path=dir_path, files_update=None)
+
+    async def amkdir(
+        self,
+        dir_path: str,
+        parents: bool = True,
+        exist_ok: bool = True,
+    ) -> WriteResult:
+        return await asyncio.to_thread(
+            self.mkdir, dir_path, parents=parents, exist_ok=exist_ok
+        )
+
     def rmdir(self, dir_path: str) -> WriteResult:
         """Hard-delete an empty directory under root.
 
