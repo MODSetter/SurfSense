@@ -48,24 +48,26 @@ async def test_lm_studio_uses_native_v1_capabilities(monkeypatch) -> None:
         {
             native_url: (
                 200,
-                [
-                    {
-                        "type": "llm",
-                        "key": "google/gemma-4-e4b",
-                        "display_name": "Gemma 4 E4B",
-                        "max_context_length": 131072,
-                        "capabilities": {
-                            "vision": True,
-                            "trained_for_tool_use": True,
+                {
+                    "models": [
+                        {
+                            "type": "llm",
+                            "key": "google/gemma-4-e4b",
+                            "display_name": "Gemma 4 E4B",
+                            "max_context_length": 131072,
+                            "capabilities": {
+                                "vision": True,
+                                "trained_for_tool_use": True,
+                            },
                         },
-                    },
-                    {
-                        "type": "embedding",
-                        "key": "text-embedding-nomic-embed-text-v1.5",
-                        "display_name": "Nomic Embed",
-                        "max_context_length": 2048,
-                    },
-                ],
+                        {
+                            "type": "embedding",
+                            "key": "text-embedding-nomic-embed-text-v1.5",
+                            "display_name": "Nomic Embed",
+                            "max_context_length": 2048,
+                        },
+                    ]
+                },
             )
         },
     )
@@ -100,7 +102,7 @@ async def test_lm_studio_uses_native_v1_capabilities(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_lm_studio_sends_token_to_native_discovery(monkeypatch) -> None:
     native_url = "https://lm.example.com/team/api/v1/models"
-    requests = _mock_responses(monkeypatch, {native_url: (200, [])})
+    requests = _mock_responses(monkeypatch, {native_url: (200, {"models": []})})
 
     await discover_models(
         _connection(
