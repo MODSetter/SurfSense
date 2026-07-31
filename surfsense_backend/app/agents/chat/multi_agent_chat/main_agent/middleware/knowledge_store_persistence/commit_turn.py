@@ -7,7 +7,6 @@ fallback can run the identical routine when ``aafter_agent`` is skipped.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Mapping
 from typing import Any
 
 from langchain_core.callbacks import dispatch_custom_event
@@ -15,19 +14,13 @@ from langchain_core.callbacks import dispatch_custom_event
 from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence.commit_message import (
     generate_commit_message,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
-    thread_working_copy_id,
-)
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import (
     Receipt,
     make_receipt,
 )
-from app.db import DocumentType, shielded_async_session
-from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
-from app.knowledge_store.index.project import Projection, project_revision
-from app.knowledge_store.index.queue import enqueue_index
-from app.observability import metrics
+from app.db import DocumentType
+from app.knowledge_store import KnowledgeStore, Outcome
+from app.knowledge_store.service import thread_working_copy_id
 
 logger = logging.getLogger(__name__)
 
@@ -59,27 +52,17 @@ async def commit_turn_working_copy(
     failed receipts are returned instead of raising, so the turn still ends.
     """
     store = KnowledgeStore.for_workspace(workspace_id)
-    copy_id = thread_working_copy_id(thread_id)
+
+    async def describe(writes, removes) -> str:
+        subject = await generate_commit_message(llm, writes=writes, removes=removes)
+        return f"{subject}\n\nThread: {thread_id}"
+
     try:
-        writes, removes = await store.diff_working_copy(copy_id)
+        outcome = await store.commit_turn(
+            thread_id=thread_id, author_user_id=created_by_id, describe=describe
+        )
     except FileNotFoundError:
         return None
-    if not writes and not removes:
-        await store.discard_working_copy(copy_id)
-        return None
-
-    subject = await generate_commit_message(llm, writes=writes, removes=removes)
-    message = f"{subject}\n\nThread: {thread_id}"
-    try:
-        async with store.transaction(
-            message=message,
-            author=user_identity(created_by_id),
-            committer=AGENT_IDENTITY,
-        ) as tx:
-            for path, content in writes.items():
-                tx.write(path, content)
-            for path in removes:
-                tx.remove(path)
     except Exception as exc:
         logger.warning(
             "End-of-turn commit failed for workspace %s thread %s: %s",
@@ -87,29 +70,16 @@ async def commit_turn_working_copy(
             thread_id,
             exc,
         )
-        metrics.record_knowledge_store_record_outcome(
-            flow="turn_commit",
-            status="failed",
-            error_category=metrics.categorize_exception(exc),
-        )
-        return {"receipts": _failed_receipts(writes, removes, exc)}
+        return {"receipts": await _failed_receipts(store, thread_id, exc)}
 
-    await store.discard_working_copy(copy_id)
-    metrics.record_knowledge_store_record_outcome(
-        flow="turn_commit", status="recorded" if tx.revision else "noop"
-    )
-    if tx.revision is None:
+    if outcome.revision is None:
         return None
-    # Rows first, then the announcement that names them, then the slow half.
-    async with shielded_async_session() as session:
-        projection = await project_revision(session, workspace_id, tx.revision)
-    _announce(projection, workspace_id=workspace_id, created_by_id=created_by_id)
-    enqueue_index(workspace_id)
-    return {"receipts": await _recorded_receipts(store, tx.revision)}
+    _announce(outcome, workspace_id=workspace_id, created_by_id=created_by_id)
+    return {"receipts": _recorded_receipts(outcome)}
 
 
 def _announce(
-    projection: Projection, *, workspace_id: int | str, created_by_id: str | None
+    outcome: Outcome, *, workspace_id: int | str, created_by_id: str | None
 ) -> None:
     """Tell the still-open chat stream about rows the UI can show right now.
 
@@ -117,8 +87,10 @@ def _announce(
     not written yet. A failed dispatch only costs that head start, so it is
     logged and dropped rather than raised into a turn whose work is committed.
     """
+    if outcome.projection is None:
+        return
     for event, bucket in _EVENT_BY_BUCKET:
-        for document in getattr(projection, bucket):
+        for document in getattr(outcome.projection, bucket):
             try:
                 dispatch_custom_event(
                     event,
@@ -136,7 +108,7 @@ def _announce(
                 logger.debug("Failed to dispatch %s", event, exc_info=True)
 
 
-async def _recorded_receipts(store: KnowledgeStore, revision: str) -> list[Receipt]:
+def _recorded_receipts(outcome: Outcome) -> list[Receipt]:
     """Ground truth for the orchestrator: one receipt per recorded change."""
     return [
         make_receipt(
@@ -144,16 +116,21 @@ async def _recorded_receipts(store: KnowledgeStore, revision: str) -> list[Recei
             type="file",
             operation=_OPERATION_BY_KIND[change.kind],
             status="success",
-            external_id=revision,
+            external_id=outcome.revision,
             preview=change.path,
         )
-        for change in await store.list_changes(revision)
+        for change in outcome.changes
     ]
 
 
-def _failed_receipts(
-    writes: Mapping[str, bytes], removes: Iterable[str], exc: Exception
+async def _failed_receipts(
+    store: KnowledgeStore, thread_id: int | str | None, exc: Exception
 ) -> list[Receipt]:
+    """One failed receipt per leftover change, read back off the kept copy."""
+    try:
+        writes, removes = await store.diff_working_copy(thread_working_copy_id(thread_id))
+    except FileNotFoundError:
+        writes, removes = {}, []
     return [
         make_receipt(
             route="knowledge_base",
