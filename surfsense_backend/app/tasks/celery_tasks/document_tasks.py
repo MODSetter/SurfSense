@@ -261,6 +261,7 @@ async def _delete_workspace_background(workspace_id: int) -> None:
 
     from app.db import Chunk, Document, Workspace
     from app.file_storage.service import purge_document_blobs
+    from app.knowledge_store.service import drop_workspace_store
 
     async with get_celery_session_maker()() as session:
         batch_size = 500
@@ -296,6 +297,10 @@ async def _delete_workspace_background(workspace_id: int) -> None:
         if space:
             await session.delete(space)
             await session.commit()
+
+    # Outside the `if`: a retry after a half-finished run finds no workspace row
+    # and would otherwise leave the store on disk forever.
+    await drop_workspace_store(workspace_id)
 
 
 @celery_app.task(name="process_extension_document", bind=True)

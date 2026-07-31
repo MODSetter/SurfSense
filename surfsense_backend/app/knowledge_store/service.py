@@ -22,6 +22,7 @@ notices.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
@@ -350,6 +351,38 @@ async def record_moved_documents(
         flow="move", status="recorded" if revision else "noop"
     )
     return revision
+
+
+async def drop_workspace_store(workspace_id: int | str) -> None:
+    """Delete a workspace's store outright — history, working copies and all.
+
+    A workspace that is going away has nothing left to record a revision into,
+    and removing its paths one revision at a time would spend minutes writing a
+    history that is deleted in the same breath.
+
+    Not gated on the flag: a workspace seeded ahead of its flip has a store too,
+    and leaving it behind would hand the next workspace to reuse that id
+    somebody else's documents.
+    """
+    import shutil
+
+    from app.knowledge_store.store_path import (
+        workspace_store_path,
+        workspace_working_copies_path,
+    )
+
+    for path in (
+        workspace_store_path(workspace_id),
+        workspace_working_copies_path(workspace_id),
+    ):
+        try:
+            await asyncio.to_thread(shutil.rmtree, path, ignore_errors=False)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            logger.warning(
+                "Could not delete knowledge store directory %s", path, exc_info=True
+            )
 
 
 def _store_path_of(document: Document, index: PathIndex) -> str | None:

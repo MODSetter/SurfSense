@@ -11,6 +11,7 @@ from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType
 from app.knowledge_store import KnowledgeStore, service as recorder
 from app.knowledge_store.service import (
+    drop_workspace_store,
     record_deleted_documents,
     record_markdown_files,
     record_moved_documents,
@@ -628,6 +629,26 @@ async def test_a_move_in_an_unflipped_workspace_records_nothing(
 
     assert await record_moved_documents(db_session, [document]) is None
     assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_dropping_a_workspace_takes_its_store_with_it(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+    assert (knowledge_root / str(db_workspace.id)).exists()
+
+    await drop_workspace_store(db_workspace.id)
+
+    assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_dropping_a_workspace_that_never_had_a_store_is_quiet(
+    knowledge_root, db_workspace
+):
+    """A workspace deleted before it was ever flipped has nothing on disk."""
+    await drop_workspace_store(db_workspace.id)
 
 
 async def test_a_move_failure_leaves_the_marker_alone(
