@@ -9,9 +9,8 @@ import pytest
 from app.agents.chat.runtime.path_resolver import PATH_MARKER
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType
-from app.knowledge_store import KnowledgeStore
-from app.services import document_revision_recorder as recorder
-from app.services.document_revision_recorder import (
+from app.knowledge_store import KnowledgeStore, service as recorder
+from app.knowledge_store.service import (
     record_deleted_documents,
     record_markdown_files,
     record_moved_documents,

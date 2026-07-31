@@ -1,12 +1,23 @@
-"""Direct-caller adapter: document changes become knowledge-store revisions.
+"""Application service: document changes become knowledge-store revisions.
 
-Everything that is not an agent turn comes through here — editor saves,
-upload-extracted markdown, connector sync batches, deletes and moves — behind
-the per-workspace knowledge-store flag.
+The one door for everything that is not an agent turn — editor saves,
+upload-extracted markdown, connector sync batches, deletes, moves. Routes,
+Celery tasks and other services call these verbs; none of them open a
+transaction against the store themselves.
 
 Callers hand over documents, never paths. Where a document's file lives is a
 question only this module and the marker on the row can answer, and a caller
-that recomputes it is a caller whose delete misses the file.
+that recomputes it is a caller whose delete misses the file the agent named.
+
+Every verb is a no-op on a workspace that is not git-backed, so callers do not
+have to ask first. When a caller needs the answer for its own behaviour —
+refusing an operation git cannot express, say —
+:func:`app.knowledge_store.settings.knowledge_store_enabled_for` is the query.
+
+Never raises. The Postgres write path coexists with the store until the
+migration's cut, so a store that cannot be reached must not fail a mutation the
+user already made; failures are logged and counted, and the drift check is what
+notices.
 """
 
 from __future__ import annotations
