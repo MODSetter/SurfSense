@@ -190,6 +190,9 @@ Every decision traces to a proven source (full list + links in the ADR):
 - **Graphiti / bi-temporal fact graph** (agent memory time-travel).
 - **Git-LFS for binaries** (blob store stays).
 - **Frontend/client umbrella** (version-history UI removal, any UX changes).
+- **KB REST/HTTP adapter** (ADR 0002, named-but-deferred). Deferring it is not free while
+  the old routes stay: `DELETE /documents/{id}` drops the row and leaves the file in git,
+  so a rebuild resurrects it. Tracked as a pre-flip blocker — Phase 5, work item 8.
 
 ## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
