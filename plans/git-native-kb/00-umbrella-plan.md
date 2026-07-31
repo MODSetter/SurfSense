@@ -171,7 +171,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 - Owner decided **against** the planned default: the projection runs at **commit time** (`index/project.py`), not inside the Phase-4 indexer. Folding it in had made UI freshness wait on chunking and embedding, because the row — the only thing the UI needs — was written in the same transaction as the vectors. Row work is milliseconds and now runs inline; chunk/vector work stays async. Shared identity logic lives in `index/rows.py` so the two writers cannot disagree.
 - The commit path then dispatches `document_created/updated/deleted` with the real row ids, restoring the optimistic sidebar overlay the legacy path had.
 - Tests: projection upsert/rename/delete, stamp untouched, a following index adopts the same row, lock contention stands aside, and the turn announces its rows.
-- Known gap (documented, out of phase): an emptied `folders` row is never pruned and `folder_deleted` never fires — folders are implicit in git, so no diff announces one emptying.
+- Known gap (documented, out of phase): an emptied `folders` row is never pruned and `folder_deleted` never fires — folders are implicit in git, so no diff announces one emptying. **Closed by Phase 8's folder law** ([`08-store-facade-and-paths.md`](08-store-facade-and-paths.md)): facade folder verbs + a `.keep` keep-file make folders first-class, so projection can prune an implied folder and persist an explicit empty one.
 
 ### Phase 7 — Direct-caller adapter [`subplan: 07-direct-caller-adapter.md`]
 
@@ -181,6 +181,14 @@ Every decision traces to a proven source (full list + links in the ADR):
 - Fixed at the adapter, not at the twenty call sites: the recorder grows `remove` and `move` verbs and the callers hand it documents, never paths. Twenty handlers each remembering is how six got wired and twenty did not.
 - A move records as `tx.move` so Phase 4's rename detection keeps the document id; deletes and moves record *before* the Postgres commit, because the path is read from the row that is about to disappear.
 - The two Core-level bulk deletes (connector, workspace) bypass the ORM entirely and are wired by hand — which is also why a session-event chokepoint was rejected.
+
+### Phase 8 — Store facade & path law [`subplan: 08-store-facade-and-paths.md`]
+
+> **DESIGN (2026-07-31).** Facade reshaped (`knowledge_store/service.py`); this phase locks the path law and heals it per-workspace through the seed. Prerequisite of the Phase-5 fleet flip.
+
+- One law for naming, layout, and resolution, obeyed identically on the git tree (truth) and the Postgres rows (UI). **Id is identity; the path is an authored-once label** — the Notion/Dendron model, chosen over Obsidian's path-as-identity after surveying both (references are already id-keyed; git can't durably track renames).
+- Postgres gets git's structural guarantee: the path moves off the un-indexed `document_metadata` marker onto a `documents.path` column with a **partial unique index on `(workspace_id, path)`**, healed lazily and finished by the seed. `unique_identifier_hash` demotes to a fallback, which is what makes `.md` safe (retires C1's `.xml` rule).
+- The **migration seed is the debt-fix vehicle**: it re-authors every path canonically in one deterministic pass (`.xml`→`.md`, id-suffix collisions → ` (2)` by `created_at` then `id`), so a workspace crosses the flip already healed. Path logic lives in one submodule (`knowledge_store/paths/`); an import-boundary test keeps it there.
 
 ## Sequencing (critical path vs. parallel)
 
@@ -234,6 +242,7 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 5a | `05a-seed-runbook.md` | operational runbook for the production seed + flip |
 | 6 | `06-zero-projection.md` | ✅ SHIPPED (2026-07-31) — projection split out of the indexer, not folded in |
 | 7 | `07-direct-caller-adapter.md` | IN PROGRESS (2026-07-31) — blocks the Phase 5 flip |
+| 8 | `08-store-facade-and-paths.md` | DESIGN (2026-07-31) — path law + per-workspace heal via the seed; prerequisite of the fleet flip |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred").

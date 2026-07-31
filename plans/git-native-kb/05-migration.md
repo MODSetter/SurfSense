@@ -32,6 +32,13 @@ Re-embedding is never on that path.
   seed commit** (`author=migration`), using the same path rules as the live write path
   (C1). Streamed table scan + file writes: O(documents) I/O, no embeddings, no locks on
   hot tables. Idempotent — re-seeding unchanged content is a no-op commit.
+- **The seed is where the path law is applied (Phase 8).** It re-authors every path
+  canonically in one deterministic pass — `.xml`→`.md`, ` (<doc_id>).xml` collisions →
+  ` (2)` resolved by `created_at` then `id`, recording the chosen path on each row — so
+  a workspace crosses the flip already healed rather than carrying the virtual-FS naming
+  debt forward. Naming/resolution rules and the `documents.path` column they land on:
+  [`08-store-facade-and-paths.md`](08-store-facade-and-paths.md), a prerequisite of the
+  fleet flip.
 - **Preserve identity.** Keep the `unique_identifier_hash` ↔ path mapping so connector
   re-syncs and existing references stay stable.
 - **Parity = byte identity, not reindex.** Gate the flip on: every seeded blob's bytes
