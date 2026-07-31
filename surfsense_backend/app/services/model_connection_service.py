@@ -469,7 +469,12 @@ async def _discover_lm_studio_models(conn: Connection) -> list[dict[str, Any]]:
             response = await client.get(url, headers=_auth_headers(conn))
             if response.status_code in {404, 405}:
                 logger.warning(
-                    "LM Studio model discovery endpoint unavailable; trying fallback",
+                    (
+                        "LM Studio current discovery endpoint unavailable; "
+                        "trying legacy native fallback"
+                        if source == "native_v1"
+                        else "LM Studio native discovery endpoints unavailable"
+                    ),
                     extra={
                         "provider": "lm_studio",
                         "discovery_source": source,
@@ -488,13 +493,10 @@ async def _discover_lm_studio_models(conn: Connection) -> list[dict[str, Any]]:
             _log_lm_studio_discovery(source, results)
             return results
 
-    logger.info(
-        "LM Studio native discovery unavailable; using OpenAI-compatible fallback",
-        extra={"provider": "lm_studio", "discovery_source": "openai_compatible"},
+    raise ModelDiscoveryError(
+        "LM Studio native model discovery is unavailable. "
+        "Upgrade LM Studio to version 0.4 or newer, or enter the model ID manually."
     )
-    results = await _discover_openai_shaped_models(conn, base_url)
-    _log_lm_studio_discovery("openai_compatible", results)
-    return results
 
 
 def _log_lm_studio_discovery(source: str, models: list[dict[str, Any]]) -> None:
