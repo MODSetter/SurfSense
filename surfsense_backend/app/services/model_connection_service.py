@@ -14,6 +14,7 @@ import httpx
 import litellm
 
 from app.db import Connection, Model, ModelSource
+from app.services.context_admission import GEN_AI_MODEL_FALLBACK_MAX_TOKENS
 from app.services.model_resolver import to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
@@ -320,9 +321,9 @@ def _ollama_modelfile_num_ctx(parameters: Any) -> int | None:
 
     Only present when someone authored it with ``ollama create``, so it is a
     stated preference -- usually a smaller window chosen to fit the host's
-    memory. It outranks the architecture maximum because a request-level
-    ``num_ctx`` overrides the Modelfile and we always send one: seeding from it
-    is what stops us from quietly allocating more than was asked for.
+    memory. That makes it the one discovered number worth persisting as a
+    budget: the architecture maximum describes the model, this describes the
+    deployment.
     """
     if not isinstance(parameters, str):
         return None
@@ -333,24 +334,47 @@ def _ollama_modelfile_num_ctx(parameters: Any) -> int | None:
     return None
 
 
-def _ollama_context_length(metadata: dict) -> int | None:
-    """Resolve how much context an Ollama model can take.
+def _ollama_architecture_context_length(metadata: dict) -> int | None:
+    """The context length the weights support, keyed by architecture in
+    ``/api/show``.
 
-    The Modelfile value wins, then the architecture-keyed value from
-    ``/api/show``. ``details`` is the third source because newer Ollama reports
-    ``context_length`` in ``/api/tags`` while ``/api/show`` does not.
+    ``details`` is the second source because newer Ollama reports
+    ``context_length`` in ``/api/tags`` while ``/api/show`` does not. This is a
+    property of the model, not of the host: it says nothing about how much the
+    server was able to allocate.
     """
     model_info = metadata.get("model_info") or {}
     architecture = model_info.get("general.architecture") or ""
     details = metadata.get("details") or {}
     for candidate in (
-        _ollama_modelfile_num_ctx(metadata.get("parameters")),
         model_info.get(f"{architecture}.context_length") if architecture else None,
         details.get("context_length"),
     ):
         resolved = _positive_int(candidate)
         if resolved:
             return resolved
+    return None
+
+
+def _ollama_seed_budget(metadata: dict) -> int | None:
+    """Seed ``max_input_tokens`` for a freshly discovered Ollama model.
+
+    A Modelfile ``num_ctx`` is a human's statement about this deployment, so it
+    is taken verbatim. The architecture maximum is not: Ollama sizes the context
+    from free memory at load time, so a 262k-capable model routinely loads at a
+    fraction of that. Seeding it verbatim would budget against a context length
+    the host never allocated. Capping at the generic fallback keeps the case
+    that matters -- a model whose context length is *below* the fallback gets
+    pinned to what it actually supports instead of being over-budgeted -- while
+    leaving the larger number to the settings field, where a big host can opt
+    into it.
+    """
+    stated = _ollama_modelfile_num_ctx(metadata.get("parameters"))
+    if stated:
+        return stated
+    architecture_max = _ollama_architecture_context_length(metadata)
+    if architecture_max:
+        return min(architecture_max, GEN_AI_MODEL_FALLBACK_MAX_TOKENS)
     return None
 
 
@@ -363,7 +387,6 @@ def derive_capabilities(
     facts = _classify_from_litellm(model_string, model_id)
     if spec.transport == Transport.OLLAMA:
         caps = set(metadata.get("capabilities") or [])
-        discovered_context = _ollama_context_length(metadata)
         facts.update(
             {
                 "supports_chat": "embedding" not in caps,
@@ -371,12 +394,8 @@ def derive_capabilities(
                 or facts["supports_image_input"],
                 "supports_tools": "tools" in caps or facts["supports_tools"],
                 "supports_image_generation": False,
-                # Seeded unbounded on purpose. What the host can allocate is not
-                # ours to guess -- Ollama usually runs on another machine, and a
-                # blanket cap would cost a sliding-window model most of its window
-                # to save memory it never wanted. When the KV cache does not fit,
-                # the load fails and MODEL_OUT_OF_MEMORY names the fix.
-                "max_input_tokens": discovered_context or facts["max_input_tokens"],
+                "max_input_tokens": _ollama_seed_budget(metadata)
+                or facts["max_input_tokens"],
             }
         )
     return facts

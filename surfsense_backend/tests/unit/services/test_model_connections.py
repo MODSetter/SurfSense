@@ -5,12 +5,13 @@ import pytest
 
 from app.routes.model_connections_routes import _apply_model_facts
 from app.services import model_connection_service
+from app.services.context_admission import GEN_AI_MODEL_FALLBACK_MAX_TOKENS
 from app.services.global_model_catalog import materialize_global_model_catalog
 from app.services.model_connection_service import (
     ModelDiscoveryError,
     _discovery_error_message,
     _model_test_error,
-    _ollama_context_length,
+    _ollama_seed_budget,
     derive_capabilities,
     discover_models,
     verify_connection,
@@ -54,29 +55,31 @@ def _ollama_conn() -> SimpleNamespace:
     )
 
 
-def test_ollama_context_length_prefers_modelfile_num_ctx() -> None:
-    """A Modelfile ``num_ctx`` is the size Ollama will actually run at, so it
-    outranks the architecture maximum -- budgeting 262k against it would
-    overflow every turn."""
+def test_ollama_seed_budget_takes_modelfile_num_ctx_verbatim() -> None:
+    """A Modelfile ``num_ctx`` is a human's statement about this deployment --
+    the size Ollama will actually run at -- so it is the one discovered number
+    trusted above the generic fallback."""
     assert (
-        _ollama_context_length(
+        _ollama_seed_budget(
             {
-                "parameters": "top_p 0.95\nnum_ctx 8192\ntemperature 1",
+                "parameters": "top_p 0.95\nnum_ctx 64000\ntemperature 1",
                 "model_info": {
                     "general.architecture": "gemma4",
                     "gemma4.context_length": 262_144,
                 },
             }
         )
-        == 8_192
+        == 64_000
     )
 
 
-def test_ollama_context_length_reads_architecture_keyed_value() -> None:
-    """The shape /api/show actually returns: the context length is keyed by
-    architecture, which is why reading ``details`` alone found nothing."""
+def test_ollama_seed_budget_caps_the_architecture_maximum() -> None:
+    """The architecture maximum describes the weights, not the host. Ollama
+    sizes the context from free memory at load time, so a 262k-capable model
+    routinely runs in a far smaller window; budgeting the maximum would
+    overflow every turn."""
     assert (
-        _ollama_context_length(
+        _ollama_seed_budget(
             {
                 "parameters": "top_p 0.95\ntemperature 1",
                 "model_info": {
@@ -86,49 +89,28 @@ def test_ollama_context_length_reads_architecture_keyed_value() -> None:
                 "details": {"family": "gemma4", "quantization_level": "Q4_K_M"},
             }
         )
-        == 262_144
+        == GEN_AI_MODEL_FALLBACK_MAX_TOKENS
     )
 
 
-def test_ollama_context_length_falls_back_to_tags_details() -> None:
-    """Newer Ollama reports context_length in /api/tags ``details``; that is the
-    only source left when /api/show fails."""
-    assert _ollama_context_length({"details": {"context_length": 131_072}}) == 131_072
+def test_ollama_seed_budget_pins_a_window_under_the_fallback() -> None:
+    """The direction the cap must not lose: newer Ollama reports context_length
+    in /api/tags ``details``, and a model whose window is smaller than the
+    generic fallback would otherwise be over-budgeted at 32k."""
+    assert _ollama_seed_budget({"details": {"context_length": 4_096}}) == 4_096
 
 
-def test_ollama_context_length_returns_none_when_unreported() -> None:
-    assert _ollama_context_length({}) is None
-    assert _ollama_context_length({"details": {"context_length": 0}}) is None
-
-
-def test_derive_capabilities_seeds_the_full_architecture_context() -> None:
-    """Seeded unbounded: how much the Ollama host can allocate is not ours to
-    guess, and capping would cost a sliding-window model most of its window."""
-    facts = derive_capabilities(
-        _ollama_conn(),
-        "gemma4:12b",
-        {
-            "capabilities": ["completion", "tools", "vision"],
-            "model_info": {
-                "general.architecture": "gemma4",
-                "gemma4.context_length": 262_144,
-            },
-        },
-    )
-
-    assert facts["max_input_tokens"] == 262_144
-    assert facts["supports_tools"] is True
-    assert facts["supports_image_input"] is True
+def test_ollama_seed_budget_returns_none_when_unreported() -> None:
+    assert _ollama_seed_budget({}) is None
+    assert _ollama_seed_budget({"details": {"context_length": 0}}) is None
 
 
 def test_derive_capabilities_seeds_a_small_window_verbatim() -> None:
-    """The case the dead lookups broke: a model whose real window is under the
-    generic fallback used to be budgeted at 32k and silently truncated."""
     facts = derive_capabilities(
         _ollama_conn(),
         "llama2:7b",
         {
-            "capabilities": ["completion"],
+            "capabilities": ["completion", "tools", "vision"],
             "model_info": {
                 "general.architecture": "llama",
                 "llama.context_length": 4_096,
@@ -137,6 +119,8 @@ def test_derive_capabilities_seeds_a_small_window_verbatim() -> None:
     )
 
     assert facts["max_input_tokens"] == 4_096
+    assert facts["supports_tools"] is True
+    assert facts["supports_image_input"] is True
 
 
 @pytest.mark.asyncio
@@ -197,7 +181,9 @@ async def test_ollama_discovery_merges_details_from_both_endpoints(
     assert details["context_length"] == 262_144
     assert details["embedding_length"] == 3_840
     assert details["quantization_level"] == "Q4_K_M"
-    assert results[0]["max_input_tokens"] == 262_144
+    # The reported maximum survives in the metadata the UI reads, while the
+    # seeded budget stays at the fallback the host is likely to have allocated.
+    assert results[0]["max_input_tokens"] == GEN_AI_MODEL_FALLBACK_MAX_TOKENS
 
 
 def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:

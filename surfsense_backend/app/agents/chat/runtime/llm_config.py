@@ -10,7 +10,6 @@ It also provides utilities for creating ChatLiteLLM instances and
 managing prompt configurations.
 """
 
-import os
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +29,7 @@ from app.agents.chat.runtime.prompt_caching import (
     apply_litellm_prompt_caching,
 )
 from app.services.context_admission import (
+    GEN_AI_MODEL_FALLBACK_MAX_TOKENS,
     admit_langchain_messages,
     compute_tool_tokens,
 )
@@ -37,22 +37,6 @@ from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,
     _sanitize_content,
-)
-
-
-def _env_positive_int(name: str, default: int) -> int:
-    try:
-        value = int(os.getenv(name) or default)
-    except ValueError:
-        return default
-    return value if value > 0 else default
-
-
-# Budget for a model no source can size. Env-overridable so a deployment behind
-# a gateway of models LiteLLM has never heard of can raise it in one place
-# instead of editing every model by hand.
-GEN_AI_MODEL_FALLBACK_MAX_TOKENS = _env_positive_int(
-    "GEN_AI_MODEL_FALLBACK_MAX_TOKENS", 32_000
 )
 
 

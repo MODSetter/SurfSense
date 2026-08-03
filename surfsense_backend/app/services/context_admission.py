@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -17,6 +18,22 @@ from langchain_core.messages import (
 )
 
 TokenCounter = Callable[[list[dict[str, Any]]], int | None]
+
+
+def _env_positive_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name) or default)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+# Budget for a model no source can size. Env-overridable so a deployment behind
+# a gateway of models LiteLLM has never heard of can raise it in one place
+# instead of editing every model by hand.
+GEN_AI_MODEL_FALLBACK_MAX_TOKENS = _env_positive_int(
+    "GEN_AI_MODEL_FALLBACK_MAX_TOKENS", 32_000
+)
 
 _TRIM_SUFFIX = (
     "\n\n<!-- Content trimmed to fit model context window. "
