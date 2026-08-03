@@ -406,7 +406,7 @@ def _lm_studio_native_v1_models(payload: Any) -> list[dict[str, Any]]:
                 "supports_tools": tools,
                 "supports_image_generation": False,
                 "max_input_tokens": _lm_studio_context_length(item, "native v1"),
-                "metadata": item,
+                "metadata": dict(item),
             }
         )
     return results
