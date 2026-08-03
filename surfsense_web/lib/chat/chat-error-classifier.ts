@@ -8,6 +8,7 @@ export type ChatErrorKind =
 	| "model_auth_failed"
 	| "model_not_found"
 	| "model_context_limit"
+	| "model_out_of_memory"
 	| "model_capability_error"
 	| "model_provider_unavailable"
 	| "rate_limited"
@@ -215,6 +216,20 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_CONTEXT_LIMIT",
+			details: { flow: input.flow },
+		};
+	}
+
+	if (errorCode === "MODEL_OUT_OF_MEMORY") {
+		return {
+			kind: "model_out_of_memory",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_OUT_OF_MEMORY",
 			details: { flow: input.flow },
 		};
 	}

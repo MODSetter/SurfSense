@@ -10,6 +10,8 @@ from app.services.model_connection_service import (
     ModelDiscoveryError,
     _discovery_error_message,
     _model_test_error,
+    _ollama_context_length,
+    derive_capabilities,
     discover_models,
     verify_connection,
 )
@@ -41,6 +43,161 @@ def test_discovery_seeds_context_limit_when_unset() -> None:
     _apply_model_facts(model, _facts(131_072))
 
     assert model.max_input_tokens == 131_072
+
+
+def _ollama_conn() -> SimpleNamespace:
+    return SimpleNamespace(
+        provider="ollama_chat",
+        base_url="http://host.docker.internal:11434",
+        api_key=None,
+        extra={},
+    )
+
+
+def test_ollama_context_length_prefers_modelfile_num_ctx() -> None:
+    """A Modelfile ``num_ctx`` is the size Ollama will actually run at, so it
+    outranks the architecture maximum -- budgeting 262k against it would
+    overflow every turn."""
+    assert (
+        _ollama_context_length(
+            {
+                "parameters": "top_p 0.95\nnum_ctx 8192\ntemperature 1",
+                "model_info": {
+                    "general.architecture": "gemma4",
+                    "gemma4.context_length": 262_144,
+                },
+            }
+        )
+        == 8_192
+    )
+
+
+def test_ollama_context_length_reads_architecture_keyed_value() -> None:
+    """The shape /api/show actually returns: the context length is keyed by
+    architecture, which is why reading ``details`` alone found nothing."""
+    assert (
+        _ollama_context_length(
+            {
+                "parameters": "top_p 0.95\ntemperature 1",
+                "model_info": {
+                    "general.architecture": "gemma4",
+                    "gemma4.context_length": 262_144,
+                },
+                "details": {"family": "gemma4", "quantization_level": "Q4_K_M"},
+            }
+        )
+        == 262_144
+    )
+
+
+def test_ollama_context_length_falls_back_to_tags_details() -> None:
+    """Newer Ollama reports context_length in /api/tags ``details``; that is the
+    only source left when /api/show fails."""
+    assert _ollama_context_length({"details": {"context_length": 131_072}}) == 131_072
+
+
+def test_ollama_context_length_returns_none_when_unreported() -> None:
+    assert _ollama_context_length({}) is None
+    assert _ollama_context_length({"details": {"context_length": 0}}) is None
+
+
+def test_derive_capabilities_seeds_the_full_architecture_context() -> None:
+    """Seeded unbounded: how much the Ollama host can allocate is not ours to
+    guess, and capping would cost a sliding-window model most of its window."""
+    facts = derive_capabilities(
+        _ollama_conn(),
+        "gemma4:12b",
+        {
+            "capabilities": ["completion", "tools", "vision"],
+            "model_info": {
+                "general.architecture": "gemma4",
+                "gemma4.context_length": 262_144,
+            },
+        },
+    )
+
+    assert facts["max_input_tokens"] == 262_144
+    assert facts["supports_tools"] is True
+    assert facts["supports_image_input"] is True
+
+
+def test_derive_capabilities_seeds_a_small_window_verbatim() -> None:
+    """The case the dead lookups broke: a model whose real window is under the
+    generic fallback used to be budgeted at 32k and silently truncated."""
+    facts = derive_capabilities(
+        _ollama_conn(),
+        "llama2:7b",
+        {
+            "capabilities": ["completion"],
+            "model_info": {
+                "general.architecture": "llama",
+                "llama.context_length": 4_096,
+            },
+        },
+    )
+
+    assert facts["max_input_tokens"] == 4_096
+
+
+@pytest.mark.asyncio
+async def test_ollama_discovery_merges_details_from_both_endpoints(
+    monkeypatch,
+) -> None:
+    """/api/tags and /api/show both return ``details`` with different fields. A
+    shallow update would drop the context_length only /api/tags reports."""
+
+    class FakeAsyncClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args) -> None:
+            pass
+
+        async def get(self, url: str, **_kwargs) -> httpx.Response:
+            return httpx.Response(
+                200,
+                request=httpx.Request("GET", url),
+                json={
+                    "models": [
+                        {
+                            "model": "gemma4:12b",
+                            "name": "gemma4:12b",
+                            "details": {
+                                "family": "gemma4",
+                                "context_length": 262_144,
+                                "embedding_length": 3_840,
+                            },
+                        }
+                    ]
+                },
+            )
+
+        async def post(self, url: str, **_kwargs) -> httpx.Response:
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={
+                    "details": {
+                        "family": "gemma4",
+                        "quantization_level": "Q4_K_M",
+                    },
+                    "model_info": {"general.architecture": "gemma4"},
+                    "capabilities": ["completion"],
+                },
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    results = await model_connection_service._ollama_tags_then_show(_ollama_conn())
+
+    details = results[0]["metadata"]["details"]
+    assert details["context_length"] == 262_144
+    assert details["embedding_length"] == 3_840
+    assert details["quantization_level"] == "Q4_K_M"
+    assert results[0]["max_input_tokens"] == 262_144
 
 
 def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:

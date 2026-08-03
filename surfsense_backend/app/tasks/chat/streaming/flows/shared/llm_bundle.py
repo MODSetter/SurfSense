@@ -105,7 +105,11 @@ def _build_profiled_llm(
     )
     resolved_kwargs = dict(litellm_kwargs)
     if provider == "ollama_chat":
-        # Explicit operator configuration from Connection.extra wins.
+        # Explicit operator configuration from Connection.extra wins. Otherwise
+        # send the effective budget, so the size Ollama allocates and the size we
+        # trim to cannot disagree -- sending nothing would leave Ollama on its own
+        # 4k default while we budget the fallback, truncating the system prompt
+        # without saying so.
         resolved_kwargs.setdefault("num_ctx", effective)
     llm = SanitizedChatLiteLLM(
         model=model_string, **{**resolved_kwargs, "streaming": True}

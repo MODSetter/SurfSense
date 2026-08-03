@@ -139,7 +139,12 @@ async def test_lm_studio_budget_tracks_max_not_loaded_context(monkeypatch) -> No
 @pytest.mark.asyncio
 async def test_lm_studio_sends_token_to_native_discovery(monkeypatch) -> None:
     native_url = "https://lm.example.com/team/api/v1/models"
-    requests = _mock_responses(monkeypatch, {native_url: (200, {"models": []})})
+    # One model, because an empty catalog is itself a discovery failure and
+    # would raise before the header assertion below.
+    requests = _mock_responses(
+        monkeypatch,
+        {native_url: (200, {"models": [{"type": "llm", "key": "model"}]})},
+    )
 
     await discover_models(
         _connection(

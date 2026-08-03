@@ -197,6 +197,19 @@ def _classify_provider_exception(
             extra,
         )
 
+    # Ahead of the unavailable group on purpose: a local runtime reports OOM as a
+    # 5xx, which would land there and advise retrying a load that cannot succeed
+    # until the operator lowers the limit.
+    if adapted.category is LLMErrorCategory.INSUFFICIENT_MEMORY:
+        return (
+            "model_out_of_memory",
+            "MODEL_OUT_OF_MEMORY",
+            "warn",
+            True,
+            chat_error_message("MODEL_OUT_OF_MEMORY"),
+            _provider_error_extra(adapted),
+        )
+
     if adapted.category in {
         LLMErrorCategory.TIMEOUT,
         LLMErrorCategory.PROVIDER_UNAVAILABLE,

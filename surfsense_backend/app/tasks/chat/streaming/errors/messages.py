@@ -24,6 +24,11 @@ CHAT_ERROR_MESSAGES: dict[str, str] = {
         "The selected model is unavailable or no longer exists. Switch to "
         "another model and try again."
     ),
+    "MODEL_OUT_OF_MEMORY": (
+        "The model host does not have enough memory to run this model at its "
+        "configured context limit. Lower this model's context limit in "
+        "settings, or switch models."
+    ),
     "MODEL_PROVIDER_UNAVAILABLE": (
         "The selected model provider is temporarily unavailable. Please try "
         "again or switch models."
@@ -36,9 +41,7 @@ CHAT_ERROR_MESSAGES: dict[str, str] = {
         "This model is temporarily rate-limited. Please try again in a few "
         "seconds or switch models."
     ),
-    "SERVER_ERROR": (
-        "We couldn't complete this response right now. Please try again."
-    ),
+    "SERVER_ERROR": ("We couldn't complete this response right now. Please try again."),
     "THREAD_BUSY": (
         "Another response is still finishing for this thread. Please try again "
         "in a moment."

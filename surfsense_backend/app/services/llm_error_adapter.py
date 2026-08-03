@@ -19,6 +19,7 @@ class LLMErrorCategory(StrEnum):
     MODEL_NOT_FOUND = "model_not_found"
     BAD_REQUEST = "bad_request"
     CONTEXT_LIMIT = "context_limit"
+    INSUFFICIENT_MEMORY = "insufficient_memory"
     RESPONSE_INVALID = "response_invalid"
     SERVER_ERROR = "server_error"
     UNKNOWN = "unknown"
@@ -44,6 +45,7 @@ _CATEGORY_MESSAGES: dict[LLMErrorCategory, str] = {
     LLMErrorCategory.MODEL_NOT_FOUND: "Model not found. Check your model configuration.",
     LLMErrorCategory.BAD_REQUEST: "LLM rejected the request. Document content may be invalid.",
     LLMErrorCategory.CONTEXT_LIMIT: "Document exceeds the LLM context window even after optimization.",
+    LLMErrorCategory.INSUFFICIENT_MEMORY: "The LLM host ran out of memory loading this model. Lower the model's context limit.",
     LLMErrorCategory.RESPONSE_INVALID: "LLM returned an invalid response.",
     LLMErrorCategory.SERVER_ERROR: "LLM internal server error. Will retry on next sync.",
     LLMErrorCategory.UNKNOWN: "Something went wrong when calling the LLM.",
@@ -95,6 +97,27 @@ _CLASS_NAME_MAP: tuple[tuple[LLMErrorCategory, tuple[str, ...]], ...] = (
         ("BadRequestError", "InvalidRequestError", "UnprocessableEntityError"),
     ),
     (LLMErrorCategory.SERVER_ERROR, ("InternalServerError",)),
+)
+
+# The first block is Ollama's own ``outOfMemorySubstrings`` from ``llm/status.go``:
+# the list they scrape subprocess logs with, so matching it keeps us in step with
+# what the runtime itself calls an OOM. The last two are returned directly rather
+# than logged, so they are absent from that list -- the pre-flight "does not fit"
+# check, which is ``ErrLoadRequiredFull`` on current Ollama and was a formatted
+# "requires more system memory" through v0.9.
+_INSUFFICIENT_MEMORY_HINTS = (
+    "out of memory",
+    "out of device memory",
+    "cudamalloc failed",
+    "hipmalloc failed",
+    "failed to allocate",
+    "allocation failed",
+    "not enough memory",
+    "insufficient memory",
+    "vk_error_out_of_device_memory",
+    "erroroutofmemory",
+    "unable to load full model on gpu",
+    "requires more system memory",
 )
 
 
@@ -199,6 +222,12 @@ def _category_from_provider_payload(
 
 def _category_from_message(raw: str) -> LLMErrorCategory | None:
     lowered = raw.lower()
+    # Checked first: a runtime that fails to reserve the KV cache reports the
+    # requested ``n_ctx`` alongside the allocation failure, which would otherwise
+    # read as a context-limit error and tell the user to shrink a prompt that was
+    # never the problem.
+    if any(hint in lowered for hint in _INSUFFICIENT_MEMORY_HINTS):
+        return LLMErrorCategory.INSUFFICIENT_MEMORY
     if any(
         hint in lowered
         for hint in ("rate limit", "rate-limited", "temporarily rate-limited")

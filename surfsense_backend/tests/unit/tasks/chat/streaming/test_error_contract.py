@@ -20,6 +20,7 @@ def test_every_backend_chat_error_has_display_copy() -> None:
         "MODEL_CONTEXT_LIMIT",
         "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
         "MODEL_NOT_FOUND",
+        "MODEL_OUT_OF_MEMORY",
         "MODEL_PROVIDER_UNAVAILABLE",
         "NO_ACTIVE_TURN",
         "PREMIUM_QUOTA_EXHAUSTED",
@@ -68,4 +69,3 @@ def test_error_wire_separates_display_message_from_diagnostic() -> None:
 def test_unknown_backend_chat_error_cannot_be_emitted_silently() -> None:
     with pytest.raises(ValueError, match="No user-facing message registered"):
         chat_error_message("TYPO_ERROR_CODE")
-

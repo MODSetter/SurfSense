@@ -10,6 +10,7 @@ It also provides utilities for creating ChatLiteLLM instances and
 managing prompt configurations.
 """
 
+import os
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +37,22 @@ from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,
     _sanitize_content,
+)
+
+
+def _env_positive_int(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name) or default)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+# Budget for a model no source can size. Env-overridable so a deployment behind
+# a gateway of models LiteLLM has never heard of can raise it in one place
+# instead of editing every model by hand.
+GEN_AI_MODEL_FALLBACK_MAX_TOKENS = _env_positive_int(
+    "GEN_AI_MODEL_FALLBACK_MAX_TOKENS", 32_000
 )
 
 
@@ -175,7 +192,7 @@ def resolve_max_input_tokens(
     model_string: str,
     persisted_max_input_tokens: int | None = None,
 ) -> int:
-    """Resolve the model budget using the Onyx-compatible fallback chain.
+    """Resolve the model budget: stored limit, then catalog, then fallback.
 
     Deliberately ignores how much context a local runtime currently has
     loaded: LM Studio and Ollama load, unload, and JIT-reload instances at
@@ -200,7 +217,7 @@ def resolve_max_input_tokens(
             return catalog_value
     except Exception:
         pass
-    return 32_000
+    return GEN_AI_MODEL_FALLBACK_MAX_TOKENS
 
 
 def _attach_model_profile(

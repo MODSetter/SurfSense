@@ -94,6 +94,7 @@ export function tagPreAcceptSendFailure(error: unknown): unknown {
 			"MODEL_AUTH_FAILED",
 			"MODEL_NOT_FOUND",
 			"MODEL_CONTEXT_LIMIT",
+			"MODEL_OUT_OF_MEMORY",
 			"MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
 			"MODEL_PROVIDER_UNAVAILABLE",
 			"RATE_LIMITED",

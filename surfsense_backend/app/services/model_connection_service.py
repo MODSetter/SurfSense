@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -23,6 +24,18 @@ logger = logging.getLogger(__name__)
 VERIFY_TIMEOUT_SECONDS = 8.0
 DISCOVERY_TIMEOUT_SECONDS = 15.0
 TEST_TIMEOUT_SECONDS = 30.0
+
+
+def _positive_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value > 0:
+        return value
+    if isinstance(value, str):
+        with contextlib.suppress(ValueError):
+            parsed = int(value.strip())
+            return parsed if parsed > 0 else None
+    return None
 
 
 @dataclass(frozen=True)
@@ -302,6 +315,45 @@ def _classify_from_litellm(model_string: str, model_id: str) -> dict[str, Any]:
     }
 
 
+def _ollama_modelfile_num_ctx(parameters: Any) -> int | None:
+    """Read ``num_ctx`` out of Ollama's newline-delimited Modelfile parameters.
+
+    Only present when someone authored it with ``ollama create``, so it is a
+    stated preference -- usually a smaller window chosen to fit the host's
+    memory. It outranks the architecture maximum because a request-level
+    ``num_ctx`` overrides the Modelfile and we always send one: seeding from it
+    is what stops us from quietly allocating more than was asked for.
+    """
+    if not isinstance(parameters, str):
+        return None
+    for line in parameters.splitlines():
+        tokens = line.split(maxsplit=1)
+        if len(tokens) == 2 and tokens[0] == "num_ctx":
+            return _positive_int(tokens[1])
+    return None
+
+
+def _ollama_context_length(metadata: dict) -> int | None:
+    """Resolve how much context an Ollama model can take.
+
+    The Modelfile value wins, then the architecture-keyed value from
+    ``/api/show``. ``details`` is the third source because newer Ollama reports
+    ``context_length`` in ``/api/tags`` while ``/api/show`` does not.
+    """
+    model_info = metadata.get("model_info") or {}
+    architecture = model_info.get("general.architecture") or ""
+    details = metadata.get("details") or {}
+    for candidate in (
+        _ollama_modelfile_num_ctx(metadata.get("parameters")),
+        model_info.get(f"{architecture}.context_length") if architecture else None,
+        details.get("context_length"),
+    ):
+        resolved = _positive_int(candidate)
+        if resolved:
+            return resolved
+    return None
+
+
 def derive_capabilities(
     conn: Connection, model_id: str, metadata: dict | None = None
 ) -> dict[str, Any]:
@@ -311,7 +363,7 @@ def derive_capabilities(
     facts = _classify_from_litellm(model_string, model_id)
     if spec.transport == Transport.OLLAMA:
         caps = set(metadata.get("capabilities") or [])
-        details = metadata.get("details") or {}
+        discovered_context = _ollama_context_length(metadata)
         facts.update(
             {
                 "supports_chat": "embedding" not in caps,
@@ -319,10 +371,12 @@ def derive_capabilities(
                 or facts["supports_image_input"],
                 "supports_tools": "tools" in caps or facts["supports_tools"],
                 "supports_image_generation": False,
-                "max_input_tokens": metadata.get("context_length")
-                or metadata.get("num_ctx")
-                or details.get("context_length")
-                or facts["max_input_tokens"],
+                # Seeded unbounded on purpose. What the host can allocate is not
+                # ours to guess -- Ollama usually runs on another machine, and a
+                # blanket cap would cost a sliding-window model most of its window
+                # to save memory it never wanted. When the KV cache does not fit,
+                # the load fails and MODEL_OUT_OF_MEMORY names the fix.
+                "max_input_tokens": discovered_context or facts["max_input_tokens"],
             }
         )
     return facts
@@ -612,7 +666,18 @@ async def _ollama_tags_then_show(conn: Connection) -> list[dict[str, Any]]:
                     headers=_auth_headers(conn),
                 )
                 show_response.raise_for_status()
-                metadata.update(show_response.json())
+                payload = show_response.json()
+                # Both endpoints return a ``details`` block and they carry
+                # different fields, so merge rather than let the shallow update
+                # drop what only /api/tags reports (context_length on newer
+                # Ollama, embedding_length).
+                details = {
+                    **(metadata.get("details") or {}),
+                    **(payload.get("details") or {}),
+                }
+                metadata.update(payload)
+                if details:
+                    metadata["details"] = details
             results.append(
                 {
                     "model_id": model_id,
@@ -674,8 +739,6 @@ async def _discover_bedrock_models(conn: Connection) -> list[dict[str, Any]]:
         return []
 
     def list_models() -> list[dict[str, Any]]:
-        import os
-
         import boto3
 
         if bearer_token := params.get("aws_bearer_token_bedrock"):
