@@ -80,6 +80,29 @@ def _docker_hint(url: str | None, exc_or_status: Any) -> str:
     return raw
 
 
+def _provider_detail(raw: str, limit: int = 300) -> str:
+    """Bound provider error text; LiteLLM and gateway bodies can be large."""
+    detail = " ".join(raw.split())
+    return detail if len(detail) <= limit else f"{detail[:limit]}…"
+
+
+def _provider_error(
+    conn: Connection,
+    *,
+    status_code: int,
+    detail: str,
+    model_id: str | None = None,
+) -> VerifyResult:
+    """Report a provider response without misclassifying it as unreachable."""
+    target = f"model '{model_id}'" if model_id else _base_url_or_default(conn)
+    return VerifyResult(
+        "PROVIDER_ERROR",
+        False,
+        f"{provider_label(conn.provider)} returned HTTP {status_code} for "
+        f"{target}. {_provider_detail(detail)}",
+    )
+
+
 def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> VerifyResult:
     provider_name = provider_label(conn.provider)
     raw = str(exc)
@@ -132,6 +155,16 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
             f"{provider_name} did not respond in time. Check the endpoint and try again.",
         )
 
+    # LiteLLM can wrap a clean HTTP response in APIConnectionError. A status
+    # code means the provider answered; only its absence is a transport failure.
+    if isinstance(status_code, int) and status_code >= 400:
+        return _provider_error(
+            conn,
+            status_code=status_code,
+            detail=raw,
+            model_id=model_id,
+        )
+
     if "connection" in exc_name or "connect" in normalized:
         return VerifyResult(
             "UNREACHABLE",
@@ -169,6 +202,12 @@ async def verify_connection(conn: Connection) -> VerifyResult:
             return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
         except httpx.TimeoutException as exc:
             return VerifyResult("UNREACHABLE", False, f"Connection timed out: {exc}")
+        except httpx.HTTPStatusError as exc:
+            return _provider_error(
+                conn,
+                status_code=exc.response.status_code,
+                detail=exc.response.text,
+            )
         except httpx.HTTPError as exc:
             return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
     elif spec.transport == Transport.OLLAMA and base_url:
@@ -206,6 +245,12 @@ async def verify_connection(conn: Connection) -> VerifyResult:
         return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
     except httpx.TimeoutException as exc:
         return VerifyResult("UNREACHABLE", False, f"Connection timed out: {exc}")
+    except httpx.HTTPStatusError as exc:
+        return _provider_error(
+            conn,
+            status_code=exc.response.status_code,
+            detail=exc.response.text,
+        )
     except httpx.HTTPError as exc:
         return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
 
@@ -698,6 +743,13 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             results = []
     except httpx.HTTPError as exc:
         raise ModelDiscoveryError(_discovery_error_message(conn, exc)) from exc
+
+    if not results and spec.discovery not in {"none", "static"}:
+        raise ModelDiscoveryError(
+            f"No models found at {_base_url_or_default(conn)}. Check that the URL "
+            f"points at your {provider_label(conn.provider)} server and that at "
+            "least one model is available."
+        )
 
     return results
 

@@ -130,9 +130,7 @@ export const discoverConnectionModelsMutationAtom = atomWithMutation((get) => {
 		mutationKey: ["model-connections", "discover"],
 		mutationFn: (id: number) => modelConnectionsApiService.discoverModels(id),
 		onSuccess: (models: ModelRead[]) => {
-			toast.success(
-				models.length ? `${models.length} models discovered` : "No models found for this connection"
-			);
+			toast.success(`${models.length} models discovered`);
 			invalidateModelConnections(workspaceId);
 		},
 		onError: (error: Error) => toast.error(error.message || "Failed to discover models"),

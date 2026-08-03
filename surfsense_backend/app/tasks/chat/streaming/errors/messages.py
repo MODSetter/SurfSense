@@ -73,4 +73,3 @@ def chat_error_message(
         return CHAT_ERROR_MESSAGES[error_code]
     except KeyError as exc:
         raise ValueError(f"No user-facing message registered for {error_code}") from exc
-

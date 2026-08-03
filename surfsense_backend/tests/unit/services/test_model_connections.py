@@ -1,10 +1,18 @@
 from types import SimpleNamespace
 
 import httpx
+import pytest
 
 from app.routes.model_connections_routes import _apply_model_facts
+from app.services import model_connection_service
 from app.services.global_model_catalog import materialize_global_model_catalog
-from app.services.model_connection_service import _discovery_error_message
+from app.services.model_connection_service import (
+    ModelDiscoveryError,
+    _discovery_error_message,
+    _model_test_error,
+    discover_models,
+    verify_connection,
+)
 from app.services.model_resolver import strip_version_suffix, to_litellm
 
 
@@ -229,3 +237,149 @@ def test_discovery_404_message_points_at_base_url_and_echoes_url() -> None:
 
     assert "http://host.docker.internal:1234/models" in message
     assert "API Base URL" in message
+
+
+def test_model_test_error_reports_http_response_as_provider_error() -> None:
+    class APIConnectionError(Exception):
+        status_code = 415
+
+    conn = SimpleNamespace(
+        provider="ollama_chat",
+        base_url="http://host.docker.internal:11434",
+    )
+
+    result = _model_test_error(
+        conn,
+        "gemma4:12b",
+        APIConnectionError("Unsupported Media Type"),
+    )
+
+    assert result.status == "PROVIDER_ERROR"
+    assert result.ok is False
+    assert "HTTP 415" in result.message
+    assert "Unsupported Media Type" in result.message
+
+
+def test_model_test_error_keeps_statusless_connection_failure_unreachable() -> None:
+    class APIConnectionError(Exception):
+        pass
+
+    conn = SimpleNamespace(
+        provider="ollama_chat",
+        base_url="http://host.docker.internal:11434",
+    )
+
+    result = _model_test_error(
+        conn,
+        "gemma4:12b",
+        APIConnectionError("Connection refused"),
+    )
+
+    assert result.status == "UNREACHABLE"
+    assert result.ok is False
+
+
+@pytest.mark.asyncio
+async def test_verify_connection_reports_http_response_as_provider_error(
+    monkeypatch,
+) -> None:
+    class FakeAsyncClient:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args) -> None:
+            pass
+
+        async def get(self, url: str, **_kwargs) -> httpx.Response:
+            request = httpx.Request("GET", url)
+            return httpx.Response(
+                500,
+                request=request,
+                text="Provider failed",
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    conn = SimpleNamespace(
+        provider="openai_compatible",
+        base_url="https://models.example.com/v1",
+        api_key="test-key",
+    )
+
+    result = await verify_connection(conn)
+
+    assert result.status == "PROVIDER_ERROR"
+    assert result.ok is False
+    assert "HTTP 500" in result.message
+    assert "Provider failed" in result.message
+
+
+@pytest.mark.asyncio
+async def test_verify_lm_studio_reports_http_response_as_provider_error(
+    monkeypatch,
+) -> None:
+    request = httpx.Request(
+        "GET",
+        "http://host.docker.internal:1234/api/v1/models",
+    )
+    response = httpx.Response(503, request=request, text="Server unavailable")
+
+    async def failed_discovery(_conn) -> list[dict]:
+        raise httpx.HTTPStatusError(
+            "503",
+            request=request,
+            response=response,
+        )
+
+    monkeypatch.setattr(
+        model_connection_service,
+        "_discover_lm_studio_models",
+        failed_discovery,
+    )
+    conn = SimpleNamespace(
+        provider="lm_studio",
+        base_url="http://host.docker.internal:1234/v1",
+        api_key=None,
+    )
+
+    result = await verify_connection(conn)
+
+    assert result.status == "PROVIDER_ERROR"
+    assert result.ok is False
+    assert "HTTP 503" in result.message
+    assert "Server unavailable" in result.message
+
+
+@pytest.mark.asyncio
+async def test_discover_models_rejects_empty_discoverable_provider(
+    monkeypatch,
+) -> None:
+    async def empty_ollama_models(_conn) -> list[dict]:
+        return []
+
+    monkeypatch.setattr(
+        model_connection_service,
+        "_ollama_tags_then_show",
+        empty_ollama_models,
+    )
+    conn = SimpleNamespace(
+        provider="ollama_chat",
+        base_url="http://host.docker.internal:11434",
+    )
+
+    with pytest.raises(ModelDiscoveryError, match="No models found at"):
+        await discover_models(conn)
+
+
+@pytest.mark.asyncio
+async def test_discover_models_allows_empty_static_provider(monkeypatch) -> None:
+    monkeypatch.setattr(
+        model_connection_service,
+        "_litellm_static_models",
+        lambda _conn: [],
+    )
+    conn = SimpleNamespace(provider="azure", base_url=None)
+
+    assert await discover_models(conn) == []
