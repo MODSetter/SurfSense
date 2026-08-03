@@ -158,24 +158,28 @@ export function ModelsSelectionPanel({
 						return (
 							<div
 								key={model.id ?? model.model_id}
-								className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-popover"
+								className="flex flex-col gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-popover sm:flex-row sm:items-center sm:gap-3"
 							>
-								<Checkbox
-									checked={model.enabled}
-									onCheckedChange={(checked) => onToggleModel?.(model, checked === true)}
-									disabled={!onToggleModel || isUpdatingModel}
-									className="border-muted-foreground/20"
-								/>
-								<div className="min-w-0 flex-1">
-									<div className="flex items-center gap-2 text-sm font-medium">
-										<span className="truncate">{modelLabel(model)}</span>
-									</div>
-									<div className="text-xs text-muted-foreground">
-										{capabilityLabels(model) || "No discovered capabilities"}
+								<div className="flex min-w-0 flex-1 items-center gap-3">
+									<Checkbox
+										checked={model.enabled}
+										onCheckedChange={(checked) => onToggleModel?.(model, checked === true)}
+										disabled={!onToggleModel || isUpdatingModel}
+										className="border-muted-foreground/20"
+									/>
+									<div className="min-w-0 flex-1">
+										<div className="truncate text-sm font-medium" title={modelLabel(model)}>
+											{modelLabel(model)}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{capabilityLabels(model) || "No discovered capabilities"}
+										</div>
 									</div>
 								</div>
 								{onMaxInputTokensChange ? (
-									<div className="flex shrink-0 items-center gap-2">
+									// Stacked below sm, so indent by the checkbox column to stay
+									// aligned under the model name.
+									<div className="flex shrink-0 items-center gap-2 pl-7 sm:pl-0">
 										<Label
 											htmlFor={`model-context-${model.id ?? model.model_id}`}
 											className="sr-only"
@@ -185,6 +189,7 @@ export function ModelsSelectionPanel({
 										<Input
 											id={`model-context-${model.id ?? model.model_id}`}
 											type="number"
+											inputMode="numeric"
 											min={1}
 											step={1024}
 											placeholder="Auto"
@@ -196,12 +201,12 @@ export function ModelsSelectionPanel({
 													Number.isFinite(value) && value > 0 ? value : null
 												);
 											}}
-											className="h-8 w-28 text-right text-xs tabular-nums"
+											className="h-9 w-24 text-right text-xs tabular-nums sm:h-8 sm:w-28"
 											aria-describedby={`model-context-unit-${model.id ?? model.model_id}`}
 										/>
 										<span
 											id={`model-context-unit-${model.id ?? model.model_id}`}
-											className="w-32 text-xs text-muted-foreground"
+											className="text-xs text-muted-foreground sm:w-32"
 										>
 											{reportedContext ? `of ${reportedContext.toLocaleString()} tokens` : "tokens"}
 										</span>
