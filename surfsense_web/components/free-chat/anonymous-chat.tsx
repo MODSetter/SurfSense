@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { AnonModel, AnonQuotaResponse } from "@/contracts/types/anonymous-chat.types";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
+import { classifyChatError } from "@/lib/chat/chat-error-classifier";
+import { toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { readSSEStream } from "@/lib/chat/streaming-state";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
@@ -107,13 +109,7 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 					setMessages((prev) => prev.filter((m) => m.id !== assistantId));
 					return;
 				}
-				const body = await response.text().catch(() => "");
-				const errorCode = response.status === 409 ? "THREAD_BUSY" : "SERVER_ERROR";
-				const message =
-					errorCode === "THREAD_BUSY"
-						? "A previous response is still stopping. Please try again in a moment."
-						: `Stream error: ${response.status}`;
-				throw Object.assign(new Error(body || message), { errorCode });
+				throw await toHttpResponseError(response);
 			}
 
 			for await (const event of readSSEStream(response)) {
@@ -124,12 +120,10 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 						prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + event.delta } : m))
 					);
 				} else if (event.type === "error") {
-					const message =
-						event.errorCode === "THREAD_BUSY"
-							? "A previous response is still stopping. Please try again in a moment."
-							: event.errorText;
 					setMessages((prev) =>
-						prev.map((m) => (m.id === assistantId ? { ...m, content: m.content || message } : m))
+						prev.map((m) =>
+							m.id === assistantId ? { ...m, content: m.content || event.message } : m
+						)
 					);
 				} else if ("type" in event && event.type === "data-token-usage") {
 					// After streaming completes, refresh quota
@@ -139,12 +133,9 @@ export function AnonymousChat({ model }: AnonymousChatProps) {
 		} catch (err) {
 			if (err instanceof DOMException && err.name === "AbortError") return;
 			console.error("Chat stream error:", err);
+			const userMessage = classifyChatError({ error: err, flow: "new" }).userMessage;
 			setMessages((prev) =>
-				prev.map((m) =>
-					m.id === assistantId && !m.content
-						? { ...m, content: "An error occurred. Please try again." }
-						: m
-				)
+				prev.map((m) => (m.id === assistantId && !m.content ? { ...m, content: userMessage } : m))
 			);
 		} finally {
 			setIsStreaming(false);

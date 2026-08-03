@@ -228,9 +228,11 @@ async def stream_new_chat(
             requested_llm_config_id=requested_llm_config_id,
         )
         if pin_result.error is not None:
-            message, error_code, error_kind = pin_result.error
+            error_code, error_kind, diagnostic = pin_result.error
             yield emit_stream_error(
-                message=message, error_kind=error_kind, error_code=error_code
+                error_kind=error_kind,
+                error_code=error_code,
+                diagnostic=diagnostic,
             )
             yield streaming_service.format_done()
             return
@@ -241,9 +243,9 @@ async def stream_new_chat(
         )
         if llm_load_error:
             yield emit_stream_error(
-                message=llm_load_error,
                 error_kind="server_error",
                 error_code="SERVER_ERROR",
+                diagnostic=llm_load_error,
             )
             yield streaming_service.format_done()
             return
@@ -257,11 +259,9 @@ async def stream_new_chat(
             user_image_data_urls=user_image_data_urls, agent_config=agent_config
         )
         if capability_error is not None:
-            message, error_code = capability_error
             yield emit_stream_error(
-                message=message,
                 error_kind="user_error",
-                error_code=error_code,
+                error_code=capability_error,
             )
             yield streaming_service.format_done()
             return
@@ -285,11 +285,11 @@ async def stream_new_chat(
                         force_repin_free=True,
                     )
                     if pin_fallback.error is not None:
-                        message, error_code, error_kind = pin_fallback.error
+                        error_code, error_kind, diagnostic = pin_fallback.error
                         yield emit_stream_error(
-                            message=message,
                             error_kind=error_kind,
                             error_code=error_code,
+                            diagnostic=diagnostic,
                         )
                         yield streaming_service.format_done()
                         return
@@ -308,9 +308,9 @@ async def stream_new_chat(
                     )
                     if llm_load_error:
                         yield emit_stream_error(
-                            message=llm_load_error,
                             error_kind="server_error",
                             error_code="SERVER_ERROR",
+                            diagnostic=llm_load_error,
                         )
                         yield streaming_service.format_done()
                         return
@@ -342,10 +342,6 @@ async def stream_new_chat(
                     )
                 else:
                     yield emit_stream_error(
-                        message=(
-                            "Buy more credits to continue with this model, or "
-                            "switch to a free model"
-                        ),
                         error_kind="premium_quota_exhausted",
                         error_code="PREMIUM_QUOTA_EXHAUSTED",
                         severity="info",
@@ -360,9 +356,9 @@ async def stream_new_chat(
 
         if not llm:
             yield emit_stream_error(
-                message="Failed to create LLM instance",
                 error_kind="server_error",
                 error_code="SERVER_ERROR",
+                diagnostic="Failed to create LLM instance",
             )
             yield streaming_service.format_done()
             return
@@ -525,7 +521,6 @@ async def stream_new_chat(
         )
         if user_message_id is None:
             yield emit_stream_error(
-                message="We couldn't save your message. Please try again in a moment.",
                 error_kind="server_error",
                 error_code="MESSAGE_PERSIST_FAILED",
             )
@@ -562,9 +557,6 @@ async def stream_new_chat(
             # void. The user row is already persisted so the legacy
             # ghost-thread gate isn't reopened.
             yield emit_stream_error(
-                message=(
-                    "We couldn't initialize the assistant message. Please try again."
-                ),
                 error_kind="server_error",
                 error_code="MESSAGE_PERSIST_FAILED",
             )

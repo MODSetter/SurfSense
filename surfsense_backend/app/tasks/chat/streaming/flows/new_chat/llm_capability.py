@@ -23,8 +23,8 @@ def check_image_input_capability(
     *,
     user_image_data_urls: list[str] | None,
     agent_config: AgentConfig | None,
-) -> tuple[str, str] | None:
-    """Return ``(user_message, error_code)`` when the gate trips, else ``None``.
+) -> str | None:
+    """Return the error code when the gate trips, otherwise ``None``.
 
     The caller emits one terminal-error SSE frame on a non-``None`` return.
     """
@@ -47,14 +47,5 @@ def check_image_input_capability(
     ):
         return None
 
-    model_label = agent_config.config_name or agent_config.model_name or "model"
     ot.add_event("quota.denied", {"quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"})
-    return (
-        (
-            f"The selected model ({model_label}) does not support "
-            "image input. Switch to a vision-capable model "
-            "(e.g. GPT-4o, Claude, Gemini) or remove the image "
-            "attachment and try again."
-        ),
-        "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
-    )
+    return "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"

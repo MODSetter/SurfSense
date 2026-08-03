@@ -79,9 +79,11 @@ def test_adapter_keeps_unrelated_http_400_as_bad_request() -> None:
 def test_stream_classifier_maps_context_limit_to_stable_code() -> None:
     exc = RuntimeError('{"code":400,"type":"exceed_context_size_error","n_ctx":8192}')
 
-    kind, code, severity, expected, message, extra = classify_stream_exception(
-        exc,
-        flow_label="chat",
+    kind, code, severity, expected, message, diagnostic, extra = (
+        classify_stream_exception(
+            exc,
+            flow_label="chat",
+        )
     )
 
     assert kind == "model_context_limit"
@@ -89,6 +91,7 @@ def test_stream_classifier_maps_context_limit_to_stable_code() -> None:
     assert severity == "warn"
     assert expected is True
     assert "too large" in message
+    assert diagnostic == str(exc)
     assert extra == {
         "provider_error_category": "context_limit",
         "provider_status_code": 400,
@@ -101,9 +104,11 @@ def test_stream_classifier_maps_model_auth_to_stable_code() -> None:
         'litellm.AuthenticationError: OpenrouterException - {"error":{"message":"User not found.","code":401}}'
     )
 
-    kind, code, severity, expected, message, extra = classify_stream_exception(
-        exc,
-        flow_label="chat",
+    kind, code, severity, expected, message, diagnostic, extra = (
+        classify_stream_exception(
+            exc,
+            flow_label="chat",
+        )
     )
 
     assert kind == "model_auth_failed"
@@ -111,6 +116,7 @@ def test_stream_classifier_maps_model_auth_to_stable_code() -> None:
     assert severity == "warn"
     assert expected is True
     assert "API key" in message
+    assert diagnostic == str(exc)
     assert extra == {
         "provider_error_category": "auth_failed",
         "provider_status_code": 401,
@@ -120,14 +126,17 @@ def test_stream_classifier_maps_model_auth_to_stable_code() -> None:
 def test_stream_classifier_keeps_unknown_errors_generic() -> None:
     exc = RuntimeError("database exploded")
 
-    kind, code, severity, expected, message, extra = classify_stream_exception(
-        exc,
-        flow_label="chat",
+    kind, code, severity, expected, message, diagnostic, extra = (
+        classify_stream_exception(
+            exc,
+            flow_label="chat",
+        )
     )
 
     assert kind == "server_error"
     assert code == "SERVER_ERROR"
     assert severity == "error"
     assert expected is False
-    assert message == "Error during chat: database exploded"
+    assert message == "We couldn't complete this response right now. Please try again."
+    assert diagnostic == "Error during chat: database exploded"
     assert extra is None
