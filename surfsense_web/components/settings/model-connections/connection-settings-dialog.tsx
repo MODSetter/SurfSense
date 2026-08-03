@@ -6,6 +6,7 @@ import {
 	discoverConnectionModelsMutationAtom,
 	testPreviewModelMutationAtom,
 	updateModelConnectionMutationAtom,
+	updateModelMutationAtom,
 } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +50,7 @@ export function ConnectionSettingsDialog({
 	const discoverModels = useAtomValue(discoverConnectionModelsMutationAtom);
 	const testPreviewModel = useAtomValue(testPreviewModelMutationAtom);
 	const updateConnection = useAtomValue(updateModelConnectionMutationAtom);
+	const updateModel = useAtomValue(updateModelMutationAtom);
 	const bulkUpdateModels = useAtomValue(bulkUpdateModelsMutationAtom);
 
 	const [isOpen, setIsOpen] = useState(false);
@@ -59,6 +61,13 @@ export function ConnectionSettingsDialog({
 	const [draftEnabledModelIds, setDraftEnabledModelIds] = useState(() =>
 		enabledModelIds(connection.models)
 	);
+	const [draftContextLimits, setDraftContextLimits] = useState<Record<number, number | null>>(() =>
+		Object.fromEntries(
+			connection.models
+				.filter((model) => typeof model.id === "number")
+				.map((model) => [Number(model.id), model.max_input_tokens ?? null])
+		)
+	);
 
 	const hasConnectionChanges =
 		baseUrlDraft.trim() !== (connection.base_url ?? "") ||
@@ -67,15 +76,24 @@ export function ConnectionSettingsDialog({
 		() =>
 			connection.models.map((model) =>
 				typeof model.id === "number"
-					? { ...model, enabled: draftEnabledModelIds.has(model.id) }
+					? {
+							...model,
+							enabled: draftEnabledModelIds.has(model.id),
+							max_input_tokens: draftContextLimits[model.id] ?? null,
+						}
 					: model
 			),
-		[connection.models, draftEnabledModelIds]
+		[connection.models, draftContextLimits, draftEnabledModelIds]
 	);
 	const hasModelChanges = connection.models.some(
 		(model) => typeof model.id === "number" && draftEnabledModelIds.has(model.id) !== model.enabled
 	);
-	const canUpdate = hasConnectionChanges || hasModelChanges;
+	const hasContextChanges = connection.models.some(
+		(model) =>
+			typeof model.id === "number" &&
+			(draftContextLimits[model.id] ?? null) !== (model.max_input_tokens ?? null)
+	);
+	const canUpdate = hasConnectionChanges || hasModelChanges || hasContextChanges;
 
 	function handleOpenChange(open: boolean) {
 		setIsOpen(open);
@@ -85,7 +103,30 @@ export function ConnectionSettingsDialog({
 			setShowApiKey(false);
 			setIsSavingConnectionSettings(false);
 			setDraftEnabledModelIds(enabledModelIds(connection.models));
+			setDraftContextLimits(
+				Object.fromEntries(
+					connection.models
+						.filter((model) => typeof model.id === "number")
+						.map((model) => [Number(model.id), model.max_input_tokens ?? null])
+				)
+			);
 		}
+	}
+
+	async function saveContextChanges() {
+		const changedModels = connection.models.filter(
+			(model) =>
+				typeof model.id === "number" &&
+				(draftContextLimits[model.id] ?? null) !== (model.max_input_tokens ?? null)
+		);
+		await Promise.all(
+			changedModels.map((model) =>
+				updateModel.mutateAsync({
+					id: Number(model.id),
+					data: { max_input_tokens: draftContextLimits[Number(model.id)] ?? null },
+				})
+			)
+		);
 	}
 
 	async function saveModelChanges() {
@@ -152,9 +193,18 @@ export function ConnectionSettingsDialog({
 			if (hasModelChanges) {
 				await saveModelChanges();
 			}
+			if (hasContextChanges) {
+				await saveContextChanges();
+			}
 		} finally {
 			setIsSavingConnectionSettings(false);
 		}
+	}
+
+	function handleContextLimitChange(model: SelectableModel, value: number | null) {
+		if (typeof model.id !== "number") return;
+		const modelId = model.id;
+		setDraftContextLimits((current) => ({ ...current, [modelId]: value }));
 	}
 
 	function handleToggleModel(model: SelectableModel, enabled: boolean) {
@@ -258,6 +308,7 @@ export function ConnectionSettingsDialog({
 
 						<ModelsSelectionPanel
 							models={draftModels}
+							description="Choose available models and set the context limit used for prompt budgeting."
 							isRefreshing={discoverModels.isPending}
 							isUpdatingModel={isSavingConnectionSettings}
 							isBulkUpdating={isSavingConnectionSettings || bulkUpdateModels.isPending}
@@ -265,6 +316,7 @@ export function ConnectionSettingsDialog({
 							onRefresh={() => discoverModels.mutate(connection.id)}
 							onToggleModel={handleToggleModel}
 							onBulkToggle={handleBulkToggle}
+							onMaxInputTokensChange={handleContextLimitChange}
 						/>
 					</div>
 				</div>

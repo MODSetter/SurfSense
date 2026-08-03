@@ -2,6 +2,8 @@ import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import {
 	capability,
@@ -24,6 +26,7 @@ interface ModelsSelectionPanelProps {
 	onRefresh?: () => void;
 	onToggleModel?: (model: SelectableModel, enabled: boolean) => void;
 	onBulkToggle?: (models: SelectableModel[], enabled: boolean) => void;
+	onMaxInputTokensChange?: (model: SelectableModel, value: number | null) => void;
 }
 
 export function ModelsSelectionPanel({
@@ -38,6 +41,7 @@ export function ModelsSelectionPanel({
 	onRefresh,
 	onToggleModel,
 	onBulkToggle,
+	onMaxInputTokensChange,
 }: ModelsSelectionPanelProps) {
 	const [modelFilter, setModelFilter] = useState<ModelCapabilityFilter | null>(null);
 
@@ -166,6 +170,38 @@ export function ModelsSelectionPanel({
 									{capabilityLabels(model) || "No discovered capabilities"}
 								</div>
 							</div>
+							{onMaxInputTokensChange ? (
+								<div className="flex shrink-0 items-center gap-2">
+									<Label
+										htmlFor={`model-context-${model.id ?? model.model_id}`}
+										className="sr-only"
+									>
+										Context limit for {modelLabel(model)}
+									</Label>
+									<Input
+										id={`model-context-${model.id ?? model.model_id}`}
+										type="number"
+										min={1}
+										step={1024}
+										value={model.max_input_tokens ?? ""}
+										onChange={(event) => {
+											const value = event.target.valueAsNumber;
+											onMaxInputTokensChange(
+												model,
+												Number.isFinite(value) && value > 0 ? value : null
+											);
+										}}
+										className="h-8 w-28 text-right text-xs tabular-nums"
+										aria-describedby={`model-context-unit-${model.id ?? model.model_id}`}
+									/>
+									<span
+										id={`model-context-unit-${model.id ?? model.model_id}`}
+										className="text-xs text-muted-foreground"
+									>
+										tokens
+									</span>
+								</div>
+							) : null}
 						</div>
 					))}
 				</div>
