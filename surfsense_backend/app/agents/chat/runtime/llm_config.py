@@ -10,7 +10,7 @@ It also provides utilities for creating ChatLiteLLM instances and
 managing prompt configurations.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,6 +27,10 @@ from litellm import get_model_info
 
 from app.agents.chat.runtime.prompt_caching import (
     apply_litellm_prompt_caching,
+)
+from app.services.context_admission import (
+    admit_langchain_messages,
+    compute_tool_tokens,
 )
 from app.services.llm_router_service import (
     AUTO_MODE_ID,
@@ -66,6 +70,47 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
     (e.g. ``thinking`` from reasoning models) and normalises bare strings
     in content arrays before forwarding to the underlying provider."""
 
+    def _count_context_tokens(self, messages: list[dict[str, Any]]) -> int | None:
+        from litellm import token_counter
+
+        profile = getattr(self, "profile", None)
+        if not isinstance(profile, dict):
+            return None
+        model_names = profile.get("token_count_models")
+        if not isinstance(model_names, list):
+            model_names = [profile.get("token_count_model")]
+        counts: list[int] = []
+        for model_name in model_names:
+            if not isinstance(model_name, str) or not model_name:
+                continue
+            try:
+                counts.append(token_counter(messages=messages, model=model_name))
+            except Exception:
+                continue
+        return max(counts) if counts else None
+
+    def _admit_messages(
+        self, messages: list[BaseMessage], tools: Any = None
+    ) -> list[BaseMessage]:
+        sanitized = _sanitize_messages(messages)
+        profile = getattr(self, "profile", None)
+        max_input_tokens = (
+            profile.get("max_input_tokens") if isinstance(profile, dict) else None
+        )
+        if (
+            not isinstance(max_input_tokens, int)
+            or isinstance(max_input_tokens, bool)
+            or max_input_tokens <= 0
+        ):
+            return sanitized
+        return admit_langchain_messages(
+            sanitized,
+            sanitize_content=_sanitize_content,
+            count_tokens=self._count_context_tokens,
+            max_input_tokens=max_input_tokens,
+            reserved_tokens=compute_tool_tokens(tools, self._count_context_tokens),
+        )
+
     def _generate(
         self,
         messages: list[BaseMessage],
@@ -74,7 +119,24 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
         **kwargs: Any,
     ) -> ChatResult:
         return super()._generate(
-            _sanitize_messages(messages), stop, run_manager, **kwargs
+            self._admit_messages(messages, kwargs.get("tools")),
+            stop,
+            run_manager,
+            **kwargs,
+        )
+
+    def _stream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> Iterator[ChatGenerationChunk]:
+        yield from super()._stream(
+            self._admit_messages(messages, kwargs.get("tools")),
+            stop,
+            run_manager,
+            **kwargs,
         )
 
     async def _astream(
@@ -85,7 +147,10 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
         async for chunk in super()._astream(
-            _sanitize_messages(messages), stop, run_manager, **kwargs
+            self._admit_messages(messages, kwargs.get("tools")),
+            stop,
+            run_manager,
+            **kwargs,
         ):
             yield chunk
 
@@ -98,7 +163,7 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
         **kwargs: Any,
     ) -> ChatResult:
         return await super()._agenerate(
-            _sanitize_messages(messages),
+            self._admit_messages(messages, kwargs.get("tools")),
             stop=stop,
             run_manager=run_manager,
             stream=stream,
@@ -106,20 +171,55 @@ class SanitizedChatLiteLLM(ChatLiteLLM):
         )
 
 
-def _attach_model_profile(llm: ChatLiteLLM, model_string: str) -> None:
-    """Attach a ``profile`` dict to ChatLiteLLM with model context metadata."""
+def resolve_max_input_tokens(
+    model_string: str,
+    persisted_max_input_tokens: int | None = None,
+) -> int:
+    """Resolve the model budget using the Onyx-compatible fallback chain.
+
+    Deliberately ignores how much context a local runtime currently has
+    loaded: LM Studio and Ollama load, unload, and JIT-reload instances at
+    will, so any value we could read here goes stale between requests. A
+    runtime whose loaded context is smaller than this budget rejects the
+    request itself, and that error is classified as MODEL_CONTEXT_LIMIT.
+    """
+    if (
+        isinstance(persisted_max_input_tokens, int)
+        and not isinstance(persisted_max_input_tokens, bool)
+        and persisted_max_input_tokens > 0
+    ):
+        return persisted_max_input_tokens
+
     try:
-        info = get_model_info(model_string)
-        max_input_tokens = info.get("max_input_tokens")
-        if isinstance(max_input_tokens, int) and max_input_tokens > 0:
-            llm.profile = {
-                "max_input_tokens": max_input_tokens,
-                "max_input_tokens_upper": max_input_tokens,
-                "token_count_model": model_string,
-                "token_count_models": [model_string],
-            }
+        catalog_value = get_model_info(model_string).get("max_input_tokens")
+        if (
+            isinstance(catalog_value, int)
+            and not isinstance(catalog_value, bool)
+            and catalog_value > 0
+        ):
+            return catalog_value
     except Exception:
-        return
+        pass
+    return 32_000
+
+
+def _attach_model_profile(
+    llm: ChatLiteLLM,
+    model_string: str,
+    persisted_max_input_tokens: int | None = None,
+) -> int:
+    """Attach normalized context metadata and return the effective limit."""
+    max_input_tokens = resolve_max_input_tokens(
+        model_string,
+        persisted_max_input_tokens=persisted_max_input_tokens,
+    )
+    llm.profile = {
+        "max_input_tokens": max_input_tokens,
+        "max_input_tokens_upper": max_input_tokens,
+        "token_count_model": model_string,
+        "token_count_models": [model_string],
+    }
+    return max_input_tokens
 
 
 @dataclass
