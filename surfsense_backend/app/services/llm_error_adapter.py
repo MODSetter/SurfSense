@@ -99,17 +99,16 @@ _CLASS_NAME_MAP: tuple[tuple[LLMErrorCategory, tuple[str, ...]], ...] = (
 
 
 def _parse_error_payload(message: str) -> dict[str, Any] | None:
-    candidates = [message]
-    first_brace_idx = message.find("{")
-    if first_brace_idx >= 0:
-        candidates.append(message[first_brace_idx:])
-
-    for candidate in candidates:
+    decoder = json.JSONDecoder()
+    candidate_starts = [-1]
+    candidate_starts.extend(index for index, char in enumerate(message) if char == "{")
+    for start in candidate_starts[:21]:
+        candidate = message if start == -1 else message[start:]
         try:
-            parsed = json.loads(candidate)
+            parsed, _ = decoder.raw_decode(candidate)
             if isinstance(parsed, dict):
                 return parsed
-        except Exception:
+        except (TypeError, ValueError):
             continue
     return None
 
@@ -160,6 +159,25 @@ def _category_from_provider_payload(
     status_code: int | None,
     provider_error_type: str | None,
 ) -> LLMErrorCategory | None:
+    normalized_type = (provider_error_type or "").lower()
+    if normalized_type == "rate_limit_error":
+        return LLMErrorCategory.RATE_LIMITED
+    if normalized_type in {
+        "authentication_error",
+        "invalid_api_key",
+        "invalid_api_key_error",
+    }:
+        return LLMErrorCategory.AUTH_FAILED
+    if normalized_type in {"permission_denied", "forbidden"}:
+        return LLMErrorCategory.PERMISSION_DENIED
+    if normalized_type in {"not_found_error", "model_not_found"}:
+        return LLMErrorCategory.MODEL_NOT_FOUND
+    if normalized_type in {
+        "context_length_exceeded",
+        "context_window_exceeded",
+        "exceed_context_size_error",
+    }:
+        return LLMErrorCategory.CONTEXT_LIMIT
     if status_code == 429:
         return LLMErrorCategory.RATE_LIMITED
     if status_code == 401:
@@ -176,22 +194,6 @@ def _category_from_provider_payload(
         return LLMErrorCategory.PROVIDER_UNAVAILABLE
     if status_code is not None and status_code >= 500:
         return LLMErrorCategory.SERVER_ERROR
-
-    normalized_type = (provider_error_type or "").lower()
-    if normalized_type == "rate_limit_error":
-        return LLMErrorCategory.RATE_LIMITED
-    if normalized_type in {
-        "authentication_error",
-        "invalid_api_key",
-        "invalid_api_key_error",
-    }:
-        return LLMErrorCategory.AUTH_FAILED
-    if normalized_type in {"permission_denied", "forbidden"}:
-        return LLMErrorCategory.PERMISSION_DENIED
-    if normalized_type in {"not_found_error", "model_not_found"}:
-        return LLMErrorCategory.MODEL_NOT_FOUND
-    if normalized_type in {"context_length_exceeded", "context_window_exceeded"}:
-        return LLMErrorCategory.CONTEXT_LIMIT
     return None
 
 
@@ -226,30 +228,87 @@ def _category_from_message(raw: str) -> LLMErrorCategory | None:
             "context window",
             "maximum context",
             "too many tokens",
+            "available context size",
+            "n_ctx",
         )
     ):
         return LLMErrorCategory.CONTEXT_LIMIT
     return None
 
 
-def adapt_llm_exception(exc: BaseException) -> LLMErrorAdaptation:
-    raw = str(exc)
-    parsed = _parse_error_payload(raw)
-    status_code = _extract_provider_status_code(parsed)
-    provider_error_type = _extract_provider_error_type(parsed)
+def _exception_chain(exc: BaseException, max_depth: int = 5) -> list[BaseException]:
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and len(chain) < max_depth and id(current) not in seen:
+        chain.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return chain
 
-    category = (
-        _category_from_provider_payload(status_code, provider_error_type)
-        or _category_from_message(raw)
-        or _category_from_class_name(exc)
-        or LLMErrorCategory.UNKNOWN
-    )
+
+def adapt_llm_exception(exc: BaseException) -> LLMErrorAdaptation:
+    entries: list[tuple[BaseException, str, int | None, str | None]] = []
+    for current in _exception_chain(exc):
+        raw = str(current)
+        parsed = _parse_error_payload(raw)
+        entries.append(
+            (
+                current,
+                raw,
+                _extract_provider_status_code(parsed),
+                _extract_provider_error_type(parsed),
+            )
+        )
+
+    category: LLMErrorCategory | None = None
+    matched_status: int | None = None
+    matched_type: str | None = None
+
+    # Provider semantics across the entire wrapper chain must win over generic
+    # HTTP statuses and wrapper class names.
+    for _, _, status_code, provider_error_type in entries:
+        if provider_error_type:
+            semantic = _category_from_provider_payload(None, provider_error_type)
+            if semantic is not None:
+                category = semantic
+                matched_status = status_code
+                matched_type = provider_error_type
+                break
+    if category is None:
+        for _, raw, status_code, provider_error_type in entries:
+            semantic = _category_from_message(raw)
+            if semantic is not None:
+                category = semantic
+                matched_status = status_code
+                matched_type = provider_error_type
+                break
+    if category is None:
+        for _, _, status_code, provider_error_type in entries:
+            status_category = _category_from_provider_payload(
+                status_code, provider_error_type
+            )
+            if status_category is not None:
+                category = status_category
+                matched_status = status_code
+                matched_type = provider_error_type
+                break
+    if category is None:
+        for current, _, status_code, provider_error_type in entries:
+            class_category = _category_from_class_name(current)
+            if class_category is not None:
+                category = class_category
+                matched_status = status_code
+                matched_type = provider_error_type
+                break
+
+    category = category or LLMErrorCategory.UNKNOWN
     return LLMErrorAdaptation(
         category=category,
         retryable=category in _RETRYABLE_CATEGORIES,
         user_message=_CATEGORY_MESSAGES[category],
-        provider_status_code=status_code,
-        provider_error_type=provider_error_type,
+        provider_status_code=matched_status,
+        provider_error_type=matched_type,
     )
 
 
