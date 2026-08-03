@@ -18,6 +18,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { TimelineDataUI } from "@/features/chat-messages/timeline";
+import { preferBackendMessage } from "@/lib/chat/chat-error-classifier";
 import {
 	addStepSeparator,
 	addToolCall,
@@ -63,19 +64,34 @@ function normalizeFreeChatErrorMessage(error: unknown): string {
 		return "A previous response is still stopping. Please try again in a moment.";
 	}
 	if (code === "MODEL_AUTH_FAILED") {
-		return "This model’s API key is invalid or expired. Switch models, or update the API key.";
+		return preferBackendMessage(
+			error.message,
+			"This model’s API key is invalid or expired. Switch models, or update the API key."
+		);
 	}
 	if (code === "MODEL_NOT_FOUND") {
-		return "This model is unavailable or no longer exists. Please switch models.";
+		return preferBackendMessage(
+			error.message,
+			"This model is unavailable or no longer exists. Please switch models."
+		);
 	}
 	if (code === "MODEL_CONTEXT_LIMIT") {
-		return "This request is too large for the selected model. Reduce the input or switch models.";
+		return preferBackendMessage(
+			error.message,
+			"This request is too large for the selected model. Reduce the input or switch models."
+		);
 	}
 	if (code === "MODEL_PROVIDER_UNAVAILABLE") {
-		return "The selected model provider is temporarily unavailable. Please try again or switch models.";
+		return preferBackendMessage(
+			error.message,
+			"The selected model provider is temporarily unavailable. Please try again or switch models."
+		);
 	}
 	if (code === "RATE_LIMITED") {
-		return "This model is temporarily rate-limited. Please try again in a few seconds or switch models.";
+		return preferBackendMessage(
+			error.message,
+			"This model is temporarily rate-limited. Please try again in a few seconds or switch models."
+		);
 	}
 	return error.message || "An unexpected error occurred";
 }
