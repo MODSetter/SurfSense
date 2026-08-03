@@ -103,6 +103,22 @@ function parseEmbeddedJson(text: string): Record<string, unknown> | null {
 	return null;
 }
 
+/**
+ * Prefer the message the backend composed for provider-classified errors.
+ *
+ * The stream classifier already tailors these strings to the situation (which
+ * knob to turn for an LM Studio context rejection, for instance), so replacing
+ * them client-side hides the actionable half. Falls back to the generic string
+ * when the code arrives from a non-stream path, whose body is an HTTP sentinel
+ * or a raw provider dump rather than prose.
+ */
+export function preferBackendMessage(rawMessage: string, fallback: string): string {
+	const trimmed = rawMessage.trim();
+	if (!trimmed || trimmed.length > 300) return fallback;
+	if (trimmed.includes("{") || trimmed.startsWith("Backend error:")) return fallback;
+	return trimmed;
+}
+
 function inferProviderErrorType(parsedJson: Record<string, unknown> | null): string | undefined {
 	if (!parsedJson) return undefined;
 	const topLevelType = parsedJson.type;
@@ -217,8 +233,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This model’s API key is invalid or expired. Switch models, or update the API key.",
+			userMessage: preferBackendMessage(
+				rawMessage,
+				"This model’s API key is invalid or expired. Switch models, or update the API key."
+			),
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_AUTH_FAILED",
 			details: { flow: input.flow, providerErrorType },
@@ -232,8 +250,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This model is unavailable or no longer exists. Switch to another model and try again.",
+			userMessage: preferBackendMessage(
+				rawMessage,
+				"This model is unavailable or no longer exists. Switch to another model and try again."
+			),
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_NOT_FOUND",
 			details: { flow: input.flow, providerErrorType },
@@ -247,8 +267,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This request is too large for the selected model. Reduce the input or switch models.",
+			userMessage: preferBackendMessage(
+				rawMessage,
+				"This request is too large for the selected model. Reduce the input or switch models."
+			),
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_CONTEXT_LIMIT",
 			details: { flow: input.flow, providerErrorType },
@@ -262,8 +284,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"The selected model provider is temporarily unavailable. Please try again or switch models.",
+			userMessage: preferBackendMessage(
+				rawMessage,
+				"The selected model provider is temporarily unavailable. Please try again or switch models."
+			),
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_PROVIDER_UNAVAILABLE",
 			details: { flow: input.flow, providerErrorType },
@@ -277,8 +301,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
+			userMessage: preferBackendMessage(
+				rawMessage,
+				"This model is temporarily rate-limited. Please try again in a few seconds or switch models."
+			),
 			rawMessage,
 			errorCode: errorCode ?? "RATE_LIMITED",
 			details: { flow: input.flow, providerErrorType },
