@@ -13,8 +13,8 @@ CHAT_ERROR_MESSAGES: dict[str, str] = {
         "the API key."
     ),
     "MODEL_CONTEXT_LIMIT": (
-        "This request is too large for the selected model. Reduce the input or "
-        "increase its configured context limit."
+        "This request is too large for the selected model. Ask for less at once, "
+        "or lower this model's max input tokens in settings so we send less."
     ),
     "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT": (
         "The selected model does not support image input. Switch to a "
@@ -25,9 +25,8 @@ CHAT_ERROR_MESSAGES: dict[str, str] = {
         "another model and try again."
     ),
     "MODEL_OUT_OF_MEMORY": (
-        "The model host does not have enough memory to run this model at its "
-        "configured context limit. Lower this model's context limit in "
-        "settings, or switch models."
+        "The computer running this model doesn't have enough memory to load it. "
+        "Close anything else using the GPU, or switch to a smaller model."
     ),
     "MODEL_PROVIDER_UNAVAILABLE": (
         "The selected model provider is temporarily unavailable. Please try "
@@ -55,8 +54,8 @@ CHAT_ERROR_MESSAGES: dict[str, str] = {
 }
 
 _LM_STUDIO_CONTEXT_MESSAGE = (
-    "This request is too large for the selected model. Raise the context in "
-    "LM Studio, or lower this model's context limit in settings."
+    "This request is too large for the selected model. Raise the context length "
+    "in LM Studio, or lower this model's max input tokens in settings."
 )
 
 

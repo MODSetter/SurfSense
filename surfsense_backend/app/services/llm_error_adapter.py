@@ -45,7 +45,7 @@ _CATEGORY_MESSAGES: dict[LLMErrorCategory, str] = {
     LLMErrorCategory.MODEL_NOT_FOUND: "Model not found. Check your model configuration.",
     LLMErrorCategory.BAD_REQUEST: "LLM rejected the request. Document content may be invalid.",
     LLMErrorCategory.CONTEXT_LIMIT: "Document exceeds the LLM context window even after optimization.",
-    LLMErrorCategory.INSUFFICIENT_MEMORY: "The LLM host ran out of memory loading this model. Lower the model's context limit.",
+    LLMErrorCategory.INSUFFICIENT_MEMORY: "The LLM host ran out of memory loading this model. Free memory on the host or use a smaller model.",
     LLMErrorCategory.RESPONSE_INVALID: "LLM returned an invalid response.",
     LLMErrorCategory.SERVER_ERROR: "LLM internal server error. Will retry on next sync.",
     LLMErrorCategory.UNKNOWN: "Something went wrong when calling the LLM.",

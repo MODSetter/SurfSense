@@ -17,9 +17,11 @@ Behaviour:
   ``litellm.exceptions.RateLimitError.response.headers`` (or any exception
   exposing a similar shape).
 - Sleeps ``max(exponential_backoff, header_delay)`` between retries.
-- Returns ``False`` from ``retry_on`` for ``ContextWindowExceededError`` /
-  ``ContextOverflowError`` so :class:`SurfSenseCompactionMiddleware` (or
-  the LangChain summarization fallback path) handles those instead.
+- Returns ``False`` from ``retry_on`` for context overflow so
+  :class:`SurfSenseCompactionMiddleware` (or the LangChain summarization
+  fallback path) handles it instead, and for the other categories a retry
+  cannot fix (auth, permissions, unknown model, bad request, host out of
+  memory).
 - Emits ``surfsense.retrying`` via ``adispatch_custom_event`` on each retry
   so ``stream_new_chat`` can forward it to clients as an SSE event.
 """
@@ -46,27 +48,36 @@ from langchain_core.callbacks import adispatch_custom_event, dispatch_custom_eve
 from langchain_core.messages import AIMessage
 
 from app.observability import metrics as ot_metrics, otel as ot
+from app.services.llm_error_adapter import LLMErrorCategory, adapt_llm_exception
 
 logger = logging.getLogger(__name__)
 
-# Names of exception classes for which a retry would not help — context
-# overflow needs compaction, auth needs human intervention, etc. Detected
-# by class-name substring so we don't have to import LiteLLM/Anthropic
-# here (which would tie this module to optional deps).
-_NON_RETRYABLE_NAME_HINTS: tuple[str, ...] = (
-    "ContextWindowExceeded",
-    "ContextOverflow",
-    "AuthenticationError",
-    "InvalidRequestError",
-    "PermissionDenied",
-    "InvalidApiKey",
-    "ContextLimit",
+# Categories for which a retry cannot help — context overflow needs
+# compaction, auth needs human intervention, and a host that could not fit the
+# model has already exhausted its own recovery (Ollama's scheduler retries a
+# load-time OOM by shrinking an automatic context and evicting other models
+# before it ever returns the error). Anything unrecognised stays retryable, so
+# a transient failure we cannot classify still gets its attempts.
+_NON_RETRYABLE_CATEGORIES: frozenset[LLMErrorCategory] = frozenset(
+    {
+        LLMErrorCategory.AUTH_FAILED,
+        LLMErrorCategory.PERMISSION_DENIED,
+        LLMErrorCategory.MODEL_NOT_FOUND,
+        LLMErrorCategory.BAD_REQUEST,
+        LLMErrorCategory.CONTEXT_LIMIT,
+        LLMErrorCategory.INSUFFICIENT_MEMORY,
+    }
 )
 
 
 def _is_non_retryable(exc: BaseException) -> bool:
-    name = type(exc).__name__
-    return any(hint in name for hint in _NON_RETRYABLE_NAME_HINTS)
+    """Classify by message and wrapper chain, not just the exception class.
+
+    Local runtimes surface both of the hopeless cases -- out of memory and
+    context overflow -- as a generic provider error whose class name says
+    nothing, so a class-name test retries them until the attempts run out.
+    """
+    return adapt_llm_exception(exc).category in _NON_RETRYABLE_CATEGORIES
 
 
 def _extract_retry_after_seconds(exc: BaseException) -> float | None:

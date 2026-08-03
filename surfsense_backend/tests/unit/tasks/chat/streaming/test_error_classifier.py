@@ -160,7 +160,7 @@ def test_stream_classifier_maps_model_auth_to_stable_code() -> None:
 def test_stream_classifier_maps_out_of_memory_to_stable_code() -> None:
     """A local runtime reports OOM as a 5xx, which lands in the unavailable
     group unless this classifies ahead of it -- and that group's copy tells the
-    user to retry a load that cannot succeed until the limit comes down."""
+    user to retry a load that cannot succeed until memory is freed."""
     exc = RuntimeError(
         'litellm.APIError: OllamaException - {"error":"model requires more '
         'system memory (14.2 GiB) than is available (7.8 GiB)"}'
@@ -174,7 +174,9 @@ def test_stream_classifier_maps_out_of_memory_to_stable_code() -> None:
     assert code == "MODEL_OUT_OF_MEMORY"
     assert severity == "warn"
     assert expected is True
-    assert "context limit" in message
+    # Names a lever that works: our budget does not size the host's allocation,
+    # so telling the user to lower it would not free a byte.
+    assert "smaller model" in message
     assert diagnostic == str(exc)
     assert extra["provider_error_category"] == "insufficient_memory"
 
