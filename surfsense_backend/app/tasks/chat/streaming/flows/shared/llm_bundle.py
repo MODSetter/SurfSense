@@ -95,24 +95,24 @@ def _positive_int(value: Any) -> int | None:
 def _build_profiled_llm(
     *,
     model_string: str,
-    provider: str,
     litellm_kwargs: dict[str, Any],
     persisted_max_input_tokens: int | None,
 ) -> SanitizedChatLiteLLM:
+    """Build the LLM with a trim budget but no allocation request.
+
+    ``max_input_tokens`` is a ceiling on what we send, never a size we ask a
+    runtime to reserve. Ollama sizes itself from available memory unless the
+    operator says otherwise, and it can only shrink the context to survive a
+    load-time OOM while that sizing is automatic -- a ``num_ctx`` we invented
+    would take that away. An operator who does want a fixed size sets it on the
+    connection, and ``to_litellm`` passes it through untouched.
+    """
     effective = resolve_max_input_tokens(
         model_string,
         persisted_max_input_tokens=persisted_max_input_tokens,
     )
-    resolved_kwargs = dict(litellm_kwargs)
-    if provider == "ollama_chat":
-        # Explicit operator configuration from Connection.extra wins. Otherwise
-        # send the effective budget, so the size Ollama allocates and the size we
-        # trim to cannot disagree -- sending nothing would leave Ollama on its own
-        # 4k default while we budget the fallback, truncating the system prompt
-        # without saying so.
-        resolved_kwargs.setdefault("num_ctx", effective)
     llm = SanitizedChatLiteLLM(
-        model=model_string, **{**resolved_kwargs, "streaming": True}
+        model=model_string, **{**litellm_kwargs, "streaming": True}
     )
     _attach_model_profile(
         llm,
@@ -168,7 +168,6 @@ async def load_llm_bundle(
         return (
             _build_profiled_llm(
                 model_string=model_string,
-                provider=provider,
                 litellm_kwargs=litellm_kwargs,
                 persisted_max_input_tokens=_positive_int(
                     getattr(model, "max_input_tokens", None)
@@ -219,7 +218,6 @@ async def load_llm_bundle(
     return (
         _build_profiled_llm(
             model_string=model_string,
-            provider=provider,
             litellm_kwargs=litellm_kwargs,
             persisted_max_input_tokens=_positive_int(
                 global_model.get("max_input_tokens")

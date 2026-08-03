@@ -185,9 +185,11 @@ async def test_load_llm_bundle_enables_streaming_for_db_models(
     ]
 
 
-async def test_load_llm_bundle_injects_ollama_num_ctx_without_overriding_explicit(
+async def test_load_llm_bundle_passes_through_operator_configured_num_ctx(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The one number allowed to cross into an allocation request: a size an
+    operator set on the connection."""
     connection = SimpleNamespace(
         provider="ollama_chat",
         api_key=None,
@@ -225,9 +227,13 @@ async def test_load_llm_bundle_injects_ollama_num_ctx_without_overriding_explici
     assert _CapturedChatLiteLLM.calls[-1]["num_ctx"] == 12_288
 
 
-async def test_load_llm_bundle_injects_effective_ollama_num_ctx(
+async def test_load_llm_bundle_never_invents_an_ollama_num_ctx(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The budget caps what we send; it must not become a size Ollama is asked
+    to reserve. Ollama can only shrink the context to survive a load-time OOM
+    while that sizing stays automatic, and an invented ``num_ctx`` removes it.
+    """
     connection = SimpleNamespace(
         provider="ollama_chat",
         api_key=None,
@@ -256,9 +262,13 @@ async def test_load_llm_bundle_injects_effective_ollama_num_ctx(
         ),
     )
 
-    await llm_bundle.load_llm_bundle(object(), config_id=9, workspace_id=42)
+    llm, _, error = await llm_bundle.load_llm_bundle(
+        object(), config_id=9, workspace_id=42
+    )
 
-    assert _CapturedChatLiteLLM.calls[-1]["num_ctx"] == 24_576
+    assert error is None
+    assert llm.profile["max_input_tokens"] == 24_576
+    assert "num_ctx" not in _CapturedChatLiteLLM.calls[-1]
 
 
 async def test_load_llm_bundle_ignores_stale_lm_studio_loaded_context(
