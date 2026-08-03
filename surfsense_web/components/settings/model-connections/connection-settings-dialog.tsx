@@ -308,7 +308,7 @@ export function ConnectionSettingsDialog({
 
 						<ModelsSelectionPanel
 							models={draftModels}
-							description="Choose available models and set the context limit used for prompt budgeting."
+							description="Choose available models. Max input tokens caps the prompt we send in one request; leave it blank to let the provider decide."
 							isRefreshing={discoverModels.isPending}
 							isUpdatingModel={isSavingConnectionSettings}
 							isBulkUpdating={isSavingConnectionSettings || bulkUpdateModels.isPending}
