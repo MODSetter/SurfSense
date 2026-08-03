@@ -14,7 +14,7 @@ import httpx
 import litellm
 
 from app.db import Connection, Model, ModelSource
-from app.services.context_admission import GEN_AI_MODEL_FALLBACK_MAX_TOKENS
+from app.services.context_admission import SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
 from app.services.model_resolver import to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
@@ -374,7 +374,7 @@ def _ollama_seed_budget(metadata: dict) -> int | None:
         return stated
     architecture_max = _ollama_architecture_context_length(metadata)
     if architecture_max:
-        return min(architecture_max, GEN_AI_MODEL_FALLBACK_MAX_TOKENS)
+        return min(architecture_max, SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS)
     return None
 
 

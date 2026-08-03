@@ -29,7 +29,7 @@ from app.agents.chat.runtime.prompt_caching import (
     apply_litellm_prompt_caching,
 )
 from app.services.context_admission import (
-    GEN_AI_MODEL_FALLBACK_MAX_TOKENS,
+    SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS,
     admit_langchain_messages,
     compute_tool_tokens,
 )
@@ -201,7 +201,7 @@ def resolve_max_input_tokens(
             return catalog_value
     except Exception:
         pass
-    return GEN_AI_MODEL_FALLBACK_MAX_TOKENS
+    return SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
 
 
 def _attach_model_profile(

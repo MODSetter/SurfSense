@@ -5,7 +5,7 @@ import pytest
 
 from app.routes.model_connections_routes import _apply_model_facts
 from app.services import model_connection_service
-from app.services.context_admission import GEN_AI_MODEL_FALLBACK_MAX_TOKENS
+from app.services.context_admission import SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
 from app.services.global_model_catalog import materialize_global_model_catalog
 from app.services.model_connection_service import (
     ModelDiscoveryError,
@@ -89,7 +89,7 @@ def test_ollama_seed_budget_caps_the_architecture_maximum() -> None:
                 "details": {"family": "gemma4", "quantization_level": "Q4_K_M"},
             }
         )
-        == GEN_AI_MODEL_FALLBACK_MAX_TOKENS
+        == SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
     )
 
 
@@ -183,7 +183,10 @@ async def test_ollama_discovery_merges_details_from_both_endpoints(
     assert details["quantization_level"] == "Q4_K_M"
     # The reported maximum survives in the metadata the UI reads, while the
     # seeded budget stays at the fallback the host is likely to have allocated.
-    assert results[0]["max_input_tokens"] == GEN_AI_MODEL_FALLBACK_MAX_TOKENS
+    assert (
+        results[0]["max_input_tokens"]
+        == SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
+    )
 
 
 def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:
