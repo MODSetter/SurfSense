@@ -186,12 +186,19 @@ def _classify_provider_exception(
         )
 
     if adapted.category is LLMErrorCategory.CONTEXT_LIMIT:
+        message = (
+            "This request is too large for the selected model. Raise the context "
+            "in LM Studio, or lower this model's context limit in settings."
+            if adapted.provider_error_type == "exceed_context_size_error"
+            else "This request is too large for the selected model. Reduce the "
+            "input or increase its configured context limit."
+        )
         return (
             "model_context_limit",
             "MODEL_CONTEXT_LIMIT",
             "warn",
             True,
-            "This request is too large for the selected model. Try a model with a larger context window or reduce the input.",
+            message,
             _provider_error_extra(adapted),
         )
 
