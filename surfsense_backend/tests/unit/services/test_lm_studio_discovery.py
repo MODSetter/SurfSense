@@ -55,6 +55,9 @@ async def test_lm_studio_uses_native_v1_capabilities(monkeypatch) -> None:
                             "key": "google/gemma-4-e4b",
                             "display_name": "Gemma 4 E4B",
                             "max_context_length": 131072,
+                            "loaded_instances": [
+                                {"id": "instance-1", "config": {"context_length": 8192}}
+                            ],
                             "capabilities": {
                                 "vision": True,
                                 "trained_for_tool_use": True,
@@ -89,6 +92,9 @@ async def test_lm_studio_uses_native_v1_capabilities(monkeypatch) -> None:
             "key": "google/gemma-4-e4b",
             "display_name": "Gemma 4 E4B",
             "max_context_length": 131072,
+            "loaded_instances": [
+                {"id": "instance-1", "config": {"context_length": 8192}}
+            ],
             "capabilities": {
                 "vision": True,
                 "trained_for_tool_use": True,
@@ -97,6 +103,37 @@ async def test_lm_studio_uses_native_v1_capabilities(monkeypatch) -> None:
     }
     assert models[1]["supports_chat"] is False
     assert models[1]["supports_image_input"] is False
+
+
+@pytest.mark.asyncio
+async def test_lm_studio_budget_tracks_max_not_loaded_context(monkeypatch) -> None:
+    """Discovery reports the model's maximum, not whatever a currently loaded
+    instance happens to use — the latter changes without a rediscovery."""
+    native_url = "http://host.docker.internal:1234/api/v1/models"
+    _mock_responses(
+        monkeypatch,
+        {
+            native_url: (
+                200,
+                {
+                    "models": [
+                        {
+                            "type": "llm",
+                            "key": "model",
+                            "max_context_length": 32768,
+                            "loaded_instances": [
+                                {"id": "one", "config": {"context_length": 8192}}
+                            ],
+                        }
+                    ]
+                },
+            )
+        },
+    )
+
+    models = await discover_models(_connection())
+
+    assert models[0]["max_input_tokens"] == 32768
 
 
 @pytest.mark.asyncio
