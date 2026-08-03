@@ -2,9 +2,37 @@ from types import SimpleNamespace
 
 import httpx
 
+from app.routes.model_connections_routes import _apply_model_facts
 from app.services.global_model_catalog import materialize_global_model_catalog
 from app.services.model_connection_service import _discovery_error_message
 from app.services.model_resolver import strip_version_suffix, to_litellm
+
+
+def _facts(max_input_tokens: int | None) -> dict:
+    return {
+        "supports_chat": True,
+        "max_input_tokens": max_input_tokens,
+        "supports_image_input": False,
+        "supports_tools": True,
+        "supports_image_generation": False,
+    }
+
+
+def test_rediscovery_preserves_stored_context_limit() -> None:
+    """A stored limit is written once: rediscovery must not clobber it."""
+    model = SimpleNamespace(catalog={}, max_input_tokens=8_192)
+
+    _apply_model_facts(model, _facts(131_072))
+
+    assert model.max_input_tokens == 8_192
+
+
+def test_discovery_seeds_context_limit_when_unset() -> None:
+    model = SimpleNamespace(catalog={}, max_input_tokens=None)
+
+    _apply_model_facts(model, _facts(131_072))
+
+    assert model.max_input_tokens == 131_072
 
 
 def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:
