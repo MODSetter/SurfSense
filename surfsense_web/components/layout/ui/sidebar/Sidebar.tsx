@@ -136,7 +136,7 @@ export function Sidebar({
 	// Automations, Artifacts, and Playground are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
 	// in the bottom NavSection. Documents is only present in navItems on mobile,
-	// where it opens the full-screen Documents panel.
+	// where it opens the Documents workspace destination.
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
 		[navItems]
@@ -154,7 +154,7 @@ export function Sidebar({
 		[navItems]
 	);
 	const documentsItem = useMemo(
-		() => navItems.find((item) => item.url === "#documents"),
+		() => navItems.find((item) => item.url === "#documents" || item.url.endsWith("/documents")),
 		[navItems]
 	);
 	const footerNavItems = useMemo(
@@ -162,6 +162,7 @@ export function Sidebar({
 			navItems.filter(
 				(item) =>
 					item.url !== "#documents" &&
+					!item.url.endsWith("/documents") &&
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
 					!item.url.endsWith("/connectors") &&
@@ -269,16 +270,6 @@ export function Sidebar({
 							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
 						/>
 					)}
-					{documentsItem && (
-						<SidebarButton
-							icon={documentsItem.icon}
-							label={documentsItem.title}
-							onClick={() => onNavItemClick?.(documentsItem)}
-							isCollapsed={isCollapsed}
-							isActive={documentsItem.isActive}
-							tooltipContent={isCollapsed ? documentsItem.title : undefined}
-						/>
-					)}
 					{connectorsItem && (
 						<SidebarButton
 							icon={connectorsItem.icon}
@@ -287,6 +278,16 @@ export function Sidebar({
 							isCollapsed={isCollapsed}
 							isActive={connectorsItem.isActive}
 							tooltipContent={isCollapsed ? connectorsItem.title : undefined}
+						/>
+					)}
+					{documentsItem && (
+						<SidebarButton
+							icon={documentsItem.icon}
+							label={documentsItem.title}
+							onClick={() => onNavItemClick?.(documentsItem)}
+							isCollapsed={isCollapsed}
+							isActive={documentsItem.isActive}
+							tooltipContent={isCollapsed ? documentsItem.title : undefined}
 						/>
 					)}
 					{playgroundItem && (
