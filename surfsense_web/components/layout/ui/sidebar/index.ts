@@ -1,7 +1,6 @@
 export { AllChatsWorkspaceContent } from "./AllChatsSidebar";
 export { ChatListItem } from "./ChatListItem";
 export { CreditBalanceDisplay } from "./CreditBalanceDisplay";
-export { DocumentsSidebar } from "./DocumentsSidebar";
 export { MobileSidebar, MobileSidebarTrigger } from "./MobileSidebar";
 export { NavSection } from "./NavSection";
 export { NotificationsDropdown } from "./NotificationsDropdown";

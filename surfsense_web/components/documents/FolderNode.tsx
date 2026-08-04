@@ -35,8 +35,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { FolderDisplay, FolderSelectionState } from "@/lib/documents/document-tree-types";
 import { cn } from "@/lib/utils";
-import type { FolderSelectionState } from "./FolderTreeView";
 
 export const DND_TYPES = {
 	FOLDER: "FOLDER",
@@ -44,15 +44,6 @@ export const DND_TYPES = {
 } as const;
 
 type DropZone = "top" | "middle" | "bottom";
-
-export interface FolderDisplay {
-	id: number;
-	name: string;
-	position: string;
-	parentId: number | null;
-	workspaceId: number;
-	metadata?: Record<string, unknown> | null;
-}
 
 interface FolderNodeProps {
 	folder: FolderDisplay;

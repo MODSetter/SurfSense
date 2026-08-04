@@ -1,12 +1,14 @@
 "use client";
 
-import { FolderPlus, ListFilter, Search, X } from "lucide-react";
+import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -20,6 +22,8 @@ export function DocumentsFilters({
 	onToggleType,
 	activeTypes,
 	onCreateFolder,
+	onUploadClick,
+	isUploading = false,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -27,10 +31,15 @@ export function DocumentsFilters({
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
+	onUploadClick?: () => void;
+	isUploading?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
+
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const handleUpload = onUploadClick ?? openUploadDialog;
 
 	const [typeSearchQuery, setTypeSearchQuery] = useState("");
 	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
@@ -60,10 +69,64 @@ export function DocumentsFilters({
 	}, [typeCountsRecord]);
 
 	return (
-		<div className="flex select-none">
+		<div className="flex select-none flex-col gap-2">
+			{/* Search Input */}
+			<div className="relative w-full">
+				<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+					<Search size={13} aria-hidden="true" />
+				</div>
+				<Input
+					id={`${id}-input`}
+					ref={inputRef}
+					className="h-9 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text [&::-webkit-search-cancel-button]:hidden"
+					value={searchValue}
+					onChange={(e) => onSearch(e.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === "Escape" && searchValue) {
+							event.preventDefault();
+							onSearch("");
+						}
+					}}
+					placeholder={t("search_documents")}
+					type="search"
+					autoComplete="off"
+					enterKeyHint="search"
+					spellCheck={false}
+					aria-label={t("search_documents")}
+				/>
+				{Boolean(searchValue) && (
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="absolute right-2 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+						aria-label="Clear filter"
+						onClick={() => {
+							onSearch("");
+							inputRef.current?.focus();
+						}}
+					>
+						<X size={14} strokeWidth={2} aria-hidden="true" />
+					</Button>
+				)}
+			</div>
+
 			<div className="flex items-center gap-2 w-full">
+				{/* Upload Button */}
+				<Button
+					data-joyride="upload-button"
+					onClick={handleUpload}
+					disabled={isUploading}
+					variant="outline"
+					size="sm"
+					className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+				>
+					{isUploading ? <Spinner size="xs" /> : <Upload size={13} />}
+					<span>{isUploading ? t("uploading") : t("upload_files")}</span>
+				</Button>
+
 				{/* New Folder + Filter Toggle Group */}
-				<ToggleGroup type="multiple" value={[]} className="overflow-visible">
+				<ToggleGroup type="multiple" value={[]} className="shrink-0 overflow-visible">
 					{onCreateFolder && (
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -169,38 +232,6 @@ export function DocumentsFilters({
 						</PopoverContent>
 					</Popover>
 				</ToggleGroup>
-
-				{/* Search Input */}
-				<div className="relative flex-1 min-w-0">
-					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-						<Search size={13} aria-hidden="true" />
-					</div>
-					<Input
-						id={`${id}-input`}
-						ref={inputRef}
-						className="h-8 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
-						value={searchValue}
-						onChange={(e) => onSearch(e.target.value)}
-						placeholder="Search docs"
-						type="text"
-						aria-label={t("filter_placeholder")}
-					/>
-					{Boolean(searchValue) && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-							aria-label="Clear filter"
-							onClick={() => {
-								onSearch("");
-								inputRef.current?.focus();
-							}}
-						>
-							<X size={14} strokeWidth={2} aria-hidden="true" />
-						</Button>
-					)}
-				</div>
 			</div>
 		</div>
 	);

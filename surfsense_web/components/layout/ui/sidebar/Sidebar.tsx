@@ -1,13 +1,12 @@
 "use client";
 
 import { useSetAtom } from "jotai";
-import { CreditCard, FolderSync, MessageCircleMore, SquarePen, Upload, Zap } from "lucide-react";
+import { CreditCard, FolderSync, MessageCircleMore, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState } from "react";
 import { watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
 import { FolderWatchDialog } from "@/components/sources/FolderWatchDialog";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
-import { DocumentsSidebar } from "./DocumentsSidebar";
 import { NavSection } from "./NavSection";
 import { SidebarButton, SidebarButtonBadge } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
@@ -137,7 +135,8 @@ export function Sidebar({
 
 	// Automations, Artifacts, and Playground are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
-	// in the bottom NavSection. Documents is embedded below Recents.
+	// in the bottom NavSection. Documents is only present in navItems on mobile,
+	// where it opens the Documents workspace destination.
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
 		[navItems]
@@ -154,10 +153,16 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/playground")),
 		[navItems]
 	);
+	const documentsItem = useMemo(
+		() => navItems.find((item) => item.url === "#documents" || item.url.endsWith("/documents")),
+		[navItems]
+	);
 	const footerNavItems = useMemo(
 		() =>
 			navItems.filter(
 				(item) =>
+					item.url !== "#documents" &&
+					!item.url.endsWith("/documents") &&
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
 					!item.url.endsWith("/connectors") &&
@@ -275,6 +280,16 @@ export function Sidebar({
 							tooltipContent={isCollapsed ? connectorsItem.title : undefined}
 						/>
 					)}
+					{documentsItem && (
+						<SidebarButton
+							icon={documentsItem.icon}
+							label={documentsItem.title}
+							onClick={() => onNavItemClick?.(documentsItem)}
+							isCollapsed={isCollapsed}
+							isActive={documentsItem.isActive}
+							tooltipContent={isCollapsed ? documentsItem.title : undefined}
+						/>
+					)}
 					{playgroundItem && (
 						<SidebarButton
 							icon={playgroundItem.icon}
@@ -296,6 +311,7 @@ export function Sidebar({
 						<SidebarSection
 							title={t("recents")}
 							defaultOpen={true}
+							fillHeight={true}
 							alwaysShowAction={!disableTooltips && isAllChatsActive}
 							action={
 								onViewAllChats ? (
@@ -342,9 +358,6 @@ export function Sidebar({
 								<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
 							)}
 						</SidebarSection>
-						<div className="min-h-0 flex flex-1 flex-col">
-							<DocumentsSidebar embedded />
-						</div>
 					</div>
 				)}
 			</div>
@@ -391,18 +404,13 @@ export function Sidebar({
 	);
 }
 
-/**
- * Sidebar-footer import actions rendered above "Connect your agent":
- * "Watch Local Folder" (desktop app only) and "Upload Files". Both reuse the
- * existing dialogs; in anonymous mode they open the login gate instead.
- */
+/** Desktop-only local folder action rendered above "Connect your agent". */
 function SidebarImportActions() {
 	const params = useParams();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const { isDesktop } = usePlatform();
 	const isAnonymous = useIsAnonymous();
 	const { gate } = useLoginGate();
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
 	const bumpWatchedFoldersRefresh = useSetAtom(watchedFoldersRefreshAtom);
 
@@ -415,11 +423,6 @@ function SidebarImportActions() {
 					onClick={() => (isAnonymous ? gate("watch local folders") : setFolderWatchOpen(true))}
 				/>
 			)}
-			<SidebarButton
-				icon={Upload}
-				label="Upload Files"
-				onClick={() => (isAnonymous ? gate("upload files") : openUploadDialog())}
-			/>
 			{isDesktop && !isAnonymous && (
 				<FolderWatchDialog
 					open={folderWatchOpen}
