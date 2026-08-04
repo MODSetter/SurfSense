@@ -142,6 +142,8 @@ interface DocumentRightPanelProps {
 	onDockedChange?: (docked: boolean) => void;
 	/** When true, renders content without any wrapper — parent provides the container */
 	embedded?: boolean;
+	/** Uses the page-style heading and spacing reserved for mobile workspace destinations. */
+	workspaceView?: boolean;
 	/** Optional action element rendered in the header row (e.g. collapse button) */
 	headerAction?: React.ReactNode;
 }
@@ -173,13 +175,14 @@ function AuthenticatedDocumentRightPanelBase({
 	isDocked = false,
 	onDockedChange,
 	embedded = false,
+	workspaceView = false,
 	headerAction,
 	desktopFeaturesEnabled,
 }: DocumentRightPanelProps & { desktopFeaturesEnabled: boolean }) {
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
-	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const isMobile = !useMediaQuery("(min-width: 768px)");
 	const platformElectronAPI = useElectronAPI();
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
@@ -1103,7 +1106,7 @@ function AuthenticatedDocumentRightPanelBase({
 			)}
 
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`px-4 pb-1.5 ${isElectron ? "" : "pt-6"}`}>
+				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-6"}`}>
 					<DocumentsFilters
 						typeCounts={typeCounts}
 						onSearch={setSearch}
@@ -1191,83 +1194,93 @@ function AuthenticatedDocumentRightPanelBase({
 
 	const documentsContent = (
 		<>
-			<div className="shrink-0 flex h-12 items-center px-3">
-				<div className="flex w-full items-center justify-between">
-					<div className="flex items-center gap-3">
-						{isMobile && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-								onClick={() => onOpenChange(false)}
-							>
-								<ChevronLeft className="h-4 w-4" />
-								<span className="sr-only">{tSidebar("close") || "Close"}</span>
-							</Button>
-						)}
-						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
-						{showFilesystemTabs && (
-							<Tabs
-								value={currentFilesystemTab}
-								onValueChange={(value) => {
-									void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
-								}}
-							>
-								<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
-									<TabsTrigger
-										value="cloud"
-										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-										title="Cloud"
-									>
-										<Server className="size-3 shrink-0" />
-										<span className="leading-none">Cloud</span>
-									</TabsTrigger>
-									<TabsTrigger
-										value="local"
-										className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
-										title="Local"
-									>
-										<Laptop className="size-3 shrink-0" />
-										<span className="leading-none">Local</span>
-									</TabsTrigger>
-								</TabsList>
-							</Tabs>
-						)}
-					</div>
-					<div className="flex items-center gap-1">
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-										onClick={() => {
-											if (isDocked) {
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4" />
-										) : (
-											<ChevronRight className="h-4 w-4" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{headerAction}
+			{workspaceView ? (
+				<header className="shrink-0">
+					<h1 className="text-xl font-semibold text-foreground md:text-2xl">
+						{t("title") || "Documents"}
+					</h1>
+				</header>
+			) : (
+				<div className="shrink-0 flex h-12 items-center px-3">
+					<div className="flex w-full items-center justify-between">
+						<div className="flex items-center gap-3">
+							{isMobile && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+									onClick={() => onOpenChange(false)}
+								>
+									<ChevronLeft className="h-4 w-4" />
+									<span className="sr-only">{tSidebar("close") || "Close"}</span>
+								</Button>
+							)}
+							<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+							{showFilesystemTabs && (
+								<Tabs
+									value={currentFilesystemTab}
+									onValueChange={(value) => {
+										void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
+									}}
+								>
+									<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
+										<TabsTrigger
+											value="cloud"
+											className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+											title="Cloud"
+										>
+											<Server className="size-3 shrink-0" />
+											<span className="leading-none">Cloud</span>
+										</TabsTrigger>
+										<TabsTrigger
+											value="local"
+											className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+											title="Local"
+										>
+											<Laptop className="size-3 shrink-0" />
+											<span className="leading-none">Local</span>
+										</TabsTrigger>
+									</TabsList>
+								</Tabs>
+							)}
+						</div>
+						<div className="flex items-center gap-1">
+							{!isMobile && onDockedChange && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+											onClick={() => {
+												if (isDocked) {
+													onDockedChange(false);
+													onOpenChange(false);
+												} else {
+													onDockedChange(true);
+												}
+											}}
+										>
+											{isDocked ? (
+												<ChevronLeft className="h-4 w-4" />
+											) : (
+												<ChevronRight className="h-4 w-4" />
+											)}
+											<span className="sr-only">
+												{isDocked ? "Collapse panel" : "Expand panel"}
+											</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="z-80">
+										{isDocked ? "Collapse panel" : "Expand panel"}
+									</TooltipContent>
+								</Tooltip>
+							)}
+							{headerAction}
+						</div>
 					</div>
 				</div>
-			</div>
+			)}
 			{showFilesystemTabs ? (
 				<Tabs
 					value={currentFilesystemTab}
@@ -1435,7 +1448,13 @@ function AuthenticatedDocumentRightPanelBase({
 
 	if (embedded) {
 		return (
-			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+			<div
+				className={
+					workspaceView
+						? "flex h-full min-h-0 flex-col bg-panel text-foreground"
+						: "flex h-full flex-col bg-sidebar text-sidebar-foreground"
+				}
+			>
 				{documentsContent}
 			</div>
 		);
@@ -1526,11 +1545,12 @@ function AnonymousDocumentRightPanel({
 	isDocked = false,
 	onDockedChange,
 	embedded = false,
+	workspaceView = false,
 	headerAction,
 }: DocumentRightPanelProps) {
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
-	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const isMobile = !useMediaQuery("(min-width: 768px)");
 	const anonMode = useAnonymousMode();
 	const { gate } = useLoginGate();
 
@@ -1663,61 +1683,70 @@ function AnonymousDocumentRightPanel({
 				disabled={isUploading}
 			/>
 
-			{/* Header */}
-			<div className="shrink-0 flex h-12 items-center px-3">
-				<div className="flex w-full items-center justify-between">
-					<div className="flex items-center gap-2">
-						<h2 className="select-none text-base font-semibold">{t("title") || "Documents"}</h2>
-					</div>
-					<div className="flex items-center gap-1">
-						{isMobile && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-								onClick={() => onOpenChange(false)}
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{tSidebar("close") || "Close"}</span>
-							</Button>
-						)}
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
-										onClick={() => {
-											if (isDocked) {
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4" />
-										) : (
-											<ChevronRight className="h-4 w-4" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{headerAction}
+			{workspaceView ? (
+				<header className="shrink-0">
+					<h1 className="text-xl font-semibold text-foreground md:text-2xl">
+						{t("title") || "Documents"}
+					</h1>
+				</header>
+			) : (
+				<div className="shrink-0 flex h-12 items-center px-3">
+					<div className="flex w-full items-center justify-between">
+						<div className="flex items-center gap-2">
+							<h2 className="select-none text-base font-semibold">{t("title") || "Documents"}</h2>
+						</div>
+						<div className="flex items-center gap-1">
+							{isMobile && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+									onClick={() => onOpenChange(false)}
+								>
+									<X className="h-4 w-4" />
+									<span className="sr-only">{tSidebar("close") || "Close"}</span>
+								</Button>
+							)}
+							{!isMobile && onDockedChange && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+											onClick={() => {
+												if (isDocked) {
+													onDockedChange(false);
+													onOpenChange(false);
+												} else {
+													onDockedChange(true);
+												}
+											}}
+										>
+											{isDocked ? (
+												<ChevronLeft className="h-4 w-4" />
+											) : (
+												<ChevronRight className="h-4 w-4" />
+											)}
+											<span className="sr-only">
+												{isDocked ? "Collapse panel" : "Expand panel"}
+											</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="z-80">
+										{isDocked ? "Collapse panel" : "Expand panel"}
+									</TooltipContent>
+								</Tooltip>
+							)}
+							{headerAction}
+						</div>
 					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Filters & upload */}
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className="px-4 pt-6 pb-1.5">
+				<div className={`${workspaceView ? "" : "px-4"} pt-6 pb-1.5`}>
 					<DocumentsFilters
 						typeCounts={hasDoc ? { FILE: 1 } : {}}
 						onSearch={setSearch}
@@ -1784,7 +1813,13 @@ function AnonymousDocumentRightPanel({
 
 	if (embedded) {
 		return (
-			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+			<div
+				className={
+					workspaceView
+						? "flex h-full min-h-0 flex-col bg-panel text-foreground"
+						: "flex h-full flex-col bg-sidebar text-sidebar-foreground"
+				}
+			>
 				{documentsContent}
 			</div>
 		);
