@@ -8,6 +8,8 @@ export type ChatErrorKind =
 	| "model_auth_failed"
 	| "model_not_found"
 	| "model_context_limit"
+	| "model_out_of_memory"
+	| "model_capability_error"
 	| "model_provider_unavailable"
 	| "rate_limited"
 	| "network_offline"
@@ -47,9 +49,20 @@ export interface RawChatErrorInput {
 export const PREMIUM_QUOTA_ASSISTANT_MESSAGE =
 	"I can’t continue with the current premium model because your premium credit is exhausted. Switch to a free model or top up your credit to continue.";
 
+export const GENERIC_CHAT_ERROR_MESSAGE =
+	"We couldn’t complete this response right now. Please try again.";
+
 function getErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
 	if (typeof error === "string") return error;
+	if (
+		typeof error === "object" &&
+		error !== null &&
+		"message" in error &&
+		typeof error.message === "string"
+	) {
+		return error.message;
+	}
 	try {
 		return JSON.stringify(error);
 	} catch {
@@ -57,10 +70,7 @@ function getErrorMessage(error: unknown): string {
 	}
 }
 
-function getErrorCode(
-	error: unknown,
-	parsedJson: Record<string, unknown> | null
-): string | undefined {
+function getErrorCode(error: unknown): string | undefined {
 	if (error instanceof Error) {
 		const withCode = error as Error & { errorCode?: string; code?: string };
 		if (withCode.errorCode) return withCode.errorCode;
@@ -74,54 +84,13 @@ function getErrorCode(
 		}
 	}
 
-	if (parsedJson) {
-		const topLevelCode = parsedJson.errorCode;
-		if (typeof topLevelCode === "string" && topLevelCode) {
-			return topLevelCode;
-		}
-	}
-
-	return undefined;
-}
-
-function parseEmbeddedJson(text: string): Record<string, unknown> | null {
-	const candidates = [text];
-	const firstBraceIdx = text.indexOf("{");
-	if (firstBraceIdx >= 0) {
-		candidates.push(text.slice(firstBraceIdx));
-	}
-	for (const candidate of candidates) {
-		try {
-			const parsed = JSON.parse(candidate);
-			if (typeof parsed === "object" && parsed !== null) {
-				return parsed as Record<string, unknown>;
-			}
-		} catch {
-			// noop
-		}
-	}
-	return null;
-}
-
-function inferProviderErrorType(parsedJson: Record<string, unknown> | null): string | undefined {
-	if (!parsedJson) return undefined;
-	const topLevelType = parsedJson.type;
-	if (typeof topLevelType === "string" && topLevelType) return topLevelType;
-	const nestedError = parsedJson.error;
-	if (typeof nestedError === "object" && nestedError !== null) {
-		const nestedType = (nestedError as Record<string, unknown>).type;
-		if (typeof nestedType === "string" && nestedType) return nestedType;
-	}
 	return undefined;
 }
 
 export function classifyChatError(input: RawChatErrorInput): NormalizedChatError {
 	const { error } = input;
 	const rawMessage = getErrorMessage(error);
-	const parsedJson = parseEmbeddedJson(rawMessage);
-	const errorCode = getErrorCode(error, parsedJson);
-	const providerErrorType = inferProviderErrorType(parsedJson);
-	const providerTypeNormalized = providerErrorType?.toLowerCase() ?? "";
+	const errorCode = getErrorCode(error);
 	const errorName = error instanceof Error ? error.name : undefined;
 
 	if (errorName === "AbortError") {
@@ -145,7 +114,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "info",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage: "Buy more tokens to continue with this model, or switch to a free model.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			assistantMessage: PREMIUM_QUOTA_ASSISTANT_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "PREMIUM_QUOTA_EXHAUSTED",
@@ -160,7 +129,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "info",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage: "A previous response is still stopping. Please try again in a moment.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "TURN_CANCELLING",
 			details: { flow: input.flow },
@@ -174,8 +143,7 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"Another response is still finishing for this thread. Please try again in a moment.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "THREAD_BUSY",
 			details: { flow: input.flow },
@@ -217,11 +185,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This model’s API key is invalid or expired. Switch models, or update the API key.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_AUTH_FAILED",
-			details: { flow: input.flow, providerErrorType },
+			details: { flow: input.flow },
 		};
 	}
 
@@ -232,11 +199,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This model is unavailable or no longer exists. Switch to another model and try again.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_NOT_FOUND",
-			details: { flow: input.flow, providerErrorType },
+			details: { flow: input.flow },
 		};
 	}
 
@@ -247,11 +213,38 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This request is too large for the selected model. Reduce the input or switch models.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_CONTEXT_LIMIT",
-			details: { flow: input.flow, providerErrorType },
+			details: { flow: input.flow },
+		};
+	}
+
+	if (errorCode === "MODEL_OUT_OF_MEMORY") {
+		return {
+			kind: "model_out_of_memory",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_OUT_OF_MEMORY",
+			details: { flow: input.flow },
+		};
+	}
+
+	if (errorCode === "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT") {
+		return {
+			kind: "model_capability_error",
+			channel: "toast",
+			severity: "warn",
+			telemetryEvent: "chat_blocked",
+			isExpected: true,
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
+			rawMessage,
+			errorCode: errorCode ?? "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
+			details: { flow: input.flow },
 		};
 	}
 
@@ -262,26 +255,24 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"The selected model provider is temporarily unavailable. Please try again or switch models.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "MODEL_PROVIDER_UNAVAILABLE",
-			details: { flow: input.flow, providerErrorType },
+			details: { flow: input.flow },
 		};
 	}
 
-	if (errorCode === "RATE_LIMITED" || providerTypeNormalized === "rate_limit_error") {
+	if (errorCode === "RATE_LIMITED") {
 		return {
 			kind: "rate_limited",
 			channel: "toast",
 			severity: "warn",
 			telemetryEvent: "chat_blocked",
 			isExpected: true,
-			userMessage:
-				"This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "RATE_LIMITED",
-			details: { flow: input.flow, providerErrorType },
+			details: { flow: input.flow },
 		};
 	}
 
@@ -320,23 +311,23 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "error",
 			telemetryEvent: "chat_error",
 			isExpected: false,
-			userMessage: "A tool failed while processing your request. Please try again.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "TOOL_EXECUTION_ERROR",
 			details: { flow: input.flow },
 		};
 	}
 
-	if (errorCode === "PERSIST_MESSAGE_FAILED") {
+	if (errorCode === "MESSAGE_PERSIST_FAILED") {
 		return {
 			kind: "persist_message_failed",
 			channel: "toast",
 			severity: "error",
 			telemetryEvent: "chat_error",
 			isExpected: false,
-			userMessage: "Response generated, but saving failed. Please retry once.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
-			errorCode: errorCode ?? "PERSIST_MESSAGE_FAILED",
+			errorCode: errorCode ?? "MESSAGE_PERSIST_FAILED",
 			details: { flow: input.flow },
 		};
 	}
@@ -348,10 +339,10 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 			severity: "error",
 			telemetryEvent: "chat_error",
 			isExpected: false,
-			userMessage: "We couldn’t complete this response right now. Please try again.",
+			userMessage: rawMessage || GENERIC_CHAT_ERROR_MESSAGE,
 			rawMessage,
 			errorCode: errorCode ?? "SERVER_ERROR",
-			details: { flow: input.flow, providerErrorType },
+			details: { flow: input.flow },
 		};
 	}
 
@@ -361,9 +352,9 @@ export function classifyChatError(input: RawChatErrorInput): NormalizedChatError
 		severity: "error",
 		telemetryEvent: "chat_error",
 		isExpected: false,
-		userMessage: "We couldn’t complete this response right now. Please try again.",
+		userMessage: GENERIC_CHAT_ERROR_MESSAGE,
 		rawMessage,
 		errorCode,
-		details: { flow: input.flow, providerErrorType },
+		details: { flow: input.flow },
 	};
 }

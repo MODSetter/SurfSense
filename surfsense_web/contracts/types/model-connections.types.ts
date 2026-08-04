@@ -78,7 +78,7 @@ export const modelUpdateRequest = z.object({
 	display_name: z.string().nullable().optional(),
 	enabled: z.boolean().optional(),
 	supports_chat: z.boolean().nullable().optional(),
-	max_input_tokens: z.number().nullable().optional(),
+	max_input_tokens: z.number().positive().nullable().optional(),
 	supports_image_input: z.boolean().nullable().optional(),
 	supports_tools: z.boolean().nullable().optional(),
 	supports_image_generation: z.boolean().nullable().optional(),

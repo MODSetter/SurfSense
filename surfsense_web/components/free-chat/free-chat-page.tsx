@@ -18,6 +18,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { TimelineDataUI } from "@/features/chat-messages/timeline";
+import { classifyChatError, GENERIC_CHAT_ERROR_MESSAGE } from "@/lib/chat/chat-error-classifier";
 import {
 	addStepSeparator,
 	addToolCall,
@@ -57,32 +58,12 @@ function parseCaptchaError(status: number, body: string): string | null {
 }
 
 function normalizeFreeChatErrorMessage(error: unknown): string {
-	if (!(error instanceof Error)) return "An unexpected error occurred";
-	const code = (error as Error & { errorCode?: string }).errorCode;
-	if (code === "THREAD_BUSY") {
-		return "A previous response is still stopping. Please try again in a moment.";
-	}
-	if (code === "MODEL_AUTH_FAILED") {
-		return "This model’s API key is invalid or expired. Switch models, or update the API key.";
-	}
-	if (code === "MODEL_NOT_FOUND") {
-		return "This model is unavailable or no longer exists. Please switch models.";
-	}
-	if (code === "MODEL_CONTEXT_LIMIT") {
-		return "This request is too large for the selected model. Reduce the input or switch models.";
-	}
-	if (code === "MODEL_PROVIDER_UNAVAILABLE") {
-		return "The selected model provider is temporarily unavailable. Please try again or switch models.";
-	}
-	if (code === "RATE_LIMITED") {
-		return "This model is temporarily rate-limited. Please try again in a few seconds or switch models.";
-	}
-	return error.message || "An unexpected error occurred";
+	return classifyChatError({ error, flow: "new" }).userMessage;
 }
 
 function toFreeChatHttpError(status: number, body: string): Error & { errorCode?: string } {
 	let errorCode: string | undefined;
-	let message = body || `Server error: ${status}`;
+	let message = GENERIC_CHAT_ERROR_MESSAGE;
 	try {
 		const parsed = JSON.parse(body) as Record<string, unknown>;
 		const detail =
@@ -97,7 +78,6 @@ function toFreeChatHttpError(status: number, body: string): Error & { errorCode?
 		message =
 			(typeof detail?.message === "string" ? detail.message : undefined) ??
 			(typeof parsed.message === "string" ? parsed.message : undefined) ??
-			(typeof parsed.detail === "string" ? parsed.detail : undefined) ??
 			message;
 	} catch {
 		// non-json response
@@ -310,8 +290,9 @@ export function FreeChatPage() {
 							break;
 
 						case "error":
-							throw Object.assign(new Error(parsed.errorText || "Server error"), {
+							throw Object.assign(new Error(parsed.message), {
 								errorCode: parsed.errorCode,
+								diagnostic: parsed.diagnostic,
 							});
 					}
 				}

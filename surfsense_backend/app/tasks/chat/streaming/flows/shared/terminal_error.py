@@ -54,7 +54,8 @@ def handle_terminal_exception(
         error_code,
         severity,
         is_expected,
-        user_message,
+        _user_message,
+        diagnostic,
         error_extra,
     ) = classify_stream_exception(exc, flow_label=flow_label)
     chat_outcome = error_code or error_kind or "error"
@@ -89,11 +90,11 @@ def handle_terminal_exception(
             thread_id=chat_id,
             workspace_id=workspace_id,
             user_id=user_id,
-            message=user_message,
             error_kind=error_kind,
             error_code=error_code,
             severity=severity,
             is_expected=is_expected,
+            diagnostic=diagnostic,
             extra=error_extra,
         )
         yield from iter_final_frames(streaming_service)

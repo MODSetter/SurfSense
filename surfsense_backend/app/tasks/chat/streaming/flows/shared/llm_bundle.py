@@ -19,6 +19,8 @@ from sqlalchemy.orm import selectinload
 from app.agents.chat.runtime.llm_config import (
     AgentConfig,
     SanitizedChatLiteLLM,
+    _attach_model_profile,
+    resolve_max_input_tokens,
 )
 from app.config import config
 from app.db import Model, Workspace
@@ -84,6 +86,42 @@ async def _load_db_model(
     return model
 
 
+def _positive_int(value: Any) -> int | None:
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return value
+    return None
+
+
+def _build_profiled_llm(
+    *,
+    model_string: str,
+    litellm_kwargs: dict[str, Any],
+    persisted_max_input_tokens: int | None,
+) -> SanitizedChatLiteLLM:
+    """Build the LLM with a trim budget but no allocation request.
+
+    ``max_input_tokens`` is a ceiling on what we send, never a size we ask a
+    runtime to reserve. Ollama sizes itself from available memory unless the
+    operator says otherwise, and it can only shrink the context to survive a
+    load-time OOM while that sizing is automatic -- a ``num_ctx`` we invented
+    would take that away. An operator who does want a fixed size sets it on the
+    connection, and ``to_litellm`` passes it through untouched.
+    """
+    effective = resolve_max_input_tokens(
+        model_string,
+        persisted_max_input_tokens=persisted_max_input_tokens,
+    )
+    llm = SanitizedChatLiteLLM(
+        model=model_string, **{**litellm_kwargs, "streaming": True}
+    )
+    _attach_model_profile(
+        llm,
+        model_string,
+        persisted_max_input_tokens=effective,
+    )
+    return llm
+
+
 async def load_llm_bundle(
     session: AsyncSession,
     *,
@@ -128,8 +166,12 @@ async def load_llm_bundle(
             billing_tier="free",
         )
         return (
-            SanitizedChatLiteLLM(
-                model=model_string, **{**litellm_kwargs, "streaming": True}
+            _build_profiled_llm(
+                model_string=model_string,
+                litellm_kwargs=litellm_kwargs,
+                persisted_max_input_tokens=_positive_int(
+                    getattr(model, "max_input_tokens", None)
+                ),
             ),
             agent_config,
             None,
@@ -174,8 +216,12 @@ async def load_llm_bundle(
         billing_tier=str(global_model.get("billing_tier", "free")).lower(),
     )
     return (
-        SanitizedChatLiteLLM(
-            model=model_string, **{**litellm_kwargs, "streaming": True}
+        _build_profiled_llm(
+            model_string=model_string,
+            litellm_kwargs=litellm_kwargs,
+            persisted_max_input_tokens=_positive_int(
+                global_model.get("max_input_tokens")
+            ),
         ),
         agent_config,
         None,

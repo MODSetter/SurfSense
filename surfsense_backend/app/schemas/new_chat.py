@@ -463,6 +463,7 @@ class CancelActiveTurnResponse(BaseModel):
 
     status: Literal["cancelling", "idle"]
     error_code: Literal["TURN_CANCELLING", "NO_ACTIVE_TURN"]
+    message: str
     retry_after_ms: int | None = None
     retry_after_at: int | None = None
 
