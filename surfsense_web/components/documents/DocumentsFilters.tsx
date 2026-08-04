@@ -73,12 +73,12 @@ export function DocumentsFilters({
 			{/* Search Input */}
 			<div className="relative w-full">
 				<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-					<Search size={13} aria-hidden="true" />
+					<Search size={16} aria-hidden="true" />
 				</div>
 				<Input
 					id={`${id}-input`}
 					ref={inputRef}
-					className="h-9 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text [&::-webkit-search-cancel-button]:hidden"
+					className="h-9 w-full select-none border-0 bg-muted pl-9 pr-7 text-sm shadow-none focus:select-text [&::-webkit-search-cancel-button]:hidden"
 					value={searchValue}
 					onChange={(e) => onSearch(e.target.value)}
 					onKeyDown={(event) => {

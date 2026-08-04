@@ -101,7 +101,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 		queryKey: ["all-threads", workspaceId],
 		queryFn: () => fetchThreads(Number(workspaceId)),
 		enabled: !!workspaceId && !isSearchMode,
-		placeholderData: () => queryClient.getQueryData(["threads", workspaceId, { limit: 6 }]),
+		placeholderData: () => queryClient.getQueryData(["threads", workspaceId, { limit: 14 }]),
 	});
 
 	const {
