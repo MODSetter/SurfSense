@@ -1,6 +1,5 @@
 "use client";
 
-import { useSetAtom } from "jotai";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -13,8 +12,8 @@ import {
 	Wrench,
 } from "lucide-react";
 import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useRef, useState } from "react";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import type { ConnectorRow } from "@/components/assistant-ui/connector-popup/hooks/use-connector-rows";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +34,7 @@ import {
 	getToolDisplayName,
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 
 /** Minimal shape of a grouped agent-tool section (mirrors thread.tsx). */
@@ -94,8 +94,10 @@ export function ComposerAddMenuDrawer({
 	onToggleToolGroup,
 	toolsLoading,
 }: ComposerAddMenuDrawerProps) {
+	const params = useParams();
+	const router = useRouter();
+	const workspaceId = getWorkspaceIdNumber(params);
 	const [open, setOpen] = useState(false);
-	const setDocumentsOpen = useSetAtom(documentsSidebarOpenAtom);
 	const [stack, setStack] = useState<Screen[]>([{ kind: "root" }]);
 	// Slide direction: forward on push, back on pop — drives the enter animation.
 	const dirRef = useRef<"forward" | "back">("forward");
@@ -165,7 +167,9 @@ export function ComposerAddMenuDrawer({
 						type="button"
 						className={ROW}
 						onClick={() => {
-							setDocumentsOpen(true);
+							if (workspaceId !== undefined) {
+								router.push(`/dashboard/${workspaceId}/documents`);
+							}
 							close();
 						}}
 					>

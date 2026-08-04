@@ -89,7 +89,7 @@ export function LayoutDataProvider({
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 
-	// Documents panel state (shared atom so the Composer can toggle it too)
+	// Desktop Documents panel state. Mobile uses the /documents workspace route.
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
 
@@ -321,13 +321,13 @@ export function LayoutDataProvider({
 
 	// Navigation items
 	// Automations, Artifacts and Documents are rendered explicitly below "New
-	// chat" in the sidebar. Documents is only listed on mobile, where it opens
-	// the full-screen panel; notifications and announcements live in the avatar
-	// rail/dropdown.
+	// chat" in the sidebar. Documents is a mobile workspace destination;
+	// notifications and announcements live in the avatar rail/dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundRoute = pathname?.includes("/playground") === true;
 	const isConnectorsRoute = pathname?.includes("/connectors") === true;
+	const isDocumentsPage = pathname?.endsWith("/documents") === true;
 	const navItems: NavItem[] = useMemo(
 		() =>
 			(
@@ -359,9 +359,9 @@ export function LayoutDataProvider({
 					isMobile
 						? {
 								title: "Documents",
-								url: "#documents",
+								url: `/dashboard/${workspaceId}/documents`,
 								icon: LibraryBig,
-								isActive: isDocumentsSidebarOpen,
+								isActive: isDocumentsPage,
 							}
 						: null,
 				] as (NavItem | null)[]
@@ -373,7 +373,7 @@ export function LayoutDataProvider({
 			isConnectorsRoute,
 			isPlaygroundRoute,
 			isMobile,
-			isDocumentsSidebarOpen,
+			isDocumentsPage,
 		]
 	);
 
@@ -516,9 +516,7 @@ export function LayoutDataProvider({
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
 			if (item.url === "#documents") {
-				if (isMobile) {
-					setIsDocumentsSidebarOpen((prev) => !prev);
-				} else if (isDocumentsSidebarOpen) {
+				if (isDocumentsSidebarOpen) {
 					// Already the active surface — the button doubles as a collapse toggle.
 					setIsRightPanelCollapsed((prev) => !prev);
 				} else {
@@ -529,7 +527,7 @@ export function LayoutDataProvider({
 			}
 			router.push(item.url);
 		},
-		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
+		[router, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -714,6 +712,7 @@ export function LayoutDataProvider({
 		isArtifactsPage ||
 		isPlaygroundPage ||
 		isConnectorsPage ||
+		isDocumentsPage ||
 		isAllChatsPage;
 
 	return (
@@ -767,6 +766,7 @@ export function LayoutDataProvider({
 					isArtifactsPage ||
 					isPlaygroundPage ||
 					isConnectorsPage ||
+					isDocumentsPage ||
 					isAllChatsPage
 						? "items-start justify-center px-6 py-8 md:px-10 md:pb-10 md:pt-16"
 						: undefined
