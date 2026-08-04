@@ -57,6 +57,16 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<str
 	return result;
 }
 
+function documentOrder(document: DocumentNodeDoc) {
+	if (document.document_type === "USER_MEMORY") return 0;
+	if (document.document_type === "TEAM_MEMORY") return 1;
+	return 2;
+}
+
+function compareDocuments(left: DocumentNodeDoc, right: DocumentNodeDoc) {
+	return documentOrder(left) - documentOrder(right) || right.id - left.id;
+}
+
 export function FolderTreeView({
 	folders,
 	documents,
@@ -199,7 +209,7 @@ export function FolderTreeView({
 		const childFolders = (foldersByParent[key] ?? [])
 			.slice()
 			.sort((a, b) => a.position.localeCompare(b.position));
-		const childDocs = docsByFolder[key] ?? [];
+		const childDocs = (docsByFolder[key] ?? []).slice().sort(compareDocuments);
 
 		const nodes: React.ReactNode[] = [];
 
