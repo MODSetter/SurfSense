@@ -1,13 +1,12 @@
 "use client";
 
 import { useSetAtom } from "jotai";
-import { CreditCard, FolderSync, MessageCircleMore, SquarePen, Upload, Zap } from "lucide-react";
+import { CreditCard, FolderSync, MessageCircleMore, SquarePen, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState } from "react";
 import { watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { ConnectAgentDialog } from "@/components/mcp/connect-agent-dialog";
 import { FolderWatchDialog } from "@/components/sources/FolderWatchDialog";
 import { Button } from "@/components/ui/button";
@@ -404,18 +403,13 @@ export function Sidebar({
 	);
 }
 
-/**
- * Sidebar-footer import actions rendered above "Connect your agent":
- * "Watch Local Folder" (desktop app only) and "Upload Files". Both reuse the
- * existing dialogs; in anonymous mode they open the login gate instead.
- */
+/** Desktop-only local folder action rendered above "Connect your agent". */
 function SidebarImportActions() {
 	const params = useParams();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const { isDesktop } = usePlatform();
 	const isAnonymous = useIsAnonymous();
 	const { gate } = useLoginGate();
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [folderWatchOpen, setFolderWatchOpen] = useState(false);
 	const bumpWatchedFoldersRefresh = useSetAtom(watchedFoldersRefreshAtom);
 
@@ -428,11 +422,6 @@ function SidebarImportActions() {
 					onClick={() => (isAnonymous ? gate("watch local folders") : setFolderWatchOpen(true))}
 				/>
 			)}
-			<SidebarButton
-				icon={Upload}
-				label="Upload Files"
-				onClick={() => (isAnonymous ? gate("upload files") : openUploadDialog())}
-			/>
 			{isDesktop && !isAnonymous && (
 				<FolderWatchDialog
 					open={folderWatchOpen}
