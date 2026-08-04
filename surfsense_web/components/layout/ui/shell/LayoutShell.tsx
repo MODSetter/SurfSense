@@ -21,11 +21,7 @@ import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { MobileDocumentsWorkspaceView } from "../right-panel/MobileDocumentsWorkspaceView";
-import {
-	RightPanel,
-	RightPanelExpandButton,
-	RightPanelToggleButton,
-} from "../right-panel/RightPanel";
+import { RightPanel, RightPanelToggleButton } from "../right-panel/RightPanel";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } from "../sidebar";
 import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
@@ -82,6 +78,7 @@ function MacDesktopTitleBar({
 			<div className="ml-auto flex h-full items-center [app-region:no-drag] [-webkit-app-region:no-drag]">
 				<RightPanelToggleButton
 					disabled={disableRightPanelToggle}
+					documentsOnly
 					className="h-6 w-6 rounded-md"
 					iconClassName="h-3.5 w-3.5"
 				/>
@@ -151,7 +148,7 @@ function MainContentPanel({
 	onTabPrefetch,
 	onNewChat,
 	showTabs = true,
-	showRightPanelExpandButton = true,
+	reserveRightPanelToggleSpace = true,
 	showTopBorder = false,
 	children,
 }: {
@@ -160,7 +157,7 @@ function MainContentPanel({
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
 	showTabs?: boolean;
-	showRightPanelExpandButton?: boolean;
+	reserveRightPanelToggleSpace?: boolean;
 	showTopBorder?: boolean;
 	children: React.ReactNode;
 }) {
@@ -178,7 +175,7 @@ function MainContentPanel({
 			onTabSwitch={onTabSwitch}
 			onTabPrefetch={onTabPrefetch}
 			onNewChat={onNewChat}
-			showRightPanelExpandButton={showRightPanelExpandButton}
+			reserveRightPanelToggleSpace={reserveRightPanelToggleSpace}
 			showTopBorder={showTopBorder}
 		>
 			{children}
@@ -214,7 +211,7 @@ function TabbedMainContentPanel({
 	onTabSwitch,
 	onTabPrefetch,
 	onNewChat,
-	showRightPanelExpandButton,
+	reserveRightPanelToggleSpace,
 	showTopBorder,
 	children,
 }: {
@@ -222,7 +219,7 @@ function TabbedMainContentPanel({
 	onTabSwitch?: (tab: ResolvedTab) => void;
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
-	showRightPanelExpandButton: boolean;
+	reserveRightPanelToggleSpace: boolean;
 	showTopBorder: boolean;
 	children: React.ReactNode;
 }) {
@@ -239,7 +236,11 @@ function TabbedMainContentPanel({
 				onTabSwitch={onTabSwitch}
 				onTabPrefetch={onTabPrefetch}
 				onNewChat={onNewChat}
-				rightActions={showRightPanelExpandButton ? <RightPanelExpandButton /> : null}
+				rightActions={
+					reserveRightPanelToggleSpace ? (
+						<div aria-hidden="true" className="h-8 w-8 shrink-0" />
+					) : null
+				}
 				className="min-w-0"
 			/>
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
@@ -265,7 +266,7 @@ function TabbedMainContentPanel({
 }
 
 function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
-	return <div className="flex h-full min-w-0 flex-1 -mr-2">{children}</div>;
+	return <div className="relative flex h-full min-w-0 flex-1 -mr-2">{children}</div>;
 }
 
 export function LayoutShell({
@@ -591,7 +592,7 @@ export function LayoutShell({
 										onTabPrefetch={onTabPrefetch}
 										onNewChat={onNewChat}
 										showTabs={showTabs}
-										showRightPanelExpandButton={!isMacDesktop}
+										reserveRightPanelToggleSpace={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									>
 										{children}
@@ -600,9 +601,14 @@ export function LayoutShell({
 									{/* Right panel — tabbed Documents/Report/Editor/Citations/Artifacts (desktop only) */}
 									<RightPanel
 										documentsPanel={documentsPanel}
-										showCollapseButton={!isMacDesktop}
+										reserveDocumentToggleSpace={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									/>
+									{!isMacDesktop && (
+										<div className="absolute right-2 top-2 z-30">
+											<RightPanelToggleButton documentsOnly />
+										</div>
+									)}
 								</>
 							)}
 						</DesktopWorkspaceRegion>
