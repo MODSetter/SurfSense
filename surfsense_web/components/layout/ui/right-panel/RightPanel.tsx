@@ -4,9 +4,10 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
-import { startTransition, useEffect } from "react";
+import { type MouseEvent, startTransition, useEffect } from "react";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import {
 	type RightPanelTab,
@@ -18,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { artifactsPanelOpenAtom, closeArtifactsPanelAtom } from "@/features/chat-artifacts";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
 import { cn } from "@/lib/utils";
+import { DocumentRightPanel } from "./DocumentRightPanel";
 
 const EditorPanelContent = dynamic(
 	() =>
@@ -68,7 +70,39 @@ const ArtifactsPanelContent = dynamic(
 );
 
 interface RightPanelProps {
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
+	showCollapseButton?: boolean;
 	showTopBorder?: boolean;
+}
+
+function isKeyboardClick(event: MouseEvent) {
+	return event.detail === 0;
+}
+
+function CollapseButton({ onClick }: { onClick: () => void }) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					variant="ghost"
+					size="icon"
+					tabIndex={-1}
+					onClick={(event) => {
+						if (isKeyboardClick(event)) return;
+						onClick();
+					}}
+					className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+				>
+					<PanelRight className="h-4 w-4" />
+					<span className="sr-only">Collapse panel</span>
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent side="bottom">Collapse panel</TooltipContent>
+		</Tooltip>
+	);
 }
 
 interface RightPanelToggleButtonProps {
@@ -83,6 +117,7 @@ export function RightPanelToggleButton({
 	disabled = false,
 }: RightPanelToggleButtonProps) {
 	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
@@ -98,7 +133,8 @@ export function RightPanelToggleButton({
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.target != null;
-	const hasContent = reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
+	const hasContent =
+		documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 	const label = collapsed ? "Expand panel" : "Collapse panel";
 
 	if (!hasContent) return null;
@@ -135,6 +171,7 @@ export function RightPanelToggleButton({
  */
 export function RightPanelExpandButton() {
 	const [collapsed] = useAtom(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
@@ -150,7 +187,8 @@ export function RightPanelExpandButton() {
 				: !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.target != null;
-	const hasContent = reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
+	const hasContent =
+		documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 
 	if (!collapsed || !hasContent) return null;
 
@@ -170,14 +208,20 @@ const PANEL_WIDTHS = {
 	artifacts: 420,
 } as const;
 
+/**
+ * Opacity finishes well before width so the panel is already invisible while the
+ * remaining geometry settles — the width tween reflows the main content every
+ * frame, and hiding it early is what keeps the collapse from reading as a fold.
+ */
 const PANEL_SLIDE_TRANSITION = {
-	duration: 0.2,
-	ease: [0.22, 1, 0.36, 1],
+	width: { duration: 0.24, ease: [0.4, 0, 0.2, 1] },
+	opacity: { duration: 0.15, ease: [0.4, 0, 0.2, 1] },
 } as const;
 
 /**
  * Priority order used to fall back to another open surface when the active
- * tab's content closes. The neutral "sources" tab is kept as the closed state.
+ * tab's content closes. Artifacts sit just above the always-available sources
+ * tab.
  */
 const TAB_FALLBACK_ORDER: RightPanelTab[] = [
 	"hitl-edit",
@@ -196,7 +240,11 @@ function resolveEffectiveTab(
 	return TAB_FALLBACK_ORDER.find((tab) => openByTab[tab]) ?? "sources";
 }
 
-export function RightPanel({ showTopBorder = false }: RightPanelProps) {
+export function RightPanel({
+	documentsPanel,
+	showCollapseButton = true,
+	showTopBorder = false,
+}: RightPanelProps) {
 	const [activeTab] = useAtom(rightPanelTabAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const closeReport = useSetAtom(closeReportPanelAtom);
@@ -208,9 +256,10 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 	const closeCitation = useSetAtom(closeCitationPanelAtom);
 	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
 	const closeArtifacts = useSetAtom(closeArtifactsPanelAtom);
-	const [collapsed] = useAtom(rightPanelCollapsedAtom);
+	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
 	const reduceMotion = useReducedMotion();
 
+	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen =
 		editorState.isOpen &&
@@ -249,10 +298,11 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 	]);
 
 	const isVisible =
-		(reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen) && !collapsed;
+		(documentsOpen || reportOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen) &&
+		!collapsed;
 
 	const effectiveTab = resolveEffectiveTab(activeTab, {
-		sources: false,
+		sources: documentsOpen,
 		report: reportOpen,
 		editor: editorOpen,
 		"hitl-edit": hitlEditOpen,
@@ -261,16 +311,20 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 	});
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
+	const collapseButton = showCollapseButton ? (
+		<CollapseButton onClick={() => setCollapsed(true)} />
+	) : null;
 
 	return (
 		<AnimatePresence initial={false}>
 			{isVisible ? (
 				<motion.aside
 					key="right-panel"
-					initial={reduceMotion ? { width: targetWidth } : { width: 0, x: 24, opacity: 0 }}
-					animate={{ width: targetWidth, x: 0, opacity: 1 }}
-					exit={reduceMotion ? { width: 0 } : { width: 0, x: 24, opacity: 0 }}
+					initial={reduceMotion ? { width: targetWidth } : { width: 0, opacity: 0 }}
+					animate={{ width: targetWidth, opacity: 1 }}
+					exit={reduceMotion ? { width: 0 } : { width: 0, opacity: 0 }}
 					transition={reduceMotion ? { duration: 0 } : PANEL_SLIDE_TRANSITION}
+					style={reduceMotion ? undefined : { willChange: "width, opacity" }}
 					className={cn(
 						"flex h-full shrink-0 flex-col overflow-hidden border-l bg-panel text-sidebar-foreground",
 						showTopBorder && "border-t"
@@ -278,6 +332,16 @@ export function RightPanel({ showTopBorder = false }: RightPanelProps) {
 				>
 					<div style={{ width: targetWidth }} className="flex h-full min-h-0 flex-col">
 						<div className="relative flex-1 min-h-0 overflow-hidden">
+							{effectiveTab === "sources" && documentsOpen && documentsPanel && (
+								<div className="h-full">
+									<DocumentRightPanel
+										open={documentsPanel.open}
+										onOpenChange={documentsPanel.onOpenChange}
+										embedded
+										headerAction={collapseButton}
+									/>
+								</div>
+							)}
 							{effectiveTab === "report" && reportOpen && (
 								<div className="h-full flex flex-col">
 									<ReportPanelContent
