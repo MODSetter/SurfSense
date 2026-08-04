@@ -668,7 +668,7 @@
 		"view_all_chats": "모든 채팅 보기",
 		"show_all": "모두 보기",
 		"hide": "숨기기",
-		"no_chats": "채팅이 없습니다",
+		"no_chats": "대화를 시작하면 여기에 표시됩니다",
 		"start_new_chat_hint": "새 채팅 시작하기",
 		"error_loading_chats": "채팅을 불러오는 중 오류가 발생했습니다",
 		"chat_deleted": "채팅이 성공적으로 삭제되었습니다",
