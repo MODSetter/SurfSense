@@ -1,13 +1,15 @@
 "use client";
 
+import { LibraryBig } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
-import type { ChatItem, PageUsage, Workspace } from "../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, Workspace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
 
 interface FreeLayoutDataProviderProps {
@@ -26,8 +28,15 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const router = useRouter();
 	const { gate } = useLoginGate();
 	const anonMode = useAnonymousMode();
+	const isMobile = useIsMobile();
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 	const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
+	const [isDocsSidebarOpen, setIsDocsSidebarOpen] = useState(false);
+
+	// Keep the documents panel closed on mobile; auto-open only on desktop after hydration
+	useEffect(() => {
+		setIsDocsSidebarOpen(!isMobile);
+	}, [isMobile]);
 
 	useEffect(() => {
 		anonymousChatApiService
@@ -45,6 +54,26 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	}, [anonMode]);
 
 	const gatedAction = useCallback((feature: string) => () => gate(feature), [gate]);
+
+	// Documents is only listed on mobile, where it opens the full-screen panel.
+	const navItems: NavItem[] = useMemo(
+		() =>
+			isMobile
+				? [
+						{
+							title: "Documents",
+							url: "#documents",
+							icon: LibraryBig,
+							isActive: isDocsSidebarOpen,
+						},
+					]
+				: [],
+		[isMobile, isDocsSidebarOpen]
+	);
+
+	const handleNavItemClick = useCallback((item: NavItem) => {
+		if (item.url === "#documents") setIsDocsSidebarOpen((open) => !open);
+	}, []);
 
 	const pageUsage: PageUsage | undefined = quota
 		? { pagesUsed: quota.used, pagesLimit: quota.limit }
@@ -64,7 +93,8 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			onWorkspaceSettings={gatedAction("workspace settings")}
 			onAddWorkspace={gatedAction("create workspaces")}
 			workspace={GUEST_SPACE}
-			navItems={[]}
+			navItems={navItems}
+			onNavItemClick={handleNavItemClick}
 			chats={[]}
 			activeChatId={null}
 			onNewChat={resetChat}
@@ -87,6 +117,10 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 			isChatPage
 			showTabs={false}
 			isLoadingChats={false}
+			documentsPanel={{
+				open: isDocsSidebarOpen,
+				onOpenChange: setIsDocsSidebarOpen,
+			}}
 		>
 			{children}
 		</LayoutShell>
