@@ -66,10 +66,54 @@ export function DocumentsFilters({
 	}, [typeCountsRecord]);
 
 	return (
-		<div className="flex select-none">
+		<div className="flex select-none flex-col gap-2">
+			{/* Search Input */}
+			<div className="relative w-full">
+				<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+					<Search size={13} aria-hidden="true" />
+				</div>
+				<Input
+					id={`${id}-input`}
+					ref={inputRef}
+					className="h-8 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
+					value={searchValue}
+					onChange={(e) => onSearch(e.target.value)}
+					placeholder="Search docs"
+					type="text"
+					aria-label={t("filter_placeholder")}
+				/>
+				{Boolean(searchValue) && (
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+						aria-label="Clear filter"
+						onClick={() => {
+							onSearch("");
+							inputRef.current?.focus();
+						}}
+					>
+						<X size={14} strokeWidth={2} aria-hidden="true" />
+					</Button>
+				)}
+			</div>
+
 			<div className="flex items-center gap-2 w-full">
+				{/* Upload Button */}
+				<Button
+					data-joyride="upload-button"
+					onClick={handleUpload}
+					variant="outline"
+					size="sm"
+					className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+				>
+					<Upload size={13} />
+					<span>Upload files</span>
+				</Button>
+
 				{/* New Folder + Filter Toggle Group */}
-				<ToggleGroup type="multiple" value={[]} className="overflow-visible">
+				<ToggleGroup type="multiple" value={[]} className="shrink-0 overflow-visible">
 					{onCreateFolder && (
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -175,50 +219,6 @@ export function DocumentsFilters({
 						</PopoverContent>
 					</Popover>
 				</ToggleGroup>
-
-				{/* Search Input */}
-				<div className="relative flex-1 min-w-0">
-					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-						<Search size={13} aria-hidden="true" />
-					</div>
-					<Input
-						id={`${id}-input`}
-						ref={inputRef}
-						className="h-8 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
-						value={searchValue}
-						onChange={(e) => onSearch(e.target.value)}
-						placeholder="Search docs"
-						type="text"
-						aria-label={t("filter_placeholder")}
-					/>
-					{Boolean(searchValue) && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-							aria-label="Clear filter"
-							onClick={() => {
-								onSearch("");
-								inputRef.current?.focus();
-							}}
-						>
-							<X size={14} strokeWidth={2} aria-hidden="true" />
-						</Button>
-					)}
-				</div>
-
-				{/* Upload Button */}
-				<Button
-					data-joyride="upload-button"
-					onClick={handleUpload}
-					variant="outline"
-					size="sm"
-					className="h-8 shrink-0 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
-				>
-					<Upload size={13} />
-					<span>Upload</span>
-				</Button>
 			</div>
 		</div>
 	);
