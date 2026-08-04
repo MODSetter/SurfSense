@@ -20,6 +20,7 @@ import {
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
+import { DocumentRightPanel } from "../right-panel/DocumentRightPanel";
 import {
 	RightPanel,
 	RightPanelExpandButton,
@@ -132,6 +133,10 @@ interface LayoutShellProps {
 	className?: string;
 	notifications?: NotificationsDropdownData;
 	isLoadingChats?: boolean;
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 	onTabSwitch?: (tab: ResolvedTab) => void;
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	playgroundSidebar?: React.ReactNode;
@@ -304,6 +309,7 @@ export function LayoutShell({
 	className,
 	notifications,
 	isLoadingChats = false,
+	documentsPanel,
 	onTabSwitch,
 	onTabPrefetch,
 	playgroundSidebar,
@@ -394,6 +400,14 @@ export function LayoutShell({
 							<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
 							</main>
+						)}
+
+						{/* Mobile Documents panel — full-screen slide-out */}
+						{documentsPanel && (
+							<DocumentRightPanel
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
+							/>
 						)}
 					</div>
 				</TooltipProvider>
@@ -552,8 +566,12 @@ export function LayoutShell({
 										{children}
 									</MainContentPanel>
 
-									{/* Right panel — Report/Editor/Citations/Artifacts (desktop only) */}
-									<RightPanel showTopBorder={isMacDesktop} />
+									{/* Right panel — tabbed Documents/Report/Editor/Citations/Artifacts (desktop only) */}
+									<RightPanel
+										documentsPanel={documentsPanel}
+										showCollapseButton={!isMacDesktop}
+										showTopBorder={isMacDesktop}
+									/>
 								</>
 							)}
 						</DesktopWorkspaceRegion>
