@@ -1,9 +1,11 @@
 "use client";
 
+import { useSetAtom } from "jotai";
 import {
 	ChevronLeft,
 	ChevronRight,
 	LayoutGrid,
+	LibraryBig,
 	Settings2,
 	TriangleAlert,
 	Unplug,
@@ -12,6 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { type ReactNode, useCallback, useRef, useState } from "react";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import type { ConnectorRow } from "@/components/assistant-ui/connector-popup/hooks/use-connector-rows";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,6 +95,7 @@ export function ComposerAddMenuDrawer({
 	toolsLoading,
 }: ComposerAddMenuDrawerProps) {
 	const [open, setOpen] = useState(false);
+	const setDocumentsOpen = useSetAtom(documentsSidebarOpenAtom);
 	const [stack, setStack] = useState<Screen[]>([{ kind: "root" }]);
 	// Slide direction: forward on push, back on pop — drives the enter animation.
 	const dirRef = useRef<"forward" | "back">("forward");
@@ -156,6 +160,17 @@ export function ComposerAddMenuDrawer({
 					>
 						<Upload className="size-4 shrink-0 text-muted-foreground" />
 						<span className="flex-1 text-left">Upload Files</span>
+					</button>
+					<button
+						type="button"
+						className={ROW}
+						onClick={() => {
+							setDocumentsOpen(true);
+							close();
+						}}
+					>
+						<LibraryBig className="size-4 shrink-0 text-muted-foreground" />
+						<span className="flex-1 text-left">Documents</span>
 					</button>
 					<button type="button" className={ROW} onClick={() => push({ kind: "connectors" })}>
 						<Unplug className="size-4 shrink-0 text-muted-foreground" />
