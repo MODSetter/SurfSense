@@ -75,7 +75,7 @@ export function DocumentsFilters({
 				<Input
 					id={`${id}-input`}
 					ref={inputRef}
-					className="h-8 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
+					className="h-9 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
 					value={searchValue}
 					onChange={(e) => onSearch(e.target.value)}
 					placeholder="Search docs"

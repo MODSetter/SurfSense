@@ -1,7 +1,6 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { Search } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -308,22 +307,25 @@ export function FolderTreeView({
 
 	const treeNodes = renderLevel(null, 0);
 
-	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
+	// Checked before the "nothing here yet" state: a search or filter that
+	// matches nothing also empties `documents`, and telling those users to
+	// upload files instead of retrying their query is misleading.
+	if (treeNodes.length === 0 && (effectiveActiveTypes.length > 0 || searchQuery)) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground select-none">
-				<p className="text-sm font-medium">No documents found</p>
+				<p className="text-sm font-medium">No matching documents</p>
 				<p className="text-xs text-muted-foreground/70">
-					Use the Import button above to add files, or the plus menu to manage connectors
+					{searchQuery ? "Try a different search term" : "Try adjusting your filters"}
 				</p>
 			</div>
 		);
 	}
 
-	if (treeNodes.length === 0 && (effectiveActiveTypes.length > 0 || searchQuery)) {
+	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
 		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-muted-foreground">
-				<Search className="h-10 w-10" />
-				<p className="text-sm text-muted-foreground">No matching documents</p>
+			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground select-none">
+				<p className="text-sm font-medium">No documents found</p>
+				<p className="text-xs text-muted-foreground/70">Upload files to get started</p>
 			</div>
 		);
 	}
