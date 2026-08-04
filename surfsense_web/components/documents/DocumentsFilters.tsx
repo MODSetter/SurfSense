@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -22,6 +23,7 @@ export function DocumentsFilters({
 	activeTypes,
 	onCreateFolder,
 	onUploadClick,
+	isUploading = false,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -30,6 +32,7 @@ export function DocumentsFilters({
 	activeTypes: DocumentTypeEnum[];
 	onCreateFolder?: () => void;
 	onUploadClick?: () => void;
+	isUploading?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -75,12 +78,21 @@ export function DocumentsFilters({
 				<Input
 					id={`${id}-input`}
 					ref={inputRef}
-					className="h-9 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text"
+					className="h-9 w-full select-none border-0 bg-muted pl-8 pr-7 text-sm shadow-none focus:select-text [&::-webkit-search-cancel-button]:hidden"
 					value={searchValue}
 					onChange={(e) => onSearch(e.target.value)}
-					placeholder="Search docs"
-					type="text"
-					aria-label={t("filter_placeholder")}
+					onKeyDown={(event) => {
+						if (event.key === "Escape" && searchValue) {
+							event.preventDefault();
+							onSearch("");
+						}
+					}}
+					placeholder={t("search_documents")}
+					type="search"
+					autoComplete="off"
+					enterKeyHint="search"
+					spellCheck={false}
+					aria-label={t("search_documents")}
 				/>
 				{Boolean(searchValue) && (
 					<Button
@@ -104,12 +116,13 @@ export function DocumentsFilters({
 				<Button
 					data-joyride="upload-button"
 					onClick={handleUpload}
+					disabled={isUploading}
 					variant="outline"
 					size="sm"
 					className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
 				>
-					<Upload size={13} />
-					<span>Upload files</span>
+					{isUploading ? <Spinner size="xs" /> : <Upload size={13} />}
+					<span>{isUploading ? t("uploading") : t("upload_files")}</span>
 				</Button>
 
 				{/* New Folder + Filter Toggle Group */}

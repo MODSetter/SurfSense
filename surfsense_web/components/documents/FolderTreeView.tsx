@@ -5,14 +5,16 @@ import { useCallback, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { renamingFolderIdAtom } from "@/atoms/documents/folder.atoms";
-import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
-import { DocumentNode, type DocumentNodeDoc } from "./DocumentNode";
-import { type FolderDisplay, FolderNode } from "./FolderNode";
+import type {
+	DocumentNodeDoc,
+	FolderDisplay,
+	FolderSelectionState,
+} from "@/lib/documents/document-tree-types";
+import { DocumentNode } from "./DocumentNode";
+import { FolderNode } from "./FolderNode";
 
-export type FolderSelectionState = "all" | "some" | "none";
-
-interface FolderTreeViewProps {
+export interface FolderTreeViewProps {
 	folders: FolderDisplay[];
 	documents: DocumentNodeDoc[];
 	expandedIds: Set<number>;
@@ -33,8 +35,6 @@ interface FolderTreeViewProps {
 	onResetDocument?: (doc: DocumentNodeDoc) => void;
 	onExportDocument?: (doc: DocumentNodeDoc, format: string) => void;
 	onVersionHistory?: (doc: DocumentNodeDoc) => void;
-	activeTypes: DocumentTypeEnum[];
-	searchQuery?: string;
 	onDropIntoFolder?: (
 		itemType: "folder" | "document",
 		itemId: number,
@@ -75,8 +75,6 @@ export function FolderTreeView({
 	onResetDocument,
 	onExportDocument,
 	onVersionHistory,
-	activeTypes,
-	searchQuery,
 	onDropIntoFolder,
 	onReorderFolder,
 	watchedFolderIds,
@@ -97,48 +95,6 @@ export function FolderTreeView({
 		[setRenamingFolderId]
 	);
 	const handleCancelRename = useCallback(() => setRenamingFolderId(null), [setRenamingFolderId]);
-
-	const effectiveActiveTypes = useMemo(() => {
-		if (
-			activeTypes.includes("FILE" as DocumentTypeEnum) &&
-			!activeTypes.includes("LOCAL_FOLDER_FILE" as DocumentTypeEnum)
-		) {
-			return [...activeTypes, "LOCAL_FOLDER_FILE" as DocumentTypeEnum];
-		}
-		return activeTypes;
-	}, [activeTypes]);
-
-	const hasDescendantMatch = useMemo(() => {
-		if (effectiveActiveTypes.length === 0 && !searchQuery) return null;
-		const match: Record<number, boolean> = {};
-
-		function check(folderId: number): boolean {
-			if (match[folderId] !== undefined) return match[folderId];
-			const childDocs = (docsByFolder[folderId] ?? []).some(
-				(d) =>
-					effectiveActiveTypes.length === 0 ||
-					effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
-			);
-			if (childDocs) {
-				match[folderId] = true;
-				return true;
-			}
-			const childFolders = foldersByParent[folderId] ?? [];
-			for (const cf of childFolders) {
-				if (check(cf.id)) {
-					match[folderId] = true;
-					return true;
-				}
-			}
-			match[folderId] = false;
-			return false;
-		}
-
-		for (const f of folders) {
-			check(f.id);
-		}
-		return match;
-	}, [folders, docsByFolder, foldersByParent, effectiveActiveTypes, searchQuery]);
 
 	const folderSelectionStates = useMemo(() => {
 		// One folder = one chip. The checkbox now reflects whether the
@@ -243,26 +199,18 @@ export function FolderTreeView({
 		const childFolders = (foldersByParent[key] ?? [])
 			.slice()
 			.sort((a, b) => a.position.localeCompare(b.position));
-		const visibleFolders = hasDescendantMatch
-			? childFolders.filter((f) => hasDescendantMatch[f.id])
-			: childFolders;
-		const childDocs = (docsByFolder[key] ?? []).filter(
-			(d) =>
-				effectiveActiveTypes.length === 0 ||
-				effectiveActiveTypes.includes(d.document_type as DocumentTypeEnum)
-		);
+		const childDocs = docsByFolder[key] ?? [];
 
 		const nodes: React.ReactNode[] = [];
 
-		for (let i = 0; i < visibleFolders.length; i++) {
-			const f = visibleFolders[i];
+		for (let i = 0; i < childFolders.length; i++) {
+			const f = childFolders[i];
 			const siblingPositions = {
-				before: i > 0 ? visibleFolders[i - 1].position : null,
-				after: i < visibleFolders.length - 1 ? visibleFolders[i + 1].position : null,
+				before: i > 0 ? childFolders[i - 1].position : null,
+				after: i < childFolders.length - 1 ? childFolders[i + 1].position : null,
 			};
 
-			const isSearchAutoExpanded = !!searchQuery && !!hasDescendantMatch?.[f.id];
-			const isExpanded = expandedIds.has(f.id) || isSearchAutoExpanded;
+			const isExpanded = expandedIds.has(f.id);
 
 			nodes.push(
 				<FolderNode
@@ -306,29 +254,6 @@ export function FolderTreeView({
 	}
 
 	const treeNodes = renderLevel(null, 0);
-
-	// Checked before the "nothing here yet" state: a search or filter that
-	// matches nothing also empties `documents`, and telling those users to
-	// upload files instead of retrying their query is misleading.
-	if (treeNodes.length === 0 && (effectiveActiveTypes.length > 0 || searchQuery)) {
-		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground select-none">
-				<p className="text-sm font-medium">No matching documents</p>
-				<p className="text-xs text-muted-foreground/70">
-					{searchQuery ? "Try a different search term" : "Try adjusting your filters"}
-				</p>
-			</div>
-		);
-	}
-
-	if (treeNodes.length === 0 && folders.length === 0 && documents.length === 0) {
-		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-1 px-4 py-12 text-muted-foreground select-none">
-				<p className="text-sm font-medium">No documents found</p>
-				<p className="text-xs text-muted-foreground/70">Upload files to get started</p>
-			</div>
-		);
-	}
 
 	return (
 		<DndProvider backend={HTML5Backend}>

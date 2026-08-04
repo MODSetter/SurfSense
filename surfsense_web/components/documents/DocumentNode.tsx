@@ -38,18 +38,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { DocumentNodeDoc } from "@/lib/documents/document-tree-types";
 import { cn } from "@/lib/utils";
 import { SidebarListItem } from "../layout/ui/sidebar/SidebarListItem";
 import { DND_TYPES } from "./FolderNode";
 import { isVersionableType } from "./version-history";
-
-export interface DocumentNodeDoc {
-	id: number;
-	title: string;
-	document_type: string;
-	folderId: number | null;
-	status?: { state: string; reason?: string | null };
-}
 
 interface DocumentNodeProps {
 	doc: DocumentNodeDoc;

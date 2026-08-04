@@ -12,7 +12,6 @@ import {
 	Paperclip,
 	Server,
 	Trash2,
-	Upload,
 	X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -33,11 +32,9 @@ import {
 	folderWatchInitialFolderAtom,
 } from "@/atoms/folder-sync/folder-sync.atoms";
 import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
-import type { DocumentNodeDoc } from "@/components/documents/DocumentNode";
 import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
-import type { FolderDisplay } from "@/components/documents/FolderNode";
+import { DocumentsView } from "@/components/documents/DocumentsView";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
-import { FolderTreeView } from "@/components/documents/FolderTreeView";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
@@ -57,14 +54,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
@@ -72,6 +68,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
@@ -119,32 +116,6 @@ function downloadTextFile(content: string, fileName: string, type = "text/markdo
 }
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
-
-function CloudDocumentsSkeleton() {
-	const rows = [
-		{ id: "row-1", widthClass: "w-44" },
-		{ id: "row-2", widthClass: "w-32" },
-		{ id: "row-3", widthClass: "w-32" },
-		{ id: "row-4", widthClass: "w-44" },
-		{ id: "row-5", widthClass: "w-32" },
-		{ id: "row-6", widthClass: "w-32" },
-		{ id: "row-7", widthClass: "w-44" },
-		{ id: "row-8", widthClass: "w-32" },
-	];
-
-	return (
-		<div className="flex-1 min-h-0 overflow-y-auto px-2 py-1">
-			<div className="space-y-1">
-				{rows.map((row) => (
-					<div key={row.id} className="flex h-8 items-center gap-2 px-2">
-						<Skeleton className="h-4 w-4 rounded-sm" />
-						<Skeleton className={`h-4 ${row.widthClass}`} />
-					</div>
-				))}
-			</div>
-		</div>
-	);
-}
 
 type FilesystemSettings = {
 	mode: "cloud" | "desktop_local_folder";
@@ -215,7 +186,6 @@ function AuthenticatedDocumentRightPanelBase({
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
 
 	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebouncedValue(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
 	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
@@ -934,17 +904,6 @@ function AuthenticatedDocumentRightPanelBase({
 		[treeFolders, setSidebarDocs]
 	);
 
-	const treeDocumentsWithMemory = useMemo(
-		() => [...MEMORY_DOCUMENTS, ...treeDocuments],
-		[treeDocuments]
-	);
-
-	const searchFilteredDocuments = useMemo(() => {
-		const query = debouncedSearch.trim().toLowerCase();
-		if (!query) return treeDocumentsWithMemory;
-		return treeDocumentsWithMemory.filter((d) => d.title.toLowerCase().includes(query));
-	}, [treeDocumentsWithMemory, debouncedSearch]);
-
 	const openMemoryDocument = useCallback(
 		(doc: DocumentNodeDoc) => {
 			if (doc.document_type === "USER_MEMORY") {
@@ -1096,9 +1055,33 @@ function AuthenticatedDocumentRightPanelBase({
 		localFilesystemEnabled && filesystemSettings?.mode === "desktop_local_folder"
 			? "local"
 			: "cloud";
-	const showCloudSkeleton =
-		currentFilesystemTab === "cloud" &&
-		(zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete");
+	const documentsViewModel = useDocumentsViewModel({
+		folders: treeFolders,
+		documents: treeDocuments,
+		pinnedDocuments: MEMORY_DOCUMENTS,
+		query: search,
+		activeTypes,
+		isLoading: zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete",
+	});
+	const handleOpenSearchFolder = useCallback(
+		(folder: FolderDisplay) => {
+			const folderById = new Map(treeFolders.map((item) => [item.id, item]));
+			const folderIds = new Set<number>([folder.id]);
+			let parentId = folder.parentId;
+			while (parentId !== null && !folderIds.has(parentId)) {
+				folderIds.add(parentId);
+				parentId = folderById.get(parentId)?.parentId ?? null;
+			}
+
+			setExpandedFolderMap((previous) => {
+				const expanded = new Set(previous[workspaceId] ?? []);
+				for (const folderId of folderIds) expanded.add(folderId);
+				return { ...previous, [workspaceId]: [...expanded] };
+			});
+			setSearch("");
+		},
+		[setExpandedFolderMap, treeFolders, workspaceId]
+	);
 
 	const cloudContent = (
 		<>
@@ -1144,44 +1127,38 @@ function AuthenticatedDocumentRightPanelBase({
 						</div>
 					)}
 
-					{showCloudSkeleton ? (
-						<CloudDocumentsSkeleton />
-					) : (
-						<FolderTreeView
-							folders={treeFolders}
-							documents={searchFilteredDocuments}
-							expandedIds={expandedIds}
-							onToggleExpand={toggleFolderExpand}
-							mentionedDocKeys={mentionedDocKeys}
-							onToggleChatMention={handleToggleChatMention}
-							onToggleFolderSelect={handleToggleFolderSelect}
-							onRenameFolder={handleRenameFolder}
-							onDeleteFolder={handleDeleteFolder}
-							onMoveFolder={handleMoveFolder}
-							onCreateFolder={handleCreateFolder}
-							searchQuery={debouncedSearch.trim() || undefined}
-							onPreviewDocument={(doc) => {
-								if (openMemoryDocument(doc)) return;
-								openEditorPanel({
-									documentId: doc.id,
-									workspaceId,
-									title: doc.title,
-								});
-							}}
-							onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
-							onMoveDocument={handleMoveDocument}
-							onResetDocument={handleResetMemoryDocument}
-							onExportDocument={handleExportDocument}
-							onVersionHistory={(doc) => setVersionDocId(doc.id)}
-							activeTypes={activeTypes}
-							onDropIntoFolder={handleDropIntoFolder}
-							onReorderFolder={handleReorderFolder}
-							watchedFolderIds={watchedFolderIds}
-							onRescanFolder={handleRescanFolder}
-							onStopWatchingFolder={handleStopWatching}
-							onExportFolder={handleExportFolder}
-						/>
-					)}
+					<DocumentsView
+						viewModel={documentsViewModel}
+						onOpenFolder={handleOpenSearchFolder}
+						expandedIds={expandedIds}
+						onToggleExpand={toggleFolderExpand}
+						mentionedDocKeys={mentionedDocKeys}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={handleToggleFolderSelect}
+						onRenameFolder={handleRenameFolder}
+						onDeleteFolder={handleDeleteFolder}
+						onMoveFolder={handleMoveFolder}
+						onCreateFolder={handleCreateFolder}
+						onPreviewDocument={(doc) => {
+							if (openMemoryDocument(doc)) return;
+							openEditorPanel({
+								documentId: doc.id,
+								workspaceId,
+								title: doc.title,
+							});
+						}}
+						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+						onMoveDocument={handleMoveDocument}
+						onResetDocument={handleResetMemoryDocument}
+						onExportDocument={handleExportDocument}
+						onVersionHistory={(doc) => setVersionDocId(doc.id)}
+						onDropIntoFolder={handleDropIntoFolder}
+						onReorderFolder={handleReorderFolder}
+						watchedFolderIds={watchedFolderIds}
+						onRescanFolder={handleRescanFolder}
+						onStopWatchingFolder={handleStopWatching}
+						onExportFolder={handleExportFolder}
+					/>
 				</div>
 			</div>
 		</>
@@ -1653,11 +1630,12 @@ function AnonymousDocumentRightPanel({
 		];
 	}, [anonMode]);
 
-	const searchFilteredDocs = useMemo(() => {
-		const q = search.trim().toLowerCase();
-		if (!q) return treeDocuments;
-		return treeDocuments.filter((d) => d.title.toLowerCase().includes(q));
-	}, [treeDocuments, search]);
+	const documentsViewModel = useDocumentsViewModel({
+		folders: [],
+		documents: treeDocuments,
+		query: search,
+		activeTypes: [],
+	});
 
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
@@ -1743,13 +1721,14 @@ function AnonymousDocumentRightPanel({
 						activeTypes={[]}
 						onCreateFolder={() => gate("create folders")}
 						onUploadClick={handleAnonUploadClick}
+						isUploading={isUploading}
 					/>
 				</div>
 
 				<div className="relative flex-1 min-h-0 overflow-auto">
-					<FolderTreeView
-						folders={[]}
-						documents={searchFilteredDocs}
+					<DocumentsView
+						viewModel={documentsViewModel}
+						onOpenFolder={() => {}}
 						expandedIds={new Set()}
 						onToggleExpand={() => {}}
 						mentionedDocKeys={mentionedDocKeys}
@@ -1759,7 +1738,6 @@ function AnonymousDocumentRightPanel({
 						onDeleteFolder={() => gate("delete folders")}
 						onMoveFolder={() => gate("organize folders")}
 						onCreateFolder={() => gate("create folders")}
-						searchQuery={search.trim() || undefined}
 						onPreviewDocument={() => gate("preview documents")}
 						onDeleteDocument={async () => {
 							handleRemoveDoc();
@@ -1769,36 +1747,12 @@ function AnonymousDocumentRightPanel({
 						onMoveDocument={() => gate("organize documents")}
 						onExportDocument={() => gate("export documents")}
 						onVersionHistory={() => gate("view version history")}
-						activeTypes={[]}
 						onDropIntoFolder={async () => gate("organize documents")}
 						onReorderFolder={async () => gate("organize folders")}
-						watchedFolderIds={new Set()}
 						onRescanFolder={() => gate("watch local folders")}
 						onStopWatchingFolder={() => gate("watch local folders")}
 						onExportFolder={() => gate("export folders")}
 					/>
-
-					{!hasDoc && (
-						<div className="px-4 py-8 text-center">
-							<Button
-								type="button"
-								variant="ghost"
-								onClick={handleAnonUploadClick}
-								disabled={isUploading}
-								className="relative h-auto w-full border-2 border-dashed border-primary/30 px-4 py-6 text-sm text-primary hover:border-primary/60 hover:bg-primary/5 hover:text-primary cursor-pointer"
-							>
-								<span className={`flex items-center gap-2 ${isUploading ? "opacity-0" : ""}`}>
-									<Upload className="size-4" />
-									Upload a document
-								</span>
-								{isUploading && <Spinner size="sm" className="absolute" />}
-							</Button>
-							<p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-								Text, code, CSV, and HTML files only. Create an account for PDFs, images, and 30+
-								connectors.
-							</p>
-						</div>
-					)}
 				</div>
 			</div>
 
