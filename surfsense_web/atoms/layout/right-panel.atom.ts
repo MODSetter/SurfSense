@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 export type RightPanelTab =
 	| "sources"
@@ -11,4 +12,4 @@ export type RightPanelTab =
 export const rightPanelTabAtom = atom<RightPanelTab>("sources");
 
 /** Whether the right panel is collapsed (hidden but state preserved) */
-export const rightPanelCollapsedAtom = atom(false);
+export const rightPanelCollapsedAtom = atomWithStorage("right-panel-collapsed:v1", false);

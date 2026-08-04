@@ -99,7 +99,7 @@ export function DocumentsFilters({
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+						className="absolute right-2 top-1/2 h-5 w-5 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 						aria-label="Clear filter"
 						onClick={() => {
 							onSearch("");
