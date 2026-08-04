@@ -454,6 +454,14 @@ def _lm_studio_optional_bool(
 
 
 def _lm_studio_context_length(item: dict[str, Any], source: str) -> int | None:
+    """LM Studio's ceiling, uncapped - unlike ``_ollama_seed_budget``.
+
+    A person picks this window when they load the model, so it describes the
+    deployment; Ollama's maximum is auto-sized from free memory, so only that
+    one needs a cap. ``loaded_instances[].config.context_length`` is left
+    unread on purpose: seeding is write-once and a loaded instance vanishes on
+    the next reload.
+    """
     value = item.get("max_context_length")
     if value is None:
         return None
