@@ -145,7 +145,7 @@ export function FolderTreeView({
 		// One folder = one chip. The checkbox now reflects whether the
 		// folder itself is mentioned, not whether every nested doc is —
 		// that reverses the old subtree-fanout semantics in
-		// ``DocumentsSidebar.handleToggleFolderSelect``. We keep the
+		// ``DocumentRightPanel.handleToggleFolderSelect``. We keep the
 		// ``"all" | "some" | "none"`` tri-state on the type so the
 		// existing ``FolderNode`` UI (which renders an indeterminate
 		// glyph for ``"some"``) stays compatible, but only ``"all"``

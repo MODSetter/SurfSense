@@ -22,7 +22,6 @@ import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";
-import { DocumentsSidebar } from "./DocumentsSidebar";
 import { NavSection } from "./NavSection";
 import { SidebarButton, SidebarButtonBadge } from "./SidebarButton";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
@@ -137,7 +136,8 @@ export function Sidebar({
 
 	// Automations, Artifacts, and Playground are rendered explicitly right below
 	// New Chat. Pull them out of the nav items list so they don't also appear
-	// in the bottom NavSection. Documents is embedded below Recents.
+	// in the bottom NavSection. Documents is only present in navItems on mobile,
+	// where it opens the full-screen Documents panel.
 	const automationsItem = useMemo(
 		() => navItems.find((item) => item.url.endsWith("/automations")),
 		[navItems]
@@ -154,10 +154,15 @@ export function Sidebar({
 		() => navItems.find((item) => item.url.endsWith("/playground")),
 		[navItems]
 	);
+	const documentsItem = useMemo(
+		() => navItems.find((item) => item.url === "#documents"),
+		[navItems]
+	);
 	const footerNavItems = useMemo(
 		() =>
 			navItems.filter(
 				(item) =>
+					item.url !== "#documents" &&
 					!item.url.endsWith("/automations") &&
 					!item.url.endsWith("/artifacts") &&
 					!item.url.endsWith("/connectors") &&
@@ -265,6 +270,16 @@ export function Sidebar({
 							tooltipContent={isCollapsed ? artifactsItem.title : undefined}
 						/>
 					)}
+					{documentsItem && (
+						<SidebarButton
+							icon={documentsItem.icon}
+							label={documentsItem.title}
+							onClick={() => onNavItemClick?.(documentsItem)}
+							isCollapsed={isCollapsed}
+							isActive={documentsItem.isActive}
+							tooltipContent={isCollapsed ? documentsItem.title : undefined}
+						/>
+					)}
 					{connectorsItem && (
 						<SidebarButton
 							icon={connectorsItem.icon}
@@ -296,6 +311,7 @@ export function Sidebar({
 						<SidebarSection
 							title={t("recents")}
 							defaultOpen={true}
+							fillHeight={true}
 							alwaysShowAction={!disableTooltips && isAllChatsActive}
 							action={
 								onViewAllChats ? (
@@ -342,9 +358,6 @@ export function Sidebar({
 								<p className="px-2 py-1 text-sm text-muted-foreground/60">{t("no_chats")}</p>
 							)}
 						</SidebarSection>
-						<div className="min-h-0 flex flex-1 flex-col">
-							<DocumentsSidebar embedded />
-						</div>
 					</div>
 				)}
 			</div>
