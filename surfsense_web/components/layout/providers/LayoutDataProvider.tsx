@@ -1,16 +1,25 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
-import { AlarmClock, AlertTriangle, Shapes, SquareTerminal, Unplug } from "lucide-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+	AlarmClock,
+	AlertTriangle,
+	LibraryBig,
+	Shapes,
+	SquareTerminal,
+	Unplug,
+} from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { announcementsDialogAtom } from "@/atoms/layout/dialogs.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { deleteWorkspaceMutationAtom } from "@/atoms/workspaces/workspace-mutation.atoms";
@@ -43,6 +52,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActivateChatThread } from "@/hooks/use-activate-chat-thread";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getChatUrl, type ResolvedTab } from "@/hooks/use-resolved-tabs";
 import { useArchiveThread, useDeleteThread, useRenameThread } from "@/hooks/use-thread-mutations";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
@@ -74,9 +84,25 @@ export function LayoutDataProvider({
 	const params = useParams();
 	const pathname = usePathname();
 	const { theme, setTheme } = useTheme();
+	const isMobile = useIsMobile();
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
+
+	// Documents panel state (shared atom so the Composer can toggle it too)
+	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
+	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
+
+	// Open the documents panel by default on desktop
+	const documentsInitialized = useRef(false);
+	useEffect(() => {
+		if (documentsInitialized.current) return;
+		documentsInitialized.current = true;
+		const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+		if (isDesktop) {
+			setIsDocumentsSidebarOpen(true);
+		}
+	}, [setIsDocumentsSidebarOpen]);
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
@@ -294,9 +320,10 @@ export function LayoutDataProvider({
 	}, [threadsData, workspaceId]);
 
 	// Navigation items
-	// Automations and Artifacts are rendered explicitly below "New chat"
-	// in the sidebar. Documents is embedded below Recents; notifications and
-	// announcements live in the avatar rail/dropdown.
+	// Automations, Artifacts and Documents are rendered explicitly below "New
+	// chat" in the sidebar. Documents is only listed on mobile, where it opens
+	// the full-screen panel; notifications and announcements live in the avatar
+	// rail/dropdown.
 	const isAutomationsActive = pathname?.includes("/automations") === true;
 	const isArtifactsActive = pathname?.endsWith("/artifacts") === true;
 	const isPlaygroundRoute = pathname?.includes("/playground") === true;
@@ -329,9 +356,25 @@ export function LayoutDataProvider({
 						icon: SquareTerminal,
 						isActive: isPlaygroundRoute,
 					},
+					isMobile
+						? {
+								title: "Documents",
+								url: "#documents",
+								icon: LibraryBig,
+								isActive: isDocumentsSidebarOpen,
+							}
+						: null,
 				] as (NavItem | null)[]
 			).filter((item): item is NavItem => item !== null),
-		[workspaceId, isAutomationsActive, isArtifactsActive, isConnectorsRoute, isPlaygroundRoute]
+		[
+			workspaceId,
+			isAutomationsActive,
+			isArtifactsActive,
+			isConnectorsRoute,
+			isPlaygroundRoute,
+			isMobile,
+			isDocumentsSidebarOpen,
+		]
 	);
 
 	// Handlers
@@ -472,9 +515,21 @@ export function LayoutDataProvider({
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
+			if (item.url === "#documents") {
+				if (isMobile) {
+					setIsDocumentsSidebarOpen((prev) => !prev);
+				} else if (isDocumentsSidebarOpen) {
+					// Already the active surface — the button doubles as a collapse toggle.
+					setIsRightPanelCollapsed((prev) => !prev);
+				} else {
+					setIsDocumentsSidebarOpen(true);
+					setIsRightPanelCollapsed(false);
+				}
+				return;
+			}
 			router.push(item.url);
 		},
-		[router]
+		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -718,6 +773,10 @@ export function LayoutDataProvider({
 				}
 				workspacePanelContentClassName={useWorkspacePanel ? "max-w-5xl select-none" : undefined}
 				isLoadingChats={isLoadingThreads}
+				documentsPanel={{
+					open: isDocumentsSidebarOpen,
+					onOpenChange: setIsDocumentsSidebarOpen,
+				}}
 				notifications={{
 					totalUnreadCount,
 					comments: {
