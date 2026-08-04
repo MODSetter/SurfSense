@@ -8,11 +8,6 @@
 		"node": ">=18.0.0 <23.0.0",
 		"pnpm": ">=8.0.0"
 	},
-	"pnpm": {
-		"overrides": {
-			"sharp": "^0.33.5"
-		}
-	},
 	"scripts": {
 		"dev": "plasmo dev",
 		"build": "plasmo build",
