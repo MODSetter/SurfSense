@@ -10,7 +10,7 @@ export const globalDocumentsQueryParamsAtom = atom<GetDocumentsRequest["queryPar
  * Whether the Documents panel is open. Shared so the Composer can toggle the
  * same surface the sidebar's Documents button controls.
  */
-export const documentsSidebarOpenAtom = atom(false);
+export const documentsSidebarOpenAtom = atom(true);
 
 export interface AgentCreatedDocument {
 	id: number;

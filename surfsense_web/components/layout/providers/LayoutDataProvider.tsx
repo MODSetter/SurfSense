@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useHydrateAtoms } from "jotai/utils";
 import {
 	AlarmClock,
 	AlertTriangle,
@@ -69,14 +70,17 @@ import { LayoutShell } from "../ui/shell";
 interface LayoutDataProviderProps {
 	workspaceId: string;
 	initialPlaygroundSidebarCollapsed: boolean;
+	initialRightPanelCollapsed: boolean;
 	children: React.ReactNode;
 }
 
 export function LayoutDataProvider({
 	workspaceId,
 	initialPlaygroundSidebarCollapsed,
+	initialRightPanelCollapsed,
 	children,
 }: LayoutDataProviderProps) {
+	useHydrateAtoms([[rightPanelCollapsedAtom, initialRightPanelCollapsed]]);
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
 	const tSidebar = useTranslations("sidebar");
@@ -92,17 +96,6 @@ export function LayoutDataProvider({
 	// Desktop Documents panel state. Mobile uses the /documents workspace route.
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 	const setIsRightPanelCollapsed = useSetAtom(rightPanelCollapsedAtom);
-
-	// Open the documents panel by default on desktop
-	const documentsInitialized = useRef(false);
-	useEffect(() => {
-		if (documentsInitialized.current) return;
-		documentsInitialized.current = true;
-		const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
-		if (isDesktop) {
-			setIsDocumentsSidebarOpen(true);
-		}
-	}, [setIsDocumentsSidebarOpen]);
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
