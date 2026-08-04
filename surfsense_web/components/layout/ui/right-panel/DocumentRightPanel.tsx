@@ -88,6 +88,7 @@ const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
 		title: "MEMORY.md",
 		document_type: "USER_MEMORY",
 		folderId: null,
+		createdAt: 0,
 		status: { state: "ready" },
 	},
 	{
@@ -95,6 +96,7 @@ const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
 		title: "TEAM_MEMORY.md",
 		document_type: "TEAM_MEMORY",
 		folderId: null,
+		createdAt: 0,
 		status: { state: "ready" },
 	},
 ];
@@ -428,6 +430,7 @@ function AuthenticatedDocumentRightPanelBase({
 				title: d.title,
 				document_type: d.documentType,
 				folderId: (d as { folderId?: number | null }).folderId ?? null,
+				createdAt: d.createdAt,
 				status: d.status as { state: string; reason?: string | null } | undefined,
 			}));
 
@@ -440,6 +443,7 @@ function AuthenticatedDocumentRightPanelBase({
 				title: d.title,
 				document_type: d.documentType,
 				folderId: d.folderId ?? null,
+				createdAt: d.createdAt,
 				status: { state: "ready" } as { state: string; reason?: string | null },
 			}));
 
@@ -1625,6 +1629,7 @@ function AnonymousDocumentRightPanel({
 				title: anonMode.uploadedDoc.filename,
 				document_type: "FILE",
 				folderId: null,
+				createdAt: 0,
 				status: { state: "ready" } as { state: string; reason?: string | null },
 			},
 		];

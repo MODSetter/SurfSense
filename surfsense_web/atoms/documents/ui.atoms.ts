@@ -19,6 +19,7 @@ export interface AgentCreatedDocument {
 	workspaceId: number;
 	folderId: number | null;
 	createdById: string | null;
+	createdAt: number;
 }
 
 export const agentCreatedDocumentsAtom = atom<AgentCreatedDocument[]>([]);

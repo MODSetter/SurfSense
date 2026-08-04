@@ -3,6 +3,7 @@ export interface DocumentNodeDoc {
 	title: string;
 	document_type: string;
 	folderId: number | null;
+	createdAt: number;
 	status?: { state: string; reason?: string | null };
 }
 
