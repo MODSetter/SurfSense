@@ -42,6 +42,20 @@ function effectiveDocumentTypes(activeTypes: DocumentTypeEnum[]): Set<string> {
 	return types;
 }
 
+function documentOrder(document: DocumentNodeDoc) {
+	if (document.document_type === "USER_MEMORY") return 0;
+	if (document.document_type === "TEAM_MEMORY") return 1;
+	return 2;
+}
+
+function compareDocuments(left: DocumentNodeDoc, right: DocumentNodeDoc) {
+	return (
+		documentOrder(left) - documentOrder(right) ||
+		right.createdAt - left.createdAt ||
+		right.id - left.id
+	);
+}
+
 function buildFolderPaths(folders: FolderDisplay[]): Map<number, string[]> {
 	const folderById = new Map(folders.map((folder) => [folder.id, folder]));
 	const paths = new Map<number, string[]>();
@@ -101,10 +115,11 @@ export function buildDocumentsViewModel({
 	const trimmedQuery = query.trim();
 	const types = effectiveDocumentTypes(activeTypes);
 	const allDocuments = [...pinnedDocuments, ...documents];
-	const filteredDocuments =
+	const filteredDocuments = (
 		types.size === 0
-			? allDocuments
-			: allDocuments.filter((document) => types.has(document.document_type));
+			? allDocuments.slice()
+			: allDocuments.filter((document) => types.has(document.document_type))
+	).sort(compareDocuments);
 
 	if (allDocuments.length === 0 && folders.length === 0) {
 		return { mode: "empty", reason: { kind: "workspace_empty" } };
