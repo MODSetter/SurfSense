@@ -20,7 +20,7 @@ import {
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
-import { DocumentRightPanel } from "../right-panel/DocumentRightPanel";
+import { MobileDocumentsWorkspaceView } from "../right-panel/MobileDocumentsWorkspaceView";
 import {
 	RightPanel,
 	RightPanelExpandButton,
@@ -137,6 +137,8 @@ interface LayoutShellProps {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
 	};
+	/** Anonymous mobile layouts still open Documents from local state instead of a dashboard route. */
+	mobileDocumentsWorkspaceFromState?: boolean;
 	onTabSwitch?: (tab: ResolvedTab) => void;
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	playgroundSidebar?: React.ReactNode;
@@ -310,6 +312,7 @@ export function LayoutShell({
 	notifications,
 	isLoadingChats = false,
 	documentsPanel,
+	mobileDocumentsWorkspaceFromState = false,
 	onTabSwitch,
 	onTabPrefetch,
 	playgroundSidebar,
@@ -341,6 +344,9 @@ export function LayoutShell({
 			return nextCollapsed;
 		});
 	};
+	const closeMobileDocuments = () => {
+		if (mobileDocumentsWorkspaceFromState) documentsPanel?.onOpenChange(false);
+	};
 
 	// Mobile layout
 	if (isMobile) {
@@ -357,23 +363,49 @@ export function LayoutShell({
 							onOpenChange={setMobileMenuOpen}
 							workspaces={workspaces}
 							activeWorkspaceId={activeWorkspaceId}
-							onWorkspaceSelect={onWorkspaceSelect}
+							onWorkspaceSelect={(id) => {
+								closeMobileDocuments();
+								onWorkspaceSelect(id);
+							}}
 							onAddWorkspace={onAddWorkspace}
 							isAtWorkspaceLimit={isAtWorkspaceLimit}
 							maxWorkspacesPerUser={maxWorkspacesPerUser}
 							workspace={workspace}
 							navItems={navItems}
-							onNavItemClick={onNavItemClick}
+							onNavItemClick={(item) => {
+								if (item.url !== "#documents") closeMobileDocuments();
+								onNavItemClick?.(item);
+							}}
 							chats={chats}
 							activeChatId={activeChatId}
-							onNewChat={onNewChat}
-							onChatSelect={onChatSelect}
+							onNewChat={() => {
+								closeMobileDocuments();
+								onNewChat();
+							}}
+							onChatSelect={(chat) => {
+								closeMobileDocuments();
+								onChatSelect(chat);
+							}}
 							onChatPrefetch={onChatPrefetch}
 							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
-							onChatsClick={onChatsClick}
-							onViewAllChats={onViewAllChats}
+							onChatsClick={
+								onChatsClick
+									? () => {
+											closeMobileDocuments();
+											onChatsClick();
+										}
+									: undefined
+							}
+							onViewAllChats={
+								onViewAllChats
+									? () => {
+											closeMobileDocuments();
+											onViewAllChats();
+										}
+									: undefined
+							}
 							isAllChatsActive={isAllChatsPage}
 							user={user}
 							onSettings={onSettings}
@@ -389,7 +421,14 @@ export function LayoutShell({
 							isLoadingChats={isLoadingChats}
 						/>
 
-						{useWorkspacePanel ? (
+						{mobileDocumentsWorkspaceFromState && documentsPanel?.open ? (
+							<WorkspacePanel
+								viewportClassName="items-start justify-center overflow-hidden px-6 py-8"
+								contentClassName="h-full max-w-5xl select-none"
+							>
+								<MobileDocumentsWorkspaceView onOpenChange={documentsPanel.onOpenChange} />
+							</WorkspacePanel>
+						) : useWorkspacePanel ? (
 							<WorkspacePanel
 								viewportClassName={workspacePanelViewportClassName}
 								contentClassName={workspacePanelContentClassName}
@@ -400,14 +439,6 @@ export function LayoutShell({
 							<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
 							</main>
-						)}
-
-						{/* Mobile Documents panel — full-screen slide-out */}
-						{documentsPanel && (
-							<DocumentRightPanel
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-							/>
 						)}
 					</div>
 				</TooltipProvider>

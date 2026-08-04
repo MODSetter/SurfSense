@@ -121,6 +121,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 				open: isDocsSidebarOpen,
 				onOpenChange: setIsDocsSidebarOpen,
 			}}
+			mobileDocumentsWorkspaceFromState
 		>
 			{children}
 		</LayoutShell>
