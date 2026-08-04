@@ -19,6 +19,7 @@ class Transport(StrEnum):
 
 DiscoveryKind = Literal[
     "ollama",
+    "lm_studio_models",
     "openai_models",
     "anthropic_models",
     "bedrock_models",
@@ -97,6 +98,9 @@ REGISTRY: dict[str, ProviderSpec] = {
         "bearer",
         "OpenAI-compatible provider",
     ),
+    # DEPRECATED: hidden from the catalog; superseded by "openai_compatible"
+    # (now verbatim). Kept so existing connections still resolve. Remove once none
+    # remain (provider='openai_compatible_raw').
     "openai_compatible_raw": ProviderSpec(
         Transport.NATIVE,
         "openai",
@@ -109,7 +113,7 @@ REGISTRY: dict[str, ProviderSpec] = {
     "lm_studio": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
         "openai",
-        "openai_models",
+        "lm_studio_models",
         "http://host.docker.internal:1234/v1",
         True,
         "bearer",

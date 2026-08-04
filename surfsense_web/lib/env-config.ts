@@ -67,6 +67,21 @@ export const BUILD_TIME_ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DO
 // DEPLOYMENT_MODE through the runtime config provider first, then falls back to this baked value.
 export const BUILD_TIME_DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted";
 
+/**
+ * Detect the environment for diagnostics (e.g. GitHub issue auto-fill).
+ * Inferred from the hostname so it needs no configuration from the operator.
+ *
+ * - "SurfSense Cloud": served from the official SurfSense domain (root + subdomains)
+ * - "self-hosted": everything else (covers self-hosted and community cloud deploys)
+ */
+export function detectEnvironment(): "SurfSense Cloud" | "self-hosted" {
+	const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+	if (hostname === "surfsense.com" || hostname.endsWith(".surfsense.com")) {
+		return "SurfSense Cloud";
+	}
+	return "self-hosted";
+}
+
 // App version - defaults to package.json version
 // Can be overridden at build time with NEXT_PUBLIC_APP_VERSION for full git tag version
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version;

@@ -73,6 +73,7 @@ from app.schemas.new_chat import (
     TokenUsageSummary,
     TurnStatusResponse,
 )
+from app.tasks.chat.streaming.errors.messages import chat_error_message
 from app.tasks.chat.streaming.flows import (
     stream_new_chat,
     stream_resume_chat,
@@ -199,7 +200,7 @@ def _raise_if_thread_busy_for_start(thread_id: int) -> None:
         retry_after_ms = int(status_payload.get("retry_after_ms") or 0)
         detail = {
             "errorCode": "TURN_CANCELLING",
-            "message": "A previous response is still stopping. Please try again in a moment.",
+            "message": chat_error_message("TURN_CANCELLING"),
             "retry_after_ms": retry_after_ms if retry_after_ms > 0 else None,
             "retry_after_at": status_payload.get("retry_after_at"),
         }
@@ -217,7 +218,7 @@ def _raise_if_thread_busy_for_start(thread_id: int) -> None:
         status_code=409,
         detail={
             "errorCode": "THREAD_BUSY",
-            "message": "Another response is still finishing for this thread. Please try again in a moment.",
+            "message": chat_error_message("THREAD_BUSY"),
         },
     )
 
@@ -1864,6 +1865,7 @@ async def cancel_active_turn(
         return CancelActiveTurnResponse(
             status="idle",
             error_code="NO_ACTIVE_TURN",
+            message=chat_error_message("NO_ACTIVE_TURN"),
         )
 
     request_cancel(str(thread_id))
@@ -1880,6 +1882,7 @@ async def cancel_active_turn(
     return CancelActiveTurnResponse(
         status="cancelling",
         error_code="TURN_CANCELLING",
+        message=chat_error_message("TURN_CANCELLING"),
         retry_after_ms=retry_after_ms if retry_after_ms > 0 else None,
         retry_after_at=retry_after_at,
     )

@@ -298,15 +298,17 @@ class StreamingService:
 
     def format_error(
         self,
-        error_text: str,
+        message: str,
         *,
         error_code: str | None = None,
+        diagnostic: str | None = None,
         extra: dict[str, Any] | None = None,
         emitter: Emitter | None = None,
     ) -> str:
         return error.format_error(
-            error_text,
+            message,
             error_code=error_code,
+            diagnostic=diagnostic,
             extra=extra,
             emitter=emitter,
         )

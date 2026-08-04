@@ -58,6 +58,19 @@ services:
       timeout: 5s
       retries: 5
 
+  searxng:
+    image: searxng/searxng:2026.3.13-3c1f68c59
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-surfsense-searxng-secret}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # otel-collector:
   #   image: otel/opentelemetry-collector-contrib:0.152.1
   #   profiles:
@@ -134,6 +147,7 @@ services:
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       BACKEND_URL: ${BACKEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # DAYTONA_SANDBOX_ENABLED: "TRUE"
       # DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
@@ -194,6 +208,7 @@ services:
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
       FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
+      SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
       SERVICE_ROLE: worker
     depends_on:
       db:

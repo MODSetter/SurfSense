@@ -188,6 +188,7 @@ export function ModelProviderConnectionsPanel({
 				},
 				{
 					onSuccess: mergePreviewModels,
+					onError: resetConnectState,
 				}
 			);
 		}
@@ -212,6 +213,7 @@ export function ModelProviderConnectionsPanel({
 			},
 			{
 				onSuccess: mergePreviewModels,
+				onError: resetConnectState,
 			}
 		);
 	}

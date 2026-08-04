@@ -236,7 +236,7 @@ async def read_workspaces(
 
 
 @router.get("/workspaces/limits")
-async def read_workspace_limits(_auth: AuthContext = Depends(allow_any_principal)):
+async def read_workspace_limits(_auth: AuthContext = Depends(require_session_context)):
     return {"max_workspaces_per_user": config.MAX_WORKSPACES_PER_USER}
 
 

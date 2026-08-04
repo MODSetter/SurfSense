@@ -171,7 +171,7 @@ class AutomationService:
                 self.auth,
                 "automation_status_changed",
                 {
-                    "automation_id": automation.id,
+                    "automation_id": automation_id,
                     "workspace_id": automation.workspace_id,
                     "next_status": str(data["status"]),
                 },
@@ -182,7 +182,7 @@ class AutomationService:
                 self.auth,
                 "automation_updated",
                 {
-                    "automation_id": automation.id,
+                    "automation_id": automation_id,
                     "workspace_id": automation.workspace_id,
                     "has_definition_change": "definition" in data,
                 },

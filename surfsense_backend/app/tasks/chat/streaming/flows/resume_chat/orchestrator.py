@@ -196,9 +196,9 @@ async def stream_resume_chat(
             )
         except ValueError as pin_error:
             yield emit_stream_error(
-                message=str(pin_error),
                 error_kind="server_error",
                 error_code="SERVER_ERROR",
+                diagnostic=str(pin_error),
             )
             yield streaming_service.format_done()
             return
@@ -208,9 +208,9 @@ async def stream_resume_chat(
         )
         if llm_load_error:
             yield emit_stream_error(
-                message=llm_load_error,
                 error_kind="server_error",
                 error_code="SERVER_ERROR",
+                diagnostic=llm_load_error,
             )
             yield streaming_service.format_done()
             return
@@ -245,9 +245,9 @@ async def stream_resume_chat(
                         )
                     except ValueError as pin_error:
                         yield emit_stream_error(
-                            message=str(pin_error),
                             error_kind="server_error",
                             error_code="SERVER_ERROR",
+                            diagnostic=str(pin_error),
                         )
                         yield streaming_service.format_done()
                         return
@@ -258,9 +258,9 @@ async def stream_resume_chat(
                     )
                     if llm_load_error:
                         yield emit_stream_error(
-                            message=llm_load_error,
                             error_kind="server_error",
                             error_code="SERVER_ERROR",
+                            diagnostic=llm_load_error,
                         )
                         yield streaming_service.format_done()
                         return
@@ -290,10 +290,6 @@ async def stream_resume_chat(
                     )
                 else:
                     yield emit_stream_error(
-                        message=(
-                            "Buy more credits to continue with this model, or "
-                            "switch to a free model"
-                        ),
                         error_kind="premium_quota_exhausted",
                         error_code="PREMIUM_QUOTA_EXHAUSTED",
                         severity="info",
@@ -308,9 +304,9 @@ async def stream_resume_chat(
 
         if not llm:
             yield emit_stream_error(
-                message="Failed to create LLM instance",
                 error_kind="server_error",
                 error_code="SERVER_ERROR",
+                diagnostic="Failed to create LLM instance",
             )
             yield streaming_service.format_done()
             return
@@ -423,9 +419,6 @@ async def stream_resume_chat(
         )
         if assistant_message_id is None:
             yield emit_stream_error(
-                message=(
-                    "We couldn't initialize the assistant message. Please try again."
-                ),
                 error_kind="server_error",
                 error_code="MESSAGE_PERSIST_FAILED",
             )

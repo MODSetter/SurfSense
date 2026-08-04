@@ -97,7 +97,7 @@ class ModelUpdate(BaseModel):
     display_name: str | None = Field(None, max_length=255)
     enabled: bool | None = None
     supports_chat: bool | None = None
-    max_input_tokens: int | None = None
+    max_input_tokens: int | None = Field(None, gt=0)
     supports_image_input: bool | None = None
     supports_tools: bool | None = None
     supports_image_generation: bool | None = None

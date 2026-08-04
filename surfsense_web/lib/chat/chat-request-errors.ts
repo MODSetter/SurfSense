@@ -1,3 +1,5 @@
+import { GENERIC_CHAT_ERROR_MESSAGE } from "@/lib/chat/chat-error-classifier";
+
 export async function toHttpResponseError(
 	response: Response
 ): Promise<Error & { errorCode?: string; retryAfterMs?: number }> {
@@ -32,7 +34,6 @@ export async function toHttpResponseError(
 	const detail = parsedBody?.detail;
 	const detailObject =
 		typeof detail === "object" && detail !== null ? (detail as Record<string, unknown>) : null;
-	const detailMessage = typeof detail === "string" ? detail : undefined;
 	const topLevelMessage =
 		typeof parsedBody?.message === "string" ? (parsedBody.message as string) : undefined;
 	const detailNestedMessage =
@@ -75,8 +76,7 @@ export async function toHttpResponseError(
 			? Math.max(0, Math.round(retryAfterSeconds * 1000))
 			: undefined;
 	const retryAfterMs = detailRetryAfterMs ?? topRetryAfterMs ?? retryAfterMsFromHeader ?? undefined;
-	const message =
-		detailNestedMessage ?? detailMessage ?? topLevelMessage ?? `Backend error: ${response.status}`;
+	const message = detailNestedMessage ?? topLevelMessage ?? GENERIC_CHAT_ERROR_MESSAGE;
 
 	return Object.assign(new Error(message), { errorCode, retryAfterMs });
 }
@@ -94,12 +94,14 @@ export function tagPreAcceptSendFailure(error: unknown): unknown {
 			"MODEL_AUTH_FAILED",
 			"MODEL_NOT_FOUND",
 			"MODEL_CONTEXT_LIMIT",
+			"MODEL_OUT_OF_MEMORY",
+			"MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT",
 			"MODEL_PROVIDER_UNAVAILABLE",
 			"RATE_LIMITED",
 			"NETWORK_ERROR",
 			"STREAM_PARSE_ERROR",
 			"TOOL_EXECUTION_ERROR",
-			"PERSIST_MESSAGE_FAILED",
+			"MESSAGE_PERSIST_FAILED",
 			"SERVER_ERROR",
 		]);
 		if (existingCode && passthroughCodes.has(existingCode)) {

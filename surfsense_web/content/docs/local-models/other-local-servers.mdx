@@ -64,7 +64,7 @@ http://<host>:<port>/v1
 6. Select the models you want to enable.
 7. Save the connection.
 
-If you enter the URL without `/v1`, SurfSense adds `/v1` for requests.
+The URL is used exactly as entered. Include `/v1`, since most servers expose their OpenAI compatible routes under `/v1`.
 
 ## Verify
 
@@ -92,9 +92,9 @@ Use the LM Studio provider for LM Studio. Its default URL is already set.
 
 ### Endpoint returned 404
 
-The server does not expose `/v1/models`.
+First, check that your API Base URL includes `/v1`. The URL is used exactly as entered, so a missing `/v1` is the most common cause.
 
-Enable the server's OpenAI compatible mode.
+If `/v1` is present, the server does not expose `/v1/models`. Enable the server's OpenAI compatible mode.
 
 ### Connection refused
 
