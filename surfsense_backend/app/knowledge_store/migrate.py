@@ -15,15 +15,16 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
-    PATH_MARKER,
-    build_path_index,
-    to_store_path,
-    virtual_path_of,
-)
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.engines.base import TrackedPath
 from app.knowledge_store.identities import MIGRATION_IDENTITY
-from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.paths import (
+    DOCUMENTS_ROOT,
+    PATH_MARKER,
+    allocate_path,
+    build_path_index,
+    to_store_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,52 +150,60 @@ async def migrate_workspace(
     *,
     dry_run: bool = False,
 ) -> MigrationReport:
-    """Seed one workspace's current documents at the paths they already live at.
+    """Seed a workspace, applying the path law to each of its documents.
 
-    Placement must agree with every other writer, or one document forks into two
-    files. `virtual_path_of` reads the path a row already records and derives from
-    the title only for rows that have none — the agent's `write_file` names its
-    own files, so derivation alone disagrees with the store for anything it
-    authored.
+    A row that already records an authored-once path keeps it. An unmarked row
+    is authored a fresh ``.md`` path via :func:`allocate_path`, in ``created_at``
+    then ``id`` order so collisions resolve the same way on every re-seed. The
+    chosen path is recorded back onto the row.
 
-    A successful run records each seeded path back onto its row, so the retitle
-    that follows knows which file to drop from the tree.
-
-    Never raises: a failure while fetching or mapping documents is returned
-    as ``MigrationReport.error``, like every seed failure.
+    Never raises: a failure fetching or mapping documents is returned as
+    ``MigrationReport.error``.
     """
     from app.db import Document
 
     try:
-        index = await build_path_index(session, workspace_id)
+        index = await build_path_index(session, workspace_id, populate_occupants=False)
         rows = await session.execute(
             select(
                 Document.id,
                 Document.title,
                 Document.folder_id,
                 Document.document_metadata,
+                Document.path,
                 Document.source_markdown,
                 Document.content,
-            ).where(Document.workspace_id == workspace_id)
+            )
+            .where(Document.workspace_id == workspace_id)
+            .order_by(Document.created_at, Document.id)
         )
         files: dict[str, str] = {}
         seeded_paths: dict[int, str] = {}
-        for doc_id, title, folder_id, metadata, source_markdown, content in rows:
-            # Rows predating the nullable source_markdown column hold text in
-            # content only; "Pending..." is the pre-index placeholder, never
-            # content.
+        taken: set[str] = set()
+        pending: list[tuple[int, str, int | None, str]] = []
+        for doc_id, title, folder_id, metadata, path, source_markdown, content in rows:
+            # "Pending..." is the pre-index placeholder; rows predating the
+            # nullable source_markdown column hold text in content only.
             markdown = source_markdown or content
             if not markdown or markdown == "Pending...":
                 continue
-            virtual_path = virtual_path_of(
-                metadata=metadata,
-                doc_id=doc_id,
-                title=title,
-                folder_id=folder_id,
-                index=index,
+            recorded = _recorded_path(path, metadata)
+            if recorded is not None:
+                taken.add(recorded)
+                files[to_store_path(recorded)] = markdown
+                seeded_paths[doc_id] = recorded
+            else:
+                pending.append((doc_id, title, folder_id, markdown))
+        # Author the unmarked rows only after every recorded path is reserved,
+        # so a fresh name never lands on one a marked row already owns.
+        for doc_id, title, folder_id, markdown in pending:
+            placed = allocate_path(
+                name=str(title or "untitled"),
+                folder_parts=_folder_parts(index.folder_paths.get(folder_id)),
+                taken=taken,
             )
-            files[to_store_path(virtual_path)] = markdown
-            seeded_paths[doc_id] = virtual_path
+            files[placed.store_path] = markdown
+            seeded_paths[doc_id] = placed.virtual_path
     except Exception as exc:
         return _failure_report(workspace_id, dry_run, 0, exc)
 
@@ -202,6 +211,22 @@ async def migrate_workspace(
     if report.ok and not dry_run:
         await _record_seeded_paths(session, seeded_paths)
     return report
+
+
+def _recorded_path(path: str | None, metadata: Mapping[str, str] | None) -> str | None:
+    """The authored-once path a row already carries, column before marker."""
+    for value in (path, (metadata or {}).get(PATH_MARKER)):
+        if isinstance(value, str) and value.startswith(f"{DOCUMENTS_ROOT}/"):
+            return value
+    return None
+
+
+def _folder_parts(folder_path: str | None) -> list[str]:
+    """Folder segments from a ``/documents/A/B`` path; ``[]`` at the root."""
+    if not folder_path:
+        return []
+    rel = folder_path[len(DOCUMENTS_ROOT) :].strip("/")
+    return rel.split("/") if rel else []
 
 
 async def _record_seeded_paths(

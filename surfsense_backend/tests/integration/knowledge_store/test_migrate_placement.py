@@ -1,19 +1,18 @@
 """Where the seeder puts a document, and what it records about it.
 
-Placement is shared with every other writer, so the seeder must not re-invent it.
-Deriving a path from the title is only ever a guess: the agent's ``write_file``
-names its own files, so the store already holds names no title would produce.
+An authored-once recorded path is honored; an unmarked row is authored a fresh
+``.md`` path, with same-title collisions numbered deterministically.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from app.agents.chat.runtime.path_resolver import PATH_MARKER
 from app.config import config as app_config
 from app.db import Document, DocumentType
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.migrate import migrate_workspace
+from app.knowledge_store.paths import PATH_MARKER
 from app.utils.document_converters import generate_content_hash
 
 pytestmark = pytest.mark.integration
@@ -33,6 +32,7 @@ async def _add_document(session, workspace, *, title, markdown, marker=None):
         content=markdown,
         content_hash=generate_content_hash(markdown, workspace.id),
         source_markdown=markdown,
+        path=marker,
         workspace_id=workspace.id,
     )
     session.add(document)
@@ -40,16 +40,19 @@ async def _add_document(session, workspace, *, title, markdown, marker=None):
     return document
 
 
-async def test_an_agent_authored_name_is_seeded_where_it_already_lives(
+async def _seeded_paths(report) -> set[str]:
+    store = KnowledgeStore.for_workspace(report.workspace_id)
+    return {t.path for t in await store.list_paths(report.seeded_revision)}
+
+
+async def test_a_recorded_path_is_seeded_verbatim(
     knowledge_root, db_session, db_workspace
 ):
-    """The store holds ``canary.md``; the title would derive ``canary.md.xml``.
-    Deriving would report false drift, and a real run would write the derived
-    name and delete the agent's file as an orphan."""
+    """A path the agent already authored is not re-derived from the title."""
     await _add_document(
         db_session,
         db_workspace,
-        title="canary.md",
+        title="Whatever",
         markdown="# Canary",
         marker="/documents/canary.md",
     )
@@ -57,47 +60,58 @@ async def test_an_agent_authored_name_is_seeded_where_it_already_lives(
     report = await migrate_workspace(db_session, db_workspace.id)
 
     assert report.ok, report
-    store = KnowledgeStore.for_workspace(db_workspace.id)
-    paths = {t.path for t in await store.list_paths(report.seeded_revision)}
-    assert paths == {"documents/canary.md"}
+    assert await _seeded_paths(report) == {"documents/canary.md"}
 
 
-async def test_a_row_with_no_marker_keeps_the_derived_name(
+async def test_an_unmarked_row_is_authored_as_markdown(
     knowledge_root, db_session, db_workspace
 ):
-    """Every migrated row starts unmarked, so derivation stays the fallback and
-    an existing store is not renamed out from under itself."""
+    """A title with no extension becomes a ``.md`` file, not the legacy ``.xml``."""
     await _add_document(
-        db_session, db_workspace, title="strategy.md", markdown="# Strategy"
+        db_session, db_workspace, title="Strategy", markdown="# Strategy"
     )
 
     report = await migrate_workspace(db_session, db_workspace.id)
 
     assert report.ok, report
-    store = KnowledgeStore.for_workspace(db_workspace.id)
-    paths = {t.path for t in await store.list_paths(report.seeded_revision)}
-    assert paths == {"documents/strategy.md.xml"}
+    assert await _seeded_paths(report) == {"documents/Strategy.md"}
+
+
+async def test_colliding_titles_get_a_numbered_sibling(
+    knowledge_root, db_session, db_workspace
+):
+    """Two rows with one title resolve to distinct paths, oldest keeping the bare name."""
+    await _add_document(db_session, db_workspace, title="Plan", markdown="# One")
+    await _add_document(db_session, db_workspace, title="Plan", markdown="# Two")
+
+    report = await migrate_workspace(db_session, db_workspace.id)
+
+    assert report.ok, report
+    assert await _seeded_paths(report) == {
+        "documents/Plan.md",
+        "documents/Plan (2).md",
+    }
 
 
 async def test_seeding_records_the_path_it_wrote(
     knowledge_root, db_session, db_workspace
 ):
-    """Without the marker a retitle cannot tell which file to drop from the
-    tree, so it forks the document into two."""
+    """The recorded path is what a later retitle drops from the tree."""
     document = await _add_document(
-        db_session, db_workspace, title="strategy.md", markdown="# Strategy"
+        db_session, db_workspace, title="Strategy", markdown="# Strategy"
     )
     assert PATH_MARKER not in (document.document_metadata or {})
 
     await migrate_workspace(db_session, db_workspace.id)
 
     await db_session.refresh(document)
-    assert document.document_metadata[PATH_MARKER] == "/documents/strategy.md.xml"
+    assert document.document_metadata[PATH_MARKER] == "/documents/Strategy.md"
+    assert document.path == "/documents/Strategy.md"
 
 
 async def test_a_dry_run_records_nothing(knowledge_root, db_session, db_workspace):
     document = await _add_document(
-        db_session, db_workspace, title="strategy.md", markdown="# Strategy"
+        db_session, db_workspace, title="Strategy", markdown="# Strategy"
     )
 
     await migrate_workspace(db_session, db_workspace.id, dry_run=True)
@@ -106,13 +120,10 @@ async def test_a_dry_run_records_nothing(knowledge_root, db_session, db_workspac
     assert PATH_MARKER not in (document.document_metadata or {})
 
 
-async def test_the_marker_makes_a_re_seed_stable(
-    knowledge_root, db_session, db_workspace
-):
-    """The path recorded by the first seed is what the second one reads back, so
-    a workspace cannot drift to a new name just by being seeded twice."""
+async def test_a_re_seed_is_stable(knowledge_root, db_session, db_workspace):
+    """The path the first seed records is honored by the second, so no drift."""
     await _add_document(
-        db_session, db_workspace, title="strategy.md", markdown="# Strategy"
+        db_session, db_workspace, title="Strategy", markdown="# Strategy"
     )
 
     first = await migrate_workspace(db_session, db_workspace.id)
@@ -120,6 +131,4 @@ async def test_the_marker_makes_a_re_seed_stable(
 
     assert second.ok, second
     assert second.seeded_revision is None
-    store = KnowledgeStore.for_workspace(db_workspace.id)
-    paths = {t.path for t in await store.list_paths(first.seeded_revision)}
-    assert paths == {"documents/strategy.md.xml"}
+    assert await _seeded_paths(first) == {"documents/Strategy.md"}
