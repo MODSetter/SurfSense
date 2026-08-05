@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.chat.runtime.path_resolver import virtual_path_to_doc
+from app.knowledge_store.paths import virtual_path_to_doc
 from app.auth.context import AuthContext
 from app.db import (
     Chunk,

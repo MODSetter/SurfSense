@@ -76,12 +76,3 @@ def validate_segments(segments: Iterable[str]) -> tuple[str, ...]:
             raise StorePathError(f"Illegal path segment: {segment!r}")
         out.append(segment)
     return tuple(out)
-
-
-def parse_documents_path(virtual_path: str) -> tuple[list[str], str]:
-    """Split ``/documents/...`` into ``(folder_parts, name)``; ``([], "")`` if foreign."""
-    try:
-        path = StorePath.from_virtual(virtual_path)
-    except StorePathError:
-        return [], ""
-    return list(path.folder_parts), path.name

@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from app.agents.chat.runtime.path_resolver import PATH_MARKER
+from app.knowledge_store.paths import PATH_MARKER
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType
 from app.knowledge_store import KnowledgeStore

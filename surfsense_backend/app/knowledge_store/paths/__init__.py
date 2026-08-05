@@ -21,6 +21,7 @@ from app.knowledge_store.paths.legacy import (
     build_path_index,
     doc_to_virtual_path,
     parse_doc_id_suffix,
+    parse_documents_path,
     safe_filename,
     to_store_path,
     to_virtual_path,
@@ -39,7 +40,6 @@ from app.knowledge_store.paths.store_path import (
     PATH_MARKER,
     StorePath,
     StorePathError,
-    parse_documents_path,
 )
 
 __all__ = [

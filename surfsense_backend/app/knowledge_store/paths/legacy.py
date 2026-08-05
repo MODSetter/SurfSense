@@ -180,3 +180,23 @@ def virtual_path_of(
     return doc_to_virtual_path(
         doc_id=doc_id, title=title, folder_id=folder_id, index=index
     )
+
+
+def parse_documents_path(virtual_path: str) -> tuple[list[str], str]:
+    """Split a ``/documents/...`` path into ``(folder_parts, title)``.
+
+    The title is the basename with its ``.xml`` extension and any trailing
+    ``" (<doc_id>)"`` disambiguation suffix stripped — the inverse of the
+    derivation above, so a path the indexer reads names the same document the
+    writer meant. ``([], "")`` for a foreign path.
+    """
+    if not virtual_path or not virtual_path.startswith(DOCUMENTS_ROOT):
+        return [], ""
+    rel = virtual_path[len(DOCUMENTS_ROOT) :].strip("/")
+    parts = [p for p in rel.split("/") if p]
+    if not parts:
+        return [], ""
+    stem, _ = parse_doc_id_suffix(parts[-1])
+    if stem.endswith(".xml"):
+        stem = stem[:-4]
+    return parts[:-1], stem

@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     PATH_MARKER,
     parse_documents_path,
     virtual_path_to_doc,

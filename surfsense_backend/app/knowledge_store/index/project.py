@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import to_virtual_path
+from app.knowledge_store.paths import to_virtual_path
 from app.db import Workspace
 from app.knowledge_store.index.rows import (
     delete_row,

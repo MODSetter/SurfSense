@@ -175,13 +175,13 @@ or opens a `transaction`.
 
 Ordered so the tree is safe before the fleet touches it.
 
-1. ⏳ **Split `paths.py` into the `paths/` package** above; `__init__` re-exports the
+1. ✅ **Split `paths.py` into the `paths/` package** above; `__init__` re-exports the
    surface; legacy symbols isolated in `paths/legacy.py`.
-2. ⏳ **`documents.path` column + lazy healing.** Nullable column, write-through in
+2. ✅ **`documents.path` column + lazy healing.** Nullable column, write-through in
    `index/project.py` (row upsert) and `service.py` (save/move); `virtual_path_to_doc`
-   reads the column first, marker/hash/title as fallbacks. Alembic: instant
-   `ADD COLUMN`, no backfill.
-3. ⏳ **Teach the seeder the naming law.** `migrate.py` authors paths via
+   reads the column first, marker/hash/title as fallbacks. Alembic (`177_add_documents_path`):
+   instant `ADD COLUMN`, no backfill.
+3. ✅ **Teach the seeder the naming law.** `migrate.py` authors paths via
    `allocate_path` (not `doc_to_virtual_path`), resolves collisions once by
    `created_at` then `id`, records the chosen path on each row, emits `.md`. Parity
    gate (C7) still byte-identity against Postgres markdown.
@@ -190,10 +190,13 @@ Ordered so the tree is safe before the fleet touches it.
 5. ✅ **Guard test** — import boundary (nothing under `app/` outside the module
    reaches `Transaction`, engines, or path internals) + the round-trip symmetry test.
    The package root no longer re-exports `Transaction`, closing the last leak.
-6. ⏳ **Rewire importers** off the old `agents/chat/runtime/path_resolver` shim onto
-   `app.knowledge_store.paths`; frontend display helper and any `.xml` test fixtures
-   updated to the tolerant/`.md` expectation. Re-run knowledge_store, document_upload,
-   agent-middleware suites.
+6. ✅ **Rewired importers** off the duplicate `agents/chat/runtime/path_resolver` module
+   onto `app.knowledge_store.paths` (28 files, module-path swap) and deleted the 425-line
+   duplicate — closing a layering inversion where `index/{converge,rows,project}` imported
+   *up* into the agent runtime. The stripping `parse_documents_path` (the one behavioural
+   difference: it strips `.xml`/`(id)` to form a title) moved to `paths/legacy.py` as the
+   exported one; `store_path`'s raw splitter was unused and dropped. All 1310 knowledge_store,
+   document_upload, middleware and agent tests green.
 7. ✅ **Folder verbs on the facade** — `create_folder`, `remove_folder`, `move_folder`
    over the `.keep` materialization; `StorePath` reserves `.keep` so it is never a
    `Document`; folder ops are one revision each on the facade.

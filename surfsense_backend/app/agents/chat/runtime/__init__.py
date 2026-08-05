@@ -11,6 +11,5 @@ Contents:
 - ``llm_config``        LLM provider/model configuration resolution
 - ``prompt_caching``    LiteLLM prompt-caching configuration
 - ``errors``            agent-runtime error contracts (raised by MW, caught at boundary)
-- ``path_resolver``     filesystem path resolution helpers
 - ``mention_resolver``  @-mention resolution helpers
 """
