@@ -712,6 +712,8 @@ def _store_path_of(document: Document, index) -> str | None:
 def _relocation_of(document: Document, index) -> tuple[str, str, str] | None:
     """``(from, to, new virtual path)`` for a row that moved, else ``None``.
 
+    Destination follows the row's folder and title through the same derivation
+    the rest of the live write path uses, so a move never forks the spelling.
     A row with no marker has no file yet; the next save writes it where the row
     now says.
     """

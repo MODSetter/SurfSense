@@ -1,5 +1,7 @@
 """API routes for folder CRUD, move, reorder, and document move operations."""
 
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,7 @@ from sqlalchemy.future import select
 
 from app.auth.context import AuthContext
 from app.db import Document, Folder, Permission, get_async_session
+from app.knowledge_store.service import record_moved_documents
 from app.schemas import (
     BulkDocumentMove,
     DocumentMove,
@@ -471,6 +474,12 @@ async def move_document(
                 )
 
         document.folder_id = request.folder_id
+        await session.flush()
+        # Tell git the file moved so a rebuild finds it at the new path, not the
+        # old. A no-op on an unflipped workspace (the verb self-guards).
+        await record_moved_documents(
+            session, [document], author_user_id=str(auth.user.id)
+        )
         await session.commit()
         return {"message": "Document moved successfully"}
 
@@ -527,6 +536,16 @@ async def bulk_move_documents(
 
         for doc in documents:
             doc.folder_id = request.folder_id
+        await session.flush()
+        # One git move per workspace: a bulk move to root can span workspaces, and
+        # each store is bound to one. A no-op on an unflipped workspace.
+        by_workspace: dict[int, list[Document]] = defaultdict(list)
+        for doc in documents:
+            by_workspace[doc.workspace_id].append(doc)
+        for workspace_documents in by_workspace.values():
+            await record_moved_documents(
+                session, workspace_documents, author_user_id=str(auth.user.id)
+            )
         await session.commit()
         return {"message": f"{len(request.document_ids)} documents moved successfully"}
 

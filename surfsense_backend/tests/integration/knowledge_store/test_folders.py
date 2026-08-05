@@ -13,7 +13,7 @@ from app.config import config as app_config
 from app.db import Document, Folder
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.index.converge import index_changes, index_tree
-from app.knowledge_store.paths import KEEP_FILE, StorePath, StorePathError
+from app.knowledge_store.paths import KEEP_FILE, PATH_MARKER, StorePath, StorePathError
 
 pytestmark = pytest.mark.integration
 
@@ -125,6 +125,64 @@ async def test_move_folder_keeps_the_document_id(
     ).scalar_one()
     assert moved.id == original.id
     assert moved.path == "/documents/B/note.md"
+
+
+async def test_a_document_folder_change_reparents_its_git_file(
+    knowledge_root, db_session, db_workspace, db_user
+):
+    """The document-move route's contract: a folder_id change tells git, so a
+    rebuild finds the file at the new folder rather than resurrecting the old.
+    """
+    from app.db import DocumentStatus, DocumentType
+    from app.knowledge_store.service import (
+        record_moved_documents,
+        record_saved_document,
+    )
+    from app.services.folder_service import ensure_folder_hierarchy
+
+    store = _store(db_workspace, db_session, db_user)
+    document = Document(
+        title="note",
+        document_type=DocumentType.NOTE,
+        document_metadata={},
+        content="# note",
+        content_hash="hash-note",
+        unique_identifier_hash="unique-note",
+        source_markdown="# note",
+        workspace_id=db_workspace.id,
+        created_by_id=db_user.id,
+        status=DocumentStatus.ready(),
+    )
+    db_session.add(document)
+    await db_session.flush()
+    await record_saved_document(
+        db_session,
+        workspace_id=db_workspace.id,
+        doc_id=document.id,
+        title="note",
+        folder_id=None,
+        markdown="# note\n\na body to index\n",
+        author_user_id=str(db_user.id),
+    )
+    before = document.document_metadata[PATH_MARKER]  # authored at the root
+
+    target = await ensure_folder_hierarchy(
+        db_session,
+        workspace_id=db_workspace.id,
+        created_by_id=str(db_user.id),
+        folder_parts=["B"],
+    )
+    document.folder_id = target
+    await db_session.flush()
+    await record_moved_documents(db_session, [document], author_user_id=str(db_user.id))
+    await db_session.commit()
+
+    moved = document.document_metadata[PATH_MARKER]
+    filename = before.rsplit("/", 1)[-1]
+    assert moved == f"/documents/B/{filename}"  # reparented, name unchanged
+    paths = await _paths(store, await store.head())
+    assert f"documents/B/{filename}" in paths
+    assert before.lstrip("/") not in paths
 
 
 def test_keep_is_rejected_as_a_document_path():

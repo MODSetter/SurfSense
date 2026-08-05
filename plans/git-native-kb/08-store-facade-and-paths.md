@@ -196,8 +196,22 @@ Ordered so the tree is safe before the fleet touches it.
    agent-middleware suites.
 7. ✅ **Folder verbs on the facade** — `create_folder`, `remove_folder`, `move_folder`
    over the `.keep` materialization; `StorePath` reserves `.keep` so it is never a
-   `Document`; folder ops are one revision each on the facade. Routing the HTTP
-   handlers off `folder_service` onto these verbs is the `projection-writer` item.
+   `Document`; folder ops are one revision each on the facade.
+
+7a. ◐ **Route wiring (partial).** The document-move handlers (`PUT /documents/{id}/move`,
+   `PUT /documents/bulk-move`) now call `record_moved_documents` after the `folder_id`
+   change, so a flipped workspace's move reaches git and a rebuild finds the file at the
+   new folder instead of resurrecting the old one; a no-op on an unflipped workspace
+   since the verb self-guards. `_relocation_of` reparents through the same derivation as
+   the rest of the live write path, so the move never forks the spelling.
+   **Deferred:** routing folder CRUD (`folder_service`) onto the facade verbs. Blocked on
+   two prerequisites — the facade's `reconcile_folders` is a *whole-workspace* sync that
+   prunes any folder row not backed by git, so it would delete pre-existing empty folders
+   that were never materialized as `.keep` (the seed must write `.keep` for existing empty
+   folders first), and a folder rename/reparent through it churns the folder id (needs
+   id-preserving folder rename, the way documents already have). Making the projection the
+   *sole* row writer (stripping creation from upload/notes/connectors) is the Phase-5 cut,
+   not this phase: unflipped prod still writes rows on those paths.
 8. ✅ **Folder projection + prune** — `index/folders.py` derives `folders` rows from
    document paths ∪ keep-files and prunes rows with neither. Runs on every folder
    verb (immediate) and on the full rebuild (`index_tree`), closing the Phase-6 gap;
