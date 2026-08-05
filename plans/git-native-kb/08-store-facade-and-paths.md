@@ -187,8 +187,9 @@ Ordered so the tree is safe before the fleet touches it.
    gate (C7) still byte-identity against Postgres markdown.
 4. ⏳ **Partial unique index on `(workspace_id, path)`**, created concurrently after
    the fleet is healed (a runbook step, not a blocking migration).
-5. ⏳ **Guard test** — import boundary (nothing outside the module reaches
-   `Transaction`, engines, or path internals) + the symmetry test in Tests.
+5. ✅ **Guard test** — import boundary (nothing under `app/` outside the module
+   reaches `Transaction`, engines, or path internals) + the round-trip symmetry test.
+   The package root no longer re-exports `Transaction`, closing the last leak.
 6. ⏳ **Rewire importers** off the old `agents/chat/runtime/path_resolver` shim onto
    `app.knowledge_store.paths`; frontend display helper and any `.xml` test fixtures
    updated to the tolerant/`.md` expectation. Re-run knowledge_store, document_upload,
