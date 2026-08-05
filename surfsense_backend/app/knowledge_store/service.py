@@ -330,6 +330,7 @@ class KnowledgeStore:
                     **(document.document_metadata or {}),
                     PATH_MARKER: virtual_path,
                 }
+                document.path = virtual_path
                 await session.commit()
         except Exception as exc:
             _record_failure(metrics, "editor_save", exc, self._workspace_id, doc_id)
@@ -447,6 +448,7 @@ class KnowledgeStore:
                         **(document.document_metadata or {}),
                         PATH_MARKER: virtual_path,
                     }
+                    document.path = virtual_path
         except Exception as exc:
             _record_failure(metrics, "move", exc, self._workspace_id)
             return Outcome(revision=None)

@@ -78,6 +78,7 @@ async def upsert_row(
             title=title,
             document_type=DocumentType.NOTE,
             document_metadata=metadata,
+            path=virtual_path,
             content=content,
             content_hash=generate_content_hash(content, workspace_id),
             unique_identifier_hash=generate_unique_identifier_hash(
@@ -96,6 +97,7 @@ async def upsert_row(
         # normal update case, not an error.
         document.title = title
         document.folder_id = folder_id
+        document.path = virtual_path
         document.source_markdown = content
         document.content_hash = generate_content_hash(content, workspace_id)
         document.document_metadata = metadata

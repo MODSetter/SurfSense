@@ -42,6 +42,18 @@ async def virtual_path_to_doc(
     if not path.segments:
         return None
 
+    # The healed column first: an index hit on the authored-once identity.
+    by_column = await session.execute(
+        select(Document).where(
+            Document.workspace_id == workspace_id,
+            Document.path == virtual_path,
+        )
+    )
+    document = by_column.scalars().first()
+    if document is not None:
+        return document
+
+    # The marker it is healed from, for rows written before the column existed.
     marked = await session.execute(
         select(Document).where(
             Document.workspace_id == workspace_id,

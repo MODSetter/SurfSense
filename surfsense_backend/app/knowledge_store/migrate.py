@@ -224,6 +224,7 @@ async def _record_seeded_paths(
         )
         for document in rows.scalars().all():
             path = seeded_paths[document.id]
+            document.path = path
             metadata = dict(document.document_metadata or {})
             if metadata.get(PATH_MARKER) == path:
                 continue
