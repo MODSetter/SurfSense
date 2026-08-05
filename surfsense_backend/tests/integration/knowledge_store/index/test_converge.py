@@ -22,6 +22,7 @@ from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineServ
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
 from app.knowledge_store.index.converge import PATH_MARKER, index_changes, index_tree
+from app.knowledge_store.service import record_deleted_documents
 from app.utils.document_converters import generate_unique_identifier_hash
 
 pytestmark = pytest.mark.integration
@@ -300,6 +301,26 @@ async def test_reindex_keeps_document_ids(
 
     after = {t: d.id for t, d in (await titles(db_session, db_workspace.id)).items()}
     assert after == before
+
+
+async def test_a_deleted_document_does_not_come_back_on_a_rebuild(
+    store, db_session, db_workspace, workspace_flip, patched_embed_texts
+):
+    """The canary's bug, from the outside: the row went and the file stayed, so
+    the rebuild read the file back as a document nobody asked for — and the
+    drift check then agreed, both sides now holding the same resurrected copy."""
+    workspace_flip(True)
+    await commit(store, {"documents/a.xml": "# A"})
+    await index_changes(db_session, db_workspace.id)
+    document = (await titles(db_session, db_workspace.id))["a"]
+
+    await record_deleted_documents(db_session, [document])
+    await db_session.delete(document)
+    await db_session.commit()
+
+    await index_tree(db_session, db_workspace.id)
+
+    assert await titles(db_session, db_workspace.id) == {}
 
 
 async def test_reindex_reaches_the_same_state_as_the_incremental_path(

@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.db import Chunk, Document, DocumentType, Permission, get_async_session
+from app.knowledge_store.service import record_saved_document
 from app.routes.reports_routes import (
     _FILE_EXTENSIONS,
     _MEDIA_TYPES,
@@ -27,7 +28,6 @@ from app.routes.reports_routes import (
     _normalize_latex_delimiters,
     _strip_wrapping_code_fences,
 )
-from app.services.document_revision_recorder import record_saved_document
 from app.templates.export_helpers import (
     get_html_css_path,
     get_reference_docx_path,

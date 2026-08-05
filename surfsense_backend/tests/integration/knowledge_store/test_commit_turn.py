@@ -5,9 +5,13 @@ Real git engine + real Redis write lock; only the LLM boundary is faked.
 
 from __future__ import annotations
 
+import contextlib
+
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from sqlalchemy import select
 
+import app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence.commit_turn as commit_turn
 from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence.commit_turn import (
     commit_turn_working_copy,
 )
@@ -15,8 +19,9 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
     GitTreeBackend,
 )
 from app.config import config as app_config
+from app.db import Document
 from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.write_lock import workspace_write_lock
+from app.knowledge_store.locks import workspace_write_lock
 
 pytestmark = pytest.mark.integration
 
@@ -70,6 +75,16 @@ async def _next_turn_copy(store: KnowledgeStore):
 
 def _operations(delta) -> dict[str, str]:
     return {r["preview"]: r["operation"] for r in delta["receipts"]}
+
+
+def _yielding(session):
+    """Point the commit body's own session at the test transaction."""
+
+    @contextlib.asynccontextmanager
+    async def _session():
+        yield session
+
+    return _session
 
 
 class _Runtime:
@@ -309,6 +324,37 @@ async def test_a_delegated_write_is_committed_by_the_parent_turn(
     assert not (
         knowledge_root / ".working_copies" / str(workspace_id) / f"thread-{THREAD_ID}"
     ).exists()
+
+
+async def test_the_turn_announces_the_rows_it_just_created(
+    knowledge_root, db_session, db_workspace, llm, monkeypatch
+):
+    """The sidebar shows a new note now, instead of when the embeddings land.
+
+    Uses a real workspace row because the announcement carries a document id,
+    and that id only exists once the projection has written the row.
+    """
+    monkeypatch.setattr("app.db.shielded_async_session", _yielding(db_session))
+    events: list[tuple[str, dict]] = []
+    monkeypatch.setattr(
+        commit_turn,
+        "dispatch_custom_event",
+        lambda name, payload: events.append((name, payload)),
+    )
+    await _turn_writes(db_workspace.id, {"documents/note.xml": b"# Note\n\nbody\n"})
+
+    await _commit(db_workspace.id, llm)
+
+    assert [name for name, _ in events] == ["document_created"]
+    payload = events[0][1]
+    assert payload["title"] == "note"
+    assert payload["virtualPath"] == "/documents/note.xml"
+    row = (
+        await db_session.execute(
+            select(Document).where(Document.workspace_id == db_workspace.id)
+        )
+    ).scalar_one()
+    assert payload["id"] == row.id
 
 
 async def test_failed_receipts_cover_removals_too(

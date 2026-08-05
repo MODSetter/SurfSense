@@ -150,19 +150,39 @@ def delete_document_task(self, document_id: int):
     return run_async_celery_task(lambda: _delete_document_background(document_id))
 
 
-async def _delete_document_background(document_id: int) -> None:
-    """Delete chunks in batches first, then remove the document row."""
+async def _purge_documents(session, document_ids: list[int]) -> None:
+    """Remove documents and everything hanging off them: chunks, blobs, rows.
+
+    The knowledge store is told first, while the rows are still there to say
+    where their files are. A row deleted ahead of the recording takes that
+    answer with it, and the file it leaves behind is read back as a document by
+    the next whole-tree rebuild.
+
+    Every document must belong to one workspace, as everywhere else in the
+    adapter — both callers delete within a single one.
+    """
     from sqlalchemy import delete as sa_delete, select
 
     from app.db import Chunk, Document
     from app.file_storage.service import purge_document_blobs
+    from app.knowledge_store.service import record_deleted_documents
 
-    async with get_celery_session_maker()() as session:
-        batch_size = 500
+    documents = (
+        (await session.execute(select(Document).where(Document.id.in_(document_ids))))
+        .scalars()
+        .all()
+    )
+    if not documents:
+        return
+
+    await record_deleted_documents(session, documents)
+
+    batch_size = 500
+    for document in documents:
         while True:
             chunk_ids_result = await session.execute(
                 select(Chunk.id)
-                .where(Chunk.document_id == document_id)
+                .where(Chunk.document_id == document.id)
                 .limit(batch_size)
             )
             chunk_ids = chunk_ids_result.scalars().all()
@@ -172,12 +192,16 @@ async def _delete_document_background(document_id: int) -> None:
             await session.commit()
 
         # Remove stored blobs before the document_files rows cascade away.
-        await purge_document_blobs(session, document_ids=[document_id])
+        await purge_document_blobs(session, document_ids=[document.id])
 
-        doc = await session.get(Document, document_id)
-        if doc:
-            await session.delete(doc)
-            await session.commit()
+        await session.delete(document)
+        await session.commit()
+
+
+async def _delete_document_background(document_id: int) -> None:
+    """Delete chunks in batches first, then remove the document row."""
+    async with get_celery_session_maker()() as session:
+        await _purge_documents(session, [document_id])
 
 
 @celery_app.task(
@@ -204,33 +228,12 @@ async def _delete_folder_documents(
     folder_subtree_ids: list[int] | None = None,
 ) -> None:
     """Delete chunks in batches, then document rows, then folder rows."""
-    from sqlalchemy import delete as sa_delete, select
+    from sqlalchemy import delete as sa_delete
 
-    from app.db import Chunk, Document, Folder
-    from app.file_storage.service import purge_document_blobs
+    from app.db import Folder
 
     async with get_celery_session_maker()() as session:
-        batch_size = 500
-        for doc_id in document_ids:
-            while True:
-                chunk_ids_result = await session.execute(
-                    select(Chunk.id)
-                    .where(Chunk.document_id == doc_id)
-                    .limit(batch_size)
-                )
-                chunk_ids = chunk_ids_result.scalars().all()
-                if not chunk_ids:
-                    break
-                await session.execute(sa_delete(Chunk).where(Chunk.id.in_(chunk_ids)))
-                await session.commit()
-
-            # Remove stored blobs before the document_files rows cascade away.
-            await purge_document_blobs(session, document_ids=[doc_id])
-
-            doc = await session.get(Document, doc_id)
-            if doc:
-                await session.delete(doc)
-                await session.commit()
+        await _purge_documents(session, document_ids)
 
         if folder_subtree_ids:
             await session.execute(
@@ -258,6 +261,7 @@ async def _delete_workspace_background(workspace_id: int) -> None:
 
     from app.db import Chunk, Document, Workspace
     from app.file_storage.service import purge_document_blobs
+    from app.knowledge_store.service import drop_workspace_store
 
     async with get_celery_session_maker()() as session:
         batch_size = 500
@@ -293,6 +297,10 @@ async def _delete_workspace_background(workspace_id: int) -> None:
         if space:
             await session.delete(space)
             await session.commit()
+
+    # Outside the `if`: a retry after a half-finished run finds no workspace row
+    # and would otherwise leave the store on disk forever.
+    await drop_workspace_store(workspace_id)
 
 
 @celery_app.task(name="process_extension_document", bind=True)

@@ -119,7 +119,7 @@ async def test_expired_write_lock_lands_in_the_report(
     landed (parity is clean), so ``error`` is the only trace of the lost hold."""
     import time
 
-    import app.knowledge_store.write_lock as write_lock
+    import app.knowledge_store.locks as write_lock
     from app.knowledge_store.engines.git import GitContentEngine
 
     real_record = GitContentEngine.record

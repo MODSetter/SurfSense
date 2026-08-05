@@ -21,6 +21,7 @@ from app.db import (
     WorkspaceMembership,
     get_async_session,
 )
+from app.knowledge_store.service import record_deleted_documents
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.schemas import (
     ChunkRead,
@@ -1877,8 +1878,7 @@ async def folder_unlink(
         "You don't have permission to delete documents in this workspace",
     )
 
-    deleted_count = 0
-
+    doomed: list[Document] = []
     for rel_path in request.relative_paths:
         unique_id = f"{request.folder_name}:{rel_path}"
         uid_hash = compute_identifier_hash(
@@ -1894,18 +1894,24 @@ async def folder_unlink(
         ).scalar_one_or_none()
 
         if existing:
-            deleted_folder_id = existing.folder_id
-            await session.delete(existing)
-            await session.flush()
+            doomed.append(existing)
 
-            if deleted_folder_id and request.root_folder_id:
-                await _cleanup_empty_folder_chain(
-                    session, deleted_folder_id, request.root_folder_id
-                )
-            deleted_count += 1
+    # One revision for the batch, before the rows go: each is what says where
+    # its file is.
+    await record_deleted_documents(session, doomed)
+
+    for existing in doomed:
+        deleted_folder_id = existing.folder_id
+        await session.delete(existing)
+        await session.flush()
+
+        if deleted_folder_id and request.root_folder_id:
+            await _cleanup_empty_folder_chain(
+                session, deleted_folder_id, request.root_folder_id
+            )
 
     await session.commit()
-    return {"deleted_count": deleted_count}
+    return {"deleted_count": len(doomed)}
 
 
 @router.post("/documents/folder-sync-finalize")
@@ -1963,11 +1969,16 @@ async def folder_sync_finalize(
         .all()
     )
 
-    deleted_count = 0
-    for doc in all_folder_docs:
-        if doc.unique_identifier_hash not in seen_hashes:
-            await session.delete(doc)
-            deleted_count += 1
+    orphans = [
+        doc for doc in all_folder_docs if doc.unique_identifier_hash not in seen_hashes
+    ]
+    deleted_count = len(orphans)
+
+    # Before the rows go: each is what says where its file is.
+    await record_deleted_documents(session, orphans)
+
+    for doc in orphans:
+        await session.delete(doc)
 
     await session.flush()
 

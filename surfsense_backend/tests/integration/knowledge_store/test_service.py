@@ -10,12 +10,15 @@ from app.agents.chat.runtime.path_resolver import PATH_MARKER
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType
 from app.knowledge_store import KnowledgeStore
-from app.services import document_revision_recorder as recorder
-from app.services.document_revision_recorder import (
+from app.knowledge_store.service import (
+    drop_workspace_store,
+    record_deleted_documents,
     record_markdown_files,
+    record_moved_documents,
     record_prepared_documents,
     record_saved_document,
 )
+from app.services.folder_service import ensure_folder_hierarchy
 
 pytestmark = pytest.mark.integration
 
@@ -359,10 +362,10 @@ async def test_a_recording_failure_does_not_fail_the_save(
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
 
-    async def boom(**kwargs):
+    async def boom(self, **kwargs):
         raise RuntimeError("store unavailable")
 
-    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
 
     revision = await _save(
         db_session, db_workspace, db_user, document, title="Meeting notes"
@@ -431,9 +434,236 @@ async def test_a_sync_batch_failure_does_not_reach_the_caller(
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
 
-    async def boom(**kwargs):
+    async def boom(self, **kwargs):
         raise RuntimeError("store unavailable")
 
-    monkeypatch.setattr(recorder, "record_markdown_files", boom)
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
 
     assert await record_prepared_documents(db_session, [document]) is None
+
+
+# --- record_deleted_documents: the file has to go with the row ---
+#
+# Without this verb the row goes and the file stays, so the next whole-tree
+# converge reads the file back as a document the user deleted.
+
+
+async def test_a_delete_removes_the_document_s_file(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+
+    revision = await record_deleted_documents(db_session, [document])
+
+    assert revision is not None
+    assert await _store_paths(db_workspace, revision) == set()
+
+
+async def test_a_delete_follows_the_marker_rather_than_the_title(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """An agent names its own files, so deriving the path from the title deletes
+    nothing and leaves the real file behind."""
+    workspace_flip(True)
+    document = await _agent_authored(
+        db_session, db_workspace, db_user, "/documents/summary.md", "# Key Points"
+    )
+
+    revision = await record_deleted_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, revision) == set()
+
+
+async def test_a_delete_leaves_the_documents_it_was_not_given(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    doomed = await _make_document(db_session, db_workspace, db_user, "Doomed")
+    kept = await _make_document(db_session, db_workspace, db_user, "Kept")
+    await _save(db_session, db_workspace, db_user, doomed, title="Doomed")
+    await _save(db_session, db_workspace, db_user, kept, title="Kept")
+
+    revision = await record_deleted_documents(db_session, [doomed])
+
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 1
+    assert "Kept" in next(iter(paths))
+
+
+async def test_a_delete_in_an_unflipped_workspace_records_nothing(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(False)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    assert await record_deleted_documents(db_session, [document]) is None
+    assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_a_delete_failure_does_not_reach_the_caller(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip, monkeypatch
+):
+    """The row still has to go: a store that cannot be reached must not block a
+    delete the user asked for. The drift check is what catches the leftover."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    async def boom(self, **kwargs):
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
+
+    assert await record_deleted_documents(db_session, [document]) is None
+
+
+# --- record_moved_documents: one verb for every path change ---
+
+
+async def test_a_move_relocates_the_file_and_remembers_where(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Old name")
+    await _save(db_session, db_workspace, db_user, document, title="Old name")
+
+    document.title = "New name"
+    revision = await record_moved_documents(db_session, [document])
+
+    assert revision is not None
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 1
+    assert "New name" in next(iter(paths))
+    assert "New name" in document.document_metadata[PATH_MARKER]
+
+
+async def test_a_move_carries_the_content_the_caller_never_read(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """A folder rename moves documents whose markdown nobody loaded, so the
+    content has to come from the store rather than from the caller."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Old name")
+    await _save(
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="Old name",
+        markdown="# Body that only git has",
+    )
+
+    document.title = "New name"
+    revision = await record_moved_documents(db_session, [document])
+
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    destination = next(iter(await _store_paths(db_workspace, revision)))
+    assert await store.read_as_of(revision, destination) == b"# Body that only git has"
+
+
+async def test_a_move_reads_back_as_a_rename(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The indexer keeps a document's id by detecting the rename in the diff. A
+    revision that reads as a delete plus an add churns the id, and saved
+    citations and version rows hang off it."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Old name")
+    await _save(db_session, db_workspace, db_user, document, title="Old name")
+
+    document.title = "New name"
+    revision = await record_moved_documents(db_session, [document])
+
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    changes = await store.list_changes(revision)
+    assert [change.kind for change in changes] == ["renamed"]
+
+
+async def test_a_move_into_a_folder_follows_the_folder(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+
+    document.folder_id = await ensure_folder_hierarchy(
+        db_session,
+        workspace_id=db_workspace.id,
+        created_by_id=str(db_user.id),
+        folder_parts=["Archive"],
+    )
+    revision = await record_moved_documents(db_session, [document])
+
+    paths = await _store_paths(db_workspace, revision)
+    assert len(paths) == 1
+    assert next(iter(paths)).startswith("documents/Archive/")
+
+
+async def test_a_document_that_did_not_move_records_nothing(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+
+    assert await record_moved_documents(db_session, [document]) is None
+
+
+async def test_a_document_with_no_file_yet_has_nothing_to_move(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """No marker means no recorded file. The next save writes it where the row
+    now says, so inventing a move here would only fail to find a source."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    assert await record_moved_documents(db_session, [document]) is None
+
+
+async def test_a_move_in_an_unflipped_workspace_records_nothing(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(False)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    assert await record_moved_documents(db_session, [document]) is None
+    assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_dropping_a_workspace_takes_its_store_with_it(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+    assert (knowledge_root / str(db_workspace.id)).exists()
+
+    await drop_workspace_store(db_workspace.id)
+
+    assert not (knowledge_root / str(db_workspace.id)).exists()
+
+
+async def test_dropping_a_workspace_that_never_had_a_store_is_quiet(
+    knowledge_root, db_workspace
+):
+    """A workspace deleted before it was ever flipped has nothing on disk."""
+    await drop_workspace_store(db_workspace.id)
+
+
+async def test_a_move_failure_leaves_the_marker_alone(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip, monkeypatch
+):
+    """A marker pointing where the file is not would make the next delete miss."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Old name")
+    await _save(db_session, db_workspace, db_user, document, title="Old name")
+
+    async def boom(self, **kwargs):
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
+    document.title = "New name"
+
+    assert await record_moved_documents(db_session, [document]) is None
+    assert "Old name" in document.document_metadata[PATH_MARKER]

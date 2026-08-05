@@ -6,7 +6,7 @@ import pytest
 
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.engines.git import GitContentEngine
-from app.knowledge_store.write_lock import (
+from app.knowledge_store.locks import (
     KnowledgeStoreLockError,
     workspace_write_lock,
 )

@@ -165,11 +165,30 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 6 — Zero / real-time projection [`subplan: 06-zero-projection.md`]
 
-> **PLANNED. The one net-new integration cost.** Depends on 03/04.
+> **SHIPPED (2026-07-31).** The one net-new integration cost. Depends on 03/04. The subplan records the one place the build reversed the plan.
 
-- The web UI is driven by Zero (Postgres logical replication, `zero_publication.py`). Git is not a real-time source, so add a **git → Postgres projection** that keeps the Zero-published `documents`/`folders` rows in sync after each commit (thin metadata rows, not content-authoritative).
-- Decide: reuse the indexer's post-commit hook to upsert Zero rows vs. a separate projector.
-- Tests: after a commit, the Zero-published rows reflect the new tree within the projection cycle; deleting a file removes its row.
+- The web UI is driven by Zero (Postgres logical replication, `zero_publication.py`). Git is not a real-time source, so a **git → Postgres projection** keeps the Zero-published `documents`/`folders` rows in sync after each commit (thin metadata rows, not content-authoritative).
+- Owner decided **against** the planned default: the projection runs at **commit time** (`index/project.py`), not inside the Phase-4 indexer. Folding it in had made UI freshness wait on chunking and embedding, because the row — the only thing the UI needs — was written in the same transaction as the vectors. Row work is milliseconds and now runs inline; chunk/vector work stays async. Shared identity logic lives in `index/rows.py` so the two writers cannot disagree.
+- The commit path then dispatches `document_created/updated/deleted` with the real row ids, restoring the optimistic sidebar overlay the legacy path had.
+- Tests: projection upsert/rename/delete, stamp untouched, a following index adopts the same row, lock contention stands aside, and the turn announces its rows.
+- Known gap (documented, out of phase): an emptied `folders` row is never pruned and `folder_deleted` never fires — folders are implicit in git, so no diff announces one emptying. **Closed by Phase 8's folder law** ([`08-store-facade-and-paths.md`](08-store-facade-and-paths.md)): facade folder verbs + a `.keep` keep-file make folders first-class, so projection can prune an implied folder and persist an explicit empty one.
+
+### Phase 7 — Direct-caller adapter [`subplan: 07-direct-caller-adapter.md`]
+
+> **IN PROGRESS (2026-07-31).** Not planned as a phase; forced by the canary. Blocks the Phase 5 flip.
+
+- The agent reaches git through the Phase-3 commit path, and the editor and the four ingestion flows reach it through `services/document_revision_recorder.py`. **About twenty other writers do not** — every delete, every move and rename, and the creates that skip `prepare_for_indexing`. A delete leaves its file behind, so the next rebuild resurrects the document and the drift check then reports `ok`.
+- Fixed at the adapter, not at the twenty call sites: the recorder grows `remove` and `move` verbs and the callers hand it documents, never paths. Twenty handlers each remembering is how six got wired and twenty did not.
+- A move records as `tx.move` so Phase 4's rename detection keeps the document id; deletes and moves record *before* the Postgres commit, because the path is read from the row that is about to disappear.
+- The two Core-level bulk deletes (connector, workspace) bypass the ORM entirely and are wired by hand — which is also why a session-event chokepoint was rejected.
+
+### Phase 8 — Store facade & path law [`subplan: 08-store-facade-and-paths.md`]
+
+> **DESIGN (2026-07-31).** Facade reshaped (`knowledge_store/service.py`); this phase locks the path law and heals it per-workspace through the seed. Prerequisite of the Phase-5 fleet flip.
+
+- One law for naming, layout, and resolution, obeyed identically on the git tree (truth) and the Postgres rows (UI). **Id is identity; the path is an authored-once label** — the Notion/Dendron model, chosen over Obsidian's path-as-identity after surveying both (references are already id-keyed; git can't durably track renames).
+- Postgres gets git's structural guarantee: the path moves off the un-indexed `document_metadata` marker onto a `documents.path` column with a **partial unique index on `(workspace_id, path)`**, healed lazily and finished by the seed. `unique_identifier_hash` demotes to a fallback, which is what makes `.md` safe (retires C1's `.xml` rule).
+- The **migration seed is the debt-fix vehicle**: it re-authors every path canonically in one deterministic pass (`.xml`→`.md`, id-suffix collisions → ` (2)` by `created_at` then `id`), so a workspace crosses the flip already healed. Path logic lives in one submodule (`knowledge_store/paths/`); an import-boundary test keeps it there.
 
 ## Sequencing (critical path vs. parallel)
 
@@ -188,11 +207,14 @@ Every decision traces to a proven source (full list + links in the ADR):
 - **Graphiti / bi-temporal fact graph** (agent memory time-travel).
 - **Git-LFS for binaries** (blob store stays).
 - **Frontend/client umbrella** (version-history UI removal, any UX changes).
+- **KB REST/HTTP read side** (ADR 0002, named-but-deferred): serving document content from
+  git over HTTP. Rows still answer reads. The *write* half stopped being deferrable — see
+  Phase 7.
 
 ## Open items — resolved in Phase 0 ([`00c-shared-contract.md`](00c-shared-contract.md))
 
 1. ~~Repo location & layout~~ → **persistent working tree at `{FILE_STORAGE_LOCAL_PATH}/knowledge_store/{workspace_id}`, layout = the full virtual path (`documents/...`), as shipped by the Phase-3 recorder and matched by the Phase-5 seeder** (C1).
-2. ~~Zero projection owner~~ → **folded into the Phase-4 post-commit indexer** (C5).
+2. ~~Zero projection owner~~ → ~~folded into the Phase-4 post-commit indexer~~ (C5) → **reversed at build time (2026-07-31): the projection runs at commit, the indexer keeps converging the same rows.** Folding it in coupled UI freshness to embedding latency; see [`06-zero-projection.md`](06-zero-projection.md).
 3. **Binaries** — keep blob store (confirmed markdown/text-only in git); Git-LFS deferred.
 4. ~~Lock granularity~~ → **Redis lock, from v1** (deploy is multi-process: uvicorn + Celery) (C3).
 5. ~~`content_hash` vs blob SHA~~ → **different values (content_hash is workspace-salted); key reuse by blob SHA, keep content_hash through migration** (C5).
@@ -218,7 +240,9 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 4 | `04-derived-index.md` | ✅ SHIPPED (2026-07-30) |
 | 5 | `05-migration.md` | TOOLING SHIPPED (2026-07-30) — fleet flips + cut-time deletion pending |
 | 5a | `05a-seed-runbook.md` | operational runbook for the production seed + flip |
-| 6 | `06-zero-projection.md` | PLANNED |
+| 6 | `06-zero-projection.md` | ✅ SHIPPED (2026-07-31) — projection split out of the indexer, not folded in |
+| 7 | `07-direct-caller-adapter.md` | IN PROGRESS (2026-07-31) — blocks the Phase 5 flip |
+| 8 | `08-store-facade-and-paths.md` | DESIGN (2026-07-31) — path law + per-workspace heal via the seed; prerequisite of the fleet flip |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred").

@@ -18,31 +18,11 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.mult
     MultiRootLocalFolderBackend,
 )
 from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.service import thread_working_copy_id
+
+__all__ = ["GitTreeBackend", "thread_working_copy_id"]
 
 _DOCUMENTS_MOUNT = "documents"
-
-
-def thread_working_copy_id(thread_id: object | None) -> str:
-    """The one place the thread → working-copy-id convention lives.
-
-    The file-op backend (here) and the end-of-turn commit middleware must
-    resolve the same copy from the same thread: langgraph serializes turns per
-    thread, and the middleware commits + discards the copy at end of turn.
-
-    Scoped to the turn, not the actor: subagents append ``::task:{id}`` per
-    nesting level, so they resolve the root segment and share the parent's copy
-    — the only one the commit reads, and one revision per turn.
-
-    ponytail: a copy left by a crashed turn is reused (and committed) by the
-    thread's next turn — recovery semantics; abandoned threads are janitored.
-    """
-    if thread_id is None:
-        return "thread-adhoc"
-    root = str(thread_id).split("::", 1)[0]
-    # A parentless subagent's id is a bare ``task:{id}``, naming no turn.
-    if not root or root.startswith("task:"):
-        return "thread-adhoc"
-    return f"thread-{root}"
 
 
 class GitTreeBackend:
@@ -61,9 +41,8 @@ class GitTreeBackend:
     async def _backend(self) -> MultiRootLocalFolderBackend:
         if self._mounted is None:
             configurable = (self._runtime.config or {}).get("configurable") or {}
-            copy_id = thread_working_copy_id(configurable.get("thread_id"))
             store = KnowledgeStore.for_workspace(self.workspace_id)
-            copy = await store.open_working_copy(copy_id)
+            copy = await store.open_turn_copy(configurable.get("thread_id"))
             # Mount the copy's documents/ subtree, not its root: the repo keeps
             # the documents/ prefix (C1), so agent writes must land under it —
             # the same paths the editor recorder and the migration seeder use.

@@ -1,11 +1,14 @@
 """Folder service: depth validation, circular reference checks, and position generation."""
 
+from datetime import UTC, datetime
+
 from fastapi import HTTPException
 from fractional_indexing import generate_key_between
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.agents.chat.runtime.path_resolver import safe_folder_segment
 from app.db import Folder
 
 MAX_FOLDER_DEPTH = 8
@@ -206,3 +209,59 @@ async def get_folder_subtree_ids(session: AsyncSession, folder_id: int) -> list[
         {"folder_id": folder_id},
     )
     return list(result.scalars().all())
+
+
+# Lives here rather than in the agent middleware that used to own it: the derived
+# index needs it too, and ``kb_persistence`` is deleted at the git-native cut.
+
+
+async def ensure_folder_hierarchy(
+    session: AsyncSession,
+    *,
+    workspace_id: int,
+    created_by_id: str | None,
+    folder_parts: list[str],
+) -> int | None:
+    """Ensure a chain of folder names exists under the workspace.
+
+    Returns the leaf folder id, or ``None`` if ``folder_parts`` is empty
+    (i.e. a document directly under ``/documents/``).
+    """
+    if not folder_parts:
+        return None
+    parent_id: int | None = None
+    for raw in folder_parts:
+        name = safe_folder_segment(str(raw))
+        query = select(Folder).where(
+            Folder.workspace_id == workspace_id,
+            Folder.name == name,
+        )
+        if parent_id is None:
+            query = query.where(Folder.parent_id.is_(None))
+        else:
+            query = query.where(Folder.parent_id == parent_id)
+        result = await session.execute(query)
+        folder = result.scalar_one_or_none()
+        if folder is None:
+            sibling_query = (
+                select(Folder.position).order_by(Folder.position.desc()).limit(1)
+            )
+            sibling_query = sibling_query.where(Folder.workspace_id == workspace_id)
+            if parent_id is None:
+                sibling_query = sibling_query.where(Folder.parent_id.is_(None))
+            else:
+                sibling_query = sibling_query.where(Folder.parent_id == parent_id)
+            sibling_result = await session.execute(sibling_query)
+            last_position = sibling_result.scalar_one_or_none()
+            folder = Folder(
+                name=name,
+                position=generate_key_between(last_position, None),
+                parent_id=parent_id,
+                workspace_id=workspace_id,
+                created_by_id=created_by_id,
+                updated_at=datetime.now(UTC),
+            )
+            session.add(folder)
+            await session.flush()
+        parent_id = folder.id
+    return parent_id

@@ -32,6 +32,13 @@ Re-embedding is never on that path.
   seed commit** (`author=migration`), using the same path rules as the live write path
   (C1). Streamed table scan + file writes: O(documents) I/O, no embeddings, no locks on
   hot tables. Idempotent — re-seeding unchanged content is a no-op commit.
+- **The seed is where the path law is applied (Phase 8).** It re-authors every path
+  canonically in one deterministic pass — `.xml`→`.md`, ` (<doc_id>).xml` collisions →
+  ` (2)` resolved by `created_at` then `id`, recording the chosen path on each row — so
+  a workspace crosses the flip already healed rather than carrying the virtual-FS naming
+  debt forward. Naming/resolution rules and the `documents.path` column they land on:
+  [`08-store-facade-and-paths.md`](08-store-facade-and-paths.md), a prerequisite of the
+  fleet flip.
 - **Preserve identity.** Keep the `unique_identifier_hash` ↔ path mapping so connector
   re-syncs and existing references stay stable.
 - **Parity = byte identity, not reindex.** Gate the flip on: every seeded blob's bytes
@@ -120,6 +127,21 @@ Re-embedding is never on that path.
    `index_tree` cannot fix (an unmarked Postgres row with no file in the tree, i.e.
    a writer bypassing git) costs one rebuild per run until a human intervenes; the
    alarm persists throughout, and the upgrade path is a per-workspace attempt count.
+
+8. ⛔ **Blocks the flip — the UI delete never reaches git** (found 2026-07-31, local
+   canary). `DELETE /documents/{id}` marks the row and hands off to
+   `delete_document_task`, which has no store awareness: the row goes, the file stays.
+   Four orphans in the canary workspace across two sessions — the normal outcome, not a
+   race. This is the deferred REST adapter's missing half (ADR 0002): the agent's `rm`
+   records a revision, the HTTP path does not. It also inverts item 7's repair loop.
+   `index_tree` reads the surviving file as truth and re-creates a document the user
+   deleted, and once it has, git and Postgres agree again, so the check reports `ok` on
+   a workspace that just resurrected deleted content. Flip a real workspace before the
+   delete path records a revision and user deletions come back on the next drift run.
+   Any other HTTP write that bypasses the recorder has the same shape; auditing the
+   route surface is part of the fix, not a follow-up to it. The audit found about
+   twenty such writers, which turned the fix into its own phase —
+   [`07-direct-caller-adapter.md`](07-direct-caller-adapter.md). The flip waits on it.
 
 ## Tests
 
