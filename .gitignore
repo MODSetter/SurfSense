@@ -10,6 +10,7 @@ debug.log
 
 references/
 references
+specs/
 
 # Source/tests packages: exempt from the broad "references" scratch-folder ignore above.
 !surfsense_backend/app/agents/chat/runtime/references/
