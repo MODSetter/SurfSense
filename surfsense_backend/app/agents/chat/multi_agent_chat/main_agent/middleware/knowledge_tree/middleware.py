@@ -41,7 +41,7 @@ from app.agents.chat.runtime.path_resolver import (
     DOCUMENTS_ROOT,
     PathIndex,
     build_path_index,
-    doc_to_virtual_path,
+    virtual_path_of,
 )
 from app.db import Document, shielded_async_session
 from app.utils.perf import get_perf_logger
@@ -199,9 +199,12 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             async with shielded_async_session() as session:
                 index = await build_path_index(session, self.workspace_id)
                 doc_rows = await session.execute(
-                    select(Document.id, Document.title, Document.folder_id).where(
-                        Document.workspace_id == self.workspace_id
-                    )
+                    select(
+                        Document.id,
+                        Document.title,
+                        Document.folder_id,
+                        Document.document_metadata,
+                    ).where(Document.workspace_id == self.workspace_id)
                 )
                 docs = list(doc_rows.all())
         except Exception as exc:  # pragma: no cover - defensive
@@ -215,7 +218,8 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     def _format_tree(self, index: PathIndex, docs: list[Any]) -> str:
         folder_paths = sorted(set(index.folder_paths.values()))
         doc_paths = sorted(
-            doc_to_virtual_path(
+            virtual_path_of(
+                metadata=row.document_metadata,
                 doc_id=row.id,
                 title=str(row.title or "untitled"),
                 folder_id=row.folder_id,
