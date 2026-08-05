@@ -17,8 +17,8 @@ from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,
 )
-from app.knowledge_store.store import KnowledgeStore
-from app.knowledge_store.write_lock import KnowledgeStoreLockError
+from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.locks import KnowledgeStoreLockError
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)

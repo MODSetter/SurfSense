@@ -894,7 +894,8 @@ def record_knowledge_store_record_outcome(
     """Record one knowledge-store recording attempt.
 
     ``flow`` names the write path (``editor_save``, ``sync_batch``,
-    ``turn_commit``); ``status`` is ``recorded``, ``noop``, or ``failed``.
+    ``turn_commit``, ``delete``, ``move``); ``status`` is ``recorded``,
+    ``noop``, or ``failed``.
     A non-zero ``failed`` rate means git is drifting behind Postgres.
     """
     _add(

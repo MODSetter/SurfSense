@@ -61,8 +61,8 @@ from app.indexing_pipeline.pipeline_logger import (
     log_retryable_llm_error,
     log_unexpected_error,
 )
+from app.knowledge_store.service import record_prepared_documents
 from app.observability import metrics as ot_metrics, otel as ot
-from app.services.document_revision_recorder import record_prepared_documents
 from app.utils.perf import get_perf_logger
 
 
