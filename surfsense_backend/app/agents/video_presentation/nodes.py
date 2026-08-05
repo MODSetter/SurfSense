@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import logging
 import math
 import os
 import shutil
@@ -18,6 +19,7 @@ from app.services.kokoro_tts_service import get_kokoro_tts_service
 from app.services.llm_service import get_agent_llm
 from app.utils.content_utils import extract_text_content, strip_markdown_fences
 from app.utils.file_io import write_bytes
+from app.utils.structured_output import invoke_json
 
 from .configuration import Configuration
 from .prompts import (
@@ -40,6 +42,8 @@ from .state import (
     State,
 )
 from .utils import get_voice_for_provider
+
+logger = logging.getLogger(__name__)
 
 MAX_REFINE_ATTEMPTS = 3
 
@@ -68,32 +72,7 @@ async def create_presentation_slides(
         ),
     ]
 
-    llm_response = await llm.ainvoke(messages)
-    content = strip_markdown_fences(extract_text_content(llm_response.content))
-
-    try:
-        presentation = PresentationSlides.model_validate(json.loads(content))
-    except (json.JSONDecodeError, TypeError, ValueError) as e:
-        print(f"Direct JSON parsing failed, trying fallback approach: {e!s}")
-
-        try:
-            json_start = content.find("{")
-            json_end = content.rfind("}") + 1
-            if json_start >= 0 and json_end > json_start:
-                json_str = content[json_start:json_end]
-                parsed_data = json.loads(json_str)
-                presentation = PresentationSlides.model_validate(parsed_data)
-                print("Successfully parsed presentation slides using fallback approach")
-            else:
-                error_message = f"Could not find valid JSON in LLM response. Raw response: {content}"
-                print(error_message)
-                raise ValueError(error_message)
-
-        except (json.JSONDecodeError, TypeError, ValueError) as e2:
-            error_message = f"Error parsing LLM response (fallback also failed): {e2!s}"
-            print(f"Error parsing LLM response: {e2!s}")
-            print(f"Raw response: {content}")
-            raise
+    presentation = await invoke_json(llm, messages, PresentationSlides)
 
     return {"slides": presentation.slides}
 
@@ -313,9 +292,11 @@ async def _assign_themes_with_llm(
         valid_themes = set(THEME_PRESETS)
         result: dict[int, tuple[str, str]] = {}
         for entry in assignments:
+            if not isinstance(entry, dict):
+                continue
             sn = entry.get("slide_number")
-            theme = entry.get("theme", "").upper()
-            mode = entry.get("mode", "dark").lower()
+            theme = str(entry.get("theme", "")).upper()
+            mode = str(entry.get("mode", "dark")).lower()
             if sn and theme in valid_themes and mode in ("dark", "light"):
                 result[sn] = (theme, mode)
 
@@ -337,8 +318,12 @@ async def _assign_themes_with_llm(
                 )
         return result
 
-    except Exception as e:
-        print(f"LLM theme assignment failed ({e!s}), using fallback")
+    except Exception:
+        # Theming is cosmetic, so any failure here degrades to the round-robin
+        # presets rather than failing the presentation. Log it with a traceback
+        # anyway: this branch also swallows LLM transport errors, and a print
+        # with no stack made those indistinguishable from a malformed reply.
+        logger.warning("LLM theme assignment failed, using fallback", exc_info=True)
         return {
             s.slide_number: pick_theme_and_mode_fallback(s.slide_number - 1, total)
             for s in slides

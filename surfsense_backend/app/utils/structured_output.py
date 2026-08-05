@@ -2,7 +2,9 @@
 
 Agent LLMs return JSON wrapped in prose, markdown fences, or reasoning blocks,
 so a plain ``model_validate_json`` is unreliable. Centralising the tolerant
-parse here keeps every generation node validating replies the same way.
+parse here keeps every node that asks a model for structured data validating
+replies the same way, instead of each one growing its own brace-scanning
+fallback and its own idea of what a parse failure looks like.
 """
 
 from __future__ import annotations
