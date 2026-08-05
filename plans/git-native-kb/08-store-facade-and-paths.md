@@ -219,9 +219,18 @@ Ordered so the tree is safe before the fleet touches it.
    folder id and its children ride along on `parent_id`; and the seed materializes each
    empty leaf folder as a `.keep` (`migrate.py:_empty_folder_keeps`), so a flipped
    workspace's whole-workspace reconcile no longer prunes pre-existing empty folders.
-   **Still deferred:** the route rewire itself (point `folders_routes` handlers at the
-   facade verbs). Making the projection the *sole* row writer (stripping creation from
-   upload/notes/connectors) remains the Phase-5 cut — unflipped prod still writes rows on
+7d. ✅ **Routed folder CRUD/move through the facade.** `folders_routes` create, rename,
+   move and delete now record to git after the row op, through thin module verbs
+   (`record_created_folder`, `record_moved_folder`, `record_removed_folder`,
+   `folder_virtual_path`) — routes never spell a path or bind a workspace. Rename/move
+   capture the old path *before* mutating, then record the move; the in-place reparent
+   no-ops (the row is already at its new name) and git still follows, id kept. Delete
+   drops only the folder's `.keep` markers (`remove_folder_markers`), never its files:
+   the incremental indexer prunes a row the moment its file leaves the tree, so removing
+   documents here would race the purge task that owns their chunks and blobs. All verbs
+   self-guard, so an unflipped workspace is untouched.
+   **Still deferred:** making the projection the *sole* row writer (stripping creation
+   from upload/notes/connectors) — the Phase-5 cut; unflipped prod still writes rows on
    those paths.
 8. ✅ **Folder projection + prune** — `index/folders.py` derives `folders` rows from
    document paths ∪ keep-files and prunes rows with neither. Runs on every folder

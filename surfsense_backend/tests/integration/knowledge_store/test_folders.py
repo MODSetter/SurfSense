@@ -221,6 +221,99 @@ async def test_move_folder_keeps_the_folder_id(
     assert renamed.id == child_before.parent_id
 
 
+async def test_remove_folder_markers_keeps_documents(
+    knowledge_root, db_session, db_workspace, db_user
+):
+    """Delete drops a folder's empty markers but leaves its files to the purge."""
+    store = _store(db_workspace, db_session, db_user)
+    await store.create_folder("/documents/Docs/Empty")
+    body = "# Note\n\na body long enough for the indexer to embed and chunk\n"
+    await store.write("documents/Docs/note.md", body)
+
+    outcome = await store.remove_folder_markers("/documents/Docs")
+
+    paths = await _paths(store, outcome.revision)
+    assert "documents/Docs/note.md" in paths
+    assert not any(p.rsplit("/", 1)[-1] == KEEP_FILE for p in paths)
+    names = await _folder_names(db_session, db_workspace.id)
+    assert "Empty" not in names and "Docs" in names
+
+
+async def test_record_created_folder_gives_a_row_git_presence(
+    knowledge_root, db_session, db_workspace, db_user
+):
+    """The create route's contract: a committed row is materialized in git."""
+    from app.knowledge_store.service import record_created_folder
+    from app.services.folder_service import ensure_folder_hierarchy
+
+    store = _store(db_workspace, db_session, db_user)
+    await ensure_folder_hierarchy(
+        db_session,
+        workspace_id=db_workspace.id,
+        created_by_id=str(db_user.id),
+        folder_parts=["Fresh"],
+    )
+    folder = (
+        await db_session.execute(
+            select(Folder).where(
+                Folder.workspace_id == db_workspace.id, Folder.name == "Fresh"
+            )
+        )
+    ).scalar_one()
+
+    await record_created_folder(db_session, folder, author_user_id=str(db_user.id))
+
+    assert f"documents/Fresh/{KEEP_FILE}" in await _paths(store, await store.head())
+
+
+async def test_route_rename_flow_keeps_the_folder_id(
+    knowledge_root, db_session, db_workspace, db_user
+):
+    """The route renames the row, then records the move; git follows, id kept.
+
+    Order matters: the row is already at its new name when the move records, so
+    the in-place reparent is a no-op and git still moves the subtree.
+    """
+    from app.knowledge_store.service import folder_virtual_path, record_moved_folder
+
+    store = _store(db_workspace, db_session, db_user)
+    await store.create_folder("/documents/Old")
+    folder = (
+        await db_session.execute(
+            select(Folder).where(
+                Folder.workspace_id == db_workspace.id, Folder.name == "Old"
+            )
+        )
+    ).scalar_one()
+
+    source = await folder_virtual_path(db_session, folder)
+    folder.name = "New"
+    await db_session.commit()
+    await db_session.refresh(folder)
+    destination = await folder_virtual_path(db_session, folder)
+    await record_moved_folder(
+        db_session,
+        db_workspace.id,
+        source=source,
+        destination=destination,
+        author_user_id=str(db_user.id),
+    )
+
+    assert source == "/documents/Old"
+    assert destination == "/documents/New"
+    paths = await _paths(store, await store.head())
+    assert f"documents/New/{KEEP_FILE}" in paths
+    assert not any(p.startswith("documents/Old/") for p in paths)
+    renamed = (
+        await db_session.execute(
+            select(Folder).where(
+                Folder.workspace_id == db_workspace.id, Folder.name == "New"
+            )
+        )
+    ).scalar_one()
+    assert renamed.id == folder.id
+
+
 def test_keep_is_rejected_as_a_document_path():
     with pytest.raises(StorePathError):
         StorePath.from_virtual(f"/documents/x/{KEEP_FILE}")

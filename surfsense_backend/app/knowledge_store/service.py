@@ -55,7 +55,7 @@ from app.knowledge_store.transaction import Transaction
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.db import Document
+    from app.db import Document, Folder
 
 logger = logging.getLogger(__name__)
 
@@ -556,6 +556,31 @@ class KnowledgeStore:
         await self._reconcile_folders(revision)
         return await self._outcome(revision)
 
+    async def remove_folder_markers(self, path: str) -> Outcome:
+        """Drop a folder's ``.keep`` markers, leaving its documents in place.
+
+        The delete route hands document rows to the purge task, which clears
+        their chunks and blobs before dropping the rows. Removing their files
+        here would race that task: the indexer prunes a row the moment its file
+        leaves the tree, and the purge would then find nothing left to clean. So
+        this touches only the empty-folder markers, which no row hangs off, and
+        lets the purge own the documents.
+        """
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        from app.knowledge_store.paths import KEEP_FILE
+
+        keeps = [
+            p
+            for p in await self._subtree_paths(path)
+            if p.rsplit("/", 1)[-1] == KEEP_FILE
+        ]
+        revision = await self._commit_files(
+            files={}, removes=keeps, message=f"docs: delete folder {_leaf(path)}"
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
     async def move_folder(self, source: str, destination: str) -> Outcome:
         """Move a folder and every descendant in one revision, ids preserved."""
         if not await knowledge_store_enabled_for(self._workspace_id):
@@ -950,6 +975,72 @@ async def record_moved_documents(
         .as_user(author_user_id)
     )
     return (await store.move_documents(documents)).revision
+
+
+async def folder_virtual_path(session: AsyncSession, folder: Folder) -> str | None:
+    """The ``/documents`` path a folder row occupies, or ``None`` if unplaced.
+
+    The one resolver a route reaches for, so a caller never spells a folder path
+    itself. Capture it before a rename mutates the row: git still holds the old
+    path, and the move needs both ends.
+    """
+    from app.knowledge_store.paths import build_path_index
+
+    index = await build_path_index(
+        session, folder.workspace_id, populate_occupants=False
+    )
+    return index.folder_paths.get(folder.id)
+
+
+async def record_created_folder(
+    session: AsyncSession,
+    folder: Folder,
+    *,
+    author_user_id: str | None = None,
+) -> str | None:
+    """Materialize a new empty folder in git so a rebuild keeps it."""
+    path = await folder_virtual_path(session, folder)
+    if path is None:
+        return None
+    store = (
+        KnowledgeStore.for_workspace(folder.workspace_id)
+        .with_session(session)
+        .as_user(author_user_id)
+    )
+    return (await store.create_folder(path)).revision
+
+
+async def record_moved_folder(
+    session: AsyncSession,
+    workspace_id: int,
+    *,
+    source: str,
+    destination: str,
+    author_user_id: str | None = None,
+) -> str | None:
+    """Move a folder's git subtree from ``source`` to ``destination``, id kept."""
+    store = (
+        KnowledgeStore.for_workspace(workspace_id)
+        .with_session(session)
+        .as_user(author_user_id)
+    )
+    return (await store.move_folder(source, destination)).revision
+
+
+async def record_removed_folder(
+    session: AsyncSession,
+    workspace_id: int,
+    *,
+    path: str,
+    author_user_id: str | None = None,
+) -> str | None:
+    """Drop a deleted folder's ``.keep`` markers so an empty folder stays gone."""
+    store = (
+        KnowledgeStore.for_workspace(workspace_id)
+        .with_session(session)
+        .as_user(author_user_id)
+    )
+    return (await store.remove_folder_markers(path)).revision
 
 
 async def drop_workspace_store(workspace_id: int | str) -> None:
