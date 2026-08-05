@@ -1220,6 +1220,13 @@ class Config:
     VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES = int(
         os.getenv("VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES", "300")
     )
+    # BCP-47 narration language used when the slide-generating LLM does not
+    # report the language it wrote in. A tag the configured TTS provider cannot
+    # speak is ignored in favour of English, so a bad value degrades rather
+    # than failing the render.
+    VIDEO_PRESENTATION_DEFAULT_LANGUAGE = os.getenv(
+        "VIDEO_PRESENTATION_DEFAULT_LANGUAGE", "en"
+    )
 
     # Validation Checks
     # Check embedding dimension
