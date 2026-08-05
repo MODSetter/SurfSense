@@ -269,6 +269,45 @@ class KnowledgeStore:
             enqueue_index(self._workspace_id)
         return tx.revision
 
+    async def _taken_virtual_paths(self, *, exclude: set[str] | None = None) -> set[str]:
+        """The document paths git already holds, so a fresh name skips them.
+
+        Occupancy comes from the tree, the one authority on which files exist;
+        ``.keep`` markers are folders, not names to dodge. ``exclude`` drops the
+        caller's own current path so a retitle to the same name is not read as a
+        collision with itself. `ponytail:` walks the whole tree per authored
+        write — fine at today's sizes, cache by revision if a workspace grows.
+        """
+        from app.knowledge_store.paths import KEEP_FILE, to_virtual_path
+
+        head = await self.head()
+        if head is None:
+            return set()
+        skip = exclude or set()
+        taken: set[str] = set()
+        for entry in await self.list_paths(head):
+            if entry.path.rsplit("/", 1)[-1] == KEEP_FILE:
+                continue
+            virtual = to_virtual_path(entry.path)
+            if virtual not in skip:
+                taken.add(virtual)
+        return taken
+
+    def _author_path(self, *, title: str, folder_id: int | None, index, taken: set[str]) -> str:
+        """A fresh ``.md`` path under the row's folder, breaking a name clash.
+
+        The naming law, not the legacy ``.xml`` derivation: this is the one place
+        a live write chooses a name, so it is the one place the spelling is fixed.
+        """
+        from app.knowledge_store.paths import DOCUMENTS_ROOT, allocate_path
+
+        base = index.folder_paths.get(folder_id, DOCUMENTS_ROOT)
+        relative = base[len(DOCUMENTS_ROOT) :].strip("/")
+        folder_parts = relative.split("/") if relative else ()
+        return allocate_path(
+            name=str(title or "untitled"), folder_parts=folder_parts, taken=taken
+        ).virtual_path
+
     # ---------------------------------------------------------- capabilities
 
     async def save_document(
@@ -294,31 +333,45 @@ class KnowledgeStore:
         session = self._require_session()
         from app.db import Document
         from app.knowledge_store.paths import (
+            DOCUMENTS_ROOT,
             build_path_index,
-            doc_to_virtual_path,
             to_store_path,
-            virtual_path_of,
         )
         from app.observability import metrics
 
         try:
-            index = await build_path_index(session, self._workspace_id)
+            index = await build_path_index(
+                session, self._workspace_id, populate_occupants=False
+            )
             document = await session.get(Document, doc_id)
             metadata = document.document_metadata if document else None
             previous = (metadata or {}).get(PATH_MARKER)
-            virtual_path = (
-                doc_to_virtual_path(
-                    doc_id=doc_id, title=title, folder_id=folder_id, index=index
-                )
-                if title_is_explicit
-                else virtual_path_of(
-                    metadata=metadata,
-                    doc_id=doc_id,
-                    title=title,
-                    folder_id=folder_id,
-                    index=index,
-                )
+            recorded = (
+                previous
+                if isinstance(previous, str) and previous.startswith(f"{DOCUMENTS_ROOT}/")
+                else None
             )
+            # A recorded path stays put; only an explicit title, or a first write,
+            # authors a new one. Re-deriving a recorded path is the legacy churn.
+            if recorded is not None and not title_is_explicit:
+                virtual_path = recorded
+            else:
+                # The row's own file must not read as a rival, or a re-derivation
+                # after a lost marker collides the document with itself. The path
+                # column still names it once the marker is gone.
+                own = recorded or (
+                    document.path
+                    if document is not None
+                    and isinstance(document.path, str)
+                    and document.path.startswith(f"{DOCUMENTS_ROOT}/")
+                    else None
+                )
+                taken = await self._taken_virtual_paths(
+                    exclude={own} if own else set()
+                )
+                virtual_path = self._author_path(
+                    title=title, folder_id=folder_id, index=index, taken=taken
+                )
             stale = _stale_store_path(previous, virtual_path)
             revision = await self._commit_files(
                 files={to_store_path(virtual_path): markdown},
@@ -346,24 +399,33 @@ class KnowledgeStore:
             return Outcome(revision=None)
         session = self._require_session()
         from app.knowledge_store.paths import (
+            DOCUMENTS_ROOT,
             build_path_index,
-            doc_to_virtual_path,
             to_store_path,
         )
         from app.observability import metrics
 
         try:
-            index = await build_path_index(session, self._workspace_id)
+            index = await build_path_index(
+                session, self._workspace_id, populate_occupants=False
+            )
+            taken = await self._taken_virtual_paths()
             files: dict[str, str] = {}
             for doc in documents:
                 if not doc.source_markdown:
                     continue
-                virtual_path = doc_to_virtual_path(
-                    doc_id=doc.id,
-                    title=doc.title,
-                    folder_id=doc.folder_id,
-                    index=index,
-                )
+                previous = (doc.document_metadata or {}).get(PATH_MARKER)
+                if isinstance(previous, str) and previous.startswith(
+                    f"{DOCUMENTS_ROOT}/"
+                ):
+                    virtual_path = previous
+                else:
+                    virtual_path = self._author_path(
+                        title=doc.title,
+                        folder_id=doc.folder_id,
+                        index=index,
+                        taken=taken,
+                    )
                 files[to_store_path(virtual_path)] = doc.source_markdown
             revision = await self._commit_files(
                 files=files, message=f"sync: index {len(files)} document(s)"
@@ -427,11 +489,21 @@ class KnowledgeStore:
         from app.observability import metrics
 
         try:
-            index = await build_path_index(session, self._workspace_id)
+            index = await build_path_index(
+                session, self._workspace_id, populate_occupants=False
+            )
+            # Drop the movers' own paths so a batch never collides with a name it
+            # is itself vacating; a chosen destination is added back as we go.
+            own = {
+                (d.document_metadata or {}).get(PATH_MARKER)
+                for d in documents
+                if isinstance((d.document_metadata or {}).get(PATH_MARKER), str)
+            }
+            taken = await self._taken_virtual_paths(exclude=own)
             moves: list[tuple[str, str]] = []
             moved: list[tuple[Document, str]] = []
             for document in documents:
-                relocation = _relocation_of(document, index)
+                relocation = _relocation_of(document, index, taken)
                 if relocation is None:
                     continue
                 source, destination, virtual_path = relocation
@@ -709,25 +781,32 @@ def _store_path_of(document: Document, index) -> str | None:
         return None
 
 
-def _relocation_of(document: Document, index) -> tuple[str, str, str] | None:
+def _relocation_of(
+    document: Document, index, taken: set[str]
+) -> tuple[str, str, str] | None:
     """``(from, to, new virtual path)`` for a row that moved, else ``None``.
 
-    Destination follows the row's folder and title through the same derivation
-    the rest of the live write path uses, so a move never forks the spelling.
-    A row with no marker has no file yet; the next save writes it where the row
-    now says.
+    Destination follows the row's folder and title through the ``.md`` naming
+    law, the same rule a save uses, so a move never forks the spelling. A row
+    with no marker has no file yet; the next save writes it where the row says.
     """
-    from app.knowledge_store.paths import doc_to_virtual_path, to_store_path
+    from app.knowledge_store.paths import (
+        DOCUMENTS_ROOT,
+        allocate_path,
+        to_store_path,
+    )
 
     previous = (document.document_metadata or {}).get(PATH_MARKER)
-    if not isinstance(previous, str):
+    if not isinstance(previous, str) or not previous.startswith(f"{DOCUMENTS_ROOT}/"):
         return None
-    current = doc_to_virtual_path(
-        doc_id=document.id,
-        title=document.title,
-        folder_id=document.folder_id,
-        index=index,
-    )
+    base = index.folder_paths.get(document.folder_id, DOCUMENTS_ROOT)
+    relative = base[len(DOCUMENTS_ROOT) :].strip("/")
+    folder_parts = relative.split("/") if relative else ()
+    current = allocate_path(
+        name=str(document.title or "untitled"),
+        folder_parts=folder_parts,
+        taken=taken,
+    ).virtual_path
     if current == previous:
         return None
     try:

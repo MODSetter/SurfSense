@@ -197,6 +197,36 @@ async def test_a_save_records_the_document_and_remembers_its_path(
     assert "Meeting notes" in document.document_metadata[PATH_MARKER]
 
 
+async def test_a_new_document_is_authored_as_markdown(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The live write path stamps ``.md`` now, not the legacy ``.xml``."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert await _store_paths(db_workspace, revision) == {"documents/Meeting notes.md"}
+    assert document.document_metadata[PATH_MARKER] == "/documents/Meeting notes.md"
+
+
+async def test_a_same_titled_document_gets_a_numbered_name(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """Two files cannot share one path; the second breaks the tie with ``(2)``."""
+    workspace_flip(True)
+    first = await _make_document(db_session, db_workspace, db_user, "Report")
+    await _save(db_session, db_workspace, db_user, first, title="Report")
+    second = await _make_document(db_session, db_workspace, db_user, "Report")
+
+    await _save(db_session, db_workspace, db_user, second, title="Report")
+
+    assert first.document_metadata[PATH_MARKER] == "/documents/Report.md"
+    assert second.document_metadata[PATH_MARKER] == "/documents/Report (2).md"
+
+
 async def test_a_retitle_leaves_only_the_new_path(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip
 ):
@@ -301,8 +331,8 @@ async def test_an_explicit_rename_still_moves_the_agent_s_file(
     )
 
     paths = await _store_paths(db_workspace, revision)
-    assert paths == {"documents/Key Points.xml"}
-    assert document.document_metadata[PATH_MARKER] == "/documents/Key Points.xml"
+    assert paths == {"documents/Key Points.md"}
+    assert document.document_metadata[PATH_MARKER] == "/documents/Key Points.md"
 
 
 async def test_no_marker_is_left_when_nothing_was_recorded(

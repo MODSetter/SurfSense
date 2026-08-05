@@ -202,8 +202,17 @@ Ordered so the tree is safe before the fleet touches it.
    `PUT /documents/bulk-move`) now call `record_moved_documents` after the `folder_id`
    change, so a flipped workspace's move reaches git and a rebuild finds the file at the
    new folder instead of resurrecting the old one; a no-op on an unflipped workspace
-   since the verb self-guards. `_relocation_of` reparents through the same derivation as
-   the rest of the live write path, so the move never forks the spelling.
+   since the verb self-guards.
+
+7b. ✅ **Live write path authors `.md`.** The three facade writers that choose a name —
+   `save_document`, `ingest_documents`, `move_documents` — now derive through the naming
+   law (`allocate_path`/`normalize_filename`, `(2)` collisions) instead of the legacy
+   `.xml` derivation, so a flipped workspace stops *creating* the debt the seed heals.
+   Occupancy comes from the git tree (the authority on which files exist), and a row's own
+   file is excluded so a lost-marker re-derivation cannot collide the document with itself.
+   Switched together — a partial swap forks a doc between `.md` and `.xml` and breaks the
+   no-op check. `doc_to_virtual_path`/`virtual_path_of` stay for the resolver and unflipped
+   `kb_postgres`; only the flipped facade writes `.md`.
    **Deferred:** routing folder CRUD (`folder_service`) onto the facade verbs. Blocked on
    two prerequisites — the facade's `reconcile_folders` is a *whole-workspace* sync that
    prunes any folder row not backed by git, so it would delete pre-existing empty folders
