@@ -12,9 +12,9 @@
 
 1. **Two parallel stores that don't know about each other.**
    - `generate_report` / `generate_resume` write immediately to the `reports` table (`app/db.py`, `Report` model) — never `Document`, never `DocumentFile`.
-   - `write_file` / `edit_file` stage content in agent state and commit at end-of-turn via `KnowledgeBasePersistenceMiddleware.commit_staged_filesystem_state` as `Document` rows with `DocumentType.NOTE`.
+   - `write_file` / `edit_file` commit at end-of-turn as `Document` rows with `DocumentType.NOTE` — via staged agent state on the legacy path, via a git working copy on git-backed workspaces (both paths in §2.2).
    - Users see two different "saved" surfaces (artifacts library vs documents tree) with different behavior.
-2. **Silent staged-commit failures.** The KB commit wraps everything in `except: log and return None` (`kb_persistence/middleware.py` ~L1242). The tool already told the model "Updated file …" mid-turn, so when the commit fails the user was promised a save that never happened. This is the "YouTube summary sometimes doesn't save" bug.
+2. **Silent staged-commit failures.** The legacy KB commit wraps everything in `except: log and return None` (`kb_persistence/middleware.py` ~L1242). The tool already told the model "Updated file …" mid-turn, so when the commit fails the user was promised a save that never happened. This is the "YouTube summary sometimes doesn't save" bug. (The git-native KB write path already fixes this for flagged workspaces — failed receipts, working copy kept for next-turn recovery — but it is still end-of-turn machinery; artifacts remove the bug class entirely by persisting inside the tool call, §1.2.3.)
 3. **Verb-gated deliverables.** The report tool docstring only triggers on creation verbs ("write/create/generate/draft…"). "Summarize this video" often fails the gate and the answer stays in chat — inconsistent by design.
 4. **Everything renders as markdown.** There is exactly one artifact rendering path (report panel: Plate/markdown, or Typst→PDF recompile for resumes). Asking for a PPTX produces markdown. Asking for a PDF produces a fixed Typst-templated layout the user cannot influence.
 5. **Fragile resume pipeline.** Resumes store *Typst source*, not the compiled PDF. Every preview recompiles; a package or environment change after generation breaks a previously "successful" resume.
@@ -26,7 +26,7 @@
 2. **Artifacts are real files with immutable bytes.** What was generated is what renders and what downloads. No recompile-on-view.
 3. **Write-through persistence.** The artifact is persisted inside the tool call that produced it, and the tool result carries the `document_id`. Failure is visible to the model in the same turn. No end-of-turn staging for artifacts.
 4. **Format knowledge lives in exactly two places:** skills (generation side) and the viewer registry (rendering side). The tool contract, persistence, storage, serving, and deletion layers never enumerate formats. Unknown formats degrade to a download card, never an error.
-5. **One store.** Every generated artifact is a `Document` + `DocumentFile` pair. The `reports` table is dropped **without data migration** — legacy deliverables are not carried forward (§10).
+5. **One store, one model.** Every generated artifact is a `Document` + `DocumentFile` pair — and a **first-class citizen of the git-native knowledge base**: its markdown representation lives in the workspace git repo like any note, its binaries live in the blob store like any upload's original, and the Postgres row is the derived index of both (§4.4). No parallel storage philosophy, no carve-outs. The `reports` table is dropped **without data migration** — legacy deliverables are not carried forward (§10).
 6. **No fallbacks.** One sandbox provider per deployment mode, selected by env var. Old code paths are deleted, not flagged off.
 
 ---
@@ -58,16 +58,25 @@ Key files:
 - Streaming: `surfsense_backend/app/tasks/chat/streaming/handlers/tools/deliverables/generate_{report,resume}/`
 - Deps: `typst>=0.14.0`, rendercv (Typst package, referenced inline in `resume.py`), `pypandoc`
 
-### 2.2 Path B — KB notes (staged, `documents` table)
+### 2.2 Path B — KB notes (`documents` table; two write paths during the git-KB transition)
+
+KB notes have **two coexisting write paths**, selected per turn by `KNOWLEDGE_STORE_ENABLED` + the per-workspace `workspaces.knowledge_store_enabled` flag (migration 175). Their lifecycle is owned by the git-native KB umbrella ([`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)), not by this spec:
 
 ```
+Legacy (unflagged workspaces — deleted at the git-KB Phase 5 cut):
 write_file | edit_file under /documents/…
   → staged in agent state (dirty_paths)
   → end of turn: KnowledgeBasePersistenceMiddleware.aafter_agent → commit_staged_filesystem_state
   → Document(document_type=NOTE) + chunks + embeddings
+
+Git-native (flagged workspaces):
+write_file | edit_file under /documents/…
+  → GitTreeBackend writes the turn's private git working copy on disk
+  → end of turn: knowledge_store_persistence → one git commit → enqueue_index
+  → derived-index convergence (knowledge_store/index/converge.py) upserts Document + chunks
 ```
 
-This path is **kept** for incidental notes. It is no longer used for artifacts.
+Both remain the home of **incidental notes** — and, under this spec, of the artifact's markdown representation. `save_artifact` persists the row and the file bytes write-through inside the tool call (that part never waits for end-of-turn machinery), and on git-backed workspaces its markdown representation joins the turn's working copy so it rides the same single end-of-turn commit as every other agent write. The full integration contract is §4.4.
 
 ### 2.3 Existing infrastructure the new system reuses
 
@@ -75,7 +84,8 @@ This path is **kept** for incidental notes. It is no longer used for artifacts.
 - **Skills system** (`main_agent/skills/`): existing loader used by the `report-writing` builtin skill. Reused as-is for format skills (progressive disclosure: frontmatter metadata always in prompt; body loaded on trigger).
 - **PDF viewer** (`surfsense_web/components/report-panel/pdf-viewer.tsx`): virtualized pdf.js canvas viewer with zoom, DPR handling, authenticated fetch (`getAuthHeaders()`), `toolbarActions` slot. Reused unchanged; only the URL source changes. (`pdfjs-dist` already a dependency.)
 - **Document viewer plumbing**: `GET .../documents/{id}/editor-content` (`editor_routes.py`) already decides `viewer_mode` per document; extended in this spec with a file shape.
-- **Sandbox seam** (`shared/middleware/filesystem/sandbox.py` + `tools/execute_code/` + `routes/sandbox_routes.py`): a working Daytona integration already exists — per-thread sandbox cache with locks and broken-state recovery, KB file sync into the sandbox, heredoc-based `execute_code` (no persistent kernel), and a local-disk file download path (`SANDBOX_FILES_DIR`). Phase 2 refactors this seam behind the provider protocol (registry logic promoted, Daytona specifics extracted, OpenSandbox added); the local-disk download path is obsoleted by `save_artifact` and deleted in phase 4. Details: [`phase-2-sandbox-pdf.md`](./phase-2-sandbox-pdf.md) §2.1.
+- **Sandbox seam** (`shared/middleware/filesystem/sandbox.py` + `tools/execute_code/` + `routes/sandbox_routes.py`): a working Daytona integration already exists — per-thread sandbox cache with locks and broken-state recovery, KB file sync into the sandbox (`sync_files_to_sandbox` takes state files, so it is agnostic to which Path-B backend produced them), heredoc-based `execute_code` (no persistent kernel), and a local-disk file download path (`SANDBOX_FILES_DIR`). Phase 2 refactors this seam behind the provider protocol (registry logic promoted, Daytona specifics extracted, OpenSandbox added); the local-disk download path is obsoleted by `save_artifact` and deleted in phase 4. Details: [`phase-2-sandbox-pdf.md`](./phase-2-sandbox-pdf.md) §2.1.
+- **Git-native knowledge store** (`app/knowledge_store/`, [`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)): **reused as-is.** On git-backed workspaces the artifact's markdown representation is written through the turn's working copy, committed by `knowledge_store_persistence`, and indexed by the derived-index convergence — the exact pipeline every note already rides (§4.4). No new commit machinery, no artifact-specific code in the store. The one file both efforts touch directly is `editor_routes.py` — the git-KB recorder hooks editor saves there, while this spec extends the read side (`editor-content`, §3.2) and phase 4 swaps the Typst export branch; the changes are disjoint.
 
 ---
 
@@ -165,18 +175,19 @@ The existing endpoint gains a discriminated union on `kind`:
 
 An artifact is:
 
-- **`Document` row** — title; `source_markdown` = the markdown *representation* of the artifact (full content for markdown artifacts; outline/summary for binary ones — this is what gets chunked and embedded so a PPTX is findable in KB search); `document_metadata` carries `{"generated": true, "thread_id": …, "tool_call_id": …}`. `document_type` stays `NOTE` (provenance is fully determined by the `GENERATED` file kind + metadata flag; a new DocumentType is not needed and would ripple through connector-oriented code).
+- **`Document` row** — title; `source_markdown` = the markdown *representation* of the artifact (full content for markdown artifacts; outline/summary for binary ones — this is what gets chunked and embedded so a PPTX is findable in KB search); `document_metadata` carries `{"generated": true, "thread_id": …, "tool_call_id": …}`; `unique_identifier_hash` = the **standard NOTE path hash** for the artifact's tree path, so the derived-index convergence resolves the committed markdown file to this row and adopts it instead of inserting a duplicate (§4.4). `save_artifact` itself never writes the indexer's `PATH_MARKER` — the convergence stamps it on adoption, per its own rules. `document_type` stays `NOTE` (an artifact *is* a note with generated files attached; provenance is fully determined by the `GENERATED` file kind + metadata flag; a new DocumentType would ripple through connector-oriented code for nothing).
 - **0–2 `DocumentFile` rows** — `kind=GENERATED`; primary (the deliverable) and optionally preview (verification PDF). Created via the existing `store_document_file()`; sha256, size, MIME recorded as today.
 
 Artifacts are deliberately **single-generation**: a Document holds at most one primary + one preview at any time. This differs from uploaded documents, where multiple kinds (`ORIGINAL`, `REDACTED`, `FILLED_FORM`) coexist as siblings — do not unify the two models; uploads keep multi-kind, artifacts are replace-on-revise (§4.3).
 
 **Adjacent tables — explicit fates:**
 
-| Table | Fate | Why |
+| Table / store | Fate | Why |
 |---|---|---|
 | `reports` | **Dropped in phase 4, no data copy** — including every `report_group_id` sibling version | Legacy deliverable store; the no-migration decision (§10) makes its entire history unrecoverable, deliberately |
-| `document_versions` | **Untouched** | Backs KB-document version snapshots written by connector indexers (Obsidian, local-folder sync via `create_version_snapshot`) and the restore endpoints/`version-history.tsx` UI — a content-protection feature unrelated to deliverables. **Fence:** the `save_artifact` revise path must never call `create_version_snapshot`, or versioning sneaks back into artifacts |
-| `document_revisions` / `folder_revisions` | **Untouched** | Back the agent-revert feature for KB edits (`revert_service.py`). **Fence:** `save_artifact` creates/revisions are excluded from agent-revert snapshotting — "revert my artifact" would be version history through the back door |
+| `document_versions` | **Untouched by this plan** — owned and deleted by the git-native KB at its Phase 5 cut | Backs KB-document version snapshots on the legacy path (connector indexers via `create_version_snapshot`, restore endpoints/`version-history.tsx`); already dead for git-backed workspaces (restore returns 409 — history is `git revert` there). **Fence:** the `save_artifact` revise path must never call `create_version_snapshot`, or versioning sneaks back into artifacts for however long the table exists |
+| `document_revisions` / `folder_revisions` | **Untouched by this plan** — owned and deleted by the git-native KB at its Phase 5 cut | Back the agent-revert feature for legacy-path KB edits (`revert_service.py`); dead code for git-backed workspaces. **Fence:** `save_artifact` creates/revisions are excluded from agent-revert snapshotting — "revert my artifact" would be version history through the back door |
+| Git knowledge store (repo per workspace) | **Holds the markdown representation, never the binaries** — the same split uploads already use (extracted markdown in git, original bytes in the blob store) | Owned by [`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md); artifacts enter it through the turn's working copy like every agent write (§4.4). **Fence:** `save_artifact` never routes through `prepare_for_indexing`/`index_batch` — the recorder hooked there would mint a separate `sync:` commit outside the turn, breaking one-commit-per-turn and double-recording the file |
 
 ### 4.2 Physical storage
 
@@ -192,13 +203,29 @@ Postgres never stores bytes. The `DocumentFile.storage_backend` column records w
 ### 4.3 Limits and lifecycle
 
 - **Size cap:** `ARTIFACT_MAX_FILE_BYTES` (default 30 MB, matching Claude's documented cap) enforced when pulling bytes out of the sandbox. Config value, not per-format.
-- **File immutability, no version history.** A `DocumentFile`'s bytes are never overwritten — that keeps the sha256 ETag + `immutable` caching correct (§5) and guarantees what was generated is what renders. But there is **no version history**: a revision updates the *same* `Document` in place (same `document_id`; title and `source_markdown` update and re-index) and writes **new** `DocumentFile` rows (new `file_id`s, new storage keys); the old rows and blobs are purged in the same transaction **after** the new generation commits. Consequences, all intended:
+- **File immutability, forward-only — no version history.** A `DocumentFile`'s bytes are never overwritten — that keeps the sha256 ETag + `immutable` caching correct (§5) and guarantees what was generated is what renders. But artifacts only ever move **forward**: a revision updates the *same* `Document` in place (same `document_id`; title and `source_markdown` update and re-index) and writes **new** `DocumentFile` rows (new `file_id`s, new storage keys); the old rows and blobs are purged in the same transaction **after** the new generation commits. Consequences, all intended:
   - Every reference (chat cards, library, tree, search, links) is a `document_id` and always resolves to the latest generation — an update propagates everywhere with zero code, exactly Claude's behavior.
   - Cache correctness is free: revised artifacts have new per-`file_id` URLs; old URLs 404 and the panel refetches.
   - A failed revision leaves the previous generation intact — the failure mode is "update didn't happen," never "artifact destroyed."
-  - Revisions are **destructive by design**. The prior generation is not recoverable from the system; the conversation is the version history (regeneration from chat context is the way back), and download is the user's escape hatch for keeping a specific generation. Whether and when to download before revising is the **user's decision** — the product adds no nudges, prompts, or retention mechanisms around it.
-  - **No back doors:** the revise path never writes `document_versions` (no `create_version_snapshot` call) and is excluded from agent-revert snapshotting (`document_revisions`) — see the table fences in §4.1.
+  - Revisions are **destructive by design**. The prior deliverable is not recoverable from the product; the conversation is the version history (regeneration from chat context is the way back), and download is the user's escape hatch for keeping a specific generation. Whether and when to download before revising is the **user's decision** — the product adds no nudges, prompts, or retention mechanisms around it.
+  - Retention also **doesn't scale**: each generation carries up to two blobs (primary + preview, ≤30 MB each), iterative workflows produce many generations per deliverable, and with no surface ever reading old ones, every retained blob is blob-store rent paid for nothing. Eager purge-in-transaction means storage holds exactly the live set — no lifecycle policies, no GC job, no orphan sweeps.
+  - **"Unversioned" is a product guarantee, not a storage claim.** On git-backed workspaces the markdown *representation* accrues git history like any note (§4.4) — an inert audit trail. The deliverable bytes were never in git, so nothing behind those history entries is viewable or restorable; the guarantee is that no surface ever reads them for a generated document.
+  - **No back doors, at every layer:** the revise path never writes `document_versions` (no `create_version_snapshot` call); it is excluded from agent-revert snapshotting (`document_revisions`); and the git-KB's future revert verb and version-history UI exclude `generated: true` documents (§4.4) — otherwise "revert my turn" or a history screen would resurrect a description whose deliverable no longer exists. See the table fences in §4.1.
 - **Deletion:** existing `purge_document_blobs()` + FK cascade covers it. No new code.
+
+### 4.4 Integration with the git-native knowledge store
+
+The git-KB pivot ([`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)) makes git the source of truth for indexed KB content and demotes Postgres chunks to a derived, rebuildable index. Artifacts are **full citizens of that model**, not an exception to it. The pattern already exists in the store for uploads — original binary in the blob store, extracted markdown in git, Postgres row derived — and an artifact is the same shape with the arrows reversed:
+
+> **An artifact is a KB note with generated files attached.** Markdown representation in git; deliverable bytes in the blob store; `Document` + chunks derived.
+
+- **Write path — the turn's working copy, like every agent write.** On a git-backed workspace, `save_artifact` persists the `Document` row and `DocumentFile` bytes write-through inside the tool call (the §3.1 promise — `document_id` returns immediately, failure is visible in-turn), and writes the markdown representation into the turn's **private working copy**. It joins the turn's single end-of-turn commit alongside whatever notes the agent edited — one turn = one commit, always (contract C6). No mid-turn direct commits, no separate recorder flow: artifacts inherit the write lock, commit-message generation, and failure recovery (copy kept for next turn) with zero new commit machinery. `prepare_for_indexing`/`index_batch` are never used — the recorder hooked there would mint its own `sync:` commit outside the turn (§4.1 fence).
+- **Indexing — the convergence, trusted as-is.** After the commit, the derived-index convergence (`knowledge_store/index/converge.py`) resolves the committed file to the artifact's existing row by its standard NOTE path hash, **adopts** it (stamps `PATH_MARKER`), and chunks/embeds `source_markdown` — exactly as for any note. The indexer contains **zero artifact-specific code and no guards**: everything it does to a note (adopt, update on change, delete when the file leaves the tree) is precisely what artifacts want done to them. KB-search visibility is therefore eventually consistent on git workspaces (post-convergence, seconds after the turn) — the artifact itself is saved and renderable instantly.
+- **Deletion — via the tree.** `rm` the artifact's file (agent tools or any future tree UI) → the turn commits the removal → the convergence deletes the row → FK cascade drops the `DocumentFile` rows → `purge_document_blobs()`. One deletion model for notes and artifacts alike.
+- **Rebuild — the invariant holds with no exception clause.** `index_tree()` rebuilds artifact chunks from the committed markdown representation like everything else. The binaries were never git's job — the git-KB's own locked decision keeps binaries in the blob store (uploads' originals included) — so "Postgres is rebuildable from git + blob store" covers artifacts verbatim.
+- **Forward-only — the one product rule artifacts add.** Because deliverable bytes are destroyed on revise (§4.3), an old git entry for a generated document is only *half* a version: the description survived, the deliverable didn't. Two future git-KB verbs therefore filter on `document_metadata.generated == true`: the **revert verb** excludes generated documents' paths from its inverse diff (reverting a mixed turn restores the notes, leaves the artifact at its latest generation — no description/file mismatch can exist), and any **version-history UI** excludes generated documents (there is nothing viewable or restorable behind their entries). This is not a data guard — it is the "artifacts move forward only, via regeneration" rule (Claude's behavior) applied at the feature level, and it is the *entire* artifact-awareness in the git KB: one metadata predicate, two verbs, neither built yet.
+- **Coexistence — one temporary branch.** On legacy (unflagged) workspaces there is no repo, no commit, and no convergence, so `save_artifact` chunks + embeds directly via `IndexingPipelineService.index()` after saving. That `else` branch is a bridge with a scheduled demolition: it is deleted at the git-KB Phase 5 cut together with `kb_persistence` and the rest of the legacy path, leaving the git path as the only path.
+- **Zero projection (git-KB Phase 6)** needs nothing special: artifact rows are ordinary adopted rows in the `documents` publication, which is what the artifacts library query (§10.3) reads.
 
 ---
 
@@ -232,7 +259,7 @@ Supervisor routing (`task(deliverables, …)`) is unchanged. Inside the subagent
 |---|---|---|
 | `execute` | `(code_or_command) → stdout/stderr/exit` | Runs in the thread's sandbox session via the provider's persistent kernel (Python) or shell (Node scripts, `soffice`, `pdftoppm`, `pandoc`). |
 | `read_sandbox_file` | `(path) → bytes/base64` | Pulls a file back for the model to inspect — primarily the rasterized page JPEGs from the verification loop. Size-capped. |
-| `save_artifact` | `(path, title, markdown_representation, preview_path?) → §3.1 payload` | Write-through persist: reads bytes from the sandbox, creates `Document` + `DocumentFile`(s) in one transaction, indexes (chunks + embeddings from `markdown_representation`), returns the contract payload. Markdown artifacts pass content directly with no `path`. |
+| `save_artifact` | `(path, title, markdown_representation, preview_path?) → §3.1 payload` | Write-through persist: reads bytes from the sandbox, creates `Document` + `DocumentFile`(s) in one transaction, returns the contract payload. The `markdown_representation` then reaches the search index per §4.4 — written into the turn's working copy on git workspaces (committed + indexed by the KB pipeline), indexed directly on legacy ones. Markdown artifacts pass content directly with no `path`. |
 
 Streaming emission: one generic `save_artifact` handler replaces the per-tool `generate_report/` and `generate_resume/` emission handlers.
 
@@ -271,11 +298,14 @@ The verification PDF is the preview file — the office-format preview costs zer
 5. execute: soffice → resume.pdf; pdftoppm → page-1.jpg
 6. read_sandbox_file(page-1.jpg) → model inspects, fixes issues, regenerates.
 7. save_artifact(path=resume.docx, preview_path=resume.pdf, title="…", markdown_representation="…")
-   → Document + 2 DocumentFiles persisted; payload returned.
+   → Document + 2 DocumentFiles persisted; markdown representation written to the turn's
+     working copy (git workspaces); payload returned.
 8. Tool result streams; artifact card renders with document_id; right panel auto-opens; PdfViewer streams the preview; Download serves the .docx.
+9. End of turn: the working copy commits (one commit for the whole turn, notes + artifact alike);
+   the convergence adopts the row and indexes it — the resume is now in the KB tree and search.
 ```
 
-Failure at any step is a visible tool error in the same turn — the model retries or reports. There is no path where the user is told "saved" and nothing was saved.
+Failure at any step is a visible tool error in the same turn — the model retries or reports. There is no path where the user is told "saved" and nothing was saved. (Step 9 failing is the git-KB's own recovered case: the working copy is kept and committed next turn; the artifact itself was already durable at step 7.)
 
 ---
 
@@ -451,6 +481,8 @@ Ordering constraints: 1 → 2 → 3 → 4 strictly; the OpenSandbox spike (phase
 | Skill licensing | Anthropic skill files are proprietary; ours are authored fresh against the publicly documented toolchain |
 | Verification loop cost (multi-modal page inspection per artifact) | ~2–4 extra model calls per artifact; acceptable for deliverable quality. Skills instruct single-image batching (grid of page thumbnails) where page count is high |
 | Users lose old deliverables on upgrade (no-migration decision, §10) | Deliberate product trade; release-notes breaking-change warning + pre-upgrade export window are the mitigation — no code |
+| Convergence creates a duplicate row instead of adopting the artifact's (identity mismatch) | Artifact rows carry the standard NOTE path hash the converger resolves by (§4.4); adoption is integration-tested in phase 1 — one row, marker stamped, chunks present, no ghost sibling |
+| A future git-KB verb resurrects an old generation (revert / version-history UI) | The forward-only rule: both verbs filter `generated: true` documents (§4.3/§4.4); the constraint is cross-referenced in the git-KB umbrella so the verb's implementer inherits it |
 
 **Open questions (decide during phase 1 review):**
 

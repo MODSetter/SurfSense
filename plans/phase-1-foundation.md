@@ -11,7 +11,7 @@
 In:
 
 - Schema additions (`GENERATED` kind, `document_files.role`)
-- `save_artifact` tool (markdown path only) + write-through persistence helper
+- `save_artifact` tool (markdown path only) + write-through persistence helper, including both KB-indexing branches (working-copy write on git workspaces, direct index on legacy — master spec §4.4)
 - File-content streaming endpoint
 - `editor-content` `kind: text | file` discrimination
 - Artifact panel shell + viewer registry (markdown viewer + `FileDownloadCard`)
@@ -33,11 +33,15 @@ Out (later phases): sandbox, `execute`/`read_sandbox_file`, any binary *generati
 New module `app/artifacts/service.py`:
 
 - `async def save_artifact(session, *, workspace_id, thread_id, tool_call_id, title, markdown_representation, files: list[ArtifactFileInput], document_id: int | None = None) -> ArtifactSaved`
-- **Create path** (`document_id=None`): creates the `Document` (`document_type=NOTE`, `document_metadata={"generated": true, "thread_id", "tool_call_id"}`, `source_markdown=markdown_representation`), then `store_document_file()` per file with `kind=GENERATED` and the given `role`, **in one transaction**; triggers the existing chunk+embed indexing.
-- **Revise path** (`document_id` set, master spec §4.3): validates the target is a generated document in this workspace; updates title/`source_markdown` (re-chunk + re-embed); writes the new `DocumentFile` rows; purges the replaced rows + blobs **after** the new generation commits, in the same transaction. No version history — a failed revision leaves the previous generation untouched.
-- **Fences (master spec §4.1):** neither path ever calls `create_version_snapshot` (`document_versions` is for KB/connector versioning, not artifacts), and `save_artifact` writes are excluded from agent-revert snapshotting (`document_revisions`) — both would be version history through the back door.
+- **Create path** (`document_id=None`): creates the `Document` (`document_type=NOTE`, `document_metadata={"generated": true, "thread_id", "tool_call_id"}`, `unique_identifier_hash` = the standard NOTE path hash for the artifact's tree path, `source_markdown=markdown_representation`), then `store_document_file()` per file with `kind=GENERATED` and the given `role`, **in one transaction**. The row and bytes are durable when the tool returns — that is the §3.1 write-through promise.
+- **Search indexing branches on the workspace's KB mode** (master spec §4.4) — the only branch in the helper, keyed off the same `knowledge_store_enabled` flag the git KB uses:
+  - *Git-backed workspace:* write `markdown_representation` into the turn's working copy at the artifact's tree path. The end-of-turn commit and the derived-index convergence do the rest — adoption by NOTE hash, `PATH_MARKER` stamped by the converger (never by this helper), chunks + embeddings. Search visibility is eventually consistent (seconds).
+  - *Legacy workspace:* chunk + embed immediately via a direct `IndexingPipelineService.index()` call on the row. Never `prepare_for_indexing`/`index_batch` in either mode — the recorder hooked there would mint a separate `sync:` commit outside the turn. This branch is a bridge: it is deleted at the git-KB Phase 5 cut with the rest of the legacy path.
+- **Revise path** (`document_id` set, master spec §4.3): validates the target is a generated document in this workspace; updates title/`source_markdown`; writes the new `DocumentFile` rows; purges the replaced rows + blobs **after** the new generation commits, in the same transaction. Re-indexing follows the same branch as the create path (working-copy rewrite of the same file on git workspaces — a retitle moves it like any note retitle; direct re-index on legacy). Forward-only, no version history — a failed revision leaves the previous generation untouched.
+- **Fences (master spec §4.1/§4.3/§4.4):** neither path ever calls `create_version_snapshot` (`document_versions` is for KB/connector versioning, not artifacts); `save_artifact` writes are excluded from agent-revert snapshotting (`document_revisions`); and the forward-only rule extends to future git-KB verbs — revert and version-history UI exclude `generated: true` documents (cross-referenced in the git-KB umbrella). All three are the same rule: no version history for artifacts through any back door.
 - Returns the §3.1 payload shape. Raises on any failure — callers surface the error in the tool result; nothing is swallowed.
 - Phase 1 callers pass `files=[]` (markdown only), but the helper is written and unit-tested for the binary and revise paths now (seeded bytes), so phases 2–3 only add callers.
+- **No guards anywhere.** The convergence, commit path, and deletion machinery are trusted as-is with zero artifact-specific code — an artifact row is indistinguishable from a note at the indexer's level, and everything the indexer does to a note (adopt, update, delete-with-the-tree) is exactly what artifacts want. What phase 1 adds instead is the proof: the adoption integration test in §2.8.
 
 ### 2.3 Backend — `save_artifact` tool
 
@@ -75,15 +79,16 @@ In `editor_routes.py`: if the document has any `GENERATED` file whose `role=prim
 
 ### 2.8 Checks
 
-- Unit: `save_artifact` helper — transaction atomicity (file-store failure rolls back the Document), payload shape, indexing invoked. Binary path with seeded bytes. Revise path: files replaced, old blobs purged, same `document_id`; forced failure mid-revision leaves the previous generation fully intact; **zero rows written to `document_versions` or `document_revisions`** (the §2.2 fences).
+- Unit: `save_artifact` helper — transaction atomicity (file-store failure rolls back the Document), payload shape, correct indexing branch taken per KB mode. Binary path with seeded bytes. Revise path: files replaced, old blobs purged, same `document_id`; forced failure mid-revision leaves the previous generation fully intact; **zero rows written to `document_versions` or `document_revisions`**; the helper itself records no git revision and writes no `PATH_MARKER` — the turn's commit and the converger own those (the §2.2 fences).
+- Integration (git-backed workspace, real repo + convergence): the **adoption test** — save an artifact, commit the turn, run the convergence; exactly **one** row exists (no duplicate sibling), `PATH_MARKER` stamped by the converger, chunks present, search hit. Then `rm` the file, commit, converge: row deleted, `DocumentFile`s cascaded, blobs purged.
 - Unit: streaming endpoint — auth (403 cross-workspace), 404 mismatched file/doc, ETag 304, disposition per MIME.
-- One integration check: markdown artifact via the tool → Document row + chat card + panel render + KB search hit.
+- One integration check (legacy workspace): markdown artifact via the tool → Document row + chat card + panel render + immediate KB search hit.
 
 ---
 
 ## 3. Exit criteria
 
-1. "Write me a summary of X and save it" → `save_artifact` → Document exists **within the tool call** (verified by `document_id` in the tool result), card renders, panel shows read-only markdown, document appears in documents tree and KB search.
+1. "Write me a summary of X and save it" → `save_artifact` → Document exists **within the tool call** (verified by `document_id` in the tool result), card renders, panel shows read-only markdown. The document appears in the documents tree and KB search — immediately on legacy workspaces, after the turn's commit is converged (seconds) on git-backed ones (master spec §4.4).
 2. Tool-level failure (e.g., forced storage error) surfaces as a failed tool result the model reacts to — demonstrably no silent path.
 3. A manually inserted `GENERATED` PDF DocumentFile streams with correct headers and downloads; its document returns the `file` shape and renders the download card.
 4. Both §3 contracts implemented byte-for-byte as specced; any deviation = master spec revision first.

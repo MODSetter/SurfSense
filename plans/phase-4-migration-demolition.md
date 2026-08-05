@@ -50,7 +50,7 @@ Execute as a sequence of small PRs, each leaving the build green:
 ### PR 4 — data & dependencies (last)
 
 - Alembic: drop `reports` table (all rows, including every `report_group_id` sibling version — no data copy); delete `Report` model from `db.py`.
-- **Untouched, deliberately:** `document_versions` (KB/connector versioning — separate feature) and `document_revisions`/`folder_revisions` (agent revert). See the table-fate fences in master spec §4.1.
+- **Untouched, deliberately:** `document_versions` and `document_revisions`/`folder_revisions` — their lifecycle belongs to the git-native KB plan ([`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)), which deletes them at its Phase 5 cut. This PR neither drops nor depends on them, whether or not that cut has happened yet. See the table fates in master spec §4.1.
 - `pyproject.toml`: remove `typst`; remove `pypdf` **only if** `rg pypdf` shows no remaining user; audit `pypandoc` usage stays (document export).
 - Remove rendercv references.
 
