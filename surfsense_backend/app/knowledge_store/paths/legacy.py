@@ -1,9 +1,4 @@
-"""Legacy title->path derivation. Read-side renderers only, until the Phase 5 cut.
-
-Everything here derives a path from a title on every render — the virtual-FS
-model the authored-once rules replace. It stays for ``kb_postgres`` on
-not-yet-flipped workspaces; this file is what gets deleted at the cut.
-"""
+"""Legacy title->path derivation for ``kb_postgres``. Deleted at the Phase 5 cut."""
 
 from __future__ import annotations
 
@@ -29,17 +24,17 @@ if TYPE_CHECKING:
 
 
 def to_store_path(virtual_path: str) -> str:
-    """Legacy shim: agent-facing ``/documents/...`` -> git-repo ``documents/...``."""
+    """``/documents/...`` -> ``documents/...``."""
     return StorePath.from_virtual(virtual_path).store_path
 
 
 def to_virtual_path(store_path: str) -> str:
-    """Legacy shim: git-repo ``documents/...`` -> agent-facing ``/documents/...``."""
+    """``documents/...`` -> ``/documents/...``."""
     return StorePath.from_store(store_path).virtual_path
 
 
 def safe_filename(value: str, *, fallback: str = "untitled.xml") -> str:
-    """Legacy: force arbitrary text into an ``.xml`` filename (renderers only)."""
+    """Force text into an ``.xml`` filename."""
     name = _INVALID_FILENAME_CHARS.sub("_", value).strip()
     name = _WHITESPACE_RUN.sub(" ", name)
     if not name:
@@ -64,7 +59,7 @@ _SUFFIX_PATTERN = re.compile(r"\s\((\d+)\)\.xml$", re.IGNORECASE)
 
 
 def parse_doc_id_suffix(filename: str) -> tuple[str, int | None]:
-    """Legacy: strip a trailing ``" (<doc_id>).xml"`` suffix; ``(stem, doc_id)``."""
+    """Strip a trailing ``" (<doc_id>).xml"``; return ``(stem, doc_id)``."""
     match = _SUFFIX_PATTERN.search(filename)
     if match:
         doc_id = int(match.group(1))
@@ -76,7 +71,7 @@ def parse_doc_id_suffix(filename: str) -> tuple[str, int | None]:
 
 @dataclass
 class PathIndex:
-    """Legacy in-memory occupancy snapshot used by :func:`doc_to_virtual_path`."""
+    """A workspace's folder paths and current path occupants."""
 
     folder_paths: dict[int, str] = field(default_factory=dict)
     occupants: dict[str, int] = field(default_factory=dict)
@@ -126,7 +121,7 @@ async def build_path_index(
     *,
     populate_occupants: bool = True,
 ) -> PathIndex:
-    """Legacy: build a :class:`PathIndex` for a workspace's render."""
+    """Build a :class:`PathIndex` for a workspace."""
     from sqlalchemy import select
 
     from app.db import Document
@@ -156,7 +151,7 @@ def doc_to_virtual_path(
     folder_id: int | None,
     index: PathIndex,
 ) -> str:
-    """Legacy: derive the canonical virtual path for a document from its title."""
+    """Derive a document's virtual path from its title, breaking collisions by id."""
     base = index.folder_paths.get(folder_id, DOCUMENTS_ROOT)
     filename = safe_filename(str(title or "untitled"))
     path = f"{base}/{filename}"
@@ -176,10 +171,7 @@ def virtual_path_of(
     folder_id: int | None,
     index: PathIndex,
 ) -> str:
-    """Legacy: where a row's content lives, per its :data:`PATH_MARKER`.
-
-    Rows with a marker return it verbatim; rows without fall back to derivation.
-    """
+    """A row's path from its :data:`PATH_MARKER`, else derived from its title."""
     recorded = (metadata or {}).get(PATH_MARKER)
     if isinstance(recorded, str) and recorded.startswith(f"{DOCUMENTS_ROOT}/"):
         if doc_id is not None:

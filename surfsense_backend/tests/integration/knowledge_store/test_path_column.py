@@ -1,8 +1,4 @@
-"""``documents.path`` is the authored-once identity resolution reads first.
-
-Two rows for one path, one carrying the healed column and one carrying only the
-legacy marker: both must resolve, or a workspace mid-heal loses documents.
-"""
+"""Resolution reads ``documents.path`` first, the marker as fallback."""
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession

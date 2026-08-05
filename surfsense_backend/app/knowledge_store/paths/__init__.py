@@ -1,15 +1,12 @@
-"""The store's path vocabulary: on-disk layout and the ``/documents`` namespace.
+"""The store's path vocabulary.
 
-Four concerns, one per module, so the legacy quarantine is a file that gets
-deleted at the Phase 5 cut rather than lines threaded through the rest:
-
-* :mod:`layout` — where a workspace's repo and working copies live on disk.
-* :mod:`store_path` — the ``/documents`` namespace as a validated value object.
-* :mod:`naming` — how text becomes a path-safe segment or filename.
+* :mod:`layout` — on-disk repo and working-copy locations.
+* :mod:`store_path` — the ``/documents`` namespace as a value object.
+* :mod:`naming` — sanitize text; allocate fresh paths.
 * :mod:`resolve` — a stored path back to its ``Document`` row.
-* :mod:`legacy` — title->path derivation for ``kb_postgres``, until the cut.
+* :mod:`legacy` — ``kb_postgres`` title->path derivation, until the cut.
 
-Callers import from ``app.knowledge_store.paths``; the internals are private.
+Callers import from here; the submodules are internal.
 """
 
 from __future__ import annotations

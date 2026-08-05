@@ -1,18 +1,8 @@
 """Promote the virtual path onto a ``documents.path`` column.
 
-The path a document's content lives at has lived in
-``document_metadata->>'virtual_path'`` — a JSON value with no index and no
-uniqueness, so resolution was a scan and two rows could silently claim one path
-(git's tree cannot). This lands the column the path law resolves on.
-
-Nullable, no backfill: the mistake that killed the ~21-day chunk rewrite was the
-mandatory table rewrite, not the column. Rows heal on write (projection upsert,
-service save/move, the seeder), so a flagged workspace fills in as it is used.
-
-A **non-unique** partial index ``WHERE path IS NOT NULL`` ships now — instant,
-because every existing row is NULL — so path-first resolution is an index hit as
-rows heal. The **unique** partial index is deferred to a runbook step run once
-the fleet is healed, since a duplicate among unhealed rows would fail the build.
+Nullable, no backfill; rows heal on write. A non-unique partial index over the
+non-NULL rows ships now (instant, since all rows start NULL); the unique index
+is a deferred runbook step, once the fleet is healed.
 
 Revision ID: 177
 Revises: 176

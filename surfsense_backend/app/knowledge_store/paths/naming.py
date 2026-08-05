@@ -1,8 +1,4 @@
-"""Naming rules: how arbitrary text becomes a path-safe segment or filename.
-
-The only place a fresh name is chosen. ``allocate_path`` is the authored-once
-allocator; the sanitizers below back both it and the legacy renderers.
-"""
+"""Sanitize text into a path-safe segment or filename; allocate fresh paths."""
 
 from __future__ import annotations
 
@@ -28,11 +24,7 @@ def safe_folder_segment(value: str, *, fallback: str = "folder") -> str:
 
 
 def normalize_filename(value: str, *, fallback: str = "untitled.md") -> str:
-    """Sanitize text into a filesystem-safe filename, defaulting to ``.md``.
-
-    A name the author already gave an extension keeps it; a name without one
-    gets ``.md`` because git holds markdown.
-    """
+    """Sanitize text into a filename, defaulting a real extension to ``.md``."""
     name = _INVALID_FILENAME_CHARS.sub("_", value).strip()
     name = _WHITESPACE_RUN.sub(" ", name)
     if not name:
@@ -41,19 +33,12 @@ def normalize_filename(value: str, *, fallback: str = "untitled.md") -> str:
         name = name[:_MAX_SEGMENT_LEN].rstrip()
     stem, dot, ext = name.rpartition(".")
     if not dot or not stem or not ext or len(ext) > 12 or " " in ext:
-        # No real extension (a lone trailing dot, or a "." inside prose): the
-        # file is markdown, so say so rather than guess a type from the title.
         name = f"{name}.md"
     return name
 
 
 def markdown_name_for_source(source_filename: str) -> str:
-    """Filename an uploaded ``report.pdf`` gets in the tree: ``report.md``.
-
-    Git holds the extracted markdown, not the source bytes, so the tree name
-    matches the content. The original filename stays in ``document_files`` for
-    the download path.
-    """
+    """Tree name for an uploaded file: git holds the extracted ``.md``."""
     sanitized = normalize_filename(source_filename)
     stem = sanitized.rsplit(".", 1)[0]
     return f"{stem}.md" if stem else "untitled.md"
@@ -65,13 +50,10 @@ def allocate_path(
     folder_parts: Iterable[str],
     taken: set[str],
 ) -> StorePath:
-    """Author a fresh path, resolving collisions once and deterministically.
+    """Author a fresh path, breaking a collision with ``" (n)"``, never a doc id.
 
-    ``taken`` is the set of virtual paths already occupied (in the tree, or
-    reserved earlier in the same batch). A collision appends ``" (2)"``,
-    ``" (3)"``, ... before the extension — never a document id, which would tie
-    the path to a row and reintroduce the churn the authored-once model removes.
-    The chosen path is added to ``taken`` so the next call in the batch sees it.
+    ``taken`` is the set of occupied virtual paths; the chosen path is added to
+    it so a batch stays collision-free.
     """
     folders = tuple(safe_folder_segment(p) for p in folder_parts if str(p).strip())
     filename = normalize_filename(name)
