@@ -213,14 +213,16 @@ Ordered so the tree is safe before the fleet touches it.
    Switched together — a partial swap forks a doc between `.md` and `.xml` and breaks the
    no-op check. `doc_to_virtual_path`/`virtual_path_of` stay for the resolver and unflipped
    `kb_postgres`; only the flipped facade writes `.md`.
-   **Deferred:** routing folder CRUD (`folder_service`) onto the facade verbs. Blocked on
-   two prerequisites — the facade's `reconcile_folders` is a *whole-workspace* sync that
-   prunes any folder row not backed by git, so it would delete pre-existing empty folders
-   that were never materialized as `.keep` (the seed must write `.keep` for existing empty
-   folders first), and a folder rename/reparent through it churns the folder id (needs
-   id-preserving folder rename, the way documents already have). Making the projection the
-   *sole* row writer (stripping creation from upload/notes/connectors) is the Phase-5 cut,
-   not this phase: unflipped prod still writes rows on those paths.
+7c. ✅ **Unblocked folder-route prerequisites.** Both blockers on routing folder CRUD
+   through the facade are cleared: `move_folder` now renames the row in place
+   (`index/folders.py:reparent_folder`) before reconcile, so a rename/reparent keeps the
+   folder id and its children ride along on `parent_id`; and the seed materializes each
+   empty leaf folder as a `.keep` (`migrate.py:_empty_folder_keeps`), so a flipped
+   workspace's whole-workspace reconcile no longer prunes pre-existing empty folders.
+   **Still deferred:** the route rewire itself (point `folders_routes` handlers at the
+   facade verbs). Making the projection the *sole* row writer (stripping creation from
+   upload/notes/connectors) remains the Phase-5 cut — unflipped prod still writes rows on
+   those paths.
 8. ✅ **Folder projection + prune** — `index/folders.py` derives `folders` rows from
    document paths ∪ keep-files and prunes rows with neither. Runs on every folder
    verb (immediate) and on the full rebuild (`index_tree`), closing the Phase-6 gap;

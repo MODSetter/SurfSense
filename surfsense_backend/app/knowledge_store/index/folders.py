@@ -71,6 +71,45 @@ async def reconcile_folders(
     return len(stale)
 
 
+async def reparent_folder(
+    session: AsyncSession,
+    *,
+    workspace_id: int,
+    source_chain: tuple[str, ...],
+    destination_chain: tuple[str, ...],
+    author_id: str | None,
+) -> bool:
+    """Move the folder row at ``source_chain`` to ``destination_chain`` in place.
+
+    Renaming the row instead of prune-then-create keeps its id, so citations and
+    child rows (which follow ``parent_id``) survive a rename or reparent. The
+    caller runs this before :func:`reconcile_folders`, which then finds the row
+    already at the live chain and leaves it alone. Returns ``False`` when no row
+    holds the source — an implied folder with no explicit row, which the tree
+    reconcile handles on its own.
+    """
+    if not source_chain or not destination_chain:
+        return False
+    rows = (
+        (await session.execute(select(Folder).where(Folder.workspace_id == workspace_id)))
+        .scalars()
+        .all()
+    )
+    by_id = {folder.id: folder for folder in rows}
+    moving = next((f for f in rows if _chain_of(f, by_id) == source_chain), None)
+    if moving is None:
+        return False
+    parent_id = await ensure_folder_hierarchy(
+        session,
+        workspace_id=workspace_id,
+        created_by_id=author_id,
+        folder_parts=list(destination_chain[:-1]),
+    )
+    moving.name = destination_chain[-1]
+    moving.parent_id = parent_id
+    return True
+
+
 def _chain_of(folder: Folder, by_id: dict[int, Folder]) -> tuple[str, ...]:
     """The folder's name path from the root, following ``parent_id``."""
     parts: list[str] = []

@@ -20,6 +20,7 @@ from app.knowledge_store.engines.base import TrackedPath
 from app.knowledge_store.identities import MIGRATION_IDENTITY
 from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
+    KEEP_FILE,
     PATH_MARKER,
     allocate_path,
     build_path_index,
@@ -179,6 +180,7 @@ async def migrate_workspace(
         )
         files: dict[str, str] = {}
         seeded_paths: dict[int, str] = {}
+        seeded_folder_ids: set[int] = set()
         taken: set[str] = set()
         pending: list[tuple[int, str, int | None, str]] = []
         for doc_id, title, folder_id, metadata, path, source_markdown, content in rows:
@@ -187,6 +189,8 @@ async def migrate_workspace(
             markdown = source_markdown or content
             if not markdown or markdown == "Pending...":
                 continue
+            if folder_id is not None:
+                seeded_folder_ids.add(folder_id)
             recorded = _recorded_path(path, metadata)
             if recorded is not None:
                 taken.add(recorded)
@@ -204,6 +208,13 @@ async def migrate_workspace(
             )
             files[placed.store_path] = markdown
             seeded_paths[doc_id] = placed.virtual_path
+        # Git holds no empty directory, so an explicitly-created folder with no
+        # seeded document would vanish at the flip. Materialize each empty leaf
+        # folder as a .keep; its ancestors ride along on that path.
+        for keep_path in await _empty_folder_keeps(
+            session, workspace_id, index, seeded_folder_ids
+        ):
+            files[keep_path] = ""
     except Exception as exc:
         return _failure_report(workspace_id, dry_run, 0, exc)
 
@@ -227,6 +238,37 @@ def _folder_parts(folder_path: str | None) -> list[str]:
         return []
     rel = folder_path[len(DOCUMENTS_ROOT) :].strip("/")
     return rel.split("/") if rel else []
+
+
+async def _empty_folder_keeps(
+    session: AsyncSession,
+    workspace_id: int,
+    index,
+    seeded_folder_ids: set[int],
+) -> list[str]:
+    """``.keep`` store paths for the folders no seeded document keeps alive.
+
+    Only a leaf folder (one with no child folder) needs its own marker; a folder
+    with children stays live through whichever descendant leaf gets the ``.keep``.
+    """
+    from app.db import Folder
+
+    rows = (
+        await session.execute(
+            select(Folder.id, Folder.parent_id).where(
+                Folder.workspace_id == workspace_id
+            )
+        )
+    ).all()
+    has_child = {parent_id for _id, parent_id in rows if parent_id is not None}
+    keeps: list[str] = []
+    for folder_id, _parent_id in rows:
+        if folder_id in has_child or folder_id in seeded_folder_ids:
+            continue
+        folder_path = index.folder_paths.get(folder_id)
+        if folder_path and folder_path != DOCUMENTS_ROOT:
+            keeps.append(f"{to_store_path(folder_path)}/{KEEP_FILE}")
+    return keeps
 
 
 async def _record_seeded_paths(

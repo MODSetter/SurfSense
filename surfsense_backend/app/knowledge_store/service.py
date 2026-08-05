@@ -566,8 +566,34 @@ class KnowledgeStore:
         revision = await self._commit_files(
             files={}, moves=moves, message=f"docs: move folder {_leaf(destination)}"
         )
+        # Rename the row in place before reconcile, so its id survives the move;
+        # reconcile then finds it already at the live chain and leaves it be.
+        if revision is not None:
+            await self._reparent_folder_row(source, destination)
         await self._reconcile_folders(revision)
         return await self._outcome(revision)
+
+    async def _reparent_folder_row(self, source: str, destination: str) -> None:
+        """Move the folder row for ``source`` onto ``destination`` in place."""
+        try:
+            workspace_id = int(self._workspace_id)
+        except (TypeError, ValueError):
+            return
+        from app.knowledge_store.index.folders import reparent_folder
+        from app.knowledge_store.paths import StorePath, safe_folder_segment
+
+        def chain(path: str) -> tuple[str, ...]:
+            return tuple(
+                safe_folder_segment(s) for s in StorePath.from_virtual(path).segments
+            )
+
+        await reparent_folder(
+            self._require_session(),
+            workspace_id=workspace_id,
+            source_chain=chain(source),
+            destination_chain=chain(destination),
+            author_id=self._author_user_id,
+        )
 
     def _folder_store_path(self, path: str) -> str:
         """Validated, sanitized ``documents/...`` store path for a folder."""

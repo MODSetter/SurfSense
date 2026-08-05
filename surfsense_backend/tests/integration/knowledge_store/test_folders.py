@@ -185,6 +185,42 @@ async def test_a_document_folder_change_reparents_its_git_file(
     assert before.lstrip("/") not in paths
 
 
+async def test_move_folder_keeps_the_folder_id(
+    knowledge_root, db_session, db_workspace, db_user
+):
+    """A rename moves the row in place, so its id — and its children — survive."""
+    store = _store(db_workspace, db_session, db_user)
+    await store.create_folder("/documents/Old/Child")
+    original = (
+        await db_session.execute(
+            select(Folder).where(
+                Folder.workspace_id == db_workspace.id, Folder.name == "Old"
+            )
+        )
+    ).scalar_one()
+    child_before = (
+        await db_session.execute(
+            select(Folder).where(
+                Folder.workspace_id == db_workspace.id, Folder.name == "Child"
+            )
+        )
+    ).scalar_one()
+
+    await store.move_folder("/documents/Old", "/documents/New")
+
+    renamed = (
+        await db_session.execute(
+            select(Folder).where(
+                Folder.workspace_id == db_workspace.id, Folder.name == "New"
+            )
+        )
+    ).scalar_one()
+    assert renamed.id == original.id
+    assert "Old" not in await _folder_names(db_session, db_workspace.id)
+    # The child rode along on parent_id; its own id is untouched too.
+    assert renamed.id == child_before.parent_id
+
+
 def test_keep_is_rejected_as_a_document_path():
     with pytest.raises(StorePathError):
         StorePath.from_virtual(f"/documents/x/{KEEP_FILE}")

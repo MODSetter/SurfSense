@@ -24,7 +24,7 @@ def knowledge_root(tmp_path, monkeypatch):
     return tmp_path
 
 
-async def _add_document(session, workspace, *, title, markdown, marker=None):
+async def _add_document(session, workspace, *, title, markdown, marker=None, folder_id=None):
     document = Document(
         title=title,
         document_type=DocumentType.NOTE,
@@ -33,6 +33,7 @@ async def _add_document(session, workspace, *, title, markdown, marker=None):
         content_hash=generate_content_hash(markdown, workspace.id),
         source_markdown=markdown,
         path=marker,
+        folder_id=folder_id,
         workspace_id=workspace.id,
     )
     session.add(document)
@@ -132,3 +133,75 @@ async def test_a_re_seed_is_stable(knowledge_root, db_session, db_workspace):
     assert second.ok, second
     assert second.seeded_revision is None
     assert await _seeded_paths(first) == {"documents/Strategy.md"}
+
+
+async def test_an_empty_folder_is_seeded_as_a_keep(
+    knowledge_root, db_session, db_workspace
+):
+    """Git holds no empty directory, so the seed materializes one as ``.keep``."""
+    from app.services.folder_service import ensure_folder_hierarchy
+
+    await ensure_folder_hierarchy(
+        db_session,
+        workspace_id=db_workspace.id,
+        created_by_id=None,
+        folder_parts=["Archive"],
+    )
+    await _add_document(
+        db_session, db_workspace, title="Strategy", markdown="# Strategy"
+    )
+
+    report = await migrate_workspace(db_session, db_workspace.id)
+
+    assert report.ok, report
+    assert "documents/Archive/.keep" in await _seeded_paths(report)
+
+
+async def test_only_the_leaf_of_an_empty_chain_is_kept(
+    knowledge_root, db_session, db_workspace
+):
+    """A parent rides along on its child's ``.keep``, so only the leaf carries one."""
+    from app.services.folder_service import ensure_folder_hierarchy
+
+    await ensure_folder_hierarchy(
+        db_session,
+        workspace_id=db_workspace.id,
+        created_by_id=None,
+        folder_parts=["Parent", "Child"],
+    )
+    await _add_document(
+        db_session, db_workspace, title="Strategy", markdown="# Strategy"
+    )
+
+    report = await migrate_workspace(db_session, db_workspace.id)
+
+    paths = await _seeded_paths(report)
+    assert "documents/Parent/Child/.keep" in paths
+    assert "documents/Parent/.keep" not in paths
+
+
+async def test_a_folder_holding_a_document_gets_no_keep(
+    knowledge_root, db_session, db_workspace
+):
+    """A folder a document already lives in is kept by that document, not a marker."""
+    from app.services.folder_service import ensure_folder_hierarchy
+
+    folder_id = await ensure_folder_hierarchy(
+        db_session,
+        workspace_id=db_workspace.id,
+        created_by_id=None,
+        folder_parts=["Notes"],
+    )
+    await _add_document(
+        db_session,
+        db_workspace,
+        title="Strategy",
+        markdown="# Strategy",
+        folder_id=folder_id,
+    )
+
+    report = await migrate_workspace(db_session, db_workspace.id)
+
+    paths = await _seeded_paths(report)
+    assert "documents/Notes/Strategy.md" in paths
+    assert "documents/Notes/.keep" not in paths
