@@ -193,13 +193,16 @@ Ordered so the tree is safe before the fleet touches it.
    `app.knowledge_store.paths`; frontend display helper and any `.xml` test fixtures
    updated to the tolerant/`.md` expectation. Re-run knowledge_store, document_upload,
    agent-middleware suites.
-7. ⏳ **Folder verbs on the facade** — `create_folder`, `remove_folder`, `move_folder`
-   over the `.keep` materialization; `parse_documents_path`/projection skip `.keep` so
-   it is never a `Document`; folder ops route through the facade, not `folder_service`
-   or route handlers directly.
-8. ⏳ **Folder projection + prune** — `index/rows.py`/`project.py` derive `folders`
-   rows from document paths ∪ keep-files and prune rows with neither; the commit path
-   fires `folder_deleted` when a prune happens (the Phase-6 gap).
+7. ✅ **Folder verbs on the facade** — `create_folder`, `remove_folder`, `move_folder`
+   over the `.keep` materialization; `StorePath` reserves `.keep` so it is never a
+   `Document`; folder ops are one revision each on the facade. Routing the HTTP
+   handlers off `folder_service` onto these verbs is the `projection-writer` item.
+8. ✅ **Folder projection + prune** — `index/folders.py` derives `folders` rows from
+   document paths ∪ keep-files and prunes rows with neither. Runs on every folder
+   verb (immediate) and on the full rebuild (`index_tree`), closing the Phase-6 gap;
+   the deleted row replicates to the UI via Zero. `ponytail:` a per-document delete
+   still leaves an implied empty folder until the next full rebuild prunes it —
+   matches how document prune already only runs on a full reconcile.
 
 ## Tests
 

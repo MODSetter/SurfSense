@@ -10,6 +10,10 @@ DOCUMENTS_ROOT = "/documents"
 #: ``document_metadata`` key holding the virtual path a row's content lives at.
 PATH_MARKER = "virtual_path"
 
+#: Marks an explicitly-created folder so an empty one survives in git, which
+#: cannot store a bare directory. Engine-internal: never a document.
+KEEP_FILE = ".keep"
+
 
 class StorePathError(ValueError):
     """A string is not a path inside the store's namespace."""
@@ -33,7 +37,10 @@ class StorePath:
         ):
             raise StorePathError(f"Not a {DOCUMENTS_ROOT} path: {virtual_path!r}")
         rel = virtual_path[len(DOCUMENTS_ROOT) :].strip("/")
-        return cls(validate_segments(rel.split("/") if rel else ()))
+        segments = validate_segments(rel.split("/") if rel else ())
+        if segments and segments[-1] == KEEP_FILE:
+            raise StorePathError(f"{KEEP_FILE} is a folder marker, not a document")
+        return cls(segments)
 
     @classmethod
     def from_store(cls, store_path: str) -> StorePath:

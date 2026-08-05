@@ -457,6 +457,85 @@ class KnowledgeStore:
         )
         return await self._outcome(revision)
 
+    # ------------------------------------------------------------------ folders
+
+    async def create_folder(self, path: str) -> Outcome:
+        """Materialize an empty folder as its ``.keep`` marker, one revision."""
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        from app.knowledge_store.paths import KEEP_FILE
+
+        revision = await self._commit_files(
+            files={f"{self._folder_store_path(path)}/{KEEP_FILE}": ""},
+            message=f"docs: new folder {_leaf(path)}",
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    async def remove_folder(self, path: str) -> Outcome:
+        """Remove a folder and everything under it in one revision."""
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        revision = await self._commit_files(
+            files={},
+            removes=await self._subtree_paths(path),
+            message=f"docs: delete folder {_leaf(path)}",
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    async def move_folder(self, source: str, destination: str) -> Outcome:
+        """Move a folder and every descendant in one revision, ids preserved."""
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        src = self._folder_store_path(source)
+        dst = self._folder_store_path(destination)
+        moves = [(p, f"{dst}{p[len(src):]}") for p in await self._subtree_paths(source)]
+        revision = await self._commit_files(
+            files={}, moves=moves, message=f"docs: move folder {_leaf(destination)}"
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    def _folder_store_path(self, path: str) -> str:
+        """Validated, sanitized ``documents/...`` store path for a folder."""
+        from app.knowledge_store.paths import StorePath, safe_folder_segment
+
+        folder = StorePath.from_virtual(path)
+        segments = "".join(f"/{safe_folder_segment(s)}" for s in folder.segments)
+        return f"documents{segments}"
+
+    async def _subtree_paths(self, path: str) -> list[str]:
+        """Every stored path under a folder, its ``.keep`` included."""
+        prefix = f"{self._folder_store_path(path)}/"
+        head = await self.head()
+        tracked = await self.list_paths(head) if head else []
+        return [t.path for t in tracked if t.path.startswith(prefix)]
+
+    async def _reconcile_folders(self, revision: str | None) -> None:
+        """Match the ``folders`` rows to the tree after a folder revision."""
+        if revision is None:
+            return
+        try:
+            workspace_id = int(self._workspace_id)
+        except (TypeError, ValueError):
+            return
+        session = self._require_session()
+        from app.knowledge_store.index.folders import (
+            live_folder_chains,
+            reconcile_folders,
+        )
+
+        head = await self.head()
+        tracked = await self.list_paths(head) if head else []
+        await reconcile_folders(
+            session,
+            workspace_id=workspace_id,
+            live=live_folder_chains(t.path for t in tracked),
+            author_id=self._author_user_id,
+        )
+        await session.commit()
+
     def _require_session(self) -> AsyncSession:
         if self._session is None:
             raise RuntimeError(

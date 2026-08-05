@@ -35,6 +35,7 @@ from app.knowledge_store.paths.naming import (
 from app.knowledge_store.paths.resolve import virtual_path_to_doc
 from app.knowledge_store.paths.store_path import (
     DOCUMENTS_ROOT,
+    KEEP_FILE,
     PATH_MARKER,
     StorePath,
     StorePathError,
@@ -43,6 +44,7 @@ from app.knowledge_store.paths.store_path import (
 
 __all__ = [
     "DOCUMENTS_ROOT",
+    "KEEP_FILE",
     "PATH_MARKER",
     "PathIndex",
     "StorePath",
