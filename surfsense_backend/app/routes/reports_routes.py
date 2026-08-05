@@ -208,11 +208,11 @@ async def read_reports(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     List reports the user has access to.
     Filters by workspace membership.
     """
+    user = auth.user
     try:
         if workspace_id is not None:
             # Verify the caller is a member of the requested workspace
@@ -250,12 +250,11 @@ async def read_report(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get a specific report by ID (metadata only, no content).
     """
     try:
-        return await _get_report_with_access(report_id, session, user)
+        return await _get_report_with_access(report_id, session, auth)
     except HTTPException:
         raise
     except SQLAlchemyError:
@@ -270,12 +269,11 @@ async def read_report_content(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Get full Markdown content of a report, including version siblings.
     """
     try:
-        report = await _get_report_with_access(report_id, session, user)
+        report = await _get_report_with_access(report_id, session, auth)
         versions = await _get_version_siblings(session, report)
 
         return ReportContentRead(
@@ -303,7 +301,6 @@ async def update_report_content(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Update the Markdown content of a report.
 
@@ -311,7 +308,7 @@ async def update_report_content(
     Returns the updated report content including version siblings.
     """
     try:
-        report = await _get_report_with_access(report_id, session, user)
+        report = await _get_report_with_access(report_id, session, auth)
 
         report.content = body.content
         session.add(report)
@@ -345,7 +342,6 @@ async def preview_report_pdf(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Return a compiled PDF preview for Typst-based reports (resumes).
 
@@ -353,7 +349,7 @@ async def preview_report_pdf(
     on-the-fly. Only works for reports with content_type='typst'.
     """
     try:
-        report = await _get_report_with_access(report_id, session, user)
+        report = await _get_report_with_access(report_id, session, auth)
 
         if not report.content:
             raise HTTPException(
@@ -401,12 +397,11 @@ async def export_report(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Export a report in the requested format.
     """
     try:
-        report = await _get_report_with_access(report_id, session, user)
+        report = await _get_report_with_access(report_id, session, auth)
 
         if not report.content:
             raise HTTPException(
@@ -576,12 +571,11 @@ async def delete_report(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """
     Delete a report.
     """
     try:
-        db_report = await _get_report_with_access(report_id, session, user)
+        db_report = await _get_report_with_access(report_id, session, auth)
 
         await session.delete(db_report)
         await session.commit()
