@@ -438,6 +438,14 @@ async def rename_note(
     existing.document_metadata = meta
     existing.updated_at = datetime.now(UTC)
 
+    await session.flush()
+    from app.knowledge_store.service import record_moved_documents
+
+    await record_moved_documents(
+        session,
+        [existing],
+        author_user_id=str(existing.created_by_id) if existing.created_by_id else None,
+    )
     await session.commit()
     return existing
 

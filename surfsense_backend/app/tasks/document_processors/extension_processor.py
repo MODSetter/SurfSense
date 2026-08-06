@@ -164,6 +164,10 @@ async def add_extension_received_document(
             await session.commit()
             await session.refresh(document)
 
+        from app.knowledge_store.service import record_prepared_documents
+
+        await record_prepared_documents(session, [document])
+
         # Log success
         await task_logger.log_task_success(
             log_entry,
