@@ -50,6 +50,14 @@ function describeArtifact(
 	const failed = resultStatus === "failed" || resultStatus === "error" || !!result.error;
 
 	switch (kind) {
+		case "file": {
+			const entityId = numericId(result.document_id);
+			return {
+				title: firstString(result.title, args.title) ?? "Document",
+				entityId,
+				status: failed ? "error" : entityId != null ? "ready" : "running",
+			};
+		}
 		case "report": {
 			const entityId = numericId(result.report_id);
 			return {
@@ -130,7 +138,7 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 				status,
 				toolCallId: part.toolCallId,
 				entityId,
-				contentType: kind === "resume" ? "typst" : "markdown",
+				contentType: kind === "file" ? "file" : kind === "resume" ? "typst" : "markdown",
 			});
 		}
 	}
