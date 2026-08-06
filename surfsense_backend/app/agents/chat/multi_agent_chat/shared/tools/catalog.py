@@ -57,6 +57,10 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Generate a professional resume as a Typst document",
     ),
     ToolMetadata(
+        name="save_artifact",
+        description="Save a Markdown deliverable as a durable document",
+    ),
+    ToolMetadata(
         name="generate_image",
         description="Generate images from text descriptions using AI image models",
     ),

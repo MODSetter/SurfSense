@@ -15,6 +15,7 @@ from .generate_image import create_generate_image_tool
 from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
+from .save_artifact import create_save_artifact_tool
 from .video_presentation import create_generate_video_presentation_tool
 
 NAME = "deliverables"
@@ -27,6 +28,10 @@ def load_tools(
 ) -> list[BaseTool]:
     d = {**(dependencies or {}), **kwargs}
     return [
+        create_save_artifact_tool(
+            workspace_id=d["workspace_id"],
+            thread_id=d["thread_id"],
+        ),
         create_generate_podcast_tool(
             workspace_id=d["workspace_id"],
             db_session=d["db_session"],

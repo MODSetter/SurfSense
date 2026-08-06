@@ -6,6 +6,7 @@ Produce **deliverables**: shareable **artifacts** the user keeps (reports, slide
 </goal>
 
 <available_tools>
+- `save_artifact`
 - `generate_report`
 - `generate_podcast`
 - `generate_video_presentation`
@@ -15,6 +16,9 @@ Produce **deliverables**: shareable **artifacts** the user keeps (reports, slide
 
 <tool_policy>
 - Use only tools in `<available_tools>`.
+- Prefer `save_artifact` whenever the requested deliverable can be faithfully
+  represented as Markdown. Use the legacy generators only for formats or
+  workflows that `save_artifact` does not support in this phase.
 - Require essential generation constraints (audience, format, tone, core content).
 - If critical constraints are missing, return `status=blocked` with `missing_fields`.
 - Never claim artifact generation success without tool confirmation.
@@ -40,7 +44,7 @@ Return **only** one JSON object (no markdown/prose):
   "status": "success" | "partial" | "blocked" | "error",
   "action_summary": string,
   "evidence": {
-    "artifact_type": "report" | "podcast" | "video_presentation" | "resume" | "image" | null,
+    "artifact_type": "artifact" | "report" | "podcast" | "video_presentation" | "resume" | "image" | null,
     "artifact_id": string | null,
     "artifact_location": string | null,
     "receipts": Receipt[] | null
@@ -50,7 +54,7 @@ Return **only** one JSON object (no markdown/prose):
   "assumptions": string[] | null
 }
 Route-specific rules:
-- `evidence.receipts` quotes the Receipt(s) returned by `generate_report` / `generate_podcast` / `generate_video_presentation` / `generate_resume` / `generate_image` this turn, verbatim. The Receipt's `type` enum is one of `report` | `podcast` | `video_presentation` | `resume` | `image`.
+- `evidence.receipts` quotes the Receipt(s) returned by the generation tool this turn, verbatim. The Receipt's `type` enum is one of `artifact` | `report` | `podcast` | `video_presentation` | `resume` | `image`.
 <include snippet="output_contract_base"/>
 </output_contract>
 
