@@ -7,6 +7,7 @@ DELIVERABLE_TOOLS: frozenset[str] = frozenset(
         "generate_report",
         "generate_resume",
         "generate_video_presentation",
+        "save_artifact",
         "save_document",
     }
 )
