@@ -39,6 +39,8 @@ Execute as a sequence of small PRs, each leaving the build green:
 - Delete `components/report-panel/report-panel.tsx` (including the version-switcher UI — nothing replaces it), `atoms/chat/report-panel.atom.ts`; replace `components/tool-ui/generate-{report,resume}.tsx` with the static legacy card (§1.1). (`pdf-viewer.tsx` already relocated in phase 2.)
 - Remove `report`/`resume` artifact kinds + `typst` contentType from `features/chat-artifacts/` — legacy tool parts route to the legacy card, not to artifact collection.
 - Delete `lib/apis/reports-api.service.ts`, `contracts/types/reports.types.ts`; remove typst/`pdfOnly` special cases from `ExportMenuItems.tsx`; remove tool icons.
+- Reduce `editor-panel.tsx` to the §8.4 end state: `document` mode loses its editing surface — the edit/save state machine, the `/documents/{id}/save` call, the Plate size-warning logic, and `EDITABLE_DOCUMENT_TYPES` all go — and renders read-only (`MarkdownViewer`; Monaco raw for oversized documents; both branches already exist). `memory` mode keeps Plate untouched; `local_file` (Monaco, desktop) is untouched. Drop the `VersionHistoryButton` mounts with it; the component and its restore endpoints die at the git-KB Phase 5 cut, not here. If the Plate `full` preset carries document-only plugins (e.g. citation rendering — memory already passes `enableCitations={false}`), slim the preset to what memory needs.
+- **Coordination note (git-KB):** retiring document editing orphans the UI caller of the store facade's `save_document` verb (`editor_routes.py` → `knowledge_store/service.py`). The verb stays for other adapters; flag it to the git-KB effort so the editor-save flow's retirement is inherited, not discovered.
 
 ### PR 3 — backend routes & templates
 
@@ -50,7 +52,7 @@ Execute as a sequence of small PRs, each leaving the build green:
 ### PR 4 — data & dependencies (last)
 
 - Alembic: drop `reports` table (all rows, including every `report_group_id` sibling version — no data copy); delete `Report` model from `db.py`.
-- **Untouched, deliberately:** `document_versions` and `document_revisions`/`folder_revisions` — their lifecycle belongs to the git-native KB plan ([`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)), which deletes them at its Phase 5 cut. This PR neither drops nor depends on them, whether or not that cut has happened yet. See the table fates in master spec §4.1.
+- **Untouched, deliberately:** `document_versions` and `document_revisions`/`folder_revisions` — their lifecycle belongs to the git-native KB plan ([`plans/git-native-kb/`](../git-native-kb/00-umbrella-plan.md)), which deletes them at its Phase 5 cut. This PR neither drops nor depends on them, whether or not that cut has happened yet. See the table fates in master spec §4.1.
 - `pyproject.toml`: remove `typst`; remove `pypdf` **only if** `rg pypdf` shows no remaining user; audit `pypandoc` usage stays (document export).
 - Remove rendercv references.
 
@@ -70,3 +72,4 @@ Execute as a sequence of small PRs, each leaving the build green:
 2. Zero code references to `Report`, `typst`, `generate_report`, `generate_resume` outside specs and the legacy-card part matcher.
 3. Old threads render legacy cards; artifacts library lists only new-system artifacts.
 4. Docker image / dependency footprint reflects the removals (no typst wheel in the backend image).
+5. Plate mounts only for memory/team-memory editing (§8.4): the document panel offers no edit affordance, and `/documents/{id}/save` has no frontend caller.

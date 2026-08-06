@@ -60,7 +60,7 @@ Key files:
 
 ### 2.2 Path B — KB notes (`documents` table; two write paths during the git-KB transition)
 
-KB notes have **two coexisting write paths**, selected per turn by `KNOWLEDGE_STORE_ENABLED` + the per-workspace `workspaces.knowledge_store_enabled` flag (migration 175). Their lifecycle is owned by the git-native KB umbrella ([`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)), not by this spec:
+KB notes have **two coexisting write paths**, selected per turn by `KNOWLEDGE_STORE_ENABLED` + the per-workspace `workspaces.knowledge_store_enabled` flag (migration 175). Their lifecycle is owned by the git-native KB umbrella ([`plans/git-native-kb/`](../git-native-kb/00-umbrella-plan.md)), not by this spec:
 
 ```
 Legacy (unflagged workspaces — deleted at the git-KB Phase 5 cut):
@@ -86,7 +86,7 @@ Both remain the home of **incidental notes** — and, under this spec, of the ar
 - **PDF viewer** (`surfsense_web/components/report-panel/pdf-viewer.tsx`): virtualized pdf.js canvas viewer with zoom, DPR handling, authenticated fetch (`getAuthHeaders()`), `toolbarActions` slot. Reused unchanged; only the URL source changes. (`pdfjs-dist` already a dependency.)
 - **Document viewer plumbing**: `GET .../documents/{id}/editor-content` (`editor_routes.py`) already decides `viewer_mode` per document; extended in this spec with a file shape.
 - **Sandbox seam** (`shared/middleware/filesystem/sandbox.py` + `tools/execute_code/` + `routes/sandbox_routes.py`): a working Daytona integration already exists — per-thread sandbox cache with locks and broken-state recovery, KB file sync into the sandbox (`sync_files_to_sandbox` takes state files, so it is agnostic to which Path-B backend produced them), heredoc-based `execute_code` (no persistent kernel), and a local-disk file download path (`SANDBOX_FILES_DIR`). Phase 2 refactors this seam behind the provider protocol (registry logic promoted, Daytona specifics extracted, OpenSandbox added); the local-disk download path is obsoleted by `save_artifact` and deleted in phase 4. Details: [`phase-2-sandbox-pdf.md`](./phase-2-sandbox-pdf.md) §2.1.
-- **Git-native knowledge store** (`app/knowledge_store/`, [`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)): **reused as-is.** On git-backed workspaces the artifact's markdown representation is written through the turn's working copy, committed by `knowledge_store_persistence`, its row projected at commit time and its chunks converged asynchronously — the exact pipeline every note already rides (§4.4). No new commit machinery, no artifact-specific code in the store. The one file both efforts touch directly is `editor_routes.py` — the `KnowledgeStore` facade (`knowledge_store/service.py`) records editor saves there, while this spec extends the read side (`editor-content`, §3.2) and phase 4 swaps the Typst export branch; the changes are disjoint.
+- **Git-native knowledge store** (`app/knowledge_store/`, [`plans/git-native-kb/`](../git-native-kb/00-umbrella-plan.md)): **reused as-is.** On git-backed workspaces the artifact's markdown representation is written through the turn's working copy, committed by `knowledge_store_persistence`, its row projected at commit time and its chunks converged asynchronously — the exact pipeline every note already rides (§4.4). No new commit machinery, no artifact-specific code in the store. The one file both efforts touch directly is `editor_routes.py` — the `KnowledgeStore` facade (`knowledge_store/service.py`) records editor saves there, while this spec extends the read side (`editor-content`, §3.2) and phase 4 swaps the Typst export branch; the changes are disjoint.
 
 ---
 
@@ -188,7 +188,7 @@ Artifacts are deliberately **single-generation**: a Document holds at most one p
 | `reports` | **Dropped in phase 4, no data copy** — including every `report_group_id` sibling version | Legacy deliverable store; the no-migration decision (§10) makes its entire history unrecoverable, deliberately |
 | `document_versions` | **Untouched by this plan** — owned and deleted by the git-native KB at its Phase 5 cut | Backs KB-document version snapshots on the legacy path (connector indexers via `create_version_snapshot`, restore endpoints/`version-history.tsx`); already dead for git-backed workspaces (restore returns 409 — history is `git revert` there). **Fence:** the `save_artifact` revise path must never call `create_version_snapshot`, or versioning sneaks back into artifacts for however long the table exists |
 | `document_revisions` / `folder_revisions` | **Untouched by this plan** — owned and deleted by the git-native KB at its Phase 5 cut | Back the agent-revert feature for legacy-path KB edits (`revert_service.py`); dead code for git-backed workspaces. **Fence:** `save_artifact` creates/revisions are excluded from agent-revert snapshotting — "revert my artifact" would be version history through the back door |
-| Git knowledge store (repo per workspace) | **Holds the markdown representation, never the binaries** — the same split uploads already use (extracted markdown in git, original bytes in the blob store) | Owned by [`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md); artifacts enter it through the turn's working copy like every agent write (§4.4). **Fence:** `save_artifact` never routes through `prepare_for_indexing`/`index_batch` — the store facade's ingest adapter hooked there (`record_prepared_documents`, `knowledge_store/service.py`) would mint a separate `sync:` commit outside the turn, breaking one-commit-per-turn and double-recording the file |
+| Git knowledge store (repo per workspace) | **Holds the markdown representation, never the binaries** — the same split uploads already use (extracted markdown in git, original bytes in the blob store) | Owned by [`plans/git-native-kb/`](../git-native-kb/00-umbrella-plan.md); artifacts enter it through the turn's working copy like every agent write (§4.4). **Fence:** `save_artifact` never routes through `prepare_for_indexing`/`index_batch` — the store facade's ingest adapter hooked there (`record_prepared_documents`, `knowledge_store/service.py`) would mint a separate `sync:` commit outside the turn, breaking one-commit-per-turn and double-recording the file |
 
 ### 4.2 Physical storage
 
@@ -216,7 +216,7 @@ Postgres never stores bytes. The `DocumentFile.storage_backend` column records w
 
 ### 4.4 Integration with the git-native knowledge store
 
-The git-KB pivot ([`plans/git-native-kb/`](./git-native-kb/00-umbrella-plan.md)) makes git the source of truth for indexed KB content and demotes Postgres chunks to a derived, rebuildable index. Artifacts are **full citizens of that model**, not an exception to it. The pattern already exists in the store for uploads — original binary in the blob store, extracted markdown in git, Postgres row derived — and an artifact is the same shape with the arrows reversed:
+The git-KB pivot ([`plans/git-native-kb/`](../git-native-kb/00-umbrella-plan.md)) makes git the source of truth for indexed KB content and demotes Postgres chunks to a derived, rebuildable index. Artifacts are **full citizens of that model**, not an exception to it. The pattern already exists in the store for uploads — original binary in the blob store, extracted markdown in git, Postgres row derived — and an artifact is the same shape with the arrows reversed:
 
 > **An artifact is a KB note with generated files attached.** Markdown representation in git; deliverable bytes in the blob store; `Document` + chunks derived.
 
@@ -322,7 +322,7 @@ Four skills, each a directory under the existing skills root (`{format}/SKILL.md
 | `pdf` | reportlab / weasyprint (Python) | pdftoppm → inspect | Resumes, reports, letters, one-pagers land here or docx |
 | `docx` | `docx` (npm, Node) | soffice → pdf → pdftoppm | Encode the known footguns: DXA table widths, `ShadingType.CLEAR`, numbering for bullets, TOC outline levels, tab stops over PositionalTab |
 | `pptx` | python-pptx | soffice → pdf → pdftoppm | Per-slide thumbnails |
-| `xlsx` | openpyxl | recalc + read back values | No visual loop; verify formulas/values programmatically |
+| `xlsx` | openpyxl | LibreOffice headless recalc (**mandatory before save**) + read back values | No visual loop; verify programmatically. The recalculated file is the file saved: openpyxl writes formulas with **no cached values**, and the grid viewer renders cached values — an un-recalced file renders blank formula cells (§8.2) |
 
 Adding a format later = one new skill directory + sandbox image rebuild + (optionally) one viewer-registry entry. No backend changes.
 
@@ -374,14 +374,15 @@ const VIEWERS: Record<string, ViewerEntry> = {
   "application/pdf":  PdfFileViewer,      // streams the primary file
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":   PdfPreviewViewer,
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": PdfPreviewViewer,
-  // xlsx intentionally absent → falls through to FileDownloadCard
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":          XlsxViewer,
 };
 // unmatched MIME → <FileDownloadCard />   (never an error)
 ```
 
 - `PdfFileViewer` / `PdfPreviewViewer` are thin wrappers around the existing `pdf-viewer.tsx`, pointed at `content_url` of the primary or preview file respectively; the preview variant adds a "Download {filename}" toolbar action (the `toolbarActions` prop exists) hitting the primary file's URL.
-- All viewers lazy-loaded via `next/dynamic` (pdf.js stays out of the main bundle).
-- Rationale for the matrix: browsers render PDF natively (pdf.js); client-side office renderers were evaluated and rejected on evidence (mammoth discards layout by design; docx-preview approximates; no credible OSS PPTX renderer; MS Office Online viewer requires public URLs). XLSX preview-as-PDF misrepresents spreadsheets (truncated sheets, invisible formulas) → download card, matching Claude's own choice. A values-only SheetJS grid is a possible later registry entry.
+- `XlsxViewer` renders the **primary** file natively — no preview blob exists for xlsx: fetch `content_url` (existing authenticated-fetch pattern, ETag-cached), parse in-browser with **ExcelJS** (MIT — values, fills, fonts, borders, merged ranges, column widths, sheet list), format display text with **`ssf`** (Apache-2.0 — turns raw `10413` + `"$#,##0.00"` into `"$10,413.00"`), and render a read-only virtualized grid with column letters, row numbers, and sheet tabs. Row-capped for huge sheets ("showing N of M rows — download for full data"); parse failure or oversize falls through to `FileDownloadCard`. Fidelity boundary: cell data and styling render; charts, conditional-formatting rules, and pivot tables do not — it is a grid, not an Excel emulator (Claude's viewer shares this boundary).
+- All viewers lazy-loaded via `next/dynamic` (pdf.js and ExcelJS stay out of the main bundle).
+- Rationale for the matrix: browsers render PDF natively (pdf.js); client-side office renderers were evaluated and rejected on evidence (mammoth discards layout by design; docx-preview approximates; no credible OSS PPTX renderer; MS Office Online viewer requires public URLs). XLSX preview-as-PDF is likewise rejected — it misrepresents spreadsheets (truncated sheets, invisible formulas) — but a native grid does not: ExcelJS + ssf render what Claude's own xlsx viewer renders. Parser selection was evidence-driven: **SheetJS CE rejected** (cell styling is Pro-only — maintainers confirm CE's `cellStyles` reads only row/column metadata); **Univer rejected** (xlsx import is a commercial Pro plugin requiring their server, watermarked and size-capped unlicensed); **ExcelJS chosen** (MIT, parses styles in-browser).
 
 ### 8.3 Per-format matrix
 
@@ -390,13 +391,16 @@ const VIEWERS: Record<string, ViewerEntry> = {
 | PDF | The file itself in pdf.js viewer | The PDF | URL change only |
 | Markdown | Read-only rendered markdown | `.md` blob | Panel branch |
 | DOCX / PPTX | Preview PDF in pdf.js viewer | The real .docx/.pptx | `PdfPreviewViewer` wrapper |
-| XLSX / unknown / oversized | File card (name, size, icon) | The file | `FileDownloadCard` |
+| XLSX | Native read-only spreadsheet grid (sheet tabs, values + styles) | The real .xlsx | `XlsxViewer` (ExcelJS + ssf) |
+| Unknown / oversized / xlsx parse-failure | File card (name, size, icon) | The file | `FileDownloadCard` |
 
 ### 8.4 Editing policy
 
 Generated artifacts are **read-only + regenerate in place**. Revision requests go back through the agent (new sandbox run → same `document_id`, files replaced transactionally, §4.3). Revisions are destructive by design — all chat references converge on the latest generation and prior generations are gone; this is a deliberate product decision mirroring Claude's artifact behavior, not an oversight.
 
-**Product-level boundary:** Plate is retired everywhere except **memory and team-memory** editing. The artifact panel is strictly a renderer — it has no editing surface for any format, *including markdown artifacts*, and no Plate-parity work is ever in scope for artifacts. (The wider Plate retirement outside artifact surfaces is a separate effort; this spec only guarantees artifacts never depend on Plate.)
+**Product-level boundary:** Plate is retired everywhere except **memory and team-memory** editing — and this overhaul owns that retirement (phase 4), not a separate effort. The artifact panel is strictly a renderer — it has no editing surface for any format, *including markdown artifacts*, and no Plate-parity work is ever in scope for artifacts. The document editor panel (`editor-panel.tsx`) reduces to the same posture: its `document` mode becomes a pure read-only viewer — `MarkdownViewer` normally, Monaco raw view for oversized documents; both branches already exist — shedding the edit/save state machine, the `/documents/{id}/save` call, the Plate size warnings, and the version-history button (already a 409 on git-backed workspaces; its table and endpoints die at the git-KB Phase 5 cut). The `memory` mode keeps Plate untouched; the desktop `local_file` mode is out of scope — it is Monaco, not Plate, and belongs to a different feature. After phase 4, Plate mounts in exactly one place (the two memory panels) and the agent is the only writer of `/documents` content.
+
+One consequence to hand the git-KB effort knowingly rather than let it discover: retiring document editing orphans the UI caller of the store facade's `save_document` verb (`editor_routes.py` → `knowledge_store/service.py`). The verb itself stays — other adapters use it — but the editor-save flow it was shaped around (`title_is_explicit`, the retitle file-drop) loses its only frontend entry point.
 
 ### 8.5 Chat surfaces
 
@@ -434,6 +438,8 @@ Executed in phase 4, after the legacy card + release-notes warning land (§10). 
 | Reports API client + types | `lib/apis/reports-api.service.ts`, `contracts/types/reports.types.ts` |
 | Typst/`pdfOnly` export special cases | `components/shared/ExportMenuItems.tsx` |
 | Artifacts library data source | re-pointed to documents query (§10.3), reports fetch removed |
+| Document-mode editing (edit/save state machine, `/documents/{id}/save` call, Plate size warnings, `EDITABLE_DOCUMENT_TYPES`) — `document` mode becomes read-only viewing per §8.4; `memory` keeps Plate, `local_file` (Monaco) untouched | `components/editor-panel/editor-panel.tsx` |
+| `VersionHistoryButton` mounts (the component + restore endpoints themselves belong to the git-KB Phase 5 cut) | `editor-panel.tsx` usages of `components/documents/version-history.tsx` |
 
 ---
 
@@ -466,7 +472,7 @@ Each phase ships independently and leaves the product working. Detailed task bre
 |---|---|---|---|
 | 1 — Foundation | [`phase-1-foundation.md`](./phase-1-foundation.md) | Schema, `save_artifact` (markdown path), streaming endpoint, `editor-content` discrimination, artifact panel + registry | Markdown artifacts persist write-through and render; seeded binary file streams + downloads correctly |
 | 2 — Sandbox + PDF | [`phase-2-sandbox-pdf.md`](./phase-2-sandbox-pdf.md) | OpenSandbox spike (gate), provider protocol, sandbox image + compose service, `execute`/`read_sandbox_file`, `pdf` skill, `PdfFileViewer` | "Create me a resume as a PDF" flows through the new pipeline with a verified PDF; zero Typst involvement |
-| 3 — Office skills | [`phase-3-office-skills.md`](./phase-3-office-skills.md) | docx/pptx/xlsx skills, preview-PDF pairing, `PdfPreviewViewer`, download-card polish, legacy tools demoted to "never use" | All four formats per the §8.3 matrix; unknown formats degrade to the card with no code changes |
+| 3 — Office skills | [`phase-3-office-skills.md`](./phase-3-office-skills.md) | docx/pptx/xlsx skills, preview-PDF pairing, `PdfPreviewViewer`, `XlsxViewer` (native grid), download-card polish, legacy tools demoted to "never use" | All four formats per the §8.3 matrix; unknown formats degrade to the card with no code changes |
 | 4 — Demolition | [`phase-4-migration-demolition.md`](./phase-4-migration-demolition.md) | Legacy card + release-notes warning (§10), surface re-pointing, then the full §9 deletion inventory incl. Typst and the `reports` drop | Zero references to `Report`/`typst`/legacy tools; old threads render legacy cards with no data fetch |
 
 Ordering constraints: 1 → 2 → 3 → 4 strictly; the OpenSandbox spike (phase 2, task 0) blocks all phase-2 integration work; the legacy card + release-notes warning (phase 4, §1) land before any deletion PR.
@@ -485,6 +491,7 @@ Ordering constraints: 1 → 2 → 3 → 4 strictly; the OpenSandbox spike (phase
 | Users lose old deliverables on upgrade (no-migration decision, §10) | Deliberate product trade; release-notes breaking-change warning + pre-upgrade export window are the mitigation — no code |
 | Projection or convergence creates a duplicate row instead of adopting the artifact's (identity mismatch) | Artifact rows resolve like any note's — recorded path first, standard NOTE hash as fallback (§4.4); both moments share one resolution primitive (`index/rows.py`), and adoption is integration-tested in phase 1 — one row, marker stamped, chunks present, no ghost sibling |
 | A future git-KB verb resurrects an old generation (revert / version-history UI) | The forward-only rule: both verbs filter `generated: true` documents (§4.3/§4.4); the constraint is cross-referenced in the git-KB umbrella so the verb's implementer inherits it |
+| Large workbook parsed in the browser (`XlsxViewer`) | Viewer lazy-loaded (ExcelJS never in the main bundle); row-capped render with a "download for full data" notice <!-- ponytail: row cap, not streamed parsing; ceiling is very large sheets rendering partially, upgrade path is a streaming/worker parse -->; parse failure or oversize degrades to the download card, never an error |
 
 **Open questions (decide during phase 1 review):**
 

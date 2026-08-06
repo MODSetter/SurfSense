@@ -3,13 +3,13 @@
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§7.1 skills, §8 rendering).
 **Depends on:** phase 2 complete (sandbox live, `pdf` skill shipped, binary `save_artifact` path proven).
 **Goal:** the remaining launch formats, each with a verification loop, plus the preview-PDF pairing and office rendering.
-**Ships to users:** "make me a Word doc / slide deck / spreadsheet" produces real files with inline preview (docx/pptx) or a download card (xlsx).
+**Ships to users:** "make me a Word doc / slide deck / spreadsheet" produces real files with inline preview for all three — docx/pptx via the preview PDF, xlsx via a native read-only spreadsheet grid.
 
 ---
 
 ## 1. Scope
 
-In: three skills, preview-PDF persistence (`role=preview`), `PdfPreviewViewer`, xlsx/unknown card polish, prompt demotion of legacy tools to "never use".
+In: three skills, preview-PDF persistence (`role=preview`), `PdfPreviewViewer`, `XlsxViewer` (ExcelJS + ssf native grid), unknown-format card polish, prompt demotion of legacy tools to "never use".
 
 Out: any deletion (phase 4). Public-chat artifact rendering lands here if not already done (master spec §12 open question 1).
 
@@ -34,12 +34,13 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 
 **`pptx`** — create with `python-pptx`. Body: slide dimensions, layout/placeholder usage, text overflow as the #1 failure to check visually, image sizing. Verify: soffice → pdf → per-slide rasterization → inspect every slide. Save with `preview_path`.
 
-**`xlsx`** — create with `openpyxl`. Body: real formulas (not precomputed values) where the user asked for calculations, number formats, column widths, freeze panes, multi-sheet structure. Verify **programmatically, not visually**: reopen the file, recalculate (LibreOffice headless recalc), read back expected cells, assert. No preview file — `save_artifact(path=out.xlsx, …)` with primary only.
+**`xlsx`** — create with `openpyxl`. Body: real formulas (not precomputed values) where the user asked for calculations, number formats, header styling (fills/bold — it renders in the grid viewer), column widths, freeze panes, multi-sheet structure. Verify **programmatically, not visually**: recalculate (LibreOffice headless recalc), read back expected cells, assert. **The recalculated file is the file saved** — openpyxl writes formulas with no cached values and `XlsxViewer` renders cached values, so saving the raw openpyxl output renders blank formula cells; recalc is a rendering prerequisite, not just QA. No preview file — `save_artifact(path=out.xlsx, …)` with primary only.
 
 ### 2.2 Frontend — rendering
 
 - `PdfPreviewViewer` registry entries for the two office MIME types (docx, pptx): existing PDF viewer on the **preview** file's `content_url`; `toolbarActions` gets "Download {primary.filename}" hitting the primary URL.
-- `FileDownloadCard` final polish: extension icon set, size formatting, hover states; this is the permanent home for xlsx and every unknown/future format.
+- `XlsxViewer` registry entry for the spreadsheet MIME type, lazy-loaded via `next/dynamic`: fetch the **primary** file's `content_url` (existing authenticated-fetch pattern, ETag-cached) → parse in-browser with ExcelJS (MIT — values, fills, fonts, borders, merged ranges, column widths, sheet list) → format display text with `ssf` (Apache-2.0, number-format strings → rendered text) → read-only virtualized grid with column letters, row numbers, and sheet tabs. Row-capped for huge sheets ("showing N of M rows — download for full data"); parse failure or oversize falls through to `FileDownloadCard`, never an error. Charts, conditional-formatting rules, and pivot tables are out of scope (grid, not an Excel emulator — master spec §8.2). New frontend deps: `exceljs`, `ssf`.
+- `FileDownloadCard` final polish: extension icon set, size formatting, hover states; this is the permanent home for every unknown/future format and the xlsx parse-failure/oversize fallback.
 - Artifact card badges for the three new MIME types.
 
 ### 2.3 Prompt & routing
@@ -51,6 +52,7 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 
 - Per-skill integration test: generate → verify loop ran (trace shows page/cell inspection) → §3.1 payload with correct roles → renders per the §8.3 matrix.
 - xlsx: formula cells recalculate correctly when opened in LibreOffice (automated via headless recalc + value assertions).
+- xlsx render: a generated workbook renders in `XlsxViewer` with formatted number text (e.g. `"$#,##0.00"` → `"$10,413.00"`), visible header fill, and **non-blank formula cells** — this catches a skipped recalc end-to-end. A corrupt or oversized xlsx falls back to the download card, not an error.
 - Preview pairing: docx artifact returns two files; deleting the document purges both blobs.
 
 ---
