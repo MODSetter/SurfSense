@@ -20,7 +20,10 @@ from app.db import (
     DocumentType,
 )
 from app.indexing_pipeline.cache import build_chunk_embeddings
-from app.indexing_pipeline.cache.cached_indexing import chunk_markdown, embed_batch
+from app.indexing_pipeline.cache.cached_indexing import (
+    chunk_markdown_with_lines,
+    embed_batch,
+)
 from app.indexing_pipeline.chunk_reconciler import ExistingChunk, reconcile
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_hashing import (
@@ -58,6 +61,7 @@ from app.indexing_pipeline.pipeline_logger import (
     log_retryable_llm_error,
     log_unexpected_error,
 )
+from app.knowledge_store.service import record_prepared_documents
 from app.observability import metrics as ot_metrics, otel as ot
 from app.utils.perf import get_perf_logger
 
@@ -77,6 +81,27 @@ class PlaceholderInfo:
     connector_id: int | None
     created_by_id: str
     metadata: dict = field(default_factory=dict)
+
+
+def _carry_store_marker(
+    existing_metadata: dict | None, incoming_metadata: dict | None
+) -> dict:
+    """Merge fresh connector metadata but keep the store's ``PATH_MARKER``.
+
+    The knowledge store stamps the path a document's file lives at onto its
+    metadata. A connector re-sync brings fresh metadata that has no such marker,
+    so replacing metadata wholesale would erase it — and the store, no longer
+    knowing where the file is, would author a new path and fork the document into
+    a duplicate on every re-index. Carrying the marker over pins the re-sync to
+    the existing file so it overwrites in place.
+    """
+    from app.knowledge_store.paths import PATH_MARKER
+
+    merged = dict(incoming_metadata or {})
+    marker = (existing_metadata or {}).get(PATH_MARKER)
+    if marker is not None:
+        merged.setdefault(PATH_MARKER, marker)
+    return merged
 
 
 class IndexingPipelineService:
@@ -208,8 +233,8 @@ class IndexingPipelineService:
     ) -> list[Document]:
         """Convenience method: prepare_for_indexing then index each document.
 
-        Indexers that need heartbeat callbacks or custom per-document logic
-        should call prepare_for_indexing() + index() directly instead.
+        Test-only. Production connectors use :meth:`index_batch_parallel`, whose
+        store-owned deferral this simpler loop does not need.
         """
         doc_map = {compute_unique_identifier_hash(cd): cd for cd in connector_docs}
         documents = await self.prepare_for_indexing(connector_docs)
@@ -295,7 +320,9 @@ class IndexingPipelineService:
                     existing.title = connector_doc.title
                     existing.content_hash = content_hash
                     existing.source_markdown = connector_doc.source_markdown
-                    existing.document_metadata = connector_doc.metadata
+                    existing.document_metadata = _carry_store_marker(
+                        existing.document_metadata, connector_doc.metadata
+                    )
                     existing.updated_at = datetime.now(UTC)
                     existing.status = DocumentStatus.pending()
                     if connector_doc.folder_id is not None:
@@ -334,6 +361,9 @@ class IndexingPipelineService:
 
         try:
             await self.session.commit()
+            # Content is durable from here; record it as one revision per batch.
+            # Chunking/embedding failures below never block the record.
+            await record_prepared_documents(self.session, documents)
             perf.info(
                 "[indexing] prepare_for_indexing in %.3fs input=%d output=%d",
                 time.perf_counter() - t0,
@@ -349,6 +379,23 @@ class IndexingPipelineService:
             log_batch_aborted(batch_ctx, e)
             await self.session.rollback()
             return []
+
+    async def index_unless_store_owns(
+        self, document: Document, connector_doc: ConnectorDocument
+    ) -> Document | None:
+        """Chunk here unless the git store owns this workspace's chunking.
+
+        A flipped workspace has already had this batch recorded to git and its
+        derived-index build queued by ``prepare_for_indexing``; that build is the
+        workspace's sole chunker, so chunking here too would race it and double
+        every chunk. Returns ``None`` when it defers, letting a caller that
+        inspects the result tell a deferral apart from a row it actually indexed.
+        """
+        from app.knowledge_store.settings import knowledge_store_enabled_for
+
+        if await knowledge_store_enabled_for(document.workspace_id):
+            return None
+        return await self.index(document, connector_doc)
 
     async def index(
         self, document: Document, connector_doc: ConnectorDocument
@@ -487,12 +534,22 @@ class IndexingPipelineService:
 
     async def _load_existing_chunks(self, document_id: int) -> list[ExistingChunk]:
         result = await self.session.execute(
-            select(Chunk.id, Chunk.content, Chunk.position).where(
-                Chunk.document_id == document_id
-            )
+            select(
+                Chunk.id,
+                Chunk.content,
+                Chunk.position,
+                Chunk.start_line,
+                Chunk.end_line,
+            ).where(Chunk.document_id == document_id)
         )
         return [
-            ExistingChunk(id=row.id, content=row.content, position=row.position)
+            ExistingChunk(
+                id=row.id,
+                content=row.content,
+                position=row.position,
+                start_line=row.start_line,
+                end_line=row.end_line,
+            )
             for row in result
         ]
 
@@ -503,15 +560,21 @@ class IndexingPipelineService:
             delete(Chunk).where(Chunk.document_id == document.id)
         )
 
-        summary_embedding, chunk_pairs = await build_chunk_embeddings(
+        summary_embedding, embedded_chunks = await build_chunk_embeddings(
             content,
             use_code_chunker=connector_doc.should_use_code_chunker,
         )
 
         document.embedding = summary_embedding
         return [
-            Chunk(content=text, embedding=emb, position=i)
-            for i, (text, emb) in enumerate(chunk_pairs)
+            Chunk(
+                content=chunk.text,
+                embedding=chunk.embedding,
+                position=i,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+            )
+            for i, chunk in enumerate(embedded_chunks)
         ]
 
     async def _reindex_incrementally(
@@ -526,19 +589,27 @@ class IndexingPipelineService:
         Unchanged rows keep their embedding and their HNSW/GIN index entries;
         moved rows get a position-only UPDATE, which touches neither index.
         """
-        new_texts = await chunk_markdown(
+        new_chunks = await chunk_markdown_with_lines(
             content, use_code_chunker=connector_doc.should_use_code_chunker
         )
-        plan = reconcile(existing, new_texts)
+        plan = reconcile(existing, new_chunks)
 
         # One batch: the document-level summary vector plus the missing chunks.
-        embeddings = await embed_batch([content, *[t for _, t in plan.to_embed]])
+        embeddings = await embed_batch([content, *[c.text for c in plan.to_embed]])
         summary_embedding, *new_embeddings = embeddings
 
         if plan.reused:
             await self.session.execute(
                 update(Chunk),
-                [{"id": cid, "position": pos} for cid, pos in plan.reused],
+                [
+                    {
+                        "id": reused.id,
+                        "position": reused.position,
+                        "start_line": reused.start_line,
+                        "end_line": reused.end_line,
+                    }
+                    for reused in plan.reused
+                ],
             )
         if plan.to_delete:
             await self.session.execute(
@@ -546,12 +617,14 @@ class IndexingPipelineService:
             )
         self.session.add_all(
             Chunk(
-                content=text,
+                content=pending.text,
                 embedding=emb,
-                position=pos,
+                position=pending.position,
+                start_line=pending.start_line,
+                end_line=pending.end_line,
                 document_id=document.id,
             )
-            for (pos, text), emb in zip(plan.to_embed, new_embeddings, strict=True)
+            for pending, emb in zip(plan.to_embed, new_embeddings, strict=True)
         )
         document.embedding = summary_embedding
 
@@ -560,7 +633,7 @@ class IndexingPipelineService:
             embedded=len(plan.to_embed),
             deleted=len(plan.to_delete),
         )
-        return len(new_texts)
+        return len(new_chunks)
 
     async def index_batch_parallel(
         self,
@@ -619,10 +692,14 @@ class IndexingPipelineService:
                             return document
 
                         iso_pipeline = IndexingPipelineService(isolated_session)
-                        result = await iso_pipeline.index(refetched, connector_doc)
+                        result = await iso_pipeline.index_unless_store_owns(
+                            refetched, connector_doc
+                        )
 
                         async with lock:
-                            if DocumentStatus.is_state(
+                            # A deferral (``None``) is a success: the row is recorded
+                            # and the store's indexer will chunk it.
+                            if result is None or DocumentStatus.is_state(
                                 result.status, DocumentStatus.READY
                             ):
                                 indexed_count += 1
@@ -635,7 +712,7 @@ class IndexingPipelineService:
                                     await on_heartbeat(indexed_count)
                                     last_heartbeat = now
 
-                        return result
+                        return result if result is not None else refetched
                     except Exception as exc:
                         logger.error(
                             "Parallel index failed for doc %s: %s",

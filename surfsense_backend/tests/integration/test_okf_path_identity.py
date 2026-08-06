@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     build_path_index,
     doc_to_virtual_path,
     virtual_path_to_doc,

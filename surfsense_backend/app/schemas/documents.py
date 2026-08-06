@@ -37,10 +37,6 @@ class DocumentsCreate(DocumentBase):
     pass
 
 
-class DocumentUpdate(DocumentBase):
-    pass
-
-
 class DocumentStatusSchema(BaseModel):
     """Document processing status."""
 

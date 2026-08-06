@@ -11,6 +11,9 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
+    GitTreeBackend,
+)
 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_postgres import (
     KBPostgresBackend,
 )
@@ -95,7 +98,8 @@ def create_edit_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 )
             ],
         }
-        if is_cloud(mw._filesystem_mode):
+        # The git-tree backend already edited the working copy; no staging.
+        if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
             update["dirty_paths"] = [path]
             update["dirty_path_tool_calls"] = {path: runtime.tool_call_id}
             if doc_id_to_attach is not None:

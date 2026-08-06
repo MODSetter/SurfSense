@@ -1,7 +1,7 @@
 {
   "name": "surfsense-desktop",
   "productName": "SurfSense",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "description": "SurfSense Desktop App",
   "main": "dist/main.js",
   "scripts": {
@@ -26,7 +26,7 @@
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
     "@types/node": "^25.5.0",
-    "concurrently": "^9.2.1",
+    "concurrently": "^9.2.4",
     "dotenv": "^17.3.1",
     "electron": "^42.4.0",
     "electron-builder": "^26.8.1",

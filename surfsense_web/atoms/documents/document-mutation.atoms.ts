@@ -5,7 +5,6 @@ import type {
 	CreateDocumentRequest,
 	DeleteDocumentRequest,
 	GetDocumentsResponse,
-	UpdateDocumentRequest,
 	UploadDocumentRequest,
 } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -48,29 +47,6 @@ export const uploadDocumentMutationAtom = atomWithMutation((get) => {
 			// Note: Toast notification is handled by the caller (DocumentUploadTab) to use i18n
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.logs.summary(workspaceId ?? undefined),
-			});
-		},
-	};
-});
-
-export const updateDocumentMutationAtom = atomWithMutation((get) => {
-	const workspaceId = get(activeWorkspaceIdAtom);
-	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
-
-	return {
-		mutationKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-		enabled: !!workspaceId,
-		mutationFn: async (request: UpdateDocumentRequest) => {
-			return documentsApiService.updateDocument(request);
-		},
-
-		onSuccess: (_, request: UpdateDocumentRequest) => {
-			toast.success("Document updated successfully");
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-			});
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.documents.document(String(request.id)),
 			});
 		},
 	};

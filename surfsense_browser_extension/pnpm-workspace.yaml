@@ -1,7 +1,10 @@
+packages:
+  - "."
+
 allowBuilds:
-  '@parcel/watcher': set this to true or false
-  '@swc/core': set this to true or false
-  esbuild: set this to true or false
-  lmdb: set this to true or false
-  msgpackr-extract: set this to true or false
-  sharp: set this to true or false
+  "@parcel/watcher": true
+  "@swc/core": true
+  esbuild: true
+  lmdb: true
+  msgpackr-extract: true
+  sharp: true

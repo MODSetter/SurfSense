@@ -36,10 +36,10 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     build_path_index,
-    doc_to_virtual_path,
+    virtual_path_of,
 )
 from app.db import Document, Folder
 from app.schemas.new_chat import MentionedDocumentInfo
@@ -189,7 +189,8 @@ async def resolve_mentions(
             )
             continue
         title = chip_titles_by_id.get(("doc", doc_id), str(row.title or ""))
-        path = doc_to_virtual_path(
+        path = virtual_path_of(
+            metadata=row.document_metadata,
             doc_id=row.id,
             title=str(row.title or "untitled"),
             folder_id=row.folder_id,

@@ -11,15 +11,23 @@ import { expect } from "@playwright/test";
  */
 
 export async function openConnectorPopup(page: Page): Promise<void> {
-	// Label depends on whether the user already has connectors.
 	const trigger = page
-		.getByRole("button", { name: "Manage connectors" })
-		.or(page.getByRole("button", { name: "Connect your connectors" }))
+		.getByRole("button", { name: "Upload files, manage tools and more" })
 		.first();
 
 	// Long timeout absorbs Next.js dev cold-compile of the new-chat route.
 	await expect(trigger).toBeVisible({ timeout: 60_000 });
 	await trigger.click();
+
+	// With no connectors yet this opens the dialog directly; once connectors
+	// exist it expands into a submenu whose footer opens the dialog.
+	const connectorsItem = page.getByRole("menuitem", { name: "MCP Connectors" }).first();
+	const isSubmenu = (await connectorsItem.getAttribute("aria-haspopup")) === "menu";
+	await connectorsItem.click();
+
+	if (isSubmenu) {
+		await page.getByRole("menuitem", { name: "Manage connectors" }).click();
+	}
 
 	await expect(page.getByRole("dialog", { name: "MCP Connectors" })).toBeVisible();
 }

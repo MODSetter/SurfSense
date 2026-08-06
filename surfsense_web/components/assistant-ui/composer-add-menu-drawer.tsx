@@ -4,6 +4,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	LayoutGrid,
+	LibraryBig,
 	Settings2,
 	TriangleAlert,
 	Unplug,
@@ -11,6 +12,7 @@ import {
 	Wrench,
 } from "lucide-react";
 import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import type { ConnectorRow } from "@/components/assistant-ui/connector-popup/hooks/use-connector-rows";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ import {
 	getToolDisplayName,
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 
 /** Minimal shape of a grouped agent-tool section (mirrors thread.tsx). */
@@ -91,6 +94,9 @@ export function ComposerAddMenuDrawer({
 	onToggleToolGroup,
 	toolsLoading,
 }: ComposerAddMenuDrawerProps) {
+	const params = useParams();
+	const router = useRouter();
+	const workspaceId = getWorkspaceIdNumber(params);
 	const [open, setOpen] = useState(false);
 	const [stack, setStack] = useState<Screen[]>([{ kind: "root" }]);
 	// Slide direction: forward on push, back on pop — drives the enter animation.
@@ -156,6 +162,19 @@ export function ComposerAddMenuDrawer({
 					>
 						<Upload className="size-4 shrink-0 text-muted-foreground" />
 						<span className="flex-1 text-left">Upload Files</span>
+					</button>
+					<button
+						type="button"
+						className={ROW}
+						onClick={() => {
+							if (workspaceId !== undefined) {
+								router.push(`/dashboard/${workspaceId}/documents`);
+							}
+							close();
+						}}
+					>
+						<LibraryBig className="size-4 shrink-0 text-muted-foreground" />
+						<span className="flex-1 text-left">Documents</span>
 					</button>
 					<button type="button" className={ROW} onClick={() => push({ kind: "connectors" })}>
 						<Unplug className="size-4 shrink-0 text-muted-foreground" />

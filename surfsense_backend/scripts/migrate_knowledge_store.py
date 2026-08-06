@@ -1,0 +1,141 @@
+"""Fleet runner for the Phase 5 knowledge-store migration.
+
+Dry run by default: reports parity per workspace, writes nothing. Re-run with
+--yes to seed for real, and --yes --flip to also turn seeded workspaces
+git-native (only ever on a passing parity report). Every report is appended
+to a JSONL file, so a fleet pass is resumable and auditable; re-seeding is
+idempotent and convergent, so re-running after a partial pass only heals.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+from dataclasses import asdict
+from datetime import UTC, datetime
+
+from sqlalchemy import select, update
+
+from app.db import Workspace, async_session_maker
+from app.knowledge_store.migrate import migrate_workspace
+from app.knowledge_store import KnowledgeStore
+
+
+async def _workspace_ids(only: list[int]) -> list[int]:
+    if only:
+        return only
+    async with async_session_maker() as session:
+        rows = await session.execute(select(Workspace.id).order_by(Workspace.id))
+        return [row[0] for row in rows]
+
+
+async def _set_flip(workspace_id: int, enabled: bool) -> None:
+    """Flip one workspace, carrying its index stamp with it.
+
+    Stamping the store's head on the way in is what keeps the seed's promise:
+    passing parity *is* the assertion that the chunk index already matches this
+    revision, so a NULL stamp would have the drift sweep read the workspace as
+    never-indexed and re-embed the whole tree — the cost the seed exists to
+    avoid. Read from head rather than the report's ``seeded_revision``, which is
+    ``None`` on an idempotent re-seed.
+
+    Clearing it on the way out forces a full converge if the workspace is ever
+    flipped back, since the legacy pipeline owned the chunks in between.
+    """
+    revision = (
+        await KnowledgeStore.for_workspace(workspace_id).get_current_revision()
+        if enabled
+        else None
+    )
+    async with async_session_maker() as session:
+        await session.execute(
+            update(Workspace)
+            .where(Workspace.id == workspace_id)
+            .values(knowledge_store_enabled=enabled, last_indexed_revision=revision)
+        )
+        await session.commit()
+
+
+async def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Actually seed. Without this flag the command is a parity dry run.",
+    )
+    parser.add_argument(
+        "--workspace",
+        type=int,
+        action="append",
+        default=[],
+        help="Limit to this workspace id (repeatable). Default: all workspaces.",
+    )
+    parser.add_argument(
+        "--out",
+        default="knowledge_store_migration_reports.jsonl",
+        help="JSONL file the per-workspace reports are appended to.",
+    )
+    parser.add_argument(
+        "--flip",
+        action="store_true",
+        help="With --yes: turn each workspace git-native after its parity passes.",
+    )
+    parser.add_argument(
+        "--unflip",
+        action="store_true",
+        help="Roll the listed workspaces back to the old write path. Does nothing else.",
+    )
+    args = parser.parse_args()
+
+    if args.unflip:
+        if not args.workspace:
+            raise SystemExit("--unflip requires explicit --workspace ids")
+        for workspace_id in args.workspace:
+            await _set_flip(workspace_id, False)
+            print(f"workspace {workspace_id}: rolled back to the old write path")
+        return
+    if args.flip and not args.yes:
+        raise SystemExit("--flip requires --yes (never flip on a dry run)")
+
+    ids = await _workspace_ids(args.workspace)
+    ok = failed = 0
+    with open(args.out, "a") as out:
+        for workspace_id in ids:
+            # Fresh session per workspace: one failed workspace must not
+            # poison the session the rest of the fleet reads through.
+            async with async_session_maker() as session:
+                report = await migrate_workspace(
+                    session, workspace_id, dry_run=not args.yes
+                )
+            out.write(
+                json.dumps({"at": datetime.now(UTC).isoformat(), **asdict(report)})
+                + "\n"
+            )
+            out.flush()
+            ok += report.ok
+            failed += not report.ok
+            if report.ok:
+                status = "ok"
+                if args.flip:
+                    await _set_flip(workspace_id, True)
+                    status = "ok, flipped git-native"
+            elif report.error:
+                status = f"error: {report.error}"
+            else:
+                # Expected on a pre-seed dry run: everything reads as missing.
+                status = (
+                    f"drift: missing={len(report.missing)}"
+                    f" extra={len(report.extra)}"
+                    f" mismatched={len(report.mismatched)}"
+                )
+            print(f"workspace {workspace_id}: {status}, {report.files} file(s)")
+
+    mode = "seeded" if args.yes else "dry run"
+    print(f"{mode}: {ok} ok, {failed} failed of {len(ids)}; reports in {args.out}")
+    if failed:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

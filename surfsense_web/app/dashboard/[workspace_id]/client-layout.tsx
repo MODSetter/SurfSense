@@ -20,10 +20,12 @@ export function DashboardClientLayout({
 	children,
 	workspaceId,
 	initialPlaygroundSidebarCollapsed,
+	initialRightPanelCollapsed,
 }: {
 	children: React.ReactNode;
 	workspaceId: string;
 	initialPlaygroundSidebarCollapsed: boolean;
+	initialRightPanelCollapsed: boolean;
 }) {
 	const t = useTranslations("dashboard");
 	const router = useRouter();
@@ -166,6 +168,7 @@ export function DashboardClientLayout({
 			<LayoutDataProvider
 				workspaceId={workspaceId}
 				initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
+				initialRightPanelCollapsed={initialRightPanelCollapsed}
 			>
 				{children}
 			</LayoutDataProvider>

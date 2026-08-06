@@ -4,6 +4,7 @@ import "./globals.css";
 import posthog from "posthog-js";
 import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { detectEnvironment } from "@/lib/env-config";
 
 const ISSUES_URL = "https://github.com/MODSetter/SurfSense/issues/new";
 
@@ -19,6 +20,7 @@ function buildBasicIssueUrl(error: Error & { digest?: string }) {
 		"",
 		`- **Error:** ${error.message}`,
 		...(error.digest ? [`- **Digest:** \`${error.digest}\``] : []),
+		`- **Environment:** ${detectEnvironment()}`,
 		`- **Timestamp:** ${new Date().toISOString()}`,
 		`- **Page:** \`${typeof window !== "undefined" ? window.location.pathname : "unknown"}\``,
 		`- **User Agent:** \`${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}\``,

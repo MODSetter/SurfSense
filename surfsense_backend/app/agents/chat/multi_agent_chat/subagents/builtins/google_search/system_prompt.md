@@ -17,6 +17,7 @@ Answer the delegated question from live Google Search data gathered with your ve
 - Scraping a specific results page: pass the full Google Search URL in `queries`.
 - Need more results: raise `max_pages_per_query` to page beyond the first page (cheaper and faster than adding more distinct queries).
 <include snippet="run_reader"/>
+- Provenance: if an item carries `resultsProvider` (e.g. `searxng`), Google was unreachable and these came from a fallback search index — say so in your findings and do not describe them as Google rankings or positions.
 - Handing URLs off for crawling: return the organic result URLs so the supervisor can route them to the web crawling specialist.
 - Comparison requests: pull the current results, compare against prior values already in this conversation's earlier tool results, and report concrete deltas (added, removed, moved up/down).
 </playbook>

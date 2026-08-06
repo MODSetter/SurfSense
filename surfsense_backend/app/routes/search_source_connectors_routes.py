@@ -33,6 +33,7 @@ from sqlalchemy import event as sa_event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import load_only
 
 from app.auth.context import AuthContext
 from app.config import config
@@ -44,6 +45,7 @@ from app.db import (
     async_session_maker,
     get_async_session,
 )
+from app.knowledge_store.service import record_deleted_documents
 from app.notifications.service import NotificationService
 from app.observability import (
     analytics as ph_analytics,
@@ -707,15 +709,32 @@ async def delete_search_source_connector(
 
         while True:
             result = await session.execute(
-                select(Document.id)
+                select(Document)
+                .options(
+                    # Only what the store needs to find each file. The content
+                    # columns are the large ones and this batch is 500 rows.
+                    load_only(
+                        Document.title,
+                        Document.folder_id,
+                        Document.workspace_id,
+                        Document.document_metadata,
+                    )
+                )
                 .where(Document.connector_id == connector_id)
                 .limit(deletion_batch_size)
             )
-            doc_ids = [row[0] for row in result.fetchall()]
+            documents = list(result.scalars().all())
 
-            if not doc_ids:
+            if not documents:
                 break
 
+            # Before the rows go: each is what says where its file is.
+            # ponytail: one path index per batch, so a connector with many
+            # thousands of documents rebuilds it repeatedly. Upgrade path is an
+            # index the caller builds once and hands in.
+            await record_deleted_documents(session, documents)
+
+            doc_ids = [document.id for document in documents]
             await session.execute(sa_delete(Document).where(Document.id.in_(doc_ids)))
             await session.commit()
 

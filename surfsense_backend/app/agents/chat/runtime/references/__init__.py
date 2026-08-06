@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import build_path_index
+from app.knowledge_store.paths import build_path_index
 from app.schemas.new_chat import MentionedDocumentInfo
 
 from .chat import resolve_chat_references

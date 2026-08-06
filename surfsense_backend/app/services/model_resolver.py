@@ -12,16 +12,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from app.db import Connection
 
-from app.services.provider_registry import Transport, spec_for
-
-
-def ensure_v1(base_url: str | None) -> str | None:
-    if not base_url:
-        return None
-    stripped = base_url.rstrip("/")
-    if stripped.endswith("/v1"):
-        return stripped
-    return f"{stripped}/v1"
+from app.services.provider_registry import spec_for
 
 
 def strip_version_suffix(base_url: str | None) -> str | None:
@@ -67,13 +58,12 @@ def to_litellm(
     prefix = spec.litellm_prefix or str(provider)
     model_string = f"{prefix}/{model_id}" if prefix else model_id
     if base_url:
-        if spec.transport == Transport.OPENAI_COMPATIBLE:
-            api_base = ensure_v1(base_url)
-        elif provider == "anthropic":
+        if provider == "anthropic":
             # LiteLLM's Anthropic handler appends ``/v1/messages`` to api_base,
             # so a base URL ending in ``/v1`` must be reduced to the API root.
             api_base = strip_version_suffix(base_url)
         else:
+            # Verbatim: the user owns the path (/v1 or custom); LiteLLM appends the route.
             api_base = base_url.rstrip("/")
         kwargs["api_base"] = api_base
 
@@ -110,7 +100,6 @@ def native_connection_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
 
 
 __all__ = [
-    "ensure_v1",
     "native_connection_from_config",
     "strip_version_suffix",
     "to_litellm",

@@ -538,6 +538,16 @@ class Config:
         "FILE_STORAGE_LOCAL_PATH", str(BASE_DIR / ".local_object_store")
     )
 
+    # Knowledge store (Git-native KB; off by default). Nested under the shared
+    # file-storage volume so every process sees the same history.
+    KNOWLEDGE_STORE_ENABLED = (
+        os.getenv("KNOWLEDGE_STORE_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    KNOWLEDGE_STORE_ROOT = os.getenv(
+        "KNOWLEDGE_STORE_ROOT",
+        os.path.join(FILE_STORAGE_LOCAL_PATH, "knowledge_store"),
+    )
+
     # Daytona sandbox (code execution / filesystem sandbox)
     DAYTONA_SANDBOX_ENABLED = (
         os.getenv("DAYTONA_SANDBOX_ENABLED", "FALSE").upper() == "TRUE"
@@ -1209,6 +1219,13 @@ class Config:
     VIDEO_PRESENTATION_FPS = int(os.getenv("VIDEO_PRESENTATION_FPS", "30"))
     VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES = int(
         os.getenv("VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES", "300")
+    )
+    # BCP-47 narration language used when the slide-generating LLM does not
+    # report the language it wrote in. A tag the configured TTS provider cannot
+    # speak is ignored in favour of English, so a bad value degrades rather
+    # than failing the render.
+    VIDEO_PRESENTATION_DEFAULT_LANGUAGE = os.getenv(
+        "VIDEO_PRESENTATION_DEFAULT_LANGUAGE", "en"
     )
 
     # Validation Checks

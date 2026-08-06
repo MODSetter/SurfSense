@@ -13,6 +13,7 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import (
 )
 from app.agents.chat.runtime.errors import BusyError
 from app.services.llm_error_adapter import LLMErrorCategory, adapt_llm_exception
+from app.tasks.chat.streaming.errors.messages import chat_error_message
 
 TURN_CANCELLING_INITIAL_DELAY_MS = 200
 TURN_CANCELLING_BACKOFF_FACTOR = 2
@@ -158,7 +159,7 @@ def _classify_provider_exception(
             "RATE_LIMITED",
             "warn",
             True,
-            "This model is temporarily rate-limited. Please try again in a few seconds or switch models.",
+            chat_error_message("RATE_LIMITED"),
             _provider_error_extra(adapted),
         )
 
@@ -171,7 +172,7 @@ def _classify_provider_exception(
             "MODEL_AUTH_FAILED",
             "warn",
             True,
-            "This model's API key is invalid or expired. Switch models, or update the API key.",
+            chat_error_message("MODEL_AUTH_FAILED"),
             _provider_error_extra(adapted),
         )
 
@@ -181,17 +182,31 @@ def _classify_provider_exception(
             "MODEL_NOT_FOUND",
             "warn",
             True,
-            "The selected model is unavailable or no longer exists. Switch to another model and try again.",
+            chat_error_message("MODEL_NOT_FOUND"),
             _provider_error_extra(adapted),
         )
 
     if adapted.category is LLMErrorCategory.CONTEXT_LIMIT:
+        extra = _provider_error_extra(adapted)
         return (
             "model_context_limit",
             "MODEL_CONTEXT_LIMIT",
             "warn",
             True,
-            "This request is too large for the selected model. Try a model with a larger context window or reduce the input.",
+            chat_error_message("MODEL_CONTEXT_LIMIT", details=extra),
+            extra,
+        )
+
+    # Ahead of the unavailable group on purpose: a local runtime reports OOM as a
+    # 5xx, which would land there and advise retrying a load that cannot succeed
+    # until the operator lowers the limit.
+    if adapted.category is LLMErrorCategory.INSUFFICIENT_MEMORY:
+        return (
+            "model_out_of_memory",
+            "MODEL_OUT_OF_MEMORY",
+            "warn",
+            True,
+            chat_error_message("MODEL_OUT_OF_MEMORY"),
             _provider_error_extra(adapted),
         )
 
@@ -207,7 +222,7 @@ def _classify_provider_exception(
             "MODEL_PROVIDER_UNAVAILABLE",
             "warn",
             True,
-            "The selected model provider is temporarily unavailable. Please try again or switch models.",
+            chat_error_message("MODEL_PROVIDER_UNAVAILABLE"),
             _provider_error_extra(adapted),
         )
 
@@ -219,9 +234,15 @@ def classify_stream_exception(
     *,
     flow_label: str,
 ) -> tuple[
-    str, str, Literal["info", "warn", "error"], bool, str, dict[str, Any] | None
+    str,
+    str,
+    Literal["info", "warn", "error"],
+    bool,
+    str,
+    str,
+    dict[str, Any] | None,
 ]:
-    """Return kind, code, severity, expected flag, message, and optional extra dict."""
+    """Return classification, safe message, diagnostic, and optional metadata."""
     raw = str(exc)
     if isinstance(exc, BusyError) or "Thread is busy with another request" in raw:
         busy_thread_id = str(exc.request_id) if isinstance(exc, BusyError) else None
@@ -235,7 +256,8 @@ def classify_stream_exception(
                 "TURN_CANCELLING",
                 "info",
                 True,
-                "A previous response is still stopping. Please try again in a moment.",
+                chat_error_message("TURN_CANCELLING"),
+                raw,
                 {
                     "retry_after_ms": retry_after_ms,
                     "retry_after_at": retry_after_at,
@@ -246,19 +268,22 @@ def classify_stream_exception(
             "THREAD_BUSY",
             "warn",
             True,
-            "Another response is still finishing for this thread. Please try again in a moment.",
+            chat_error_message("THREAD_BUSY"),
+            raw,
             None,
         )
 
     provider_classification = _classify_provider_exception(exc)
     if provider_classification is not None:
-        return provider_classification
+        kind, code, severity, expected, message, extra = provider_classification
+        return kind, code, severity, expected, message, raw, extra
 
     return (
         "server_error",
         "SERVER_ERROR",
         "error",
         False,
+        chat_error_message("SERVER_ERROR"),
         f"Error during {flow_label}: {raw}",
         None,
     )

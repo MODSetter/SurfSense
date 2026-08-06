@@ -16,7 +16,6 @@ from .documents import (
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
-    DocumentUpdate,
     DocumentWithChunksRead,
     ExtensionDocumentContent,
     ExtensionDocumentMetadata,
@@ -157,7 +156,6 @@ __all__ = [
     "DocumentStatusSchema",
     "DocumentTitleRead",
     "DocumentTitleSearchResponse",
-    "DocumentUpdate",
     "DocumentWithChunksRead",
     "DocumentsCreate",
     # Google Drive schemas

@@ -20,11 +20,8 @@ import {
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
-import {
-	RightPanel,
-	RightPanelExpandButton,
-	RightPanelToggleButton,
-} from "../right-panel/RightPanel";
+import { MobileDocumentsWorkspaceView } from "../right-panel/MobileDocumentsWorkspaceView";
+import { RightPanel, RightPanelToggleButton } from "../right-panel/RightPanel";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } from "../sidebar";
 import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
@@ -81,6 +78,7 @@ function MacDesktopTitleBar({
 			<div className="ml-auto flex h-full items-center [app-region:no-drag] [-webkit-app-region:no-drag]">
 				<RightPanelToggleButton
 					disabled={disableRightPanelToggle}
+					documentsOnly
 					className="h-6 w-6 rounded-md"
 					iconClassName="h-3.5 w-3.5"
 				/>
@@ -132,6 +130,12 @@ interface LayoutShellProps {
 	className?: string;
 	notifications?: NotificationsDropdownData;
 	isLoadingChats?: boolean;
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
+	/** Anonymous mobile layouts still open Documents from local state instead of a dashboard route. */
+	mobileDocumentsWorkspaceFromState?: boolean;
 	onTabSwitch?: (tab: ResolvedTab) => void;
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	playgroundSidebar?: React.ReactNode;
@@ -144,7 +148,7 @@ function MainContentPanel({
 	onTabPrefetch,
 	onNewChat,
 	showTabs = true,
-	showRightPanelExpandButton = true,
+	reserveRightPanelToggleSpace = true,
 	showTopBorder = false,
 	children,
 }: {
@@ -153,7 +157,7 @@ function MainContentPanel({
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
 	showTabs?: boolean;
-	showRightPanelExpandButton?: boolean;
+	reserveRightPanelToggleSpace?: boolean;
 	showTopBorder?: boolean;
 	children: React.ReactNode;
 }) {
@@ -171,7 +175,7 @@ function MainContentPanel({
 			onTabSwitch={onTabSwitch}
 			onTabPrefetch={onTabPrefetch}
 			onNewChat={onNewChat}
-			showRightPanelExpandButton={showRightPanelExpandButton}
+			reserveRightPanelToggleSpace={reserveRightPanelToggleSpace}
 			showTopBorder={showTopBorder}
 		>
 			{children}
@@ -207,7 +211,7 @@ function TabbedMainContentPanel({
 	onTabSwitch,
 	onTabPrefetch,
 	onNewChat,
-	showRightPanelExpandButton,
+	reserveRightPanelToggleSpace,
 	showTopBorder,
 	children,
 }: {
@@ -215,7 +219,7 @@ function TabbedMainContentPanel({
 	onTabSwitch?: (tab: ResolvedTab) => void;
 	onTabPrefetch?: (tab: ResolvedTab) => void;
 	onNewChat?: () => void;
-	showRightPanelExpandButton: boolean;
+	reserveRightPanelToggleSpace: boolean;
 	showTopBorder: boolean;
 	children: React.ReactNode;
 }) {
@@ -232,7 +236,11 @@ function TabbedMainContentPanel({
 				onTabSwitch={onTabSwitch}
 				onTabPrefetch={onTabPrefetch}
 				onNewChat={onNewChat}
-				rightActions={showRightPanelExpandButton ? <RightPanelExpandButton /> : null}
+				rightActions={
+					reserveRightPanelToggleSpace ? (
+						<div aria-hidden="true" className="h-8 w-8 shrink-0" />
+					) : null
+				}
 				className="min-w-0"
 			/>
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
@@ -258,7 +266,7 @@ function TabbedMainContentPanel({
 }
 
 function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
-	return <div className="flex h-full min-w-0 flex-1 -mr-2">{children}</div>;
+	return <div className="relative flex h-full min-w-0 flex-1 -mr-2">{children}</div>;
 }
 
 export function LayoutShell({
@@ -304,6 +312,8 @@ export function LayoutShell({
 	className,
 	notifications,
 	isLoadingChats = false,
+	documentsPanel,
+	mobileDocumentsWorkspaceFromState = false,
 	onTabSwitch,
 	onTabPrefetch,
 	playgroundSidebar,
@@ -335,6 +345,9 @@ export function LayoutShell({
 			return nextCollapsed;
 		});
 	};
+	const closeMobileDocuments = () => {
+		if (mobileDocumentsWorkspaceFromState) documentsPanel?.onOpenChange(false);
+	};
 
 	// Mobile layout
 	if (isMobile) {
@@ -351,23 +364,49 @@ export function LayoutShell({
 							onOpenChange={setMobileMenuOpen}
 							workspaces={workspaces}
 							activeWorkspaceId={activeWorkspaceId}
-							onWorkspaceSelect={onWorkspaceSelect}
+							onWorkspaceSelect={(id) => {
+								closeMobileDocuments();
+								onWorkspaceSelect(id);
+							}}
 							onAddWorkspace={onAddWorkspace}
 							isAtWorkspaceLimit={isAtWorkspaceLimit}
 							maxWorkspacesPerUser={maxWorkspacesPerUser}
 							workspace={workspace}
 							navItems={navItems}
-							onNavItemClick={onNavItemClick}
+							onNavItemClick={(item) => {
+								if (item.url !== "#documents") closeMobileDocuments();
+								onNavItemClick?.(item);
+							}}
 							chats={chats}
 							activeChatId={activeChatId}
-							onNewChat={onNewChat}
-							onChatSelect={onChatSelect}
+							onNewChat={() => {
+								closeMobileDocuments();
+								onNewChat();
+							}}
+							onChatSelect={(chat) => {
+								closeMobileDocuments();
+								onChatSelect(chat);
+							}}
 							onChatPrefetch={onChatPrefetch}
 							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
-							onChatsClick={onChatsClick}
-							onViewAllChats={onViewAllChats}
+							onChatsClick={
+								onChatsClick
+									? () => {
+											closeMobileDocuments();
+											onChatsClick();
+										}
+									: undefined
+							}
+							onViewAllChats={
+								onViewAllChats
+									? () => {
+											closeMobileDocuments();
+											onViewAllChats();
+										}
+									: undefined
+							}
 							isAllChatsActive={isAllChatsPage}
 							user={user}
 							onSettings={onSettings}
@@ -383,7 +422,14 @@ export function LayoutShell({
 							isLoadingChats={isLoadingChats}
 						/>
 
-						{useWorkspacePanel ? (
+						{mobileDocumentsWorkspaceFromState && documentsPanel?.open ? (
+							<WorkspacePanel
+								viewportClassName="items-start justify-center overflow-hidden px-6 py-8"
+								contentClassName="h-full max-w-5xl select-none"
+							>
+								<MobileDocumentsWorkspaceView onOpenChange={documentsPanel.onOpenChange} />
+							</WorkspacePanel>
+						) : useWorkspacePanel ? (
 							<WorkspacePanel
 								viewportClassName={workspacePanelViewportClassName}
 								contentClassName={workspacePanelContentClassName}
@@ -546,14 +592,23 @@ export function LayoutShell({
 										onTabPrefetch={onTabPrefetch}
 										onNewChat={onNewChat}
 										showTabs={showTabs}
-										showRightPanelExpandButton={!isMacDesktop}
+										reserveRightPanelToggleSpace={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									>
 										{children}
 									</MainContentPanel>
 
-									{/* Right panel — Report/Editor/Citations/Artifacts (desktop only) */}
-									<RightPanel showTopBorder={isMacDesktop} />
+									{/* Right panel — tabbed Documents/Report/Editor/Citations/Artifacts (desktop only) */}
+									<RightPanel
+										documentsPanel={documentsPanel}
+										reserveDocumentToggleSpace={!isMacDesktop}
+										showTopBorder={isMacDesktop}
+									/>
+									{!isMacDesktop && (
+										<div className="absolute right-2 top-2 z-30">
+											<RightPanelToggleButton documentsOnly />
+										</div>
+									)}
 								</>
 							)}
 						</DesktopWorkspaceRegion>

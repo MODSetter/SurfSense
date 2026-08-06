@@ -101,7 +101,17 @@ def _connection_read(
 
 def _apply_model_facts(model: Model, facts: dict) -> None:
     model.supports_chat = facts.get("supports_chat")
-    model.max_input_tokens = facts.get("max_input_tokens")
+    # Write-once: discovery seeds the limit for a model we have not seen before
+    # but never overwrites a stored one, so an operator's value survives every
+    # rediscovery. Clearing it in settings re-opens the model to whatever
+    # discovery reports next.
+    stored_limit = getattr(model, "max_input_tokens", None)
+    if not (
+        isinstance(stored_limit, int)
+        and not isinstance(stored_limit, bool)
+        and stored_limit > 0
+    ):
+        model.max_input_tokens = facts.get("max_input_tokens")
     model.supports_image_input = facts.get("supports_image_input")
     model.supports_tools = facts.get("supports_tools")
     model.supports_image_generation = facts.get("supports_image_generation")
@@ -260,6 +270,7 @@ async def _default_unset_roles(
 async def list_model_providers(auth: AuthContext = Depends(require_session_context)):
     del auth
     local_only = {"ollama_chat", "lm_studio"}
+    hidden = {"openai_compatible_raw"}  # deprecated; superseded by openai_compatible
     return [
         ModelProviderRead(
             provider=provider,
@@ -271,6 +282,7 @@ async def list_model_providers(auth: AuthContext = Depends(require_session_conte
             local_only=provider in local_only,
         )
         for provider, spec in sorted(REGISTRY.items())
+        if provider not in hidden
     ]
 
 

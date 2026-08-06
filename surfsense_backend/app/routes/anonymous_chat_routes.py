@@ -488,13 +488,22 @@ async def stream_anonymous_chat(
             logger.exception("Anonymous chat stream error")
             anon_outcome = "error"
             await TokenQuotaService.anon_release(session_key, ip_key, request_id)
-            _, error_code, _, _, user_message, extra = classify_stream_exception(
+            (
+                _,
+                error_code,
+                _,
+                _,
+                user_message,
+                diagnostic,
+                extra,
+            ) = classify_stream_exception(
                 e,
                 flow_label="chat",
             )
             yield streaming_service.format_error(
                 user_message,
                 error_code=error_code,
+                diagnostic=diagnostic,
                 extra=extra,
             )
             yield streaming_service.format_done()

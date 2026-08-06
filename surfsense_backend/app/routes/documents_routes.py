@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.chat.runtime.path_resolver import virtual_path_to_doc
+from app.knowledge_store.paths import virtual_path_to_doc
 from app.auth.context import AuthContext
 from app.db import (
     Chunk,
@@ -21,6 +21,8 @@ from app.db import (
     WorkspaceMembership,
     get_async_session,
 )
+from app.knowledge_store.service import record_deleted_documents
+from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.schemas import (
     ChunkRead,
     DocumentRead,
@@ -30,7 +32,6 @@ from app.schemas import (
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
-    DocumentUpdate,
     DocumentWithChunksRead,
     FolderRead,
     PaginatedResponse,
@@ -1320,66 +1321,6 @@ async def read_document(
         ) from e
 
 
-@router.put("/documents/{document_id}", response_model=DocumentRead)
-async def update_document(
-    document_id: int,
-    document_update: DocumentUpdate,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    """
-    Update a document.
-    Requires DOCUMENTS_UPDATE permission for the workspace.
-    """
-    try:
-        result = await session.execute(
-            select(Document).filter(Document.id == document_id)
-        )
-        db_document = result.scalars().first()
-
-        if not db_document:
-            raise HTTPException(
-                status_code=404, detail=f"Document with id {document_id} not found"
-            )
-
-        # Check permission for the workspace
-        await check_permission(
-            session,
-            auth,
-            db_document.workspace_id,
-            Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to update documents in this workspace",
-        )
-
-        update_data = document_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_document, key, value)
-        await session.commit()
-        await session.refresh(db_document)
-
-        # Convert to DocumentRead for response
-        return DocumentRead(
-            id=db_document.id,
-            title=db_document.title,
-            document_type=db_document.document_type,
-            document_metadata=db_document.document_metadata,
-            content=db_document.content,
-            content_hash=db_document.content_hash,
-            unique_identifier_hash=db_document.unique_identifier_hash,
-            created_at=db_document.created_at,
-            updated_at=db_document.updated_at,
-            workspace_id=db_document.workspace_id,
-            folder_id=db_document.folder_id,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update document: {e!s}"
-        ) from e
-
-
 @router.delete("/documents/{document_id}", response_model=dict)
 async def delete_document(
     document_id: int,
@@ -1466,7 +1407,6 @@ async def list_document_versions(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """List all versions for a document, ordered by version_number descending."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1475,7 +1415,7 @@ async def list_document_versions(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.workspace_id, Permission.DOCUMENTS_READ.value
+        session, auth, document.workspace_id, Permission.DOCUMENTS_READ.value
     )
 
     versions = (
@@ -1508,7 +1448,6 @@ async def get_document_version(
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    user = auth.user
     """Get full version content including source_markdown."""
     document = (
         await session.execute(select(Document).where(Document.id == document_id))
@@ -1517,7 +1456,7 @@ async def get_document_version(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.workspace_id, Permission.DOCUMENTS_READ.value
+        session, auth, document.workspace_id, Permission.DOCUMENTS_READ.value
     )
 
     version = (
@@ -1556,8 +1495,21 @@ async def restore_document_version(
         raise HTTPException(status_code=404, detail="Document not found")
 
     await check_permission(
-        session, user, document.workspace_id, Permission.DOCUMENTS_UPDATE.value
+        session, auth, document.workspace_id, Permission.DOCUMENTS_UPDATE.value
     )
+
+    if await knowledge_store_enabled_for(document.workspace_id):
+        # Restore rewrites source_markdown and title without recording a
+        # revision, so git — the source of truth — would still hold the newer
+        # content: search would keep serving it and the next reindex would revert
+        # the restore outright. History is `git revert` for these workspaces.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Version restore is unavailable for git-backed workspaces; "
+                "revert the change in document history instead."
+            ),
+        )
 
     version = (
         await session.execute(
@@ -1865,8 +1817,7 @@ async def folder_unlink(
         "You don't have permission to delete documents in this workspace",
     )
 
-    deleted_count = 0
-
+    doomed: list[Document] = []
     for rel_path in request.relative_paths:
         unique_id = f"{request.folder_name}:{rel_path}"
         uid_hash = compute_identifier_hash(
@@ -1882,18 +1833,24 @@ async def folder_unlink(
         ).scalar_one_or_none()
 
         if existing:
-            deleted_folder_id = existing.folder_id
-            await session.delete(existing)
-            await session.flush()
+            doomed.append(existing)
 
-            if deleted_folder_id and request.root_folder_id:
-                await _cleanup_empty_folder_chain(
-                    session, deleted_folder_id, request.root_folder_id
-                )
-            deleted_count += 1
+    # One revision for the batch, before the rows go: each is what says where
+    # its file is.
+    await record_deleted_documents(session, doomed)
+
+    for existing in doomed:
+        deleted_folder_id = existing.folder_id
+        await session.delete(existing)
+        await session.flush()
+
+        if deleted_folder_id and request.root_folder_id:
+            await _cleanup_empty_folder_chain(
+                session, deleted_folder_id, request.root_folder_id
+            )
 
     await session.commit()
-    return {"deleted_count": deleted_count}
+    return {"deleted_count": len(doomed)}
 
 
 @router.post("/documents/folder-sync-finalize")
@@ -1951,11 +1908,16 @@ async def folder_sync_finalize(
         .all()
     )
 
-    deleted_count = 0
-    for doc in all_folder_docs:
-        if doc.unique_identifier_hash not in seen_hashes:
-            await session.delete(doc)
-            deleted_count += 1
+    orphans = [
+        doc for doc in all_folder_docs if doc.unique_identifier_hash not in seen_hashes
+    ]
+    deleted_count = len(orphans)
+
+    # Before the rows go: each is what says where its file is.
+    await record_deleted_documents(session, orphans)
+
+    for doc in orphans:
+        await session.delete(doc)
 
     await session.flush()
 

@@ -5,6 +5,7 @@ import type React from "react";
 import { DashboardClientLayout } from "./client-layout";
 
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
+const RIGHT_PANEL_COLLAPSED_COOKIE = "surfsense_right_panel_collapsed";
 
 export default async function DashboardLayout({
 	params,
@@ -16,11 +17,14 @@ export default async function DashboardLayout({
 	const [{ workspace_id }, cookieStore] = await Promise.all([params, cookies()]);
 	const initialPlaygroundSidebarCollapsed =
 		cookieStore.get(PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE)?.value === "true";
+	const initialRightPanelCollapsed =
+		cookieStore.get(RIGHT_PANEL_COLLAPSED_COOKIE)?.value === "true";
 
 	return (
 		<DashboardClientLayout
 			workspaceId={workspace_id}
 			initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
+			initialRightPanelCollapsed={initialRightPanelCollapsed}
 		>
 			{children}
 		</DashboardClientLayout>

@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.db import Document, DocumentType, Permission, get_async_session
+from app.knowledge_store.service import (
+    record_deleted_documents,
+    record_prepared_documents,
+)
 from app.schemas import DocumentRead, PaginatedResponse
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
@@ -74,6 +78,8 @@ async def create_note(
     session.add(document)
     await session.commit()
     await session.refresh(document)
+
+    await record_prepared_documents(session, [document])
 
     return DocumentRead(
         id=document.id,
@@ -229,6 +235,9 @@ async def delete_note(
             status_code=409,
             detail="Cannot delete note while it is pending or being processed. Please wait for processing to complete.",
         )
+
+    # Before the row goes: it is what says where the file is.
+    await record_deleted_documents(session, [document])
 
     # Delete document (chunks will be cascade deleted)
     await session.delete(document)

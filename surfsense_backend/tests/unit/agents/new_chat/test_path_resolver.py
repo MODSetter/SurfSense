@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     PathIndex,
     doc_to_virtual_path,
@@ -15,6 +15,7 @@ from app.agents.chat.runtime.path_resolver import (
     parse_documents_path,
     safe_filename,
     safe_folder_segment,
+    to_store_path,
     virtual_path_to_doc,
 )
 
@@ -41,6 +42,25 @@ class TestSafeFolderSegment:
 
     def test_falls_back(self):
         assert safe_folder_segment("") == "folder"
+
+
+class TestToStorePath:
+    def test_keeps_the_documents_root(self):
+        assert (
+            to_store_path("/documents/Notes/Meeting.xml")
+            == "documents/Notes/Meeting.xml"
+        )
+
+    def test_root_itself_maps_to_the_documents_dir(self):
+        assert to_store_path(DOCUMENTS_ROOT) == "documents"
+
+    def test_rejects_a_foreign_namespace(self):
+        with pytest.raises(ValueError, match="/documents"):
+            to_store_path("/documentsimposter/Meeting.xml")
+
+    def test_rejects_a_relative_path(self):
+        with pytest.raises(ValueError, match="/documents"):
+            to_store_path("Notes/Meeting.xml")
 
 
 class TestParseDocIdSuffix:
@@ -157,14 +177,15 @@ class TestVirtualPathToDoc:
         target_doc = SimpleNamespace(id=42, title=original_title, folder_id=None)
 
         session = MagicMock()
-        # Each ``await session.execute(...)`` returns a fresh canned result.
-        # Order matches the resolver's lookup steps:
-        #   1) unique_identifier_hash → no match
-        #   2) literal title match → no match (lossy encoding)
-        #   3) folder scan → returns the row whose title encodes to basename
+        # Canned results in the resolver's lookup order: path column, marker,
+        # unique hash, the two literal-title candidates (basename then stem),
+        # then the folder scan that matches by re-encoding each title.
         session.execute = AsyncMock(
             side_effect=[
+                _result_from_scalars([]),
+                _result_from_scalars([]),
                 _result_from_one(None),
+                _result_from_scalars([]),
                 _result_from_scalars([]),
                 _result_from_scalars([target_doc]),
             ]
@@ -182,7 +203,10 @@ class TestVirtualPathToDoc:
         session = MagicMock()
         session.execute = AsyncMock(
             side_effect=[
+                _result_from_scalars([]),
+                _result_from_scalars([]),
                 _result_from_one(None),
+                _result_from_scalars([]),
                 _result_from_scalars([]),
                 _result_from_scalars(
                     [SimpleNamespace(id=1, title="Something else", folder_id=None)]
@@ -205,9 +229,14 @@ class TestVirtualPathToDoc:
         target_doc = SimpleNamespace(id=7, title="Plain Note", folder_id=None)
 
         session = MagicMock()
+        # column, marker, hash miss; basename "Plain Note.xml" misses the title,
+        # the stem "Plain Note" hits — so the folder scan never runs.
         session.execute = AsyncMock(
             side_effect=[
+                _result_from_scalars([]),
+                _result_from_scalars([]),
                 _result_from_one(None),
+                _result_from_scalars([]),
                 _result_from_scalars([target_doc]),
             ]
         )
@@ -218,7 +247,7 @@ class TestVirtualPathToDoc:
             virtual_path=f"{DOCUMENTS_ROOT}/Plain Note.xml",
         )
         assert document is target_doc
-        assert session.execute.await_count == 2
+        assert session.execute.await_count == 5
 
     @pytest.mark.asyncio
     async def test_resolves_double_extension_for_uploaded_pdf(self):
@@ -231,9 +260,14 @@ class TestVirtualPathToDoc:
         target_doc = SimpleNamespace(id=99, title="2025-W2.pdf", folder_id=None)
 
         session = MagicMock()
+        # column, marker, hash miss; basename "2025-W2.pdf.xml" misses, the
+        # stem "2025-W2.pdf" matches the title verbatim.
         session.execute = AsyncMock(
             side_effect=[
+                _result_from_scalars([]),
+                _result_from_scalars([]),
                 _result_from_one(None),
+                _result_from_scalars([]),
                 _result_from_scalars([target_doc]),
             ]
         )
@@ -253,8 +287,11 @@ class TestVirtualPathToDoc:
         target_doc = SimpleNamespace(id=99, title="2025-W2.pdf", folder_id=None)
 
         session = MagicMock()
+        # column, marker, hash miss; the basename "2025-W2.pdf" matches verbatim.
         session.execute = AsyncMock(
             side_effect=[
+                _result_from_scalars([]),
+                _result_from_scalars([]),
                 _result_from_one(None),
                 _result_from_scalars([target_doc]),
             ]

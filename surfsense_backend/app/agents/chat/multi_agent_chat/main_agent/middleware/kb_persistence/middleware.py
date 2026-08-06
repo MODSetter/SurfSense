@@ -23,7 +23,6 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from fractional_indexing import generate_key_between
 from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.callbacks import adispatch_custom_event, dispatch_custom_event
 from langgraph.config import get_config
@@ -42,7 +41,7 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.chat.multi_agent_chat.shared.state.reducers import _CLEAR
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     parse_documents_path,
     safe_folder_segment,
@@ -59,6 +58,7 @@ from app.db import (
     shielded_async_session,
 )
 from app.indexing_pipeline.document_chunker import chunk_text
+from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     embed_texts,
     generate_content_hash,
@@ -78,58 +78,6 @@ def _basename(path: str) -> str:
 # ---------------------------------------------------------------------------
 # Folder helpers
 # ---------------------------------------------------------------------------
-
-
-async def _ensure_folder_hierarchy(
-    session: AsyncSession,
-    *,
-    workspace_id: int,
-    created_by_id: str | None,
-    folder_parts: list[str],
-) -> int | None:
-    """Ensure a chain of folder names exists under the workspace.
-
-    Returns the leaf folder id, or ``None`` if ``folder_parts`` is empty
-    (i.e. a document directly under ``/documents/``).
-    """
-    if not folder_parts:
-        return None
-    parent_id: int | None = None
-    for raw in folder_parts:
-        name = safe_folder_segment(str(raw))
-        query = select(Folder).where(
-            Folder.workspace_id == workspace_id,
-            Folder.name == name,
-        )
-        if parent_id is None:
-            query = query.where(Folder.parent_id.is_(None))
-        else:
-            query = query.where(Folder.parent_id == parent_id)
-        result = await session.execute(query)
-        folder = result.scalar_one_or_none()
-        if folder is None:
-            sibling_query = (
-                select(Folder.position).order_by(Folder.position.desc()).limit(1)
-            )
-            sibling_query = sibling_query.where(Folder.workspace_id == workspace_id)
-            if parent_id is None:
-                sibling_query = sibling_query.where(Folder.parent_id.is_(None))
-            else:
-                sibling_query = sibling_query.where(Folder.parent_id == parent_id)
-            sibling_result = await session.execute(sibling_query)
-            last_position = sibling_result.scalar_one_or_none()
-            folder = Folder(
-                name=name,
-                position=generate_key_between(last_position, None),
-                parent_id=parent_id,
-                workspace_id=workspace_id,
-                created_by_id=created_by_id,
-                updated_at=datetime.now(UTC),
-            )
-            session.add(folder)
-            await session.flush()
-        parent_id = folder.id
-    return parent_id
 
 
 async def _resolve_folder_id(
@@ -190,7 +138,7 @@ async def _create_document(
     folder_parts, title = parse_documents_path(virtual_path)
     if not title:
         raise ValueError(f"invalid /documents path '{virtual_path}'")
-    folder_id = await _ensure_folder_hierarchy(
+    folder_id = await ensure_folder_hierarchy(
         session,
         workspace_id=workspace_id,
         created_by_id=created_by_id,
@@ -360,7 +308,7 @@ async def _apply_move(
     folder_parts, new_title = parse_documents_path(dest)
     if not new_title:
         return None
-    folder_id = await _ensure_folder_hierarchy(
+    folder_id = await ensure_folder_hierarchy(
         session,
         workspace_id=workspace_id,
         created_by_id=created_by_id,
@@ -810,7 +758,7 @@ async def commit_staged_filesystem_state(
                 folder_parts_full = _split_folder_path(folder_path)
                 if not folder_parts_full:
                     continue
-                folder_id = await _ensure_folder_hierarchy(
+                folder_id = await ensure_folder_hierarchy(
                     session,
                     workspace_id=workspace_id,
                     created_by_id=created_by_id,
@@ -1045,6 +993,7 @@ async def commit_staged_filesystem_state(
                             "documentType": DocumentType.NOTE.value,
                             "workspaceId": workspace_id,
                             "folderId": new_doc.folder_id,
+                            "createdAt": int(new_doc.created_at.timestamp() * 1000),
                             "createdById": str(created_by_id)
                             if created_by_id
                             else None,

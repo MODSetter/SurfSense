@@ -11,10 +11,13 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command
 
+from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_tree import (
+    GitTreeBackend,
+)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT
+from app.knowledge_store.paths import DOCUMENTS_ROOT
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud
@@ -38,7 +41,9 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         except ValueError as exc:
             return f"Error: {exc}"
 
-        if is_cloud(mw._filesystem_mode):
+        backend = mw._get_backend(runtime)
+        # The git-tree backend needs no staging: directories materialize with writes.
+        if is_cloud(mw._filesystem_mode) and not isinstance(backend, GitTreeBackend):
             if not (
                 validated.startswith(DOCUMENTS_ROOT + "/")
                 or validated == DOCUMENTS_ROOT
@@ -65,7 +70,6 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
                 }
             )
 
-        backend = mw._get_backend(runtime)
         local_method = getattr(backend, "amkdir", None) or getattr(
             backend, "mkdir", None
         )
@@ -73,13 +77,16 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
             try:
                 res: Any = local_method(validated, parents=True, exist_ok=True)
                 if asyncio.iscoroutine(res):
-                    await res
+                    res = await res
             except TypeError:
                 res = local_method(validated)
                 if asyncio.iscoroutine(res):
-                    await res
+                    res = await res
             except Exception as exc:  # pragma: no cover
                 return f"Error: {exc}"
+            error = getattr(res, "error", None)
+            if error:
+                return error
         return f"Created directory {validated}"
 
     def sync_mkdir(

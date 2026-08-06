@@ -12,7 +12,7 @@ from __future__ import annotations
 from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_tree.middleware import (
     KnowledgeTreeMiddleware,
 )
-from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT
+from app.knowledge_store.paths import DOCUMENTS_ROOT
 
 
 def _compute(folder_paths: list[str], doc_paths: list[str]) -> set[str]:
@@ -88,7 +88,7 @@ class TestFormatTreeRendering:
         folder_paths: list[str],
         doc_specs: list[dict],
     ) -> str:
-        from app.agents.chat.runtime.path_resolver import PathIndex
+        from app.knowledge_store.paths import PathIndex
 
         index = PathIndex(
             folder_paths={i + 1: p for i, p in enumerate(folder_paths)},
@@ -96,6 +96,7 @@ class TestFormatTreeRendering:
 
         class _Row:
             def __init__(self, **kw):
+                self.document_metadata = None  # unmarked: path comes from the title
                 self.__dict__.update(kw)
 
         docs = [_Row(**spec) for spec in doc_specs]

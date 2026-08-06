@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import functools
 import time
@@ -88,7 +89,7 @@ class DocumentHybridSearchRetriever:
 
         # Get embedding for the query
         embedding_model = config.embedding_model_instance
-        query_embedding = embedding_model.embed(query_text)
+        query_embedding = await asyncio.to_thread(embedding_model.embed, query_text)
 
         # Build the query filtered by workspace
         query = (
@@ -222,7 +223,7 @@ class DocumentHybridSearchRetriever:
 
         if query_embedding is None:
             embedding_model = config.embedding_model_instance
-            query_embedding = embedding_model.embed(query_text)
+            query_embedding = await asyncio.to_thread(embedding_model.embed, query_text)
 
         # RRF constants
         k = 60
