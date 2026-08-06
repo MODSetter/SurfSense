@@ -32,7 +32,6 @@ from app.schemas import (
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
-    DocumentUpdate,
     DocumentWithChunksRead,
     FolderRead,
     PaginatedResponse,
@@ -1319,66 +1318,6 @@ async def read_document(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch document: {e!s}"
-        ) from e
-
-
-@router.put("/documents/{document_id}", response_model=DocumentRead)
-async def update_document(
-    document_id: int,
-    document_update: DocumentUpdate,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    """
-    Update a document.
-    Requires DOCUMENTS_UPDATE permission for the workspace.
-    """
-    try:
-        result = await session.execute(
-            select(Document).filter(Document.id == document_id)
-        )
-        db_document = result.scalars().first()
-
-        if not db_document:
-            raise HTTPException(
-                status_code=404, detail=f"Document with id {document_id} not found"
-            )
-
-        # Check permission for the workspace
-        await check_permission(
-            session,
-            auth,
-            db_document.workspace_id,
-            Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to update documents in this workspace",
-        )
-
-        update_data = document_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_document, key, value)
-        await session.commit()
-        await session.refresh(db_document)
-
-        # Convert to DocumentRead for response
-        return DocumentRead(
-            id=db_document.id,
-            title=db_document.title,
-            document_type=db_document.document_type,
-            document_metadata=db_document.document_metadata,
-            content=db_document.content,
-            content_hash=db_document.content_hash,
-            unique_identifier_hash=db_document.unique_identifier_hash,
-            created_at=db_document.created_at,
-            updated_at=db_document.updated_at,
-            workspace_id=db_document.workspace_id,
-            folder_id=db_document.folder_id,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update document: {e!s}"
         ) from e
 
 

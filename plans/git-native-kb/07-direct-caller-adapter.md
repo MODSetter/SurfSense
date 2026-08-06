@@ -1,6 +1,6 @@
 # Phase 7 — Direct-caller adapter (every non-agent writer)
 
-> **IN PROGRESS (2026-07-31).** Depends on Phases 3/4. Umbrella: [`00-umbrella-plan.md`](00-umbrella-plan.md). Blocks the Phase 5 fleet flip ([`05-migration.md`](05-migration.md), work item 8).
+> **WIRED (2026-08-06).** Depends on Phases 3/4. Umbrella: [`00-umbrella-plan.md`](00-umbrella-plan.md). Was blocking the Phase 5 fleet flip ([`05-migration.md`](05-migration.md), work item 8); every non-agent writer now reaches the store.
 
 ## Objective
 
@@ -64,22 +64,25 @@ twenty-first — written next month — to fail the same way.
 
 Ordered by damage, not by file.
 
-1. ⏳ Adapter verbs: `record_deleted_documents`, `record_moved_documents`, and
+1. ✅ Adapter verbs: `record_deleted_documents`, `record_moved_documents`, and
    `moves=` on `record_markdown_files` (the low-level verb) so a rename is one
    `tx.move`.
-2. ⏳ Wire the deletes: `DELETE /documents/{id}` (via `_delete_document_background`),
+2. ✅ Wire the deletes: `DELETE /documents/{id}` (via `_delete_document_background`),
    `DELETE /notes/{id}`, `DELETE /folders/{id}` (via `delete_folder_documents_task`),
    `folder-unlink`, `folder-sync-finalize`.
-3. ⏳ Wire the bulk deletes: connector delete (a revision removing that
+3. ✅ Wire the bulk deletes: connector delete (a revision removing that
    connector's paths), workspace delete (drop the store).
-4. ⏳ Wire the moves: document move, bulk-move, folder rename, folder move,
-   Obsidian rename. A folder operation is one revision moving every descendant.
-5. ⏳ Wire the creates that skip ingestion: note-with-a-body, extension pages,
-   Circleback. These lose content rather than resurrect it, so they rank below
-   the deletes.
-6. ⏳ `PUT /documents/{id}` — decide whether to wire it or narrow it. It accepts
-   arbitrary `DocumentUpdate` fields including `workspace_id`, which is a document
-   changing stores; wiring that faithfully is worse than refusing it.
+4. ✅ Wire the moves: document move, bulk-move, folder rename, folder move,
+   Obsidian rename (`record_moved_documents` after the row commits). A folder
+   operation is one revision moving every descendant.
+5. ✅ Wire the creates that skip ingestion: note-with-a-body, extension pages,
+   Circleback — each records `record_prepared_documents` after its row commits.
+6. ✅ `PUT /documents/{id}` — retired (2026-08-06). It wrote the deprecated
+   `content` column with no reindex and had no live UI caller; its only consumer,
+   the MCP `surfsense_update_document` tool, now edits through the wired editor
+   save path (`source_markdown` → facade → git + projection + reindex), which
+   works on flagged and unflagged workspaces alike. Endpoint and its orphaned
+   frontend (`updateDocument` service, `updateDocumentMutationAtom`) deleted.
 
 ## Tests
 
@@ -103,9 +106,11 @@ Ordered by damage, not by file.
 1. Whether a folder rename over a large subtree should be one revision or
    batched. One revision is atomic and matches how git thinks; a 10k-document
    folder makes it a long transaction under the workspace write lock.
-2. Whether the soft-tombstone deletes (Obsidian) should remove the file or keep
-   it — the row survives by design there, so git removal would disagree with the
-   row.
+2. ~~Whether the soft-tombstone deletes (Obsidian) should remove the file or keep
+   it~~ → **keep it.** The row survives by design for citation resolvability, and
+   `upsert_row` preserves `document_metadata`, so a rebuild re-adopts the row with
+   its tombstone intact. Removing the file would prune the row on the next rebuild
+   — that is the divergence, not keeping it.
 
 ## Sources
 

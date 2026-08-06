@@ -142,18 +142,15 @@ def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -
 
         Use this to correct or rewrite a document's text. The new content
         REPLACES the old entirely — to append, read the document first with
-        surfsense_get_document and resend the combined text. Search chunks are
-        not re-indexed by this call.
+        surfsense_get_document and resend the combined text. The document
+        re-indexes in the background afterwards.
         """
         existing = await client.request("GET", f"/documents/{document_id}")
+        workspace_id = existing["workspace_id"]
         await client.request(
-            "PUT",
-            f"/documents/{document_id}",
-            json={
-                "document_type": existing["document_type"],
-                "workspace_id": existing["workspace_id"],
-                "content": content,
-            },
+            "POST",
+            f"/workspaces/{workspace_id}/documents/{document_id}/save",
+            json={"source_markdown": content},
         )
         return f"Updated document {document_id} ('{existing.get('title', '')}')."
 
