@@ -69,6 +69,9 @@ async def upsert_row(
         created_by_id=author_id,
         folder_parts=folder_parts,
     )
+    previous_path = (
+        (document.document_metadata or {}).get(PATH_MARKER) if document else None
+    )
     metadata = {**(document.document_metadata or {} if document else {})}
     metadata[PATH_MARKER] = virtual_path
 
@@ -94,7 +97,14 @@ async def upsert_row(
     else:
         # Update in place. No collision guard here: a hash hit is this path's
         # normal update case, not an error.
-        document.title = title
+        path_hash = generate_unique_identifier_hash(
+            DocumentType.NOTE, virtual_path, workspace_id
+        )
+        if (previous_path and previous_path != virtual_path) or (
+            previous_path == virtual_path
+            and document.unique_identifier_hash != path_hash
+        ):
+            document.title = title
         document.folder_id = folder_id
         document.source_markdown = content
         document.content_hash = generate_content_hash(content, workspace_id)
@@ -195,6 +205,9 @@ async def delete_row(
         # arrives as a removal and an addition — while the recorder has moved the
         # marker and left unique_identifier_hash, resolve's fallback, behind.
         return None
+    from app.file_storage.service import purge_document_blobs
+
+    await purge_document_blobs(session, document_ids=[document.id])
     owned.pop(virtual_path, None)
     await session.delete(document)
     return document
