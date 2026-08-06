@@ -98,6 +98,9 @@ async def test_remove_folder_prunes_rows_and_clears_the_subtree(
     )
     names = await _folder_names(db_session, db_workspace.id)
     assert "Trash" not in names and "Deep" not in names
+    # The reported symptom: git can't track empty dirs, so the removal must also
+    # prune the folder off disk instead of leaving a hollow shell behind.
+    assert not (knowledge_root / str(db_workspace.id) / "documents" / "Trash").exists()
 
 
 async def test_move_folder_keeps_the_document_id(

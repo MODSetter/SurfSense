@@ -472,6 +472,52 @@ async def test_a_sync_batch_failure_does_not_reach_the_caller(
     assert await record_prepared_documents(db_session, [document]) is None
 
 
+async def test_a_resync_that_dropped_the_marker_overwrites_in_place(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The duplication bug this whole change exists for. A connector re-sync
+    rewrites metadata with fresh fields that carry no marker; the durable ``path``
+    column has to pin the file so the batch overwrites in place instead of
+    authoring a second path and forking the document."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    # The re-sync: marker gone from metadata, path column survives, body changed.
+    document.path = f"/{recorded}"
+    document.document_metadata = {"md5_checksum": "changed"}
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    assert await store.read_as_of(second, recorded) == b"# Roadmap v2"
+
+
+async def test_a_resync_that_kept_the_marker_overwrites_in_place(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The common case: the marker survived the re-sync, so it pins the file and
+    the batch is a one-path overwrite, never a fork."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    document.document_metadata = {PATH_MARKER: f"/{recorded}", "md5_checksum": "x"}
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+
+
 # --- record_deleted_documents: the file has to go with the row ---
 #
 # Without this verb the row goes and the file stays, so the next whole-tree
