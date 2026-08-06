@@ -51,6 +51,7 @@ export {
 	ExecuteResultSchema,
 	SandboxExecuteToolUI,
 } from "./sandbox-execute";
+export { SaveArtifactToolUI } from "./save-artifact";
 export {
 	type UpdateMemoryArgs,
 	UpdateMemoryArgsSchema,

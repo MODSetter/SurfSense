@@ -20,6 +20,7 @@ import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateResumeToolUI } from "@/components/tool-ui/generate-resume";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/podcast";
+import { SaveArtifactToolUI } from "@/components/tool-ui/save-artifact";
 
 const GenerateVideoPresentationToolUI = dynamic(
 	() =>
@@ -164,6 +165,7 @@ const PublicAssistantMessage: FC = () => {
 							Reasoning: ReasoningMessagePart,
 							tools: {
 								by_name: {
+									save_artifact: SaveArtifactToolUI,
 									generate_podcast: GeneratePodcastToolUI,
 									generate_report: GenerateReportToolUI,
 									generate_resume: GenerateResumeToolUI,
