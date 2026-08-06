@@ -150,7 +150,8 @@ def register(mcp: FastMCP, client: SurfSenseClient, context: WorkspaceContext) -
         await client.request(
             "POST",
             f"/workspaces/{workspace_id}/documents/{document_id}/save",
-            json={"source_markdown": content},
+            # Pin the title so a content replace never reheadings a note.
+            json={"source_markdown": content, "title": existing["title"]},
         )
         return f"Updated document {document_id} ('{existing.get('title', '')}')."
 
