@@ -24,7 +24,7 @@ from app.db import Document, DocumentStatus, Workspace
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store.engines.base import Change
-from app.knowledge_store.index.folders import live_folder_chains, reconcile_folders
+from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
     delete_row,
     follow_rename,
@@ -208,17 +208,18 @@ async def _converge(
 
     # A failed document must not advance the marker, or the drift sweep can never
     # re-drive it. An intentional skip (unreadable blob) must not block it, or one
-    # bad file wedges the workspace into rebuilding itself forever. Folder rows are
-    # reconciled here too: a failed run left the session mid-rollback, no state to
-    # finalize.
+    # bad file wedges the workspace into rebuilding itself forever. Folders are
+    # reconciled from the tree on both paths so an empty ``.keep`` folder gets its
+    # row incrementally, not only on a full rebuild; a failed run left the session
+    # mid-rollback, no state to finalize.
     if outcome.failed == 0:
-        if plan.tree is not None:
-            await reconcile_folders(
-                session,
-                workspace_id=workspace.id,
-                live=live_folder_chains(plan.tree),
-                author_id=author_id,
-            )
+        await reconcile_tree_folders(
+            session,
+            store,
+            head,
+            workspace_id=workspace.id,
+            author_id=author_id,
+        )
         workspace.last_indexed_revision = head
         outcome.stamped = True
     await session.commit()

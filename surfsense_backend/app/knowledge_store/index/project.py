@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.knowledge_store.paths import to_virtual_path
 from app.db import Workspace
+from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
     delete_row,
     follow_rename,
@@ -150,6 +151,17 @@ async def _project(
         document, created = upserted
         bucket = projection.created if created else projection.updated
         bucket.append(_snapshot(document, virtual_path))
+
+    # An empty folder rides in this revision only as its ``.keep``, which the
+    # change loop skips as a blank document; reconcile from the tree so the
+    # sidebar gets its folder row at commit time, not only once the indexer runs.
+    await reconcile_tree_folders(
+        session,
+        store,
+        revision,
+        workspace_id=workspace.id,
+        author_id=author_id,
+    )
 
     await session.commit()
     return projection

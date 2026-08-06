@@ -90,11 +90,21 @@ async def virtual_path_to_doc(
 async def _resolve_by_title(
     session: AsyncSession, workspace_id: int, path: StorePath
 ) -> Document | None:
-    """Match an unmarked row by title in its folder, re-encoding lossy titles."""
+    """Match an unmarked row by title in its folder, re-encoding lossy titles.
+
+    Restricted to rows with no authoritative location. A row that carries a path
+    column or a marker was already matched by it above; reclaiming it here by
+    title would let a fresh note at a name a moved note used to hold merge into
+    that moved row — the title is Postgres-owned and no longer tracks the file.
+    """
     from sqlalchemy import select
 
     from app.db import Document
 
+    unlocated = (
+        Document.path.is_(None)
+        & Document.document_metadata[PATH_MARKER].as_string().is_(None)
+    )
     folder_id = await _resolve_folder_id(
         session, workspace_id=workspace_id, folder_parts=list(path.folder_parts)
     )
@@ -107,6 +117,7 @@ async def _resolve_by_title(
         query = select(Document).where(
             Document.workspace_id == workspace_id,
             Document.title == candidate,
+            unlocated,
         )
         query = (
             query.where(Document.folder_id.is_(None))
@@ -118,7 +129,9 @@ async def _resolve_by_title(
         if document is not None:
             return document
 
-    folder_scan = select(Document).where(Document.workspace_id == workspace_id)
+    folder_scan = select(Document).where(
+        Document.workspace_id == workspace_id, unlocated
+    )
     folder_scan = (
         folder_scan.where(Document.folder_id.is_(None))
         if folder_id is None

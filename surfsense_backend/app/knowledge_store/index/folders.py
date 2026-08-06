@@ -8,6 +8,7 @@ neither is pruned — the Phase-6 gap where an emptied folder lingered.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,9 @@ from app.knowledge_store.paths import (
     safe_folder_segment,
 )
 from app.services.folder_service import ensure_folder_hierarchy
+
+if TYPE_CHECKING:
+    from app.knowledge_store import KnowledgeStore
 
 
 def live_folder_chains(store_paths: Iterable[str]) -> set[tuple[str, ...]]:
@@ -69,6 +73,30 @@ async def reconcile_folders(
     for folder in sorted(stale, key=lambda f: len(_chain_of(f, by_id)), reverse=True):
         await session.delete(folder)
     return len(stale)
+
+
+async def reconcile_tree_folders(
+    session: AsyncSession,
+    store: KnowledgeStore,
+    revision: str,
+    *,
+    workspace_id: int,
+    author_id: str | None,
+) -> int:
+    """Reconcile ``folders`` against the whole tree at ``revision``.
+
+    An empty folder rides in the tree only as its ``.keep``, a blank blob the
+    incremental change list drops; reconciling from the tree snapshot rather than
+    the changes is what lets the incremental and projection paths derive the same
+    folder rows the full rebuild does.
+    """
+    tracked = [entry.path for entry in await store.list_paths(revision)]
+    return await reconcile_folders(
+        session,
+        workspace_id=workspace_id,
+        live=live_folder_chains(tracked),
+        author_id=author_id,
+    )
 
 
 async def reparent_folder(

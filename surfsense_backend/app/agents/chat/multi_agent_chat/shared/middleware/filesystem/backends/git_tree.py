@@ -123,12 +123,35 @@ class GitTreeBackend:
         parents: bool = True,
         exist_ok: bool = True,
     ) -> WriteResult:
-        return await (await self._backend()).amkdir(
-            dir_path, parents=parents, exist_ok=exist_ok
-        )
+        # Git ignores empty directories, so an empty folder needs a .keep marker
+        # to enter the turn's diff — the marker the facade's create_folder writes.
+        # The dir must exist first for that marker write to resolve.
+        backend = await self._backend()
+        made = await backend.amkdir(dir_path, parents=parents, exist_ok=exist_ok)
+        if made.error:
+            return made
+        return await backend.awrite(self._keep_marker(dir_path), "")
 
     async def armdir(self, dir_path: str) -> WriteResult:
-        return await (await self._backend()).armdir(dir_path)
+        # A folder is removed by removing its .keep; refuse one that still holds
+        # documents. An untracked folder has no marker, so a missing one succeeds.
+        backend = await self._backend()
+        keep = self._keep_marker(dir_path)
+        for info in await backend.als_info(dir_path):
+            path = (info.get("path") or "").rstrip("/")
+            if path and path != keep:
+                return WriteResult(
+                    error=f"Error: directory '{dir_path}' is not empty. "
+                    "Remove its contents first."
+                )
+        result = await backend.adelete_file(keep)
+        return WriteResult(path=dir_path) if result.error else result
+
+    @staticmethod
+    def _keep_marker(dir_path: str) -> str:
+        from app.knowledge_store.paths import KEEP_FILE
+
+        return f"{dir_path.rstrip('/')}/{KEEP_FILE}"
 
     async def aupload_files(
         self, files: list[tuple[str, bytes]]

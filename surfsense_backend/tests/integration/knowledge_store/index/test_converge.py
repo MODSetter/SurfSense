@@ -16,7 +16,7 @@ import pytest
 from sqlalchemy import func, select
 
 from app.config import config as app_config
-from app.db import Chunk, Document, DocumentStatus, DocumentType, DocumentVersion
+from app.db import Chunk, Document, DocumentStatus, DocumentType, DocumentVersion, Folder
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
@@ -62,6 +62,21 @@ async def titles(session, workspace_id) -> dict[str, Document]:
         select(Document).where(Document.workspace_id == workspace_id)
     )
     return {document.title: document for document in result.scalars()}
+
+
+async def by_path(session, workspace_id) -> dict[str, Document]:
+    """Every document keyed by the path it lives at.
+
+    A move keeps the Postgres-owned title, so two rows can share a title while
+    living at different paths; the path is what stays unique across a move.
+    """
+    result = await session.execute(
+        select(Document).where(Document.workspace_id == workspace_id)
+    )
+    return {
+        (document.document_metadata or {}).get(PATH_MARKER): document
+        for document in result.scalars()
+    }
 
 
 async def chunk_ids(session, document_id) -> list[int]:
@@ -232,9 +247,10 @@ async def test_a_move_keeps_the_document_and_its_history(
     await commit(store, {"documents/new.xml": MOVABLE}, removes=["documents/old.xml"])
     await index_changes(db_session, db_workspace.id)
 
-    rows = await titles(db_session, db_workspace.id)
-    assert set(rows) == {"new"}
-    assert rows["new"].id == document_id
+    # Title is Postgres-owned, so a move keeps it; only the path follows the file.
+    rows = await by_path(db_session, db_workspace.id)
+    assert set(rows) == {"/documents/new.xml"}
+    assert rows["/documents/new.xml"].id == document_id
     assert await versions(db_session, document_id) == [1]
 
 
@@ -253,10 +269,10 @@ async def test_a_new_file_at_a_moved_from_path_gets_its_own_row(
     await commit(store, {"documents/old.xml": "# Reused path\n\nnew note here\n"})
     await index_changes(db_session, db_workspace.id)
 
-    rows = await titles(db_session, db_workspace.id)
-    assert set(rows) == {"new", "old"}
-    assert rows["new"].id == moved_id
-    assert rows["old"].id != moved_id
+    rows = await by_path(db_session, db_workspace.id)
+    assert set(rows) == {"/documents/new.xml", "/documents/old.xml"}
+    assert rows["/documents/new.xml"].id == moved_id
+    assert rows["/documents/old.xml"].id != moved_id
 
 
 async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
@@ -281,9 +297,9 @@ async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
     )
     await index_changes(db_session, db_workspace.id)
 
-    rows = await titles(db_session, db_workspace.id)
-    assert set(rows) == {"new"}
-    assert rows["new"].id == document_id
+    rows = await by_path(db_session, db_workspace.id)
+    assert set(rows) == {"/documents/new.xml"}
+    assert rows["/documents/new.xml"].id == document_id
 
 
 # ── Convergence ─────────────────────────────────────────────────────────────
@@ -396,6 +412,33 @@ async def test_a_connector_document_survives_a_rebuild(
     await index_tree(db_session, db_workspace.id)
 
     assert "Slack thread" in await titles(db_session, db_workspace.id)
+
+
+async def test_the_incremental_path_materializes_an_empty_keep_folder(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    """An agent's empty folder is a bare ``.keep`` the change loop skips as blank;
+    the incremental path must still reconcile it into a row, not wait for a
+    rebuild — the drift the two paths otherwise had."""
+    async with store.transaction(message="mkdir", author=user_identity("1")) as tx:
+        tx.write("documents/Smoking rules/.keep", b"")
+    revision = tx.revision
+
+    await index_changes(db_session, db_workspace.id)
+
+    names = (
+        (
+            await db_session.execute(
+                select(Folder.name).where(Folder.workspace_id == db_workspace.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert "Smoking rules" in names
+    assert await titles(db_session, db_workspace.id) == {}
+    await db_session.refresh(db_workspace)
+    assert db_workspace.last_indexed_revision == revision
 
 
 async def test_a_rebuild_prunes_a_row_whose_file_is_gone(
