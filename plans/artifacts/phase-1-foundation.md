@@ -61,7 +61,7 @@ New module `app/artifacts/service.py`:
 
 - Workspace-membership auth (same dependency as `editor_routes.py`).
 - 404 unless the `DocumentFile` belongs to `doc_id` within `ws_id`.
-- `StreamingResponse` over `open_document_file_stream()`; headers per master spec §5 (inline allowlist = `application/pdf`, `text/plain`, `image/*` **minus `image/svg+xml`**; else attachment; `nosniff`; `ETag` = sha256; `Cache-Control: private, max-age=31536000, immutable`; `If-None-Match` → 304).
+- `StreamingResponse` over `open_document_file_stream()`; headers per master spec §5 (inline for `application/pdf` only, attachment for everything else; `nosniff`; `ETag` = sha256; `Cache-Control: private, max-age=31536000, immutable`; `If-None-Match` → 304).
 
 ### 2.5 Backend — `editor-content` discrimination
 

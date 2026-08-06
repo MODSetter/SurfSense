@@ -76,8 +76,8 @@ async def test_stream_honors_etag(monkeypatch):
     ("mime_type", "mode"),
     [
         ("application/pdf", "inline"),
-        ("image/png", "inline"),
-        ("text/plain", "inline"),
+        ("image/png", "attachment"),
+        ("text/plain", "attachment"),
         ("text/html", "attachment"),
         ("image/svg+xml", "attachment"),
         ("application/octet-stream", "attachment"),
