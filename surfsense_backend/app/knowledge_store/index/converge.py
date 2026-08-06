@@ -36,6 +36,7 @@ from app.knowledge_store.index.rows import (
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.locks import workspace_index_lock
+from app.utils.document_converters import generate_content_hash
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +237,18 @@ async def _index_one(
     owned: dict[str, Document],
 ) -> bool:
     """Upsert the row for one path, then hand it to the indexing pipeline."""
+    # index_tree replays every path in the tree, so the hourly drift sweep would
+    # re-embed rows that never changed. Read whether this row is already converged
+    # before the upsert mutates it in place: a READY row whose body still hashes to
+    # this content keeps its chunks, so only its path/folder need reconciling — the
+    # cheap upsert always runs (a move updates it), the costly re-embed does not.
+    settled = owned.get(virtual_path)
+    already_indexed = (
+        settled is not None
+        and DocumentStatus.is_state(settled.status, DocumentStatus.READY)
+        and settled.content_hash == generate_content_hash(content, workspace_id)
+    )
+
     upserted = await upsert_row(
         session,
         workspace_id=workspace_id,
@@ -247,6 +260,10 @@ async def _index_one(
     if upserted is None:
         return True
     document, _created = upserted
+
+    if already_indexed:
+        owned[virtual_path] = document
+        return True
 
     connector_doc = ConnectorDocument(
         title=document.title,

@@ -414,10 +414,12 @@ class KnowledgeStore:
             for doc in documents:
                 if not doc.source_markdown:
                     continue
-                previous = (doc.document_metadata or {}).get(PATH_MARKER)
-                if isinstance(previous, str) and previous.startswith(
-                    f"{DOCUMENTS_ROOT}/"
-                ):
+                # Where the doc's file already lives, marker first then the path
+                # column: a connector re-sync overwrites its own metadata and can
+                # drop the marker, but the column survives it. Re-authoring a path
+                # for a doc that already has a file forks it into a duplicate.
+                previous = _recorded_virtual_path(doc, DOCUMENTS_ROOT)
+                if previous is not None:
                     virtual_path = previous
                 else:
                     virtual_path = self._author_path(
@@ -864,6 +866,24 @@ def _relocation_of(
         return to_store_path(previous), to_store_path(current), current
     except StorePathError:
         return None
+
+
+def _recorded_virtual_path(document: Document, documents_root: str) -> str | None:
+    """The path a doc already lives at: marker first, then the durable column.
+
+    Both are ``/documents/...`` virtual paths. The marker rides on metadata a
+    connector re-sync rewrites, so it can vanish; the ``path`` column is set by
+    the same writers and is not overwritten by a sync, so it is the fallback that
+    keeps a re-sync overwriting in place instead of authoring a fresh duplicate.
+    """
+    prefix = f"{documents_root}/"
+    for value in (
+        (document.document_metadata or {}).get(PATH_MARKER),
+        document.path,
+    ):
+        if isinstance(value, str) and value.startswith(prefix):
+            return value
+    return None
 
 
 def _stale_store_path(previous: str | None, current: str) -> str | None:

@@ -843,18 +843,24 @@ async def index_local_folder(
                     failed_count += 1
                     continue
 
-                result = await pipeline.index(document, connector_doc)
+                result = await pipeline.index_unless_store_owns(
+                    document, connector_doc
+                )
 
-                if DocumentStatus.is_state(result.status, DocumentStatus.READY):
+                # A deferral (``None``) recorded the row for the store's indexer to
+                # chunk; still stamp mtime so the next sweep skips an unchanged file.
+                if result is None or DocumentStatus.is_state(
+                    result.status, DocumentStatus.READY
+                ):
                     indexed_count += 1
 
                     unique_id = connector_doc.unique_id
                     mtime_info = file_meta_map.get(unique_id, {})
 
-                    doc_meta = dict(result.document_metadata or {})
+                    doc_meta = dict(document.document_metadata or {})
                     doc_meta["mtime"] = mtime_info.get("mtime")
                     doc_meta["raw_file_hash"] = mtime_info.get("raw_file_hash")
-                    result.document_metadata = doc_meta
+                    document.document_metadata = doc_meta
 
                     est = mtime_info.get("estimated_pages", 1)
                     content_len = mtime_info.get("content_length", 0)
@@ -1125,7 +1131,7 @@ async def _index_single_file(
 
         db_doc = documents[0]
 
-        await pipeline.index(db_doc, connector_doc)
+        result = await pipeline.index_unless_store_owns(db_doc, connector_doc)
 
         await session.refresh(db_doc)
         doc_meta = dict(db_doc.document_metadata or {})
@@ -1134,8 +1140,12 @@ async def _index_single_file(
         db_doc.document_metadata = doc_meta
         await session.commit()
 
+        # A deferral (``None``) is a success: the store's indexer owns its chunks.
         indexed = (
-            1 if DocumentStatus.is_state(db_doc.status, DocumentStatus.READY) else 0
+            1
+            if result is None
+            or DocumentStatus.is_state(db_doc.status, DocumentStatus.READY)
+            else 0
         )
         failed_msg = None if indexed else "Indexing failed"
 
@@ -1410,7 +1420,7 @@ async def index_uploaded_files(
 
                 db_doc = documents[0]
 
-                await pipeline.index(db_doc, connector_doc)
+                result = await pipeline.index_unless_store_owns(db_doc, connector_doc)
 
                 await session.refresh(db_doc)
                 doc_meta = dict(db_doc.document_metadata or {})
@@ -1419,7 +1429,11 @@ async def index_uploaded_files(
                 db_doc.document_metadata = doc_meta
                 await session.commit()
 
-                if DocumentStatus.is_state(db_doc.status, DocumentStatus.READY):
+                # A deferral (``None``) is a success: the store's indexer owns its
+                # chunks, and the file is still billed for the pages it processed.
+                if result is None or DocumentStatus.is_state(
+                    db_doc.status, DocumentStatus.READY
+                ):
                     indexed_count += 1
                     final_pages = _compute_final_pages(
                         etl_credit_service, estimated_pages, len(content)

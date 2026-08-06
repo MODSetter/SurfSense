@@ -375,6 +375,26 @@ async def test_indexing_a_stamped_revision_does_nothing(
     assert patched_embed_texts.call_count == calls
 
 
+async def test_a_rebuild_reembeds_nothing_when_the_tree_is_unchanged(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    """index_tree replays every path, not just what moved, so the hourly drift
+    sweep would re-embed an unchanged workspace on every run. A READY row that
+    still hashes to its body is left alone, keeping its chunk ids and the embedder
+    idle."""
+    await commit(store, {"documents/a.xml": "# A\n\nAlpha."})
+    await index_tree(db_session, db_workspace.id)
+    doc = (await titles(db_session, db_workspace.id))["a"]
+    before = await chunk_ids(db_session, doc.id)
+    assert before
+    calls = patched_embed_texts.call_count
+
+    await index_tree(db_session, db_workspace.id)
+
+    assert await chunk_ids(db_session, doc.id) == before
+    assert patched_embed_texts.call_count == calls
+
+
 async def test_a_missed_revision_is_folded_in_by_the_next_run(
     store, db_session, db_workspace, patched_embed_texts
 ):

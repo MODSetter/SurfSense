@@ -368,7 +368,10 @@ async def upsert_note(
 
     document = prepared[0]
 
-    return await pipeline.index(document, connector_doc)
+    # On a flipped workspace the store's indexer owns chunking; the prepared row
+    # is the same object either way, so return it whether or not we chunked here.
+    indexed = await pipeline.index_unless_store_owns(document, connector_doc)
+    return indexed if indexed is not None else document
 
 
 async def rename_note(

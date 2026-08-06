@@ -106,10 +106,20 @@ async def _seed_and_verify(
             # report shows what state the failed write left behind.
             error = f"{type(exc).__name__}: {exc}"
 
-    tracked = {t.path: t.content_id for t in await _tracked_paths(store)}
+    # .keep is a folder marker, not document content: git owns it — it is how an
+    # empty folder survives — and a folder that later gains a document keeps its
+    # now-redundant marker. Parity is document bytes, so a marker on either side
+    # is never drift; counting one would alarm such a folder forever and draw an
+    # hourly repair reindex that cannot remove a git file.
+    tracked = {
+        t.path: t.content_id
+        for t in await _tracked_paths(store)
+        if not _is_keep(t.path)
+    }
     desired = {
         path: store.compute_content_id(markdown.encode())
         for path, markdown in files.items()
+        if not _is_keep(path)
     }
 
     return MigrationReport(
@@ -124,6 +134,11 @@ async def _seed_and_verify(
         ),
         error=error,
     )
+
+
+def _is_keep(store_path: str) -> bool:
+    """A folder's ``.keep`` marker, which parity treats as structure, not content."""
+    return store_path.rsplit("/", 1)[-1] == KEEP_FILE
 
 
 def _failure_report(

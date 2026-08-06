@@ -600,7 +600,7 @@ async def _process_single_file(
             connector_doc = doc_map.get(document.unique_identifier_hash)
             if not connector_doc:
                 continue
-            await pipeline.index(document, connector_doc)
+            await pipeline.index_unless_store_owns(document, connector_doc)
 
         await etl_credit_service.charge_credits(user_id, estimated_pages)
         logger.info(f"Successfully indexed Google Drive file: {file_name}")
