@@ -32,6 +32,7 @@ async def store_document_file(
     filename: str,
     mime_type: str | None = None,
     kind: DocumentFileKind = DocumentFileKind.ORIGINAL,
+    role: str = "primary",
     created_by_id: str | UUID | None = None,
     backend: StorageBackend | None = None,
 ) -> DocumentFile:
@@ -49,6 +50,7 @@ async def store_document_file(
         document_id=document_id,
         workspace_id=workspace_id,
         kind=kind,
+        role=role,
         storage_backend=backend.backend_name,
         storage_key=key,
         original_filename=filename,

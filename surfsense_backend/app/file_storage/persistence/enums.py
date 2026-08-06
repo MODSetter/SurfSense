@@ -9,3 +9,4 @@ class DocumentFileKind(StrEnum):
     ORIGINAL = "ORIGINAL"
     REDACTED = "REDACTED"
     FILLED_FORM = "FILLED_FORM"
+    GENERATED = "GENERATED"
