@@ -27,6 +27,9 @@ def _content_disposition(filename: str, *, inline: bool) -> str:
 
 
 def _is_inline(mime_type: str) -> bool:
+    # SVG is the one image that scripts on our origin, so it downloads like HTML.
+    if mime_type == "image/svg+xml":
+        return False
     return (
         mime_type == "application/pdf"
         or mime_type == "text/plain"

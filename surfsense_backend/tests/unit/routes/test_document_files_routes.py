@@ -79,7 +79,7 @@ async def test_stream_honors_etag(monkeypatch):
         ("image/png", "inline"),
         ("text/plain", "inline"),
         ("text/html", "attachment"),
-        ("image/svg+xml", "inline"),
+        ("image/svg+xml", "attachment"),
         ("application/octet-stream", "attachment"),
     ],
 )
