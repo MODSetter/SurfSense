@@ -262,16 +262,6 @@ export const getDocumentChunksResponse = z.object({
 });
 
 /**
- * Update document
- */
-export const updateDocumentRequest = z.object({
-	id: z.number(),
-	data: document.pick({ workspace_id: true, document_type: true, content: true }),
-});
-
-export const updateDocumentResponse = document;
-
-/**
  * Delete document
  */
 export const deleteDocumentRequest = document.pick({ id: true });
@@ -319,8 +309,6 @@ export type GetDocumentTypeCountsRequest = z.infer<typeof getDocumentTypeCountsR
 export type GetDocumentTypeCountsResponse = z.infer<typeof getDocumentTypeCountsResponse>;
 export type GetDocumentByChunkRequest = z.infer<typeof getDocumentByChunkRequest>;
 export type GetDocumentByChunkResponse = z.infer<typeof getDocumentByChunkResponse>;
-export type UpdateDocumentRequest = z.infer<typeof updateDocumentRequest>;
-export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
 export type DeleteDocumentRequest = z.infer<typeof deleteDocumentRequest>;
 export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
 export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>;

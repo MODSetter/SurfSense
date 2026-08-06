@@ -19,11 +19,12 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import PATH_MARKER, to_virtual_path
+from app.knowledge_store.paths import PATH_MARKER, to_virtual_path
 from app.db import Document, DocumentStatus, Workspace
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store.engines.base import Change
+from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
     delete_row,
     follow_rename,
@@ -35,6 +36,7 @@ from app.knowledge_store.index.rows import (
 )
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.locks import workspace_index_lock
+from app.utils.document_converters import generate_content_hash
 
 logger = logging.getLogger(__name__)
 
@@ -207,8 +209,18 @@ async def _converge(
 
     # A failed document must not advance the marker, or the drift sweep can never
     # re-drive it. An intentional skip (unreadable blob) must not block it, or one
-    # bad file wedges the workspace into rebuilding itself forever.
+    # bad file wedges the workspace into rebuilding itself forever. Folders are
+    # reconciled from the tree on both paths so an empty ``.keep`` folder gets its
+    # row incrementally, not only on a full rebuild; a failed run left the session
+    # mid-rollback, no state to finalize.
     if outcome.failed == 0:
+        await reconcile_tree_folders(
+            session,
+            store,
+            head,
+            workspace_id=workspace.id,
+            author_id=author_id,
+        )
         workspace.last_indexed_revision = head
         outcome.stamped = True
     await session.commit()
@@ -225,6 +237,18 @@ async def _index_one(
     owned: dict[str, Document],
 ) -> bool:
     """Upsert the row for one path, then hand it to the indexing pipeline."""
+    # index_tree replays every path in the tree, so the hourly drift sweep would
+    # re-embed rows that never changed. Read whether this row is already converged
+    # before the upsert mutates it in place: a READY row whose body still hashes to
+    # this content keeps its chunks, so only its path/folder need reconciling — the
+    # cheap upsert always runs (a move updates it), the costly re-embed does not.
+    settled = owned.get(virtual_path)
+    already_indexed = (
+        settled is not None
+        and DocumentStatus.is_state(settled.status, DocumentStatus.READY)
+        and settled.content_hash == generate_content_hash(content, workspace_id)
+    )
+
     upserted = await upsert_row(
         session,
         workspace_id=workspace_id,
@@ -236,6 +260,10 @@ async def _index_one(
     if upserted is None:
         return True
     document, _created = upserted
+
+    if already_indexed:
+        owned[virtual_path] = document
+        return True
 
     connector_doc = ConnectorDocument(
         title=document.title,

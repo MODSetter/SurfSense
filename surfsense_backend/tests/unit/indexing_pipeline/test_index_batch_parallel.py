@@ -13,6 +13,14 @@ _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 pytestmark = pytest.mark.unit
 
 
+@pytest.fixture(autouse=True)
+def _embedding_cache_off(monkeypatch):
+    """These tests assert the chunker ran. With the embedding cache on, an earlier
+    identical body leaves a stored chunk set that a later run is served instead,
+    bypassing the chunker; the cache is exercised by its own suite, so pin it off."""
+    monkeypatch.setattr(app_config, "EMBEDDING_CACHE_ENABLED", False)
+
+
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
@@ -206,12 +214,60 @@ async def test_batch_parallel_indexes_all_documents(
         return document
 
     monkeypatch.setattr(IndexingPipelineService, "index", fake_index)
+    monkeypatch.setattr(
+        "app.knowledge_store.settings.knowledge_store_enabled_for",
+        AsyncMock(return_value=False),
+    )
 
     _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=2)
 
     assert indexed == 3
     assert failed == 0
     assert sorted(index_calls) == [1, 2, 3]
+
+
+async def test_batch_parallel_defers_chunking_when_the_store_owns_the_workspace(
+    pipeline, make_connector_document, monkeypatch
+):
+    """A flipped workspace's chunks belong to the store's indexer. The parallel
+    path records and counts each document as indexed but never chunks here, so a
+    connector sync cannot race the indexer into double chunks."""
+    docs = [
+        make_connector_document(
+            document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
+            unique_id=f"msg-{i}",
+            workspace_id=1,
+        )
+        for i in range(2)
+    ]
+
+    orm_docs = [_make_orm_doc(cd, doc_id=i + 1) for i, cd in enumerate(docs)]
+    pipeline.prepare_for_indexing = AsyncMock(return_value=orm_docs)
+
+    orm_by_id = {d.id: d for d in orm_docs}
+    monkeypatch.setattr(
+        "app.tasks.celery_tasks.get_celery_session_maker",
+        _mock_session_factory(orm_by_id),
+    )
+
+    index_calls = []
+
+    async def fake_index(self, document, connector_doc):
+        index_calls.append(document.id)
+        document.status = DocumentStatus.ready()
+        return document
+
+    monkeypatch.setattr(IndexingPipelineService, "index", fake_index)
+    monkeypatch.setattr(
+        "app.knowledge_store.settings.knowledge_store_enabled_for",
+        AsyncMock(return_value=True),
+    )
+
+    _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=2)
+
+    assert indexed == 2
+    assert failed == 0
+    assert index_calls == []
 
 
 async def test_batch_parallel_one_failure_does_not_affect_others(
@@ -243,6 +299,10 @@ async def test_batch_parallel_one_failure_does_not_affect_others(
         return document
 
     monkeypatch.setattr(IndexingPipelineService, "index", failing_index)
+    monkeypatch.setattr(
+        "app.knowledge_store.settings.knowledge_store_enabled_for",
+        AsyncMock(return_value=False),
+    )
 
     _, indexed, failed = await pipeline.index_batch_parallel(docs, max_concurrency=4)
 

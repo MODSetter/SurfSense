@@ -175,7 +175,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ### Phase 7 — Direct-caller adapter [`subplan: 07-direct-caller-adapter.md`]
 
-> **IN PROGRESS (2026-07-31).** Not planned as a phase; forced by the canary. Blocks the Phase 5 flip.
+> **WIRED (2026-08-06).** Not planned as a phase; forced by the canary. Was the last blocker on the Phase 5 flip; every non-agent writer now records through `knowledge_store/service.py`.
 
 - The agent reaches git through the Phase-3 commit path, and the editor and the four ingestion flows reach it through `services/document_revision_recorder.py`. **About twenty other writers do not** — every delete, every move and rename, and the creates that skip `prepare_for_indexing`. A delete leaves its file behind, so the next rebuild resurrects the document and the drift check then reports `ok`.
 - Fixed at the adapter, not at the twenty call sites: the recorder grows `remove` and `move` verbs and the callers hand it documents, never paths. Twenty handlers each remembering is how six got wired and twenty did not.
@@ -189,6 +189,14 @@ Every decision traces to a proven source (full list + links in the ADR):
 - One law for naming, layout, and resolution, obeyed identically on the git tree (truth) and the Postgres rows (UI). **Id is identity; the path is an authored-once label** — the Notion/Dendron model, chosen over Obsidian's path-as-identity after surveying both (references are already id-keyed; git can't durably track renames).
 - Postgres gets git's structural guarantee: the path moves off the un-indexed `document_metadata` marker onto a `documents.path` column with a **partial unique index on `(workspace_id, path)`**, healed lazily and finished by the seed. `unique_identifier_hash` demotes to a fallback, which is what makes `.md` safe (retires C1's `.xml` rule).
 - The **migration seed is the debt-fix vehicle**: it re-authors every path canonically in one deterministic pass (`.xml`→`.md`, id-suffix collisions → ` (2)` by `created_at` then `id`), so a workspace crosses the flip already healed. Path logic lives in one submodule (`knowledge_store/paths/`); an import-boundary test keeps it there.
+
+### Phase 9 — Git as the primary store (body) [`subplan: 09-git-as-primary-store.md`]
+
+> **DESIGN (2026-08-06).** Names the ownership model out loud: for a flagged workspace git is the primary store for the body; Postgres owns metadata (`document_type`, `document_metadata`, identity) and the derived index. Only the ownership model is a now-decision — it is already the running behavior. The clean switch and verb rename are the **Phase 5 cut's re-org**, not a separate phase.
+
+- **Ownership (settled now):** git owns the body, Postgres owns metadata, and the projection preserves the row's metadata — defaulting `NOTE` only for a git file with no row (an agent-authored note, the sole case). Already captured in C1/C5.
+- **Clean switch + `record_*`→intent rename = the Phase 5 cut.** The cut deletes the legacy arm so the create verb is unconditional git-first; doing it mid-transition is churn the cut would partly redo, and the dual-run behind flags is correct meanwhile. `09` records the target shape.
+- **Deferred: on-disk front-matter (OKF-as-stored-truth).** Inline front-matter fought every operation — the agent worktree had to strip/wrap it, the diff and commit had to rebaseline, C2 line numbers shifted. Not worth it for v1: Postgres is the durable metadata store, and a rebuild recovers body + chunks. Revisit only for a real portability/remote-git need. **Cost of deferring:** a bare clone is bodies without types/metadata; disaster-recovery-from-git-alone is not a v1 goal.
 
 ## Sequencing (critical path vs. parallel)
 
@@ -241,8 +249,9 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 5 | `05-migration.md` | TOOLING SHIPPED (2026-07-30) — fleet flips + cut-time deletion pending |
 | 5a | `05a-seed-runbook.md` | operational runbook for the production seed + flip |
 | 6 | `06-zero-projection.md` | ✅ SHIPPED (2026-07-31) — projection split out of the indexer, not folded in |
-| 7 | `07-direct-caller-adapter.md` | IN PROGRESS (2026-07-31) — blocks the Phase 5 flip |
+| 7 | `07-direct-caller-adapter.md` | WIRED (2026-08-06) — every non-agent writer records through the facade |
 | 8 | `08-store-facade-and-paths.md` | DESIGN (2026-07-31) — path law + per-workspace heal via the seed; prerequisite of the fleet flip |
+| 9 | `09-git-as-primary-store.md` | DESIGN (2026-08-06) — ownership model settled (git owns body, Postgres owns metadata); clean switch + `record_*`→intent rename fold into the Phase 5 cut; on-disk front-matter deferred |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred").

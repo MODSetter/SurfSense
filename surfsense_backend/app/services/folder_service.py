@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.agents.chat.runtime.path_resolver import safe_folder_segment
+from app.knowledge_store.paths import safe_folder_segment
 from app.db import Folder
 
 MAX_FOLDER_DEPTH = 8

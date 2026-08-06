@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     build_path_index,
     virtual_path_of,

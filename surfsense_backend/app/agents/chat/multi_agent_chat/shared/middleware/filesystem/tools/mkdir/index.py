@@ -17,7 +17,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT
+from app.knowledge_store.paths import DOCUMENTS_ROOT
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud

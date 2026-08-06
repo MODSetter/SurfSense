@@ -211,6 +211,10 @@ async def add_circleback_meeting_document(
         await session.commit()
         await session.refresh(document)
 
+        from app.knowledge_store.service import record_prepared_documents
+
+        await record_prepared_documents(session, [document])
+
         if existing_document:
             logger.info(
                 f"Updated Circleback meeting document {meeting_id} in workspace {workspace_id}"

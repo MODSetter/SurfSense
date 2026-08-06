@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import PathIndex, virtual_path_of
+from app.knowledge_store.paths import PathIndex, virtual_path_of
 from app.db import Document
 
 from ..models import DocumentReference

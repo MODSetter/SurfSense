@@ -37,7 +37,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import Filesys
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     PathIndex,
     build_path_index,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
@@ -19,15 +20,26 @@ pytestmark = pytest.mark.unit
 
 
 class _BrokenModel:
-    async def ainvoke(self, _input):
+    async def ainvoke(self, _input, config=None, **kwargs):
         raise RuntimeError("model down")
 
 
 class _StalledModel:
     """Accepts the request, then never answers — a hang, not a failure."""
 
-    async def ainvoke(self, _input):
+    async def ainvoke(self, _input, config=None, **kwargs):
         await asyncio.sleep(3600)
+
+
+class _CapturingModel:
+    """Records the config it was invoked with, then answers normally."""
+
+    def __init__(self) -> None:
+        self.config: dict | None = None
+
+    async def ainvoke(self, _input, config=None, **kwargs):
+        self.config = config
+        return SimpleNamespace(content="docs: capture")
 
 
 async def test_uses_the_models_reply_as_subject():
@@ -58,6 +70,14 @@ async def test_a_stalled_model_does_not_hold_the_commit(monkeypatch):
         timeout=5,
     )
     assert message == fallback_commit_message(writes={"a.md": b"1"}, removes=[])
+
+
+async def test_subject_generation_is_tagged_internal_so_it_does_not_stream():
+    """The subject shares the agent's streaming llm; the internal tag is what
+    keeps its tokens out of the user's reply (chat_model_stream drops them)."""
+    llm = _CapturingModel()
+    await generate_commit_message(llm, writes={"a.md": b"1"}, removes=[])
+    assert "surfsense:internal" in (llm.config or {}).get("tags", [])
 
 
 async def test_no_model_uses_the_deterministic_subject():

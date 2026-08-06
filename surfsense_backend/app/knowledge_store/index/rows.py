@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     PATH_MARKER,
     parse_documents_path,
     virtual_path_to_doc,
@@ -74,10 +74,14 @@ async def upsert_row(
 
     created = document is None
     if document is None:
+        # Agent-authored note: title is the filename without the storage .md.
+        # parse_documents_path keeps that .md so it never cuts an upload's own
+        # ".md" name short.
         document = Document(
-            title=title,
+            title=title.removesuffix(".md") or title,
             document_type=DocumentType.NOTE,
             document_metadata=metadata,
+            path=virtual_path,
             content=content,
             content_hash=generate_content_hash(content, workspace_id),
             unique_identifier_hash=generate_unique_identifier_hash(
@@ -92,10 +96,10 @@ async def upsert_row(
         )
         session.add(document)
     else:
-        # Update in place. No collision guard here: a hash hit is this path's
-        # normal update case, not an error.
-        document.title = title
+        # Title is Postgres-owned: re-deriving it from the path would rename the
+        # note to its filename on every reindex.
         document.folder_id = folder_id
+        document.path = virtual_path
         document.source_markdown = content
         document.content_hash = generate_content_hash(content, workspace_id)
         document.document_metadata = metadata

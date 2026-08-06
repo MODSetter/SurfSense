@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from app.agents.chat.runtime.path_resolver import PATH_MARKER
+from app.knowledge_store.paths import PATH_MARKER
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType
 from app.knowledge_store import KnowledgeStore
@@ -197,6 +197,36 @@ async def test_a_save_records_the_document_and_remembers_its_path(
     assert "Meeting notes" in document.document_metadata[PATH_MARKER]
 
 
+async def test_a_new_document_is_authored_as_markdown(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The live write path stamps ``.md`` now, not the legacy ``.xml``."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+
+    revision = await _save(
+        db_session, db_workspace, db_user, document, title="Meeting notes"
+    )
+
+    assert await _store_paths(db_workspace, revision) == {"documents/Meeting notes.md"}
+    assert document.document_metadata[PATH_MARKER] == "/documents/Meeting notes.md"
+
+
+async def test_a_same_titled_document_gets_a_numbered_name(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """Two files cannot share one path; the second breaks the tie with ``(2)``."""
+    workspace_flip(True)
+    first = await _make_document(db_session, db_workspace, db_user, "Report")
+    await _save(db_session, db_workspace, db_user, first, title="Report")
+    second = await _make_document(db_session, db_workspace, db_user, "Report")
+
+    await _save(db_session, db_workspace, db_user, second, title="Report")
+
+    assert first.document_metadata[PATH_MARKER] == "/documents/Report.md"
+    assert second.document_metadata[PATH_MARKER] == "/documents/Report (2).md"
+
+
 async def test_a_retitle_leaves_only_the_new_path(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip
 ):
@@ -301,8 +331,8 @@ async def test_an_explicit_rename_still_moves_the_agent_s_file(
     )
 
     paths = await _store_paths(db_workspace, revision)
-    assert paths == {"documents/Key Points.xml"}
-    assert document.document_metadata[PATH_MARKER] == "/documents/Key Points.xml"
+    assert paths == {"documents/Key Points.md"}
+    assert document.document_metadata[PATH_MARKER] == "/documents/Key Points.md"
 
 
 async def test_no_marker_is_left_when_nothing_was_recorded(
@@ -440,6 +470,52 @@ async def test_a_sync_batch_failure_does_not_reach_the_caller(
     monkeypatch.setattr(KnowledgeStore, "_commit_files", boom)
 
     assert await record_prepared_documents(db_session, [document]) is None
+
+
+async def test_a_resync_that_dropped_the_marker_overwrites_in_place(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The duplication bug this whole change exists for. A connector re-sync
+    rewrites metadata with fresh fields that carry no marker; the durable ``path``
+    column has to pin the file so the batch overwrites in place instead of
+    authoring a second path and forking the document."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    # The re-sync: marker gone from metadata, path column survives, body changed.
+    document.path = f"/{recorded}"
+    document.document_metadata = {"md5_checksum": "changed"}
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    assert await store.read_as_of(second, recorded) == b"# Roadmap v2"
+
+
+async def test_a_resync_that_kept_the_marker_overwrites_in_place(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The common case: the marker survived the re-sync, so it pins the file and
+    the batch is a one-path overwrite, never a fork."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    document.document_metadata = {PATH_MARKER: f"/{recorded}", "md5_checksum": "x"}
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
 
 
 # --- record_deleted_documents: the file has to go with the row ---

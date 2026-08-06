@@ -52,7 +52,7 @@ from app.agents.chat.multi_agent_chat.shared.document_render import (
     render_document,
     source_label,
 )
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     build_path_index,
     doc_to_virtual_path,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.knowledge_store import Transaction
+from app.knowledge_store.transaction import Transaction
 
 pytestmark = pytest.mark.unit
 

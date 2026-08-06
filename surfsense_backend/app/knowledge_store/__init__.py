@@ -10,7 +10,6 @@ from app.knowledge_store.schemas import (
     WorkingCopy,
 )
 from app.knowledge_store.service import KnowledgeStore
-from app.knowledge_store.transaction import Transaction
 
 __all__ = [
     "Change",
@@ -18,6 +17,5 @@ __all__ = [
     "Outcome",
     "Revision",
     "TrackedPath",
-    "Transaction",
     "WorkingCopy",
 ]
