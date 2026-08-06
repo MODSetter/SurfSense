@@ -11,10 +11,8 @@ from typing import Any
 from ffmpeg.asyncio import FFmpeg
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from litellm import aspeech
 
-from app.config import config as app_config
-from app.services.kokoro_tts_service import get_kokoro_tts_service
+from app.podcasts.tts import SynthesisRequest, get_text_to_speech
 from app.services.llm_service import get_agent_llm
 from app.utils.content_utils import extract_text_content, strip_markdown_fences
 from app.utils.file_io import write_bytes
@@ -39,7 +37,7 @@ from .state import (
     SlideSceneCode,
     State,
 )
-from .utils import get_voice_for_provider
+from .utils import resolve_narration
 
 MAX_REFINE_ATTEMPTS = 3
 
@@ -95,7 +93,7 @@ async def create_presentation_slides(
             print(f"Raw response: {content}")
             raise
 
-    return {"slides": presentation.slides}
+    return {"slides": presentation.slides, "language": presentation.language}
 
 
 async def create_slide_audio(state: State, config: RunnableConfig) -> dict[str, Any]:
@@ -112,34 +110,21 @@ async def create_slide_audio(state: State, config: RunnableConfig) -> dict[str, 
     output_dir.mkdir(exist_ok=True)
 
     slides = state.slides or []
-    voice = get_voice_for_provider(app_config.TTS_SERVICE, speaker_id=0)
-    ext = "wav" if app_config.TTS_SERVICE == "local/kokoro" else "mp3"
+    narration = resolve_narration(state.language)
+    tts = get_text_to_speech()
+    ext = tts.container
+    print(f"Narrating {len(slides)} slides in {narration.language}")
 
     async def _generate_tts_chunk(text: str, chunk_path: str) -> str:
         """Generate a single TTS chunk and write it to *chunk_path*."""
-        if app_config.TTS_SERVICE == "local/kokoro":
-            kokoro_service = await get_kokoro_tts_service(lang_code="a")
-            await kokoro_service.generate_speech(
+        audio = await tts.synthesize(
+            SynthesisRequest(
                 text=text,
-                voice=voice,
-                speed=1.0,
-                output_path=chunk_path,
+                voice=narration.voice,
+                language=narration.language,
             )
-        else:
-            kwargs: dict[str, Any] = {
-                "model": app_config.TTS_SERVICE,
-                "api_key": app_config.TTS_SERVICE_API_KEY,
-                "voice": voice,
-                "input": text,
-                "max_retries": 2,
-                "timeout": 600,
-            }
-            if app_config.TTS_SERVICE_API_BASE:
-                kwargs["api_base"] = app_config.TTS_SERVICE_API_BASE
-
-            response = await aspeech(**kwargs)
-            await write_bytes(chunk_path, response.content)
-
+        )
+        await write_bytes(chunk_path, audio.data)
         return chunk_path
 
     async def _concat_with_ffmpeg(chunk_paths: list[str], output_file: str) -> None:

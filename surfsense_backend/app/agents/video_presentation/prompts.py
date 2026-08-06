@@ -135,6 +135,7 @@ You **MUST** strictly adhere to the following user instruction while generating 
 <output_format>
 A JSON object containing the presentation slides:
 {{
+  "language": "en",
   "slides": [
     {{
       "slide_number": 1,
@@ -153,6 +154,18 @@ A JSON object containing the presentation slides:
 </output_format>
 
 <guidelines>
+=== LANGUAGE ===
+
+Write every field — title, subtitle, content_in_markdown and speaker_transcripts — in the SAME
+language as the source content. If the user instruction above names a language, that language
+wins over the source content's language.
+
+Then set the top-level "language" field to the BCP-47 tag of the language you actually wrote in:
+lowercase primary subtag, optional region subtag. Examples: "en", "en-GB", "es", "fr", "hi",
+"it", "ja", "pt-BR", "zh". Use a region subtag only when it changes the spoken result (British
+vs American English, Brazilian vs European Portuguese); otherwise give the bare language.
+Always include this field — it selects the narration voice. If you are genuinely unsure, use "en".
+
 === SLIDE COUNT ===
 
 Dynamically decide the number of slides between 1 and {MAX_SLIDES} (inclusive).
@@ -196,6 +209,7 @@ Input: "Quantum computing uses quantum bits or qubits which can exist in multipl
 
 Output:
 {{
+  "language": "en",
   "slides": [
     {{
       "slide_number": 1,
