@@ -66,9 +66,10 @@ export function hasPersistableContent(
 
 function toStreamTerminalError(
 	event: Extract<SSEEvent, { type: "error" }>
-): Error & { errorCode?: string } {
-	return Object.assign(new Error(event.errorText || "Server error"), {
+): Error & { errorCode?: string; diagnostic?: string } {
+	return Object.assign(new Error(event.message), {
 		errorCode: event.errorCode,
+		diagnostic: event.diagnostic,
 	});
 }
 

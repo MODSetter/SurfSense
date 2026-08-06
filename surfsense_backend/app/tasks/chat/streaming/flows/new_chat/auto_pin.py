@@ -33,12 +33,12 @@ class AutoPinResult:
     """Outcome of ``resolve_initial_auto_pin``.
 
     ``llm_config_id`` is set when ``error`` is ``None``; ``error`` carries the
-    classified user-facing message plus error code/kind so the orchestrator can
-    emit one terminal-error SSE frame.
+    code, kind, and diagnostic so the orchestrator can emit one canonical
+    terminal-error SSE frame.
     """
 
     llm_config_id: int | None
-    error: tuple[str, str, Literal["user_error", "server_error"]] | None
+    error: tuple[str, Literal["user_error", "server_error"], str] | None
 
 
 async def resolve_initial_auto_pin(
@@ -94,5 +94,5 @@ async def resolve_initial_auto_pin(
         if is_vision_failure:
             ot.add_event("quota.denied", {"quota.code": error_code})
         return AutoPinResult(
-            llm_config_id=None, error=(str(pin_error), error_code, error_kind)
+            llm_config_id=None, error=(error_code, error_kind, str(pin_error))
         )

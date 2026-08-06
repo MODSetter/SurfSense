@@ -184,6 +184,16 @@ async def _save_export_document(
                 workspace_id=workspace_id,
                 created_by_id=None,
             )
+            document_event = {
+                "id": doc.id,
+                "title": doc.title,
+                "documentType": doc.document_type.value,
+                "workspaceId": workspace_id,
+                "folderId": doc.folder_id,
+                "createdById": None,
+                "createdAt": int(doc.created_at.timestamp() * 1000),
+                "virtualPath": path,
+            }
             await session.commit()
             doc_id = doc.id
     except ValueError as exc:
@@ -198,7 +208,7 @@ async def _save_export_document(
 
         await adispatch_custom_event(
             "document_created",
-            {"id": doc_id, "title": path.rsplit("/", 1)[-1], "virtualPath": path},
+            document_event,
         )
     except Exception:
         logger.debug("export_run: document_created dispatch failed", exc_info=True)

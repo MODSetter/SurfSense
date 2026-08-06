@@ -12,7 +12,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { FolderDisplay } from "./FolderNode";
+import type { FolderDisplay } from "@/lib/documents/document-tree-types";
 
 interface FolderPickerDialogProps {
 	open: boolean;

@@ -101,7 +101,17 @@ def _connection_read(
 
 def _apply_model_facts(model: Model, facts: dict) -> None:
     model.supports_chat = facts.get("supports_chat")
-    model.max_input_tokens = facts.get("max_input_tokens")
+    # Write-once: discovery seeds the limit for a model we have not seen before
+    # but never overwrites a stored one, so an operator's value survives every
+    # rediscovery. Clearing it in settings re-opens the model to whatever
+    # discovery reports next.
+    stored_limit = getattr(model, "max_input_tokens", None)
+    if not (
+        isinstance(stored_limit, int)
+        and not isinstance(stored_limit, bool)
+        and stored_limit > 0
+    ):
+        model.max_input_tokens = facts.get("max_input_tokens")
     model.supports_image_input = facts.get("supports_image_input")
     model.supports_tools = facts.get("supports_tools")
     model.supports_image_generation = facts.get("supports_image_generation")
@@ -461,7 +471,7 @@ async def preview_connection_models(
     try:
         discovered = await discover_models(draft)
     except ModelDiscoveryError as exc:
-        raise HTTPException(status_code=400, detail=f"{exc}. Try typing the model id manually.") from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return [_preview_model_read(item) for item in discovered]
 
 

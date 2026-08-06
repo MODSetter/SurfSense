@@ -63,6 +63,28 @@ class TestIsNonRetryable:
     def test_generic_exception_is_retryable(self) -> None:
         assert _is_non_retryable(RuntimeError("transient")) is False
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "llama runner process has terminated: cudaMalloc failed: out of memory",
+            "model requires more system memory (10.9 GiB) than is available",
+        ],
+    )
+    def test_host_out_of_memory_is_not_retried(self, message: str) -> None:
+        """Ollama surfaces an OOM as a generic API error, so a class-name test
+        retried it -- after the scheduler had already shrunk the context and
+        evicted other models to try to make it fit."""
+        cls = type("APIError", (Exception,), {})
+        assert _is_non_retryable(cls(message)) is True
+
+    def test_context_overflow_without_a_telling_class_name(self) -> None:
+        cls = type("APIError", (Exception,), {})
+        exc = cls(
+            "the prompt is longer than the context length currently available "
+            "to the model"
+        )
+        assert _is_non_retryable(exc) is True
+
 
 class TestDelayCalculation:
     def test_takes_max_of_backoff_and_header(self) -> None:

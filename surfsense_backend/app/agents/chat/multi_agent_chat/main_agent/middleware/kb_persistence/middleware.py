@@ -993,6 +993,7 @@ async def commit_staged_filesystem_state(
                             "documentType": DocumentType.NOTE.value,
                             "workspaceId": workspace_id,
                             "folderId": new_doc.folder_id,
+                            "createdAt": int(new_doc.created_at.timestamp() * 1000),
                             "createdById": str(created_by_id)
                             if created_by_id
                             else None,

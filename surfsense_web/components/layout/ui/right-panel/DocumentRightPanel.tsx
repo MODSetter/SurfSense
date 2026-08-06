@@ -1,0 +1,1861 @@
+"use client";
+
+import { useQuery } from "@rocicorp/zero/react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+	ChevronLeft,
+	ChevronRight,
+	FileText,
+	FolderClock,
+	Laptop,
+	Lock,
+	Paperclip,
+	Server,
+	Trash2,
+	X,
+} from "lucide-react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
+import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { expandedFolderIdsAtom, watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
+import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import {
+	folderWatchDialogOpenAtom,
+	folderWatchInitialFolderAtom,
+} from "@/atoms/folder-sync/folder-sync.atoms";
+import { CreateFolderDialog } from "@/components/documents/CreateFolderDialog";
+import { DocumentsFilters } from "@/components/documents/DocumentsFilters";
+import { DocumentsView } from "@/components/documents/DocumentsView";
+import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
+import { VersionHistoryDialog } from "@/components/documents/version-history";
+import { useRuntimeConfig } from "@/components/providers/runtime-config";
+import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
+import {
+	DEFAULT_EXCLUDE_PATTERNS,
+	FolderWatchDialog,
+} from "@/components/sources/FolderWatchDialog";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
+import { useLoginGate } from "@/contexts/login-gate";
+import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
+import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { foldersApiService } from "@/lib/apis/folders-api.service";
+import { authenticatedFetch } from "@/lib/auth-fetch";
+import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
+import { buildBackendUrl } from "@/lib/env-config";
+import { uploadFolderScan } from "@/lib/folder-sync-upload";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
+import { getSupportedExtensionsSet } from "@/lib/supported-extensions";
+import { queries } from "@/zero/queries/index";
+import { SidebarSlideOutPanel } from "../sidebar/SidebarSlideOutPanel";
+
+const DesktopLocalTabContent = dynamic(
+	() => import("../sidebar/DesktopLocalTabContent").then((mod) => mod.DesktopLocalTabContent),
+	{ ssr: false }
+);
+
+const NON_DELETABLE_DOCUMENT_TYPES: readonly string[] = ["USER_MEMORY", "TEAM_MEMORY"];
+const MEMORY_DOCUMENTS: DocumentNodeDoc[] = [
+	{
+		id: -1001,
+		title: "MEMORY.md",
+		document_type: "USER_MEMORY",
+		folderId: null,
+		createdAt: 0,
+		status: { state: "ready" },
+	},
+	{
+		id: -1002,
+		title: "TEAM_MEMORY.md",
+		document_type: "TEAM_MEMORY",
+		folderId: null,
+		createdAt: 0,
+		status: { state: "ready" },
+	},
+];
+
+function isMemoryDocument(doc: { document_type: string }) {
+	return doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
+}
+
+function downloadTextFile(content: string, fileName: string, type = "text/markdown;charset=utf-8") {
+	const blob = new Blob([content], { type });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = fileName;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
+const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
+
+type FilesystemSettings = {
+	mode: "cloud" | "desktop_local_folder";
+	localRootPaths: string[];
+	updatedAt: string;
+};
+
+interface WatchedFolderEntry {
+	path: string;
+	name: string;
+	excludePatterns: string[];
+	fileExtensions: string[] | null;
+	rootFolderId: number | null;
+	workspaceId: number;
+	active: boolean;
+}
+
+interface DocumentRightPanelProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	isDocked?: boolean;
+	onDockedChange?: (docked: boolean) => void;
+	/** When true, renders content without any wrapper — parent provides the container */
+	embedded?: boolean;
+	/** Uses the page-style heading and spacing reserved for mobile workspace destinations. */
+	workspaceView?: boolean;
+	/** Optional action element rendered in the header row (e.g. collapse button) */
+	headerAction?: React.ReactNode;
+}
+
+export function DocumentRightPanel(props: DocumentRightPanelProps) {
+	const isAnonymous = useIsAnonymous();
+	const { isDesktop } = usePlatform();
+	if (isAnonymous) {
+		return <AnonymousDocumentRightPanel {...props} />;
+	}
+	return isDesktop ? (
+		<AuthenticatedDesktopDocumentRightPanel {...props} />
+	) : (
+		<AuthenticatedWebDocumentRightPanel {...props} />
+	);
+}
+
+function AuthenticatedDesktopDocumentRightPanel(props: DocumentRightPanelProps) {
+	return <AuthenticatedDocumentRightPanelBase {...props} desktopFeaturesEnabled />;
+}
+
+function AuthenticatedWebDocumentRightPanel(props: DocumentRightPanelProps) {
+	return <AuthenticatedDocumentRightPanelBase {...props} desktopFeaturesEnabled={false} />;
+}
+
+function AuthenticatedDocumentRightPanelBase({
+	open,
+	onOpenChange,
+	isDocked = false,
+	onDockedChange,
+	embedded = false,
+	workspaceView = false,
+	headerAction,
+	desktopFeaturesEnabled,
+}: DocumentRightPanelProps & { desktopFeaturesEnabled: boolean }) {
+	const t = useTranslations("documents");
+	const tSidebar = useTranslations("sidebar");
+	const params = useParams();
+	const isMobile = !useMediaQuery("(min-width: 768px)");
+	const platformElectronAPI = useElectronAPI();
+	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
+	const { etlService } = useRuntimeConfig();
+	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
+
+	const [search, setSearch] = useState("");
+	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
+	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
+	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
+	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
+	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
+	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
+	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
+	const localFilesystemEnabled = agentFlags?.enable_desktop_local_filesystem === true;
+	const isElectron =
+		desktopFeaturesEnabled && typeof window !== "undefined" && !!window.electronAPI;
+
+	useEffect(() => {
+		if (!electronAPI?.getAgentFilesystemSettings) return;
+		let mounted = true;
+		electronAPI
+			.getAgentFilesystemSettings(workspaceId)
+			.then((settings: FilesystemSettings) => {
+				if (!mounted) return;
+				setFilesystemSettings(settings);
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setFilesystemSettings({
+					mode: "cloud",
+					localRootPaths: [],
+					updatedAt: new Date().toISOString(),
+				});
+			});
+		return () => {
+			mounted = false;
+		};
+	}, [electronAPI, workspaceId]);
+
+	const hasLocalFilesystemTrust = useCallback(() => {
+		try {
+			return window.localStorage.getItem(LOCAL_FILESYSTEM_TRUST_KEY) === "true";
+		} catch {
+			return false;
+		}
+	}, []);
+
+	const localRootPaths = filesystemSettings?.localRootPaths ?? [];
+	const canAddMoreLocalRoots = localRootPaths.length < MAX_LOCAL_FILESYSTEM_ROOTS;
+
+	const applyLocalRootPath = useCallback(
+		async (path: string) => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const nextLocalRootPaths = [path, ...localRootPaths]
+				.filter((rootPath, index, allPaths) => allPaths.indexOf(rootPath) === index)
+				.slice(0, MAX_LOCAL_FILESYSTEM_ROOTS);
+			if (nextLocalRootPaths.length === localRootPaths.length) return;
+			const updated = await electronAPI.setAgentFilesystemSettings(
+				{
+					mode: "desktop_local_folder",
+					localRootPaths: nextLocalRootPaths,
+				},
+				workspaceId
+			);
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, localRootPaths, workspaceId]
+	);
+
+	const runPickLocalRoot = useCallback(async () => {
+		if (!electronAPI?.pickAgentFilesystemRoot) return;
+		const picked = await electronAPI.pickAgentFilesystemRoot();
+		if (!picked) return;
+		await applyLocalRootPath(picked);
+	}, [applyLocalRootPath, electronAPI]);
+
+	const handlePickFilesystemRoot = useCallback(async () => {
+		if (!canAddMoreLocalRoots) return;
+		if (hasLocalFilesystemTrust()) {
+			await runPickLocalRoot();
+			return;
+		}
+		if (!electronAPI?.pickAgentFilesystemRoot) return;
+		const picked = await electronAPI.pickAgentFilesystemRoot();
+		if (!picked) return;
+		setPendingLocalPath(picked);
+		setLocalTrustDialogOpen(true);
+	}, [canAddMoreLocalRoots, electronAPI, hasLocalFilesystemTrust, runPickLocalRoot]);
+
+	const handleRemoveFilesystemRoot = useCallback(
+		async (rootPathToRemove: string) => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const updated = await electronAPI.setAgentFilesystemSettings(
+				{
+					mode: "desktop_local_folder",
+					localRootPaths: localRootPaths.filter((rootPath) => rootPath !== rootPathToRemove),
+				},
+				workspaceId
+			);
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, localRootPaths, workspaceId]
+	);
+
+	const handleClearFilesystemRoots = useCallback(async () => {
+		if (!electronAPI?.setAgentFilesystemSettings) return;
+		const updated = await electronAPI.setAgentFilesystemSettings(
+			{
+				mode: "desktop_local_folder",
+				localRootPaths: [],
+			},
+			workspaceId
+		);
+		setFilesystemSettings(updated);
+	}, [electronAPI, workspaceId]);
+
+	const handleFilesystemTabChange = useCallback(
+		async (tab: "cloud" | "local") => {
+			if (!electronAPI?.setAgentFilesystemSettings) return;
+			const updated = await electronAPI.setAgentFilesystemSettings(
+				{
+					mode: tab === "cloud" ? "cloud" : "desktop_local_folder",
+				},
+				workspaceId
+			);
+			setFilesystemSettings(updated);
+		},
+		[electronAPI, workspaceId]
+	);
+
+	const handleWatchLocalFolder = useCallback(async () => {
+		const api = window.electronAPI;
+		if (!api?.selectFolder) return;
+
+		const folderPath = await api.selectFolder();
+		if (!folderPath) return;
+
+		const folderName = folderPath.split("/").pop() || folderPath.split("\\").pop() || folderPath;
+		setWatchInitialFolder({ path: folderPath, name: folderName });
+		setFolderWatchOpen(true);
+	}, [setWatchInitialFolder, setFolderWatchOpen]);
+
+	const refreshWatchedIds = useCallback(async () => {
+		if (!electronAPI?.getWatchedFolders) return;
+		const api = electronAPI;
+
+		const folders = (await api.getWatchedFolders()) as WatchedFolderEntry[];
+
+		if (folders.length === 0) {
+			try {
+				const backendFolders = await documentsApiService.getWatchedFolders(workspaceId);
+				for (const bf of backendFolders) {
+					const meta = bf.metadata as Record<string, unknown> | null;
+					if (!meta?.watched || !meta.folder_path) continue;
+					await api.addWatchedFolder({
+						path: meta.folder_path as string,
+						name: bf.name,
+						rootFolderId: bf.id,
+						workspaceId: bf.workspace_id,
+						excludePatterns: (meta.exclude_patterns as string[]) ?? [],
+						fileExtensions: (meta.file_extensions as string[] | null) ?? null,
+						active: true,
+					});
+				}
+				const recovered = (await api.getWatchedFolders()) as WatchedFolderEntry[];
+				const ids = new Set(
+					recovered
+						.filter((f: WatchedFolderEntry) => f.rootFolderId != null)
+						.map((f: WatchedFolderEntry) => f.rootFolderId as number)
+				);
+				setWatchedFolderIds(ids);
+				return;
+			} catch (err) {
+				console.error("[DocumentRightPanel] Recovery from backend failed:", err);
+			}
+		}
+
+		const ids = new Set(
+			folders
+				.filter((f: WatchedFolderEntry) => f.rootFolderId != null)
+				.map((f: WatchedFolderEntry) => f.rootFolderId as number)
+		);
+		setWatchedFolderIds(ids);
+	}, [workspaceId, electronAPI]);
+
+	// Re-runs when the sidebar-footer "Watch Local Folder" dialog bumps the atom.
+	const watchedFoldersRefreshTick = useAtomValue(watchedFoldersRefreshAtom);
+	useEffect(() => {
+		void watchedFoldersRefreshTick;
+		refreshWatchedIds();
+	}, [refreshWatchedIds, watchedFoldersRefreshTick]);
+	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
+
+	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
+	const mentionedDocKeys = useMemo(
+		() => new Set(sidebarDocs.map((d) => getMentionDocKey(d))),
+		[sidebarDocs]
+	);
+
+	// Folder state
+	const [expandedFolderMap, setExpandedFolderMap] = useAtom(expandedFolderIdsAtom);
+	const expandedIds = useMemo(
+		() => new Set(expandedFolderMap[workspaceId] ?? []),
+		[expandedFolderMap, workspaceId]
+	);
+	const toggleFolderExpand = useCallback(
+		(folderId: number) => {
+			setExpandedFolderMap((prev) => {
+				const current = new Set(prev[workspaceId] ?? []);
+				if (current.has(folderId)) current.delete(folderId);
+				else current.add(folderId);
+				return { ...prev, [workspaceId]: [...current] };
+			});
+		},
+		[workspaceId, setExpandedFolderMap]
+	);
+
+	// Zero queries for tree data
+	const [zeroFolders, zeroFoldersResult] = useQuery(queries.folders.bySpace({ workspaceId }));
+	const [zeroAllDocs, zeroAllDocsResult] = useQuery(queries.documents.bySpace({ workspaceId }));
+	const [agentCreatedDocs, setAgentCreatedDocs] = useAtom(agentCreatedDocumentsAtom);
+
+	const treeFolders: FolderDisplay[] = useMemo(
+		() =>
+			(zeroFolders ?? []).map((f) => ({
+				id: f.id,
+				name: f.name,
+				position: f.position,
+				parentId: f.parentId ?? null,
+				workspaceId: f.workspaceId,
+				metadata: f.metadata as Record<string, unknown> | null | undefined,
+			})),
+		[zeroFolders]
+	);
+
+	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
+		const zeroDocs = (zeroAllDocs ?? [])
+			.filter((d) => {
+				if (!d.title || d.title.trim() === "") return false;
+				const state = (d.status as { state?: string } | undefined)?.state;
+				if (state === "deleting") return false;
+				return true;
+			})
+			.map((d) => ({
+				id: d.id,
+				title: d.title,
+				document_type: d.documentType,
+				folderId: (d as { folderId?: number | null }).folderId ?? null,
+				createdAt: d.createdAt,
+				status: d.status as { state: string; reason?: string | null } | undefined,
+			}));
+
+		const zeroIds = new Set(zeroDocs.map((d) => d.id));
+
+		const pendingAgentDocs = agentCreatedDocs
+			.filter((d) => d.workspaceId === workspaceId && !zeroIds.has(d.id))
+			.map((d) => ({
+				id: d.id,
+				title: d.title,
+				document_type: d.documentType,
+				folderId: d.folderId ?? null,
+				createdAt: d.createdAt,
+				status: { state: "ready" } as { state: string; reason?: string | null },
+			}));
+
+		return [...pendingAgentDocs, ...zeroDocs];
+	}, [zeroAllDocs, agentCreatedDocs, workspaceId]);
+
+	// Prune agent-created docs once Zero has caught up
+	useEffect(() => {
+		if (!zeroAllDocs?.length || !agentCreatedDocs.length) return;
+		const zeroIds = new Set(zeroAllDocs.map((d) => d.id));
+		const remaining = agentCreatedDocs.filter((d) => !zeroIds.has(d.id));
+		if (remaining.length < agentCreatedDocs.length) {
+			setAgentCreatedDocs(remaining);
+		}
+	}, [zeroAllDocs, agentCreatedDocs, setAgentCreatedDocs]);
+
+	const foldersByParent = useMemo(() => {
+		const map: Record<string, FolderDisplay[]> = {};
+		for (const f of treeFolders) {
+			const key = String(f.parentId ?? "root");
+			if (!map[key]) map[key] = [];
+			map[key].push(f);
+		}
+		return map;
+	}, [treeFolders]);
+
+	// Folder actions
+	const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+	const [folderPickerTarget, setFolderPickerTarget] = useState<{
+		type: "folder" | "document";
+		id: number;
+		disabledIds?: Set<number>;
+	} | null>(null);
+
+	// Create-folder dialog state
+	const [createFolderOpen, setCreateFolderOpen] = useState(false);
+	const [createFolderParentId, setCreateFolderParentId] = useState<number | null>(null);
+
+	const createFolderParentName = useMemo(() => {
+		if (createFolderParentId === null) return null;
+		return treeFolders.find((f) => f.id === createFolderParentId)?.name ?? null;
+	}, [createFolderParentId, treeFolders]);
+
+	const handleCreateFolder = useCallback((parentId: number | null) => {
+		setCreateFolderParentId(parentId);
+		setCreateFolderOpen(true);
+	}, []);
+
+	const handleCreateFolderConfirm = useCallback(
+		async (name: string) => {
+			try {
+				await foldersApiService.createFolder({
+					name,
+					parent_id: createFolderParentId,
+					workspace_id: workspaceId,
+				});
+				toast.success("Folder created");
+				if (createFolderParentId !== null) {
+					setExpandedFolderMap((prev) => {
+						const current = new Set(prev[workspaceId] ?? []);
+						current.add(createFolderParentId);
+						return { ...prev, [workspaceId]: [...current] };
+					});
+				}
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to create folder");
+			}
+		},
+		[createFolderParentId, workspaceId, setExpandedFolderMap]
+	);
+
+	const handleRescanFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!electronAPI) return;
+
+			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+			const matched = watchedFolders.find(
+				(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+			);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
+
+			try {
+				toast.info(`Re-scanning folder: ${matched.name}`);
+				await uploadFolderScan({
+					folderPath: matched.path,
+					folderName: matched.name,
+					workspaceId,
+					excludePatterns: matched.excludePatterns ?? DEFAULT_EXCLUDE_PATTERNS,
+					fileExtensions:
+						matched.fileExtensions ?? Array.from(getSupportedExtensionsSet(undefined, etlService)),
+					rootFolderId: folder.id,
+				});
+				toast.success(`Re-scan complete: ${matched.name}`);
+			} catch (err) {
+				toast.error((err as Error)?.message || "Failed to re-scan folder");
+			}
+		},
+		[workspaceId, electronAPI, etlService]
+	);
+
+	const handleStopWatching = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!electronAPI) return;
+
+			const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+			const matched = watchedFolders.find(
+				(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+			);
+			if (!matched) {
+				toast.error("This folder is not being watched");
+				return;
+			}
+
+			await electronAPI.removeWatchedFolder(matched.path);
+			try {
+				await foldersApiService.stopWatching(folder.id);
+			} catch (err) {
+				console.error("[DocumentRightPanel] Failed to clear watched metadata:", err);
+			}
+			toast.success(`Stopped watching: ${matched.name}`);
+			refreshWatchedIds();
+		},
+		[electronAPI, refreshWatchedIds]
+	);
+
+	const handleRenameFolder = useCallback(async (folder: FolderDisplay, newName: string) => {
+		try {
+			await foldersApiService.updateFolder(folder.id, { name: newName });
+			toast.success("Folder renamed");
+		} catch (e: unknown) {
+			toast.error((e as Error)?.message || "Failed to rename folder");
+		}
+	}, []);
+
+	const handleDeleteFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
+			try {
+				if (electronAPI) {
+					const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+					const matched = watchedFolders.find(
+						(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
+					);
+					if (matched) {
+						await electronAPI.removeWatchedFolder(matched.path);
+					}
+				}
+				await foldersApiService.deleteFolder(folder.id);
+				toast.success("Folder deleted");
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to delete folder");
+			}
+		},
+		[electronAPI]
+	);
+
+	const handleMoveFolder = useCallback(
+		(folder: FolderDisplay) => {
+			const subtreeIds = new Set<number>();
+			function collectSubtree(id: number) {
+				subtreeIds.add(id);
+				for (const child of foldersByParent[String(id)] ?? []) {
+					collectSubtree(child.id);
+				}
+			}
+			collectSubtree(folder.id);
+			setFolderPickerTarget({
+				type: "folder",
+				id: folder.id,
+				disabledIds: subtreeIds,
+			});
+			setFolderPickerOpen(true);
+		},
+		[foldersByParent]
+	);
+
+	const handleMoveDocument = useCallback((doc: DocumentNodeDoc) => {
+		setFolderPickerTarget({ type: "document", id: doc.id });
+		setFolderPickerOpen(true);
+	}, []);
+
+	const isExportingKBRef = useRef(false);
+	const [exportWarningOpen, setExportWarningOpen] = useState(false);
+	const [exportWarningContext, setExportWarningContext] = useState<{
+		folder: FolderDisplay;
+		pendingCount: number;
+	} | null>(null);
+
+	const doExport = useCallback(async (url: string, downloadName: string) => {
+		const response = await authenticatedFetch(url, { method: "GET" });
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+			throw new Error(errorData.detail || "Export failed");
+		}
+
+		const blob = await response.blob();
+		const blobUrl = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = blobUrl;
+		a.download = downloadName;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(blobUrl);
+	}, []);
+
+	const handleExportWarningConfirm = useCallback(async () => {
+		setExportWarningOpen(false);
+		const ctx = exportWarningContext;
+		if (!ctx?.folder) return;
+
+		isExportingKBRef.current = true;
+		try {
+			const safeName =
+				ctx.folder.name
+					.replace(/[^a-zA-Z0-9 _-]/g, "_")
+					.trim()
+					.slice(0, 80) || "folder";
+			await doExport(
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`, {
+					folder_id: ctx.folder.id,
+				}),
+				`${safeName}.zip`
+			);
+			toast.success(`Folder "${ctx.folder.name}" exported`);
+		} catch (err) {
+			console.error("Folder export failed:", err);
+			toast.error(err instanceof Error ? err.message : "Export failed");
+		} finally {
+			isExportingKBRef.current = false;
+		}
+		setExportWarningContext(null);
+	}, [exportWarningContext, workspaceId, doExport]);
+
+	const getPendingCountInSubtree = useCallback(
+		(folderId: number): number => {
+			const subtreeIds = new Set<number>();
+			function collect(id: number) {
+				subtreeIds.add(id);
+				for (const child of foldersByParent[String(id)] ?? []) {
+					collect(child.id);
+				}
+			}
+			collect(folderId);
+			return treeDocuments.filter(
+				(d) =>
+					subtreeIds.has(d.folderId ?? -1) &&
+					(d.status?.state === "pending" || d.status?.state === "processing")
+			).length;
+		},
+		[foldersByParent, treeDocuments]
+	);
+
+	const handleExportFolder = useCallback(
+		async (folder: FolderDisplay) => {
+			const folderPendingCount = getPendingCountInSubtree(folder.id);
+			if (folderPendingCount > 0) {
+				setExportWarningContext({
+					folder,
+					pendingCount: folderPendingCount,
+				});
+				setExportWarningOpen(true);
+				return;
+			}
+
+			isExportingKBRef.current = true;
+			try {
+				const safeName =
+					folder.name
+						.replace(/[^a-zA-Z0-9 _-]/g, "_")
+						.trim()
+						.slice(0, 80) || "folder";
+				await doExport(
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/export`, {
+						folder_id: folder.id,
+					}),
+					`${safeName}.zip`
+				);
+				toast.success(`Folder "${folder.name}" exported`);
+			} catch (err) {
+				console.error("Folder export failed:", err);
+				toast.error(err instanceof Error ? err.message : "Export failed");
+			} finally {
+				isExportingKBRef.current = false;
+			}
+		},
+		[workspaceId, getPendingCountInSubtree, doExport]
+	);
+
+	const handleExportDocument = useCallback(
+		async (doc: DocumentNodeDoc, format: string) => {
+			if (isMemoryDocument(doc)) {
+				try {
+					const endpoint =
+						doc.document_type === "USER_MEMORY"
+							? buildBackendUrl("/api/v1/users/me/memory")
+							: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory`);
+					const response = await authenticatedFetch(endpoint, { method: "GET" });
+					if (!response.ok) {
+						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+						throw new Error(errorData.detail || "Export failed");
+					}
+					const data = (await response.json()) as { memory_md?: string };
+					downloadTextFile(
+						data.memory_md ?? "",
+						doc.title.endsWith(".md") ? doc.title : `${doc.title}.md`
+					);
+					return;
+				} catch (err) {
+					console.error("Memory export failed:", err);
+					toast.error(err instanceof Error ? err.message : "Export failed");
+					return;
+				}
+			}
+
+			const safeTitle =
+				doc.title
+					.replace(/[^a-zA-Z0-9 _-]/g, "_")
+					.trim()
+					.slice(0, 80) || "document";
+			const ext = EXPORT_FILE_EXTENSIONS[format] ?? format;
+
+			try {
+				const response = await authenticatedFetch(
+					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${doc.id}/export`, {
+						format,
+					}),
+					{ method: "GET" }
+				);
+
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
+					throw new Error(errorData.detail || "Export failed");
+				}
+
+				const blob = await response.blob();
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = `${safeTitle}.${ext}`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			} catch (err) {
+				console.error(`Export ${format} failed:`, err);
+				toast.error(err instanceof Error ? err.message : `Export failed`);
+			}
+		},
+		[workspaceId]
+	);
+
+	const handleFolderPickerSelect = useCallback(
+		async (targetFolderId: number | null) => {
+			if (!folderPickerTarget) return;
+			try {
+				if (folderPickerTarget.type === "folder") {
+					await foldersApiService.moveFolder(folderPickerTarget.id, {
+						new_parent_id: targetFolderId,
+					});
+					toast.success("Folder moved");
+				} else {
+					await foldersApiService.moveDocument(folderPickerTarget.id, {
+						folder_id: targetFolderId,
+					});
+					toast.success("Document moved");
+				}
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to move item");
+			}
+			setFolderPickerTarget(null);
+		},
+		[folderPickerTarget]
+	);
+
+	const handleDropIntoFolder = useCallback(
+		async (itemType: "folder" | "document", itemId: number, targetFolderId: number | null) => {
+			try {
+				if (itemType === "folder") {
+					await foldersApiService.moveFolder(itemId, {
+						new_parent_id: targetFolderId,
+					});
+					toast.success("Folder moved");
+				} else {
+					await foldersApiService.moveDocument(itemId, {
+						folder_id: targetFolderId,
+					});
+					toast.success("Document moved");
+				}
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to move item");
+			}
+		},
+		[]
+	);
+
+	const handleReorderFolder = useCallback(
+		async (folderId: number, beforePos: string | null, afterPos: string | null) => {
+			try {
+				await foldersApiService.reorderFolder(folderId, {
+					before_position: beforePos,
+					after_position: afterPos,
+				});
+			} catch (e: unknown) {
+				toast.error((e as Error)?.message || "Failed to reorder folder");
+			}
+		},
+		[]
+	);
+
+	const handleToggleChatMention = useCallback(
+		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			if (isMemoryDocument(doc)) return;
+			const key = getMentionDocKey({ ...doc, kind: "doc" });
+			if (isMentioned) {
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
+			} else {
+				setSidebarDocs((prev) => {
+					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
+					return [
+						...prev,
+						{
+							id: doc.id,
+							title: doc.title,
+							document_type: doc.document_type as DocumentTypeEnum,
+							kind: "doc",
+						},
+					];
+				});
+			}
+		},
+		[setSidebarDocs]
+	);
+
+	const handleToggleFolderSelect = useCallback(
+		(folderId: number, selectAll: boolean) => {
+			// One folder click = one folder-mention chip. The agent
+			// resolves the chip to its virtual path
+			// (``/documents/MyFolder/``) and walks it itself with
+			// ``ls`` / ``find_documents``. We deliberately don't
+			// fan out to per-doc chips anymore — the previous
+			// behaviour created N chips for one click and dropped
+			// nested folders entirely once selected, which the
+			// agent had no way to recover.
+			const folder = treeFolders.find((f) => f.id === folderId);
+			if (!folder) return;
+			const chip = makeFolderMention({ id: folder.id, name: folder.name });
+			const chipKey = getMentionDocKey(chip);
+
+			if (selectAll) {
+				setSidebarDocs((prev) => {
+					const exists = prev.some((d) => getMentionDocKey(d) === chipKey);
+					return exists ? prev : [...prev, chip];
+				});
+			} else {
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== chipKey));
+			}
+		},
+		[treeFolders, setSidebarDocs]
+	);
+
+	const openMemoryDocument = useCallback(
+		(doc: DocumentNodeDoc) => {
+			if (doc.document_type === "USER_MEMORY") {
+				openEditorPanel({
+					kind: "memory",
+					memoryScope: "user",
+					workspaceId,
+					title: doc.title,
+				});
+				return true;
+			}
+			if (doc.document_type === "TEAM_MEMORY") {
+				openEditorPanel({
+					kind: "memory",
+					memoryScope: "team",
+					workspaceId,
+					title: doc.title,
+				});
+				return true;
+			}
+			return false;
+		},
+		[openEditorPanel, workspaceId]
+	);
+
+	const handleResetMemoryDocument = useCallback(
+		async (doc: DocumentNodeDoc) => {
+			if (!isMemoryDocument(doc)) return;
+			if (!window.confirm(`Reset ${doc.title.toLowerCase()}? This clears the memory document.`)) {
+				return;
+			}
+			const endpoint =
+				doc.document_type === "USER_MEMORY"
+					? buildBackendUrl("/api/v1/users/me/memory/reset")
+					: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory/reset`);
+			try {
+				const response = await authenticatedFetch(endpoint, { method: "POST" });
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({ detail: "Reset failed" }));
+					throw new Error(errorData.detail || "Reset failed");
+				}
+				toast.success(`${doc.title} reset`);
+				openMemoryDocument(doc);
+			} catch (error) {
+				toast.error((error as Error)?.message || `Failed to reset ${doc.title.toLowerCase()}`);
+			}
+		},
+		[openMemoryDocument, workspaceId]
+	);
+
+	const typeCounts = useMemo(() => {
+		const counts: Partial<Record<string, number>> = {};
+		for (const d of treeDocuments) {
+			const displayType = d.document_type === "LOCAL_FOLDER_FILE" ? "FILE" : d.document_type;
+			counts[displayType] = (counts[displayType] || 0) + 1;
+		}
+		return counts;
+	}, [treeDocuments]);
+
+	const deletableSelectedIds = useMemo(() => {
+		const treeDocMap = new Map(treeDocuments.map((d) => [d.id, d]));
+		return sidebarDocs
+			.filter((doc) => {
+				if (doc.kind !== "doc") return false;
+				const fullDoc = treeDocMap.get(doc.id);
+				if (!fullDoc) return false;
+				const state = fullDoc.status?.state ?? "ready";
+				return (
+					state !== "pending" &&
+					state !== "processing" &&
+					!NON_DELETABLE_DOCUMENT_TYPES.includes(doc.document_type)
+				);
+			})
+			.map((doc) => doc.id);
+	}, [sidebarDocs, treeDocuments]);
+
+	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+	const [versionDocId, setVersionDocId] = useState<number | null>(null);
+
+	const handleBulkDeleteSelected = useCallback(async () => {
+		if (deletableSelectedIds.length === 0) return;
+		setIsBulkDeleting(true);
+		try {
+			const results = await Promise.allSettled(
+				deletableSelectedIds.map(async (id) => {
+					await deleteDocumentMutation({ id });
+					return id;
+				})
+			);
+			const successIds = results
+				.filter((r): r is PromiseFulfilledResult<number> => r.status === "fulfilled")
+				.map((r) => r.value);
+			const failed = results.length - successIds.length;
+			if (successIds.length > 0) {
+				setSidebarDocs((prev) => {
+					const idSet = new Set(successIds);
+					return prev.filter((d) => !idSet.has(d.id));
+				});
+				toast.success(`Deleted ${successIds.length} document${successIds.length !== 1 ? "s" : ""}`);
+			}
+			if (failed > 0) {
+				toast.error(`Failed to delete ${failed} document${failed !== 1 ? "s" : ""}`);
+			}
+		} catch {
+			toast.error("Failed to delete documents");
+		}
+		setIsBulkDeleting(false);
+		setBulkDeleteConfirmOpen(false);
+	}, [deletableSelectedIds, deleteDocumentMutation, setSidebarDocs]);
+
+	const onToggleType = useCallback((type: DocumentTypeEnum, checked: boolean) => {
+		setActiveTypes((prev) => {
+			if (checked) {
+				return prev.includes(type) ? prev : [...prev, type];
+			}
+			return prev.filter((t) => t !== type);
+		});
+	}, []);
+
+	const handleDeleteDocument = useCallback(
+		async (id: number): Promise<boolean> => {
+			try {
+				await deleteDocumentMutation({ id });
+				toast.success(t("delete_success") || "Document deleted");
+				setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== id));
+				return true;
+			} catch (e) {
+				console.error("Error deleting document:", e);
+				return false;
+			}
+		},
+		[deleteDocumentMutation, t, setSidebarDocs]
+	);
+
+	useEffect(() => {
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && open && isMobile) {
+				onOpenChange(false);
+			}
+		};
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [open, onOpenChange, isMobile]);
+
+	const showFilesystemTabs =
+		!isMobile && !!electronAPI && !!filesystemSettings && localFilesystemEnabled;
+	const currentFilesystemTab =
+		localFilesystemEnabled && filesystemSettings?.mode === "desktop_local_folder"
+			? "local"
+			: "cloud";
+	const documentsViewModel = useDocumentsViewModel({
+		folders: treeFolders,
+		documents: treeDocuments,
+		pinnedDocuments: MEMORY_DOCUMENTS,
+		query: search,
+		activeTypes,
+		isLoading: zeroFoldersResult.type !== "complete" || zeroAllDocsResult.type !== "complete",
+	});
+	const handleOpenSearchFolder = useCallback(
+		(folder: FolderDisplay) => {
+			const folderById = new Map(treeFolders.map((item) => [item.id, item]));
+			const folderIds = new Set<number>([folder.id]);
+			let parentId = folder.parentId;
+			while (parentId !== null && !folderIds.has(parentId)) {
+				folderIds.add(parentId);
+				parentId = folderById.get(parentId)?.parentId ?? null;
+			}
+
+			setExpandedFolderMap((previous) => {
+				const expanded = new Set(previous[workspaceId] ?? []);
+				for (const folderId of folderIds) expanded.add(folderId);
+				return { ...previous, [workspaceId]: [...expanded] };
+			});
+			setSearch("");
+		},
+		[setExpandedFolderMap, treeFolders, workspaceId]
+	);
+
+	const cloudContent = (
+		<>
+			{isElectron && (
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					onClick={handleWatchLocalFolder}
+					className="shrink-0 mx-4 mt-6 mb-2.5 h-auto select-none justify-start gap-2 bg-muted px-3 py-1.5 text-xs text-muted-foreground"
+				>
+					<FolderClock className="size-4 shrink-0" />
+					<span className="truncate">Watch local folder</span>
+				</Button>
+			)}
+
+			<div className="flex-1 min-h-0 pt-0 flex flex-col">
+				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-6"}`}>
+					<DocumentsFilters
+						typeCounts={typeCounts}
+						onSearch={setSearch}
+						searchValue={search}
+						onToggleType={onToggleType}
+						activeTypes={activeTypes}
+						onCreateFolder={() => handleCreateFolder(null)}
+					/>
+				</div>
+
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					{deletableSelectedIds.length > 0 && (
+						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								onClick={() => setBulkDeleteConfirmOpen(true)}
+								className="pointer-events-auto h-auto gap-1.5 px-3 py-1 text-xs shadow-lg"
+							>
+								<Trash2 size={12} />
+								Delete {deletableSelectedIds.length}{" "}
+								{deletableSelectedIds.length === 1 ? "item" : "items"}
+							</Button>
+						</div>
+					)}
+
+					<DocumentsView
+						viewModel={documentsViewModel}
+						onOpenFolder={handleOpenSearchFolder}
+						expandedIds={expandedIds}
+						onToggleExpand={toggleFolderExpand}
+						mentionedDocKeys={mentionedDocKeys}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={handleToggleFolderSelect}
+						onRenameFolder={handleRenameFolder}
+						onDeleteFolder={handleDeleteFolder}
+						onMoveFolder={handleMoveFolder}
+						onCreateFolder={handleCreateFolder}
+						onPreviewDocument={(doc) => {
+							if (openMemoryDocument(doc)) return;
+							openEditorPanel({
+								documentId: doc.id,
+								workspaceId,
+								title: doc.title,
+							});
+						}}
+						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+						onMoveDocument={handleMoveDocument}
+						onResetDocument={handleResetMemoryDocument}
+						onExportDocument={handleExportDocument}
+						onVersionHistory={(doc) => setVersionDocId(doc.id)}
+						onDropIntoFolder={handleDropIntoFolder}
+						onReorderFolder={handleReorderFolder}
+						watchedFolderIds={watchedFolderIds}
+						onRescanFolder={handleRescanFolder}
+						onStopWatchingFolder={handleStopWatching}
+						onExportFolder={handleExportFolder}
+					/>
+				</div>
+			</div>
+		</>
+	);
+
+	const localContent = (
+		<DesktopLocalTabContent
+			localRootPaths={localRootPaths}
+			canAddMoreLocalRoots={canAddMoreLocalRoots}
+			maxLocalFilesystemRoots={MAX_LOCAL_FILESYSTEM_ROOTS}
+			workspaceId={workspaceId}
+			onPickFilesystemRoot={handlePickFilesystemRoot}
+			onRemoveFilesystemRoot={handleRemoveFilesystemRoot}
+			onClearFilesystemRoots={handleClearFilesystemRoots}
+			onOpenLocalFile={(localFilePath) => {
+				openEditorPanel({
+					kind: "local_file",
+					localFilePath,
+					title: localFilePath.split("/").pop() || localFilePath,
+					workspaceId,
+				});
+			}}
+			electronAvailable={!!electronAPI}
+		/>
+	);
+
+	const documentsContent = (
+		<>
+			{workspaceView ? (
+				<header className="shrink-0">
+					<h1 className="text-xl font-semibold text-foreground md:text-2xl">
+						{t("title") || "Documents"}
+					</h1>
+				</header>
+			) : (
+				<div className="shrink-0 flex h-12 items-center px-3">
+					<div className="flex w-full items-center justify-between">
+						<div className="flex items-center gap-3">
+							{isMobile && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+									onClick={() => onOpenChange(false)}
+								>
+									<ChevronLeft className="h-4 w-4" />
+									<span className="sr-only">{tSidebar("close") || "Close"}</span>
+								</Button>
+							)}
+							<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+							{showFilesystemTabs && (
+								<Tabs
+									value={currentFilesystemTab}
+									onValueChange={(value) => {
+										void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
+									}}
+								>
+									<TabsList className="h-6 gap-0 rounded-md bg-muted/60 p-0.5 select-none">
+										<TabsTrigger
+											value="cloud"
+											className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+											title="Cloud"
+										>
+											<Server className="size-3 shrink-0" />
+											<span className="leading-none">Cloud</span>
+										</TabsTrigger>
+										<TabsTrigger
+											value="local"
+											className="h-5 gap-1 px-1.5 text-[11px] select-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:bg-muted-foreground/25 data-[state=active]:text-foreground data-[state=active]:shadow-none"
+											title="Local"
+										>
+											<Laptop className="size-3 shrink-0" />
+											<span className="leading-none">Local</span>
+										</TabsTrigger>
+									</TabsList>
+								</Tabs>
+							)}
+						</div>
+						<div className="flex items-center gap-1">
+							{!isMobile && onDockedChange && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+											onClick={() => {
+												if (isDocked) {
+													onDockedChange(false);
+													onOpenChange(false);
+												} else {
+													onDockedChange(true);
+												}
+											}}
+										>
+											{isDocked ? (
+												<ChevronLeft className="h-4 w-4" />
+											) : (
+												<ChevronRight className="h-4 w-4" />
+											)}
+											<span className="sr-only">
+												{isDocked ? "Collapse panel" : "Expand panel"}
+											</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="z-80">
+										{isDocked ? "Collapse panel" : "Expand panel"}
+									</TooltipContent>
+								</Tooltip>
+							)}
+							{headerAction}
+						</div>
+					</div>
+				</div>
+			)}
+			{showFilesystemTabs ? (
+				<Tabs
+					value={currentFilesystemTab}
+					onValueChange={(value) => {
+						void handleFilesystemTabChange(value === "local" ? "local" : "cloud");
+					}}
+					className="flex min-h-0 flex-1 flex-col"
+				>
+					<TabsContent value="cloud" className="mt-0 flex min-h-0 flex-1 flex-col">
+						{cloudContent}
+					</TabsContent>
+					<TabsContent value="local" className="mt-0 flex min-h-0 flex-1 flex-col">
+						{currentFilesystemTab === "local" ? localContent : null}
+					</TabsContent>
+				</Tabs>
+			) : (
+				cloudContent
+			)}
+
+			{versionDocId !== null && (
+				<VersionHistoryDialog
+					open
+					onOpenChange={(open) => {
+						if (!open) setVersionDocId(null);
+					}}
+					documentId={versionDocId}
+				/>
+			)}
+
+			{isElectron && (
+				<FolderWatchDialog
+					open={folderWatchOpen}
+					onOpenChange={(nextOpen) => {
+						setFolderWatchOpen(nextOpen);
+						if (!nextOpen) setWatchInitialFolder(null);
+					}}
+					workspaceId={workspaceId}
+					initialFolder={watchInitialFolder}
+					onSuccess={refreshWatchedIds}
+				/>
+			)}
+			<AlertDialog
+				open={localTrustDialogOpen}
+				onOpenChange={(nextOpen) => {
+					setLocalTrustDialogOpen(nextOpen);
+					if (!nextOpen) setPendingLocalPath(null);
+				}}
+			>
+				<AlertDialogContent className="sm:max-w-md select-none">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Trust this workspace?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Local mode can read and edit files inside the folders you select. Continue only if you
+							trust this workspace and its contents.
+						</AlertDialogDescription>
+						{pendingLocalPath && (
+							<AlertDialogDescription className="mt-1 whitespace-pre-wrap break-words font-mono text-xs">
+								Folder path: {pendingLocalPath}
+							</AlertDialogDescription>
+						)}
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={async () => {
+								try {
+									window.localStorage.setItem(LOCAL_FILESYSTEM_TRUST_KEY, "true");
+								} catch {}
+								setLocalTrustDialogOpen(false);
+								const path = pendingLocalPath;
+								setPendingLocalPath(null);
+								if (path) {
+									await applyLocalRootPath(path);
+								} else {
+									await runPickLocalRoot();
+								}
+							}}
+						>
+							I trust this workspace
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<FolderPickerDialog
+				open={folderPickerOpen}
+				onOpenChange={setFolderPickerOpen}
+				folders={treeFolders}
+				title={folderPickerTarget?.type === "folder" ? "Move folder to" : "Move document to"}
+				description="Select a destination folder, or choose Root to move to the top level."
+				disabledFolderIds={folderPickerTarget?.disabledIds}
+				onSelect={handleFolderPickerSelect}
+			/>
+
+			<CreateFolderDialog
+				open={createFolderOpen}
+				onOpenChange={setCreateFolderOpen}
+				parentFolderName={createFolderParentName}
+				onConfirm={handleCreateFolderConfirm}
+			/>
+
+			<AlertDialog
+				open={bulkDeleteConfirmOpen}
+				onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirmOpen(false)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							Delete {deletableSelectedIds.length} document
+							{deletableSelectedIds.length !== 1 ? "s" : ""}?
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone.{" "}
+							{deletableSelectedIds.length === 1
+								? "This document"
+								: `These ${deletableSelectedIds.length} documents`}{" "}
+							will be permanently deleted from your workspace.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleBulkDeleteSelected();
+							}}
+							disabled={isBulkDeleting}
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							<span className={isBulkDeleting ? "opacity-0" : ""}>Delete</span>
+							{isBulkDeleting && <Spinner size="sm" className="absolute" />}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<AlertDialog
+				open={exportWarningOpen}
+				onOpenChange={(open) => {
+					if (!open) {
+						setExportWarningOpen(false);
+						setExportWarningContext(null);
+					}
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Some documents are still processing</AlertDialogTitle>
+						<AlertDialogDescription>
+							{exportWarningContext?.pendingCount} document
+							{exportWarningContext?.pendingCount !== 1 ? "s are" : " is"} currently being processed
+							and will be excluded from the export. Do you want to continue?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleExportWarningConfirm}>
+							Export anyway
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</>
+	);
+
+	if (embedded) {
+		return (
+			<div
+				className={
+					workspaceView
+						? "flex h-full min-h-0 flex-col bg-panel text-foreground"
+						: "flex h-full flex-col bg-sidebar text-sidebar-foreground"
+				}
+			>
+				{documentsContent}
+			</div>
+		);
+	}
+
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
+				aria-label={t("title") || "Documents"}
+			>
+				{documentsContent}
+			</aside>
+		);
+	}
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("title") || "Documents"}
+			width={isMobile ? undefined : 380}
+		>
+			{documentsContent}
+		</SidebarSlideOutPanel>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Anonymous Documents Sidebar
+// ---------------------------------------------------------------------------
+
+const ANON_ALLOWED_EXTENSIONS = new Set([
+	".md",
+	".markdown",
+	".txt",
+	".text",
+	".json",
+	".jsonl",
+	".yaml",
+	".yml",
+	".toml",
+	".ini",
+	".cfg",
+	".conf",
+	".xml",
+	".css",
+	".scss",
+	".py",
+	".js",
+	".jsx",
+	".ts",
+	".tsx",
+	".java",
+	".kt",
+	".go",
+	".rs",
+	".rb",
+	".php",
+	".c",
+	".h",
+	".cpp",
+	".hpp",
+	".cs",
+	".swift",
+	".sh",
+	".sql",
+	".log",
+	".rst",
+	".tex",
+	".vue",
+	".svelte",
+	".astro",
+	".tf",
+	".proto",
+	".csv",
+	".tsv",
+	".html",
+	".htm",
+	".xhtml",
+]);
+
+const ANON_ACCEPT = Array.from(ANON_ALLOWED_EXTENSIONS).join(",");
+
+function AnonymousDocumentRightPanel({
+	open,
+	onOpenChange,
+	isDocked = false,
+	onDockedChange,
+	embedded = false,
+	workspaceView = false,
+	headerAction,
+}: DocumentRightPanelProps) {
+	const t = useTranslations("documents");
+	const tSidebar = useTranslations("sidebar");
+	const isMobile = !useMediaQuery("(min-width: 768px)");
+	const anonMode = useAnonymousMode();
+	const { gate } = useLoginGate();
+
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [isUploading, setIsUploading] = useState(false);
+	const [search, setSearch] = useState("");
+
+	const [sidebarDocs, setSidebarDocs] = useAtom(mentionedDocumentsAtom);
+	const mentionedDocKeys = useMemo(
+		() => new Set(sidebarDocs.map((d) => getMentionDocKey(d))),
+		[sidebarDocs]
+	);
+
+	const handleToggleChatMention = useCallback(
+		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			const key = getMentionDocKey({ ...doc, kind: "doc" });
+			if (isMentioned) {
+				setSidebarDocs((prev) => prev.filter((d) => getMentionDocKey(d) !== key));
+			} else {
+				setSidebarDocs((prev) => {
+					if (prev.some((d) => getMentionDocKey(d) === key)) return prev;
+					return [
+						...prev,
+						{
+							id: doc.id,
+							title: doc.title,
+							document_type: doc.document_type as DocumentTypeEnum,
+							kind: "doc",
+						},
+					];
+				});
+			}
+		},
+		[setSidebarDocs]
+	);
+
+	const uploadedDoc = anonMode.isAnonymous ? anonMode.uploadedDoc : null;
+	const hasDoc = uploadedDoc !== null;
+
+	const handleAnonUploadClick = useCallback(() => {
+		if (hasDoc) {
+			gate("upload more documents");
+			return;
+		}
+		fileInputRef.current?.click();
+	}, [hasDoc, gate]);
+
+	const handleFileChange = useCallback(
+		async (e: React.ChangeEvent<HTMLInputElement>) => {
+			const file = e.target.files?.[0];
+			if (!file) return;
+			e.target.value = "";
+
+			const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
+			if (!ANON_ALLOWED_EXTENSIONS.has(ext)) {
+				gate("upload PDFs, Word documents, images, and more");
+				return;
+			}
+
+			setIsUploading(true);
+			try {
+				const result = await anonymousChatApiService.uploadDocument(file);
+				if (!result.ok) {
+					if (result.reason === "quota_exceeded") gate("upload more documents");
+					return;
+				}
+				const data = result.data;
+				if (anonMode.isAnonymous) {
+					anonMode.setUploadedDoc({
+						filename: data.filename,
+						sizeBytes: data.size_bytes,
+					});
+				}
+				toast.success(`Uploaded "${data.filename}"`);
+			} catch (err) {
+				console.error("Upload failed:", err);
+				toast.error(err instanceof Error ? err.message : "Upload failed");
+			} finally {
+				setIsUploading(false);
+			}
+		},
+		[gate, anonMode]
+	);
+
+	const handleRemoveDoc = useCallback(() => {
+		if (anonMode.isAnonymous) {
+			anonMode.setUploadedDoc(null);
+		}
+	}, [anonMode]);
+
+	const treeDocuments: DocumentNodeDoc[] = useMemo(() => {
+		if (!anonMode.isAnonymous || !anonMode.uploadedDoc) return [];
+		return [
+			{
+				id: -1,
+				title: anonMode.uploadedDoc.filename,
+				document_type: "FILE",
+				folderId: null,
+				createdAt: 0,
+				status: { state: "ready" } as { state: string; reason?: string | null },
+			},
+		];
+	}, [anonMode]);
+
+	const documentsViewModel = useDocumentsViewModel({
+		folders: [],
+		documents: treeDocuments,
+		query: search,
+		activeTypes: [],
+	});
+
+	useEffect(() => {
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && open && isMobile) {
+				onOpenChange(false);
+			}
+		};
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [open, onOpenChange, isMobile]);
+
+	const documentsContent = (
+		<>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept={ANON_ACCEPT}
+				className="hidden"
+				onChange={handleFileChange}
+				disabled={isUploading}
+			/>
+
+			{workspaceView ? (
+				<header className="shrink-0">
+					<h1 className="text-xl font-semibold text-foreground md:text-2xl">
+						{t("title") || "Documents"}
+					</h1>
+				</header>
+			) : (
+				<div className="shrink-0 flex h-12 items-center px-3">
+					<div className="flex w-full items-center justify-between">
+						<div className="flex items-center gap-2">
+							<h2 className="select-none text-base font-semibold">{t("title") || "Documents"}</h2>
+						</div>
+						<div className="flex items-center gap-1">
+							{isMobile && (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+									onClick={() => onOpenChange(false)}
+								>
+									<X className="h-4 w-4" />
+									<span className="sr-only">{tSidebar("close") || "Close"}</span>
+								</Button>
+							)}
+							{!isMobile && onDockedChange && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 rounded-full text-muted-foreground hover:text-accent-foreground"
+											onClick={() => {
+												if (isDocked) {
+													onDockedChange(false);
+													onOpenChange(false);
+												} else {
+													onDockedChange(true);
+												}
+											}}
+										>
+											{isDocked ? (
+												<ChevronLeft className="h-4 w-4" />
+											) : (
+												<ChevronRight className="h-4 w-4" />
+											)}
+											<span className="sr-only">
+												{isDocked ? "Collapse panel" : "Expand panel"}
+											</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="z-80">
+										{isDocked ? "Collapse panel" : "Expand panel"}
+									</TooltipContent>
+								</Tooltip>
+							)}
+							{headerAction}
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Filters & upload */}
+			<div className="flex-1 min-h-0 pt-0 flex flex-col">
+				<div className={`${workspaceView ? "" : "px-4"} pt-6 pb-1.5`}>
+					<DocumentsFilters
+						typeCounts={hasDoc ? { FILE: 1 } : {}}
+						onSearch={setSearch}
+						searchValue={search}
+						onToggleType={() => {}}
+						activeTypes={[]}
+						onCreateFolder={() => gate("create folders")}
+						onUploadClick={handleAnonUploadClick}
+						isUploading={isUploading}
+					/>
+				</div>
+
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					<DocumentsView
+						viewModel={documentsViewModel}
+						onOpenFolder={() => {}}
+						expandedIds={new Set()}
+						onToggleExpand={() => {}}
+						mentionedDocKeys={mentionedDocKeys}
+						onToggleChatMention={handleToggleChatMention}
+						onToggleFolderSelect={() => {}}
+						onRenameFolder={() => gate("rename folders")}
+						onDeleteFolder={() => gate("delete folders")}
+						onMoveFolder={() => gate("organize folders")}
+						onCreateFolder={() => gate("create folders")}
+						onPreviewDocument={() => gate("preview documents")}
+						onDeleteDocument={async () => {
+							handleRemoveDoc();
+							setSidebarDocs((prev) => prev.filter((d) => d.kind !== "doc" || d.id !== -1));
+							return true;
+						}}
+						onMoveDocument={() => gate("organize documents")}
+						onExportDocument={() => gate("export documents")}
+						onVersionHistory={() => gate("view version history")}
+						onDropIntoFolder={async () => gate("organize documents")}
+						onReorderFolder={async () => gate("organize folders")}
+						onRescanFolder={() => gate("watch local folders")}
+						onStopWatchingFolder={() => gate("watch local folders")}
+						onExportFolder={() => gate("export folders")}
+					/>
+				</div>
+			</div>
+
+			{/* CTA footer */}
+			<div className="border-t p-4 space-y-3">
+				<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<Lock className="size-3.5 shrink-0" />
+					<span>Create an account to unlock:</span>
+				</div>
+				<ul className="space-y-1.5 text-xs text-muted-foreground pl-5">
+					<li className="flex items-center gap-1.5">
+						<Paperclip className="size-3 shrink-0" /> PDF, Word, images, audio uploads
+					</li>
+					<li className="flex items-center gap-1.5">
+						<FileText className="size-3 shrink-0" /> Unlimited documents
+					</li>
+				</ul>
+				<Button size="sm" className="w-full" asChild>
+					<Link href="/register">Create Free Account</Link>
+				</Button>
+			</div>
+		</>
+	);
+
+	if (embedded) {
+		return (
+			<div
+				className={
+					workspaceView
+						? "flex h-full min-h-0 flex-col bg-panel text-foreground"
+						: "flex h-full flex-col bg-sidebar text-sidebar-foreground"
+				}
+			>
+				{documentsContent}
+			</div>
+		);
+	}
+
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
+				aria-label={t("title") || "Documents"}
+			>
+				{documentsContent}
+			</aside>
+		);
+	}
+
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={onOpenChange}>
+				<DrawerContent className="max-h-[75vh] flex flex-col">
+					<DrawerTitle className="sr-only">{t("title") || "Documents"}</DrawerTitle>
+					<DrawerHandle />
+					<div className="flex-1 min-h-0 flex flex-col overflow-hidden">{documentsContent}</div>
+				</DrawerContent>
+			</Drawer>
+		);
+	}
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("title") || "Documents"}
+			width={380}
+		>
+			{documentsContent}
+		</SidebarSlideOutPanel>
+	);
+}

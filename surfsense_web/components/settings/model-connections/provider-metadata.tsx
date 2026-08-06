@@ -108,7 +108,7 @@ export const BEDROCK_AUTH_LONG_TERM_API_KEY = "long_term_api_key";
 export const VERTEX_AUTH_SERVICE_ACCOUNT = "service_account_json";
 export const VERTEX_AUTH_WORKLOAD_IDENTITY = "workload_identity";
 
-// Mirrors Onyx's Azure "Target URI" parser: the user pastes the full endpoint
+// Parses the Azure "Target URI": the user pastes the full endpoint
 // (e.g. https://res.cognitiveservices.azure.com/openai/deployments/<dep>/chat/completions?api-version=<ver>)
 // which we split into api base (origin), api version, and deployment name.
 export function parseAzureTargetUri(rawUri: string) {

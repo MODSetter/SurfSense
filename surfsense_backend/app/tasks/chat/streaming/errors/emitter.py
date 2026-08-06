@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from .classifier import log_chat_stream_error
+from .messages import chat_error_message
 
 
 def emit_stream_terminal_error(
@@ -15,13 +16,17 @@ def emit_stream_terminal_error(
     thread_id: int,
     workspace_id: int,
     user_id: str | None,
-    message: str,
     error_kind: str = "server_error",
     error_code: str = "SERVER_ERROR",
     severity: Literal["info", "warn", "error"] = "error",
     is_expected: bool = False,
+    diagnostic: str | None = None,
     extra: dict[str, Any] | None = None,
 ) -> str:
+    message = chat_error_message(error_code, details=extra)
+    log_extra = dict(extra or {})
+    if diagnostic:
+        log_extra["diagnostic"] = diagnostic
     log_chat_stream_error(
         flow=flow,
         error_kind=error_kind,
@@ -33,6 +38,11 @@ def emit_stream_terminal_error(
         workspace_id=workspace_id,
         user_id=user_id,
         message=message,
+        extra=log_extra or None,
+    )
+    return streaming_service.format_error(
+        message,
+        error_code=error_code,
+        diagnostic=diagnostic,
         extra=extra,
     )
-    return streaming_service.format_error(message, error_code=error_code, extra=extra)

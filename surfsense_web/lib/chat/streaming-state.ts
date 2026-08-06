@@ -646,7 +646,7 @@ export type SSEEvent =
 				}>;
 			};
 	  }
-	| { type: "error"; errorText: string; errorCode?: string };
+	| { type: "error"; message: string; errorCode?: string; diagnostic?: string };
 
 /**
  * Async generator that reads an SSE stream and yields parsed JSON objects.

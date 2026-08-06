@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import anyio
 import httpx
 import litellm
 
 from app.db import Connection, Model, ModelSource
+from app.services.context_admission import SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
 from app.services.model_resolver import to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
@@ -22,6 +25,18 @@ logger = logging.getLogger(__name__)
 VERIFY_TIMEOUT_SECONDS = 8.0
 DISCOVERY_TIMEOUT_SECONDS = 15.0
 TEST_TIMEOUT_SECONDS = 30.0
+
+
+def _positive_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value > 0:
+        return value
+    if isinstance(value, str):
+        with contextlib.suppress(ValueError):
+            parsed = int(value.strip())
+            return parsed if parsed > 0 else None
+    return None
 
 
 @dataclass(frozen=True)
@@ -79,6 +94,29 @@ def _docker_hint(url: str | None, exc_or_status: Any) -> str:
     return raw
 
 
+def _provider_detail(raw: str, limit: int = 300) -> str:
+    """Bound provider error text; LiteLLM and gateway bodies can be large."""
+    detail = " ".join(raw.split())
+    return detail if len(detail) <= limit else f"{detail[:limit]}…"
+
+
+def _provider_error(
+    conn: Connection,
+    *,
+    status_code: int,
+    detail: str,
+    model_id: str | None = None,
+) -> VerifyResult:
+    """Report a provider response without misclassifying it as unreachable."""
+    target = f"model '{model_id}'" if model_id else _base_url_or_default(conn)
+    return VerifyResult(
+        "PROVIDER_ERROR",
+        False,
+        f"{provider_label(conn.provider)} returned HTTP {status_code} for "
+        f"{target}. {_provider_detail(detail)}",
+    )
+
+
 def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> VerifyResult:
     provider_name = provider_label(conn.provider)
     raw = str(exc)
@@ -93,15 +131,12 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
         raw,
     )
 
-    if status_code == 400:
-        if "api key" in normalized:
-            return VerifyResult(
-                "AUTH_FAILED",
-                False,
-                f"Authentication failed. Check your {provider_name} credentials and try again.",
-            )
-        
-
+    if status_code == 400 and "api key" in normalized:
+        return VerifyResult(
+            "AUTH_FAILED",
+            False,
+            f"Authentication failed. Check your {provider_name} credentials and try again.",
+        )
 
     if status_code in (401, 403) or "authentication" in exc_name or "401" in normalized:
         return VerifyResult(
@@ -134,6 +169,16 @@ def _model_test_error(conn: Connection, model_id: str, exc: Exception) -> Verify
             f"{provider_name} did not respond in time. Check the endpoint and try again.",
         )
 
+    # LiteLLM can wrap a clean HTTP response in APIConnectionError. A status
+    # code means the provider answered; only its absence is a transport failure.
+    if isinstance(status_code, int) and status_code >= 400:
+        return _provider_error(
+            conn,
+            status_code=status_code,
+            detail=raw,
+            model_id=model_id,
+        )
+
     if "connection" in exc_name or "connect" in normalized:
         return VerifyResult(
             "UNREACHABLE",
@@ -161,7 +206,25 @@ async def verify_connection(conn: Connection) -> VerifyResult:
     if spec.base_url_required and not base_url:
         return VerifyResult("UNREACHABLE", False, "Base URL is required.")
 
-    if spec.transport == Transport.OLLAMA and base_url:
+    if spec.discovery == "lm_studio_models":
+        try:
+            await _discover_lm_studio_models(conn)
+            return VerifyResult("OK", True, "Connection verified.")
+        except ModelDiscoveryError as exc:
+            return VerifyResult("UNREACHABLE", False, str(exc))
+        except httpx.ConnectError as exc:
+            return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
+        except httpx.TimeoutException as exc:
+            return VerifyResult("UNREACHABLE", False, f"Connection timed out: {exc}")
+        except httpx.HTTPStatusError as exc:
+            return _provider_error(
+                conn,
+                status_code=exc.response.status_code,
+                detail=exc.response.text,
+            )
+        except httpx.HTTPError as exc:
+            return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
+    elif spec.transport == Transport.OLLAMA and base_url:
         url = f"{base_url.rstrip('/')}/api/version"
     elif spec.discovery in {"openai_models", "openrouter", "requesty"} and base_url:
         url = f"{base_url.rstrip('/')}/models"  # verbatim; user owns the path
@@ -196,6 +259,12 @@ async def verify_connection(conn: Connection) -> VerifyResult:
         return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
     except httpx.TimeoutException as exc:
         return VerifyResult("UNREACHABLE", False, f"Connection timed out: {exc}")
+    except httpx.HTTPStatusError as exc:
+        return _provider_error(
+            conn,
+            status_code=exc.response.status_code,
+            detail=exc.response.text,
+        )
     except httpx.HTTPError as exc:
         return VerifyResult("UNREACHABLE", False, _docker_hint(base_url, exc))
 
@@ -247,6 +316,68 @@ def _classify_from_litellm(model_string: str, model_id: str) -> dict[str, Any]:
     }
 
 
+def _ollama_modelfile_num_ctx(parameters: Any) -> int | None:
+    """Read ``num_ctx`` out of Ollama's newline-delimited Modelfile parameters.
+
+    Only present when someone authored it with ``ollama create``, so it is a
+    stated preference -- usually a smaller window chosen to fit the host's
+    memory. That makes it the one discovered number worth persisting as a
+    budget: the architecture maximum describes the model, this describes the
+    deployment.
+    """
+    if not isinstance(parameters, str):
+        return None
+    for line in parameters.splitlines():
+        tokens = line.split(maxsplit=1)
+        if len(tokens) == 2 and tokens[0] == "num_ctx":
+            return _positive_int(tokens[1])
+    return None
+
+
+def _ollama_architecture_context_length(metadata: dict) -> int | None:
+    """The context length the weights support, keyed by architecture in
+    ``/api/show``.
+
+    ``details`` is the second source because newer Ollama reports
+    ``context_length`` in ``/api/tags`` while ``/api/show`` does not. This is a
+    property of the model, not of the host: it says nothing about how much the
+    server was able to allocate.
+    """
+    model_info = metadata.get("model_info") or {}
+    architecture = model_info.get("general.architecture") or ""
+    details = metadata.get("details") or {}
+    for candidate in (
+        model_info.get(f"{architecture}.context_length") if architecture else None,
+        details.get("context_length"),
+    ):
+        resolved = _positive_int(candidate)
+        if resolved:
+            return resolved
+    return None
+
+
+def _ollama_seed_budget(metadata: dict) -> int | None:
+    """Seed ``max_input_tokens`` for a freshly discovered Ollama model.
+
+    A Modelfile ``num_ctx`` is a human's statement about this deployment, so it
+    is taken verbatim. The architecture maximum is not: Ollama sizes the context
+    from free memory at load time, so a 262k-capable model routinely loads at a
+    fraction of that. Seeding it verbatim would budget against a context length
+    the host never allocated. Capping at the generic fallback keeps the case
+    that matters -- a model whose context length is *below* the fallback gets
+    pinned to what it actually supports instead of being over-budgeted -- while
+    leaving the larger number to the settings field, where a big host can opt
+    into it.
+    """
+    stated = _ollama_modelfile_num_ctx(metadata.get("parameters"))
+    if stated:
+        return stated
+    architecture_max = _ollama_architecture_context_length(metadata)
+    if architecture_max:
+        return min(architecture_max, SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS)
+    return None
+
+
 def derive_capabilities(
     conn: Connection, model_id: str, metadata: dict | None = None
 ) -> dict[str, Any]:
@@ -256,7 +387,6 @@ def derive_capabilities(
     facts = _classify_from_litellm(model_string, model_id)
     if spec.transport == Transport.OLLAMA:
         caps = set(metadata.get("capabilities") or [])
-        details = metadata.get("details") or {}
         facts.update(
             {
                 "supports_chat": "embedding" not in caps,
@@ -264,9 +394,7 @@ def derive_capabilities(
                 or facts["supports_image_input"],
                 "supports_tools": "tools" in caps or facts["supports_tools"],
                 "supports_image_generation": False,
-                "max_input_tokens": metadata.get("context_length")
-                or metadata.get("num_ctx")
-                or details.get("context_length")
+                "max_input_tokens": _ollama_seed_budget(metadata)
                 or facts["max_input_tokens"],
             }
         )
@@ -300,6 +428,220 @@ async def _discover_openai_shaped_models(
             }
         )
     return results
+
+
+def _lm_studio_server_root(base_url: str) -> str:
+    parsed = urlsplit(base_url.rstrip("/"))
+    path = parsed.path.rstrip("/")
+    if path == "/v1":
+        path = ""
+    elif path.endswith("/v1"):
+        path = path[:-3]
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+
+def _lm_studio_optional_bool(
+    mapping: dict[str, Any], key: str, source: str
+) -> bool | None:
+    if key not in mapping:
+        return None
+    value = mapping[key]
+    if not isinstance(value, bool):
+        raise ModelDiscoveryError(
+            f"LM Studio {source} returned a non-boolean {key} capability."
+        )
+    return value
+
+
+def _lm_studio_context_length(item: dict[str, Any], source: str) -> int | None:
+    """LM Studio's ceiling, uncapped - unlike ``_ollama_seed_budget``.
+
+    A person picks this window when they load the model, so it describes the
+    deployment; Ollama's maximum is auto-sized from free memory, so only that
+    one needs a cap. ``loaded_instances[].config.context_length`` is left
+    unread on purpose: seeding is write-once and a loaded instance vanishes on
+    the next reload.
+    """
+    value = item.get("max_context_length")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ModelDiscoveryError(
+            f"LM Studio {source} returned an invalid max_context_length."
+        )
+    return value
+
+
+def _lm_studio_native_v1_models(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
+        raise ModelDiscoveryError(
+            "LM Studio native v1 returned an unsupported model-list response."
+        )
+
+    results: list[dict[str, Any]] = []
+    for item in payload["models"]:
+        if not isinstance(item, dict):
+            raise ModelDiscoveryError(
+                "LM Studio native v1 returned an invalid model record."
+            )
+        model_id = item.get("key")
+        if not isinstance(model_id, str) or not model_id.strip():
+            logger.warning(
+                "Skipping LM Studio native v1 model without a key",
+                extra={"provider": "lm_studio", "discovery_source": "native_v1"},
+            )
+            continue
+        model_id = model_id.strip()
+        if len(model_id) > 255:
+            raise ModelDiscoveryError(
+                "LM Studio native v1 returned a model key longer than 255 characters."
+            )
+
+        model_type = item.get("type")
+        capabilities = item.get("capabilities")
+        capabilities = capabilities if isinstance(capabilities, dict) else {}
+        is_llm = model_type == "llm"
+        is_embedding = model_type == "embedding"
+        vision = _lm_studio_optional_bool(capabilities, "vision", "native v1")
+        tools = _lm_studio_optional_bool(
+            capabilities, "trained_for_tool_use", "native v1"
+        )
+        if vision is not None:
+            supports_image_input = vision
+        elif is_embedding:
+            supports_image_input = False
+        else:
+            supports_image_input = None
+        if not is_llm and not is_embedding:
+            logger.warning(
+                "LM Studio native v1 returned an unknown model type",
+                extra={
+                    "provider": "lm_studio",
+                    "discovery_source": "native_v1",
+                    "model_type": model_type,
+                },
+            )
+
+        results.append(
+            {
+                "model_id": model_id,
+                "display_name": item.get("display_name") or model_id,
+                "source": ModelSource.DISCOVERED,
+                "supports_chat": is_llm,
+                "supports_image_input": supports_image_input,
+                "supports_tools": tools,
+                "supports_image_generation": False,
+                "max_input_tokens": _lm_studio_context_length(item, "native v1"),
+                "metadata": dict(item),
+            }
+        )
+    return results
+
+
+def _lm_studio_native_v0_models(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+        raise ModelDiscoveryError(
+            "LM Studio legacy v0 returned an unsupported model-list response."
+        )
+
+    results: list[dict[str, Any]] = []
+    for item in payload["data"]:
+        if not isinstance(item, dict):
+            raise ModelDiscoveryError(
+                "LM Studio legacy v0 returned an invalid model record."
+            )
+        model_id = item.get("id")
+        if not isinstance(model_id, str) or not model_id.strip():
+            logger.warning(
+                "Skipping LM Studio legacy v0 model without an id",
+                extra={"provider": "lm_studio", "discovery_source": "native_v0"},
+            )
+            continue
+        model_id = model_id.strip()
+        if len(model_id) > 255:
+            raise ModelDiscoveryError(
+                "LM Studio legacy v0 returned a model id longer than 255 characters."
+            )
+        model_type = item.get("type")
+        results.append(
+            {
+                "model_id": model_id,
+                "display_name": item.get("name") or model_id,
+                "source": ModelSource.DISCOVERED,
+                "supports_chat": model_type in {"llm", "vlm"},
+                "supports_image_input": model_type == "vlm",
+                "supports_tools": None,
+                "supports_image_generation": False,
+                "max_input_tokens": _lm_studio_context_length(item, "legacy v0"),
+                "metadata": item,
+            }
+        )
+    return results
+
+
+async def _discover_lm_studio_models(conn: Connection) -> list[dict[str, Any]]:
+    base_url = _base_url_or_default(conn)
+    if not base_url:
+        return []
+
+    server_root = _lm_studio_server_root(base_url)
+    native_sources = (
+        ("native_v1", f"{server_root}/api/v1/models", _lm_studio_native_v1_models),
+        ("native_v0", f"{server_root}/api/v0/models", _lm_studio_native_v0_models),
+    )
+
+    async with httpx.AsyncClient(timeout=DISCOVERY_TIMEOUT_SECONDS) as client:
+        for source, url, normalize in native_sources:
+            response = await client.get(url, headers=_auth_headers(conn))
+            if response.status_code in {404, 405}:
+                logger.warning(
+                    (
+                        "LM Studio current discovery endpoint unavailable; "
+                        "trying legacy native fallback"
+                        if source == "native_v1"
+                        else "LM Studio native discovery endpoints unavailable"
+                    ),
+                    extra={
+                        "provider": "lm_studio",
+                        "discovery_source": source,
+                        "status_code": response.status_code,
+                    },
+                )
+                continue
+            response.raise_for_status()
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise ModelDiscoveryError(
+                    f"LM Studio {source} returned invalid JSON."
+                ) from exc
+            results = normalize(payload)
+            _log_lm_studio_discovery(source, results)
+            return results
+
+    raise ModelDiscoveryError(
+        "LM Studio native model discovery is unavailable. "
+        "Upgrade LM Studio to version 0.4 or newer."
+    )
+
+
+def _log_lm_studio_discovery(source: str, models: list[dict[str, Any]]) -> None:
+    logger.info(
+        "LM Studio model discovery completed",
+        extra={
+            "provider": "lm_studio",
+            "discovery_source": source,
+            "models_total": len(models),
+            "chat_models": sum(bool(model.get("supports_chat")) for model in models),
+            "vision_models": sum(
+                bool(model.get("supports_image_input")) for model in models
+            ),
+            "embedding_models": sum(
+                (model.get("metadata") or {}).get("type") in {"embedding", "embeddings"}
+                for model in models
+            ),
+        },
+    )
 
 
 async def _discover_anthropic_models(conn: Connection) -> list[dict[str, Any]]:
@@ -351,7 +693,18 @@ async def _ollama_tags_then_show(conn: Connection) -> list[dict[str, Any]]:
                     headers=_auth_headers(conn),
                 )
                 show_response.raise_for_status()
-                metadata.update(show_response.json())
+                payload = show_response.json()
+                # Both endpoints return a ``details`` block and they carry
+                # different fields, so merge rather than let the shallow update
+                # drop what only /api/tags reports (context_length on newer
+                # Ollama, embedding_length).
+                details = {
+                    **(metadata.get("details") or {}),
+                    **(payload.get("details") or {}),
+                }
+                metadata.update(payload)
+                if details:
+                    metadata["details"] = details
             results.append(
                 {
                     "model_id": model_id,
@@ -413,8 +766,6 @@ async def _discover_bedrock_models(conn: Connection) -> list[dict[str, Any]]:
         return []
 
     def list_models() -> list[dict[str, Any]]:
-        import os
-
         import boto3
 
         if bearer_token := params.get("aws_bearer_token_bedrock"):
@@ -470,6 +821,8 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             results = await _requesty_models(conn)
         elif spec.discovery == "anthropic_models":
             results = await _discover_anthropic_models(conn)
+        elif spec.discovery == "lm_studio_models":
+            results = await _discover_lm_studio_models(conn)
         elif spec.discovery == "openai_models":
             results = await _discover_openai_shaped_models(conn, conn.base_url)
         elif spec.discovery == "bedrock_models":
@@ -480,6 +833,13 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
             results = []
     except httpx.HTTPError as exc:
         raise ModelDiscoveryError(_discovery_error_message(conn, exc)) from exc
+
+    if not results and spec.discovery not in {"none", "static"}:
+        raise ModelDiscoveryError(
+            f"No models found at {_base_url_or_default(conn)}. Check that the URL "
+            f"points at your {provider_label(conn.provider)} server and that at "
+            "least one model is available."
+        )
 
     return results
 

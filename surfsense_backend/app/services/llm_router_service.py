@@ -11,7 +11,6 @@ The router is initialized from global LLM configs and provides both
 synchronous ChatLiteLLM-like interface and async methods.
 """
 
-import copy
 import logging
 import re
 import time
@@ -30,6 +29,10 @@ from litellm.exceptions import (
 )
 from pydantic import Field
 
+from app.services.context_admission import (
+    compute_tool_tokens,
+    trim_messages_to_fit_context,
+)
 from app.services.model_resolver import native_connection_from_config, to_litellm
 from app.utils.perf import get_perf_logger
 
@@ -648,158 +651,23 @@ class ChatLiteLLMRouter(BaseChatModel):
         tokens with ``litellm.token_counter``.
         """
         max_input = self._get_max_input_tokens()
-        output_reserve = min(int(max_input * output_reserve_fraction), 16_384)
-        budget = max_input - output_reserve
-
-        total_tokens = self._count_tokens(messages)
-        if total_tokens is None:
-            return messages
-
-        if total_tokens <= budget:
-            return messages
-
-        perf = get_perf_logger()
-        perf.warning(
-            "[llm_router] context overflow detected: %d tokens > %d budget "
-            "(max_input=%d, reserve=%d). Trimming messages.",
-            total_tokens,
-            budget,
-            max_input,
-            output_reserve,
+        trimmed, final_tokens, budget = trim_messages_to_fit_context(
+            messages,
+            count_tokens=self._count_tokens,
+            max_input_tokens=max_input,
+            output_reserve_fraction=output_reserve_fraction,
+            reserved_tokens=compute_tool_tokens(
+                getattr(self, "_bound_tools", None), self._count_tokens
+            ),
+            estimate_on_count_failure=False,
         )
-
-        trimmed = copy.deepcopy(messages)
-
-        # Per-message token counts for trimmable candidates.
-        # Skip system messages to preserve agent instructions.
-        msg_token_map: dict[int, int] = {}
-        candidate_priority: dict[int, int] = {}
-        for i, msg in enumerate(trimmed):
-            if msg.get("role") == "system":
-                continue
-            role = msg.get("role")
-            content = msg.get("content", "")
-            if not isinstance(content, str) or len(content) < 500:
-                continue
-            # Prefer trimming tool/assistant outputs first.
-            # User messages are only trimmed if they clearly contain injected
-            # document context blobs.
-            is_doc_blob = "<document>" in content or "<mentioned_documents>" in content
-            if role in ("tool", "assistant"):
-                candidate_priority[i] = 0
-            elif role == "user" and is_doc_blob:
-                candidate_priority[i] = 1
-            else:
-                continue
-            token_count = self._count_tokens([msg])
-            if token_count is not None:
-                msg_token_map[i] = token_count
-
-        if not msg_token_map:
-            perf.warning("[llm_router] no trimmable messages found, returning as-is")
-            return trimmed
-
-        # Trim largest messages first
-        candidates = sorted(
-            msg_token_map.items(),
-            key=lambda x: (candidate_priority.get(x[0], 9), -x[1]),
-        )
-        running_total = total_tokens
-
-        trim_suffix = (
-            "\n\n<!-- Content trimmed to fit model context window. "
-            "Some documents were omitted. Refine your query or "
-            "reduce top_k for different results. -->"
-        )
-
-        for idx, orig_msg_tokens in candidates:
-            if running_total <= budget:
-                break
-
-            content = trimmed[idx]["content"]
-            orig_len = len(content)
-
-            # Binary search: find maximum content[:mid] that keeps total ≤ budget.
-            lo, hi = 200, orig_len - 1
-            best = 200
-
-            while lo <= hi:
-                mid = (lo + hi) // 2
-                trimmed[idx]["content"] = content[:mid] + trim_suffix
-                new_msg_tokens = self._count_tokens([trimmed[idx]])
-                if new_msg_tokens is None:
-                    hi = mid - 1
-                    continue
-
-                projected_total = running_total - orig_msg_tokens + new_msg_tokens
-                if projected_total <= budget:
-                    best = mid
-                    lo = mid + 1
-                else:
-                    hi = mid - 1
-
-            # Prefer cutting at a </document> boundary for cleaner output
-            last_doc_end = content[:best].rfind("</document>")
-            if last_doc_end > min(200, best // 4):
-                best = last_doc_end + len("</document>")
-
-            trimmed[idx]["content"] = content[:best] + trim_suffix
-
-            try:
-                new_msg_tokens = self._count_tokens([trimmed[idx]])
-                if new_msg_tokens is None:
-                    continue
-                running_total = running_total - orig_msg_tokens + new_msg_tokens
-            except Exception:
-                pass
-
-        # Hard guarantee: if still over budget, replace remaining large
-        # non-system messages with compact placeholders until we fit.
-        if running_total > budget:
-            fallback_indices: list[int] = []
-            for i, msg in enumerate(trimmed):
-                if msg.get("role") == "system":
-                    continue
-                content = msg.get("content")
-                if isinstance(content, str) and len(content) > 0:
-                    fallback_indices.append(i)
-
-            for idx in fallback_indices:
-                if running_total <= budget:
-                    break
-                role = trimmed[idx].get("role", "message")
-                placeholder = (
-                    f"[content omitted to fit model context window; role={role}]"
-                )
-                old_tokens = self._count_tokens([trimmed[idx]]) or 0
-                trimmed[idx]["content"] = placeholder
-                new_tokens = self._count_tokens([trimmed[idx]]) or 0
-                running_total = running_total - old_tokens + new_tokens
-
-            if running_total > budget:
-                perf.error(
-                    "[llm_router] unable to fit context even after aggressive trimming: "
-                    "tokens=%d budget=%d",
-                    running_total,
-                    budget,
-                )
-                # Final safety net: clear oldest non-system contents.
-                for idx in fallback_indices:
-                    if running_total <= budget:
-                        break
-                    old_tokens = self._count_tokens([trimmed[idx]]) or 0
-                    trimmed[idx]["content"] = ""
-                    new_tokens = self._count_tokens([trimmed[idx]]) or 0
-                    running_total = running_total - old_tokens + new_tokens
-
-        perf.info(
-            "[llm_router] messages trimmed: %d → %d tokens (budget=%d, max_input=%d)",
-            total_tokens,
-            running_total,
-            budget,
-            max_input,
-        )
-
+        if trimmed is not messages:
+            get_perf_logger().info(
+                "[llm_router] messages trimmed to %d tokens (budget=%d, max_input=%d)",
+                final_tokens,
+                budget,
+                max_input,
+            )
         return trimmed
 
     # -----------------------------------------------------------------
@@ -1137,61 +1005,9 @@ class ChatLiteLLMRouter(BaseChatModel):
 
     def _convert_messages(self, messages: list[BaseMessage]) -> list[dict]:
         """Convert LangChain messages to OpenAI format."""
-        from langchain_core.messages import (
-            AIMessage as AIMsg,
-            HumanMessage,
-            SystemMessage,
-            ToolMessage,
-        )
+        from app.services.context_admission import convert_langchain_messages
 
-        result = []
-        for msg in messages:
-            if isinstance(msg, SystemMessage):
-                result.append({"role": "system", "content": msg.content})
-            elif isinstance(msg, HumanMessage):
-                result.append({"role": "user", "content": msg.content})
-            elif isinstance(msg, AIMsg):
-                ai_msg: dict[str, Any] = {"role": "assistant"}
-                has_tool_calls = hasattr(msg, "tool_calls") and msg.tool_calls
-
-                sanitized = _sanitize_content(msg.content) if msg.content else ""
-                ai_msg["content"] = sanitized if sanitized else ""
-
-                if has_tool_calls:
-                    ai_msg["tool_calls"] = [
-                        {
-                            "id": tc.get("id", ""),
-                            "type": "function",
-                            "function": {
-                                "name": tc.get("name", ""),
-                                "arguments": tc.get("args", "{}")
-                                if isinstance(tc.get("args"), str)
-                                else __import__("json").dumps(tc.get("args", {})),
-                            },
-                        }
-                        for tc in msg.tool_calls
-                    ]
-                result.append(ai_msg)
-            elif isinstance(msg, ToolMessage):
-                result.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": msg.tool_call_id,
-                        "content": msg.content
-                        if isinstance(msg.content, str)
-                        else __import__("json").dumps(msg.content),
-                    }
-                )
-            else:
-                # Fallback for other message types
-                role = getattr(msg, "type", "user")
-                if role == "human":
-                    role = "user"
-                elif role == "ai":
-                    role = "assistant"
-                result.append({"role": role, "content": msg.content})
-
-        return result
+        return convert_langchain_messages(messages, _sanitize_content)
 
     def _convert_response_to_message(
         self, response_message: Any, response: Any = None
