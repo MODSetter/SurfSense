@@ -10,6 +10,28 @@ from app.knowledge_store.paths.store_path import StorePath, validate_segments
 _INVALID_FILENAME_CHARS = re.compile(r"[\\/:*?\"<>|]+")
 _WHITESPACE_RUN = re.compile(r"\s+")
 _MAX_SEGMENT_LEN = 180
+# Per-component filesystem limit is bytes, not characters (255 on ext4).
+_MAX_SEGMENT_BYTES = 255
+
+
+def _truncate_to_bytes(text: str, max_bytes: int) -> str:
+    """Longest prefix whose UTF-8 encoding fits ``max_bytes``, cut on a char boundary."""
+    encoded = text.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return text
+    return encoded[: max(max_bytes, 0)].decode("utf-8", "ignore")
+
+
+def _clamp_segment_bytes(name: str, *, max_bytes: int = _MAX_SEGMENT_BYTES) -> str:
+    """Clamp a filename to ``max_bytes``, keeping its extension."""
+    if len(name.encode("utf-8")) <= max_bytes:
+        return name
+    stem, dot, ext = name.rpartition(".")
+    if dot and stem:
+        suffix = f".{ext}"
+        budget = max_bytes - len(suffix.encode("utf-8"))
+        return _truncate_to_bytes(stem, budget).rstrip() + suffix
+    return _truncate_to_bytes(name, max_bytes).rstrip()
 
 
 def safe_folder_segment(value: str, *, fallback: str = "folder") -> str:
@@ -20,7 +42,7 @@ def safe_folder_segment(value: str, *, fallback: str = "folder") -> str:
         return fallback
     if len(name) > _MAX_SEGMENT_LEN:
         name = name[:_MAX_SEGMENT_LEN].rstrip()
-    return name
+    return _truncate_to_bytes(name, _MAX_SEGMENT_BYTES).rstrip()
 
 
 def normalize_filename(value: str, *, fallback: str = "untitled.md") -> str:
@@ -34,7 +56,7 @@ def normalize_filename(value: str, *, fallback: str = "untitled.md") -> str:
     stem, dot, ext = name.rpartition(".")
     if not dot or not stem or not ext or len(ext) > 12 or " " in ext:
         name = f"{name}.md"
-    return name
+    return _clamp_segment_bytes(name)
 
 
 def markdown_name_for_source(source_filename: str) -> str:
@@ -66,7 +88,9 @@ def allocate_path(
     base, extension = (stem, f".{ext}") if dot else (filename, "")
     counter = 2
     while True:
-        disambiguated = f"{base} ({counter}){extension}"
+        suffix = f" ({counter}){extension}"
+        budget = _MAX_SEGMENT_BYTES - len(suffix.encode("utf-8"))
+        disambiguated = _truncate_to_bytes(base, budget).rstrip() + suffix
         candidate = StorePath(validate_segments((*folders, disambiguated)))
         if candidate.virtual_path not in taken:
             taken.add(candidate.virtual_path)
