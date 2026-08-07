@@ -27,8 +27,14 @@ network_mode = "bridge"
 # clients that cannot resolve this name connect with use_server_proxy=True
 # instead of us forking this file per deployment.
 host_ip = "host.docker.internal"
-port_range_min = 40000
-port_range_max = 60000
+# Upstream's 40000-60000 default overlaps the ephemeral range on both hosts we
+# target (Linux 32768-60999, Windows/WSL dynamic from 49152 with Hyper-V holes),
+# so sandbox creation fails intermittently with "address already in use". This
+# band sits below both. Docker publishes these on 0.0.0.0 and execd itself is
+# unauthenticated, so restrict the range at the host firewall (DOCKER-USER
+# chain — plain firewalld rules sit behind docker's own iptables entries).
+port_range_min = 20000
+port_range_max = 30000
 drop_capabilities = [
     "AUDIT_WRITE",
     "MKNOD",
