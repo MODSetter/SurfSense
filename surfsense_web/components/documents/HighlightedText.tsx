@@ -1,12 +1,6 @@
 import type { MatchRange } from "@/lib/documents/document-search";
 
-export function HighlightedText({
-	text,
-	ranges,
-}: {
-	text: string;
-	ranges: MatchRange[];
-}) {
+export function HighlightedText({ text, ranges }: { text: string; ranges: MatchRange[] }) {
 	let cursor = 0;
 
 	return (

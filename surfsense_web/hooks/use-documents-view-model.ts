@@ -2,11 +2,11 @@
 
 import { useDeferredValue, useMemo } from "react";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
 import {
 	buildDocumentsViewModel,
 	type DocumentsViewModel,
 } from "@/lib/documents/documents-view-model";
-import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
 
 interface UseDocumentsViewModelInput {
 	folders: FolderDisplay[];

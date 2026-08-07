@@ -11,8 +11,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import type { FolderDisplay } from "@/lib/documents/document-tree-types";
+import { cn } from "@/lib/utils";
 
 interface FolderPickerDialogProps {
 	open: boolean;
