@@ -23,7 +23,8 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
 ADMIN_URL = os.getenv(
-    "ADMIN_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/postgres"
+    "ADMIN_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/postgres",  # pragma: allowlist secret
 )
 SCRATCH_DB = "surfsense_check_migration_flow"
 SCRATCH_URL = ADMIN_URL.rsplit("/", 1)[0] + f"/{SCRATCH_DB}"
