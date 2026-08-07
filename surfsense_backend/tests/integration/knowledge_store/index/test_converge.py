@@ -16,7 +16,14 @@ import pytest
 from sqlalchemy import func, select
 
 from app.config import config as app_config
-from app.db import Chunk, Document, DocumentStatus, DocumentType, DocumentVersion, Folder
+from app.db import (
+    Chunk,
+    Document,
+    DocumentStatus,
+    DocumentType,
+    DocumentVersion,
+    Folder,
+)
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore

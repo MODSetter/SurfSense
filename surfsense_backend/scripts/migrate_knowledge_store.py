@@ -18,8 +18,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select, update
 
 from app.db import Workspace, async_session_maker
-from app.knowledge_store.migrate import migrate_workspace
 from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.migrate import migrate_workspace
 
 
 async def _workspace_ids(only: list[int]) -> list[int]:

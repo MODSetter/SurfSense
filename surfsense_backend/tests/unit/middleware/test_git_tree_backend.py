@@ -116,9 +116,7 @@ class TestGitTreeBackend:
         write = await backend.awrite("/documents/research/a.md", "x")
         assert write.error is None
 
-    async def test_mkdir_materializes_an_empty_folder_as_its_keep(
-        self, knowledge_root
-    ):
+    async def test_mkdir_materializes_an_empty_folder_as_its_keep(self, knowledge_root):
         # Git drops empty directories; the .keep marker is what carries an
         # agent-created empty folder into the turn's diff, same as the facade.
         backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())

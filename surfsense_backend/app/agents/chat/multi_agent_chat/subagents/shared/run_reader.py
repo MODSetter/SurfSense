@@ -166,8 +166,8 @@ async def _save_export_document(
     from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence.middleware import (
         _create_document,
     )
-    from app.knowledge_store.paths import DOCUMENTS_ROOT
     from app.db import async_session_maker
+    from app.knowledge_store.paths import DOCUMENTS_ROOT
 
     path = virtual_path.strip()
     if not path.startswith("/"):

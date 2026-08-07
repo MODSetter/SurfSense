@@ -19,10 +19,10 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge_store.paths import PATH_MARKER, to_virtual_path
 from app.db import Document, DocumentStatus, Workspace
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.engines.base import Change
 from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
@@ -34,8 +34,8 @@ from app.knowledge_store.index.rows import (
     revision_author_id,
     upsert_row,
 )
-from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.locks import workspace_index_lock
+from app.knowledge_store.paths import PATH_MARKER, to_virtual_path
 from app.utils.document_converters import generate_content_hash
 
 logger = logging.getLogger(__name__)

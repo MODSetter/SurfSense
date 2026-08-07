@@ -122,7 +122,9 @@ async def test_a_leftover_keep_in_a_populated_folder_is_not_drift(
         tx.write("notes/plan.md", b"# Plan")
         tx.write("notes/.keep", b"")  # the empty-folder marker left behind
 
-    report = await seed_workspace(workspace_id, {"notes/plan.md": "# Plan"}, dry_run=True)
+    report = await seed_workspace(
+        workspace_id, {"notes/plan.md": "# Plan"}, dry_run=True
+    )
 
     assert report.ok
     assert report.extra == []

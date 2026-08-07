@@ -94,6 +94,7 @@ async def set_version(version: str | None) -> None:
 
 async def assert_at_head() -> None:
     import asyncpg
+
     from alembic.script import ScriptDirectory
 
     head = ScriptDirectory(str(BACKEND_DIR / "alembic")).get_current_head()

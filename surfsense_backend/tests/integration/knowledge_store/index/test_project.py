@@ -18,8 +18,8 @@ from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import user_identity
 from app.knowledge_store.index.converge import index_changes
 from app.knowledge_store.index.project import project_revision
-from app.knowledge_store.paths import PATH_MARKER
 from app.knowledge_store.locks import workspace_index_lock
+from app.knowledge_store.paths import PATH_MARKER
 
 pytestmark = pytest.mark.integration
 
