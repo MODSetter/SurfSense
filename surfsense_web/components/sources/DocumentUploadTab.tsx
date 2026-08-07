@@ -121,8 +121,6 @@ function flattenTree(
 const FOLDER_BATCH_SIZE_BYTES = 20 * 1024 * 1024;
 const FOLDER_BATCH_MAX_FILES = 10;
 
-
-
 const toggleRowClass =
 	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
@@ -145,8 +143,8 @@ export function DocumentUploadTab({
 	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const [folderUpload, setFolderUpload] = useState<FolderUploadData | null>(null);
 	const [isFolderUploading, setIsFolderUploading] = useState(false);
-	const MAX_FILE_SIZE_BYTES = maxFileSizeMB * 1024 * 1024;
-	
+	const MAX_FILE_SIZE_BYTES = useMemo(() => maxFileSizeMB * 1024 * 1024, [maxFileSizeMB]);
+
 	useEffect(() => {
 		return () => {
 			if (progressIntervalRef.current) {
@@ -191,7 +189,7 @@ export function DocumentUploadTab({
 				return [...prev, ...newEntries];
 			});
 		},
-		[t, MAX_FILE_SIZE_BYTES, maxFileSizeMB]
+		[t, maxFileSizeMB]
 	);
 
 	const onDrop = useCallback(

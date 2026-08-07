@@ -1,6 +1,6 @@
 import { toast } from "sonner";
-import { AbortedError, AppError, AuthenticationError, SURFSENSE_ISSUES_URL } from "./error";
 import { detectEnvironment } from "./env-config";
+import { AbortedError, AppError, AuthenticationError, SURFSENSE_ISSUES_URL } from "./error";
 
 /**
  * Build a GitHub issue URL pre-filled with diagnostic context.
