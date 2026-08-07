@@ -90,6 +90,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # Spawns sandbox containers on the host daemon as siblings, so it needs the
+  # socket. Its own config path is baked into the image's CMD.
+  opensandbox-server:
+    image: opensandbox/server:v0.2.2
+    ports:
+      - "${OPENSANDBOX_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./opensandbox/sandbox.toml:/etc/opensandbox/config.toml:ro
+      - opensandbox_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OPENSANDBOX_SERVER_API_KEY=${OPENSANDBOX_API_KEY:-surfsense-dev-sandbox}
+    mem_limit: ${OPENSANDBOX_SERVER_MEMORY_LIMIT:-512m}
+    restart: unless-stopped
+    # The runtime image ships neither curl nor wget; python is on PATH.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   otel-lgtm:
     image: grafana/otel-lgtm:latest
     ports:
@@ -132,6 +156,10 @@ services:
       # - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
       # - DAYTONA_API_URL=${DAYTONA_API_URL:-https://app.daytona.io/api}
       # - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
+      - SANDBOX_PROVIDER=${SANDBOX_PROVIDER:-opensandbox}
+      - OPENSANDBOX_DOMAIN=${OPENSANDBOX_DOMAIN:-opensandbox-server:8080}
+      - OPENSANDBOX_API_KEY=${OPENSANDBOX_API_KEY:-surfsense-dev-sandbox}
+      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-surfsense/sandbox:dev}
       - SERVICE_ROLE=api
     depends_on:
       db:
@@ -140,6 +168,8 @@ services:
         condition: service_healthy
       migrations:
         condition: service_completed_successfully
+      opensandbox-server:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
       interval: 15s
@@ -289,3 +319,5 @@ volumes:
     name: surfsense-dev-zero-cache
   whatsapp_sessions:
     name: surfsense-dev-whatsapp-sessions
+  opensandbox_data:
+    name: surfsense-dev-opensandbox
