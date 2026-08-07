@@ -143,7 +143,7 @@ export function DocumentUploadTab({
 	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const [folderUpload, setFolderUpload] = useState<FolderUploadData | null>(null);
 	const [isFolderUploading, setIsFolderUploading] = useState(false);
-	const MAX_FILE_SIZE_BYTES = useMemo(() => maxFileSizeMB * 1024 * 1024, [maxFileSizeMB]);
+	const maxFileSizeBytes = useMemo(() => maxFileSizeMB * 1024 * 1024, [maxFileSizeMB]);
 
 	useEffect(() => {
 		return () => {
@@ -168,7 +168,7 @@ export function DocumentUploadTab({
 
 	const addFiles = useCallback(
 		(incoming: File[]) => {
-			const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+			const oversized = incoming.filter((f) => f.size > maxFileSizeBytes);
 			if (oversized.length > 0) {
 				toast.error(t("file_too_large"), {
 					description: t("file_too_large_desc", {
@@ -177,7 +177,7 @@ export function DocumentUploadTab({
 					}),
 				});
 			}
-			const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+			const valid = incoming.filter((f) => f.size <= maxFileSizeBytes);
 			if (valid.length === 0) return;
 
 			setFolderUpload(null);
@@ -189,7 +189,7 @@ export function DocumentUploadTab({
 				return [...prev, ...newEntries];
 			});
 		},
-		[t, maxFileSizeMB]
+		[t, maxFileSizeMB, maxFileSizeBytes]
 	);
 
 	const onDrop = useCallback(
@@ -202,7 +202,7 @@ export function DocumentUploadTab({
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: MAX_FILE_SIZE_BYTES,
+		maxSize: maxFileSizeBytes,
 		noClick: isElectron,
 	});
 

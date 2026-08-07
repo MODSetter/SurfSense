@@ -56,6 +56,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 # Per-file upload cap. Operators raise MAX_FILE_SIZE_MB when self-hosting on
 # hardware that can take it; the frontend reads the same value for its
 # pre-upload check.
@@ -66,10 +67,16 @@ def _resolve_max_file_size_mb(default: int = 500) -> int:
     try:
         value = int(raw)
     except ValueError:
-        logger.warning("Invalid MAX_FILE_SIZE_MB=%r, falling back to %d MB", raw, default)
+        logger.warning(
+            "Invalid MAX_FILE_SIZE_MB=%r, falling back to %d MB", raw, default
+        )
         return default
     if value <= 0:
-        logger.warning("MAX_FILE_SIZE_MB must be positive, got %d, falling back to %d MB", value, default)
+        logger.warning(
+            "MAX_FILE_SIZE_MB must be positive, got %d, falling back to %d MB",
+            value,
+            default,
+        )
         return default
     return value
 
