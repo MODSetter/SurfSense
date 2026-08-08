@@ -57,7 +57,7 @@ const PlateEditor = dynamic(
 );
 
 const PdfViewer = dynamic(
-	() => import("@/components/report-panel/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
+	() => import("@/components/shared/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
 	{ ssr: false, loading: () => <ReportPanelSkeleton /> }
 );
 
