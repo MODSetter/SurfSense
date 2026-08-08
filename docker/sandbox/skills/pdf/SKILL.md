@@ -30,11 +30,16 @@ Do not call `save_artifact` until every step passes:
 
 1. Generate the PDF.
 2. Run `/opt/skills/pdf/scripts/render_pages.sh out.pdf /tmp/pdf-pages`.
-3. Call `inspect_sandbox_images` with every emitted JPEG path and instructions
-   to check clipping, overflow, blank pages, alignment, legibility, visual
-   hierarchy, and factual consistency.
-4. If the report identifies any defect, edit the source, regenerate, render,
-   and inspect again.
+3. Call `inspect_sandbox_images` with instructions to check clipping, overflow,
+   blank pages, alignment, legibility, visual hierarchy, and factual
+   consistency. Up to four pages, pass every path in one call — page breaks in a
+   PDF depend on everything above them, so seeing the pages together is what
+   catches "this should be one page, not two". Beyond four, inspect one page per
+   call so each report names one fixable defect, then make a final call over a
+   sample — first page, last page, and any page you changed, at most 20 paths —
+   to catch drift in fonts, spacing, and page count.
+4. If a report identifies any defect, edit the source, regenerate, render, and
+   inspect again.
 5. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf` for structural checks.
 6. Only then call:
    `save_artifact(path="out.pdf", title="...", markdown_representation="...")`.
