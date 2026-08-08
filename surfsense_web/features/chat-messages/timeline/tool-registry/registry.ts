@@ -29,6 +29,13 @@ const SandboxExecuteToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+const InspectSandboxImagesToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/inspect-sandbox-images").then((m) => ({
+			default: m.InspectSandboxImagesToolUI,
+		})),
+	{ ssr: false }
+);
 const CreateNotionPageToolUI = dynamic(
 	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.CreateNotionPageToolUI })),
 	{ ssr: false }
@@ -192,6 +199,7 @@ const TOOLS_BY_NAME = {
 	update_memory: UpdateMemoryToolUI,
 	execute: SandboxExecuteToolUI,
 	execute_code: SandboxExecuteToolUI,
+	inspect_sandbox_images: InspectSandboxImagesToolUI,
 	create_notion_page: CreateNotionPageToolUI,
 	update_notion_page: UpdateNotionPageToolUI,
 	delete_notion_page: DeleteNotionPageToolUI,

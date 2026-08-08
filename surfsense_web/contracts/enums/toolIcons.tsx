@@ -106,6 +106,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	get_connected_accounts: SearchCheck,
 	execute: Wrench,
 	execute_code: Wrench,
+	inspect_sandbox_images: ScanLine,
 };
 
 export function getToolIcon(name: string): LucideIcon {
@@ -202,6 +203,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 	get_connected_accounts: "Discover connected accounts",
 	execute: "Run command",
 	execute_code: "Run code",
+	inspect_sandbox_images: "Inspect pages",
 };
 
 /**
