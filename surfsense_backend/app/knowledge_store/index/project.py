@@ -19,8 +19,8 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge_store.paths import to_virtual_path
 from app.db import Workspace
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
     delete_row,
@@ -30,11 +30,11 @@ from app.knowledge_store.index.rows import (
     revision_author_id,
     upsert_row,
 )
-from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.locks import (
     KnowledgeStoreLockError,
     workspace_index_lock,
 )
+from app.knowledge_store.paths import to_virtual_path
 
 logger = logging.getLogger(__name__)
 

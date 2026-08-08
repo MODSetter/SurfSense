@@ -21,13 +21,13 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import Document, DocumentStatus, DocumentType, Workspace
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.paths import (
     PATH_MARKER,
     parse_documents_path,
     virtual_path_to_doc,
 )
-from app.db import Document, DocumentStatus, DocumentType, Workspace
-from app.knowledge_store import KnowledgeStore
 from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     generate_content_hash,

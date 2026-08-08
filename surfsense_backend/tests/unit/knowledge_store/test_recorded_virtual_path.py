@@ -17,7 +17,10 @@ def test_marker_is_preferred():
         metadata={PATH_MARKER: f"{DOCUMENTS_ROOT}/from-marker.md"},
         path=f"{DOCUMENTS_ROOT}/from-column.md",
     )
-    assert _recorded_virtual_path(doc, DOCUMENTS_ROOT) == f"{DOCUMENTS_ROOT}/from-marker.md"
+    assert (
+        _recorded_virtual_path(doc, DOCUMENTS_ROOT)
+        == f"{DOCUMENTS_ROOT}/from-marker.md"
+    )
 
 
 def test_column_is_the_fallback_when_marker_was_wiped():

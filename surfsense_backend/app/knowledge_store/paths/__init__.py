@@ -62,7 +62,7 @@ __all__ = [
     "to_virtual_path",
     "virtual_path_of",
     "virtual_path_to_doc",
+    "working_copies_root",
     "workspace_store_path",
     "workspace_working_copies_path",
-    "working_copies_root",
 ]

@@ -7,12 +7,12 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import Document, DocumentType, Folder, User, Workspace
 from app.knowledge_store.paths import (
     build_path_index,
     doc_to_virtual_path,
     virtual_path_to_doc,
 )
-from app.db import Document, DocumentType, Folder, User, Workspace
 
 pytestmark = pytest.mark.integration
 

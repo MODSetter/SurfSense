@@ -24,7 +24,9 @@ def knowledge_root(tmp_path, monkeypatch):
     return tmp_path
 
 
-async def _add_document(session, workspace, *, title, markdown, marker=None, folder_id=None):
+async def _add_document(
+    session, workspace, *, title, markdown, marker=None, folder_id=None
+):
     document = Document(
         title=title,
         document_type=DocumentType.NOTE,

@@ -843,9 +843,7 @@ async def index_local_folder(
                     failed_count += 1
                     continue
 
-                result = await pipeline.index_unless_store_owns(
-                    document, connector_doc
-                )
+                result = await pipeline.index_unless_store_owns(document, connector_doc)
 
                 # A deferral (``None``) recorded the row for the store's indexer to
                 # chunk; still stamp mtime so the next sweep skips an unchanged file.

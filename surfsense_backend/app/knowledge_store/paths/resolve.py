@@ -101,10 +101,9 @@ async def _resolve_by_title(
 
     from app.db import Document
 
-    unlocated = (
-        Document.path.is_(None)
-        & Document.document_metadata[PATH_MARKER].as_string().is_(None)
-    )
+    unlocated = Document.path.is_(None) & Document.document_metadata[
+        PATH_MARKER
+    ].as_string().is_(None)
     folder_id = await _resolve_folder_id(
         session, workspace_id=workspace_id, folder_parts=list(path.folder_parts)
     )

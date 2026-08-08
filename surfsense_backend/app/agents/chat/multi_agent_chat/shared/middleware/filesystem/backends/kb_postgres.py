@@ -52,13 +52,13 @@ from app.agents.chat.multi_agent_chat.shared.document_render import (
     render_document,
     source_label,
 )
+from app.db import Chunk, Document, shielded_async_session
 from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     build_path_index,
     doc_to_virtual_path,
     virtual_path_to_doc,
 )
-from app.db import Chunk, Document, shielded_async_session
 
 logger = logging.getLogger(__name__)
 

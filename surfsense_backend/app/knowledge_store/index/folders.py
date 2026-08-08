@@ -64,7 +64,11 @@ async def reconcile_folders(
             folder_parts=list(chain),
         )
     rows = (
-        (await session.execute(select(Folder).where(Folder.workspace_id == workspace_id)))
+        (
+            await session.execute(
+                select(Folder).where(Folder.workspace_id == workspace_id)
+            )
+        )
         .scalars()
         .all()
     )
@@ -119,7 +123,11 @@ async def reparent_folder(
     if not source_chain or not destination_chain:
         return False
     rows = (
-        (await session.execute(select(Folder).where(Folder.workspace_id == workspace_id)))
+        (
+            await session.execute(
+                select(Folder).where(Folder.workspace_id == workspace_id)
+            )
+        )
         .scalars()
         .all()
     )

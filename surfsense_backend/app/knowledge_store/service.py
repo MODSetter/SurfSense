@@ -203,11 +203,15 @@ class KnowledgeStore:
     async def write(self, path: str, content: str | bytes) -> Outcome:
         """Create or replace one path as a single-verb revision."""
         data = content.encode() if isinstance(content, str) else content
-        return await self._single(lambda tx: tx.write(path, data), f"docs: write {_leaf(path)}")
+        return await self._single(
+            lambda tx: tx.write(path, data), f"docs: write {_leaf(path)}"
+        )
 
     async def remove(self, path: str) -> Outcome:
         """Delete one path as a single-verb revision."""
-        return await self._single(lambda tx: tx.remove(path), f"docs: delete {_leaf(path)}")
+        return await self._single(
+            lambda tx: tx.remove(path), f"docs: delete {_leaf(path)}"
+        )
 
     async def move(self, source: str, destination: str) -> Outcome:
         """Relocate one path as a single-verb revision."""
@@ -269,7 +273,9 @@ class KnowledgeStore:
             enqueue_index(self._workspace_id)
         return tx.revision
 
-    async def _taken_virtual_paths(self, *, exclude: set[str] | None = None) -> set[str]:
+    async def _taken_virtual_paths(
+        self, *, exclude: set[str] | None = None
+    ) -> set[str]:
         """The document paths git already holds, so a fresh name skips them.
 
         Occupancy comes from the tree, the one authority on which files exist;
@@ -293,7 +299,9 @@ class KnowledgeStore:
                 taken.add(virtual)
         return taken
 
-    def _author_path(self, *, title: str, folder_id: int | None, index, taken: set[str]) -> str:
+    def _author_path(
+        self, *, title: str, folder_id: int | None, index, taken: set[str]
+    ) -> str:
         """A fresh ``.md`` path under the row's folder, breaking a name clash.
 
         The naming law, not the legacy ``.xml`` derivation: this is the one place
@@ -348,7 +356,8 @@ class KnowledgeStore:
             previous = (metadata or {}).get(PATH_MARKER)
             recorded = (
                 previous
-                if isinstance(previous, str) and previous.startswith(f"{DOCUMENTS_ROOT}/")
+                if isinstance(previous, str)
+                and previous.startswith(f"{DOCUMENTS_ROOT}/")
                 else None
             )
             # A recorded path stays put; only an explicit title, or a first write,
@@ -366,9 +375,7 @@ class KnowledgeStore:
                     and document.path.startswith(f"{DOCUMENTS_ROOT}/")
                     else None
                 )
-                taken = await self._taken_virtual_paths(
-                    exclude={own} if own else set()
-                )
+                taken = await self._taken_virtual_paths(exclude={own} if own else set())
                 virtual_path = self._author_path(
                     title=title, folder_id=folder_id, index=index, taken=taken
                 )
@@ -589,7 +596,9 @@ class KnowledgeStore:
             return Outcome(revision=None)
         src = self._folder_store_path(source)
         dst = self._folder_store_path(destination)
-        moves = [(p, f"{dst}{p[len(src):]}") for p in await self._subtree_paths(source)]
+        moves = [
+            (p, f"{dst}{p[len(src) :]}") for p in await self._subtree_paths(source)
+        ]
         revision = await self._commit_files(
             files={}, moves=moves, message=f"docs: move folder {_leaf(destination)}"
         )

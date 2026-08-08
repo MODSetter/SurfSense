@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.knowledge_store.paths import virtual_path_to_doc
 from app.auth.context import AuthContext
 from app.db import (
     Chunk,
@@ -21,6 +20,7 @@ from app.db import (
     WorkspaceMembership,
     get_async_session,
 )
+from app.knowledge_store.paths import virtual_path_to_doc
 from app.knowledge_store.service import record_deleted_documents
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.schemas import (
