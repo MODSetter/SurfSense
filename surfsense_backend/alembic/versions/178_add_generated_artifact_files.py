@@ -1,15 +1,15 @@
 """Add generated artifact files and their display role.
 
-Revision ID: 177
-Revises: 176
+Revision ID: 178
+Revises: 177
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "177"
-down_revision: str | None = "176"
+revision: str = "178"
+down_revision: str | None = "177"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
