@@ -864,14 +864,14 @@ async def stream_new_chat(
                 accumulator=accumulator,
             )
 
-        # Persist any sandbox-produced files to local storage so they remain
-        # downloadable after the Daytona sandbox auto-deletes.
+        # Persist legacy sandbox-produced files locally before the selected
+        # provider session is terminated.
         if stream_result and stream_result.sandbox_files:
             with contextlib.suppress(Exception):
                 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
-                    is_sandbox_enabled,
                     persist_and_delete_sandbox,
                 )
+                from app.sandbox import is_sandbox_enabled
 
                 if is_sandbox_enabled():
                     with anyio.CancelScope(shield=True):

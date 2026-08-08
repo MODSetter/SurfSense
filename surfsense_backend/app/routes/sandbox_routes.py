@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -52,10 +51,7 @@ async def download_sandbox_file(
 ):
     """Download a file from the Daytona sandbox associated with a chat thread."""
 
-    from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
-        get_or_create_sandbox,
-        is_sandbox_enabled,
-    )
+    from app.sandbox import is_sandbox_enabled
 
     if not is_sandbox_enabled():
         raise HTTPException(status_code=404, detail="Sandbox is not enabled")
@@ -90,11 +86,28 @@ async def download_sandbox_file(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
-    # Fall back to live sandbox download
+    # Fall back to the live sandbox. After a backend restart the registry cache
+    # is empty, so get_session lets the provider rediscover it by thread
+    # metadata. If none exists it may create an empty replacement; terminate
+    # that replacement when the read proves the file is absent.
+    from app.sandbox import get_registry
+
+    registry = await get_registry()
+    live = registry.get_cached(thread_id)
+    adopted_or_created = live is None
+    if live is None:
+        try:
+            live = await registry.get_session(thread_id, thread.workspace_id)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=404, detail="File is no longer available"
+            ) from exc
+
     try:
-        sandbox, _ = await get_or_create_sandbox(thread_id)
-        content: bytes = await asyncio.to_thread(sandbox.download_file, path)
+        content: bytes = await live.read_file(path)
     except Exception as exc:
+        if adopted_or_created:
+            await registry.terminate(thread_id)
         logger.warning("Sandbox file download failed for %s: %s", path, exc)
         raise HTTPException(
             status_code=404, detail=f"Could not download file: {exc}"
