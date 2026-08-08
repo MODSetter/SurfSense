@@ -44,6 +44,19 @@ class FakeProvider:
         self.terminated.append(thread_id)
 
 
+async def test_disabled_deployment_refuses_before_building_a_provider(monkeypatch):
+    import app.sandbox.registry as registry_module
+
+    def unreachable() -> None:
+        raise AssertionError("provider built with code execution disabled")
+
+    monkeypatch.setattr(registry_module.app_config, "SANDBOX_ENABLED", False)
+    monkeypatch.setattr("app.sandbox.factory.build_provider", unreachable)
+
+    with pytest.raises(SandboxUnavailableError, match="disabled"):
+        await registry_module.get_registry()
+
+
 async def test_session_is_reused_within_a_thread():
     provider = FakeProvider()
     registry = SandboxRegistry(provider)

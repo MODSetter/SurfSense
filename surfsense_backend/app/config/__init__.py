@@ -557,7 +557,11 @@ class Config:
 
     # Sandbox provider selection. A deployment choice, not a fallback chain:
     # opensandbox is self-hosted, daytona is cloud.
-    SANDBOX_ENABLED = os.getenv("SANDBOX_ENABLED", "FALSE").strip().upper() == "TRUE"
+    #
+    # On by default because compose always runs the control plane. A backend run
+    # outside compose has none, so it needs OPENSANDBOX_DOMAIN pointed at a
+    # reachable server or SANDBOX_ENABLED=FALSE.
+    SANDBOX_ENABLED = os.getenv("SANDBOX_ENABLED", "TRUE").strip().upper() == "TRUE"
     SANDBOX_PROVIDER = os.getenv("SANDBOX_PROVIDER", "opensandbox").lower()
     OPENSANDBOX_DOMAIN = os.getenv("OPENSANDBOX_DOMAIN", "opensandbox-server:8080")
     OPENSANDBOX_API_KEY = os.getenv("OPENSANDBOX_API_KEY", "")

@@ -174,7 +174,15 @@ _registry_mu = asyncio.Lock()
 
 
 async def get_registry() -> SandboxRegistry:
-    """Process-wide registry, built from config on first use."""
+    """Process-wide registry, built from config on first use.
+
+    Refuses while code execution is off. Callers gate too — a disabled
+    deployment should never offer the tool in the first place — but that gate
+    lives in whichever module registers the tool, so this is the one place the
+    invariant holds for every caller, present and future.
+    """
+    if not app_config.SANDBOX_ENABLED:
+        raise SandboxUnavailableError("Code execution is disabled in this deployment.")
     global _registry
     async with _registry_mu:
         if _registry is None:
