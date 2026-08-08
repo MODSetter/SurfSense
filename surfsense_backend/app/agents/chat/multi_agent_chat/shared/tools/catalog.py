@@ -58,7 +58,19 @@ TOOL_CATALOG: list[ToolMetadata] = [
     ),
     ToolMetadata(
         name="save_artifact",
-        description="Save a Markdown deliverable as a durable document",
+        description="Save a Markdown or sandbox-generated file as a durable artifact",
+    ),
+    ToolMetadata(
+        name="execute",
+        description="Run Python or Bash in an isolated artifact sandbox",
+    ),
+    ToolMetadata(
+        name="read_sandbox_file",
+        description="Read a UTF-8 text file from the artifact sandbox",
+    ),
+    ToolMetadata(
+        name="inspect_sandbox_images",
+        description="Visually inspect rendered artifact pages for quality issues",
     ),
     ToolMetadata(
         name="generate_image",
