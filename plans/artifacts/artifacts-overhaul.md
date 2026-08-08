@@ -259,7 +259,8 @@ Supervisor routing (`task(deliverables, …)`) is unchanged. Inside the subagent
 | Tool | Signature (conceptual) | Behavior |
 |---|---|---|
 | `execute` | `(code_or_command) → stdout/stderr/exit` | Runs in the thread's sandbox session via the provider's persistent kernel (Python) or shell (Node scripts, `soffice`, `pdftoppm`, `pandoc`). |
-| `read_sandbox_file` | `(path) → bytes/base64` | Pulls a file back for the model to inspect — primarily the rasterized page JPEGs from the verification loop. Size-capped. |
+| `read_sandbox_file` | `(path) → str` | Pulls **UTF-8 text** back — source files, logs, extracted content. Size-capped by `ARTIFACT_MAX_FILE_BYTES`; binary and non-UTF-8 are refused with an error naming the right tool, because image bytes cannot survive this stack's text-only tool-result serialization (§12 open question 2). |
+| `inspect_sandbox_images` | `(paths, instructions) → str` | The verification loop's eyes. Reads rendered page JPEGs inside the tool, makes one `get_vision_llm()` call for the batch, and returns a text QA report keyed by filename. The model reads findings, never pixels. JPEG only, capped per call and per image. |
 | `save_artifact` | `(path, title, markdown_representation, preview_path?) → §3.1 payload` | Write-through persist: reads bytes from the sandbox, creates `Document` + `DocumentFile`(s) in one transaction, returns the contract payload. The `markdown_representation` then reaches the search index per §4.4 — written into the turn's working copy on git workspaces (committed + indexed by the KB pipeline), indexed directly on legacy ones. Markdown artifacts pass content directly with no `path`. |
 
 Streaming emission: one generic `save_artifact` handler replaces the per-tool `generate_report/` and `generate_resume/` emission handlers.
@@ -276,16 +277,27 @@ Genre → format mapping is prompt guidance in the subagent system prompt, not c
 
 ### 6.3 The mandatory verification loop
 
-Every format skill ends with the same discipline (evidence: Anthropic's docx skill "Verify the output" section — this loop is why their documents come out well-formatted):
+Every format skill ends with the same discipline (evidence: Anthropic's docx skill "Verify the output" section — this loop is why their documents come out well-formatted). Two shapes exist and each skill states which it uses.
+
+**Visual** — `pdf`, `docx`, `pptx`:
 
 ```
-1. Generate the file (docx npm / openpyxl / python-pptx / reportlab-weasyprint).
+1. Generate the file (docx npm / python-pptx / reportlab-weasyprint), keeping the source.
 2. Convert to PDF if not already PDF: soffice --headless --convert-to pdf out.docx
 3. Rasterize: pdftoppm -jpeg -r 100 out.pdf page
-4. read_sandbox_file the page images; LOOK at them. Check layout, alignment, overflow, blank pages.
-5. Broken? Fix the script, regenerate, re-verify.
+4. inspect_sandbox_images(pages, instructions) → text findings keyed by filename.
+   The model reads a report about the pages; it never sees the pixels.
+5. Broken? Fix the source, regenerate, re-verify.
 6. Only then: save_artifact(path=out.docx, preview_path=out.pdf, …)
 ```
+
+**Programmatic** — `xlsx`: no rasterizing and no vision call. Recalculate headless, read the expected cells back, assert. See §7.1 — the recalculated file is the file saved.
+
+**Granularity is two decisions, not one.**
+
+*Generation* can be incremental only where the units are independent: slides and worksheets can be built and checked one at a time, a flowing PDF cannot. There is no "page 2" until the whole document renders — pagination is emergent, and editing anything above a break moves everything below it. A page-at-a-time PDF skill is not writable.
+
+*Verification* is free to be either, and the right choice depends on length. A short document, up to roughly four pages, goes in one call: batching is cheaper and the findings that matter most for a flowing document are cross-page ones ("page 2 holds three lines, tighten spacing to fit one page"), which per-page inspection structurally cannot see. A long document or a deck inspects one page or slide per call — the vision model's attention is undivided, findings name one fixable thing, and a fix that breaks a neighbour surfaces on the next pass — then makes one final consistency pass (font drift, colour drift, page count) over a bounded sample: first, last, and whatever changed. The sample is bounded because `inspect_sandbox_images` caps paths per call, so "everything" is not available to a 40-page document and asking for it is an error, not a slow call. The cost of per-page is real and deliberate: N sequential model round-trips and N workspace-config lookups instead of one.
 
 The verification PDF is the preview file — the office-format preview costs zero extra compute because the quality gate already produced it.
 
@@ -297,7 +309,7 @@ The verification PDF is the preview file — the office-format preview costs zer
 3. Reads docx SKILL.md (Level 2) via sandbox filesystem.
 4. execute: node resume.js  → resume.docx        (docx npm preinstalled)
 5. execute: soffice → resume.pdf; pdftoppm → page-1.jpg
-6. read_sandbox_file(page-1.jpg) → model inspects, fixes issues, regenerates.
+6. inspect_sandbox_images([page-1.jpg], …) → text findings; model fixes the source and regenerates.
 7. save_artifact(path=resume.docx, preview_path=resume.pdf, title="…", markdown_representation="…")
    → Document + 2 DocumentFiles persisted; markdown representation written to the turn's
      working copy (git workspaces); payload returned.
@@ -319,9 +331,9 @@ Four skills, each a directory under the existing skills root (`{format}/SKILL.md
 
 | Skill | Create with | Verify with | Notes |
 |---|---|---|---|
-| `pdf` | reportlab / weasyprint (Python) | pdftoppm → inspect | Resumes, reports, letters, one-pagers land here or docx |
-| `docx` | `docx` (npm, Node) | soffice → pdf → pdftoppm | Encode the known footguns: DXA table widths, `ShadingType.CLEAR`, numbering for bullets, TOC outline levels, tab stops over PositionalTab |
-| `pptx` | python-pptx | soffice → pdf → pdftoppm | Per-slide thumbnails |
+| `pdf` | reportlab / weasyprint (Python) | pdftoppm → `inspect_sandbox_images` | Resumes, reports, letters, one-pagers land here or docx. Batched inspection while short, per-page plus a final pass once long (§6.3) |
+| `docx` | `docx` (npm, Node) | soffice → pdf → pdftoppm → `inspect_sandbox_images` | Same length rule as `pdf`. Encode the known footguns: DXA table widths, `ShadingType.CLEAR`, numbering for bullets, TOC outline levels, tab stops over PositionalTab |
+| `pptx` | python-pptx | soffice → pdf → pdftoppm → `inspect_sandbox_images` | One inspection call **per slide**, then a final pass for deck-wide consistency. Slides are independent, so the skill builds and verifies incrementally instead of rendering all of them first |
 | `xlsx` | openpyxl | LibreOffice headless recalc (**mandatory before save**) + read back values | No visual loop; verify programmatically. The recalculated file is the file saved: openpyxl writes formulas with **no cached values**, and the grid viewer renders cached values — an un-recalced file renders blank formula cells (§8.2) |
 
 Adding a format later = one new skill directory + sandbox image rebuild + (optionally) one viewer-registry entry. No backend changes.

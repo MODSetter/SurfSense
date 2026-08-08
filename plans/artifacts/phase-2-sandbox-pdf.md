@@ -119,7 +119,7 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 
 - Frontmatter description covering triggers: PDF, resume, CV, report-as-PDF, letter, one-pager, printable.
 - Body: reportlab vs weasyprint guidance (weasyprint for HTML/CSS-styled documents, reportlab for programmatic layout), fonts available in the image, page-size defaults.
-- **Mandatory verification loop** (master spec §6.3): `pdftoppm -jpeg -r 100 out.pdf page` → `inspect_sandbox_images` on the pages → fix → only then `save_artifact`.
+- **Mandatory verification loop** — the visual shape of the §2.6 contract: `pdftoppm -jpeg -r 100 out.pdf page`, then `inspect_sandbox_images` (all pages in one call while the document is short; one call per page plus a final whole-document pass once it is long), then fix the source and repeat, then the structural check, and only then `save_artifact`. The rasterizer and the structural check ship as this skill's own `scripts/`.
 - Subagent system prompt gains format-selection guidance (master spec §6.2) and demotes `generate_report`/`generate_resume` to "only when the user explicitly declines a file".
 
 ### 2.5 Frontend
@@ -127,10 +127,66 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 - `PdfFileViewer` registry entry: existing `pdf-viewer.tsx` (move to `components/shared/pdf-viewer.tsx`; report panel imports from the new path) pointed at the primary file's `content_url`, lazy-loaded.
 - Artifact card format badge for `application/pdf`.
 
-### 2.6 Checks
+### 2.6 Verification-loop architecture
+
+The whole mechanism lives in this phase; later phases add format skills that use
+it and nothing else. The test of that boundary: adding a format must need only a
+`SKILL.md`, its own `scripts/`, and a viewer registry entry.
+
+**The contract.** Generate → render evidence → inspect → fix → structural check →
+only then `save_artifact`; never save before verifying (master spec §6.3). Two
+shapes are permitted and a skill states which it uses: *visual* (rasterize to
+JPEG, review with `inspect_sandbox_images`) or *programmatic* (read values back
+and assert). `pdf` in §2.4 is the reference implementation of the visual shape.
+
+**Granularity** (master spec §6.3, stated here because skills inherit it):
+*generation* is incremental only where units are independent — slides and
+worksheets yes, a flowing PDF no, since pagination is emergent and nothing is
+"page 2" until the whole document renders. *Verification* batches while the
+document is short (up to roughly four pages, where the findings that matter are
+cross-page reflow ones that per-page inspection cannot see) and goes one page or
+slide per call once it is long or is a deck, followed by one consistency pass
+over a bounded sample — first, last, and whatever changed. The sample must be
+bounded because `_MAX_VISION_IMAGES` is a hard error rather than a truncation:
+"inspect everything" is unavailable to a 40-page document, which is precisely
+why the long case iterates instead of batching.
+
+**The shared surface is the tool, not the scripts.** `inspect_sandbox_images`
+accepts JPEG only, at most `_MAX_VISION_IMAGES` paths, and 5 MB per image,
+rejecting anything else with an actionable error — so a skill cannot silently
+render something incompatible. Skills therefore stay self-contained: each ships
+its own `{skills_root}/<name>/scripts/` as `pdf` does, with no cross-skill paths
+and no shared directory competing with real skills under `/opt/skills/`.
+Duplicating a 15-line rasterizer is cheaper than an indirection every skill
+depends on, and it leaves room for genuine per-format differences (per-slide
+naming, a conversion step first). <!-- ponytail: copies over a shared script;
+ceiling is a fix landing in N skills, and the tool's input check is what stops a
+stale copy from breaking the loop -->
+
+**Step rendering — pending.** The loop is skill text driving `execute` +
+`inspect_sandbox_images`, so nothing below changes loop logic. What is missing is
+display: the user should watch generate → render → inspect → fix as named steps
+instead of opaque tool calls.
+
+- `timeline/tool-registry/registry.ts` binds `execute` to
+  `components/tool-ui/sandbox-execute.tsx`, which was written for the legacy
+  `execute_code` tool: it reads `args.command` while this phase's tool passes
+  `code_or_command`, so the step header renders `…` today. Rewrite against the
+  new shapes — plain-string result, no `SANDBOX_FILE:` markers, no
+  `/threads/{id}/sandbox/download` (that route is obsoleted per §2.1).
+- `inspect_sandbox_images` has no registry entry at all; add one that renders
+  the QA report as a single collapsible step.
+- Optional one-line `description` arg on both tools, surfaced through
+  `timeline/subagent-rename.ts:resolveItemTitle` — which already derives
+  per-call titles from args for `task` — so a step reads "Fix vertical alignment
+  on slide 4" rather than the tool name. <!-- ponytail: the model authors the
+  title, no server-side summarizer; ceiling is a model that omits it, and the
+  fallback is the tool name, which is exactly today's behavior -->
+
+### 2.7 Checks
 
 - Provider contract test (runs against OpenSandbox in CI, Daytona smoke in cloud env): create → exec → read → terminate; TTL reap; concurrency cap.
-- Integration: "create a one-page PDF listing 3 facts about X" end-to-end → verified PDF renders in panel, ETag-cached on second open, downloads with correct filename.
+- Integration: "create a one-page PDF listing 3 facts about X" end-to-end → verified PDF renders in panel, ETag-cached on second open, downloads with correct filename. The assertion that the §2.6 loop actually ran (render and inspect steps present in the trace) belongs to this harness, which later format skills parameterize rather than rebuild.
 - Regression: legacy `generate_report` path still functional (it isn't removed until phase 4).
 
 ---

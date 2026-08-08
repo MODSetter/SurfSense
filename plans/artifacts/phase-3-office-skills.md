@@ -1,7 +1,7 @@
 # Phase 3 — Office skills (docx, pptx, xlsx)
 
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§7.1 skills, §8 rendering).
-**Depends on:** phase 2 complete (sandbox live, `pdf` skill shipped, binary `save_artifact` path proven).
+**Depends on:** phase 2 complete (sandbox live, `pdf` skill shipped, binary `save_artifact` path proven). The verification-loop mechanism — its contract, the tool-level input limits, and step rendering — is phase 2 §2.6; this phase adds format skills that use it and builds none of it.
 **Goal:** the remaining launch formats, each with a verification loop, plus the preview-PDF pairing and office rendering.
 **Ships to users:** "make me a Word doc / slide deck / spreadsheet" produces real files with inline preview for all three — docx/pptx via the preview PDF, xlsx via a native read-only spreadsheet grid.
 
@@ -19,7 +19,7 @@ Out: any deletion (phase 4). Public-chat artifact rendering lands here if not al
 
 ### 2.1 Skills
 
-All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 lines, scripts in the image, mandatory verify-before-save).
+All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 lines, its own `{skills_root}/<name>/scripts/`, and the phase 2 §2.6 contract — each skill states whether it verifies visually or programmatically, and never saves before verifying). Self-contained means self-contained: a skill carries its own copies rather than reaching into a sibling's `scripts/`.
 
 **`docx`** — create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). Body encodes the known footguns (from Anthropic's publicly documented toolchain, authored fresh):
 
@@ -29,12 +29,12 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 - `PageBreak` inside a `Paragraph`; separate `Paragraph`s, never `\n`
 - TOC requires built-in `HeadingLevel.*` or explicit `outlineLevel`
 - Right-aligned-on-same-line via right tab stop (**not** `PositionalTab` — renders as a small gap in LibreOffice, which is what our preview and verification see)
-- Verify: `soffice --headless --convert-to pdf` → `pdftoppm` → inspect pages
+- Verify: `soffice --headless --convert-to pdf`, then `pdftoppm`, then `inspect_sandbox_images` at the length-dependent granularity of phase 2 §2.6 — batched while short, per page plus a final pass once long. A docx reflows like a PDF, so it is generated whole, never page by page
 - Save: `save_artifact(path=out.docx, preview_path=out.pdf, …)`
 
-**`pptx`** — create with `python-pptx`. Body: slide dimensions, layout/placeholder usage, text overflow as the #1 failure to check visually, image sizing. Verify: soffice → pdf → per-slide rasterization → inspect every slide. Save with `preview_path`.
+**`pptx`** — create with `python-pptx`. Body: slide dimensions, layout/placeholder usage, text overflow as the #1 failure to check visually, image sizing. Verify: soffice to PDF, per-slide rasterization, then **one `inspect_sandbox_images` call per slide** followed by a final consistency pass over a bounded sample of slides (font and colour drift are invisible one slide at a time, and a deck past 20 slides cannot be inspected in one call). Slides are independent — no reflow — so the skill builds and verifies incrementally rather than rendering all of them and checking at the end; the deck is also the one format where the per-slide cost is unavoidable. Save with `preview_path`.
 
-**`xlsx`** — create with `openpyxl`. Body: real formulas (not precomputed values) where the user asked for calculations, number formats, header styling (fills/bold — it renders in the grid viewer), column widths, freeze panes, multi-sheet structure. Verify **programmatically, not visually**: recalculate (LibreOffice headless recalc), read back expected cells, assert. **The recalculated file is the file saved** — openpyxl writes formulas with no cached values and `XlsxViewer` renders cached values, so saving the raw openpyxl output renders blank formula cells; recalc is a rendering prerequisite, not just QA. No preview file — `save_artifact(path=out.xlsx, …)` with primary only.
+**`xlsx`** — create with `openpyxl`. Body: real formulas (not precomputed values) where the user asked for calculations, number formats, header styling (fills/bold — it renders in the grid viewer), column widths, freeze panes, multi-sheet structure. Verify **programmatically, not visually**: recalculate (LibreOffice headless recalc), read back expected cells, assert. Page and slide granularity does not apply — there is nothing to rasterize and no vision call to make, so per-sheet iteration is a choice about assertion coverage, not about looking at anything. **The recalculated file is the file saved** — openpyxl writes formulas with no cached values and `XlsxViewer` renders cached values, so saving the raw openpyxl output renders blank formula cells; recalc is a rendering prerequisite, not just QA. No preview file — `save_artifact(path=out.xlsx, …)` with primary only.
 
 ### 2.2 Frontend — rendering
 
@@ -50,7 +50,7 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 
 ### 2.4 Checks
 
-- Per-skill integration test: generate → verify loop ran (trace shows page/cell inspection) → §3.1 payload with correct roles → renders per the §8.3 matrix.
+- Per-skill integration test, parameterizing the phase 2 §2.7 harness rather than rebuilding it: generate → verify loop ran (trace shows page/cell inspection) → §3.1 payload with correct roles → renders per the §8.3 matrix.
 - xlsx: formula cells recalculate correctly when opened in LibreOffice (automated via headless recalc + value assertions).
 - xlsx render: a generated workbook renders in `XlsxViewer` with formatted number text (e.g. `"$#,##0.00"` → `"$10,413.00"`), visible header fill, and **non-blank formula cells** — this catches a skipped recalc end-to-end. A corrupt or oversized xlsx falls back to the download card, not an error.
 - Preview pairing: docx artifact returns two files; deleting the document purges both blobs.
