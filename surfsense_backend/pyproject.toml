@@ -88,9 +88,9 @@ dependencies = [
     "scrapling[fetchers]>=0.4.11",
     "posthog>=6.0.0",
     "dulwich>=0.22.0",
-    "opensandbox>=0.1.15",
-    "opensandbox-code-interpreter>=0.1.2",
-    "python-magic>=0.4.27",
+    "opensandbox==0.1.15",
+    "opensandbox-code-interpreter==0.1.2",
+    "python-magic==0.4.27",
 ]
 
 [project.optional-dependencies]
