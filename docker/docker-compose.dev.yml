@@ -114,6 +114,16 @@ services:
       retries: 5
       start_period: 15s
 
+  # Builds the sandbox image and exits. Sandbox containers are created by
+  # opensandbox-server outside compose, so nothing else would put
+  # surfsense/sandbox:dev on the host daemon.
+  sandbox-image:
+    build:
+      context: ./sandbox
+    image: surfsense/sandbox:dev
+    entrypoint: ["/bin/true"]
+    restart: "no"
+
   otel-lgtm:
     image: grafana/otel-lgtm:latest
     ports:

@@ -6,6 +6,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'surfsense_backend/**'
+      - 'docker/opensandbox/**'
+      - 'docker/sandbox/**'
       - '.github/workflows/backend-tests.yml'
 
 concurrency:
@@ -110,12 +112,35 @@ jobs:
         working-directory: surfsense_backend
         run: uv sync
 
+      - name: Build sandbox image
+        run: docker build -t surfsense/sandbox:dev -f docker/sandbox/Dockerfile docker/sandbox
+
+      - name: Start OpenSandbox
+        run: |
+          docker run -d --name opensandbox-server \
+            --add-host host.docker.internal:host-gateway \
+            -p 8080:8080 \
+            --tmpfs /data \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$GITHUB_WORKSPACE/docker/opensandbox/sandbox.toml:/etc/opensandbox/config.toml:ro" \
+            -e OPENSANDBOX_SERVER_API_KEY=surfsense-dev-sandbox \
+            opensandbox/server:v0.2.2
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs opensandbox-server
+          exit 1
+
       - name: Run integration tests
         working-directory: surfsense_backend
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test
           SECRET_KEY: ci-test-secret-key-not-for-production
           ETL_SERVICE: DOCLING
+          OPENSANDBOX_INTEGRATION: '1'
         run: uv run pytest -m integration
 
   test-gate:
