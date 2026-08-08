@@ -1,8 +1,11 @@
 """
 Integration tests for backend file upload limit enforcement.
 
-These tests verify that the API rejects uploads that exceed:
-  - Max per-file size (500 MB)
+These tests verify that the API rejects uploads that exceed the per-file
+size cap. The cap is configurable via MAX_FILE_SIZE_MB (default 500 MB),
+so tests derive their sizes from the value the app actually resolved at
+import time rather than hardcoding it — otherwise this suite fails for
+anyone who has MAX_FILE_SIZE_MB set in their environment.
 
 No file count or total size limits are enforced — the frontend batches
 uploads in groups of 5 and there is no cap on how many files a user can
@@ -19,16 +22,18 @@ import io
 import httpx
 import pytest
 
+from app.routes.documents_routes import MAX_FILE_SIZE_BYTES
+
 pytestmark = pytest.mark.integration
 
 
 # ---------------------------------------------------------------------------
-# Test: Per-file size limit (500 MB)
+# Test: Per-file size limit
 # ---------------------------------------------------------------------------
 
 
 class TestPerFileSizeLimit:
-    """A single file exceeding 500 MB should be rejected."""
+    """A single file exceeding MAX_FILE_SIZE_BYTES should be rejected."""
 
     async def test_oversized_file_returns_413(
         self,
@@ -36,7 +41,7 @@ class TestPerFileSizeLimit:
         headers: dict[str, str],
         workspace_id: int,
     ):
-        oversized = io.BytesIO(b"\x00" * (500 * 1024 * 1024 + 1))
+        oversized = io.BytesIO(b"\x00" * (MAX_FILE_SIZE_BYTES + 1))
         resp = await client.post(
             "/api/v1/documents/fileupload",
             headers=headers,
@@ -53,11 +58,11 @@ class TestPerFileSizeLimit:
         workspace_id: int,
         cleanup_doc_ids: list[int],
     ):
-        at_limit = io.BytesIO(b"\x00" * (500 * 1024 * 1024))
+        at_limit = io.BytesIO(b"\x00" * MAX_FILE_SIZE_BYTES)
         resp = await client.post(
             "/api/v1/documents/fileupload",
             headers=headers,
-            files=[("files", ("exact500mb.txt", at_limit, "text/plain"))],
+            files=[("files", ("exactlimit.txt", at_limit, "text/plain"))],
             data={"workspace_id": str(workspace_id)},
         )
         assert resp.status_code == 200

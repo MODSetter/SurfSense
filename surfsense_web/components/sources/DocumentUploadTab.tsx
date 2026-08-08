@@ -121,9 +121,6 @@ function flattenTree(
 const FOLDER_BATCH_SIZE_BYTES = 20 * 1024 * 1024;
 const FOLDER_BATCH_MAX_FILES = 10;
 
-const MAX_FILE_SIZE_MB = 500;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
 const toggleRowClass =
 	"flex items-center justify-between rounded-lg bg-slate-400/5 dark:bg-white/5 p-3";
 
@@ -133,7 +130,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
-	const { etlService } = useRuntimeConfig();
+	const { etlService, maxFileSizeMB } = useRuntimeConfig();
 	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
@@ -146,6 +143,7 @@ export function DocumentUploadTab({
 	const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const [folderUpload, setFolderUpload] = useState<FolderUploadData | null>(null);
 	const [isFolderUploading, setIsFolderUploading] = useState(false);
+	const maxFileSizeBytes = useMemo(() => maxFileSizeMB * 1024 * 1024, [maxFileSizeMB]);
 
 	useEffect(() => {
 		return () => {
@@ -170,16 +168,16 @@ export function DocumentUploadTab({
 
 	const addFiles = useCallback(
 		(incoming: File[]) => {
-			const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+			const oversized = incoming.filter((f) => f.size > maxFileSizeBytes);
 			if (oversized.length > 0) {
 				toast.error(t("file_too_large"), {
 					description: t("file_too_large_desc", {
 						name: oversized[0].name,
-						maxMB: MAX_FILE_SIZE_MB,
+						maxMB: maxFileSizeMB,
 					}),
 				});
 			}
-			const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+			const valid = incoming.filter((f) => f.size <= maxFileSizeBytes);
 			if (valid.length === 0) return;
 
 			setFolderUpload(null);
@@ -191,7 +189,7 @@ export function DocumentUploadTab({
 				return [...prev, ...newEntries];
 			});
 		},
-		[t]
+		[t, maxFileSizeMB, maxFileSizeBytes]
 	);
 
 	const onDrop = useCallback(
@@ -204,7 +202,7 @@ export function DocumentUploadTab({
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: MAX_FILE_SIZE_BYTES,
+		maxSize: maxFileSizeBytes,
 		noClick: isElectron,
 	});
 

@@ -9,6 +9,7 @@ export interface RuntimeConfigValue {
 	authType: AuthType;
 	etlService: string;
 	deploymentMode: DeploymentMode;
+	maxFileSizeMB: number;
 }
 
 const RuntimeConfigContext = createContext<RuntimeConfigValue | null>(null);

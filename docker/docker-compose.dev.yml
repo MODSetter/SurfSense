@@ -127,6 +127,7 @@ services:
       - NEXT_FRONTEND_URL=${NEXT_FRONTEND_URL:-http://localhost:3000}
       - WHATSAPP_BRIDGE_URL=${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
       - SEARXNG_URL=${SEARXNG_URL:-http://searxng:8080}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-500}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # - DAYTONA_SANDBOX_ENABLED=TRUE
       # - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
@@ -268,6 +269,7 @@ services:
       ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       SURFSENSE_BACKEND_INTERNAL_URL: http://backend:8000
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-500}
     depends_on:
       backend:
         condition: service_healthy
