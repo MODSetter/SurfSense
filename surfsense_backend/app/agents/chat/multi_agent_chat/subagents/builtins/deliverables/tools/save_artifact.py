@@ -19,6 +19,7 @@ from app.db import shielded_async_session
 from app.sandbox import SandboxSession, get_registry
 
 from .thread_resolver import resolve_root_thread_id
+from .verification import check_verification
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +98,24 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
             if not markdown or not markdown.strip():
                 raise ValueError("markdown_representation must not be empty")
             files: list[ArtifactFileInput] = []
+            extra_metadata = None
             if path is not None:
                 session = await (await get_registry()).get_session(
                     root_thread_id, workspace_id
                 )
+                verification = await check_verification(session, path)
+                if not verification.verified and verification.reason is None:
+                    raise ValueError(
+                        "Artifact changed after its last verification. Run the "
+                        "format's structural and visual verification steps again "
+                        "before saving."
+                    )
+                extra_metadata = {
+                    "verification": {
+                        "verified": verification.verified,
+                        "reason": verification.reason,
+                    }
+                }
                 files.append(await _read_artifact_file(session, path, "primary"))
                 if preview_path is not None:
                     files.append(
@@ -119,6 +134,7 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
                     markdown_representation=markdown,
                     files=files,
                     document_id=document_id,
+                    extra_metadata=extra_metadata,
                 )
             return with_receipt(
                 payload=asdict(saved),

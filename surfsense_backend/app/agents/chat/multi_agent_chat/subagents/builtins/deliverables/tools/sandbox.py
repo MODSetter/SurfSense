@@ -7,7 +7,7 @@ import base64
 import shlex
 import uuid
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 from langchain.tools import ToolRuntime
 from langchain_core.messages import HumanMessage
@@ -16,13 +16,17 @@ from langchain_core.tools import BaseTool, tool
 from app.config import config as app_config
 from app.db import shielded_async_session
 from app.sandbox import SandboxSession, get_registry
+from app.services.billable_calls import QuotaInsufficientError
 from app.services.llm_service import get_vision_llm
 
 from .thread_resolver import resolve_root_thread_id
+from .verification import record_verification
 
 _MAX_CONTEXT_CHARS = 16_000
 _MAX_VISION_IMAGE_BYTES = 5 * 1024 * 1024
 _MAX_VISION_IMAGES = 20
+_VISION_CONCURRENCY = 4
+_VISION_TIMEOUT_SECONDS = 120
 
 
 async def _get_session(
@@ -44,18 +48,40 @@ def create_sandbox_tools(
 ) -> list[BaseTool]:
     """Build the three provider-agnostic sandbox tools."""
 
+    vision_llm: Any = None
+    vision_llm_resolved = False
+    vision_llm_lock = asyncio.Lock()
+
+    async def resolve_vision_llm() -> Any:
+        nonlocal vision_llm, vision_llm_resolved
+        if vision_llm_resolved:
+            return vision_llm
+        async with vision_llm_lock:
+            if not vision_llm_resolved:
+                async with shielded_async_session() as db_session:
+                    vision_llm = await get_vision_llm(
+                        db_session,
+                        workspace_id,
+                        usage_type="artifact_verification",
+                    )
+                vision_llm_resolved = True
+        return vision_llm
+
     @tool
     async def execute(
         code_or_command: str,
         runtime: ToolRuntime,
         language: Literal["python", "bash"] = "python",
+        description: str | None = None,
     ) -> str:
         """Run Python or a Bash command in the sandbox.
 
         Write multi-step work to a source file and run that file: only some
         providers keep interpreter state between calls. Long output is
-        truncated here and written in full to the returned sandbox path.
+        truncated here and written in full to the returned sandbox path. Use
+        description for a short user-facing step title.
         """
+        del description
         session = await _get_session(workspace_id, thread_id, runtime)
         result = (
             await session.execute(code_or_command, language="python")
@@ -68,6 +94,8 @@ def create_sandbox_tools(
             full_output_path = f"/tmp/surfsense-output-{uuid.uuid4().hex}.txt"
             await session.write_file(full_output_path, output.encode())
             output = output[:_MAX_CONTEXT_CHARS] + "\n… [output truncated]"
+        if result.ok and "SURFSENSE_VERIFIED:" in (result.output or ""):
+            await record_verification(session)
         return _result_text(output, result.exit_code, full_output_path=full_output_path)
 
     @tool
@@ -111,55 +139,113 @@ def create_sandbox_tools(
         paths: list[str],
         instructions: str,
         runtime: ToolRuntime,
+        mode: Literal["each", "together"] = "each",
+        description: str | None = None,
     ) -> str:
-        """Visually inspect rendered JPEG pages and return a text QA report."""
-        if not paths or len(paths) > _MAX_VISION_IMAGES:
-            raise ValueError(
-                f"Provide between 1 and {_MAX_VISION_IMAGES} JPEG paths"
-            )
-        session = await _get_session(workspace_id, thread_id, runtime)
-        content: list[dict] = [
-            {
-                "type": "text",
-                "text": (
-                    f"{instructions}\n\nInspect every attached page. Report layout, "
-                    "overflow, clipping, illegible text, blank pages, alignment, "
-                    "and factual inconsistencies. Identify pages by filename."
-                ),
-            }
-        ]
-        for path in paths:
-            suffix = PurePosixPath(path).suffix.lower()
-            if suffix not in {".jpg", ".jpeg"}:
-                raise ValueError(f"Only JPEG page renders are supported: {path}")
-            data = await session.read_file(path)
-            if len(data) > _MAX_VISION_IMAGE_BYTES:
-                raise ValueError(
-                    f"Image {path} exceeds the {_MAX_VISION_IMAGE_BYTES}-byte limit"
-                )
-            encoded = base64.b64encode(data).decode("ascii")
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
-                }
-            )
+        """Visually inspect every rendered JPEG and return a text QA report.
 
-        async with shielded_async_session() as db_session:
-            llm = await get_vision_llm(db_session, workspace_id)
+        Use description for a short user-facing step title.
+        """
+        del description
+        if not paths:
+            raise ValueError("Provide at least one JPEG path")
+        for path in paths:
+            if PurePosixPath(path).suffix.lower() not in {".jpg", ".jpeg"}:
+                raise ValueError(f"Only JPEG page renders are supported: {path}")
+        if mode == "together" and len(paths) == 1:
+            return f"## {PurePosixPath(paths[0]).name}\nOnly one image; nothing to compare."
+
+        session = await _get_session(workspace_id, thread_id, runtime)
+        llm = await resolve_vision_llm()
         if llm is None:
-            raise RuntimeError("No vision-capable model is configured for this workspace")
-        response = await asyncio.wait_for(
-            llm.ainvoke([HumanMessage(content=content)]), timeout=120
+            reason = "No vision-capable model is configured for this workspace"
+            await record_verification(session, reason=reason)
+            return f"Visual verification could not run: {reason}."
+
+        semaphore = asyncio.Semaphore(_VISION_CONCURRENCY)
+
+        async def invoke(image_paths: list[str]) -> str:
+            content: list[dict[str, Any]] = [
+                {
+                    "type": "text",
+                    "text": (
+                        f"{instructions}\n\nInspect every attached page. Report layout, "
+                        "overflow, clipping, illegible text, blank pages, alignment, "
+                        "and factual inconsistencies. Identify pages by filename."
+                    ),
+                }
+            ]
+            for path in image_paths:
+                data = await session.read_file(path)
+                if len(data) > _MAX_VISION_IMAGE_BYTES:
+                    raise ValueError(
+                        f"Image {path} exceeds the "
+                        f"{_MAX_VISION_IMAGE_BYTES}-byte limit"
+                    )
+                content.append({"type": "text", "text": f"Filename: {path}"})
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": (
+                                "data:image/jpeg;base64,"
+                                + base64.b64encode(data).decode("ascii")
+                            )
+                        },
+                    }
+                )
+            async with semaphore:
+                response = await asyncio.wait_for(
+                    llm.ainvoke([HumanMessage(content=content)]),
+                    timeout=_VISION_TIMEOUT_SECONDS,
+                )
+            text = response.content if hasattr(response, "content") else str(response)
+            if isinstance(text, list):
+                text = "\n".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in text
+                )
+            if not str(text).strip():
+                raise RuntimeError("Vision inspection returned no findings")
+            return str(text).strip()
+
+        if mode == "each":
+            groups = [[path] for path in paths]
+        else:
+            groups = []
+            start = 0
+            while start < len(paths):
+                groups.append(paths[start : start + _MAX_VISION_IMAGES])
+                if start + _MAX_VISION_IMAGES >= len(paths):
+                    break
+                # Retain one boundary page so adjacent pages are always compared.
+                start += _MAX_VISION_IMAGES - 1
+
+        results = await asyncio.gather(
+            *(invoke(group) for group in groups),
+            return_exceptions=True,
         )
-        text = response.content if hasattr(response, "content") else str(response)
-        if isinstance(text, list):
-            text = "\n".join(
-                part.get("text", "") if isinstance(part, dict) else str(part)
-                for part in text
+        quota_failure = next(
+            (result for result in results if isinstance(result, QuotaInsufficientError)),
+            None,
+        )
+        if quota_failure is not None:
+            reason = f"Visual verification stopped because credit is insufficient: {quota_failure}"
+            await record_verification(session, reason=reason)
+        elif any(not isinstance(result, Exception) for result in results):
+            await record_verification(session)
+
+        reports = []
+        for group, result in zip(groups, results, strict=True):
+            label = (
+                PurePosixPath(group[0]).name
+                if len(group) == 1
+                else f"{PurePosixPath(group[0]).name}-{PurePosixPath(group[-1]).name}"
             )
-        if not str(text).strip():
-            raise RuntimeError("Vision inspection returned no findings")
-        return str(text).strip()
+            if isinstance(result, Exception):
+                reports.append(f"## {label}\nInspection failed: {result}")
+            else:
+                reports.append(f"## {label}\n{result}")
+        return "\n\n".join(reports)
 
     return [execute, read_sandbox_file, inspect_sandbox_images]

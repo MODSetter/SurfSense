@@ -395,7 +395,10 @@ async def get_agent_llm(
 
 
 async def get_vision_llm(
-    session: AsyncSession, workspace_id: int
+    session: AsyncSession,
+    workspace_id: int,
+    *,
+    usage_type: str = "vision_extraction",
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """Get the workspace's vision LLM instance for screenshot analysis.
 
@@ -508,6 +511,7 @@ async def get_vision_llm(
                     quota_reserve_tokens=global_model.get("catalog", {}).get(
                         "quota_reserve_tokens"
                     ),
+                    usage_type=usage_type,
                 )
             return inner_llm
 
