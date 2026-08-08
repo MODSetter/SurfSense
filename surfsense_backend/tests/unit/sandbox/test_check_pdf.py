@@ -28,13 +28,10 @@ class FakePage:
         self.x = x
         self.y = y
         self.mediabox = SimpleNamespace(left=0, right=612, bottom=0, top=792)
-        descriptor = {"/FontFile2": object()} if embedded else {}
-        self.resources = {
-            "/Font": {"/F1": {"/FontDescriptor": descriptor}}
+        self.font = {
+            "/BaseFont": "/Helvetica",
+            "/FontDescriptor": {"/FontFile2": object()} if embedded else {},
         }
-
-    def get(self, key, default=None):
-        return self.resources if key == "/Resources" else default
 
     def extract_text(self, visitor_text=None):
         if visitor_text:
@@ -42,7 +39,7 @@ class FakePage:
                 self.text,
                 [1, 0, 0, 1, 0, 0],
                 [1, 0, 0, 1, self.x, self.y],
-                None,
+                self.font,
                 12,
             )
         return self.text
@@ -50,10 +47,18 @@ class FakePage:
 
 def test_pdf_checks_detect_margin_and_unembedded_font():
     check_pdf = _load_check_pdf()
-    page = FakePage(x=10, embedded=False)
+    violations, unembedded = check_pdf._scan_text(FakePage(x=10, embedded=False), 50)
 
-    assert check_pdf._text_margin_violations(page, 50)
-    assert check_pdf._page_unembedded_fonts(page) == ["/F1"]
+    assert violations
+    assert unembedded == ["/Helvetica"]
+
+
+def test_font_that_draws_no_text_is_not_flagged():
+    """reportlab's page preamble selects Helvetica without ever drawing with it."""
+    check_pdf = _load_check_pdf()
+    _, unembedded = check_pdf._scan_text(FakePage(text="   ", embedded=False), 50)
+
+    assert unembedded == []
 
 
 def test_pdf_check_reports_near_blank_page(monkeypatch, tmp_path, capsys):

@@ -31,32 +31,34 @@ def _font_is_embedded(font: Any) -> bool:
     return False
 
 
-def _page_unembedded_fonts(page: Any) -> list[str]:
-    resources = _object(page.get("/Resources", {}))
-    fonts = _object(resources.get("/Font", {}))
-    return [
-        str(name)
-        for name, font in fonts.items()
-        if not _font_is_embedded(font)
-    ]
+def _scan_text(
+    page: Any, margin: float
+) -> tuple[list[tuple[str, float, float]], list[str]]:
+    """Return margin violations and the unembedded fonts that actually draw text.
 
-
-def _text_margin_violations(page: Any, margin: float) -> list[tuple[str, float, float]]:
+    Judging embedding from /Resources instead flags every reportlab document:
+    its page preamble selects Helvetica in an empty text object it never draws
+    with, so the font is a declared resource that cannot affect rendering.
+    """
     left = float(page.mediabox.left) + margin
     right = float(page.mediabox.right) - margin
     bottom = float(page.mediabox.bottom) + margin
     top = float(page.mediabox.top) - margin
     violations: list[tuple[str, float, float]] = []
+    unembedded: dict[str, None] = {}
 
     def visitor(
         text: str,
         current_matrix: list[float],
         text_matrix: list[float],
-        _font: Any,
+        font: Any,
         _font_size: float,
     ) -> None:
         if not text.strip():
             return
+        if font is not None and not _font_is_embedded(font):
+            name = _object(font).get("/BaseFont", "unnamed font")
+            unembedded.setdefault(str(name), None)
         x = (
             text_matrix[4] * current_matrix[0]
             + text_matrix[5] * current_matrix[2]
@@ -71,7 +73,7 @@ def _text_margin_violations(page: Any, margin: float) -> list[tuple[str, float, 
             violations.append((text.strip()[:40], x, y))
 
     page.extract_text(visitor_text=visitor)
-    return violations
+    return violations, list(unembedded)
 
 
 def parse_args() -> argparse.Namespace:
@@ -104,12 +106,11 @@ def main() -> None:
                 f"page {number} is blank or near-blank "
                 f"({len(text)} non-whitespace characters)"
             )
-        unembedded = _page_unembedded_fonts(page)
+        violations, unembedded = _scan_text(page, args.margin_pt)
         if unembedded:
             errors.append(
-                f"page {number} has unembedded fonts: {', '.join(unembedded)}"
+                f"page {number} draws text in unembedded fonts: {', '.join(unembedded)}"
             )
-        violations = _text_margin_violations(page, args.margin_pt)
         if violations:
             preview = ", ".join(
                 f"{text!r} at ({x:.1f}, {y:.1f})"

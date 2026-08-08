@@ -54,7 +54,11 @@ mode = "direct"
 
 [egress]
 image = "opensandbox/egress:v1.1.5"
-mode = "dns"
+# "dns" filters hostnames only, so default-deny leaks to anything addressed by
+# raw IP — a sandbox could open Postgres on the compose network. "dns+nft" adds
+# the packet filter that actually enforces the policy. The sidecar gets its own
+# cap_add NET_ADMIN and is unaffected by drop_capabilities above.
+mode = "dns+nft"
 
 [store]
 type = "sqlite"
