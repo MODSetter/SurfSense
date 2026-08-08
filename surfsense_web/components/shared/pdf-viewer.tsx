@@ -6,7 +6,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { getAuthHeaders } from "@/lib/auth-fetch";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 	"pdfjs-dist/build/pdf.worker.min.mjs",
@@ -177,12 +177,18 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 			pageDimsRef.current = [];
 
 			try {
-				const loadingTask = pdfjsLib.getDocument({
-					url: pdfUrl,
-					httpHeaders: getAuthHeaders(),
-				});
+				// pdf.js issues its own request, so fetching here is what keeps the
+				// viewer on the app's single auth path: cookie or bearer, token
+				// refresh, and one retry on 401. skipAuthRedirect leaves an expired
+				// public share link showing an error instead of a login redirect.
+				const response = await authenticatedFetch(pdfUrl, { skipAuthRedirect: true });
+				if (!response.ok) {
+					throw new Error(`Server returned ${response.status} while retrieving the PDF`);
+				}
+				const data = await response.arrayBuffer();
+				if (cancelled) return;
 
-				const pdf = await loadingTask.promise;
+				const pdf = await pdfjsLib.getDocument({ data }).promise;
 				if (cancelled) {
 					pdf.destroy();
 					return;
