@@ -260,8 +260,8 @@ Supervisor routing (`task(deliverables, …)`) is unchanged. Inside the subagent
 |---|---|---|
 | `execute` | `(code_or_command) → stdout/stderr/exit` | Runs in the thread's sandbox session via the provider's persistent kernel (Python) or shell (Node scripts, `soffice`, `pdftoppm`, `pandoc`). |
 | `read_sandbox_file` | `(path) → str` | Pulls **UTF-8 text** back — source files, logs, extracted content. Size-capped by `ARTIFACT_MAX_FILE_BYTES`; binary and non-UTF-8 are refused with an error naming the right tool, because image bytes cannot survive this stack's text-only tool-result serialization (§12 open question 2). |
-| `inspect_sandbox_images` | `(paths, instructions) → str` | The verification loop's eyes. Reads rendered page JPEGs inside the tool, calls `get_vision_llm()`, and returns a text QA report keyed by filename. The model reads findings, never pixels. JPEG only, size-capped per image; a set larger than one call holds is chunked internally, so paths are only compared against each other **within** a chunk (§6.3). |
-| `save_artifact` | `(path, title, markdown_representation, preview_path?) → §3.1 payload` | Write-through persist: reads bytes from the sandbox, creates `Document` + `DocumentFile`(s) in one transaction, returns the contract payload. **Also the verification gate** — refuses a primary file whose mtime is newer than the session's most recent verification (a vision inspection or a clean-exit assertion script), so the §6.3 loop is an invariant of the tool rather than a promise repeated in every skill's prose. The `markdown_representation` then reaches the search index per §4.4 — written into the turn's working copy on git workspaces (committed + indexed by the KB pipeline), indexed directly on legacy ones. Markdown artifacts pass content directly with no `path`. |
+| `inspect_sandbox_images` | `(paths, instructions, mode) → str` | The verification loop's eyes. Reads rendered page JPEGs inside the tool, calls `get_vision_llm()`, and returns a text QA report keyed by filename. The model reads findings, never pixels. Takes every page whatever the count: `mode="each"` reviews each page in its own call, fanned out concurrently; `mode="together"` compares pages in consecutive windows. The caller never sizes a batch or picks a sample (§6.3). JPEG only, size-capped per image. |
+| `save_artifact` | `(path, title, markdown_representation, preview_path?) → §3.1 payload` | Write-through persist: reads bytes from the sandbox, creates `Document` + `DocumentFile`(s) in one transaction, returns the contract payload. **Also the verification gate** — refuses a primary file whose mtime is newer than the session's most recent verification (a vision inspection or a clean-exit assertion script), so the §6.3 loop is an invariant of the tool rather than a promise repeated in every skill's prose. "Could not verify" is not "did not verify": when no vision model is configured or premium credit runs out mid-loop, the save proceeds with the reason recorded in `document_metadata`. The `markdown_representation` then reaches the search index per §4.4 — written into the turn's working copy on git workspaces (committed + indexed by the KB pipeline), indexed directly on legacy ones. Markdown artifacts pass content directly with no `path`. |
 
 Streaming emission: one generic `save_artifact` handler replaces the per-tool `generate_report/` and `generate_resume/` emission handlers.
 
@@ -283,28 +283,28 @@ Every format skill ends with the same discipline (evidence: Anthropic's docx ski
 
 ```
 1. Generate the file (docx npm / python-pptx / reportlab-weasyprint), keeping the source.
-2. Convert to PDF if not already PDF: soffice --headless --convert-to pdf out.docx
-3. Rasterize: pdftoppm -jpeg -r 100 out.pdf page
-4. inspect_sandbox_images([one page], instructions) → text findings keyed by filename,
-   once per page. The model reads a report about the page; it never sees the pixels.
-5. Broken? Fix the source, regenerate, re-verify.
-6. One final call over first page, last page, and whatever changed — the cross-page
-   findings a single-page call structurally cannot produce.
-7. Only then: save_artifact(path=out.docx, preview_path=out.pdf, …), which rejects
-   the save if step 4 never covered the file as it currently stands.
+2. Measure what needs no eyes: text outside the margins, blank pages, page count,
+   unembedded fonts. Defects here cost no vision call at all.
+3. Convert to PDF if not already PDF: soffice --headless --convert-to pdf out.docx
+4. Rasterize: pdftoppm -jpeg -r 100 out.pdf page
+5. inspect_sandbox_images(all pages, instructions) → findings keyed by filename.
+   The tool reviews each page on its own. The model reads a report; never pixels.
+6. inspect_sandbox_images(all pages, …, mode="together") → cross-page findings
+   (font drift, colour drift, page count) that per-page review cannot produce.
+7. Broken? Fix the source and repeat from step 2.
+8. Only then: save_artifact(path=out.docx, preview_path=out.pdf, …), which rejects
+   the save if the file changed after its last verification.
 ```
 
-**Programmatic** — `xlsx`: no rasterizing and no vision call. Recalculate headless, read the expected cells back, assert. See §7.1 — the recalculated file is the file saved.
+**Programmatic** — `xlsx`: no rasterizing and no vision call. Recalculate headless, read the expected cells back, assert. See §7.1 — the recalculated file is the file saved. The two shapes are not exclusive: the visual skills run the measurable checks of step 2 as well, which is the programmatic shape applied to what pixels would answer more expensively.
 
-**Granularity is two decisions, not one.**
+**Page count changes how much work happens, never what work happens.**
 
-*Generation* can be incremental only where the units are independent: slides and worksheets can be built and checked one at a time, a flowing PDF cannot. There is no "page 2" until the whole document renders — pagination is emergent, and editing anything above a break moves everything below it. A page-at-a-time PDF skill is not writable.
+Every page gets the same treatment — measured, reviewed individually, compared in windows — identically at one page and at forty. Cost is therefore linear in the artifact, which is proportionality rather than a problem to be optimized: a ten-page document costs ten pages of verification because it is ten pages of document. Any rule that varies with length (a batching threshold, a "risky pages" sample) is a judgment the model has to apply, applies wrongly in silence, and buys tokens back by trading away correctness.
 
-*Verification* is uniformly one page or slide per call, with no length threshold. A threshold is a rule the model must apply correctly before it can start, and applying it wrongly fails silently — the document simply gets inspected at the wrong granularity and nothing reports it. Per-page keeps the vision model's attention on one page, so each finding names one fixable defect and a fix that breaks a neighbour surfaces on the next pass.
+Two consequences fall out rather than needing rules. Per-page review keeps the model's attention on one page, so each finding names one fixable defect; the tool fans those calls out concurrently, so a long document costs proportionally more tokens but not proportionally more waiting. And cross-page findings — font drift, colour drift, page count — need pages seen together, which one vision call can only do for a bounded number of images; the tool therefore compares in **consecutive windows**, a uniform rule at every length, instead of asking the skill to choose which pages are worth comparing. Windows also beat a first-and-last sample on the merits, since drift between pages 12 and 13 appears in the window holding both.
 
-What per-page structurally cannot see is cross-page drift: font and colour changes, page count, "page 2 holds three lines, tighten spacing to fit one page". So the loop ends with one consistency pass over a bounded sample — first page, last page, and whatever changed. That sample must stay small because **paths are only compared against each other within a single vision call**: `inspect_sandbox_images` chunks a larger set internally, which turns "compare all 40" into three unrelated comparisons rather than into an error. Bounding it is therefore a correctness requirement, not an error-avoidance one.
-
-The cost is real and deliberate — roughly one model round-trip per page instead of one per document — and §12 records the deferred optimization that bounds it.
+*Generation* is the one asymmetry: it can be incremental only where the units are independent. Slides and worksheets can be built and checked one at a time, a flowing PDF cannot — there is no "page 2" until the whole document renders, pagination is emergent, and editing anything above a break moves everything below it. A page-at-a-time PDF skill is not writable.
 
 The verification PDF is the preview file — the office-format preview costs zero extra compute because the quality gate already produced it.
 
@@ -315,8 +315,9 @@ The verification PDF is the preview file — the office-format preview costs zer
 2. Model reasons: resume → formal document → docx (skill descriptions in prompt).
 3. Reads docx SKILL.md (Level 2) via sandbox filesystem.
 4. execute: node resume.js  → resume.docx        (docx npm preinstalled)
-5. execute: soffice → resume.pdf; pdftoppm → page-1.jpg
+5. execute: soffice → resume.pdf; structural check (clean); pdftoppm → page-1.jpg
 6. inspect_sandbox_images([page-1.jpg], …) → text findings; model fixes the source and regenerates.
+   (One page, so the "together" comparison has nothing to compare and says so.)
 7. save_artifact(path=resume.docx, preview_path=resume.pdf, title="…", markdown_representation="…")
    → Document + 2 DocumentFiles persisted; markdown representation written to the turn's
      working copy (git workspaces); payload returned.
@@ -338,9 +339,9 @@ Four skills, each a directory under the existing skills root (`{format}/SKILL.md
 
 | Skill | Create with | Verify with | Notes |
 |---|---|---|---|
-| `pdf` | reportlab / weasyprint (Python) | pdftoppm → `inspect_sandbox_images` | Resumes, reports, letters, one-pagers land here or docx. One inspection call **per page**, then a bounded final consistency pass (§6.3) |
-| `docx` | `docx` (npm, Node) | soffice → pdf → pdftoppm → `inspect_sandbox_images` | Same granularity as `pdf`. Encode the known footguns: DXA table widths, `ShadingType.CLEAR`, numbering for bullets, TOC outline levels, tab stops over PositionalTab |
-| `pptx` | python-pptx | soffice → pdf → pdftoppm → `inspect_sandbox_images` | One inspection call **per slide**, then a bounded final pass for deck-wide consistency. Slides are independent, so the skill builds and verifies incrementally instead of rendering all of them first |
+| `pdf` | reportlab / weasyprint (Python) | pypdf measurements → pdftoppm → `inspect_sandbox_images` | Resumes, reports, letters, one-pagers land here or docx. Measurable defects first, then every page reviewed and compared (§6.3) |
+| `docx` | `docx` (npm, Node) | soffice → pdf → pdftoppm → `inspect_sandbox_images` | Same loop as `pdf`. Encode the known footguns: DXA table widths, `ShadingType.CLEAR`, numbering for bullets, TOC outline levels, tab stops over PositionalTab |
+| `pptx` | python-pptx | soffice → pdf → pdftoppm → `inspect_sandbox_images` | Same loop over slides. Slides are independent, so the skill builds and verifies incrementally instead of rendering all of them first |
 | `xlsx` | openpyxl | LibreOffice headless recalc (**mandatory before save**) + read back values | No visual loop; verify programmatically. The recalculated file is the file saved: openpyxl writes formulas with **no cached values**, and the grid viewer renders cached values — an un-recalced file renders blank formula cells (§8.2) |
 
 Adding a format later = one new skill directory + sandbox image rebuild + (optionally) one viewer-registry entry. No backend changes.
@@ -506,7 +507,8 @@ Ordering constraints: 1 → 2 → 3 → 4 strictly; the OpenSandbox spike (phase
 | LibreOffice conversion fidelity (fonts, complex layouts) | Fonts baked into image; verification loop catches visual breakage before save — the model sees what LibreOffice renders, not what Word would |
 | Sandbox resource exhaustion (self-hosted, small VPS) | Per-workspace session cap, TTL reaper, 30 MB file cap; compose memory limit on the sandbox service |
 | Skill licensing | Anthropic skill files are proprietary; ours are authored fresh against the publicly documented toolchain |
-| Verification loop cost (one vision call per page/slide, §6.3) | Deliberate: roughly one model round-trip per page, bought in exchange for findings that each name one fixable defect. The per-call lever is **render resolution, not file size** — vision tokens scale with pixel dimensions, so `pdftoppm -r 100` (~1.1–1.3k tokens for an A4 page) is a cost decision as much as a legibility one, and compressing the JPEG harder saves the 5 MB cap and the transfer without saving a single token. 100 dpi is the floor: below it, small type stops being legible and the loop starts reporting defects that are artifacts of the render. When the cost starts to bite, the fix is content-addressed skipping — hash each rendered image and reuse the previous finding when the bytes are unchanged, which makes re-verification after a fix nearly free for decks and lets skill text say "re-inspect the pages" without that being an expensive instruction. Deferred until the loop runs on real documents; it is internal to `inspect_sandbox_images` and changes no signature, skill, or spec |
+| Verification loop cost (one vision call per page/slide, §6.3) | Cost is linear in pages by design; **latency is not**, because the tool fans the per-page calls out concurrently, so a long document waits roughly as long as a short one. Two cost levers are already spent: measurable defects are found by pypdf before any vision call, and render resolution is pinned at `-r 100` (~1.1–1.3k tokens for an A4 page) since tokens scale with pixel dimensions, not bytes — compressing the JPEG harder saves the cap and the transfer without saving a token, and going below 100 dpi makes small type illegible so the loop starts reporting render artifacts as document defects. Remaining lever, deferred: content-addressed skipping — hash each rendered image and reuse the previous finding when bytes are unchanged. It pays for decks, where slides are independent, and barely pays for reflowing documents, where a fix changes every page after it. Internal to `inspect_sandbox_images`; changes no signature, skill, or spec |
+| Per-page verification multiplies premium credit debits (hosted plan) | `get_vision_llm` wraps premium global configs so every `ainvoke` is a `billable_call` reserve/finalize plus a `TokenUsage` row — per page under §6.3, not per document. BYOK and free configs are unwrapped, so self-hosting is unaffected. Two consequences are handled rather than absorbed: verification carries its own `usage_type` so the spend stays attributable, and credit exhausted mid-loop takes the §6.1 "could not verify" branch instead of discarding a finished deliverable |
 | Users lose old deliverables on upgrade (no-migration decision, §10) | Deliberate product trade; release-notes breaking-change warning + pre-upgrade export window are the mitigation — no code |
 | Projection or convergence creates a duplicate row instead of adopting the artifact's (identity mismatch) | Artifact rows resolve like any note's — recorded path first, standard NOTE hash as fallback (§4.4); both moments share one resolution primitive (`index/rows.py`), and adoption is integration-tested in phase 1 — one row, marker stamped, chunks present, no ghost sibling |
 | A future git-KB verb resurrects an old generation (revert / version-history UI) | The forward-only rule: both verbs filter `generated: true` documents (§4.3/§4.4); the constraint is cross-referenced in the git-KB umbrella so the verb's implementer inherits it |

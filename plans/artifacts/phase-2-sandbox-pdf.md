@@ -110,12 +110,15 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 ### 2.3 Backend — agent tools
 
 - `execute(code_or_command, language="python"|"bash")` → session exec; result = stdout/stderr/exit, truncated to a context-safe length with full output kept in the sandbox at a temp path the model can grep.
-- `read_sandbox_file(path)` → UTF-8 text, size-capped by `ARTIFACT_MAX_FILE_BYTES`. Rendered pages use `inspect_sandbox_images(paths, instructions)`, which performs the vision call internally and returns text findings.
-- `inspect_sandbox_images` stays **JPEG only** (`.jpg`/`.jpeg` — the same format under two extensions, so both are accepted and neither is preferred) and **chunks internally** above `_MAX_VISION_IMAGES` instead of raising, so obeying the cap is never the caller's arithmetic. Chunking has one semantic consequence: paths are compared against each other only within a chunk (§2.6). Because that consequence is silent where the old `ValueError` was loud, a chunked report says so in its first line, so the model can react rather than trust a comparison that did not happen.
-- Per-page verification turns the vision-model lookup into a per-call cost: the tool currently opens a DB session and resolves `get_vision_llm()` on every invocation, which was one lookup per document and becomes one per page. Resolve it once per tool instance.
+- `read_sandbox_file(path)` → UTF-8 text, size-capped by `ARTIFACT_MAX_FILE_BYTES`. Rendered pages use `inspect_sandbox_images(paths, instructions, mode)`, which performs the vision calls internally and returns text findings.
+- `inspect_sandbox_images` takes **every** page, whatever the count, and the `mode` decides how they are looked at. `mode="each"` (default) makes one single-image call per path, **fanned out concurrently** behind a small semaphore, and concatenates the findings — per-page attention at roughly the latency of one call. `mode="together"` compares pages against each other in **consecutive windows** of up to `_MAX_VISION_IMAGES`; a single image has nothing to compare and says so. Both are uniform rules: the caller never does cap arithmetic, never picks a sample, and never branches on page count. JPEG only (`.jpg`/`.jpeg`, the same format under two extensions), 5 MB per image.
+- Fan-out changes failure handling. Gather with `return_exceptions=True` and report per-page failures inline: at one call per document an exception losing everything was acceptable, at one per page it would discard the findings that succeeded. The semaphore is not decoration either — providers rate-limit, and the quota wrapper runs a reserve/finalize per `ainvoke`, so unbounded concurrency is contention against a single credit pool.
+- Resolve `get_vision_llm()` **once per tool instance**: the tool currently opens a DB session on every invocation (fine at one call per document, silly at one per page).
+- Hosted-plan billing multiplies the same way — `get_vision_llm` wraps premium global configs in `QuotaCheckedVisionLLM` and every `ainvoke` is a `billable_call` reserve/finalize plus a `TokenUsage` row, now per page. (BYOK and free configs come back unwrapped, so self-hosting sees none of this.) Pass a `usage_type` of its own instead of inheriting the wrapper's `vision_extraction` default, or artifact verification becomes indistinguishable from indexing OCR in the audit trail at exactly the moment it becomes the larger consumer.
 - Extend `save_artifact` tool with the binary signature: `(path, title, markdown_representation, preview_path?, document_id?)` — reads file(s) from the session, MIME-sniffs (extension first, `python-magic` as check), calls the phase-1 helper with `role=primary` (+ `preview`); `document_id` present → in-place revision (master spec §4.3). Same §3.1 payload.
 - **`save_artifact` enforces the verification gate**: reject a primary file whose mtime is newer than the most recent verification in this session, with an error naming the missing step. The check is temporal, not provenance-based — the tool cannot know that `page-1.jpg` came from `out.pdf`, but rendering necessarily happens after generating, so "generated, then verified" and "verified, then regenerated" are distinguishable by ordering alone. A verification is an `inspect_sandbox_images` call or a clean-exit structural/assertion script, so the programmatic shape (§2.6) passes the same gate. A cache hit inside the vision tool still counts: the model asked and received findings, so record verifications independently of how they were answered. <!-- ponytail: mtime ordering, not content provenance; ceiling is a false rejection when regeneration is byte-identical, whose cost is one extra inspection call and whose error message says exactly that -->
 - This is what makes the §2.6 loop an invariant instead of a sentence each skill repeats and each model may skip. It is also the reason phase 3's skills are shorter than `pdf`'s.
+- **The gate distinguishes "did not verify" from "could not verify."** A model that simply never inspected is refused. A model that tried and hit an impossibility — `get_vision_llm` returned `None` because the workspace has no vision-capable model, or `QuotaCheckedVisionLLM` raised `QuotaInsufficientError` partway through — saves anyway, with the reason recorded in `document_metadata` and stated in the tool result so the turn's summary can be honest about it. Throwing away a finished deliverable because the workspace cannot afford to look at it is the worse failure, and unlike a lazy model the user cannot fix it by trying again. `inspect_sandbox_images` therefore records *why* it failed rather than only raising, since only it can tell an unavailable model apart from a bad call.
 - Register all in `tools/index.py` / catalog; emission handler from phase 1 covers the payload unchanged.
 
 ### 2.4 Skill — `pdf`
@@ -124,7 +127,7 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 
 - Frontmatter description covering triggers: PDF, resume, CV, report-as-PDF, letter, one-pager, printable.
 - Body: reportlab vs weasyprint guidance (weasyprint for HTML/CSS-styled documents, reportlab for programmatic layout), fonts available in the image, page-size defaults.
-- **Mandatory verification loop** — the visual shape of the §2.6 contract: `pdftoppm -jpeg -r 100 out.pdf page`, then one `inspect_sandbox_images` call per page, then fix the source and repeat, then one bounded consistency pass, then the structural check, and only then `save_artifact`. The rasterizer and the structural check ship as this skill's own `scripts/`.
+- **Mandatory verification loop** — the visual shape of the §2.6 contract, cheap checks first: `check_pdf.py` (structural), then `pdftoppm -jpeg -r 100 out.pdf page`, then `inspect_sandbox_images` over every page, then the same tool with `mode="together"`, then fix the source and repeat, and only then `save_artifact`. Both scripts ship as this skill's own `scripts/`. `check_pdf.py` grows past its current blank-page check to everything pypdf can measure — text outside the media box or margins, near-blank pages, page count against expectation, unembedded fonts — because each of those is a vision call the loop no longer has to spend.
 - Subagent system prompt gains format-selection guidance (master spec §6.2) and demotes `generate_report`/`generate_resume` to "only when the user explicitly declines a file".
 
 ### 2.5 Frontend
@@ -138,7 +141,7 @@ The whole mechanism lives in this phase; later phases add format skills that use
 it and nothing else. The test of that boundary: adding a format must need only a
 `SKILL.md`, its own `scripts/`, and a viewer registry entry.
 
-**The contract.** Generate → render evidence → inspect → fix → structural check →
+**The contract.** Generate → measure → render evidence → inspect → fix → repeat →
 only then `save_artifact`; never save before verifying (master spec §6.3). Two
 shapes are permitted and a skill states which it uses: *visual* (rasterize to
 JPEG, review with `inspect_sandbox_images`) or *programmatic* (read values back
@@ -153,28 +156,33 @@ holds it instead (§2.3), so a new skill inherits the guarantee and its prose
 shrinks to the genuinely format-specific part: how to render evidence for this
 format and what to look for in it.
 
-**Granularity** (master spec §6.3, stated here because skills inherit it):
-*generation* is incremental only where units are independent — slides and
-worksheets yes, a flowing PDF no, since pagination is emergent and nothing is
-"page 2" until the whole document renders. *Verification* is uniformly one page
-or slide per call, with no length threshold: a threshold is a rule the model has
-to apply before it can start, and applying it wrongly fails silently. Each call
-holds the vision model on one page, so a finding names one fixable defect. The
-loop then ends with one consistency pass over a bounded sample — first, last,
-and whatever changed — for the cross-page drift a single-page call cannot see.
+**Page count changes how much work happens, never what work happens.** That is
+the whole granularity rule. Every page gets the measurable check, then individual
+review, then windowed comparison — identically at one page and at forty. Cost is
+linear in the artifact, which is proportionality rather than a problem to
+optimize away: a ten-page document costs ten pages of verification because it is
+ten pages of document. Any rule that varies with length — a batching threshold, a
+"risky pages" sample — is a judgment the model applies silently wrongly, and
+buying back tokens with a heuristic trades correctness for a bill.
 
-That sample stays bounded for a reason that survives the tool's internal
-chunking, and the reason must be written down or a later reader will delete the
-bound as obsolete: **paths are compared against each other only within one
-vision call.** Handing 40 paths to a chunking tool does not error, it silently
-becomes three unrelated comparisons, so a comparison pass that exceeds one chunk
-stops comparing while still appearing to run.
+The one asymmetry is *generation*, which is incremental only where units are
+independent: slides and worksheets yes, a flowing PDF no, since pagination is
+emergent and nothing is "page 2" until the whole document renders.
+
+**Cheap checks first, and they measure different things.** The structural script
+and the vision pass are not the same check at two prices. Whatever can be
+measured — text past the margins or media box, blank and near-blank pages, page
+count, missing embedded fonts — is measured mechanically on every page before any
+vision call, so a defect in that class never costs a model round-trip. Vision
+then answers only what cannot be measured: hierarchy, spacing, alignment,
+legibility, factual consistency. This ordering is why the loop's step list starts
+with the structural check.
 
 **The shared surface is the tool, not the scripts.** `inspect_sandbox_images`
-accepts JPEG only at 5 MB per image, chunks above `_MAX_VISION_IMAGES` rather
-than erroring, and rejects anything else with an actionable error — so a skill
-cannot silently render something incompatible, and cannot get the cap arithmetic
-wrong because it never does the arithmetic. Skills therefore stay self-contained: each ships
+accepts JPEG only at 5 MB per image, owns fan-out and windowing, and rejects
+anything else with an actionable error — so a skill cannot silently render
+something incompatible, and cannot get the granularity wrong because it never
+chooses it. Skills therefore stay self-contained: each ships
 its own `{skills_root}/<name>/scripts/` as `pdf` does, with no cross-skill paths
 and no shared directory competing with real skills under `/opt/skills/`.
 Duplicating a 15-line rasterizer is cheaper than an indirection every skill
@@ -208,6 +216,11 @@ to edit source, so the tool would return findings and hand control straight back
 having bought nothing and lost the visibility. The loop stays a sequence of
 visible calls.
 
+The boundary that makes fan-out and windowing not the same mistake: the tool
+hides *how many vision calls one inspection takes*, which is arithmetic nobody
+learns anything from, while every step the user cares about — generate, measure,
+inspect, fix — stays a separate call in the timeline.
+
 **Step rendering — pending.** The loop is skill text driving `execute` +
 `inspect_sandbox_images`, so nothing below changes loop logic. What is missing is
 display: the user should watch generate → render → inspect → fix as named steps
@@ -232,8 +245,9 @@ instead of opaque tool calls.
 
 - Provider contract test (runs against OpenSandbox in CI, Daytona smoke in cloud env): create → exec → read → terminate; TTL reap; concurrency cap.
 - Integration: "create a one-page PDF listing 3 facts about X" end-to-end → verified PDF renders in panel, ETag-cached on second open, downloads with correct filename. The assertion that the §2.6 loop actually ran (render and inspect steps present in the trace) belongs to this harness, parameterized as `(skill, prompt, expected MIME, expected evidence steps)` so a later format adds a row rather than a file — if adding `pptx` means writing a new test, the §2.6 boundary leaked and the test says where.
-- Gate: `save_artifact` refuses a file regenerated after its last verification, and accepts it once re-verified. This is the one test that fails if the §2.6 contract silently degrades back into advisory prose.
+- Gate: `save_artifact` refuses a file regenerated after its last verification, and accepts it once re-verified. This is the one test that fails if the §2.6 contract silently degrades back into advisory prose. Its pair: with no vision model configured, the save **succeeds** and the recorded reason names the unavailability — the "could not verify" branch is what keeps the gate from turning a misconfigured workspace into a workspace that cannot produce artifacts at all.
 - Roster: the prompt's Level 1 listing matches the frontmatter under `docker/sandbox/skills/*/` (§2.6).
+- `inspect_sandbox_images` granularity, which is where a length-dependent regression would hide: `mode="each"` over 25 paths makes 25 single-image calls concurrently and returns 25 labelled findings; `mode="together"` over 25 makes 2 windowed calls; one path in `together` reports nothing to compare. A failure on one page leaves the other findings intact. The vision model resolves once across all of them.
 - Regression: legacy `generate_report` path still functional (it isn't removed until phase 4).
 
 ---

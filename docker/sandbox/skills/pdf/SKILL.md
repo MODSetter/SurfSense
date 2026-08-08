@@ -27,23 +27,22 @@ placing it in HTML.
 ## Required quality gate
 
 `save_artifact` rejects a PDF that changed after its last inspection, so this
-loop is not optional:
+loop is not optional. Every step treats every page the same way — page count
+changes how long it takes, never what you do:
 
 1. Generate the PDF.
-2. Run `/opt/skills/pdf/scripts/render_pages.sh out.pdf /tmp/pdf-pages`.
-3. Inspect **one page per call** with `inspect_sandbox_images`, checking
-   clipping, overflow, blank pages, alignment, legibility, visual hierarchy, and
-   factual consistency. One page at a time keeps each report focused on one
-   fixable defect.
-4. If a report identifies any defect, edit the source, regenerate, render, and
-   inspect again.
-5. If the document has more than one page, make one final call with a small set
-   of pages together — the first page, the last page, and any page you changed —
-   to catch what single-page inspection cannot see: drift in fonts, spacing, and
-   page count, and "this should be one page, not two". Keep this set small; pages
-   are only compared against each other within a single call. A one-page document
-   has nothing to compare against, so step 3 was already the whole check.
-6. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf` for structural checks.
+2. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf`. It measures what does not
+   need eyes: text past the margins or page edge, blank and near-blank pages,
+   page count, missing embedded fonts. Fix whatever it reports and run it again —
+   these are far cheaper to find here than with a vision call.
+3. Run `/opt/skills/pdf/scripts/render_pages.sh out.pdf /tmp/pdf-pages`.
+4. Pass **every** rendered page to `inspect_sandbox_images`, asking about
+   alignment, legibility, visual hierarchy, spacing, and factual consistency.
+   The tool reviews each page on its own, so every report names one page.
+5. Call it once more with `mode="together"` to compare the pages against each
+   other — font and colour drift, inconsistent spacing, and "this should be one
+   page, not two" are invisible when pages are seen one at a time.
+6. Any defect from step 4 or 5: edit the source and repeat from step 2.
 7. Only then call:
    `save_artifact(path="out.pdf", title="...", markdown_representation="...")`.
 
