@@ -23,6 +23,46 @@ Note: the OpenSandbox **MCP server** (`opensandbox-mcp`) is *not* part of this i
 
 **Pass** → proceed. **Fail** → decision-level fallback is llm-sandbox `InteractiveSandboxSession` (master spec §7.3); revise this phase file, not the master contracts — the provider protocol makes the blast radius one implementation file.
 
+### Spike result (verified 2026-08-07)
+
+`surfsense/sandbox:dev` against `opensandbox/server:v0.2.2` passed:
+
+- sandbox create: **4004.72 ms**
+- persistent-kernel executions: **4949.77 ms cold**, then **184.15,
+  187.91, 83.20, 80.13 ms**; steady median (excluding cold): **133.68 ms**
+- 1372-byte PDF `read_bytes`: **33.28 ms**
+- metadata-filtered rediscovery + connect: **passed**
+- timeout renewal: **passed**
+
+The measured steady median is below the 150 ms gate, so OpenSandbox remains the
+selected self-hosted provider.
+
+### Research corrections recorded during implementation
+
+1. **SDK mapping:** binary reads use `sandbox.files.read_bytes(path)`;
+   rediscovery uses `SandboxManager.list_sandbox_infos(SandboxFilter(metadata=…))`
+   followed by `Sandbox.connect(id)`; renewal is
+   `sandbox.renew(timedelta(...))`. `commands.run` returns an execution whose
+   stdout and exit code are flattened by the provider.
+2. **Vision stays inside a tool:** this stack serializes tool results as text,
+   so image bytes cannot travel back as multimodal `role=tool` content.
+   `inspect_sandbox_images(paths, instructions)` reads rendered JPEGs, makes one
+   workspace vision-model call, and returns a text QA report.
+   `read_sandbox_file` is therefore UTF-8 text-only and size-capped.
+3. **Image base:** persistent code-interpreter contexts require
+   `opensandbox/code-interpreter:v1.1.0` and its
+   `/opt/code-interpreter/code-interpreter.sh` entrypoint; an arbitrary image
+   supports commands/files but not the warm kernel used here.
+4. **Server deployment shape:** current OpenSandbox publishes
+   `opensandbox/server:v0.2.2`, so SurfSense pins that image rather than building
+   the older `pip install opensandbox-server` wrapper. It still requires the
+   TOML config, SQLite volume, and host Docker socket to spawn sibling sandboxes.
+5. **Skill delivery:** deliverables subagents do not receive main-agent
+   `SkillsMiddleware` metadata. Level 1 is a static PDF skill listing in the
+   deliverables prompt; Level 2 reads `/opt/skills/pdf/SKILL.md` with `execute`.
+   No additional middleware is introduced. <!-- ponytail: static prompt text;
+   ceiling is drift from the image, upgrade path is pack-time generation -->
+
 ---
 
 ## 1. Scope
@@ -49,8 +89,8 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 | create session | `Sandbox.create(SANDBOX_IMAGE, connection_config=ConnectionConfig(domain, api_key), timeout=timedelta(seconds=TTL), metadata={"surfsense_thread": id}, network_policy=NetworkPolicy(defaultAction="deny"), resource={...})` |
 | `execute(code, "python")` | `CodeInterpreter.create(sandbox)` once per session, then `interpreter.codes.run(code, language=SupportedLanguage.PYTHON)` — default context persists state across runs (the warm-kernel win) |
 | `run_command(cmd)` | `sandbox.commands.run(cmd)` |
-| `write_file` | `sandbox.files.write_files([WriteEntry(path, data, mode)])` |
-| `read_file` | `sandbox.files.read_file(path)` |
+| `write_file` | `sandbox.files.write_file(path, data)` |
+| `read_file` | `sandbox.files.read_bytes(path)` |
 | `terminate` | `sandbox.kill()` |
 
 - `app/sandbox/factory.py`: `SANDBOX_PROVIDER=opensandbox|daytona` (+ `OPENSANDBOX_DOMAIN`, `OPENSANDBOX_API_KEY`, `SANDBOX_IMAGE`, `SANDBOX_IDLE_TTL_SECONDS=900`, `SANDBOX_MAX_SESSIONS_PER_WORKSPACE=2`, `ARTIFACT_MAX_FILE_BYTES=31457280` in `app/config`; existing `DAYTONA_*` vars feed the daytona provider unchanged).
@@ -69,7 +109,7 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 ### 2.3 Backend — agent tools
 
 - `execute(code_or_command, language="python"|"bash")` → session exec; result = stdout/stderr/exit, truncated to a context-safe length with full output kept in the sandbox at a temp path the model can grep.
-- `read_sandbox_file(path)` → bytes (base64 for images so the model can *look* at rendered pages); enforce `ARTIFACT_MAX_FILE_BYTES`.
+- `read_sandbox_file(path)` → UTF-8 text, size-capped by `ARTIFACT_MAX_FILE_BYTES`. Rendered JPEG pages use `inspect_sandbox_images(paths, instructions)`, which performs one internal vision call and returns text findings.
 - Extend `save_artifact` tool with the binary signature: `(path, title, markdown_representation, preview_path?, document_id?)` — reads file(s) from the session, MIME-sniffs (extension first, `python-magic` as check), calls the phase-1 helper with `role=primary` (+ `preview`); `document_id` present → in-place revision (master spec §4.3). Same §3.1 payload.
 - Register all in `tools/index.py` / catalog; emission handler from phase 1 covers the payload unchanged.
 
@@ -79,7 +119,7 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 
 - Frontmatter description covering triggers: PDF, resume, CV, report-as-PDF, letter, one-pager, printable.
 - Body: reportlab vs weasyprint guidance (weasyprint for HTML/CSS-styled documents, reportlab for programmatic layout), fonts available in the image, page-size defaults.
-- **Mandatory verification loop** (master spec §6.3): `pdftoppm -jpeg -r 100 out.pdf page` → `read_sandbox_file` the pages → inspect → fix → only then `save_artifact`.
+- **Mandatory verification loop** (master spec §6.3): `pdftoppm -jpeg -r 100 out.pdf page` → `inspect_sandbox_images` on the pages → fix → only then `save_artifact`.
 - Subagent system prompt gains format-selection guidance (master spec §6.2) and demotes `generate_report`/`generate_resume` to "only when the user explicitly declines a file".
 
 ### 2.5 Frontend

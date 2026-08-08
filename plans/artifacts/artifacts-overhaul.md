@@ -496,6 +496,10 @@ Ordering constraints: 1 → 2 → 3 → 4 strictly; the OpenSandbox spike (phase
 **Open questions (decide during phase 1 review):**
 
 1. Public/shared-chat rendering of artifacts (public token → file streaming) — **decided as a deferral in phase 1**: share-token visitors get the artifact card, inert, because both `editor-content` and the §5 route demand workspace membership. Serving them needs a token-scoped variant of the §5 route (share token → thread → the artifacts that thread produced); scheduled with phase 3, when there are binary artifacts worth sharing.
-2. Whether `read_sandbox_file` image inspection uses the chat model (needs vision) or a cheaper dedicated vision call — cost/quality tradeoff, provider-configurable.
+2. Image inspection — **resolved in phase 2**: image bytes cannot survive this
+   stack's text-only tool-result serialization. `inspect_sandbox_images` reads
+   rendered JPEGs inside the tool, calls the workspace's dedicated
+   `get_vision_llm()` once for the batch, and returns text QA findings.
+   `read_sandbox_file` remains UTF-8 text-only.
 
 *(Resolved: retention/GC for superseded versions — moot; revisions replace files in place with no history, §4.3.)*
