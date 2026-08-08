@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -213,6 +214,7 @@ async def save_artifact(
     markdown_representation: str,
     files: list[ArtifactFileInput],
     document_id: int | None = None,
+    extra_metadata: dict[str, Any] | None = None,
 ) -> ArtifactSaved:
     """Create or replace an artifact and make it durable before returning."""
     title = title.strip()
@@ -241,6 +243,7 @@ async def save_artifact(
             title=title,
             document_type=DocumentType.NOTE,
             document_metadata={
+                **(extra_metadata or {}),
                 "generated": True,
                 "thread_id": thread_id,
                 "tool_call_id": tool_call_id,
@@ -282,6 +285,8 @@ async def save_artifact(
         document.source_markdown = markdown_representation
         document.document_metadata = {
             **(document.document_metadata or {}),
+            **(extra_metadata or {}),
+            "generated": True,
             "thread_id": thread_id,
             "tool_call_id": tool_call_id,
         }

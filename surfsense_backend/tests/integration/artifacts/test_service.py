@@ -110,6 +110,9 @@ async def test_binary_create_and_revision_replace_files(
                 mime_type="application/pdf",
             )
         ],
+        extra_metadata={
+            "verification": {"verified": True, "reason": None}
+        },
     )
     old_row = await db_session.scalar(
         select(DocumentFile).where(DocumentFile.document_id == created.document_id)
@@ -131,6 +134,12 @@ async def test_binary_create_and_revision_replace_files(
                 mime_type="application/pdf",
             )
         ],
+        extra_metadata={
+            "verification": {
+                "verified": False,
+                "reason": "No vision model configured",
+            }
+        },
     )
 
     assert revised.document_id == created.document_id
@@ -147,6 +156,13 @@ async def test_binary_create_and_revision_replace_files(
     )
     assert len(rows) == 1
     assert rows[0].original_filename == "retitled.pdf"
+    document = await db_session.get(Document, created.document_id)
+    assert document.document_metadata["generated"] is True
+    assert document.document_metadata["tool_call_id"] == "call-2"
+    assert document.document_metadata["verification"] == {
+        "verified": False,
+        "reason": "No vision model configured",
+    }
 
 
 async def test_storage_failure_rolls_back_document_and_blob(
