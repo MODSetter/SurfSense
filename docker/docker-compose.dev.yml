@@ -116,11 +116,11 @@ services:
 
   # Builds the sandbox image and exits. Sandbox containers are created by
   # opensandbox-server outside compose, so nothing else would put
-  # surfsense/sandbox:dev on the host daemon.
+  # surfsense-sandbox:dev on the host daemon.
   sandbox-image:
     build:
       context: ./sandbox
-    image: surfsense/sandbox:dev
+    image: surfsense-sandbox:dev
     entrypoint: ["/bin/true"]
     restart: "no"
 
@@ -169,7 +169,7 @@ services:
       - SANDBOX_PROVIDER=${SANDBOX_PROVIDER:-opensandbox}
       - OPENSANDBOX_DOMAIN=${OPENSANDBOX_DOMAIN:-opensandbox-server:8080}
       - OPENSANDBOX_API_KEY=${OPENSANDBOX_API_KEY:-surfsense-dev-sandbox}
-      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-surfsense/sandbox:dev}
+      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-surfsense-sandbox:dev}
       - SERVICE_ROLE=api
     depends_on:
       db:
