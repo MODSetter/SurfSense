@@ -99,4 +99,7 @@ async def test_stream_disposition_allowlist(monkeypatch, mime_type, mode):
     )
 
     assert response.headers["content-disposition"].startswith(mode)
+    assert "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf" in response.headers[
+        "content-disposition"
+    ]
     assert response.headers["x-content-type-options"] == "nosniff"

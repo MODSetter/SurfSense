@@ -8,21 +8,33 @@ import { useEffect, useRef } from "react";
 import { z } from "zod";
 import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 const SaveArtifactArgsSchema = z.object({
 	title: z.string(),
-	content: z.string(),
+	content: z.string().nullish(),
+	markdown_representation: z.string().nullish(),
+	path: z.string().nullish(),
+	preview_path: z.string().nullish(),
 	description: z.string().nullish(),
 	document_id: z.number().nullish(),
+});
+
+const ArtifactFileSchema = z.object({
+	file_id: z.number(),
+	role: z.enum(["primary", "preview"]),
+	filename: z.string(),
+	mime_type: z.string(),
+	size_bytes: z.number().nonnegative(),
 });
 
 const SaveArtifactResultSchema = z.object({
 	status: z.enum(["saved", "failed"]),
 	document_id: z.number().nullish(),
 	title: z.string().nullish(),
-	files: z.array(z.unknown()).optional(),
+	files: z.array(ArtifactFileSchema).optional(),
 	error: z.string().nullish(),
 });
 
@@ -51,17 +63,28 @@ function ArtifactError({ title, error }: { title: string; error: string }) {
 function ArtifactCard({
 	documentId,
 	title,
+	primaryFile,
 	autoOpen,
 	publicRoute,
 }: {
 	documentId: number;
 	title: string;
+	primaryFile?: z.infer<typeof ArtifactFileSchema>;
 	autoOpen: boolean;
 	publicRoute: boolean;
 }) {
 	const openPanel = useSetAtom(openArtifactPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const openedRef = useRef(false);
+	const isPdf = primaryFile?.mime_type === "application/pdf";
+	const format = isPdf
+		? { badge: "PDF", subtitle: "PDF document" }
+		: primaryFile
+			? {
+					badge: primaryFile.filename.split(".").pop()?.toUpperCase() || "FILE",
+					subtitle: primaryFile.mime_type,
+				}
+			: { badge: "MD", subtitle: "Markdown document" };
 
 	useEffect(() => {
 		if (autoOpen && isDesktop && !publicRoute && !openedRef.current) {
@@ -83,8 +106,13 @@ function ArtifactCard({
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium">{title}</span>
-				<span className="mt-0.5 block text-xs text-muted-foreground">Markdown document</span>
+				<span className="mt-0.5 block truncate text-xs text-muted-foreground">
+					{format.subtitle}
+				</span>
 			</span>
+			<Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
+				{format.badge}
+			</Badge>
 			<Check className="size-4 text-muted-foreground" />
 		</Button>
 	);
@@ -132,6 +160,7 @@ export const SaveArtifactToolUI = ({
 		<ArtifactCard
 			documentId={result.document_id}
 			title={result.title || args.title || "Document"}
+			primaryFile={result.files?.find((file) => file.role === "primary")}
 			autoOpen={sawRunningRef.current}
 			publicRoute={publicRoute}
 		/>
