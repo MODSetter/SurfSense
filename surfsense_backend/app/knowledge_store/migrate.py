@@ -15,15 +15,17 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
-    PATH_MARKER,
-    build_path_index,
-    to_store_path,
-    virtual_path_of,
-)
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.engines.base import TrackedPath
 from app.knowledge_store.identities import MIGRATION_IDENTITY
-from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.paths import (
+    DOCUMENTS_ROOT,
+    KEEP_FILE,
+    PATH_MARKER,
+    allocate_path,
+    build_path_index,
+    to_store_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +106,20 @@ async def _seed_and_verify(
             # report shows what state the failed write left behind.
             error = f"{type(exc).__name__}: {exc}"
 
-    tracked = {t.path: t.content_id for t in await _tracked_paths(store)}
+    # .keep is a folder marker, not document content: git owns it — it is how an
+    # empty folder survives — and a folder that later gains a document keeps its
+    # now-redundant marker. Parity is document bytes, so a marker on either side
+    # is never drift; counting one would alarm such a folder forever and draw an
+    # hourly repair reindex that cannot remove a git file.
+    tracked = {
+        t.path: t.content_id
+        for t in await _tracked_paths(store)
+        if not _is_keep(t.path)
+    }
     desired = {
         path: store.compute_content_id(markdown.encode())
         for path, markdown in files.items()
+        if not _is_keep(path)
     }
 
     return MigrationReport(
@@ -122,6 +134,11 @@ async def _seed_and_verify(
         ),
         error=error,
     )
+
+
+def _is_keep(store_path: str) -> bool:
+    """A folder's ``.keep`` marker, which parity treats as structure, not content."""
+    return store_path.rsplit("/", 1)[-1] == KEEP_FILE
 
 
 def _failure_report(
@@ -149,52 +166,70 @@ async def migrate_workspace(
     *,
     dry_run: bool = False,
 ) -> MigrationReport:
-    """Seed one workspace's current documents at the paths they already live at.
+    """Seed a workspace, applying the path law to each of its documents.
 
-    Placement must agree with every other writer, or one document forks into two
-    files. `virtual_path_of` reads the path a row already records and derives from
-    the title only for rows that have none — the agent's `write_file` names its
-    own files, so derivation alone disagrees with the store for anything it
-    authored.
+    A row that already records an authored-once path keeps it. An unmarked row
+    is authored a fresh ``.md`` path via :func:`allocate_path`, in ``created_at``
+    then ``id`` order so collisions resolve the same way on every re-seed. The
+    chosen path is recorded back onto the row.
 
-    A successful run records each seeded path back onto its row, so the retitle
-    that follows knows which file to drop from the tree.
-
-    Never raises: a failure while fetching or mapping documents is returned
-    as ``MigrationReport.error``, like every seed failure.
+    Never raises: a failure fetching or mapping documents is returned as
+    ``MigrationReport.error``.
     """
     from app.db import Document
 
     try:
-        index = await build_path_index(session, workspace_id)
+        index = await build_path_index(session, workspace_id, populate_occupants=False)
         rows = await session.execute(
             select(
                 Document.id,
                 Document.title,
                 Document.folder_id,
                 Document.document_metadata,
+                Document.path,
                 Document.source_markdown,
                 Document.content,
-            ).where(Document.workspace_id == workspace_id)
+            )
+            .where(Document.workspace_id == workspace_id)
+            .order_by(Document.created_at, Document.id)
         )
         files: dict[str, str] = {}
         seeded_paths: dict[int, str] = {}
-        for doc_id, title, folder_id, metadata, source_markdown, content in rows:
-            # Rows predating the nullable source_markdown column hold text in
-            # content only; "Pending..." is the pre-index placeholder, never
-            # content.
+        seeded_folder_ids: set[int] = set()
+        taken: set[str] = set()
+        pending: list[tuple[int, str, int | None, str]] = []
+        for doc_id, title, folder_id, metadata, path, source_markdown, content in rows:
+            # "Pending..." is the pre-index placeholder; rows predating the
+            # nullable source_markdown column hold text in content only.
             markdown = source_markdown or content
             if not markdown or markdown == "Pending...":
                 continue
-            virtual_path = virtual_path_of(
-                metadata=metadata,
-                doc_id=doc_id,
-                title=title,
-                folder_id=folder_id,
-                index=index,
+            if folder_id is not None:
+                seeded_folder_ids.add(folder_id)
+            recorded = _recorded_path(path, metadata)
+            if recorded is not None:
+                taken.add(recorded)
+                files[to_store_path(recorded)] = markdown
+                seeded_paths[doc_id] = recorded
+            else:
+                pending.append((doc_id, title, folder_id, markdown))
+        # Author the unmarked rows only after every recorded path is reserved,
+        # so a fresh name never lands on one a marked row already owns.
+        for doc_id, title, folder_id, markdown in pending:
+            placed = allocate_path(
+                name=str(title or "untitled"),
+                folder_parts=_folder_parts(index.folder_paths.get(folder_id)),
+                taken=taken,
             )
-            files[to_store_path(virtual_path)] = markdown
-            seeded_paths[doc_id] = virtual_path
+            files[placed.store_path] = markdown
+            seeded_paths[doc_id] = placed.virtual_path
+        # Git holds no empty directory, so an explicitly-created folder with no
+        # seeded document would vanish at the flip. Materialize each empty leaf
+        # folder as a .keep; its ancestors ride along on that path.
+        for keep_path in await _empty_folder_keeps(
+            session, workspace_id, index, seeded_folder_ids
+        ):
+            files[keep_path] = ""
     except Exception as exc:
         return _failure_report(workspace_id, dry_run, 0, exc)
 
@@ -202,6 +237,53 @@ async def migrate_workspace(
     if report.ok and not dry_run:
         await _record_seeded_paths(session, seeded_paths)
     return report
+
+
+def _recorded_path(path: str | None, metadata: Mapping[str, str] | None) -> str | None:
+    """The authored-once path a row already carries, column before marker."""
+    for value in (path, (metadata or {}).get(PATH_MARKER)):
+        if isinstance(value, str) and value.startswith(f"{DOCUMENTS_ROOT}/"):
+            return value
+    return None
+
+
+def _folder_parts(folder_path: str | None) -> list[str]:
+    """Folder segments from a ``/documents/A/B`` path; ``[]`` at the root."""
+    if not folder_path:
+        return []
+    rel = folder_path[len(DOCUMENTS_ROOT) :].strip("/")
+    return rel.split("/") if rel else []
+
+
+async def _empty_folder_keeps(
+    session: AsyncSession,
+    workspace_id: int,
+    index,
+    seeded_folder_ids: set[int],
+) -> list[str]:
+    """``.keep`` store paths for the folders no seeded document keeps alive.
+
+    Only a leaf folder (one with no child folder) needs its own marker; a folder
+    with children stays live through whichever descendant leaf gets the ``.keep``.
+    """
+    from app.db import Folder
+
+    rows = (
+        await session.execute(
+            select(Folder.id, Folder.parent_id).where(
+                Folder.workspace_id == workspace_id
+            )
+        )
+    ).all()
+    has_child = {parent_id for _id, parent_id in rows if parent_id is not None}
+    keeps: list[str] = []
+    for folder_id, _parent_id in rows:
+        if folder_id in has_child or folder_id in seeded_folder_ids:
+            continue
+        folder_path = index.folder_paths.get(folder_id)
+        if folder_path and folder_path != DOCUMENTS_ROOT:
+            keeps.append(f"{to_store_path(folder_path)}/{KEEP_FILE}")
+    return keeps
 
 
 async def _record_seeded_paths(
@@ -224,6 +306,7 @@ async def _record_seeded_paths(
         )
         for document in rows.scalars().all():
             path = seeded_paths[document.id]
+            document.path = path
             metadata = dict(document.document_metadata or {})
             if metadata.get(PATH_MARKER) == path:
                 continue

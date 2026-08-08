@@ -68,6 +68,39 @@ class TestRecord:
         )
         assert rev is not None
 
+    def test_deleted_folders_directory_does_not_linger(self, engine):
+        # Git can't track empty dirs, so removing a folder's last file must also
+        # drop the now-empty directory (and empty ancestors) from disk.
+        engine.record(
+            writes={"documents/f/sub/a.xml": b"a"},
+            removes=[],
+            message="seed nested",
+            author=AUTHOR,
+        )
+        engine.record(
+            writes={},
+            removes=["documents/f/sub/a.xml"],
+            message="delete last file",
+            author=AUTHOR,
+        )
+        assert not (engine._path / "documents" / "f" / "sub").exists()
+        assert not (engine._path / "documents" / "f").exists()
+
+    def test_prune_keeps_dir_with_surviving_siblings(self, engine):
+        engine.record(
+            writes={"documents/f/a.xml": b"a", "documents/f/b.xml": b"b"},
+            removes=[],
+            message="seed",
+            author=AUTHOR,
+        )
+        engine.record(
+            writes={},
+            removes=["documents/f/a.xml"],
+            message="drop one",
+            author=AUTHOR,
+        )
+        assert (engine._path / "documents" / "f" / "b.xml").is_file()
+
 
 class TestHistoryQueries:
     def test_list_revisions_is_newest_first_and_path_scoped(self, engine):

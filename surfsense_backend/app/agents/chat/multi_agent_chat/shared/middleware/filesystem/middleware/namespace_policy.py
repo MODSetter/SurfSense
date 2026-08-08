@@ -14,7 +14,7 @@ from langchain.tools import ToolRuntime
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT
+from app.knowledge_store.paths import DOCUMENTS_ROOT
 
 from ..shared.paths import TEMP_PREFIX, basename
 from .mode import is_cloud

@@ -111,6 +111,25 @@ async def test_parity_names_missing_extra_and_mismatched_paths(
     assert report.mismatched == ["notes/okrs.md"]
 
 
+async def test_a_leftover_keep_in_a_populated_folder_is_not_drift(
+    knowledge_root, workspace_id
+):
+    """A folder created empty keeps its .keep after a document lands beside it.
+    The seeder derives no marker for a populated folder, so without this the
+    drift check would alarm the folder forever and draw a futile repair."""
+    store = KnowledgeStore.for_workspace(workspace_id)
+    async with store.transaction(message="seed", author=MIGRATION_IDENTITY) as tx:
+        tx.write("notes/plan.md", b"# Plan")
+        tx.write("notes/.keep", b"")  # the empty-folder marker left behind
+
+    report = await seed_workspace(
+        workspace_id, {"notes/plan.md": "# Plan"}, dry_run=True
+    )
+
+    assert report.ok
+    assert report.extra == []
+
+
 async def test_expired_write_lock_lands_in_the_report(
     knowledge_root, workspace_id, monkeypatch
 ):

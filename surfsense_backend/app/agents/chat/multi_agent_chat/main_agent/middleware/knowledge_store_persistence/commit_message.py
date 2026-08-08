@@ -64,7 +64,10 @@ async def generate_commit_message(
                 [
                     ("system", _SYSTEM_PROMPT),
                     ("human", _describe_changes(writes, removes)),
-                ]
+                ],
+                # Shares the agent's streaming llm; the tag keeps the subject's
+                # tokens out of the user's reply (chat_model_stream drops it).
+                config={"tags": ["surfsense:internal", "kb-commit-subject"]},
             ),
             timeout=_GENERATION_TIMEOUT_SECONDS,
         )

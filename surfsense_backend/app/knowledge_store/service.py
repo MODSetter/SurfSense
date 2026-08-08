@@ -55,7 +55,7 @@ from app.knowledge_store.transaction import Transaction
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.db import Document
+    from app.db import Document, Folder
 
 logger = logging.getLogger(__name__)
 
@@ -203,11 +203,15 @@ class KnowledgeStore:
     async def write(self, path: str, content: str | bytes) -> Outcome:
         """Create or replace one path as a single-verb revision."""
         data = content.encode() if isinstance(content, str) else content
-        return await self._single(lambda tx: tx.write(path, data), f"docs: write {_leaf(path)}")
+        return await self._single(
+            lambda tx: tx.write(path, data), f"docs: write {_leaf(path)}"
+        )
 
     async def remove(self, path: str) -> Outcome:
         """Delete one path as a single-verb revision."""
-        return await self._single(lambda tx: tx.remove(path), f"docs: delete {_leaf(path)}")
+        return await self._single(
+            lambda tx: tx.remove(path), f"docs: delete {_leaf(path)}"
+        )
 
     async def move(self, source: str, destination: str) -> Outcome:
         """Relocate one path as a single-verb revision."""
@@ -269,6 +273,49 @@ class KnowledgeStore:
             enqueue_index(self._workspace_id)
         return tx.revision
 
+    async def _taken_virtual_paths(
+        self, *, exclude: set[str] | None = None
+    ) -> set[str]:
+        """The document paths git already holds, so a fresh name skips them.
+
+        Occupancy comes from the tree, the one authority on which files exist;
+        ``.keep`` markers are folders, not names to dodge. ``exclude`` drops the
+        caller's own current path so a retitle to the same name is not read as a
+        collision with itself. `ponytail:` walks the whole tree per authored
+        write — fine at today's sizes, cache by revision if a workspace grows.
+        """
+        from app.knowledge_store.paths import KEEP_FILE, to_virtual_path
+
+        head = await self.head()
+        if head is None:
+            return set()
+        skip = exclude or set()
+        taken: set[str] = set()
+        for entry in await self.list_paths(head):
+            if entry.path.rsplit("/", 1)[-1] == KEEP_FILE:
+                continue
+            virtual = to_virtual_path(entry.path)
+            if virtual not in skip:
+                taken.add(virtual)
+        return taken
+
+    def _author_path(
+        self, *, title: str, folder_id: int | None, index, taken: set[str]
+    ) -> str:
+        """A fresh ``.md`` path under the row's folder, breaking a name clash.
+
+        The naming law, not the legacy ``.xml`` derivation: this is the one place
+        a live write chooses a name, so it is the one place the spelling is fixed.
+        """
+        from app.knowledge_store.paths import DOCUMENTS_ROOT, allocate_path
+
+        base = index.folder_paths.get(folder_id, DOCUMENTS_ROOT)
+        relative = base[len(DOCUMENTS_ROOT) :].strip("/")
+        folder_parts = relative.split("/") if relative else ()
+        return allocate_path(
+            name=str(title or "untitled"), folder_parts=folder_parts, taken=taken
+        ).virtual_path
+
     # ---------------------------------------------------------- capabilities
 
     async def save_document(
@@ -294,31 +341,44 @@ class KnowledgeStore:
         session = self._require_session()
         from app.db import Document
         from app.knowledge_store.paths import (
+            DOCUMENTS_ROOT,
             build_path_index,
-            doc_to_virtual_path,
             to_store_path,
-            virtual_path_of,
         )
         from app.observability import metrics
 
         try:
-            index = await build_path_index(session, self._workspace_id)
+            index = await build_path_index(
+                session, self._workspace_id, populate_occupants=False
+            )
             document = await session.get(Document, doc_id)
             metadata = document.document_metadata if document else None
             previous = (metadata or {}).get(PATH_MARKER)
-            virtual_path = (
-                doc_to_virtual_path(
-                    doc_id=doc_id, title=title, folder_id=folder_id, index=index
-                )
-                if title_is_explicit
-                else virtual_path_of(
-                    metadata=metadata,
-                    doc_id=doc_id,
-                    title=title,
-                    folder_id=folder_id,
-                    index=index,
-                )
+            recorded = (
+                previous
+                if isinstance(previous, str)
+                and previous.startswith(f"{DOCUMENTS_ROOT}/")
+                else None
             )
+            # A recorded path stays put; only an explicit title, or a first write,
+            # authors a new one. Re-deriving a recorded path is the legacy churn.
+            if recorded is not None and not title_is_explicit:
+                virtual_path = recorded
+            else:
+                # The row's own file must not read as a rival, or a re-derivation
+                # after a lost marker collides the document with itself. The path
+                # column still names it once the marker is gone.
+                own = recorded or (
+                    document.path
+                    if document is not None
+                    and isinstance(document.path, str)
+                    and document.path.startswith(f"{DOCUMENTS_ROOT}/")
+                    else None
+                )
+                taken = await self._taken_virtual_paths(exclude={own} if own else set())
+                virtual_path = self._author_path(
+                    title=title, folder_id=folder_id, index=index, taken=taken
+                )
             stale = _stale_store_path(previous, virtual_path)
             revision = await self._commit_files(
                 files={to_store_path(virtual_path): markdown},
@@ -330,6 +390,7 @@ class KnowledgeStore:
                     **(document.document_metadata or {}),
                     PATH_MARKER: virtual_path,
                 }
+                document.path = virtual_path
                 await session.commit()
         except Exception as exc:
             _record_failure(metrics, "editor_save", exc, self._workspace_id, doc_id)
@@ -345,24 +406,35 @@ class KnowledgeStore:
             return Outcome(revision=None)
         session = self._require_session()
         from app.knowledge_store.paths import (
+            DOCUMENTS_ROOT,
             build_path_index,
-            doc_to_virtual_path,
             to_store_path,
         )
         from app.observability import metrics
 
         try:
-            index = await build_path_index(session, self._workspace_id)
+            index = await build_path_index(
+                session, self._workspace_id, populate_occupants=False
+            )
+            taken = await self._taken_virtual_paths()
             files: dict[str, str] = {}
             for doc in documents:
                 if not doc.source_markdown:
                     continue
-                virtual_path = doc_to_virtual_path(
-                    doc_id=doc.id,
-                    title=doc.title,
-                    folder_id=doc.folder_id,
-                    index=index,
-                )
+                # Where the doc's file already lives, marker first then the path
+                # column: a connector re-sync overwrites its own metadata and can
+                # drop the marker, but the column survives it. Re-authoring a path
+                # for a doc that already has a file forks it into a duplicate.
+                previous = _recorded_virtual_path(doc, DOCUMENTS_ROOT)
+                if previous is not None:
+                    virtual_path = previous
+                else:
+                    virtual_path = self._author_path(
+                        title=doc.title,
+                        folder_id=doc.folder_id,
+                        index=index,
+                        taken=taken,
+                    )
                 files[to_store_path(virtual_path)] = doc.source_markdown
             revision = await self._commit_files(
                 files=files, message=f"sync: index {len(files)} document(s)"
@@ -426,11 +498,21 @@ class KnowledgeStore:
         from app.observability import metrics
 
         try:
-            index = await build_path_index(session, self._workspace_id)
+            index = await build_path_index(
+                session, self._workspace_id, populate_occupants=False
+            )
+            # Drop the movers' own paths so a batch never collides with a name it
+            # is itself vacating; a chosen destination is added back as we go.
+            own = {
+                (d.document_metadata or {}).get(PATH_MARKER)
+                for d in documents
+                if isinstance((d.document_metadata or {}).get(PATH_MARKER), str)
+            }
+            taken = await self._taken_virtual_paths(exclude=own)
             moves: list[tuple[str, str]] = []
             moved: list[tuple[Document, str]] = []
             for document in documents:
-                relocation = _relocation_of(document, index)
+                relocation = _relocation_of(document, index, taken)
                 if relocation is None:
                     continue
                 source, destination, virtual_path = relocation
@@ -447,6 +529,7 @@ class KnowledgeStore:
                         **(document.document_metadata or {}),
                         PATH_MARKER: virtual_path,
                     }
+                    document.path = virtual_path
         except Exception as exc:
             _record_failure(metrics, "move", exc, self._workspace_id)
             return Outcome(revision=None)
@@ -454,6 +537,138 @@ class KnowledgeStore:
             flow="move", status="recorded" if revision else "noop"
         )
         return await self._outcome(revision)
+
+    # ------------------------------------------------------------------ folders
+
+    async def create_folder(self, path: str) -> Outcome:
+        """Materialize an empty folder as its ``.keep`` marker, one revision."""
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        from app.knowledge_store.paths import KEEP_FILE
+
+        revision = await self._commit_files(
+            files={f"{self._folder_store_path(path)}/{KEEP_FILE}": ""},
+            message=f"docs: new folder {_leaf(path)}",
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    async def remove_folder(self, path: str) -> Outcome:
+        """Remove a folder and everything under it in one revision."""
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        revision = await self._commit_files(
+            files={},
+            removes=await self._subtree_paths(path),
+            message=f"docs: delete folder {_leaf(path)}",
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    async def remove_folder_markers(self, path: str) -> Outcome:
+        """Drop a folder's ``.keep`` markers, leaving its documents in place.
+
+        The delete route hands document rows to the purge task, which clears
+        their chunks and blobs before dropping the rows. Removing their files
+        here would race that task: the indexer prunes a row the moment its file
+        leaves the tree, and the purge would then find nothing left to clean. So
+        this touches only the empty-folder markers, which no row hangs off, and
+        lets the purge own the documents.
+        """
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        from app.knowledge_store.paths import KEEP_FILE
+
+        keeps = [
+            p
+            for p in await self._subtree_paths(path)
+            if p.rsplit("/", 1)[-1] == KEEP_FILE
+        ]
+        revision = await self._commit_files(
+            files={}, removes=keeps, message=f"docs: delete folder {_leaf(path)}"
+        )
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    async def move_folder(self, source: str, destination: str) -> Outcome:
+        """Move a folder and every descendant in one revision, ids preserved."""
+        if not await knowledge_store_enabled_for(self._workspace_id):
+            return Outcome(revision=None)
+        src = self._folder_store_path(source)
+        dst = self._folder_store_path(destination)
+        moves = [
+            (p, f"{dst}{p[len(src) :]}") for p in await self._subtree_paths(source)
+        ]
+        revision = await self._commit_files(
+            files={}, moves=moves, message=f"docs: move folder {_leaf(destination)}"
+        )
+        # Rename the row in place before reconcile, so its id survives the move;
+        # reconcile then finds it already at the live chain and leaves it be.
+        if revision is not None:
+            await self._reparent_folder_row(source, destination)
+        await self._reconcile_folders(revision)
+        return await self._outcome(revision)
+
+    async def _reparent_folder_row(self, source: str, destination: str) -> None:
+        """Move the folder row for ``source`` onto ``destination`` in place."""
+        try:
+            workspace_id = int(self._workspace_id)
+        except (TypeError, ValueError):
+            return
+        from app.knowledge_store.index.folders import reparent_folder
+        from app.knowledge_store.paths import StorePath, safe_folder_segment
+
+        def chain(path: str) -> tuple[str, ...]:
+            return tuple(
+                safe_folder_segment(s) for s in StorePath.from_virtual(path).segments
+            )
+
+        await reparent_folder(
+            self._require_session(),
+            workspace_id=workspace_id,
+            source_chain=chain(source),
+            destination_chain=chain(destination),
+            author_id=self._author_user_id,
+        )
+
+    def _folder_store_path(self, path: str) -> str:
+        """Validated, sanitized ``documents/...`` store path for a folder."""
+        from app.knowledge_store.paths import StorePath, safe_folder_segment
+
+        folder = StorePath.from_virtual(path)
+        segments = "".join(f"/{safe_folder_segment(s)}" for s in folder.segments)
+        return f"documents{segments}"
+
+    async def _subtree_paths(self, path: str) -> list[str]:
+        """Every stored path under a folder, its ``.keep`` included."""
+        prefix = f"{self._folder_store_path(path)}/"
+        head = await self.head()
+        tracked = await self.list_paths(head) if head else []
+        return [t.path for t in tracked if t.path.startswith(prefix)]
+
+    async def _reconcile_folders(self, revision: str | None) -> None:
+        """Match the ``folders`` rows to the tree after a folder revision."""
+        if revision is None:
+            return
+        try:
+            workspace_id = int(self._workspace_id)
+        except (TypeError, ValueError):
+            return
+        session = self._require_session()
+        from app.knowledge_store.index.folders import (
+            live_folder_chains,
+            reconcile_folders,
+        )
+
+        head = await self.head()
+        tracked = await self.list_paths(head) if head else []
+        await reconcile_folders(
+            session,
+            workspace_id=workspace_id,
+            live=live_folder_chains(t.path for t in tracked),
+            author_id=self._author_user_id,
+        )
+        await session.commit()
 
     def _require_session(self) -> AsyncSession:
         if self._session is None:
@@ -628,29 +843,56 @@ def _store_path_of(document: Document, index) -> str | None:
         return None
 
 
-def _relocation_of(document: Document, index) -> tuple[str, str, str] | None:
+def _relocation_of(
+    document: Document, index, taken: set[str]
+) -> tuple[str, str, str] | None:
     """``(from, to, new virtual path)`` for a row that moved, else ``None``.
 
-    A row with no marker has no file yet; the next save writes it where the row
-    now says.
+    Destination follows the row's folder and title through the ``.md`` naming
+    law, the same rule a save uses, so a move never forks the spelling. A row
+    with no marker has no file yet; the next save writes it where the row says.
     """
-    from app.knowledge_store.paths import doc_to_virtual_path, to_store_path
+    from app.knowledge_store.paths import (
+        DOCUMENTS_ROOT,
+        allocate_path,
+        to_store_path,
+    )
 
     previous = (document.document_metadata or {}).get(PATH_MARKER)
-    if not isinstance(previous, str):
+    if not isinstance(previous, str) or not previous.startswith(f"{DOCUMENTS_ROOT}/"):
         return None
-    current = doc_to_virtual_path(
-        doc_id=document.id,
-        title=document.title,
-        folder_id=document.folder_id,
-        index=index,
-    )
+    base = index.folder_paths.get(document.folder_id, DOCUMENTS_ROOT)
+    relative = base[len(DOCUMENTS_ROOT) :].strip("/")
+    folder_parts = relative.split("/") if relative else ()
+    current = allocate_path(
+        name=str(document.title or "untitled"),
+        folder_parts=folder_parts,
+        taken=taken,
+    ).virtual_path
     if current == previous:
         return None
     try:
         return to_store_path(previous), to_store_path(current), current
     except StorePathError:
         return None
+
+
+def _recorded_virtual_path(document: Document, documents_root: str) -> str | None:
+    """The path a doc already lives at: marker first, then the durable column.
+
+    Both are ``/documents/...`` virtual paths. The marker rides on metadata a
+    connector re-sync rewrites, so it can vanish; the ``path`` column is set by
+    the same writers and is not overwritten by a sync, so it is the fallback that
+    keeps a re-sync overwriting in place instead of authoring a fresh duplicate.
+    """
+    prefix = f"{documents_root}/"
+    for value in (
+        (document.document_metadata or {}).get(PATH_MARKER),
+        document.path,
+    ):
+        if isinstance(value, str) and value.startswith(prefix):
+            return value
+    return None
 
 
 def _stale_store_path(previous: str | None, current: str) -> str | None:
@@ -762,6 +1004,72 @@ async def record_moved_documents(
         .as_user(author_user_id)
     )
     return (await store.move_documents(documents)).revision
+
+
+async def folder_virtual_path(session: AsyncSession, folder: Folder) -> str | None:
+    """The ``/documents`` path a folder row occupies, or ``None`` if unplaced.
+
+    The one resolver a route reaches for, so a caller never spells a folder path
+    itself. Capture it before a rename mutates the row: git still holds the old
+    path, and the move needs both ends.
+    """
+    from app.knowledge_store.paths import build_path_index
+
+    index = await build_path_index(
+        session, folder.workspace_id, populate_occupants=False
+    )
+    return index.folder_paths.get(folder.id)
+
+
+async def record_created_folder(
+    session: AsyncSession,
+    folder: Folder,
+    *,
+    author_user_id: str | None = None,
+) -> str | None:
+    """Materialize a new empty folder in git so a rebuild keeps it."""
+    path = await folder_virtual_path(session, folder)
+    if path is None:
+        return None
+    store = (
+        KnowledgeStore.for_workspace(folder.workspace_id)
+        .with_session(session)
+        .as_user(author_user_id)
+    )
+    return (await store.create_folder(path)).revision
+
+
+async def record_moved_folder(
+    session: AsyncSession,
+    workspace_id: int,
+    *,
+    source: str,
+    destination: str,
+    author_user_id: str | None = None,
+) -> str | None:
+    """Move a folder's git subtree from ``source`` to ``destination``, id kept."""
+    store = (
+        KnowledgeStore.for_workspace(workspace_id)
+        .with_session(session)
+        .as_user(author_user_id)
+    )
+    return (await store.move_folder(source, destination)).revision
+
+
+async def record_removed_folder(
+    session: AsyncSession,
+    workspace_id: int,
+    *,
+    path: str,
+    author_user_id: str | None = None,
+) -> str | None:
+    """Drop a deleted folder's ``.keep`` markers so an empty folder stays gone."""
+    store = (
+        KnowledgeStore.for_workspace(workspace_id)
+        .with_session(session)
+        .as_user(author_user_id)
+    )
+    return (await store.remove_folder_markers(path)).revision
 
 
 async def drop_workspace_store(workspace_id: int | str) -> None:

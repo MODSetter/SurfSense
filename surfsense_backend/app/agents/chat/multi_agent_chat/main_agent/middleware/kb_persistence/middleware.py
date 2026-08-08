@@ -41,12 +41,6 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.chat.multi_agent_chat.shared.state.reducers import _CLEAR
-from app.agents.chat.runtime.path_resolver import (
-    DOCUMENTS_ROOT,
-    parse_documents_path,
-    safe_folder_segment,
-    virtual_path_to_doc,
-)
 from app.db import (
     AgentActionLog,
     Chunk,
@@ -58,6 +52,12 @@ from app.db import (
     shielded_async_session,
 )
 from app.indexing_pipeline.document_chunker import chunk_text
+from app.knowledge_store.paths import (
+    DOCUMENTS_ROOT,
+    parse_documents_path,
+    safe_folder_segment,
+    virtual_path_to_doc,
+)
 from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     embed_texts,

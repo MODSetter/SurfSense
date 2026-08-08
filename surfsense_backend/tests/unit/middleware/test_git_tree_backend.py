@@ -116,6 +116,50 @@ class TestGitTreeBackend:
         write = await backend.awrite("/documents/research/a.md", "x")
         assert write.error is None
 
+    async def test_mkdir_materializes_an_empty_folder_as_its_keep(self, knowledge_root):
+        # Git drops empty directories; the .keep marker is what carries an
+        # agent-created empty folder into the turn's diff, same as the facade.
+        backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())
+        res = await backend.amkdir("/documents/empty")
+        assert res.error is None
+        assert _engine(knowledge_root).diff_working_copy("thread-t1") == (
+            {"documents/empty/.keep": b""},
+            [],
+        )
+
+    async def test_rmdir_drops_the_keep_so_the_folder_removal_is_recorded(
+        self, knowledge_root
+    ):
+        engine = _engine(knowledge_root)
+        engine.record(
+            writes={"documents/empty/.keep": b""},
+            removes=[],
+            message="seed empty folder",
+            author=AUTHOR,
+        )
+        backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())
+        res = await backend.armdir("/documents/empty")
+        assert res.error is None
+        assert engine.diff_working_copy("thread-t1") == (
+            {},
+            ["documents/empty/.keep"],
+        )
+
+    async def test_rmdir_refuses_a_folder_that_still_holds_documents(
+        self, knowledge_root
+    ):
+        engine = _engine(knowledge_root)
+        engine.record(
+            writes={"documents/full/note.md": b"hi"},
+            removes=[],
+            message="seed a document",
+            author=AUTHOR,
+        )
+        backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())
+        res = await backend.armdir("/documents/full")
+        assert res.error is not None
+        assert "not empty" in res.error
+
     async def test_move_relocates_within_the_copy(self, knowledge_root):
         backend = GitTreeBackend(WORKSPACE_ID, _RuntimeStub())
         await backend.awrite("/documents/old.md", "content")

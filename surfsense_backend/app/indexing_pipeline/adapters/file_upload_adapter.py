@@ -39,7 +39,14 @@ class UploadDocumentAdapter:
         if not documents:
             raise RuntimeError("prepare_for_indexing returned no documents")
 
-        indexed = await self._service.index(documents[0], connector_doc)
+        indexed = await self._service.index_unless_store_owns(
+            documents[0], connector_doc
+        )
+
+        # A deferral (``None``) recorded the upload to git for the store's indexer
+        # to chunk; the row already exists, so there is nothing to verify here.
+        if indexed is None:
+            return
 
         if not DocumentStatus.is_state(indexed.status, DocumentStatus.READY):
             raise RuntimeError(indexed.status.get("reason", "Indexing failed"))

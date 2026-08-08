@@ -177,6 +177,7 @@ services:
       BACKEND_URL: ${BACKEND_URL:-${SURFSENSE_PUBLIC_URL:-http://localhost:${LISTEN_HTTP_PORT:-3929}}}
       WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL:-http://whatsapp-bridge:9929}
       SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-500}
       # Daytona – uncomment with SANDBOX_PROVIDER=daytona for cloud execution
       # DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
       # DAYTONA_API_URL: ${DAYTONA_API_URL:-https://app.daytona.io/api}
@@ -328,6 +329,7 @@ services:
       ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       SURFSENSE_BACKEND_INTERNAL_URL: http://backend:8000
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-500}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:

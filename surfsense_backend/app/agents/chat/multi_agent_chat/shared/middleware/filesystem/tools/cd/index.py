@@ -13,7 +13,7 @@ from langgraph.types import Command
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.chat.runtime.path_resolver import DOCUMENTS_ROOT
+from app.knowledge_store.paths import DOCUMENTS_ROOT
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.path_resolution import resolve_relative

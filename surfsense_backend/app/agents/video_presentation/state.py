@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -30,9 +30,28 @@ class SlideContent(BaseModel):
 class PresentationSlides(BaseModel):
     """Represents the full set of parsed slides from the LLM."""
 
+    language: str = Field(
+        default="",
+        description=(
+            "BCP-47 tag of the language the slides and narration are written in "
+            '(e.g. "en", "es", "ja", "pt-BR"). Empty when the model did not report one.'
+        ),
+    )
     slides: list[SlideContent] = Field(
         ..., description="Ordered array of presentation slides"
     )
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _coerce_language(cls, value: object) -> str:
+        """Drop a non-string language instead of failing the whole parse.
+
+        Pydantic's smart mode rejects e.g. ``int`` for a ``str`` field, so without
+        this a model that answered ``"language": 42`` would raise and take every
+        slide down with it. Narration has a fallback chain; slide generation does
+        not, so an unusable tag must degrade rather than abort.
+        """
+        return value if isinstance(value, str) else ""
 
 
 class SlideAudioResult(BaseModel):
@@ -68,6 +87,7 @@ class State:
     source_content: str
 
     slides: list[SlideContent] | None = None
+    language: str | None = None
     slide_audio_results: list[SlideAudioResult] | None = None
     slide_theme_assignments: dict[int, tuple[str, str]] | None = None
     slide_scene_codes: list[SlideSceneCode] | None = None

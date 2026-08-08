@@ -22,7 +22,7 @@ from app.agents.chat.runtime.mention_resolver import (
     resolve_mentions,
     substitute_in_text,
 )
-from app.agents.chat.runtime.path_resolver import (
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     PathIndex,
 )

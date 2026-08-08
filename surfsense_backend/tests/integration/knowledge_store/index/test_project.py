@@ -13,12 +13,13 @@ from sqlalchemy import func, select
 
 import app.knowledge_store.locks as write_lock
 from app.config import config as app_config
-from app.db import Chunk, Document, Workspace
+from app.db import Chunk, Document, Folder, Workspace
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import user_identity
 from app.knowledge_store.index.converge import index_changes
 from app.knowledge_store.index.project import project_revision
 from app.knowledge_store.locks import workspace_index_lock
+from app.knowledge_store.paths import PATH_MARKER
 
 pytestmark = pytest.mark.integration
 
@@ -122,9 +123,13 @@ async def test_a_move_keeps_the_document_id(store, db_session, db_workspace):
     )
     await project_revision(db_session, db_workspace.id, revision)
 
-    rows = await titles(db_session, db_workspace.id)
-    assert set(rows) == {"new"}
-    assert rows["new"].id == before
+    # Title is Postgres-owned, so the move keeps it; the path is what follows.
+    result = await db_session.execute(
+        select(Document).where(Document.workspace_id == db_workspace.id)
+    )
+    rows = {(d.document_metadata or {}).get(PATH_MARKER): d for d in result.scalars()}
+    assert set(rows) == {"/documents/new.xml"}
+    assert rows["/documents/new.xml"].id == before
 
 
 async def test_a_removed_file_loses_its_row(store, db_session, db_workspace):
@@ -135,6 +140,28 @@ async def test_a_removed_file_loses_its_row(store, db_session, db_workspace):
     projection = await project_revision(db_session, db_workspace.id, revision)
 
     assert [document.title for document in projection.deleted] == ["note"]
+    assert await titles(db_session, db_workspace.id) == {}
+
+
+async def test_an_empty_keep_folder_gets_its_row_at_commit_time(
+    store, db_session, db_workspace
+):
+    """The sidebar shows an agent's empty folder without waiting for the indexer;
+    the ``.keep`` is a blank the doc loop skips, so the row comes from the tree."""
+    revision = await commit(store, {"documents/Smoking rules/.keep": ""})
+
+    await project_revision(db_session, db_workspace.id, revision)
+
+    names = (
+        (
+            await db_session.execute(
+                select(Folder.name).where(Folder.workspace_id == db_workspace.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert "Smoking rules" in names
     assert await titles(db_session, db_workspace.id) == {}
 
 

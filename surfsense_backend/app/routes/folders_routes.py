@@ -1,5 +1,7 @@
 """API routes for folder CRUD, move, reorder, and document move operations."""
 
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,13 @@ from sqlalchemy.future import select
 
 from app.auth.context import AuthContext
 from app.db import Document, Folder, Permission, get_async_session
+from app.knowledge_store.service import (
+    folder_virtual_path,
+    record_created_folder,
+    record_moved_documents,
+    record_moved_folder,
+    record_removed_folder,
+)
 from app.schemas import (
     BulkDocumentMove,
     DocumentMove,
@@ -28,6 +37,32 @@ from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
+
+
+async def _record_folder_move(
+    session: AsyncSession,
+    folder: Folder,
+    source: str | None,
+    auth: AuthContext,
+) -> None:
+    """Follow a committed folder rename or reparent in git, ids preserved.
+
+    ``source`` is the path read before the row moved; ``folder`` is refreshed to
+    its new home. A no-op on an unflipped workspace, or when either end is
+    unplaced (the row carried no git presence yet).
+    """
+    if source is None:
+        return
+    destination = await folder_virtual_path(session, folder)
+    if destination is None or destination == source:
+        return
+    await record_moved_folder(
+        session,
+        folder.workspace_id,
+        source=source,
+        destination=destination,
+        author_user_id=str(auth.user.id),
+    )
 
 
 @router.post("/folders", response_model=FolderRead)
@@ -73,6 +108,9 @@ async def create_folder(
         session.add(folder)
         await session.commit()
         await session.refresh(folder)
+        # Give the empty folder a git presence so a rebuild keeps it. A no-op on
+        # an unflipped workspace (the verb self-guards).
+        await record_created_folder(session, folder, author_user_id=str(user.id))
         return folder
 
     except HTTPException:
@@ -242,9 +280,11 @@ async def update_folder(
             "You don't have permission to update folders in this workspace",
         )
 
+        source = await folder_virtual_path(session, folder)
         folder.name = request.name
         await session.commit()
         await session.refresh(folder)
+        await _record_folder_move(session, folder, source, auth)
         return folder
 
     except HTTPException:
@@ -301,10 +341,12 @@ async def move_folder(
         position = await generate_folder_position(
             session, folder.workspace_id, request.new_parent_id
         )
+        source = await folder_virtual_path(session, folder)
         folder.parent_id = request.new_parent_id
         folder.position = position
         await session.commit()
         await session.refresh(folder)
+        await _record_folder_move(session, folder, source, auth)
         return folder
 
     except HTTPException:
@@ -383,6 +425,7 @@ async def delete_folder(
             "You don't have permission to delete folders in this workspace",
         )
 
+        folder_path = await folder_virtual_path(session, folder)
         subtree_ids = await get_folder_subtree_ids(session, folder_id)
 
         doc_result = await session.execute(
@@ -400,6 +443,16 @@ async def delete_folder(
                 .values(status={"state": "deleting"})
             )
             await session.commit()
+
+        # Drop the folder's empty markers now; the purge task owns its documents
+        # (and their chunks and blobs). A no-op on an unflipped workspace.
+        if folder_path is not None:
+            await record_removed_folder(
+                session,
+                folder.workspace_id,
+                path=folder_path,
+                author_user_id=str(auth.user.id),
+            )
 
         try:
             from app.tasks.celery_tasks.document_tasks import (
@@ -471,6 +524,12 @@ async def move_document(
                 )
 
         document.folder_id = request.folder_id
+        await session.flush()
+        # Tell git the file moved so a rebuild finds it at the new path, not the
+        # old. A no-op on an unflipped workspace (the verb self-guards).
+        await record_moved_documents(
+            session, [document], author_user_id=str(auth.user.id)
+        )
         await session.commit()
         return {"message": "Document moved successfully"}
 
@@ -527,6 +586,16 @@ async def bulk_move_documents(
 
         for doc in documents:
             doc.folder_id = request.folder_id
+        await session.flush()
+        # One git move per workspace: a bulk move to root can span workspaces, and
+        # each store is bound to one. A no-op on an unflipped workspace.
+        by_workspace: dict[int, list[Document]] = defaultdict(list)
+        for doc in documents:
+            by_workspace[doc.workspace_id].append(doc)
+        for workspace_documents in by_workspace.values():
+            await record_moved_documents(
+                session, workspace_documents, author_user_id=str(auth.user.id)
+            )
         await session.commit()
         return {"message": f"{len(request.document_ids)} documents moved successfully"}
 

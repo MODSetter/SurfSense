@@ -87,6 +87,7 @@ class GitContentEngine(VersionedContentEngine):
                 porcelain.add(repo, paths=staged)
 
             self._stage_removals(repo, removes)
+            self._prune_empty_dirs(removes)
 
             if not self._has_pending_changes(repo):
                 return None
@@ -297,6 +298,25 @@ class GitContentEngine(VersionedContentEngine):
             for file in sorted(copy_path.rglob("*"))
             if file.is_file() and ".git" not in file.relative_to(copy_path).parts
         }
+
+    def _prune_empty_dirs(self, rel_paths: Iterable[str]) -> None:
+        """Delete directories a removal left empty on disk.
+
+        Git tracks blobs, not directories, so removing a folder's last file (its
+        ``.keep`` or last document) commits the removal but leaves the now-empty
+        directory in the repo on disk — a deleted folder that lingers as a hollow
+        shell. Ascends from each removed path, ``rmdir``-ing empty parents;
+        ``rmdir`` refuses non-empty dirs so live siblings are safe, and the walk
+        stops at the repo root, never touching it or ``.git``.
+        """
+        for rel in rel_paths:
+            parent = (self._path / rel).parent
+            while parent != self._path and self._path in parent.parents:
+                try:
+                    parent.rmdir()
+                except OSError:
+                    break
+                parent = parent.parent
 
     def _stage_removals(self, repo: Repo, rel_paths: Iterable[str]) -> None:
         """Stage deletions in one batch, tolerating never-tracked paths."""

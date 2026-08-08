@@ -156,7 +156,7 @@ def _browser_cookie_jar(page: Any) -> dict[str, str]:
     if isinstance(cookies, dict):
         return {str(k): str(v) for k, v in cookies.items()}
     jar: dict[str, str] = {}
-    if isinstance(cookies, (list, tuple)):
+    if isinstance(cookies, list | tuple):
         for item in cookies:
             if isinstance(item, dict) and "name" in item and "value" in item:
                 jar[str(item["name"])] = str(item["value"])

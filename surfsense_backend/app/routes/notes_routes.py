@@ -11,7 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.db import Document, DocumentType, Permission, get_async_session
-from app.knowledge_store.service import record_deleted_documents
+from app.knowledge_store.service import (
+    record_deleted_documents,
+    record_prepared_documents,
+)
 from app.schemas import DocumentRead, PaginatedResponse
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
@@ -75,6 +78,8 @@ async def create_note(
     session.add(document)
     await session.commit()
     await session.refresh(document)
+
+    await record_prepared_documents(session, [document])
 
     return DocumentRead(
         id=document.id,

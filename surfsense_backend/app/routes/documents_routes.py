@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.agents.chat.runtime.path_resolver import virtual_path_to_doc
 from app.auth.context import AuthContext
 from app.db import (
     Chunk,
@@ -21,6 +20,7 @@ from app.db import (
     WorkspaceMembership,
     get_async_session,
 )
+from app.knowledge_store.paths import virtual_path_to_doc
 from app.knowledge_store.service import record_deleted_documents
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.schemas import (
@@ -32,7 +32,6 @@ from app.schemas import (
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
-    DocumentUpdate,
     DocumentWithChunksRead,
     FolderRead,
     PaginatedResponse,
@@ -58,7 +57,32 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB per file
+
+# Per-file upload cap. Operators raise MAX_FILE_SIZE_MB when self-hosting on
+# hardware that can take it; the frontend reads the same value for its
+# pre-upload check.
+def _resolve_max_file_size_mb(default: int = 500) -> int:
+    raw = os.getenv("MAX_FILE_SIZE_MB", "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid MAX_FILE_SIZE_MB=%r, falling back to %d MB", raw, default
+        )
+        return default
+    if value <= 0:
+        logger.warning(
+            "MAX_FILE_SIZE_MB must be positive, got %d, falling back to %d MB",
+            value,
+            default,
+        )
+        return default
+    return value
+
+
+MAX_FILE_SIZE_BYTES = _resolve_max_file_size_mb() * 1024 * 1024
 
 
 @router.post("/documents")
@@ -1319,66 +1343,6 @@ async def read_document(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch document: {e!s}"
-        ) from e
-
-
-@router.put("/documents/{document_id}", response_model=DocumentRead)
-async def update_document(
-    document_id: int,
-    document_update: DocumentUpdate,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    """
-    Update a document.
-    Requires DOCUMENTS_UPDATE permission for the workspace.
-    """
-    try:
-        result = await session.execute(
-            select(Document).filter(Document.id == document_id)
-        )
-        db_document = result.scalars().first()
-
-        if not db_document:
-            raise HTTPException(
-                status_code=404, detail=f"Document with id {document_id} not found"
-            )
-
-        # Check permission for the workspace
-        await check_permission(
-            session,
-            auth,
-            db_document.workspace_id,
-            Permission.DOCUMENTS_UPDATE.value,
-            "You don't have permission to update documents in this workspace",
-        )
-
-        update_data = document_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_document, key, value)
-        await session.commit()
-        await session.refresh(db_document)
-
-        # Convert to DocumentRead for response
-        return DocumentRead(
-            id=db_document.id,
-            title=db_document.title,
-            document_type=db_document.document_type,
-            document_metadata=db_document.document_metadata,
-            content=db_document.content,
-            content_hash=db_document.content_hash,
-            unique_identifier_hash=db_document.unique_identifier_hash,
-            created_at=db_document.created_at,
-            updated_at=db_document.updated_at,
-            workspace_id=db_document.workspace_id,
-            folder_id=db_document.folder_id,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update document: {e!s}"
         ) from e
 
 

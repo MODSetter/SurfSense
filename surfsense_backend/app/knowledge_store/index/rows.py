@@ -21,13 +21,13 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.db import Document, DocumentStatus, DocumentType, Workspace
+from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.paths import (
     PATH_MARKER,
     parse_documents_path,
     virtual_path_to_doc,
 )
-from app.db import Document, DocumentStatus, DocumentType, Workspace
-from app.knowledge_store import KnowledgeStore
 from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     generate_content_hash,
@@ -69,18 +69,19 @@ async def upsert_row(
         created_by_id=author_id,
         folder_parts=folder_parts,
     )
-    previous_path = (
-        (document.document_metadata or {}).get(PATH_MARKER) if document else None
-    )
     metadata = {**(document.document_metadata or {} if document else {})}
     metadata[PATH_MARKER] = virtual_path
 
     created = document is None
     if document is None:
+        # Agent-authored note: title is the filename without the storage .md.
+        # parse_documents_path keeps that .md so it never cuts an upload's own
+        # ".md" name short.
         document = Document(
-            title=title,
+            title=title.removesuffix(".md") or title,
             document_type=DocumentType.NOTE,
             document_metadata=metadata,
+            path=virtual_path,
             content=content,
             content_hash=generate_content_hash(content, workspace_id),
             unique_identifier_hash=generate_unique_identifier_hash(
@@ -95,17 +96,10 @@ async def upsert_row(
         )
         session.add(document)
     else:
-        # Update in place. No collision guard here: a hash hit is this path's
-        # normal update case, not an error.
-        path_hash = generate_unique_identifier_hash(
-            DocumentType.NOTE, virtual_path, workspace_id
-        )
-        if (previous_path and previous_path != virtual_path) or (
-            previous_path == virtual_path
-            and document.unique_identifier_hash != path_hash
-        ):
-            document.title = title
+        # Title is Postgres-owned: re-deriving it from the path would rename the
+        # note to its filename on every reindex.
         document.folder_id = folder_id
+        document.path = virtual_path
         document.source_markdown = content
         document.content_hash = generate_content_hash(content, workspace_id)
         document.document_metadata = metadata

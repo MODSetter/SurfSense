@@ -183,10 +183,7 @@ async def test_ollama_discovery_merges_details_from_both_endpoints(
     assert details["quantization_level"] == "Q4_K_M"
     # The reported maximum survives in the metadata the UI reads, while the
     # seeded budget stays at the fallback the host is likely to have allocated.
-    assert (
-        results[0]["max_input_tokens"]
-        == SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
-    )
+    assert results[0]["max_input_tokens"] == SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
 
 
 def test_anthropic_resolver_strips_trailing_v1_from_api_base() -> None:

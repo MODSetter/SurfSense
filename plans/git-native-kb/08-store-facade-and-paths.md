@@ -175,31 +175,72 @@ or opens a `transaction`.
 
 Ordered so the tree is safe before the fleet touches it.
 
-1. ⏳ **Split `paths.py` into the `paths/` package** above; `__init__` re-exports the
+1. ✅ **Split `paths.py` into the `paths/` package** above; `__init__` re-exports the
    surface; legacy symbols isolated in `paths/legacy.py`.
-2. ⏳ **`documents.path` column + lazy healing.** Nullable column, write-through in
+2. ✅ **`documents.path` column + lazy healing.** Nullable column, write-through in
    `index/project.py` (row upsert) and `service.py` (save/move); `virtual_path_to_doc`
-   reads the column first, marker/hash/title as fallbacks. Alembic: instant
-   `ADD COLUMN`, no backfill.
-3. ⏳ **Teach the seeder the naming law.** `migrate.py` authors paths via
+   reads the column first, marker/hash/title as fallbacks. Alembic (`177_add_documents_path`):
+   instant `ADD COLUMN`, no backfill.
+3. ✅ **Teach the seeder the naming law.** `migrate.py` authors paths via
    `allocate_path` (not `doc_to_virtual_path`), resolves collisions once by
    `created_at` then `id`, records the chosen path on each row, emits `.md`. Parity
    gate (C7) still byte-identity against Postgres markdown.
 4. ⏳ **Partial unique index on `(workspace_id, path)`**, created concurrently after
    the fleet is healed (a runbook step, not a blocking migration).
-5. ⏳ **Guard test** — import boundary (nothing outside the module reaches
-   `Transaction`, engines, or path internals) + the symmetry test in Tests.
-6. ⏳ **Rewire importers** off the old `agents/chat/runtime/path_resolver` shim onto
-   `app.knowledge_store.paths`; frontend display helper and any `.xml` test fixtures
-   updated to the tolerant/`.md` expectation. Re-run knowledge_store, document_upload,
-   agent-middleware suites.
-7. ⏳ **Folder verbs on the facade** — `create_folder`, `remove_folder`, `move_folder`
-   over the `.keep` materialization; `parse_documents_path`/projection skip `.keep` so
-   it is never a `Document`; folder ops route through the facade, not `folder_service`
-   or route handlers directly.
-8. ⏳ **Folder projection + prune** — `index/rows.py`/`project.py` derive `folders`
-   rows from document paths ∪ keep-files and prune rows with neither; the commit path
-   fires `folder_deleted` when a prune happens (the Phase-6 gap).
+5. ✅ **Guard test** — import boundary (nothing under `app/` outside the module
+   reaches `Transaction`, engines, or path internals) + the round-trip symmetry test.
+   The package root no longer re-exports `Transaction`, closing the last leak.
+6. ✅ **Rewired importers** off the duplicate `agents/chat/runtime/path_resolver` module
+   onto `app.knowledge_store.paths` (28 files, module-path swap) and deleted the 425-line
+   duplicate — closing a layering inversion where `index/{converge,rows,project}` imported
+   *up* into the agent runtime. The stripping `parse_documents_path` (the one behavioural
+   difference: it strips `.xml`/`(id)` to form a title) moved to `paths/legacy.py` as the
+   exported one; `store_path`'s raw splitter was unused and dropped. All 1310 knowledge_store,
+   document_upload, middleware and agent tests green.
+7. ✅ **Folder verbs on the facade** — `create_folder`, `remove_folder`, `move_folder`
+   over the `.keep` materialization; `StorePath` reserves `.keep` so it is never a
+   `Document`; folder ops are one revision each on the facade.
+
+7a. ◐ **Route wiring (partial).** The document-move handlers (`PUT /documents/{id}/move`,
+   `PUT /documents/bulk-move`) now call `record_moved_documents` after the `folder_id`
+   change, so a flipped workspace's move reaches git and a rebuild finds the file at the
+   new folder instead of resurrecting the old one; a no-op on an unflipped workspace
+   since the verb self-guards.
+
+7b. ✅ **Live write path authors `.md`.** The three facade writers that choose a name —
+   `save_document`, `ingest_documents`, `move_documents` — now derive through the naming
+   law (`allocate_path`/`normalize_filename`, `(2)` collisions) instead of the legacy
+   `.xml` derivation, so a flipped workspace stops *creating* the debt the seed heals.
+   Occupancy comes from the git tree (the authority on which files exist), and a row's own
+   file is excluded so a lost-marker re-derivation cannot collide the document with itself.
+   Switched together — a partial swap forks a doc between `.md` and `.xml` and breaks the
+   no-op check. `doc_to_virtual_path`/`virtual_path_of` stay for the resolver and unflipped
+   `kb_postgres`; only the flipped facade writes `.md`.
+7c. ✅ **Unblocked folder-route prerequisites.** Both blockers on routing folder CRUD
+   through the facade are cleared: `move_folder` now renames the row in place
+   (`index/folders.py:reparent_folder`) before reconcile, so a rename/reparent keeps the
+   folder id and its children ride along on `parent_id`; and the seed materializes each
+   empty leaf folder as a `.keep` (`migrate.py:_empty_folder_keeps`), so a flipped
+   workspace's whole-workspace reconcile no longer prunes pre-existing empty folders.
+7d. ✅ **Routed folder CRUD/move through the facade.** `folders_routes` create, rename,
+   move and delete now record to git after the row op, through thin module verbs
+   (`record_created_folder`, `record_moved_folder`, `record_removed_folder`,
+   `folder_virtual_path`) — routes never spell a path or bind a workspace. Rename/move
+   capture the old path *before* mutating, then record the move; the in-place reparent
+   no-ops (the row is already at its new name) and git still follows, id kept. Delete
+   drops only the folder's `.keep` markers (`remove_folder_markers`), never its files:
+   the incremental indexer prunes a row the moment its file leaves the tree, so removing
+   documents here would race the purge task that owns their chunks and blobs. All verbs
+   self-guard, so an unflipped workspace is untouched.
+   **Still deferred:** making the projection the *sole* row writer (stripping creation
+   from upload/notes/connectors) — the Phase-5 cut; unflipped prod still writes rows on
+   those paths.
+8. ✅ **Folder projection + prune** — `index/folders.py` derives `folders` rows from
+   document paths ∪ keep-files and prunes rows with neither. Runs on every folder
+   verb (immediate) and on the full rebuild (`index_tree`), closing the Phase-6 gap;
+   the deleted row replicates to the UI via Zero. `ponytail:` a per-document delete
+   still leaves an implied empty folder until the next full rebuild prunes it —
+   matches how document prune already only runs on a full reconcile.
 
 ## Tests
 

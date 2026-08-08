@@ -36,12 +36,12 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.chat.runtime.path_resolver import (
+from app.db import Document, Folder
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     build_path_index,
     virtual_path_of,
 )
-from app.db import Document, Folder
 from app.schemas.new_chat import MentionedDocumentInfo
 
 logger = logging.getLogger(__name__)

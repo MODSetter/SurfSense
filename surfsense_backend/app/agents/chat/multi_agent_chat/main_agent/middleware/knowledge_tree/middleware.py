@@ -37,13 +37,13 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import Filesys
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
-from app.agents.chat.runtime.path_resolver import (
+from app.db import Document, shielded_async_session
+from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     PathIndex,
     build_path_index,
     virtual_path_of,
 )
-from app.db import Document, shielded_async_session
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()

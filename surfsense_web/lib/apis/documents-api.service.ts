@@ -32,10 +32,7 @@ import {
 	searchDocumentsResponse,
 	searchDocumentTitlesRequest,
 	searchDocumentTitlesResponse,
-	type UpdateDocumentRequest,
 	type UploadDocumentRequest,
-	updateDocumentRequest,
-	updateDocumentResponse,
 	uploadDocumentRequest,
 	uploadDocumentResponse,
 } from "@/contracts/types/document.types";
@@ -360,29 +357,6 @@ class DocumentsApiService {
 			`/api/v1/documents/${parsedRequest.data.document_id}/chunks?${params}`,
 			getDocumentChunksResponse
 		);
-	};
-
-	/**
-	 * Update a document
-	 */
-	updateDocument = async (request: UpdateDocumentRequest) => {
-		// Validate the request
-		const parsedRequest = updateDocumentRequest.safeParse(request);
-
-		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
-
-			// Format a user friendly error message
-			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
-
-		const { id, data } = parsedRequest.data;
-		const { workspace_id, ...body } = data;
-
-		return baseApiService.put(`/api/v1/documents/${id}`, updateDocumentResponse, {
-			body: { ...body, workspace_id },
-		});
 	};
 
 	/**

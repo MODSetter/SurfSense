@@ -1365,6 +1365,12 @@ class Document(BaseModel, TimestampMixin):
     # See migration 133.
     content_hash = Column(String, nullable=False, index=True)
     unique_identifier_hash = Column(String, nullable=True, index=True, unique=True)
+
+    # Virtual path the content lives at (``/documents/...``): the authored-once
+    # identity resolution keys on. Nullable, healed on write; mirrors
+    # ``document_metadata['virtual_path']`` until the cut. Index in migration 177.
+    path = Column(String, nullable=True)
+
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
     # BlockNote live editing state (NULL when never edited)

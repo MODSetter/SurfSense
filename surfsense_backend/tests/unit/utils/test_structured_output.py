@@ -1,9 +1,9 @@
 """Parsing a model's reply into a structured shape.
 
 Agent LLMs wrap JSON in prose and markdown fences. ``invoke_json`` exists so
-every generation node tolerates that the same way. The LLM is an external
-boundary, so it is faked with a canned reply; the behavior under test is the
-parsing, not the model.
+every node that asks a model for structured data tolerates that the same way.
+The LLM is an external boundary, so it is faked with a canned reply; the
+behavior under test is the parsing, not the model.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from app.podcasts.generation.structured import StructuredOutputError, invoke_json
+from app.utils.structured_output import StructuredOutputError, invoke_json
 
 pytestmark = pytest.mark.unit
 

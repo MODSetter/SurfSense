@@ -104,6 +104,7 @@ async def create_workspace(
         # qna_custom_instructions defaults to None/empty (handled by DB)
 
         db_workspace = Workspace(**workspace_data, user_id=user.id)
+        db_workspace.knowledge_store_enabled = config.KNOWLEDGE_STORE_ENABLED
         session.add(db_workspace)
         await session.flush()  # Get the workspace ID
 
