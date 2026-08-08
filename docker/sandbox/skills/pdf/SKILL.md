@@ -26,22 +26,25 @@ placing it in HTML.
 
 ## Required quality gate
 
-Do not call `save_artifact` until every step passes:
+`save_artifact` rejects a PDF that changed after its last inspection, so this
+loop is not optional:
 
 1. Generate the PDF.
 2. Run `/opt/skills/pdf/scripts/render_pages.sh out.pdf /tmp/pdf-pages`.
-3. Call `inspect_sandbox_images` with instructions to check clipping, overflow,
-   blank pages, alignment, legibility, visual hierarchy, and factual
-   consistency. Up to four pages, pass every path in one call — page breaks in a
-   PDF depend on everything above them, so seeing the pages together is what
-   catches "this should be one page, not two". Beyond four, inspect one page per
-   call so each report names one fixable defect, then make a final call over a
-   sample — first page, last page, and any page you changed, at most 20 paths —
-   to catch drift in fonts, spacing, and page count.
+3. Inspect **one page per call** with `inspect_sandbox_images`, checking
+   clipping, overflow, blank pages, alignment, legibility, visual hierarchy, and
+   factual consistency. One page at a time keeps each report focused on one
+   fixable defect.
 4. If a report identifies any defect, edit the source, regenerate, render, and
    inspect again.
-5. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf` for structural checks.
-6. Only then call:
+5. If the document has more than one page, make one final call with a small set
+   of pages together — the first page, the last page, and any page you changed —
+   to catch what single-page inspection cannot see: drift in fonts, spacing, and
+   page count, and "this should be one page, not two". Keep this set small; pages
+   are only compared against each other within a single call. A one-page document
+   has nothing to compare against, so step 3 was already the whole check.
+6. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf` for structural checks.
+7. Only then call:
    `save_artifact(path="out.pdf", title="...", markdown_representation="...")`.
 
 The Markdown representation must faithfully contain the document's substantive

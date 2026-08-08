@@ -19,7 +19,7 @@ Out: any deletion (phase 4). Public-chat artifact rendering lands here if not al
 
 ### 2.1 Skills
 
-All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 lines, its own `{skills_root}/<name>/scripts/`, and the phase 2 §2.6 contract — each skill states whether it verifies visually or programmatically, and never saves before verifying). Self-contained means self-contained: a skill carries its own copies rather than reaching into a sibling's `scripts/`.
+All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 lines, its own `{skills_root}/<name>/scripts/`, and the phase 2 §2.6 contract — each skill states whether it verifies visually or programmatically). None of them restates "never save before verifying": phase 2 moved that invariant into `save_artifact`, so a skill body covers only how to render evidence for its format and what to look for in it. Self-contained means self-contained: a skill carries its own copies rather than reaching into a sibling's `scripts/`.
 
 **`docx`** — create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). Body encodes the known footguns (from Anthropic's publicly documented toolchain, authored fresh):
 
@@ -29,12 +29,12 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 - `PageBreak` inside a `Paragraph`; separate `Paragraph`s, never `\n`
 - TOC requires built-in `HeadingLevel.*` or explicit `outlineLevel`
 - Right-aligned-on-same-line via right tab stop (**not** `PositionalTab` — renders as a small gap in LibreOffice, which is what our preview and verification see)
-- Verify: `soffice --headless --convert-to pdf`, then `pdftoppm`, then `inspect_sandbox_images` at the length-dependent granularity of phase 2 §2.6 — batched while short, per page plus a final pass once long. A docx reflows like a PDF, so it is generated whole, never page by page
+- Verify: `soffice --headless --convert-to pdf`, then `pdftoppm`, then one `inspect_sandbox_images` call per page plus a bounded final consistency pass, exactly as phase 2 §2.6 defines it. A docx reflows like a PDF, so it is generated whole, never page by page
 - Save: `save_artifact(path=out.docx, preview_path=out.pdf, …)`
 
-**`pptx`** — create with `python-pptx`. Body: slide dimensions, layout/placeholder usage, text overflow as the #1 failure to check visually, image sizing. Verify: soffice to PDF, per-slide rasterization, then **one `inspect_sandbox_images` call per slide** followed by a final consistency pass over a bounded sample of slides (font and colour drift are invisible one slide at a time, and a deck past 20 slides cannot be inspected in one call). Slides are independent — no reflow — so the skill builds and verifies incrementally rather than rendering all of them and checking at the end; the deck is also the one format where the per-slide cost is unavoidable. Save with `preview_path`.
+**`pptx`** — create with `python-pptx`. Body: slide dimensions, layout/placeholder usage, text overflow as the #1 failure to check visually, image sizing. Verify: soffice to PDF, per-slide rasterization, then **one `inspect_sandbox_images` call per slide** followed by a final consistency pass over a bounded sample of slides — font and colour drift are invisible one slide at a time, and the sample stays small because slides are compared against each other only within one vision call (phase 2 §2.6). Slides are independent — no reflow — so the skill builds and verifies incrementally rather than rendering all of them and checking at the end. Save with `preview_path`.
 
-**`xlsx`** — create with `openpyxl`. Body: real formulas (not precomputed values) where the user asked for calculations, number formats, header styling (fills/bold — it renders in the grid viewer), column widths, freeze panes, multi-sheet structure. Verify **programmatically, not visually**: recalculate (LibreOffice headless recalc), read back expected cells, assert. Page and slide granularity does not apply — there is nothing to rasterize and no vision call to make, so per-sheet iteration is a choice about assertion coverage, not about looking at anything. **The recalculated file is the file saved** — openpyxl writes formulas with no cached values and `XlsxViewer` renders cached values, so saving the raw openpyxl output renders blank formula cells; recalc is a rendering prerequisite, not just QA. No preview file — `save_artifact(path=out.xlsx, …)` with primary only.
+**`xlsx`** — create with `openpyxl`. Body: real formulas (not precomputed values) where the user asked for calculations, number formats, header styling (fills/bold — it renders in the grid viewer), column widths, freeze panes, multi-sheet structure. Verify **programmatically, not visually**: recalculate (LibreOffice headless recalc), read back expected cells, assert. Per-page granularity does not apply — there is nothing to rasterize and no vision call to make, so per-sheet iteration is a choice about assertion coverage, not about looking at anything. The §2.6 gate still applies: the assertion script's clean exit is this skill's inspection. **The recalculated file is the file saved** — openpyxl writes formulas with no cached values and `XlsxViewer` renders cached values, so saving the raw openpyxl output renders blank formula cells; recalc is a rendering prerequisite, not just QA. No preview file — `save_artifact(path=out.xlsx, …)` with primary only.
 
 ### 2.2 Frontend — rendering
 
@@ -45,7 +45,7 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 
 ### 2.3 Prompt & routing
 
-- Subagent prompt: format-selection guidance covers all four formats; legacy `generate_report`/`generate_resume` marked "never use — kept only for backward compatibility until removal".
+- Subagent prompt: genre → format guidance and the Level 1 roster cover all four formats (slides → pptx, tabular → xlsx, and so on). Forgetting a roster entry fails the phase 2 §2.6 check rather than shipping a skill nothing advertises. Legacy `generate_report`/`generate_resume` marked "never use — kept only for backward compatibility until removal".
 - Streaming/tool-UI: nothing new (generic `save_artifact` handler covers all formats by design).
 
 ### 2.4 Checks

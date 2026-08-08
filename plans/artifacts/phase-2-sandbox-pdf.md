@@ -103,14 +103,19 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 
 - `docker/sandbox/Dockerfile`: Python 3.12 (`openpyxl`, `python-pptx`, `reportlab`, `weasyprint`, `pypdf`, `pandas`, `matplotlib`), Node LTS + global `docx`, LibreOffice, Poppler (`pdftoppm`), `pandoc`, fonts (DejaVu, Liberation, Noto + CJK), skills at `/opt/skills/`.
 - No network egress at runtime (OpenSandbox egress config default-deny). Everything preinstalled; skills must never instruct `pip/npm install`.
+- Skills are copied in from `docker/sandbox/skills/`, which is also what the §2.6 roster check reads — one source for the image and the prompt's Level 1 listing.
 - CI job builds and pushes the image; compose references a pinned tag.
 - `docker-compose.yml`: add `opensandbox-server` service + volume; document memory limit knob for small hosts.
 
 ### 2.3 Backend — agent tools
 
 - `execute(code_or_command, language="python"|"bash")` → session exec; result = stdout/stderr/exit, truncated to a context-safe length with full output kept in the sandbox at a temp path the model can grep.
-- `read_sandbox_file(path)` → UTF-8 text, size-capped by `ARTIFACT_MAX_FILE_BYTES`. Rendered JPEG pages use `inspect_sandbox_images(paths, instructions)`, which performs one internal vision call and returns text findings.
+- `read_sandbox_file(path)` → UTF-8 text, size-capped by `ARTIFACT_MAX_FILE_BYTES`. Rendered pages use `inspect_sandbox_images(paths, instructions)`, which performs the vision call internally and returns text findings.
+- `inspect_sandbox_images` stays **JPEG only** (`.jpg`/`.jpeg` — the same format under two extensions, so both are accepted and neither is preferred) and **chunks internally** above `_MAX_VISION_IMAGES` instead of raising, so obeying the cap is never the caller's arithmetic. Chunking has one semantic consequence: paths are compared against each other only within a chunk (§2.6). Because that consequence is silent where the old `ValueError` was loud, a chunked report says so in its first line, so the model can react rather than trust a comparison that did not happen.
+- Per-page verification turns the vision-model lookup into a per-call cost: the tool currently opens a DB session and resolves `get_vision_llm()` on every invocation, which was one lookup per document and becomes one per page. Resolve it once per tool instance.
 - Extend `save_artifact` tool with the binary signature: `(path, title, markdown_representation, preview_path?, document_id?)` — reads file(s) from the session, MIME-sniffs (extension first, `python-magic` as check), calls the phase-1 helper with `role=primary` (+ `preview`); `document_id` present → in-place revision (master spec §4.3). Same §3.1 payload.
+- **`save_artifact` enforces the verification gate**: reject a primary file whose mtime is newer than the most recent verification in this session, with an error naming the missing step. The check is temporal, not provenance-based — the tool cannot know that `page-1.jpg` came from `out.pdf`, but rendering necessarily happens after generating, so "generated, then verified" and "verified, then regenerated" are distinguishable by ordering alone. A verification is an `inspect_sandbox_images` call or a clean-exit structural/assertion script, so the programmatic shape (§2.6) passes the same gate. A cache hit inside the vision tool still counts: the model asked and received findings, so record verifications independently of how they were answered. <!-- ponytail: mtime ordering, not content provenance; ceiling is a false rejection when regeneration is byte-identical, whose cost is one extra inspection call and whose error message says exactly that -->
+- This is what makes the §2.6 loop an invariant instead of a sentence each skill repeats and each model may skip. It is also the reason phase 3's skills are shorter than `pdf`'s.
 - Register all in `tools/index.py` / catalog; emission handler from phase 1 covers the payload unchanged.
 
 ### 2.4 Skill — `pdf`
@@ -119,7 +124,7 @@ Out: office skills/viewers (phase 3), any deletion (phase 4). Legacy tools still
 
 - Frontmatter description covering triggers: PDF, resume, CV, report-as-PDF, letter, one-pager, printable.
 - Body: reportlab vs weasyprint guidance (weasyprint for HTML/CSS-styled documents, reportlab for programmatic layout), fonts available in the image, page-size defaults.
-- **Mandatory verification loop** — the visual shape of the §2.6 contract: `pdftoppm -jpeg -r 100 out.pdf page`, then `inspect_sandbox_images` (all pages in one call while the document is short; one call per page plus a final whole-document pass once it is long), then fix the source and repeat, then the structural check, and only then `save_artifact`. The rasterizer and the structural check ship as this skill's own `scripts/`.
+- **Mandatory verification loop** — the visual shape of the §2.6 contract: `pdftoppm -jpeg -r 100 out.pdf page`, then one `inspect_sandbox_images` call per page, then fix the source and repeat, then one bounded consistency pass, then the structural check, and only then `save_artifact`. The rasterizer and the structural check ship as this skill's own `scripts/`.
 - Subagent system prompt gains format-selection guidance (master spec §6.2) and demotes `generate_report`/`generate_resume` to "only when the user explicitly declines a file".
 
 ### 2.5 Frontend
@@ -138,23 +143,38 @@ only then `save_artifact`; never save before verifying (master spec §6.3). Two
 shapes are permitted and a skill states which it uses: *visual* (rasterize to
 JPEG, review with `inspect_sandbox_images`) or *programmatic* (read values back
 and assert). `pdf` in §2.4 is the reference implementation of the visual shape.
+Two shapes is the whole taxonomy — "compare the output against the source data"
+is the programmatic shape with a better assertion, not a third kind.
+
+**The contract is enforced, not requested.** "Never save before verifying" as
+prose means one copy of the rule per skill and zero places that check it, which
+is the wrong medium for the one invariant every format shares. `save_artifact`
+holds it instead (§2.3), so a new skill inherits the guarantee and its prose
+shrinks to the genuinely format-specific part: how to render evidence for this
+format and what to look for in it.
 
 **Granularity** (master spec §6.3, stated here because skills inherit it):
 *generation* is incremental only where units are independent — slides and
 worksheets yes, a flowing PDF no, since pagination is emergent and nothing is
-"page 2" until the whole document renders. *Verification* batches while the
-document is short (up to roughly four pages, where the findings that matter are
-cross-page reflow ones that per-page inspection cannot see) and goes one page or
-slide per call once it is long or is a deck, followed by one consistency pass
-over a bounded sample — first, last, and whatever changed. The sample must be
-bounded because `_MAX_VISION_IMAGES` is a hard error rather than a truncation:
-"inspect everything" is unavailable to a 40-page document, which is precisely
-why the long case iterates instead of batching.
+"page 2" until the whole document renders. *Verification* is uniformly one page
+or slide per call, with no length threshold: a threshold is a rule the model has
+to apply before it can start, and applying it wrongly fails silently. Each call
+holds the vision model on one page, so a finding names one fixable defect. The
+loop then ends with one consistency pass over a bounded sample — first, last,
+and whatever changed — for the cross-page drift a single-page call cannot see.
+
+That sample stays bounded for a reason that survives the tool's internal
+chunking, and the reason must be written down or a later reader will delete the
+bound as obsolete: **paths are compared against each other only within one
+vision call.** Handing 40 paths to a chunking tool does not error, it silently
+becomes three unrelated comparisons, so a comparison pass that exceeds one chunk
+stops comparing while still appearing to run.
 
 **The shared surface is the tool, not the scripts.** `inspect_sandbox_images`
-accepts JPEG only, at most `_MAX_VISION_IMAGES` paths, and 5 MB per image,
-rejecting anything else with an actionable error — so a skill cannot silently
-render something incompatible. Skills therefore stay self-contained: each ships
+accepts JPEG only at 5 MB per image, chunks above `_MAX_VISION_IMAGES` rather
+than erroring, and rejects anything else with an actionable error — so a skill
+cannot silently render something incompatible, and cannot get the cap arithmetic
+wrong because it never does the arithmetic. Skills therefore stay self-contained: each ships
 its own `{skills_root}/<name>/scripts/` as `pdf` does, with no cross-skill paths
 and no shared directory competing with real skills under `/opt/skills/`.
 Duplicating a 15-line rasterizer is cheaper than an indirection every skill
@@ -162,6 +182,31 @@ depends on, and it leaves room for genuine per-format differences (per-slide
 naming, a conversion step first). <!-- ponytail: copies over a shared script;
 ceiling is a fix landing in N skills, and the tool's input check is what stops a
 stale copy from breaking the loop -->
+
+**The roster stays prose, but a check owns it.** The deliverables system prompt
+names `pdf` in prose and hardcodes `cat /opt/skills/pdf/SKILL.md`, so three more
+formats mean prose edits in the file least likely to be reviewed next to the
+skill, and nothing ties the list to what is installed. The fix is not to move the
+roster into the image and read it per turn: Level 1 is by definition always in the
+prompt (master spec §6.2), and fetching it from the sandbox would mean booting a
+sandbox before the model knows whether it needs one. Instead the prompt keeps the
+roster and a test asserts it matches the frontmatter under
+`docker/sandbox/skills/*/` — same source that goes into the image, same repo, no
+runtime cost. Adding a format that forgets the prompt then fails CI instead of
+shipping a skill nothing advertises. <!-- ponytail: a test, not generated prompt
+text; ceiling is the roster still being written by hand, and the test is what
+makes that safe -->
+
+The prompt's `cat /opt/skills/<name>/SKILL.md` line generalizes by parameter
+rather than by enumeration, so Level 2 needs no edit per format either.
+
+**What not to build.** A single `verify_artifact(path)` tool that renders and
+inspects internally looks like the extensible move and is the opposite of one. It
+hides the steps behind one opaque call, which is precisely the display this phase
+still owes (below), and it can only do half the loop — fixing requires the model
+to edit source, so the tool would return findings and hand control straight back,
+having bought nothing and lost the visibility. The loop stays a sequence of
+visible calls.
 
 **Step rendering — pending.** The loop is skill text driving `execute` +
 `inspect_sandbox_images`, so nothing below changes loop logic. What is missing is
@@ -186,7 +231,9 @@ instead of opaque tool calls.
 ### 2.7 Checks
 
 - Provider contract test (runs against OpenSandbox in CI, Daytona smoke in cloud env): create → exec → read → terminate; TTL reap; concurrency cap.
-- Integration: "create a one-page PDF listing 3 facts about X" end-to-end → verified PDF renders in panel, ETag-cached on second open, downloads with correct filename. The assertion that the §2.6 loop actually ran (render and inspect steps present in the trace) belongs to this harness, which later format skills parameterize rather than rebuild.
+- Integration: "create a one-page PDF listing 3 facts about X" end-to-end → verified PDF renders in panel, ETag-cached on second open, downloads with correct filename. The assertion that the §2.6 loop actually ran (render and inspect steps present in the trace) belongs to this harness, parameterized as `(skill, prompt, expected MIME, expected evidence steps)` so a later format adds a row rather than a file — if adding `pptx` means writing a new test, the §2.6 boundary leaked and the test says where.
+- Gate: `save_artifact` refuses a file regenerated after its last verification, and accepts it once re-verified. This is the one test that fails if the §2.6 contract silently degrades back into advisory prose.
+- Roster: the prompt's Level 1 listing matches the frontmatter under `docker/sandbox/skills/*/` (§2.6).
 - Regression: legacy `generate_report` path still functional (it isn't removed until phase 4).
 
 ---
