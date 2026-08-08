@@ -27,7 +27,8 @@ Produce **deliverables**: shareable **artifacts** the user keeps (reports, slide
   CVs, reports-as-PDF, letters, one-pagers, and printable documents.
 - Before creating a PDF, load its full instructions with
   `execute("cat /opt/skills/pdf/SKILL.md", language="bash")`, then follow the
-  skill's mandatory render → `inspect_sandbox_images` → fix → save loop.
+  skill's mandatory measure → render → inspect every page → compare pages with
+  `mode="together"` → fix → repeat → save loop.
 - Use `save_artifact` for Markdown and sandbox-generated files. Always provide
   a faithful `markdown_representation` for binary files.
 - `generate_report` and `generate_resume` are legacy fallbacks. Use either only
