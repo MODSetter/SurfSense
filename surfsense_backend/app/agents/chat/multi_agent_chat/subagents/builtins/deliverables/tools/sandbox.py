@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import shlex
+import time
 import uuid
 from pathlib import PurePosixPath
 from typing import Any, Literal
@@ -18,6 +19,7 @@ from app.db import shielded_async_session
 from app.sandbox import SandboxSession, get_registry
 from app.services.billable_calls import QuotaInsufficientError
 from app.services.llm_service import get_vision_llm
+from app.utils.perf import get_perf_logger
 
 from .thread_resolver import resolve_root_thread_id
 from .verification import record_verification
@@ -147,6 +149,7 @@ def create_sandbox_tools(
         Use description for a short user-facing step title.
         """
         del description
+        tool_started = time.perf_counter()
         if not paths:
             raise ValueError("Provide at least one JPEG path")
         for path in paths:
@@ -175,6 +178,7 @@ def create_sandbox_tools(
                     ),
                 }
             ]
+            read_started = time.perf_counter()
             for path in image_paths:
                 data = await session.read_file(path)
                 if len(data) > _MAX_VISION_IMAGE_BYTES:
@@ -194,11 +198,25 @@ def create_sandbox_tools(
                         },
                     }
                 )
+            read_seconds = time.perf_counter() - read_started
+            queued_at = time.perf_counter()
             async with semaphore:
+                model_started = time.perf_counter()
                 response = await asyncio.wait_for(
                     llm.ainvoke([HumanMessage(content=content)]),
                     timeout=_VISION_TIMEOUT_SECONDS,
                 )
+                model_seconds = time.perf_counter() - model_started
+            # Splits the per-call cost into fetching pages out of the sandbox,
+            # waiting on the concurrency gate, and the model itself, so a slow
+            # verification round can be attributed rather than guessed at.
+            get_perf_logger().info(
+                "[inspect_sandbox_images] call images=%d read=%.1fs wait=%.1fs model=%.1fs",
+                len(image_paths),
+                read_seconds,
+                model_started - queued_at,
+                model_seconds,
+            )
             text = response.content if hasattr(response, "content") else str(response)
             if isinstance(text, list):
                 text = "\n".join(
@@ -224,6 +242,14 @@ def create_sandbox_tools(
         results = await asyncio.gather(
             *(invoke(group) for group in groups),
             return_exceptions=True,
+        )
+        get_perf_logger().info(
+            "[inspect_sandbox_images] mode=%s pages=%d calls=%d failed=%d in %.1fs",
+            mode,
+            len(paths),
+            len(groups),
+            sum(1 for result in results if isinstance(result, Exception)),
+            time.perf_counter() - tool_started,
         )
         quota_failure = next(
             (result for result in results if isinstance(result, QuotaInsufficientError)),
