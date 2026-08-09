@@ -117,11 +117,17 @@ services:
       SURFSENSE_MAX_BODY_SIZE: ${SURFSENSE_MAX_BODY_SIZE:-5GB}
     depends_on:
       frontend:
-        condition: service_started
+        condition: service_healthy
       backend:
         condition: service_healthy
       zero-cache:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   backend:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
@@ -222,6 +228,12 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout=10"]
+      interval: 30s
+      timeout: 25s
+      retries: 10
+      start_period: 200s
 
   celery_beat:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}${SURFSENSE_VARIANT:+-${SURFSENSE_VARIANT}}
@@ -242,7 +254,7 @@ services:
       migrations:
         condition: service_completed_successfully
       celery_worker:
-        condition: service_started
+        condition: service_healthy
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
@@ -303,6 +315,12 @@ services:
       zero-cache:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "var http=require('http');http.get('http://localhost:3000/api/health',function(res){process.exit(res.statusCode===200?0:1)}).on('error',function(){process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
 volumes:
   postgres_data:

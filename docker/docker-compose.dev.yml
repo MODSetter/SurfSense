@@ -195,6 +195,12 @@ services:
         condition: service_completed_successfully
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout=10"]
+      interval: 30s
+      timeout: 25s
+      retries: 10
+      start_period: 200s
 
   celery_beat:
     build: *backend-build
@@ -215,7 +221,7 @@ services:
       migrations:
         condition: service_completed_successfully
       celery_worker:
-        condition: service_started
+        condition: service_healthy
 
   zero-cache:
     image: rocicorp/zero:1.6.0
@@ -273,6 +279,12 @@ services:
         condition: service_healthy
       zero-cache:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "var http=require('http');http.get('http://localhost:3000/api/health',function(res){process.exit(res.statusCode===200?0:1)}).on('error',function(){process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
 volumes:
   postgres_data:
