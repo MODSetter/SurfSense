@@ -12,8 +12,9 @@ the agent has likely entered an infinite loop. We surface this to the
 user as an interrupt with ``permission="doom_loop"`` so the UI can
 render an "Are you stuck? Continue / cancel?" affordance.
 
-This ships **OFF by default** until the frontend explicitly handles
-``context.permission == "doom_loop"`` interrupts.
+Ships ON by default (``enable_doom_loop``): the frontend renders a dedicated
+continue/stop card for ``context.permission == "doom_loop"`` and the resume
+router routes the reply back by ``Interrupt.id``.
 
 Wire format: uses SurfSense's existing ``interrupt()`` payload shape
 (see ``app/agents/shared/tools/hitl.py``):

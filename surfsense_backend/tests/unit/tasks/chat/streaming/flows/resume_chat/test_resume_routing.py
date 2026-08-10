@@ -1,12 +1,7 @@
-"""Resume routing must wake parent-side interrupts (doom-loop / main-agent asks).
+"""``build_resume_routing`` must route parent-side interrupts (doom-loop / asks).
 
-Regression guard for the bug where ``build_resume_routing`` dropped every
-interrupt that lacked a ``tool_call_id`` stamp. Those stamps are only added
-when an interrupt bubbles up through a ``task`` subagent call
-(``propagation.wrap_with_tool_call_id``); interrupts raised directly in the
-parent graph — ``DoomLoopMiddleware`` pauses and main-agent
-``PermissionMiddleware`` asks — carry no stamp, so the user's decision could
-never reach the paused site and the turn hung forever.
+Guards the bug where unstamped parent-graph interrupts were dropped on resume,
+hanging the turn.
 """
 
 from __future__ import annotations
@@ -43,12 +38,7 @@ def _doom_loop_interrupt(interrupt_id: str):
 
 
 async def test_parent_side_doom_loop_interrupt_is_routable():
-    """The user's decision must be delivered to the doom-loop's ``Interrupt.id``.
-
-    The doom-loop site consumes the resume value directly as the return of
-    ``interrupt(...)`` (it reads ``decision["type"]``), so the map value must be
-    the raw decision dict — not a ``{"decisions": [...]}`` bundle.
-    """
+    """Decision routes to the doom-loop's ``Interrupt.id`` as a raw dict, not a bundle."""
     decision = {"type": "reject"}
     agent = _FakeAgent(
         SimpleNamespace(interrupts=(_doom_loop_interrupt("i-doom"),))

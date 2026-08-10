@@ -62,12 +62,9 @@ async def build_resume_routing(
     )
 
     if parent_pending:
-        # Parent-side interrupts (doom-loop / main-agent permission asks) are
-        # not stamped with a ``tool_call_id`` and use no subagent bridge; their
-        # decision is delivered straight to the ``interrupt()`` site keyed by
-        # ``Interrupt.id``. ponytail: they fire before any subagent runs, so a
-        # mix with subagent-side pauses shouldn't occur — fail loud if it does
-        # rather than silently mis-route.
+        # Parent-side interrupts route by Interrupt.id with no subagent bridge.
+        # A mix with subagent pauses can't occur (they fire pre-delegation);
+        # fail loud rather than mis-route.
         if pending:
             raise ValueError(
                 "Cannot resume: both parent-side and subagent-side interrupts "
