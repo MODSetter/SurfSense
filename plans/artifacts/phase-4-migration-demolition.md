@@ -29,7 +29,7 @@ Execute as a sequence of small PRs, each leaving the build green:
 
 ### PR 1 — agent layer
 
-- Delete `subagents/builtins/deliverables/tools/{report.py,resume.py}`; deregister from `tools/index.py`, `shared/tools/catalog.py`, prune/tool-name lists, public-chat tool lists.
+- Delete `subagents/builtins/deliverables/tools/{report.py,resume.py}`; clear whatever registration references survive in `tools/index.py`, `shared/tools/catalog.py`, prune/tool-name lists, public-chat tool lists — the subagent stopped registering them in phase 3, so this is sweeping the remaining names rather than taking the tools away from a model still able to call them.
 - Delete `main_agent/skills/builtin/report-writing/`.
 - Delete streaming handlers `generate_{report,resume}/` + dead `save_document/` registry name.
 - Delete `tests/unit/agents/new_chat/tools/test_resume_page_limits.py`.
