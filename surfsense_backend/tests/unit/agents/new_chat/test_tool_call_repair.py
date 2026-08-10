@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.agents.chat.multi_agent_chat.main_agent.middleware.tool_call_repair.builder import (
+    build_repair_mw,
+)
 from app.agents.chat.multi_agent_chat.main_agent.middleware.tool_call_repair.middleware import (
     ToolCallNameRepairMiddleware,
 )
 from app.agents.chat.multi_agent_chat.main_agent.tools.invalid_tool import (
     INVALID_TOOL_NAME,
 )
+from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 
 pytestmark = pytest.mark.unit
 
@@ -104,6 +110,37 @@ class TestRepair:
         mw = ToolCallNameRepairMiddleware(registered_tool_names={"echo"})
         out = mw.after_model({"messages": []}, _FakeRuntime())
         assert out is None
+
+    def test_unbound_deepagent_builtin_routes_to_invalid(self) -> None:
+        """A router never binds FS builtins (ls/read_file/…); they must self-correct.
+
+        Previously the builder marked all deepagents builtins as "known", so a
+        ``read_file`` call passed repair and then dispatch-failed. It must route
+        to ``invalid`` instead.
+        """
+        tools = [
+            SimpleNamespace(name="search_knowledge_base"),
+            SimpleNamespace(name=INVALID_TOOL_NAME),
+        ]
+        mw = build_repair_mw(flags=AgentFeatureFlags(), tools=tools)
+        msg = AIMessage(
+            content="",
+            tool_calls=[{"name": "read_file", "args": {"path": "/x"}, "id": "1"}],
+        )
+        out = mw.after_model(_make_state(msg), _FakeRuntime())
+        assert out is not None
+        assert out["messages"][0].tool_calls[0]["name"] == INVALID_TOOL_NAME
+
+    @pytest.mark.parametrize("name", ["task", "write_todos"])
+    def test_middleware_bound_tools_stay_known(self, name: str) -> None:
+        """``task``/``write_todos`` are bound via middleware, not ``tools`` — keep them known."""
+        mw = build_repair_mw(
+            flags=AgentFeatureFlags(),
+            tools=[SimpleNamespace(name=INVALID_TOOL_NAME)],
+        )
+        msg = AIMessage(content="", tool_calls=[{"name": name, "args": {}, "id": "1"}])
+        out = mw.after_model(_make_state(msg), _FakeRuntime())
+        assert out is None  # recognized, not rewritten to invalid
 
     def test_runtime_context_extends_registered(self) -> None:
         from types import SimpleNamespace
