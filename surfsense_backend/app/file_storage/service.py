@@ -97,7 +97,7 @@ def open_document_file_stream(
     record: DocumentFile, *, backend: StorageBackend | None = None
 ) -> AsyncIterator[bytes]:
     """Open a chunked byte stream for a stored file."""
-    backend = backend or get_storage_backend()
+    backend = backend or get_storage_backend(record.storage_backend)
     return backend.open_stream(record.storage_key)
 
 
@@ -116,15 +116,15 @@ async def purge_document_blobs(
     if not document_ids:
         return
 
-    backend = backend or get_storage_backend()
     result = await session.execute(
-        select(DocumentFile.storage_key).where(
+        select(DocumentFile.storage_backend, DocumentFile.storage_key).where(
             DocumentFile.document_id.in_(document_ids)
         )
     )
-    for storage_key in result.scalars().all():
+    for backend_name, storage_key in result.all():
         try:
-            await backend.delete(storage_key)
+            selected_backend = backend or get_storage_backend(backend_name)
+            await selected_backend.delete(storage_key)
         except Exception as delete_error:
             logger.warning(
                 "Failed to delete stored blob %s: %s", storage_key, delete_error
