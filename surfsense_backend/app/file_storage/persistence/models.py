@@ -7,8 +7,10 @@ from sqlalchemy import (
     Column,
     Enum as SQLAlchemyEnum,
     ForeignKey,
+    Index,
     Integer,
     String,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -22,6 +24,15 @@ class DocumentFile(BaseModel, TimestampMixin):
     """One stored file for a document (its original upload, or a derived copy)."""
 
     __tablename__ = "document_files"
+    __table_args__ = (
+        Index(
+            "uq_document_files_generated_role",
+            "document_id",
+            "role",
+            unique=True,
+            postgresql_where=text("kind::text = 'GENERATED'"),
+        ),
+    )
 
     document_id = Column(
         Integer,

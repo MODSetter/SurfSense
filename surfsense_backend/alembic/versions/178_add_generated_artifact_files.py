@@ -20,7 +20,19 @@ def upgrade() -> None:
         "ALTER TABLE document_files "
         "ADD COLUMN IF NOT EXISTS role VARCHAR(16) NOT NULL DEFAULT 'primary'"
     )
+    op.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_document_files_generated_role "
+        "ON document_files (document_id, role) "
+        "WHERE kind::text = 'GENERATED'"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_documents_generated_thread_roster "
+        "ON documents (workspace_id, ((document_metadata ->> 'thread_id'))) "
+        "WHERE (document_metadata ->> 'generated') = 'true'"
+    )
 
 
 def downgrade() -> None:
+    op.execute("DROP INDEX IF EXISTS ix_documents_generated_thread_roster")
+    op.execute("DROP INDEX IF EXISTS uq_document_files_generated_role")
     op.execute("ALTER TABLE document_files DROP COLUMN IF EXISTS role")
