@@ -44,7 +44,9 @@ changes how long it takes, never what you do:
    page, not two" are invisible when pages are seen one at a time.
 6. Any defect from step 4 or 5: edit the source and repeat from step 2.
 7. Only then call:
-   `save_artifact(path="out.pdf", title="...", markdown_representation="...")`.
+   `save_artifact(path="out.pdf", source_path="source.html", title="...",
+   markdown_representation="...")`, using the actual `.html` or `.py` source
+   path that produced the PDF.
 
 The Markdown representation must faithfully contain the document's substantive
 text so the artifact remains accessible and searchable without parsing the PDF.

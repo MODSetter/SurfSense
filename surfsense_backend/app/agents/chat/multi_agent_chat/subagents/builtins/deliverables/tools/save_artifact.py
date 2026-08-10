@@ -29,6 +29,10 @@ def _mime_types_compatible(extension_mime: str, sniffed_mime: str) -> bool:
         return True
     if extension_mime.startswith("text/") and sniffed_mime.startswith("text/"):
         return True
+    if extension_mime == "application/javascript" and sniffed_mime.startswith(
+        "text/"
+    ):
+        return True
     return (
         extension_mime.startswith(
             "application/vnd.openxmlformats-officedocument."
@@ -78,28 +82,31 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
         runtime: ToolRuntime,
         markdown_representation: str | None = None,
         path: str | None = None,
+        source_path: str | None = None,
         preview_path: str | None = None,
         document_id: int | None = None,
-        content: str | None = None,
         description: str | None = None,
     ):
         """Save a durable deliverable, or revise an existing generated artifact.
 
         For Markdown-only work, omit path and pass markdown_representation.
-        For generated files, pass their sandbox path and an accessible Markdown
-        representation for search. preview_path is an optional rendered preview.
-        Pass document_id only when revising that artifact. ``content`` remains a
-        backwards-compatible alias for Markdown-only callers.
+        For generated files, pass both the deliverable path and the source_path
+        that produced it, plus an accessible Markdown representation for search.
+        preview_path is an optional rendered preview. To revise an artifact, use
+        the document_id from the artifact roster, load its stored source first,
+        edit and re-render it, then save with that same document_id. When the user
+        is not clearly referring to an existing artifact, create a new one.
         """
         del description
         root_thread_id = resolve_root_thread_id(runtime, thread_id)
         try:
-            markdown = markdown_representation or content
-            if not markdown or not markdown.strip():
+            if not markdown_representation or not markdown_representation.strip():
                 raise ValueError("markdown_representation must not be empty")
             files: list[ArtifactFileInput] = []
             extra_metadata = None
             if path is not None:
+                if source_path is None:
+                    raise ValueError("source_path is required for generated files")
                 session = await (await get_registry()).get_session(
                     root_thread_id, workspace_id
                 )
@@ -117,12 +124,15 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
                     }
                 }
                 files.append(await _read_artifact_file(session, path, "primary"))
+                files.append(
+                    await _read_artifact_file(session, source_path, "source")
+                )
                 if preview_path is not None:
                     files.append(
                         await _read_artifact_file(session, preview_path, "preview")
                     )
-            elif preview_path is not None:
-                raise ValueError("preview_path requires a primary path")
+            elif source_path is not None or preview_path is not None:
+                raise ValueError("source_path and preview_path require a primary path")
 
             async with shielded_async_session() as session:
                 saved = await save_artifact(
@@ -131,7 +141,7 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
                     thread_id=root_thread_id,
                     tool_call_id=runtime.tool_call_id,
                     title=title,
-                    markdown_representation=markdown,
+                    markdown_representation=markdown_representation,
                     files=files,
                     document_id=document_id,
                     extra_metadata=extra_metadata,
