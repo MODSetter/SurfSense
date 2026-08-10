@@ -7,6 +7,7 @@ from app.artifacts.service import (
     _path_for_revision,
     _validate_files,
 )
+from app.file_storage.persistence.models import DocumentFile
 
 
 def test_validate_files_accepts_one_source_and_rejects_duplicate_roles():
@@ -17,16 +18,23 @@ def test_validate_files_accepts_one_source_and_rejects_duplicate_roles():
         _validate_files([source, source])
 
 
-async def test_revision_path_is_never_guessed_from_title():
+def test_generated_file_roles_have_a_database_uniqueness_guard():
+    index = next(
+        index
+        for index in DocumentFile.__table__.indexes
+        if index.name == "uq_document_files_generated_role"
+    )
+
+    assert index.unique is True
+    assert [column.name for column in index.columns] == ["document_id", "role"]
+
+
+def test_revision_requires_the_authoritative_document_path():
     document = SimpleNamespace(
         title="Guessable title",
-        document_metadata={},
+        path=None,
         unique_identifier_hash="missing",
     )
 
     with pytest.raises(ValueError, match="has not been recorded"):
-        await _path_for_revision(
-            document,
-            workspace_id=1,
-            working_copy_root=None,
-        )
+        _path_for_revision(document)

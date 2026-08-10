@@ -24,7 +24,7 @@ const SaveArtifactArgsSchema = z.object({
 
 const ArtifactFileSchema = z.object({
 	file_id: z.number(),
-	role: z.enum(["primary", "preview", "source"]),
+    role: z.enum(["primary", "preview"]),
 	filename: z.string(),
 	mime_type: z.string(),
 	size_bytes: z.number().nonnegative(),

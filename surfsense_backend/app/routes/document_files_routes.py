@@ -57,6 +57,7 @@ async def stream_document_file(
             DocumentFile.id == file_id,
             DocumentFile.document_id == document_id,
             DocumentFile.workspace_id == workspace_id,
+            DocumentFile.role != "source",
         )
     )
     if record is None:

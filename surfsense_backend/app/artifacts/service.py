@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import Document, DocumentStatus, DocumentType
-from app.file_storage.backends.base import StorageBackend
 from app.file_storage.factory import get_storage_backend
 from app.file_storage.persistence.enums import DocumentFileKind
 from app.file_storage.persistence.models import DocumentFile
@@ -22,7 +21,7 @@ from app.file_storage.service import store_document_file
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.paths import PATH_MARKER, StorePath, allocate_path
+from app.knowledge_store.paths import StorePath, allocate_path
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.utils.document_converters import (
     generate_content_hash,
@@ -60,9 +59,7 @@ class ArtifactSaved:
 def _validate_files(files: list[ArtifactFileInput]) -> None:
     roles = [file.role for file in files]
     if any(role not in {"primary", "preview", "source"} for role in roles):
-        raise ValueError(
-            "artifact file role must be 'primary', 'preview', or 'source'"
-        )
+        raise ValueError("artifact file role must be 'primary', 'preview', or 'source'")
     if len(roles) != len(set(roles)):
         raise ValueError("an artifact may contain at most one file per role")
 
@@ -88,14 +85,13 @@ async def _allocate_artifact_path(
     title: str,
     working_copy_root: Path | None,
 ) -> StorePath:
-    metadata_rows = await session.scalars(
-        select(Document.document_metadata).where(Document.workspace_id == workspace_id)
+    paths = await session.scalars(
+        select(Document.path).where(
+            Document.workspace_id == workspace_id,
+            Document.path.is_not(None),
+        )
     )
-    taken = {
-        metadata[PATH_MARKER]
-        for metadata in metadata_rows
-        if metadata and metadata.get(PATH_MARKER)
-    }
+    taken = set(paths)
     if working_copy_root is not None:
         taken.update(await _working_copy_paths(working_copy_root))
 
@@ -111,26 +107,9 @@ async def _allocate_artifact_path(
             return path
 
 
-async def _path_for_revision(
-    document: Document,
-    *,
-    workspace_id: int,
-    working_copy_root: Path | None,
-) -> StorePath:
-    marker = (document.document_metadata or {}).get(PATH_MARKER)
-    if marker:
-        return StorePath.from_virtual(marker)
-
-    if working_copy_root is not None:
-        for virtual_path in await _working_copy_paths(working_copy_root):
-            if (
-                generate_unique_identifier_hash(
-                    DocumentType.NOTE, virtual_path, workspace_id
-                )
-                == document.unique_identifier_hash
-            ):
-                return StorePath.from_virtual(virtual_path)
-
+def _path_for_revision(document: Document) -> StorePath:
+    if document.path:
+        return StorePath.from_virtual(document.path)
     raise ValueError("artifact path has not been recorded yet")
 
 
@@ -158,12 +137,10 @@ async def _restore_working_copy(target: Path, previous: bytes | None) -> None:
     await asyncio.to_thread(restore)
 
 
-async def _delete_blobs_best_effort(
-    backend: StorageBackend, records: list[DocumentFile]
-) -> None:
+async def _delete_blobs_best_effort(records: list[DocumentFile]) -> None:
     for record in records:
         try:
-            await backend.delete(record.storage_key)
+            await get_storage_backend(record.storage_backend).delete(record.storage_key)
         except Exception:
             logger.warning(
                 "Failed to delete replaced artifact blob %s",
@@ -241,8 +218,8 @@ async def save_artifact(
                 "generated": True,
                 "thread_id": thread_id,
                 "tool_call_id": tool_call_id,
-                **({PATH_MARKER: path.virtual_path} if not git_native else {}),
             },
+            path=path.virtual_path,
             content=markdown_representation,
             content_hash=generate_content_hash(markdown_representation, workspace_id),
             unique_identifier_hash=generate_unique_identifier_hash(
@@ -266,11 +243,7 @@ async def save_artifact(
         )
         if document is None or not (document.document_metadata or {}).get("generated"):
             raise ValueError("artifact does not exist in this workspace")
-        path = await _path_for_revision(
-            document,
-            workspace_id=workspace_id,
-            working_copy_root=working_copy_root,
-        )
+        path = _path_for_revision(document)
         old_files = list(document.files)
         document.title = title
         document.content = markdown_representation
@@ -317,10 +290,10 @@ async def save_artifact(
         await session.rollback()
         if working_copy_state is not None:
             await _restore_working_copy(*working_copy_state)
-        await _delete_blobs_best_effort(backend, new_records)
+        await _delete_blobs_best_effort(new_records)
         raise
 
-    await _delete_blobs_best_effort(backend, old_files)
+    await _delete_blobs_best_effort(old_files)
 
     if not git_native:
         await _index_legacy(
@@ -343,5 +316,6 @@ async def save_artifact(
                 size_bytes=record.size_bytes,
             )
             for record in new_records
+            if record.role != "source"
         ],
     )

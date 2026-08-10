@@ -39,8 +39,8 @@ async def test_artifact_is_adopted_once_then_deleted_with_its_blob(
 ):
     del knowledge_root, patched_embed_texts
     backend = MemoryBackend()
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
-    monkeypatch.setattr(file_storage_service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(file_storage_service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=True)
     )
@@ -77,6 +77,7 @@ async def test_artifact_is_adopted_once_then_deleted_with_its_blob(
     )
     uncommitted = await db_session.get(Document, saved.document_id)
     assert PATH_MARKER not in uncommitted.document_metadata
+    assert uncommitted.path == "/documents/Adoption proof.md"
 
     store = KnowledgeStore.for_workspace(db_workspace.id).with_session(db_session)
     outcome = await store.commit_turn(

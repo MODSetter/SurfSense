@@ -1,10 +1,14 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import HTTPException
+from sqlalchemy import select
 
 from app.artifacts import service
 from app.artifacts.service import ArtifactFileInput, save_artifact
-from app.routes import editor_routes
+from app.file_storage.persistence.models import DocumentFile
+from app.routes import document_files_routes, editor_routes
 
 from .test_service import MemoryBackend
 
@@ -14,12 +18,13 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 def editor_artifacts(monkeypatch):
     backend = MemoryBackend()
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
     monkeypatch.setattr(service, "_index_legacy", AsyncMock())
     monkeypatch.setattr(editor_routes, "check_permission", AsyncMock())
+    monkeypatch.setattr(document_files_routes, "check_permission", AsyncMock())
     return backend
 
 
@@ -94,3 +99,20 @@ async def test_seeded_pdf_returns_file_contract(
         ],
         "updated_at": response["updated_at"],
     }
+
+    source = await db_session.scalar(
+        select(DocumentFile).where(
+            DocumentFile.document_id == saved.document_id,
+            DocumentFile.role == "source",
+        )
+    )
+    with pytest.raises(HTTPException) as error:
+        await document_files_routes.stream_document_file(
+            db_workspace.id,
+            saved.document_id,
+            source.id,
+            SimpleNamespace(headers={}),
+            db_session,
+            object(),
+        )
+    assert error.value.status_code == 404

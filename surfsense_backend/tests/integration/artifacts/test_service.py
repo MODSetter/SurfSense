@@ -8,7 +8,6 @@ from app.artifacts.service import ArtifactFileInput, save_artifact
 from app.db import Document, DocumentRevision, DocumentVersion
 from app.file_storage.backends.base import StorageBackend
 from app.file_storage.persistence.models import DocumentFile
-from app.knowledge_store.paths import PATH_MARKER
 
 pytestmark = pytest.mark.integration
 
@@ -44,7 +43,7 @@ class MemoryBackend(StorageBackend):
 @pytest.fixture
 def artifact_setup(monkeypatch):
     backend = MemoryBackend()
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
@@ -73,8 +72,8 @@ async def test_markdown_artifact_payload_and_fences(
         "generated": True,
         "thread_id": 10,
         "tool_call_id": "call-1",
-        PATH_MARKER: "/documents/Project brief.md",
     }
+    assert document.path == "/documents/Project brief.md"
     assert (
         await db_session.scalar(
             select(func.count(DocumentVersion.id)).where(
@@ -117,15 +116,11 @@ async def test_binary_create_and_revision_replace_files(
                 role="source",
             ),
         ],
-        extra_metadata={
-            "verification": {"verified": True, "reason": None}
-        },
+        extra_metadata={"verification": {"verified": True, "reason": None}},
     )
     old_rows = (
         await db_session.scalars(
-            select(DocumentFile).where(
-                DocumentFile.document_id == created.document_id
-            )
+            select(DocumentFile).where(DocumentFile.document_id == created.document_id)
         )
     ).all()
     old_primary = next(row for row in old_rows if row.role == "primary")
@@ -161,6 +156,7 @@ async def test_binary_create_and_revision_replace_files(
     )
 
     assert revised.document_id == created.document_id
+    assert [file.role for file in revised.files] == ["primary"]
     assert revised.files[0].file_id != old_primary.id
     assert old_keys.isdisjoint(backend.data)
     rows = list(
@@ -189,7 +185,7 @@ async def test_storage_failure_rolls_back_document_and_blob(
     db_session, db_workspace, monkeypatch
 ):
     backend = MemoryBackend(fail_on_put=2)
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
