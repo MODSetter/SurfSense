@@ -85,7 +85,9 @@ async def get_editor_content(
 
     generated = bool((document.document_metadata or {}).get("generated"))
     generated_files = [
-        file for file in document.files if file.kind == DocumentFileKind.GENERATED
+        file
+        for file in document.files
+        if file.kind == DocumentFileKind.GENERATED and file.role != "source"
     ]
     primary = next(
         (file for file in generated_files if file.role == "primary"),

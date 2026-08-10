@@ -59,8 +59,10 @@ class ArtifactSaved:
 
 def _validate_files(files: list[ArtifactFileInput]) -> None:
     roles = [file.role for file in files]
-    if any(role not in {"primary", "preview"} for role in roles):
-        raise ValueError("artifact file role must be 'primary' or 'preview'")
+    if any(role not in {"primary", "preview", "source"} for role in roles):
+        raise ValueError(
+            "artifact file role must be 'primary', 'preview', or 'source'"
+        )
     if len(roles) != len(set(roles)):
         raise ValueError("an artifact may contain at most one file per role")
 
@@ -129,14 +131,6 @@ async def _path_for_revision(
             ):
                 return StorePath.from_virtual(virtual_path)
 
-    candidate = allocate_path(name=document.title, folder_parts=(), taken=set())
-    if (
-        generate_unique_identifier_hash(
-            DocumentType.NOTE, candidate.virtual_path, workspace_id
-        )
-        == document.unique_identifier_hash
-    ):
-        return candidate
     raise ValueError("artifact path has not been recorded yet")
 
 
@@ -247,6 +241,7 @@ async def save_artifact(
                 "generated": True,
                 "thread_id": thread_id,
                 "tool_call_id": tool_call_id,
+                **({PATH_MARKER: path.virtual_path} if not git_native else {}),
             },
             content=markdown_representation,
             content_hash=generate_content_hash(markdown_representation, workspace_id),
