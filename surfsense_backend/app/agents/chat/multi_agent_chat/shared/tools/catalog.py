@@ -49,14 +49,6 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Generate a video presentation with slides and narration from provided content",
     ),
     ToolMetadata(
-        name="generate_report",
-        description="Generate a structured report from provided content and export it",
-    ),
-    ToolMetadata(
-        name="generate_resume",
-        description="Generate a professional resume as a Typst document",
-    ),
-    ToolMetadata(
         name="save_artifact",
         description="Save a Markdown or sandbox-generated file as a durable artifact",
     ),
