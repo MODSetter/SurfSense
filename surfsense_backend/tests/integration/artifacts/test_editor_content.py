@@ -60,7 +60,13 @@ async def test_seeded_pdf_returns_file_contract(
                 data=b"%PDF",
                 filename="document.pdf",
                 mime_type="application/pdf",
-            )
+            ),
+            ArtifactFileInput(
+                data=b"<html></html>",
+                filename="source.html",
+                mime_type="text/html",
+                role="source",
+            ),
         ],
     )
 

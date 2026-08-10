@@ -60,7 +60,13 @@ async def test_artifact_is_adopted_once_then_deleted_with_its_blob(
                 b"%PDF-seeded",
                 "proof.pdf",
                 "application/pdf",
-            )
+            ),
+            ArtifactFileInput(
+                b"print('seeded')",
+                "proof.py",
+                "text/x-python",
+                "source",
+            ),
         ],
     )
     assert (
@@ -69,6 +75,8 @@ async def test_artifact_is_adopted_once_then_deleted_with_its_blob(
         )
         == 1
     )
+    uncommitted = await db_session.get(Document, saved.document_id)
+    assert PATH_MARKER not in uncommitted.document_metadata
 
     store = KnowledgeStore.for_workspace(db_workspace.id).with_session(db_session)
     outcome = await store.commit_turn(
@@ -118,7 +126,13 @@ async def test_artifact_is_adopted_once_then_deleted_with_its_blob(
                 b"%PDF-revised",
                 "renamed-proof.pdf",
                 "application/pdf",
-            )
+            ),
+            ArtifactFileInput(
+                b"print('revised')",
+                "renamed-proof.py",
+                "text/x-python",
+                "source",
+            ),
         ],
     )
     await store.commit_turn(
