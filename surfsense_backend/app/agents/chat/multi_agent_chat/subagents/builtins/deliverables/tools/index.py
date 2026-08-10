@@ -12,6 +12,7 @@ from langchain_core.tools import BaseTool
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 
 from .generate_image import create_generate_image_tool
+from .load_artifact_source import create_load_artifact_source_tool
 from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .resume import create_generate_resume_tool
@@ -32,14 +33,18 @@ def load_tools(
     d = {**(dependencies or {}), **kwargs}
     # Offering these with no sandbox behind them would have the model follow the
     # prompt's skill workflow up to the first tool call, then fail.
-    sandbox_tools = (
-        create_sandbox_tools(
-            workspace_id=d["workspace_id"],
-            thread_id=d["thread_id"],
-        )
-        if is_sandbox_enabled()
-        else []
-    )
+    sandbox_tools = []
+    if is_sandbox_enabled():
+        sandbox_tools = [
+            *create_sandbox_tools(
+                workspace_id=d["workspace_id"],
+                thread_id=d["thread_id"],
+            ),
+            create_load_artifact_source_tool(
+                workspace_id=d["workspace_id"],
+                thread_id=d["thread_id"],
+            ),
+        ]
     return [
         *sandbox_tools,
         create_save_artifact_tool(

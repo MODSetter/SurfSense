@@ -61,6 +61,10 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Save a Markdown or sandbox-generated file as a durable artifact",
     ),
     ToolMetadata(
+        name="load_artifact_source",
+        description="Load a generated artifact's source into its sandbox for revision",
+    ),
+    ToolMetadata(
         name="execute",
         description="Run Python or Bash in an isolated artifact sandbox",
     ),
