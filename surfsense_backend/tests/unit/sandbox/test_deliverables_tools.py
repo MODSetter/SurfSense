@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
+    load_artifact_source as load_source_tool,
     sandbox as sandbox_tools,
     save_artifact as save_tool,
 )
@@ -56,6 +57,7 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
     session = FakeSession(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
+            "/workspace/source.py": b"print('pdf')",
             "/workspace/preview.pdf": b"%PDF-1.4\n%%EOF",
             LEDGER_PATH: b'{"reason":null}',
         }
@@ -92,13 +94,19 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
         title="Facts",
         markdown_representation="# Three facts",
         path="/workspace/out.pdf",
+        source_path="/workspace/source.py",
         preview_path="/workspace/preview.pdf",
         runtime=_runtime(),
     )
 
-    assert [file.role for file in captured["files"]] == ["primary", "preview"]
+    assert [file.role for file in captured["files"]] == [
+        "primary",
+        "source",
+        "preview",
+    ]
     assert [file.mime_type for file in captured["files"]] == [
         "application/pdf",
+        "text/x-python",
         "application/pdf",
     ]
     assert captured["extra_metadata"] == {
@@ -110,6 +118,7 @@ async def test_binary_save_rejects_stale_verification(monkeypatch):
     session = FakeSession(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
+            "/workspace/source.py": b"print('pdf')",
             LEDGER_PATH: b'{"reason":null}',
         }
     )
@@ -126,6 +135,7 @@ async def test_binary_save_rejects_stale_verification(monkeypatch):
         title="Facts",
         markdown_representation="# Facts",
         path="/workspace/out.pdf",
+        source_path="/workspace/source.py",
         runtime=_runtime(),
     )
 
@@ -137,6 +147,7 @@ async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
     session = FakeSession(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
+            "/workspace/source.py": b"print('pdf')",
             LEDGER_PATH: ('{"reason":"' + reason + '"}').encode(),
         }
     )
@@ -170,6 +181,7 @@ async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
         title="Facts",
         markdown_representation="# Facts",
         path="/workspace/out.pdf",
+        source_path="/workspace/source.py",
         runtime=_runtime(),
     )
 
@@ -187,6 +199,69 @@ async def test_binary_save_enforces_file_cap(monkeypatch):
             "/workspace/out.pdf",
             "primary",
         )
+
+
+def test_javascript_source_accepts_plain_text_sniff():
+    assert save_tool._mime_types_compatible(
+        "application/javascript", "text/plain"
+    )
+    assert save_tool._mime_types_compatible("text/javascript", "text/plain")
+
+
+async def test_generated_file_requires_source_and_has_no_content_alias():
+    tool = save_tool.create_save_artifact_tool(3, 4)
+
+    assert "content" not in tool.args
+    result = await tool.coroutine(
+        title="Facts",
+        markdown_representation="# Facts",
+        path="/workspace/out.pdf",
+        runtime=_runtime(),
+    )
+
+    assert "source_path is required" in str(result)
+
+
+async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
+    document = SimpleNamespace(document_metadata={"generated": True})
+    source = SimpleNamespace(
+        size_bytes=16,
+        storage_key="source-key",
+        original_filename="out.py",
+    )
+
+    class DbSession:
+        calls = 0
+
+        async def scalar(self, _statement):
+            self.calls += 1
+            return document if self.calls == 1 else source
+
+    @asynccontextmanager
+    async def db_session():
+        yield DbSession()
+
+    class Backend:
+        async def open_stream(self, _key):
+            yield b"print('stored')"
+
+    sandbox = FakeSession({})
+
+    async def get_registry():
+        return FakeRegistry(sandbox)
+
+    monkeypatch.setattr(load_source_tool, "shielded_async_session", db_session)
+    monkeypatch.setattr(load_source_tool, "get_storage_backend", Backend)
+    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
+    monkeypatch.setattr(load_source_tool, "resolve_root_thread_id", lambda *_: 4)
+
+    tool = load_source_tool.create_load_artifact_source_tool(
+        workspace_id=3, thread_id=4
+    )
+    path = await tool.coroutine(document_id=9, runtime=_runtime())
+
+    assert path == "/workspace/artifact-9-out.py"
+    assert sandbox.writes[path] == b"print('stored')"
 
 
 async def test_inspect_images_reviews_each_page_and_resolves_llm_once(monkeypatch):

@@ -7,9 +7,11 @@ from langchain.tools import ToolRuntime
 from sqlalchemy import func, select
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
+    load_artifact_source as load_source_tool,
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
+from app.artifacts.service import ArtifactFileInput, save_artifact
 from app.db import Chunk, Document
 
 from .test_service import MemoryBackend
@@ -49,7 +51,7 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
 
     command = await tool.coroutine(
         title="Legacy artifact",
-        content="# Legacy artifact\n\nimmediate-search-hit-term",
+        markdown_representation="# Legacy artifact\n\nimmediate-search-hit-term",
         runtime=_runtime(),
     )
     payload = json.loads(command.update["messages"][0].content)
@@ -72,3 +74,61 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
         )
         > 0
     )
+
+
+async def test_load_artifact_source_restores_the_current_source(
+    db_session, db_workspace, monkeypatch
+):
+    backend = MemoryBackend()
+    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(
+        service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
+    )
+    monkeypatch.setattr(service, "_index_legacy", AsyncMock())
+
+    saved = await save_artifact(
+        db_session,
+        workspace_id=db_workspace.id,
+        thread_id=77,
+        tool_call_id="create",
+        title="Restorable",
+        markdown_representation="# Restorable",
+        files=[
+            ArtifactFileInput(b"%PDF", "out.pdf", "application/pdf"),
+            ArtifactFileInput(
+                b"print('current')", "out.py", "text/x-python", "source"
+            ),
+        ],
+    )
+
+    @asynccontextmanager
+    async def session_context():
+        yield db_session
+
+    class Sandbox:
+        def __init__(self):
+            self.writes = {}
+
+        async def write_file(self, path, data):
+            self.writes[path] = data
+
+    sandbox = Sandbox()
+
+    class Registry:
+        async def get_session(self, _thread_id, _workspace_id):
+            return sandbox
+
+    async def get_registry():
+        return Registry()
+
+    monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
+    monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
+
+    tool = load_source_tool.create_load_artifact_source_tool(
+        workspace_id=db_workspace.id, thread_id=1
+    )
+    path = await tool.coroutine(document_id=saved.document_id, runtime=_runtime())
+
+    assert path == f"/workspace/artifact-{saved.document_id}-out.py"
+    assert sandbox.writes[path] == b"print('current')"
