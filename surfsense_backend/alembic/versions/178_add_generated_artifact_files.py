@@ -15,7 +15,11 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE document_file_kind ADD VALUE IF NOT EXISTS 'GENERATED'")
+    # PostgreSQL cannot use a newly added enum value until its transaction
+    # commits. The following partial index compares the enum directly, so make
+    # the enum addition visible before creating the index.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE document_file_kind ADD VALUE IF NOT EXISTS 'GENERATED'")
     op.execute(
         "ALTER TABLE document_files "
         "ADD COLUMN IF NOT EXISTS role VARCHAR(16) NOT NULL DEFAULT 'primary'"
@@ -23,7 +27,7 @@ def upgrade() -> None:
     op.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_document_files_generated_role "
         "ON document_files (document_id, role) "
-        "WHERE kind::text = 'GENERATED'"
+        "WHERE kind = 'GENERATED'"
     )
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_documents_generated_thread_roster "

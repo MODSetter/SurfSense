@@ -30,7 +30,7 @@ class DocumentFile(BaseModel, TimestampMixin):
             "document_id",
             "role",
             unique=True,
-            postgresql_where=text("kind::text = 'GENERATED'"),
+            postgresql_where=text("kind = 'GENERATED'"),
         ),
     )
 
