@@ -9,7 +9,7 @@
 
 ## 1. Scope
 
-In: three skills, preview-PDF persistence (`role=preview`), `PdfPreviewViewer`, `XlsxViewer` (ExcelJS + ssf native grid), unknown-format card polish, prompt demotion of legacy tools to "never use".
+In: three skills, preview-PDF persistence (`role=preview`), `PdfPreviewViewer`, `XlsxViewer` (ExcelJS + ssf native grid), and unknown-format card polish.
 
 Out: any deletion (phase 4). Public-chat artifact rendering lands here if not already done (master spec §12 open question 1).
 
@@ -45,7 +45,7 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 
 ### 2.3 Prompt & routing
 
-- Subagent prompt: genre → format guidance and the Level 1 roster cover all four formats (slides → pptx, tabular → xlsx, and so on). Forgetting a roster entry fails the phase 2 §2.6 check rather than shipping a skill nothing advertises. Legacy `generate_report`/`generate_resume` are **unregistered from the subagent here**, rather than marked "never use". Nothing is compatible with them — the model was their only caller — and once all four formats ship, a tool the prompt forbids is prompt tokens plus a path a model can still take. Their files, routes, and table stay for phase 4, whose strict order (legacy card → release notes → delete) exists to render historical tool-call parts and give users an export window; neither depends on the tools still being registered.
+- Subagent prompt: genre → format guidance and the Level 1 roster cover all four formats (slides → pptx, tabular → xlsx, and so on). Forgetting a roster entry fails the phase 2 §2.6 check rather than shipping a skill nothing advertises. Phase 2 already unregistered `generate_report`/`generate_resume`; their files, routes, and table stay for phase 4 so historical tool-call parts keep rendering through the export window.
 - Streaming/tool-UI: nothing new (generic `save_artifact` handler covers all formats by design).
 
 ### 2.4 Checks
