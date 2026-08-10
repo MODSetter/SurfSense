@@ -23,7 +23,7 @@ async def test_roster_resolves_each_chat_from_live_config(
     db_session, db_workspace, monkeypatch
 ):
     backend = MemoryBackend()
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
@@ -75,3 +75,77 @@ async def test_roster_resolves_each_chat_from_live_config(
     second_roster = second_result["messages"][0].content
     assert f"document_id={second.document_id}" in second_roster
     assert f"document_id={first.document_id}" not in second_roster
+
+
+async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
+    db_session, db_workspace, monkeypatch
+):
+    backend = MemoryBackend()
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(
+        service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
+    )
+    monkeypatch.setattr(service, "_index_legacy", AsyncMock())
+
+    artifacts = []
+    for index in range(11):
+        artifacts.append(
+            await save_artifact(
+                db_session,
+                workspace_id=db_workspace.id,
+                thread_id=303,
+                tool_call_id=f"call-{index}",
+                title=f"Artifact {index}",
+                markdown_representation=f"# Artifact {index}",
+                files=[],
+            )
+        )
+
+    @asynccontextmanager
+    async def session_context():
+        yield db_session
+
+    monkeypatch.setattr(artifact_roster, "shielded_async_session", session_context)
+    monkeypatch.setattr(
+        artifact_roster,
+        "get_config",
+        lambda: {"configurable": {"thread_id": "303::task:call-roster"}},
+    )
+    middleware = ArtifactRosterMiddleware(workspace_id=db_workspace.id)
+
+    ordinary = await middleware.abefore_agent(
+        {"messages": [HumanMessage(content="Revise it")]},
+        SimpleNamespace(),
+    )
+    assert (
+        f"document_id={artifacts[0].document_id}" not in ordinary["messages"][0].content
+    )
+
+    mentioned = await middleware.abefore_agent(
+        {
+            "messages": [HumanMessage(content="Revise it")],
+            "mentioned_document_ids": [artifacts[0].document_id],
+        },
+        SimpleNamespace(),
+    )
+    assert f"document_id={artifacts[0].document_id}" in mentioned["messages"][0].content
+
+
+async def test_roster_query_failure_aborts_the_invocation(monkeypatch):
+    @asynccontextmanager
+    async def failed_session():
+        raise RuntimeError("database unavailable")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(artifact_roster, "shielded_async_session", failed_session)
+    monkeypatch.setattr(
+        artifact_roster,
+        "get_config",
+        lambda: {"configurable": {"thread_id": "404::task:call-roster"}},
+    )
+
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        await ArtifactRosterMiddleware(workspace_id=1).abefore_agent(
+            {"messages": [HumanMessage(content="Create it")]},
+            SimpleNamespace(),
+        )
