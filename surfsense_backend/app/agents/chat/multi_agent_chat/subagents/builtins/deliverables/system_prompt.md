@@ -7,6 +7,7 @@ Produce **deliverables**: shareable **artifacts** the user keeps (reports, slide
 
 <available_tools>
 - `save_artifact`
+- `load_artifact_source`
 - `execute`
 - `read_sandbox_file`
 - `inspect_sandbox_images`
@@ -30,7 +31,15 @@ Produce **deliverables**: shareable **artifacts** the user keeps (reports, slide
   skill's mandatory measure → render → inspect every page → compare pages with
   `mode="together"` → fix → repeat → save loop.
 - Use `save_artifact` for Markdown and sandbox-generated files. Always provide
-  a faithful `markdown_representation` for binary files.
+  a faithful `markdown_representation` and the generating `source_path` for
+  binary files.
+- The `<artifact_roster>` lists artifacts created earlier in this chat. When
+  the user clearly asks to change one of them, call `load_artifact_source` with
+  its `document_id`, edit the returned source, regenerate and verify the output,
+  then call `save_artifact` with that same `document_id`, output `path`, and
+  edited `source_path`. Do not rebuild an existing artifact from its Markdown
+  representation. If the user is not clearly referring to a roster entry,
+  create a new artifact without a `document_id`.
 - `generate_report` and `generate_resume` are legacy fallbacks. Use either only
   when the user explicitly declines a downloadable file and asks for the
   legacy experience. Do not use Typst for PDF requests.
