@@ -138,6 +138,85 @@ def collect_pending_tool_calls(state: Any) -> list[tuple[str, int]]:
     return pending
 
 
+def collect_pending_parent_interrupts(state: Any) -> list[tuple[str, int]]:
+    """Extract ``[(interrupt_id, action_count), ...]`` for **parent-side** interrupts.
+
+    The complement of :func:`collect_pending_tool_calls`: these are interrupts
+    raised directly in the *parent* graph (main-agent ``PermissionMiddleware``
+    asks and ``DoomLoopMiddleware`` pauses) — they never bubble through a
+    ``task`` subagent call, so ``propagation.wrap_with_tool_call_id`` never
+    stamped a ``tool_call_id`` on them. Without this collector they are dropped
+    on resume and the user's decision can never reach the paused site.
+
+    Keyed by langgraph's ``Interrupt.id`` because parent-side sites consume the
+    resume value directly as the return of ``interrupt(...)`` (there is no
+    ``surfsense_resume_value`` bridge for them). ``action_count`` is
+    ``len(value["action_requests"])`` for HITL-bundle asks, or ``1`` for
+    scalar-style payloads (e.g. the doom-loop card, which carries no
+    ``action_requests``).
+
+    Order is preserved from ``state.interrupts`` to match the SSE emit order.
+
+    ponytail: a single pause almost always holds exactly one parent-side
+    interrupt (asks/doom-loop fire on the main agent's own tool calls, before
+    any subagent runs), so multi-parent ordering is not stressed here; the
+    orchestrator fails loud if parent- and subagent-side interrupts are ever
+    pending together.
+    """
+    pending: list[tuple[str, int]] = []
+    for interrupt_obj in getattr(state, "interrupts", ()) or ():
+        value = getattr(interrupt_obj, "value", None)
+        if not isinstance(value, dict):
+            continue
+        if isinstance(value.get("tool_call_id"), str):
+            continue  # subagent-routed; owned by collect_pending_tool_calls
+        interrupt_id = getattr(interrupt_obj, "id", None)
+        if not isinstance(interrupt_id, str):
+            continue
+        action_requests = value.get("action_requests")
+        count = (
+            len(action_requests)
+            if isinstance(action_requests, list) and action_requests
+            else 1
+        )
+        pending.append((interrupt_id, count))
+    return pending
+
+
+def build_parent_resume_map(
+    decisions: list[dict[str, Any]],
+    parent_pending: list[tuple[str, int]],
+) -> dict[str, Any]:
+    """Map ``Interrupt.id → resume_value`` for parent-side interrupts.
+
+    Slices the flat ``decisions`` list (frontend order == SSE emit order)
+    across ``parent_pending`` left-to-right. Single-action asks deliver the
+    **raw decision dict** — permission asks parse it via ``parse_lc_envelope``
+    and the doom-loop reads ``decision["type"]``/``["decision_type"]`` directly,
+    neither of which unwraps a ``{"decisions": [...]}`` envelope. Multi-action
+    asks (not currently produced parent-side) fall back to the bundle shape.
+
+    Raises:
+        ValueError: When the decision count differs from the expected action
+            total — fail loud rather than silently drop, matching
+            :func:`slice_decisions_by_tool_call`.
+    """
+    expected = sum(count for _, count in parent_pending)
+    if expected != len(decisions):
+        raise ValueError(
+            f"Decision count mismatch: parent-side interrupts expect "
+            f"{expected} actions but received {len(decisions)} decisions."
+        )
+
+    out: dict[str, Any] = {}
+    cursor = 0
+    for interrupt_id, count in parent_pending:
+        chunk = decisions[cursor : cursor + count]
+        cursor += count
+        out[interrupt_id] = chunk[0] if count == 1 else {"decisions": chunk}
+    return out
+
+
 def build_lg_resume_map(
     state: Any, by_tool_call_id: dict[str, dict[str, Any]]
 ) -> dict[str, dict[str, Any]]:
