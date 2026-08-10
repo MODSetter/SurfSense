@@ -35,7 +35,7 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
 ):
     del patched_embed_texts
     backend = MemoryBackend()
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
@@ -45,9 +45,7 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
         yield db_session
 
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
-    tool = save_artifact_tool.create_save_artifact_tool(
-        workspace_id=db_workspace.id, thread_id=1
-    )
+    tool = save_artifact_tool.create_save_artifact_tool(workspace_id=db_workspace.id)
 
     command = await tool.coroutine(
         title="Legacy artifact",
@@ -80,7 +78,7 @@ async def test_load_artifact_source_restores_the_current_source(
     db_session, db_workspace, monkeypatch
 ):
     backend = MemoryBackend()
-    monkeypatch.setattr(service, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
@@ -95,9 +93,7 @@ async def test_load_artifact_source_restores_the_current_source(
         markdown_representation="# Restorable",
         files=[
             ArtifactFileInput(b"%PDF", "out.pdf", "application/pdf"),
-            ArtifactFileInput(
-                b"print('current')", "out.py", "text/x-python", "source"
-            ),
+            ArtifactFileInput(b"print('current')", "out.py", "text/x-python", "source"),
         ],
     )
 
@@ -122,11 +118,11 @@ async def test_load_artifact_source_restores_the_current_source(
         return Registry()
 
     monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
-    monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda: backend)
+    monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
 
     tool = load_source_tool.create_load_artifact_source_tool(
-        workspace_id=db_workspace.id, thread_id=1
+        workspace_id=db_workspace.id
     )
     path = await tool.coroutine(document_id=saved.document_id, runtime=_runtime())
 

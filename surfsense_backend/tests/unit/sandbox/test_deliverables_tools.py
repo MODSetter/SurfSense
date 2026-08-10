@@ -12,6 +12,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
     sandbox as sandbox_tools,
     save_artifact as save_tool,
 )
+from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
+    root_thread_id_from_config,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.verification import (
     LEDGER_PATH,
 )
@@ -50,7 +53,20 @@ class FakeRegistry:
 
 
 def _runtime():
-    return SimpleNamespace(tool_call_id="call-1", state={})
+    return SimpleNamespace(
+        tool_call_id="call-1",
+        state={},
+        config={"configurable": {"thread_id": "4::task:call-1"}},
+    )
+
+
+def test_thread_resolution_requires_live_runtime_identity():
+    assert (
+        root_thread_id_from_config({"configurable": {"thread_id": "77::task:call-1"}})
+        == 77
+    )
+    with pytest.raises(RuntimeError, match="unavailable"):
+        root_thread_id_from_config({})
 
 
 async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypatch):
@@ -89,7 +105,7 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
     monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
     monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
 
-    tool = save_tool.create_save_artifact_tool(3, 4)
+    tool = save_tool.create_save_artifact_tool(3)
     await tool.coroutine(
         title="Facts",
         markdown_representation="# Three facts",
@@ -129,7 +145,7 @@ async def test_binary_save_rejects_stale_verification(monkeypatch):
 
     monkeypatch.setattr(save_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
-    tool = save_tool.create_save_artifact_tool(3, 4)
+    tool = save_tool.create_save_artifact_tool(3)
 
     result = await tool.coroutine(
         title="Facts",
@@ -175,7 +191,7 @@ async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
     monkeypatch.setattr(save_tool, "shielded_async_session", db_session)
     monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
     monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
-    tool = save_tool.create_save_artifact_tool(3, 4)
+    tool = save_tool.create_save_artifact_tool(3)
 
     await tool.coroutine(
         title="Facts",
@@ -202,14 +218,12 @@ async def test_binary_save_enforces_file_cap(monkeypatch):
 
 
 def test_javascript_source_accepts_plain_text_sniff():
-    assert save_tool._mime_types_compatible(
-        "application/javascript", "text/plain"
-    )
+    assert save_tool._mime_types_compatible("application/javascript", "text/plain")
     assert save_tool._mime_types_compatible("text/javascript", "text/plain")
 
 
 async def test_generated_file_requires_source_and_has_no_content_alias():
-    tool = save_tool.create_save_artifact_tool(3, 4)
+    tool = save_tool.create_save_artifact_tool(3)
 
     assert "content" not in tool.args
     result = await tool.coroutine(
@@ -226,6 +240,7 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
     document = SimpleNamespace(document_metadata={"generated": True})
     source = SimpleNamespace(
         size_bytes=16,
+        storage_backend="azure",
         storage_key="source-key",
         original_filename="out.py",
     )
@@ -245,23 +260,28 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
         async def open_stream(self, _key):
             yield b"print('stored')"
 
+    resolved_backends = []
+
+    def get_storage_backend(name):
+        resolved_backends.append(name)
+        return Backend()
+
     sandbox = FakeSession({})
 
     async def get_registry():
         return FakeRegistry(sandbox)
 
     monkeypatch.setattr(load_source_tool, "shielded_async_session", db_session)
-    monkeypatch.setattr(load_source_tool, "get_storage_backend", Backend)
+    monkeypatch.setattr(load_source_tool, "get_storage_backend", get_storage_backend)
     monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
     monkeypatch.setattr(load_source_tool, "resolve_root_thread_id", lambda *_: 4)
 
-    tool = load_source_tool.create_load_artifact_source_tool(
-        workspace_id=3, thread_id=4
-    )
+    tool = load_source_tool.create_load_artifact_source_tool(workspace_id=3)
     path = await tool.coroutine(document_id=9, runtime=_runtime())
 
     assert path == "/workspace/artifact-9-out.py"
     assert sandbox.writes[path] == b"print('stored')"
+    assert resolved_backends == ["azure"]
 
 
 async def test_inspect_images_reviews_each_page_and_resolves_llm_once(monkeypatch):
@@ -280,10 +300,7 @@ async def test_inspect_images_reviews_each_page_and_resolves_llm_once(monkeypatc
     class Vision:
         async def ainvoke(self, messages):
             calls.append(
-                sum(
-                    part.get("type") == "image_url"
-                    for part in messages[0].content
-                )
+                sum(part.get("type") == "image_url" for part in messages[0].content)
             )
             return SimpleNamespace(content="Page is legible.")
 
@@ -294,7 +311,7 @@ async def test_inspect_images_reviews_each_page_and_resolves_llm_once(monkeypatc
 
     tool = next(
         tool
-        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3, thread_id=4)
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
         if tool.name == "inspect_sandbox_images"
     )
     result = await tool.coroutine(
@@ -355,7 +372,7 @@ async def test_inspect_images_isolates_page_failures(monkeypatch):
     )
     tool = next(
         tool
-        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3, thread_id=4)
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
         if tool.name == "inspect_sandbox_images"
     )
 
@@ -379,12 +396,10 @@ async def test_inspect_images_records_unavailable_vision(monkeypatch):
 
     monkeypatch.setattr(sandbox_tools, "_get_session", get_session)
     monkeypatch.setattr(sandbox_tools, "shielded_async_session", db_session)
-    monkeypatch.setattr(
-        sandbox_tools, "get_vision_llm", AsyncMock(return_value=None)
-    )
+    monkeypatch.setattr(sandbox_tools, "get_vision_llm", AsyncMock(return_value=None))
     tool = next(
         tool
-        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3, thread_id=4)
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
         if tool.name == "inspect_sandbox_images"
     )
 
@@ -410,7 +425,7 @@ async def test_execute_truncates_and_preserves_full_output(monkeypatch):
     monkeypatch.setattr(sandbox_tools, "_get_session", get_session)
     tool = next(
         tool
-        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3, thread_id=4)
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
         if tool.name == "execute"
     )
 
@@ -437,7 +452,7 @@ async def test_execute_records_clean_verification_sentinel(monkeypatch):
     monkeypatch.setattr(sandbox_tools, "_get_session", get_session)
     tool = next(
         tool
-        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3, thread_id=4)
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
         if tool.name == "execute"
     )
 

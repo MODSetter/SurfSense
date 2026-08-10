@@ -18,9 +18,7 @@ from app.sandbox import get_registry
 from .thread_resolver import resolve_root_thread_id
 
 
-def create_load_artifact_source_tool(
-    *, workspace_id: int, thread_id: int | None = None
-) -> BaseTool:
+def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
     """Build the source-restoration tool with workspace dependencies injected."""
 
     @tool
@@ -64,7 +62,8 @@ def create_load_artifact_source_tool(
             )
 
         data = bytearray()
-        async for chunk in get_storage_backend().open_stream(source.storage_key):
+        backend = get_storage_backend(source.storage_backend)
+        async for chunk in backend.open_stream(source.storage_key):
             data.extend(chunk)
             if len(data) > app_config.ARTIFACT_MAX_FILE_BYTES:
                 raise ValueError("artifact source exceeds the configured size limit")
@@ -73,10 +72,8 @@ def create_load_artifact_source_tool(
         if not filename:
             raise ValueError("artifact source has an invalid filename")
         sandbox_path = f"/workspace/artifact-{document_id}-{filename}"
-        root_thread_id = resolve_root_thread_id(runtime, thread_id)
-        sandbox = await (await get_registry()).get_session(
-            root_thread_id, workspace_id
-        )
+        root_thread_id = resolve_root_thread_id(runtime)
+        sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
         await sandbox.write_file(sandbox_path, bytes(data))
         return sandbox_path
 

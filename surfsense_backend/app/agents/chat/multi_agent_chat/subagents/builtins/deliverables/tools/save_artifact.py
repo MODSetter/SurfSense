@@ -29,16 +29,11 @@ def _mime_types_compatible(extension_mime: str, sniffed_mime: str) -> bool:
         return True
     if extension_mime.startswith("text/") and sniffed_mime.startswith("text/"):
         return True
-    if extension_mime == "application/javascript" and sniffed_mime.startswith(
-        "text/"
-    ):
+    if extension_mime == "application/javascript" and sniffed_mime.startswith("text/"):
         return True
-    return (
-        extension_mime.startswith(
-            "application/vnd.openxmlformats-officedocument."
-        )
-        and sniffed_mime in {"application/zip", "application/x-zip"}
-    )
+    return extension_mime.startswith(
+        "application/vnd.openxmlformats-officedocument."
+    ) and sniffed_mime in {"application/zip", "application/x-zip"}
 
 
 async def _read_artifact_file(
@@ -58,12 +53,13 @@ async def _read_artifact_file(
 
     extension_mime = mimetypes.guess_type(filename)[0]
     sniffed_mime = magic.from_buffer(data, mime=True)
-    if extension_mime and sniffed_mime and not _mime_types_compatible(
-        extension_mime, sniffed_mime
+    if (
+        extension_mime
+        and sniffed_mime
+        and not _mime_types_compatible(extension_mime, sniffed_mime)
     ):
         raise ValueError(
-            f"File contents ({sniffed_mime}) do not match {filename} "
-            f"({extension_mime})"
+            f"File contents ({sniffed_mime}) do not match {filename} ({extension_mime})"
         )
     return ArtifactFileInput(
         data=data,
@@ -73,7 +69,7 @@ async def _read_artifact_file(
     )
 
 
-def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
+def create_save_artifact_tool(workspace_id: int):
     """Create the artifact tool with workspace dependencies injected."""
 
     @tool
@@ -98,7 +94,7 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
         is not clearly referring to an existing artifact, create a new one.
         """
         del description
-        root_thread_id = resolve_root_thread_id(runtime, thread_id)
+        root_thread_id = resolve_root_thread_id(runtime)
         try:
             if not markdown_representation or not markdown_representation.strip():
                 raise ValueError("markdown_representation must not be empty")
@@ -124,9 +120,7 @@ def create_save_artifact_tool(workspace_id: int, thread_id: int | None = None):
                     }
                 }
                 files.append(await _read_artifact_file(session, path, "primary"))
-                files.append(
-                    await _read_artifact_file(session, source_path, "source")
-                )
+                files.append(await _read_artifact_file(session, source_path, "source"))
                 if preview_path is not None:
                     files.append(
                         await _read_artifact_file(session, preview_path, "preview")

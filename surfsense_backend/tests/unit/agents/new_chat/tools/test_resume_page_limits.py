@@ -30,11 +30,11 @@ def _silence_progress_events(monkeypatch):
 
 
 def _runtime(tool_call_id: str = "call-1") -> ToolRuntime:
-    """Minimal ToolRuntime; the resume tool only reads ``tool_call_id``."""
+    """Minimal ToolRuntime with the live chat identity required by writes."""
     return ToolRuntime(
         state={},
         context=None,
-        config={},
+        config={"configurable": {"thread_id": "1::task:call-resume"}},
         stream_writer=None,
         tool_call_id=tool_call_id,
         store=None,
@@ -148,7 +148,7 @@ async def test_generate_resume_defaults_to_one_page_target(monkeypatch) -> None:
     monkeypatch.setattr(resume_tool, "_compile_typst", lambda _source: b"pdf")
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: 1)
 
-    tool = resume_tool.create_generate_resume_tool(workspace_id=1, thread_id=1)
+    tool = resume_tool.create_generate_resume_tool(workspace_id=1)
     result = await _invoke(tool, {"user_info": "Jane Doe experience"})
 
     assert result["status"] == "ready"
@@ -178,7 +178,7 @@ async def test_generate_resume_compresses_when_over_limit(monkeypatch) -> None:
     page_counts = iter([2, 1])
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: next(page_counts))
 
-    tool = resume_tool.create_generate_resume_tool(workspace_id=1, thread_id=1)
+    tool = resume_tool.create_generate_resume_tool(workspace_id=1)
     result = await _invoke(tool, {"user_info": "Jane Doe experience", "max_pages": 1})
 
     assert result["status"] == "ready"
@@ -213,7 +213,7 @@ async def test_generate_resume_returns_ready_when_target_not_met(monkeypatch) ->
     page_counts = iter([3, 3, 2])
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: next(page_counts))
 
-    tool = resume_tool.create_generate_resume_tool(workspace_id=1, thread_id=1)
+    tool = resume_tool.create_generate_resume_tool(workspace_id=1)
     result = await _invoke(tool, {"user_info": "Jane Doe experience", "max_pages": 1})
 
     assert result["status"] == "ready"
@@ -246,7 +246,7 @@ async def test_generate_resume_fails_when_hard_limit_exceeded(monkeypatch) -> No
     page_counts = iter([7, 6, 6])
     monkeypatch.setattr(resume_tool, "_count_pdf_pages", lambda _pdf: next(page_counts))
 
-    tool = resume_tool.create_generate_resume_tool(workspace_id=1, thread_id=1)
+    tool = resume_tool.create_generate_resume_tool(workspace_id=1)
     result = await _invoke(tool, {"user_info": "Jane Doe experience", "max_pages": 1})
 
     assert result["status"] == "failed"

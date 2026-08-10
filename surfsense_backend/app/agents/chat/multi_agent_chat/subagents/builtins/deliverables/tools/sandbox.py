@@ -31,10 +31,8 @@ _VISION_CONCURRENCY = 4
 _VISION_TIMEOUT_SECONDS = 120
 
 
-async def _get_session(
-    workspace_id: int, thread_id: int | None, runtime: ToolRuntime
-) -> SandboxSession:
-    root_thread_id = resolve_root_thread_id(runtime, thread_id)
+async def _get_session(workspace_id: int, runtime: ToolRuntime) -> SandboxSession:
+    root_thread_id = resolve_root_thread_id(runtime)
     return await (await get_registry()).get_session(root_thread_id, workspace_id)
 
 
@@ -45,9 +43,7 @@ def _result_text(output: str, exit_code: int, *, full_output_path: str | None) -
     return output + suffix
 
 
-def create_sandbox_tools(
-    *, workspace_id: int, thread_id: int | None = None
-) -> list[BaseTool]:
+def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
     """Build the three provider-agnostic sandbox tools."""
 
     vision_llm: Any = None
@@ -84,7 +80,7 @@ def create_sandbox_tools(
         description for a short user-facing step title.
         """
         del description
-        session = await _get_session(workspace_id, thread_id, runtime)
+        session = await _get_session(workspace_id, runtime)
         result = (
             await session.execute(code_or_command, language="python")
             if language == "python"
@@ -107,10 +103,8 @@ def create_sandbox_tools(
         Binary files must be persisted with save_artifact. Rendered JPEG pages
         must be reviewed with inspect_sandbox_images.
         """
-        session = await _get_session(workspace_id, thread_id, runtime)
-        size_result = await session.run_command(
-            f"stat -c %s -- {shlex.quote(path)}"
-        )
+        session = await _get_session(workspace_id, runtime)
+        size_result = await session.run_command(f"stat -c %s -- {shlex.quote(path)}")
         if not size_result.ok:
             raise FileNotFoundError(f"Could not stat sandbox file: {path}")
         try:
@@ -158,7 +152,7 @@ def create_sandbox_tools(
         if mode == "together" and len(paths) == 1:
             return f"## {PurePosixPath(paths[0]).name}\nOnly one image; nothing to compare."
 
-        session = await _get_session(workspace_id, thread_id, runtime)
+        session = await _get_session(workspace_id, runtime)
         llm = await resolve_vision_llm()
         if llm is None:
             reason = "No vision-capable model is configured for this workspace"
@@ -183,8 +177,7 @@ def create_sandbox_tools(
                 data = await session.read_file(path)
                 if len(data) > _MAX_VISION_IMAGE_BYTES:
                     raise ValueError(
-                        f"Image {path} exceeds the "
-                        f"{_MAX_VISION_IMAGE_BYTES}-byte limit"
+                        f"Image {path} exceeds the {_MAX_VISION_IMAGE_BYTES}-byte limit"
                     )
                 content.append({"type": "text", "text": f"Filename: {path}"})
                 content.append(
@@ -252,7 +245,11 @@ def create_sandbox_tools(
             time.perf_counter() - tool_started,
         )
         quota_failure = next(
-            (result for result in results if isinstance(result, QuotaInsufficientError)),
+            (
+                result
+                for result in results
+                if isinstance(result, QuotaInsufficientError)
+            ),
             None,
         )
         if quota_failure is not None:
