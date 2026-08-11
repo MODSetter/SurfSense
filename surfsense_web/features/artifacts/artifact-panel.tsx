@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { FileQuestion, FileWarning, RefreshCw, XIcon } from "lucide-react";
+import { FileWarning, RefreshCw, XIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
@@ -12,8 +12,9 @@ import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 import { artifactMarkdownPath } from "./download-file";
-import { extension } from "./file-format";
+import { cannotPreviewMessage } from "./file-format";
 import type { ArtifactContent } from "./model";
+import { UnviewableArtifact } from "./unviewable-artifact";
 import { VIEWERS } from "./viewer-registry";
 
 const ArtifactFileSchema = z.object({
@@ -187,18 +188,6 @@ function FileArtifact({ content }: { content: Extract<ArtifactContent, { kind: "
 	return Viewer ? (
 		<Viewer primary={primary} files={content.files} />
 	) : (
-		<UnviewableArtifact
-			message={`${extension(primary.filename)} files can't be previewed here. Download it to open it.`}
-		/>
-	);
-}
-
-// Not an error: the artifact saved fine and the header's download button works.
-function UnviewableArtifact({ message }: { message: string }) {
-	return (
-		<div className="flex h-full flex-col items-center justify-center gap-3 px-5 py-4 text-center">
-			<FileQuestion className="size-8 text-muted-foreground" />
-			<p className="max-w-xs text-sm text-muted-foreground">{message}</p>
-		</div>
+		<UnviewableArtifact message={cannotPreviewMessage(primary.filename)} />
 	);
 }
