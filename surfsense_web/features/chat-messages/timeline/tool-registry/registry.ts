@@ -29,10 +29,10 @@ const SandboxExecuteToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
-const InspectSandboxImagesToolUI = dynamic(
+const VerifyArtifactToolUI = dynamic(
 	() =>
-		import("@/components/tool-ui/inspect-sandbox-images").then((m) => ({
-			default: m.InspectSandboxImagesToolUI,
+		import("@/components/tool-ui/verify-artifact").then((m) => ({
+			default: m.VerifyArtifactToolUI,
 		})),
 	{ ssr: false }
 );
@@ -199,7 +199,7 @@ const TOOLS_BY_NAME = {
 	update_memory: UpdateMemoryToolUI,
 	execute: SandboxExecuteToolUI,
 	execute_code: SandboxExecuteToolUI,
-	inspect_sandbox_images: InspectSandboxImagesToolUI,
+	verify_artifact: VerifyArtifactToolUI,
 	create_notion_page: CreateNotionPageToolUI,
 	update_notion_page: UpdateNotionPageToolUI,
 	delete_notion_page: DeleteNotionPageToolUI,
