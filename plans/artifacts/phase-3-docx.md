@@ -51,7 +51,8 @@ The split is not decoration: everything except `render.py` is a function over by
 
 Per verification, a build directory created for that run alone (`/tmp/verify-<uuid>/`). Inside it:
 
-- `soffice --headless --convert-to pdf` with a private profile (`-env:UserInstallation=file:///tmp/soffice-<uuid>`) and an explicit `--outdir`, output existence and non-emptiness asserted afterwards — soffice exits 0 having produced nothing often enough that its status is not evidence.
+- The primary bytes already read for structural checks are written under a fixed absolute snapshot name. Conversion and rasterization use only that snapshot, never the mutable workspace path; the snapshot and generated preview are rechecked before review, and the rendered images are read into backend memory before the vision calls.
+- `soffice --headless --convert-to pdf` over the snapshot, with a private profile (`-env:UserInstallation=file:///tmp/soffice-<uuid>`) and an explicit `--outdir`, output existence and non-emptiness asserted afterwards — soffice exits 0 having produced nothing often enough that its status is not evidence.
 - `pdftoppm -jpeg -r 100` into the same directory.
 - Every path `shlex.quote`d. These commands are assembled from a filename the model chose, so the quoting is a trust boundary, not tidiness.
 
@@ -62,13 +63,14 @@ The fresh directory is what retires the two-hop rule: there is no previous outpu
 The per-page fan-out and the consecutive-window comparison move verbatim from `inspect_sandbox_images`; what changes is who decides to make them (the service, always) and how the result comes back (parsed findings rather than a text report the model re-reads). Two constraints on the port:
 
 - Invoke through `invoke_json` (`utils/structured_output.py`) over the LLM's `ainvoke`, because `QuotaCheckedVisionLLM` meters `ainvoke` — a "cleaner" direct call to a provider SDK would silently stop billing hosted verification (master spec §12).
-- Keep verification's own `usage_type`, so the spend stays attributable per master spec §12, and keep the credit-exhausted branch: it produces a receipt whose visual verdict is the reason there is none, not a discarded deliverable.
+- Keep verification's own `usage_type`, so the spend stays attributable per master spec §12, and keep the credit-exhausted branch: it produces a receipt whose visual verdict is the reason there is none only when every completed call was clean. A known defect or non-quota inspection failure wins over a concurrent quota denial and produces no receipt.
 
 ### 2.5 `receipt.py` — the gate contract
 
 The payload and signing scheme are master spec §6.3. Implementation notes only:
 
 - HMAC-SHA256 over a canonical JSON encoding, keyed by `SECRET_KEY`, in the shape `OAuthStateManager` already uses (`utils/oauth_security.py`) — the same two primitives, not a new crypto idea.
+- The signed payload includes the workspace id and sandbox session id; `save_artifact` validates both, so a receipt and identical files copied from another sandbox cannot spend one workspace's verification and save in another.
 - Written into the session at a fixed path so `save_artifact` needs no argument to find it. One receipt per session at a time: the model verifies, then saves, and a receipt for a file it abandoned is a receipt whose hashes no longer match anything being saved, which is the correct outcome for free.
 - Short expiry, checked on read. Not for security — the signature does that — but so a receipt cannot outlive the sandbox state it describes on a session reused across turns.
 
@@ -109,6 +111,8 @@ Authoring guidance for the format, then one `verify_artifact` call, then `save_a
 ### 3.1 Structural adapter — `formats/docx.py`
 
 The checks that read the OOXML directly, which is where a docx's defects actually live. A docx is a zip of XML, so this is `zipfile` + `ElementTree` and no new dependency: percentage table widths (`w:tblW`/`w:tcW` with `w:type="pct"`), shading set to `solid` instead of `clear`, literal bullet glyphs in paragraph text where numbering should be, tables with no grid, and a TOC field with no heading outline levels beneath it. Each is a defect the rendered page shows too — but showing it costs a vision call and names it vaguely ("this table looks wrong"), while the markup names it exactly and for free.
+
+The adapter is also a parser trust boundary: reject duplicate OOXML part names, encrypted entries, excessive entry counts, and excessive per-part or aggregate uncompressed sizes from `ZipInfo` before reading XML. The compressed artifact-size ceiling alone does not stop a small ZIP bomb, and duplicate `word/document.xml` entries can make Python and LibreOffice inspect different content.
 
 The adapter registers docx as a PDF-converting format, which is the whole of what the service needs to know about it: the conversion, the rasterize, the review, the ceiling and the receipt are all format-blind already.
 

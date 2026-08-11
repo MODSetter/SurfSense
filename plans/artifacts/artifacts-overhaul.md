@@ -292,22 +292,23 @@ verify_artifact("indian-history.docx")
    pypdf is already a backend dependency and OOXML is a zip of XML, so this runs
    in-process: no script in the image, no sandbox round trip, and every check is
    an ordinary function with an ordinary test.
-2. Office formats only: soffice --headless --convert-to pdf, into a build directory
-   made for this verification alone, with a private profile and an explicit --outdir,
-   and the output checked afterwards — soffice exits 0 having produced nothing often
-   enough that its status is not evidence.
+2. Snapshot the bytes from step 1 under a fixed absolute name in a build directory
+   made for this verification alone. Office formats run soffice --headless
+   --convert-to pdf over that snapshot, with a private profile and an explicit
+   --outdir, and check the output afterwards — soffice exits 0 having produced
+   nothing often enough that its status is not evidence.
 3. Page count against the ceiling, then pdftoppm -jpeg -r 100 into that same
    fresh directory.
-4. Review every page on its own, fanned out concurrently, then again in consecutive
-   windows, so cross-page defects — font drift, colour drift, a one-pager that runs
-   to two — are visible at all.
+4. Read the rendered images into backend memory, then review every page on its own,
+   fanned out concurrently, and again in consecutive windows, so cross-page defects
+   — font drift, colour drift, a one-pager that runs to two — are visible at all.
 5. Clean? Write a receipt naming the format, the primary's hash and the preview's.
    Not clean? Return the findings and no receipt; the model fixes the source and asks again.
 ```
 
-**The receipt is the entire gate contract**, and it is a file on purpose rather than a row or a flag on the session: a small JSON payload — format, primary path and sha256, preview path and sha256, page count, the visual verdict or the reason there is none, issued-at — with an HMAC over it keyed by the deployment's `SECRET_KEY`, written where `save_artifact` will look for it. Nothing to migrate, nothing to reap when the sandbox goes, and nothing for the model to carry: a receipt it had to copy into the next call is a receipt it can retype. Signing and checking it is the pattern `utils/oauth_security.py` already uses for OAuth state.
+**The receipt is the entire gate contract**, and it is a file on purpose rather than a row or a flag on the session: a small JSON payload — workspace and sandbox audience, format, primary path and sha256, preview path and sha256, page count, the visual verdict or the reason there is none, issued-at — with an HMAC over the complete canonical payload keyed by the deployment's `SECRET_KEY`, written where `save_artifact` will look for it. `save_artifact` rejects a receipt issued for another workspace or sandbox even when the file bytes match, so copying evidence cannot bypass that workspace's verification or quota. Nothing to migrate, nothing to reap when the sandbox goes, and nothing for the model to carry: a receipt it had to copy into the next call is a receipt it can retype. Signing and checking it is the pattern `utils/oauth_security.py` already uses for OAuth state.
 
-**Two problems the previous shape had are gone rather than mitigated.** *Freshness* was the first: `.docx → .pdf → page-*.jpg` gave a failed re-conversion the chance to leave the previous generation's PDF sitting there, so the model reviewed pages of a document that no longer existed while every timestamp still lined up. A verification that renders into a directory created for itself has no earlier output to find, so the middle hop needs no proof and no rule about deleting stale files first. *Claiming* was the second: a script that measured a file had to **announce** that it had, because every successful command exits 0 and an exit code therefore cannot tell the run that checked the file from the run that wrote it — hence a sentinel line, two ledger files to keep the kinds apart, and freshness read off those files' own mtimes. The service knows which step it is on, so all three go, deleted in phase 3 with the code that read them — not carried alongside the receipt as a second way to pass the same gate.
+**Two problems the previous shape had are gone rather than mitigated.** *Freshness* was the first: `.docx → .pdf → page-*.jpg` gave a failed re-conversion the chance to leave the previous generation's PDF sitting there, so the model reviewed pages of a document that no longer existed while every timestamp still lined up. Verification snapshots the initially hashed bytes into a directory created for itself, converts and rasterizes only that fixed absolute snapshot, and passes backend-held image bytes to vision; mutable workspace paths are never evidence, and the service rechecks the snapshot and preview before review. The middle hop therefore needs no proof and no rule about deleting stale files first. *Claiming* was the second: a script that measured a file had to **announce** that it had, because every successful command exits 0 and an exit code therefore cannot tell the run that checked the file from the run that wrote it — hence a sentinel line, two ledger files to keep the kinds apart, and freshness read off those files' own mtimes. The service knows which step it is on, so all three go, deleted in phase 3 with the code that read them — not carried alongside the receipt as a second way to pass the same gate.
 
 **One call, still visible.** Phase 2 rejected a single verification tool on the grounds that it would collapse a legible sequence into one opaque minute; that objection named the right symptom and the wrong cause. What the user was reading was never tool boundaries, it was progress — so the service emits a `verification_progress` event as it enters each step (checking, converting, rendering, reviewing page *n* of *m*) down the same streaming path `report_progress` and `scraper_progress` already use (`streaming/handlers/custom_events.py`). The trace gets finer-grained than four tool calls ever were, while the model's context gets one.
 
