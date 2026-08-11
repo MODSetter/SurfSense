@@ -1,5 +1,9 @@
 # Phase 3 — verification service + `docx`
 
+**Status:** Complete (2026-08-12). Targeted unit/integration checks pass; the
+rebuilt `surfsense-sandbox:dev` image has no PDF scripts, and a real npm-generated
+DOCX completed LibreOffice conversion, rasterization, receipt issuance, and
+OOXML MIME detection through the live OpenSandbox service.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§6.3 the verification loop, §7.1 skills, §8 rendering).
 **Depends on:** phase 2 complete (sandbox live, `pdf` skill shipped, binary `save_artifact` path proven, `preview_path` already accepted by the tool).
 **Goal:** move the verification loop out of the model's hands and into a backend service (`verify_artifact`), migrate `pdf` onto it, then add Word documents plus the preview-PDF pairing phase 4 inherits rather than reinvents.
@@ -34,18 +38,18 @@ Under `app/artifacts/verification/`, beside the persistence service that consume
 
 | Module | Holds | Runs where |
 |---|---|---|
-| `formats/pdf.py` | Today's `check_pdf.py` as a pure function over PDF bytes: text outside the media box or margins, near-blank pages, page count, unembedded fonts | Backend, in-process (`pypdf` is already a dependency) |
+| `formats/pdf.py` | Today's `check_pdf.py` as a pure function over PDF bytes: near-blank pages, page count, unembedded fonts | Backend, in-process (`pypdf` is already a dependency) |
 | `formats/docx.py` | OOXML structural checks (3b, §3.1) | Backend, in-process (`zipfile` + `ElementTree`) |
 | `render.py` | `soffice` conversion and `pdftoppm` rasterization into a per-verification build directory | Sandbox session, via `run_command` |
-| `vision.py` | The per-page and windowed passes lifted off `inspect_sandbox_images` | Backend, `get_vision_llm()` |
+| `vision.py` | Contextual review of all pages in one bounded call or overlapping consecutive windows | Backend, `get_vision_llm()` |
 | `receipt.py` | Sign, write, read, validate | Backend + one sandbox write |
 | `service.py` | The orchestration and the progress events | Backend |
 
 The split is not decoration: everything except `render.py` is a function over bytes or strings, so the whole of the format knowledge this phase adds is unit-testable without a sandbox — which is the property the shell-script design could not have at any price.
 
-### 2.2 Structural checks move, they do not change
+### 2.2 Structural checks move and become evidence-based
 
-`docker/sandbox/skills/pdf/scripts/check_pdf.py` becomes `formats/pdf.py` with its logic intact and its interface inverted: it takes bytes and returns findings instead of printing them and exiting. Two things fall away in the move — the `SURFSENSE_VERIFIED:` line it printed as its last act, and argument parsing for a caller that no longer exists — and one thing must not: the checks themselves are the cheap half of the loop (master spec §6.3), and every defect they catch is a vision call not spent. Port them with tests before deleting the script, so "the rewrite lost the margin check" is a failing test rather than a slow discovery in a document nobody looked at closely.
+`docker/sandbox/skills/pdf/scripts/check_pdf.py` becomes `formats/pdf.py` with its interface inverted: it takes bytes and returns findings instead of printing them and exiting. The `SURFSENSE_VERIFIED:` line and argument parsing fall away. Near-blank pages, page count and fonts remain cheap hard checks. The nominal-margin check does not: a text coordinate inside a configured margin is not proof of clipping (running headers and footers belong there), so it produced false failures that pypdf cannot resolve. Clipping and overlap stay in the rendered visual review; the replacement behavior is fixed by a test proving a running header is structurally valid.
 
 ### 2.3 `render.py` — the hops the model no longer sequences
 
@@ -58,12 +62,13 @@ Per verification, a build directory created for that run alone (`/tmp/verify-<uu
 
 The fresh directory is what retires the two-hop rule: there is no previous output to mistake for this one, so nothing has to prove its evidence is current. It also bounds cleanup to one `rm -rf` the session can skip entirely without consequence, since sandboxes are reaped per thread.
 
-### 2.4 `vision.py` — same calls, one fewer decision
+### 2.4 `vision.py` — one contextual, severity-aware review
 
-The per-page fan-out and the consecutive-window comparison move verbatim from `inspect_sandbox_images`; what changes is who decides to make them (the service, always) and how the result comes back (parsed findings rather than a text report the model re-reads). Two constraints on the port:
+Rendered pages are reviewed as a flowing document, not once in isolation and then a second time for comparison. Up to the model's image ceiling is one call; longer documents use overlapping consecutive windows, and every page is still included. This removes duplicate calls for small documents and prevents normal page continuations or final-page whitespace from becoming isolated-page false positives. The parsed verdict has two channels: blocking findings for unusable/incomplete output, and advisory warnings for aesthetics. Warnings remain visible but do not suppress receipt issuance. Three constraints:
 
 - Invoke through `invoke_json` (`utils/structured_output.py`) over the LLM's `ainvoke`, because `QuotaCheckedVisionLLM` meters `ainvoke` — a "cleaner" direct call to a provider SDK would silently stop billing hosted verification (master spec §12).
 - Keep verification's own `usage_type`, so the spend stays attributable per master spec §12, and keep the credit-exhausted branch: it produces a receipt whose visual verdict is the reason there is none only when every completed call was clean. A known defect or non-quota inspection failure wins over a concurrent quota denial and produces no receipt.
+- Bound automatic revision in the PDF/DOCX skills and deliverables prompt: fix blocking findings once, reverify, and report a remaining blocker instead of entering an open-ended rewrite loop. The backend still never signs a document with a blocking defect.
 
 ### 2.5 `receipt.py` — the gate contract
 
@@ -100,7 +105,7 @@ Leaving either mechanism in place gives the gate two ways to pass, which is the 
 
 ### 2.10 `pdf` SKILL.md — what a skill looks like afterwards
 
-Authoring guidance for the format, then one `verify_artifact` call, then `save_artifact`. The steps that go are the ones the service now owns: the `check_pdf.py` invocation, the rasterize, the two inspection calls, and the fix-and-repeat instructions between them. The retroactive `out.pdf` → deliverable-derived rename (master spec §7.1) lands in the same edit, since it is the same file and the same convention.
+Authoring guidance for the format, then one `verify_artifact` call, at most one blocking-finding revision and re-verification, then `save_artifact`. The steps that go are the ones the service now owns: the `check_pdf.py` invocation, rasterization, and direct vision calls. The retroactive `out.pdf` → deliverable-derived rename (master spec §7.1) lands in the same edit, since it is the same file and the same convention.
 
 **3a exit gate:** "create me a resume as a PDF" runs end to end with progress events, a signed receipt, and no scripts directory in the image; the gate refuses a save whose bytes changed after verification and accepts a byte-identical regeneration that the mtime comparison used to reject.
 
@@ -118,7 +123,7 @@ The adapter registers docx as a PDF-converting format, which is the whole of wha
 
 ### 3.2 Skill — `docx`
 
-Create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). The body is authoring guidance and this phase's footgun list, and nothing about verification or revision (master spec §7.1):
+Create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). The body is authoring guidance and this phase's footgun list, followed only by the generic verify/save call and one-blocking-revision cap; it contains no conversion, rasterization, receipt, or revision-loading procedure (master spec §7.1):
 
 - US Letter vs A4 default; DXA page dimensions
 - One page setup for the entire document — a single page size, portrait, no section break that changes either — as a **strong default the user can override by asking**. Content too wide for portrait is narrowed (column widths, font size) rather than rotated on the skill's own initiative, because genuinely wide tabular data is an xlsx and a silently landscaped page is usually a layout failure wearing a workaround. "Make it landscape" is a legitimate instruction and the skill obeys it; nothing downstream cares, since each rendered page is inspected on its own terms

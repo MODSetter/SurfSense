@@ -1,5 +1,10 @@
 # Phase 2 — Sandbox + PDF skill
 
+**Status:** Complete. The sandbox and PDF delivery path remain current; the
+model-orchestrated verification details in this phase are historical and were
+replaced (not kept as a compatibility layer) by phase 3's backend-owned
+`verify_artifact` service, signed receipts, contextual visual review, and
+script-free skills.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§6 tools, §7 sandbox/skills, §3 contracts).
 **Depends on:** phase 1 complete (persistence helper, streaming endpoint, panel/registry all live).
 **Goal:** code execution in a sandboxed environment and the first real file format. After this phase, resumes and PDF reports flow through the new pipeline.
