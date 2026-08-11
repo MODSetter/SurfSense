@@ -12,30 +12,36 @@ from __future__ import annotations
 from typing import Any
 
 
-def all_interrupt_values(state: Any) -> list[dict[str, Any]]:
-    """Return every interrupt payload across the snapshot, in traversal order.
+def all_interrupt_entries(state: Any) -> list[tuple[dict[str, Any], str | None]]:
+    """Return ``(value, interrupt_id)`` for every pending interrupt, in order.
 
     Walks ``state.tasks[*].interrupts`` first (langgraph's per-task buckets,
     which carry one interrupt per paused subagent) and falls back to
     ``state.interrupts`` when the per-task lists are empty. Order matches the
     snapshot's iteration order so the emit-time order on the SSE stream agrees
-    with ``collect_pending_tool_calls`` consumption order on resume.
+    with the resume slicer's consumption order.
+
+    The ``interrupt_id`` (langgraph ``Interrupt.id``) is the only stable handle
+    for parent-side interrupts (doom-loop, permission asks) that carry no
+    ``tool_call_id``; it lets the frontend render and resume them.
 
     Defensive against malformed snapshots: tasks/interrupts that raise on
     attribute access are skipped silently. Non-dict values are skipped — the
     chat-stream contract requires structured interrupt payloads.
     """
 
-    def _extract(candidate: Any) -> dict[str, Any] | None:
+    def _extract(candidate: Any) -> tuple[dict[str, Any], str | None] | None:
         if isinstance(candidate, dict):
             value = candidate.get("value", candidate)
-            return value if isinstance(value, dict) else None
-        value = getattr(candidate, "value", None)
-        if isinstance(value, dict):
-            return value
-        return None
+            interrupt_id = candidate.get("id")
+        else:
+            value = getattr(candidate, "value", None)
+            interrupt_id = getattr(candidate, "id", None)
+        if not isinstance(value, dict):
+            return None
+        return value, (str(interrupt_id) if interrupt_id is not None else None)
 
-    values: list[dict[str, Any]] = []
+    entries: list[tuple[dict[str, Any], str | None]] = []
     saw_task_interrupt = False
 
     for task in getattr(state, "tasks", ()) or ():
@@ -48,10 +54,10 @@ def all_interrupt_values(state: Any) -> list[dict[str, Any]]:
             for interrupt_item in interrupts:
                 extracted = _extract(interrupt_item)
                 if extracted is not None:
-                    values.append(extracted)
+                    entries.append(extracted)
 
     if saw_task_interrupt:
-        return values
+        return entries
 
     try:
         state_interrupts = getattr(state, "interrupts", ()) or ()
@@ -60,5 +66,10 @@ def all_interrupt_values(state: Any) -> list[dict[str, Any]]:
     for interrupt_item in state_interrupts:
         extracted = _extract(interrupt_item)
         if extracted is not None:
-            values.append(extracted)
-    return values
+            entries.append(extracted)
+    return entries
+
+
+def all_interrupt_values(state: Any) -> list[dict[str, Any]]:
+    """Interrupt payloads across the snapshot, in traversal order (ids dropped)."""
+    return [value for value, _ in all_interrupt_entries(state)]

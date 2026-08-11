@@ -506,18 +506,25 @@ class VercelStreamingService:
             },
         )
 
-    def format_interrupt_request(self, interrupt_value: dict[str, Any]) -> str:
+    def format_interrupt_request(
+        self, interrupt_value: dict[str, Any], *, interrupt_id: str | None = None
+    ) -> str:
         """Format an interrupt request for human-in-the-loop approval.
 
         Args:
             interrupt_value: The interrupt payload from either:
                 - interrupt_on config: {action_requests: [...], review_configs: [...]}
                 - interrupt() primitive: {type: "...", message: "...", action: {...}, context: {...}}
+            interrupt_id: langgraph ``Interrupt.id``. The only stable handle for
+                parent-side interrupts (doom-loop, permission asks) that carry no
+                ``tool_call_id``; the frontend uses it to render and resume them.
 
         Returns:
             str: SSE formatted interrupt request data part
         """
         normalized_payload = self._normalize_interrupt_payload(interrupt_value)
+        if interrupt_id is not None:
+            normalized_payload = {**normalized_payload, "interrupt_id": interrupt_id}
         return self.format_data("interrupt-request", normalized_payload)
 
     def _normalize_interrupt_payload(
