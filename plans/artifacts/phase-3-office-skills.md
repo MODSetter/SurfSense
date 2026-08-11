@@ -24,6 +24,7 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 **`docx`** — create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). Body encodes the known footguns (from Anthropic's publicly documented toolchain, authored fresh):
 
 - US Letter vs A4 default; DXA page dimensions
+- One page setup for the entire document: a single page size, portrait, and no section break that changes either. Content too wide for portrait is narrowed (column widths, font size), never rotated — genuinely wide tabular data is an xlsx, not a landscape Word page. Every generated document therefore has uniform pages, which the preview PDF and its viewers can rely on
 - Tables: `columnWidths` **and** per-cell `width`, both `WidthType.DXA` (PERCENTAGE breaks in Google Docs); shading `ShadingType.CLEAR` never `SOLID`
 - Lists via `numbering` config + `LevelFormat.BULLET`, never literal `•`
 - `PageBreak` inside a `Paragraph`; separate `Paragraph`s, never `\n`
