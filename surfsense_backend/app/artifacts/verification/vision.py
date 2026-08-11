@@ -12,6 +12,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
+from app.artifacts.verification.formats.base import ReviewKind
 from app.services.billable_calls import QuotaInsufficientError
 from app.utils.structured_output import invoke_json
 
@@ -19,6 +20,31 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_IMAGES_PER_CALL = 20
 VISION_CONCURRENCY = 4
 VISION_TIMEOUT_SECONDS = 120
+
+REVIEW_FRAMINGS: dict[ReviewKind, str] = {
+    "document": (
+        "Review these consecutive pages together as one flowing document. "
+        "Text continuing naturally across a page boundary and unused space at the "
+        "end of the final page are not defects. Check for clipping, overlap, "
+        "unreadable text, blank or corrupt pages, missing content, and cross-page "
+        "layout inconsistency."
+    ),
+    "slides": (
+        "Review these consecutive presentation slides together. Each slide is "
+        "self-contained: text or a list unintentionally continuing onto another "
+        "slide is a defect, while unused space is not. Check for clipping, overlap, "
+        "unreadable text, blank or corrupt slides, missing content, and consistency "
+        "of template, type scale, and palette across slides."
+    ),
+}
+VERDICT_INSTRUCTIONS = (
+    "Return only JSON with `blocking_findings` and `warnings`, both arrays of "
+    "concise, actionable strings. A blocking finding must make the artifact "
+    "unusable or incomplete: clipped/overlapping or unreadable content, a "
+    "blank/corrupt page or slide, or missing content. Put minor contrast, "
+    "whitespace, alignment, and aesthetic suggestions in warnings; do not block "
+    "the artifact for them."
+)
 
 
 class VisionVerdict(BaseModel):
@@ -53,9 +79,10 @@ async def review_pages(
     llm: Any,
     page_images: tuple[PageImage, ...],
     *,
+    review_kind: ReviewKind = "document",
     progress: Callable[[int, int], None] | None = None,
 ) -> VisualReviewResult:
-    """Review consecutive page windows as flowing documents."""
+    """Review consecutive rendered windows using format-appropriate framing."""
     if not page_images:
         raise ValueError("Artifact verification produced no rendered pages")
 
@@ -69,18 +96,9 @@ async def review_pages(
             {
                 "type": "text",
                 "text": (
-                    "Review these consecutive pages together as one flowing document. "
-                    "Text continuing naturally across a page boundary and unused space "
-                    "at the end of the final page are not defects. Check for clipping, "
-                    "overlap, unreadable text, blank or corrupt pages, missing content, "
-                    "and cross-page layout inconsistency.\n"
+                    f"{REVIEW_FRAMINGS[review_kind]}\n"
                     f"Files: {labels}\n"
-                    "Return only JSON with `blocking_findings` and `warnings`, both "
-                    "arrays of concise, actionable strings. A blocking finding must "
-                    "make the document unusable or incomplete: clipped/overlapping or "
-                    "unreadable content, a blank/corrupt page, or missing content. Put "
-                    "minor contrast, whitespace, alignment, and aesthetic suggestions "
-                    "in warnings; do not block the document for them."
+                    f"{VERDICT_INSTRUCTIONS}"
                 ),
             }
         ]

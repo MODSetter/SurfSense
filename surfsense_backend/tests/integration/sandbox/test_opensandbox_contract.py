@@ -6,6 +6,7 @@ import os
 import shlex
 import subprocess
 from mimetypes import guess_type
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +22,11 @@ from app.sandbox.providers.opensandbox import OpenSandboxProvider
 
 # Matches the tag docker-compose.dev.yml builds for the sandbox-image service.
 DEV_SANDBOX_IMAGE = os.getenv("SANDBOX_IMAGE", "surfsense-sandbox:dev")
+REPO_ROOT = Path(__file__).resolve().parents[4]
+FORMAT_SKILLS = tuple(
+    path.parent.name
+    for path in sorted((REPO_ROOT / "docker/sandbox/skills").glob("*/SKILL.md"))
+)
 
 pytestmark = [
     pytest.mark.integration,
@@ -111,11 +117,12 @@ async def test_live_docx_verification_and_mime(monkeypatch):
     await provider.terminate_session(thread_id)
     session = await provider.get_or_create_session(thread_id)
     try:
-        skills = await session.run_command(
-            "test ! -d /opt/skills/pdf/scripts "
-            "&& test -f /opt/skills/pdf/SKILL.md "
-            "&& test -f /opt/skills/docx/SKILL.md"
+        skill_checks = " && ".join(
+            f"test -f /opt/skills/{shlex.quote(skill)}/SKILL.md "
+            f"&& test ! -d /opt/skills/{shlex.quote(skill)}/scripts"
+            for skill in FORMAT_SKILLS
         )
+        skills = await session.run_command(skill_checks)
         javascript = """
 const { Document, Packer, Paragraph, TextRun } = require("docx");
 const fs = require("fs");

@@ -49,11 +49,14 @@ RUN set -euo pipefail \
 # The base image also ships skills. Replace the formats SurfSense owns in one
 # layer so OverlayFS records removed base-image files as deletions.
 COPY skills /tmp/surfsense-skills
-RUN rm -rf /opt/skills/pdf /opt/skills/docx \
+RUN set -euo pipefail \
     && mkdir -p /opt/skills \
-    && cp -a /tmp/surfsense-skills/pdf /opt/skills/pdf \
-    && cp -a /tmp/surfsense-skills/docx /opt/skills/docx \
-    && rm -rf /opt/skills/pdf/scripts /opt/skills/docx/scripts \
+    && for skill in /tmp/surfsense-skills/*; do \
+        name="${skill##*/}"; \
+        rm -rf "/opt/skills/${name}"; \
+        cp -a "${skill}" "/opt/skills/${name}"; \
+        rm -rf "/opt/skills/${name}/scripts"; \
+    done \
     && rm -rf /tmp/surfsense-skills
 
 ENTRYPOINT ["/opt/code-interpreter/code-interpreter.sh"]

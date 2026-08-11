@@ -108,6 +108,19 @@ async def _verify_artifact(
             notes=structural.notes,
             page_count=structural.page_count,
         )
+    if (
+        structural.page_count is not None
+        and structural.page_count > ARTIFACT_MAX_VERIFY_PAGES
+    ):
+        return VerificationResult(
+            verified=False,
+            findings=(
+                f"Document has {structural.page_count} pages; verification supports "
+                f"at most {ARTIFACT_MAX_VERIFY_PAGES}",
+            ),
+            notes=structural.notes,
+            page_count=structural.page_count,
+        )
 
     _progress(
         "converting" if adapter.convert_to_pdf else "preparing",
@@ -126,7 +139,17 @@ async def _verify_artifact(
         if adapter.convert_to_pdf
         else primary_data
     )
-    rendered_pdf = check_pdf(preview_data) if adapter.convert_to_pdf else structural
+    rendered_pdf = (
+        check_pdf(
+            preview_data,
+            expected_pages=structural.page_count
+            if adapter.expects_exact_page_count
+            else None,
+            min_chars=adapter.rendered_min_chars,
+        )
+        if adapter.convert_to_pdf
+        else structural
+    )
     if not rendered_pdf.clean:
         return VerificationResult(
             verified=False,
@@ -190,6 +213,7 @@ async def _verify_artifact(
         visual = await review_pages(
             vision_llm,
             tuple(page_images),
+            review_kind=adapter.review_kind,
             progress=lambda current, total: _progress(
                 "reviewing",
                 f"Inspecting page {current} of {total}",

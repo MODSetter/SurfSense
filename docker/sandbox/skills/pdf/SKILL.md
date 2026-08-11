@@ -26,15 +26,18 @@ placing it in HTML.
 
 ## Required quality gate
 
-After generating the PDF, call `verify_artifact(path="out.pdf")`. Warnings are
-advisory and do not require regeneration. If verification reports blocking
-findings, fix them in the source and regenerate once. Reverify that revision;
-if a blocker remains, stop and explain it instead of entering another automatic
-rewrite loop. Only a verified file can be saved.
+Use one deliverable-derived stem for the source and output, for example
+`project-brief.html` and `project-brief.pdf`; the output basename is the
+filename the user downloads. After generating it, call
+`verify_artifact(path="project-brief.pdf")`. Warnings are advisory and do not
+require regeneration. If verification reports blocking findings, fix them in
+the source and regenerate once. Reverify that revision; if a blocker remains,
+stop and explain it instead of entering another automatic rewrite loop. Only a
+verified file can be saved.
 
-Then call `save_artifact(path="out.pdf", source_path="source.html", title="...",
-markdown_representation="...")`, using the actual `.html` or `.py` source path
-that produced the PDF.
+Then call `save_artifact(path="project-brief.pdf",
+source_path="project-brief.html", title="...", markdown_representation="...")`,
+using the actual `.html` or `.py` source path that produced the PDF.
 
 The Markdown representation must faithfully contain the document's substantive
 text so the artifact remains accessible and searchable without parsing the PDF.

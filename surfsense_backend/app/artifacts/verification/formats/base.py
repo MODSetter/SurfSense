@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Literal
+
+
+DEFAULT_RENDERED_MIN_CHARS = 20
+ReviewKind = Literal["document", "slides"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,3 +29,6 @@ class FormatAdapter:
     mime_type: str
     convert_to_pdf: bool
     check: Callable[[bytes], StructuralCheckResult]
+    rendered_min_chars: int = DEFAULT_RENDERED_MIN_CHARS
+    expects_exact_page_count: bool = False
+    review_kind: ReviewKind = "document"

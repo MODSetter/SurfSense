@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-from io import BytesIO
 from xml.etree import ElementTree
-from zipfile import BadZipFile, ZipFile
 
 from .base import StructuralCheckResult
+from .ooxml import OoxmlDefect, open_ooxml
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 W = f"{{{W_NS}}}"
 REQUIRED_PARTS = frozenset({"[Content_Types].xml", "_rels/.rels", "word/document.xml"})
 MIN_MARGIN_TWIPS = 720
 MAX_MARGIN_TWIPS = 2880
-MAX_ZIP_ENTRIES = 10_000
-MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 MAX_DOCUMENT_XML_BYTES = 10 * 1024 * 1024
 
 
@@ -39,37 +36,16 @@ def check_docx(data: bytes) -> StructuralCheckResult:
         return StructuralCheckResult(("DOCX is empty",))
 
     try:
-        with ZipFile(BytesIO(data)) as archive:
-            entries = archive.infolist()
-            entry_names = [entry.filename for entry in entries]
-            names = set(entry_names)
-            if len(entries) > MAX_ZIP_ENTRIES:
-                return StructuralCheckResult(
-                    (f"DOCX contains more than {MAX_ZIP_ENTRIES} ZIP entries",)
-                )
-            if len(names) != len(entry_names):
-                return StructuralCheckResult(("DOCX contains duplicate OOXML parts",))
-            missing = sorted(REQUIRED_PARTS - names)
-            if missing:
-                return StructuralCheckResult(
-                    (f"DOCX is missing required parts: {', '.join(missing)}",)
-                )
-            if any(entry.flag_bits & 1 for entry in entries):
-                return StructuralCheckResult(("DOCX contains encrypted ZIP entries",))
-            if sum(entry.file_size for entry in entries) > MAX_UNCOMPRESSED_BYTES:
-                return StructuralCheckResult(
-                    (
-                        "DOCX uncompressed content exceeds "
-                        f"{MAX_UNCOMPRESSED_BYTES} bytes",
-                    )
-                )
-            document = archive.getinfo("word/document.xml")
-            if document.file_size > MAX_DOCUMENT_XML_BYTES:
-                return StructuralCheckResult(
-                    (f"DOCX document XML exceeds {MAX_DOCUMENT_XML_BYTES} bytes",)
-                )
+        with open_ooxml(
+            data,
+            format_name="DOCX",
+            required_parts=REQUIRED_PARTS,
+            part_limits={"word/document.xml": MAX_DOCUMENT_XML_BYTES},
+        ) as archive:
             root = ElementTree.fromstring(archive.read("word/document.xml"))
-    except (BadZipFile, ElementTree.ParseError, OSError, RuntimeError):
+    except OoxmlDefect as exc:
+        return StructuralCheckResult((str(exc),))
+    except ElementTree.ParseError:
         return StructuralCheckResult(("DOCX is not valid OOXML",))
 
     body = root.find(f"{W}body")
