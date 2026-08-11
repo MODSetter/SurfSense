@@ -101,6 +101,28 @@ def handle_scraper_progress(
     return frame, new_items
 
 
+def handle_verification_progress(
+    data: dict[str, Any],
+    *,
+    last_active_step_id: str | None,
+    last_active_step_title: str,
+    last_active_step_items: list[str],
+    streaming_service: Any,
+    content_builder: Any | None,
+    thinking_metadata: dict[str, Any] | None = None,
+) -> tuple[str | None, list[str]]:
+    """Surface the verification service's latest step on its tool row."""
+    return handle_scraper_progress(
+        data,
+        last_active_step_id=last_active_step_id,
+        last_active_step_title=last_active_step_title,
+        last_active_step_items=last_active_step_items,
+        streaming_service=streaming_service,
+        content_builder=content_builder,
+        thinking_metadata=thinking_metadata,
+    )
+
+
 def handle_document_created(
     data: dict[str, Any], *, streaming_service: Any
 ) -> str | None:
