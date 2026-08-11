@@ -65,8 +65,8 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Read a UTF-8 text file from the artifact sandbox",
     ),
     ToolMetadata(
-        name="inspect_sandbox_images",
-        description="Visually inspect rendered artifact pages for quality issues",
+        name="verify_artifact",
+        description="Verify a generated artifact and prepare its preview before saving",
     ),
     ToolMetadata(
         name="generate_image",

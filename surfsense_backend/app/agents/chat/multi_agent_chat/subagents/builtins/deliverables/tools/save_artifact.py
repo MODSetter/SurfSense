@@ -14,40 +14,17 @@ from langchain_core.tools import tool
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.artifacts import ArtifactFileInput, save_artifact
+from app.artifacts.verification.receipt import read_receipt, sha256_bytes
 from app.config import config as app_config
 from app.db import shielded_async_session
 from app.sandbox import SandboxSession, get_registry
 
 from .thread_resolver import resolve_root_thread_id
-from .verification import VerificationKind, check_verification
 
 logger = logging.getLogger(__name__)
 
-# Page-based formats fail in ways only a rendered page shows, so a structural
-# script alone must not open the gate for them. Keyed on the suffix rather than
-# asking mimetypes, which cannot name the OOXML formats here: 3.12's built-in
-# table has no entry for them, and python:3.12-slim omits the /etc/mime.types
-# that would supply one. A gate that asked would wave docx straight through.
-_VISUAL_SUFFIXES = frozenset({".pdf", ".docx", ".pptx"})
-
-
-def _required_kind(path: str) -> VerificationKind:
-    suffix = PurePosixPath(path).suffix.lower()
-    return "visual" if suffix in _VISUAL_SUFFIXES else "structural"
-
-
-def _names_artifact(verified_path: str, path: str, preview_path: str | None) -> bool:
-    """Whether a structural receipt names the artifact or its preview.
-
-    Compared by filename: nothing pins a skill to one spelling of a sandbox
-    path, so `check_pdf.py out.pdf` alongside `path="/workspace/out.pdf"` is the
-    same file verified. The preview counts because a two-hop format is checked
-    on the PDF it converts to, never on the primary itself.
-    """
-    verified = PurePosixPath(verified_path).name
-    return verified == PurePosixPath(path).name or (
-        preview_path is not None and verified == PurePosixPath(preview_path).name
-    )
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+mimetypes.add_type(DOCX_MIME, ".docx")
 
 
 def _mime_types_compatible(extension_mime: str, sniffed_mime: str) -> bool:
@@ -132,32 +109,46 @@ def create_save_artifact_tool(workspace_id: int):
                 session = await (await get_registry()).get_session(
                     root_thread_id, workspace_id
                 )
-                required_kind = _required_kind(path)
-                verification = await check_verification(session, path, required_kind)
-                if not verification.verified and verification.reason is None:
-                    raise ValueError(
-                        f"This artifact has no current {required_kind} verification. "
-                        "Repeat the format's verification loop, then save."
-                    )
-                if verification.path is not None and not _names_artifact(
-                    verification.path, path, preview_path
+                primary = await _read_artifact_file(session, path, "primary")
+                source = await _read_artifact_file(session, source_path, "source")
+                preview = (
+                    await _read_artifact_file(session, preview_path, "preview")
+                    if preview_path is not None
+                    else None
+                )
+                verification = await read_receipt(
+                    session,
+                    app_config.SECRET_KEY,
+                    workspace_id=workspace_id,
+                )
+                if verification.primary_path != path or (
+                    verification.primary_sha256 != sha256_bytes(primary.data)
                 ):
                     raise ValueError(
-                        f"The last verification checked {verification.path}, not the "
-                        "file being saved. Verify the artifact, then save it."
+                        "The artifact changed after verification. Verify it again, "
+                        "then save."
+                    )
+                if verification.preview_path != preview_path:
+                    raise ValueError(
+                        "The preview does not match the verified artifact. Verify the "
+                        "artifact again and save the returned preview."
+                    )
+                if preview is not None and (
+                    verification.preview_sha256 != sha256_bytes(preview.data)
+                ):
+                    raise ValueError(
+                        "The preview changed after verification. Verify the artifact "
+                        "again, then save."
                     )
                 extra_metadata = {
                     "verification": {
-                        "verified": verification.verified,
-                        "reason": verification.reason,
+                        "verified": verification.visual != "unavailable",
+                        "reason": verification.unavailable_reason,
                     }
                 }
-                files.append(await _read_artifact_file(session, path, "primary"))
-                files.append(await _read_artifact_file(session, source_path, "source"))
-                if preview_path is not None:
-                    files.append(
-                        await _read_artifact_file(session, preview_path, "preview")
-                    )
+                files.extend((primary, source))
+                if preview is not None:
+                    files.append(preview)
             elif source_path is not None or preview_path is not None:
                 raise ValueError("source_path and preview_path require a primary path")
 

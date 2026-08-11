@@ -16,6 +16,7 @@ from .load_artifact_source import create_load_artifact_source_tool
 from .podcast import create_generate_podcast_tool
 from .sandbox import create_sandbox_tools
 from .save_artifact import create_save_artifact_tool
+from .verify_artifact import create_verify_artifact_tool
 from .video_presentation import create_generate_video_presentation_tool
 
 NAME = "deliverables"
@@ -38,6 +39,7 @@ def load_tools(
             create_load_artifact_source_tool(
                 workspace_id=d["workspace_id"],
             ),
+            create_verify_artifact_tool(workspace_id=d["workspace_id"]),
         ]
     return [
         *sandbox_tools,
