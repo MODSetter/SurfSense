@@ -1,7 +1,7 @@
-# Phase 4 — Demolition
+# Phase 6 — Demolition
 
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§9 removal inventory, §10 legacy deliverables).
-**Depends on:** phase 3 complete (no live path creates `Report` rows; all four formats ship through the new pipeline).
+**Depends on:** phase 5 complete (no live path creates `Report` rows; all four formats ship through the new pipeline).
 **Goal:** delete the legacy system entirely — tools, routes, panel, table, Typst. **There is no data migration** (master spec §10): `reports` is dropped cold and previously generated deliverables become permanently inaccessible. Order is strict: **legacy card + release notes → re-point → delete**.
 
 ---
@@ -29,7 +29,7 @@ Execute as a sequence of small PRs, each leaving the build green:
 
 ### PR 1 — agent layer
 
-- Delete `subagents/builtins/deliverables/tools/{report.py,resume.py}`; clear whatever registration references survive in `tools/index.py`, `shared/tools/catalog.py`, prune/tool-name lists, public-chat tool lists — the subagent stopped registering them in phase 3, so this is sweeping the remaining names rather than taking the tools away from a model still able to call them.
+- Delete `subagents/builtins/deliverables/tools/{report.py,resume.py}`; clear whatever registration references survive in `tools/index.py`, `shared/tools/catalog.py`, prune/tool-name lists, public-chat tool lists — the subagent stopped registering them in phase 2 and phase 5 closed the last routing path to them, so this is sweeping the remaining names rather than taking the tools away from a model still able to call them.
 - Delete `main_agent/skills/builtin/report-writing/`.
 - Delete streaming handlers `generate_{report,resume}/` + dead `save_document/` registry name.
 - Delete `tests/unit/agents/new_chat/tools/test_resume_page_limits.py`.
@@ -61,7 +61,7 @@ Execute as a sequence of small PRs, each leaving the build green:
 ## 3. Checks
 
 - After each PR: full test suite + `rg -i "generate_report|generate_resume|report_panel|reportsApiService"` returns only changelog/spec hits (plus the legacy-card component, which references the legacy tool names to match message parts).
-- After PR 4: `rg -i "typst|rendercv"` → zero hits outside `specs/`; fresh compose deploy passes phases 1–3 exit criteria.
+- After PR 4: `rg -i "typst|rendercv"` → zero hits outside `specs/`; fresh compose deploy passes phases 1–5 exit criteria.
 - Old-thread smoke test: a pre-upgrade thread's `generate_report`/`generate_resume` parts render the legacy card with **no network fetch**; nothing errors.
 
 ---
