@@ -19,9 +19,35 @@ from app.db import shielded_async_session
 from app.sandbox import SandboxSession, get_registry
 
 from .thread_resolver import resolve_root_thread_id
-from .verification import check_verification
+from .verification import VerificationKind, check_verification
 
 logger = logging.getLogger(__name__)
+
+# Page-based formats fail in ways only a rendered page shows, so a structural
+# script alone must not open the gate for them. Keyed on the suffix rather than
+# asking mimetypes, which cannot name the OOXML formats here: 3.12's built-in
+# table has no entry for them, and python:3.12-slim omits the /etc/mime.types
+# that would supply one. A gate that asked would wave docx straight through.
+_VISUAL_SUFFIXES = frozenset({".pdf", ".docx", ".pptx"})
+
+
+def _required_kind(path: str) -> VerificationKind:
+    suffix = PurePosixPath(path).suffix.lower()
+    return "visual" if suffix in _VISUAL_SUFFIXES else "structural"
+
+
+def _names_artifact(verified_path: str, path: str, preview_path: str | None) -> bool:
+    """Whether a structural receipt names the artifact or its preview.
+
+    Compared by filename: nothing pins a skill to one spelling of a sandbox
+    path, so `check_pdf.py out.pdf` alongside `path="/workspace/out.pdf"` is the
+    same file verified. The preview counts because a two-hop format is checked
+    on the PDF it converts to, never on the primary itself.
+    """
+    verified = PurePosixPath(verified_path).name
+    return verified == PurePosixPath(path).name or (
+        preview_path is not None and verified == PurePosixPath(preview_path).name
+    )
 
 
 def _mime_types_compatible(extension_mime: str, sniffed_mime: str) -> bool:
@@ -106,12 +132,19 @@ def create_save_artifact_tool(workspace_id: int):
                 session = await (await get_registry()).get_session(
                     root_thread_id, workspace_id
                 )
-                verification = await check_verification(session, path)
+                required_kind = _required_kind(path)
+                verification = await check_verification(session, path, required_kind)
                 if not verification.verified and verification.reason is None:
                     raise ValueError(
-                        "Artifact changed after its last verification. Run the "
-                        "format's structural and visual verification steps again "
-                        "before saving."
+                        f"This artifact has no current {required_kind} verification. "
+                        "Repeat the format's verification loop, then save."
+                    )
+                if verification.path is not None and not _names_artifact(
+                    verification.path, path, preview_path
+                ):
+                    raise ValueError(
+                        f"The last verification checked {verification.path}, not the "
+                        "file being saved. Verify the artifact, then save it."
                     )
                 extra_metadata = {
                     "verification": {

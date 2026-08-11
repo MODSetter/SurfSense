@@ -26,9 +26,10 @@ placing it in HTML.
 
 ## Required quality gate
 
-`save_artifact` rejects a PDF that changed after its last inspection, so this
-loop is not optional. Every step treats every page the same way — page count
-changes how long it takes, never what you do:
+`save_artifact` rejects a PDF that changed after its last inspection, and one
+that was measured but never looked at, so this loop is not optional. Every step
+treats every page the same way — page count changes how long it takes, never
+what you do:
 
 1. Generate the PDF.
 2. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf`. It measures what does not

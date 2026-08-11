@@ -16,9 +16,12 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thre
     root_thread_id_from_config,
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.verification import (
-    LEDGER_PATH,
+    ledger_path,
 )
 from app.sandbox import ExecResult
+
+STRUCTURAL_LEDGER = ledger_path("structural")
+VISUAL_LEDGER = ledger_path("visual")
 
 
 class FakeSession:
@@ -36,8 +39,11 @@ class FakeSession:
 
     async def run_command(self, command: str) -> ExecResult:
         if command.startswith("if [ ! -e"):
+            ledger = next(
+                path for path in (STRUCTURAL_LEDGER, VISUAL_LEDGER) if path in command
+            )
             status = self.verification_status or (
-                "CURRENT" if LEDGER_PATH in self.files else "MISSING"
+                "CURRENT" if ledger in self.files else "MISSING"
             )
             return ExecResult(status, 0)
         path = command.split("-- ", 1)[1].strip("'")
@@ -52,12 +58,42 @@ class FakeRegistry:
         return self.session
 
 
+@dataclass
+class Saved:
+    status: str = "saved"
+    document_id: int = 9
+    title: str = "Facts"
+    files: list | None = None
+
+
 def _runtime():
     return SimpleNamespace(
         tool_call_id="call-1",
         state={},
         config={"configurable": {"thread_id": "4::task:call-1"}},
     )
+
+
+def _patch_save_tool(monkeypatch, session: FakeSession) -> dict:
+    """Point the save tool at a fake sandbox and capture what it persists."""
+    captured: dict = {}
+
+    async def get_registry():
+        return FakeRegistry(session)
+
+    @asynccontextmanager
+    async def db_session():
+        yield object()
+
+    async def save_artifact(_session, **kwargs):
+        captured.update(kwargs)
+        return Saved(files=[])
+
+    monkeypatch.setattr(save_tool, "get_registry", get_registry)
+    monkeypatch.setattr(save_tool, "shielded_async_session", db_session)
+    monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
+    monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
+    return captured
 
 
 def test_thread_resolution_requires_live_runtime_identity():
@@ -75,35 +111,10 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
             "/workspace/source.py": b"print('pdf')",
             "/workspace/preview.pdf": b"%PDF-1.4\n%%EOF",
-            LEDGER_PATH: b'{"reason":null}',
+            VISUAL_LEDGER: b'{"reason":null,"path":null}',
         }
     )
-    registry = FakeRegistry(session)
-
-    async def get_registry():
-        return registry
-
-    @asynccontextmanager
-    async def db_session():
-        yield object()
-
-    @dataclass
-    class Saved:
-        status: str = "saved"
-        document_id: int = 9
-        title: str = "Facts"
-        files: list = None
-
-    captured = {}
-
-    async def save_artifact(_session, **kwargs):
-        captured.update(kwargs)
-        return Saved(files=[])
-
-    monkeypatch.setattr(save_tool, "get_registry", get_registry)
-    monkeypatch.setattr(save_tool, "shielded_async_session", db_session)
-    monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
-    monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
+    captured = _patch_save_tool(monkeypatch, session)
 
     tool = save_tool.create_save_artifact_tool(3)
     await tool.coroutine(
@@ -135,16 +146,11 @@ async def test_binary_save_rejects_stale_verification(monkeypatch):
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
             "/workspace/source.py": b"print('pdf')",
-            LEDGER_PATH: b'{"reason":null}',
+            VISUAL_LEDGER: b'{"reason":null,"path":null}',
         }
     )
     session.verification_status = "STALE"
-
-    async def get_registry():
-        return FakeRegistry(session)
-
-    monkeypatch.setattr(save_tool, "get_registry", get_registry)
-    monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
+    _patch_save_tool(monkeypatch, session)
     tool = save_tool.create_save_artifact_tool(3)
 
     result = await tool.coroutine(
@@ -155,7 +161,64 @@ async def test_binary_save_rejects_stale_verification(monkeypatch):
         runtime=_runtime(),
     )
 
-    assert "changed after its last verification" in str(result)
+    assert "no current visual verification" in str(result)
+
+
+async def test_page_based_save_rejects_a_structural_receipt_alone(monkeypatch):
+    """A checker script cannot stand in for looking at the rendered pages."""
+    session = FakeSession(
+        {
+            "/workspace/out.docx": b"PK\x03\x04",
+            "/workspace/source.js": b"require('docx')",
+            STRUCTURAL_LEDGER: b'{"reason":null,"path":"/workspace/out.pdf"}',
+        }
+    )
+    _patch_save_tool(monkeypatch, session)
+    tool = save_tool.create_save_artifact_tool(3)
+
+    result = await tool.coroutine(
+        title="Facts",
+        markdown_representation="# Facts",
+        path="/workspace/out.docx",
+        source_path="/workspace/source.js",
+        runtime=_runtime(),
+    )
+
+    assert "no current visual verification" in str(result)
+
+
+async def test_structural_receipt_must_name_the_saved_file(monkeypatch):
+    files = {
+        "/workspace/data.xlsx": b"PK\x03\x04",
+        "/workspace/source.py": b"print('xlsx')",
+        STRUCTURAL_LEDGER: b'{"reason":null,"path":"other.xlsx"}',
+    }
+    session = FakeSession(files)
+    captured = _patch_save_tool(monkeypatch, session)
+    tool = save_tool.create_save_artifact_tool(3)
+
+    rejected = await tool.coroutine(
+        title="Numbers",
+        markdown_representation="# Numbers",
+        path="/workspace/data.xlsx",
+        source_path="/workspace/source.py",
+        runtime=_runtime(),
+    )
+    assert "not the file being saved" in str(rejected)
+
+    # A bare filename is the same file verified: skills run the checker from the
+    # directory the deliverable lives in.
+    files[STRUCTURAL_LEDGER] = b'{"reason":null,"path":"data.xlsx"}'
+    await tool.coroutine(
+        title="Numbers",
+        markdown_representation="# Numbers",
+        path="/workspace/data.xlsx",
+        source_path="/workspace/source.py",
+        runtime=_runtime(),
+    )
+    assert captured["extra_metadata"] == {
+        "verification": {"verified": True, "reason": None}
+    }
 
 
 async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
@@ -164,33 +227,10 @@ async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
             "/workspace/source.py": b"print('pdf')",
-            LEDGER_PATH: ('{"reason":"' + reason + '"}').encode(),
+            VISUAL_LEDGER: ('{"reason":"' + reason + '","path":null}').encode(),
         }
     )
-    captured = {}
-
-    async def get_registry():
-        return FakeRegistry(session)
-
-    @asynccontextmanager
-    async def db_session():
-        yield object()
-
-    @dataclass
-    class Saved:
-        status: str = "saved"
-        document_id: int = 9
-        title: str = "Facts"
-        files: list = None
-
-    async def save_artifact(_session, **kwargs):
-        captured.update(kwargs)
-        return Saved(files=[])
-
-    monkeypatch.setattr(save_tool, "get_registry", get_registry)
-    monkeypatch.setattr(save_tool, "shielded_async_session", db_session)
-    monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
-    monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
+    captured = _patch_save_tool(monkeypatch, session)
     tool = save_tool.create_save_artifact_tool(3)
 
     await tool.coroutine(
@@ -408,7 +448,7 @@ async def test_inspect_images_records_unavailable_vision(monkeypatch):
     )
 
     assert "could not run" in result
-    assert b"No vision-capable model" in session.files[LEDGER_PATH]
+    assert b"No vision-capable model" in session.files[VISUAL_LEDGER]
 
 
 async def test_execute_truncates_and_preserves_full_output(monkeypatch):
@@ -441,10 +481,13 @@ async def test_execute_truncates_and_preserves_full_output(monkeypatch):
 async def test_execute_records_clean_verification_sentinel(monkeypatch):
     session = FakeSession({})
 
-    async def execute(_code: str, language: str = "python") -> ExecResult:
-        return ExecResult("ok\nSURFSENSE_VERIFIED: /workspace/out.pdf", 0)
+    def returning(output: str):
+        async def execute(_code: str, language: str = "python") -> ExecResult:
+            return ExecResult(output, 0)
 
-    session.execute = execute  # type: ignore[attr-defined]
+        return execute
+
+    session.execute = returning("ok\nSURFSENSE_VERIFIED: /workspace/out.pdf")  # type: ignore[attr-defined]
 
     async def get_session(*_args):
         return session
@@ -462,4 +505,19 @@ async def test_execute_records_clean_verification_sentinel(monkeypatch):
         runtime=_runtime(),
     )
 
-    assert session.files[LEDGER_PATH] == b'{"reason":null}'
+    assert session.files[STRUCTURAL_LEDGER] == (
+        b'{"reason":null,"path":"/workspace/out.pdf"}'
+    )
+
+    # Printing the token mid-line, as a skill file documenting it does, claims
+    # nothing — and neither does the token without a path.
+    session.files.clear()
+    for output in (
+        "the script prints SURFSENSE_VERIFIED: <path> as its last line",
+        "SURFSENSE_VERIFIED:",
+    ):
+        session.execute = returning(output)  # type: ignore[attr-defined]
+        await tool.coroutine(
+            code_or_command="cat SKILL.md", language="python", runtime=_runtime()
+        )
+        assert STRUCTURAL_LEDGER not in session.files

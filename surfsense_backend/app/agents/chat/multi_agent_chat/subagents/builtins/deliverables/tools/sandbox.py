@@ -29,11 +29,27 @@ _MAX_VISION_IMAGE_BYTES = 5 * 1024 * 1024
 _MAX_VISION_IMAGES = 20
 _VISION_CONCURRENCY = 4
 _VISION_TIMEOUT_SECONDS = 120
+_VERIFIED_SENTINEL = "SURFSENSE_VERIFIED:"
 
 
 async def _get_session(workspace_id: int, runtime: ToolRuntime) -> SandboxSession:
     root_thread_id = resolve_root_thread_id(runtime)
     return await (await get_registry()).get_session(root_thread_id, workspace_id)
+
+
+def _sentinel_path(output: str) -> str | None:
+    """Return the file a verification sentinel line names, if any.
+
+    The token has to open a line and name a path: a run that merely prints the
+    sentinel — a skill file being read out, say — must not be able to claim a
+    verification it never performed.
+    """
+    for line in output.splitlines():
+        if line.startswith(_VERIFIED_SENTINEL):
+            path = line[len(_VERIFIED_SENTINEL) :].strip()
+            if path:
+                return path
+    return None
 
 
 def _result_text(output: str, exit_code: int, *, full_output_path: str | None) -> str:
@@ -92,8 +108,9 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
             full_output_path = f"/tmp/surfsense-output-{uuid.uuid4().hex}.txt"
             await session.write_file(full_output_path, output.encode())
             output = output[:_MAX_CONTEXT_CHARS] + "\n… [output truncated]"
-        if result.ok and "SURFSENSE_VERIFIED:" in (result.output or ""):
-            await record_verification(session)
+        verified_path = _sentinel_path(result.output or "") if result.ok else None
+        if verified_path is not None:
+            await record_verification(session, "structural", path=verified_path)
         return _result_text(output, result.exit_code, full_output_path=full_output_path)
 
     @tool
@@ -156,7 +173,7 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
         llm = await resolve_vision_llm()
         if llm is None:
             reason = "No vision-capable model is configured for this workspace"
-            await record_verification(session, reason=reason)
+            await record_verification(session, "visual", reason=reason)
             return f"Visual verification could not run: {reason}."
 
         semaphore = asyncio.Semaphore(_VISION_CONCURRENCY)
@@ -254,9 +271,9 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
         )
         if quota_failure is not None:
             reason = f"Visual verification stopped because credit is insufficient: {quota_failure}"
-            await record_verification(session, reason=reason)
+            await record_verification(session, "visual", reason=reason)
         elif any(not isinstance(result, Exception) for result in results):
-            await record_verification(session)
+            await record_verification(session, "visual")
 
         reports = []
         for group, result in zip(groups, results, strict=True):
