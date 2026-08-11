@@ -224,6 +224,34 @@ def _raise_if_thread_busy_for_start(thread_id: int) -> None:
     )
 
 
+async def _raise_if_thread_awaiting_approval(thread_id: int, checkpointer) -> None:
+    """Refuse a fresh turn when the thread's checkpoint has a pending interrupt.
+
+    The busy mutex releases on an ``interrupt()`` pause, so a paused thread
+    reads as idle to ``_raise_if_thread_busy_for_start``. Running ``new_chat`` /
+    ``regenerate`` over that checkpoint would orphan the pending approval — the
+    user must resume or cancel it first. ``resume`` is exempt; it's the path
+    that clears the pause.
+    """
+    from app.tasks.chat.streaming.helpers.interrupt_inspector import (
+        pending_interrupt_entries_from_writes,
+    )
+
+    checkpoint_tuple = await checkpointer.aget_tuple(
+        {"configurable": {"thread_id": str(thread_id)}}
+    )
+    if checkpoint_tuple is None:
+        return
+    if pending_interrupt_entries_from_writes(checkpoint_tuple.pending_writes):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "errorCode": "THREAD_AWAITING_APPROVAL",
+                "message": chat_error_message("THREAD_AWAITING_APPROVAL"),
+            },
+        )
+
+
 def _find_pre_turn_checkpoint_id(
     checkpoint_tuples: list,
     *,
@@ -1744,6 +1772,11 @@ async def handle_new_chat(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
         _raise_if_thread_busy_for_start(request.chat_id)
+        from app.agents.chat.runtime.checkpointer import get_checkpointer
+
+        await _raise_if_thread_awaiting_approval(
+            request.chat_id, await get_checkpointer()
+        )
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
@@ -1981,14 +2014,15 @@ async def regenerate_response(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
         _raise_if_thread_busy_for_start(thread_id)
+
+        # Get the checkpointer and state history
+        checkpointer = await get_checkpointer()
+        await _raise_if_thread_awaiting_approval(thread_id, checkpointer)
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
             local_mounts=request.local_filesystem_mounts,
         )
-
-        # Get the checkpointer and state history
-        checkpointer = await get_checkpointer()
 
         config = {"configurable": {"thread_id": str(thread_id)}}
 
