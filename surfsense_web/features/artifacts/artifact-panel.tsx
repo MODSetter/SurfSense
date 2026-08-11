@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { FileWarning, RefreshCw, X } from "lucide-react";
+import { FileWarning, RefreshCw, XIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
@@ -91,18 +91,28 @@ export function ArtifactPanelContent({
 	}, [workspaceId, documentId, attempt]);
 
 	return (
-		<div className="flex h-full min-h-0 flex-col bg-background">
-			<header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
-				<h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
-					{content?.title ?? "Artifact"}
-				</h2>
-				<Button variant="ghost" size="icon" onClick={onClose} aria-label="Close artifact">
-					<X className="size-4" />
-				</Button>
-			</header>
-			<main className="min-h-0 flex-1 overflow-auto p-6" aria-busy={loading}>
+		<div className="flex h-full min-h-0 flex-col">
+			<div className="shrink-0">
+				<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+					<p className="truncate text-sm text-muted-foreground">
+						{content?.title ?? (loading ? "Loading…" : "Artifact")}
+					</p>
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={onClose}
+						className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+					>
+						<XIcon className="size-4" />
+						<span className="sr-only">Close artifact panel</span>
+					</Button>
+				</div>
+			</div>
+
+			{/* Viewers fill the panel edge to edge; everything else scrolls with padding. */}
+			<div className="min-h-0 flex-1 overflow-hidden" aria-busy={loading}>
 				{loading ? (
-					<div className="space-y-3">
+					<div className="h-full space-y-3 px-5 py-4">
 						<Skeleton className="h-7 w-2/3" />
 						<Skeleton className="h-4 w-full" />
 						<Skeleton className="h-4 w-5/6" />
@@ -111,7 +121,7 @@ export function ArtifactPanelContent({
 				) : error ? (
 					<div
 						role="alert"
-						className="flex h-full flex-col items-center justify-center gap-3 text-center"
+						className="flex h-full flex-col items-center justify-center gap-3 px-5 py-4 text-center"
 					>
 						<FileWarning className="size-8 text-muted-foreground" />
 						<div>
@@ -124,11 +134,13 @@ export function ArtifactPanelContent({
 						</Button>
 					</div>
 				) : content?.kind === "text" ? (
-					<MarkdownViewer content={content.source_markdown} className="mx-auto max-w-3xl" />
+					<div className="h-full overflow-y-auto px-5 py-4">
+						<MarkdownViewer content={content.source_markdown} className="mx-auto max-w-3xl" />
+					</div>
 				) : content?.kind === "file" ? (
 					<FileArtifact content={content} />
 				) : null}
-			</main>
+			</div>
 		</div>
 	);
 }
@@ -136,12 +148,16 @@ export function ArtifactPanelContent({
 function FileArtifact({ content }: { content: Extract<ArtifactContent, { kind: "file" }> }) {
 	const primary = content.files.find((file) => file.role === "primary");
 	if (!primary) {
-		return <p className="text-sm text-muted-foreground">This artifact has no primary file.</p>;
+		return (
+			<p className="px-5 py-4 text-sm text-muted-foreground">This artifact has no primary file.</p>
+		);
 	}
 	const Viewer = VIEWERS[primary.mime_type];
 	return Viewer ? (
 		<Viewer primary={primary} files={content.files} />
 	) : (
-		<FileDownloadCard file={primary} />
+		<div className="h-full overflow-y-auto px-5 py-4">
+			<FileDownloadCard file={primary} />
+		</div>
 	);
 }
