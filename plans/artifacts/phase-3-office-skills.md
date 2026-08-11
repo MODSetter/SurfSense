@@ -39,10 +39,9 @@ All three follow the pdf skill's structure (frontmatter triggers, body ≤ ~500 
 
 ### 2.2 Frontend — rendering
 
-- `PdfPreviewViewer` registry entries for the two office MIME types (docx, pptx): existing PDF viewer on the **preview** file's `content_url`; `toolbarActions` gets "Download {primary.filename}" hitting the primary URL.
-- `XlsxViewer` registry entry for the spreadsheet MIME type, lazy-loaded via `next/dynamic`: fetch the **primary** file's `content_url` (existing authenticated-fetch pattern, ETag-cached) → parse in-browser with ExcelJS (MIT — values, fills, fonts, borders, merged ranges, column widths, sheet list) → format display text with `ssf` (Apache-2.0, number-format strings → rendered text) → read-only virtualized grid with column letters, row numbers, and sheet tabs. Row-capped for huge sheets ("showing N of M rows — download for full data"); parse failure or oversize falls through to `FileDownloadCard`, never an error. Charts, conditional-formatting rules, and pivot tables are out of scope (grid, not an Excel emulator — master spec §8.2). New frontend deps: `exceljs`, `ssf`.
-- `FileDownloadCard` final polish: extension icon set, size formatting, hover states; this is the permanent home for every unknown/future format and the xlsx parse-failure/oversize fallback.
-- Artifact card badges for the three new MIME types.
+- `PdfPreviewViewer` registry entries for the two office MIME types (docx, pptx): existing PDF viewer on the **preview** file's `content_url`. No download action inside the viewer — the panel header already serves the primary file (master spec §8.1).
+- `XlsxViewer` registry entry for the spreadsheet MIME type, lazy-loaded via `next/dynamic`: fetch the **primary** file's `content_url` (existing authenticated-fetch pattern, ETag-cached) → parse in-browser with ExcelJS (MIT — values, fills, fonts, borders, merged ranges, column widths, sheet list) → format display text with `ssf` (Apache-2.0, number-format strings → rendered text) → read-only virtualized grid with column letters, row numbers, and sheet tabs. Row-capped for huge sheets ("showing N of M rows — download for full data"); parse failure or oversize falls through to the panel's unviewable state, never an error. Charts, conditional-formatting rules, and pivot tables are out of scope (grid, not an Excel emulator — master spec §8.2). New frontend deps: `exceljs`, `ssf`.
+- No per-format work on the in-chat card or the unviewable state: both derive their label from the filename extension, so the three new formats are covered the day the skills land.
 
 ### 2.3 Prompt & routing
 

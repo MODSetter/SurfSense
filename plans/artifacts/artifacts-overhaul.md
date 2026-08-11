@@ -394,6 +394,8 @@ The report panel is replaced by a single **artifact panel** that receives a `doc
 - `kind: "text"` → read-only markdown viewer (existing `MarkdownViewer`; **not** Plate).
 - `kind: "file"` → the viewer registry picks a component from the **primary** file's MIME type.
 
+Download lives in the panel header (left of the close button) and on the in-chat card, not inside any viewer: it serves the primary file, or the source markdown for `kind: "text"`. Because every artifact is downloadable from a fixed place, a format the registry cannot render needs no download UI of its own — the panel body just says so.
+
 ### 8.2 Viewer registry (the only format-aware frontend code)
 
 ```tsx
@@ -403,11 +405,11 @@ const VIEWERS: Record<string, ViewerEntry> = {
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": PdfPreviewViewer,
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":          XlsxViewer,
 };
-// unmatched MIME → <FileDownloadCard />   (never an error)
+// unmatched MIME → "can't preview this here" state   (never an error)
 ```
 
-- `PdfFileViewer` / `PdfPreviewViewer` are thin wrappers around the existing `pdf-viewer.tsx`, pointed at `content_url` of the primary or preview file respectively; the preview variant adds a "Download {filename}" toolbar action (the `toolbarActions` prop exists) hitting the primary file's URL.
-- `XlsxViewer` renders the **primary** file natively — no preview blob exists for xlsx: fetch `content_url` (existing authenticated-fetch pattern, ETag-cached), parse in-browser with **ExcelJS** (MIT — values, fills, fonts, borders, merged ranges, column widths, sheet list), format display text with **`ssf`** (Apache-2.0 — turns raw `10413` + `"$#,##0.00"` into `"$10,413.00"`), and render a read-only virtualized grid with column letters, row numbers, and sheet tabs. Row-capped for huge sheets ("showing N of M rows — download for full data"); parse failure or oversize falls through to `FileDownloadCard`. Fidelity boundary: cell data and styling render; charts, conditional-formatting rules, and pivot tables do not — it is a grid, not an Excel emulator (Claude's viewer shares this boundary).
+- `PdfFileViewer` / `PdfPreviewViewer` are thin wrappers around the existing `pdf-viewer.tsx`, pointed at `content_url` of the primary or preview file respectively. Neither needs a download action of its own — the header button (§8.1) already serves the primary file, so the preview variant differs from the file variant only in which URL it renders.
+- `XlsxViewer` renders the **primary** file natively — no preview blob exists for xlsx: fetch `content_url` (existing authenticated-fetch pattern, ETag-cached), parse in-browser with **ExcelJS** (MIT — values, fills, fonts, borders, merged ranges, column widths, sheet list), format display text with **`ssf`** (Apache-2.0 — turns raw `10413` + `"$#,##0.00"` into `"$10,413.00"`), and render a read-only virtualized grid with column letters, row numbers, and sheet tabs. Row-capped for huge sheets ("showing N of M rows — download for full data"); parse failure or oversize falls through to the unviewable state. Fidelity boundary: cell data and styling render; charts, conditional-formatting rules, and pivot tables do not — it is a grid, not an Excel emulator (Claude's viewer shares this boundary).
 - All viewers lazy-loaded via `next/dynamic` (pdf.js and ExcelJS stay out of the main bundle).
 - Rationale for the matrix: browsers render PDF natively (pdf.js); client-side office renderers were evaluated and rejected on evidence (mammoth discards layout by design; docx-preview approximates; no credible OSS PPTX renderer; MS Office Online viewer requires public URLs). XLSX preview-as-PDF is likewise rejected — it misrepresents spreadsheets (truncated sheets, invisible formulas) — but a native grid does not: ExcelJS + ssf render what Claude's own xlsx viewer renders. Parser selection was evidence-driven: **SheetJS CE rejected** (cell styling is Pro-only — maintainers confirm CE's `cellStyles` reads only row/column metadata); **Univer rejected** (xlsx import is a commercial Pro plugin requiring their server, watermarked and size-capped unlicensed); **ExcelJS chosen** (MIT, parses styles in-browser).
 
@@ -419,7 +421,7 @@ const VIEWERS: Record<string, ViewerEntry> = {
 | Markdown | Read-only rendered markdown | `.md` blob | Panel branch |
 | DOCX / PPTX | Preview PDF in pdf.js viewer | The real .docx/.pptx | `PdfPreviewViewer` wrapper |
 | XLSX | Native read-only spreadsheet grid (sheet tabs, values + styles) | The real .xlsx | `XlsxViewer` (ExcelJS + ssf) |
-| Unknown / oversized / xlsx parse-failure | File card (name, size, icon) | The file | `FileDownloadCard` |
+| Unknown / oversized / xlsx parse-failure | "Can't preview this here" message | The file | Panel unviewable state |
 
 ### 8.4 Editing policy
 
