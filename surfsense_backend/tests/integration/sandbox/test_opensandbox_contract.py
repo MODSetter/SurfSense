@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from mimetypes import guess_type
 
 import pytest
 
+from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.save_artifact import (
+    DOCX_MIME,
+    _read_artifact_file,
+)
+from app.artifacts.verification.formats.pdf import check_pdf
+from app.artifacts.verification.receipt import read_receipt
+from app.artifacts.verification.service import verify_artifact
 from app.config import config as app_config
 from app.sandbox.providers.opensandbox import OpenSandboxProvider
 
@@ -30,7 +38,7 @@ pytestmark = [
             "pdf",
             "Create a one-page PDF listing three facts about X.",
             "application/pdf",
-            ("check_pdf.py", "render_pages.sh"),
+            ("backend PDF check", "pdftoppm"),
         )
     ],
 )
@@ -38,9 +46,7 @@ async def test_opensandbox_persistent_kernel_binary_io_and_terminate(
     monkeypatch, skill, prompt, expected_mime, expected_evidence_steps
 ):
     monkeypatch.setattr(app_config, "OPENSANDBOX_DOMAIN", "localhost:8080")
-    monkeypatch.setattr(
-        app_config, "OPENSANDBOX_API_KEY", "surfsense-dev-sandbox"
-    )
+    monkeypatch.setattr(app_config, "OPENSANDBOX_API_KEY", "surfsense-dev-sandbox")
     monkeypatch.setattr(app_config, "SANDBOX_IMAGE", DEV_SANDBOX_IMAGE)
     monkeypatch.setattr(app_config, "SANDBOX_IDLE_TTL_SECONDS", 900)
     provider = OpenSandboxProvider()
@@ -65,16 +71,15 @@ for y, fact in zip((740, 710, 680), ("Fact one", "Fact two", "Fact three")):
 c.save()
 """
         )
-        checked = await session.run_command(
-            f"/opt/skills/{skill}/scripts/check_pdf.py /tmp/three-facts.pdf"
-        )
-        evidence.append("check_pdf.py")
         rendered = await session.run_command(
-            f"/opt/skills/{skill}/scripts/render_pages.sh "
-            "/tmp/three-facts.pdf /tmp/three-facts-pages"
+            "mkdir -p /tmp/three-facts-pages && "
+            "pdftoppm -jpeg -r 100 /tmp/three-facts.pdf "
+            "/tmp/three-facts-pages/page"
         )
-        evidence.append("render_pages.sh")
+        evidence.append("pdftoppm")
         pdf_data = await session.read_file("/tmp/three-facts.pdf")
+        checked = check_pdf(pdf_data)
+        evidence.insert(0, "backend PDF check")
         jpeg_data = await session.read_file("/tmp/three-facts-pages/page-1.jpg")
         await session.write_file("/tmp/contract.bin", b"\x00SurfSense")
         data = await session.read_file("/tmp/contract.bin")
@@ -82,7 +87,7 @@ c.save()
 
         assert first.ok and "41" in first.output
         assert second.ok and "42" in second.output
-        assert pdf.ok and rendered.ok and checked.ok
+        assert pdf.ok and rendered.ok and checked.clean
         assert prompt
         assert guess_type("/tmp/three-facts.pdf")[0] == expected_mime
         assert tuple(evidence) == expected_evidence_steps
@@ -94,9 +99,67 @@ c.save()
         await provider.terminate_session(thread_id)
 
 
+async def test_live_docx_verification_and_mime(monkeypatch):
+    monkeypatch.setattr(app_config, "OPENSANDBOX_DOMAIN", "localhost:8080")
+    monkeypatch.setattr(app_config, "OPENSANDBOX_API_KEY", "surfsense-dev-sandbox")
+    monkeypatch.setattr(app_config, "SANDBOX_IMAGE", DEV_SANDBOX_IMAGE)
+    monkeypatch.setattr(app_config, "SANDBOX_IDLE_TTL_SECONDS", 900)
+    provider = OpenSandboxProvider()
+    thread_id = "pytest-opensandbox-docx"
+    secret = "integration-secret"
+
+    await provider.terminate_session(thread_id)
+    session = await provider.get_or_create_session(thread_id)
+    try:
+        javascript = """
+const { Document, Packer, Paragraph, TextRun } = require("docx");
+const fs = require("fs");
+const doc = new Document({ sections: [{ children: [
+  new Paragraph({ children: [new TextRun(
+    "A sufficiently long Word document sentence for verification."
+  )] })
+] }] });
+Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffer));
+"""
+        generated = await session.run_command(f"node -e {shlex.quote(javascript)}")
+        assert generated.ok
+
+        result = await verify_artifact(
+            session,
+            "/tmp/report.docx",
+            workspace_id=1,
+            vision_llm=None,
+            secret_key=secret,
+        )
+        receipt = await read_receipt(session, secret, workspace_id=1)
+        stored = await _read_artifact_file(
+            session,
+            "/tmp/report.docx",
+            "primary",
+        )
+        pages = await session.run_command(
+            "ls /tmp/surfsense-verify-*/page-*.jpg >/dev/null 2>&1"
+        )
+
+        assert result.verified
+        assert result.preview_path
+        assert receipt.primary_path == "/tmp/report.docx"
+        assert receipt.preview_path == result.preview_path
+        assert pages.ok
+        assert stored.mime_type == DOCX_MIME
+    finally:
+        await provider.terminate_session(thread_id)
+
+
 def _compose_ip(container: str) -> str:
     probe = subprocess.run(
-        ["docker", "inspect", "-f", "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}", container],
+        [
+            "docker",
+            "inspect",
+            "-f",
+            "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}",
+            container,
+        ],
         capture_output=True,
         text=True,
     )
