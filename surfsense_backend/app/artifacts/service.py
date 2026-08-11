@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete as sa_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -259,8 +259,14 @@ async def save_artifact(
             "tool_call_id": tool_call_id,
         }
         document.updated_at = datetime.now(UTC)
-        for old_file in old_files:
-            await session.delete(old_file)
+        if old_files:
+            # Queued ORM deletes flush after the INSERTs below and would
+            # trip uq_document_files_generated_role.
+            await session.execute(
+                sa_delete(DocumentFile).where(
+                    DocumentFile.id.in_([file.id for file in old_files])
+                )
+            )
 
     backend = get_storage_backend()
     new_records: list[DocumentFile] = []
