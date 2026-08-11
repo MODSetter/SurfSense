@@ -20,6 +20,11 @@ def editor_artifacts(monkeypatch):
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
+        document_files_routes,
+        "open_document_file_stream",
+        lambda record: backend.open_stream(record.storage_key),
+    )
+    monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
     monkeypatch.setattr(service, "_index_legacy", AsyncMock())
@@ -116,3 +121,83 @@ async def test_seeded_pdf_returns_file_contract(
             object(),
         )
     assert error.value.status_code == 404
+
+
+async def test_stable_download_resolves_the_latest_file_generation(
+    db_session, db_workspace, editor_artifacts
+):
+    first = await save_artifact(
+        db_session,
+        workspace_id=db_workspace.id,
+        thread_id=1,
+        tool_call_id="pdf",
+        title="Report",
+        markdown_representation="# First",
+        files=[
+            ArtifactFileInput(
+                data=b"%PDF-old",
+                filename="report.pdf",
+                mime_type="application/pdf",
+            )
+        ],
+    )
+    revised = await save_artifact(
+        db_session,
+        workspace_id=db_workspace.id,
+        thread_id=1,
+        tool_call_id="docx",
+        title="Revised report",
+        markdown_representation="# Revised",
+        document_id=first.document_id,
+        files=[
+            ArtifactFileInput(
+                data=b"PK-new-docx",
+                filename="revised-report.docx",
+                mime_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                ),
+            )
+        ],
+    )
+
+    response = await document_files_routes.download_current_artifact(
+        db_workspace.id,
+        first.document_id,
+        db_session,
+        object(),
+    )
+    body = b"".join([chunk async for chunk in response.body_iterator])
+
+    assert revised.document_id == first.document_id
+    assert revised.files[0].file_id != first.files[0].file_id
+    assert body == b"PK-new-docx"
+    assert response.media_type.endswith("wordprocessingml.document")
+    assert "revised-report.docx" in response.headers["content-disposition"]
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+async def test_stable_download_serves_current_text_artifact(
+    db_session, db_workspace, editor_artifacts
+):
+    saved = await save_artifact(
+        db_session,
+        workspace_id=db_workspace.id,
+        thread_id=1,
+        tool_call_id="markdown",
+        title="Current / notes",
+        markdown_representation="# Current notes",
+        files=[],
+    )
+
+    response = await document_files_routes.download_current_artifact(
+        db_workspace.id,
+        saved.document_id,
+        db_session,
+        object(),
+    )
+    body = b"".join([chunk async for chunk in response.body_iterator])
+
+    assert body == b"# Current notes"
+    assert response.media_type == "text/markdown; charset=utf-8"
+    assert 'filename="Current _ notes.md"' in response.headers["content-disposition"]

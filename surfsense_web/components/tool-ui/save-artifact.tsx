@@ -1,6 +1,7 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { FileText } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -10,7 +11,8 @@ import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
-import { artifactFilePath, artifactMarkdownPath } from "@/features/artifacts/download-file";
+import { artifactQueryKey, artifactQueryOptions } from "@/features/artifacts/artifact-query";
+import { artifactDownloadPath } from "@/features/artifacts/download-file";
 import { extension } from "@/features/artifacts/file-format";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
@@ -26,7 +28,7 @@ const SaveArtifactArgsSchema = z.object({
 
 const ArtifactFileSchema = z.object({
 	file_id: z.number(),
-    role: z.enum(["primary", "preview"]),
+	role: z.enum(["primary", "preview"]),
 	filename: z.string(),
 	mime_type: z.string(),
 	size_bytes: z.number().nonnegative(),
@@ -65,13 +67,11 @@ function ArtifactError({ title, error }: { title: string; error: string }) {
 function ArtifactCard({
 	documentId,
 	title,
-	primaryFile,
 	autoOpen,
 	publicRoute,
 }: {
 	documentId: number;
 	title: string;
-	primaryFile?: z.infer<typeof ArtifactFileSchema>;
 	autoOpen: boolean;
 	publicRoute: boolean;
 }) {
@@ -79,8 +79,24 @@ function ArtifactCard({
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const openedRef = useRef(false);
-	const fileType = primaryFile ? extension(primaryFile.filename) : "Markdown";
 	const canDownload = !publicRoute && Number.isFinite(workspaceId) && workspaceId > 0;
+	const { data: current } = useQuery({
+		...artifactQueryOptions(workspaceId, documentId),
+		enabled: canDownload,
+	});
+	const currentPrimary =
+		current?.kind === "file" ? current.files.find((file) => file.role === "primary") : undefined;
+	const currentTitle = current?.title ?? title;
+	const fileType =
+		current?.kind === "text"
+			? "Markdown"
+			: currentPrimary?.filename
+				? extension(currentPrimary.filename)
+				: "File";
+	const filename =
+		current?.kind === "text"
+			? `${current.title}.md`
+			: (currentPrimary?.filename ?? `${currentTitle}.md`);
 
 	useEffect(() => {
 		if (autoOpen && isDesktop && !publicRoute && !openedRef.current) {
@@ -99,24 +115,20 @@ function ArtifactCard({
 				onClick={() => openPanel({ documentId })}
 				className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
 			>
-				<span className="sr-only">Open {title}</span>
+				<span className="sr-only">Open {currentTitle}</span>
 			</button>
 
 			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
 				<FileText className="size-5 text-muted-foreground" />
 			</span>
 			<span className="min-w-0 flex-1">
-				<span className="block truncate text-sm font-medium">{title}</span>
+				<span className="block truncate text-sm font-medium">{currentTitle}</span>
 				<span className="mt-0.5 block truncate text-xs text-muted-foreground">{fileType}</span>
 			</span>
 			{canDownload ? (
 				<ArtifactDownloadButton
-					path={
-						primaryFile
-							? artifactFilePath(workspaceId, documentId, primaryFile.file_id)
-							: artifactMarkdownPath(workspaceId, documentId)
-					}
-					filename={primaryFile?.filename ?? `${title}.md`}
+					path={artifactDownloadPath(workspaceId, documentId)}
+					filename={filename}
 					className="relative z-10 size-7 shrink-0 text-muted-foreground"
 				/>
 			) : null}
@@ -132,6 +144,24 @@ export const SaveArtifactToolUI = ({
 	const pathname = usePathname();
 	const publicRoute = pathname?.startsWith("/public/") ?? false;
 	const sawRunningRef = useRef(false);
+	const queryClient = useQueryClient();
+	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
+	const savedDocumentId = result?.status === "saved" ? result.document_id : null;
+
+	useEffect(() => {
+		if (
+			!sawRunningRef.current ||
+			!savedDocumentId ||
+			!Number.isFinite(workspaceId) ||
+			workspaceId <= 0
+		) {
+			return;
+		}
+		void queryClient.invalidateQueries({
+			queryKey: artifactQueryKey(workspaceId, savedDocumentId),
+		});
+	}, [queryClient, savedDocumentId, workspaceId]);
+
 	if (status.type === "running" || status.type === "requires-action") {
 		sawRunningRef.current = true;
 		return <ArtifactPending title={args.title || "Document"} />;
@@ -166,7 +196,6 @@ export const SaveArtifactToolUI = ({
 		<ArtifactCard
 			documentId={result.document_id}
 			title={result.title || args.title || "Document"}
-			primaryFile={result.files?.find((file) => file.role === "primary")}
 			autoOpen={sawRunningRef.current}
 			publicRoute={publicRoute}
 		/>

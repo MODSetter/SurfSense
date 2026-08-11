@@ -1,28 +1,34 @@
-export interface ArtifactFile {
-	file_id: number;
-	role: "primary" | "preview";
-	filename: string;
-	mime_type: string;
-	size_bytes: number;
-	content_url: string;
-}
+import { z } from "zod";
 
-export interface TextArtifactContent {
-	kind: "text";
-	document_id: number;
-	title: string;
-	source_markdown: string;
-	generated: boolean;
-	updated_at: string | null;
-}
+export const ArtifactFileSchema = z.object({
+	file_id: z.number(),
+	role: z.enum(["primary", "preview"]),
+	filename: z.string(),
+	mime_type: z.string(),
+	size_bytes: z.number(),
+	content_url: z.string(),
+});
 
-export interface FileArtifactContent {
-	kind: "file";
-	document_id: number;
-	title: string;
-	generated: boolean;
-	files: ArtifactFile[];
-	updated_at: string | null;
-}
+export const ArtifactContentSchema = z.discriminatedUnion("kind", [
+	z.object({
+		kind: z.literal("text"),
+		document_id: z.number(),
+		title: z.string(),
+		source_markdown: z.string(),
+		generated: z.boolean(),
+		updated_at: z.string().nullable(),
+	}),
+	z.object({
+		kind: z.literal("file"),
+		document_id: z.number(),
+		title: z.string(),
+		generated: z.boolean(),
+		files: z.array(ArtifactFileSchema),
+		updated_at: z.string().nullable(),
+	}),
+]);
 
-export type ArtifactContent = TextArtifactContent | FileArtifactContent;
+export type ArtifactFile = z.infer<typeof ArtifactFileSchema>;
+export type ArtifactContent = z.infer<typeof ArtifactContentSchema>;
+export type TextArtifactContent = Extract<ArtifactContent, { kind: "text" }>;
+export type FileArtifactContent = Extract<ArtifactContent, { kind: "file" }>;

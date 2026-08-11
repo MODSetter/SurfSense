@@ -43,6 +43,21 @@ async def test_stream_rejects_cross_workspace_access(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_current_artifact_download_rejects_cross_workspace_access(monkeypatch):
+    denied = HTTPException(status_code=403, detail="denied")
+    monkeypatch.setattr(
+        document_files_routes, "check_permission", AsyncMock(side_effect=denied)
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await document_files_routes.download_current_artifact(
+            2, 3, AsyncMock(), SimpleNamespace()
+        )
+
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_stream_returns_404_for_mismatched_file(monkeypatch):
     monkeypatch.setattr(document_files_routes, "check_permission", AsyncMock())
     session = AsyncMock()

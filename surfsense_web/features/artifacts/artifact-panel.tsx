@@ -1,67 +1,28 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Dot, FileWarning, RefreshCw, XIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { z } from "zod";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { authenticatedFetch } from "@/lib/auth-fetch";
-import { buildBackendUrl } from "@/lib/env-config";
 import { ArtifactDownloadButton } from "./artifact-download-button";
-import { artifactMarkdownPath } from "./download-file";
+import { artifactQueryOptions } from "./artifact-query";
+import { artifactDownloadPath } from "./download-file";
 import { cannotPreviewMessage, extension } from "./file-format";
 import type { ArtifactContent } from "./model";
 import { UnviewableArtifact } from "./unviewable-artifact";
 import { VIEWERS } from "./viewer-registry";
 
-const ArtifactFileSchema = z.object({
-	file_id: z.number(),
-	role: z.enum(["primary", "preview"]),
-	filename: z.string(),
-	mime_type: z.string(),
-	size_bytes: z.number(),
-	content_url: z.string(),
-});
-
-const ArtifactContentSchema = z.discriminatedUnion("kind", [
-	z.object({
-		kind: z.literal("text"),
-		document_id: z.number(),
-		title: z.string(),
-		source_markdown: z.string(),
-		generated: z.boolean(),
-		updated_at: z.string().nullable(),
-	}),
-	z.object({
-		kind: z.literal("file"),
-		document_id: z.number(),
-		title: z.string(),
-		generated: z.boolean(),
-		files: z.array(ArtifactFileSchema),
-		updated_at: z.string().nullable(),
-	}),
-]);
-
-// Downloads always serve the real deliverable: the primary file, or the source
-// markdown for text artifacts, which have no stored file to point at.
-function downloadTarget(
-	content: ArtifactContent | null,
-	workspaceId: number,
-	documentId: number
-): { path: string; filename: string } | null {
+function artifactFilename(content: ArtifactContent | undefined): string | null {
 	if (content?.kind === "file") {
 		const primary = content.files.find((file) => file.role === "primary");
-		return primary ? { path: primary.content_url, filename: primary.filename } : null;
+		return primary?.filename ?? null;
 	}
 	if (content?.kind === "text") {
-		return {
-			path: artifactMarkdownPath(workspaceId, documentId),
-			filename: `${content.title}.md`,
-		};
+		return `${content.title}.md`;
 	}
 	return null;
 }
@@ -74,47 +35,17 @@ export function ArtifactPanelContent({
 	onClose: () => void;
 }) {
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
-	const [content, setContent] = useState<ArtifactContent | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [attempt, setAttempt] = useState(0);
-
-	const retry = useCallback(() => setAttempt((value) => value + 1), []);
-
-	useEffect(() => {
-		let active = true;
-		const load = async () => {
-			setLoading(true);
-			setError(null);
-			try {
-				if (!Number.isFinite(workspaceId) || workspaceId <= 0) {
-					throw new Error("No workspace selected");
-				}
-				const response = await authenticatedFetch(
-					buildBackendUrl(
-						`/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content?retry=${attempt}`
-					)
-				);
-				if (!response.ok) throw new Error("Artifact could not be loaded");
-				const parsed = ArtifactContentSchema.safeParse(await response.json());
-				if (!parsed.success) throw new Error("Artifact response is invalid");
-				if (active) setContent(parsed.data);
-			} catch (loadError) {
-				if (active) {
-					setContent(null);
-					setError(loadError instanceof Error ? loadError.message : "Artifact could not be loaded");
-				}
-			} finally {
-				if (active) setLoading(false);
-			}
-		};
-		void load();
-		return () => {
-			active = false;
-		};
-	}, [workspaceId, documentId, attempt]);
-
-	const download = downloadTarget(content, workspaceId, documentId);
+	const workspaceIsValid = Number.isFinite(workspaceId) && workspaceId > 0;
+	const {
+		data: content,
+		error,
+		isPending: loading,
+		refetch,
+	} = useQuery({
+		...artifactQueryOptions(workspaceId, documentId),
+		enabled: workspaceIsValid,
+	});
+	const downloadFilename = artifactFilename(content);
 	const artifactType =
 		content?.kind === "text"
 			? "Markdown"
@@ -138,11 +69,11 @@ export function ArtifactPanelContent({
 						) : null}
 					</div>
 					<div className="flex items-center gap-1">
-						{download ? (
+						{downloadFilename ? (
 							<>
 								<ArtifactDownloadButton
-									path={download.path}
-									filename={download.filename}
+									path={artifactDownloadPath(workspaceId, documentId)}
+									filename={downloadFilename}
 									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 								/>
 								<Separator
@@ -181,9 +112,11 @@ export function ArtifactPanelContent({
 						<FileWarning className="size-8 text-muted-foreground" />
 						<div>
 							<p className="text-sm font-medium">Couldn&apos;t open this artifact</p>
-							<p className="mt-1 text-xs text-muted-foreground">{error}</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								{error instanceof Error ? error.message : "Artifact could not be loaded"}
+							</p>
 						</div>
-						<Button variant="outline" size="sm" onClick={retry}>
+						<Button variant="outline" size="sm" onClick={() => void refetch()}>
 							<RefreshCw className="size-4" />
 							Try again
 						</Button>

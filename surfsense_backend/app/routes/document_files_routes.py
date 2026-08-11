@@ -1,16 +1,18 @@
-"""Authenticated streaming for immutable generated document files."""
+"""Authenticated streaming for immutable files and current artifacts."""
 
 from __future__ import annotations
 
+import io
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import Permission, get_async_session
+from app.db import Document, Permission, get_async_session
+from app.file_storage.persistence.enums import DocumentFileKind
 from app.file_storage.persistence.models import DocumentFile
 from app.file_storage.service import open_document_file_stream
 from app.users import get_auth_context
@@ -32,6 +34,90 @@ def _is_inline(mime_type: str) -> bool:
     # downloads. Widen per MIME type, by name with a consumer attached — never
     # by wildcard (image/* once smuggled in scriptable SVG).
     return mime_type == "application/pdf"
+
+
+def _markdown_filename(title: str) -> str:
+    safe_title = "".join(
+        character if character.isalnum() or character in " -_" else "_"
+        for character in title
+    ).strip()[:80]
+    return f"{safe_title or 'document'}.md"
+
+
+@router.get(
+    "/workspaces/{workspace_id}/documents/{document_id}/download-artifact"
+)
+async def download_current_artifact(
+    workspace_id: int,
+    document_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> StreamingResponse:
+    """Download the current generation of a generated artifact."""
+    await check_permission(
+        session,
+        auth,
+        workspace_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this workspace",
+    )
+    row = (
+        await session.execute(
+            select(
+                Document.title,
+                Document.source_markdown,
+                Document.document_metadata,
+                DocumentFile,
+            )
+            .outerjoin(
+                DocumentFile,
+                and_(
+                    DocumentFile.document_id == Document.id,
+                    DocumentFile.workspace_id == workspace_id,
+                    DocumentFile.kind == DocumentFileKind.GENERATED,
+                    DocumentFile.role == "primary",
+                ),
+            )
+            .where(
+                Document.id == document_id,
+                Document.workspace_id == workspace_id,
+            )
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    title, markdown, metadata, primary = row
+    if not (metadata or {}).get("generated"):
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    headers = {
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if primary is not None:
+        mime_type = primary.mime_type or "application/octet-stream"
+        return StreamingResponse(
+            open_document_file_stream(primary),
+            media_type=mime_type,
+            headers={
+                **headers,
+                "Content-Disposition": _content_disposition(
+                    primary.original_filename, inline=False
+                ),
+            },
+        )
+
+    if not markdown or not markdown.strip():
+        raise HTTPException(status_code=404, detail="Artifact has no downloadable content")
+    filename = _markdown_filename(title or "document")
+    return StreamingResponse(
+        io.BytesIO(markdown.encode("utf-8")),
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            **headers,
+            "Content-Disposition": _content_disposition(filename, inline=False),
+        },
+    )
 
 
 @router.get(
