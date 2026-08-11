@@ -26,9 +26,11 @@ placing it in HTML.
 
 ## Required quality gate
 
-After generating the PDF, call `verify_artifact(path="out.pdf")`. Fix every
-reported defect in the source, regenerate, and call `verify_artifact` again.
-Only a verified file can be saved.
+After generating the PDF, call `verify_artifact(path="out.pdf")`. Warnings are
+advisory and do not require regeneration. If verification reports blocking
+findings, fix them in the source and regenerate once. Reverify that revision;
+if a blocker remains, stop and explain it instead of entering another automatic
+rewrite loop. Only a verified file can be saved.
 
 Then call `save_artifact(path="out.pdf", source_path="source.html", title="...",
 markdown_representation="...")`, using the actual `.html` or `.py` source path

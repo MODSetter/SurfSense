@@ -42,8 +42,10 @@ and saving so the `artifact-42-` prefix does not compound on later revisions.
 
 ## Verify and save
 
-Call `verify_artifact(path="project-brief.docx")`. Fix every finding in the
-JavaScript source, regenerate, and verify again. Then call `save_artifact` with
-the DOCX path, JavaScript source path, and the exact `preview_path` returned by
+Call `verify_artifact(path="project-brief.docx")`. Warnings are advisory. If it
+reports blocking findings, fix them in the JavaScript source and regenerate
+once. Reverify that revision; if a blocker remains, stop and explain it instead
+of entering another automatic rewrite loop. Then call `save_artifact` with the
+DOCX path, JavaScript source path, and the exact `preview_path` returned by
 verification. The Markdown representation must faithfully contain the
 document's substantive text for accessibility and search.

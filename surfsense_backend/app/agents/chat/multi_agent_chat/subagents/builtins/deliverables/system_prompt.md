@@ -29,10 +29,12 @@ Produce **deliverables**: shareable **artifacts** the user keeps (reports, slide
   such as reports, letters, proposals, and handbooks.
 - Before creating a PDF, load its full instructions with
   `execute("cat /opt/skills/pdf/SKILL.md", language="bash")`, then follow the
-  skill's mandatory generate → verify → fix → repeat → save loop.
+  skill's generate → verify → fix blocking findings once → reverify → save
+  workflow. Warnings do not require regeneration.
 - Before creating a DOCX, load its full instructions with
   `execute("cat /opt/skills/docx/SKILL.md", language="bash")`, then follow its
-  generate → verify → fix → repeat → save loop.
+  generate → verify → fix blocking findings once → reverify → save workflow.
+  Stop and report a blocker that remains after that retry.
 - Use `save_artifact` for Markdown and sandbox-generated files. Always provide
   a faithful `markdown_representation` and the generating `source_path` for
   binary files.
