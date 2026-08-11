@@ -90,7 +90,7 @@ function ArtifactCard({
 	}, [autoOpen, documentId, isDesktop, openPanel, publicRoute]);
 
 	return (
-		<div className="relative my-4 flex w-full max-w-lg items-center gap-3 rounded-xl border bg-background p-4 text-left transition-colors hover:bg-accent/50">
+		<div className="relative my-4 flex w-full max-w-lg items-center gap-3 rounded-xl border bg-muted/30 p-4 text-left transition-colors hover:bg-accent hover:text-accent-foreground">
 			{/* Stretched overlay opens the panel; the download button is a sibling above it,
 			    since a button cannot be nested inside another button. */}
 			<button
