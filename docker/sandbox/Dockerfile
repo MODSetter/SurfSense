@@ -46,6 +46,14 @@ RUN set -euo pipefail \
     && npm install --global docx \
     && node -e "require('docx')"
 
-COPY skills /opt/skills
+# The base image also ships skills. Replace the formats SurfSense owns in one
+# layer so OverlayFS records removed base-image files as deletions.
+COPY skills /tmp/surfsense-skills
+RUN rm -rf /opt/skills/pdf /opt/skills/docx \
+    && mkdir -p /opt/skills \
+    && cp -a /tmp/surfsense-skills/pdf /opt/skills/pdf \
+    && cp -a /tmp/surfsense-skills/docx /opt/skills/docx \
+    && rm -rf /opt/skills/pdf/scripts /opt/skills/docx/scripts \
+    && rm -rf /tmp/surfsense-skills
 
 ENTRYPOINT ["/opt/code-interpreter/code-interpreter.sh"]

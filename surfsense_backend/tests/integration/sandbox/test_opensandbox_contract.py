@@ -111,6 +111,11 @@ async def test_live_docx_verification_and_mime(monkeypatch):
     await provider.terminate_session(thread_id)
     session = await provider.get_or_create_session(thread_id)
     try:
+        skills = await session.run_command(
+            "test ! -d /opt/skills/pdf/scripts "
+            "&& test -f /opt/skills/pdf/SKILL.md "
+            "&& test -f /opt/skills/docx/SKILL.md"
+        )
         javascript = """
 const { Document, Packer, Paragraph, TextRun } = require("docx");
 const fs = require("fs");
@@ -122,7 +127,7 @@ const doc = new Document({ sections: [{ children: [
 Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffer));
 """
         generated = await session.run_command(f"node -e {shlex.quote(javascript)}")
-        assert generated.ok
+        assert skills.ok and generated.ok
 
         result = await verify_artifact(
             session,
