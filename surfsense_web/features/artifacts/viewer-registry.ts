@@ -13,7 +13,8 @@ const PdfFileViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-file-
 	ssr: false,
 });
 
-// Unknown MIME types deliberately fall through to FileDownloadCard.
+// Unknown MIME types deliberately fall through to the panel's unviewable state,
+// where the header's download button is still the way out.
 export const VIEWERS: Partial<Record<string, ComponentType<ArtifactFileViewerProps>>> = {
 	"application/pdf": PdfFileViewer,
 };

@@ -1,15 +1,17 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
-import { useSetAtom } from "jotai";
-import { Check, FileText } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { FileText } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
 import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
+import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
+import { artifactFilePath, artifactMarkdownPath } from "@/features/artifacts/download-file";
+import { extension } from "@/features/artifacts/file-format";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 const SaveArtifactArgsSchema = z.object({
@@ -74,17 +76,11 @@ function ArtifactCard({
 	publicRoute: boolean;
 }) {
 	const openPanel = useSetAtom(openArtifactPanelAtom);
+	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const openedRef = useRef(false);
-	const isPdf = primaryFile?.mime_type === "application/pdf";
-	const format = isPdf
-		? { badge: "PDF", subtitle: "PDF document" }
-		: primaryFile
-			? {
-					badge: primaryFile.filename.split(".").pop()?.toUpperCase() || "FILE",
-					subtitle: primaryFile.mime_type,
-				}
-			: { badge: "MD", subtitle: "Markdown document" };
+	const fileType = primaryFile ? extension(primaryFile.filename) : "Markdown";
+	const canDownload = !publicRoute && Number.isFinite(workspaceId) && workspaceId > 0;
 
 	useEffect(() => {
 		if (autoOpen && isDesktop && !publicRoute && !openedRef.current) {
@@ -94,27 +90,37 @@ function ArtifactCard({
 	}, [autoOpen, documentId, isDesktop, openPanel, publicRoute]);
 
 	return (
-		<Button
-			type="button"
-			variant="outline"
-			disabled={publicRoute}
-			onClick={() => openPanel({ documentId })}
-			className="my-4 h-auto w-full max-w-lg justify-start gap-3 rounded-xl p-4 text-left"
-		>
+		<div className="relative my-4 flex w-full max-w-lg items-center gap-3 rounded-xl border bg-background p-4 text-left transition-colors hover:bg-accent/50">
+			{/* Stretched overlay opens the panel; the download button is a sibling above it,
+			    since a button cannot be nested inside another button. */}
+			<button
+				type="button"
+				disabled={publicRoute}
+				onClick={() => openPanel({ documentId })}
+				className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+			>
+				<span className="sr-only">Open {title}</span>
+			</button>
+
 			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
 				<FileText className="size-5 text-muted-foreground" />
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium">{title}</span>
-				<span className="mt-0.5 block truncate text-xs text-muted-foreground">
-					{format.subtitle}
-				</span>
+				<span className="mt-0.5 block truncate text-xs text-muted-foreground">{fileType}</span>
 			</span>
-			<Badge variant="secondary" className="shrink-0 font-mono text-[10px]">
-				{format.badge}
-			</Badge>
-			<Check className="size-4 text-muted-foreground" />
-		</Button>
+			{canDownload ? (
+				<ArtifactDownloadButton
+					path={
+						primaryFile
+							? artifactFilePath(workspaceId, documentId, primaryFile.file_id)
+							: artifactMarkdownPath(workspaceId, documentId)
+					}
+					filename={primaryFile?.filename ?? `${title}.md`}
+					className="relative z-10 size-7 shrink-0 text-muted-foreground"
+				/>
+			) : null}
+		</div>
 	);
 }
 

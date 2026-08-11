@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { FileWarning, RefreshCw, XIcon } from "lucide-react";
+import { FileQuestion, FileWarning, RefreshCw, XIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
-import { FileDownloadCard } from "./file-download-card";
+import { ArtifactDownloadButton } from "./artifact-download-button";
+import { artifactMarkdownPath } from "./download-file";
+import { extension } from "./file-format";
 import type { ArtifactContent } from "./model";
 import { VIEWERS } from "./viewer-registry";
 
@@ -41,6 +43,26 @@ const ArtifactContentSchema = z.discriminatedUnion("kind", [
 		updated_at: z.string().nullable(),
 	}),
 ]);
+
+// Downloads always serve the real deliverable: the primary file, or the source
+// markdown for text artifacts, which have no stored file to point at.
+function downloadTarget(
+	content: ArtifactContent | null,
+	workspaceId: number,
+	documentId: number
+): { path: string; filename: string } | null {
+	if (content?.kind === "file") {
+		const primary = content.files.find((file) => file.role === "primary");
+		return primary ? { path: primary.content_url, filename: primary.filename } : null;
+	}
+	if (content?.kind === "text") {
+		return {
+			path: artifactMarkdownPath(workspaceId, documentId),
+			filename: `${content.title}.md`,
+		};
+	}
+	return null;
+}
 
 export function ArtifactPanelContent({
 	documentId,
@@ -90,6 +112,8 @@ export function ArtifactPanelContent({
 		};
 	}, [workspaceId, documentId, attempt]);
 
+	const download = downloadTarget(content, workspaceId, documentId);
+
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<div className="shrink-0">
@@ -97,15 +121,24 @@ export function ArtifactPanelContent({
 					<p className="truncate text-sm text-muted-foreground">
 						{content?.title ?? (loading ? "Loading…" : "Artifact")}
 					</p>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={onClose}
-						className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-					>
-						<XIcon className="size-4" />
-						<span className="sr-only">Close artifact panel</span>
-					</Button>
+					<div className="flex items-center gap-1">
+						{download ? (
+							<ArtifactDownloadButton
+								path={download.path}
+								filename={download.filename}
+								className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							/>
+						) : null}
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={onClose}
+							className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+						>
+							<XIcon className="size-4" />
+							<span className="sr-only">Close artifact panel</span>
+						</Button>
+					</div>
 				</div>
 			</div>
 
@@ -148,16 +181,24 @@ export function ArtifactPanelContent({
 function FileArtifact({ content }: { content: Extract<ArtifactContent, { kind: "file" }> }) {
 	const primary = content.files.find((file) => file.role === "primary");
 	if (!primary) {
-		return (
-			<p className="px-5 py-4 text-sm text-muted-foreground">This artifact has no primary file.</p>
-		);
+		return <UnviewableArtifact message="This artifact has no primary file." />;
 	}
 	const Viewer = VIEWERS[primary.mime_type];
 	return Viewer ? (
 		<Viewer primary={primary} files={content.files} />
 	) : (
-		<div className="h-full overflow-y-auto px-5 py-4">
-			<FileDownloadCard file={primary} />
+		<UnviewableArtifact
+			message={`${extension(primary.filename)} files can't be previewed here. Download it to open it.`}
+		/>
+	);
+}
+
+// Not an error: the artifact saved fine and the header's download button works.
+function UnviewableArtifact({ message }: { message: string }) {
+	return (
+		<div className="flex h-full flex-col items-center justify-center gap-3 px-5 py-4 text-center">
+			<FileQuestion className="size-8 text-muted-foreground" />
+			<p className="max-w-xs text-sm text-muted-foreground">{message}</p>
 		</div>
 	);
 }
