@@ -8,16 +8,21 @@ from .base import FormatAdapter
 from .docx import check_docx
 from .pdf import check_pdf
 
+PDF_MIME = "application/pdf"
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
 _ADAPTERS = {
     ".pdf": FormatAdapter(
         name="pdf",
         suffix=".pdf",
+        mime_type=PDF_MIME,
         convert_to_pdf=False,
         check=check_pdf,
     ),
     ".docx": FormatAdapter(
         name="docx",
         suffix=".docx",
+        mime_type=DOCX_MIME,
         convert_to_pdf=True,
         check=check_docx,
     ),

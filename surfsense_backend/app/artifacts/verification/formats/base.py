@@ -21,5 +21,6 @@ class StructuralCheckResult:
 class FormatAdapter:
     name: str
     suffix: str
+    mime_type: str
     convert_to_pdf: bool
     check: Callable[[bytes], StructuralCheckResult]

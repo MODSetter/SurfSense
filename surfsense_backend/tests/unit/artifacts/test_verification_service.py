@@ -18,6 +18,7 @@ def _adapter(result: StructuralCheckResult) -> FormatAdapter:
     return FormatAdapter(
         name="pdf",
         suffix=".pdf",
+        mime_type="application/pdf",
         convert_to_pdf=False,
         check=lambda _data: result,
     )
