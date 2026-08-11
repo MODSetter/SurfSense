@@ -9,7 +9,13 @@ correlates each frame back to the right paused subagent via the stamped
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
+
+# LangGraph persists interrupts as writes to this channel, one per paused task.
+# The named constant is private as of V1.0, but the channel string is the
+# durable on-disk value.
+_INTERRUPT_CHANNEL = "__interrupt__"
 
 
 def all_interrupt_entries(state: Any) -> list[tuple[dict[str, Any], str | None]]:
@@ -73,3 +79,41 @@ def all_interrupt_entries(state: Any) -> list[tuple[dict[str, Any], str | None]]
 def all_interrupt_values(state: Any) -> list[dict[str, Any]]:
     """Interrupt payloads across the snapshot, in traversal order (ids dropped)."""
     return [value for value, _ in all_interrupt_entries(state)]
+
+
+def pending_interrupt_entries_from_writes(
+    pending_writes: Iterable[Any] | None,
+) -> list[tuple[dict[str, Any], str | None]]:
+    """``(value, interrupt_id)`` for interrupts stored in a checkpoint's writes.
+
+    Reads paused interrupts without compiling the agent graph, so the
+    thread-load path can surface HITL cards after a refresh — ``aget_state``
+    (which would compute these) needs the full compiled agent and is far too
+    heavy for a read. Each ``pending_writes`` entry is ``(task_id, channel,
+    value)``; interrupt writes carry one or more langgraph ``Interrupt``
+    objects on the ``"__interrupt__"`` channel.
+
+    ponytail: couples to the persisted channel string. If langgraph renames it,
+    switch to ``graph.aget_state(config).interrupts``.
+    """
+    entries: list[tuple[dict[str, Any], str | None]] = []
+    for write in pending_writes or ():
+        try:
+            _task_id, channel, value = write
+        except (ValueError, TypeError):
+            continue
+        if channel != _INTERRUPT_CHANNEL:
+            continue
+        items = value if isinstance(value, list | tuple) else [value]
+        for item in items:
+            interrupt_value = getattr(item, "value", None)
+            interrupt_id = getattr(item, "id", None)
+            if not isinstance(interrupt_value, dict):
+                continue
+            entries.append(
+                (
+                    interrupt_value,
+                    str(interrupt_id) if interrupt_id is not None else None,
+                )
+            )
+    return entries

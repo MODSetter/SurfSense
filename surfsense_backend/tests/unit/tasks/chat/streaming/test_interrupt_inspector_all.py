@@ -26,7 +26,53 @@ from types import SimpleNamespace
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
     all_interrupt_entries,
     all_interrupt_values,
+    pending_interrupt_entries_from_writes,
 )
+
+
+class TestPendingInterruptEntriesFromWrites:
+    """Read paused interrupts straight from a checkpoint's ``pending_writes``.
+
+    Powers refresh recovery: the thread-load path surfaces paused HITL cards
+    without compiling the full agent graph. Interrupts persist as writes to
+    the ``"__interrupt__"`` channel, one per paused task.
+    """
+
+    def test_extracts_value_and_id(self):
+        from langgraph.types import Interrupt
+
+        writes = [
+            ("task-1", "messages", ["ignored"]),
+            (
+                "task-2",
+                "__interrupt__",
+                [Interrupt(value={"tool_call_id": "tc-A"}, id="int-A")],
+            ),
+        ]
+
+        assert pending_interrupt_entries_from_writes(writes) == [
+            ({"tool_call_id": "tc-A"}, "int-A")
+        ]
+
+    def test_handles_scalar_value_not_wrapped_in_list(self):
+        from langgraph.types import Interrupt
+
+        writes = [("t", "__interrupt__", Interrupt(value={"a": 1}, id="i-1"))]
+
+        assert pending_interrupt_entries_from_writes(writes) == [({"a": 1}, "i-1")]
+
+    def test_skips_non_interrupt_channels_and_non_dict_values(self):
+        from langgraph.types import Interrupt
+
+        writes = [
+            ("t", "messages", [Interrupt(value={"a": 1}, id="x")]),
+            ("t", "__interrupt__", [Interrupt(value="not-a-dict", id="y")]),
+        ]
+
+        assert pending_interrupt_entries_from_writes(writes) == []
+
+    def test_none_input_returns_empty(self):
+        assert pending_interrupt_entries_from_writes(None) == []
 
 
 class TestAllInterruptEntries:

@@ -459,6 +459,20 @@ class ResumeRequest(BaseModel):
     )
 
 
+class PendingInterruptsResponse(BaseModel):
+    """Paused HITL interrupts for a thread, reconstructed from the checkpoint.
+
+    Lets the frontend re-render approval cards after a page refresh (the live
+    ``chatStreamStore`` overlay lives only in module RAM). Each payload matches
+    the ``data-interrupt-request`` SSE ``data`` shape (carries ``interrupt_id``
+    / ``tool_call_id``); ``assistant_message_id`` is the paused turn's row so
+    the card reattaches to the right message.
+    """
+
+    assistant_message_id: int | None = None
+    pending_interrupts: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class CancelActiveTurnResponse(BaseModel):
     """Response for canceling an active turn on a chat thread."""
 
