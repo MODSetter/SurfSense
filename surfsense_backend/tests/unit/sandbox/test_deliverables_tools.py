@@ -91,13 +91,14 @@ async def _add_receipt(
     *,
     preview_path: str | None = None,
     unavailable_reason: str | None = None,
+    format_name: str | None = None,
 ) -> None:
     await write_receipt(
         session,
         VerificationReceipt(
             workspace_id=WORKSPACE_ID,
             session_id=session.session_id,
-            format=primary_path.rsplit(".", 1)[-1],
+            format=format_name or primary_path.rsplit(".", 1)[-1],
             primary_path=primary_path,
             primary_sha256=sha256_bytes(session.files[primary_path]),
             preview_path=preview_path,
@@ -209,13 +210,13 @@ async def test_binary_save_requires_a_signed_receipt(monkeypatch):
 async def test_receipt_must_name_the_saved_file(monkeypatch):
     session = _sandbox(
         {
-            "/workspace/data.xlsx": b"PK\x03\x04",
-            "/workspace/source.py": b"print('xlsx')",
+            "/workspace/data.pdf": b"%PDF-1.4\n%%EOF",
+            "/workspace/source.py": b"print('pdf')",
         }
     )
-    await _add_receipt(session, "/workspace/data.xlsx")
+    await _add_receipt(session, "/workspace/data.pdf")
     envelope = session.files.pop("/tmp/.surfsense-artifact-verification.json")
-    session.files["/workspace/copy.xlsx"] = session.files["/workspace/data.xlsx"]
+    session.files["/workspace/copy.pdf"] = session.files["/workspace/data.pdf"]
     session.files["/tmp/.surfsense-artifact-verification.json"] = envelope
     _patch_save_tool(monkeypatch, session)
     tool = save_tool.create_save_artifact_tool(3)
@@ -223,11 +224,33 @@ async def test_receipt_must_name_the_saved_file(monkeypatch):
     rejected = await tool.coroutine(
         title="Numbers",
         markdown_representation="# Numbers",
-        path="/workspace/copy.xlsx",
+        path="/workspace/copy.pdf",
         source_path="/workspace/source.py",
         runtime=_runtime(),
     )
     assert "changed after verification" in str(rejected)
+
+
+async def test_receipt_must_name_the_saved_format(monkeypatch):
+    session = _sandbox(
+        {
+            "/workspace/data.pdf": b"%PDF-1.4\n%%EOF",
+            "/workspace/source.py": b"print('pdf')",
+        }
+    )
+    await _add_receipt(session, "/workspace/data.pdf", format_name="docx")
+    _patch_save_tool(monkeypatch, session)
+    tool = save_tool.create_save_artifact_tool(3)
+
+    rejected = await tool.coroutine(
+        title="Numbers",
+        markdown_representation="# Numbers",
+        path="/workspace/data.pdf",
+        source_path="/workspace/source.py",
+        runtime=_runtime(),
+    )
+
+    assert "another artifact format" in str(rejected)
 
 
 async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
@@ -270,9 +293,29 @@ async def test_binary_save_enforces_file_cap(monkeypatch):
         )
 
 
-def test_javascript_source_accepts_plain_text_sniff():
-    assert save_tool._mime_types_compatible("application/javascript", "text/plain")
-    assert save_tool._mime_types_compatible("text/javascript", "text/plain")
+async def test_javascript_source_uses_canonical_mime():
+    source = await save_tool._read_artifact_file(
+        _sandbox({"/workspace/source.js": b"const answer = 42;"}),
+        "/workspace/source.js",
+        "source",
+    )
+
+    assert source.mime_type == "text/javascript"
+
+
+async def test_source_rejects_binary_and_unknown_extensions():
+    with pytest.raises(ValueError, match="NUL"):
+        await save_tool._read_artifact_file(
+            _sandbox({"/workspace/source.js": b"const\x00answer = 42;"}),
+            "/workspace/source.js",
+            "source",
+        )
+    with pytest.raises(ValueError, match="Unsupported artifact source type"):
+        await save_tool._read_artifact_file(
+            _sandbox({"/workspace/source.txt": b"const answer = 42;"}),
+            "/workspace/source.txt",
+            "source",
+        )
 
 
 async def test_generated_file_requires_source_and_has_no_content_alias():

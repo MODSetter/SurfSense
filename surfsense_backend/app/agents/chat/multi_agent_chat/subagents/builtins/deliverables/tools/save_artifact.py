@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import logging
-import mimetypes
 from dataclasses import asdict
 from pathlib import PurePosixPath
 
-import magic
 from langchain.tools import ToolRuntime
 from langchain_core.tools import tool
 
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.artifacts import ArtifactFileInput, save_artifact
+from app.artifacts.source_formats import validate_source_file
+from app.artifacts.verification.formats.registry import get_format_adapter
 from app.artifacts.verification.receipt import read_receipt, sha256_bytes
 from app.config import config as app_config
 from app.db import shielded_async_session
@@ -22,21 +22,6 @@ from app.sandbox import SandboxSession, get_registry
 from .thread_resolver import resolve_root_thread_id
 
 logger = logging.getLogger(__name__)
-
-DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-mimetypes.add_type(DOCX_MIME, ".docx")
-
-
-def _mime_types_compatible(extension_mime: str, sniffed_mime: str) -> bool:
-    if extension_mime == sniffed_mime or sniffed_mime == "application/octet-stream":
-        return True
-    if extension_mime.startswith("text/") and sniffed_mime.startswith("text/"):
-        return True
-    if extension_mime == "application/javascript" and sniffed_mime.startswith("text/"):
-        return True
-    return extension_mime.startswith(
-        "application/vnd.openxmlformats-officedocument."
-    ) and sniffed_mime in {"application/zip", "application/x-zip"}
 
 
 async def _read_artifact_file(
@@ -54,20 +39,19 @@ async def _read_artifact_file(
             f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes"
         )
 
-    extension_mime = mimetypes.guess_type(filename)[0]
-    sniffed_mime = magic.from_buffer(data, mime=True)
-    if (
-        extension_mime
-        and sniffed_mime
-        and not _mime_types_compatible(extension_mime, sniffed_mime)
-    ):
-        raise ValueError(
-            f"File contents ({sniffed_mime}) do not match {filename} ({extension_mime})"
-        )
+    if role == "source":
+        mime_type = validate_source_file(path, data)
+    else:
+        adapter = get_format_adapter(path)
+        if role == "preview" and adapter.name != "pdf":
+            raise ValueError("Artifact previews must be PDF files")
+        if role not in {"primary", "preview"}:
+            raise ValueError(f"Unsupported artifact file role: {role}")
+        mime_type = adapter.mime_type
     return ArtifactFileInput(
         data=data,
         filename=filename,
-        mime_type=extension_mime or sniffed_mime or "application/octet-stream",
+        mime_type=mime_type,
         role=role,
     )
 
@@ -121,6 +105,11 @@ def create_save_artifact_tool(workspace_id: int):
                     app_config.SECRET_KEY,
                     workspace_id=workspace_id,
                 )
+                primary_adapter = get_format_adapter(path)
+                if verification.format != primary_adapter.name:
+                    raise ValueError(
+                        "The verification receipt names another artifact format"
+                    )
                 if verification.primary_path != path or (
                     verification.primary_sha256 != sha256_bytes(primary.data)
                 ):

@@ -10,10 +10,10 @@ from mimetypes import guess_type
 import pytest
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.save_artifact import (
-    DOCX_MIME,
     _read_artifact_file,
 )
 from app.artifacts.verification.formats.pdf import check_pdf
+from app.artifacts.verification.formats.registry import DOCX_MIME
 from app.artifacts.verification.receipt import read_receipt
 from app.artifacts.verification.service import verify_artifact
 from app.config import config as app_config
