@@ -15,14 +15,14 @@ OOXML MIME detection through the live OpenSandbox service.
 
 **Why this phase grew.** Phase 2 shipped the loop as a procedure the model performs: a structural script that announces itself with a `SURFSENSE_VERIFIED:` line, a shell conversion, a rasterize, two `inspect_sandbox_images` calls, and a gate comparing mtimes against two ledger files. Docx is the first format with a conversion hop, and writing its skill against that design surfaced what the design costs: the middle hop can go stale (a failed reconvert leaves the previous generation's PDF for the model to inspect while every timestamp still lines up), the three rules that prevent it are prose asking each skill author to be careful identically, and none of it is testable without a live sandbox and a live vision model. Adding a second format to that shape means writing those rules a second time. Master spec §6.3 now puts the sequence in the backend instead, so this phase builds it once and docx becomes what phases 4 and 5 were always supposed to be: a body and an adapter.
 
-**In:** the verification service and the `verify_artifact` tool; `pdf` migrated onto it; phase 2's sentinel, ledgers and `inspect_sandbox_images` deleted; then the `docx` skill, its structural adapter, the first live use of the `role=preview` file, `PdfPreviewViewer` with its docx registry entry, and deterministic OOXML MIME registration.
+**In:** the verification service and the `verify_artifact` tool; `pdf` migrated onto it; phase 2's sentinel, ledgers and `inspect_sandbox_images` deleted; then the `docx` skill, its structural adapter, the first live use of the `role=preview` file, `PdfPreviewViewer` with its docx registry entry, and adapter-owned canonical OOXML MIME.
 
 **Out:** `pptx` (phase 4), `xlsx` and the unviewable/download-card polish (phase 5), legacy-system deletion (phase 6 — the deletions here are phase 2's own machinery, not `Report`/Typst).
 
 **Two commits, in this order, each leaving the product working:**
 
 - **3a — architecture, no new format.** The service ships, `pdf` verifies through it, the old machinery goes. Nothing user-visible changes except that verification reports progress; the exit gate is that a PDF still generates, verifies and saves with no skill scripts left in the image.
-- **3b — docx on top of it.** Adapter, skill body, prompt entries, viewer, MIME registration, tests.
+- **3b — docx on top of it.** Adapter (including canonical MIME), skill body, prompt entries, viewer and tests.
 
 Splitting them is what makes a bisect meaningful: a PDF regression in 3a is the migration, and anything in 3b is the new format. Merging them would produce one commit where "the docx skill broke PDF" is a sentence someone has to debug.
 
@@ -138,7 +138,7 @@ Create with `docx` (npm, Node; preinstalled — instruct `require('docx')` direc
 
 ### 3.3 MIME determinism
 
-Register the OOXML wordprocessing type with `mimetypes.add_type` in `save_artifact.py`. Without it the stored MIME for a `.docx` is whatever `python-magic` makes of a zip of XML — `application/zip` — because CPython 3.12 has no OOXML entry and `python:3.12-slim` ships no `/etc/mime.types` (master spec §8.2). The viewer registry is keyed on the stored MIME, so the omission does not fail loudly: it renders the unviewable state for a format this phase explicitly supports, on the deployment image only, while passing review and tests on any machine that happens to have that file. One line, and the live-sandbox check below is what proves it.
+The DOCX format adapter owns the canonical OOXML wordprocessing MIME alongside its suffix, checker and conversion mode. `save_artifact` obtains the primary MIME from that adapter and requires the signed receipt to name the same format, rather than comparing `mimetypes` and libmagic strings. This matters beyond DOCX: host MIME tables vary, OOXML is truthfully sniffed as a ZIP container, and JavaScript alone has a current `text/javascript` name plus legacy libmagic aliases. A future PPTX or XLSX adapter supplies its canonical MIME in the same registry entry. Generation sources use their own role-specific `.py`/`.html`/`.js` allowlist and UTF-8/NUL validation because source text is stored for revision but never rendered or downloaded (master spec §8.2).
 
 ### 3.4 Frontend — rendering
 

@@ -34,7 +34,7 @@ Save: `save_artifact(path=<deck>.pptx, source_path=<deck>.py, preview_path=<the 
 ### 2.3 Frontend — rendering
 
 - One `PdfPreviewViewer` registry entry for the pptx MIME type. No new component: phase 3 built the viewer, and a deck's preview PDF is a PDF like any other.
-- Register the OOXML presentation MIME with `mimetypes.add_type` beside phase 3's docx entry, for the reason master spec §8.2 gives: without it the stored type is `application/zip` and this registry line silently never matches.
+- Put the canonical OOXML presentation MIME on the PPTX format adapter, beside its suffix, checker and conversion mode. `save_artifact` stores that adapter-owned value after validating the signed receipt, so libmagic's truthful `application/zip` view of the container cannot make this frontend registry entry silently miss.
 
 ### 2.4 Prompt & routing
 
