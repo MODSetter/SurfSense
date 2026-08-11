@@ -300,6 +300,16 @@ services:
   frontend:
     build:
       context: ../surfsense_web
+      target: dev
+    # Live source, same idea as the backend's app/ mount: edit on the host and
+    # `next dev` recompiles — no rebuild, no restart. Rebuild only when
+    # pnpm-lock.yaml changes, since node_modules comes from the image.
+    volumes:
+      - ../surfsense_web:/app
+      # Anonymous volumes keep the image's musl-built node_modules and the dev
+      # server's cache from being shadowed by the bind mount above.
+      - /app/node_modules
+      - /app/.next
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     env_file:

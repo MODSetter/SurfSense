@@ -45,6 +45,15 @@ COPY . .
 
 RUN pnpm run build
 
+# Dev image: source is bind-mounted and `next dev` compiles it on demand, so
+# edits need no rebuild. Branches off `deps` because node_modules must stay the
+# musl build from this image — the compose file masks the bind mount with an
+# anonymous volume so the host's glibc modules can never leak in.
+# Declared before `runner` so `runner` remains the last (default) build target.
+FROM deps AS dev
+EXPOSE 3000
+CMD ["pnpm", "run", "dev"]
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
