@@ -46,18 +46,17 @@ def _one_page_pdf() -> bytes:
     return output.getvalue()
 
 
-def test_pdf_checks_detect_margin_and_unembedded_font(monkeypatch):
+def test_pdf_checks_detect_unembedded_font(monkeypatch):
     monkeypatch.setattr(
         pdf,
         "PdfReader",
         lambda _stream: SimpleNamespace(pages=[FakePage(x=10, embedded=False)]),
     )
 
-    result = pdf.check_pdf(b"%PDF", margin_pt=50)
+    result = pdf.check_pdf(b"%PDF")
 
     assert result.page_count == 1
     assert not result.clean
-    assert any("outside the margins" in finding for finding in result.findings)
     assert any("unembedded fonts: /Helvetica" in finding for finding in result.findings)
 
 
@@ -68,9 +67,19 @@ def test_font_that_draws_no_text_is_not_flagged(monkeypatch):
         lambda _stream: SimpleNamespace(pages=[FakePage(text="   ", embedded=False)]),
     )
 
-    result = pdf.check_pdf(b"%PDF", margin_pt=50)
+    result = pdf.check_pdf(b"%PDF")
 
     assert not any("unembedded" in finding for finding in result.findings)
+
+
+def test_running_header_in_margin_is_not_a_structural_failure(monkeypatch):
+    monkeypatch.setattr(
+        pdf,
+        "PdfReader",
+        lambda _stream: SimpleNamespace(pages=[FakePage(x=10, y=780)]),
+    )
+
+    assert pdf.check_pdf(b"%PDF").clean
 
 
 def test_pdf_check_reports_near_blank_page():

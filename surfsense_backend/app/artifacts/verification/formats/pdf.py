@@ -9,7 +9,6 @@ from pypdf import PdfReader
 
 from .base import StructuralCheckResult
 
-DEFAULT_MARGIN_PT = 18 * 72 / 25.4
 DEFAULT_MIN_CHARS = 20
 
 
@@ -31,21 +30,14 @@ def _font_is_embedded(font: Any) -> bool:
     return False
 
 
-def _scan_text(
-    page: Any, margin: float
-) -> tuple[list[tuple[str, float, float]], list[str]]:
-    """Return margin violations and unembedded fonts that actually draw text."""
-    left = float(page.mediabox.left) + margin
-    right = float(page.mediabox.right) - margin
-    bottom = float(page.mediabox.bottom) + margin
-    top = float(page.mediabox.top) - margin
-    violations: list[tuple[str, float, float]] = []
+def _unembedded_fonts(page: Any) -> list[str]:
+    """Return unembedded fonts that actually draw text."""
     unembedded: dict[str, None] = {}
 
     def visitor(
         text: str,
-        current_matrix: list[float],
-        text_matrix: list[float],
+        _current_matrix: list[float],
+        _text_matrix: list[float],
         font: Any,
         _font_size: float,
     ) -> None:
@@ -54,28 +46,15 @@ def _scan_text(
         if font is not None and not _font_is_embedded(font):
             name = _object(font).get("/BaseFont", "unnamed font")
             unembedded.setdefault(str(name), None)
-        x = (
-            text_matrix[4] * current_matrix[0]
-            + text_matrix[5] * current_matrix[2]
-            + current_matrix[4]
-        )
-        y = (
-            text_matrix[4] * current_matrix[1]
-            + text_matrix[5] * current_matrix[3]
-            + current_matrix[5]
-        )
-        if x < left or x > right or y < bottom or y > top:
-            violations.append((text.strip()[:40], x, y))
 
     page.extract_text(visitor_text=visitor)
-    return violations, list(unembedded)
+    return list(unembedded)
 
 
 def check_pdf(
     data: bytes,
     *,
     expected_pages: int | None = None,
-    margin_pt: float = DEFAULT_MARGIN_PT,
     min_chars: int = DEFAULT_MIN_CHARS,
 ) -> StructuralCheckResult:
     """Check PDF bytes and return all structural findings."""
@@ -100,7 +79,7 @@ def check_pdf(
     for number, page in enumerate(reader.pages, start=1):
         try:
             text = "".join((page.extract_text() or "").split())
-            violations, unembedded = _scan_text(page, margin_pt)
+            unembedded = _unembedded_fonts(page)
         except Exception as exc:
             findings.append(f"page {number} could not be inspected: {exc}")
             continue
@@ -113,10 +92,5 @@ def check_pdf(
             findings.append(
                 f"page {number} draws text in unembedded fonts: {', '.join(unembedded)}"
             )
-        if violations:
-            preview = ", ".join(
-                f"{text!r} at ({x:.1f}, {y:.1f})" for text, x, y in violations[:5]
-            )
-            findings.append(f"page {number} has text outside the margins: {preview}")
 
     return StructuralCheckResult(page_count=page_count, findings=tuple(findings))
