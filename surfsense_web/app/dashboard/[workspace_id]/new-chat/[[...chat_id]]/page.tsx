@@ -628,6 +628,9 @@ export default function NewChatPage() {
 			const incoming = detail.decisions;
 			if (incoming.length === 0) return;
 			const tcIds = pendingInterrupts.flatMap((p) => p.bundleToolCallIds);
+			const parentInterruptIds = pendingInterrupts.flatMap((p) =>
+				p.bundleToolCallIds.map(() => p.interruptId)
+			);
 			const N = tcIds.length;
 
 			if (incoming.length !== N) {
@@ -638,18 +641,20 @@ export default function NewChatPage() {
 			}
 
 			const byTcId = new Map<string, (typeof incoming)[number]>();
-			const submittedDecisions: typeof incoming = [];
+			const submittedDecisions: Array<(typeof incoming)[number] & { tool_call_id: string }> =
+				[];
 			for (let i = 0; i < tcIds.length; i++) {
 				const tcId = tcIds[i];
+				const parentId = parentInterruptIds[i];
 				const decision = incoming[i];
-				if (tcId === undefined || decision === undefined) {
+				if (tcId === undefined || parentId === undefined || decision === undefined) {
 					toast.error(
 						`Cannot resume: ${incoming.length} decision(s) submitted for ${N} pending actions.`
 					);
 					return;
 				}
 				byTcId.set(tcId, decision);
-				submittedDecisions.push(decision);
+				submittedDecisions.push({ ...decision, tool_call_id: parentId });
 			}
 
 			const targetAssistantMsgId = pendingInterrupts[0].assistantMsgId;

@@ -822,6 +822,7 @@ export async function resumeChat(
 		type: string;
 		message?: string;
 		edited_action?: { name: string; args: Record<string, unknown> };
+		tool_call_id?: string;
 	}>
 ): Promise<void> {
 	const { workspaceId, threadId } = ctx;

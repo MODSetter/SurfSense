@@ -97,6 +97,33 @@ async def test_subagent_path_is_unchanged():
     assert routing.lg_resume_map == {"i-A": {"decisions": decisions}}
 
 
+async def test_id_stamped_decisions_route_by_identity_across_boundary():
+    """Id-stamped decisions route correctly even reversed vs ``state.interrupts``."""
+    agent = _FakeAgent(
+        SimpleNamespace(
+            interrupts=(
+                _subagent_interrupt("i-A", "tcid-A", 1),
+                _subagent_interrupt("i-B", "tcid-B", 1),
+            )
+        )
+    )
+    decisions = [
+        {"type": "reject", "tool_call_id": "tcid-B"},
+        {"type": "approve", "tool_call_id": "tcid-A"},
+    ]
+
+    routing = await build_resume_routing(agent, chat_id=1, decisions=decisions)
+
+    assert routing.routed_resume_value == {
+        "tcid-A": {"decisions": [{"type": "approve", "tool_call_id": "tcid-A"}]},
+        "tcid-B": {"decisions": [{"type": "reject", "tool_call_id": "tcid-B"}]},
+    }
+    assert routing.lg_resume_map == {
+        "i-A": {"decisions": [{"type": "approve", "tool_call_id": "tcid-A"}]},
+        "i-B": {"decisions": [{"type": "reject", "tool_call_id": "tcid-B"}]},
+    }
+
+
 async def test_mixed_parent_and_subagent_pauses_fail_loud():
     """A pause holding both interrupt kinds is unsupported and must not mis-route."""
     agent = _FakeAgent(

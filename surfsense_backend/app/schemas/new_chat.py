@@ -425,6 +425,7 @@ class AgentToolInfo(BaseModel):
 class ResumeDecision(BaseModel):
     type: Literal["approve", "edit", "reject", "approve_always"]
     edited_action: dict[str, Any] | None = None
+    tool_call_id: str | None = None
 
 
 class ResumeRequest(BaseModel):
