@@ -20,6 +20,7 @@ from app.agents.chat.multi_agent_chat.main_agent.system_prompt.builder.load_md i
 from app.agents.chat.multi_agent_chat.subagents.registry import (
     SUBAGENT_BUILDERS_BY_NAME,
     _route_resource_package,
+    main_prompt_registry_subagent_lines,
 )
 from app.agents.chat.multi_agent_chat.subagents.shared.md_file_reader import (
     read_md_file,
@@ -36,6 +37,13 @@ def test_every_subagent_has_description_md(name: str):
     assert read_md_file(package, "description").strip(), (
         f"{name}: description.md missing/empty at package {package}"
     )
+
+
+def test_deliverables_roster_advertises_file_artifacts():
+    """The supervisor must route explicit PDF and Word requests to deliverables."""
+    description = dict(main_prompt_registry_subagent_lines([]))["deliverables"]
+
+    assert all(marker in description for marker in ("PDF", "Word", "DOCX", ".docx"))
 
 
 # Real fragments under the hardcoded main-agent prompts package, including a
