@@ -1,18 +1,19 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { FileWarning, RefreshCw, XIcon } from "lucide-react";
+import { Dot, FileWarning, RefreshCw, XIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 import { artifactMarkdownPath } from "./download-file";
-import { cannotPreviewMessage } from "./file-format";
+import { cannotPreviewMessage, extension } from "./file-format";
 import type { ArtifactContent } from "./model";
 import { UnviewableArtifact } from "./unviewable-artifact";
 import { VIEWERS } from "./viewer-registry";
@@ -114,21 +115,41 @@ export function ArtifactPanelContent({
 	}, [workspaceId, documentId, attempt]);
 
 	const download = downloadTarget(content, workspaceId, documentId);
+	const artifactType =
+		content?.kind === "text"
+			? "Markdown"
+			: content?.files.find((file) => file.role === "primary")?.filename;
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
 			<div className="shrink-0">
 				<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
-					<p className="truncate text-sm text-muted-foreground">
-						{content?.title ?? (loading ? "Loading…" : "Artifact")}
-					</p>
+					<div className="flex min-w-0 items-center">
+						<p className="truncate text-sm text-muted-foreground">
+							{content?.title ?? (loading ? "Loading…" : "Artifact")}
+						</p>
+						{artifactType ? (
+							<>
+								<Dot className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+								<span className="shrink-0 text-xs text-muted-foreground">
+									{content?.kind === "text" ? artifactType : extension(artifactType)}
+								</span>
+							</>
+						) : null}
+					</div>
 					<div className="flex items-center gap-1">
 						{download ? (
-							<ArtifactDownloadButton
-								path={download.path}
-								filename={download.filename}
-								className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-							/>
+							<>
+								<ArtifactDownloadButton
+									path={download.path}
+									filename={download.filename}
+									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+								/>
+								<Separator
+									orientation="vertical"
+									className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
+								/>
+							</>
 						) : null}
 						<Button
 							variant="ghost"
