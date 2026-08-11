@@ -50,5 +50,6 @@ def iter_token_usage_frame(
                 "total_tokens": accumulator.grand_total,
                 "cost_micros": accumulator.total_cost_micros,
                 "call_details": accumulator.serialized_calls(),
+                "truncated": accumulator.truncated,
             },
         )

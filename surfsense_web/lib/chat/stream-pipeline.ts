@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import {
 	addStepSeparator,
 	addToolCall,
@@ -180,6 +181,12 @@ export function processSharedStreamEvent(
 		}
 
 		case "data-token-usage":
+			if (parsed.data.truncated) {
+				toast.warning("Response was cut off — the model hit its output-token limit.", {
+					duration: Infinity,
+					closeButton: true,
+				});
+			}
 			context.onTokenUsage?.(parsed.data);
 			return true;
 

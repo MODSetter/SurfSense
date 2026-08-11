@@ -32,6 +32,25 @@ from app.db import TokenUsage
 logger = logging.getLogger(__name__)
 
 
+def is_output_truncated(
+    finish_reason: str | None,
+    completion_tokens: int,
+    max_tokens: int | None,
+) -> bool:
+    """True when a generation was cut off by the model's output-token cap.
+
+    ``finish_reason == "length"`` is authoritative. When it is absent —
+    ``langchain_litellm`` drops it from streamed chunks — fall back to usage:
+    hitting the configured ``max_tokens`` is the same event in practice. Any
+    other explicit reason (``stop``/``tool_calls``/…) is a clean finish.
+    """
+    if finish_reason == "length":
+        return True
+    if finish_reason:
+        return False
+    return bool(max_tokens) and completion_tokens >= max_tokens
+
+
 def _bare_model_name(model: str) -> str:
     """Return a model identifier with any provider routing prefix stripped.
 
@@ -75,6 +94,8 @@ class TurnTokenAccumulator:
     model_metadata_by_bare: dict[str, dict[str, str | None]] = field(
         default_factory=dict
     )
+    # Set when any chat call in the turn was cut off by its output-token cap.
+    truncated: bool = False
 
     def register_model_metadata(
         self,
@@ -467,6 +488,17 @@ class TokenTrackingCallback(CustomLogger):
             cost_micros=cost_micros,
             call_kind=call_kind,
         )
+
+        # Streaming drops finish_reason, but the reconstructed response_obj keeps it.
+        if not is_image:
+            choices = getattr(response_obj, "choices", None) or []
+            finish_reason = (
+                getattr(choices[0], "finish_reason", None) if choices else None
+            )
+            if is_output_truncated(
+                finish_reason, completion_tokens, kwargs.get("max_tokens")
+            ):
+                acc.truncated = True
 
         # Per-LLM-call wall-clock latency (LiteLLM passes datetime objects).
         call_latency_s: float | None = None
