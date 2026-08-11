@@ -119,6 +119,51 @@ async def test_failing_visual_verdict_produces_no_receipt(monkeypatch):
     assert session.files[RECEIPT_PATH] == b""
 
 
+async def test_visual_warnings_are_advisory(monkeypatch):
+    session = FakeSandboxSession(
+        {
+            "/workspace/report.pdf": b"pdf",
+            "/tmp/build/page-1.jpg": b"jpeg",
+        }
+    )
+    clean = StructuralCheckResult((), 1)
+    monkeypatch.setattr(service, "get_format_adapter", lambda _path: _adapter(clean))
+    monkeypatch.setattr(service, "check_pdf", lambda _data: clean)
+
+    async def prepare(*_args, **_kwargs):
+        return PreparedPdf(
+            "/tmp/build",
+            "/workspace/report.pdf",
+            "/workspace/report.pdf",
+        )
+
+    async def rasterize(*_args, **_kwargs):
+        return ("/tmp/build/page-1.jpg",)
+
+    async def review(*_args, **_kwargs):
+        return VisualReviewResult(
+            True,
+            (),
+            warnings=("Final page has generous whitespace",),
+        )
+
+    monkeypatch.setattr(service, "prepare_pdf", prepare)
+    monkeypatch.setattr(service, "rasterize_pdf", rasterize)
+    monkeypatch.setattr(service, "review_pages", review)
+
+    result = await service.verify_artifact(
+        session,
+        "/workspace/report.pdf",
+        workspace_id=WORKSPACE_ID,
+        vision_llm=object(),
+        secret_key=SECRET,
+    )
+
+    assert result.verified
+    assert result.notes == ("Final page has generous whitespace",)
+    assert session.files[RECEIPT_PATH]
+
+
 async def test_unavailable_vision_issues_receipt_with_reason(monkeypatch):
     session = FakeSandboxSession(
         {

@@ -181,6 +181,7 @@ async def _verify_artifact(
     for path in page_paths:
         page_images.append((path, await session.read_file(path)))
 
+    notes = list(structural.notes)
     unavailable_reason = None
     if vision_llm is None:
         unavailable_reason = "No vision-capable model is configured for this workspace"
@@ -196,13 +197,14 @@ async def _verify_artifact(
                 total=total,
             ),
         )
+        notes.extend(visual.warnings)
         if visual.unavailable_reason:
             unavailable_reason = visual.unavailable_reason
         elif not visual.clean:
             return VerificationResult(
                 verified=False,
                 findings=visual.findings,
-                notes=structural.notes,
+                notes=tuple(notes),
                 preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
                 page_count=page_count,
             )
@@ -230,7 +232,7 @@ async def _verify_artifact(
     return VerificationResult(
         verified=True,
         findings=(),
-        notes=structural.notes,
+        notes=tuple(notes),
         preview_path=preview_path,
         page_count=page_count,
         unavailable_reason=unavailable_reason,

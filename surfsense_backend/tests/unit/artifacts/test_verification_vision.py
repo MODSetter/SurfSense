@@ -6,12 +6,12 @@ from app.artifacts.verification import vision
 from app.services.billable_calls import QuotaInsufficientError
 
 
-async def test_review_checks_each_page_and_cross_page_window(monkeypatch):
+async def test_review_checks_small_document_in_one_contextual_call(monkeypatch):
     calls = []
 
     async def fake_invoke_json(_llm, messages, _model):
         calls.append(messages)
-        return vision.VisionVerdict(clean=True)
+        return vision.VisionVerdict()
 
     monkeypatch.setattr(vision, "invoke_json", fake_invoke_json)
     paths = ("/tmp/page-1.jpg", "/tmp/page-2.jpg")
@@ -22,12 +22,13 @@ async def test_review_checks_each_page_and_cross_page_window(monkeypatch):
     )
 
     assert result.clean
-    assert len(calls) == 3
+    assert len(calls) == 1
+    assert "flowing document" in calls[0][0].content[0]["text"]
 
 
-async def test_review_returns_model_findings(monkeypatch):
+async def test_review_returns_blocking_findings(monkeypatch):
     async def fake_invoke_json(_llm, _messages, _model):
-        return vision.VisionVerdict(clean=False, findings=["Footer is clipped"])
+        return vision.VisionVerdict(blocking_findings=["Footer is clipped"])
 
     monkeypatch.setattr(vision, "invoke_json", fake_invoke_json)
 
@@ -40,9 +41,9 @@ async def test_review_returns_model_findings(monkeypatch):
     assert result.findings == ("Footer is clipped",)
 
 
-async def test_review_never_ignores_findings_marked_clean(monkeypatch):
+async def test_review_keeps_warnings_non_blocking(monkeypatch):
     async def fake_invoke_json(_llm, _messages, _model):
-        return vision.VisionVerdict(clean=True, findings=["Footer is clipped"])
+        return vision.VisionVerdict(warnings=["Final page has generous whitespace"])
 
     monkeypatch.setattr(vision, "invoke_json", fake_invoke_json)
 
@@ -51,8 +52,9 @@ async def test_review_never_ignores_findings_marked_clean(monkeypatch):
         (("/tmp/page-1.jpg", b"jpeg"),),
     )
 
-    assert not result.clean
-    assert result.findings == ("Footer is clipped",)
+    assert result.clean
+    assert not result.findings
+    assert result.warnings == ("Final page has generous whitespace",)
 
 
 async def test_review_preserves_quota_unavailable_reason(monkeypatch):
@@ -87,10 +89,10 @@ async def test_known_defect_takes_precedence_over_quota_failure(monkeypatch):
                 balance_micros=0,
                 remaining_micros=0,
             )
-        return vision.VisionVerdict(clean=False, findings=["Footer is clipped"])
+        return vision.VisionVerdict(blocking_findings=["Footer is clipped"])
 
     monkeypatch.setattr(vision, "invoke_json", fake_invoke_json)
-    paths = ("/tmp/page-1.jpg", "/tmp/page-2.jpg")
+    paths = tuple(f"/tmp/page-{number}.jpg" for number in range(1, 22))
 
     result = await vision.review_pages(
         SimpleNamespace(),
@@ -100,3 +102,22 @@ async def test_known_defect_takes_precedence_over_quota_failure(monkeypatch):
     assert not result.clean
     assert result.unavailable_reason is None
     assert "Footer is clipped" in result.findings
+
+
+async def test_long_document_uses_overlapping_windows(monkeypatch):
+    calls = []
+
+    async def fake_invoke_json(_llm, messages, _model):
+        calls.append(messages)
+        return vision.VisionVerdict()
+
+    monkeypatch.setattr(vision, "invoke_json", fake_invoke_json)
+    paths = tuple(f"/tmp/page-{number}.jpg" for number in range(1, 26))
+
+    result = await vision.review_pages(
+        SimpleNamespace(),
+        tuple((path, b"jpeg") for path in paths),
+    )
+
+    assert result.clean
+    assert len(calls) == 2
