@@ -1,68 +1,163 @@
-# Phase 3 — `docx` skill
+# Phase 3 — verification service + `docx`
 
-**Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§7.1 skills, §8 rendering).
-**Depends on:** phase 2 complete (sandbox live, `pdf` skill shipped, binary `save_artifact` path proven, `preview_path` already accepted by the tool). The verification-loop mechanism — its contract, the tool-level input limits, and step rendering — is phase 2 §2.6; this phase adds a format skill that uses it and builds none of it.
-**Goal:** Word documents, verified, plus the preview-PDF pairing that phase 4 inherits rather than reinvents.
-**Ships to users:** "make me a Word doc" produces a real `.docx` with an inline preview.
+**Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) (§6.3 the verification loop, §7.1 skills, §8 rendering).
+**Depends on:** phase 2 complete (sandbox live, `pdf` skill shipped, binary `save_artifact` path proven, `preview_path` already accepted by the tool).
+**Goal:** move the verification loop out of the model's hands and into a backend service (`verify_artifact`), migrate `pdf` onto it, then add Word documents plus the preview-PDF pairing phase 4 inherits rather than reinvents.
+**Ships to users:** "make me a Word doc" produces a real `.docx` with an inline preview, and every format's verification becomes a visible, stepwise thing instead of four tool calls the model has to sequence correctly.
 
 ---
 
 ## 1. Scope
 
-In: the `docx` skill, the first live use of the `role=preview` file, and `PdfPreviewViewer` with its docx registry entry. The conventions the next two phases build on are master spec §7.1's (§2.1).
+**Why this phase grew.** Phase 2 shipped the loop as a procedure the model performs: a structural script that announces itself with a `SURFSENSE_VERIFIED:` line, a shell conversion, a rasterize, two `inspect_sandbox_images` calls, and a gate comparing mtimes against two ledger files. Docx is the first format with a conversion hop, and writing its skill against that design surfaced what the design costs: the middle hop can go stale (a failed reconvert leaves the previous generation's PDF for the model to inspect while every timestamp still lines up), the three rules that prevent it are prose asking each skill author to be careful identically, and none of it is testable without a live sandbox and a live vision model. Adding a second format to that shape means writing those rules a second time. Master spec §6.3 now puts the sequence in the backend instead, so this phase builds it once and docx becomes what phases 4 and 5 were always supposed to be: a body and an adapter.
 
-Out: `pptx` (phase 4), `xlsx` and the unviewable/download-card polish (phase 5), any deletion (phase 6).
+**In:** the verification service and the `verify_artifact` tool; `pdf` migrated onto it; phase 2's sentinel, ledgers and `inspect_sandbox_images` deleted; then the `docx` skill, its structural adapter, the first live use of the `role=preview` file, `PdfPreviewViewer` with its docx registry entry, and deterministic OOXML MIME registration.
 
-**This is the first of three format phases (3 docx → 4 pptx → 5 xlsx).** Only phase 4's dependency on this one is real — it reuses `PdfPreviewViewer` and the preview pairing proven here. Phase 5 depends on nothing but phase 2 and is sequenced last because it carries the cumulative gates (all four formats, a clean legacy-tool roster) that clear phase 6.
+**Out:** `pptx` (phase 4), `xlsx` and the unviewable/download-card polish (phase 5), legacy-system deletion (phase 6 — the deletions here are phase 2's own machinery, not `Report`/Typst).
+
+**Two commits, in this order, each leaving the product working:**
+
+- **3a — architecture, no new format.** The service ships, `pdf` verifies through it, the old machinery goes. Nothing user-visible changes except that verification reports progress; the exit gate is that a PDF still generates, verifies and saves with no skill scripts left in the image.
+- **3b — docx on top of it.** Adapter, skill body, prompt entries, viewer, MIME registration, tests.
+
+Splitting them is what makes a bisect meaningful: a PDF regression in 3a is the migration, and anything in 3b is the new format. Merging them would produce one commit where "the docx skill broke PDF" is a sentence someone has to debug.
+
+**This is the first of three format phases (3 docx → 4 pptx → 5 xlsx).** Phase 4 depends on this one twice now — `PdfPreviewViewer` and the preview pairing proven here, and the service every later adapter registers with. Phase 5 still depends on nothing else and is sequenced last because it carries the cumulative gates that clear phase 6.
 
 ---
 
-## 2. Tasks
+## 2. Tasks — 3a, the verification service
 
-### 2.1 Skill conventions — master spec §7.1, not this file
+### 2.1 Layout
 
-The conventions every skill obeys (shape and scripts layout, the `SURFSENSE_VERIFIED:` sentinel that claims a verification, the two-hop freshness rule, `soffice`'s three requirements, deliverable-named output files) live in **master spec §7.1**, where phases 4 and 5 already look for skills. They are written once there because they are the same rule for three formats — a copy per phase file is three copies to keep in agreement, and this phase happens to be first, not authoritative. What phase 3 owes them is their first office-format exercise: docx is the first skill with a conversion hop, so it is the first place the sentinel and the two-hop rule are load-bearing rather than theoretical.
+Under `app/artifacts/verification/`, beside the persistence service that consumes its receipts (`app/artifacts/service.py`):
 
-Revision costs these skills nothing to support — each already writes a generate script, that script is what `source_path` stores, and editing it back is the same operation whether it produces a workbook or a deck.
+| Module | Holds | Runs where |
+|---|---|---|
+| `formats/pdf.py` | Today's `check_pdf.py` as a pure function over PDF bytes: text outside the media box or margins, near-blank pages, page count, unembedded fonts | Backend, in-process (`pypdf` is already a dependency) |
+| `formats/docx.py` | OOXML structural checks (3b, §3.1) | Backend, in-process (`zipfile` + `ElementTree`) |
+| `render.py` | `soffice` conversion and `pdftoppm` rasterization into a per-verification build directory | Sandbox session, via `run_command` |
+| `vision.py` | The per-page and windowed passes lifted off `inspect_sandbox_images` | Backend, `get_vision_llm()` |
+| `receipt.py` | Sign, write, read, validate | Backend + one sandbox write |
+| `service.py` | The orchestration and the progress events | Backend |
 
-**One retroactive fix, and it is this phase's:** the shipped `pdf` skill still names its output `out.pdf` — threaded through `docker/sandbox/skills/pdf/SKILL.md`'s steps, its script invocations and defaults, and its `save_artifact` call — so every PDF a user has downloaded so far arrived as `out.pdf`. Rename it to a deliverable-derived stem per master spec §7.1 while the docx skill is being written, not afterwards: this is the only part of the filename convention that changes what users already receive, and two skills disagreeing about their own output naming is how a convention quietly becomes advice.
+The split is not decoration: everything except `render.py` is a function over bytes or strings, so the whole of the format knowledge this phase adds is unit-testable without a sandbox — which is the property the shell-script design could not have at any price.
 
-### 2.2 Skill — `docx`
+### 2.2 Structural checks move, they do not change
 
-Create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). Body encodes the known footguns (from Anthropic's publicly documented toolchain, authored fresh):
+`docker/sandbox/skills/pdf/scripts/check_pdf.py` becomes `formats/pdf.py` with its logic intact and its interface inverted: it takes bytes and returns findings instead of printing them and exiting. Two things fall away in the move — the `SURFSENSE_VERIFIED:` line it printed as its last act, and argument parsing for a caller that no longer exists — and one thing must not: the checks themselves are the cheap half of the loop (master spec §6.3), and every defect they catch is a vision call not spent. Port them with tests before deleting the script, so "the rewrite lost the margin check" is a failing test rather than a slow discovery in a document nobody looked at closely.
+
+### 2.3 `render.py` — the hops the model no longer sequences
+
+Per verification, a build directory created for that run alone (`/tmp/verify-<uuid>/`). Inside it:
+
+- `soffice --headless --convert-to pdf` with a private profile (`-env:UserInstallation=file:///tmp/soffice-<uuid>`) and an explicit `--outdir`, output existence and non-emptiness asserted afterwards — soffice exits 0 having produced nothing often enough that its status is not evidence.
+- `pdftoppm -jpeg -r 100` into the same directory.
+- Every path `shlex.quote`d. These commands are assembled from a filename the model chose, so the quoting is a trust boundary, not tidiness.
+
+The fresh directory is what retires the two-hop rule: there is no previous output to mistake for this one, so nothing has to prove its evidence is current. It also bounds cleanup to one `rm -rf` the session can skip entirely without consequence, since sandboxes are reaped per thread.
+
+### 2.4 `vision.py` — same calls, one fewer decision
+
+The per-page fan-out and the consecutive-window comparison move verbatim from `inspect_sandbox_images`; what changes is who decides to make them (the service, always) and how the result comes back (parsed findings rather than a text report the model re-reads). Two constraints on the port:
+
+- Invoke through `invoke_json` (`utils/structured_output.py`) over the LLM's `ainvoke`, because `QuotaCheckedVisionLLM` meters `ainvoke` — a "cleaner" direct call to a provider SDK would silently stop billing hosted verification (master spec §12).
+- Keep verification's own `usage_type`, so the spend stays attributable per master spec §12, and keep the credit-exhausted branch: it produces a receipt whose visual verdict is the reason there is none, not a discarded deliverable.
+
+### 2.5 `receipt.py` — the gate contract
+
+The payload and signing scheme are master spec §6.3. Implementation notes only:
+
+- HMAC-SHA256 over a canonical JSON encoding, keyed by `SECRET_KEY`, in the shape `OAuthStateManager` already uses (`utils/oauth_security.py`) — the same two primitives, not a new crypto idea.
+- Written into the session at a fixed path so `save_artifact` needs no argument to find it. One receipt per session at a time: the model verifies, then saves, and a receipt for a file it abandoned is a receipt whose hashes no longer match anything being saved, which is the correct outcome for free.
+- Short expiry, checked on read. Not for security — the signature does that — but so a receipt cannot outlive the sandbox state it describes on a session reused across turns.
+
+### 2.6 `service.py` — the orchestration and its visibility
+
+The five steps of master spec §6.3, in order, short-circuiting on the first failure that makes later steps meaningless (no findings, no conversion). A `verification_progress` custom event as each step begins, down the path `report_progress` and `scraper_progress` already use (`tasks/chat/streaming/handlers/custom_events.py`), which is what makes one long tool call legible and is the reason phase 2's objection to a single verification tool does not survive (parent spec §6.3, "One call, still visible"). The page ceiling is a config constant checked immediately before rasterizing, where every format has a page count; over it, the verification fails with a finding, never a truncation.
+
+### 2.7 `verify_artifact` — the tool
+
+One input (`path`), findings and the preview path out. Registered in the deliverables tool index and the shared catalog beside `save_artifact`, with a streaming emission handler and a frontend card in the same shape as the existing tool UIs — the card's job is to render the progress events and the verdict, so a user watching a verification sees the steps rather than a spinner.
+
+### 2.8 `save_artifact` — the gate, rewritten
+
+Replace the mtime-and-ledger check with: read the receipt, verify the signature and expiry, hash the primary bytes the tool is about to persist and compare against the receipt's, and do the same for the preview whenever the receipt names one. What must survive the rewrite is the "could not verify" branch — a receipt carrying a reason instead of a visual verdict still saves, with the reason recorded in `document_metadata`, because that path exists for a deployment with no vision model configured and for premium credit exhausted mid-loop, and turning either into a refusal discards a finished deliverable. What goes: `_VISUAL_SUFFIXES`, `_required_kind`, `_names_artifact`, and the suffix-versus-`mimetypes` reasoning that surrounded them — the receipt names its own format, so nothing in the gate has to infer one.
+
+### 2.9 Deletions — 3a's, and they are not optional
+
+Leaving either mechanism in place gives the gate two ways to pass, which is the one outcome worse than the design being replaced:
+
+- `deliverables/tools/verification.py` (the ledgers, `VerificationKind`, `record_verification`, `check_verification`)
+- The `_VERIFIED_SENTINEL` recording branch in `deliverables/tools/sandbox.py`
+- `inspect_sandbox_images`, its catalog entry, its streaming handler (`handlers/tools/inspect_sandbox_images/`) and its frontend card
+- `docker/sandbox/skills/pdf/scripts/` in full (`check_pdf.py`, `render_pages.sh`) — the image ships no skill scripts after this phase (master spec §7.2)
+- The unit tests covering the sentinel, the ledgers and the vision tool, replaced by tests over the service's functions
+
+`FakeSession` in `tests/unit/sandbox/test_deliverables_tools.py` is shared by the tests that survive and the tests being written, so it moves to `tests/utils/fake_sandbox.py` rather than being copied.
+
+### 2.10 `pdf` SKILL.md — what a skill looks like afterwards
+
+Authoring guidance for the format, then one `verify_artifact` call, then `save_artifact`. The steps that go are the ones the service now owns: the `check_pdf.py` invocation, the rasterize, the two inspection calls, and the fix-and-repeat instructions between them. The retroactive `out.pdf` → deliverable-derived rename (master spec §7.1) lands in the same edit, since it is the same file and the same convention.
+
+**3a exit gate:** "create me a resume as a PDF" runs end to end with progress events, a signed receipt, and no scripts directory in the image; the gate refuses a save whose bytes changed after verification and accepts a byte-identical regeneration that the mtime comparison used to reject.
+
+---
+
+## 3. Tasks — 3b, `docx`
+
+### 3.1 Structural adapter — `formats/docx.py`
+
+The checks that read the OOXML directly, which is where a docx's defects actually live. A docx is a zip of XML, so this is `zipfile` + `ElementTree` and no new dependency: percentage table widths (`w:tblW`/`w:tcW` with `w:type="pct"`), shading set to `solid` instead of `clear`, literal bullet glyphs in paragraph text where numbering should be, tables with no grid, and a TOC field with no heading outline levels beneath it. Each is a defect the rendered page shows too — but showing it costs a vision call and names it vaguely ("this table looks wrong"), while the markup names it exactly and for free.
+
+The adapter registers docx as a PDF-converting format, which is the whole of what the service needs to know about it: the conversion, the rasterize, the review, the ceiling and the receipt are all format-blind already.
+
+### 3.2 Skill — `docx`
+
+Create with `docx` (npm, Node; preinstalled — instruct `require('docx')` directly, never `npm install`). The body is authoring guidance and this phase's footgun list, and nothing about verification or revision (master spec §7.1):
 
 - US Letter vs A4 default; DXA page dimensions
 - One page setup for the entire document — a single page size, portrait, no section break that changes either — as a **strong default the user can override by asking**. Content too wide for portrait is narrowed (column widths, font size) rather than rotated on the skill's own initiative, because genuinely wide tabular data is an xlsx and a silently landscaped page is usually a layout failure wearing a workaround. "Make it landscape" is a legitimate instruction and the skill obeys it; nothing downstream cares, since each rendered page is inspected on its own terms
 - Tables: `columnWidths` **and** per-cell `width`, both `WidthType.DXA` (PERCENTAGE breaks in Google Docs); shading `ShadingType.CLEAR` never `SOLID`
 - Lists via `numbering` config + `LevelFormat.BULLET`, never literal `•`
 - `PageBreak` inside a `Paragraph`; separate `Paragraph`s, never `\n`
-- **No table of contents unless the user asks for one.** A freshly generated docx TOC carries no page numbers until a field update, and `soffice --headless --convert-to pdf` does not update fields — so the preview PDF the loop inspects, and the one the user then sees in the panel, shows an empty or placeholder TOC. The verification loop would correctly report a defect that nothing in the `docx` API can fix from inside the sandbox. When the user does ask, emit it, keep the footgun below, and say plainly that page numbers fill in when Word opens the file
+- **No table of contents unless the user asks for one.** A freshly generated docx TOC carries no page numbers until a field update, and `soffice --headless --convert-to pdf` does not update fields — so the preview PDF the service inspects, and the one the user then sees in the panel, shows an empty or placeholder TOC. The verification would correctly report a defect that nothing in the `docx` API can fix from inside the sandbox. When the user does ask, emit it, keep the footgun below, and say plainly that page numbers fill in when Word opens the file
 - A TOC that is asked for requires built-in `HeadingLevel.*` or explicit `outlineLevel`
 - Right-aligned-on-same-line via right tab stop (**not** `PositionalTab` — renders as a small gap in LibreOffice, which is what our preview and verification see)
-- Verify: the phase 2 §2.6 loop unchanged — measurable checks, `soffice --headless --convert-to pdf`, `pdftoppm`, then `inspect_sandbox_images` over every page and again with `mode="together"`. A docx reflows like a PDF, so it is generated whole, never page by page. The conversion hop is this skill's own script and carries master spec §7.1's requirements in full: private `-env:UserInstallation` profile, explicit `--outdir`, stale PDF and page renders deleted before regenerating, and the new PDF asserted non-empty and newer than the `.docx`. Skipping that last check is how the loop ends up inspecting the previous generation's pages while the gate reports everything current
-- Save: `save_artifact(path=<deliverable>.docx, source_path=<deliverable>.js, preview_path=<deliverable>.pdf, …)` — one deliverable-derived stem for all three files, never `out.*`, because the basename is the download name the user gets (master spec §7.1)
+- A docx reflows like a PDF, so it is generated whole, never page by page
+- Verify and save: `verify_artifact(<deliverable>.docx)`, then `save_artifact(path=<deliverable>.docx, source_path=<deliverable>.js, preview_path=<the returned preview>, …)` — one deliverable-derived stem, never `out.*`, because the basename is the download name the user gets (master spec §7.1)
 
-### 2.3 Frontend — rendering
+### 3.3 MIME determinism
+
+Register the OOXML wordprocessing type with `mimetypes.add_type` in `save_artifact.py`. Without it the stored MIME for a `.docx` is whatever `python-magic` makes of a zip of XML — `application/zip` — because CPython 3.12 has no OOXML entry and `python:3.12-slim` ships no `/etc/mime.types` (master spec §8.2). The viewer registry is keyed on the stored MIME, so the omission does not fail loudly: it renders the unviewable state for a format this phase explicitly supports, on the deployment image only, while passing review and tests on any machine that happens to have that file. One line, and the live-sandbox check below is what proves it.
+
+### 3.4 Frontend — rendering
 
 - `PdfPreviewViewer`: a thin wrapper around the existing `pdf-viewer.tsx` (relocated in phase 2) pointed at the **preview** file's `content_url`, registered for the docx MIME type. No download action inside the viewer — the panel header already serves the primary file (master spec §8.1). It differs from `PdfFileViewer` only in which file's URL it renders, which is why phase 4 adds pptx as a registry line and no component.
-- No per-format work on the in-chat card or the unviewable state: both derive their label from the filename extension, so docx is covered the day the skill lands. The one branch that *is* new is the preview-absent fall-through (master spec §8.2/§8.3) — a docx whose `role=preview` file is missing renders the unviewable state rather than an empty viewer — and it lands here because this phase builds the component that needs it.
+- The preview-absent fall-through (master spec §8.2/§8.3) lands here because this phase builds the component that needs it. The gate makes it unreachable in practice now — an office format has no clean receipt without a preview, and a save whose receipt names one must present it — but the registry is a MIME-to-component map that cannot promise the file exists, and the alternative to the branch is an empty viewer over an artifact that downloads perfectly well.
+- `UnviewableArtifact` and its message helper come out of `artifact-panel.tsx` as their own modules, because this is the second caller. The extraction is what keeps the two states identical rather than similar.
+- No per-format work on the in-chat card: it derives its label from the filename extension, so docx is covered the day the skill lands.
 - Budget the verification honestly: `surfsense_web` has no component-test framework (master spec §8.3), so both branches of `PdfPreviewViewer` are checked by Playwright or by opening the panel. Neither is a few lines of unit test, and planning them as if they were is how the preview-absent branch ends up shipped unexercised.
 
-### 2.4 Prompt & routing
+### 3.5 Prompt & routing
 
-- Subagent prompt: genre → format guidance and the Level 1 roster gain the docx entry (prose documents, letters, anything the user names as Word). Forgetting the roster entry fails the phase 2 §2.6 check rather than shipping a skill nothing advertises.
-- Streaming/tool-UI: nothing new (the generic `save_artifact` handler covers all formats by design).
+- Subagent prompt: the genre → format guidance and the Level 1 roster gain the docx entry (Word or `.docx` named by the user — prose still defaults to pdf, master spec §6.2). Forgetting the roster entry fails the installed-frontmatter check rather than shipping a skill nothing advertises; the roster's wording is itself a test contract, and master spec §7.1 names the two honest ways to write a two-format roster.
+- Streaming/tool-UI: the generic `save_artifact` handler covers all formats by design; the only new surface is `verify_artifact`'s card from 3a.
 
-### 2.5 Checks
+### 3.6 Checks
 
-- **Mocked-sandbox integration test** under `tests/integration/artifacts/`, in the same shape as the modules already there (real session, fake blob backend, the sandbox session stubbed): a docx save with primary + preview + source returns the master spec §3.1 payload with the right roles and `source` omitted from `editor-content`; the gate refuses a `.docx` whose mtime is newer than the last recorded verification and accepts it once re-verified; and a later-turn revise produces one document with the source read back rather than rebuilt. No sandbox and no model, so it runs in CI — which is what makes it a check rather than an intention. The one failure it cannot reach is the stale-intermediate case, which is why master spec §7.1 makes that a rule inside the skill rather than an assertion outside it.
-- A live end-to-end run — real sandbox, real model, "make me a Word doc" through to a rendered panel — stays a manual exit-criteria walk-through (§3). Phase 2's §2.7 parameterized harness was specified but never built, so nothing here adds "one row" to it; if that harness is ever built it belongs outside CI, since it needs both a live sandbox and a live vision model.
-- Preview pairing, exercised end to end for the first time: a docx artifact returns two files with roles `primary` and `preview` (plus `source`, omitted from the `editor-content` payload per phase 1 §2.5, shipped). Deleting the document purges both blobs — an assertion, not work: phase 1's `delete_row` correction already calls `purge_document_blobs()` and is tested; what is new here is that the artifact carries three blobs instead of one.
+- **Unit, and this is the point of the whole restructuring:** `formats/docx.py` against fixture bytes — a percentage-width table, `solid` shading, a literal `•`, a TOC without outline levels, and a clean document — plus `receipt.py` round-tripping sign/verify, rejecting a tampered payload, and rejecting an expired one. No sandbox, no model, no fixtures beyond a few small files.
+- **Mocked-sandbox integration test** under `tests/integration/artifacts/`, in the shape of the modules already there (real session, fake blob backend, sandbox session stubbed): a docx save with primary + preview + source returns the master spec §3.1 payload with the right roles and `source` omitted from `editor-content`; the gate refuses bytes that do not match the receipt and accepts them once re-verified; a later-turn revise produces one document with the source read back rather than rebuilt, under a stable filename (master spec §7.1's compounding rule).
+- **Live-sandbox check, small and specific:** generate a real docx with the npm `docx` package, verify it, and assert two things no mock can — that the receipt is real (soffice converted, pages rendered, hashes match) and that the stored MIME is the OOXML type rather than `application/zip`. Both are properties of the production image, and both fail silently everywhere else.
+- A full live end-to-end run — real sandbox, real model, "make me a Word doc" through to a rendered panel — stays a manual exit-criteria walk-through (§4). Phase 2's parameterized harness was specified but never built, so nothing here adds "one row" to it; if it is ever built it belongs outside CI, since it needs both a live sandbox and a live vision model.
+- Preview pairing, exercised end to end for the first time: a docx artifact returns two files with roles `primary` and `preview` (plus `source`, omitted from the `editor-content` payload per phase 1 §2.5, shipped). Deleting the document purges every blob — an assertion, not work: phase 1's `delete_row` correction already calls `purge_document_blobs()` and is tested; what is new is that the artifact carries three blobs instead of one.
 
 ---
 
-## 3. Exit criteria
+## 4. Exit criteria
 
-1. `docx` generates, verifies, persists, renders in `PdfPreviewViewer`, and downloads the real `.docx` exactly per master spec §8.3.
-2. The preview pairing holds: two blobs out, both purged on delete, and the source file never surfaces as a user download.
-3. A later-turn revision edits the stored generate script in place — same `document_id`, no sibling document.
+1. **3a:** PDF generates, verifies through `verify_artifact` and saves, with progress events visible, a signed receipt behind the save, and no `scripts/` directory left in the sandbox image. No path can pass the gate without a receipt.
+2. `docx` generates, verifies, persists, renders in `PdfPreviewViewer`, and downloads the real `.docx` exactly per master spec §8.3 — with the OOXML MIME stored, proven on the production image.
+3. The preview pairing holds: two blobs out plus the source, all purged on delete, and the source never surfaces as a user download.
+4. A later-turn revision edits the stored generate script in place — same `document_id`, no sibling document, no compounding filename.
+5. Adding `pptx` in phase 4 is one adapter, one skill body, one registry line and one test case. If it looks like more than that, this phase left something in the wrong place.

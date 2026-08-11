@@ -140,6 +140,17 @@ Out: office skills/viewers (phases 3–5: docx, pptx, xlsx), any deletion (phase
 
 ### 2.6 Verification-loop architecture
 
+> **Superseded by phase 3 (§2), which moves this mechanism into a backend service
+> behind `verify_artifact`.** Read this section as the record of what shipped in
+> phase 2 and why, not as the current design — master spec §6.3 is that. What
+> survives the move intact: the contract itself (never save before verifying,
+> enforced by the tool rather than requested in prose), the two shapes, cheap
+> mechanical checks before any vision call, every-page treatment with fan-out and
+> consecutive windows, and the "could not verify" branch. What is replaced: the
+> `SURFSENSE_VERIFIED:` sentinel, the mtime-and-ledger gate, `inspect_sandbox_images`
+> as a model-facing tool, and per-skill `scripts/`. The reversal argument is at
+> "What not to build" below.
+
 The whole mechanism lives in this phase; later phases add format skills that use
 it and nothing else. The test of that boundary: adding a format must need only a
 `SKILL.md`, its own `scripts/`, and a viewer registry entry.
@@ -211,13 +222,25 @@ makes that safe -->
 The prompt's `cat /opt/skills/<name>/SKILL.md` line generalizes by parameter
 rather than by enumeration, so Level 2 needs no edit per format either.
 
-**What not to build.** A single `verify_artifact(path)` tool that renders and
-inspects internally looks like the extensible move and is the opposite of one. It
+**What not to build — reversed in phase 3, and the argument is worth keeping for
+why.** A single `verify_artifact(path)` tool that renders and inspects internally
+looked like the extensible move and was rejected here as the opposite of one: it
 hides the steps behind one opaque call, which is precisely the display this phase
 still owes (below), and it can only do half the loop — fixing requires the model
-to edit source, so the tool would return findings and hand control straight back,
-having bought nothing and lost the visibility. The loop stays a sequence of
-visible calls.
+to edit source, so the tool returns findings and hands control straight back,
+having bought nothing and lost the visibility.
+
+Both halves of that turned out to be right about the mechanism and wrong about
+the conclusion. The tool *does* return findings and hand control back — which is
+the loop working, not the tool failing, since fixing was never the gate's job.
+And the visibility this section defended was never carried by tool boundaries: it
+is carried by progress, which a service can emit per step and more finely than
+four tool calls ever did (`verification_progress`, master spec §6.3). What the
+sequence-of-visible-calls design does cost is everything phase 3 documents —
+a middle hop that can go stale, three conventions each skill author has to obey
+by hand, and checks that no unit test can reach. So the loop becomes one
+backend-owned call in phase 3; the roster, the Level 2 `cat`, and the cheap-checks
+ordering below all survive the change unaltered.
 
 The boundary that makes fan-out and windowing not the same mistake: the tool
 hides *how many vision calls one inspection takes*, which is arithmetic nobody

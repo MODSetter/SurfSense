@@ -54,7 +54,7 @@ Execute as a sequence of small PRs, each leaving the build green:
 
 - Alembic: drop `reports` table (all rows, including every `report_group_id` sibling version — no data copy); delete `Report` model from `db.py`. Strictly after PR 3, which removes the clone-time writer — dropping the table first breaks thread cloning for every shared thread that ever produced a report.
 - **Untouched, deliberately:** `document_versions` and `document_revisions`/`folder_revisions` — their lifecycle belongs to the git-native KB plan ([`plans/git-native-kb/`](../git-native-kb/00-umbrella-plan.md)), which deletes them at its Phase 5 cut. This PR neither drops nor depends on them, whether or not that cut has happened yet. See the table fates in master spec §4.1.
-- `pyproject.toml`: remove `typst`; remove `pypdf` **only if** `rg pypdf` shows no remaining user; audit `pypandoc` usage stays (document export).
+- `pyproject.toml`: remove `typst`; **keep `pypdf`** — phase 3 made the verification service its user (master spec §6.3), so the "only if nothing else uses it" clause this line used to carry is already answered; audit `pypandoc` usage stays (document export).
 - Remove rendercv references.
 
 ---
