@@ -26,28 +26,13 @@ placing it in HTML.
 
 ## Required quality gate
 
-`save_artifact` rejects a PDF that changed after its last inspection, and one
-that was measured but never looked at, so this loop is not optional. Every step
-treats every page the same way — page count changes how long it takes, never
-what you do:
+After generating the PDF, call `verify_artifact(path="out.pdf")`. Fix every
+reported defect in the source, regenerate, and call `verify_artifact` again.
+Only a verified file can be saved.
 
-1. Generate the PDF.
-2. Run `/opt/skills/pdf/scripts/check_pdf.py out.pdf`. It measures what does not
-   need eyes: text past the margins or page edge, blank and near-blank pages,
-   page count, missing embedded fonts. Fix whatever it reports and run it again —
-   these are far cheaper to find here than with a vision call.
-3. Run `/opt/skills/pdf/scripts/render_pages.sh out.pdf /tmp/pdf-pages`.
-4. Pass **every** rendered page to `inspect_sandbox_images`, asking about
-   alignment, legibility, visual hierarchy, spacing, and factual consistency.
-   The tool reviews each page on its own, so every report names one page.
-5. Call it once more with `mode="together"` to compare the pages against each
-   other — font and colour drift, inconsistent spacing, and "this should be one
-   page, not two" are invisible when pages are seen one at a time.
-6. Any defect from step 4 or 5: edit the source and repeat from step 2.
-7. Only then call:
-   `save_artifact(path="out.pdf", source_path="source.html", title="...",
-   markdown_representation="...")`, using the actual `.html` or `.py` source
-   path that produced the PDF.
+Then call `save_artifact(path="out.pdf", source_path="source.html", title="...",
+markdown_representation="...")`, using the actual `.html` or `.py` source path
+that produced the PDF.
 
 The Markdown representation must faithfully contain the document's substantive
 text so the artifact remains accessible and searchable without parsing the PDF.
