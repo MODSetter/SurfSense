@@ -65,6 +65,7 @@ class DocumentType(StrEnum):
     CIRCLEBACK = "CIRCLEBACK"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"
     NOTE = "NOTE"
+    ARTIFACT = "ARTIFACT"
     DROPBOX_FILE = "DROPBOX_FILE"
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
@@ -1457,6 +1458,13 @@ class Document(BaseModel, TimestampMixin):
     # Model lives in app.file_storage.persistence to keep that feature cohesive.
     files = relationship(
         "DocumentFile", back_populates="document", cascade="all, delete-orphan"
+    )
+    artifact = relationship(
+        "Artifact",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
     )
 
 
@@ -2898,7 +2906,6 @@ class ToolOutputSpill(Base, TimestampMixin):
 # string-based relationship() references.
 from app.artifacts.persistence import (  # noqa: E402, F401
     Artifact,
-    ArtifactChunk,
     ArtifactFile,
 )
 from app.automations.persistence import (  # noqa: E402, F401
