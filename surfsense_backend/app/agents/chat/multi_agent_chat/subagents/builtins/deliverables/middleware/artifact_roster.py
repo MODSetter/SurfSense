@@ -10,9 +10,8 @@ from langgraph.config import get_config
 from langgraph.runtime import Runtime
 from sqlalchemy import case, select
 
-from app.db import Document, shielded_async_session
-from app.file_storage.persistence.enums import DocumentFileKind
-from app.file_storage.persistence.models import DocumentFile
+from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
+from app.db import shielded_async_session
 
 from ..tools.thread_resolver import root_thread_id_from_config
 
@@ -35,34 +34,31 @@ class ArtifactRosterMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         del runtime
         thread_id = root_thread_id_from_config(get_config())
         mentioned_ids = {
-            document_id
-            for document_id in state.get("mentioned_document_ids", [])
-            if isinstance(document_id, int) and document_id > 0
+            artifact_id
+            for artifact_id in state.get("mentioned_artifact_ids", [])
+            if isinstance(artifact_id, int) and artifact_id > 0
         }
         ordering = []
         if mentioned_ids:
-            ordering.append(case((Document.id.in_(mentioned_ids), 0), else_=1))
-        ordering.extend([Document.updated_at.desc().nullslast(), Document.id.desc()])
+            ordering.append(case((Artifact.id.in_(mentioned_ids), 0), else_=1))
+        ordering.extend([Artifact.updated_at.desc().nullslast(), Artifact.id.desc()])
 
         async with shielded_async_session() as session:
             rows = (
                 await session.execute(
                     select(
-                        Document.id,
-                        Document.title,
-                        DocumentFile.original_filename,
+                        Artifact.id,
+                        Artifact.title,
+                        ArtifactFile.original_filename,
                     )
                     .outerjoin(
-                        DocumentFile,
-                        (DocumentFile.document_id == Document.id)
-                        & (DocumentFile.kind == DocumentFileKind.GENERATED)
-                        & (DocumentFile.role == "primary"),
+                        ArtifactFile,
+                        (ArtifactFile.artifact_id == Artifact.id)
+                        & (ArtifactFile.role == ArtifactFileRole.PRIMARY),
                     )
                     .where(
-                        Document.workspace_id == self.workspace_id,
-                        Document.document_metadata["generated"].as_string() == "true",
-                        Document.document_metadata["thread_id"].as_string()
-                        == str(thread_id),
+                        Artifact.workspace_id == self.workspace_id,
+                        Artifact.thread_id == thread_id,
                     )
                     .order_by(*ordering)
                     .limit(_ROSTER_LIMIT + len(mentioned_ids))
@@ -73,9 +69,9 @@ class ArtifactRosterMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             return None
 
         entries = "\n".join(
-            f"- document_id={document_id}; title={title!r}; "
+            f"- artifact_id={artifact_id}; title={title!r}; "
             f"filename={filename or '(Markdown artifact)'}"
-            for document_id, title, filename in rows
+            for artifact_id, title, filename in rows
         )
         roster = SystemMessage(
             content=(

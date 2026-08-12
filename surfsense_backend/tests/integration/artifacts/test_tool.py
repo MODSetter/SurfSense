@@ -11,8 +11,8 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
+from app.artifacts.persistence import Artifact, ArtifactChunk
 from app.artifacts.service import ArtifactFileInput, save_artifact
-from app.db import Chunk, Document
 
 from .test_service import MemoryBackend
 
@@ -55,19 +55,20 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
     payload = json.loads(command.update["messages"][0].content)
 
     assert payload["status"] == "saved"
-    assert payload["document_id"]
+    assert payload["artifact_id"]
+    assert payload["generation"] == 1
     assert payload["files"] == []
     assert (
         await db_session.scalar(
-            select(func.count(Document.id)).where(Document.id == payload["document_id"])
+            select(func.count(Artifact.id)).where(Artifact.id == payload["artifact_id"])
         )
         == 1
     )
     assert (
         await db_session.scalar(
-            select(func.count(Chunk.id)).where(
-                Chunk.document_id == payload["document_id"],
-                Chunk.content.ilike("%immediate-search-hit-term%"),
+            select(func.count(ArtifactChunk.id)).where(
+                ArtifactChunk.artifact_id == payload["artifact_id"],
+                ArtifactChunk.content.ilike("%immediate-search-hit-term%"),
             )
         )
         > 0
@@ -82,7 +83,7 @@ async def test_load_artifact_source_restores_the_current_source(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "_index_legacy", AsyncMock())
+    monkeypatch.setattr(service, "index_artifact", AsyncMock())
 
     saved = await save_artifact(
         db_session,
@@ -124,14 +125,16 @@ async def test_load_artifact_source_restores_the_current_source(
     tool = load_source_tool.create_load_artifact_source_tool(
         workspace_id=db_workspace.id
     )
-    loaded = await tool.coroutine(document_id=saved.document_id, runtime=_runtime())
-    expected_path = f"/workspace/artifact-{saved.document_id}-out.py"
+    loaded = await tool.coroutine(artifact_id=saved.artifact_id, runtime=_runtime())
+    expected_path = f"/workspace/artifact-{saved.artifact_id}-out.py"
 
     assert loaded == {
         "source_path": expected_path,
-        "document_id": saved.document_id,
+        "artifact_id": saved.artifact_id,
+        "expected_generation": saved.generation,
         "save_instruction": (
-            f"Pass document_id={saved.document_id} to save_artifact so this "
+            f"Pass artifact_id={saved.artifact_id} and "
+            f"expected_generation={saved.generation} to save_artifact so this "
             "revision replaces the existing artifact."
         ),
     }

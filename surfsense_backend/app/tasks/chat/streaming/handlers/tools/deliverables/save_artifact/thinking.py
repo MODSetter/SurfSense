@@ -14,7 +14,7 @@ def resolve_start_thinking(tool_name: str, tool_input: Any) -> ToolStartThinking
     del tool_name
     data = as_tool_input_dict(tool_input)
     title = data.get("title", "Document")
-    revising = bool(data.get("document_id"))
+    revising = bool(data.get("artifact_id"))
     return ToolStartThinking(
         title="Revising artifact" if revising else "Saving artifact",
         items=[f"Document: {title}"],

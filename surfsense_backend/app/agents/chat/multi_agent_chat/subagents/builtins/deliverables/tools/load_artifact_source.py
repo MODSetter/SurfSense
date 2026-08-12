@@ -8,11 +8,10 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy import select
 
+from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
 from app.config import config as app_config
-from app.db import Document, shielded_async_session
+from app.db import shielded_async_session
 from app.file_storage.factory import get_storage_backend
-from app.file_storage.persistence.enums import DocumentFileKind
-from app.file_storage.persistence.models import DocumentFile
 from app.sandbox import get_registry
 
 from .thread_resolver import resolve_root_thread_id
@@ -23,34 +22,30 @@ def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
 
     @tool
     async def load_artifact_source(
-        document_id: int,
+        artifact_id: int,
         runtime: ToolRuntime,
     ) -> dict[str, str | int]:
         """Load a generated artifact's current source into the sandbox.
 
-        Use the document_id from the artifact roster before revising an existing
-        artifact. The result binds the restored source_path to the document_id
+        Use the artifact_id from the artifact roster before revising an existing
+        artifact. The result binds the restored source_path to the artifact_id
         that must be passed to save_artifact after editing, regeneration, and
         verification.
         """
         async with shielded_async_session() as db_session:
-            document = await db_session.scalar(
-                select(Document).where(
-                    Document.id == document_id,
-                    Document.workspace_id == workspace_id,
+            artifact = await db_session.scalar(
+                select(Artifact).where(
+                    Artifact.id == artifact_id,
+                    Artifact.workspace_id == workspace_id,
                 )
             )
-            if document is None or not (document.document_metadata or {}).get(
-                "generated"
-            ):
+            if artifact is None:
                 raise ValueError("artifact does not exist in this workspace")
 
             source = await db_session.scalar(
-                select(DocumentFile).where(
-                    DocumentFile.document_id == document_id,
-                    DocumentFile.workspace_id == workspace_id,
-                    DocumentFile.kind == DocumentFileKind.GENERATED,
-                    DocumentFile.role == "source",
+                select(ArtifactFile).where(
+                    ArtifactFile.artifact_id == artifact_id,
+                    ArtifactFile.role == ArtifactFileRole.SOURCE,
                 )
             )
             if source is None:
@@ -72,16 +67,18 @@ def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
         filename = PurePosixPath(source.original_filename).name
         if not filename:
             raise ValueError("artifact source has an invalid filename")
-        sandbox_path = f"/workspace/artifact-{document_id}-{filename}"
+        sandbox_path = f"/workspace/artifact-{artifact_id}-{filename}"
         root_thread_id = resolve_root_thread_id(runtime)
         sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
         await sandbox.write_file(sandbox_path, bytes(data))
         return {
             "source_path": sandbox_path,
-            "document_id": document_id,
+            "artifact_id": artifact_id,
+            "expected_generation": artifact.generation,
             "save_instruction": (
-                f"Pass document_id={document_id} to save_artifact so this revision "
-                "replaces the existing artifact."
+                f"Pass artifact_id={artifact_id} and "
+                f"expected_generation={artifact.generation} to save_artifact so "
+                "this revision replaces the existing artifact."
             ),
         }
 

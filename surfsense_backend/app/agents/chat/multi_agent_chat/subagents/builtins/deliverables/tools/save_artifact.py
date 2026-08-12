@@ -67,7 +67,8 @@ def create_save_artifact_tool(workspace_id: int):
         path: str | None = None,
         source_path: str | None = None,
         preview_path: str | None = None,
-        document_id: int | None = None,
+        artifact_id: int | None = None,
+        expected_generation: int | None = None,
         description: str | None = None,
     ):
         """Save a durable deliverable, or revise an existing generated artifact.
@@ -76,10 +77,11 @@ def create_save_artifact_tool(workspace_id: int):
         For generated files, pass both the deliverable path and the source_path
         that produced it, plus an accessible Markdown representation for search.
         preview_path is an optional rendered preview. To revise an artifact, use
-        the document_id returned by load_artifact_source, edit and re-render the
-        stored source, then save with that same document_id. Changing the title,
-        filename, or design does not make a new artifact. Omit document_id only
-        for a genuinely new deliverable or an explicitly requested separate copy.
+        the artifact_id and expected_generation returned by load_artifact_source,
+        edit and re-render the stored source, then save with both values. Changing
+        the title, filename, or design does not make a new artifact. Omit
+        artifact_id only for a genuinely new deliverable or an explicitly
+        requested separate copy.
         """
         del description
         root_thread_id = resolve_root_thread_id(runtime)
@@ -151,7 +153,8 @@ def create_save_artifact_tool(workspace_id: int):
                     title=title,
                     markdown_representation=markdown_representation,
                     files=files,
-                    document_id=document_id,
+                    artifact_id=artifact_id,
+                    expected_generation=expected_generation,
                     extra_metadata=extra_metadata,
                 )
             return with_receipt(
@@ -161,7 +164,7 @@ def create_save_artifact_tool(workspace_id: int):
                     type="artifact",
                     operation="generate",
                     status="success",
-                    external_id=str(saved.document_id),
+                    external_id=str(saved.artifact_id),
                     preview=saved.title,
                 ),
                 tool_call_id=runtime.tool_call_id,

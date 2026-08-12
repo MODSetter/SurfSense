@@ -73,7 +73,7 @@ def test_file_deliverable_revisions_are_in_place():
 
     assert "**File-deliverable revisions are in place.**" in routing
     assert "do not invent versioning as a safety measure" in routing
-    assert "then call `save_artifact` with that same `document_id`" in (
+    assert "then call `save_artifact` with that same `artifact_id`" in (
         deliverables_prompt
     )
     assert "a changed title, filename,\n  or design does not create" in (

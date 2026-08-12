@@ -27,7 +27,7 @@ async def test_roster_resolves_each_chat_from_live_config(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "_index_legacy", AsyncMock())
+    monkeypatch.setattr(service, "index_artifact", AsyncMock())
 
     first = await save_artifact(
         db_session,
@@ -63,8 +63,8 @@ async def test_roster_resolves_each_chat_from_live_config(
     )
     first_result = await middleware.abefore_agent(state, SimpleNamespace())
     first_roster = first_result["messages"][0].content
-    assert f"document_id={first.document_id}" in first_roster
-    assert f"document_id={second.document_id}" not in first_roster
+    assert f"artifact_id={first.artifact_id}" in first_roster
+    assert f"artifact_id={second.artifact_id}" not in first_roster
 
     monkeypatch.setattr(
         artifact_roster,
@@ -73,8 +73,8 @@ async def test_roster_resolves_each_chat_from_live_config(
     )
     second_result = await middleware.abefore_agent(state, SimpleNamespace())
     second_roster = second_result["messages"][0].content
-    assert f"document_id={second.document_id}" in second_roster
-    assert f"document_id={first.document_id}" not in second_roster
+    assert f"artifact_id={second.artifact_id}" in second_roster
+    assert f"artifact_id={first.artifact_id}" not in second_roster
 
 
 async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
@@ -85,7 +85,7 @@ async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "_index_legacy", AsyncMock())
+    monkeypatch.setattr(service, "index_artifact", AsyncMock())
 
     artifacts = []
     for index in range(11):
@@ -118,17 +118,17 @@ async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
         SimpleNamespace(),
     )
     assert (
-        f"document_id={artifacts[0].document_id}" not in ordinary["messages"][0].content
+        f"artifact_id={artifacts[0].artifact_id}" not in ordinary["messages"][0].content
     )
 
     mentioned = await middleware.abefore_agent(
         {
             "messages": [HumanMessage(content="Revise it")],
-            "mentioned_document_ids": [artifacts[0].document_id],
+            "mentioned_artifact_ids": [artifacts[0].artifact_id],
         },
         SimpleNamespace(),
     )
-    assert f"document_id={artifacts[0].document_id}" in mentioned["messages"][0].content
+    assert f"artifact_id={artifacts[0].artifact_id}" in mentioned["messages"][0].content
 
 
 async def test_roster_query_failure_aborts_the_invocation(monkeypatch):

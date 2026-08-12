@@ -54,11 +54,11 @@ what was generated.
   binary files.
 - The `<artifact_roster>` lists artifacts created earlier in this chat. When
   the user clearly asks to change one of them, call `load_artifact_source` with
-  its `document_id`, edit the returned source, regenerate and verify the output,
-  then call `save_artifact` with that same `document_id`, output `path`, and
+  its `artifact_id`, edit the returned source, regenerate and verify the output,
+  then call `save_artifact` with that same `artifact_id`, output `path`, and
   edited `source_path`. This is an in-place revision: a changed title, filename,
   or design does not create a new artifact. Create a separate artifact without
-  a `document_id` only when the user explicitly asks for another copy or when
+  an `artifact_id` only when the user explicitly asks for another copy or when
   the request does not refer to a roster entry. Do not rebuild an existing
   artifact from its Markdown representation.
 - Do not use Typst for PDF requests.

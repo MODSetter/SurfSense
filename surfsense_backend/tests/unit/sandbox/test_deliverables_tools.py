@@ -333,7 +333,7 @@ async def test_generated_file_requires_source_and_has_no_content_alias():
 
 
 async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
-    document = SimpleNamespace(document_metadata={"generated": True})
+    artifact = SimpleNamespace(generation=3)
     source = SimpleNamespace(
         size_bytes=16,
         storage_backend="azure",
@@ -346,7 +346,7 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
 
         async def scalar(self, _statement):
             self.calls += 1
-            return document if self.calls == 1 else source
+            return artifact if self.calls == 1 else source
 
     @asynccontextmanager
     async def db_session():
@@ -373,15 +373,16 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
     monkeypatch.setattr(load_source_tool, "resolve_root_thread_id", lambda *_: 4)
 
     tool = load_source_tool.create_load_artifact_source_tool(workspace_id=3)
-    loaded = await tool.coroutine(document_id=9, runtime=_runtime())
+    loaded = await tool.coroutine(artifact_id=9, runtime=_runtime())
     path = "/workspace/artifact-9-out.py"
 
     assert loaded == {
         "source_path": path,
-        "document_id": 9,
+        "artifact_id": 9,
+        "expected_generation": 3,
         "save_instruction": (
-            "Pass document_id=9 to save_artifact so this revision replaces "
-            "the existing artifact."
+            "Pass artifact_id=9 and expected_generation=3 to save_artifact so "
+            "this revision replaces the existing artifact."
         ),
     }
     assert sandbox.writes[path] == b"print('stored')"

@@ -16,16 +16,14 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
+from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
+from app.artifacts.storage import purge_artifact_blobs
 from app.artifacts.verification.formats.registry import DOCX_MIME, PPTX_MIME
 from app.artifacts.verification.receipt import (
     VerificationReceipt,
     sha256_bytes,
     write_receipt,
 )
-from app.db import Document
-from app.file_storage.persistence.models import DocumentFile
-from app.file_storage.service import purge_document_blobs
-from app.routes import editor_routes
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 from .test_service import MemoryBackend
@@ -134,14 +132,13 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "_index_legacy", AsyncMock())
+    monkeypatch.setattr(service, "index_artifact", AsyncMock())
     monkeypatch.setattr(save_artifact_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(save_artifact_tool.app_config, "SECRET_KEY", SECRET)
     monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
     monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
-    monkeypatch.setattr(editor_routes, "check_permission", AsyncMock())
     tool = save_artifact_tool.create_save_artifact_tool(db_workspace.id)
     runtime = _runtime(format_name)
 
@@ -172,25 +169,21 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
         runtime=runtime,
     )
     created = json.loads(created_command.update["messages"][0].content)
-    document_id = created["document_id"]
+    artifact_id = created["artifact_id"]
 
     assert [(file["role"], file["mime_type"]) for file in created["files"]] == [
         ("primary", mime_type),
         ("preview", "application/pdf"),
     ]
-    response = await editor_routes.get_editor_content(
-        db_workspace.id, document_id, db_session, object()
-    )
-    assert [file["role"] for file in response["files"]] == ["primary", "preview"]
-
     load_tool = load_source_tool.create_load_artifact_source_tool(
         workspace_id=db_workspace.id
     )
-    loaded = await load_tool.coroutine(document_id=document_id, runtime=runtime)
-    loaded_path = f"/workspace/artifact-{document_id}-report{source_suffix}"
+    loaded = await load_tool.coroutine(artifact_id=artifact_id, runtime=runtime)
+    loaded_path = f"/workspace/artifact-{artifact_id}-report{source_suffix}"
     assert loaded["source_path"] == loaded_path
-    assert loaded["document_id"] == document_id
-    assert f"document_id={document_id}" in loaded["save_instruction"]
+    assert loaded["artifact_id"] == artifact_id
+    assert loaded["expected_generation"] == 1
+    assert f"artifact_id={artifact_id}" in loaded["save_instruction"]
     assert sandbox.files[loaded_path] == b"version = 1"
 
     sandbox.files[primary_path] = _office_bytes(format_name, "second")
@@ -209,37 +202,39 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
         path=primary_path,
         source_path=source_path,
         preview_path=preview_path,
-        document_id=document_id,
+        artifact_id=artifact_id,
+        expected_generation=loaded["expected_generation"],
         runtime=runtime,
     )
     revised = json.loads(revised_command.update["messages"][0].content)
 
-    assert revised["document_id"] == document_id
+    assert revised["artifact_id"] == artifact_id
+    assert revised["generation"] == 2
     assert (
         await db_session.scalar(
-            select(func.count(Document.id)).where(Document.id == document_id)
+            select(func.count(Artifact.id)).where(Artifact.id == artifact_id)
         )
         == 1
     )
     assert (
         await db_session.scalar(
-            select(func.count(DocumentFile.id)).where(
-                DocumentFile.document_id == document_id
+            select(func.count(ArtifactFile.id)).where(
+                ArtifactFile.artifact_id == artifact_id
             )
         )
         == 3
     )
     stored_source = await db_session.scalar(
-        select(DocumentFile).where(
-            DocumentFile.document_id == document_id,
-            DocumentFile.role == "source",
+        select(ArtifactFile).where(
+            ArtifactFile.artifact_id == artifact_id,
+            ArtifactFile.role == ArtifactFileRole.SOURCE,
         )
     )
     assert stored_source.original_filename == f"report{source_suffix}"
 
-    await purge_document_blobs(
+    await purge_artifact_blobs(
         db_session,
-        document_ids=[document_id],
+        artifact_ids=[artifact_id],
         backend=backend,
     )
     assert backend.data == {}
