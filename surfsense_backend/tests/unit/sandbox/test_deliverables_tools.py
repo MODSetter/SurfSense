@@ -373,9 +373,17 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
     monkeypatch.setattr(load_source_tool, "resolve_root_thread_id", lambda *_: 4)
 
     tool = load_source_tool.create_load_artifact_source_tool(workspace_id=3)
-    path = await tool.coroutine(document_id=9, runtime=_runtime())
+    loaded = await tool.coroutine(document_id=9, runtime=_runtime())
+    path = "/workspace/artifact-9-out.py"
 
-    assert path == "/workspace/artifact-9-out.py"
+    assert loaded == {
+        "source_path": path,
+        "document_id": 9,
+        "save_instruction": (
+            "Pass document_id=9 to save_artifact so this revision replaces "
+            "the existing artifact."
+        ),
+    }
     assert sandbox.writes[path] == b"print('stored')"
     assert resolved_backends == ["azure"]
 

@@ -37,9 +37,12 @@ slide count, shape bounds, and required content. Generate the complete PPTX
 before verification; do not call `verify_artifact` after each slide because each
 call renders and reviews the whole draft again.
 
-When revising, `load_artifact_source` materializes a name such as
-`artifact-42-quarterly-review.py`. Copy it back to `quarterly-review.py` before
-editing and saving so the `artifact-42-` prefix does not compound.
+When revising, `load_artifact_source` returns the existing `document_id` and a
+`source_path` with a name such as `artifact-42-quarterly-review.py`. Copy that
+source to `quarterly-review.py` before editing so the `artifact-42-` prefix does
+not compound, then pass the returned `document_id` to `save_artifact`. A changed
+title, filename, or design is still the same artifact unless the user explicitly
+asks for a separate copy.
 
 ## Verify and save
 

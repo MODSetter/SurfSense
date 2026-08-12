@@ -124,7 +124,15 @@ async def test_load_artifact_source_restores_the_current_source(
     tool = load_source_tool.create_load_artifact_source_tool(
         workspace_id=db_workspace.id
     )
-    path = await tool.coroutine(document_id=saved.document_id, runtime=_runtime())
+    loaded = await tool.coroutine(document_id=saved.document_id, runtime=_runtime())
+    expected_path = f"/workspace/artifact-{saved.document_id}-out.py"
 
-    assert path == f"/workspace/artifact-{saved.document_id}-out.py"
-    assert sandbox.writes[path] == b"print('current')"
+    assert loaded == {
+        "source_path": expected_path,
+        "document_id": saved.document_id,
+        "save_instruction": (
+            f"Pass document_id={saved.document_id} to save_artifact so this "
+            "revision replaces the existing artifact."
+        ),
+    }
+    assert sandbox.writes[expected_path] == b"print('current')"

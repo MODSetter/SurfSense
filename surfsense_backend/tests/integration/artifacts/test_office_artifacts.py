@@ -186,8 +186,11 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     load_tool = load_source_tool.create_load_artifact_source_tool(
         workspace_id=db_workspace.id
     )
-    loaded_path = await load_tool.coroutine(document_id=document_id, runtime=runtime)
-    assert loaded_path == f"/workspace/artifact-{document_id}-report{source_suffix}"
+    loaded = await load_tool.coroutine(document_id=document_id, runtime=runtime)
+    loaded_path = f"/workspace/artifact-{document_id}-report{source_suffix}"
+    assert loaded["source_path"] == loaded_path
+    assert loaded["document_id"] == document_id
+    assert f"document_id={document_id}" in loaded["save_instruction"]
     assert sandbox.files[loaded_path] == b"version = 1"
 
     sandbox.files[primary_path] = _office_bytes(format_name, "second")

@@ -36,9 +36,12 @@ source so revisions change the source and regenerate the document.
 - Generate the document as one whole document. Do not assemble or save one
   DOCX per intended page; Word controls pagination through reflow.
 
-When revising, `load_artifact_source` materializes a name such as
-`artifact-42-project-brief.js`. Copy it back to `project-brief.js` before editing
-and saving so the `artifact-42-` prefix does not compound on later revisions.
+When revising, `load_artifact_source` returns the existing `document_id` and a
+`source_path` with a name such as `artifact-42-project-brief.js`. Copy that
+source to `project-brief.js` before editing so the `artifact-42-` prefix does not
+compound, then pass the returned `document_id` to `save_artifact`. A changed
+title, filename, or design is still the same artifact unless the user explicitly
+asks for a separate copy.
 
 ## Verify and save
 

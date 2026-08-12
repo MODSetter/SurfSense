@@ -25,12 +25,13 @@ def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
     async def load_artifact_source(
         document_id: int,
         runtime: ToolRuntime,
-    ) -> str:
+    ) -> dict[str, str | int]:
         """Load a generated artifact's current source into the sandbox.
 
         Use the document_id from the artifact roster before revising an existing
-        artifact. Edit the returned path, regenerate and verify the deliverable,
-        then pass both paths and the same document_id to save_artifact.
+        artifact. The result binds the restored source_path to the document_id
+        that must be passed to save_artifact after editing, regeneration, and
+        verification.
         """
         async with shielded_async_session() as db_session:
             document = await db_session.scalar(
@@ -75,6 +76,13 @@ def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
         root_thread_id = resolve_root_thread_id(runtime)
         sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
         await sandbox.write_file(sandbox_path, bytes(data))
-        return sandbox_path
+        return {
+            "source_path": sandbox_path,
+            "document_id": document_id,
+            "save_instruction": (
+                f"Pass document_id={document_id} to save_artifact so this revision "
+                "replaces the existing artifact."
+            ),
+        }
 
     return load_artifact_source

@@ -24,6 +24,11 @@ Write deterministic source alongside the output (`.py` or `.html`) so defects
 can be fixed without rebuilding from scratch. Escape untrusted text before
 placing it in HTML.
 
+When revising, `load_artifact_source` returns the existing `document_id` and
+`source_path`. Edit that source, regenerate and verify the PDF, then pass the
+returned `document_id` to `save_artifact`. A changed title, filename, or design
+is still the same artifact unless the user explicitly asks for a separate copy.
+
 ## Required quality gate
 
 Use one deliverable-derived stem for the source and output, for example

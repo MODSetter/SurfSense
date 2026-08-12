@@ -51,9 +51,11 @@ what was generated.
   the user clearly asks to change one of them, call `load_artifact_source` with
   its `document_id`, edit the returned source, regenerate and verify the output,
   then call `save_artifact` with that same `document_id`, output `path`, and
-  edited `source_path`. Do not rebuild an existing artifact from its Markdown
-  representation. If the user is not clearly referring to a roster entry,
-  create a new artifact without a `document_id`.
+  edited `source_path`. This is an in-place revision: a changed title, filename,
+  or design does not create a new artifact. Create a separate artifact without
+  a `document_id` only when the user explicitly asks for another copy or when
+  the request does not refer to a roster entry. Do not rebuild an existing
+  artifact from its Markdown representation.
 - Do not use Typst for PDF requests.
 - Require essential generation constraints (audience, format, tone, core content).
 - If critical constraints are missing, return `status=blocked` with `missing_fields`.

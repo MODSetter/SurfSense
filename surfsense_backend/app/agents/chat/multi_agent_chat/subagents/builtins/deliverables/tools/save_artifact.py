@@ -76,9 +76,10 @@ def create_save_artifact_tool(workspace_id: int):
         For generated files, pass both the deliverable path and the source_path
         that produced it, plus an accessible Markdown representation for search.
         preview_path is an optional rendered preview. To revise an artifact, use
-        the document_id from the artifact roster, load its stored source first,
-        edit and re-render it, then save with that same document_id. When the user
-        is not clearly referring to an existing artifact, create a new one.
+        the document_id returned by load_artifact_source, edit and re-render the
+        stored source, then save with that same document_id. Changing the title,
+        filename, or design does not make a new artifact. Omit document_id only
+        for a genuinely new deliverable or an explicitly requested separate copy.
         """
         del description
         root_thread_id = resolve_root_thread_id(runtime)
