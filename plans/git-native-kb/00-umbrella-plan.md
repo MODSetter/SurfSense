@@ -10,9 +10,9 @@ This is the high-level roadmap. It is sequenced. Companion diagrams live in [`00
 
 ## Positioning
 
-The KB today has **no real filesystem** — it is a *virtual* `/documents/` namespace faked over Postgres rows, plus three hand-rolled versioning/audit systems. That re-implements — badly — what Git provides natively (tree, atomic commits, history, revert, content-addressed dedup). The pivot makes **Git the single source of truth for all indexed content** and demotes **Postgres to a derived, rebuildable search index (chunks + embeddings only)**. Net effect: large code **deletion**, storage and search **decoupled** (so search can improve independently — Rohan's stated goal), and a real git repo per workspace (unlocking "bring your own remote" later).
+The KB started with no real filesystem — a virtual `/documents/` namespace over Postgres plus three hand-rolled versioning/audit systems. Git now owns committed searchable representations under separate domain roots. `/documents/**` projects to document rows/chunks; `/artifacts/**` projects to dedicated artifact rows/chunks. Postgres remains authoritative for domain metadata and blob ownership and is the derived search index for committed text. Git does not collapse these domains into one model.
 
-## Target architecture (git = truth, Postgres = derived index)
+## Target architecture (shared revisions, separate projections)
 
 ```mermaid
 flowchart TD
@@ -21,13 +21,16 @@ flowchart TD
     ED["Editor saves (Plate.js)"] --> GIT
     UP["Uploads (extracted markdown)"] --> GIT
     NOT["Indexable connectors: Notion / Drive / Obsidian"] --> GIT
+    ART["Generated artifact representations"] --> GIT
   end
   GIT["Git repo per workspace (SOURCE OF TRUTH)\ncommit per turn/save · dulwich · per-workspace lock"]
   GIT --> IDX["Indexer: diff tree → changed blobs\n(embed keyed by blob SHA)"]
-  IDX --> PG[("Postgres = DERIVED index\nchunks + embeddings only (rebuildable)")]
+  IDX --> DOCIDX[("Document projection\nDocument + Chunk")]
+  IDX --> ARTIDX[("Artifact projection\nArtifact + ArtifactChunk")]
   subgraph READ["Agent"]
     FS["file ops: ls/read/write/edit/mv/rm"] --> GIT
-    SR["semantic search"] --> PG
+    SR["semantic search"] --> DOCIDX
+    SR --> ARTIDX
   end
   LIVE["Live connectors: Slack / Gmail"] -.->|queried at chat time, never stored| SKIP["(bypass storage entirely)"]
   BLOB[("Blob store / Azure — original binaries (unchanged)")]
@@ -51,8 +54,8 @@ flowchart TD
 
 ## Decisions locked
 
-- **Git = single source of truth** for all *indexed* KB content (agent/editor notes, uploads, indexable connectors — the `is_indexable` ones).
-- **Postgres = derived index only** (chunks + embeddings). It is a **cache**: rebuildable from Git via one `index_tree(workspace)`. Never authoritative. (As shipped, a rebuild upserts and prunes rather than wiping — document ids are in the Zero publication and must survive it; only chunk rows are replaced.)
+- **Git owns committed searchable bodies** for indexed documents and artifact representations. Postgres still owns domain identity/metadata, artifact generation/file ownership, and the derived chunk/vector indexes.
+- **Projection is root-qualified.** `/documents/**` converges to `Document`/`Chunk`; `/artifacts/**` converges to `Artifact`/`ArtifactChunk`. `index_tree(workspace)` repairs and prunes both without crossing ownership domains.
 - **One-way derivation** (Git → Postgres). **Never** two-way sync (this is the Wiki.js anti-pattern we explicitly reject).
 - **Live connectors (Slack/Gmail) are untouched** — never stored/indexed, queried at chat time; entirely out of scope.
 - **Binary blobs stay in the existing blob store** (local/Azure). Git holds extracted markdown, not raw binaries (Git-LFS deferred).
@@ -89,7 +92,7 @@ flowchart LR
 | Role | Consumer | v1? |
 |---|---|---|
 | Driving adapter | deepagents agent backend | ✅ build now (Phase 2) |
-| Driving adapter | KB REST API (Rohan's artifact API) | deferred — next adapter after the core |
+| Driving adapter | KB REST API | deferred — next adapter after the core |
 | Driving adapter | MCP server | deferred |
 | Driven port (infra) | storage engine (dulwich via `VersionedContentEngine`) | ✅ built (Phase 1) |
 | Driven consumer | vector-store sync / derived index | ✅ build now (Phase 4) |
@@ -236,7 +239,7 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 - **(2026-07-24) Connectors clarified — only `is_indexable` content enters git.** Document connectors (Notion, Drive, Obsidian) are indexed → they go into git. Live connectors (Slack, Gmail) are queried at chat time and never stored → they never touch git or Postgres chunks. (Corrects an earlier draft that carved *all* connectors out of git.)
 - **(2026-07-24) Borrowing, not inventing.** Architecture assembled from proven references (Fossil, Gollum, kherad, Coregit, dulwich, vector-cache best-practices); the only SurfSense-specific work is the adaptation glue. Wiki.js retained as the explicit counter-example.
 - **(2026-07-28) Ports & Adapters — deepagents is an adapter, not the core** ([ADR 0002](../../docs/adr/0002-knowledge-core-ports-and-adapters.md)). The KB is a framework-agnostic core (`KnowledgeStore`); consumers (deepagents, the KB REST API, the vector-store sync, later MCP/remote-git) are adapters at the edge. **YAGNI:** v1 builds only the core + the deepagents adapter (Phase 2) + the vector-store-sync consumer (Phase 4); REST/MCP/remote-git are named-but-deferred. Ports grow on demand. Borrowed from Cockburn (Hexagonal), git plumbing/porcelain, libgit2.
-- **(2026-08-06) Generated artifacts are store citizens, and forward-only.** The artifacts overhaul ([`plans/artifacts/artifacts-overhaul.md`](../artifacts/artifacts-overhaul.md) §4.4) puts each artifact's markdown representation in the store via the turn's working copy (binaries stay in the blob store — the same split as uploads) with destructive replace-on-revise and no version history. No store or indexer changes needed; the constraint this umbrella inherits is on **future verbs**: the revert verb excludes `generated: true` documents' paths from its inverse diff, and any version-history UI excludes generated documents — an old entry for one is a description whose deliverable no longer exists.
+- **(2026-08-12) Artifacts are a separate projected domain.** The artifact overhaul puts searchable representations under `/artifacts/**`, metadata/files in `Artifact`/`ArtifactFile`, and passages in `ArtifactChunk`. Commit projection dispatches by root and never adopts an artifact into `Document`. Convergence and full rebuild cover both roots, while each domain retains its own identity, pruning, deletion, and indexing state. Artifact revisions are optimistic (`artifact_id + expected_generation`) and forward-only at the product surface.
 
 ## Subplan index (backend)
 
@@ -265,7 +268,7 @@ Frontend & client subplans will be added under a separate umbrella later (see "D
 | Virtual FS read backend (replace) | `.../filesystem/backends/kb_postgres.py` |
 | Backend resolver (rewire) | `.../filesystem/backends/resolver.py` |
 | Write commit middleware (repoint) | `.../main_agent/middleware/kb_persistence/middleware.py` |
-| Hybrid search (unchanged) | `.../shared/retrieval/hybrid_search.py` |
+| Hybrid search (document + artifact global fusion) | `.../shared/retrieval/hybrid_search.py` |
 | Chunk reconciliation (key by blob SHA) | `surfsense_backend/app/indexing_pipeline/chunk_reconciler.py` |
 | Indexing pipeline | `surfsense_backend/app/indexing_pipeline/indexing_pipeline_service.py` |
 | User version history (delete) | `surfsense_backend/app/utils/document_versioning.py` |
