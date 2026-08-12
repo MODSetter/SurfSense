@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.multi_agent_chat.shared.citations import load_registry
 from app.agents.chat.multi_agent_chat.shared.retrieval import SearchScope, build_context
 from app.agents.chat.multi_agent_chat.shared.retrieval.hybrid_search import (
-    search_chunks,
+    search_knowledge_base,
 )
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
@@ -38,11 +38,11 @@ _DEFAULT_TOP_K = 5
 _MAX_TOP_K = 20
 
 _TOOL_DESCRIPTION = (
-    "Search the user's knowledge base — their own uploaded files, documents, "
-    "and notes — for passages relevant to a query, using hybrid semantic + "
+    "Search the user's knowledge base — uploaded files, documents, notes, and "
+    "generated artifacts — for passages relevant to a query, using hybrid semantic + "
     "keyword retrieval.\n\n"
     "Use this FIRST to ground any factual or informational answer about the "
-    "user's personal files and notes. It returns a <retrieved_context> block: "
+    "user's workspace content. It returns a <retrieved_context> block: "
     "each matched passage is labelled [n]. Cite a passage by writing that [n] "
     "after the statement it supports.\n\n"
     "This searches only the user's stored files and notes — live data in "
@@ -146,7 +146,7 @@ def create_search_knowledge_base_tool(
                 document_types=_document_types,
                 runtime=runtime,
             )
-            hits = await search_chunks(
+            hits = await search_knowledge_base(
                 session,
                 workspace_id=_space_id,
                 query=cleaned_query,
@@ -156,7 +156,7 @@ def create_search_knowledge_base_tool(
             rendered = build_context(cleaned_query, hits, registry)
 
         _perf_log.info(
-            "[search_knowledge_base] tool query=%r docs=%d in %.3fs",
+            "[search_knowledge_base] tool query=%r sources=%d in %.3fs",
             cleaned_query[:60],
             len(hits),
             time.perf_counter() - t0,
