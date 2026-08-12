@@ -12,18 +12,12 @@ from sqlalchemy.orm import selectinload
 
 from app.artifacts.persistence import (
     Artifact,
-    ArtifactChunk,
     ArtifactFile,
     ArtifactFileRole,
 )
-from app.artifacts.storage import (
-    open_artifact_file_stream,
-    purge_artifact_file_records,
-)
+from app.artifacts.storage import open_artifact_file_stream
 from app.auth.context import AuthContext
-from app.db import Permission, get_async_session
-from app.knowledge_store.service import record_markdown_files
-from app.knowledge_store.settings import knowledge_store_enabled_for
+from app.db import Document, Permission, get_async_session
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
@@ -89,9 +83,10 @@ async def list_artifacts(
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
     )
-    artifacts = (
-        await session.scalars(
-            select(Artifact)
+    rows = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
             .where(Artifact.workspace_id == workspace_id)
             .order_by(Artifact.updated_at.desc(), Artifact.id.desc())
         )
@@ -100,63 +95,18 @@ async def list_artifacts(
     return [
         {
             "artifact_id": artifact.id,
-            "title": artifact.title,
+            "title": document.title,
             "format": artifact.format,
             "generation": artifact.generation,
-            "indexing_status": artifact.indexing_status,
+            "indexing_status": (document.status or {}).get("state", "ready"),
             "thread_id": artifact.thread_id,
             "created_at": artifact.created_at.isoformat(),
             "updated_at": (
                 artifact.updated_at.isoformat() if artifact.updated_at else None
             ),
         }
-        for artifact in artifacts
+        for artifact, document in rows
     ]
-
-
-@router.get("/workspaces/{workspace_id}/artifacts/by-chunk/{chunk_id}")
-async def resolve_artifact_chunk(
-    workspace_id: int,
-    chunk_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    await _authorize_artifact(
-        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
-    )
-    row = (
-        await session.execute(
-            select(
-                ArtifactChunk.id,
-                ArtifactChunk.content,
-                ArtifactChunk.position,
-                ArtifactChunk.start_line,
-                ArtifactChunk.end_line,
-                Artifact.id.label("artifact_id"),
-                Artifact.title,
-                Artifact.generation,
-            )
-            .join(Artifact, ArtifactChunk.artifact_id == Artifact.id)
-            .where(
-                ArtifactChunk.id == chunk_id,
-                Artifact.workspace_id == workspace_id,
-                Artifact.indexing_status == "ready",
-                Artifact.indexed_generation == Artifact.generation,
-            )
-        )
-    ).first()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Artifact chunk not found")
-    return {
-        "artifact_chunk_id": row.id,
-        "artifact_id": row.artifact_id,
-        "title": row.title,
-        "generation": row.generation,
-        "content": row.content,
-        "position": row.position,
-        "start_line": row.start_line,
-        "end_line": row.end_line,
-    }
 
 
 @router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/manifest")
@@ -171,24 +121,29 @@ async def get_artifact_manifest(
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
     )
-    artifact = await session.scalar(
-        select(Artifact)
-        .options(selectinload(Artifact.files))
-        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
-    )
-    if artifact is None:
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    etag = f'"{artifact.content_hash}:{artifact.generation}"'
+    artifact, document = row
+    etag = f'"{document.content_hash}:{artifact.generation}"'
     cache_headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=cache_headers)
     response.headers.update(cache_headers)
     return {
         "artifact_id": artifact.id,
-        "title": artifact.title,
+        "document_id": document.id,
+        "title": document.title,
         "format": artifact.format,
         "generation": artifact.generation,
-        "markdown_representation": artifact.search_content,
+        "markdown_representation": document.source_markdown or document.content,
         "files": [
             _file_manifest(workspace_id, artifact.id, file)
             for file in _visible_files(artifact)
@@ -209,13 +164,17 @@ async def download_artifact(
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
     )
-    artifact = await session.scalar(
-        select(Artifact)
-        .options(selectinload(Artifact.files))
-        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
-    )
-    if artifact is None:
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
+    artifact, document = row
     primary = next(
         (file for file in artifact.files if file.role is ArtifactFileRole.PRIMARY),
         None,
@@ -235,9 +194,9 @@ async def download_artifact(
                 ),
             },
         )
-    filename = _markdown_filename(artifact.title)
+    filename = _markdown_filename(document.title)
     return StreamingResponse(
-        io.BytesIO(artifact.search_content.encode()),
+        io.BytesIO((document.source_markdown or document.content).encode()),
         media_type="text/markdown; charset=utf-8",
         headers={
             **headers,
@@ -256,27 +215,30 @@ async def delete_artifact(
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_DELETE, "delete"
     )
-    artifact = await session.scalar(
-        select(Artifact)
-        .options(selectinload(Artifact.files))
-        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
-    )
-    if artifact is None:
-        raise HTTPException(status_code=404, detail="Artifact not found")
-
-    if await knowledge_store_enabled_for(workspace_id):
-        await record_markdown_files(
-            workspace_id=workspace_id,
-            files={},
-            removes=[artifact.path.removeprefix("/")],
-            message=f"artifacts: delete {artifact.path.rsplit('/', 1)[-1]}",
-            author_user_id=str(auth.user.id),
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
         )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    _, document = row
 
-    files = list(artifact.files)
-    await session.delete(artifact)
+    document.status = {"state": "deleting"}
     await session.commit()
-    await purge_artifact_file_records(files)
+    try:
+        from app.tasks.celery_tasks.document_tasks import delete_document_task
+
+        delete_document_task.delay(document.id)
+    except Exception as dispatch_error:
+        document.status = {"state": "ready"}
+        await session.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to queue background deletion. Please try again.",
+        ) from dispatch_error
     return Response(status_code=204, headers={"Cache-Control": "private, no-store"})
 
 
