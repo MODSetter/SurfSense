@@ -10,10 +10,12 @@ export function ArtifactDownloadButton({
 	path,
 	filename,
 	className,
+	appearance = "icon",
 }: {
 	path: string;
 	filename: string;
 	className?: string;
+	appearance?: "icon" | "text";
 }) {
 	const [downloading, setDownloading] = useState(false);
 
@@ -30,13 +32,19 @@ export function ArtifactDownloadButton({
 		<Button
 			type="button"
 			variant="ghost"
-			size="icon"
+			size={appearance === "icon" ? "icon" : "sm"}
 			className={className}
 			disabled={downloading}
 			onClick={handleClick}
 		>
-			{downloading ? <Spinner size="sm" /> : <Download className="size-4" />}
-			<span className="sr-only">Download {filename}</span>
+			{appearance === "text" ? (
+				"Download"
+			) : (
+				<>
+					{downloading ? <Spinner size="sm" /> : <Download className="size-4" />}
+					<span className="sr-only">Download {filename}</span>
+				</>
+			)}
 		</Button>
 	);
 }
