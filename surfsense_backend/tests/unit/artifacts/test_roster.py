@@ -42,8 +42,8 @@ async def test_roster_resolves_each_chat_from_live_config(monkeypatch):
         lambda: {"configurable": {"thread_id": "101::task:call-a"}},
     )
     first = await middleware.abefore_agent(state, SimpleNamespace())
-    assert "document_id=1" in first["messages"][0].content
-    assert "document_id=2" not in first["messages"][0].content
+    assert "artifact_id=1" in first["messages"][0].content
+    assert "artifact_id=2" not in first["messages"][0].content
 
     monkeypatch.setattr(
         artifact_roster,
@@ -51,5 +51,5 @@ async def test_roster_resolves_each_chat_from_live_config(monkeypatch):
         lambda: {"configurable": {"thread_id": "202::task:call-b"}},
     )
     second = await middleware.abefore_agent(state, SimpleNamespace())
-    assert "document_id=2" in second["messages"][0].content
-    assert "document_id=1" not in second["messages"][0].content
+    assert "artifact_id=2" in second["messages"][0].content
+    assert "artifact_id=1" not in second["messages"][0].content

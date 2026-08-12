@@ -20,15 +20,14 @@ pytestmark = pytest.mark.integration
 
 
 async def test_roster_resolves_each_chat_from_live_config(
-    db_session, db_workspace, monkeypatch
+    db_session, db_workspace, patched_embed_texts, monkeypatch
 ):
+    del patched_embed_texts
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
-
     first = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
@@ -78,15 +77,14 @@ async def test_roster_resolves_each_chat_from_live_config(
 
 
 async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
-    db_session, db_workspace, monkeypatch
+    db_session, db_workspace, patched_embed_texts, monkeypatch
 ):
+    del patched_embed_texts
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
-
     artifacts = []
     for index in range(11):
         artifacts.append(

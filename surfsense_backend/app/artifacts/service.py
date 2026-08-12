@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,13 +13,20 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.artifacts.indexing import index_artifact
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
 from app.artifacts.storage import store_artifact_file
+from app.db import Document, DocumentStatus, DocumentType, Workspace
 from app.file_storage.factory import get_storage_backend
+from app.indexing_pipeline.connector_document import ConnectorDocument
+from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.paths.naming import normalize_filename
+from app.knowledge_store.paths import allocate_path
 from app.knowledge_store.settings import knowledge_store_enabled_for
+from app.services.folder_service import ensure_folder_hierarchy
+from app.utils.document_converters import (
+    generate_content_hash,
+    generate_unique_identifier_hash,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +54,6 @@ class ArtifactSaved:
     artifact_id: int
     generation: int
     title: str
-    path: str
     files: list[ArtifactSavedFile]
 
 
@@ -82,18 +87,14 @@ def _artifact_format(files: list[tuple[ArtifactFileInput, ArtifactFileRole]]) ->
     return suffix or primary.mime_type.split("/", 1)[-1]
 
 
-def _content_hash(markdown: str) -> str:
-    return hashlib.sha256(markdown.encode("utf-8")).hexdigest()
-
-
 async def _working_copy_paths(root: Path) -> set[str]:
     def collect() -> set[str]:
-        artifacts = root / "artifacts"
-        if not artifacts.exists():
+        documents = root / "documents"
+        if not documents.exists():
             return set()
         return {
             "/" + path.relative_to(root).as_posix()
-            for path in artifacts.rglob("*")
+            for path in documents.rglob("*")
             if path.is_file()
         }
 
@@ -107,26 +108,22 @@ async def _allocate_artifact_path(
     title: str,
     working_copy_root: Path | None,
 ) -> str:
-    paths = await session.scalars(
-        select(Artifact.path).where(Artifact.workspace_id == workspace_id)
-    )
-    taken = set(paths)
     if working_copy_root is not None:
-        taken.update(await _working_copy_paths(working_copy_root))
+        taken = await _working_copy_paths(working_copy_root)
+    else:
+        paths = await session.scalars(
+            select(Document.path).where(
+                Document.workspace_id == workspace_id,
+                Document.path.is_not(None),
+            )
+        )
+        taken = set(paths)
 
-    filename = normalize_filename(title)
-    if not filename.lower().endswith(".md"):
-        filename = f"{filename}.md"
-    candidate = f"/artifacts/{filename}"
-    if candidate not in taken:
-        return candidate
-
-    stem, dot, extension = filename.rpartition(".")
-    base, suffix = (stem, f".{extension}") if dot else (filename, "")
-    counter = 2
-    while f"/artifacts/{base} ({counter}){suffix}" in taken:
-        counter += 1
-    return f"/artifacts/{base} ({counter}){suffix}"
+    return allocate_path(
+        name=title,
+        folder_parts=("Artifacts",),
+        taken=taken,
+    ).virtual_path
 
 
 async def _write_working_copy(
@@ -205,16 +202,43 @@ async def save_artifact(
             title=title,
             working_copy_root=working_copy_root,
         )
+        created_by_id = await session.scalar(
+            select(Workspace.user_id).where(Workspace.id == workspace_id)
+        )
+        if created_by_id is None:
+            raise ValueError("workspace does not exist")
+        folder_id = await ensure_folder_hierarchy(
+            session,
+            workspace_id=workspace_id,
+            created_by_id=str(created_by_id),
+            folder_parts=["Artifacts"],
+        )
+        document = Document(
+            title=title,
+            document_type=DocumentType.ARTIFACT,
+            document_metadata={},
+            path=path,
+            content=markdown_representation,
+            source_markdown=markdown_representation,
+            content_hash=generate_content_hash(markdown_representation, workspace_id),
+            unique_identifier_hash=generate_unique_identifier_hash(
+                DocumentType.NOTE, path, workspace_id
+            ),
+            workspace_id=workspace_id,
+            folder_id=folder_id,
+            created_by_id=created_by_id,
+            status=DocumentStatus.pending(),
+            updated_at=now,
+        )
+        session.add(document)
+        await session.flush()
         artifact = Artifact(
+            document_id=document.id,
             workspace_id=workspace_id,
             thread_id=thread_id,
-            title=title,
+            created_by_id=created_by_id,
             format=_artifact_format(validated_files),
-            search_content=markdown_representation,
-            path=path,
-            content_hash=_content_hash(markdown_representation),
             generation=1,
-            indexing_status="pending",
             created_by_tool_call_id=tool_call_id,
             updated_by_tool_call_id=tool_call_id,
             artifact_metadata=extra_metadata,
@@ -225,7 +249,10 @@ async def save_artifact(
     else:
         artifact = await session.scalar(
             select(Artifact)
-            .options(selectinload(Artifact.files))
+            .options(
+                selectinload(Artifact.document),
+                selectinload(Artifact.files),
+            )
             .where(
                 Artifact.id == artifact_id,
                 Artifact.workspace_id == workspace_id,
@@ -242,26 +269,39 @@ async def save_artifact(
             raise ValueError(
                 "artifact was revised by another operation; load its source again"
             )
+        document = artifact.document
         old_files = list(artifact.files)
-        artifact.title = title
         artifact.format = _artifact_format(validated_files)
-        artifact.search_content = markdown_representation
-        artifact.content_hash = _content_hash(markdown_representation)
         artifact.generation += 1
-        artifact.indexing_status = "pending"
-        artifact.indexing_error = None
         artifact.updated_by_tool_call_id = tool_call_id
         artifact.artifact_metadata = {
             **(artifact.artifact_metadata or {}),
             **(extra_metadata or {}),
         }
         artifact.updated_at = now
+        document.title = title
+        document.content = markdown_representation
+        document.source_markdown = markdown_representation
+        document.content_hash = generate_content_hash(
+            markdown_representation, workspace_id
+        )
+        document.document_metadata = {
+            **(document.document_metadata or {}),
+            "artifact_id": artifact.id,
+        }
+        document.status = DocumentStatus.pending()
+        document.updated_at = now
         if old_files:
             await session.execute(
                 delete(ArtifactFile).where(
                     ArtifactFile.id.in_([file.id for file in old_files])
                 )
             )
+
+    document.document_metadata = {
+        **(document.document_metadata or {}),
+        "artifact_id": artifact.id,
+    }
 
     backend = get_storage_backend()
     new_records: list[ArtifactFile] = []
@@ -282,15 +322,20 @@ async def save_artifact(
         await session.flush()
         if working_copy_root is not None:
             working_copy_state = await _write_working_copy(
-                working_copy_root, artifact.path, markdown_representation
+                working_copy_root, document.path, markdown_representation
             )
         else:
-            await index_artifact(
-                session,
-                artifact=artifact,
-                markdown=markdown_representation,
+            connector_document = ConnectorDocument(
+                title=document.title,
+                source_markdown=markdown_representation,
+                unique_id=document.path,
+                document_type=DocumentType.ARTIFACT,
+                workspace_id=workspace_id,
+                metadata=document.document_metadata or {},
+                created_by_id=str(document.created_by_id),
+                folder_id=document.folder_id,
             )
-            await session.flush()
+            await IndexingPipelineService(session).index(document, connector_document)
         await session.commit()
     except Exception:
         await session.rollback()
@@ -304,8 +349,7 @@ async def save_artifact(
         status="saved",
         artifact_id=artifact.id,
         generation=artifact.generation,
-        title=artifact.title,
-        path=artifact.path,
+        title=document.title,
         files=[
             ArtifactSavedFile(
                 file_id=record.id,
