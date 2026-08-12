@@ -1,11 +1,10 @@
-"""Transactional write-through persistence for generated artifacts."""
+"""Create or revise artifacts via ArtifactInput → persist_artifact."""
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import logging
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.artifacts.indexing import index_artifact
-from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
+from app.artifacts.persistence import (
+    Artifact,
+    ArtifactFile,
+    ArtifactFileRole,
+    ArtifactFormat,
+)
+from app.artifacts.schemas import (
+    ArtifactFileInput,
+    ArtifactInput,
+    ArtifactSaved,
+    ArtifactSavedFile,
+)
 from app.artifacts.storage import store_artifact_file
 from app.file_storage.factory import get_storage_backend
 from app.knowledge_store import KnowledgeStore
@@ -25,42 +35,20 @@ from app.knowledge_store.settings import knowledge_store_enabled_for
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class ArtifactFileInput:
-    data: bytes
-    filename: str
-    mime_type: str
-    role: str = "primary"
-
-
-@dataclass(frozen=True)
-class ArtifactSavedFile:
-    file_id: int
-    role: str
-    filename: str
-    mime_type: str
-    size_bytes: int
-
-
-@dataclass(frozen=True)
-class ArtifactSaved:
-    status: str
-    artifact_id: int
-    generation: int
-    title: str
-    path: str
-    files: list[ArtifactSavedFile]
-
-
 def _validated_files(
-    files: list[ArtifactFileInput],
+    files: tuple[ArtifactFileInput, ...] | list[ArtifactFileInput],
 ) -> list[tuple[ArtifactFileInput, ArtifactFileRole]]:
-    try:
-        validated = [(file, ArtifactFileRole(file.role)) for file in files]
-    except ValueError:
-        raise ValueError(
-            "artifact file role must be 'primary', 'preview', or 'source'"
-        ) from None
+    validated: list[tuple[ArtifactFileInput, ArtifactFileRole]] = []
+    for file in files:
+        role = file.role
+        if not isinstance(role, ArtifactFileRole):
+            try:
+                role = ArtifactFileRole(role)
+            except ValueError:
+                raise ValueError(
+                    "artifact file role must be 'primary', 'preview', or 'source'"
+                ) from None
+        validated.append((file, role))
     roles = [role for _, role in validated]
     if len(roles) != len(set(roles)):
         raise ValueError("an artifact may contain at most one file per role")
@@ -72,17 +60,23 @@ def _validate_files(files: list[ArtifactFileInput]) -> None:
     _validated_files(files)
 
 
-def _artifact_format(files: list[tuple[ArtifactFileInput, ArtifactFileRole]]) -> str:
+def _artifact_format(
+    files: list[tuple[ArtifactFileInput, ArtifactFileRole]],
+    *,
+    explicit: ArtifactFormat | str | None = None,
+) -> str:
+    if explicit:
+        return str(explicit)
     primary = next(
         (file for file, role in files if role is ArtifactFileRole.PRIMARY), None
     )
     if primary is None:
-        return "markdown"
+        return ArtifactFormat.MARKDOWN.value
     suffix = Path(primary.filename).suffix.lower().lstrip(".")
     return suffix or primary.mime_type.split("/", 1)[-1]
 
 
-def _content_hash(markdown: str) -> str:
+def _markdown_hash(markdown: str) -> str:
     return hashlib.sha256(markdown.encode("utf-8")).hexdigest()
 
 
@@ -165,59 +159,54 @@ async def _delete_blobs_best_effort(records: list[ArtifactFile]) -> None:
             )
 
 
-async def save_artifact(
+async def persist_artifact(
     session: AsyncSession,
-    *,
-    workspace_id: int,
-    thread_id: int | None,
-    tool_call_id: str,
-    title: str,
-    markdown_representation: str,
-    files: list[ArtifactFileInput],
-    artifact_id: int | None = None,
-    expected_generation: int | None = None,
-    extra_metadata: dict[str, Any] | None = None,
+    input: ArtifactInput,
 ) -> ArtifactSaved:
-    """Create or revise an artifact atomically and return its stable identity."""
-    title = title.strip()
+    """Create or revise an artifact from a normalized ArtifactInput."""
+    title = input.title.strip()
     if not title:
         raise ValueError("artifact title must not be empty")
-    if not markdown_representation.strip():
+    if not input.markdown_representation.strip():
         raise ValueError("artifact content must not be empty")
-    validated_files = _validated_files(files)
+    validated_files = _validated_files(input.files)
+    artifact_format = _artifact_format(validated_files, explicit=input.format)
 
     working_copy_root: Path | None = None
-    if await knowledge_store_enabled_for(workspace_id):
+    if await knowledge_store_enabled_for(input.workspace_id):
         working_copy_root = (
-            await KnowledgeStore.for_workspace(workspace_id).open_turn_copy(thread_id)
+            await KnowledgeStore.for_workspace(input.workspace_id).open_turn_copy(
+                input.thread_id
+            )
         ).path
 
     old_files: list[ArtifactFile] = []
     now = datetime.now(UTC)
-    if artifact_id is None:
-        if expected_generation is not None:
+    if input.artifact_id is None:
+        if input.expected_version is not None:
             raise ValueError(
-                "expected_generation is only valid when revising an artifact"
+                "expected_version is only valid when revising an artifact"
             )
         path = await _allocate_artifact_path(
             session,
-            workspace_id=workspace_id,
+            workspace_id=input.workspace_id,
             title=title,
             working_copy_root=working_copy_root,
         )
         artifact = Artifact(
-            workspace_id=workspace_id,
-            thread_id=thread_id,
+            workspace_id=input.workspace_id,
+            thread_id=input.thread_id,
+            created_by_id=input.created_by_id,
             title=title,
-            format=_artifact_format(validated_files),
-            search_content=markdown_representation,
+            format=artifact_format,
+            markdown_representation=input.markdown_representation,
             path=path,
-            content_hash=_content_hash(markdown_representation),
-            generation=1,
+            markdown_hash=_markdown_hash(input.markdown_representation),
+            version=1,
             indexing_status="pending",
-            created_by_tool_call_id=tool_call_id,
-            updated_by_tool_call_id=tool_call_id,
-            artifact_metadata=extra_metadata,
+            created_by_tool_call_id=input.tool_call_id,
+            updated_by_tool_call_id=input.tool_call_id,
+            artifact_metadata=input.metadata,
             updated_at=now,
         )
         session.add(artifact)
@@ -227,33 +216,36 @@ async def save_artifact(
             select(Artifact)
             .options(selectinload(Artifact.files))
             .where(
-                Artifact.id == artifact_id,
-                Artifact.workspace_id == workspace_id,
+                Artifact.id == input.artifact_id,
+                Artifact.workspace_id == input.workspace_id,
             )
             .with_for_update()
         )
         if artifact is None:
             raise ValueError("artifact does not exist in this workspace")
-        if expected_generation is None:
+        if input.expected_version is None:
             raise ValueError(
-                "expected_generation is required when revising an artifact"
+                "expected_version is required when revising an artifact"
             )
-        if artifact.generation != expected_generation:
+        if artifact.version != input.expected_version:
             raise ValueError(
                 "artifact was revised by another operation; load its source again"
             )
         old_files = list(artifact.files)
         artifact.title = title
-        artifact.format = _artifact_format(validated_files)
-        artifact.search_content = markdown_representation
-        artifact.content_hash = _content_hash(markdown_representation)
-        artifact.generation += 1
+        artifact.format = artifact_format
+        artifact.markdown_representation = input.markdown_representation
+        artifact.markdown_hash = _markdown_hash(input.markdown_representation)
+        artifact.version += 1
         artifact.indexing_status = "pending"
         artifact.indexing_error = None
-        artifact.updated_by_tool_call_id = tool_call_id
+        if input.tool_call_id is not None:
+            artifact.updated_by_tool_call_id = input.tool_call_id
+        if input.created_by_id is not None and artifact.created_by_id is None:
+            artifact.created_by_id = input.created_by_id
         artifact.artifact_metadata = {
             **(artifact.artifact_metadata or {}),
-            **(extra_metadata or {}),
+            **(input.metadata or {}),
         }
         artifact.updated_at = now
         if old_files:
@@ -271,7 +263,7 @@ async def save_artifact(
             record = await store_artifact_file(
                 session,
                 artifact_id=artifact.id,
-                workspace_id=workspace_id,
+                workspace_id=input.workspace_id,
                 role=role,
                 data=file.data,
                 filename=file.filename,
@@ -282,13 +274,13 @@ async def save_artifact(
         await session.flush()
         if working_copy_root is not None:
             working_copy_state = await _write_working_copy(
-                working_copy_root, artifact.path, markdown_representation
+                working_copy_root, artifact.path, input.markdown_representation
             )
         else:
             await index_artifact(
                 session,
                 artifact=artifact,
-                markdown=markdown_representation,
+                markdown=input.markdown_representation,
             )
             await session.flush()
         await session.commit()
@@ -303,13 +295,13 @@ async def save_artifact(
     return ArtifactSaved(
         status="saved",
         artifact_id=artifact.id,
-        generation=artifact.generation,
+        version=artifact.version,
         title=artifact.title,
         path=artifact.path,
         files=[
             ArtifactSavedFile(
                 file_id=record.id,
-                role=record.role.value,
+                role=record.role,
                 filename=record.original_filename,
                 mime_type=record.mime_type or "application/octet-stream",
                 size_bytes=record.size_bytes,
@@ -317,4 +309,34 @@ async def save_artifact(
             for record in new_records
             if record.role is not ArtifactFileRole.SOURCE
         ],
+    )
+
+
+async def save_artifact(
+    session: AsyncSession,
+    *,
+    workspace_id: int,
+    thread_id: int | None,
+    tool_call_id: str,
+    title: str,
+    markdown_representation: str,
+    files: list[ArtifactFileInput],
+    artifact_id: int | None = None,
+    expected_version: int | None = None,
+    extra_metadata: dict[str, Any] | None = None,
+) -> ArtifactSaved:
+    """Office/tool convenience: build ArtifactInput then persist."""
+    return await persist_artifact(
+        session,
+        ArtifactInput(
+            workspace_id=workspace_id,
+            title=title,
+            markdown_representation=markdown_representation,
+            tool_call_id=tool_call_id,
+            files=tuple(files),
+            thread_id=thread_id,
+            artifact_id=artifact_id,
+            expected_version=expected_version,
+            metadata=extra_metadata,
+        ),
     )

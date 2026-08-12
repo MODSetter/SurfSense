@@ -51,7 +51,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     artifact = await db_session.get(Artifact, saved.artifact_id)
     assert artifact.path == "/artifacts/Adoption proof.md"
-    assert artifact.indexed_generation is None
+    assert artifact.indexed_version is None
     assert artifact.indexing_status == "pending"
     assert (
         await db_session.scalar(
@@ -89,7 +89,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     await index_changes(db_session, db_workspace.id)
     await db_session.refresh(projected)
-    assert projected.indexed_generation == 1
+    assert projected.indexed_version == 1
     assert projected.indexing_status == "ready"
     assert (
         await db_session.scalar(
@@ -109,7 +109,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
         title="Renamed proof",
         markdown_representation="# Renamed proof\n\nupdated-artifact-term",
         artifact_id=saved.artifact_id,
-        expected_generation=saved.generation,
+        expected_version=saved.version,
         files=[
             ArtifactFileInput(b"%PDF-revised", "renamed.pdf", "application/pdf"),
         ],
@@ -117,7 +117,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     assert revised.artifact_id == saved.artifact_id
     assert revised.path == saved.path
-    assert revised.generation == 2
+    assert revised.version == 2
     assert revised.title == "Renamed proof"
     assert target.read_text() == "# Renamed proof\n\nupdated-artifact-term"
 
@@ -131,7 +131,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
     await db_session.refresh(artifact)
     assert artifact.title == "Renamed proof"
     assert artifact.path == saved.path
-    assert artifact.indexed_generation == 2
+    assert artifact.indexed_version == 2
 
     copy = await store.open_turn_copy(44)
     target = copy.path / saved.path.removeprefix("/")

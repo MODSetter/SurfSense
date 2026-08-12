@@ -1,9 +1,9 @@
 import pytest
 
+from app.artifacts.schemas import ArtifactFileInput
 from app.artifacts.service import (
-    ArtifactFileInput,
     _artifact_format,
-    _content_hash,
+    _markdown_hash,
     _validate_files,
     _validated_files,
 )
@@ -25,6 +25,6 @@ def test_artifact_format_uses_markdown_or_primary_extension():
     assert _artifact_format(files) == "pdf"
 
 
-def test_content_hash_is_stable_sha256():
-    assert _content_hash("# Artifact") == _content_hash("# Artifact")
-    assert len(_content_hash("# Artifact")) == 64
+def test_markdown_hash_is_stable_sha256():
+    assert _markdown_hash("# Artifact") == _markdown_hash("# Artifact")
+    assert len(_markdown_hash("# Artifact")) == 64

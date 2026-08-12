@@ -56,7 +56,7 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
 
     assert payload["status"] == "saved"
     assert payload["artifact_id"]
-    assert payload["generation"] == 1
+    assert payload["version"] == 1
     assert payload["files"] == []
     assert (
         await db_session.scalar(
@@ -131,10 +131,10 @@ async def test_load_artifact_source_restores_the_current_source(
     assert loaded == {
         "source_path": expected_path,
         "artifact_id": saved.artifact_id,
-        "expected_generation": saved.generation,
+        "expected_version": saved.version,
         "save_instruction": (
             f"Pass artifact_id={saved.artifact_id} and "
-            f"expected_generation={saved.generation} to save_artifact so this "
+            f"expected_version={saved.version} to save_artifact so this "
             "revision replaces the existing artifact."
         ),
     }

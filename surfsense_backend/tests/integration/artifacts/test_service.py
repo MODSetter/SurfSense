@@ -70,7 +70,7 @@ async def test_markdown_artifact_payload_and_fences(
     assert artifact.created_by_tool_call_id == "call-1"
     assert artifact.updated_by_tool_call_id == "call-1"
     assert artifact.path == "/artifacts/Project brief.md"
-    assert artifact.generation == 1
+    assert artifact.version == 1
 
 
 async def test_binary_create_and_revision_replace_files(
@@ -115,7 +115,7 @@ async def test_binary_create_and_revision_replace_files(
         title="Retitled PDF",
         markdown_representation="# Retitled",
         artifact_id=created.artifact_id,
-        expected_generation=created.generation,
+        expected_version=created.version,
         files=[
             ArtifactFileInput(
                 data=b"new-pdf",
@@ -138,7 +138,7 @@ async def test_binary_create_and_revision_replace_files(
     )
 
     assert revised.artifact_id == created.artifact_id
-    assert revised.generation == 2
+    assert revised.version == 2
     assert [file.role for file in revised.files] == ["primary"]
     assert revised.files[0].file_id != old_primary.id
     assert old_keys.isdisjoint(backend.data)
@@ -198,7 +198,7 @@ async def test_storage_failure_rolls_back_document_and_blob(
     )
 
 
-async def test_failed_revision_keeps_previous_generation(
+async def test_failed_revision_keeps_previous_version(
     db_session, db_workspace, artifact_setup, monkeypatch
 ):
     backend = artifact_setup
@@ -223,7 +223,7 @@ async def test_failed_revision_keeps_previous_generation(
             title="Broken revision",
             markdown_representation="# Broken",
             artifact_id=created.artifact_id,
-            expected_generation=created.generation,
+            expected_version=created.version,
             files=[
                 ArtifactFileInput(b"new", "new.pdf", "application/pdf"),
                 ArtifactFileInput(
@@ -235,8 +235,8 @@ async def test_failed_revision_keeps_previous_generation(
     artifact = await db_session.get(Artifact, created.artifact_id)
     await db_session.refresh(artifact)
     assert artifact.title == "Stable"
-    assert artifact.search_content == "# Stable"
-    assert artifact.generation == 1
+    assert artifact.markdown_representation == "# Stable"
+    assert artifact.version == 1
     assert set(backend.data) == previous_keys
     rows = (
         await db_session.scalars(
@@ -281,7 +281,7 @@ async def test_direct_reindex_preserves_unchanged_artifact_chunk_ids(
         title="Retitled",
         markdown_representation=f"# Revised\n\nNew introduction.\n\n{table}",
         artifact_id=created.artifact_id,
-        expected_generation=created.generation,
+        expected_version=created.version,
         files=[],
     )
 

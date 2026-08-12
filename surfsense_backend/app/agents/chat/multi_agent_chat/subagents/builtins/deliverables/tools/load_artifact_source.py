@@ -74,10 +74,10 @@ def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
         return {
             "source_path": sandbox_path,
             "artifact_id": artifact_id,
-            "expected_generation": artifact.generation,
+            "expected_version": artifact.version,
             "save_instruction": (
                 f"Pass artifact_id={artifact_id} and "
-                f"expected_generation={artifact.generation} to save_artifact so "
+                f"expected_version={artifact.version} to save_artifact so "
                 "this revision replaces the existing artifact."
             ),
         }

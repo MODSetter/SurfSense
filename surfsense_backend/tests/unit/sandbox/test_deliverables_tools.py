@@ -73,13 +73,25 @@ def _patch_save_tool(monkeypatch, session: FakeSandboxSession) -> dict:
     async def db_session():
         yield object()
 
-    async def save_artifact(_session, **kwargs):
-        captured.update(kwargs)
+    async def persist_artifact(_session, artifact_input):
+        captured.update(
+            {
+                "workspace_id": artifact_input.workspace_id,
+                "thread_id": artifact_input.thread_id,
+                "tool_call_id": artifact_input.tool_call_id,
+                "title": artifact_input.title,
+                "markdown_representation": artifact_input.markdown_representation,
+                "files": list(artifact_input.files),
+                "artifact_id": artifact_input.artifact_id,
+                "expected_version": artifact_input.expected_version,
+                "extra_metadata": artifact_input.metadata,
+            }
+        )
         return Saved(files=[])
 
     monkeypatch.setattr(save_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_tool, "shielded_async_session", db_session)
-    monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
+    monkeypatch.setattr(save_tool, "persist_artifact", persist_artifact)
     monkeypatch.setattr(save_tool, "resolve_root_thread_id", lambda *_: 4)
     monkeypatch.setattr(save_tool.app_config, "SECRET_KEY", SECRET)
     return captured
@@ -333,7 +345,7 @@ async def test_generated_file_requires_source_and_has_no_content_alias():
 
 
 async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
-    artifact = SimpleNamespace(generation=3)
+    artifact = SimpleNamespace(version=3)
     source = SimpleNamespace(
         size_bytes=16,
         storage_backend="azure",
@@ -379,9 +391,9 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
     assert loaded == {
         "source_path": path,
         "artifact_id": 9,
-        "expected_generation": 3,
+        "expected_version": 3,
         "save_instruction": (
-            "Pass artifact_id=9 and expected_generation=3 to save_artifact so "
+            "Pass artifact_id=9 and expected_version=3 to save_artifact so "
             "this revision replaces the existing artifact."
         ),
     }

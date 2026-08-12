@@ -40,7 +40,7 @@ async def test_markdown_artifact_has_stable_artifact_path(
 
     artifact = await db_session.get(Artifact, saved.artifact_id)
     assert saved.path == "/artifacts/Current _ notes.md"
-    assert artifact.search_content == "# Current notes"
+    assert artifact.markdown_representation == "# Current notes"
     assert artifact.format == "markdown"
     assert saved.files == []
 
