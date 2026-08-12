@@ -1,100 +1,80 @@
-# Phase 1 — Foundation (no sandbox)
+# Phase 1 — Dedicated Artifact Foundation
 
-**Status:** Implemented (migration `177` → `tests/integration/artifacts/`). §2 below describes what shipped; the three places the build corrected the plan are called out inline.
-**Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md) — contracts in §3 are authoritative; this file does not restate them.
-**Goal:** prove the artifact model end to end (write-through persistence → streaming → rendering) using markdown artifacts only, plus the full binary serving/rendering path exercised with manually seeded files. No sandbox, no skills, no deletions.
-**Ships to users:** reliable "save this as a document" from chat (no more silent staged-commit losses for deliverables), and the new artifact panel.
+**Status:** Implemented on this branch.
+**Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md), which is authoritative.
+**Goal:** Establish artifact-owned persistence, APIs, Git projection, indexing, retrieval, citations, and the panel contract without coupling artifacts to documents.
 
----
+## 1. Shipped scope
 
-## 1. Scope
+- Migration `178` creates `Artifact`, `ArtifactFile`, and `ArtifactChunk` persistence.
+- Artifact blob storage uses `artifacts/{workspace}/{artifact}/{role}/...`.
+- `save_artifact` supports Markdown and the general binary role shape.
+- Creates return `artifact_id` and `generation`; revisions require `artifact_id + expected_generation`.
+- Dedicated artifact list, manifest, download, immutable-file, chunk-context, and delete routes.
+- `/artifacts/**` is a separate Git root projected to `Artifact`, never to `Document`.
+- Git-backed indexing is deferred to convergence; non-git indexing runs directly after durable save.
+- Hybrid search globally fuses document and artifact candidates.
+- Artifact citations use `ARTIFACT_CHUNK` and namespaced frontend IDs.
+- The artifact panel, chat cards, library query, and cache keys use `artifact_id`.
 
-In:
+Sandbox generation and per-format verification/viewers remain in later phases.
 
-- Schema additions (`GENERATED` kind, `document_files.role`)
-- `save_artifact` tool (markdown path only) + write-through persistence helper, including both KB-indexing branches (working-copy write on git workspaces, direct index on legacy — master spec §4.4)
-- File-content streaming endpoint
-- `editor-content` `kind: text | file` discrimination
-- Artifact panel shell + viewer registry (markdown viewer + `FileDownloadCard`)
-- Chat artifact card keyed on `document_id`
+## 2. Persistence
 
-Out (later phases): sandbox, `execute`/`read_sandbox_file`, any binary *generation*, office viewers, any deletion. `generate_report`/`generate_resume` remain untouched and callable.
+`Artifact` stores title, adapter format, searchable Markdown, stable `/artifacts/...md` path, content hash, generation/index state, ownership/provenance, and timestamps.
 
----
+`ArtifactFile` stores immutable primary/preview/source blob metadata with one row per role. Source is private.
 
-## 2. Tasks
+`ArtifactChunk` stores searchable passages and embeddings independently of document `Chunk`.
 
-### 2.1 Backend — schema (1 Alembic migration)
+Markdown has no file rows. Binary shapes may have primary + source and optionally preview. The schema is format-independent; service coverage includes XLSX-shaped primary + source without shipping XLSX generation.
 
-1. Add `GENERATED` to the `document_file_kind` enum (`app/file_storage/persistence/enums.py` + migration `ALTER TYPE`).
-2. Add `document_files.role VARCHAR(16) NOT NULL DEFAULT 'primary'` (values `primary|preview|source`; keep it a plain string column, no enum churn for three values). Backfill needs nothing — default is correct for all existing rows (uploads).
+### Create and revise
 
-### 2.2 Backend — persistence helper
+- Create allocates a collision-safe `/artifacts/<title>.md` path once.
+- Retitle does not move the path.
+- Revision row-locks the artifact and rejects a missing or stale `expected_generation`.
+- New blobs and file rows replace the generation atomically.
+- Rollback removes staged blobs best-effort; commit purges superseded blobs best-effort.
+- Git convergence errors are recorded separately and cannot undo a durable artifact. Non-git direct indexing runs in the save transaction; failure rolls back rows and best-effort deletes staged blobs.
 
-New module `app/artifacts/service.py`:
+## 3. Git and indexing
 
-- `async def save_artifact(session, *, workspace_id, thread_id, tool_call_id, title, markdown_representation, files: list[ArtifactFileInput], document_id: int | None = None) -> ArtifactSaved`
-- **Create path** (`document_id=None`): allocates the artifact's tree path **once** via the store's `allocate_path` (sanitized filename, `.md`, ` (2)` collision suffix — the authored-once path law, master spec §4.1), then creates the `Document` (`document_type=NOTE`, `document_metadata={"generated": true, "thread_id", "tool_call_id"}`, `unique_identifier_hash` = the standard NOTE path hash for that path, `source_markdown=markdown_representation`), then `store_document_file()` per file with `kind=GENERATED` and the given `role`, **in one transaction**. The row and bytes are durable when the tool returns — that is the §3.1 write-through promise. `_validate_files` admits `source` alongside `primary` and `preview` and keeps rejecting a repeated role, which is what holds "one file per role" (master spec §4.1) at the only place all three enter the system.
-  - The `taken` set handed to `allocate_path` is the union of every recorded `PATH_MARKER` in the workspace **and** the files already sitting in the turn's working copy, and the resulting path's NOTE hash is re-checked against `documents.unique_identifier_hash` before it is accepted. The working-copy half is what keeps two artifacts saved in the same turn apart: neither has a marker yet (the projection stamps those at the commit), so recorded paths alone would hand both the same name.
-- **Search indexing branches on the workspace's KB mode** (master spec §4.4) — the only branch in the helper, keyed off the same `knowledge_store_enabled` flag the git KB uses:
-  - *Git-backed workspace:* write `markdown_representation` into the turn's working copy at the allocated path. The end-of-turn commit does the rest — the commit-time projection adopts the row and stamps `PATH_MARKER` (never this helper), the async convergence attaches chunks + embeddings. The row is in the tree the moment the tool returns and adopted at the commit; only the search hit is eventually consistent (seconds).
-  - *Legacy workspace:* chunk + embed immediately via a direct `IndexingPipelineService.index()` call on the row, once the persistence transaction has committed. Record `PATH_MARKER` here too, which the git branch deliberately does not: with no commit and no projection there is nothing else that ever will, and an unmarked row leaves a later revision guessing its path back from the title — correct for the first document of a given name, wrong for the second. Never `prepare_for_indexing`/`index_batch` in either mode — the store facade's ingest adapter hooked there would mint a separate `sync:` commit outside the turn. This branch is a bridge: it is deleted at the git-KB Phase 5 cut with the rest of the legacy path.
-    Indexing after the commit is what makes the write-through promise unconditional (an embedding outage cannot cost the user their document), and it buys one honest wart: an index failure raises, so the tool reports `failed` for an artifact that *was* saved and the model's retry creates a second one. Acceptable while the branch is scheduled for deletion; the fix, if it ever outlives that schedule, is to return the `document_id` alongside the failure so the retry revises.
-- **Revise path** (`document_id` set, master spec §4.3): validates the target is a generated document in this workspace; updates title/`source_markdown`; writes the new `DocumentFile` rows and deletes the replaced ones **in the same transaction**; the replaced *blobs* are deleted best-effort **after** that transaction commits, because a blob store has no rollback to enlist in — a failed delete leaves an unreferenced blob and a warning, never a broken artifact. (Symmetrically, a rollback deletes the blobs the failed attempt just wrote.) Re-indexing follows the same branch as the create path — on git workspaces, rewrite the file at the row's **recorded path** (`PATH_MARKER`); the path is an authored-once label under the store's path law, so a retitle updates the title column and never moves the file. Same-turn revises on a git workspace have no marker yet (it lands at the turn's single commit), so the helper matches the working copy's files by NOTE hash instead — a second branch for a genuinely different state, not a degraded rung under the first. Those two branches cover every case once legacy creates record the marker — a marked row on legacy, a marked row on git after the first commit, an unmarked one in the working copy before it — so re-deriving the path from the title is dead and is deleted rather than kept as a third rung that only ever fires when the other two are wrong. Direct re-index on legacy. Forward-only, no version history — a failed revision leaves the previous generation untouched.
-- **Fences (master spec §4.1/§4.3/§4.4):** neither path ever calls `create_version_snapshot` (`document_versions` is for KB/connector versioning, not artifacts); `save_artifact` writes are excluded from agent-revert snapshotting (`document_revisions`); and the forward-only rule extends to future git-KB verbs — revert and version-history UI exclude `generated: true` documents (cross-referenced in the git-KB umbrella). All three are the same rule: no version history for artifacts through any back door.
-- Returns the §3.1 payload shape. Raises on any failure — callers surface the error in the tool result; nothing is swallowed.
-- Phase 1 callers pass `files=[]` (markdown only), but the helper is written and tested against the binary and revise paths now (seeded bytes, §2.8), so phases 2–5 only add callers.
-- **No guards anywhere.** The convergence, commit path, and deletion machinery carry zero artifact-specific code — no `generated` predicate exists anywhere in the store — because an artifact row is indistinguishable from a note at the indexer's level, and everything the indexer does to a note (adopt, update, delete-with-the-tree) is exactly what artifacts want. What phase 1 adds instead is the proof: the adoption integration test in §2.8.
-- **Two corrections in `knowledge_store/index/rows.py`** — both general store fixes that artifacts were merely the first caller to need, not exceptions carved out for them:
-  1. `upsert_row` re-derived `document.title` from the filename on **every** upsert, so the commit following a revise renamed the row back to its original filename. It now re-derives the title only when the path actually changed (or when the row's `unique_identifier_hash` disagrees with the path's). This is the second half of the path law: if titles never move files, files must never rename titles.
-  2. `delete_row` deletes the `Document`, and the FK cascade drops its `DocumentFile` rows — but a cascade cannot reach the blob store, so every deleted upload or artifact leaked its bytes. It now calls `purge_document_blobs()` before the delete. (Master spec §4.3's "no new code" for deletion was wrong on this point; it is corrected there.)
+For Git-backed workspaces, save writes `search_content` into the turn working copy while metadata/blobs become durable in the tool call. The end-of-turn commit projects `/artifacts/**` by `(workspace_id, path)`, then convergence updates `ArtifactChunk` and `indexed_generation`.
 
-### 2.3 Backend — `save_artifact` tool
+For non-git workspaces, the artifact indexing service indexes directly before the save transaction commits. It reuses chunk/embed/cache/reconcile helpers but never connector preparation or document models. Index failure makes the tool fail and rolls back the attempted artifact.
 
-- New tool in `subagents/builtins/deliverables/tools/save_artifact.py`: markdown-only signature `(title, markdown_representation, description?, document_id?)` — `document_id` is the §3.1 revise input, and passing it is the only way the model updates an artifact instead of creating a sibling. One name for the markdown, not two: nothing here has shipped, so there is no caller a `content` alias would be compatible with, and an argument that can arrive under either name is a branch every reader has to resolve for no behaviour. Wraps the helper; returns the §3.1 payload via `with_receipt` (receipt `route=deliverables`, `type=artifact`, `external_id=str(document_id)`), and returns `{"status": "failed", "error"}` on any raise.
-- Register in `tools/index.py` + `shared/tools/catalog.py`. Subagent prompt: prefer `save_artifact` for markdown deliverables; legacy tools remain for everything else this phase.
-- One generic streaming emission handler under `tasks/chat/streaming/handlers/tools/deliverables/save_artifact/` (card payload = §3.1 fields).
+Full-tree convergence covers both `/documents` and `/artifacts`, dispatching each root to its own row and chunk domain. A ready search candidate must have `indexed_generation == generation`.
 
-### 2.4 Backend — serving endpoint
+## 4. API, rendering, and permissions
 
-`GET /api/v1/workspaces/{ws_id}/documents/{doc_id}/files/{file_id}/content` in a new `routes/document_files_routes.py`:
+Artifact APIs live under `/workspaces/{workspace_id}/artifacts`. They enforce `ARTIFACTS_READ` and `ARTIFACTS_DELETE`, workspace ownership, file/artifact ownership, source-file privacy, PDF-only inline disposition, immutable file ETags, and no-store current downloads.
 
-- Workspace-membership auth (same dependency as `editor_routes.py`).
-- 404 unless the `DocumentFile` belongs to `doc_id` within `ws_id`.
-- `StreamingResponse` over `open_document_file_stream()`; headers per master spec §5 (inline for `application/pdf` only, attachment for everything else; `nosniff`; `ETag` = sha256; `Cache-Control: private, max-age=31536000, immutable`; `If-None-Match` → 304).
+The manifest supplies `artifact_id`, generation, format, searchable Markdown, and visible files. No artifact behavior exists in document `editor-content` or document-file routes.
 
-### 2.5 Backend — `editor-content` discrimination
+The frontend panel is keyed by `artifact_id`: no files renders Markdown; files select by primary MIME; unsupported formats fall back to download.
 
-In `editor_routes.py`: if the document has a `GENERATED` file with `role=primary` whose MIME type is outside `{text/markdown, text/x-markdown}` → return the `kind: "file"` shape (master spec §3.2) with `content_url`s, primary first and the `source` role omitted (it is the agent's input for a revision, not a rendered or downloadable file); else return the existing response + `kind: "text"`. **Both shapes carry `generated: boolean`** (from `document_metadata.generated`); `generated: true` means the client renders read-only regardless of `viewer_mode`. The text shape keeps every field it has today because live KB documents are served by it — one endpoint serving two document classes, not a compatibility window for a client we have yet to update; the frontend that reads `kind` lands in this same phase.
+## 5. Search and citations
 
-### 2.6 Frontend — artifact panel + registry
+One query embedding feeds document and artifact candidate queries. Semantic and keyword ranks are globally fused before source grouping and passage limits. Artifact hits remain source-qualified throughout adaptation and reranking.
 
-- `features/artifacts/` (new): panel shell that takes `document_id`, fetches `editor-content`, branches on `kind`.
-  - `text` → read-only `MarkdownViewer` (existing component; no Plate).
-  - `file` → `VIEWERS[primary.mime_type] ?? FileDownloadCard`.
-  - The panel is **strictly a renderer** — no editing surface for any format (master spec §8.4: Plate survives only for memory/team-memory editing, outside artifact surfaces). Download is the only action besides viewing.
-- Registry file `features/artifacts/viewer-registry.ts`; entries lazy-loaded via `next/dynamic`. Phase 1 registry: empty map (everything falls through to `FileDownloadCard`) — PDF entry lands in phase 2.
-- `FileDownloadCard`: filename, extension badge, human size, download button → `content_url`.
-- New atom `atoms/chat/artifact-panel.atom.ts` (`{ isOpen, documentId }`), plus an `artifact` tab in `rightPanelTabAtom` so the panel joins the existing right-panel surfaces rather than fighting them: it claims the tab on open, sits above `report` in the fallback order, restores the pre-open collapsed state on close, and takes the same 640px width as the report panel. The legacy report-panel atom stays untouched.
+Artifact chunk citations carry `artifact_id` and `artifact_chunk_id`, serialize as `artifact_chunk_<id>`, resolve through an authenticated artifact route, and open the artifact panel. Overlapping numeric IDs with document chunks are safe.
 
-### 2.7 Frontend — chat artifact card
+## 6. Checks
 
-- `features/chat-artifacts/model/artifact.ts`: add kind `file` mapped from `save_artifact`; `entityId` = `document_id`; `contentType` union gains `"file"`.
-- `collect-artifacts.ts`: parse the §3.1 payload; card click opens the artifact panel atom. Legacy `report`/`resume` kinds continue opening the legacy report panel (unchanged this phase).
-- Tool UI `components/tool-ui/save-artifact.tsx`: pending/success/error states; auto-open panel on desktop, matching current report behavior. Public threads register the same component but render the card **inert** (no click-through, no auto-open): the streaming endpoint and `editor-content` both demand workspace membership, so a share-token visitor has nothing to open. Serving artifacts to public threads needs a token-scoped route and is deferred with master spec §12's first open question.
+- Atomic create/revise and optimistic-generation conflict coverage.
+- Markdown, PDF, DOCX, PPTX, service-level XLSX, and unknown-format persistence shapes.
+- Git projection/convergence, stable ID/path, incremental chunk reuse, rebuild, retitle, and removal.
+- Non-git direct indexing and indexing-status failure semantics.
+- Artifact route RBAC/isolation, ETag/304, no-store download, PDF-only inline, source rejection, and blob purge.
+- Mixed-corpus global ranking, one embedding call, namespaced citation parsing/resolution.
+- Frontend queries/cards/panel identity use `artifact_id`.
 
-### 2.8 Checks
+## 7. Exit criteria
 
-- `tests/integration/artifacts/test_service.py` — the helper against a real session and a fake blob backend (it writes rows, so it is an integration test despite reading like a unit one): transaction atomicity (a mid-write storage failure leaves neither Document nor blob), payload shape, binary create + revise with seeded bytes (files replaced, old blob gone, same `document_id`), a forced failure mid-revision leaving the previous generation fully intact, and **zero rows in `document_versions` or `document_revisions`** — the §2.2 fences, asserted rather than assumed.
-- `tests/integration/artifacts/test_git_adoption.py` — the **adoption test** on a real repo with projection and convergence: save an artifact, commit the turn, converge; exactly **one** row exists at every step (no duplicate sibling — the shared `index/rows.py` resolution is the thing under test), `PATH_MARKER` stamped by the commit and not by the helper, chunks searchable after convergence. Then revise and commit again: the new title survives the projection while the marker stays on the original path (the §2.2 correction, and the path law's only observable consequence). Then `rm` the file, commit, converge: row deleted, `DocumentFile`s cascaded, blob store empty.
-- `tests/unit/routes/test_document_files_routes.py` — 403 cross-workspace, 404 mismatched file/doc, ETag 304, and disposition per MIME including the two that must **not** render on our origin (`text/html`, `image/svg+xml`).
-- `tests/integration/artifacts/test_tool.py` (legacy workspace) — markdown artifact through the tool → Document row + immediate KB search hit; `tests/integration/artifacts/test_editor_content.py` — both §3.2 shapes off real rows.
-
----
-
-## 3. Exit criteria
-
-1. "Write me a summary of X and save it" → `save_artifact` → Document exists **within the tool call** (verified by `document_id` in the tool result), card renders, panel shows read-only markdown. The document appears in the documents tree immediately in both KB modes (the row is written inside the tool call); the KB search hit is immediate on legacy workspaces and lands once the turn's commit converges (seconds) on git-backed ones (master spec §4.4).
-2. Tool-level failure (e.g., forced storage error) surfaces as a failed tool result the model reacts to — demonstrably no silent path.
-3. A manually inserted `GENERATED` PDF DocumentFile streams with correct headers and downloads; its document returns the `file` shape and renders the download card.
-4. Both §3 contracts implemented byte-for-byte as specced; any deviation = master spec revision first.
+1. Artifact success means metadata, current bytes, and (for non-git workspaces) the direct index are durable in-turn.
+2. No artifact path creates or adopts a `Document`.
+3. Git and non-git workspaces both make artifacts searchable with their documented timing.
+4. A stale revision cannot overwrite a newer generation.
+5. Delete removes the Git representation where applicable, database ownership rows, chunks, and reachable blobs.
+6. Dedicated APIs and citations never rely on document routes or document IDs.
