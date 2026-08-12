@@ -8,6 +8,7 @@ from app.artifacts.persistence import Artifact
 from app.artifacts.service import ArtifactFileInput, save_artifact
 from app.config import config as app_config
 from app.db import Chunk, Document, DocumentStatus, DocumentType
+from app.file_storage import service as file_storage_service
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.index.converge import index_changes, index_tree
 
@@ -34,6 +35,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
     del knowledge_root, patched_embed_texts
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(file_storage_service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=True)
     )

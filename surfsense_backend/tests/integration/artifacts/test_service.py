@@ -419,11 +419,13 @@ async def test_non_git_index_failure_keeps_artifact_and_can_be_retried(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
+    workspace_id = db_workspace.id
+    thread_id = artifact_thread.id
 
     saved = await save_artifact(
         db_session,
-        workspace_id=db_workspace.id,
-        thread_id=artifact_thread.id,
+        workspace_id=workspace_id,
+        thread_id=thread_id,
         tool_call_id="call-failed-index",
         title="Retryable",
         markdown_representation="# Retryable\n\nEmbedding outage",
@@ -445,7 +447,7 @@ async def test_non_git_index_failure_keeps_artifact_and_can_be_retried(
             source_markdown=document.source_markdown,
             unique_id=document.path,
             document_type=DocumentType.ARTIFACT,
-            workspace_id=db_workspace.id,
+            workspace_id=workspace_id,
             metadata=document.document_metadata,
             created_by_id=str(document.created_by_id),
             folder_id=document.folder_id,

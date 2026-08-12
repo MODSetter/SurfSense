@@ -149,14 +149,14 @@ async def _restore_working_copy(target: Path, previous: bytes | None) -> None:
     await asyncio.to_thread(restore)
 
 
-async def _delete_blobs_best_effort(records: list[ArtifactFile]) -> None:
-    for record in records:
+async def _delete_blobs_best_effort(blob_refs: list[tuple[str, str]]) -> None:
+    for storage_backend, storage_key in blob_refs:
         try:
-            await get_storage_backend(record.storage_backend).delete(record.storage_key)
+            await get_storage_backend(storage_backend).delete(storage_key)
         except Exception:
             logger.warning(
                 "Failed to delete artifact blob %s",
-                record.storage_key,
+                storage_key,
                 exc_info=True,
             )
 
@@ -295,9 +295,13 @@ async def save_artifact(
         **(document.document_metadata or {}),
         "artifact_id": artifact.id,
     }
+    old_blob_refs = [
+        (file.storage_backend, file.storage_key) for file in old_files
+    ]
 
     backend = get_storage_backend()
     new_records: list[ArtifactFile] = []
+    new_blob_refs: list[tuple[str, str]] = []
     working_copy_state: tuple[Path, bytes | None] | None = None
     try:
         for file, role in validated_files:
@@ -312,7 +316,25 @@ async def save_artifact(
                 backend=backend,
             )
             new_records.append(record)
+            new_blob_refs.append((record.storage_backend, record.storage_key))
         await session.flush()
+        saved_result = ArtifactSaved(
+            status="saved",
+            artifact_id=artifact.id,
+            generation=artifact.generation,
+            title=document.title,
+            files=[
+                ArtifactSavedFile(
+                    file_id=record.id,
+                    role=record.role.value,
+                    filename=record.original_filename,
+                    mime_type=record.mime_type or "application/octet-stream",
+                    size_bytes=record.size_bytes,
+                )
+                for record in new_records
+                if record.role is not ArtifactFileRole.SOURCE
+            ],
+        )
         if working_copy_root is not None:
             working_copy_state = await _write_working_copy(
                 working_copy_root, document.path, markdown_representation
@@ -334,24 +356,8 @@ async def save_artifact(
         await session.rollback()
         if working_copy_state is not None:
             await _restore_working_copy(*working_copy_state)
-        await _delete_blobs_best_effort(new_records)
+        await _delete_blobs_best_effort(new_blob_refs)
         raise
 
-    await _delete_blobs_best_effort(old_files)
-    return ArtifactSaved(
-        status="saved",
-        artifact_id=artifact.id,
-        generation=artifact.generation,
-        title=document.title,
-        files=[
-            ArtifactSavedFile(
-                file_id=record.id,
-                role=record.role.value,
-                filename=record.original_filename,
-                mime_type=record.mime_type or "application/octet-stream",
-                size_bytes=record.size_bytes,
-            )
-            for record in new_records
-            if record.role is not ArtifactFileRole.SOURCE
-        ],
-    )
+    await _delete_blobs_best_effort(old_blob_refs)
+    return saved_result
