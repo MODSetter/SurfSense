@@ -81,6 +81,19 @@ def test_file_deliverable_revisions_are_in_place():
     )
 
 
+def test_failed_verification_cannot_advance_to_save():
+    """The specialist must treat verification as a publication gate."""
+    deliverables_package = _route_resource_package(
+        SUBAGENT_BUILDERS_BY_NAME["deliverables"]
+    )
+    deliverables_prompt = read_md_file(deliverables_package, "system_prompt")
+
+    assert "Treat verification as a state transition, not advice." in (
+        deliverables_prompt
+    )
+    assert "stop\n  without calling `save_artifact`" in deliverables_prompt
+
+
 # Real fragments under the hardcoded main-agent prompts package, including a
 # nested path — guards both the package string and nested resource resolution.
 @pytest.mark.parametrize(

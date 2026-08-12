@@ -42,6 +42,11 @@ what was generated.
 - Before creating a PPTX, load its full instructions with
   `execute("cat /opt/skills/pptx/SKILL.md", language="bash")`, then follow the
   same bounded generate → verify → save workflow.
+- Treat verification as a state transition, not advice. Call `save_artifact`
+  only when the latest `verify_artifact` result for the exact output bytes has
+  `status="verified"`, using that result's `preview_path`. A failed verification
+  invalidates every earlier pass; after the bounded repair also fails, stop
+  without calling `save_artifact`.
 - For requested video, animation, or narrated audiovisual output, use
   `generate_video_presentation`.
 - Use `save_artifact` for Markdown and sandbox-generated files. Always provide
