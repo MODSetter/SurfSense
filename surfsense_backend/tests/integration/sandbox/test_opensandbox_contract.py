@@ -137,7 +137,8 @@ const fs = require("fs");
 const doc = new Document({ sections: [{ children: [
   new Paragraph({ children: [new TextRun(
     "A sufficiently long Word document sentence for verification."
-  )] })
+  )] }),
+  new Paragraph({ children: [new TextRun("email • phone • linkedin")] })
 ] }] });
 Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffer));
 """
@@ -145,12 +146,34 @@ Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffe
         else:
             generated = await session.execute(
                 """
+import base64
+from io import BytesIO
+
 from pptx import Presentation
+from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.util import Inches
 
 presentation = Presentation()
 slide = presentation.slides.add_slide(presentation.slide_layouts[1])
 slide.shapes.title.text = "Quarterly review"
 slide.placeholders[1].text = "A sufficiently descriptive slide for verification."
+slide.shapes.add_connector(
+    MSO_CONNECTOR.STRAIGHT, Inches(1), Inches(1), Inches(4), Inches(1)
+)
+slide.shapes.add_connector(
+    MSO_CONNECTOR.STRAIGHT, Inches(0), Inches(1), Inches(0), Inches(3)
+)
+image = BytesIO(base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+    "/x8AAusB9Y9Zl1sAAAAASUVORK5CYII="
+))
+picture = slide.shapes.add_picture(image, Inches(10), Inches(5), width=Inches(1))
+picture.crop_left = -0.1
+picture.crop_right = 0.2
+group = slide.shapes.add_group_shape()
+group.shapes.add_shape(
+    MSO_SHAPE.RECTANGLE, Inches(8), Inches(1), Inches(1), Inches(1)
+)
 presentation.save("/tmp/report.pptx")
 """
             )

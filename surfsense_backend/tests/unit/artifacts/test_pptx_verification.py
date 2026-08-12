@@ -23,17 +23,18 @@ def _presentation(slide_ids: str = '<p:sldId id="256" r:id="rId1"/>') -> str:
 
 def _shape(
     *,
+    kind: str = "sp",
     x: int = 0,
     y: int = 0,
     width: int = 1_000_000,
     height: int = 1_000_000,
     extra: str = "",
 ) -> str:
-    return f"""<p:sp>
+    return f"""<p:{kind}>
       <p:nvSpPr/>
       <p:spPr><a:xfrm><a:off x="{x}" y="{y}"/>
         <a:ext cx="{width}" cy="{height}"/></a:xfrm>{extra}</p:spPr>
-    </p:sp>"""
+    </p:{kind}>"""
 
 
 def _slide(shape: str | None = None, *, attributes: str = "", extra: str = "") -> str:
@@ -134,9 +135,14 @@ def test_pptx_rejects_dangling_slide_relationship():
         (_slide(_shape(x=13_000_000)), "entirely off the canvas"),
         (_slide(_shape(width=0)), "non-positive extent"),
         (
-            _slide(extra='<a:srcRect l="100001"/>'),
-            "crop outside 0-100%",
+            _slide(_shape(kind="cxnSp", width=0, height=0)),
+            "non-positive extent",
         ),
+        (
+            _slide(extra='<a:srcRect l="60000" r="40000"/>'),
+            "crop that removes the entire image",
+        ),
+        (_slide(extra='<a:srcRect l="invalid"/>'), "invalid picture crop"),
     ],
 )
 def test_pptx_reports_slide_structure_defects(slide, message):
@@ -146,6 +152,29 @@ def test_pptx_reports_slide_structure_defects(slide, message):
     result = check_pptx(_package(parts))
 
     assert any(message in finding for finding in result.findings)
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        _shape(kind="cxnSp", width=0),
+        _shape(kind="cxnSp", height=0),
+        _shape(kind="cxnSp", y=0, height=0),
+        _shape(kind="cxnSp", x=12_192_000, width=0),
+    ],
+)
+def test_pptx_allows_axis_aligned_connectors_on_canvas_boundaries(shape):
+    parts = _parts()
+    parts["ppt/slides/slide1.xml"] = _slide(shape)
+
+    assert check_pptx(_package(parts)).clean
+
+
+def test_pptx_allows_legal_extended_picture_crops():
+    parts = _parts()
+    parts["ppt/slides/slide1.xml"] = _slide(extra='<a:srcRect l="-10000" r="105000"/>')
+
+    assert check_pptx(_package(parts)).clean
 
 
 def test_pptx_rejects_dangling_embedded_media():

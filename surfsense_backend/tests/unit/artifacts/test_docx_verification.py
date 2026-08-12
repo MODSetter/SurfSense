@@ -101,6 +101,14 @@ def test_numbered_bullet_is_allowed():
     assert not any("literal bullet" in finding for finding in result.findings)
 
 
+def test_bullet_used_as_an_inline_separator_is_allowed():
+    result = check_docx(
+        _docx("<w:p><w:r><w:t>email • phone • linkedin</w:t></w:r></w:p>")
+    )
+
+    assert result.clean
+
+
 def test_toc_is_a_non_fatal_note():
     result = check_docx(
         _docx(

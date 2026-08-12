@@ -71,6 +71,7 @@ def _integer(element: ElementTree.Element, attribute: str) -> int | None:
 def _check_shape_geometry(
     shape: ElementTree.Element,
     *,
+    shape_kind: str,
     slide_number: int,
     slide_width: int,
     slide_height: int,
@@ -93,12 +94,18 @@ def _check_shape_geometry(
         findings.append(f"slide {slide_number} has invalid shape geometry")
         return
     assert x is not None and y is not None and width is not None and height is not None
-    if width <= 0 or height <= 0:
+    invalid_extent = (
+        width < 0
+        or height < 0
+        or (width == 0 and height == 0)
+        or (shape_kind != "cxnSp" and (width == 0 or height == 0))
+    )
+    if invalid_extent:
         findings.append(f"slide {slide_number} has a shape with non-positive extent")
         return
     # ponytail: only wholly off-canvas shapes block; partial bleed is intentional
-    # in many decks, and clipping at the boundary remains a visual check.
-    if x >= slide_width or y >= slide_height or x + width <= 0 or y + height <= 0:
+    # in many decks, and shapes touching the canvas boundary remain visible.
+    if x > slide_width or y > slide_height or x + width < 0 or y + height < 0:
         findings.append(f"slide {slide_number} has a shape entirely off the canvas")
 
 
@@ -135,6 +142,7 @@ def _check_slide(
     for shape in shapes:
         _check_shape_geometry(
             shape,
+            shape_kind=shape.tag.rsplit("}", 1)[-1],
             slide_number=slide_number,
             slide_width=slide_width,
             slide_height=slide_height,
@@ -142,15 +150,18 @@ def _check_slide(
         )
 
     for crop in slide.iter(f"{A}srcRect"):
-        for side in ("l", "t", "r", "b"):
-            value = _integer(crop, side)
-            if crop.get(side) is not None and (
-                value is None or not 0 <= value <= 100_000
-            ):
-                findings.append(
-                    f"slide {slide_number} has a picture crop outside 0-100%"
-                )
-                break
+        values = {
+            side: _integer(crop, side) if crop.get(side) is not None else 0
+            for side in ("l", "t", "r", "b")
+        }
+        if any(value is None for value in values.values()):
+            findings.append(f"slide {slide_number} has an invalid picture crop")
+        elif (
+            values["l"] + values["r"] >= 100_000 or values["t"] + values["b"] >= 100_000
+        ):
+            findings.append(
+                f"slide {slide_number} has a picture crop that removes the entire image"
+            )
 
     rels_part = (
         f"{posixpath.dirname(slide_part)}/_rels/{posixpath.basename(slide_part)}.rels"

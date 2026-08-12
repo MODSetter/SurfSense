@@ -101,7 +101,10 @@ def check_docx(data: bytes) -> StructuralCheckResult:
         paragraph_text = "".join(
             element.text or "" for element in paragraph.iter(f"{W}t")
         )
-        if "•" in paragraph_text and paragraph.find(f"{W}pPr/{W}numPr") is None:
+        if (
+            paragraph_text.lstrip().startswith("•")
+            and paragraph.find(f"{W}pPr/{W}numPr") is None
+        ):
             findings.append("paragraph uses a literal bullet instead of numbering")
 
     if _toc_present(root):
