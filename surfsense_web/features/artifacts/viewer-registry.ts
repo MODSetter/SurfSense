@@ -16,6 +16,9 @@ const PdfFileViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-file-
 const PdfPreviewViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-preview-viewer"), {
 	ssr: false,
 });
+const XlsxViewer = dynamic<ArtifactFileViewerProps>(() => import("./xlsx-viewer"), {
+	ssr: false,
+});
 
 // Unknown MIME types deliberately fall through to the panel's unviewable state,
 // where the header's download button is still the way out.
@@ -23,4 +26,5 @@ export const VIEWERS: Partial<Record<string, ComponentType<ArtifactFileViewerPro
 	"application/pdf": PdfFileViewer,
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": PdfPreviewViewer,
 	"application/vnd.openxmlformats-officedocument.presentationml.presentation": PdfPreviewViewer,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": XlsxViewer,
 };
