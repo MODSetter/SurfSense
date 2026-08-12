@@ -7,10 +7,8 @@ from sqlalchemy import (
     Column,
     Enum as SQLAlchemyEnum,
     ForeignKey,
-    Index,
     Integer,
     String,
-    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -24,15 +22,6 @@ class DocumentFile(BaseModel, TimestampMixin):
     """One stored file for a document (its original upload, or a derived copy)."""
 
     __tablename__ = "document_files"
-    __table_args__ = (
-        Index(
-            "uq_document_files_generated_role",
-            "document_id",
-            "role",
-            unique=True,
-            postgresql_where=text("kind = 'GENERATED'"),
-        ),
-    )
 
     document_id = Column(
         Integer,
@@ -57,10 +46,6 @@ class DocumentFile(BaseModel, TimestampMixin):
         server_default=DocumentFileKind.ORIGINAL.value,
         index=True,
     )
-    role = Column(
-        String(16), nullable=False, default="primary", server_default="primary"
-    )
-
     # Where the bytes live: the backend that stored them and its object key.
     storage_backend = Column(String(32), nullable=False)
     storage_key = Column(String, nullable=False)

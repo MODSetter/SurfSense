@@ -1,4 +1,4 @@
-"""DocumentFile kinds: the original upload plus future derived artifacts."""
+"""Kinds of durable files attached to knowledge-base documents."""
 
 from __future__ import annotations
 
@@ -9,4 +9,3 @@ class DocumentFileKind(StrEnum):
     ORIGINAL = "ORIGINAL"
     REDACTED = "REDACTED"
     FILLED_FORM = "FILLED_FORM"
-    GENERATED = "GENERATED"
