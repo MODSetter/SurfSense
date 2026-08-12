@@ -80,6 +80,15 @@ async def _render_audio(podcast_id: int) -> dict:
             )
             await session.commit()
 
+            from app.artifacts.media.podcast.record import record as record_podcast
+
+            await record_podcast(
+                session,
+                podcast,
+                audio=rendered.data,
+                transcript=transcript,
+            )
+
             # Credit-consuming deliverable; the frontend never confirms the
             # render finished. Owner (workspace.user_id) resolved lazily so
             # disabled installs pay nothing for the extra query.
