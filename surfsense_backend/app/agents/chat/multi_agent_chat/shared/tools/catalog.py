@@ -46,7 +46,7 @@ TOOL_CATALOG: list[ToolMetadata] = [
     ),
     ToolMetadata(
         name="generate_video_presentation",
-        description="Generate a video presentation with slides and narration from provided content",
+        description="Generate narrated audiovisual presentation media",
     ),
     ToolMetadata(
         name="save_artifact",

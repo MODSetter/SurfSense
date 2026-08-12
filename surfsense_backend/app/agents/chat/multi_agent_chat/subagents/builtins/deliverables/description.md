@@ -1,2 +1,3 @@
-Specialist for producing and revising shareable documents and media: Markdown, polished PDF files, editable Word DOCX (`.docx`) files, reports, resumes, podcasts, video presentations, and generated images.
+Specialist for producing and revising file deliverables: Markdown, polished PDF files, editable Word DOCX (`.docx`) files, editable PowerPoint PPTX (`.pptx`) slide decks, reports, and resumes.
+Also produces media deliverables: podcasts, videos, and generated images.
 Use proactively whenever the user asks for one of these artifacts.

@@ -73,6 +73,14 @@ CSV/file), do not paste or summarize hundreds of rows: instruct the
 web_crawler specialist to crawl and then save the data with its
 `export_run` CSV tool, and relay the saved workspace path and row count.
 
+**PPTX artifacts.** PowerPoint, `.pptx`, slides, presentations, and slide-deck
+requests go to `task(deliverables, …)` with an explicit instruction to create
+an editable PPTX artifact.
+
+**Video media.** Requests whose requested output is a video, animation, or
+narrated audiovisual presentation go to `task(deliverables, …)` with an
+explicit instruction to generate video media.
+
 **You have NO filesystem tools.** Any read, write, edit, move, rename, or
 search inside the user's workspace goes through `task(knowledge_base, …)` —
 never via `write_file`, `ls`, or any direct file operation.

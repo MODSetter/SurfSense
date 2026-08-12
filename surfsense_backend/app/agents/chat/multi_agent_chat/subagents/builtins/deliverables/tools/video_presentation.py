@@ -44,14 +44,12 @@ def create_generate_video_presentation_tool(
         video_title: str = "SurfSense Presentation",
         user_prompt: str | None = None,
     ) -> Command:
-        """Generate a video presentation from the provided content.
-
-        Use this tool when the user asks to create a video, presentation, slides, or slide deck.
+        """Generate narrated audiovisual presentation media.
 
         Args:
-            source_content: The text content to turn into a presentation.
-            video_title: Title for the presentation (default: "SurfSense Presentation")
-            user_prompt: Optional style/tone instructions.
+            source_content: The source material for the video.
+            video_title: Title for the video (default: "SurfSense Presentation")
+            user_prompt: Optional audiovisual style and tone instructions.
         """
         try:
             # One DB session per tool call so parallel invocations never share an AsyncSession.

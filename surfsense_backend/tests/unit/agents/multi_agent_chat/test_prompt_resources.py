@@ -40,10 +40,27 @@ def test_every_subagent_has_description_md(name: str):
 
 
 def test_deliverables_roster_advertises_file_artifacts():
-    """The supervisor must route explicit PDF and Word requests to deliverables."""
+    """The supervisor must route explicit PDF, Word, and PowerPoint requests."""
     description = dict(main_prompt_registry_subagent_lines([]))["deliverables"]
 
-    assert all(marker in description for marker in ("PDF", "Word", "DOCX", ".docx"))
+    assert all(
+        marker in description
+        for marker in ("PDF", "Word", "DOCX", ".docx", "PowerPoint", "PPTX", ".pptx")
+    )
+
+
+def test_presentation_routing_separates_pptx_from_video():
+    """PPTX artifacts and video media have independent routing contracts."""
+    routing = read_prompt_md("routing.md")
+    deliverables_package = _route_resource_package(
+        SUBAGENT_BUILDERS_BY_NAME["deliverables"]
+    )
+    deliverables_prompt = read_md_file(deliverables_package, "system_prompt")
+
+    assert "**PPTX artifacts.**" in routing
+    assert "editable PPTX artifact" in routing
+    assert "**Video media.**" in routing
+    assert "narrated audiovisual output" in deliverables_prompt
 
 
 # Real fragments under the hardcoded main-agent prompts package, including a
