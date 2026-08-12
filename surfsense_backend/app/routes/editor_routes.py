@@ -17,11 +17,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
 from app.db import Chunk, Document, DocumentType, Permission, get_async_session
-from app.file_storage.persistence.enums import DocumentFileKind
 from app.knowledge_store.service import record_saved_document
 from app.routes.reports_routes import (
     _FILE_EXTENSIONS,
@@ -71,9 +69,7 @@ async def get_editor_content(
     )
 
     result = await session.execute(
-        select(Document)
-        .options(selectinload(Document.files))
-        .filter(
+        select(Document).filter(
             Document.id == document_id,
             Document.workspace_id == workspace_id,
         )
@@ -82,44 +78,6 @@ async def get_editor_content(
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-
-    generated = bool((document.document_metadata or {}).get("generated"))
-    generated_files = [
-        file
-        for file in document.files
-        if file.kind == DocumentFileKind.GENERATED and file.role != "source"
-    ]
-    primary = next(
-        (file for file in generated_files if file.role == "primary"),
-        None,
-    )
-    if primary and primary.mime_type not in {"text/markdown", "text/x-markdown"}:
-        ordered_files = sorted(
-            generated_files, key=lambda file: (file.role != "primary", file.id)
-        )
-        return {
-            "kind": "file",
-            "document_id": document.id,
-            "title": document.title,
-            "generated": generated,
-            "files": [
-                {
-                    "file_id": file.id,
-                    "role": file.role,
-                    "filename": file.original_filename,
-                    "mime_type": file.mime_type or "application/octet-stream",
-                    "size_bytes": file.size_bytes,
-                    "content_url": (
-                        f"/api/v1/workspaces/{workspace_id}/documents/"
-                        f"{document.id}/files/{file.id}/content"
-                    ),
-                }
-                for file in ordered_files
-            ],
-            "updated_at": document.updated_at.isoformat()
-            if document.updated_at
-            else None,
-        }
 
     count_result = await session.execute(
         select(func.count()).select_from(Chunk).filter(Chunk.document_id == document_id)
@@ -134,7 +92,6 @@ async def get_editor_content(
         )
         viewer_mode = "monaco" if too_large else "plate"
         return {
-            "kind": "text",
             "document_id": document.id,
             "title": document.title,
             "document_type": document.document_type.value,
@@ -142,7 +99,6 @@ async def get_editor_content(
             "content_size_bytes": size_bytes,
             "line_count": line_count,
             "chunk_count": chunk_count,
-            "generated": generated,
             "viewer_mode": viewer_mode,
             "editor_plate_max_bytes": EDITOR_PLATE_MAX_BYTES,
             "editor_plate_max_lines": EDITOR_PLATE_MAX_LINES,
