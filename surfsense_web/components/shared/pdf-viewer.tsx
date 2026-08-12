@@ -26,7 +26,7 @@ interface PageDimensions {
 }
 
 const ZOOM_STEP = 0.15;
-const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
 const PAGE_GAP = 12;
 const SCROLL_DEBOUNCE_MS = 30;
@@ -35,6 +35,7 @@ const BUFFER_PAGES = 1;
 export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewerProps) {
 	const [numPages, setNumPages] = useState(0);
 	const [scale, setScale] = useState(1);
+	const [fitWidth, setFitWidth] = useState(true);
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -46,6 +47,15 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 	const pageDimsRef = useRef<PageDimensions[]>([]);
 	const visiblePagesRef = useRef<Set<number>>(new Set());
 	const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const applyFitWidth = useCallback(() => {
+		const container = scrollContainerRef.current;
+		const pageWidths = pageDimsRef.current.map(({ width }) => width);
+		if (!container || pageWidths.length === 0) return;
+
+		const widestPage = Math.max(...pageWidths);
+		setScale(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, container.clientWidth / widestPage)));
+	}, []);
 
 	const getScaledHeight = useCallback(
 		(pageIndex: number) => {
@@ -63,7 +73,7 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 		const viewportHeight = container.clientHeight;
 		const scrollBottom = scrollTop + viewportHeight;
 
-		let cumTop = 16;
+		let cumTop = 0;
 		let first = 1;
 		let last = pageDimsRef.current.length;
 
@@ -174,6 +184,8 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 			setLoading(true);
 			setLoadError(null);
 			setNumPages(0);
+			setScale(1);
+			setFitWidth(true);
 			pageDimsRef.current = [];
 
 			try {
@@ -235,6 +247,16 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 	}, [pdfUrl]);
 
 	useEffect(() => {
+		const container = scrollContainerRef.current;
+		if (!container || numPages === 0 || !fitWidth) return;
+
+		applyFitWidth();
+		const observer = new ResizeObserver(applyFitWidth);
+		observer.observe(container);
+		return () => observer.disconnect();
+	}, [applyFitWidth, fitWidth, numPages]);
+
+	useEffect(() => {
 		if (numPages === 0) return;
 
 		renderedScalesRef.current.clear();
@@ -274,10 +296,12 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 	}, []);
 
 	const zoomIn = useCallback(() => {
+		setFitWidth(false);
 		setScale((prev) => Math.min(MAX_ZOOM, +(prev + ZOOM_STEP).toFixed(2)));
 	}, []);
 
 	const zoomOut = useCallback(() => {
+		setFitWidth(false);
 		setScale((prev) => Math.max(MIN_ZOOM, +(prev - ZOOM_STEP).toFixed(2)));
 	}, []);
 
@@ -335,7 +359,7 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 						<Spinner size="md" />
 					</div>
 				) : (
-					<div className="flex flex-col items-center py-4" style={{ gap: `${PAGE_GAP}px` }}>
+					<div className="flex w-max min-w-full flex-col" style={{ gap: `${PAGE_GAP}px` }}>
 						{pageDimsRef.current.map((dims, i) => {
 							const pageNum = i + 1;
 							const scaledWidth = Math.floor(dims.width * scale);
@@ -343,7 +367,7 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 							return (
 								<div
 									key={pageNum}
-									className="relative shrink-0"
+									className="relative mx-auto shrink-0"
 									style={{ width: scaledWidth, height: scaledHeight }}
 								>
 									<canvas
