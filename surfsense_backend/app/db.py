@@ -302,6 +302,12 @@ class Permission(StrEnum):
     DOCUMENTS_UPDATE = "documents:update"
     DOCUMENTS_DELETE = "documents:delete"
 
+    # Artifacts
+    ARTIFACTS_CREATE = "artifacts:create"
+    ARTIFACTS_READ = "artifacts:read"
+    ARTIFACTS_UPDATE = "artifacts:update"
+    ARTIFACTS_DELETE = "artifacts:delete"
+
     # Chats
     CHATS_CREATE = "chats:create"
     CHATS_READ = "chats:read"
@@ -397,6 +403,10 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.DOCUMENTS_CREATE.value,
         Permission.DOCUMENTS_READ.value,
         Permission.DOCUMENTS_UPDATE.value,
+        # Artifacts (no delete)
+        Permission.ARTIFACTS_CREATE.value,
+        Permission.ARTIFACTS_READ.value,
+        Permission.ARTIFACTS_UPDATE.value,
         # Chats (no delete)
         Permission.CHATS_CREATE.value,
         Permission.CHATS_READ.value,
@@ -447,6 +457,8 @@ DEFAULT_ROLE_PERMISSIONS = {
     "Viewer": [
         # Documents (read only)
         Permission.DOCUMENTS_READ.value,
+        # Artifacts (read only)
+        Permission.ARTIFACTS_READ.value,
         # Chats (read only)
         Permission.CHATS_READ.value,
         # Comments (can create and read, but not delete)
@@ -2884,6 +2896,11 @@ class ToolOutputSpill(Base, TimestampMixin):
 # Register model packages that live outside this file so their classes
 # are present in Base.metadata before configure_mappers() resolves any
 # string-based relationship() references.
+from app.artifacts.persistence import (  # noqa: E402, F401
+    Artifact,
+    ArtifactChunk,
+    ArtifactFile,
+)
 from app.automations.persistence import (  # noqa: E402, F401
     Automation,
     AutomationRun,
