@@ -175,6 +175,7 @@ export function PdfViewer({
 					viewerElement.classList.toggle("multiple-pages", pdfDocument.numPages > 1);
 					viewerElement.style.setProperty("--pdf-pages-count", `"${pdfDocument.numPages}"`);
 					pdfViewer.currentScaleValue = "page-width";
+					container.scrollTop = 0;
 					setNumPages(pdfDocument.numPages);
 				};
 				handlePageRendered = ({ isDetailView }: PageRenderedEvent) => {
