@@ -23,7 +23,7 @@ from app.podcasts.service import (
     read_spec,
     read_transcript,
 )
-from app.podcasts.storage import purge_audio_object, store_audio
+from app.artifacts.media.podcast.storage import purge_key, persist
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import get_voice_catalog
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -69,7 +69,7 @@ async def _render_audio(podcast_id: int) -> dict:
 
         superseded_key = podcast.storage_key
 
-        backend_name, key = await store_audio(
+        backend_name, key = await persist(
             workspace_id=podcast.workspace_id,
             podcast_id=podcast_id,
             data=rendered.data,
@@ -106,10 +106,10 @@ async def _render_audio(podcast_id: int) -> dict:
         except InvalidTransitionError:
             # A user back-out won the race (e.g. the regeneration was
             # reverted): drop the stale render and leave the row alone.
-            await purge_audio_object(key)
+            await purge_key(key)
             return {"status": "superseded", "podcast_id": podcast_id}
 
     # Purge only after the new audio is committed, so a failed re-render never
     # destroys the episode the user can still play.
-    await purge_audio_object(superseded_key)
+    await purge_key(superseded_key)
     return {"status": "ready", "podcast_id": podcast_id}

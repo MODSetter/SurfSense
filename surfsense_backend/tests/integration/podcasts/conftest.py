@@ -132,7 +132,9 @@ class FakeStorageBackend:
 def fake_storage(monkeypatch) -> FakeStorageBackend:
     """Route audio storage to an in-memory backend for the stream routes."""
     backend = FakeStorageBackend()
-    monkeypatch.setattr("app.podcasts.storage.get_storage_backend", lambda: backend)
+    monkeypatch.setattr(
+        "app.artifacts.media.podcast.storage.get_storage_backend", lambda: backend
+    )
     monkeypatch.setattr("app.file_storage.factory.get_storage_backend", lambda: backend)
     return backend
 
