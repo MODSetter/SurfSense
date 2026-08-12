@@ -224,8 +224,14 @@ def create_generate_image_tool(
                     access_token=access_token,
                 )
                 session.add(db_image_gen)
+                await session.flush()
+
+                from app.artifacts.media.image.record import record as record_image
+
+                await record_image(session, db_image_gen)
                 await session.commit()
                 await session.refresh(db_image_gen)
+                response_dict = db_image_gen.response_data or response_dict
                 db_image_gen_id = db_image_gen.id
 
             images = response_dict.get("data", [])
@@ -249,11 +255,11 @@ def create_generate_image_tool(
             first_image = images[0]
             revised_prompt = first_image.get("revised_prompt", prompt)
 
-            # b64_json (e.g. gpt-image-1) is served via our backend endpoint so
+            # b64/object-store images are served via our backend endpoint so
             # megabytes of base64 don't bloat the LLM context.
             if first_image.get("url"):
                 image_url = first_image["url"]
-            elif first_image.get("b64_json"):
+            elif first_image.get("storage_key") or first_image.get("b64_json"):
                 backend_url = config.BACKEND_URL or "http://localhost:8000"
                 image_url = (
                     f"{backend_url}/api/v1/image-generations/"

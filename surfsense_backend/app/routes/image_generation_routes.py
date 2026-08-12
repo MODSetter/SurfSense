@@ -236,6 +236,10 @@ async def _execute_image_generation(
                 image["url"] = f"{origin}{raw_url}"
 
     image_gen.response_data = response_dict
+    if image_gen.id is not None and image_gen.workspace_id is not None:
+        from app.artifacts.media.image.record import record as record_image
+
+        await record_image(session, image_gen)
 
 
 # =============================================================================
@@ -486,6 +490,9 @@ async def delete_image_generation(
             "You don't have permission to delete image generations in this workspace",
         )
 
+        from app.artifacts.media.image import purge as purge_images
+
+        await purge_images(db_image_gen.response_data)
         await session.delete(db_image_gen)
         await session.commit()
         return {"message": "Image generation deleted successfully"}
@@ -553,7 +560,24 @@ async def serve_generated_image(
 
             return RedirectResponse(url=image_entry["url"])
 
-        # If there's b64_json data, decode and serve it
+        if image_entry.get("storage_key"):
+            from app.artifacts.media.image import open_stream
+
+            chunks: list[bytes] = [
+                chunk async for chunk in open_stream(image_entry["storage_key"])
+            ]
+            return Response(
+                content=b"".join(chunks),
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "public, max-age=86400",
+                    "Content-Disposition": (
+                        f'inline; filename="generated-{image_gen_id}-{index}.png"'
+                    ),
+                },
+            )
+
+        # Legacy rows still holding b64_json in Postgres
         if image_entry.get("b64_json"):
             image_bytes = base64.b64decode(image_entry["b64_json"])
             return Response(
@@ -561,7 +585,9 @@ async def serve_generated_image(
                 media_type="image/png",
                 headers={
                     "Cache-Control": "public, max-age=86400",
-                    "Content-Disposition": f'inline; filename="generated-{image_gen_id}-{index}.png"',
+                    "Content-Disposition": (
+                        f'inline; filename="generated-{image_gen_id}-{index}.png"'
+                    ),
                 },
             )
 
