@@ -1,6 +1,6 @@
 # Phase 5 — XLSX Skill + Native Grid
 
-**Status:** Planned. Dedicated persistence/API support and service-level primary+source coverage are already shipped; the XLSX adapter, skill, and viewer in this phase are not.
+**Status:** Planned. Persistence/API support and service-level primary+source coverage are already in place; the XLSX adapter, skill, and viewer in this phase are not.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 3 verification service and phase 4 shared OOXML guard.
 
@@ -22,16 +22,16 @@ Out: legacy report/Typst deletion (phase 6).
 
 An XLSX save is:
 
-- one `Artifact(format="xlsx")`;
+- one `Artifact(format="xlsx")` over one artifact `Document`;
 - primary `.xlsx` `ArtifactFile`;
 - private source `.py` `ArtifactFile`;
 - no preview;
-- searchable Markdown under `/artifacts/**`;
-- dedicated `ArtifactChunk` indexing;
+- searchable Markdown on the document under `/documents/Artifacts/`;
+- ordinary document chunking and search;
 - `artifact_id + expected_generation` revisions;
-- dedicated manifest/download/file routes.
+- artifact manifest/download/file routes.
 
-Existing service tests prove this shape. This phase must not add an enum value, migration, document kind, document metadata flag, document API branch, or search side channel.
+Existing service tests prove this shape. This phase must not add a document type, migration, chunk table, document API branch, or search side channel.
 
 ## 3. Verification adapter
 
@@ -78,7 +78,7 @@ Charts, pivot tables, editing, and full Excel emulation are out of scope. ExcelJ
 
 ## 6. Generic unknown formats
 
-An unknown suffix resolves to a generic adapter: bounded non-empty bytes, canonical `application/octet-stream`, no rendered policy. It verifies, persists through the same `Artifact`/`ArtifactFile` service, and renders as a download fallback. Persistence must never enumerate XLSX or any future format.
+An unknown suffix resolves to a generic adapter: bounded non-empty bytes, canonical `application/octet-stream`, no rendered policy. It verifies, persists through the same document + `Artifact`/`ArtifactFile` service, and renders as a download fallback. Persistence must never enumerate XLSX or any future format.
 
 ## 7. Public artifact access
 
@@ -98,7 +98,7 @@ Add token-scoped manifest/file/download access constrained to artifacts produced
 ## 9. Exit criteria
 
 1. XLSX generates, verifies programmatically, persists primary+source, renders in the native grid, and downloads the real workbook.
-2. All four launch formats operate through the dedicated artifact model and routes.
+2. All four launch formats operate through the same artifact model and routes.
 3. Unknown binaries persist and download through the generic adapter.
 4. No active routing reaches legacy report/resume tools.
 5. Public shared threads can view/download their artifacts before phase 6 removes legacy public preview.

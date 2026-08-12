@@ -25,7 +25,7 @@ The service performs, in order:
 5. Review every page in contextual windows and separate blocking defects from warnings.
 6. Issue an HMAC-signed receipt bound to workspace, sandbox, adapter, primary hash, optional preview hash, verdict/reason, and expiry.
 
-`save_artifact` verifies that receipt and hashes the exact primary/preview bytes being persisted. It stores verification metadata on `Artifact.metadata`. No document metadata is involved.
+`save_artifact` verifies that receipt and hashes the exact primary/preview bytes being persisted. It stores verification metadata on `Artifact.metadata`, alongside the delivery state the document model has no concept of.
 
 The service emits progress for checking, converting, rendering, and reviewing. A blocking result creates no receipt. A visual model unavailable/quota-exhausted result may issue an explicit “could not verify” receipt if no known defect exists.
 
@@ -43,20 +43,21 @@ The adapter owns the canonical WordprocessingML MIME. The saved artifact has:
 
 The manifest omits source. The viewer renders preview and the stable download serves current primary.
 
-## 4. Dedicated persistence assumptions
+## 4. Persistence assumptions
 
-- All rows are `Artifact`/`ArtifactFile`; DOCX never creates a `Document`.
+- A DOCX save is one artifact `Document` plus `Artifact`/`ArtifactFile` rows; the bytes never become `DocumentFile` rows.
 - Revision starts with `load_artifact_source(artifact_id)` and saves with `artifact_id + expected_generation`.
-- Retitle leaves `/artifacts/<authored path>.md` unchanged.
-- Git-backed search content converges into `ArtifactChunk`; non-git content indexes directly.
-- Deletion captures and purges all artifact blob roles through artifact storage.
-- Search citations use `ARTIFACT_CHUNK`.
+- Retitle leaves the authored `/documents/Artifacts/<title>.md` path unchanged.
+- Git-backed Markdown converges through document convergence; non-git Markdown indexes through the document pipeline inside the save.
+- Deletion runs through document deletion, which purges all artifact blob roles through artifact storage.
+- Search citations are knowledge-base chunk citations.
 
 ## 5. Checks
 
 - Pure adapter fixtures for valid and malformed OOXML.
 - Receipt round-trip, tampering, expiry, audience, and hash mismatch tests.
 - Mocked-sandbox DOCX save with primary/preview/source, source omitted from result/manifest, and stale receipt refusal.
+- One artifact document per save, with type preserved across projection.
 - Later-turn optimistic revision keeps the same artifact ID, increments generation, and uses stored source.
 - Live OpenSandbox conversion/rasterization and canonical MIME check.
 - Delete removes all reachable primary/preview/source blobs.
