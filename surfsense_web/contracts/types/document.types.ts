@@ -27,6 +27,7 @@ export const documentTypeEnum = z.enum([
 	"CIRCLEBACK",
 	"OBSIDIAN_CONNECTOR",
 	"LOCAL_FOLDER_FILE",
+	"ARTIFACT",
 	"NOTE",
 	"USER_MEMORY",
 	"TEAM_MEMORY",
