@@ -59,14 +59,17 @@ export function processChildrenWithCitations(
 
 	if (Array.isArray(children)) {
 		let ordinal = 0;
-		return children.map((child, childIndex) => {
+		const occurrences = new Map<string, number>();
+		return children.map((child) => {
 			if (typeof child === "string") {
 				const segments = parseTextWithCitations(child, urlMap);
 				if (segments.length === 1 && typeof segments[0] === "string") {
 					return child;
 				}
+				const occurrence = occurrences.get(child) ?? 0;
+				occurrences.set(child, occurrence + 1);
 				return (
-					<span key={`citation-seg-${childIndex}`}>
+					<span key={`citation-seg-${child}-${occurrence}`}>
 						{segments.map((segment) =>
 							typeof segment === "string" ? segment : renderCitationToken(segment, ordinal++)
 						)}

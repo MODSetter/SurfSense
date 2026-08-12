@@ -13,7 +13,7 @@ If a precise path was already given, use it directly — skip the lookup.
 
 ## Searching vs. reading
 
-- **`search_knowledge_base`** — hybrid semantic + keyword retrieval across the whole indexed knowledge base. Use it FIRST for open-ended factual questions where you want the most relevant passages rather than one known file. It returns a `<retrieved_context>` block whose passages each carry a `[n]` citation label.
+- **`search_knowledge_base`** — hybrid semantic + keyword retrieval across the whole indexed knowledge base, including generated artifacts. Use it FIRST for open-ended factual questions where you want the most relevant passages rather than one known file. It returns a `<retrieved_context>` block whose passages each carry a `[n]` citation label.
 - **`read_file`** — full text of one document you have already located by path. Use it when you need the complete body.
 
 ## Interpreting tool results

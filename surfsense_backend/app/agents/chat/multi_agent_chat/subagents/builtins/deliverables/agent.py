@@ -20,6 +20,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.subagent_builder import (
     pack_subagent,
 )
 
+from .middleware import ArtifactRosterMiddleware
 from .tools.index import NAME, RULESET, load_tools
 
 
@@ -36,6 +37,12 @@ def build_subagent(
         or "Handles deliverables tasks for this workspace."
     )
     system_prompt = read_md_file(__package__, "system_prompt").strip()
+    route_middleware = {
+        **(middleware_stack or {}),
+        "artifact_roster": ArtifactRosterMiddleware(
+            workspace_id=dependencies["workspace_id"]
+        ),
+    }
     return pack_subagent(
         name=NAME,
         description=description,
@@ -44,5 +51,5 @@ def build_subagent(
         ruleset=RULESET,
         dependencies=dependencies,
         model=model,
-        middleware_stack=middleware_stack,
+        middleware_stack=route_middleware,
     )

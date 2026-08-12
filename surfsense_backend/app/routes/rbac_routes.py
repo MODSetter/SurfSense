@@ -68,6 +68,11 @@ PERMISSION_DESCRIPTIONS = {
     "documents:read": "View and search documents in the workspace",
     "documents:update": "Edit existing documents and their metadata",
     "documents:delete": "Remove documents from the workspace",
+    # Artifacts
+    "artifacts:create": "Create generated artifacts in the workspace",
+    "artifacts:read": "View and download artifacts in the workspace",
+    "artifacts:update": "Revise existing artifacts in the workspace",
+    "artifacts:delete": "Remove artifacts from the workspace",
     # Chats
     "chats:create": "Start new AI chat conversations",
     "chats:read": "View chat history and conversations",

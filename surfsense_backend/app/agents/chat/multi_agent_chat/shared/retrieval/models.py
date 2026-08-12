@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,10 @@ class DocumentHit:
     metadata: dict[str, Any]
     score: float
     chunks: list[ChunkHit] = field(default_factory=list)
+
+    @property
+    def source_key(self) -> tuple[Literal["document"], int]:
+        return ("document", self.document_id)
 
 
 __all__ = ["ChunkHit", "DocumentHit", "SearchScope"]

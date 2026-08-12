@@ -133,8 +133,8 @@ export function LayoutDataProvider({
 
 	// Fetch recent threads for the sidebar.
 	const { data: threadsData, isPending: isLoadingThreads } = useQuery({
-		queryKey: ["threads", workspaceId, { limit: 6 }],
-		queryFn: () => fetchThreads(Number(workspaceId), 6),
+		queryKey: ["threads", workspaceId, { limit: 14 }],
+		queryFn: () => fetchThreads(Number(workspaceId), 14),
 		enabled: !!workspaceId,
 	});
 

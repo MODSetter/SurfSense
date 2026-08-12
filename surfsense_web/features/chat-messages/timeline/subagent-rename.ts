@@ -40,6 +40,10 @@ export function resolveSubagentTitle(item: ToolCallItem): string | undefined {
 	return SUBAGENT_DISPLAY_LABELS[subagent] ?? titleCaseSubagent(subagent);
 }
 
+function resolveDescriptionTitle(item: ToolCallItem): string | undefined {
+	return asNonEmptyString(item.args?.description);
+}
+
 /**
  * Unified title resolver for any timeline item. Reasoning items use
  * their own ``title``; tool-call items try the subagent rename first,
@@ -53,5 +57,7 @@ export function resolveItemTitle(
 	getToolDisplayName: (toolName: string) => string
 ): string {
 	if (item.kind === "reasoning") return item.title;
-	return resolveSubagentTitle(item) ?? getToolDisplayName(item.toolName);
+	return (
+		resolveDescriptionTitle(item) ?? resolveSubagentTitle(item) ?? getToolDisplayName(item.toolName)
+	);
 }

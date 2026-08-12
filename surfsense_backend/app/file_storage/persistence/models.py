@@ -46,7 +46,6 @@ class DocumentFile(BaseModel, TimestampMixin):
         server_default=DocumentFileKind.ORIGINAL.value,
         index=True,
     )
-
     # Where the bytes live: the backend that stored them and its object key.
     storage_backend = Column(String(32), nullable=False)
     storage_key = Column(String, nullable=False)

@@ -25,12 +25,14 @@ from .agent_revert_route import router as agent_revert_router
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .artifacts_routes import router as artifacts_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
 from .composio_routes import router as composio_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
 from .discord_add_connector_route import router as discord_add_connector_router
+from .document_files_routes import router as document_files_router
 from .documents_routes import router as documents_router
 from .dropbox_add_connector_route import router as dropbox_add_connector_router
 from .editor_routes import router as editor_router
@@ -88,6 +90,8 @@ router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(export_router)
 router.include_router(documents_router)
+router.include_router(document_files_router)
+router.include_router(artifacts_router)
 router.include_router(folders_router)
 _gateway_enabled_dep = [Depends(require_gateway_enabled)]
 router.include_router(gateway_config_router)

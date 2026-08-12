@@ -12,7 +12,7 @@ from .models import DocumentHit
 
 
 def to_renderable_document(hit: DocumentHit) -> RenderableDocument:
-    """Map one hit to the shape the document-fragment renderer consumes."""
+    """Map one document hit to the shared document-fragment renderer."""
     return RenderableDocument(
         title=hit.title,
         source=source_label(hit.document_type, hit.metadata),

@@ -14,7 +14,7 @@ If a precise path was already given, use it directly — skip the lookup.
 
 ## Searching the indexed knowledge base vs. reading local files
 
-- **`search_knowledge_base`** — hybrid semantic + keyword retrieval over the user's *indexed* knowledge base (separate from the local folders your FS tools read). Use it FIRST for open-ended factual questions where you want the most relevant passages. It returns a `<retrieved_context>` block whose passages each carry a `[n]` citation label.
+- **`search_knowledge_base`** — hybrid semantic + keyword retrieval over the user's *indexed* knowledge base, including generated artifacts (separate from the local folders your FS tools read). Use it FIRST for open-ended factual questions where you want the most relevant passages. It returns a `<retrieved_context>` block whose passages each carry a `[n]` citation label.
 - **`read_file` / `ls` / `glob` / `grep`** — operate on the user's *local* folders.
 
 These are different stores; pick the source the request points at (or use both when helpful).

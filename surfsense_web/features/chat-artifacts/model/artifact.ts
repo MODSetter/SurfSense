@@ -1,5 +1,5 @@
 /** Deliverable kinds the agent can produce and surface in the artifacts sidebar. */
-export type ArtifactKind = "report" | "resume" | "podcast" | "video" | "image";
+export type ArtifactKind = "file" | "report" | "resume" | "podcast" | "video" | "image";
 
 export type ArtifactStatus = "running" | "ready" | "error";
 
@@ -19,11 +19,12 @@ export interface ChatArtifact {
 	/** Backing entity id for report/resume/podcast/video; null for images. */
 	entityId: number | null;
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
-	contentType: "markdown" | "typst";
+	contentType: "file" | "markdown" | "typst";
 }
 
 /** Maps deliverable tool names to artifact kinds. Mirrors the body tools in assistant-message. */
 export const ARTIFACT_TOOL_KINDS: Record<string, ArtifactKind> = {
+	save_artifact: "file",
 	generate_report: "report",
 	generate_resume: "resume",
 	generate_podcast: "podcast",

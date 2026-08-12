@@ -1,13 +1,20 @@
-"""Create the Daytona snapshot used by SurfSense code-execution sandboxes.
+"""Register the published sandbox image as the Daytona snapshot.
+
+Both providers run the same image, built from docker/sandbox/Dockerfile and
+pushed by CI. OpenSandbox pulls it onto the host docker daemon; Daytona pulls
+it into a snapshot, which is what this script creates.
 
 Run from the backend directory:
     cd surfsense_backend
-    uv run python scripts/create_sandbox_snapshot.py
+    uv run python scripts/create_sandbox_snapshot.py ghcr.io/modsetter/surfsense-sandbox:<version>
+
+The argument may be omitted when SANDBOX_IMAGE names a pinned tag.
 
 Prerequisites:
     - DAYTONA_API_KEY set in surfsense_backend/.env (or exported in shell)
     - DAYTONA_API_URL=https://app.daytona.io/api
     - DAYTONA_TARGET=us  (or eu)
+    - the image is public, or its registry is registered in the Daytona dashboard
 
 After this script succeeds, add to surfsense_backend/.env:
     DAYTONA_SNAPSHOT_ID=surfsense-sandbox
@@ -30,34 +37,46 @@ for candidate in [
         load_dotenv(candidate)
         break
 
-from daytona import CreateSnapshotParams, Daytona, Image  # noqa: E402
+from daytona import CreateSnapshotParams, Daytona, Resources
 
 SNAPSHOT_NAME = "surfsense-sandbox"
 
-PACKAGES = [
-    "pandas",
-    "numpy",
-    "matplotlib",
-    "scipy",
-    "scikit-learn",
-]
+# The image unpacks well past the 3 GiB Daytona's smallest default allows.
+DISK_GIB = 10
+
+# Daytona resolves the reference once, at snapshot creation, and never re-pulls
+# it, so a moving tag would freeze whatever it happened to see first. Daytona
+# rejects these outright rather than let that happen quietly.
+UNPINNED_TAGS = frozenset({"latest", "lts", "stable"})
 
 
-def build_image() -> Image:
-    """Build the sandbox image with data-science packages and a /documents symlink."""
-    return (
-        Image.debian_slim("3.12")
-        .pip_install(*PACKAGES)
-        # Symlink /documents → /home/daytona/documents so the LLM can use
-        # the same /documents/ path it sees in the virtual filesystem.
-        .run_commands(
-            "mkdir -p /home/daytona/documents",
-            "ln -sfn /home/daytona/documents /documents",
+def resolve_image(argv: list[str], environ: dict[str, str]) -> str:
+    """Validate the image reference to snapshot, from argv or SANDBOX_IMAGE."""
+    image = (argv[1] if len(argv) > 1 else environ.get("SANDBOX_IMAGE", "")).strip()
+    if not image:
+        raise SystemExit(
+            "ERROR: pass the sandbox image, or set SANDBOX_IMAGE to a pinned tag."
         )
-    )
+    # Only the last path segment can carry the tag; a registry host may hold a
+    # colon of its own for a port.
+    name = image.rpartition("/")[2]
+    if "@" in name:
+        return image
+    _, separator, tag = name.partition(":")
+    if not separator:
+        raise SystemExit(
+            f"ERROR: {image} has no tag. Daytona requires a tag or digest."
+        )
+    if tag in UNPINNED_TAGS:
+        raise SystemExit(
+            f"ERROR: Daytona rejects the '{tag}' tag. Pass a release version instead."
+        )
+    return image
 
 
 def main() -> None:
+    image = resolve_image(sys.argv, os.environ)
+
     api_key = os.environ.get("DAYTONA_API_KEY")
     if not api_key:
         print("ERROR: DAYTONA_API_KEY is not set.", file=sys.stderr)
@@ -88,11 +107,19 @@ def main() -> None:
     except Exception:
         pass
 
-    print(f"Building snapshot '{SNAPSHOT_NAME}' …")
-    print(f"Packages: {', '.join(PACKAGES)}\n")
+    print(f"Building snapshot '{SNAPSHOT_NAME}' from {image} …\n")
 
     daytona.snapshot.create(
-        CreateSnapshotParams(name=SNAPSHOT_NAME, image=build_image()),
+        CreateSnapshotParams(
+            name=SNAPSHOT_NAME,
+            image=image,
+            # The image boots the OpenSandbox Jupyter stack, which Daytona has
+            # no use for: it injects its own daemon and needs only a live
+            # container. Set explicitly because Daytona's dropping of inherited
+            # entrypoints is a bug they intend to fix (daytonaio/daytona#3853).
+            entrypoint=["sleep", "infinity"],
+            resources=Resources(disk=DISK_GIB),
+        ),
         on_logs=lambda chunk: print(chunk, end="", flush=True),
     )
 

@@ -1,0 +1,34 @@
+"""Shared format-adapter contract."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Literal
+
+
+DEFAULT_RENDERED_MIN_CHARS = 20
+ReviewKind = Literal["document", "slides"]
+
+
+@dataclass(frozen=True, slots=True)
+class StructuralCheckResult:
+    findings: tuple[str, ...]
+    page_count: int | None = None
+    notes: tuple[str, ...] = ()
+
+    @property
+    def clean(self) -> bool:
+        return not self.findings
+
+
+@dataclass(frozen=True, slots=True)
+class FormatAdapter:
+    name: str
+    suffix: str
+    mime_type: str
+    convert_to_pdf: bool
+    check: Callable[[bytes], StructuralCheckResult]
+    rendered_min_chars: int = DEFAULT_RENDERED_MIN_CHARS
+    expects_exact_page_count: bool = False
+    review_kind: ReviewKind = "document"

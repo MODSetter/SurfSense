@@ -33,9 +33,8 @@ logger = logging.getLogger(__name__)
 def create_generate_video_presentation_tool(
     workspace_id: int,
     db_session: AsyncSession,
-    thread_id: int | None = None,
 ):
-    """Create ``generate_video_presentation`` with bound workspace and thread; writes use a tool-local session."""
+    """Create ``generate_video_presentation`` with bound workspace."""
     del db_session  # writes use a fresh tool-local session, see below
 
     @tool
@@ -45,14 +44,12 @@ def create_generate_video_presentation_tool(
         video_title: str = "SurfSense Presentation",
         user_prompt: str | None = None,
     ) -> Command:
-        """Generate a video presentation from the provided content.
-
-        Use this tool when the user asks to create a video, presentation, slides, or slide deck.
+        """Generate narrated audiovisual presentation media.
 
         Args:
-            source_content: The text content to turn into a presentation.
-            video_title: Title for the presentation (default: "SurfSense Presentation")
-            user_prompt: Optional style/tone instructions.
+            source_content: The source material for the video.
+            video_title: Title for the video (default: "SurfSense Presentation")
+            user_prompt: Optional audiovisual style and tone instructions.
         """
         try:
             # One DB session per tool call so parallel invocations never share an AsyncSession.
@@ -61,7 +58,7 @@ def create_generate_video_presentation_tool(
                     title=video_title,
                     status=VideoPresentationStatus.PENDING,
                     workspace_id=workspace_id,
-                    thread_id=resolve_root_thread_id(runtime, thread_id),
+                    thread_id=resolve_root_thread_id(runtime),
                 )
                 session.add(video_pres)
                 await session.commit()

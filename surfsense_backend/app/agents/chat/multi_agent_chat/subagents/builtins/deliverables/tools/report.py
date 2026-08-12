@@ -562,7 +562,6 @@ async def _revise_with_sections(
 
 def create_generate_report_tool(
     workspace_id: int,
-    thread_id: int | None = None,
     connector_service: ConnectorService | None = None,
     available_connectors: list[str] | None = None,
     available_document_types: list[str] | None = None,
@@ -729,7 +728,7 @@ def create_generate_report_tool(
                         },
                         report_style=report_style,
                         workspace_id=workspace_id,
-                        thread_id=resolve_root_thread_id(runtime, thread_id),
+                        thread_id=resolve_root_thread_id(runtime),
                         report_group_id=report_group_id,
                     )
                     session.add(failed_report)
@@ -1045,7 +1044,7 @@ def create_generate_report_tool(
                     report_metadata=metadata,
                     report_style=report_style,
                     workspace_id=workspace_id,
-                    thread_id=resolve_root_thread_id(runtime, thread_id),
+                    thread_id=resolve_root_thread_id(runtime),
                     report_group_id=report_group_id,
                 )
                 write_session.add(report)

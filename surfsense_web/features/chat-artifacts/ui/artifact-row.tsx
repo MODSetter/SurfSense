@@ -1,6 +1,7 @@
 import { useSetAtom } from "jotai";
-import { AudioLines, Contact, FileText, ImageIcon, Presentation } from "lucide-react";
+import { AudioLines, Contact, File, FileText, ImageIcon, Presentation } from "lucide-react";
 import type { ComponentType } from "react";
+import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -12,6 +13,7 @@ const KIND_META: Record<
 	ArtifactKind,
 	{ icon: ComponentType<{ className?: string }>; label: string }
 > = {
+	file: { icon: File, label: "Document" },
 	report: { icon: FileText, label: "Report" },
 	resume: { icon: Contact, label: "Resume" },
 	podcast: { icon: AudioLines, label: "Podcast" },
@@ -21,6 +23,7 @@ const KIND_META: Record<
 
 export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const openReportPanel = useSetAtom(openReportPanelAtom);
+	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const closeArtifactsPanel = useSetAtom(closeArtifactsPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const meta = KIND_META[artifact.kind];
@@ -28,8 +31,15 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const isReportLike = artifact.kind === "report" || artifact.kind === "resume";
 
 	const handleOpen = () => {
+		if (artifact.kind === "file" && artifact.entityId != null) {
+			if (!isDesktop) closeArtifactsPanel();
+			openArtifactPanel({ artifactId: artifact.entityId });
+			scrollToArtifact(artifact.toolCallId);
+			return;
+		}
 		// Reports/resumes open in the report viewer, which claims the tab itself.
 		if (isReportLike && artifact.entityId != null) {
+			if (!isDesktop) closeArtifactsPanel();
 			openReportPanel({
 				reportId: artifact.entityId,
 				title: artifact.title,

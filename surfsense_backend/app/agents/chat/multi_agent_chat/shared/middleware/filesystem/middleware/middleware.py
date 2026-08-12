@@ -9,12 +9,10 @@ from deepagents import FilesystemMiddleware
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
-    is_sandbox_enabled,
-)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.sandbox import is_sandbox_enabled
 from app.utils.perf import get_perf_logger
 
 from ..system_prompt import build_system_prompt

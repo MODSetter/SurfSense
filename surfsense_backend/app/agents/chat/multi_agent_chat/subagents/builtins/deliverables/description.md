@@ -1,2 +1,3 @@
-Specialist for producing long-form deliverables: reports, podcasts, video presentations, resumes, and generated images.
-Use proactively when the user wants one of these artifacts produced.
+Specialist for producing and revising file deliverables: Markdown, polished PDF files, editable Word DOCX (`.docx`) files, editable PowerPoint PPTX (`.pptx`) slide decks, reports, and resumes.
+Also produces media deliverables: podcasts, videos, and generated images.
+Use proactively whenever the user asks for one of these artifacts.

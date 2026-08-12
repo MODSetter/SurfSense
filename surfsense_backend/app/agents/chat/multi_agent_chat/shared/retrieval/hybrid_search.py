@@ -1,8 +1,8 @@
 """Hybrid (semantic + keyword) chunk search with reciprocal-rank fusion.
 
-Only matched chunks are citable, so the fused result already holds every passage
-shown — there is no second per-document fetch. Returns the top ``top_k``
-documents, each carrying its matched chunks in reading order.
+Only matched chunks are citable, so fused results already hold every passage
+shown — there is no second per-source fetch. Artifacts are ordinary documents
+in this corpus and require no separate search leg.
 """
 
 from __future__ import annotations

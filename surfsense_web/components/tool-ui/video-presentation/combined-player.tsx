@@ -65,16 +65,6 @@ function Watermark() {
 	);
 }
 
-export function buildSlideWithWatermark(SlideComponent: React.ComponentType): React.FC {
-	const Wrapped: React.FC = () => (
-		<AbsoluteFill>
-			<SlideComponent />
-			<Watermark />
-		</AbsoluteFill>
-	);
-	return Wrapped;
-}
-
 function CombinedComposition({ scenes }: { scenes: CompiledSlide[] }) {
 	let offset = 0;
 

@@ -482,8 +482,8 @@ def _try_delete_sandbox(thread_id: int) -> None:
     from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
         delete_local_sandbox_files,
         delete_sandbox,
-        is_sandbox_enabled,
     )
+    from app.sandbox import is_sandbox_enabled
 
     if not is_sandbox_enabled():
         return

@@ -136,6 +136,31 @@ services:
       retries: 5
       start_period: 600s
 
+  # Sandbox control plane for code execution / artifact generation. It spawns
+  # sandbox containers on the host daemon as siblings, so it needs the socket.
+  # The host-run backend reaches it with OPENSANDBOX_DOMAIN=localhost:8080.
+  opensandbox-server:
+    image: opensandbox/server:v0.2.2
+    ports:
+      - "${OPENSANDBOX_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./opensandbox/sandbox.toml:/etc/opensandbox/config.toml:ro
+      - opensandbox_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OPENSANDBOX_SERVER_API_KEY=${OPENSANDBOX_API_KEY:-surfsense-dev-sandbox}
+    mem_limit: ${OPENSANDBOX_SERVER_MEMORY_LIMIT:-512m}
+    restart: unless-stopped
+    # The runtime image ships neither curl nor wget; python is on PATH.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   # OPTIONAL — Azurite emulates Azure Blob Storage for testing the Azure
   # original-file backend. The default filesystem backend needs none of this.
   # To exercise it, set in surfsense_backend/.env:
@@ -164,3 +189,5 @@ volumes:
     name: surfsense-deps-zero-cache
   azurite_data:
     name: surfsense-deps-azurite
+  opensandbox_data:
+    name: surfsense-deps-opensandbox

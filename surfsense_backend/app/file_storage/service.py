@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.artifacts.persistence import Artifact, ArtifactFile
 from app.file_storage.backends.base import StorageBackend
 from app.file_storage.factory import get_storage_backend
 from app.file_storage.keys import build_document_file_key
@@ -95,7 +96,7 @@ def open_document_file_stream(
     record: DocumentFile, *, backend: StorageBackend | None = None
 ) -> AsyncIterator[bytes]:
     """Open a chunked byte stream for a stored file."""
-    backend = backend or get_storage_backend()
+    backend = backend or get_storage_backend(record.storage_backend)
     return backend.open_stream(record.storage_key)
 
 
@@ -114,15 +115,23 @@ async def purge_document_blobs(
     if not document_ids:
         return
 
-    backend = backend or get_storage_backend()
-    result = await session.execute(
-        select(DocumentFile.storage_key).where(
+    document_files = await session.execute(
+        select(DocumentFile.storage_backend, DocumentFile.storage_key).where(
             DocumentFile.document_id.in_(document_ids)
         )
     )
-    for storage_key in result.scalars().all():
+    artifact_files = await session.execute(
+        select(ArtifactFile.storage_backend, ArtifactFile.storage_key)
+        .join(Artifact, ArtifactFile.artifact_id == Artifact.id)
+        .where(Artifact.document_id.in_(document_ids))
+    )
+    for backend_name, storage_key in [
+        *document_files.all(),
+        *artifact_files.all(),
+    ]:
         try:
-            await backend.delete(storage_key)
+            selected_backend = backend or get_storage_backend(backend_name)
+            await selected_backend.delete(storage_key)
         except Exception as delete_error:
             logger.warning(
                 "Failed to delete stored blob %s: %s", storage_key, delete_error

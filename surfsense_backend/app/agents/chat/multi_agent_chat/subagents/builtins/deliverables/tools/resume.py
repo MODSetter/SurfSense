@@ -422,7 +422,6 @@ def _validate_max_pages(max_pages: int) -> int:
 
 def create_generate_resume_tool(
     workspace_id: int,
-    thread_id: int | None = None,
 ):
     """
     Factory function to create the generate_resume tool.
@@ -532,7 +531,7 @@ def create_generate_resume_tool(
                         },
                         report_style="resume",
                         workspace_id=workspace_id,
-                        thread_id=resolve_root_thread_id(runtime, thread_id),
+                        thread_id=resolve_root_thread_id(runtime),
                         report_group_id=report_group_id,
                     )
                     session.add(failed)
@@ -820,7 +819,7 @@ def create_generate_resume_tool(
                     report_metadata=metadata,
                     report_style="resume",
                     workspace_id=workspace_id,
-                    thread_id=resolve_root_thread_id(runtime, thread_id),
+                    thread_id=resolve_root_thread_id(runtime),
                     report_group_id=report_group_id,
                 )
                 write_session.add(report)

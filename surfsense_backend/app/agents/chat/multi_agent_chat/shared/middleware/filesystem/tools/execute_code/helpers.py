@@ -1,27 +1,22 @@
 """Sandbox-execution helpers for ``execute_code``.
 
-Wraps user-supplied code in a heredoc and dispatches it to the Daytona
-sandbox associated with the current chat thread, with a single retry on
-sandbox failure.
+Dispatches code to the chat thread's sandbox session, with a single retry on
+failure: sandboxes die for reasons the model can do nothing about (expiry, a
+restarted server), and one silent retry beats surfacing that as a tool error.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import secrets
 from typing import TYPE_CHECKING
 
-from daytona.common.errors import DaytonaError
 from langchain.tools import ToolRuntime
 
-from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.sandbox import (
-    _evict_sandbox_cache,
-    delete_sandbox,
-    get_or_create_sandbox,
-)
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.sandbox import ExecResult, SandboxUnavailableError, get_registry
 
 if TYPE_CHECKING:
     from ...middleware import SurfSenseFilesystemMiddleware
@@ -31,59 +26,67 @@ logger = logging.getLogger(__name__)
 MAX_EXECUTE_TIMEOUT = 300
 
 
-def wrap_as_python(code: str) -> str:
-    """Wrap ``code`` in a unique-sentinel heredoc for shell execution."""
-    sentinel = f"_PYEOF_{secrets.token_hex(8)}"
-    return f"python3 << '{sentinel}'\n{code}\n{sentinel}"
-
-
 async def execute_in_sandbox(
     mw: SurfSenseFilesystemMiddleware,
     command: str,
     runtime: ToolRuntime[None, SurfSenseFilesystemState],
     timeout: int | None,
 ) -> str:
-    """Top-level entry: wraps + retries once on sandbox failure."""
+    """Top-level entry: run *command* as Python, retrying once."""
     assert mw._thread_id is not None
-    command = wrap_as_python(command)
     try:
-        return await _try_sandbox_execute(mw, command, runtime, timeout)
-    except (DaytonaError, Exception) as first_err:
+        return _format(await _run(mw, command, timeout))
+    except SandboxUnavailableError as err:
+        return f"Error: {err}"
+    except TimeoutError:
+        # ponytail: we stop waiting, the cell does not stop running — it holds
+        # the kernel until the sandbox expires. Upgrade path is an interrupt
+        # call on the execution id once the SDK exposes one for kernel runs.
+        return (
+            f"Error: execution exceeded {timeout or MAX_EXECUTE_TIMEOUT}s and was "
+            "abandoned. The interpreter may still be busy; simplify the code."
+        )
+    except Exception as first_err:
         logger.warning(
             "Sandbox execute failed for thread %s, retrying: %s",
             mw._thread_id,
             first_err,
         )
         try:
-            await delete_sandbox(mw._thread_id)
-        except Exception:
-            _evict_sandbox_cache(mw._thread_id)
-        try:
-            return await _try_sandbox_execute(mw, command, runtime, timeout)
+            # Terminate rather than evict: a session that failed mid-execution
+            # may have a wedged kernel, and reconnecting would inherit it.
+            registry = await get_registry()
+            await registry.terminate(mw._thread_id)
+            return _format(await _run(mw, command, timeout))
         except Exception:
             logger.exception("Sandbox retry also failed for thread %s", mw._thread_id)
             return "Error: Code execution is temporarily unavailable. Please try again."
 
 
-async def _try_sandbox_execute(
-    mw: SurfSenseFilesystemMiddleware,
-    command: str,
-    runtime: ToolRuntime[None, SurfSenseFilesystemState],
-    timeout: int | None,
-) -> str:
-    """One sandbox-execute attempt: get/create sandbox, run, format output."""
-    sandbox, _is_new = await get_or_create_sandbox(mw._thread_id)
-    result = await sandbox.aexecute(command, timeout=timeout)
+async def _run(
+    mw: SurfSenseFilesystemMiddleware, code: str, timeout: int | None
+) -> ExecResult:
+    registry = await get_registry()
+    # Without a workspace every such thread would share one cap bucket and
+    # block each other, so an unknown workspace gets a bucket of its own.
+    workspace_id = mw._workspace_id if mw._workspace_id is not None else mw._thread_id
+    session = await registry.get_session(mw._thread_id, workspace_id)
+    return await asyncio.wait_for(
+        session.execute(code, language="python"),
+        timeout=timeout or MAX_EXECUTE_TIMEOUT,
+    )
+
+
+def _format(result: ExecResult) -> str:
     output = (result.output or "").strip()
-    if not output and result.exit_code == 0:
+    if not output and result.ok:
         return (
             "[Code executed successfully but produced no output. "
             "Use print() to display results, then try again.]"
         )
     parts = [result.output]
-    if result.exit_code is not None:
-        status = "succeeded" if result.exit_code == 0 else "failed"
-        parts.append(f"\n[Command {status} with exit code {result.exit_code}]")
+    status = "succeeded" if result.ok else "failed"
+    parts.append(f"\n[Command {status} with exit code {result.exit_code}]")
     if result.truncated:
         parts.append("\n[Output was truncated due to size limits]")
     return "".join(parts)

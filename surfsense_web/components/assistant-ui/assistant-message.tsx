@@ -81,6 +81,13 @@ const GenerateReportToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+const SaveArtifactToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/save-artifact").then((m) => ({
+			default: m.SaveArtifactToolUI,
+		})),
+	{ ssr: false }
+);
 const GenerateResumeToolUI = dynamic(
 	() =>
 		import("@/components/tool-ui/generate-resume").then((m) => ({
@@ -426,6 +433,7 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
  * body and is picked up by the timeline instead.
  */
 const BODY_TOOLS = {
+	save_artifact: withArtifactAnchor(SaveArtifactToolUI),
 	generate_report: withArtifactAnchor(GenerateReportToolUI),
 	generate_resume: withArtifactAnchor(GenerateResumeToolUI),
 	generate_podcast: withArtifactAnchor(GeneratePodcastToolUI),

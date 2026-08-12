@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import { imageGenerationsApiService } from "@/lib/apis/image-generations-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
@@ -20,7 +21,8 @@ function videoStatus(status: string): LibraryArtifactStatus {
 // Each list is fetched independently; one failing source shouldn't blank the
 // whole library, so failures degrade to an empty slice.
 async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
-	const [reports, podcasts, videos, images] = await Promise.all([
+	const [files, reports, podcasts, videos, images] = await Promise.all([
+		fetchArtifacts(workspaceId).catch(() => []),
 		reportsApiService.list(workspaceId).catch(() => []),
 		podcastsApiService.list(workspaceId).catch(() => []),
 		videoPresentationsApiService.list(workspaceId).catch(() => []),
@@ -28,6 +30,24 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	]);
 
 	const artifacts: LibraryArtifact[] = [];
+
+	for (const file of files) {
+		artifacts.push({
+			key: `file-${file.artifact_id}`,
+			kind: "file",
+			entityId: file.artifact_id,
+			title: file.title,
+			status:
+				file.indexing_status === "failed"
+					? "error"
+					: file.indexing_status === "ready"
+						? "ready"
+						: "running",
+			createdAt: file.created_at,
+			contentType: "file",
+			sourceThreadId: file.thread_id,
+		});
+	}
 
 	for (const report of reports) {
 		const isResume = report.content_type === "typst";

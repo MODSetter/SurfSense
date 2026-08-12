@@ -14,26 +14,31 @@ from __future__ import annotations
 from langchain.tools import ToolRuntime
 
 
-def resolve_root_thread_id(runtime: ToolRuntime, fallback: int | None) -> int | None:
-    """Return the root chat id from the live runtime config, else ``fallback``.
+def root_thread_id_from_config(config: object) -> int:
+    """Return the root chat id from a LangGraph runnable config.
+
+    A missing or malformed id is an invocation error. Falling back to a value
+    captured when the graph was built can attribute one chat's output to
+    another because compiled graphs are reused.
+    """
+    if not isinstance(config, dict):
+        raise RuntimeError("Live chat thread configuration is unavailable")
+    value = (config.get("configurable") or {}).get("thread_id")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value:
+        root = value.split("::", 1)[0]
+        try:
+            return int(root)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Live chat thread id is invalid") from exc
+    raise RuntimeError("Live chat thread id is unavailable")
+
+
+def resolve_root_thread_id(runtime: ToolRuntime) -> int:
+    """Return the root chat id from the live runtime config.
 
     The subagent's ``configurable.thread_id`` looks like ``"2099::task:call_x"``;
-    the chat id is the segment before the first ``"::"``. Returns ``fallback``
-    when the config is absent or the leading segment is not an integer.
+    the chat id is the segment before the first ``"::"``.
     """
-    try:
-        config = getattr(runtime, "config", None)
-        if not isinstance(config, dict):
-            return fallback
-        value = (config.get("configurable") or {}).get("thread_id")
-        if isinstance(value, int):
-            return value
-        if isinstance(value, str) and value:
-            root = value.split("::", 1)[0]
-            try:
-                return int(root)
-            except (TypeError, ValueError):
-                return fallback
-    except Exception:  # pragma: no cover - defensive
-        return fallback
-    return fallback
+    return root_thread_id_from_config(getattr(runtime, "config", None))

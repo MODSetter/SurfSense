@@ -46,15 +46,27 @@ TOOL_CATALOG: list[ToolMetadata] = [
     ),
     ToolMetadata(
         name="generate_video_presentation",
-        description="Generate a video presentation with slides and narration from provided content",
+        description="Generate narrated audiovisual presentation media",
     ),
     ToolMetadata(
-        name="generate_report",
-        description="Generate a structured report from provided content and export it",
+        name="save_artifact",
+        description="Save a Markdown or sandbox-generated file as a durable artifact",
     ),
     ToolMetadata(
-        name="generate_resume",
-        description="Generate a professional resume as a Typst document",
+        name="load_artifact_source",
+        description="Load a generated artifact's source into its sandbox for revision",
+    ),
+    ToolMetadata(
+        name="execute",
+        description="Run Python or Bash in an isolated artifact sandbox",
+    ),
+    ToolMetadata(
+        name="read_sandbox_file",
+        description="Read a UTF-8 text file from the artifact sandbox",
+    ),
+    ToolMetadata(
+        name="verify_artifact",
+        description="Verify a generated artifact and prepare its preview before saving",
     ),
     ToolMetadata(
         name="generate_image",

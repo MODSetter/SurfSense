@@ -1,0 +1,68 @@
+# Mounted over the image's baked-in config, which is the Kubernetes example.
+# Nothing validates unknown keys: the server ignores extra tables silently, so a
+# misplaced section fails as wrong behaviour at runtime, never as a startup error.
+
+[server]
+# Must stay 0.0.0.0. docker.host_ip below is only consulted when host is
+# 0.0.0.0/::/empty, so narrowing this silently hands out 127.0.0.1 endpoints.
+host = "0.0.0.0"
+port = 8080
+max_sandbox_timeout_seconds = 86400
+# api_key comes from OPENSANDBOX_SERVER_API_KEY so it stays out of the repo.
+
+[log]
+level = "INFO"
+
+[runtime]
+type = "docker"
+execd_image = "opensandbox/execd:v1.0.21"
+
+# Top-level table, NOT [runtime.docker]: a nested one parses and is discarded,
+# leaving network_mode at its "host" default, which egress rejects.
+[docker]
+network_mode = "bridge"
+# Effectively mandatory: left unset, the server pairs its OWN container IP with
+# a host-published port and hands back an endpoint nothing listens on. No env
+# override exists for this key and the TOML loader does no interpolation, so
+# clients that cannot resolve this name connect with use_server_proxy=True
+# instead of us forking this file per deployment.
+host_ip = "host.docker.internal"
+# Upstream's 40000-60000 default overlaps the ephemeral range on both hosts we
+# target (Linux 32768-60999, Windows/WSL dynamic from 49152 with Hyper-V holes),
+# so sandbox creation fails intermittently with "address already in use". This
+# band sits below both. Docker publishes these on 0.0.0.0 and execd itself is
+# unauthenticated, so restrict the range at the host firewall (DOCKER-USER
+# chain — plain firewalld rules sit behind docker's own iptables entries).
+port_range_min = 20000
+port_range_max = 30000
+drop_capabilities = [
+    "AUDIT_WRITE",
+    "MKNOD",
+    "NET_ADMIN",
+    "NET_RAW",
+    "SYS_ADMIN",
+    "SYS_MODULE",
+    "SYS_PTRACE",
+    "SYS_TIME",
+    "SYS_TTY_CONFIG",
+]
+no_new_privileges = true
+pids_limit = 4096
+
+[ingress]
+mode = "direct"
+
+[egress]
+image = "opensandbox/egress:v1.1.5"
+# "dns" filters hostnames only, so default-deny leaks to anything addressed by
+# raw IP — a sandbox could open Postgres on the compose network. "dns+nft" adds
+# the packet filter that actually enforces the policy. The sidecar gets its own
+# cap_add NET_ADMIN and is unaffected by drop_capabilities above.
+mode = "dns+nft"
+
+[store]
+type = "sqlite"
+path = "/data/opensandbox.db"
+
+[storage]
+allowed_host_paths = []

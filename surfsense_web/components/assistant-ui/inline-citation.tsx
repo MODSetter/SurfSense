@@ -4,6 +4,7 @@ import { useSetAtom } from "jotai";
 import { FileText } from "lucide-react";
 import type { FC } from "react";
 import { useId, useState } from "react";
+import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { CitationPanelContent } from "@/components/citation-panel/citation-panel";
@@ -18,6 +19,8 @@ import {
 } from "@/components/ui/drawer";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { tryGetHostname } from "@/lib/url";
 
 interface InlineCitationProps {
 	chunkId: number;
@@ -27,11 +30,9 @@ interface InlineCitationProps {
 /**
  * Inline citation badge for knowledge-base chunks (numeric chunk IDs).
  *
- * Numeric KB chunks: clicking opens the citation panel in the right
- * sidebar (alongside the chat — does not replace it). The panel shows
- * the cited chunk surrounded by adjacent chunks (via the API's
- * `chunk_window`), with the cited one highlighted and an option to
- * expand the window or jump into the full document via the editor panel.
+ * Numeric KB chunks resolve through the document chunk API. Artifact
+ * documents open the artifact panel; all others open the citation panel,
+ * which shows the cited chunk surrounded by adjacent chunks.
  *
  * Negative chunk IDs and legacy SurfSense-docs chunks (`isDocsChunk`) render
  * as a static, non-interactive "doc" pill. The SurfSense product-docs feature
@@ -64,14 +65,36 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 	const isTouchLike = useMediaQuery("(hover: none), (pointer: coarse)");
 	const openCitationPanel = useSetAtom(openCitationPanelAtom);
+	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+	const [loading, setLoading] = useState(false);
 
-	const handleClick = () => {
-		if (isTouchLike) {
-			setMobilePreviewOpen(true);
-			return;
+	const handleClick = async () => {
+		if (loading) return;
+		setLoading(true);
+		try {
+			const document = await documentsApiService.getDocumentByChunk({
+				chunk_id: chunkId,
+				chunk_window: 0,
+			});
+			const artifactId = document.document_metadata.artifact_id;
+			if (
+				document.document_type === "ARTIFACT" &&
+				typeof artifactId === "number" &&
+				Number.isInteger(artifactId) &&
+				artifactId > 0
+			) {
+				openArtifactPanel({ artifactId });
+				return;
+			}
+		} catch {
+			// Let the citation panel surface the existing fetch error.
+		} finally {
+			setLoading(false);
 		}
-		openCitationPanel({ chunkId });
+
+		if (isTouchLike) setMobilePreviewOpen(true);
+		else openCitationPanel({ chunkId });
 	};
 
 	return (
@@ -79,7 +102,8 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 			<Button
 				type="button"
 				variant="ghost"
-				onClick={handleClick}
+				onClick={() => void handleClick()}
+				disabled={loading}
 				className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
 				title={`View source chunk #${chunkId}`}
 				aria-label={`View cited chunk ${chunkId}`}
@@ -107,8 +131,6 @@ const NumericChunkCitation: FC<{ chunkId: number }> = ({ chunkId }) => {
 		</>
 	);
 };
-
-import { tryGetHostname } from "@/lib/url";
 
 interface UrlCitationProps {
 	url: string;

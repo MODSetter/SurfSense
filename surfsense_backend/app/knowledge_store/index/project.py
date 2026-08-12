@@ -116,7 +116,12 @@ async def _project(
     author_id = await revision_author_id(store, revision, workspace)
 
     for change in changes:
-        if change.kind == "renamed" and change.previous_path:
+        if (
+            change.kind == "renamed"
+            and change.previous_path
+            and _is_document_store_path(change.path)
+            and _is_document_store_path(change.previous_path)
+        ):
             follow_rename(
                 owned,
                 workspace.id,
@@ -125,6 +130,18 @@ async def _project(
             )
 
     for change in changes:
+        if (
+            change.kind == "renamed"
+            and change.previous_path
+            and _is_document_store_path(change.previous_path)
+            and not _is_document_store_path(change.path)
+        ):
+            previous = to_virtual_path(change.previous_path)
+            removed = await delete_row(session, workspace.id, previous, owned)
+            if removed is not None:
+                projection.deleted.append(_snapshot(removed, previous))
+        if not _is_document_store_path(change.path):
+            continue
         virtual_path = to_virtual_path(change.path)
         if change.kind == "removed":
             removed = await delete_row(session, workspace.id, virtual_path, owned)
@@ -179,3 +196,7 @@ def _snapshot(document, virtual_path: str) -> ProjectedDocument:
         folder_id=document.folder_id,
         virtual_path=virtual_path,
     )
+
+
+def _is_document_store_path(path: str) -> bool:
+    return path.strip("/").startswith("documents/")

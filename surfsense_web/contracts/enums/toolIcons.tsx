@@ -2,6 +2,7 @@ import {
 	AlarmClock,
 	Brain,
 	Calendar,
+	FileCheck2,
 	FileEdit,
 	FilePlus,
 	FileText,
@@ -106,6 +107,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 	get_connected_accounts: SearchCheck,
 	execute: Wrench,
 	execute_code: Wrench,
+	verify_artifact: FileCheck2,
 };
 
 export function getToolIcon(name: string): LucideIcon {
@@ -202,6 +204,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 	get_connected_accounts: "Discover connected accounts",
 	execute: "Run command",
 	execute_code: "Run code",
+	verify_artifact: "Verify document",
 };
 
 /**
