@@ -5,8 +5,14 @@ from zipfile import ZipFile
 
 import pytest
 
+from app.artifacts.verification import service
 from app.artifacts.verification.formats.registry import XLSX_MIME, get_format_adapter
 from app.artifacts.verification.formats.xlsx import MAX_CELLS, check_xlsx
+from app.artifacts.verification.receipt import RECEIPT_PATH, read_receipt
+from tests.utils.fake_sandbox import FakeSandboxSession
+
+SECRET = "test-secret"
+WORKSPACE_ID = 7
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
@@ -117,3 +123,51 @@ def test_xlsx_cell_ceiling():
     assert not result.clean
     assert any(str(MAX_CELLS) in finding for finding in result.findings)
 
+
+async def test_verify_xlsx_structural_only_skips_render_and_vision():
+    """Real adapter + real OOXML; sandbox is the only stand-in (boundary)."""
+    path = "/workspace/budget.xlsx"
+    data = _xlsx(sheet_body='<c r="A1"><v>10</v></c>')
+    session = FakeSandboxSession({path: data})
+
+    result = await service.verify_artifact(
+        session,
+        path,
+        workspace_id=WORKSPACE_ID,
+        vision_llm=object(),
+        secret_key=SECRET,
+    )
+    receipt = await read_receipt(
+        session, SECRET, workspace_id=WORKSPACE_ID
+    )
+
+    assert result.verified
+    assert result.preview_path is None
+    assert result.findings == ()
+    assert receipt.format == "xlsx"
+    assert receipt.visual == "not_required"
+    assert receipt.preview_path is None
+    assert receipt.preview_sha256 is None
+    assert receipt.primary_sha256
+    # Early exit must not touch LibreOffice / rasterize / vision.
+    assert session.commands == []
+
+
+async def test_verify_xlsx_structural_failure_issues_no_receipt():
+    path = "/workspace/budget.xlsx"
+    session = FakeSandboxSession(
+        {path: _xlsx(sheet_body='<c r="B1"><f>SUM(A1)</f></c>')}
+    )
+
+    result = await service.verify_artifact(
+        session,
+        path,
+        workspace_id=WORKSPACE_ID,
+        vision_llm=None,
+        secret_key=SECRET,
+    )
+
+    assert not result.verified
+    assert any("cached result" in finding for finding in result.findings)
+    assert session.files[RECEIPT_PATH] == b""
+    assert session.commands == []
