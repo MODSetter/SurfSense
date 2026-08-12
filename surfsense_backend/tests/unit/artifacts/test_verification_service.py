@@ -14,13 +14,21 @@ SECRET = "test-secret"
 WORKSPACE_ID = 7
 
 
-def _adapter(result: StructuralCheckResult) -> FormatAdapter:
+def _adapter(
+    result: StructuralCheckResult,
+    *,
+    convert_to_pdf: bool = False,
+    expects_exact_page_count: bool = False,
+    rendered_min_chars: int = 20,
+) -> FormatAdapter:
     return FormatAdapter(
         name="pdf",
         suffix=".pdf",
         mime_type="application/pdf",
-        convert_to_pdf=False,
+        convert_to_pdf=convert_to_pdf,
         check=lambda _data: result,
+        expects_exact_page_count=expects_exact_page_count,
+        rendered_min_chars=rendered_min_chars,
     )
 
 
@@ -228,4 +236,51 @@ async def test_conversion_failure_returns_failed_verdict(monkeypatch):
 
     assert not result.verified
     assert "LibreOffice conversion failed" in result.findings[0]
+    assert session.files[RECEIPT_PATH] == b""
+
+
+async def test_converted_page_count_must_match_structural_count(monkeypatch):
+    session = FakeSandboxSession(
+        {
+            "/workspace/deck.pptx": b"pptx",
+            "/tmp/build/primary.pdf": b"pdf",
+        }
+    )
+    clean = StructuralCheckResult((), 2)
+    monkeypatch.setattr(
+        service,
+        "get_format_adapter",
+        lambda _path: _adapter(
+            clean,
+            convert_to_pdf=True,
+            expects_exact_page_count=True,
+            rendered_min_chars=0,
+        ),
+    )
+
+    async def prepare(*_args, **_kwargs):
+        return PreparedPdf(
+            "/tmp/build",
+            "/tmp/build/primary.pptx",
+            "/tmp/build/primary.pdf",
+        )
+
+    def check_rendered(_data, *, expected_pages, min_chars):
+        assert expected_pages == 2
+        assert min_chars == 0
+        return StructuralCheckResult(("expected 2 page(s), found 1",), 1)
+
+    monkeypatch.setattr(service, "prepare_pdf", prepare)
+    monkeypatch.setattr(service, "check_pdf", check_rendered)
+
+    result = await service.verify_artifact(
+        session,
+        "/workspace/deck.pptx",
+        workspace_id=WORKSPACE_ID,
+        vision_llm=None,
+        secret_key=SECRET,
+    )
+
+    assert not result.verified
+    assert result.findings == ("expected 2 page(s), found 1",)
     assert session.files[RECEIPT_PATH] == b""

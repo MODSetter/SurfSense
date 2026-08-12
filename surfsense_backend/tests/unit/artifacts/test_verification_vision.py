@@ -26,6 +26,25 @@ async def test_review_checks_small_document_in_one_contextual_call(monkeypatch):
     assert "flowing document" in calls[0][0].content[0]["text"]
 
 
+async def test_review_uses_slide_framing_with_shared_verdict_contract(monkeypatch):
+    prompts = []
+
+    async def fake_invoke_json(_llm, messages, _model):
+        prompts.append(messages[0].content[0]["text"])
+        return vision.VisionVerdict()
+
+    monkeypatch.setattr(vision, "invoke_json", fake_invoke_json)
+    image = (("/tmp/page-1.jpg", b"jpeg"),)
+
+    await vision.review_pages(SimpleNamespace(), image)
+    await vision.review_pages(SimpleNamespace(), image, review_kind="slides")
+
+    assert "one flowing document" in prompts[0]
+    assert "Each slide is self-contained" in prompts[1]
+    assert prompts[0].endswith(vision.VERDICT_INSTRUCTIONS)
+    assert prompts[1].endswith(vision.VERDICT_INSTRUCTIONS)
+
+
 async def test_review_returns_blocking_findings(monkeypatch):
     async def fake_invoke_json(_llm, _messages, _model):
         return vision.VisionVerdict(blocking_findings=["Footer is clipped"])

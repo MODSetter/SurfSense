@@ -7,9 +7,13 @@ from pathlib import PurePosixPath
 from .base import FormatAdapter
 from .docx import check_docx
 from .pdf import check_pdf
+from .pptx import check_pptx
 
 PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+PPTX_MIME = (
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+)
 
 _ADAPTERS = {
     ".pdf": FormatAdapter(
@@ -25,6 +29,16 @@ _ADAPTERS = {
         mime_type=DOCX_MIME,
         convert_to_pdf=True,
         check=check_docx,
+    ),
+    ".pptx": FormatAdapter(
+        name="pptx",
+        suffix=".pptx",
+        mime_type=PPTX_MIME,
+        convert_to_pdf=True,
+        check=check_pptx,
+        rendered_min_chars=0,
+        expects_exact_page_count=True,
+        review_kind="slides",
     ),
 }
 
