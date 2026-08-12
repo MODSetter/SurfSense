@@ -1,7 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
+import {
+	ArtifactChunkCitation,
+	InlineCitation,
+	UrlCitation,
+} from "@/components/assistant-ui/inline-citation";
 import { RunCitation } from "@/components/citations/run-citation";
 import {
 	type CitationToken,
@@ -24,6 +28,14 @@ export function renderCitationToken(token: CitationToken, ordinalKey: number): R
 	}
 	if (token.kind === "run") {
 		return <RunCitation key={`citation-run-${token.runId}-${ordinalKey}`} runId={token.runId} />;
+	}
+	if (token.kind === "artifact") {
+		return (
+			<ArtifactChunkCitation
+				key={`citation-artifact-${token.chunkId}-${ordinalKey}`}
+				chunkId={token.chunkId}
+			/>
+		);
 	}
 	return (
 		<InlineCitation
@@ -59,14 +71,17 @@ export function processChildrenWithCitations(
 
 	if (Array.isArray(children)) {
 		let ordinal = 0;
-		return children.map((child, childIndex) => {
+		const occurrences = new Map<string, number>();
+		return children.map((child) => {
 			if (typeof child === "string") {
 				const segments = parseTextWithCitations(child, urlMap);
 				if (segments.length === 1 && typeof segments[0] === "string") {
 					return child;
 				}
+				const occurrence = occurrences.get(child) ?? 0;
+				occurrences.set(child, occurrence + 1);
 				return (
-					<span key={`citation-seg-${childIndex}`}>
+					<span key={`citation-seg-${child}-${occurrence}`}>
 						{segments.map((segment) =>
 							typeof segment === "string" ? segment : renderCitationToken(segment, ordinal++)
 						)}

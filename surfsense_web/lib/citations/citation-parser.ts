@@ -13,18 +13,19 @@ import { FENCED_OR_INLINE_CODE } from "@/lib/markdown/code-regions";
  * Matches `[citation:...]` with numeric IDs (incl. negative, doc- prefix,
  * comma-separated), URL-based IDs from live web search, `urlciteN`
  * placeholders produced by `preprocessCitationMarkdown`, or a scraper-run
- * handle (`run_<uuid>`).
+ * handle (`run_<uuid>`), or a namespaced artifact chunk id.
  *
  * Also matches Chinese brackets 【】 and zero-width spaces that LLMs
  * sometimes emit.
  */
 export const CITATION_REGEX =
-	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|run_[0-9a-fA-F-]+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g;
+	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|run_[0-9a-fA-F-]+|artifact_chunk_\d+|(?:doc-)?-?\d+(?:\s*,\s*(?:doc-)?-?\d+)*)\s*\u200B?[\]】]/g;
 
 /** A single parsed citation reference. */
 export type CitationToken =
 	| { kind: "url"; url: string }
 	| { kind: "run"; runId: string }
+	| { kind: "artifact"; chunkId: number }
 	| { kind: "chunk"; chunkId: number; isDocsChunk: boolean };
 
 /** Output of `parseTextWithCitations` — interleaved text + citation tokens. */
@@ -106,6 +107,9 @@ export function parseTextWithCitations(text: string, urlMap: CitationUrlMap): Pa
 			}
 		} else if (captured.startsWith("run_")) {
 			segments.push({ kind: "run", runId: captured.trim() });
+		} else if (captured.startsWith("artifact_chunk_")) {
+			const chunkId = Number.parseInt(captured.slice("artifact_chunk_".length), 10);
+			if (!Number.isNaN(chunkId)) segments.push({ kind: "artifact", chunkId });
 		} else {
 			const rawIds = captured.split(",").map((s) => s.trim());
 			for (const rawId of rawIds) {
