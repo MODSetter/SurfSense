@@ -14,7 +14,7 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.save
     _read_artifact_file,
 )
 from app.artifacts.verification.formats.pdf import check_pdf
-from app.artifacts.verification.formats.registry import DOCX_MIME
+from app.artifacts.verification.formats.registry import DOCX_MIME, PPTX_MIME
 from app.artifacts.verification.receipt import read_receipt
 from app.artifacts.verification.service import verify_artifact
 from app.config import config as app_config
@@ -105,13 +105,20 @@ c.save()
         await provider.terminate_session(thread_id)
 
 
-async def test_live_docx_verification_and_mime(monkeypatch):
+@pytest.mark.parametrize(
+    ("format_name", "mime_type"),
+    [
+        ("docx", DOCX_MIME),
+        ("pptx", PPTX_MIME),
+    ],
+)
+async def test_live_office_verification_and_mime(monkeypatch, format_name, mime_type):
     monkeypatch.setattr(app_config, "OPENSANDBOX_DOMAIN", "localhost:8080")
     monkeypatch.setattr(app_config, "OPENSANDBOX_API_KEY", "surfsense-dev-sandbox")
     monkeypatch.setattr(app_config, "SANDBOX_IMAGE", DEV_SANDBOX_IMAGE)
     monkeypatch.setattr(app_config, "SANDBOX_IDLE_TTL_SECONDS", 900)
     provider = OpenSandboxProvider()
-    thread_id = "pytest-opensandbox-docx"
+    thread_id = f"pytest-opensandbox-{format_name}"
     secret = "integration-secret"
 
     await provider.terminate_session(thread_id)
@@ -123,7 +130,8 @@ async def test_live_docx_verification_and_mime(monkeypatch):
             for skill in FORMAT_SKILLS
         )
         skills = await session.run_command(skill_checks)
-        javascript = """
+        if format_name == "docx":
+            javascript = """
 const { Document, Packer, Paragraph, TextRun } = require("docx");
 const fs = require("fs");
 const doc = new Document({ sections: [{ children: [
@@ -133,12 +141,25 @@ const doc = new Document({ sections: [{ children: [
 ] }] });
 Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffer));
 """
-        generated = await session.run_command(f"node -e {shlex.quote(javascript)}")
+            generated = await session.run_command(f"node -e {shlex.quote(javascript)}")
+        else:
+            generated = await session.execute(
+                """
+from pptx import Presentation
+
+presentation = Presentation()
+slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+slide.shapes.title.text = "Quarterly review"
+slide.placeholders[1].text = "A sufficiently descriptive slide for verification."
+presentation.save("/tmp/report.pptx")
+"""
+            )
         assert skills.ok and generated.ok
 
+        primary_path = f"/tmp/report.{format_name}"
         result = await verify_artifact(
             session,
-            "/tmp/report.docx",
+            primary_path,
             workspace_id=1,
             vision_llm=None,
             secret_key=secret,
@@ -146,7 +167,7 @@ Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffe
         receipt = await read_receipt(session, secret, workspace_id=1)
         stored = await _read_artifact_file(
             session,
-            "/tmp/report.docx",
+            primary_path,
             "primary",
         )
         pages = await session.run_command(
@@ -155,10 +176,10 @@ Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffe
 
         assert result.verified
         assert result.preview_path
-        assert receipt.primary_path == "/tmp/report.docx"
+        assert receipt.primary_path == primary_path
         assert receipt.preview_path == result.preview_path
         assert pages.ok
-        assert stored.mime_type == DOCX_MIME
+        assert stored.mime_type == mime_type
     finally:
         await provider.terminate_session(thread_id)
 

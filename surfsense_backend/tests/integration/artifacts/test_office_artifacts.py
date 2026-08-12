@@ -16,6 +16,7 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
+from app.artifacts.verification.formats.registry import DOCX_MIME, PPTX_MIME
 from app.artifacts.verification.receipt import (
     VerificationReceipt,
     sha256_bytes,
@@ -30,41 +31,52 @@ from tests.utils.fake_sandbox import FakeSandboxSession
 from .test_service import MemoryBackend
 
 pytestmark = pytest.mark.integration
-DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 SECRET = "test-secret"
 
 
-def _docx_bytes(label: str) -> bytes:
+def _office_bytes(format_name: str, label: str) -> bytes:
     output = BytesIO()
     with ZipFile(output, "w") as archive:
         archive.writestr("[Content_Types].xml", "<Types/>")
         archive.writestr("_rels/.rels", "<Relationships/>")
-        archive.writestr("word/document.xml", f"<document>{label}</document>")
+        if format_name == "docx":
+            archive.writestr("word/document.xml", f"<document>{label}</document>")
+        else:
+            archive.writestr(
+                "ppt/presentation.xml", f"<presentation>{label}</presentation>"
+            )
     return output.getvalue()
 
 
-def _runtime() -> ToolRuntime:
+def _runtime(format_name: str) -> ToolRuntime:
     return ToolRuntime(
         state={},
         context=None,
-        config={"configurable": {"thread_id": "77::task:docx"}},
+        config={"configurable": {"thread_id": f"77::task:{format_name}"}},
         stream_writer=None,
-        tool_call_id="docx",
+        tool_call_id=format_name,
         store=None,
     )
 
 
-async def _verify(sandbox: FakeSandboxSession, workspace_id: int) -> None:
+async def _verify(
+    sandbox: FakeSandboxSession,
+    workspace_id: int,
+    *,
+    format_name: str,
+    primary_path: str,
+    preview_path: str,
+) -> None:
     await write_receipt(
         sandbox,
         VerificationReceipt(
             workspace_id=workspace_id,
             session_id=sandbox.session_id,
-            format="docx",
-            primary_path="/workspace/report.docx",
-            primary_sha256=sha256_bytes(sandbox.files["/workspace/report.docx"]),
-            preview_path="/tmp/report.pdf",
-            preview_sha256=sha256_bytes(sandbox.files["/tmp/report.pdf"]),
+            format=format_name,
+            primary_path=primary_path,
+            primary_sha256=sha256_bytes(sandbox.files[primary_path]),
+            preview_path=preview_path,
+            preview_sha256=sha256_bytes(sandbox.files[preview_path]),
             page_count=1,
             visual="clean",
             issued_at=int(time.time()),
@@ -73,18 +85,39 @@ async def _verify(sandbox: FakeSandboxSession, workspace_id: int) -> None:
     )
 
 
-async def test_docx_tool_create_revise_editor_contract_and_purge(
-    db_session, db_workspace, monkeypatch
+@pytest.mark.parametrize(
+    ("format_name", "mime_type", "source_suffix"),
+    [
+        ("docx", DOCX_MIME, ".js"),
+        ("pptx", PPTX_MIME, ".py"),
+    ],
+)
+async def test_office_tool_create_revise_editor_contract_and_purge(
+    db_session,
+    db_workspace,
+    monkeypatch,
+    format_name,
+    mime_type,
+    source_suffix,
 ):
     backend = MemoryBackend()
+    primary_path = f"/workspace/report.{format_name}"
+    source_path = f"/workspace/report{source_suffix}"
+    preview_path = "/tmp/report.pdf"
     sandbox = FakeSandboxSession(
         {
-            "/workspace/report.docx": _docx_bytes("first"),
-            "/workspace/report.js": b"const version = 1",
-            "/tmp/report.pdf": b"%PDF-preview",
+            primary_path: _office_bytes(format_name, "first"),
+            source_path: b"version = 1",
+            preview_path: b"%PDF-preview",
         }
     )
-    await _verify(sandbox, db_workspace.id)
+    await _verify(
+        sandbox,
+        db_workspace.id,
+        format_name=format_name,
+        primary_path=primary_path,
+        preview_path=preview_path,
+    )
 
     class Registry:
         async def get_session(self, _thread_id, _workspace_id):
@@ -110,32 +143,39 @@ async def test_docx_tool_create_revise_editor_contract_and_purge(
     monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(editor_routes, "check_permission", AsyncMock())
     tool = save_artifact_tool.create_save_artifact_tool(db_workspace.id)
+    runtime = _runtime(format_name)
 
-    sandbox.files["/workspace/report.docx"] = _docx_bytes("changed-before-save")
+    sandbox.files[primary_path] = _office_bytes(format_name, "changed-before-save")
     rejected = await tool.coroutine(
         title="Report",
         markdown_representation="# Report\n\nFirst version",
-        path="/workspace/report.docx",
-        source_path="/workspace/report.js",
-        preview_path="/tmp/report.pdf",
-        runtime=_runtime(),
+        path=primary_path,
+        source_path=source_path,
+        preview_path=preview_path,
+        runtime=runtime,
     )
     assert "changed after verification" in str(rejected)
 
-    await _verify(sandbox, db_workspace.id)
+    await _verify(
+        sandbox,
+        db_workspace.id,
+        format_name=format_name,
+        primary_path=primary_path,
+        preview_path=preview_path,
+    )
     created_command = await tool.coroutine(
         title="Report",
         markdown_representation="# Report\n\nFirst version",
-        path="/workspace/report.docx",
-        source_path="/workspace/report.js",
-        preview_path="/tmp/report.pdf",
-        runtime=_runtime(),
+        path=primary_path,
+        source_path=source_path,
+        preview_path=preview_path,
+        runtime=runtime,
     )
     created = json.loads(created_command.update["messages"][0].content)
     document_id = created["document_id"]
 
     assert [(file["role"], file["mime_type"]) for file in created["files"]] == [
-        ("primary", DOCX_MIME),
+        ("primary", mime_type),
         ("preview", "application/pdf"),
     ]
     response = await editor_routes.get_editor_content(
@@ -146,24 +186,28 @@ async def test_docx_tool_create_revise_editor_contract_and_purge(
     load_tool = load_source_tool.create_load_artifact_source_tool(
         workspace_id=db_workspace.id
     )
-    loaded_path = await load_tool.coroutine(document_id=document_id, runtime=_runtime())
-    assert loaded_path == f"/workspace/artifact-{document_id}-report.js"
-    assert sandbox.files[loaded_path] == b"const version = 1"
+    loaded_path = await load_tool.coroutine(document_id=document_id, runtime=runtime)
+    assert loaded_path == f"/workspace/artifact-{document_id}-report{source_suffix}"
+    assert sandbox.files[loaded_path] == b"version = 1"
 
-    sandbox.files["/workspace/report.docx"] = _docx_bytes("second")
-    sandbox.files["/workspace/report.js"] = (
-        sandbox.files[loaded_path] + b"\nconst version = 2"
+    sandbox.files[primary_path] = _office_bytes(format_name, "second")
+    sandbox.files[source_path] = sandbox.files[loaded_path] + b"\nversion = 2"
+    sandbox.files[preview_path] = b"%PDF-preview-2"
+    await _verify(
+        sandbox,
+        db_workspace.id,
+        format_name=format_name,
+        primary_path=primary_path,
+        preview_path=preview_path,
     )
-    sandbox.files["/tmp/report.pdf"] = b"%PDF-preview-2"
-    await _verify(sandbox, db_workspace.id)
     revised_command = await tool.coroutine(
         title="Report",
         markdown_representation="# Report\n\nSecond version",
-        path="/workspace/report.docx",
-        source_path="/workspace/report.js",
-        preview_path="/tmp/report.pdf",
+        path=primary_path,
+        source_path=source_path,
+        preview_path=preview_path,
         document_id=document_id,
-        runtime=_runtime(),
+        runtime=runtime,
     )
     revised = json.loads(revised_command.update["messages"][0].content)
 
@@ -188,7 +232,7 @@ async def test_docx_tool_create_revise_editor_contract_and_purge(
             DocumentFile.role == "source",
         )
     )
-    assert stored_source.original_filename == "report.js"
+    assert stored_source.original_filename == f"report{source_suffix}"
 
     await purge_document_blobs(
         db_session,
