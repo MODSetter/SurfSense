@@ -3,6 +3,7 @@
 import { useSetAtom } from "jotai";
 import { RefreshCw, Shapes, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
+import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ function EmptyState() {
 
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
+	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openReportPanel = useSetAtom(openReportPanelAtom);
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
 
@@ -75,6 +77,10 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	}, [artifacts]);
 
 	const handleOpen = (artifact: LibraryArtifact) => {
+		if (artifact.kind === "file") {
+			openArtifactPanel({ artifactId: artifact.entityId });
+			return;
+		}
 		// Reports/resumes reuse the shared report panel; the rest open in the dialog.
 		if (artifact.kind === "report" || artifact.kind === "resume") {
 			openReportPanel({

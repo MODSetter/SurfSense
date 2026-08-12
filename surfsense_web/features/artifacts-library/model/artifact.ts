@@ -1,5 +1,5 @@
 /** Deliverable kinds surfaced in the workspace-wide artifacts library. */
-export type LibraryArtifactKind = "report" | "resume" | "podcast" | "video" | "image";
+export type LibraryArtifactKind = "file" | "report" | "resume" | "podcast" | "video" | "image";
 
 export type LibraryArtifactStatus = "ready" | "running" | "error";
 
@@ -17,7 +17,7 @@ export interface LibraryArtifact {
 	status: LibraryArtifactStatus;
 	createdAt: string;
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
-	contentType: "markdown" | "typst";
+	contentType: "file" | "markdown" | "typst";
 	/** Chat thread that produced this artifact, when the source recorded one. */
 	sourceThreadId?: number | null;
 }
