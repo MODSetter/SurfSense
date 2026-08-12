@@ -26,6 +26,7 @@ def knowledge_root(tmp_path, monkeypatch):
 async def test_artifact_is_projected_then_indexed_from_git(
     db_session,
     db_workspace,
+    artifact_thread,
     knowledge_root,
     patched_embed_texts,
     monkeypatch,
@@ -40,7 +41,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=44,
+        thread_id=artifact_thread.id,
         tool_call_id="call-git",
         title="Adoption proof",
         markdown_representation="# Adoption proof\n\nuniquely-searchable-artifact-term",
@@ -51,7 +52,8 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     artifact = await db_session.get(Artifact, saved.artifact_id)
     document = await db_session.get(Document, artifact.document_id)
-    assert document.path == "/documents/Artifacts/Adoption proof.md"
+    assert document.path == "/documents/Adoption proof.md"
+    assert document.folder_id is None
     assert document.document_type == DocumentType.ARTIFACT
     assert DocumentStatus.is_state(document.status, DocumentStatus.PENDING)
     assert (
@@ -62,15 +64,15 @@ async def test_artifact_is_projected_then_indexed_from_git(
     )
 
     store = KnowledgeStore.for_workspace(db_workspace.id).with_session(db_session)
-    copy = await store.open_turn_copy(44)
-    target = copy.path / "documents" / "Artifacts" / "Adoption proof.md"
+    copy = await store.open_turn_copy(artifact_thread.id)
+    target = copy.path / "documents" / "Adoption proof.md"
     assert target.read_text() == "# Adoption proof\n\nuniquely-searchable-artifact-term"
 
     async def describe(_writes, _removes):
         return "artifacts: save adoption proof"
 
     await store.commit_turn(
-        thread_id=44,
+        thread_id=artifact_thread.id,
         author_user_id=str(db_workspace.user_id),
         describe=describe,
     )
@@ -107,7 +109,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
     revised = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=44,
+        thread_id=artifact_thread.id,
         tool_call_id="call-revise",
         title="Renamed proof",
         markdown_representation="# Renamed proof\n\nupdated-artifact-term",
@@ -124,7 +126,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
     assert target.read_text() == "# Renamed proof\n\nupdated-artifact-term"
 
     await store.commit_turn(
-        thread_id=44,
+        thread_id=artifact_thread.id,
         author_user_id=str(db_workspace.user_id),
         describe=describe,
     )
@@ -132,18 +134,19 @@ async def test_artifact_is_projected_then_indexed_from_git(
     artifact = await db_session.get(Artifact, saved.artifact_id)
     document = await db_session.get(Document, artifact.document_id)
     assert document.title == "Renamed proof"
-    assert document.path == "/documents/Artifacts/Adoption proof.md"
+    assert document.path == "/documents/Adoption proof.md"
     assert document.document_type == DocumentType.ARTIFACT
 
-    copy = await store.open_turn_copy(44)
+    copy = await store.open_turn_copy(artifact_thread.id)
     target = copy.path / document.path.removeprefix("/")
     target.unlink()
     await store.commit_turn(
-        thread_id=44,
+        thread_id=artifact_thread.id,
         author_user_id=str(db_workspace.user_id),
         describe=describe,
     )
     await index_changes(db_session, db_workspace.id)
+    db_session.expire_all()
 
     assert await db_session.get(Artifact, saved.artifact_id) is None
     assert not backend.data

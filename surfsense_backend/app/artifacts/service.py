@@ -22,7 +22,6 @@ from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineServ
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.paths import allocate_path
 from app.knowledge_store.settings import knowledge_store_enabled_for
-from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     generate_content_hash,
     generate_unique_identifier_hash,
@@ -121,7 +120,7 @@ async def _allocate_artifact_path(
 
     return allocate_path(
         name=title,
-        folder_parts=("Artifacts",),
+        folder_parts=(),
         taken=taken,
     ).virtual_path
 
@@ -207,12 +206,6 @@ async def save_artifact(
         )
         if created_by_id is None:
             raise ValueError("workspace does not exist")
-        folder_id = await ensure_folder_hierarchy(
-            session,
-            workspace_id=workspace_id,
-            created_by_id=str(created_by_id),
-            folder_parts=["Artifacts"],
-        )
         document = Document(
             title=title,
             document_type=DocumentType.ARTIFACT,
@@ -225,7 +218,7 @@ async def save_artifact(
                 DocumentType.NOTE, path, workspace_id
             ),
             workspace_id=workspace_id,
-            folder_id=folder_id,
+            folder_id=None,
             created_by_id=created_by_id,
             status=DocumentStatus.pending(),
             updated_at=now,

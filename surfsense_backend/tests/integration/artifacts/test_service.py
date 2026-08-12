@@ -58,12 +58,12 @@ def artifact_setup(monkeypatch, patched_embed_texts):
 
 
 async def test_markdown_artifact_payload_and_fences(
-    db_session, db_workspace, artifact_setup
+    db_session, db_workspace, artifact_thread, artifact_setup
 ):
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-1",
         title="Project brief",
         markdown_representation="# Project brief\n\nBody",
@@ -78,7 +78,8 @@ async def test_markdown_artifact_payload_and_fences(
     assert artifact.created_by_tool_call_id == "call-1"
     assert artifact.updated_by_tool_call_id == "call-1"
     assert document.title == "Project brief"
-    assert document.path == "/documents/Artifacts/Project brief.md"
+    assert document.path == "/documents/Project brief.md"
+    assert document.folder_id is None
     assert document.source_markdown == "# Project brief\n\nBody"
     assert document.document_type == DocumentType.ARTIFACT
     assert document.document_metadata == {"artifact_id": artifact.id}
@@ -86,13 +87,13 @@ async def test_markdown_artifact_payload_and_fences(
 
 
 async def test_binary_create_and_revision_replace_files(
-    db_session, db_workspace, artifact_setup
+    db_session, db_workspace, artifact_thread, artifact_setup
 ):
     backend = artifact_setup
     created = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-1",
         title="Seeded PDF",
         markdown_representation="# Seeded PDF",
@@ -122,7 +123,7 @@ async def test_binary_create_and_revision_replace_files(
     revised = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-2",
         title="Retitled PDF",
         markdown_representation="# Retitled",
@@ -176,7 +177,7 @@ async def test_binary_create_and_revision_replace_files(
 
 
 async def test_storage_failure_rolls_back_document_and_blob(
-    db_session, db_workspace, monkeypatch
+    db_session, db_workspace, artifact_thread, monkeypatch
 ):
     backend = MemoryBackend(fail_on_put=2)
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
@@ -188,7 +189,7 @@ async def test_storage_failure_rolls_back_document_and_blob(
         await save_artifact(
             db_session,
             workspace_id=db_workspace.id,
-            thread_id=10,
+            thread_id=artifact_thread.id,
             tool_call_id="call-fail",
             title="Must rollback",
             markdown_representation="# Rollback",
@@ -210,13 +211,13 @@ async def test_storage_failure_rolls_back_document_and_blob(
 
 
 async def test_failed_revision_keeps_previous_generation(
-    db_session, db_workspace, artifact_setup, monkeypatch
+    db_session, db_workspace, artifact_thread, artifact_setup, monkeypatch
 ):
     backend = artifact_setup
     created = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-1",
         title="Stable",
         markdown_representation="# Stable",
@@ -229,7 +230,7 @@ async def test_failed_revision_keeps_previous_generation(
         await save_artifact(
             db_session,
             workspace_id=db_workspace.id,
-            thread_id=10,
+            thread_id=artifact_thread.id,
             tool_call_id="call-2",
             title="Broken revision",
             markdown_representation="# Broken",
@@ -259,7 +260,7 @@ async def test_failed_revision_keeps_previous_generation(
 
 
 async def test_direct_reindex_preserves_unchanged_chunk_ids(
-    db_session, db_workspace, patched_embed_texts, monkeypatch
+    db_session, db_workspace, artifact_thread, patched_embed_texts, monkeypatch
 ):
     del patched_embed_texts
     backend = MemoryBackend()
@@ -271,10 +272,10 @@ async def test_direct_reindex_preserves_unchanged_chunk_ids(
     created = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-1",
         title="Incremental",
-        markdown_representation=f"# First\n\n{table}",
+        markdown_representation=f"# First\n\n{table}\n",
         files=[],
     )
     artifact = await db_session.get(Artifact, created.artifact_id)
@@ -289,10 +290,10 @@ async def test_direct_reindex_preserves_unchanged_chunk_ids(
     await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-2",
         title="Retitled",
-        markdown_representation=f"# Revised\n\nNew introduction.\n\n{table}",
+        markdown_representation=f"# Revised\n\nNew introduction.\n\n{table}\n",
         artifact_id=created.artifact_id,
         expected_generation=created.generation,
         files=[],
@@ -308,12 +309,12 @@ async def test_direct_reindex_preserves_unchanged_chunk_ids(
 
 
 async def test_identical_markdown_creates_distinct_artifact_documents(
-    db_session, db_workspace, artifact_setup
+    db_session, db_workspace, artifact_thread, artifact_setup
 ):
     first = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-1",
         title="First identity",
         markdown_representation="# Identical",
@@ -322,7 +323,7 @@ async def test_identical_markdown_creates_distinct_artifact_documents(
     second = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-2",
         title="Second identity",
         markdown_representation="# Identical",
@@ -364,13 +365,18 @@ async def test_identical_markdown_creates_distinct_artifact_documents(
 
 @pytest.mark.parametrize("deletion_path", ["delete", "prune"])
 async def test_document_deletion_paths_purge_artifact_blobs(
-    db_session, db_workspace, artifact_setup, monkeypatch, deletion_path
+    db_session,
+    db_workspace,
+    artifact_thread,
+    artifact_setup,
+    monkeypatch,
+    deletion_path,
 ):
     backend = artifact_setup
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id=f"call-{deletion_path}",
         title=f"Purge by {deletion_path}",
         markdown_representation="# Purge",
@@ -393,6 +399,7 @@ async def test_document_deletion_paths_purge_artifact_blobs(
     else:
         assert await prune(db_session, owned, set()) == 1
     await db_session.commit()
+    db_session.expire_all()
 
     assert not backend.data
     assert await db_session.get(Document, document_id) is None
@@ -402,6 +409,7 @@ async def test_document_deletion_paths_purge_artifact_blobs(
 async def test_non_git_index_failure_keeps_artifact_and_can_be_retried(
     db_session,
     db_workspace,
+    artifact_thread,
     patched_embed_texts_raises,
     monkeypatch,
 ):
@@ -415,7 +423,7 @@ async def test_non_git_index_failure_keeps_artifact_and_can_be_retried(
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=10,
+        thread_id=artifact_thread.id,
         tool_call_id="call-failed-index",
         title="Retryable",
         markdown_representation="# Retryable\n\nEmbedding outage",
