@@ -1,32 +1,26 @@
-"""Write-through persistence for generated artifacts."""
+"""Transactional write-through persistence for generated artifacts."""
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import delete as sa_delete, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import Document, DocumentStatus, DocumentType
+from app.artifacts.indexing import index_artifact
+from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
+from app.artifacts.storage import store_artifact_file
 from app.file_storage.factory import get_storage_backend
-from app.file_storage.persistence.enums import DocumentFileKind
-from app.file_storage.persistence.models import DocumentFile
-from app.file_storage.service import store_document_file
-from app.indexing_pipeline.connector_document import ConnectorDocument
-from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.paths import StorePath, allocate_path
+from app.knowledge_store.paths.naming import normalize_filename
 from app.knowledge_store.settings import knowledge_store_enabled_for
-from app.utils.document_converters import (
-    generate_content_hash,
-    generate_unique_identifier_hash,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -51,27 +45,55 @@ class ArtifactSavedFile:
 @dataclass(frozen=True)
 class ArtifactSaved:
     status: str
-    document_id: int
+    artifact_id: int
+    generation: int
     title: str
+    path: str
     files: list[ArtifactSavedFile]
 
 
-def _validate_files(files: list[ArtifactFileInput]) -> None:
-    roles = [file.role for file in files]
-    if any(role not in {"primary", "preview", "source"} for role in roles):
-        raise ValueError("artifact file role must be 'primary', 'preview', or 'source'")
+def _validated_files(
+    files: list[ArtifactFileInput],
+) -> list[tuple[ArtifactFileInput, ArtifactFileRole]]:
+    try:
+        validated = [(file, ArtifactFileRole(file.role)) for file in files]
+    except ValueError:
+        raise ValueError(
+            "artifact file role must be 'primary', 'preview', or 'source'"
+        ) from None
+    roles = [role for _, role in validated]
     if len(roles) != len(set(roles)):
         raise ValueError("an artifact may contain at most one file per role")
+    return validated
+
+
+def _validate_files(files: list[ArtifactFileInput]) -> None:
+    """Compatibility validation seam used by focused unit tests."""
+    _validated_files(files)
+
+
+def _artifact_format(files: list[tuple[ArtifactFileInput, ArtifactFileRole]]) -> str:
+    primary = next(
+        (file for file, role in files if role is ArtifactFileRole.PRIMARY), None
+    )
+    if primary is None:
+        return "markdown"
+    suffix = Path(primary.filename).suffix.lower().lstrip(".")
+    return suffix or primary.mime_type.split("/", 1)[-1]
+
+
+def _content_hash(markdown: str) -> str:
+    return hashlib.sha256(markdown.encode("utf-8")).hexdigest()
 
 
 async def _working_copy_paths(root: Path) -> set[str]:
     def collect() -> set[str]:
-        documents = root / "documents"
-        if not documents.exists():
+        artifacts = root / "artifacts"
+        if not artifacts.exists():
             return set()
         return {
             "/" + path.relative_to(root).as_posix()
-            for path in documents.rglob("*")
+            for path in artifacts.rglob("*")
             if path.is_file()
         }
 
@@ -84,39 +106,33 @@ async def _allocate_artifact_path(
     workspace_id: int,
     title: str,
     working_copy_root: Path | None,
-) -> StorePath:
+) -> str:
     paths = await session.scalars(
-        select(Document.path).where(
-            Document.workspace_id == workspace_id,
-            Document.path.is_not(None),
-        )
+        select(Artifact.path).where(Artifact.workspace_id == workspace_id)
     )
     taken = set(paths)
     if working_copy_root is not None:
         taken.update(await _working_copy_paths(working_copy_root))
 
-    while True:
-        path = allocate_path(name=title, folder_parts=(), taken=taken)
-        path_hash = generate_unique_identifier_hash(
-            DocumentType.NOTE, path.virtual_path, workspace_id
-        )
-        collision = await session.scalar(
-            select(Document.id).where(Document.unique_identifier_hash == path_hash)
-        )
-        if collision is None:
-            return path
+    filename = normalize_filename(title)
+    if not filename.lower().endswith(".md"):
+        filename = f"{filename}.md"
+    candidate = f"/artifacts/{filename}"
+    if candidate not in taken:
+        return candidate
 
-
-def _path_for_revision(document: Document) -> StorePath:
-    if document.path:
-        return StorePath.from_virtual(document.path)
-    raise ValueError("artifact path has not been recorded yet")
+    stem, dot, extension = filename.rpartition(".")
+    base, suffix = (stem, f".{extension}") if dot else (filename, "")
+    counter = 2
+    while f"/artifacts/{base} ({counter}){suffix}" in taken:
+        counter += 1
+    return f"/artifacts/{base} ({counter}){suffix}"
 
 
 async def _write_working_copy(
-    root: Path, path: StorePath, markdown: str
+    root: Path, path: str, markdown: str
 ) -> tuple[Path, bytes | None]:
-    target = root / path.store_path
+    target = root / path.removeprefix("/")
 
     def write() -> tuple[Path, bytes | None]:
         previous = target.read_bytes() if target.exists() else None
@@ -137,160 +153,144 @@ async def _restore_working_copy(target: Path, previous: bytes | None) -> None:
     await asyncio.to_thread(restore)
 
 
-async def _delete_blobs_best_effort(records: list[DocumentFile]) -> None:
+async def _delete_blobs_best_effort(records: list[ArtifactFile]) -> None:
     for record in records:
         try:
             await get_storage_backend(record.storage_backend).delete(record.storage_key)
         except Exception:
             logger.warning(
-                "Failed to delete replaced artifact blob %s",
+                "Failed to delete artifact blob %s",
                 record.storage_key,
                 exc_info=True,
             )
-
-
-async def _index_legacy(
-    session: AsyncSession,
-    *,
-    document: Document,
-    path: StorePath,
-    markdown: str,
-) -> None:
-    indexed = await IndexingPipelineService(session).index(
-        document,
-        ConnectorDocument(
-            title=document.title,
-            source_markdown=markdown,
-            unique_id=path.virtual_path,
-            document_type=DocumentType.NOTE,
-            workspace_id=document.workspace_id,
-            created_by_id=str(document.created_by_id or "artifact-agent"),
-            metadata=document.document_metadata or {},
-            folder_id=document.folder_id,
-        ),
-    )
-    if not DocumentStatus.is_state(indexed.status, DocumentStatus.READY):
-        raise RuntimeError(
-            (indexed.status or {}).get("reason") or "artifact indexing failed"
-        )
 
 
 async def save_artifact(
     session: AsyncSession,
     *,
     workspace_id: int,
-    thread_id: int | str | None,
+    thread_id: int | None,
     tool_call_id: str,
     title: str,
     markdown_representation: str,
     files: list[ArtifactFileInput],
-    document_id: int | None = None,
+    artifact_id: int | None = None,
+    expected_generation: int | None = None,
     extra_metadata: dict[str, Any] | None = None,
 ) -> ArtifactSaved:
-    """Create or replace an artifact and make it durable before returning."""
+    """Create or revise an artifact atomically and return its stable identity."""
     title = title.strip()
     if not title:
         raise ValueError("artifact title must not be empty")
     if not markdown_representation.strip():
         raise ValueError("artifact content must not be empty")
-    _validate_files(files)
+    validated_files = _validated_files(files)
 
-    git_native = await knowledge_store_enabled_for(workspace_id)
     working_copy_root: Path | None = None
-    if git_native:
+    if await knowledge_store_enabled_for(workspace_id):
         working_copy_root = (
             await KnowledgeStore.for_workspace(workspace_id).open_turn_copy(thread_id)
         ).path
 
-    old_files: list[DocumentFile] = []
-    if document_id is None:
+    old_files: list[ArtifactFile] = []
+    now = datetime.now(UTC)
+    if artifact_id is None:
+        if expected_generation is not None:
+            raise ValueError(
+                "expected_generation is only valid when revising an artifact"
+            )
         path = await _allocate_artifact_path(
             session,
             workspace_id=workspace_id,
             title=title,
             working_copy_root=working_copy_root,
         )
-        document = Document(
-            title=title,
-            document_type=DocumentType.NOTE,
-            document_metadata={
-                **(extra_metadata or {}),
-                "generated": True,
-                "thread_id": thread_id,
-                "tool_call_id": tool_call_id,
-            },
-            path=path.virtual_path,
-            content=markdown_representation,
-            content_hash=generate_content_hash(markdown_representation, workspace_id),
-            unique_identifier_hash=generate_unique_identifier_hash(
-                DocumentType.NOTE, path.virtual_path, workspace_id
-            ),
-            source_markdown=markdown_representation,
+        artifact = Artifact(
             workspace_id=workspace_id,
-            status=DocumentStatus.ready(),
-            updated_at=datetime.now(UTC),
+            thread_id=thread_id,
+            title=title,
+            format=_artifact_format(validated_files),
+            search_content=markdown_representation,
+            path=path,
+            content_hash=_content_hash(markdown_representation),
+            generation=1,
+            indexing_status="pending",
+            created_by_tool_call_id=tool_call_id,
+            updated_by_tool_call_id=tool_call_id,
+            artifact_metadata=extra_metadata,
+            updated_at=now,
         )
-        session.add(document)
+        session.add(artifact)
         await session.flush()
     else:
-        document = await session.scalar(
-            select(Document)
-            .options(selectinload(Document.files))
+        artifact = await session.scalar(
+            select(Artifact)
+            .options(selectinload(Artifact.files))
             .where(
-                Document.id == document_id,
-                Document.workspace_id == workspace_id,
+                Artifact.id == artifact_id,
+                Artifact.workspace_id == workspace_id,
             )
+            .with_for_update()
         )
-        if document is None or not (document.document_metadata or {}).get("generated"):
+        if artifact is None:
             raise ValueError("artifact does not exist in this workspace")
-        path = _path_for_revision(document)
-        old_files = list(document.files)
-        document.title = title
-        document.content = markdown_representation
-        document.content_hash = generate_content_hash(
-            markdown_representation, workspace_id
-        )
-        document.source_markdown = markdown_representation
-        document.document_metadata = {
-            **(document.document_metadata or {}),
+        if expected_generation is None:
+            raise ValueError(
+                "expected_generation is required when revising an artifact"
+            )
+        if artifact.generation != expected_generation:
+            raise ValueError(
+                "artifact was revised by another operation; load its source again"
+            )
+        old_files = list(artifact.files)
+        artifact.title = title
+        artifact.format = _artifact_format(validated_files)
+        artifact.search_content = markdown_representation
+        artifact.content_hash = _content_hash(markdown_representation)
+        artifact.generation += 1
+        artifact.indexing_status = "pending"
+        artifact.indexing_error = None
+        artifact.updated_by_tool_call_id = tool_call_id
+        artifact.artifact_metadata = {
+            **(artifact.artifact_metadata or {}),
             **(extra_metadata or {}),
-            "generated": True,
-            "thread_id": thread_id,
-            "tool_call_id": tool_call_id,
         }
-        document.updated_at = datetime.now(UTC)
+        artifact.updated_at = now
         if old_files:
-            # Queued ORM deletes flush after the INSERTs below and would
-            # trip uq_document_files_generated_role.
             await session.execute(
-                sa_delete(DocumentFile).where(
-                    DocumentFile.id.in_([file.id for file in old_files])
+                delete(ArtifactFile).where(
+                    ArtifactFile.id.in_([file.id for file in old_files])
                 )
             )
 
     backend = get_storage_backend()
-    new_records: list[DocumentFile] = []
+    new_records: list[ArtifactFile] = []
     working_copy_state: tuple[Path, bytes | None] | None = None
     try:
-        for file in files:
-            record = await store_document_file(
+        for file, role in validated_files:
+            record = await store_artifact_file(
                 session,
-                document_id=document.id,
+                artifact_id=artifact.id,
                 workspace_id=workspace_id,
+                role=role,
                 data=file.data,
                 filename=file.filename,
                 mime_type=file.mime_type,
-                kind=DocumentFileKind.GENERATED,
-                role=file.role,
                 backend=backend,
             )
             new_records.append(record)
         await session.flush()
-
         if working_copy_root is not None:
             working_copy_state = await _write_working_copy(
-                working_copy_root, path, markdown_representation
+                working_copy_root, artifact.path, markdown_representation
             )
+        else:
+            await index_artifact(
+                session,
+                artifact=artifact,
+                markdown=markdown_representation,
+            )
+            await session.flush()
         await session.commit()
     except Exception:
         await session.rollback()
@@ -300,28 +300,21 @@ async def save_artifact(
         raise
 
     await _delete_blobs_best_effort(old_files)
-
-    if not git_native:
-        await _index_legacy(
-            session,
-            document=document,
-            path=path,
-            markdown=markdown_representation,
-        )
-
     return ArtifactSaved(
         status="saved",
-        document_id=document.id,
-        title=document.title,
+        artifact_id=artifact.id,
+        generation=artifact.generation,
+        title=artifact.title,
+        path=artifact.path,
         files=[
             ArtifactSavedFile(
                 file_id=record.id,
-                role=record.role,
+                role=record.role.value,
                 filename=record.original_filename,
                 mime_type=record.mime_type or "application/octet-stream",
                 size_bytes=record.size_bytes,
             )
             for record in new_records
-            if record.role != "source"
+            if record.role is not ArtifactFileRole.SOURCE
         ],
     )
