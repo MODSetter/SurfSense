@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -43,5 +43,29 @@ class DocumentHit:
     score: float
     chunks: list[ChunkHit] = field(default_factory=list)
 
+    @property
+    def source_key(self) -> tuple[Literal["document"], int]:
+        return ("document", self.document_id)
 
-__all__ = ["ChunkHit", "DocumentHit", "SearchScope"]
+
+@dataclass(frozen=True)
+class ArtifactHit:
+    """An artifact and the chunks that matched the query, ordered by position."""
+
+    artifact_id: int
+    title: str
+    format: str
+    path: str
+    metadata: dict[str, Any]
+    score: float
+    chunks: list[ChunkHit] = field(default_factory=list)
+
+    @property
+    def source_key(self) -> tuple[Literal["artifact"], int]:
+        return ("artifact", self.artifact_id)
+
+
+KnowledgeHit = DocumentHit | ArtifactHit
+
+
+__all__ = ["ArtifactHit", "ChunkHit", "DocumentHit", "KnowledgeHit", "SearchScope"]

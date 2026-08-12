@@ -6,12 +6,14 @@ Public surface is ``build_context`` (rerank → adapt → render) and the
 
 from __future__ import annotations
 
-from .models import ChunkHit, DocumentHit, SearchScope
+from .models import ArtifactHit, ChunkHit, DocumentHit, KnowledgeHit, SearchScope
 from .service import build_context
 
 __all__ = [
+    "ArtifactHit",
     "ChunkHit",
     "DocumentHit",
+    "KnowledgeHit",
     "SearchScope",
     "build_context",
 ]

@@ -2,8 +2,8 @@
 
 The tail of the retrieval spine: rerank → adapt → render, registering each
 shown passage for ``[n]`` citation. Hybrid search itself lives in
-``hybrid_search``; callers (the ``search_knowledge_base`` tool) pass its hits
-straight into :func:`build_context`.
+``hybrid_search``; callers (the ``search_knowledge_base`` tool) pass its
+source-qualified hits straight into :func:`build_context`.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from app.agents.chat.multi_agent_chat.shared.document_render import (
 )
 
 from .adapter import to_renderable_document
-from .models import DocumentHit
+from .models import KnowledgeHit
 from .reranking import rerank_hits
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 def build_context(
     query: str,
-    hits: list[DocumentHit],
+    hits: list[KnowledgeHit],
     registry: CitationRegistry,
     *,
     reranker: RerankerService | None = None,
