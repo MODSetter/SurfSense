@@ -89,7 +89,7 @@ function ArtifactCard({
 }) {
 	const openPanel = useSetAtom(openArtifactPanelAtom);
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
-	const isDesktop = useMediaQuery("(min-width: 768px)");
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const openedRef = useRef(false);
 	const canDownload = !publicRoute && Number.isFinite(workspaceId) && workspaceId > 0;
 	const { data: current } = useQuery({

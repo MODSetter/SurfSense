@@ -1,14 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Dot, FileWarning, RefreshCw, XIcon } from "lucide-react";
 import { useState } from "react";
+import {
+	artifactPanelAtom,
+	closeArtifactPanelAtom,
+} from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 import { artifactManifestQueryOptions } from "./artifact-query";
 import { artifactDownloadPath } from "./download-file";
@@ -23,7 +29,7 @@ function artifactFilename(manifest: ArtifactManifest | undefined): string | null
 	return primary?.filename ?? `${manifest.title}.md`;
 }
 
-export function ArtifactPanelContent({
+export function ArtifactViewerContent({
 	artifactId,
 	onClose,
 }: {
@@ -85,7 +91,7 @@ export function ArtifactPanelContent({
 							className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 						>
 							<XIcon className="size-4" />
-							<span className="sr-only">Close artifact panel</span>
+							<span className="sr-only">Close artifact viewer</span>
 						</Button>
 					</div>
 				</div>
@@ -129,6 +135,39 @@ export function ArtifactPanelContent({
 				) : null}
 			</div>
 		</div>
+	);
+}
+
+/** Vaul artifact drawer for viewports where the desktop right panel is unavailable. */
+export function MobileArtifactDrawer() {
+	const panelState = useAtomValue(artifactPanelAtom);
+	const closePanel = useSetAtom(closeArtifactPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (isDesktop || !panelState.isOpen || !panelState.artifactId) return null;
+
+	return (
+		<Drawer
+			open={panelState.isOpen}
+			onOpenChange={(open) => {
+				if (!open) closePanel();
+			}}
+			shouldScaleBackground={false}
+		>
+			<DrawerContent
+				className="h-[90vh] max-h-[90vh] z-80 overflow-hidden bg-sidebar"
+				overlayClassName="z-80"
+			>
+				<DrawerHandle />
+				<DrawerTitle className="sr-only">Artifact</DrawerTitle>
+				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+					<ArtifactViewerContent
+						artifactId={panelState.artifactId}
+						onClose={closePanel}
+					/>
+				</div>
+			</DrawerContent>
+		</Drawer>
 	);
 }
 

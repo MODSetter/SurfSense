@@ -32,12 +32,14 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 
 	const handleOpen = () => {
 		if (artifact.kind === "file" && artifact.entityId != null) {
+			if (!isDesktop) closeArtifactsPanel();
 			openArtifactPanel({ artifactId: artifact.entityId });
 			scrollToArtifact(artifact.toolCallId);
 			return;
 		}
 		// Reports/resumes open in the report viewer, which claims the tab itself.
 		if (isReportLike && artifact.entityId != null) {
+			if (!isDesktop) closeArtifactsPanel();
 			openReportPanel({
 				reportId: artifact.entityId,
 				title: artifact.title,

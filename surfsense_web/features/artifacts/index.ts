@@ -1,2 +1,2 @@
-export { ArtifactPanelContent } from "./artifact-panel";
+export { ArtifactViewerContent, MobileArtifactDrawer } from "./artifact-panel";
 export type { ArtifactFile, ArtifactListItem, ArtifactManifest } from "./model";

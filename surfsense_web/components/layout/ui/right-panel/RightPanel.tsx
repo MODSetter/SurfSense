@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { artifactsPanelOpenAtom, closeArtifactsPanelAtom } from "@/features/chat-artifacts";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { DocumentRightPanel } from "./DocumentRightPanel";
 
@@ -62,10 +63,10 @@ const ReportPanelContent = dynamic(
 	{ ssr: false, loading: () => null }
 );
 
-const ArtifactPanelContent = dynamic(
+const ArtifactViewerContent = dynamic(
 	() =>
 		import("@/features/artifacts").then((m) => ({
-			default: m.ArtifactPanelContent,
+			default: m.ArtifactViewerContent,
 		})),
 	{ ssr: false, loading: () => null }
 );
@@ -108,9 +109,12 @@ export function RightPanelToggleButton({
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
-	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
+	const artifactsPanelOpen = useAtomValue(artifactsPanelOpenAtom);
+	const supportsArtifactPanel = useMediaQuery("(min-width: 1024px)");
+	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const artifactOpen = artifactState.isOpen && !!artifactState.artifactId;
+	const artifactOpen =
+		supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
 		(editorState.kind === "document"
@@ -226,14 +230,17 @@ export function RightPanel({
 	const closeHitlEdit = useSetAtom(closeHitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
 	const closeCitation = useSetAtom(closeCitationPanelAtom);
-	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
+	const artifactsPanelOpen = useAtomValue(artifactsPanelOpenAtom);
 	const closeArtifacts = useSetAtom(closeArtifactsPanelAtom);
 	const collapsed = useAtomValue(rightPanelCollapsedAtom);
 	const reduceMotion = useReducedMotion();
+	const supportsArtifactPanel = useMediaQuery("(min-width: 1024px)");
+	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const artifactOpen = artifactState.isOpen && !!artifactState.artifactId;
+	const artifactOpen =
+		supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
 		(editorState.kind === "document"
@@ -346,7 +353,7 @@ export function RightPanel({
 							)}
 							{effectiveTab === "artifact" && artifactOpen && (
 								<div className="h-full flex flex-col">
-									<ArtifactPanelContent
+									<ArtifactViewerContent
 										artifactId={artifactState.artifactId as number}
 										onClose={closeArtifact}
 									/>
