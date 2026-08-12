@@ -6,10 +6,19 @@ import { cannotPreviewMessage } from "./file-format";
 import { UnviewableArtifact } from "./unviewable-artifact";
 import type { ArtifactFileViewerProps } from "./viewer-registry";
 
-export default function PdfPreviewViewer({ primary, files }: ArtifactFileViewerProps) {
+export default function PdfPreviewViewer({
+	primary,
+	files,
+	zoomControlsContainer,
+}: ArtifactFileViewerProps) {
 	const preview = files.find((file) => file.role === "preview");
 	if (!preview) {
 		return <UnviewableArtifact message={cannotPreviewMessage(primary.filename)} />;
 	}
-	return <PdfViewer pdfUrl={buildBackendUrl(preview.content_url)} />;
+	return (
+		<PdfViewer
+			pdfUrl={buildBackendUrl(preview.content_url)}
+			zoomControlsContainer={zoomControlsContainer}
+		/>
+	);
 }

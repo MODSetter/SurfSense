@@ -4,6 +4,7 @@ import { ZoomInIcon, ZoomOutIcon } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import * as pdfjsLib from "pdfjs-dist";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch } from "@/lib/auth-fetch";
@@ -18,6 +19,8 @@ interface PdfViewerProps {
 	isPublic?: boolean;
 	/** Extra actions rendered on the right side of the zoom toolbar (e.g. download, version switcher) */
 	toolbarActions?: ReactNode;
+	/** Optional panel-header target for zoom controls. Passing null reserves it while it mounts. */
+	zoomControlsContainer?: HTMLElement | null;
 }
 
 interface PageDimensions {
@@ -32,7 +35,12 @@ const PAGE_GAP = 12;
 const SCROLL_DEBOUNCE_MS = 30;
 const BUFFER_PAGES = 1;
 
-export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewerProps) {
+export function PdfViewer({
+	pdfUrl,
+	isPublic = false,
+	toolbarActions,
+	zoomControlsContainer,
+}: PdfViewerProps) {
 	const [numPages, setNumPages] = useState(0);
 	const [scale, setScale] = useState(1);
 	const [fitWidth, setFitWidth] = useState(true);
@@ -305,6 +313,31 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 		setScale((prev) => Math.max(MIN_ZOOM, +(prev - ZOOM_STEP).toFixed(2)));
 	}, []);
 
+	const zoomControls = (
+		<div className="flex items-center gap-1">
+			<Button
+				variant="ghost"
+				size="icon"
+				onClick={zoomOut}
+				disabled={scale <= MIN_ZOOM}
+				className="size-6 shrink-0 rounded-full text-muted-foreground"
+			>
+				<ZoomOutIcon className="size-4" />
+				<span className="sr-only">Zoom out</span>
+			</Button>
+			<Button
+				variant="ghost"
+				size="icon"
+				onClick={zoomIn}
+				disabled={scale >= MAX_ZOOM}
+				className="size-6 shrink-0 rounded-full text-muted-foreground"
+			>
+				<ZoomInIcon className="size-4" />
+				<span className="sr-only">Zoom in</span>
+			</Button>
+		</div>
+	);
+
 	if (loadError) {
 		return (
 			<div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
@@ -316,37 +349,18 @@ export function PdfViewer({ pdfUrl, isPublic = false, toolbarActions }: PdfViewe
 
 	return (
 		<div className="flex flex-col h-full">
-			{numPages > 0 && (
+			{numPages > 0 && zoomControlsContainer
+				? createPortal(zoomControls, zoomControlsContainer)
+				: null}
+			{numPages > 0 && zoomControlsContainer === undefined ? (
 				<div
 					className={`flex items-center px-4 py-2 border-b shrink-0 select-none ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
 				>
 					<div className="flex-1" aria-hidden="true" />
-					<div className="flex items-center justify-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={zoomOut}
-							disabled={scale <= MIN_ZOOM}
-							className="size-7"
-						>
-							<ZoomOutIcon className="size-4" />
-						</Button>
-						<span className="text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
-							{Math.round(scale * 100)}%
-						</span>
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={zoomIn}
-							disabled={scale >= MAX_ZOOM}
-							className="size-7"
-						>
-							<ZoomInIcon className="size-4" />
-						</Button>
-					</div>
+					{zoomControls}
 					<div className="flex flex-1 items-center justify-end gap-1">{toolbarActions}</div>
 				</div>
-			)}
+			) : null}
 
 			<div
 				ref={scrollContainerRef}

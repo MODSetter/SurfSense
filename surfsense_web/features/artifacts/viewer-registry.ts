@@ -7,6 +7,7 @@ import type { ArtifactFile } from "./model";
 export interface ArtifactFileViewerProps {
 	primary: ArtifactFile;
 	files: ArtifactFile[];
+	zoomControlsContainer?: HTMLElement | null;
 }
 
 const PdfFileViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-file-viewer"), {

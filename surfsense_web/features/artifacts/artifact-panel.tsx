@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Dot, FileWarning, RefreshCw, XIcon } from "lucide-react";
+import { useState } from "react";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ export function ArtifactPanelContent({
 	const downloadFilename = artifactFilename(content);
 	const primary = content?.files.find((file) => file.role === "primary");
 	const artifactType = primary?.filename ?? (content ? "Markdown" : undefined);
+	const [zoomControlsContainer, setZoomControlsContainer] = useState<HTMLDivElement | null>(null);
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
@@ -62,6 +64,7 @@ export function ArtifactPanelContent({
 						) : null}
 					</div>
 					<div className="flex items-center gap-1">
+						<div ref={setZoomControlsContainer} className="flex items-center gap-1" />
 						{downloadFilename ? (
 							<>
 								<ArtifactDownloadButton
@@ -122,21 +125,31 @@ export function ArtifactPanelContent({
 						/>
 					</div>
 				) : content ? (
-					<FileArtifact content={content} />
+					<FileArtifact content={content} zoomControlsContainer={zoomControlsContainer} />
 				) : null}
 			</div>
 		</div>
 	);
 }
 
-function FileArtifact({ content }: { content: ArtifactManifest }) {
+function FileArtifact({
+	content,
+	zoomControlsContainer,
+}: {
+	content: ArtifactManifest;
+	zoomControlsContainer: HTMLElement | null;
+}) {
 	const primary = content.files.find((file) => file.role === "primary");
 	if (!primary) {
 		return <UnviewableArtifact message="This artifact has no primary file." />;
 	}
 	const Viewer = VIEWERS[primary.mime_type];
 	return Viewer ? (
-		<Viewer primary={primary} files={content.files} />
+		<Viewer
+			primary={primary}
+			files={content.files}
+			zoomControlsContainer={zoomControlsContainer}
+		/>
 	) : (
 		<UnviewableArtifact message={cannotPreviewMessage(primary.filename)} />
 	);
