@@ -44,12 +44,12 @@ def upgrade() -> None:
                 REFERENCES "user"(id) ON DELETE SET NULL,
             title VARCHAR NOT NULL,
             format VARCHAR NOT NULL,
-            search_content TEXT NOT NULL,
+            markdown_representation TEXT NOT NULL,
             path VARCHAR NOT NULL,
-            content_hash VARCHAR(64) NOT NULL,
-            summary_embedding vector({EMBEDDING_DIM}),
-            generation INTEGER NOT NULL DEFAULT 1,
-            indexed_generation INTEGER,
+            markdown_hash VARCHAR(64) NOT NULL,
+            markdown_embedding vector({EMBEDDING_DIM}),
+            version INTEGER NOT NULL DEFAULT 1,
+            indexed_version INTEGER,
             indexing_status VARCHAR(32) NOT NULL DEFAULT 'pending',
             indexing_error TEXT,
             created_by_tool_call_id VARCHAR(255),
@@ -57,12 +57,12 @@ def upgrade() -> None:
             metadata JSONB,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-            CONSTRAINT ck_artifacts_generation_positive CHECK (generation > 0),
-            CONSTRAINT ck_artifacts_indexed_generation_valid CHECK (
-                indexed_generation IS NULL
+            CONSTRAINT ck_artifacts_version_positive CHECK (version > 0),
+            CONSTRAINT ck_artifacts_indexed_version_valid CHECK (
+                indexed_version IS NULL
                 OR (
-                    indexed_generation > 0
-                    AND indexed_generation <= generation
+                    indexed_version > 0
+                    AND indexed_version <= version
                 )
             ),
             CONSTRAINT uq_artifacts_workspace_path UNIQUE (workspace_id, path)
@@ -73,14 +73,14 @@ def upgrade() -> None:
         "CREATE INDEX ix_artifacts_workspace_id ON artifacts(workspace_id)",
         "CREATE INDEX ix_artifacts_thread_id ON artifacts(thread_id)",
         "CREATE INDEX ix_artifacts_created_by_id ON artifacts(created_by_id)",
-        "CREATE INDEX ix_artifacts_content_hash ON artifacts(content_hash)",
+        "CREATE INDEX ix_artifacts_markdown_hash ON artifacts(markdown_hash)",
         "CREATE INDEX ix_artifacts_indexing_status ON artifacts(indexing_status)",
         "CREATE INDEX ix_artifacts_created_at ON artifacts(created_at)",
         "CREATE INDEX ix_artifacts_updated_at ON artifacts(updated_at)",
         "CREATE INDEX artifacts_vector_index ON artifacts USING hnsw "
-        "(summary_embedding public.vector_cosine_ops)",
+        "(markdown_embedding public.vector_cosine_ops)",
         "CREATE INDEX artifacts_search_index ON artifacts USING gin "
-        "(to_tsvector('english', search_content))",
+        "(to_tsvector('english', markdown_representation))",
     ):
         op.execute(statement)
     op.execute(

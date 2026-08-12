@@ -102,7 +102,7 @@ async def list_artifacts(
             "artifact_id": artifact.id,
             "title": artifact.title,
             "format": artifact.format,
-            "generation": artifact.generation,
+            "version": artifact.version,
             "indexing_status": artifact.indexing_status,
             "thread_id": artifact.thread_id,
             "created_at": artifact.created_at.isoformat(),
@@ -134,14 +134,14 @@ async def resolve_artifact_chunk(
                 ArtifactChunk.end_line,
                 Artifact.id.label("artifact_id"),
                 Artifact.title,
-                Artifact.generation,
+                Artifact.version,
             )
             .join(Artifact, ArtifactChunk.artifact_id == Artifact.id)
             .where(
                 ArtifactChunk.id == chunk_id,
                 Artifact.workspace_id == workspace_id,
                 Artifact.indexing_status == "ready",
-                Artifact.indexed_generation == Artifact.generation,
+                Artifact.indexed_version == Artifact.version,
             )
         )
     ).first()
@@ -151,7 +151,7 @@ async def resolve_artifact_chunk(
         "artifact_chunk_id": row.id,
         "artifact_id": row.artifact_id,
         "title": row.title,
-        "generation": row.generation,
+        "version": row.version,
         "content": row.content,
         "position": row.position,
         "start_line": row.start_line,
@@ -178,7 +178,7 @@ async def get_artifact_manifest(
     )
     if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    etag = f'"{artifact.content_hash}:{artifact.generation}"'
+    etag = f'"{artifact.markdown_hash}:{artifact.version}"'
     cache_headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=cache_headers)
@@ -187,8 +187,8 @@ async def get_artifact_manifest(
         "artifact_id": artifact.id,
         "title": artifact.title,
         "format": artifact.format,
-        "generation": artifact.generation,
-        "markdown_representation": artifact.search_content,
+        "version": artifact.version,
+        "markdown_representation": artifact.markdown_representation,
         "files": [
             _file_manifest(workspace_id, artifact.id, file)
             for file in _visible_files(artifact)
@@ -237,7 +237,7 @@ async def download_artifact(
         )
     filename = _markdown_filename(artifact.title)
     return StreamingResponse(
-        io.BytesIO(artifact.search_content.encode()),
+        io.BytesIO(artifact.markdown_representation.encode()),
         media_type="text/markdown; charset=utf-8",
         headers={
             **headers,

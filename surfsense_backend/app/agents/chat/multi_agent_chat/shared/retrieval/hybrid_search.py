@@ -354,7 +354,7 @@ def _artifact_conditions(workspace_id: int, scope: SearchScope) -> list | None:
     conditions = [
         Artifact.workspace_id == workspace_id,
         Artifact.indexing_status == "ready",
-        Artifact.indexed_generation == Artifact.generation,
+        Artifact.indexed_version == Artifact.version,
     ]
     if scope.start_date is not None:
         conditions.append(Artifact.updated_at >= scope.start_date)

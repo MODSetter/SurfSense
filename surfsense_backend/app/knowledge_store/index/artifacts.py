@@ -56,7 +56,7 @@ async def upsert_artifact(
     owned: dict[str, Artifact],
 ) -> tuple[Artifact, bool]:
     """Upsert one artifact path without creating a ``Document`` shadow."""
-    content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    markdown_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
     artifact = owned.get(virtual_path)
     created = artifact is None
     if artifact is None:
@@ -65,20 +65,20 @@ async def upsert_artifact(
             workspace_id=workspace_id,
             title=name.removesuffix(".md") or name,
             format="markdown",
-            search_content=content,
+            markdown_representation=content,
             path=virtual_path,
-            content_hash=content_hash,
-            generation=1,
+            markdown_hash=markdown_hash,
+            version=1,
             indexing_status="pending",
             updated_at=datetime.now(UTC),
         )
         session.add(artifact)
-    elif artifact.content_hash != content_hash:
-        # The artifact service has already advanced the generation for its own
+    elif artifact.markdown_hash != markdown_hash:
+        # The artifact service has already advanced the version for its own
         # working-copy write. Direct filesystem edits reach this branch instead.
-        artifact.search_content = content
-        artifact.content_hash = content_hash
-        artifact.generation += 1
+        artifact.markdown_representation = content
+        artifact.markdown_hash = markdown_hash
+        artifact.version += 1
         artifact.indexing_status = "pending"
         artifact.indexing_error = None
         artifact.updated_at = datetime.now(UTC)

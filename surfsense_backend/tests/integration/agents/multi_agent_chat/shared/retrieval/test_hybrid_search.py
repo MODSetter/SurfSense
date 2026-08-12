@@ -79,18 +79,18 @@ async def _add_artifact(
     content: str,
     embedding: list[float],
     chunk_id: int | None = None,
-    generation: int = 1,
-    indexed_generation: int | None = 1,
+    version: int = 1,
+    indexed_version: int | None = 1,
 ) -> Artifact:
     artifact = Artifact(
         workspace_id=workspace_id,
         title=title,
         format="markdown",
-        search_content=content,
+        markdown_representation=content,
         path=f"/artifacts/{uuid.uuid4().hex}.md",
-        content_hash=uuid.uuid4().hex,
-        generation=generation,
-        indexed_generation=indexed_generation,
+        markdown_hash=uuid.uuid4().hex,
+        version=version,
+        indexed_version=indexed_version,
         indexing_status="ready",
     )
     db_session.add(artifact)
@@ -326,8 +326,8 @@ async def test_shared_search_excludes_stale_artifact_generation(
         title="Stale revision",
         content="revision-only-keyword",
         embedding=_axis(0),
-        generation=2,
-        indexed_generation=1,
+        version=2,
+        indexed_version=1,
     )
 
     results = await search_knowledge_base(

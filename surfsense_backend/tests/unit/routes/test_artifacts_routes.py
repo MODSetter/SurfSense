@@ -38,9 +38,9 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
         id=7,
         title="Workbook",
         format="xlsx",
-        generation=3,
-        content_hash="hash",
-        search_content="# Workbook",
+        version=3,
+        markdown_hash="hash",
+        markdown_representation="# Workbook",
         updated_at=None,
         files=[
             _file(1, ArtifactFileRole.PRIMARY),
@@ -62,16 +62,16 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_manifest_honors_generation_etag(monkeypatch):
+async def test_manifest_honors_version_etag(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     session = AsyncMock()
     session.scalar.return_value = SimpleNamespace(
         id=7,
         title="Artifact",
         format="markdown",
-        generation=3,
-        content_hash="hash",
-        search_content="body",
+        version=3,
+        markdown_hash="hash",
+        markdown_representation="body",
         updated_at=None,
         files=[],
     )

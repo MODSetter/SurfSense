@@ -316,12 +316,12 @@ async def _index_one_artifact(
     owned: dict[str, Artifact],
 ) -> bool:
     settled = owned.get(virtual_path)
-    content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    markdown_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
     already_indexed = (
         settled is not None
         and settled.indexing_status == "ready"
-        and settled.indexed_generation == settled.generation
-        and settled.content_hash == content_hash
+        and settled.indexed_version == settled.version
+        and settled.markdown_hash == markdown_hash
     )
     artifact, _created = await upsert_artifact(
         session,

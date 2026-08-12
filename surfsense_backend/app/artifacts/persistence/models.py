@@ -33,21 +33,21 @@ class Artifact(BaseModel, TimestampMixin):
         UniqueConstraint(
             "workspace_id", "path", name="uq_artifacts_workspace_path"
         ),
-        CheckConstraint("generation > 0", name="ck_artifacts_generation_positive"),
+        CheckConstraint("version > 0", name="ck_artifacts_version_positive"),
         CheckConstraint(
-            "indexed_generation IS NULL OR "
-            "(indexed_generation > 0 AND indexed_generation <= generation)",
-            name="ck_artifacts_indexed_generation_valid",
+            "indexed_version IS NULL OR "
+            "(indexed_version > 0 AND indexed_version <= version)",
+            name="ck_artifacts_indexed_version_valid",
         ),
         Index(
             "artifacts_vector_index",
-            "summary_embedding",
+            "markdown_embedding",
             postgresql_using="hnsw",
-            postgresql_ops={"summary_embedding": "vector_cosine_ops"},
+            postgresql_ops={"markdown_embedding": "vector_cosine_ops"},
         ),
         Index(
             "artifacts_search_index",
-            text("to_tsvector('english', search_content)"),
+            text("to_tsvector('english', markdown_representation)"),
             postgresql_using="gin",
         ),
     )
@@ -73,13 +73,13 @@ class Artifact(BaseModel, TimestampMixin):
 
     title = Column(String, nullable=False)
     format = Column(String, nullable=False)
-    search_content = Column(Text, nullable=False)
+    markdown_representation = Column(Text, nullable=False)
     path = Column(String, nullable=False)
-    content_hash = Column(String(64), nullable=False, index=True)
-    summary_embedding = Column(Vector(config.embedding_model_instance.dimension))
+    markdown_hash = Column(String(64), nullable=False, index=True)
+    markdown_embedding = Column(Vector(config.embedding_model_instance.dimension))
 
-    generation = Column(Integer, nullable=False, default=1, server_default="1")
-    indexed_generation = Column(Integer, nullable=True)
+    version = Column(Integer, nullable=False, default=1, server_default="1")
+    indexed_version = Column(Integer, nullable=True)
     indexing_status = Column(
         String(32), nullable=False, default="pending", server_default="pending", index=True
     )

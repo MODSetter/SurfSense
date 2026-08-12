@@ -96,7 +96,7 @@ async def index_artifact(
             )
             for chunk, embedding in zip(plan.to_embed, chunk_embeddings, strict=True)
         )
-    artifact.summary_embedding = summary_embedding
-    artifact.indexed_generation = artifact.generation
+    artifact.markdown_embedding = summary_embedding
+    artifact.indexed_version = artifact.version
     artifact.indexing_status = "ready"
     artifact.indexing_error = None
