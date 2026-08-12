@@ -8,12 +8,14 @@ from .base import FormatAdapter
 from .docx import check_docx
 from .pdf import check_pdf
 from .pptx import check_pptx
+from .xlsx import check_xlsx
 
 PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PPTX_MIME = (
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 )
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 _ADAPTERS = {
     ".pdf": FormatAdapter(
@@ -39,6 +41,14 @@ _ADAPTERS = {
         rendered_min_chars=0,
         expects_exact_page_count=True,
         review_kind="slides",
+    ),
+    ".xlsx": FormatAdapter(
+        name="xlsx",
+        suffix=".xlsx",
+        mime_type=XLSX_MIME,
+        convert_to_pdf=False,
+        check=check_xlsx,
+        requires_visual_review=False,
     ),
 }
 
