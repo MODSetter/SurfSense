@@ -21,6 +21,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Workspace
 from app.knowledge_store import KnowledgeStore
+from app.knowledge_store.index.artifacts import (
+    delete_artifact,
+    follow_artifact_rename,
+    is_artifact_store_path,
+    load_artifacts,
+    to_artifact_virtual_path,
+    upsert_artifact,
+)
 from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
     delete_row,
@@ -49,6 +57,13 @@ class ProjectedDocument:
     virtual_path: str
 
 
+@dataclass(frozen=True)
+class ProjectedArtifact:
+    id: int
+    title: str
+    virtual_path: str
+
+
 @dataclass
 class Projection:
     """What one revision did to the rows the UI reads."""
@@ -56,9 +71,19 @@ class Projection:
     created: list[ProjectedDocument] = field(default_factory=list)
     updated: list[ProjectedDocument] = field(default_factory=list)
     deleted: list[ProjectedDocument] = field(default_factory=list)
+    artifacts_created: list[ProjectedArtifact] = field(default_factory=list)
+    artifacts_updated: list[ProjectedArtifact] = field(default_factory=list)
+    artifacts_deleted: list[ProjectedArtifact] = field(default_factory=list)
 
     def __bool__(self) -> bool:
-        return bool(self.created or self.updated or self.deleted)
+        return bool(
+            self.created
+            or self.updated
+            or self.deleted
+            or self.artifacts_created
+            or self.artifacts_updated
+            or self.artifacts_deleted
+        )
 
 
 async def project_revision(
@@ -113,18 +138,85 @@ async def _project(
 
     changes = await store.list_changes(revision)
     owned = await load_owned(session, workspace.id)
+    artifacts = await load_artifacts(session, workspace.id)
     author_id = await revision_author_id(store, revision, workspace)
 
     for change in changes:
         if change.kind == "renamed" and change.previous_path:
-            follow_rename(
-                owned,
-                workspace.id,
-                to_virtual_path(change.previous_path),
-                to_virtual_path(change.path),
-            )
+            if is_artifact_store_path(change.path) and is_artifact_store_path(
+                change.previous_path
+            ):
+                follow_artifact_rename(
+                    artifacts,
+                    to_artifact_virtual_path(change.previous_path),
+                    to_artifact_virtual_path(change.path),
+                )
+            elif _is_document_store_path(change.path) and _is_document_store_path(
+                change.previous_path
+            ):
+                follow_rename(
+                    owned,
+                    workspace.id,
+                    to_virtual_path(change.previous_path),
+                    to_virtual_path(change.path),
+                )
 
     for change in changes:
+        if change.kind == "renamed" and change.previous_path:
+            from_artifact = is_artifact_store_path(change.previous_path)
+            to_artifact = is_artifact_store_path(change.path)
+            if from_artifact and not to_artifact:
+                previous = to_artifact_virtual_path(change.previous_path)
+                removed = await delete_artifact(
+                    session,
+                    workspace_id=workspace.id,
+                    virtual_path=previous,
+                    owned=artifacts,
+                )
+                if removed is not None:
+                    projection.artifacts_deleted.append(
+                        _snapshot_artifact(removed, previous)
+                    )
+            elif _is_document_store_path(
+                change.previous_path
+            ) and not _is_document_store_path(change.path):
+                previous = to_virtual_path(change.previous_path)
+                removed = await delete_row(session, workspace.id, previous, owned)
+                if removed is not None:
+                    projection.deleted.append(_snapshot(removed, previous))
+        if is_artifact_store_path(change.path):
+            virtual_path = to_artifact_virtual_path(change.path)
+            if change.kind == "removed":
+                removed = await delete_artifact(
+                    session,
+                    workspace_id=workspace.id,
+                    virtual_path=virtual_path,
+                    owned=artifacts,
+                )
+                if removed is not None:
+                    projection.artifacts_deleted.append(
+                        _snapshot_artifact(removed, virtual_path)
+                    )
+                continue
+            content = await read_indexable(store, revision, change.path)
+            if content is None:
+                continue
+            artifact, created = await upsert_artifact(
+                session,
+                workspace_id=workspace.id,
+                virtual_path=virtual_path,
+                content=content,
+                owned=artifacts,
+            )
+            bucket = (
+                projection.artifacts_created
+                if created
+                else projection.artifacts_updated
+            )
+            bucket.append(_snapshot_artifact(artifact, virtual_path))
+            continue
+        if not _is_document_store_path(change.path):
+            continue
         virtual_path = to_virtual_path(change.path)
         if change.kind == "removed":
             removed = await delete_row(session, workspace.id, virtual_path, owned)
@@ -179,3 +271,15 @@ def _snapshot(document, virtual_path: str) -> ProjectedDocument:
         folder_id=document.folder_id,
         virtual_path=virtual_path,
     )
+
+
+def _snapshot_artifact(artifact, virtual_path: str) -> ProjectedArtifact:
+    return ProjectedArtifact(
+        id=artifact.id,
+        title=artifact.title,
+        virtual_path=virtual_path,
+    )
+
+
+def _is_document_store_path(path: str) -> bool:
+    return path.strip("/").startswith("documents/")

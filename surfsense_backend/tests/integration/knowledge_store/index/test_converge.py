@@ -15,6 +15,7 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 
+from app.artifacts.persistence import Artifact, ArtifactChunk
 from app.config import config as app_config
 from app.db import (
     Chunk,
@@ -480,6 +481,43 @@ async def test_a_rebuild_prunes_a_row_whose_file_is_gone(
     await index_tree(db_session, db_workspace.id)
 
     assert set(await titles(db_session, db_workspace.id)) == {"b"}
+
+
+async def test_rebuild_indexes_and_prunes_artifacts_without_document_shadows(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    await commit(
+        store,
+        {
+            "documents/note.xml": "# Note",
+            "artifacts/result.md": "# Result\n\nartifact-only-search-term",
+        },
+    )
+
+    await index_tree(db_session, db_workspace.id)
+
+    artifact = await db_session.scalar(
+        select(Artifact).where(
+            Artifact.workspace_id == db_workspace.id,
+            Artifact.path == "/artifacts/result.md",
+        )
+    )
+    assert artifact is not None
+    assert artifact.indexing_status == "ready"
+    assert set(await titles(db_session, db_workspace.id)) == {"note"}
+    assert (
+        await db_session.scalar(
+            select(func.count(ArtifactChunk.id)).where(
+                ArtifactChunk.artifact_id == artifact.id
+            )
+        )
+        > 0
+    )
+
+    await commit(store, removes=["artifacts/result.md"])
+    await index_tree(db_session, db_workspace.id)
+
+    assert await db_session.get(Artifact, artifact.id) is None
 
 
 # ── Authorship, skips, failures ─────────────────────────────────────────────
