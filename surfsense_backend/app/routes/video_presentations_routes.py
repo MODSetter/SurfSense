@@ -158,6 +158,9 @@ async def delete_video_presentation(
             "You don't have permission to delete video presentations in this workspace",
         )
 
+        from app.artifacts.media.video import purge as purge_slide_audio
+
+        await purge_slide_audio(db_video_pres.slides)
         await session.delete(db_video_pres)
         await session.commit()
         return {"message": "Video presentation deleted successfully"}
@@ -215,6 +218,23 @@ async def stream_slide_audio(
             )
 
         file_path = slide_data.get("audio_file")
+        storage_key = slide_data.get("audio_storage_key")
+        if storage_key:
+            from app.artifacts.media.video import open_stream
+
+            ext = Path(storage_key).suffix.lower()
+            media_type = "audio/wav" if ext == ".wav" else "audio/mpeg"
+            return StreamingResponse(
+                open_stream(storage_key),
+                media_type=media_type,
+                headers={
+                    "Accept-Ranges": "bytes",
+                    "Content-Disposition": (
+                        f"inline; filename={Path(storage_key).name}"
+                    ),
+                },
+            )
+
         if not file_path or not os.path.isfile(file_path):
             raise HTTPException(status_code=404, detail="Slide audio file not found")
 

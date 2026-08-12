@@ -78,22 +78,20 @@ def _replace_audio_paths_with_urls(
     video_presentation_id: int,
     slides: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Replace server-local audio_file paths with streaming API URLs.
+    """Replace stored audio refs with streaming API URLs.
 
-    Transforms:
-      "audio_file": "video_presentation_audio/abc_slide_1.mp3"
-    Into:
-      "audio_url": "/api/v1/video-presentations/42/slides/1/audio"
-
-    The frontend passes this URL to Remotion's <Audio src={slide.audio_url} />.
+    Accepts legacy local ``audio_file`` paths or object-store
+    ``audio_storage_key``. Frontend gets ``audio_url`` only.
     """
     result = []
     for slide in slides:
         slide_copy = dict(slide)
         slide_number = slide_copy.get("slide_number")
         audio_file = slide_copy.pop("audio_file", None)
+        audio_storage_key = slide_copy.pop("audio_storage_key", None)
+        slide_copy.pop("storage_backend", None)
 
-        if audio_file and slide_number is not None:
+        if (audio_file or audio_storage_key) and slide_number is not None:
             slide_copy["audio_url"] = (
                 f"/api/v1/video-presentations/{video_presentation_id}"
                 f"/slides/{slide_number}/audio"
