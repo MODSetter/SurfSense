@@ -21,4 +21,5 @@ const PdfPreviewViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-pr
 export const VIEWERS: Partial<Record<string, ComponentType<ArtifactFileViewerProps>>> = {
 	"application/pdf": PdfFileViewer,
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": PdfPreviewViewer,
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": PdfPreviewViewer,
 };
