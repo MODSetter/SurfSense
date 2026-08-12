@@ -110,7 +110,7 @@ export function RightPanelToggleButton({
 	const citationState = useAtomValue(citationPanelAtom);
 	const artifactsOpen = useAtomValue(artifactsPanelOpenAtom);
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const artifactOpen = artifactState.isOpen && !!artifactState.documentId;
+	const artifactOpen = artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
 		(editorState.kind === "document"
@@ -233,7 +233,7 @@ export function RightPanel({
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const artifactOpen = artifactState.isOpen && !!artifactState.documentId;
+	const artifactOpen = artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
 		(editorState.kind === "document"
@@ -347,7 +347,7 @@ export function RightPanel({
 							{effectiveTab === "artifact" && artifactOpen && (
 								<div className="h-full flex flex-col">
 									<ArtifactPanelContent
-										documentId={artifactState.documentId as number}
+										artifactId={artifactState.artifactId as number}
 										onClose={closeArtifact}
 									/>
 								</div>

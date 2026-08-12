@@ -9,29 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArtifactDownloadButton } from "./artifact-download-button";
-import { artifactQueryOptions } from "./artifact-query";
+import { artifactManifestQueryOptions } from "./artifact-query";
 import { artifactDownloadPath } from "./download-file";
 import { cannotPreviewMessage, extension } from "./file-format";
-import type { ArtifactContent } from "./model";
+import type { ArtifactManifest } from "./model";
 import { UnviewableArtifact } from "./unviewable-artifact";
 import { VIEWERS } from "./viewer-registry";
 
-function artifactFilename(content: ArtifactContent | undefined): string | null {
-	if (content?.kind === "file") {
-		const primary = content.files.find((file) => file.role === "primary");
-		return primary?.filename ?? null;
-	}
-	if (content?.kind === "text") {
-		return `${content.title}.md`;
-	}
-	return null;
+function artifactFilename(manifest: ArtifactManifest | undefined): string | null {
+	if (!manifest) return null;
+	const primary = manifest.files.find((file) => file.role === "primary");
+	return primary?.filename ?? `${manifest.title}.md`;
 }
 
 export function ArtifactPanelContent({
-	documentId,
+	artifactId,
 	onClose,
 }: {
-	documentId: number;
+	artifactId: number;
 	onClose: () => void;
 }) {
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
@@ -42,14 +37,12 @@ export function ArtifactPanelContent({
 		isPending: loading,
 		refetch,
 	} = useQuery({
-		...artifactQueryOptions(workspaceId, documentId),
+		...artifactManifestQueryOptions(workspaceId, artifactId),
 		enabled: workspaceIsValid,
 	});
 	const downloadFilename = artifactFilename(content);
-	const artifactType =
-		content?.kind === "text"
-			? "Markdown"
-			: content?.files.find((file) => file.role === "primary")?.filename;
+	const primary = content?.files.find((file) => file.role === "primary");
+	const artifactType = primary?.filename ?? (content ? "Markdown" : undefined);
 
 	return (
 		<div className="flex h-full min-h-0 flex-col">
@@ -63,7 +56,7 @@ export function ArtifactPanelContent({
 							<>
 								<Dot className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
 								<span className="shrink-0 text-xs text-muted-foreground">
-									{content?.kind === "text" ? artifactType : extension(artifactType)}
+									{primary ? extension(primary.filename) : artifactType}
 								</span>
 							</>
 						) : null}
@@ -72,7 +65,7 @@ export function ArtifactPanelContent({
 						{downloadFilename ? (
 							<>
 								<ArtifactDownloadButton
-									path={artifactDownloadPath(workspaceId, documentId)}
+									path={artifactDownloadPath(workspaceId, artifactId)}
 									filename={downloadFilename}
 									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 								/>
@@ -121,11 +114,14 @@ export function ArtifactPanelContent({
 							Try again
 						</Button>
 					</div>
-				) : content?.kind === "text" ? (
+				) : content && !primary ? (
 					<div className="h-full overflow-y-auto px-5 py-4">
-						<MarkdownViewer content={content.source_markdown} className="mx-auto max-w-3xl" />
+						<MarkdownViewer
+							content={content.markdown_representation}
+							className="mx-auto max-w-3xl"
+						/>
 					</div>
-				) : content?.kind === "file" ? (
+				) : content ? (
 					<FileArtifact content={content} />
 				) : null}
 			</div>
@@ -133,7 +129,7 @@ export function ArtifactPanelContent({
 	);
 }
 
-function FileArtifact({ content }: { content: Extract<ArtifactContent, { kind: "file" }> }) {
+function FileArtifact({ content }: { content: ArtifactManifest }) {
 	const primary = content.files.find((file) => file.role === "primary");
 	if (!primary) {
 		return <UnviewableArtifact message="This artifact has no primary file." />;

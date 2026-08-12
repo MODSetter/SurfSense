@@ -3,12 +3,12 @@ import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right
 
 interface ArtifactPanelState {
 	isOpen: boolean;
-	documentId: number | null;
+	artifactId: number | null;
 }
 
 const initialState: ArtifactPanelState = {
 	isOpen: false,
-	documentId: null,
+	artifactId: null,
 };
 
 export const artifactPanelAtom = atom<ArtifactPanelState>(initialState);
@@ -16,11 +16,11 @@ const preArtifactCollapsedAtom = atom<boolean | null>(null);
 
 export const openArtifactPanelAtom = atom(
 	null,
-	(get, set, { documentId }: { documentId: number }) => {
+	(get, set, { artifactId }: { artifactId: number }) => {
 		if (!get(artifactPanelAtom).isOpen) {
 			set(preArtifactCollapsedAtom, get(rightPanelCollapsedAtom));
 		}
-		set(artifactPanelAtom, { isOpen: true, documentId });
+		set(artifactPanelAtom, { isOpen: true, artifactId });
 		set(rightPanelTabAtom, "artifact");
 		set(rightPanelCollapsedAtom, false);
 	}

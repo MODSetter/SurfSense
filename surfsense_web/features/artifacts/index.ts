@@ -1,2 +1,2 @@
 export { ArtifactPanelContent } from "./artifact-panel";
-export type { ArtifactContent, ArtifactFile } from "./model";
+export type { ArtifactFile, ArtifactListItem, ArtifactManifest } from "./model";

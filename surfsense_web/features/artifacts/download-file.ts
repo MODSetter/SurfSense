@@ -2,8 +2,8 @@ import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 
-export function artifactDownloadPath(workspaceId: number, documentId: number): string {
-	return `/api/v1/workspaces/${workspaceId}/documents/${documentId}/download-artifact`;
+export function artifactDownloadPath(workspaceId: number, artifactId: number): string {
+	return `/api/v1/workspaces/${workspaceId}/artifacts/${artifactId}/download`;
 }
 
 function responseFilename(disposition: string | null): string | null {

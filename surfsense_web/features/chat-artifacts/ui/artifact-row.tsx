@@ -32,7 +32,7 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 
 	const handleOpen = () => {
 		if (artifact.kind === "file" && artifact.entityId != null) {
-			openArtifactPanel({ documentId: artifact.entityId });
+			openArtifactPanel({ artifactId: artifact.entityId });
 			scrollToArtifact(artifact.toolCallId);
 			return;
 		}

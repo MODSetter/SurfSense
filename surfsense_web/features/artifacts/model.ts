@@ -9,26 +9,29 @@ export const ArtifactFileSchema = z.object({
 	content_url: z.string(),
 });
 
-export const ArtifactContentSchema = z.discriminatedUnion("kind", [
-	z.object({
-		kind: z.literal("text"),
-		document_id: z.number(),
-		title: z.string(),
-		source_markdown: z.string(),
-		generated: z.boolean(),
-		updated_at: z.string().nullable(),
-	}),
-	z.object({
-		kind: z.literal("file"),
-		document_id: z.number(),
-		title: z.string(),
-		generated: z.boolean(),
-		files: z.array(ArtifactFileSchema),
-		updated_at: z.string().nullable(),
-	}),
-]);
+export const ArtifactManifestSchema = z.object({
+	artifact_id: z.number(),
+	title: z.string(),
+	format: z.string(),
+	generation: z.number().int().positive(),
+	markdown_representation: z.string(),
+	files: z.array(ArtifactFileSchema),
+	updated_at: z.string().nullable(),
+});
+
+export const ArtifactListItemSchema = z.object({
+	artifact_id: z.number(),
+	title: z.string(),
+	format: z.string(),
+	generation: z.number().int().positive(),
+	indexing_status: z.string(),
+	thread_id: z.number().nullable(),
+	created_at: z.string(),
+	updated_at: z.string().nullable(),
+});
+
+export const ArtifactListSchema = z.array(ArtifactListItemSchema);
 
 export type ArtifactFile = z.infer<typeof ArtifactFileSchema>;
-export type ArtifactContent = z.infer<typeof ArtifactContentSchema>;
-export type TextArtifactContent = Extract<ArtifactContent, { kind: "text" }>;
-export type FileArtifactContent = Extract<ArtifactContent, { kind: "file" }>;
+export type ArtifactManifest = z.infer<typeof ArtifactManifestSchema>;
+export type ArtifactListItem = z.infer<typeof ArtifactListItemSchema>;

@@ -51,7 +51,7 @@ function describeArtifact(
 
 	switch (kind) {
 		case "file": {
-			const entityId = numericId(result.document_id);
+			const entityId = numericId(result.artifact_id);
 			return {
 				title: firstString(result.title, args.title) ?? "Document",
 				entityId,
