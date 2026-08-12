@@ -122,6 +122,30 @@ async def _verify_artifact(
             page_count=structural.page_count,
         )
 
+    if not adapter.requires_visual_review:
+        receipt = VerificationReceipt(
+            workspace_id=workspace_id,
+            session_id=session.session_id,
+            format=adapter.name,
+            primary_path=primary_path,
+            primary_sha256=sha256_bytes(primary_data),
+            preview_path=None,
+            preview_sha256=None,
+            page_count=None,
+            visual="not_required",
+            unavailable_reason=None,
+            issued_at=int(time.time()),
+        )
+        await write_receipt(session, receipt, signing_key)
+        _progress("complete", "Document verification complete")
+        return VerificationResult(
+            verified=True,
+            findings=(),
+            notes=structural.notes,
+            preview_path=None,
+            page_count=structural.page_count,
+        )
+
     _progress(
         "converting" if adapter.convert_to_pdf else "preparing",
         "Converting document to PDF"
