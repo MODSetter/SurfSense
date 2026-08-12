@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cannotPreviewMessage } from "./file-format";
 import {
@@ -52,7 +53,10 @@ export default function XlsxViewer({ primary }: ArtifactFileViewerProps) {
 						`Workbook is too large to preview (${primary.size_bytes} bytes)`,
 					);
 				}
-				const response = await fetch(buildBackendUrl(primary.content_url));
+				const response = await authenticatedFetch(
+					buildBackendUrl(primary.content_url),
+					{ cache: "no-store", skipAuthRedirect: true },
+				);
 				if (!response.ok) {
 					throw new Error(`Could not load workbook (${response.status})`);
 				}
