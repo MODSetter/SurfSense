@@ -278,10 +278,10 @@ button {
 /* Scoped subset of PDF.js viewer styles required by the embedded canvas viewer. */
 .surfsense-pdf-viewer.pdfViewer {
 	--scale-factor: 1;
-	--page-bg-color: white;
+	box-sizing: border-box;
 	min-width: 100%;
 	width: max-content;
-	padding-bottom: 12px;
+	padding: 16px;
 }
 
 .surfsense-pdf-viewer.pdfViewer .canvasWrapper {
@@ -312,13 +312,16 @@ button {
 	position: relative;
 	width: 816px;
 	height: 1056px;
-	margin: 0 auto 12px;
+	margin: 0 auto 16px;
 	overflow: visible;
 	direction: ltr;
-	background-color: var(--page-bg-color);
 	box-shadow:
 		0 10px 15px -3px rgb(0 0 0 / 0.1),
 		0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.surfsense-pdf-viewer.pdfViewer .page:last-child {
+	margin-bottom: 0;
 }
 
 .surfsense-pdf-viewer.pdfViewer.multiple-pages .page::before {

@@ -158,7 +158,6 @@ export function PdfViewer({
 					linkService,
 					textLayerMode: DISABLED_LAYER_MODE,
 					annotationMode: DISABLED_LAYER_MODE,
-					removePageBorders: true,
 					maxCanvasPixels: isMobile ? MOBILE_MAX_CANVAS_PIXELS : DESKTOP_MAX_CANVAS_PIXELS,
 					maxCanvasDim: isMobile ? 8192 : 16384,
 					enableDetailCanvas: true,
@@ -384,7 +383,7 @@ export function PdfViewer({
 				<div
 					ref={viewerHostRef}
 					data-vaul-no-drag=""
-					className={`absolute inset-0 overflow-auto ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
+					className="absolute inset-0 overflow-auto bg-white"
 				>
 					<div ref={viewerElementRef} className="pdfViewer surfsense-pdf-viewer" />
 				</div>
