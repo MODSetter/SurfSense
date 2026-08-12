@@ -288,7 +288,7 @@ importers:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       pdfjs-dist:
-        specifier: ^5.6.205
+        specifier: 5.6.205
         version: 5.6.205
       pg:
         specifier: ^8.16.3

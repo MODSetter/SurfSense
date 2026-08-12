@@ -275,6 +275,81 @@ button {
 	contain-intrinsic-size: 0 40px;
 }
 
+/* Scoped subset of PDF.js viewer styles required by the embedded canvas viewer. */
+.surfsense-pdf-viewer.pdfViewer {
+	--scale-factor: 1;
+	--page-bg-color: white;
+	min-width: 100%;
+	width: max-content;
+	padding-bottom: 12px;
+}
+
+.surfsense-pdf-viewer.pdfViewer .canvasWrapper {
+	overflow: hidden;
+	width: 100%;
+	height: 100%;
+}
+
+.surfsense-pdf-viewer.pdfViewer .canvasWrapper canvas {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	contain: content;
+}
+
+.surfsense-pdf-viewer.pdfViewer .canvasWrapper canvas.detailView {
+	image-rendering: pixelated;
+}
+
+.surfsense-pdf-viewer.pdfViewer .page {
+	--user-unit: 1;
+	--total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+	--scale-round-x: 1px;
+	--scale-round-y: 1px;
+	position: relative;
+	width: 816px;
+	height: 1056px;
+	margin: 0 auto 12px;
+	overflow: visible;
+	direction: ltr;
+	background-color: var(--page-bg-color);
+	box-shadow:
+		0 10px 15px -3px rgb(0 0 0 / 0.1),
+		0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.surfsense-pdf-viewer.pdfViewer.multiple-pages .page::before {
+	position: absolute;
+	right: 12px;
+	bottom: 8px;
+	z-index: 2;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: rgb(0 0 0 / 0.5);
+	color: rgb(255 255 255 / 0.8);
+	content: "Page " attr(data-page-number) "/" var(--pdf-pages-count);
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1rem;
+	pointer-events: none;
+}
+
+.surfsense-pdf-viewer.pdfViewer.noUserSelect {
+	user-select: none;
+}
+
+.hiddenCanvasElement {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: none;
+	width: 0;
+	height: 0;
+}
+
 @source "../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}";
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";

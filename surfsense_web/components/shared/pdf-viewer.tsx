@@ -1,8 +1,9 @@
 "use client";
 
 import { ZoomInIcon, ZoomOutIcon } from "lucide-react";
-import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import * as pdfjsLib from "pdfjs-dist";
+import type { PDFViewer as PDFViewerCore } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -23,17 +24,56 @@ interface PdfViewerProps {
 	zoomControlsContainer?: HTMLElement | null;
 }
 
-interface PageDimensions {
-	width: number;
-	height: number;
+type EmbeddedPdfViewer = Omit<PDFViewerCore, "setDocument"> & {
+	setDocument(pdfDocument: PDFDocumentProxy | null): void;
+};
+
+type PDFViewerOptionsWithSignal = ConstructorParameters<typeof PDFViewerCore>[0] & {
+	abortSignal: AbortSignal;
+};
+
+interface TouchManagerInstance {
+	destroy(): void;
 }
 
-const ZOOM_STEP = 0.15;
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 3;
-const PAGE_GAP = 12;
-const SCROLL_DEBOUNCE_MS = 30;
-const BUFFER_PAGES = 1;
+interface TouchManagerConstructor {
+	new (options: {
+		container: HTMLElement;
+		isPinchingDisabled?: () => boolean;
+		onPinchStart?: () => void;
+		onPinching?: (origin: number[], previousDistance: number, distance: number) => void;
+		onPinchEnd?: () => void;
+		signal: AbortSignal;
+	}): TouchManagerInstance;
+}
+
+interface PageRenderedEvent {
+	isDetailView: boolean;
+}
+
+interface PinchPreview {
+	baseScale: number;
+	scaleFactor: number;
+	startClientX: number;
+	startClientY: number;
+	clientX: number;
+	clientY: number;
+}
+
+// PDFViewer clamps committed scales to these same limits internally.
+const MIN_PDF_SCALE = 0.1;
+const MAX_PDF_SCALE = 25;
+const ZOOM_RENDER_DELAY_MS = 500;
+const MOBILE_MAX_CANVAS_PIXELS = 5 * 1024 * 1024;
+const DESKTOP_MAX_CANVAS_PIXELS = 16 * 1024 * 1024;
+const DISABLED_LAYER_MODE = 0;
+
+function getTouchMidpoint(touches: TouchList): [number, number] | null {
+	const first = touches.item(0);
+	const second = touches.item(1);
+	if (!first || !second) return null;
+	return [(first.clientX + second.clientX) / 2, (first.clientY + second.clientY) / 2];
+}
 
 export function PdfViewer({
 	pdfUrl,
@@ -42,284 +82,262 @@ export function PdfViewer({
 	zoomControlsContainer,
 }: PdfViewerProps) {
 	const [numPages, setNumPages] = useState(0);
-	const [scale, setScale] = useState(1);
-	const [fitWidth, setFitWidth] = useState(true);
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
-
-	const scrollContainerRef = useRef<HTMLDivElement>(null);
-	const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
-	const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
-	const renderTasksRef = useRef<Map<number, RenderTask>>(new Map());
-	const renderedScalesRef = useRef<Map<number, number>>(new Map());
-	const pageDimsRef = useRef<PageDimensions[]>([]);
-	const visiblePagesRef = useRef<Set<number>>(new Set());
-	const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	const applyFitWidth = useCallback(() => {
-		const container = scrollContainerRef.current;
-		const pageWidths = pageDimsRef.current.map(({ width }) => width);
-		if (!container || pageWidths.length === 0) return;
-
-		const widestPage = Math.max(...pageWidths);
-		setScale(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, container.clientWidth / widestPage)));
-	}, []);
-
-	const getScaledHeight = useCallback(
-		(pageIndex: number) => {
-			const dims = pageDimsRef.current[pageIndex];
-			return dims ? Math.floor(dims.height * scale) : 0;
-		},
-		[scale]
-	);
-
-	const getVisibleRange = useCallback(() => {
-		const container = scrollContainerRef.current;
-		if (!container || pageDimsRef.current.length === 0) return { first: 1, last: 1 };
-
-		const scrollTop = container.scrollTop;
-		const viewportHeight = container.clientHeight;
-		const scrollBottom = scrollTop + viewportHeight;
-
-		let cumTop = 0;
-		let first = 1;
-		let last = pageDimsRef.current.length;
-
-		for (let i = 0; i < pageDimsRef.current.length; i++) {
-			const pageHeight = getScaledHeight(i);
-			const pageBottom = cumTop + pageHeight;
-
-			if (pageBottom >= scrollTop && first === 1) {
-				first = i + 1;
-			}
-			if (cumTop > scrollBottom) {
-				last = i;
-				break;
-			}
-
-			cumTop = pageBottom + PAGE_GAP;
-		}
-
-		first = Math.max(1, first - BUFFER_PAGES);
-		last = Math.min(pageDimsRef.current.length, last + BUFFER_PAGES);
-
-		return { first, last };
-	}, [getScaledHeight]);
-
-	const renderPage = useCallback(async (pageNum: number, currentScale: number) => {
-		const pdf = pdfDocRef.current;
-		const canvas = canvasRefs.current.get(pageNum);
-		if (!pdf || !canvas) return;
-
-		if (renderedScalesRef.current.get(pageNum) === currentScale) return;
-
-		const existing = renderTasksRef.current.get(pageNum);
-		if (existing) {
-			existing.cancel();
-			renderTasksRef.current.delete(pageNum);
-		}
-
-		try {
-			const page = await pdf.getPage(pageNum);
-			const viewport = page.getViewport({ scale: currentScale });
-			const dpr = window.devicePixelRatio || 1;
-
-			canvas.width = Math.floor(viewport.width * dpr);
-			canvas.height = Math.floor(viewport.height * dpr);
-			canvas.style.width = `${Math.floor(viewport.width)}px`;
-			canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-			const renderTask = page.render({
-				canvas,
-				viewport,
-				transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
-			});
-
-			renderTasksRef.current.set(pageNum, renderTask);
-
-			await renderTask.promise;
-			renderTasksRef.current.delete(pageNum);
-			renderedScalesRef.current.set(pageNum, currentScale);
-			page.cleanup();
-		} catch (err: unknown) {
-			if (err instanceof Error && err.message?.includes("cancelled")) return;
-			console.error(`Failed to render page ${pageNum}:`, err);
-		}
-	}, []);
-
-	const cleanupPage = useCallback((pageNum: number) => {
-		const existing = renderTasksRef.current.get(pageNum);
-		if (existing) {
-			existing.cancel();
-			renderTasksRef.current.delete(pageNum);
-		}
-
-		const canvas = canvasRefs.current.get(pageNum);
-		if (canvas) {
-			const ctx = canvas.getContext("2d");
-			if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-			canvas.width = 0;
-			canvas.height = 0;
-		}
-
-		renderedScalesRef.current.delete(pageNum);
-	}, []);
-
-	const renderVisiblePages = useCallback(() => {
-		if (!pdfDocRef.current || pageDimsRef.current.length === 0) return;
-
-		const { first, last } = getVisibleRange();
-		const newVisible = new Set<number>();
-
-		for (let i = first; i <= last; i++) {
-			newVisible.add(i);
-			renderPage(i, scale);
-		}
-
-		for (const pageNum of visiblePagesRef.current) {
-			if (!newVisible.has(pageNum)) {
-				cleanupPage(pageNum);
-			}
-		}
-
-		visiblePagesRef.current = newVisible;
-	}, [getVisibleRange, renderPage, cleanupPage, scale]);
+	const viewerHostRef = useRef<HTMLDivElement>(null);
+	const viewerElementRef = useRef<HTMLDivElement>(null);
+	const pdfViewerRef = useRef<EmbeddedPdfViewer | null>(null);
 
 	useEffect(() => {
-		let cancelled = false;
+		const container = viewerHostRef.current;
+		const viewerElement = viewerElementRef.current;
+		if (!container || !viewerElement) return;
 
-		const loadDocument = async () => {
-			setLoading(true);
-			setLoadError(null);
-			setNumPages(0);
-			setScale(1);
-			setFitWidth(true);
-			pageDimsRef.current = [];
+		const controller = new AbortController();
+		let disposed = false;
+		let loadingTask: PDFDocumentLoadingTask | null = null;
+		let pdfDocument: PDFDocumentProxy | null = null;
+		let pdfViewer: EmbeddedPdfViewer | null = null;
+		let touchManager: TouchManagerInstance | null = null;
+		let resizeObserver: ResizeObserver | null = null;
+		let resizeFrame: number | null = null;
+		let pinchFrame: number | null = null;
+		let pinchPreview: PinchPreview | null = null;
+		let latestTouchMidpoint: [number, number] | null = null;
+		let eventBus: InstanceType<typeof import("pdfjs-dist/web/pdf_viewer.mjs")["EventBus"]> | null =
+			null;
+		let handlePagesInit: (() => void) | null = null;
+		let handlePageRendered: ((event: PageRenderedEvent) => void) | null = null;
 
+		setLoading(true);
+		setLoadError(null);
+		setNumPages(0);
+
+		const clearPinchPreview = () => {
+			if (pinchFrame !== null) {
+				cancelAnimationFrame(pinchFrame);
+				pinchFrame = null;
+			}
+			pinchPreview = null;
+			latestTouchMidpoint = null;
+			viewerElement.style.removeProperty("transform");
+			viewerElement.style.removeProperty("transform-origin");
+			viewerElement.style.removeProperty("will-change");
+		};
+
+		const initialize = async () => {
 			try {
-				// pdf.js issues its own request, so fetching here is what keeps the
-				// viewer on the app's single auth path: cookie or bearer, token
-				// refresh, and one retry on 401. skipAuthRedirect leaves an expired
-				// public share link showing an error instead of a login redirect.
-				const response = await authenticatedFetch(pdfUrl, { skipAuthRedirect: true });
+				// The viewer component build expects the PDF.js display API on globalThis.
+				(
+					globalThis as typeof globalThis & {
+						pdfjsLib: typeof pdfjsLib;
+					}
+				).pdfjsLib = pdfjsLib;
+
+				const viewerModulePromise = import("pdfjs-dist/web/pdf_viewer.mjs");
+				const responsePromise = authenticatedFetch(pdfUrl, {
+					skipAuthRedirect: true,
+					signal: controller.signal,
+				});
+				const [viewerModule, response] = await Promise.all([viewerModulePromise, responsePromise]);
+
 				if (!response.ok) {
 					throw new Error(`Server returned ${response.status} while retrieving the PDF`);
 				}
+
 				const data = await response.arrayBuffer();
-				if (cancelled) return;
+				if (disposed) return;
 
-				const pdf = await pdfjsLib.getDocument({ data }).promise;
-				if (cancelled) {
-					pdf.destroy();
+				const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+				eventBus = new viewerModule.EventBus();
+				const linkService = new viewerModule.PDFLinkService({ eventBus });
+				pdfViewer = new viewerModule.PDFViewer({
+					container,
+					viewer: viewerElement,
+					eventBus,
+					linkService,
+					textLayerMode: DISABLED_LAYER_MODE,
+					annotationMode: DISABLED_LAYER_MODE,
+					removePageBorders: true,
+					maxCanvasPixels: isMobile ? MOBILE_MAX_CANVAS_PIXELS : DESKTOP_MAX_CANVAS_PIXELS,
+					maxCanvasDim: isMobile ? 8192 : 16384,
+					enableDetailCanvas: true,
+					enableOptimizedPartialRendering: true,
+					imagesRightClickMinSize: -1,
+					supportsPinchToZoom: false,
+					minDurationToUpdateCanvas: ZOOM_RENDER_DELAY_MS,
+					abortSignal: controller.signal,
+				} as PDFViewerOptionsWithSignal) as EmbeddedPdfViewer;
+				pdfViewerRef.current = pdfViewer;
+				linkService.setViewer(pdfViewer);
+
+				handlePagesInit = () => {
+					if (disposed || !pdfViewer || !pdfDocument) return;
+					viewerElement.classList.toggle("multiple-pages", pdfDocument.numPages > 1);
+					viewerElement.style.setProperty("--pdf-pages-count", `"${pdfDocument.numPages}"`);
+					pdfViewer.currentScaleValue = "page-width";
+					setNumPages(pdfDocument.numPages);
+				};
+				handlePageRendered = ({ isDetailView }: PageRenderedEvent) => {
+					if (!disposed && !isDetailView) setLoading(false);
+				};
+				eventBus.on("pagesinit", handlePagesInit);
+				eventBus.on("pagerendered", handlePageRendered);
+
+				loadingTask = pdfjsLib.getDocument({ data });
+				pdfDocument = await loadingTask.promise;
+				if (disposed) {
+					await pdfDocument.destroy();
 					return;
 				}
 
-				const dims: PageDimensions[] = [];
-				for (let i = 1; i <= pdf.numPages; i++) {
-					const page = await pdf.getPage(i);
-					const viewport = page.getViewport({ scale: 1 });
-					dims.push({ width: viewport.width, height: viewport.height });
-					page.cleanup();
-				}
+				linkService.setDocument(pdfDocument);
+				pdfViewer.setDocument(pdfDocument);
 
-				if (cancelled) {
-					pdf.destroy();
-					return;
-				}
+				const recordTouchMidpoint = (event: TouchEvent) => {
+					latestTouchMidpoint = getTouchMidpoint(event.touches);
+				};
+				container.addEventListener("touchstart", recordTouchMidpoint, {
+					capture: true,
+					passive: true,
+					signal: controller.signal,
+				});
+				container.addEventListener("touchmove", recordTouchMidpoint, {
+					capture: true,
+					passive: true,
+					signal: controller.signal,
+				});
 
-				pdfDocRef.current = pdf;
-				pageDimsRef.current = dims;
-				setNumPages(pdf.numPages);
-				setLoading(false);
-			} catch (err: unknown) {
-				if (cancelled) return;
-				const message = err instanceof Error ? err.message : "Failed to load PDF";
-				setLoadError(message);
+				const TouchManager = (
+					pdfjsLib as typeof pdfjsLib & {
+						TouchManager: TouchManagerConstructor;
+					}
+				).TouchManager;
+				touchManager = new TouchManager({
+					container,
+					isPinchingDisabled: () => !pdfViewer || pdfViewer.pagesCount === 0,
+					onPinchStart: () => {
+						if (!pdfViewer || !latestTouchMidpoint) return;
+						const [clientX, clientY] = latestTouchMidpoint;
+						const viewerRect = viewerElement.getBoundingClientRect();
+						pinchPreview = {
+							baseScale: pdfViewer.currentScale,
+							scaleFactor: 1,
+							startClientX: clientX,
+							startClientY: clientY,
+							clientX,
+							clientY,
+						};
+						viewerElement.style.transformOrigin = `${clientX - viewerRect.left}px ${
+							clientY - viewerRect.top
+						}px`;
+						viewerElement.style.willChange = "transform";
+					},
+					onPinching: (_origin, previousDistance, distance) => {
+						if (!pinchPreview || !latestTouchMidpoint || previousDistance <= 0) return;
+						const targetScale = Math.max(
+							MIN_PDF_SCALE,
+							Math.min(
+								MAX_PDF_SCALE,
+								pinchPreview.baseScale * pinchPreview.scaleFactor * (distance / previousDistance)
+							)
+						);
+						pinchPreview.scaleFactor = targetScale / pinchPreview.baseScale;
+						pinchPreview.clientX = latestTouchMidpoint[0];
+						pinchPreview.clientY = latestTouchMidpoint[1];
+
+						if (pinchFrame !== null) return;
+						pinchFrame = requestAnimationFrame(() => {
+							pinchFrame = null;
+							if (!pinchPreview) return;
+							const translateX = pinchPreview.clientX - pinchPreview.startClientX;
+							const translateY = pinchPreview.clientY - pinchPreview.startClientY;
+							viewerElement.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${pinchPreview.scaleFactor})`;
+						});
+					},
+					onPinchEnd: () => {
+						const preview = pinchPreview;
+						if (!pdfViewer || !preview) {
+							clearPinchPreview();
+							return;
+						}
+
+						const translateX = preview.clientX - preview.startClientX;
+						const translateY = preview.clientY - preview.startClientY;
+						if (preview.scaleFactor !== 1) {
+							const containerRect = container.getBoundingClientRect();
+							pdfViewer.updateScale({
+								drawingDelay: ZOOM_RENDER_DELAY_MS,
+								scaleFactor: preview.scaleFactor,
+								origin: [
+									container.offsetLeft + preview.startClientX - containerRect.left,
+									container.offsetTop + preview.startClientY - containerRect.top,
+								],
+							});
+						}
+						container.scrollLeft -= translateX;
+						container.scrollTop -= translateY;
+						clearPinchPreview();
+					},
+					signal: controller.signal,
+				});
+
+				resizeObserver = new ResizeObserver(() => {
+					if (!pdfViewer || pdfViewer.currentScaleValue !== "page-width") return;
+					if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+					resizeFrame = requestAnimationFrame(() => {
+						resizeFrame = null;
+						if (pdfViewer?.currentScaleValue === "page-width") {
+							pdfViewer.currentScaleValue = "page-width";
+						}
+					});
+				});
+				resizeObserver.observe(container);
+			} catch (error: unknown) {
+				if (disposed) return;
+				setLoadError(error instanceof Error ? error.message : "Failed to load PDF");
 				setLoading(false);
 			}
 		};
 
-		loadDocument();
+		void initialize();
 
 		return () => {
-			cancelled = true;
-			for (const task of renderTasksRef.current.values()) {
-				task.cancel();
+			disposed = true;
+			controller.abort();
+			if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+			resizeObserver?.disconnect();
+			touchManager?.destroy();
+			clearPinchPreview();
+			if (eventBus && handlePagesInit) eventBus.off("pagesinit", handlePagesInit);
+			if (eventBus && handlePageRendered) eventBus.off("pagerendered", handlePageRendered);
+			pdfViewer?.setDocument(null);
+			pdfViewerRef.current = null;
+			viewerElement.classList.remove("multiple-pages");
+			viewerElement.style.removeProperty("--pdf-pages-count");
+			if (pdfDocument) {
+				void pdfDocument.destroy();
+			} else {
+				void loadingTask?.destroy();
 			}
-			renderTasksRef.current.clear();
-			renderedScalesRef.current.clear();
-			visiblePagesRef.current.clear();
-			pdfDocRef.current?.destroy();
-			pdfDocRef.current = null;
 		};
 	}, [pdfUrl]);
 
-	useEffect(() => {
-		const container = scrollContainerRef.current;
-		if (!container || numPages === 0 || !fitWidth) return;
-
-		applyFitWidth();
-		const observer = new ResizeObserver(applyFitWidth);
-		observer.observe(container);
-		return () => observer.disconnect();
-	}, [applyFitWidth, fitWidth, numPages]);
-
-	useEffect(() => {
-		if (numPages === 0) return;
-
-		renderedScalesRef.current.clear();
-		visiblePagesRef.current.clear();
-
-		const frame = requestAnimationFrame(() => {
-			renderVisiblePages();
-		});
-
-		return () => cancelAnimationFrame(frame);
-	}, [numPages, renderVisiblePages]);
-
-	useEffect(() => {
-		const container = scrollContainerRef.current;
-		if (!container || numPages === 0) return;
-
-		const handleScroll = () => {
-			if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-			scrollTimerRef.current = setTimeout(() => {
-				renderVisiblePages();
-			}, SCROLL_DEBOUNCE_MS);
-		};
-
-		container.addEventListener("scroll", handleScroll, { passive: true });
-		return () => {
-			container.removeEventListener("scroll", handleScroll);
-			if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-		};
-	}, [numPages, renderVisiblePages]);
-
-	const setCanvasRef = useCallback((pageNum: number, el: HTMLCanvasElement | null) => {
-		if (el) {
-			canvasRefs.current.set(pageNum, el);
-		} else {
-			canvasRefs.current.delete(pageNum);
-		}
-	}, []);
-
 	const zoomIn = useCallback(() => {
-		setFitWidth(false);
-		setScale((prev) => Math.min(MAX_ZOOM, +(prev + ZOOM_STEP).toFixed(2)));
+		pdfViewerRef.current?.increaseScale({ drawingDelay: ZOOM_RENDER_DELAY_MS });
 	}, []);
 
 	const zoomOut = useCallback(() => {
-		setFitWidth(false);
-		setScale((prev) => Math.max(MIN_ZOOM, +(prev - ZOOM_STEP).toFixed(2)));
+		pdfViewerRef.current?.decreaseScale({ drawingDelay: ZOOM_RENDER_DELAY_MS });
 	}, []);
 
 	const zoomControls = (
-		<div className="flex items-center gap-1">
+		<div className="hidden items-center gap-1 lg:flex">
 			<Button
 				variant="ghost"
 				size="icon"
 				onClick={zoomOut}
-				disabled={scale <= MIN_ZOOM}
+				disabled={loading}
 				className="size-6 shrink-0 rounded-full text-muted-foreground"
 			>
 				<ZoomOutIcon className="size-4" />
@@ -329,7 +347,7 @@ export function PdfViewer({
 				variant="ghost"
 				size="icon"
 				onClick={zoomIn}
-				disabled={scale >= MAX_ZOOM}
+				disabled={loading}
 				className="size-6 shrink-0 rounded-full text-muted-foreground"
 			>
 				<ZoomInIcon className="size-4" />
@@ -340,7 +358,7 @@ export function PdfViewer({
 
 	if (loadError) {
 		return (
-			<div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
+			<div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
 				<p className="font-medium text-foreground">Failed to load PDF</p>
 				<p className="text-sm text-muted-foreground">{loadError}</p>
 			</div>
@@ -348,13 +366,13 @@ export function PdfViewer({
 	}
 
 	return (
-		<div className="flex flex-col h-full">
+		<div className="flex h-full flex-col">
 			{numPages > 0 && zoomControlsContainer
 				? createPortal(zoomControls, zoomControlsContainer)
 				: null}
 			{numPages > 0 && zoomControlsContainer === undefined ? (
 				<div
-					className={`flex items-center px-4 py-2 border-b shrink-0 select-none ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
+					className={`flex shrink-0 select-none items-center border-b px-4 py-2 ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
 				>
 					<div className="flex-1" aria-hidden="true" />
 					{zoomControls}
@@ -362,42 +380,21 @@ export function PdfViewer({
 				</div>
 			) : null}
 
-			<div
-				ref={scrollContainerRef}
-				className={`relative flex-1 overflow-auto ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
-			>
+			<div className="relative min-h-0 flex-1">
+				<div
+					ref={viewerHostRef}
+					data-vaul-no-drag=""
+					className={`absolute inset-0 overflow-auto ${isPublic ? "bg-main-panel" : "bg-sidebar"}`}
+				>
+					<div ref={viewerElementRef} className="pdfViewer surfsense-pdf-viewer" />
+				</div>
 				{loading ? (
 					<div
-						className={`absolute inset-0 flex items-center justify-center ${isPublic ? "text-foreground" : "text-sidebar-foreground"}`}
+						className={`pointer-events-none absolute inset-0 flex items-center justify-center ${isPublic ? "text-foreground" : "text-sidebar-foreground"}`}
 					>
 						<Spinner size="md" />
 					</div>
-				) : (
-					<div className="flex w-max min-w-full flex-col" style={{ gap: `${PAGE_GAP}px` }}>
-						{pageDimsRef.current.map((dims, i) => {
-							const pageNum = i + 1;
-							const scaledWidth = Math.floor(dims.width * scale);
-							const scaledHeight = Math.floor(dims.height * scale);
-							return (
-								<div
-									key={pageNum}
-									className="relative mx-auto shrink-0"
-									style={{ width: scaledWidth, height: scaledHeight }}
-								>
-									<canvas
-										ref={(el) => setCanvasRef(pageNum, el)}
-										className="shadow-lg absolute inset-0"
-									/>
-									{numPages > 1 && (
-										<span className="absolute bottom-2 right-3 text-[10px] tabular-nums text-white/80 bg-black/50 px-1.5 py-0.5 rounded pointer-events-none">
-											Page {pageNum}/{numPages}
-										</span>
-									)}
-								</div>
-							);
-						})}
-					</div>
-				)}
+				) : null}
 			</div>
 		</div>
 	);
