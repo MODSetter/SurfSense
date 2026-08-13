@@ -45,7 +45,6 @@ class VideoPresentationRead(VideoPresentationBase):
     created_at: datetime
     slide_count: int | None = None
     thread_id: int | None = None
-    # Cutover: dual-written Artifact id when present (Phase 3).
     artifact_id: int | None = None
 
     class Config:

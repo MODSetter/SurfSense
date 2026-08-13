@@ -1,4 +1,4 @@
-"""Sanitize primary filenames for media → Artifact cutover."""
+"""Sanitize primary filenames for media Artifacts."""
 
 from __future__ import annotations
 

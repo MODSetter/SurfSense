@@ -16,14 +16,11 @@ export interface ChatArtifact {
 	status: ArtifactStatus;
 	/** Anchors the scroll-to-card jump back into the conversation. */
 	toolCallId: string;
-	/**
-	 * Open / scroll identity. Prefer ``artifactId`` for dual-written media and
-	 * file artifacts; otherwise the legacy/report id.
-	 */
+	/** Open / scroll identity — ``artifactId`` when known, else the legacy/report id. */
 	entityId: number | null;
-	/** Canonical Artifact id when the tool (or cutover write) returned one. */
+	/** Canonical Artifact id, when the tool returned one. */
 	artifactId?: number;
-	/** Legacy podcast / video / image generation id when distinct from Artifact. */
+	/** Podcast / video / image generation id, when distinct from the Artifact. */
 	legacyEntityId?: number;
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
 	contentType: "file" | "markdown" | "typst";

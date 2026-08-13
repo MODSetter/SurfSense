@@ -1,4 +1,4 @@
-"""Video media → Artifact cutover."""
+"""Video media → Artifact."""
 
 from __future__ import annotations
 

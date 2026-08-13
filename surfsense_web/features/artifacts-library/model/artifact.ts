@@ -6,10 +6,9 @@ export type LibraryArtifactStatus = "ready" | "running" | "error";
 /**
  * A deliverable aggregated for the library.
  *
- * Artifact-backed media set ``artifactId`` (canonical). ``legacyEntityId`` is
- * the podcast/video/image table id when dual-write recorded it — still needed
- * for Remotion / transcript fallback. ``entityId`` is the open id for
- * legacy-only cards and reports.
+ * ``artifactId`` is canonical. ``legacyEntityId`` is the podcast/video/image
+ * row id, still required for Remotion and transcript fallbacks. ``entityId`` is
+ * the open id for reports and media without an Artifact.
  */
 export interface LibraryArtifact {
 	/** Stable list key — `${kind}-${artifactId ?? entityId}`. */
@@ -19,7 +18,7 @@ export interface LibraryArtifact {
 	entityId: number;
 	/** Canonical Artifact id when listed from the Artifact API. */
 	artifactId?: number;
-	/** Dual-write bridge to podcast/video/image row. */
+	/** Podcast / video / image row id. */
 	legacyEntityId?: number;
 	title: string;
 	status: LibraryArtifactStatus;

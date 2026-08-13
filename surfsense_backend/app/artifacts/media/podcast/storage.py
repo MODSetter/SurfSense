@@ -1,4 +1,4 @@
-"""Durable object-store helpers for podcast audio (legacy + cutover)."""
+"""Durable object-store helpers for podcast audio."""
 
 from __future__ import annotations
 

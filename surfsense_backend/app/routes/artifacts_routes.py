@@ -75,7 +75,7 @@ def _file_manifest(
 
 
 def _legacy_ref(artifact: Artifact) -> dict[str, object] | None:
-    """Cutover bridge: dual-written media stash ``metadata.legacy``."""
+    """Legacy podcast / video / image reference stashed under ``metadata.legacy``."""
     meta = artifact.artifact_metadata or {}
     legacy = meta.get("legacy")
     if not isinstance(legacy, dict):

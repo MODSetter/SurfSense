@@ -104,8 +104,8 @@ async function loadFromArtifact(
 /**
  * Streams the rendered episode and shows its transcript.
  *
- * Prefer ``artifactId`` + ``workspaceId`` (Artifact primary under ARTIFACTS_READ).
- * Legacy ``podcastId`` remains for public shares and pre-dual-write rows.
+ * Prefer ``artifactId`` + ``workspaceId``; ``podcastId`` is the only path for
+ * public shares and podcasts with no Artifact.
  */
 export function PodcastPlayer({
 	podcastId,

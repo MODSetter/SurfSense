@@ -1,4 +1,4 @@
-"""Record a finished image generation as an Artifact (cutover)."""
+"""Record a finished image generation as an Artifact."""
 
 from __future__ import annotations
 

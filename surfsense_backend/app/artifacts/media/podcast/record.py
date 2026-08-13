@@ -1,4 +1,4 @@
-"""Record a finished podcast as an Artifact (cutover).
+"""Record a finished podcast as an Artifact.
 
 Audio blobs live in ``app.artifacts.media.podcast.storage``; this writes the Artifact.
 """

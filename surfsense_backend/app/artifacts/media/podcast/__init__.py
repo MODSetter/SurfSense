@@ -1,4 +1,4 @@
-"""Podcast media → Artifact cutover."""
+"""Podcast media → Artifact."""
 
 from __future__ import annotations
 

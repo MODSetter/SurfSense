@@ -1,4 +1,4 @@
-"""Image media → Artifact cutover."""
+"""Image media → Artifact."""
 
 from __future__ import annotations
 

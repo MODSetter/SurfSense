@@ -25,7 +25,7 @@ async function blobUrlFromContentUrl(contentUrl: string): Promise<string> {
 	return URL.createObjectURL(await response.blob());
 }
 
-/** Pre-dual-write rows: ImageGeneration detail + tokenized/b64 src. */
+/** Images with no Artifact: ImageGeneration detail + tokenized/b64 src. */
 function LegacyLibraryImageViewer({ imageId, prompt }: { imageId: number; prompt: string }) {
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["image-generation-detail", imageId],

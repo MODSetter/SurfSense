@@ -102,7 +102,6 @@ class PodcastDetail(BaseModel):
     created_at: datetime
     workspace_id: int
     thread_id: int | None
-    # Cutover: dual-written Artifact id when present (Phase 3 single-read).
     artifact_id: int | None = None
 
     @classmethod

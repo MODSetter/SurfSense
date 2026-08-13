@@ -53,8 +53,7 @@ function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 	};
 }
 
-// Artifact list is primary for file + dual-written media. Legacy list endpoints
-// only fill gaps for rows not yet dual-written (Phase 4 backfill removes them).
+// Legacy list endpoints only cover media rows that have no Artifact row yet.
 async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
 	const [rows, reports, podcasts, videos, images] = await Promise.all([
 		fetchArtifacts(workspaceId).catch(() => []),

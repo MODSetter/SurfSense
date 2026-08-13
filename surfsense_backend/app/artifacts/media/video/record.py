@@ -1,4 +1,4 @@
-"""Record a finished video presentation as an Artifact (cutover)."""
+"""Record a finished video presentation as an Artifact."""
 
 from __future__ import annotations
 
@@ -35,9 +35,7 @@ def _to_artifact_input(
         files=(
             ArtifactFileInput(
                 data=narration_audio,
-                filename=primary_filename(
-                    title, extension="mp3", fallback="narration"
-                ),
+                filename=primary_filename(title, extension="mp3", fallback="narration"),
                 mime_type="audio/mpeg",
                 role=ArtifactFileRole.PRIMARY,
             ),
@@ -90,16 +88,14 @@ async def record(
             kind="video",
             legacy_id=video_pres.id,
         )
-        # Durable Remotion payload on Artifact — strip local audio_file paths;
-        # audio_storage_key + artifact slide-audio route are the read path.
-        remotion_slides = []
-        for slide in slides:
-            copy = {
-                key: value
-                for key, value in slide.items()
-                if key not in {"audio_file", "storage_backend"}
+        remotion_slides = [
+            {
+                k: v
+                for k, v in slide.items()
+                if k not in {"audio_file", "storage_backend"}
             }
-            remotion_slides.append(copy)
+            for slide in slides
+        ]
         payload = _to_artifact_input(
             workspace_id=video_pres.workspace_id,
             title=title,
