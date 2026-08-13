@@ -20,7 +20,7 @@ export interface ChatArtifact {
 	entityId: number | null;
 	/** Canonical Artifact id, when the tool returned one. */
 	artifactId?: number;
-	/** Podcast / video / image generation id, when distinct from the Artifact. */
+	/** Podcast / video row id, when distinct from the Artifact. */
 	legacyEntityId?: number;
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
 	contentType: "file" | "markdown" | "typst";

@@ -32,11 +32,6 @@ from .folders import (
     FolderUpdate,
 )
 from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
-from .image_generation import (
-    ImageGenerationCreate,
-    ImageGenerationListRead,
-    ImageGenerationRead,
-)
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .model_connections import (
     ConnectionCreate,
@@ -173,9 +168,6 @@ __all__ = [
     # Base schemas
     "IDModel",
     # Image Generation schemas
-    "ImageGenerationCreate",
-    "ImageGenerationListRead",
-    "ImageGenerationRead",
     # RBAC schemas
     "InviteAcceptRequest",
     "InviteAcceptResponse",

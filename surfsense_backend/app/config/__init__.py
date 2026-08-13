@@ -852,9 +852,9 @@ class Config:
     QUOTA_MAX_RESERVE_PER_CALL = int(os.getenv("QUOTA_MAX_RESERVE_PER_CALL", "8000"))
 
     # Per-image reservation (in micro-USD) used by ``billable_call`` for the
-    # ``POST /image-generations`` endpoint when the global config does not
-    # override it. $0.05 covers realistic worst-cases for current OpenAI /
-    # OpenRouter image-gen pricing. Bypassed entirely for free configs.
+    # ``generate_image`` tool when the global config does not override it.
+    # $0.05 covers realistic worst-cases for current OpenAI / OpenRouter
+    # image-gen pricing. Bypassed entirely for free configs.
     QUOTA_DEFAULT_IMAGE_RESERVE_MICROS = int(
         os.getenv("QUOTA_DEFAULT_IMAGE_RESERVE_MICROS", "50000")
     )

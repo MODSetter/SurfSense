@@ -1,13 +1,15 @@
-"""Media record helpers build ArtifactInput with legacy metadata."""
+"""Media record helpers: image delivers straight to an Artifact, podcast and
+video still carry legacy metadata until their own row is reshaped."""
 
 from __future__ import annotations
 
+import base64
 from types import SimpleNamespace
 
 import pytest
 
+import app.artifacts.media.image.record as image_record_mod
 import app.artifacts.media.podcast.record as podcast_record_mod
-from app.artifacts.media.image.record import _to_artifact_input as image_input
 from app.artifacts.media.naming import primary_filename
 from app.artifacts.media.podcast.record import _to_artifact_input as podcast_input
 from app.artifacts.media.video.record import _to_artifact_input as video_input
@@ -52,7 +54,7 @@ def test_podcast_input_sets_format_and_legacy_via_record_helper():
     assert payload.files[0].mime_type == "audio/mpeg"
 
 
-def test_video_and_image_inputs_set_explicit_formats():
+def test_video_input_sets_explicit_format():
     video = video_input(
         workspace_id=1,
         title="Deck",
@@ -63,21 +65,18 @@ def test_video_and_image_inputs_set_explicit_formats():
         artifact_id=None,
         expected_generation=None,
     )
-    image = image_input(
-        workspace_id=1,
-        title="Hero",
-        markdown_representation="# Hero\n\nprompt: sunset",
-        image=b"\x89PNG",
-        metadata={"legacy": {"kind": "image", "id": 3}},
-        artifact_id=None,
-        expected_generation=None,
-    )
     assert video.format is ArtifactFormat.VIDEO
     assert video.files[0].filename == "Deck.mp3"
-    assert image.format is ArtifactFormat.IMAGE
-    assert image.files[0].filename == "Hero.png"
-    assert image.tool_call_id is None
-    assert isinstance(image.files[0], ArtifactFileInput)
+    assert isinstance(video.files[0], ArtifactFileInput)
+
+
+def test_image_type_follows_the_bytes_not_the_request():
+    assert image_record_mod._image_type(b"\x89PNG\r\n") == ("png", "image/png")
+    assert image_record_mod._image_type(b"\xff\xd8\xff\xe0") == ("jpg", "image/jpeg")
+    assert image_record_mod._image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == (
+        "webp",
+        "image/webp",
+    )
 
 
 def test_explicit_format_beats_filename_extension():
@@ -90,6 +89,66 @@ def test_explicit_format_beats_filename_extension():
     )
     assert _artifact_format(files) == "mp3"
     assert _artifact_format(files, explicit=ArtifactFormat.PODCAST) == "podcast"
+
+
+@pytest.mark.asyncio
+async def test_record_image_delivers_artifact_with_provenance(monkeypatch):
+    captured = {}
+
+    async def fake_save(session, **kwargs):
+        captured.update(kwargs)
+        return ArtifactSaved(
+            status="saved",
+            artifact_id=5,
+            generation=1,
+            title=kwargs["title"],
+            files=[],
+        )
+
+    monkeypatch.setattr(image_record_mod, "save_artifact", fake_save)
+
+    saved = await image_record_mod.record(
+        SimpleNamespace(),
+        workspace_id=1,
+        prompt="a sunset",
+        response={
+            "data": [
+                {
+                    "b64_json": base64.b64encode(b"\x89PNG\r\n").decode(),
+                    "revised_prompt": "a vivid sunset",
+                }
+            ]
+        },
+        provenance={"model": "gpt-image-1", "n": 1},
+        thread_id=7,
+        tool_call_id="call-1",
+    )
+
+    assert saved.artifact_id == 5
+    assert captured["format"] is ArtifactFormat.IMAGE
+    assert captured["files"][0].filename == "a sunset.png"
+    assert captured["files"][0].mime_type == "image/png"
+    assert captured["files"][0].data == b"\x89PNG\r\n"
+    assert captured["extra_metadata"] == {
+        "model": "gpt-image-1",
+        "n": 1,
+        "prompt": "a sunset",
+        "revised_prompt": "a vivid sunset",
+    }
+    assert captured["thread_id"] == 7
+    assert captured["tool_call_id"] == "call-1"
+
+
+@pytest.mark.asyncio
+async def test_record_image_rejects_a_response_with_no_image(monkeypatch):
+    monkeypatch.setattr(image_record_mod, "save_artifact", None)
+    with pytest.raises(ValueError):
+        await image_record_mod.record(
+            SimpleNamespace(),
+            workspace_id=1,
+            prompt="a sunset",
+            response={"data": []},
+        )
 
 
 @pytest.mark.asyncio

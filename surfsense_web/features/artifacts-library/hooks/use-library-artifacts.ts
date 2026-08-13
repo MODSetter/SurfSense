@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
-import { imageGenerationsApiService } from "@/lib/apis/image-generations-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
 import { videoPresentationsApiService } from "@/lib/apis/video-presentations-api.service";
@@ -37,8 +36,7 @@ function kindFromFormat(format: string): LibraryArtifactKind | null {
 
 function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 	const kind = kindFromFormat(row.format) ?? "file";
-	const legacyId =
-		row.legacy && row.legacy.kind === kind ? row.legacy.id : undefined;
+	const legacyId = row.legacy && row.legacy.kind === kind ? row.legacy.id : undefined;
 	return {
 		key: `${kind}-${row.artifact_id}`,
 		kind,
@@ -53,30 +51,25 @@ function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 	};
 }
 
-// Legacy list endpoints only cover media rows that have no Artifact row yet.
+// Legacy list endpoints only cover podcast/video rows with no Artifact row yet.
 async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
-	const [rows, reports, podcasts, videos, images] = await Promise.all([
+	const [rows, reports, podcasts, videos] = await Promise.all([
 		fetchArtifacts(workspaceId).catch(() => []),
 		reportsApiService.list(workspaceId).catch(() => []),
 		podcastsApiService.list(workspaceId).catch(() => []),
 		videoPresentationsApiService.list(workspaceId).catch(() => []),
-		imageGenerationsApiService.list(workspaceId).catch(() => []),
 	]);
 
 	const artifacts: LibraryArtifact[] = [];
 	const covered = {
 		podcast: new Set<number>(),
 		video: new Set<number>(),
-		image: new Set<number>(),
 	};
 
 	for (const row of rows) {
 		const item = fromArtifactRow(row);
 		artifacts.push(item);
-		if (
-			(item.kind === "podcast" || item.kind === "video" || item.kind === "image") &&
-			row.legacy?.kind === item.kind
-		) {
+		if ((item.kind === "podcast" || item.kind === "video") && row.legacy?.kind === item.kind) {
 			covered[item.kind].add(row.legacy.id);
 		}
 	}
@@ -120,19 +113,6 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 			createdAt: video.created_at,
 			contentType: "markdown",
 			sourceThreadId: video.thread_id,
-		});
-	}
-
-	for (const image of images) {
-		if (covered.image.has(image.id)) continue;
-		artifacts.push({
-			key: `image-${image.id}`,
-			kind: "image",
-			entityId: image.id,
-			title: image.prompt,
-			status: image.is_success ? "ready" : "error",
-			createdAt: image.created_at,
-			contentType: "markdown",
 		});
 	}
 

@@ -16,8 +16,7 @@ KEY DESIGN POINTS (issue A, B):
    ``shielded_async_session()`` by default; Celery callers can provide a
    worker-loop-safe session factory. This guarantees that quota
    commit/rollback can never accidentally flush or roll back rows the caller
-   has staged in its main session (e.g. a freshly-created
-   ``ImageGeneration`` row).
+   has staged in its main session.
 
 2. **ContextVar safety.** The accumulator is scoped via
    :func:`scoped_turn` (which uses ``ContextVar.reset(token)``), so a
@@ -29,11 +28,11 @@ KEY DESIGN POINTS (issue A, B):
    the LiteLLM-reported ``cost_micros``. This keeps the cost-attribution
    pipeline complete for analytics even when nothing is debited.
 
-4. **Quota denial raises ``QuotaInsufficientError``.** The route handler is
-   responsible for translating that into HTTP 402. We *do not* catch the
-   denial inside ``billable_call`` — letting it propagate also prevents
-   the image-generation route from creating an ``ImageGeneration`` row
-   for a request that never actually ran.
+4. **Quota denial raises ``QuotaInsufficientError``.** The caller is
+   responsible for translating that into HTTP 402 (or a failed tool
+   result). We *do not* catch the denial inside ``billable_call`` — letting
+   it propagate also keeps callers from persisting anything for a request
+   that never actually ran.
 """
 
 from __future__ import annotations

@@ -1,7 +1,5 @@
-"""Image media → Artifact."""
+"""Image media → Artifact.
 
-from __future__ import annotations
-
-from app.artifacts.media.image.storage import open_stream, purge
-
-__all__ = ["open_stream", "purge"]
+Nothing is re-exported here: the name ``record`` would shadow the
+``record`` submodule. Import ``record_image`` from ``app.artifacts.media``.
+"""

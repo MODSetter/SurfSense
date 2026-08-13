@@ -59,20 +59,20 @@ function MediaViewerBody({
 				/>
 			);
 		}
+		return <VideoPresentationViewer presentationId={artifact.entityId} title={artifact.title} />;
+	}
+	if (artifact.artifactId == null) {
 		return (
-			<VideoPresentationViewer presentationId={artifact.entityId} title={artifact.title} />
+			<p className="px-6 py-10 text-center text-sm text-muted-foreground">Image not available</p>
 		);
 	}
-	if (artifact.artifactId != null) {
-		return (
-			<LibraryImageViewer
-				artifactId={artifact.artifactId}
-				workspaceId={workspaceId}
-				prompt={artifact.title}
-			/>
-		);
-	}
-	return <LibraryImageViewer imageId={artifact.entityId} prompt={artifact.title} />;
+	return (
+		<LibraryImageViewer
+			artifactId={artifact.artifactId}
+			workspaceId={workspaceId}
+			prompt={artifact.title}
+		/>
+	);
 }
 
 /**

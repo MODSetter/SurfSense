@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,75 +12,14 @@ from langchain.tools import ToolRuntime
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.asyncio
-async def test_global_openrouter_image_gen_sets_explicit_api_base():
-    """The global-config branch forwards the explicit OpenRouter base."""
-    from app.routes import image_generation_routes
-
-    global_model = {
-        "id": -20_001,
-        "connection_id": -101,
-        "model_id": "openai/gpt-image-1",
-        "supports_image_generation": True,
-        "capabilities_override": {},
-    }
-    global_connection = {
-        "id": -101,
-        "provider": "openrouter",
-        "api_key": "sk-or-test",
-        "base_url": "https://openrouter.ai/api/v1",
-        "extra": {},
-    }
-
-    captured: dict = {}
-
-    async def fake_aimage_generation(**kwargs):
-        captured.update(kwargs)
-        return MagicMock(model_dump=lambda: {"data": []}, _hidden_params={})
-
-    image_gen = MagicMock()
-    image_gen.image_gen_model_id = global_model["id"]
-    image_gen.prompt = "test"
-    image_gen.n = 1
-    image_gen.quality = None
-    image_gen.size = None
-    image_gen.style = None
-    image_gen.response_format = None
-    image_gen.model = None
-
-    workspace = MagicMock()
-    workspace.image_gen_model_id = global_model["id"]
-    session = MagicMock()
-
-    with (
-        patch.object(
-            image_generation_routes,
-            "_get_global_model",
-            return_value=global_model,
-        ),
-        patch.object(
-            image_generation_routes,
-            "_get_global_connection",
-            return_value=global_connection,
-        ),
-        patch.object(
-            image_generation_routes,
-            "aimage_generation",
-            side_effect=fake_aimage_generation,
-        ),
-    ):
-        await image_generation_routes._execute_image_generation(
-            session=session, image_gen=image_gen, workspace=workspace
-        )
-
-    assert captured.get("api_base") == "https://openrouter.ai/api/v1"
-    assert captured["model"] == "openrouter/openai/gpt-image-1"
+@asynccontextmanager
+async def _null_billing(**_kwargs):
+    yield
 
 
 @pytest.mark.asyncio
 async def test_generate_image_tool_global_sets_explicit_api_base():
-    """Same explicit-base behavior at the agent tool entry point — both surfaces share
-    the same OpenRouter config payloads."""
+    """The tool forwards the config's explicit OpenRouter base to litellm."""
     from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
         generate_image as gi_module,
     )
@@ -122,21 +63,19 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
     exec_result = MagicMock()
     exec_result.scalars.return_value = scalars
     session.execute.return_value = exec_result
-    session.add = MagicMock()
     session.commit = AsyncMock()
-    session.refresh = AsyncMock()
 
-    # ``refresh(db_image_gen)`` needs to populate ``id`` for token URL fallback.
-    async def _refresh(obj):
-        obj.id = 1
+    async def fake_resolve_billing(*_args, **_kwargs):
+        return ("free", "openrouter/openai/gpt-image-1", 50_000)
 
-    session.refresh.side_effect = _refresh
+    async def fake_record(*_args, **_kwargs):
+        return SimpleNamespace(artifact_id=7, title="a cat")
 
     with (
         patch.object(gi_module, "shielded_async_session", return_value=session_cm),
-        patch.object(gi_module, "_get_global_model", return_value=global_model),
+        patch.object(gi_module, "get_global_model", return_value=global_model),
         patch.object(
-            gi_module, "_get_global_connection", return_value=global_connection
+            gi_module, "get_global_connection", return_value=global_connection
         ),
         patch.object(
             gi_module, "aimage_generation", side_effect=fake_aimage_generation
@@ -144,6 +83,12 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
         patch.object(
             gi_module, "is_image_gen_auto_mode", side_effect=lambda cid: cid == 0
         ),
+        patch.object(
+            gi_module, "resolve_billing_for_image_gen", side_effect=fake_resolve_billing
+        ),
+        patch.object(gi_module, "billable_call", _null_billing),
+        patch.object(gi_module, "record_image", side_effect=fake_record),
+        patch.object(gi_module, "resolve_root_thread_id", return_value=None),
     ):
         tool = gi_module.create_generate_image_tool(
             workspace_id=1, db_session=MagicMock()

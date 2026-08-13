@@ -1,8 +1,8 @@
 """Media path into Artifact: image / video / podcast.
 
-Blob helpers live in ``media/{kind}/storage.py``.
-Generation stays in podcasts / video graph / image tool+routes;
-call ``record`` after the legacy row is READY/success.
+Generation stays in podcasts / video graph / image tool; call ``record``
+once the result is final. Images deliver straight to an Artifact; podcast
+and video still record from their own row once it is READY.
 """
 
 from __future__ import annotations

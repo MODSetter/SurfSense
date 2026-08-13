@@ -21,6 +21,7 @@ from app.schemas.new_chat import (
 from app.services.public_chat_service import (
     clone_from_snapshot,
     get_public_chat,
+    get_snapshot_artifact_file,
     get_snapshot_podcast,
     get_snapshot_report,
     get_snapshot_video_presentation,
@@ -71,6 +72,35 @@ async def clone_public_chat(
     )
 
     return result
+
+
+@router.get("/{share_token}/artifacts/{artifact_id}/content")
+async def stream_public_artifact_file(
+    share_token: str,
+    artifact_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Stream an artifact's primary file to a public viewer.
+
+    No authentication required — the share token grants access, and only to
+    artifacts the shared thread produced.
+    """
+    file = await get_snapshot_artifact_file(session, share_token, artifact_id)
+    if not file:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    from app.file_storage.factory import get_storage_backend
+
+    backend = get_storage_backend(file.storage_backend)
+    # Verify first so a missing object is a 404, not a mid-stream crash.
+    if not await backend.exists(file.storage_key):
+        raise HTTPException(status_code=404, detail="Artifact is no longer available")
+
+    return StreamingResponse(
+        backend.open_stream(file.storage_key),
+        media_type=file.mime_type,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/{share_token}/podcasts/{podcast_id}")

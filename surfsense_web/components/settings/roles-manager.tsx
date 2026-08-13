@@ -7,7 +7,6 @@ import {
 	ChevronRight,
 	Earth,
 	FileText,
-	Image,
 	Logs,
 	type LucideIcon,
 	MessageCircleReply,
@@ -102,12 +101,6 @@ const CATEGORY_CONFIG: Record<
 		icon: Bot,
 		description: "Configure AI model settings",
 		order: 4,
-	},
-	image_generations: {
-		label: "Image Models",
-		icon: Image,
-		description: "Configure image generation model settings",
-		order: 4.1,
 	},
 	vision_configs: {
 		label: "Vision Models",

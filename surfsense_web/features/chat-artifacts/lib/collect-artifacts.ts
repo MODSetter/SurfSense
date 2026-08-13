@@ -51,8 +51,7 @@ type Described = {
 function describeArtifact(
 	kind: ArtifactKind,
 	args: Record<string, unknown>,
-	result: Record<string, unknown>,
-	hasResult: boolean
+	result: Record<string, unknown>
 ): Described {
 	const resultStatus = typeof result.status === "string" ? result.status : null;
 	const failed = resultStatus === "failed" || resultStatus === "error" || !!result.error;
@@ -109,17 +108,11 @@ function describeArtifact(
 		}
 		case "image": {
 			const artifactId = numericId(result.artifact_id) ?? undefined;
-			const legacyEntityId = numericId(result.image_generation_id) ?? undefined;
-			const entityId = artifactId ?? legacyEntityId ?? null;
-			const ready =
-				entityId != null ||
-				(typeof result.src === "string" && result.src.length > 0);
 			return {
 				title: firstString(result.title, args.prompt) ?? "Image",
-				entityId,
+				entityId: artifactId ?? null,
 				artifactId,
-				legacyEntityId,
-				status: failed ? "error" : ready ? "ready" : hasResult ? "ready" : "running",
+				status: failed ? "error" : artifactId != null ? "ready" : "running",
 			};
 		}
 	}
@@ -149,8 +142,7 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 			const { title, entityId, artifactId, legacyEntityId, status } = describeArtifact(
 				kind,
 				args,
-				result,
-				part.result !== undefined
+				result
 			);
 			if (status === "error") continue;
 
