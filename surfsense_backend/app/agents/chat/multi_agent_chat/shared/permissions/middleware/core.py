@@ -27,12 +27,11 @@ from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
 from app.agents.chat.multi_agent_chat.shared.permissions.model import Ruleset
-from app.agents.chat.runtime.errors import CorrectedError, RejectedError
 from app.services.user_tool_allowlist import TrustedToolSaver
 
 from ..ask.edit import merge_edited_args
 from ..ask.request import request_permission_decision
-from ..deny import build_deny_message
+from ..deny import build_correction_message, build_deny_message, build_reject_message
 from .evaluation import evaluate_tool_call
 from .pattern_resolver import PatternResolver
 from .ruleset_view import all_rulesets
@@ -173,15 +172,16 @@ class PermissionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 elif kind == "reject":
                     feedback = decision.get("feedback")
                     if isinstance(feedback, str) and feedback.strip():
-                        raise CorrectedError(feedback, tool=name)
-                    raise RejectedError(
-                        tool=name, pattern=patterns[0] if patterns else None
-                    )
+                        deny_messages.append(build_correction_message(call, feedback))
+                    else:
+                        deny_messages.append(build_reject_message(call))
+                    any_change = True
                 else:
                     logger.warning(
                         "Unknown permission decision %r; treating as reject", kind
                     )
-                    raise RejectedError(tool=name)
+                    deny_messages.append(build_reject_message(call))
+                    any_change = True
                 continue
 
             kept_calls.append(call)

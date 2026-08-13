@@ -644,6 +644,8 @@ export type SSEEvent =
 					total_tokens: number;
 					cost_micros?: number;
 				}>;
+				/** Some generation in the turn hit its output-token cap. */
+				truncated?: boolean;
 			};
 	  }
 	| { type: "error"; message: string; errorCode?: string; diagnostic?: string };

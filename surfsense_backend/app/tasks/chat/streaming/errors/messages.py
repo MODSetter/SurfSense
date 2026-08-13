@@ -41,6 +41,10 @@ CHAT_ERROR_MESSAGES: dict[str, str] = {
         "seconds or switch models."
     ),
     "SERVER_ERROR": ("We couldn't complete this response right now. Please try again."),
+    "THREAD_AWAITING_APPROVAL": (
+        "This thread is waiting on your approval. Respond to the pending action, "
+        "or stop the response, before sending a new message."
+    ),
     "THREAD_BUSY": (
         "Another response is still finishing for this thread. Please try again "
         "in a moment."

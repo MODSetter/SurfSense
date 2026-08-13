@@ -11,28 +11,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.flags import enabled
 
 from .middleware import ToolCallNameRepairMiddleware
 
-# deepagents-built-in tool names the repair pass treats as known.
-_DEEPAGENT_BUILTIN_TOOL_NAMES: frozenset[str] = frozenset(
-    {
-        "write_todos",
-        "ls",
-        "read_file",
-        "write_file",
-        "edit_file",
-        "glob",
-        "grep",
-        "execute",
-        "task",
-        "mkdir",
-        "cd",
-        "pwd",
-        "move_file",
-        "rm",
-        "rmdir",
-        "list_tree",
-        "execute_code",
-    }
-)
+_MIDDLEWARE_BOUND_TOOL_NAMES: frozenset[str] = frozenset({"task", "write_todos"})
 
 
 def build_repair_mw(
@@ -43,7 +22,7 @@ def build_repair_mw(
     if not enabled(flags, "enable_tool_call_repair"):
         return None
     registered_names: set[str] = {t.name for t in tools}
-    registered_names |= _DEEPAGENT_BUILTIN_TOOL_NAMES
+    registered_names |= _MIDDLEWARE_BOUND_TOOL_NAMES
     return ToolCallNameRepairMiddleware(
         registered_tool_names=registered_names,
         fuzzy_match_threshold=None,

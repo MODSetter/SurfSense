@@ -63,6 +63,7 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
+    PendingInterruptsResponse,
     PublicChatSnapshotCreateResponse,
     PublicChatSnapshotListResponse,
     RegenerateRequest,
@@ -221,6 +222,34 @@ def _raise_if_thread_busy_for_start(thread_id: int) -> None:
             "message": chat_error_message("THREAD_BUSY"),
         },
     )
+
+
+async def _raise_if_thread_awaiting_approval(thread_id: int, checkpointer) -> None:
+    """Refuse a fresh turn when the thread's checkpoint has a pending interrupt.
+
+    The busy mutex releases on an ``interrupt()`` pause, so a paused thread
+    reads as idle to ``_raise_if_thread_busy_for_start``. Running ``new_chat`` /
+    ``regenerate`` over that checkpoint would orphan the pending approval — the
+    user must resume or cancel it first. ``resume`` is exempt; it's the path
+    that clears the pause.
+    """
+    from app.tasks.chat.streaming.helpers.interrupt_inspector import (
+        pending_interrupt_entries_from_writes,
+    )
+
+    checkpoint_tuple = await checkpointer.aget_tuple(
+        {"configurable": {"thread_id": str(thread_id)}}
+    )
+    if checkpoint_tuple is None:
+        return
+    if pending_interrupt_entries_from_writes(checkpoint_tuple.pending_writes):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "errorCode": "THREAD_AWAITING_APPROVAL",
+                "message": chat_error_message("THREAD_AWAITING_APPROVAL"),
+            },
+        )
 
 
 def _find_pre_turn_checkpoint_id(
@@ -1743,6 +1772,11 @@ async def handle_new_chat(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
         _raise_if_thread_busy_for_start(request.chat_id)
+        from app.agents.chat.runtime.checkpointer import get_checkpointer
+
+        await _raise_if_thread_awaiting_approval(
+            request.chat_id, await get_checkpointer()
+        )
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
@@ -1980,14 +2014,15 @@ async def regenerate_response(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
         _raise_if_thread_busy_for_start(thread_id)
+
+        # Get the checkpointer and state history
+        checkpointer = await get_checkpointer()
+        await _raise_if_thread_awaiting_approval(thread_id, checkpointer)
         filesystem_selection = _resolve_filesystem_selection(
             mode=request.filesystem_mode,
             client_platform=request.client_platform,
             local_mounts=request.local_filesystem_mounts,
         )
-
-        # Get the checkpointer and state history
-        checkpointer = await get_checkpointer()
 
         config = {"configurable": {"thread_id": str(thread_id)}}
 
@@ -2374,6 +2409,86 @@ async def regenerate_response(
 # =============================================================================
 # Resume Interrupted Chat Endpoint
 # =============================================================================
+
+
+@router.get(
+    "/threads/{thread_id}/pending-interrupts",
+    response_model=PendingInterruptsResponse,
+)
+async def get_pending_interrupts(
+    thread_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """Return the thread's paused HITL interrupts, if any.
+
+    The live approval card lives only in the frontend's in-memory stream
+    overlay, so a page refresh loses it while the LangGraph checkpoint stays
+    paused. The frontend calls this on thread load to re-render the card and
+    let the user resume or reject.
+    """
+    from app.agents.chat.runtime.checkpointer import get_checkpointer
+    from app.services.new_streaming_service import VercelStreamingService
+    from app.tasks.chat.streaming.helpers.interrupt_inspector import (
+        pending_interrupt_entries_from_writes,
+    )
+
+    result = await session.execute(
+        select(NewChatThread).filter(NewChatThread.id == thread_id)
+    )
+    thread = result.scalars().first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    await check_permission(
+        session,
+        auth,
+        thread.workspace_id,
+        Permission.CHATS_READ.value,
+        "You don't have permission to read chats in this workspace",
+    )
+    await check_thread_access(session, thread, user=auth.user)
+
+    checkpointer = await get_checkpointer()
+    checkpoint_tuple = await checkpointer.aget_tuple(
+        {"configurable": {"thread_id": str(thread_id)}}
+    )
+    if checkpoint_tuple is None:
+        return PendingInterruptsResponse()
+
+    entries = pending_interrupt_entries_from_writes(checkpoint_tuple.pending_writes)
+    if not entries:
+        return PendingInterruptsResponse()
+
+    service = VercelStreamingService()
+    payloads: list[dict] = []
+    for value, interrupt_id in entries:
+        payload = service._normalize_interrupt_payload(value)
+        if interrupt_id is not None:
+            payload = {**payload, "interrupt_id": interrupt_id}
+        payloads.append(payload)
+
+    # Reattach the card to the paused turn's assistant row. ``turn_id`` on the
+    # checkpoint mirrors ``NewChatMessage.turn_id``; fall back to the newest
+    # assistant row (the paused turn is always the head).
+    metadata = checkpoint_tuple.metadata or {}
+    turn_id = metadata.get("turn_id") if isinstance(metadata, dict) else None
+    assistant_query = (
+        select(NewChatMessage.id)
+        .filter(
+            NewChatMessage.thread_id == thread_id,
+            NewChatMessage.role == NewChatMessageRole.ASSISTANT,
+        )
+        .order_by(NewChatMessage.created_at.desc())
+    )
+    if turn_id:
+        assistant_query = assistant_query.filter(NewChatMessage.turn_id == turn_id)
+    assistant_message_id = (await session.execute(assistant_query.limit(1))).scalar()
+
+    return PendingInterruptsResponse(
+        assistant_message_id=assistant_message_id,
+        pending_interrupts=payloads,
+    )
 
 
 @router.post("/threads/{thread_id}/resume")

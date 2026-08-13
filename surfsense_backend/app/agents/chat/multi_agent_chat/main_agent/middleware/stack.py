@@ -85,6 +85,7 @@ from .checkpointed_subagent_middleware.task_description import (
     TASK_TOOL_DESCRIPTION,
 )
 from .context_editing import build_context_editing_mw
+from .continue_on_max_length import build_continue_on_max_length_mw
 from .dedup_hitl import build_dedup_hitl_mw
 from .doom_loop import build_doom_loop_mw
 from .kb_persistence import build_kb_persistence_mw
@@ -273,6 +274,7 @@ def build_main_agent_deepagent_middleware(
             task_description=TASK_TOOL_DESCRIPTION,
             workspace_id=workspace_id,
         ),
+        build_continue_on_max_length_mw(flags),
         resilience.model_call_limit,
         resilience.tool_call_limit,
         build_context_editing_mw(

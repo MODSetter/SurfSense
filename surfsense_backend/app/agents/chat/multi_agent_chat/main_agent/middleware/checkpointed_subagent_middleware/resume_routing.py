@@ -34,23 +34,13 @@ def slice_decisions_by_tool_call(
 ) -> dict[str, dict[str, Any]]:
     """Slice ``decisions`` into ``{tool_call_id: {"decisions": <slice>}}``.
 
-    Args:
-        decisions: Flat list of decisions in the order the SSE stream rendered
-            them.
-        pending: Ordered ``(tool_call_id, action_count)`` pairs in the same
-            order. The slicer consumes ``decisions`` left-to-right.
-
-    Returns:
-        Per-``tool_call_id`` payload dict ready to be written to
-        ``configurable["surfsense_resume_value"]``.
-
-    Raises:
-        ValueError: When the total expected action count differs from the
-            number of decisions provided. We fail loud rather than silently
-            dropping or padding so a frontend/backend contract drift surfaces
-            immediately.
+    Routes by identity when every decision carries a ``tool_call_id``, else by
+    position in ``pending`` order. Raises on any count or id mismatch.
     """
     pending_list = list(pending)
+    if decisions and all(d.get("tool_call_id") for d in decisions):
+        return _route_by_id(decisions, pending_list)
+
     expected = sum(count for _, count in pending_list)
     if expected != len(decisions):
         raise ValueError(
@@ -63,6 +53,34 @@ def slice_decisions_by_tool_call(
     for tool_call_id, action_count in pending_list:
         routed[tool_call_id] = {"decisions": decisions[cursor : cursor + action_count]}
         cursor += action_count
+    return routed
+
+
+def _route_by_id(
+    decisions: list[dict[str, Any]],
+    pending_list: list[tuple[str, int]],
+) -> dict[str, dict[str, Any]]:
+    """Route id-stamped decisions to their pending tool call, validating identity."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for decision in decisions:
+        grouped.setdefault(str(decision["tool_call_id"]), []).append(decision)
+
+    pending_ids = {tool_call_id for tool_call_id, _ in pending_list}
+    if set(grouped) != pending_ids:
+        raise ValueError(
+            "Decision routing mismatch: decisions target "
+            f"{sorted(grouped)} but pending tool calls are {sorted(pending_ids)}."
+        )
+
+    routed: dict[str, dict[str, Any]] = {}
+    for tool_call_id, action_count in pending_list:
+        slice_ = grouped[tool_call_id]
+        if len(slice_) != action_count:
+            raise ValueError(
+                f"Decision count mismatch for tool_call_id={tool_call_id!r}: "
+                f"expected {action_count} action(s) but received {len(slice_)}."
+            )
+        routed[tool_call_id] = {"decisions": slice_}
     return routed
 
 
@@ -136,6 +154,61 @@ def collect_pending_tool_calls(state: Any) -> list[tuple[str, int]]:
         )
 
     return pending
+
+
+def collect_pending_parent_interrupts(state: Any) -> list[tuple[str, int]]:
+    """Ordered ``(interrupt_id, action_count)`` for unstamped parent-graph interrupts.
+
+    Complements :func:`collect_pending_tool_calls`: main-agent
+    ``PermissionMiddleware`` asks and ``DoomLoopMiddleware`` pauses carry no
+    ``tool_call_id`` (they never cross a ``task`` call), so they must be routed
+    by ``Interrupt.id`` instead. ``action_count`` defaults to 1 for scalar
+    payloads (e.g. doom-loop) with no ``action_requests``.
+    """
+    pending: list[tuple[str, int]] = []
+    for interrupt_obj in getattr(state, "interrupts", ()) or ():
+        value = getattr(interrupt_obj, "value", None)
+        if not isinstance(value, dict):
+            continue
+        if isinstance(value.get("tool_call_id"), str):
+            continue  # subagent-routed; owned by collect_pending_tool_calls
+        interrupt_id = getattr(interrupt_obj, "id", None)
+        if not isinstance(interrupt_id, str):
+            continue
+        action_requests = value.get("action_requests")
+        count = (
+            len(action_requests)
+            if isinstance(action_requests, list) and action_requests
+            else 1
+        )
+        pending.append((interrupt_id, count))
+    return pending
+
+
+def build_parent_resume_map(
+    decisions: list[dict[str, Any]],
+    parent_pending: list[tuple[str, int]],
+) -> dict[str, Any]:
+    """Map ``Interrupt.id → resume_value`` for parent-side interrupts.
+
+    Single-action asks deliver the raw decision dict (the site's
+    ``interrupt()`` return); parent sites read it directly and never unwrap a
+    ``{"decisions": [...]}`` bundle. Raises on a decision-count mismatch.
+    """
+    expected = sum(count for _, count in parent_pending)
+    if expected != len(decisions):
+        raise ValueError(
+            f"Decision count mismatch: parent-side interrupts expect "
+            f"{expected} actions but received {len(decisions)} decisions."
+        )
+
+    out: dict[str, Any] = {}
+    cursor = 0
+    for interrupt_id, count in parent_pending:
+        chunk = decisions[cursor : cursor + count]
+        cursor += count
+        out[interrupt_id] = chunk[0] if count == 1 else {"decisions": chunk}
+    return out
 
 
 def build_lg_resume_map(
