@@ -195,6 +195,8 @@ function AuthenticatedDocumentRightPanelBase({
 	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
 	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
 	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
+	const [folderPendingDelete, setFolderPendingDelete] = useState<FolderDisplay | null>(null);
+	const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
@@ -584,27 +586,32 @@ function AuthenticatedDocumentRightPanelBase({
 		}
 	}, []);
 
-	const handleDeleteFolder = useCallback(
-		async (folder: FolderDisplay) => {
-			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
-			try {
-				if (electronAPI) {
-					const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
-					const matched = watchedFolders.find(
-						(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
-					);
-					if (matched) {
-						await electronAPI.removeWatchedFolder(matched.path);
-					}
+	const handleDeleteFolder = useCallback((folder: FolderDisplay) => {
+		setFolderPendingDelete(folder);
+	}, []);
+
+	const handleConfirmDeleteFolder = useCallback(async () => {
+		if (!folderPendingDelete) return;
+		setIsDeletingFolder(true);
+		try {
+			if (electronAPI) {
+				const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+				const matched = watchedFolders.find(
+					(wf: WatchedFolderEntry) => wf.rootFolderId === folderPendingDelete.id
+				);
+				if (matched) {
+					await electronAPI.removeWatchedFolder(matched.path);
 				}
-				await foldersApiService.deleteFolder(folder.id);
-				toast.success("Folder deleted");
-			} catch (e: unknown) {
-				toast.error((e as Error)?.message || "Failed to delete folder");
 			}
-		},
-		[electronAPI]
-	);
+			await foldersApiService.deleteFolder(folderPendingDelete.id);
+			setFolderPendingDelete(null);
+			toast.success("Folder deleted");
+		} catch (e: unknown) {
+			toast.error((e as Error)?.message || "Failed to delete folder");
+		} finally {
+			setIsDeletingFolder(false);
+		}
+	}, [electronAPI, folderPendingDelete]);
 
 	const handleMoveFolder = useCallback(
 		(folder: FolderDisplay) => {
@@ -1381,6 +1388,37 @@ function AuthenticatedDocumentRightPanelBase({
 				parentFolderName={createFolderParentName}
 				onConfirm={handleCreateFolderConfirm}
 			/>
+
+			<AlertDialog
+				open={folderPendingDelete !== null}
+				onOpenChange={(open) => {
+					if (!open && !isDeletingFolder) setFolderPendingDelete(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete this folder?</AlertDialogTitle>
+						<AlertDialogDescription>
+							<span className="font-medium text-foreground">{folderPendingDelete?.name}</span> and
+							all of its contents will be permanently deleted. This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingFolder}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(event) => {
+								event.preventDefault();
+								void handleConfirmDeleteFolder();
+							}}
+							disabled={isDeletingFolder}
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							<span className={isDeletingFolder ? "opacity-0" : ""}>Delete</span>
+							{isDeletingFolder ? <Spinner size="sm" className="absolute" /> : null}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			<AlertDialog
 				open={bulkDeleteConfirmOpen}
