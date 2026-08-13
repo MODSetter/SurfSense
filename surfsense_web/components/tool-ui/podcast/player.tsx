@@ -17,7 +17,7 @@ import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
-import { getQueryClient } from "@/lib/query-client";
+import { queryClient } from "@/lib/query-client/client";
 import { speakerLabel } from "./schema";
 
 // Public snapshots predate the transcript.turns shape and keep their own.
@@ -74,7 +74,7 @@ async function loadFromArtifact(
 	legacyPodcastId: number | undefined,
 	signal: AbortSignal
 ): Promise<{ audioBlob: Blob; lines: TranscriptLine[] }> {
-	const manifest = await getQueryClient().fetchQuery(
+	const manifest = await queryClient.fetchQuery(
 		artifactManifestQueryOptions(workspaceId, artifactId)
 	);
 	const primary = manifest.files.find((file) => file.role === "primary");
