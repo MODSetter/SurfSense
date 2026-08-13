@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import time
 from enum import StrEnum
 from typing import Any
 
@@ -293,13 +292,6 @@ def compute_request_count_key(ip_address: str) -> str:
     return f"anon:reqcount:{h}"
 
 
-def compute_image_count_key(ip_address: str) -> str:
-    """Per-IP daily image counter key (date-bucketed so it resets each day)."""
-    h = hashlib.sha256(ip_address.encode()).hexdigest()[:16]
-    day = time.strftime("%Y%m%d", time.gmtime())
-    return f"anon:imgcount:{h}:{day}"
-
-
 class TokenQuotaService:
     """Unified quota service for anonymous (Redis) and premium (Postgres) scopes."""
 
@@ -366,34 +358,6 @@ class TokenQuotaService:
         r = _get_anon_redis()
         try:
             await r.delete(key)
-        finally:
-            await r.aclose()
-
-    # ------------------------------------------------------------------
-    # Per-IP daily image counter (hard cap on the anonymous funnel)
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    async def anon_get_image_count(ip_address: str) -> int:
-        key = compute_image_count_key(ip_address)
-        r = _get_anon_redis()
-        try:
-            val = await r.get(key)
-            return int(val) if val else 0
-        finally:
-            await r.aclose()
-
-    @staticmethod
-    async def anon_increment_image_count(ip_address: str, ttl: int = 86400) -> int:
-        """Increment and return the IP's image count for the current day."""
-        key = compute_image_count_key(ip_address)
-        r = _get_anon_redis()
-        try:
-            pipe = r.pipeline()
-            pipe.incr(key)
-            pipe.expire(key, ttl)
-            results = await pipe.execute()
-            return int(results[0])
         finally:
             await r.aclose()
 

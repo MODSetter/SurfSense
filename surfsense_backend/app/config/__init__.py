@@ -885,9 +885,6 @@ class Config:
     ANON_CAPTCHA_REQUEST_THRESHOLD = int(
         os.getenv("ANON_CAPTCHA_REQUEST_THRESHOLD", "5")
     )
-    # Hard per-IP daily cap on anonymous image generations (each hits a paid
-    # provider), separate from the token quota which does not apply to images.
-    ANON_IMAGE_DAILY_CAP_PER_IP = int(os.getenv("ANON_IMAGE_DAILY_CAP_PER_IP", "5"))
 
     # Cloudflare Turnstile CAPTCHA
     TURNSTILE_ENABLED = os.getenv("TURNSTILE_ENABLED", "FALSE").upper() == "TRUE"

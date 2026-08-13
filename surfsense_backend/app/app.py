@@ -1206,13 +1206,6 @@ from app.routes.anonymous_chat_routes import (  # noqa: E402
 
 app.include_router(anonymous_chat_router)
 
-# Anonymous artifact-generation funnel — mounted at /api/v1/public/tools
-from app.artifacts.generation.access.public import (  # noqa: E402
-    build_public_artifact_router,
-)
-
-app.include_router(build_public_artifact_router())
-
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 
 
