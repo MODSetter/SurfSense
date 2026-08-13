@@ -3,7 +3,6 @@ import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
-import { videoPresentationsApiService } from "@/lib/apis/video-presentations-api.service";
 import type {
 	LibraryArtifact,
 	LibraryArtifactKind,
@@ -13,12 +12,6 @@ import type {
 function podcastStatus(status: string): LibraryArtifactStatus {
 	if (status === "ready") return "ready";
 	if (status === "failed" || status === "cancelled") return "error";
-	return "running";
-}
-
-function videoStatus(status: string): LibraryArtifactStatus {
-	if (status === "ready") return "ready";
-	if (status === "failed") return "error";
 	return "running";
 }
 
@@ -51,26 +44,22 @@ function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 	};
 }
 
-// Legacy list endpoints only cover podcast/video rows with no Artifact row yet.
+// Podcast rows still list separately: a podcast has no Artifact until delivered.
 async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
-	const [rows, reports, podcasts, videos] = await Promise.all([
+	const [rows, reports, podcasts] = await Promise.all([
 		fetchArtifacts(workspaceId).catch(() => []),
 		reportsApiService.list(workspaceId).catch(() => []),
 		podcastsApiService.list(workspaceId).catch(() => []),
-		videoPresentationsApiService.list(workspaceId).catch(() => []),
 	]);
 
 	const artifacts: LibraryArtifact[] = [];
-	const covered = {
-		podcast: new Set<number>(),
-		video: new Set<number>(),
-	};
+	const coveredPodcasts = new Set<number>();
 
 	for (const row of rows) {
 		const item = fromArtifactRow(row);
 		artifacts.push(item);
-		if ((item.kind === "podcast" || item.kind === "video") && row.legacy?.kind === item.kind) {
-			covered[item.kind].add(row.legacy.id);
+		if (item.kind === "podcast" && row.legacy?.kind === "podcast") {
+			coveredPodcasts.add(row.legacy.id);
 		}
 	}
 
@@ -89,7 +78,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	}
 
 	for (const podcast of podcasts) {
-		if (covered.podcast.has(podcast.id)) continue;
+		if (coveredPodcasts.has(podcast.id)) continue;
 		artifacts.push({
 			key: `podcast-${podcast.id}`,
 			kind: "podcast",
@@ -99,20 +88,6 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 			createdAt: podcast.created_at,
 			contentType: "markdown",
 			sourceThreadId: podcast.thread_id,
-		});
-	}
-
-	for (const video of videos) {
-		if (covered.video.has(video.id)) continue;
-		artifacts.push({
-			key: `video-${video.id}`,
-			kind: "video",
-			entityId: video.id,
-			title: video.title,
-			status: videoStatus(video.status),
-			createdAt: video.created_at,
-			contentType: "markdown",
-			sourceThreadId: video.thread_id,
 		});
 	}
 

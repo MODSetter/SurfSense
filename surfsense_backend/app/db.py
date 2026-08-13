@@ -1507,19 +1507,17 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class VideoPresentation(BaseModel, TimestampMixin):
-    """Video presentation model for storing AI-generated video presentations.
+class VideoPresentationRun(BaseModel, TimestampMixin):
+    """Lifecycle record for one video-presentation generation.
 
-    The slides JSONB stores per-slide data including Remotion component code,
-    audio file paths, and durations. The frontend compiles the code and renders
-    the video using Remotion Player.
+    The delivered result — Remotion slides, scene codes, narration — lives in
+    the Artifact pointed to by ``artifact_id``. This row tracks only the run:
+    its status, and the reason a failed one failed.
     """
 
-    __tablename__ = "video_presentations"
+    __tablename__ = "video_presentation_runs"
 
     title = Column(String(500), nullable=False)
-    slides = Column(JSONB, nullable=True)
-    scene_codes = Column(JSONB, nullable=True)
     status = Column(
         SQLAlchemyEnum(
             VideoPresentationStatus,
@@ -1532,13 +1530,14 @@ class VideoPresentation(BaseModel, TimestampMixin):
         server_default="ready",
         index=True,
     )
+    error = Column(Text, nullable=True)
 
     workspace_id = Column(
         Integer,
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    workspace = relationship("Workspace", back_populates="video_presentations")
+    workspace = relationship("Workspace", back_populates="video_presentation_runs")
 
     thread_id = Column(
         Integer,
@@ -1547,6 +1546,12 @@ class VideoPresentation(BaseModel, TimestampMixin):
         index=True,
     )
     thread = relationship("NewChatThread")
+
+    artifact_id = Column(
+        Integer,
+        ForeignKey("artifacts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
 
 class Report(BaseModel, TimestampMixin):
@@ -1739,10 +1744,10 @@ class Workspace(BaseModel, TimestampMixin):
         order_by="Podcast.id.desc()",
         cascade="all, delete-orphan",
     )
-    video_presentations = relationship(
-        "VideoPresentation",
+    video_presentation_runs = relationship(
+        "VideoPresentationRun",
         back_populates="workspace",
-        order_by="VideoPresentation.id.desc()",
+        order_by="VideoPresentationRun.id.desc()",
         cascade="all, delete-orphan",
     )
     reports = relationship(

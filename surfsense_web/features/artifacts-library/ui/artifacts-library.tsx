@@ -8,6 +8,7 @@ import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import { Button } from "@/components/ui/button";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
+import { useLibraryVideoRuns } from "../hooks/use-library-video-runs";
 import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
 import { ArtifactCard } from "./artifact-card";
 import { KIND_META, KIND_ORDER } from "./kind-meta";
@@ -62,19 +63,30 @@ function EmptyState() {
 
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
+	const liveVideoRuns = useLibraryVideoRuns(workspaceId);
 	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openReportPanel = useSetAtom(openReportPanelAtom);
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
 
+	// Delivered videos come from the Artifact API (react-query); in-flight and
+	// failed runs arrive by push from Zero. Merge newest-first.
+	const merged = useMemo(
+		() =>
+			[...artifacts, ...liveVideoRuns].sort(
+				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+			),
+		[artifacts, liveVideoRuns]
+	);
+
 	const grouped = useMemo(() => {
 		const map = new Map<LibraryArtifactKind, LibraryArtifact[]>();
-		for (const artifact of artifacts) {
+		for (const artifact of merged) {
 			const bucket = map.get(artifact.kind);
 			if (bucket) bucket.push(artifact);
 			else map.set(artifact.kind, [artifact]);
 		}
 		return map;
-	}, [artifacts]);
+	}, [merged]);
 
 	const handleOpen = (artifact: LibraryArtifact) => {
 		if (artifact.kind === "file") {
@@ -98,8 +110,8 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 			<header className="flex items-center justify-between gap-4 flex-wrap">
 				<div className="flex items-baseline gap-3">
 					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Artifacts</h1>
-					{!loading && artifacts.length > 0 ? (
-						<span className="text-sm text-muted-foreground">{artifacts.length} total</span>
+					{!loading && merged.length > 0 ? (
+						<span className="text-sm text-muted-foreground">{merged.length} total</span>
 					) : null}
 				</div>
 			</header>
@@ -108,7 +120,7 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 				<LoadingState />
 			) : error ? (
 				<ErrorState onRetry={() => refresh()} />
-			) : artifacts.length === 0 ? (
+			) : merged.length === 0 ? (
 				<EmptyState />
 			) : (
 				<div className="space-y-8">

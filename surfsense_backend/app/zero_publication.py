@@ -81,6 +81,20 @@ PODCAST_COLS = [
     "created_at",
 ]
 
+# Lifecycle only: status and error drive the in-flight / failed UI by push,
+# artifact_id links the delivered result. The Remotion payload lives in the
+# Artifact and is fetched over REST, never replicated here.
+VIDEO_PRESENTATION_RUN_COLS = [
+    "id",
+    "title",
+    "status",
+    "error",
+    "artifact_id",
+    "workspace_id",
+    "thread_id",
+    "created_at",
+]
+
 ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "notifications": None,
     "documents": DOCUMENT_COLS,
@@ -94,6 +108,7 @@ ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "automations": AUTOMATION_COLS,
     "automation_runs": AUTOMATION_RUN_COLS,
     "podcasts": PODCAST_COLS,
+    "video_presentation_runs": VIDEO_PRESENTATION_RUN_COLS,
 }
 
 
@@ -118,9 +133,12 @@ def _expected_columns(conn: Connection, table: str) -> list[str] | None:
         return None
 
     expected = list(columns)
-    if table in {"documents", "user", "podcasts"} and "_0_version" in _table_columns(
-        conn, table
-    ):
+    if table in {
+        "documents",
+        "user",
+        "podcasts",
+        "video_presentation_runs",
+    } and "_0_version" in _table_columns(conn, table):
         expected.append("_0_version")
     return expected
 

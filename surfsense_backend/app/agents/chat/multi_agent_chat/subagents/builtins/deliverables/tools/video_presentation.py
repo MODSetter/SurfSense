@@ -25,7 +25,11 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverabl
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
     resolve_root_thread_id,
 )
-from app.db import VideoPresentation, VideoPresentationStatus, shielded_async_session
+from app.db import (
+    VideoPresentationRun,
+    VideoPresentationStatus,
+    shielded_async_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +58,7 @@ def create_generate_video_presentation_tool(
         try:
             # One DB session per tool call so parallel invocations never share an AsyncSession.
             async with shielded_async_session() as session:
-                video_pres = VideoPresentation(
+                video_pres = VideoPresentationRun(
                     title=video_title,
                     status=VideoPresentationStatus.PENDING,
                     workspace_id=workspace_id,
@@ -86,15 +90,19 @@ def create_generate_video_presentation_tool(
             # state. The wait is bounded only by the subagent invoke
             # timeout (multi-agent) or HTTP lifetime (single-agent) —
             # see app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverable_wait for details.
-            terminal_status, _columns, elapsed = await wait_for_deliverable(
-                model=VideoPresentation,
+            terminal_status, columns, elapsed = await wait_for_deliverable(
+                model=VideoPresentationRun,
                 row_id=video_pres_id,
-                columns=[VideoPresentation.status],
+                columns=[
+                    VideoPresentationRun.status,
+                    VideoPresentationRun.artifact_id,
+                ],
                 terminal_statuses={
                     VideoPresentationStatus.READY,
                     VideoPresentationStatus.FAILED,
                 },
             )
+            artifact_id = columns[1] if len(columns) > 1 else None
 
             if terminal_status == VideoPresentationStatus.READY:
                 logger.info(
@@ -105,6 +113,8 @@ def create_generate_video_presentation_tool(
                 payload: dict[str, Any] = {
                     "status": VideoPresentationStatus.READY.value,
                     "video_presentation_id": video_pres_id,
+                    "artifact_id": artifact_id,
+                    "workspace_id": workspace_id,
                     "title": video_title,
                     "message": "Video presentation generated and saved.",
                 }

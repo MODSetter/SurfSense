@@ -11,6 +11,7 @@ import { folderTable } from "./folders";
 import { notificationTable } from "./inbox";
 import { podcastTable } from "./podcasts";
 import { userTable } from "./user";
+import { videoPresentationRunTable } from "./video-presentation-runs";
 
 const chatCommentRelationships = relationships(chatCommentTable, ({ one }) => ({
 	message: one({
@@ -73,6 +74,7 @@ export const schema = createSchema({
 		automationTable,
 		automationRunTable,
 		podcastTable,
+		videoPresentationRunTable,
 	],
 	relationships: [
 		chatCommentRelationships,

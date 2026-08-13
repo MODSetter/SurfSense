@@ -32,8 +32,6 @@ from app.db import (
     PublicChatSnapshot,
     Report,
     User,
-    VideoPresentation,
-    VideoPresentationStatus,
     WorkspaceMembership,
 )
 from app.utils.rbac import check_permission
@@ -202,8 +200,6 @@ async def create_snapshot(
     podcast_ids_seen: set[int] = set()
     reports_data = []
     report_ids_seen: set[int] = set()
-    video_presentations_data = []
-    video_presentation_ids_seen: set[int] = set()
     artifact_ids: set[int] = set()
 
     for msg in sorted(thread.messages, key=lambda m: m.created_at):
@@ -237,18 +233,6 @@ async def create_snapshot(
                             podcasts_data.append(podcast_info)
                             podcast_ids_seen.add(podcast_id)
                             # Update status to "ready" so frontend renders PodcastPlayer
-                            part["result"] = {**result_data, "status": "ready"}
-
-                elif tool_name == "generate_video_presentation":
-                    result_data = part.get("result", {})
-                    vp_id = result_data.get("video_presentation_id")
-                    if vp_id and vp_id not in video_presentation_ids_seen:
-                        vp_info = await _get_video_presentation_for_snapshot(
-                            session, vp_id
-                        )
-                        if vp_info:
-                            video_presentations_data.append(vp_info)
-                            video_presentation_ids_seen.add(vp_id)
                             part["result"] = {**result_data, "status": "ready"}
 
                 elif tool_name in ("generate_report", "generate_resume"):
@@ -308,7 +292,6 @@ async def create_snapshot(
         "messages": messages_data,
         "podcasts": podcasts_data,
         "reports": reports_data,
-        "video_presentations": video_presentations_data,
         "artifact_ids": sorted(artifact_ids),
     }
 
@@ -353,27 +336,6 @@ async def _get_podcast_for_snapshot(
         "storage_key": podcast.storage_key,
         # Legacy fallback for rows rendered before the storage migration.
         "file_path": podcast.file_location,
-    }
-
-
-async def _get_video_presentation_for_snapshot(
-    session: AsyncSession,
-    video_presentation_id: int,
-) -> dict | None:
-    """Get video presentation info for embedding in snapshot_data."""
-    result = await session.execute(
-        select(VideoPresentation).filter(VideoPresentation.id == video_presentation_id)
-    )
-    vp = result.scalars().first()
-
-    if not vp or vp.status != VideoPresentationStatus.READY:
-        return None
-
-    return {
-        "original_id": vp.id,
-        "title": vp.title,
-        "slides": vp.slides,
-        "scene_codes": vp.scene_codes,
     }
 
 
@@ -849,6 +811,36 @@ async def get_snapshot_artifact_file(
             ArtifactFile.artifact_id == artifact_id,
             ArtifactFile.role == ArtifactFileRole.PRIMARY,
         )
+    )
+    return result.scalars().first()
+
+
+async def get_snapshot_video_artifact(
+    session: AsyncSession,
+    share_token: str,
+    artifact_id: int,
+):
+    """Video Artifact this snapshot references, or ``None``.
+
+    Same allowlist as ``get_snapshot_artifact_file``: the share token grants
+    access only to the artifacts the shared thread produced. Returns the
+    Artifact with its document loaded (for the title); the Remotion slides and
+    scene codes live in ``artifact_metadata``.
+    """
+    from app.artifacts.persistence import Artifact
+
+    snapshot = await get_snapshot_by_token(session, share_token)
+    if not snapshot:
+        return None
+
+    allowed = snapshot.snapshot_data.get("artifact_ids") or []
+    if artifact_id not in allowed:
+        return None
+
+    result = await session.execute(
+        select(Artifact)
+        .options(selectinload(Artifact.document))
+        .filter(Artifact.id == artifact_id, Artifact.format == "video")
     )
     return result.scalars().first()
 

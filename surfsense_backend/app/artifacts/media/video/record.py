@@ -22,7 +22,7 @@ def _to_artifact_input(
     workspace_id: int,
     title: str,
     markdown_representation: str,
-    narration_audio: bytes,
+    primary_audio: bytes,
     thread_id: int | None,
     metadata: dict[str, Any],
     artifact_id: int | None,
@@ -34,8 +34,10 @@ def _to_artifact_input(
         markdown_representation=markdown_representation,
         files=(
             ArtifactFileInput(
-                data=narration_audio,
-                filename=primary_filename(title, extension="mp3", fallback="narration"),
+                data=primary_audio,
+                filename=primary_filename(
+                    title, extension="mp3", fallback="slide-1-audio"
+                ),
                 mime_type="audio/mpeg",
                 role=ArtifactFileRole.PRIMARY,
             ),
@@ -100,7 +102,7 @@ async def record(
             workspace_id=video_pres.workspace_id,
             title=title,
             markdown_representation=f"# {title}\n\n{outline}\n",
-            narration_audio=audio,
+            primary_audio=audio,
             thread_id=video_pres.thread_id,
             metadata=legacy_metadata(
                 "video",

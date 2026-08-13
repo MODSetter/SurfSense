@@ -6,6 +6,7 @@ import { folderQueries } from "./folders";
 import { notificationQueries } from "./inbox";
 import { podcastQueries } from "./podcasts";
 import { userQueries } from "./user";
+import { videoPresentationRunQueries } from "./video-presentation-runs";
 
 export const queries = defineQueries({
 	notifications: notificationQueries,
@@ -18,4 +19,5 @@ export const queries = defineQueries({
 	user: userQueries,
 	automationRuns: automationRunQueries,
 	podcasts: podcastQueries,
+	videoRuns: videoPresentationRunQueries,
 });
