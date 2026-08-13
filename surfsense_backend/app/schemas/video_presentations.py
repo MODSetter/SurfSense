@@ -45,12 +45,14 @@ class VideoPresentationRead(VideoPresentationBase):
     created_at: datetime
     slide_count: int | None = None
     thread_id: int | None = None
+    # Cutover: dual-written Artifact id when present (Phase 3).
+    artifact_id: int | None = None
 
     class Config:
         from_attributes = True
 
     @classmethod
-    def from_orm_with_slides(cls, obj):
+    def from_orm_with_slides(cls, obj, *, artifact_id: int | None = None):
         """Create VideoPresentationRead with slide_count computed.
 
         Replaces raw server file paths in `audio_file` with API streaming
@@ -70,6 +72,7 @@ class VideoPresentationRead(VideoPresentationBase):
             "created_at": obj.created_at,
             "slide_count": len(obj.slides) if obj.slides else None,
             "thread_id": obj.thread_id,
+            "artifact_id": artifact_id,
         }
         return cls(**data)
 

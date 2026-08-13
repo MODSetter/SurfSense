@@ -193,7 +193,7 @@ async def get_podcast(
     auth: AuthContext = Depends(get_auth_context),
 ):
     podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_READ)
-    return PodcastDetail.of(podcast)
+    return await PodcastDetail.resolve(session, podcast)
 
 
 @router.patch("/podcasts/{podcast_id}/spec", response_model=PodcastDetail)

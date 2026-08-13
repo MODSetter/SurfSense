@@ -119,7 +119,17 @@ async def read_video_presentation(
             "You don't have permission to read video presentations in this workspace",
         )
 
-        return VideoPresentationRead.from_orm_with_slides(video_pres)
+        from app.artifacts.media.legacy import existing_legacy_artifact
+
+        art = await existing_legacy_artifact(
+            session,
+            workspace_id=video_pres.workspace_id,
+            kind="video",
+            legacy_id=video_pres.id,
+        )
+        return VideoPresentationRead.from_orm_with_slides(
+            video_pres, artifact_id=art.id if art else None
+        )
     except HTTPException as he:
         raise he
     except SQLAlchemyError:

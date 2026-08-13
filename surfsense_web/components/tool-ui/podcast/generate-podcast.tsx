@@ -213,18 +213,25 @@ function LivePodcastCard({
 	// a regeneration starts with one).
 	const status = podcast?.status;
 	const [hasEpisode, setHasEpisode] = useState(false);
+	const [artifactId, setArtifactId] = useState<number | undefined>();
 	useEffect(() => {
-		if (!status || !BACK_OUT_STATUSES.has(status)) return;
-		let stale = false;
-		podcastsApiService
-			.getDetail(podcastId)
-			.then((detail) => {
-				if (!stale) setHasEpisode(detail.has_audio);
-			})
-			.catch(() => {});
-		return () => {
-			stale = true;
-		};
+		if (!status) return;
+		if (status === "ready" || BACK_OUT_STATUSES.has(status)) {
+			let stale = false;
+			podcastsApiService
+				.getDetail(podcastId)
+				.then((detail) => {
+					if (stale) return;
+					if (BACK_OUT_STATUSES.has(status)) setHasEpisode(detail.has_audio);
+					if (status === "ready") {
+						setArtifactId(detail.artifact_id ?? undefined);
+					}
+				})
+				.catch(() => {});
+			return () => {
+				stale = true;
+			};
+		}
 	}, [podcastId, status]);
 
 	if (!podcast) {
@@ -296,6 +303,8 @@ function LivePodcastCard({
 				<div>
 					<PodcastPlayer
 						podcastId={podcast.id}
+						artifactId={artifactId}
+						workspaceId={podcast.workspaceId}
 						title={title}
 						durationMs={podcast.durationSeconds ? podcast.durationSeconds * 1000 : undefined}
 					/>

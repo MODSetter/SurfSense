@@ -9,6 +9,8 @@ test builds a row in one lifecycle shape and asserts the mapping reflects it.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -85,10 +87,25 @@ def test_a_ready_podcast_reports_available_audio(make_spec, make_transcript):
         duration_seconds=120,
     )
 
-    detail = PodcastDetail.of(podcast)
+    detail = PodcastDetail.of(podcast, artifact_id=77)
 
     assert detail.status == PodcastStatus.READY
     assert detail.has_audio is True
     assert detail.duration_seconds == 120
     assert detail.transcript is not None
     assert detail.error is None
+    assert detail.artifact_id == 77
+
+
+@pytest.mark.asyncio
+async def test_resolve_attaches_dual_written_artifact_id(monkeypatch):
+    import app.artifacts.media.legacy as legacy
+
+    podcast = _podcast(status=PodcastStatus.READY)
+    monkeypatch.setattr(
+        legacy,
+        "existing_legacy_artifact",
+        AsyncMock(return_value=SimpleNamespace(id=55)),
+    )
+    detail = await PodcastDetail.resolve(AsyncMock(), podcast)
+    assert detail.artifact_id == 55
