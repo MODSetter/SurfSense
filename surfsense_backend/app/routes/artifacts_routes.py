@@ -79,6 +79,38 @@ def _file_manifest(
     }
 
 
+def _legacy_ref(artifact: Artifact) -> dict[str, object] | None:
+    """Cutover bridge: dual-written media stash ``metadata.legacy``."""
+    meta = artifact.artifact_metadata or {}
+    legacy = meta.get("legacy")
+    if not isinstance(legacy, dict):
+        return None
+    kind = legacy.get("kind")
+    legacy_id = legacy.get("id")
+    if not isinstance(kind, str) or not isinstance(legacy_id, int):
+        return None
+    return {"kind": kind, "id": legacy_id}
+
+
+def _list_item(artifact: Artifact) -> dict[str, object]:
+    item: dict[str, object] = {
+        "artifact_id": artifact.id,
+        "title": artifact.title,
+        "format": artifact.format,
+        "version": artifact.version,
+        "indexing_status": artifact.indexing_status,
+        "thread_id": artifact.thread_id,
+        "created_at": artifact.created_at.isoformat(),
+        "updated_at": (
+            artifact.updated_at.isoformat() if artifact.updated_at else None
+        ),
+    }
+    legacy = _legacy_ref(artifact)
+    if legacy is not None:
+        item["legacy"] = legacy
+    return item
+
+
 @router.get("/workspaces/{workspace_id}/artifacts")
 async def list_artifacts(
     workspace_id: int,
@@ -97,21 +129,7 @@ async def list_artifacts(
         )
     ).all()
     response.headers["Cache-Control"] = "private, no-store"
-    return [
-        {
-            "artifact_id": artifact.id,
-            "title": artifact.title,
-            "format": artifact.format,
-            "version": artifact.version,
-            "indexing_status": artifact.indexing_status,
-            "thread_id": artifact.thread_id,
-            "created_at": artifact.created_at.isoformat(),
-            "updated_at": (
-                artifact.updated_at.isoformat() if artifact.updated_at else None
-            ),
-        }
-        for artifact in artifacts
-    ]
+    return [_list_item(artifact) for artifact in artifacts]
 
 
 @router.get("/workspaces/{workspace_id}/artifacts/by-chunk/{chunk_id}")
@@ -183,7 +201,7 @@ async def get_artifact_manifest(
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=cache_headers)
     response.headers.update(cache_headers)
-    return {
+    payload: dict[str, object] = {
         "artifact_id": artifact.id,
         "title": artifact.title,
         "format": artifact.format,
@@ -197,6 +215,10 @@ async def get_artifact_manifest(
             artifact.updated_at.isoformat() if artifact.updated_at else None
         ),
     }
+    legacy = _legacy_ref(artifact)
+    if legacy is not None:
+        payload["legacy"] = legacy
+    return payload
 
 
 @router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/download")

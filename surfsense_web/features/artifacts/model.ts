@@ -9,25 +9,34 @@ export const ArtifactFileSchema = z.object({
 	content_url: z.string(),
 });
 
+const ArtifactLegacySchema = z
+	.object({
+		kind: z.string(),
+		id: z.number().int().positive(),
+	})
+	.optional();
+
 export const ArtifactManifestSchema = z.object({
 	artifact_id: z.number(),
 	title: z.string(),
 	format: z.string(),
-	generation: z.number().int().positive(),
+	version: z.number().int().positive(),
 	markdown_representation: z.string(),
 	files: z.array(ArtifactFileSchema),
 	updated_at: z.string().nullable(),
+	legacy: ArtifactLegacySchema,
 });
 
 export const ArtifactListItemSchema = z.object({
 	artifact_id: z.number(),
 	title: z.string(),
 	format: z.string(),
-	generation: z.number().int().positive(),
+	version: z.number().int().positive(),
 	indexing_status: z.string(),
 	thread_id: z.number().nullable(),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),
+	legacy: ArtifactLegacySchema,
 });
 
 export const ArtifactListSchema = z.array(ArtifactListItemSchema);

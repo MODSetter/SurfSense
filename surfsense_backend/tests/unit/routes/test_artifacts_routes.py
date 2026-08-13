@@ -41,6 +41,7 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
         version=3,
         markdown_hash="hash",
         markdown_representation="# Workbook",
+        artifact_metadata={"legacy": {"kind": "image", "id": 99}},
         updated_at=None,
         files=[
             _file(1, ArtifactFileRole.PRIMARY),
@@ -56,9 +57,47 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
 
     assert result["format"] == "xlsx"
     assert result["markdown_representation"] == "# Workbook"
+    assert result["legacy"] == {"kind": "image", "id": 99}
     assert [file["role"] for file in result["files"]] == ["primary"]
     check.assert_awaited_once()
     assert check.await_args.args[3] == Permission.ARTIFACTS_READ.value
+
+
+@pytest.mark.asyncio
+async def test_list_artifacts_includes_legacy_when_present(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    with_legacy = SimpleNamespace(
+        id=1,
+        title="Episode",
+        format="podcast",
+        version=1,
+        indexing_status="ready",
+        thread_id=3,
+        created_at=SimpleNamespace(isoformat=lambda: "2026-01-01T00:00:00+00:00"),
+        updated_at=None,
+        artifact_metadata={"legacy": {"kind": "podcast", "id": 42}},
+    )
+    without = SimpleNamespace(
+        id=2,
+        title="Note",
+        format="markdown",
+        version=1,
+        indexing_status="pending",
+        thread_id=None,
+        created_at=SimpleNamespace(isoformat=lambda: "2026-01-02T00:00:00+00:00"),
+        updated_at=None,
+        artifact_metadata=None,
+    )
+    session = AsyncMock()
+    session.scalars.return_value = SimpleNamespace(all=lambda: [with_legacy, without])
+
+    result = await artifacts_routes.list_artifacts(
+        2, Response(), session, SimpleNamespace()
+    )
+
+    assert result[0]["legacy"] == {"kind": "podcast", "id": 42}
+    assert "legacy" not in result[1]
+    assert result[0]["version"] == 1
 
 
 @pytest.mark.asyncio
@@ -72,6 +111,7 @@ async def test_manifest_honors_version_etag(monkeypatch):
         version=3,
         markdown_hash="hash",
         markdown_representation="body",
+        artifact_metadata=None,
         updated_at=None,
         files=[],
     )
