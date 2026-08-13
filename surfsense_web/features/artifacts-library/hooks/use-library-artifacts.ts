@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchArtifacts } from "@/features/artifacts/artifact-query";
+import type { ArtifactListItem } from "@/features/artifacts/model";
 import { imageGenerationsApiService } from "@/lib/apis/image-generations-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
 import { videoPresentationsApiService } from "@/lib/apis/video-presentations-api.service";
-import type { LibraryArtifact, LibraryArtifactStatus } from "../model/artifact";
+import type {
+	LibraryArtifact,
+	LibraryArtifactKind,
+	LibraryArtifactStatus,
+} from "../model/artifact";
 
 function podcastStatus(status: string): LibraryArtifactStatus {
 	if (status === "ready") return "ready";
@@ -18,10 +23,40 @@ function videoStatus(status: string): LibraryArtifactStatus {
 	return "running";
 }
 
-// Each list is fetched independently; one failing source shouldn't blank the
-// whole library, so failures degrade to an empty slice.
+function indexingStatus(status: string): LibraryArtifactStatus {
+	if (status === "failed") return "error";
+	if (status === "ready") return "ready";
+	return "running";
+}
+
+function kindFromFormat(format: string): LibraryArtifactKind | null {
+	if (format === "podcast" || format === "video" || format === "image") return format;
+	// Office / markdown / pdf / unknown binary formats open in the artifact panel.
+	return "file";
+}
+
+function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
+	const kind = kindFromFormat(row.format) ?? "file";
+	const legacyId =
+		row.legacy && row.legacy.kind === kind ? row.legacy.id : undefined;
+	return {
+		key: `${kind}-${row.artifact_id}`,
+		kind,
+		entityId: kind === "file" ? row.artifact_id : (legacyId ?? row.artifact_id),
+		artifactId: row.artifact_id,
+		legacyEntityId: legacyId,
+		title: row.title,
+		status: indexingStatus(row.indexing_status),
+		createdAt: row.created_at,
+		contentType: kind === "file" ? "file" : "markdown",
+		sourceThreadId: row.thread_id,
+	};
+}
+
+// Artifact list is primary for file + dual-written media. Legacy list endpoints
+// only fill gaps for rows not yet dual-written (Phase 4 backfill removes them).
 async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
-	const [files, reports, podcasts, videos, images] = await Promise.all([
+	const [rows, reports, podcasts, videos, images] = await Promise.all([
 		fetchArtifacts(workspaceId).catch(() => []),
 		reportsApiService.list(workspaceId).catch(() => []),
 		podcastsApiService.list(workspaceId).catch(() => []),
@@ -30,23 +65,21 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	]);
 
 	const artifacts: LibraryArtifact[] = [];
+	const covered = {
+		podcast: new Set<number>(),
+		video: new Set<number>(),
+		image: new Set<number>(),
+	};
 
-	for (const file of files) {
-		artifacts.push({
-			key: `file-${file.artifact_id}`,
-			kind: "file",
-			entityId: file.artifact_id,
-			title: file.title,
-			status:
-				file.indexing_status === "failed"
-					? "error"
-					: file.indexing_status === "ready"
-						? "ready"
-						: "running",
-			createdAt: file.created_at,
-			contentType: "file",
-			sourceThreadId: file.thread_id,
-		});
+	for (const row of rows) {
+		const item = fromArtifactRow(row);
+		artifacts.push(item);
+		if (
+			(item.kind === "podcast" || item.kind === "video" || item.kind === "image") &&
+			row.legacy?.kind === item.kind
+		) {
+			covered[item.kind].add(row.legacy.id);
+		}
 	}
 
 	for (const report of reports) {
@@ -64,6 +97,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	}
 
 	for (const podcast of podcasts) {
+		if (covered.podcast.has(podcast.id)) continue;
 		artifacts.push({
 			key: `podcast-${podcast.id}`,
 			kind: "podcast",
@@ -77,6 +111,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	}
 
 	for (const video of videos) {
+		if (covered.video.has(video.id)) continue;
 		artifacts.push({
 			key: `video-${video.id}`,
 			kind: "video",
@@ -90,6 +125,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	}
 
 	for (const image of images) {
+		if (covered.image.has(image.id)) continue;
 		artifacts.push({
 			key: `image-${image.id}`,
 			kind: "image",
