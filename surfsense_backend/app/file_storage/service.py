@@ -125,10 +125,16 @@ async def purge_document_blobs(
         .join(Artifact, ArtifactFile.artifact_id == Artifact.id)
         .where(Artifact.document_id.in_(document_ids))
     )
+    # Video slide audio lives in object storage keyed from artifact_metadata,
+    # not as ArtifactFile rows, so the join above never sees it.
+    slide_audio = await _video_slide_audio_blobs(session, document_ids)
     for backend_name, storage_key in [
         *document_files.all(),
         *artifact_files.all(),
+        *slide_audio,
     ]:
+        if not storage_key:
+            continue
         try:
             selected_backend = backend or get_storage_backend(backend_name)
             await selected_backend.delete(storage_key)
@@ -136,3 +142,24 @@ async def purge_document_blobs(
             logger.warning(
                 "Failed to delete stored blob %s: %s", storage_key, delete_error
             )
+
+
+async def _video_slide_audio_blobs(
+    session: AsyncSession, document_ids: Sequence[int]
+) -> list[tuple[str | None, str]]:
+    """``(storage_backend, audio_storage_key)`` for each offloaded slide."""
+    rows = await session.execute(
+        select(Artifact.artifact_metadata).where(
+            Artifact.document_id.in_(document_ids),
+            Artifact.format == "video",
+        )
+    )
+    blobs: list[tuple[str | None, str]] = []
+    for (metadata,) in rows.all():
+        for slide in (metadata or {}).get("slides") or []:
+            if not isinstance(slide, dict):
+                continue
+            key = slide.get("audio_storage_key")
+            if key:
+                blobs.append((slide.get("storage_backend"), key))
+    return blobs

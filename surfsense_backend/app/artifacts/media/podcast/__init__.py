@@ -1,7 +1,7 @@
-"""Podcast media → Artifact."""
+"""Podcast media -> Artifact."""
 
 from __future__ import annotations
 
-from app.artifacts.media.podcast.storage import open_stream, purge, persist
+from app.artifacts.media.podcast.record import record
 
-__all__ = ["open_stream", "purge", "persist"]
+__all__ = ["record"]

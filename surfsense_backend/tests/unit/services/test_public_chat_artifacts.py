@@ -63,3 +63,47 @@ async def test_snapshot_predating_the_allowlist_serves_nothing(monkeypatch):
     served = await public_chat_service.get_snapshot_artifact_file(session, "tok", 5)
 
     assert served is None
+
+
+@pytest.mark.asyncio
+async def test_referenced_video_artifact_is_served(snapshot_with_artifact_5):
+    artifact = SimpleNamespace(id=5, format="video")
+    session = _session_returning(artifact)
+
+    served = await public_chat_service.get_snapshot_video_artifact(session, "tok", 5)
+
+    assert served is artifact
+
+
+@pytest.mark.asyncio
+async def test_unreferenced_video_artifact_is_refused_without_a_query(
+    snapshot_with_artifact_5,
+):
+    session = _session_returning(SimpleNamespace())
+
+    served = await public_chat_service.get_snapshot_video_artifact(session, "tok", 9)
+
+    assert served is None
+    session.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_podcast_snapshot_carries_artifact_id_and_no_storage_key():
+    from app.podcasts.persistence import PodcastStatus
+
+    podcast = SimpleNamespace(
+        id=7,
+        title="Ep",
+        podcast_transcript=None,
+        artifact_id=42,
+        workspace_id=3,
+        status=PodcastStatus.READY,
+    )
+    info = await public_chat_service._get_podcast_for_snapshot(
+        _session_returning(podcast), 7
+    )
+
+    assert info["artifact_id"] == 42
+    assert info["workspace_id"] == 3
+    assert "storage_key" not in info
+    assert "storage_backend" not in info

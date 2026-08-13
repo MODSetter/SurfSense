@@ -6,9 +6,9 @@ import { type PodcastSpec, type PodcastStatus, podcastSpec } from "@/contracts/t
 import { queries } from "@/zero/queries";
 
 /**
- * Thin live row sourced from Zero's `podcasts` publication. Drives the
+ * Thin live row sourced from Zero's `podcast_runs` publication. Drives the
  * lifecycle UI by push (no polling); heavy fields (transcript, audio) stay on
- * REST and are fetched lazily when a gate or the player needs them.
+ * REST/the Artifact and are fetched lazily when a gate or the player needs them.
  */
 export interface LivePodcast {
 	id: number;
@@ -18,6 +18,7 @@ export interface LivePodcast {
 	specVersion: number;
 	durationSeconds: number | null;
 	error: string | null;
+	artifactId: number | null;
 	workspaceId: number;
 	threadId: number | null;
 }
@@ -28,7 +29,7 @@ interface UsePodcastLiveResult {
 }
 
 export function usePodcastLive(podcastId: number | undefined): UsePodcastLiveResult {
-	const [row, result] = useQuery(queries.podcasts.byId({ podcastId: podcastId ?? -1 }));
+	const [row, result] = useQuery(queries.podcastRuns.byId({ podcastId: podcastId ?? -1 }));
 
 	const podcast = useMemo<LivePodcast | undefined>(() => {
 		if (!podcastId || !row) return undefined;
@@ -40,6 +41,7 @@ export function usePodcastLive(podcastId: number | undefined): UsePodcastLiveRes
 			specVersion: row.specVersion,
 			durationSeconds: row.durationSeconds ?? null,
 			error: row.error ?? null,
+			artifactId: row.artifactId ?? null,
 			workspaceId: row.workspaceId,
 			threadId: row.threadId ?? null,
 		};

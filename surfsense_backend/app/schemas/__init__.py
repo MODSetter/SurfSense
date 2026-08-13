@@ -108,12 +108,6 @@ from .stripe import (
     StripeWebhookResponse,
 )
 from .users import UserCreate, UserRead, UserUpdate
-from .video_presentations import (
-    VideoPresentationBase,
-    VideoPresentationCreate,
-    VideoPresentationRead,
-    VideoPresentationUpdate,
-)
 from .workspace import (
     WorkspaceApiAccessUpdate,
     WorkspaceBase,
@@ -244,10 +238,6 @@ __all__ = [
     "UserWorkspaceAccess",
     "VerifyConnectionResponse",
     # Video Presentation schemas
-    "VideoPresentationBase",
-    "VideoPresentationCreate",
-    "VideoPresentationRead",
-    "VideoPresentationUpdate",
     "WorkspaceApiAccessUpdate",
     # Workspace schemas
     "WorkspaceBase",

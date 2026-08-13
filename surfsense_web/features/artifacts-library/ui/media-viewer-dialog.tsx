@@ -37,29 +37,37 @@ function MediaViewerBody({
 	workspaceId: number;
 }) {
 	if (artifact.kind === "podcast") {
-		if (artifact.artifactId != null) {
+		if (artifact.artifactId == null) {
 			return (
-				<PodcastPlayer
-					artifactId={artifact.artifactId}
-					workspaceId={workspaceId}
-					podcastId={artifact.legacyEntityId}
-					title={artifact.title}
-				/>
+				<p className="px-6 py-10 text-center text-sm text-muted-foreground">
+					Podcast not available
+				</p>
 			);
 		}
-		return <PodcastPlayer podcastId={artifact.entityId} title={artifact.title} />;
+		return (
+			<PodcastPlayer
+				artifactId={artifact.artifactId}
+				workspaceId={workspaceId}
+				podcastId={artifact.legacyEntityId}
+				title={artifact.title}
+			/>
+		);
 	}
 	if (artifact.kind === "video") {
-		if (artifact.artifactId != null) {
+		if (artifact.artifactId == null) {
 			return (
-				<VideoPresentationViewer
-					artifactId={artifact.artifactId}
-					workspaceId={workspaceId}
-					title={artifact.title}
-				/>
+				<p className="px-6 py-10 text-center text-sm text-muted-foreground">
+					Video not available
+				</p>
 			);
 		}
-		return <VideoPresentationViewer presentationId={artifact.entityId} title={artifact.title} />;
+		return (
+			<VideoPresentationViewer
+				artifactId={artifact.artifactId}
+				workspaceId={workspaceId}
+				title={artifact.title}
+			/>
+		);
 	}
 	if (artifact.artifactId == null) {
 		return (

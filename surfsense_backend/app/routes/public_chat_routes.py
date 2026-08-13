@@ -24,6 +24,7 @@ from app.services.public_chat_service import (
     get_snapshot_artifact_file,
     get_snapshot_podcast,
     get_snapshot_report,
+    get_snapshot_video_artifact,
     get_snapshot_video_presentation,
 )
 from app.users import require_session_context
@@ -100,6 +101,105 @@ async def stream_public_artifact_file(
         backend.open_stream(file.storage_key),
         media_type=file.mime_type,
         headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+def _public_artifact_slides(
+    share_token: str,
+    artifact_id: int,
+    slides: list[dict],
+) -> list[dict]:
+    """Slide payload with share-scoped audio URLs, storage keys stripped."""
+    result = []
+    for raw in slides:
+        slide = dict(raw)
+        slide_number = slide.get("slide_number")
+        has_audio = bool(
+            slide.pop("audio_storage_key", None) or slide.pop("audio_file", None)
+        )
+        slide.pop("storage_backend", None)
+        if has_audio and isinstance(slide_number, int):
+            slide["audio_url"] = (
+                f"/api/v1/public/{share_token}/artifacts/{artifact_id}"
+                f"/slides/{slide_number}/audio"
+            )
+        else:
+            slide["audio_url"] = None
+        result.append(slide)
+    return result
+
+
+@router.get("/{share_token}/artifacts/{artifact_id}/video")
+async def get_public_artifact_video(
+    share_token: str,
+    artifact_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Remotion payload for a video Artifact in a public snapshot.
+
+    No authentication required — the share token grants access, and only to
+    video artifacts the shared thread produced.
+    """
+    artifact = await get_snapshot_video_artifact(session, share_token, artifact_id)
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Video presentation not found")
+
+    meta = artifact.artifact_metadata or {}
+    slides = meta.get("slides")
+    scene_codes = meta.get("scene_codes")
+    if not isinstance(slides, list) or not isinstance(scene_codes, list):
+        raise HTTPException(
+            status_code=404, detail="Video Remotion payload not available"
+        )
+
+    return {
+        "artifact_id": artifact.id,
+        "title": artifact.document.title if artifact.document else None,
+        "status": "ready",
+        "slides": _public_artifact_slides(share_token, artifact.id, slides),
+        "scene_codes": scene_codes,
+        "slide_count": len(slides),
+    }
+
+
+@router.get("/{share_token}/artifacts/{artifact_id}/slides/{slide_number}/audio")
+async def stream_public_artifact_slide_audio(
+    share_token: str,
+    artifact_id: int,
+    slide_number: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Stream a slide's audio from a video Artifact in a public snapshot."""
+    from pathlib import Path
+
+    artifact = await get_snapshot_video_artifact(session, share_token, artifact_id)
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Video presentation not found")
+
+    slides = (artifact.artifact_metadata or {}).get("slides") or []
+    slide_data = next(
+        (
+            slide
+            for slide in slides
+            if isinstance(slide, dict) and slide.get("slide_number") == slide_number
+        ),
+        None,
+    )
+    if slide_data is None:
+        raise HTTPException(status_code=404, detail=f"Slide {slide_number} not found")
+
+    storage_key = slide_data.get("audio_storage_key")
+    if not storage_key:
+        raise HTTPException(status_code=404, detail="Slide audio file not found")
+
+    from app.artifacts.media.video import open_stream
+
+    ext = Path(str(storage_key)).suffix.lower()
+    media_type = "audio/wav" if ext == ".wav" else "audio/mpeg"
+    return StreamingResponse(
+        open_stream(str(storage_key)),
+        media_type=media_type,
+        headers={"Accept-Ranges": "bytes"},
     )
 
 

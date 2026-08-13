@@ -157,14 +157,26 @@ export function PodcastPlayer({
 				let lines: TranscriptLine[] = [];
 
 				if (shareToken) {
-					if (podcastId == null) throw new Error("Podcast id required for shared chat");
+					// Artifact route when available; legacy per-podcast stream for
+					// snapshots predating the backfill.
+					const audioUrl =
+						artifactId != null
+							? `/api/v1/public/${shareToken}/artifacts/${artifactId}/content`
+							: podcastId != null
+								? `/api/v1/public/${shareToken}/podcasts/${podcastId}/stream`
+								: null;
+					if (!audioUrl) throw new Error("Podcast identity missing for shared chat");
 					const [blob, details] = await Promise.all([
-						baseApiService.getBlob(`/api/v1/public/${shareToken}/podcasts/${podcastId}/stream`),
-						baseApiService.get(`/api/v1/public/${shareToken}/podcasts/${podcastId}`),
+						baseApiService.getBlob(audioUrl),
+						podcastId != null
+							? baseApiService.get(`/api/v1/public/${shareToken}/podcasts/${podcastId}`)
+							: Promise.resolve(null),
 					]);
 					audioBlob = blob;
-					const parsed = publicPodcastDetailsSchema.safeParse(details);
-					lines = (parsed.success ? (parsed.data.podcast_transcript ?? []) : []).map(
+					const parsed = details
+						? publicPodcastDetailsSchema.safeParse(details)
+						: null;
+					lines = (parsed?.success ? (parsed.data.podcast_transcript ?? []) : []).map(
 						(entry, turn) => ({
 							key: `turn-${turn}`,
 							label: `Speaker ${entry.speaker_id + 1}`,
@@ -178,25 +190,6 @@ export function PodcastPlayer({
 						podcastId,
 						controller.signal
 					));
-				} else if (podcastId != null) {
-					const [audioResponse, detail] = await Promise.all([
-						authenticatedFetch(buildBackendUrl(`/api/v1/podcasts/${podcastId}/stream`), {
-							method: "GET",
-							signal: controller.signal,
-						}),
-						podcastsApiService.getDetail(podcastId),
-					]);
-
-					if (!audioResponse.ok) {
-						throw new Error(`Failed to load audio: ${audioResponse.status}`);
-					}
-
-					audioBlob = await audioResponse.blob();
-					lines = (detail.transcript?.turns ?? []).map((entry, turn) => ({
-						key: `turn-${turn}`,
-						label: speakerLabel(detail.spec, entry.speaker),
-						text: entry.text,
-					}));
 				} else {
 					throw new Error("Podcast identity missing");
 				}

@@ -169,19 +169,13 @@ class PodcastService:
         await self._session.flush()
         return podcast
 
-    async def attach_audio(
-        self,
-        podcast: Podcast,
-        *,
-        storage_backend: str,
-        storage_key: str,
-        duration_seconds: int | None = None,
+    async def mark_ready(
+        self, podcast: Podcast, *, duration_seconds: int | None = None
     ) -> Podcast:
-        """Record rendered audio and mark the podcast ready."""
+        """Mark a rendered podcast ready. The delivered audio lives in the Artifact."""
         self._transition(podcast, PodcastStatus.READY)
-        podcast.storage_backend = storage_backend
-        podcast.storage_key = storage_key
-        podcast.duration_seconds = duration_seconds
+        if duration_seconds is not None:
+            podcast.duration_seconds = duration_seconds
         podcast.error = None
         await self._session.flush()
         return podcast
@@ -221,8 +215,8 @@ def _status(podcast: Podcast) -> PodcastStatus:
 
 
 def has_stored_episode(podcast: Podcast) -> bool:
-    """Whether finished audio is stored (``file_location`` covers legacy rows)."""
-    return bool(podcast.storage_key or podcast.file_location)
+    """Whether a delivered episode exists; its audio lives in the Artifact."""
+    return podcast.artifact_id is not None
 
 
 def read_spec(podcast: Podcast) -> PodcastSpec | None:
