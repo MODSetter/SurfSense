@@ -302,14 +302,17 @@ services:
       context: ../surfsense_web
       target: dev
     # Live source, same idea as the backend's app/ mount: edit on the host and
-    # `next dev` recompiles — no rebuild, no restart. Rebuild only when
-    # pnpm-lock.yaml changes, since node_modules comes from the image.
+    # `next dev` recompiles — no rebuild or restart for source edits. On restart,
+    # the dev image reconciles node_modules with the bind-mounted lockfile.
     volumes:
       - ../surfsense_web:/app
       # Anonymous volumes keep the image's musl-built node_modules and the dev
       # server's cache from being shadowed by the bind mount above.
       - /app/node_modules
       - /app/.next
+      # Persist pnpm's content-addressable store so dependency updates only
+      # download packages that are not already cached.
+      - pnpm_store:/root/.local/share/pnpm/store
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     env_file:
@@ -343,3 +346,5 @@ volumes:
     name: surfsense-dev-whatsapp-sessions
   opensandbox_data:
     name: surfsense-dev-opensandbox
+  pnpm_store:
+    name: surfsense-dev-pnpm-store

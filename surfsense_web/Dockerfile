@@ -52,7 +52,9 @@ RUN pnpm run build
 # Declared before `runner` so `runner` remains the last (default) build target.
 FROM deps AS dev
 EXPOSE 3000
-CMD ["pnpm", "run", "dev"]
+# Reconcile the persistent node_modules volume with the bind-mounted lockfile
+# before startup. This is a no-op when dependencies have not changed.
+CMD ["sh", "-c", "pnpm install --frozen-lockfile && exec pnpm run dev"]
 
 # Production image, copy all the files and run next
 FROM base AS runner
