@@ -45,4 +45,5 @@ export const artifactListQueryOptions = (workspaceId: number, threadId?: number 
 		queryKey: artifactListQueryKey(workspaceId, threadId),
 		queryFn: () => fetchArtifacts(workspaceId, threadId),
 		staleTime: 30_000,
+		refetchOnWindowFocus: "always",
 	});

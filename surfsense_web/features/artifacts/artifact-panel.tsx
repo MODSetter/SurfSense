@@ -68,11 +68,11 @@ export function ArtifactViewerContent({
 					</div>
 					<div className="flex items-center gap-1">
 						<div ref={setZoomControlsContainer} className="flex items-center gap-1" />
-						{downloadFilename ? (
+						{workspaceIsValid ? (
 							<>
 								<ArtifactDownloadButton
 									path={artifactDownloadPath(workspaceId, artifactId)}
-									filename={downloadFilename}
+									filename={downloadFilename ?? `artifact-${artifactId}`}
 									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 								/>
 								<Separator

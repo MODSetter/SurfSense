@@ -1,27 +1,21 @@
 /** Deliverable kinds the agent can produce and surface in the artifacts sidebar. */
 export type ArtifactKind = "file" | "podcast" | "video" | "image";
 
-export type ArtifactStatus = "running" | "ready" | "error";
-
 /**
- * A chat deliverable, aggregated from the assistant message stream. One entry
- * per deliverable tool call; the heavy content stays in the inline card and is
- * fetched lazily by the panel/card on demand.
+ * A successfully persisted chat artifact. In-flight and failed tool calls stay
+ * in the conversation and never enter the artifacts panel.
  */
 export interface ChatArtifact {
 	/** Stable identity for list keys + dedupe — entity id when known, else the tool call id. */
 	key: string;
 	kind: ArtifactKind;
 	title: string;
-	/** Canonical persisted format, used for the row subtitle and file fallback. */
+	/** Canonical persisted format, used for the row subtitle. */
 	format: string;
-	status: ArtifactStatus;
 	/** Anchors the scroll-to-card jump back into the conversation. */
 	toolCallId: string;
-	/** Open / scroll identity — ``artifactId`` when known, else the media row id. */
-	entityId: number | null;
-	/** Canonical Artifact id, when the tool returned one. */
-	artifactId?: number;
+	/** Canonical persisted Artifact id. */
+	artifactId: number;
 	/** Podcast / video row id, when distinct from the Artifact. */
 	legacyEntityId?: number;
 }

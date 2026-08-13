@@ -1,9 +1,8 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { AudioLines, Download, FileText, ImageIcon, Presentation } from "lucide-react";
+import { AudioLines, FileText, ImageIcon, Presentation } from "lucide-react";
 import type { ComponentType } from "react";
 import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
-import { Button } from "@/components/ui/button";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -35,8 +34,6 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 function subtitle(artifact: ChatArtifact): string {
-	if (artifact.status === "running") return "Generating…";
-	if (artifact.status === "error") return "Failed";
 	if (artifact.kind !== "file") return KIND_META[artifact.kind].label;
 	return FORMAT_LABELS[artifact.format.toLowerCase()] ?? `File · ${artifact.format.toUpperCase()}`;
 }
@@ -48,25 +45,18 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const meta = KIND_META[artifact.kind];
 	const Icon = meta.icon;
-	const canDownload =
-		artifact.status === "ready" &&
-		artifact.artifactId != null &&
-		Number.isFinite(workspaceId) &&
-		workspaceId > 0;
+	const canDownload = Number.isFinite(workspaceId) && workspaceId > 0;
 
 	const handleOpen = () => {
 		if (artifact.kind === "file") {
-			const artifactId = artifact.artifactId ?? artifact.entityId;
-			if (artifactId != null) {
-				if (!isDesktop) closeArtifactsPanel();
-				openArtifactPanel({ artifactId });
-				scrollToArtifact(artifact.toolCallId);
-				return;
-			}
+			if (!isDesktop) closeArtifactsPanel();
+			openArtifactPanel({ artifactId: artifact.artifactId });
+			scrollToArtifact(artifact.toolCallId);
+			return;
 		}
 
-		// In-flight files and inline media jump to their card. Mobile dismisses
-		// the drawer first since it covers the chat.
+		// Inline media jumps to its card. Mobile dismisses the drawer first since
+		// it covers the chat.
 		if (!isDesktop) closeArtifactsPanel();
 		scrollToArtifact(artifact.toolCallId);
 	};
@@ -91,22 +81,11 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 			</span>
 			{canDownload ? (
 				<ArtifactDownloadButton
-					path={artifactDownloadPath(workspaceId, artifact.artifactId as number)}
+					path={artifactDownloadPath(workspaceId, artifact.artifactId)}
 					filename={`${artifact.title}.${artifact.format}`}
 					className="relative z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
 				/>
-			) : (
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon"
-					disabled
-					aria-label={`Download ${artifact.title}`}
-					className="relative z-10 size-9 shrink-0"
-				>
-					<Download className="size-4" />
-				</Button>
-			)}
+			) : null}
 		</div>
 	);
 }

@@ -1,28 +1,55 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { artifactListQueryOptions } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
 import {
+	type ArtifactCandidate,
 	collectArtifacts,
 	matchesPersistedArtifact,
 	mergePersistedArtifacts,
 } from "../lib/collect-artifacts";
-import type { ChatArtifact } from "../model/artifact";
 import { chatArtifactsAtom } from "../state/artifacts-panel.atom";
 
-function missingPersistedMedia(
-	messageArtifacts: readonly ChatArtifact[],
-	persisted: readonly ArtifactListItem[]
+const RECONCILIATION_POLL_MS = 3_000;
+const RECONCILIATION_TIMEOUT_MS = 10 * 60 * 1_000;
+
+function shouldPollForPersistence(
+	candidates: readonly ArtifactCandidate[],
+	persisted: readonly ArtifactListItem[],
+	threadKey: string,
+	startedAtByKey: Map<string, number>,
+	persistedKeys: Set<string>
 ): boolean {
-	return messageArtifacts.some(
-		(message) =>
-			message.status === "ready" &&
-			message.kind !== "file" &&
-			!persisted.some((row) => matchesPersistedArtifact(message, row))
+	const candidateKeys = new Set(candidates.map((candidate) => `${threadKey}:${candidate.key}`));
+	for (const key of persistedKeys) {
+		if (!candidateKeys.has(key)) persistedKeys.delete(key);
+	}
+	for (const candidate of candidates) {
+		if (persisted.some((row) => matchesPersistedArtifact(candidate, row))) {
+			persistedKeys.add(`${threadKey}:${candidate.key}`);
+		}
+	}
+	const unresolved = candidates.filter(
+		(candidate) =>
+			candidate.artifactId == null &&
+			!persistedKeys.has(`${threadKey}:${candidate.key}`) &&
+			!persisted.some((row) => matchesPersistedArtifact(candidate, row))
 	);
+	const unresolvedKeys = new Set(unresolved.map((candidate) => `${threadKey}:${candidate.key}`));
+	for (const key of startedAtByKey.keys()) {
+		if (!unresolvedKeys.has(key)) startedAtByKey.delete(key);
+	}
+
+	const now = Date.now();
+	return unresolved.some((candidate) => {
+		const key = `${threadKey}:${candidate.key}`;
+		const startedAt = startedAtByKey.get(key) ?? now;
+		startedAtByKey.set(key, startedAt);
+		return now - startedAt < RECONCILIATION_TIMEOUT_MS;
+	});
 }
 
 /**
@@ -35,16 +62,23 @@ export function useSyncChatArtifacts(messages: readonly ThreadMessageLike[]): vo
 	const setArtifacts = useSetAtom(chatArtifactsAtom);
 	const thread = useAtomValue(currentThreadAtom);
 	const messageArtifacts = useMemo(() => collectArtifacts(messages), [messages]);
+	const persistencePollStartedAt = useRef(new Map<string, number>());
+	const persistedKeys = useRef(new Set<string>());
 	const canLoadPersisted = thread.id != null && thread.workspaceId != null;
 	const { data: persisted = [] } = useQuery({
 		...artifactListQueryOptions(thread.workspaceId ?? 0, thread.id),
 		enabled: canLoadPersisted,
-		// Media persistence may finish after its tool result. Poll only
-		// during that short reconciliation window so download IDs appear promptly.
+		// ponytail: legacy media jobs return before Artifact persistence. Poll is
+		// bounded; replace it when those jobs publish artifact-list invalidation.
 		refetchInterval: (query) =>
-			query.state.dataUpdateCount < 10 &&
-			missingPersistedMedia(messageArtifacts, query.state.data ?? [])
-				? 3_000
+			shouldPollForPersistence(
+				messageArtifacts,
+				query.state.data ?? [],
+				String(thread.id),
+				persistencePollStartedAt.current,
+				persistedKeys.current
+			)
+				? RECONCILIATION_POLL_MS
 				: false,
 	});
 	const artifacts = useMemo(
