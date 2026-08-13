@@ -85,3 +85,25 @@ async def test_unreferenced_video_artifact_is_refused_without_a_query(
 
     assert served is None
     session.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_podcast_snapshot_carries_artifact_id_and_no_storage_key():
+    from app.podcasts.persistence import PodcastStatus
+
+    podcast = SimpleNamespace(
+        id=7,
+        title="Ep",
+        podcast_transcript=None,
+        artifact_id=42,
+        workspace_id=3,
+        status=PodcastStatus.READY,
+    )
+    info = await public_chat_service._get_podcast_for_snapshot(
+        _session_returning(podcast), 7
+    )
+
+    assert info["artifact_id"] == 42
+    assert info["workspace_id"] == 3
+    assert "storage_key" not in info
+    assert "storage_backend" not in info

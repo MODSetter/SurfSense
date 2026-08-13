@@ -1,19 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
-import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
 import type {
 	LibraryArtifact,
 	LibraryArtifactKind,
 	LibraryArtifactStatus,
 } from "../model/artifact";
-
-function podcastStatus(status: string): LibraryArtifactStatus {
-	if (status === "ready") return "ready";
-	if (status === "failed" || status === "cancelled") return "error";
-	return "running";
-}
 
 function indexingStatus(status: string): LibraryArtifactStatus {
 	if (status === "failed") return "error";
@@ -44,23 +37,18 @@ function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 	};
 }
 
-// Podcast rows still list separately: a podcast has no Artifact until delivered.
+// Delivered podcasts arrive as Artifact rows; in-flight/failed runs stream from
+// Zero (see useLibraryPodcastRuns), matching how videos are handled.
 async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
-	const [rows, reports, podcasts] = await Promise.all([
+	const [rows, reports] = await Promise.all([
 		fetchArtifacts(workspaceId).catch(() => []),
 		reportsApiService.list(workspaceId).catch(() => []),
-		podcastsApiService.list(workspaceId).catch(() => []),
 	]);
 
 	const artifacts: LibraryArtifact[] = [];
-	const coveredPodcasts = new Set<number>();
 
 	for (const row of rows) {
-		const item = fromArtifactRow(row);
-		artifacts.push(item);
-		if (item.kind === "podcast" && row.legacy?.kind === "podcast") {
-			coveredPodcasts.add(row.legacy.id);
-		}
+		artifacts.push(fromArtifactRow(row));
 	}
 
 	for (const report of reports) {
@@ -74,20 +62,6 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 			createdAt: report.created_at,
 			contentType: isResume ? "typst" : "markdown",
 			sourceThreadId: report.thread_id,
-		});
-	}
-
-	for (const podcast of podcasts) {
-		if (coveredPodcasts.has(podcast.id)) continue;
-		artifacts.push({
-			key: `podcast-${podcast.id}`,
-			kind: "podcast",
-			entityId: podcast.id,
-			title: podcast.title,
-			status: podcastStatus(podcast.status),
-			createdAt: podcast.created_at,
-			contentType: "markdown",
-			sourceThreadId: podcast.thread_id,
 		});
 	}
 

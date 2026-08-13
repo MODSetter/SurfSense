@@ -9,7 +9,7 @@ import {
 import { documentTable, searchSourceConnectorTable } from "./documents";
 import { folderTable } from "./folders";
 import { notificationTable } from "./inbox";
-import { podcastTable } from "./podcasts";
+import { podcastRunTable } from "./podcast-runs";
 import { userTable } from "./user";
 import { videoPresentationRunTable } from "./video-presentation-runs";
 
@@ -73,7 +73,7 @@ export const schema = createSchema({
 		userTable,
 		automationTable,
 		automationRunTable,
-		podcastTable,
+		podcastRunTable,
 		videoPresentationRunTable,
 	],
 	relationships: [

@@ -8,6 +8,7 @@ import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import { Button } from "@/components/ui/button";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
+import { useLibraryPodcastRuns } from "../hooks/use-library-podcast-runs";
 import { useLibraryVideoRuns } from "../hooks/use-library-video-runs";
 import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
 import { ArtifactCard } from "./artifact-card";
@@ -64,18 +65,19 @@ function EmptyState() {
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
 	const liveVideoRuns = useLibraryVideoRuns(workspaceId);
+	const livePodcastRuns = useLibraryPodcastRuns(workspaceId);
 	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openReportPanel = useSetAtom(openReportPanelAtom);
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
 
-	// Delivered videos come from the Artifact API (react-query); in-flight and
+	// Delivered media comes from the Artifact API (react-query); in-flight and
 	// failed runs arrive by push from Zero. Merge newest-first.
 	const merged = useMemo(
 		() =>
-			[...artifacts, ...liveVideoRuns].sort(
+			[...artifacts, ...liveVideoRuns, ...livePodcastRuns].sort(
 				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 			),
-		[artifacts, liveVideoRuns]
+		[artifacts, liveVideoRuns, livePodcastRuns]
 	);
 
 	const grouped = useMemo(() => {

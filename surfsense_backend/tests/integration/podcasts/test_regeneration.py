@@ -191,7 +191,6 @@ async def test_regenerate_without_a_brief_is_rejected(
         workspace_id=db_workspace.id,
         status=PodcastStatus.READY,
         spec_version=1,
-        file_location="/var/old/podcast.mp3",
     )
     db_session.add(podcast)
     await db_session.flush()

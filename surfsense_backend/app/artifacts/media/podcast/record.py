@@ -1,7 +1,4 @@
-"""Record a finished podcast as an Artifact.
-
-Audio blobs live in ``app.artifacts.media.podcast.storage``; this writes the Artifact.
-"""
+"""Record a finished podcast as an Artifact; the Artifact owns the audio blob."""
 
 from __future__ import annotations
 

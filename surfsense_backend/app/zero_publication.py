@@ -76,6 +76,7 @@ PODCAST_COLS = [
     "spec_version",
     "duration_seconds",
     "error",
+    "artifact_id",
     "workspace_id",
     "thread_id",
     "created_at",
@@ -107,7 +108,7 @@ ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "user": USER_COLS,
     "automations": AUTOMATION_COLS,
     "automation_runs": AUTOMATION_RUN_COLS,
-    "podcasts": PODCAST_COLS,
+    "podcast_runs": PODCAST_COLS,
     "video_presentation_runs": VIDEO_PRESENTATION_RUN_COLS,
 }
 
@@ -136,7 +137,7 @@ def _expected_columns(conn: Connection, table: str) -> list[str] | None:
     if table in {
         "documents",
         "user",
-        "podcasts",
+        "podcast_runs",
         "video_presentation_runs",
     } and "_0_version" in _table_columns(conn, table):
         expected.append("_0_version")

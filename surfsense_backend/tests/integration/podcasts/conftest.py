@@ -16,6 +16,7 @@ import contextlib
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -128,14 +129,25 @@ class FakeStorageBackend:
         self.deleted.append(key)
 
 
-@pytest.fixture
-def fake_storage(monkeypatch) -> FakeStorageBackend:
-    """Route audio storage to an in-memory backend for the stream routes."""
+@pytest.fixture(autouse=True)
+def fake_storage(monkeypatch, patched_embed_texts) -> FakeStorageBackend:
+    """In-memory object store + Postgres-only artifact indexing for the suite.
+
+    The delivered audio is written by ``save_artifact``; pinning it to False
+    keeps that on the indexed (non-git) path so the blob lands in this backend.
+    """
+    del patched_embed_texts
     backend = FakeStorageBackend()
     monkeypatch.setattr(
-        "app.artifacts.media.podcast.storage.get_storage_backend", lambda: backend
+        "app.artifacts.service.get_storage_backend", lambda *a, **k: backend
     )
-    monkeypatch.setattr("app.file_storage.factory.get_storage_backend", lambda: backend)
+    monkeypatch.setattr(
+        "app.artifacts.service.knowledge_store_enabled_for",
+        AsyncMock(return_value=False),
+    )
+    monkeypatch.setattr(
+        "app.file_storage.factory.get_storage_backend", lambda *a, **k: backend
+    )
     return backend
 
 
@@ -272,12 +284,17 @@ def make_podcast(db_session: AsyncSession):
             elif target is PodcastStatus.RENDERING:
                 await service.attach_transcript(podcast, build_transcript())
             elif target is PodcastStatus.READY:
-                await service.attach_audio(
+                await service.mark_ready(podcast, duration_seconds=123)
+                from app.artifacts.media.podcast.record import record as record_podcast
+
+                saved = await record_podcast(
+                    db_session,
                     podcast,
-                    storage_backend="memory",
-                    storage_key="podcasts/audio.mp3",
-                    duration_seconds=123,
+                    audio=b"merged-audio",
+                    transcript=build_transcript(),
                 )
+                assert saved is not None
+                podcast.artifact_id = saved.artifact_id
         await db_session.flush()
         return podcast
 
