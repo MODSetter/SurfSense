@@ -132,6 +132,7 @@
 		"qrcode.react": "^4.2.0",
 		"radix-ui": "^1.4.3",
 		"react": "^19.2.3",
+		"react-data-grid": "7.0.0-beta.61",
 		"react-day-picker": "^9.13.2",
 		"react-dnd": "^16.0.1",
 		"react-dnd-html5-backend": "^16.0.1",
