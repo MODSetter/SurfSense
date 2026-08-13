@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { artifactManifestQueryOptions } from "@/features/artifacts/artifact-query";
 import { cn } from "@/lib/utils";
 import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
 import { LibraryImageViewer } from "./library-image-viewer";
@@ -23,19 +25,84 @@ const VideoPresentationViewer = dynamic(
 	{ ssr: false, loading: ViewerFallback }
 );
 
-// `stretch` overrides the players' inline-chat max-w/margins so they fill the dialog.
 function dialogLayout(kind: LibraryArtifactKind): { width: string; stretch: boolean } {
 	if (kind === "video") return { width: "max-w-4xl", stretch: true };
 	if (kind === "podcast") return { width: "max-w-2xl", stretch: true };
 	return { width: "max-w-2xl", stretch: false };
 }
 
-function MediaViewerBody({ artifact }: { artifact: LibraryArtifact }) {
+function VideoFromArtifact({
+	artifactId,
+	workspaceId,
+	title,
+	legacyEntityId,
+}: {
+	artifactId: number;
+	workspaceId: number;
+	title: string;
+	legacyEntityId?: number;
+}) {
+	const { data, isLoading, error } = useQuery({
+		...artifactManifestQueryOptions(workspaceId, artifactId),
+		enabled: legacyEntityId == null,
+	});
+	const presentationId = legacyEntityId ?? data?.legacy?.id;
+
+	if (legacyEntityId == null && isLoading) return <ViewerFallback />;
+	if (!presentationId || error) {
+		return (
+			<p className="px-6 py-10 text-center text-sm text-muted-foreground">
+				Presentation not available
+			</p>
+		);
+	}
+	// Remotion still needs VideoPresentation slides/scene_codes (not on Artifact yet).
+	return <VideoPresentationViewer presentationId={presentationId} title={title} />;
+}
+
+function MediaViewerBody({
+	artifact,
+	workspaceId,
+}: {
+	artifact: LibraryArtifact;
+	workspaceId: number;
+}) {
 	if (artifact.kind === "podcast") {
+		if (artifact.artifactId != null) {
+			return (
+				<PodcastPlayer
+					artifactId={artifact.artifactId}
+					workspaceId={workspaceId}
+					podcastId={artifact.legacyEntityId}
+					title={artifact.title}
+				/>
+			);
+		}
 		return <PodcastPlayer podcastId={artifact.entityId} title={artifact.title} />;
 	}
 	if (artifact.kind === "video") {
-		return <VideoPresentationViewer presentationId={artifact.entityId} title={artifact.title} />;
+		if (artifact.artifactId != null) {
+			return (
+				<VideoFromArtifact
+					artifactId={artifact.artifactId}
+					workspaceId={workspaceId}
+					title={artifact.title}
+					legacyEntityId={artifact.legacyEntityId}
+				/>
+			);
+		}
+		return (
+			<VideoPresentationViewer presentationId={artifact.entityId} title={artifact.title} />
+		);
+	}
+	if (artifact.artifactId != null) {
+		return (
+			<LibraryImageViewer
+				artifactId={artifact.artifactId}
+				workspaceId={workspaceId}
+				prompt={artifact.title}
+			/>
+		);
 	}
 	return <LibraryImageViewer imageId={artifact.entityId} prompt={artifact.title} />;
 }
@@ -46,9 +113,11 @@ function MediaViewerBody({ artifact }: { artifact: LibraryArtifact }) {
  */
 export function MediaViewerDialog({
 	artifact,
+	workspaceId,
 	onClose,
 }: {
 	artifact: LibraryArtifact | null;
+	workspaceId: number;
 	onClose: () => void;
 }) {
 	const layout = artifact ? dialogLayout(artifact.kind) : null;
@@ -76,7 +145,7 @@ export function MediaViewerDialog({
 								: "flex justify-center"
 						)}
 					>
-						<MediaViewerBody artifact={artifact} />
+						<MediaViewerBody artifact={artifact} workspaceId={workspaceId} />
 					</div>
 				) : null}
 			</DialogContent>
