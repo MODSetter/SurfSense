@@ -32,3 +32,6 @@ class FormatAdapter:
     rendered_min_chars: int = DEFAULT_RENDERED_MIN_CHARS
     expects_exact_page_count: bool = False
     review_kind: ReviewKind = "document"
+    # Orthogonal to convert_to_pdf: PDF keeps convert_to_pdf=False but still
+    # needs eyes. Spreadsheets set this False and never enter the visual path.
+    requires_visual_review: bool = True
