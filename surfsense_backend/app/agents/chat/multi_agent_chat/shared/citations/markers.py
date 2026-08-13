@@ -20,9 +20,6 @@ def to_frontend_payload(entry: CitationEntry) -> str | None:
         case CitationSourceType.KB_CHUNK | CitationSourceType.ANON_CHUNK:
             chunk_id = locator.get("chunk_id")
             return str(chunk_id) if chunk_id is not None else None
-        case CitationSourceType.ARTIFACT_CHUNK:
-            chunk_id = locator.get("chunk_id")
-            return f"artifact_chunk_{chunk_id}" if chunk_id is not None else None
         case CitationSourceType.WEB_RESULT:
             url = locator.get("url")
             return url or None

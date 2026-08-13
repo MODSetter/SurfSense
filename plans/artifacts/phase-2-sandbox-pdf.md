@@ -2,7 +2,7 @@
 
 **Status:** Complete. Phase 3 superseded the original model-orchestrated verification mechanism with backend-owned `verify_artifact`; no compatibility path remains.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
-**Depends on:** phase 1 dedicated artifact persistence and API.
+**Depends on:** phase 1 artifact persistence and API.
 
 ## 1. Shipped scope
 
@@ -11,7 +11,7 @@
 - Polyglot sandbox image with network denied at runtime and authoring/rendering dependencies preinstalled.
 - `execute` and UTF-8-only `read_sandbox_file`.
 - PDF skill and format routing.
-- Binary `save_artifact` flow using dedicated `Artifact`/`ArtifactFile`.
+- Binary `save_artifact` flow using `Artifact`/`ArtifactFile` over an artifact `Document`.
 - `PdfFileViewer` registered for PDF primary files.
 
 The measured OpenSandbox spike passed: metadata rediscovery, timeout renewal, binary read, and steady warm execution were verified against the selected image/server.
@@ -31,9 +31,9 @@ For revision, the agent calls `load_artifact_source(artifact_id)`, edits the ret
 
 - Metadata and blobs are durable in the save tool call.
 - Binary keys are under the artifact storage namespace; source is an `ArtifactFile` role and is not user-readable.
-- The searchable Markdown is committed under `/artifacts/**` on Git-backed workspaces and indexed asynchronously into `ArtifactChunk`.
-- Non-git workspaces index it directly in the artifact save transaction; indexing failure fails and rolls back the attempted save.
-- Search and citations use artifact-qualified hits and `ARTIFACT_CHUNK`, not document identity.
+- The searchable Markdown is the artifact's `Document`, committed under `/documents/**` and indexed asynchronously on Git-backed workspaces.
+- Non-git workspaces index it through the document pipeline inside the save; an indexing failure leaves a durable artifact with a failed document for reindex.
+- Search and citations are the document ones; the artifact document type routes the citation to the panel.
 - Viewer, manifest, download, and cache identity is `artifact_id`.
 
 ## 4. Verification note
@@ -53,7 +53,7 @@ The phase-2 sentinel, mtime ledger, model-facing image inspection, and skill scr
 ## 6. Exit criteria
 
 1. PDF creation has no Typst dependency.
-2. Generated PDF bytes and source persist as dedicated artifact files.
+2. Generated PDF bytes and source persist as artifact files.
 3. The primary renders via the artifact API with immutable caching and downloads with its generated filename.
 4. The artifact becomes searchable according to Git/non-git indexing timing.
-5. Revision uses optimistic generation rather than creating a document sibling.
+5. Revision updates one artifact under optimistic generation rather than producing a second deliverable.

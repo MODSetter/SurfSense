@@ -12,17 +12,11 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from sqlalchemy import select
 
 from app.agents.chat.multi_agent_chat.shared.retrieval.hybrid_search import (
     search_chunks,
-    search_knowledge_base,
 )
-from app.agents.chat.multi_agent_chat.shared.retrieval.models import (
-    ArtifactHit,
-    SearchScope,
-)
-from app.artifacts.persistence import Artifact, ArtifactChunk
+from app.agents.chat.multi_agent_chat.shared.retrieval.models import SearchScope
 from app.config import config
 from app.db import Chunk, Document, DocumentType, Workspace
 
@@ -69,43 +63,6 @@ async def _add_document(
         )
     await db_session.flush()
     return document
-
-
-async def _add_artifact(
-    db_session,
-    *,
-    workspace_id: int,
-    title: str,
-    content: str,
-    embedding: list[float],
-    chunk_id: int | None = None,
-    generation: int = 1,
-    indexed_generation: int | None = 1,
-) -> Artifact:
-    artifact = Artifact(
-        workspace_id=workspace_id,
-        title=title,
-        format="markdown",
-        search_content=content,
-        path=f"/artifacts/{uuid.uuid4().hex}.md",
-        content_hash=uuid.uuid4().hex,
-        generation=generation,
-        indexed_generation=indexed_generation,
-        indexing_status="ready",
-    )
-    db_session.add(artifact)
-    await db_session.flush()
-    chunk = ArtifactChunk(
-        artifact_id=artifact.id,
-        content=content,
-        position=0,
-        embedding=embedding,
-    )
-    if chunk_id is not None:
-        chunk.id = chunk_id
-    db_session.add(chunk)
-    await db_session.flush()
-    return artifact
 
 
 async def test_keyword_relevant_document_is_retrieved(db_session, db_workspace):
@@ -279,99 +236,29 @@ async def test_top_k_caps_the_number_of_documents(db_session, db_workspace):
     assert len(results) == 2
 
 
-async def test_shared_search_returns_source_qualified_document_and_artifact_hits(
+async def test_search_chunks_returns_artifact_document_type_and_identity(
     db_session, db_workspace
 ):
-    document = await _add_document(
+    artifact_document = await _add_document(
         db_session,
         workspace_id=db_workspace.id,
-        title="Document",
-        chunks=[("shared retrieval term", 0, _axis(0))],
+        title="Launch deck",
+        document_type=DocumentType.ARTIFACT,
+        chunks=[("artifact-only-search-term", 0, _axis(0))],
     )
-    document_chunk = await db_session.scalar(
-        select(Chunk).where(Chunk.document_id == document.id)
-    )
-    artifact = await _add_artifact(
-        db_session,
-        workspace_id=db_workspace.id,
-        title="Artifact",
-        content="shared retrieval term",
-        embedding=_axis(0),
-        chunk_id=document_chunk.id,
-    )
+    artifact_document.document_metadata = {"artifact_id": 42}
+    await db_session.flush()
 
-    results = await search_knowledge_base(
+    results = await search_chunks(
         db_session,
         workspace_id=db_workspace.id,
-        query="shared retrieval term",
+        query="artifact-only-search-term",
         scope=SearchScope(),
         top_k=5,
         query_embedding=_axis(0),
     )
 
-    assert {hit.source_key for hit in results} >= {
-        ("document", document.id),
-        ("artifact", artifact.id),
-    }
-    artifact_hit = next(hit for hit in results if isinstance(hit, ArtifactHit))
-    assert artifact_hit.chunks[0].chunk_id == document_chunk.id
-
-
-async def test_shared_search_excludes_stale_artifact_generation(
-    db_session, db_workspace
-):
-    stale = await _add_artifact(
-        db_session,
-        workspace_id=db_workspace.id,
-        title="Stale revision",
-        content="revision-only-keyword",
-        embedding=_axis(0),
-        generation=2,
-        indexed_generation=1,
-    )
-
-    results = await search_knowledge_base(
-        db_session,
-        workspace_id=db_workspace.id,
-        query="revision-only-keyword",
-        scope=SearchScope(),
-        top_k=5,
-        query_embedding=_axis(0),
-    )
-
-    assert ("artifact", stale.id) not in {hit.source_key for hit in results}
-
-
-async def test_shared_search_embeds_query_once_across_both_domains(
-    db_session, db_workspace, monkeypatch
-):
-    await _add_document(
-        db_session,
-        workspace_id=db_workspace.id,
-        chunks=[("one embedding", 0, _axis(0))],
-    )
-    await _add_artifact(
-        db_session,
-        workspace_id=db_workspace.id,
-        title="Artifact",
-        content="one embedding",
-        embedding=_axis(0),
-    )
-    calls = 0
-
-    def embed(_query: str) -> list[float]:
-        nonlocal calls
-        calls += 1
-        return _axis(0)
-
-    monkeypatch.setattr(config.embedding_model_instance, "embed", embed)
-
-    await search_knowledge_base(
-        db_session,
-        workspace_id=db_workspace.id,
-        query="one embedding",
-        scope=SearchScope(),
-        top_k=5,
-    )
-
-    assert calls == 1
+    hit = next(hit for hit in results if hit.document_id == artifact_document.id)
+    assert hit.document_type == "ARTIFACT"
+    assert hit.metadata == {"artifact_id": 42}
+    assert hit.source_key == ("document", artifact_document.id)

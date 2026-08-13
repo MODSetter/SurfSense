@@ -11,8 +11,9 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
-from app.artifacts.persistence import Artifact, ArtifactChunk
+from app.artifacts.persistence import Artifact
 from app.artifacts.service import ArtifactFileInput, save_artifact
+from app.db import Chunk, Document
 
 from .test_service import MemoryBackend
 
@@ -30,7 +31,7 @@ def _runtime() -> ToolRuntime:
     )
 
 
-async def test_tool_persists_and_indexes_legacy_artifact_immediately(
+async def test_tool_persists_and_indexes_artifact_document_immediately(
     db_session, db_workspace, patched_embed_texts, monkeypatch
 ):
     del patched_embed_texts
@@ -66,9 +67,12 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
     )
     assert (
         await db_session.scalar(
-            select(func.count(ArtifactChunk.id)).where(
-                ArtifactChunk.artifact_id == payload["artifact_id"],
-                ArtifactChunk.content.ilike("%immediate-search-hit-term%"),
+            select(func.count(Chunk.id))
+            .join(Document, Chunk.document_id == Document.id)
+            .join(Artifact, Artifact.document_id == Document.id)
+            .where(
+                Artifact.id == payload["artifact_id"],
+                Chunk.content.ilike("%immediate-search-hit-term%"),
             )
         )
         > 0
@@ -76,15 +80,14 @@ async def test_tool_persists_and_indexes_legacy_artifact_immediately(
 
 
 async def test_load_artifact_source_restores_the_current_source(
-    db_session, db_workspace, monkeypatch
+    db_session, db_workspace, patched_embed_texts, monkeypatch
 ):
+    del patched_embed_texts
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
-
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,

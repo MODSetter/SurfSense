@@ -2,36 +2,34 @@
 
 > Visual companion to [`00-umbrella-plan.md`](00-umbrella-plan.md).
 
-## 1. Shared Git revisions, separate domains
+## 1. One tree, one corpus, sidecars in Postgres
 
 ```mermaid
 flowchart LR
-  GIT["Workspace Git repo\n/documents + /artifacts"] --> DISPATCH{"Root dispatcher"}
-  DISPATCH -->|documents/**| DOC["Document projection"]
-  DISPATCH -->|artifacts/**| ART["Artifact projection"]
+  GIT["Workspace Git repo\n/documents"] --> PROJ["Document projection"]
+  PROJ --> DOC[("Document")]
   DOC --> CHUNK[("Chunk")]
-  ART --> ACHUNK[("ArtifactChunk")]
+  DOC -.->|"type = ARTIFACT"| ART[("Artifact + ArtifactFile")]
   BLOBS[("Blob storage")] --- DOC
   BLOBS --- ART
 ```
 
-Git stores committed searchable text. Postgres owns domain identity/metadata and blob references. Artifact and document rows are never converted or adopted across roots.
+Git stores committed searchable text under one root. Postgres owns identity, metadata, and blob references. A generated deliverable is a document of type `ARTIFACT` with an artifact sidecar carrying format, generation, roles, and receipts; `document_type` is the only thing that distinguishes it.
 
 ## 2. Write timing
 
 ```mermaid
 flowchart TD
   NOTE["Document/connector write"] --> WC["Private working copy"]
-  SAVE["save_artifact"] --> ADB[("Artifact + ArtifactFile durable")]
+  SAVE["save_artifact"] --> ADB[("Document + Artifact + ArtifactFile durable")]
   SAVE --> WC
   WC -->|"end of turn"| COMMIT["One Git revision"]
-  COMMIT --> PROJECT["Commit-time root projection"]
+  COMMIT --> PROJECT["Commit-time projection"]
   COMMIT --> CONVERGE["Async convergence"]
-  CONVERGE --> DSEARCH[("Document chunks")]
-  CONVERGE --> ASEARCH[("Artifact chunks")]
+  CONVERGE --> CHUNKS[("Chunk")]
 ```
 
-Artifact metadata and bytes are durable before the tool succeeds on Git-backed workspaces. Git commit and search convergence may occur later, and convergence failure does not roll back the artifact. Non-git workspaces index in the save transaction.
+Artifact rows and bytes are durable before the tool succeeds on Git-backed workspaces. Git commit and search convergence may occur later, and convergence failure does not roll back the artifact. Non-git workspaces index through the document pipeline inside the save.
 
 ## 3. Full-tree convergence
 
@@ -39,34 +37,31 @@ Artifact metadata and bytes are durable before the tool succeeds on Git-backed w
 flowchart TD
   HEAD["Git HEAD"] --> SCAN["index_tree"]
   SCAN --> DPATHS["documents/**"]
-  SCAN --> APATHS["artifacts/**"]
-  DPATHS --> DUPSERT["Upsert/prune Document + Chunk"]
-  APATHS --> AUPSERT["Resolve/prune Artifact + ArtifactChunk"]
-  AUPSERT --> CURRENT{"indexed_generation == generation?"}
-  CURRENT -->|yes| READY["Searchable"]
-  CURRENT -->|no| STALE["Excluded; retryable"]
+  DPATHS --> UPSERT["Upsert/prune Document + Chunk"]
+  UPSERT --> TYPE{"Row exists?"}
+  TYPE -->|yes| KEEP["Preserve Postgres-owned document_type"]
+  TYPE -->|no| NOTE["New git file becomes NOTE"]
 ```
 
-The rebuild upserts/prunes; it does not wipe UI-visible identities. Folder reconciliation is document-only. Artifact removal purges artifact blobs and cascades artifact chunks.
+The rebuild upserts/prunes; it does not wipe UI-visible identities. There is no root dispatch and no artifact branch: an artifact document is scanned, chunked, renamed, and pruned by the same code as every other document. Preserving the existing row's `document_type` is what keeps a saved artifact an artifact across every rebuild.
 
 ## 4. Search
 
 ```mermaid
 flowchart LR
   Q["Knowledge query"] --> EMB["One query embedding"]
-  EMB --> DSEM["Document semantic candidates"]
-  EMB --> ASEM["Artifact semantic candidates"]
-  Q --> DKEY["Document keyword candidates"]
-  Q --> AKEY["Artifact keyword candidates"]
-  DSEM --> FUSE["Global reciprocal-rank fusion"]
-  ASEM --> FUSE
-  DKEY --> FUSE
-  AKEY --> FUSE
-  FUSE --> GROUP["Group by source_type + source_id"]
-  GROUP --> CITE["DOCUMENT_CHUNK or ARTIFACT_CHUNK citations"]
+  EMB --> SEM["Semantic candidates"]
+  Q --> KEY["Keyword candidates"]
+  SEM --> FUSE["Reciprocal-rank fusion"]
+  KEY --> FUSE
+  FUSE --> GROUP["Group by document"]
+  GROUP --> CITE["KB chunk citations"]
+  CITE --> ROUTE{"document_type"}
+  ROUTE -->|ARTIFACT| APANEL["Artifact panel"]
+  ROUTE -->|other| DPANEL["Citation panel"]
 ```
 
-Artifact candidates compete globally with documents. Namespaced citation kinds prevent collisions between independent chunk ID sequences.
+One corpus, one embedding, one fusion. Artifacts compete with documents because they are documents, which also makes them type-filterable and `@`-mentionable. Chunk ids need no namespacing because there is one sequence; type routing happens at the panel, after resolution.
 
 ## 5. Revision and deletion
 
@@ -74,7 +69,7 @@ Artifact candidates compete globally with documents. Namespaced citation kinds p
 sequenceDiagram
   participant Agent
   participant API as Artifact service
-  participant DB as Artifact tables
+  participant DB as Document + Artifact rows
   participant Git
   participant Blob
 
@@ -84,15 +79,15 @@ sequenceDiagram
     DB-->>Agent: fail; load source again
   else current
     API->>Blob: stage new role blobs
-    API->>DB: replace role rows + increment generation
-    API->>Git: update /artifacts representation in working copy
+    API->>DB: replace role rows, update markdown, increment generation
+    API->>Git: update the document file in the working copy
     API-->>Agent: artifact_id + new generation
     API->>Blob: best-effort purge old blobs
   end
 ```
 
-API deletion removes the Git artifact representation where enabled, deletes the artifact row/chunks/files, then best-effort purges captured blobs. Convergence deletion currently purges best-effort before its row-delete commit; the blob store and database are not atomic. Neither path calls document deletion.
+Deletion is the document deletion path: the row is marked `deleting`, the purge records the Git removal, then chunks, artifact, and file rows cascade and every reachable blob is purged — `DocumentFile` keys for the document and `ArtifactFile` keys through `artifact.document_id`. Marking first drops the deliverable out of search immediately; the blob store and database are not atomic, so a purge failure leaves an unreachable blob and a warning.
 
 ## 6. Document migration
 
-The legacy workspace seed exports documents only. Existing document chunks are adopted by byte parity and incremental indexing starts after the seed revision. Dedicated artifacts are created/indexed by the artifact service and are not migrated or adopted as documents.
+The legacy workspace seed exports documents only. Existing document chunks are adopted by byte parity and incremental indexing starts after the seed revision. Artifacts are created by the artifact service with their type already set, so they are never subject to that adoption rule.

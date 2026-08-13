@@ -11,7 +11,7 @@ from langgraph.runtime import Runtime
 from sqlalchemy import case, select
 
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
-from app.db import shielded_async_session
+from app.db import Document, shielded_async_session
 
 from ..tools.thread_resolver import root_thread_id_from_config
 
@@ -48,9 +48,10 @@ class ArtifactRosterMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 await session.execute(
                     select(
                         Artifact.id,
-                        Artifact.title,
+                        Document.title,
                         ArtifactFile.original_filename,
                     )
+                    .join(Document, Artifact.document_id == Document.id)
                     .outerjoin(
                         ArtifactFile,
                         (ArtifactFile.artifact_id == Artifact.id)

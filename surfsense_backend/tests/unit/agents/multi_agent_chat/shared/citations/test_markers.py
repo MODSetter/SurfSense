@@ -31,15 +31,6 @@ def test_anon_chunk_keeps_negative_id() -> None:
     assert to_frontend_payload(entry) == "-3"
 
 
-def test_artifact_chunk_uses_collision_safe_namespace() -> None:
-    entry = _entry(
-        CitationSourceType.ARTIFACT_CHUNK,
-        {"chunk_id": 42, "artifact_id": 7},
-    )
-
-    assert to_frontend_payload(entry) == "artifact_chunk_42"
-
-
 def test_web_result_maps_to_url() -> None:
     entry = _entry(CitationSourceType.WEB_RESULT, {"url": "https://example.com/a"})
 

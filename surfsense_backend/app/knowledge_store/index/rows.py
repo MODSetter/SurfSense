@@ -56,6 +56,10 @@ async def upsert_row(
     Returns the row and whether this call created it. The row is flushed before
     returning because both callers need its id: the pipeline to attach chunks,
     the commit path to name the document in a UI event.
+
+    ``document_type`` is assigned only for a new Git-authored row. Existing rows
+    keep their type, so projection cannot demote an artifact or uploaded file to
+    a note merely because all of them live under ``/documents``.
     """
     folder_parts, title = parse_documents_path(virtual_path)
     if not title:
@@ -96,8 +100,8 @@ async def upsert_row(
         )
         session.add(document)
     else:
-        # Title is Postgres-owned: re-deriving it from the path would rename the
-        # note to its filename on every reindex.
+        # Title and type are Postgres-owned: re-deriving either from the path
+        # would rename a document or demote an artifact on every reindex.
         document.folder_id = folder_id
         document.path = virtual_path
         document.source_markdown = content
@@ -216,14 +220,25 @@ async def prune(
     the folder indexers) have no path in the tree at all, and a workspace-wide
     prune would delete every one of them on the first rebuild.
     """
-    deleted = 0
-    for virtual_path, document in list(owned.items()):
-        if virtual_path in live:
-            continue
+    stale = [
+        (virtual_path, document)
+        for virtual_path, document in owned.items()
+        if virtual_path not in live
+    ]
+    if not stale:
+        return 0
+
+    from app.file_storage.service import purge_document_blobs
+
+    # Blob metadata cascades with the document, so collect and purge every
+    # reachable document/artifact blob while those rows still exist.
+    await purge_document_blobs(
+        session, document_ids=[document.id for _, document in stale]
+    )
+    for virtual_path, document in stale:
         await session.delete(document)
         owned.pop(virtual_path, None)
-        deleted += 1
-    return deleted
+    return len(stale)
 
 
 async def load_owned(session: AsyncSession, workspace_id: int) -> dict[str, Document]:

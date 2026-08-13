@@ -48,24 +48,4 @@ class DocumentHit:
         return ("document", self.document_id)
 
 
-@dataclass(frozen=True)
-class ArtifactHit:
-    """An artifact and the chunks that matched the query, ordered by position."""
-
-    artifact_id: int
-    title: str
-    format: str
-    path: str
-    metadata: dict[str, Any]
-    score: float
-    chunks: list[ChunkHit] = field(default_factory=list)
-
-    @property
-    def source_key(self) -> tuple[Literal["artifact"], int]:
-        return ("artifact", self.artifact_id)
-
-
-KnowledgeHit = DocumentHit | ArtifactHit
-
-
-__all__ = ["ArtifactHit", "ChunkHit", "DocumentHit", "KnowledgeHit", "SearchScope"]
+__all__ = ["ChunkHit", "DocumentHit", "SearchScope"]

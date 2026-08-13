@@ -12,7 +12,6 @@ class CitationSourceType(StrEnum):
     """Source kind of a citable unit; the value is the stable wire/dedup form."""
 
     KB_CHUNK = "kb_chunk"
-    ARTIFACT_CHUNK = "artifact_chunk"
     KB_DOCUMENT = "kb_document"
     CONNECTOR_ITEM = "connector_item"
     WEB_RESULT = "web_result"
