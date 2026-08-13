@@ -23,12 +23,17 @@ from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.paths import allocate_path, to_store_path
 from app.knowledge_store.service import record_markdown_files
 from app.knowledge_store.settings import knowledge_store_enabled_for
+from app.services.folder_service import ensure_folder_hierarchy
 from app.utils.document_converters import (
     generate_content_hash,
     generate_unique_identifier_hash,
 )
 
 logger = logging.getLogger(__name__)
+
+# Generated deliverables live together instead of beside the user's own notes at
+# the root of the tree. Merges with a user folder of the same name by design.
+ARTIFACTS_FOLDER = "Artifacts"
 
 
 @dataclass(frozen=True)
@@ -129,7 +134,7 @@ async def _allocate_artifact_path(
 
     return allocate_path(
         name=title,
-        folder_parts=(),
+        folder_parts=(ARTIFACTS_FOLDER,),
         taken=taken,
     ).virtual_path
 
@@ -225,6 +230,14 @@ async def save_artifact(
         )
         if created_by_id is None:
             raise ValueError("workspace does not exist")
+        # Git projection derives the folder from the path, but only once the
+        # revision is indexed, and never at all for a Postgres-only workspace.
+        folder_id = await ensure_folder_hierarchy(
+            session,
+            workspace_id=workspace_id,
+            created_by_id=created_by_id,
+            folder_parts=[ARTIFACTS_FOLDER],
+        )
         document = Document(
             title=title,
             document_type=DocumentType.ARTIFACT,
@@ -237,7 +250,7 @@ async def save_artifact(
                 DocumentType.NOTE, path, workspace_id
             ),
             workspace_id=workspace_id,
-            folder_id=None,
+            folder_id=folder_id,
             created_by_id=created_by_id,
             status=DocumentStatus.pending(),
             updated_at=now,
