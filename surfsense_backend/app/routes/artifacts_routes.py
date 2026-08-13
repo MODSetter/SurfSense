@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -84,6 +85,45 @@ def _legacy_ref(artifact: Artifact) -> dict[str, object] | None:
     if not isinstance(kind, str) or not isinstance(legacy_id, int):
         return None
     return {"kind": kind, "id": legacy_id}
+
+
+def _slides_for_remotion(
+    workspace_id: int, artifact_id: int, slides: list[object]
+) -> list[dict[str, object]]:
+    """Public slide payload: artifact-scoped audio URLs, no storage keys."""
+    out: list[dict[str, object]] = []
+    for raw in slides:
+        if not isinstance(raw, dict):
+            continue
+        slide = dict(raw)
+        slide_number = slide.get("slide_number")
+        has_audio = bool(slide.pop("audio_storage_key", None) or slide.pop("audio_file", None))
+        slide.pop("storage_backend", None)
+        if has_audio and isinstance(slide_number, int):
+            slide["audio_url"] = (
+                f"/api/v1/workspaces/{workspace_id}/artifacts/"
+                f"{artifact_id}/slides/{slide_number}/audio"
+            )
+        else:
+            slide["audio_url"] = None
+        out.append(slide)
+    return out
+
+
+async def _load_workspace_artifact(
+    session: AsyncSession, workspace_id: int, artifact_id: int
+) -> tuple[Artifact, Document]:
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return row[0], row[1]
 
 
 def _list_item(artifact: Artifact, document: Document) -> dict[str, object]:
@@ -262,6 +302,89 @@ async def delete_artifact(
             detail="Failed to queue background deletion. Please try again.",
         ) from dispatch_error
     return Response(status_code=204, headers={"Cache-Control": "private, no-store"})
+
+
+@router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/video")
+async def get_artifact_video(
+    workspace_id: int,
+    artifact_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """Remotion payload for a video Artifact (slides + scene_codes)."""
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    artifact, document = await _load_workspace_artifact(
+        session, workspace_id, artifact_id
+    )
+    if artifact.format != "video":
+        raise HTTPException(status_code=404, detail="Artifact is not a video")
+    meta = artifact.artifact_metadata or {}
+    slides = meta.get("slides")
+    scene_codes = meta.get("scene_codes")
+    if not isinstance(slides, list) or not isinstance(scene_codes, list):
+        raise HTTPException(
+            status_code=404, detail="Video Remotion payload not available"
+        )
+    return {
+        "artifact_id": artifact.id,
+        "title": document.title,
+        "status": "ready",
+        "slides": _slides_for_remotion(workspace_id, artifact.id, slides),
+        "scene_codes": scene_codes,
+        "slide_count": len(slides),
+        "workspace_id": workspace_id,
+        "thread_id": artifact.thread_id,
+    }
+
+
+@router.get(
+    "/workspaces/{workspace_id}/artifacts/{artifact_id}/slides/{slide_number}/audio"
+)
+async def stream_artifact_slide_audio(
+    workspace_id: int,
+    artifact_id: int,
+    slide_number: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    artifact, _document = await _load_workspace_artifact(
+        session, workspace_id, artifact_id
+    )
+    if artifact.format != "video":
+        raise HTTPException(status_code=404, detail="Artifact is not a video")
+    slides = (artifact.artifact_metadata or {}).get("slides") or []
+    slide_data = next(
+        (
+            slide
+            for slide in slides
+            if isinstance(slide, dict) and slide.get("slide_number") == slide_number
+        ),
+        None,
+    )
+    if slide_data is None:
+        raise HTTPException(status_code=404, detail=f"Slide {slide_number} not found")
+    storage_key = slide_data.get("audio_storage_key")
+    if not storage_key:
+        raise HTTPException(status_code=404, detail="Slide audio file not found")
+    from app.artifacts.media.video import open_stream
+
+    ext = Path(str(storage_key)).suffix.lower()
+    media_type = "audio/wav" if ext == ".wav" else "audio/mpeg"
+    return StreamingResponse(
+        open_stream(str(storage_key)),
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": (
+                f"inline; filename={Path(str(storage_key)).name}"
+            ),
+        },
+    )
 
 
 @router.get(

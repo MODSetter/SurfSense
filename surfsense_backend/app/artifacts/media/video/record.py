@@ -90,6 +90,16 @@ async def record(
             kind="video",
             legacy_id=video_pres.id,
         )
+        # Durable Remotion payload on Artifact — strip local audio_file paths;
+        # audio_storage_key + artifact slide-audio route are the read path.
+        remotion_slides = []
+        for slide in slides:
+            copy = {
+                key: value
+                for key, value in slide.items()
+                if key not in {"audio_file", "storage_backend"}
+            }
+            remotion_slides.append(copy)
         payload = _to_artifact_input(
             workspace_id=video_pres.workspace_id,
             title=title,
@@ -102,6 +112,8 @@ async def record(
                 {
                     "slide_count": len(slides),
                     "scene_code_count": len(scene_codes),
+                    "slides": remotion_slides,
+                    "scene_codes": scene_codes,
                 },
             ),
             artifact_id=existing.id if existing else None,

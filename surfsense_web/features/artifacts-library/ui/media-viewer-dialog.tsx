@@ -1,10 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { artifactManifestQueryOptions } from "@/features/artifacts/artifact-query";
 import { cn } from "@/lib/utils";
 import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
 import { LibraryImageViewer } from "./library-image-viewer";
@@ -31,35 +29,6 @@ function dialogLayout(kind: LibraryArtifactKind): { width: string; stretch: bool
 	return { width: "max-w-2xl", stretch: false };
 }
 
-function VideoFromArtifact({
-	artifactId,
-	workspaceId,
-	title,
-	legacyEntityId,
-}: {
-	artifactId: number;
-	workspaceId: number;
-	title: string;
-	legacyEntityId?: number;
-}) {
-	const { data, isLoading, error } = useQuery({
-		...artifactManifestQueryOptions(workspaceId, artifactId),
-		enabled: legacyEntityId == null,
-	});
-	const presentationId = legacyEntityId ?? data?.legacy?.id;
-
-	if (legacyEntityId == null && isLoading) return <ViewerFallback />;
-	if (!presentationId || error) {
-		return (
-			<p className="px-6 py-10 text-center text-sm text-muted-foreground">
-				Presentation not available
-			</p>
-		);
-	}
-	// Remotion still needs VideoPresentation slides/scene_codes (not on Artifact yet).
-	return <VideoPresentationViewer presentationId={presentationId} title={title} />;
-}
-
 function MediaViewerBody({
 	artifact,
 	workspaceId,
@@ -83,11 +52,10 @@ function MediaViewerBody({
 	if (artifact.kind === "video") {
 		if (artifact.artifactId != null) {
 			return (
-				<VideoFromArtifact
+				<VideoPresentationViewer
 					artifactId={artifact.artifactId}
 					workspaceId={workspaceId}
 					title={artifact.title}
-					legacyEntityId={artifact.legacyEntityId}
 				/>
 			);
 		}

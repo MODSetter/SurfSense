@@ -287,3 +287,37 @@ async def test_delete_marks_joined_document_and_dispatches_document_delete(monke
     assert document.status == {"state": "deleting"}
     session.commit.assert_awaited_once()
     delay.assert_called_once_with(9)
+
+
+@pytest.mark.asyncio
+async def test_video_payload_rewrites_slide_audio_urls(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    artifact = SimpleNamespace(
+        id=7,
+        format="video",
+        thread_id=3,
+        artifact_metadata={
+            "legacy": {"kind": "video", "id": 99},
+            "slides": [
+                {
+                    "slide_number": 1,
+                    "title": "Intro",
+                    "audio_storage_key": "ws/1/video/99/1.mp3",
+                    "duration_in_frames": 120,
+                }
+            ],
+            "scene_codes": [{"slide_number": 1, "code": " cons()", "title": "Intro"}],
+        },
+        files=[],
+    )
+    document = SimpleNamespace(title="Deck", id=1)
+    session = _row_result((artifact, document))
+
+    result = await artifacts_routes.get_artifact_video(2, 7, session, SimpleNamespace())
+
+    assert result["status"] == "ready"
+    assert result["slides"][0]["audio_url"] == (
+        "/api/v1/workspaces/2/artifacts/7/slides/1/audio"
+    )
+    assert "audio_storage_key" not in result["slides"][0]
+    assert result["scene_codes"][0]["code"] == " cons()"
