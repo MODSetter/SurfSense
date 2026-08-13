@@ -20,7 +20,8 @@ from app.file_storage.factory import get_storage_backend
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
-from app.knowledge_store.paths import allocate_path
+from app.knowledge_store.paths import allocate_path, to_store_path
+from app.knowledge_store.service import record_markdown_files
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.utils.document_converters import (
     generate_content_hash,
@@ -113,16 +114,18 @@ async def _allocate_artifact_path(
     title: str,
     working_copy_root: Path | None,
 ) -> str:
-    if working_copy_root is not None:
-        taken = await _working_copy_paths(working_copy_root)
-    else:
-        paths = await session.scalars(
-            select(Document.path).where(
-                Document.workspace_id == workspace_id,
-                Document.path.is_not(None),
-            )
+    # Both sources: a working copy cannot see a sibling turn's files, and the
+    # rows cannot see what this turn has yet to commit. Either alone hands out a
+    # taken path and the insert dies on the unique index.
+    paths = await session.scalars(
+        select(Document.path).where(
+            Document.workspace_id == workspace_id,
+            Document.path.is_not(None),
         )
-        taken = set(paths)
+    )
+    taken = set(paths)
+    if working_copy_root is not None:
+        taken |= await _working_copy_paths(working_copy_root)
 
     return allocate_path(
         name=title,
@@ -180,8 +183,15 @@ async def save_artifact(
     expected_generation: int | None = None,
     extra_metadata: dict[str, Any] | None = None,
     format: str | None = None,
+    committed_by_turn: bool = False,
 ) -> ArtifactSaved:
-    """Create or revise an artifact atomically and return its stable identity."""
+    """Create or revise an artifact atomically and return its stable identity.
+
+    Set ``committed_by_turn`` when an agent turn will commit the body as part of
+    its own revision; the markdown then stages into that turn's working copy.
+    Celery tasks and scripts leave it unset and the body is recorded here — the
+    default that costs a spare revision rather than losing the body.
+    """
     title = title.strip()
     if not title:
         raise ValueError("artifact title must not be empty")
@@ -190,8 +200,9 @@ async def save_artifact(
     validated_files = _validated_files(files)
     artifact_format = _artifact_format(validated_files, explicit=format)
 
+    git_native = await knowledge_store_enabled_for(workspace_id)
     working_copy_root: Path | None = None
-    if await knowledge_store_enabled_for(workspace_id):
+    if git_native and committed_by_turn:
         working_copy_root = (
             await KnowledgeStore.for_workspace(workspace_id).open_turn_copy(thread_id)
         ).path
@@ -348,7 +359,7 @@ async def save_artifact(
             working_copy_state = await _write_working_copy(
                 working_copy_root, document.path, markdown_representation
             )
-        else:
+        elif not git_native:
             connector_document = ConnectorDocument(
                 title=document.title,
                 source_markdown=markdown_representation,
@@ -368,8 +379,48 @@ async def save_artifact(
         await _delete_blobs_best_effort(new_blob_refs)
         raise
 
+    if git_native and working_copy_root is None:
+        await _record_body(
+            workspace_id=workspace_id,
+            path=document.path,
+            markdown=markdown_representation,
+            title=document.title,
+            author_user_id=str(document.created_by_id),
+        )
+
     await _delete_blobs_best_effort(old_blob_refs)
     return saved_result
+
+
+async def _record_body(
+    *,
+    workspace_id: int,
+    path: str,
+    markdown: str,
+    title: str,
+    author_user_id: str,
+) -> None:
+    """Record the body of an artifact no turn will commit.
+
+    Must run after the rows commit: a revision left behind by a rolled-back
+    write is adopted as a stray note. The reverse gap is self-healing, since
+    re-recording identical content is a no-op, so failure warns rather than
+    raising over an artifact the caller has already been handed.
+    """
+    try:
+        await record_markdown_files(
+            workspace_id=workspace_id,
+            files={to_store_path(path): markdown},
+            message=f"artifacts: save {title}",
+            author_user_id=author_user_id,
+        )
+    except Exception:
+        logger.warning(
+            "Could not record artifact body for workspace %s at %s",
+            workspace_id,
+            path,
+            exc_info=True,
+        )
 
 
 async def persist_artifact(session: AsyncSession, input: Any) -> ArtifactSaved:

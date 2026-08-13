@@ -11,6 +11,7 @@ from app.db import Chunk, Document, DocumentStatus, DocumentType
 from app.file_storage import service as file_storage_service
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.index.converge import index_changes, index_tree
+from app.knowledge_store.paths import to_store_path
 
 from .test_service import MemoryBackend
 
@@ -50,6 +51,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
         files=[
             ArtifactFileInput(b"%PDF-seeded", "proof.pdf", "application/pdf"),
         ],
+        committed_by_turn=True,
     )
 
     artifact = await db_session.get(Artifact, saved.artifact_id)
@@ -120,6 +122,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
         files=[
             ArtifactFileInput(b"%PDF-revised", "renamed.pdf", "application/pdf"),
         ],
+        committed_by_turn=True,
     )
 
     assert revised.artifact_id == saved.artifact_id
@@ -152,3 +155,75 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     assert await db_session.get(Artifact, saved.artifact_id) is None
     assert not backend.data
+
+
+async def test_body_is_recorded_when_no_turn_will_commit_it(
+    db_session,
+    db_workspace,
+    artifact_thread,
+    knowledge_root,
+    patched_embed_texts,
+    monkeypatch,
+):
+    del knowledge_root, patched_embed_texts
+    backend = MemoryBackend()
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(file_storage_service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(
+        service, "knowledge_store_enabled_for", AsyncMock(return_value=True)
+    )
+
+    saved = await save_artifact(
+        db_session,
+        workspace_id=db_workspace.id,
+        thread_id=artifact_thread.id,
+        tool_call_id=None,
+        title="Rendered podcast",
+        markdown_representation="# Rendered podcast\n\ntranscript",
+        files=[ArtifactFileInput(b"ID3-audio", "podcast.mp3", "audio/mpeg")],
+    )
+
+    artifact = await db_session.get(Artifact, saved.artifact_id)
+    document = await db_session.get(Document, artifact.document_id)
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    head = await store.head()
+
+    assert head is not None
+    body = await store.read_as_of(head, to_store_path(document.path))
+    assert body.decode() == "# Rendered podcast\n\ntranscript"
+
+
+async def test_two_threads_saving_one_title_get_distinct_paths(
+    db_session,
+    db_workspace,
+    artifact_thread_factory,
+    knowledge_root,
+    patched_embed_texts,
+    monkeypatch,
+):
+    del knowledge_root, patched_embed_texts
+    backend = MemoryBackend()
+    monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(file_storage_service, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(
+        service, "knowledge_store_enabled_for", AsyncMock(return_value=True)
+    )
+
+    paths = []
+    for index in (1, 2):
+        thread = await artifact_thread_factory(f"Thread {index}")
+        saved = await save_artifact(
+            db_session,
+            workspace_id=db_workspace.id,
+            thread_id=thread.id,
+            tool_call_id=f"call-{index}",
+            title="Weekly report",
+            markdown_representation=f"# Weekly report\n\nrun {index}",
+            files=[],
+            committed_by_turn=True,
+        )
+        artifact = await db_session.get(Artifact, saved.artifact_id)
+        document = await db_session.get(Document, artifact.document_id)
+        paths.append(document.path)
+
+    assert paths == ["/documents/Weekly report.md", "/documents/Weekly report (2).md"]

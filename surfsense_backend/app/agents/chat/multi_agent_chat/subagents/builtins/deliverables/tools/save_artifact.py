@@ -156,6 +156,7 @@ def create_save_artifact_tool(workspace_id: int):
                     artifact_id=artifact_id,
                     expected_generation=expected_generation,
                     extra_metadata=extra_metadata,
+                    committed_by_turn=True,
                 )
             return with_receipt(
                 payload=asdict(saved),
