@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Boxes, XIcon } from "lucide-react";
+import { Shapes, XIcon } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -32,7 +32,7 @@ function groupByKind(artifacts: ChatArtifact[]): { label: string; items: ChatArt
 function EmptyState() {
 	return (
 		<div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center select-none">
-			<Boxes className="size-6 text-muted-foreground/60" />
+			<Shapes className="size-6 text-muted-foreground/60" />
 			<p className="text-sm font-medium text-foreground">No artifacts yet</p>
 			<p className="text-xs text-muted-foreground">
 				Reports, podcasts, presentations, and images you generate will appear here.
@@ -71,9 +71,9 @@ export function ArtifactsPanelContent({ onClose }: { onClose?: () => void }) {
 	return (
 		<>
 			<div className="shrink-0">
-				<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+				<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4">
 					<div className="min-w-0 flex flex-1 items-center gap-2">
-						<p className="truncate text-sm text-muted-foreground">Artifacts</p>
+						<h2 className="truncate text-lg font-semibold">Artifacts</h2>
 					</div>
 					<div className="flex items-center gap-1 shrink-0">
 						{onClose && (
