@@ -3,7 +3,6 @@
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { downloadArtifactFile } from "./download-file";
 
 export function ArtifactDownloadButton({
@@ -41,7 +40,7 @@ export function ArtifactDownloadButton({
 				"Download"
 			) : (
 				<>
-					{downloading ? <Spinner size="sm" /> : <Download className="size-4" />}
+					<Download className="size-4" />
 					<span className="sr-only">Download {filename}</span>
 				</>
 			)}
