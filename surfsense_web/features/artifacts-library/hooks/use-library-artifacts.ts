@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import {
+	getArtifactFormatMeta,
+	normalizeArtifactFormat,
+} from "@/features/artifacts/artifact-format-meta";
 import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
 import { videoPresentationsApiService } from "@/lib/apis/video-presentations-api.service";
-import type {
-	LibraryArtifact,
-	LibraryArtifactKind,
-	LibraryArtifactStatus,
-} from "../model/artifact";
+import type { LibraryArtifact, LibraryArtifactStatus } from "../model/artifact";
 
 function podcastStatus(status: string): LibraryArtifactStatus {
 	if (status === "ready") return "ready";
@@ -28,25 +28,20 @@ function indexingStatus(status: string): LibraryArtifactStatus {
 	return "running";
 }
 
-function kindFromFormat(format: string): LibraryArtifactKind | null {
-	if (format === "podcast" || format === "video" || format === "image") return format;
-	// Office / markdown / pdf / unknown binary formats open in the artifact panel.
-	return "file";
-}
-
 function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
-	const kind = kindFromFormat(row.format) ?? "file";
-	const legacyId = row.legacy && row.legacy.kind === kind ? row.legacy.id : undefined;
+	const format = normalizeArtifactFormat(row.format);
+	const meta = getArtifactFormatMeta(format);
+	const legacyId = row.legacy?.kind === format ? row.legacy.id : undefined;
 	return {
-		key: `${kind}-${row.artifact_id}`,
-		kind,
-		entityId: kind === "file" ? row.artifact_id : (legacyId ?? row.artifact_id),
+		key: `artifact-${row.artifact_id}`,
+		format,
+		entityId: legacyId ?? row.artifact_id,
 		artifactId: row.artifact_id,
 		legacyEntityId: legacyId,
 		title: row.title,
 		status: indexingStatus(row.indexing_status),
 		createdAt: row.created_at,
-		contentType: kind === "file" ? "file" : "markdown",
+		contentType: meta.viewingMode === "inline-media" ? "markdown" : "file",
 		sourceThreadId: row.thread_id,
 	};
 }
@@ -69,8 +64,11 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 	for (const row of rows) {
 		const item = fromArtifactRow(row);
 		artifacts.push(item);
-		if ((item.kind === "podcast" || item.kind === "video") && row.legacy?.kind === item.kind) {
-			covered[item.kind].add(row.legacy.id);
+		if (
+			(item.format === "podcast" || item.format === "video") &&
+			row.legacy?.kind === item.format
+		) {
+			covered[item.format].add(row.legacy.id);
 		}
 	}
 
@@ -78,7 +76,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		const isResume = report.content_type === "typst";
 		artifacts.push({
 			key: `report-${report.id}`,
-			kind: isResume ? "resume" : "report",
+			format: isResume ? "resume" : "report",
 			entityId: report.id,
 			title: report.title,
 			status: report.report_metadata?.status === "failed" ? "error" : "ready",
@@ -92,7 +90,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		if (covered.podcast.has(podcast.id)) continue;
 		artifacts.push({
 			key: `podcast-${podcast.id}`,
-			kind: "podcast",
+			format: "podcast",
 			entityId: podcast.id,
 			title: podcast.title,
 			status: podcastStatus(podcast.status),
@@ -106,7 +104,7 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		if (covered.video.has(video.id)) continue;
 		artifacts.push({
 			key: `video-${video.id}`,
-			kind: "video",
+			format: "video",
 			entityId: video.id,
 			title: video.title,
 			status: videoStatus(video.status),

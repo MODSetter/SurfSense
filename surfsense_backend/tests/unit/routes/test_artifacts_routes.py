@@ -115,6 +115,7 @@ async def test_list_reads_title_and_status_from_document(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     artifact = SimpleNamespace(
         id=7,
+        document_id=9,
         format="pptx",
         generation=2,
         thread_id=11,
@@ -133,6 +134,7 @@ async def test_list_reads_title_and_status_from_document(monkeypatch):
     assert result == [
         {
             "artifact_id": 7,
+            "document_id": 9,
             "title": "Launch deck",
             "format": "pptx",
             "generation": 2,
@@ -150,6 +152,7 @@ async def test_list_artifacts_includes_legacy_when_present(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     with_legacy = SimpleNamespace(
         id=1,
+        document_id=10,
         format="podcast",
         generation=1,
         thread_id=3,
@@ -159,6 +162,7 @@ async def test_list_artifacts_includes_legacy_when_present(monkeypatch):
     )
     without = SimpleNamespace(
         id=2,
+        document_id=11,
         format="markdown",
         generation=1,
         thread_id=None,

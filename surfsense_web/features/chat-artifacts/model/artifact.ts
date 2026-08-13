@@ -1,5 +1,5 @@
-/** Deliverable kinds the agent can produce and surface in the artifacts sidebar. */
-export type ArtifactKind = "file" | "podcast" | "video" | "image";
+/** Transient tool-result categories used only to reconcile legacy media IDs. */
+export type ArtifactToolKind = "file" | "podcast" | "video" | "image";
 
 /**
  * A successfully persisted chat artifact. In-flight and failed tool calls stay
@@ -8,7 +8,6 @@ export type ArtifactKind = "file" | "podcast" | "video" | "image";
 export interface ChatArtifact {
 	/** Stable identity for list keys + dedupe — entity id when known, else the tool call id. */
 	key: string;
-	kind: ArtifactKind;
 	title: string;
 	/** Canonical persisted format, used for the row subtitle. */
 	format: string;
@@ -21,7 +20,7 @@ export interface ChatArtifact {
 }
 
 /** Maps deliverable tool names to artifact kinds. Mirrors the body tools in assistant-message. */
-export const ARTIFACT_TOOL_KINDS: Record<string, ArtifactKind> = {
+export const ARTIFACT_TOOL_KINDS: Record<string, ArtifactToolKind> = {
 	save_artifact: "file",
 	generate_podcast: "podcast",
 	generate_video_presentation: "video",

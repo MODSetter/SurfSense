@@ -7,10 +7,14 @@ import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import { Button } from "@/components/ui/button";
+import {
+	ARTIFACT_GROUP_ORDER,
+	type ArtifactGroupKey,
+	getArtifactFormatMeta,
+} from "@/features/artifacts/artifact-format-meta";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
-import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
+import type { LibraryArtifact } from "../model/artifact";
 import { ArtifactCard } from "./artifact-card";
-import { KIND_META, KIND_ORDER } from "./kind-meta";
 import { MediaViewerDialog } from "./media-viewer-dialog";
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6"];
@@ -67,22 +71,24 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
 
 	const grouped = useMemo(() => {
-		const map = new Map<LibraryArtifactKind, LibraryArtifact[]>();
+		const map = new Map<ArtifactGroupKey, LibraryArtifact[]>();
 		for (const artifact of artifacts) {
-			const bucket = map.get(artifact.kind);
+			const groupKey = getArtifactFormatMeta(artifact.format).groupKey;
+			const bucket = map.get(groupKey);
 			if (bucket) bucket.push(artifact);
-			else map.set(artifact.kind, [artifact]);
+			else map.set(groupKey, [artifact]);
 		}
 		return map;
 	}, [artifacts]);
 
 	const handleOpen = (artifact: LibraryArtifact) => {
-		if (artifact.kind === "file") {
+		const { viewingMode } = getArtifactFormatMeta(artifact.format);
+		if (viewingMode === "viewer") {
 			openArtifactPanel({ artifactId: artifact.artifactId ?? artifact.entityId });
 			return;
 		}
 		// Reports/resumes reuse the shared report panel; the rest open in the dialog.
-		if (artifact.kind === "report" || artifact.kind === "resume") {
+		if (viewingMode === "legacy-report") {
 			openReportPanel({
 				reportId: artifact.entityId,
 				title: artifact.title,
@@ -112,13 +118,14 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 				<EmptyState />
 			) : (
 				<div className="space-y-8">
-					{KIND_ORDER.map((kind) => {
-						const items = grouped.get(kind);
+					{ARTIFACT_GROUP_ORDER.map((groupKey) => {
+						const items = grouped.get(groupKey);
 						if (!items || items.length === 0) return null;
+						const groupLabel = getArtifactFormatMeta(items[0].format).groupLabel;
 						return (
-							<section key={kind}>
+							<section key={groupKey}>
 								<h2 className="mb-3 text-sm font-medium text-muted-foreground">
-									{KIND_META[kind].group}
+									{groupLabel}
 									<span className="ml-1.5 text-muted-foreground/60">{items.length}</span>
 								</h2>
 								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

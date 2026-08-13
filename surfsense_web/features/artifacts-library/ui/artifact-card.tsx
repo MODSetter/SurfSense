@@ -1,8 +1,9 @@
-import { MessageSquareText } from "lucide-react";
+import { Dot, MessageSquareText } from "lucide-react";
 import Link from "next/link";
+import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
 import { formatRelativeDate } from "@/lib/format-date";
 import type { LibraryArtifact } from "../model/artifact";
-import { KIND_META } from "./kind-meta";
 
 export function ArtifactCard({
 	artifact,
@@ -13,15 +14,8 @@ export function ArtifactCard({
 	workspaceId: number;
 	onOpen: (artifact: LibraryArtifact) => void;
 }) {
-	const meta = KIND_META[artifact.kind];
-	const Icon = meta.icon;
-
-	const subtitle =
-		artifact.status === "running"
-			? "Generating…"
-			: artifact.status === "error"
-				? "Failed"
-				: meta.label;
+	const statusLabel =
+		artifact.status === "running" ? "Generating…" : artifact.status === "error" ? "Failed" : null;
 
 	return (
 		<div className="group relative flex items-start gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent/50">
@@ -35,15 +29,15 @@ export function ArtifactCard({
 			</button>
 
 			<span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-				<Icon className="size-4" />
+				<ArtifactFormatIcon format={artifact.format} className="size-4" />
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium text-foreground">{artifact.title}</span>
 				<span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
 					<span className={artifact.status === "error" ? "text-destructive" : undefined}>
-						{subtitle}
+						{statusLabel ?? <ArtifactFormatLabel format={artifact.format} />}
 					</span>
-					<span aria-hidden>·</span>
+					<Dot className="-mx-1 size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
 					<span>{formatRelativeDate(artifact.createdAt)}</span>
 				</span>
 			</span>

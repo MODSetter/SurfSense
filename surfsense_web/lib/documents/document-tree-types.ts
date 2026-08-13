@@ -5,6 +5,8 @@ export interface DocumentNodeDoc {
 	folderId: number | null;
 	createdAt: number;
 	status?: { state: string; reason?: string | null };
+	/** Present for ARTIFACT documents after REST sidecar reconciliation. */
+	artifactFormat?: string;
 }
 
 export interface FolderDisplay {

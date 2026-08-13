@@ -1,6 +1,3 @@
-/** Deliverable kinds surfaced in the workspace-wide artifacts library. */
-export type LibraryArtifactKind = "file" | "report" | "resume" | "podcast" | "video" | "image";
-
 export type LibraryArtifactStatus = "ready" | "running" | "error";
 
 /**
@@ -11,9 +8,10 @@ export type LibraryArtifactStatus = "ready" | "running" | "error";
  * open id for reports and media without an Artifact.
  */
 export interface LibraryArtifact {
-	/** Stable list key — `${kind}-${artifactId ?? entityId}`. */
+	/** Stable list key for canonical and legacy deliverables. */
 	key: string;
-	kind: LibraryArtifactKind;
+	/** Canonical backend format, or a compatibility format for legacy report rows. */
+	format: string;
 	/** Legacy or report id used when ``artifactId`` is absent. */
 	entityId: number;
 	/** Canonical Artifact id when listed from the Artifact API. */

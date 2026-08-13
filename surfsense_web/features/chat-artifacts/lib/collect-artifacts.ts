@@ -1,13 +1,11 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
-import { extension } from "@/features/artifacts/file-format";
 import type { ArtifactListItem } from "@/features/artifacts/model";
-import { ARTIFACT_TOOL_KINDS, type ArtifactKind, type ChatArtifact } from "../model/artifact";
+import { ARTIFACT_TOOL_KINDS, type ArtifactToolKind, type ChatArtifact } from "../model/artifact";
 
 interface ToolCallPart {
 	type: "tool-call";
 	toolCallId: string;
 	toolName: string;
-	args?: Record<string, unknown>;
 	result?: unknown;
 }
 
@@ -25,35 +23,11 @@ function asRecord(value: unknown): Record<string, unknown> {
 	return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-function firstString(...values: unknown[]): string | null {
-	for (const value of values) {
-		if (typeof value === "string" && value.trim().length > 0) return value;
-	}
-	return null;
-}
-
 function numericId(value: unknown): number | null {
 	return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function formatFromFilename(value: unknown): string | null {
-	if (typeof value !== "string") return null;
-	const format = extension(value);
-	return format === "FILE" ? null : format.toLowerCase();
-}
-
-function primaryFilename(result: Record<string, unknown>): string | null {
-	if (!Array.isArray(result.files)) return null;
-	for (const file of result.files) {
-		const record = asRecord(file);
-		if (record.role === "primary" && typeof record.filename === "string") return record.filename;
-	}
-	return null;
-}
-
 type Described = {
-	title: string;
-	format: string;
 	entityId: number | null;
 	artifactId?: number;
 	legacyEntityId?: number;
@@ -62,21 +36,15 @@ type Described = {
 
 export interface ArtifactCandidate {
 	key: string;
-	kind: ArtifactKind;
-	title: string;
-	format: string;
+	toolKind: ArtifactToolKind;
 	toolCallId: string;
 	entityId: number;
 	artifactId?: number;
 	legacyEntityId?: number;
 }
 
-/** Extracts entity id, title, and status for a single deliverable tool call. */
-function describeArtifact(
-	kind: ArtifactKind,
-	args: Record<string, unknown>,
-	result: Record<string, unknown>
-): Described {
+/** Extracts persistence identity and status for a single deliverable tool call. */
+function describeArtifact(kind: ArtifactToolKind, result: Record<string, unknown>): Described {
 	const resultStatus = typeof result.status === "string" ? result.status : null;
 	const failed =
 		resultStatus === "failed" ||
@@ -88,11 +56,6 @@ function describeArtifact(
 		case "file": {
 			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
-				title: firstString(result.title, args.title) ?? "Document",
-				format:
-					formatFromFilename(primaryFilename(result)) ??
-					formatFromFilename(args.path) ??
-					"markdown",
 				entityId: artifactId ?? null,
 				artifactId,
 				failed,
@@ -103,8 +66,6 @@ function describeArtifact(
 			const legacyEntityId = numericId(result.podcast_id) ?? undefined;
 			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
-				title: firstString(result.title, args.podcast_title) ?? "Podcast",
-				format: "podcast",
 				entityId,
 				artifactId,
 				legacyEntityId,
@@ -116,8 +77,6 @@ function describeArtifact(
 			const legacyEntityId = numericId(result.video_presentation_id) ?? undefined;
 			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
-				title: firstString(result.title, args.video_title) ?? "Presentation",
-				format: "video",
 				entityId,
 				artifactId,
 				legacyEntityId,
@@ -127,8 +86,6 @@ function describeArtifact(
 		case "image": {
 			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
-				title: firstString(result.title, args.prompt) ?? "Image",
-				format: "image",
 				entityId: artifactId ?? null,
 				artifactId,
 				failed,
@@ -155,21 +112,14 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): Artifa
 			const kind = ARTIFACT_TOOL_KINDS[part.toolName];
 			if (!kind) continue;
 
-			const args = asRecord(part.args);
 			const result = asRecord(part.result);
-			const { title, format, entityId, artifactId, legacyEntityId, failed } = describeArtifact(
-				kind,
-				args,
-				result
-			);
+			const { entityId, artifactId, legacyEntityId, failed } = describeArtifact(kind, result);
 			if (failed || entityId == null) continue;
 
 			const key = `${kind}:${entityId}`;
 			byKey.set(key, {
 				key,
-				kind,
-				title,
-				format,
+				toolKind: kind,
 				toolCallId: part.toolCallId,
 				entityId,
 				artifactId,
@@ -181,10 +131,6 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): Artifa
 	return Array.from(byKey.values());
 }
 
-function kindFromFormat(format: string): ArtifactKind {
-	return format === "podcast" || format === "video" || format === "image" ? format : "file";
-}
-
 export function matchesPersistedArtifact(
 	message: ArtifactCandidate,
 	row: ArtifactListItem
@@ -192,16 +138,14 @@ export function matchesPersistedArtifact(
 	if (message.artifactId === row.artifact_id) return true;
 	return (
 		row.legacy != null &&
-		message.kind === row.legacy.kind &&
+		message.toolKind === row.legacy.kind &&
 		(message.legacyEntityId ?? message.entityId) === row.legacy.id
 	);
 }
 
 function fromPersisted(row: ArtifactListItem, message: ArtifactCandidate): ChatArtifact {
-	const kind = kindFromFormat(row.format);
 	return {
-		key: `${kind}:${row.artifact_id}`,
-		kind,
+		key: `artifact:${row.artifact_id}`,
 		title: row.title,
 		format: row.format,
 		toolCallId: message.toolCallId,

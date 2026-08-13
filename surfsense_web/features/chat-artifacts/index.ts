@@ -1,7 +1,7 @@
 export { useSyncChatArtifacts } from "./hooks/use-sync-chat-artifacts";
 export { collectArtifacts } from "./lib/collect-artifacts";
 export { ARTIFACT_ANCHOR_ATTR, scrollToArtifact } from "./lib/scroll-to-artifact";
-export type { ArtifactKind, ChatArtifact } from "./model/artifact";
+export type { ChatArtifact } from "./model/artifact";
 export {
 	artifactsPanelOpenAtom,
 	chatArtifactsAtom,

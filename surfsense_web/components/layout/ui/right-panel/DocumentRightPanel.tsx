@@ -60,6 +60,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
@@ -189,6 +190,7 @@ function AuthenticatedDocumentRightPanelBase({
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
+	const artifactsByDocument = useArtifactsByDocument(workspaceId);
 
 	const [search, setSearch] = useState("");
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
@@ -437,6 +439,7 @@ function AuthenticatedDocumentRightPanelBase({
 				folderId: (d as { folderId?: number | null }).folderId ?? null,
 				createdAt: d.createdAt,
 				status: d.status as { state: string; reason?: string | null } | undefined,
+				artifactFormat: artifactsByDocument.get(d.id)?.format,
 			}));
 
 		const zeroIds = new Set(zeroDocs.map((d) => d.id));
@@ -453,7 +456,7 @@ function AuthenticatedDocumentRightPanelBase({
 			}));
 
 		return [...pendingAgentDocs, ...zeroDocs];
-	}, [zeroAllDocs, agentCreatedDocs, workspaceId]);
+	}, [zeroAllDocs, agentCreatedDocs, workspaceId, artifactsByDocument]);
 
 	// Prune agent-created docs once Zero has caught up
 	useEffect(() => {

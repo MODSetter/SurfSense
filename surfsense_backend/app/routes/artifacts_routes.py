@@ -129,6 +129,7 @@ async def _load_workspace_artifact(
 def _list_item(artifact: Artifact, document: Document) -> dict[str, object]:
     item: dict[str, object] = {
         "artifact_id": artifact.id,
+        "document_id": artifact.document_id,
         "title": document.title,
         "format": artifact.format,
         "generation": artifact.generation,

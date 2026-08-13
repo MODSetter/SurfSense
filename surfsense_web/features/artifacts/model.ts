@@ -30,6 +30,7 @@ export const ArtifactManifestSchema = z.object({
 
 export const ArtifactListItemSchema = z.object({
 	artifact_id: z.number(),
+	document_id: z.number(),
 	title: z.string(),
 	format: z.string(),
 	generation: z.number().int().positive(),

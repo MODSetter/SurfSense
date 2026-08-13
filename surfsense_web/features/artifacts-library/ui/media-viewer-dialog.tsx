@@ -3,8 +3,9 @@
 import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { normalizeArtifactFormat } from "@/features/artifacts/artifact-format-meta";
 import { cn } from "@/lib/utils";
-import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
+import type { LibraryArtifact } from "../model/artifact";
 import { LibraryImageViewer } from "./library-image-viewer";
 
 const ViewerFallback = () => (
@@ -23,9 +24,9 @@ const VideoPresentationViewer = dynamic(
 	{ ssr: false, loading: ViewerFallback }
 );
 
-function dialogLayout(kind: LibraryArtifactKind): { width: string; stretch: boolean } {
-	if (kind === "video") return { width: "max-w-4xl", stretch: true };
-	if (kind === "podcast") return { width: "max-w-2xl", stretch: true };
+function dialogLayout(format: string): { width: string; stretch: boolean } {
+	if (format === "video") return { width: "max-w-4xl", stretch: true };
+	if (format === "podcast") return { width: "max-w-2xl", stretch: true };
 	return { width: "max-w-2xl", stretch: false };
 }
 
@@ -36,7 +37,8 @@ function MediaViewerBody({
 	artifact: LibraryArtifact;
 	workspaceId: number;
 }) {
-	if (artifact.kind === "podcast") {
+	const format = normalizeArtifactFormat(artifact.format);
+	if (format === "podcast") {
 		if (artifact.artifactId != null) {
 			return (
 				<PodcastPlayer
@@ -49,7 +51,7 @@ function MediaViewerBody({
 		}
 		return <PodcastPlayer podcastId={artifact.entityId} title={artifact.title} />;
 	}
-	if (artifact.kind === "video") {
+	if (format === "video") {
 		if (artifact.artifactId != null) {
 			return (
 				<VideoPresentationViewer
@@ -88,7 +90,7 @@ export function MediaViewerDialog({
 	workspaceId: number;
 	onClose: () => void;
 }) {
-	const layout = artifact ? dialogLayout(artifact.kind) : null;
+	const layout = artifact ? dialogLayout(normalizeArtifactFormat(artifact.format)) : null;
 
 	return (
 		<Dialog
