@@ -29,7 +29,7 @@ function ArtifactList({ artifacts }: { artifacts: ChatArtifact[] }) {
 	if (artifacts.length === 0) return <EmptyState />;
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
+		<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pt-8 pb-3">
 			{artifacts.map((artifact) => (
 				<ArtifactRow key={artifact.key} artifact={artifact} />
 			))}
@@ -38,29 +38,45 @@ function ArtifactList({ artifacts }: { artifacts: ChatArtifact[] }) {
 }
 
 /** Inner content shared by the desktop right-panel tab and the mobile drawer. */
-export function ArtifactsPanelContent({ onClose }: { onClose?: () => void }) {
+export function ArtifactsPanelContent({
+	onClose,
+	mobile = false,
+}: {
+	onClose?: () => void;
+	mobile?: boolean;
+}) {
 	const artifacts = useAtomValue(chatArtifactsAtom);
 
 	return (
 		<>
 			<div className="shrink-0">
-				<div className="grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4">
-					<div className="min-w-0 flex flex-1 items-center gap-2">
+				<div
+					className={
+						mobile
+							? "flex h-12 items-center justify-center px-4"
+							: "grid h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4"
+					}
+				>
+					<div
+						className={mobile ? "min-w-0 text-center" : "min-w-0 flex flex-1 items-center gap-2"}
+					>
 						<h2 className="truncate text-lg font-semibold">Artifacts</h2>
 					</div>
-					<div className="flex items-center gap-1 shrink-0">
-						{onClose && (
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={onClose}
-								className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-							>
-								<XIcon className="size-4" />
-								<span className="sr-only">Close artifacts panel</span>
-							</Button>
-						)}
-					</div>
+					{mobile ? null : (
+						<div className="flex items-center gap-1 shrink-0">
+							{onClose ? (
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={onClose}
+									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+								>
+									<XIcon className="size-4" />
+									<span className="sr-only">Close artifacts panel</span>
+								</Button>
+							) : null}
+						</div>
+					)}
 				</div>
 			</div>
 			<ArtifactList artifacts={artifacts} />
@@ -94,7 +110,7 @@ export function MobileArtifactsPanel() {
 				<DrawerHandle />
 				<DrawerTitle className="sr-only">Artifacts</DrawerTitle>
 				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-					<ArtifactsPanelContent onClose={close} />
+					<ArtifactsPanelContent mobile />
 				</div>
 			</DrawerContent>
 		</Drawer>

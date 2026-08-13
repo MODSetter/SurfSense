@@ -4,7 +4,6 @@ import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
@@ -72,7 +71,7 @@ export function DownloadOriginalButton({ documentId }: DownloadOriginalButtonPro
 			disabled={downloading}
 			title={`Download original (${originalFilename})`}
 		>
-			{downloading ? <Spinner size="xs" /> : <Download className="size-3.5" />}
+			<Download className="size-3.5" />
 			<span className="sr-only">Download original file</span>
 		</Button>
 	);

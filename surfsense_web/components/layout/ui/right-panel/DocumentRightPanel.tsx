@@ -1113,7 +1113,7 @@ function AuthenticatedDocumentRightPanelBase({
 			)}
 
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-6"}`}>
+				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-8"}`}>
 					<DocumentsFilters
 						typeCounts={typeCounts}
 						onSearch={setSearch}
@@ -1784,7 +1784,7 @@ function AnonymousDocumentRightPanel({
 
 			{/* Filters & upload */}
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`${workspaceView ? "" : "px-4"} pt-6 pb-1.5`}>
+				<div className={`${workspaceView ? "" : "px-4"} pt-8 pb-1.5`}>
 					<DocumentsFilters
 						typeCounts={hasDoc ? { FILE: 1 } : {}}
 						onSearch={setSearch}

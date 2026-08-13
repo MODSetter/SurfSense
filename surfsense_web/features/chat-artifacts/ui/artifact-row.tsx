@@ -72,7 +72,7 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	};
 
 	return (
-		<div className="group relative flex min-h-20 w-full items-center gap-3 rounded-xl border bg-card px-3 py-3 text-left transition-colors hover:bg-accent/50">
+		<div className="group relative flex min-h-20 w-full items-center gap-3 rounded-xl border bg-muted/30 px-3 py-3 text-left transition-colors hover:bg-accent hover:text-accent-foreground">
 			<button
 				type="button"
 				onClick={handleOpen}
