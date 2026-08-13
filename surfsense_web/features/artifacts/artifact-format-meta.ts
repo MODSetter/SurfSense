@@ -7,6 +7,7 @@ import {
 	FileText,
 	ImageIcon,
 	Presentation,
+	Shapes,
 } from "lucide-react";
 
 export type ArtifactGroupKey =
@@ -45,6 +46,8 @@ const FILE_META = {
 } as const;
 
 const FORMAT_META: Record<string, ArtifactFormatMeta> = {
+	// Presentation-only key for UI that represents the whole artifact collection.
+	artifact: { ...FILE_META, icon: Shapes, label: "Artifact" },
 	file: { ...FILE_META, label: "Artifact" },
 	markdown: { ...FILE_META, label: "Document", detailLabel: "Markdown" },
 	md: { ...FILE_META, label: "Document", detailLabel: "Markdown" },
@@ -57,7 +60,7 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		groupKey: "files",
 		groupLabel: "Files",
 		viewingMode: "viewer",
-	},	
+	},
 	xlsx: {
 		icon: FileSpreadsheet,
 		label: "Spreadsheet",
