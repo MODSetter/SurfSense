@@ -25,6 +25,12 @@ EXCLUDED_MODEL_IDS: set[str] = {
 }
 EXCLUDED_MODEL_SUFFIXES: tuple[str, ...] = ("-deep-research",)
 
+# Variant suffixes after the ``:`` in an OpenRouter id. ``:batch`` models carry
+# full chat metadata in ``/models`` but reject chat completions with
+# ``404 "This model is only available through the Batch API"``, so they are
+# unusable for streaming chat no matter how well they score.
+EXCLUDED_MODEL_VARIANTS: frozenset[str] = frozenset({"batch"})
+
 
 def is_text_output_model(model: dict[str, Any]) -> bool:
     output_mods = model.get("architecture", {}).get("output_modalities", [])
@@ -60,7 +66,9 @@ def is_allowed_model(model: dict[str, Any]) -> bool:
     model_id = str(model.get("id") or "")
     if model_id in EXCLUDED_MODEL_IDS:
         return False
-    base_id = model_id.split(":")[0]
+    base_id, _, variant = model_id.partition(":")
+    if variant in EXCLUDED_MODEL_VARIANTS:
+        return False
     return not base_id.endswith(EXCLUDED_MODEL_SUFFIXES)
 
 
@@ -86,12 +94,21 @@ def is_openrouter_image_model(model: dict[str, Any]) -> bool:
 
 def normalize_openrouter_models(
     raw_models: list[dict[str, Any]],
+    blocked_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
+    """Filter and flatten OpenRouter's ``/models`` payload.
+
+    ``blocked_ids`` comes from the compatibility sweep, which probes models that
+    pass every metadata check above and still cannot serve a turn. Passed in
+    rather than read here so this module stays sync and unit-testable.
+    """
     normalized: list[dict[str, Any]] = []
     for model in raw_models:
         if not is_openrouter_chat_model(model):
             continue
         model_id = str(model.get("id") or "")
+        if blocked_ids and model_id in blocked_ids:
+            continue
         normalized.append(
             {
                 "model_id": model_id,
@@ -109,6 +126,7 @@ def normalize_openrouter_models(
 
 
 __all__ = [
+    "EXCLUDED_MODEL_VARIANTS",
     "MIN_CONTEXT_LENGTH",
     "has_sufficient_context",
     "is_allowed_model",

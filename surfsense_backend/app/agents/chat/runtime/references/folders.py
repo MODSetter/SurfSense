@@ -5,8 +5,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge_store.paths import DOCUMENTS_ROOT, PathIndex
 from app.db import Folder
+from app.knowledge_store.paths import DOCUMENTS_ROOT, PathIndex
 
 from .models import FolderReference
 

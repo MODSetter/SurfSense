@@ -21,7 +21,9 @@ import pytest
 from app.services.openrouter_integration_service import (
     _OPENROUTER_DYNAMIC_MARKER,
     _generate_configs,
-    _supports_image_input,
+)
+from app.services.openrouter_model_normalizer import (
+    supports_image_input as _supports_image_input,
 )
 
 pytestmark = pytest.mark.unit

@@ -212,6 +212,11 @@ export function shouldRetry(errorCode: string): boolean {
 		"temporarily_unavailable",
 	];
 
+	// Callers pass `err.message` as often as `err.code`, and a NetworkError's
+	// message is a full sentence — so matching codes alone silently drops the
+	// retry button from exactly the failure retrying is for.
+	if (isNetworkError(errorCode)) return true;
+
 	return retryableCodes.some(
 		(code) => errorCode.includes(code) || errorCode.toUpperCase().includes(code)
 	);

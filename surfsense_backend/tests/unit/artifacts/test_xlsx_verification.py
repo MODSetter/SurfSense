@@ -16,9 +16,7 @@ WORKSPACE_ID = 7
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
-OFFICE_REL_NS = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-)
+OFFICE_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 
 def _xlsx(*, sheet_body: str, sheet_count: int = 1) -> bytes:
@@ -70,9 +68,7 @@ def test_clean_xlsx_and_registry():
 
 
 def test_formula_with_cached_value_passes():
-    result = check_xlsx(
-        _xlsx(sheet_body='<c r="B1"><f>SUM(A1)</f><v>10</v></c>')
-    )
+    result = check_xlsx(_xlsx(sheet_body='<c r="B1"><f>SUM(A1)</f><v>10</v></c>'))
     assert result.clean
 
 
@@ -137,9 +133,7 @@ async def test_verify_xlsx_structural_only_skips_render_and_vision():
         vision_llm=object(),
         secret_key=SECRET,
     )
-    receipt = await read_receipt(
-        session, SECRET, workspace_id=WORKSPACE_ID
-    )
+    receipt = await read_receipt(session, SECRET, workspace_id=WORKSPACE_ID)
 
     assert result.verified
     assert result.preview_path is None

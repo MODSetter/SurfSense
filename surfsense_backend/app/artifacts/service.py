@@ -328,9 +328,7 @@ async def save_artifact(
         **(document.document_metadata or {}),
         "artifact_id": artifact.id,
     }
-    old_blob_refs = [
-        (file.storage_backend, file.storage_key) for file in old_files
-    ]
+    old_blob_refs = [(file.storage_backend, file.storage_key) for file in old_files]
 
     backend = get_storage_backend()
     new_records: list[ArtifactFile] = []

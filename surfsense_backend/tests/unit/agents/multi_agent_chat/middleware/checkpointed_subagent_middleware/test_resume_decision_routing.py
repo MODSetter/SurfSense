@@ -113,14 +113,14 @@ class TestIdBasedRouting:
         decisions = [{"type": "approve", "tool_call_id": "tcid-ghost"}]
         pending = [("tcid-A", 1)]
 
-        with pytest.raises(ValueError, match="tcid-ghost|does not match"):
+        with pytest.raises(ValueError, match=r"tcid-ghost|does not match"):
             slice_decisions_by_tool_call(decisions, pending)
 
     def test_raises_on_missing_id(self):
         decisions = [{"type": "approve", "tool_call_id": "tcid-A"}]
         pending = [("tcid-A", 1), ("tcid-B", 1)]
 
-        with pytest.raises(ValueError, match="tcid-B|does not match"):
+        with pytest.raises(ValueError, match=r"tcid-B|does not match"):
             slice_decisions_by_tool_call(decisions, pending)
 
     def test_raises_on_per_id_count_mismatch(self):
@@ -130,7 +130,7 @@ class TestIdBasedRouting:
         ]
         pending = [("tcid-A", 1)]
 
-        with pytest.raises(ValueError, match="tcid-A|count"):
+        with pytest.raises(ValueError, match=r"tcid-A|count"):
             slice_decisions_by_tool_call(decisions, pending)
 
     def test_partial_ids_fall_back_to_positional(self):

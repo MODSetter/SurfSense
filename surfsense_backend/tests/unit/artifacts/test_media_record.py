@@ -28,9 +28,9 @@ def test_primary_filename_sanitizes_and_forces_extension():
     assert "\\" not in evil
     assert ".." not in evil
     assert primary_filename("  ", extension="mp3", fallback="podcast") == "podcast.mp3"
-    assert primary_filename("foo.bar baz", extension="mp3", fallback="podcast").endswith(
-        ".mp3"
-    )
+    assert primary_filename(
+        "foo.bar baz", extension="mp3", fallback="podcast"
+    ).endswith(".mp3")
     messy = primary_filename("a/b\\c:d", extension="mp3", fallback="x")
     assert "/" not in messy and "\\" not in messy and ":" not in messy
     assert messy.endswith(".mp3")
@@ -81,11 +81,7 @@ def test_image_type_follows_the_bytes_not_the_request():
 
 def test_explicit_format_beats_filename_extension():
     files = _validated_files(
-        [
-            ArtifactFileInput(
-                b"x", "clip.mp3", "audio/mpeg", ArtifactFileRole.PRIMARY
-            )
-        ]
+        [ArtifactFileInput(b"x", "clip.mp3", "audio/mpeg", ArtifactFileRole.PRIMARY)]
     )
     assert _artifact_format(files) == "mp3"
     assert _artifact_format(files, explicit=ArtifactFormat.PODCAST) == "podcast"

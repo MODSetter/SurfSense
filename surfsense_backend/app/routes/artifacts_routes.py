@@ -97,7 +97,9 @@ def _slides_for_remotion(
             continue
         slide = dict(raw)
         slide_number = slide.get("slide_number")
-        has_audio = bool(slide.pop("audio_storage_key", None) or slide.pop("audio_file", None))
+        has_audio = bool(
+            slide.pop("audio_storage_key", None) or slide.pop("audio_file", None)
+        )
         slide.pop("storage_backend", None)
         if has_audio and isinstance(slide_number, int):
             slide["audio_url"] = (
@@ -380,9 +382,7 @@ async def stream_artifact_slide_audio(
         media_type=media_type,
         headers={
             "Accept-Ranges": "bytes",
-            "Content-Disposition": (
-                f"inline; filename={Path(str(storage_key)).name}"
-            ),
+            "Content-Disposition": (f"inline; filename={Path(str(storage_key)).name}"),
         },
     )
 

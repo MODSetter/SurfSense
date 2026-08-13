@@ -13,6 +13,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.artifacts.media.podcast.storage import persist, purge_key
 from app.celery_app import celery_app
 from app.observability import analytics as ph_analytics
 from app.podcasts.persistence import PodcastRepository
@@ -23,7 +24,6 @@ from app.podcasts.service import (
     read_spec,
     read_transcript,
 )
-from app.artifacts.media.podcast.storage import purge_key, persist
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import get_voice_catalog
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task

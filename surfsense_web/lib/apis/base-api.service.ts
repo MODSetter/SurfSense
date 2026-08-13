@@ -40,17 +40,40 @@ function blockRefreshRetry(key: string): void {
 	refreshRetryBlockedUntil.set(key, Date.now() + REFRESH_RETRY_BLOCK_MS);
 }
 
+// One dropped connection fails every in-flight request and each query retry,
+// so an unthrottled capture reports a single blip as dozens of events. Keeping
+// the first per endpoint per window preserves which endpoints were affected
+// while making the per-session count mean something.
+const CAPTURE_DEDUPE_MS = 30_000;
+const lastCapturedAt = new Map<string, number>();
+
+function isDuplicateCapture(key: string): boolean {
+	const now = Date.now();
+	const previous = lastCapturedAt.get(key);
+	if (previous !== undefined && now - previous < CAPTURE_DEDUPE_MS) return true;
+	lastCapturedAt.set(key, now);
+	return false;
+}
+
 /**
  * Send an API failure to PostHog error tracking. Scoped by the caller to only
  * 5xx server faults + network outages — 4xx responses are expected behavior.
  * Lazy-imports posthog-js so an ad-blocker can never break the request path.
  */
 function captureApiException(error: unknown, url: string, method?: RequestOptions["method"]): void {
+	const code = error instanceof AppError ? error.code : undefined;
+	if (code === "NETWORK_ERROR" && isDuplicateCapture(`${method ?? "GET"}:${url}`)) return;
+
 	import("posthog-js")
 		.then(({ default: posthog }) => {
 			posthog.captureException(error, {
 				api_url: url,
 				api_method: method ?? "GET",
+				// `api_url` is relative, so our own backend misconfiguration and a
+				// user simply being offline used to look identical in PostHog.
+				api_host: safeHost(buildBackendUrl(url)),
+				client_platform: typeof window === "undefined" ? "web" : getClientPlatform(),
+				navigator_online: typeof navigator === "undefined" ? null : navigator.onLine,
 				...(error instanceof AppError && {
 					status_code: error.status,
 					status_text: error.statusText,
@@ -62,6 +85,14 @@ function captureApiException(error: unknown, url: string, method?: RequestOption
 		.catch(() => {
 			console.error("Failed to capture exception in PostHog");
 		});
+}
+
+function safeHost(url: string): string | null {
+	try {
+		return new URL(url, typeof window === "undefined" ? undefined : window.location.origin).host;
+	} catch {
+		return null;
+	}
 }
 
 export type RequestOptions = {

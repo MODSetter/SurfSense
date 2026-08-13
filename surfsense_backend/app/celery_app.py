@@ -207,6 +207,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.knowledge_store.drift_monitor_task",
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
+        "app.tasks.celery_tasks.model_compatibility_task",
         "app.etl_pipeline.cache.eviction.task",
         "app.indexing_pipeline.cache.eviction.task",
         "app.automations.tasks.execute_run",
@@ -364,6 +365,15 @@ celery_app.conf.beat_schedule = {
         "task": "check_knowledge_store_drift",
         "schedule": crontab(hour="5", minute="15"),
         "options": {"expires": 600},
+    },
+    # Re-probe catalogue models that pass our metadata filters but may no
+    # longer serve a turn. Weekly and off-peak: it makes one live call per
+    # stale model, and the blocklist it writes is read by every worker's
+    # next catalogue refresh.
+    "sweep-model-compatibility": {
+        "task": "sweep_model_compatibility",
+        "schedule": crontab(day_of_week="0", hour="6", minute="0"),
+        "options": {"expires": 3600},
     },
     # Fire due automation schedule triggers (Beat entry owned by the schedule
     # trigger; see app.automations.triggers.builtin.schedule.source).

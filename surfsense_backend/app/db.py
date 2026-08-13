@@ -2809,6 +2809,34 @@ class ToolOutputSpill(Base, TimestampMixin):
     char_count = Column(Integer, nullable=False, default=0)
 
 
+class ModelCompatibility(Base):
+    """Per-model verdict from the compatibility sweep.
+
+    Passing our metadata filters does not mean a model can serve a turn through
+    this agent harness. ``scripts/sweep_model_compatibility.py`` probes each
+    catalogue model and writes the result here; catalogue generation reads the
+    ``blocked`` ids back so those models never reach a user. Shared through
+    Postgres so all uvicorn workers converge on the same blocklist.
+    """
+
+    __tablename__ = "model_compatibility"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_id = Column(String(255), unique=True, nullable=False, index=True)
+    status = Column(String(16), nullable=False, index=True)
+    # Which of the three escalating probes broke; NULL when all passed.
+    failure_stage = Column(String(32), nullable=True)
+    error_code = Column(String(64), nullable=True)
+    error_excerpt = Column(Text, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    checked_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+
 # Register model packages that live outside this file so their classes
 # are present in Base.metadata before configure_mappers() resolves any
 # string-based relationship() references.

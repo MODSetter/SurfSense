@@ -40,9 +40,7 @@ def _doom_loop_interrupt(interrupt_id: str):
 async def test_parent_side_doom_loop_interrupt_is_routable():
     """Decision routes to the doom-loop's ``Interrupt.id`` as a raw dict, not a bundle."""
     decision = {"type": "reject"}
-    agent = _FakeAgent(
-        SimpleNamespace(interrupts=(_doom_loop_interrupt("i-doom"),))
-    )
+    agent = _FakeAgent(SimpleNamespace(interrupts=(_doom_loop_interrupt("i-doom"),)))
 
     routing = await build_resume_routing(agent, chat_id=42, decisions=[decision])
 

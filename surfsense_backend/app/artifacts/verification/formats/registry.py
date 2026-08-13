@@ -12,9 +12,7 @@ from .xlsx import check_xlsx
 
 PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-PPTX_MIME = (
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-)
+PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 _ADAPTERS = {

@@ -64,9 +64,7 @@ async def test_roster_resolves_each_chat_from_live_config(
     monkeypatch.setattr(
         artifact_roster,
         "get_config",
-        lambda: {
-            "configurable": {"thread_id": f"{first_thread.id}::task:call-a"}
-        },
+        lambda: {"configurable": {"thread_id": f"{first_thread.id}::task:call-a"}},
     )
     first_result = await middleware.abefore_agent(state, SimpleNamespace())
     first_roster = first_result["messages"][0].content
@@ -76,9 +74,7 @@ async def test_roster_resolves_each_chat_from_live_config(
     monkeypatch.setattr(
         artifact_roster,
         "get_config",
-        lambda: {
-            "configurable": {"thread_id": f"{second_thread.id}::task:call-b"}
-        },
+        lambda: {"configurable": {"thread_id": f"{second_thread.id}::task:call-b"}},
     )
     second_result = await middleware.abefore_agent(state, SimpleNamespace())
     second_roster = second_result["messages"][0].content
@@ -122,9 +118,7 @@ async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
         artifact_roster,
         "get_config",
         lambda: {
-            "configurable": {
-                "thread_id": f"{artifact_thread.id}::task:call-roster"
-            }
+            "configurable": {"thread_id": f"{artifact_thread.id}::task:call-roster"}
         },
     )
     middleware = ArtifactRosterMiddleware(workspace_id=db_workspace.id)
