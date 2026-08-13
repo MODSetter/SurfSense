@@ -1,7 +1,5 @@
 """Unified document save/update logic for file processors."""
 
-import logging
-
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -125,13 +123,6 @@ async def save_file_document(
 
     except SQLAlchemyError as db_error:
         await session.rollback()
-        if "ix_documents_content_hash" in str(db_error):
-            logging.warning(
-                "content_hash collision during commit for %s (%s). Skipping.",
-                file_name,
-                etl_service,
-            )
-            return None
         raise db_error
     except Exception as e:
         await session.rollback()

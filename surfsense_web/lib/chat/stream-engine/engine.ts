@@ -671,11 +671,13 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 								: m
 						)
 					);
-					// ``tool_call_id`` is stamped on the backend by
-					// ``checkpointed_subagent_middleware``. Without it we can't
-					// address the paused subagent on resume — skip rather than
-					// fabricate a synthetic key.
-					const interruptId = String(interruptData.tool_call_id ?? "");
+					// Subagent interrupts carry ``tool_call_id``; parent-side ones
+					// (doom-loop, permission asks) carry only the langgraph
+					// ``interrupt_id``. Either addresses the pause on resume — skip
+					// only when neither is present.
+					const interruptId = String(
+						interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
+					);
 					if (interruptId) {
 						const incoming: PendingInterruptState = {
 							interruptId,
@@ -822,6 +824,7 @@ export async function resumeChat(
 		type: string;
 		message?: string;
 		edited_action?: { name: string; args: Record<string, unknown> };
+		tool_call_id?: string;
 	}>
 ): Promise<void> {
 	const { workspaceId, threadId } = ctx;
@@ -1018,7 +1021,9 @@ export async function resumeChat(
 						)
 					);
 					{
-						const interruptId = String(interruptData.tool_call_id ?? "");
+						const interruptId = String(
+							interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
+						);
 						if (interruptId) {
 							const incoming: PendingInterruptState = {
 								interruptId,

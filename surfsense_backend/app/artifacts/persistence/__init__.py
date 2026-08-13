@@ -1,12 +1,6 @@
 """Artifact persistence models and enums."""
 
 from .enums import ArtifactFileRole, ArtifactFormat
-from .models import Artifact, ArtifactChunk, ArtifactFile
+from .models import Artifact, ArtifactFile
 
-__all__ = [
-    "Artifact",
-    "ArtifactChunk",
-    "ArtifactFile",
-    "ArtifactFileRole",
-    "ArtifactFormat",
-]
+__all__ = ["Artifact", "ArtifactFile", "ArtifactFileRole", "ArtifactFormat"]

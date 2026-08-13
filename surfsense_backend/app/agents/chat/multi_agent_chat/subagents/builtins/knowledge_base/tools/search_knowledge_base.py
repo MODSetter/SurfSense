@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.multi_agent_chat.shared.citations import load_registry
 from app.agents.chat.multi_agent_chat.shared.retrieval import SearchScope, build_context
 from app.agents.chat.multi_agent_chat.shared.retrieval.hybrid_search import (
-    search_knowledge_base,
+    search_chunks,
 )
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
@@ -146,7 +146,7 @@ def create_search_knowledge_base_tool(
                 document_types=_document_types,
                 runtime=runtime,
             )
-            hits = await search_knowledge_base(
+            hits = await search_chunks(
                 session,
                 workspace_id=_space_id,
                 query=cleaned_query,

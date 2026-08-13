@@ -202,6 +202,26 @@ export async function getThreadFull(threadId: number): Promise<ThreadRecord> {
 	return baseApiService.get<ThreadRecord>(`/api/v1/threads/${threadId}/full`);
 }
 
+export interface PendingInterruptsResponse {
+	/** The paused turn's assistant row; the reconstructed card reattaches here. */
+	assistant_message_id: number | null;
+	/** Each entry mirrors the ``data-interrupt-request`` SSE payload. */
+	pending_interrupts: Array<Record<string, unknown>>;
+}
+
+/**
+ * Fetch the thread's paused HITL interrupts from the LangGraph checkpoint.
+ *
+ * The live approval card lives only in ``chatStreamStore`` (module RAM), so a
+ * page refresh loses it while the backend stays paused. Called on thread load
+ * to rebuild the card.
+ */
+export async function getPendingInterrupts(threadId: number): Promise<PendingInterruptsResponse> {
+	return baseApiService.get<PendingInterruptsResponse>(
+		`/api/v1/threads/${threadId}/pending-interrupts`
+	);
+}
+
 /**
  * Regeneration request parameters
  */

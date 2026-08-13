@@ -11,8 +11,7 @@ from langchain_core.tools import tool
 
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
-from app.artifacts import ArtifactFileInput, ArtifactInput, persist_artifact
-from app.artifacts.persistence import ArtifactFileRole
+from app.artifacts import ArtifactFileInput, save_artifact
 from app.artifacts.source_formats import validate_source_file
 from app.artifacts.verification.formats.registry import get_format_adapter
 from app.artifacts.verification.receipt import read_receipt, sha256_bytes
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _read_artifact_file(
-    session: SandboxSession, path: str, role: ArtifactFileRole | str
+    session: SandboxSession, path: str, role: str
 ) -> ArtifactFileInput:
     filename = PurePosixPath(path).name
     if not filename:
@@ -40,20 +39,20 @@ async def _read_artifact_file(
             f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes"
         )
 
-    if role == ArtifactFileRole.SOURCE:
+    if role == "source":
         mime_type = validate_source_file(path, data)
     else:
         adapter = get_format_adapter(path)
-        if role == ArtifactFileRole.PREVIEW and adapter.name != "pdf":
+        if role == "preview" and adapter.name != "pdf":
             raise ValueError("Artifact previews must be PDF files")
-        if role not in {ArtifactFileRole.PRIMARY, ArtifactFileRole.PREVIEW}:
+        if role not in {"primary", "preview"}:
             raise ValueError(f"Unsupported artifact file role: {role}")
         mime_type = adapter.mime_type
     return ArtifactFileInput(
         data=data,
         filename=filename,
         mime_type=mime_type,
-        role=ArtifactFileRole(role),
+        role=role,
     )
 
 
@@ -69,7 +68,7 @@ def create_save_artifact_tool(workspace_id: int):
         source_path: str | None = None,
         preview_path: str | None = None,
         artifact_id: int | None = None,
-        expected_version: int | None = None,
+        expected_generation: int | None = None,
         description: str | None = None,
     ):
         """Save a durable deliverable, or revise an existing generated artifact.
@@ -78,7 +77,7 @@ def create_save_artifact_tool(workspace_id: int):
         For generated files, pass both the deliverable path and the source_path
         that produced it, plus an accessible Markdown representation for search.
         preview_path is an optional rendered preview. To revise an artifact, use
-        the artifact_id and expected_version returned by load_artifact_source,
+        the artifact_id and expected_generation returned by load_artifact_source,
         edit and re-render the stored source, then save with both values. Changing
         the title, filename, or design does not make a new artifact. Omit
         artifact_id only for a genuinely new deliverable or an explicitly
@@ -97,16 +96,10 @@ def create_save_artifact_tool(workspace_id: int):
                 session = await (await get_registry()).get_session(
                     root_thread_id, workspace_id
                 )
-                primary = await _read_artifact_file(
-                    session, path, ArtifactFileRole.PRIMARY
-                )
-                source = await _read_artifact_file(
-                    session, source_path, ArtifactFileRole.SOURCE
-                )
+                primary = await _read_artifact_file(session, path, "primary")
+                source = await _read_artifact_file(session, source_path, "source")
                 preview = (
-                    await _read_artifact_file(
-                        session, preview_path, ArtifactFileRole.PREVIEW
-                    )
+                    await _read_artifact_file(session, preview_path, "preview")
                     if preview_path is not None
                     else None
                 )
@@ -152,19 +145,17 @@ def create_save_artifact_tool(workspace_id: int):
                 raise ValueError("source_path and preview_path require a primary path")
 
             async with shielded_async_session() as session:
-                saved = await persist_artifact(
+                saved = await save_artifact(
                     session,
-                    ArtifactInput(
-                        workspace_id=workspace_id,
-                        title=title,
-                        markdown_representation=markdown_representation,
-                        tool_call_id=runtime.tool_call_id,
-                        files=tuple(files),
-                        thread_id=root_thread_id,
-                        artifact_id=artifact_id,
-                        expected_version=expected_version,
-                        metadata=extra_metadata,
-                    ),
+                    workspace_id=workspace_id,
+                    thread_id=root_thread_id,
+                    tool_call_id=runtime.tool_call_id,
+                    title=title,
+                    markdown_representation=markdown_representation,
+                    files=files,
+                    artifact_id=artifact_id,
+                    expected_generation=expected_generation,
+                    extra_metadata=extra_metadata,
                 )
             return with_receipt(
                 payload=asdict(saved),

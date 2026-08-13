@@ -3,14 +3,14 @@
 **Status:** Planned.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 5 completion and proof that no active route invokes legacy report/resume generation.
-**Goal:** Delete the legacy `Report`/Typst system. Do not migrate legacy rows into either `Artifact` or `Document`.
+**Goal:** Delete the legacy `Report`/Typst system. Do not migrate legacy rows into artifacts.
 
 ## 1. Ordering
 
 Land in this order, keeping each change green:
 
 1. Static legacy cards and release-note warning.
-2. Repoint remaining library/public surfaces to dedicated artifact APIs.
+2. Repoint remaining library/public surfaces to the artifact APIs.
 3. Remove agent/frontend/backend legacy code, including clone-time report handling.
 4. Drop legacy data/model and dependencies.
 
@@ -24,7 +24,7 @@ Old `generate_report`/`generate_resume` parts render a static card:
 
 The card performs no fetch and opens no panel. Release notes warn users to export old deliverables before upgrading.
 
-There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile, or mapping to the dedicated artifact schema.
+There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile, or mapping to the artifact schema.
 
 ## 3. Demolition inventory
 
@@ -37,7 +37,7 @@ There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile,
 ### Frontend
 
 - Delete the report panel/atom, version switcher, reports API/types, legacy artifact kinds, and Typst export special cases.
-- Route current artifact cards, panel, library, downloads, and caches exclusively by `artifact_id` through dedicated artifact APIs.
+- Route current artifact cards, panel, library, downloads, and caches exclusively by `artifact_id` through the artifact APIs.
 - Keep static legacy-part matching only for old messages.
 - Retire document-mode editing as defined by the product plan; memory/team-memory Plate remains.
 
@@ -53,19 +53,19 @@ There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile,
 - Drop `reports` and remove `Report` only after all writers/readers are gone.
 - Remove Typst/rendercv assumptions.
 - Keep `pypdf`, LibreOffice, and Poppler because artifact verification uses them.
-- Leave document version/revision tables to the git-native KB cut; they are unrelated to dedicated artifacts.
+- Leave document version/revision tables to the git-native KB cut; they are unrelated to artifacts.
 
-## 4. Dedicated artifact boundary during demolition
+## 4. Artifact boundary during demolition
 
-The artifacts library lists `GET /workspaces/{workspace_id}/artifacts`. It does not query documents or infer generation from document metadata/file kinds.
+The artifacts library lists `GET /workspaces/{workspace_id}/artifacts`. Format, generation, and file roles come from the artifact rows; they are never inferred from document metadata or file kinds.
 
 Phase 6 must not:
 
-- convert legacy reports to `Artifact`;
-- reintroduce document-backed artifacts;
-- add document artifact routes;
-- collapse artifact and document search tables;
-- change `/artifacts/**` projection;
+- convert legacy reports to artifacts;
+- reintroduce a parallel artifact corpus, chunk table, or search leg;
+- add a second citation namespace;
+- project an `/artifacts` Git root;
+- expose an artifact document to the editor's save path;
 - alter optimistic `artifact_id + expected_generation` revisions.
 
 ## 5. Checks
@@ -75,13 +75,13 @@ Phase 6 must not:
 - Shared-thread cloning with old report parts writes no `Report`.
 - After the drop, no runtime `Report`, Typst, report API, or old tool references remain.
 - Old threads render the static card without network access.
-- Artifacts library and panel use only dedicated artifact list/manifest/download routes.
+- Artifacts library and panel use only the artifact list/manifest/download routes.
 - Phase 1–5 artifact exit criteria remain green.
 
 ## 6. Exit criteria
 
 1. `reports` is dropped with no migration.
 2. Old tool parts render static unavailable cards.
-3. Dedicated artifacts remain `Artifact`/`ArtifactFile`/`ArtifactChunk`.
-4. No current UI or backend artifact path uses document identity or routes.
+3. Artifacts remain one `Document` plus `Artifact`/`ArtifactFile`.
+4. No current UI or backend artifact path reaches legacy report identity or routes.
 5. Typst and obsolete report/resume generation are absent from runtime dependencies and code.

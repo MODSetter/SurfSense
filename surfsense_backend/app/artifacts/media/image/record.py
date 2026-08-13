@@ -25,7 +25,7 @@ def _to_artifact_input(
     image: bytes,
     metadata: dict[str, Any],
     artifact_id: int | None,
-    expected_version: int | None,
+    expected_generation: int | None,
 ) -> ArtifactInput:
     return ArtifactInput(
         workspace_id=workspace_id,
@@ -41,7 +41,7 @@ def _to_artifact_input(
         ),
         format=ArtifactFormat.IMAGE,
         artifact_id=artifact_id,
-        expected_version=expected_version,
+        expected_generation=expected_generation,
         metadata=metadata,
     )
 
@@ -92,7 +92,7 @@ async def record(session: AsyncSession, image_gen: Any) -> ArtifactSaved | None:
                 {"prompt": prompt, "model": getattr(image_gen, "model", None)},
             ),
             artifact_id=existing.id if existing else None,
-            expected_version=existing.version if existing else None,
+            expected_generation=existing.generation if existing else None,
         )
         return await persist_artifact(session, payload)
     except Exception:

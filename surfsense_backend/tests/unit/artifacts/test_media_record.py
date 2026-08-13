@@ -43,7 +43,7 @@ def test_podcast_input_sets_format_and_legacy_via_record_helper():
         audio=b"ID3fake",
         thread_id=7,
         artifact_id=None,
-        expected_version=None,
+        expected_generation=None,
     )
     assert payload.format is ArtifactFormat.PODCAST
     assert payload.metadata["legacy"] == {"kind": "podcast", "id": 42}
@@ -61,7 +61,7 @@ def test_video_and_image_inputs_set_explicit_formats():
         thread_id=None,
         metadata={"legacy": {"kind": "video", "id": 9}},
         artifact_id=None,
-        expected_version=None,
+        expected_generation=None,
     )
     image = image_input(
         workspace_id=1,
@@ -70,7 +70,7 @@ def test_video_and_image_inputs_set_explicit_formats():
         image=b"\x89PNG",
         metadata={"legacy": {"kind": "image", "id": 3}},
         artifact_id=None,
-        expected_version=None,
+        expected_generation=None,
     )
     assert video.format is ArtifactFormat.VIDEO
     assert video.files[0].filename == "Deck.mp3"
@@ -101,13 +101,12 @@ async def test_record_podcast_builds_legacy_metadata(monkeypatch):
         return ArtifactSaved(
             status="saved",
             artifact_id=11,
-            version=1,
+            generation=1,
             title=payload.title,
-            path="/artifacts/x.md",
             files=[
                 ArtifactSavedFile(
                     file_id=1,
-                    role=ArtifactFileRole.PRIMARY,
+                    role=ArtifactFileRole.PRIMARY.value,
                     filename="podcast.mp3",
                     mime_type="audio/mpeg",
                     size_bytes=4,

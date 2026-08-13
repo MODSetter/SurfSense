@@ -1,20 +1,15 @@
 """Generated artifact persistence."""
 
-from app.artifacts.schemas import (
+from .service import (
     ArtifactFileInput,
-    ArtifactFileRole,
-    ArtifactFormat,
-    ArtifactInput,
     ArtifactSaved,
     ArtifactSavedFile,
+    persist_artifact,
+    save_artifact,
 )
-from app.artifacts.service import persist_artifact, save_artifact
 
 __all__ = [
     "ArtifactFileInput",
-    "ArtifactFileRole",
-    "ArtifactFormat",
-    "ArtifactInput",
     "ArtifactSaved",
     "ArtifactSavedFile",
     "persist_artifact",

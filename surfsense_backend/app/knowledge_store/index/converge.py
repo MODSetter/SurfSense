@@ -14,28 +14,16 @@ disposable layer, replaced per document by the existing indexing pipeline.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.artifacts.indexing import index_artifact
-from app.artifacts.persistence import Artifact
 from app.db import Document, DocumentStatus, Workspace
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.engines.base import Change
-from app.knowledge_store.index.artifacts import (
-    delete_artifact,
-    follow_artifact_rename,
-    is_artifact_store_path,
-    load_artifacts,
-    prune_artifacts,
-    to_artifact_virtual_path,
-    upsert_artifact,
-)
 from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
     delete_row,
@@ -180,33 +168,16 @@ async def _converge(
 ) -> IndexOutcome:
     outcome = IndexOutcome(revision=head)
     owned = await load_owned(session, workspace.id)
-    artifacts = await load_artifacts(session, workspace.id)
     author_id = await revision_author_id(store, head, workspace)
 
     for from_path, to_path in plan.renames:
-        from_artifact = is_artifact_store_path(from_path)
-        to_artifact = is_artifact_store_path(to_path)
-        if from_artifact and to_artifact:
-            follow_artifact_rename(
-                artifacts,
-                to_artifact_virtual_path(from_path),
-                to_artifact_virtual_path(to_path),
-            )
-        elif _is_document_store_path(from_path) and _is_document_store_path(to_path):
+        if _is_document_store_path(from_path) and _is_document_store_path(to_path):
             follow_rename(
                 owned,
                 workspace.id,
                 to_virtual_path(from_path),
                 to_virtual_path(to_path),
             )
-        elif from_artifact:
-            removed = await delete_artifact(
-                session,
-                workspace_id=workspace.id,
-                virtual_path=to_artifact_virtual_path(from_path),
-                owned=artifacts,
-            )
-            outcome.deleted += 1 if removed is not None else 0
         elif _is_document_store_path(from_path):
             removed = await delete_row(
                 session, workspace.id, to_virtual_path(from_path), owned
@@ -214,27 +185,8 @@ async def _converge(
             outcome.deleted += 1 if removed is not None else 0
 
     for store_path in plan.upserts:
-        if not (
-            is_artifact_store_path(store_path) or _is_document_store_path(store_path)
-        ):
+        if not _is_document_store_path(store_path):
             outcome.skipped += 1
-            continue
-        if is_artifact_store_path(store_path):
-            content = await read_indexable(store, head, store_path)
-            if content is None:
-                outcome.skipped += 1
-                continue
-            ready = await _index_one_artifact(
-                session,
-                workspace_id=workspace.id,
-                virtual_path=to_artifact_virtual_path(store_path),
-                content=content,
-                owned=artifacts,
-            )
-            if ready:
-                outcome.indexed += 1
-            else:
-                outcome.failed += 1
             continue
         virtual_path = to_virtual_path(store_path)
         content = await read_indexable(store, head, store_path)
@@ -255,14 +207,7 @@ async def _converge(
             outcome.failed += 1
 
     for store_path in plan.removals:
-        if is_artifact_store_path(store_path):
-            removed = await delete_artifact(
-                session,
-                workspace_id=workspace.id,
-                virtual_path=to_artifact_virtual_path(store_path),
-                owned=artifacts,
-            )
-        elif _is_document_store_path(store_path):
+        if _is_document_store_path(store_path):
             removed = await delete_row(
                 session, workspace.id, to_virtual_path(store_path), owned
             )
@@ -274,18 +219,7 @@ async def _converge(
         live_documents = {
             to_virtual_path(path) for path in plan.tree if _is_document_store_path(path)
         }
-        live_artifacts = {
-            to_artifact_virtual_path(path)
-            for path in plan.tree
-            if is_artifact_store_path(path)
-        }
         outcome.deleted += await prune(session, owned, live_documents)
-        outcome.deleted += await prune_artifacts(
-            session,
-            workspace_id=workspace.id,
-            owned=artifacts,
-            live=live_artifacts,
-        )
 
     # A failed document must not advance the marker, or the drift sweep can never
     # re-drive it. An intentional skip (unreadable blob) must not block it, or one
@@ -305,44 +239,6 @@ async def _converge(
         outcome.stamped = True
     await session.commit()
     return outcome
-
-
-async def _index_one_artifact(
-    session: AsyncSession,
-    *,
-    workspace_id: int,
-    virtual_path: str,
-    content: str,
-    owned: dict[str, Artifact],
-) -> bool:
-    settled = owned.get(virtual_path)
-    markdown_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-    already_indexed = (
-        settled is not None
-        and settled.indexing_status == "ready"
-        and settled.indexed_version == settled.version
-        and settled.markdown_hash == markdown_hash
-    )
-    artifact, _created = await upsert_artifact(
-        session,
-        workspace_id=workspace_id,
-        virtual_path=virtual_path,
-        content=content,
-        owned=owned,
-    )
-    if already_indexed:
-        return True
-
-    try:
-        async with session.begin_nested():
-            await index_artifact(session, artifact=artifact, markdown=content)
-            await session.flush()
-    except Exception as exc:
-        artifact.indexing_status = "failed"
-        artifact.indexing_error = str(exc)
-        logger.warning("Indexing failed for %s: %s", virtual_path, exc)
-        return False
-    return True
 
 
 async def _index_one(

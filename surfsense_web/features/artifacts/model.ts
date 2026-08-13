@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { documentStatus } from "@/contracts/types/document.types";
 
 export const ArtifactFileSchema = z.object({
 	file_id: z.number(),
@@ -18,9 +19,10 @@ const ArtifactLegacySchema = z
 
 export const ArtifactManifestSchema = z.object({
 	artifact_id: z.number(),
+	document_id: z.number(),
 	title: z.string(),
 	format: z.string(),
-	version: z.number().int().positive(),
+	generation: z.number().int().positive(),
 	markdown_representation: z.string(),
 	files: z.array(ArtifactFileSchema),
 	updated_at: z.string().nullable(),
@@ -31,8 +33,8 @@ export const ArtifactListItemSchema = z.object({
 	artifact_id: z.number(),
 	title: z.string(),
 	format: z.string(),
-	version: z.number().int().positive(),
-	indexing_status: z.string(),
+	generation: z.number().int().positive(),
+	indexing_status: documentStatus.shape.state,
 	thread_id: z.number().nullable(),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),

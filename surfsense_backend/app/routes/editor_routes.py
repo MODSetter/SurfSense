@@ -277,6 +277,12 @@ async def save_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    if document.document_type == DocumentType.ARTIFACT:
+        raise HTTPException(
+            status_code=409,
+            detail="Artifact documents are read-only; revise them through the artifact tools.",
+        )
+
     source_markdown = data.get("source_markdown")
     if source_markdown is None:
         raise HTTPException(status_code=400, detail="source_markdown is required")

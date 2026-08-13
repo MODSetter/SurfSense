@@ -1,11 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-	ArtifactChunkCitation,
-	InlineCitation,
-	UrlCitation,
-} from "@/components/assistant-ui/inline-citation";
+import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
 import { RunCitation } from "@/components/citations/run-citation";
 import {
 	type CitationToken,
@@ -28,14 +24,6 @@ export function renderCitationToken(token: CitationToken, ordinalKey: number): R
 	}
 	if (token.kind === "run") {
 		return <RunCitation key={`citation-run-${token.runId}-${ordinalKey}`} runId={token.runId} />;
-	}
-	if (token.kind === "artifact") {
-		return (
-			<ArtifactChunkCitation
-				key={`citation-artifact-${token.chunkId}-${ordinalKey}`}
-				chunkId={token.chunkId}
-			/>
-		);
 	}
 	return (
 		<InlineCitation

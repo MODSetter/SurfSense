@@ -20,19 +20,24 @@ pytestmark = pytest.mark.integration
 
 
 async def test_roster_resolves_each_chat_from_live_config(
-    db_session, db_workspace, monkeypatch
+    db_session,
+    db_workspace,
+    artifact_thread_factory,
+    patched_embed_texts,
+    monkeypatch,
 ):
+    del patched_embed_texts
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
-
+    first_thread = await artifact_thread_factory("First artifact thread")
+    second_thread = await artifact_thread_factory("Second artifact thread")
     first = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=101,
+        thread_id=first_thread.id,
         tool_call_id="first",
         title="First chat artifact",
         markdown_representation="# First",
@@ -41,7 +46,7 @@ async def test_roster_resolves_each_chat_from_live_config(
     second = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=202,
+        thread_id=second_thread.id,
         tool_call_id="second",
         title="Second chat artifact",
         markdown_representation="# Second",
@@ -59,7 +64,9 @@ async def test_roster_resolves_each_chat_from_live_config(
     monkeypatch.setattr(
         artifact_roster,
         "get_config",
-        lambda: {"configurable": {"thread_id": "101::task:call-a"}},
+        lambda: {
+            "configurable": {"thread_id": f"{first_thread.id}::task:call-a"}
+        },
     )
     first_result = await middleware.abefore_agent(state, SimpleNamespace())
     first_roster = first_result["messages"][0].content
@@ -69,7 +76,9 @@ async def test_roster_resolves_each_chat_from_live_config(
     monkeypatch.setattr(
         artifact_roster,
         "get_config",
-        lambda: {"configurable": {"thread_id": "202::task:call-b"}},
+        lambda: {
+            "configurable": {"thread_id": f"{second_thread.id}::task:call-b"}
+        },
     )
     second_result = await middleware.abefore_agent(state, SimpleNamespace())
     second_roster = second_result["messages"][0].content
@@ -78,22 +87,25 @@ async def test_roster_resolves_each_chat_from_live_config(
 
 
 async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
-    db_session, db_workspace, monkeypatch
+    db_session,
+    db_workspace,
+    artifact_thread,
+    patched_embed_texts,
+    monkeypatch,
 ):
+    del patched_embed_texts
     backend = MemoryBackend()
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
-
     artifacts = []
     for index in range(11):
         artifacts.append(
             await save_artifact(
                 db_session,
                 workspace_id=db_workspace.id,
-                thread_id=303,
+                thread_id=artifact_thread.id,
                 tool_call_id=f"call-{index}",
                 title=f"Artifact {index}",
                 markdown_representation=f"# Artifact {index}",
@@ -109,7 +121,11 @@ async def test_roster_keeps_an_explicitly_mentioned_artifact_beyond_the_cap(
     monkeypatch.setattr(
         artifact_roster,
         "get_config",
-        lambda: {"configurable": {"thread_id": "303::task:call-roster"}},
+        lambda: {
+            "configurable": {
+                "thread_id": f"{artifact_thread.id}::task:call-roster"
+            }
+        },
     )
     middleware = ArtifactRosterMiddleware(workspace_id=db_workspace.id)
 

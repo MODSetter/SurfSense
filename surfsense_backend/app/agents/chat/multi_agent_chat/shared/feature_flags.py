@@ -44,6 +44,8 @@ class AgentFeatureFlags:
     enable_tool_call_limit: bool = True
     enable_tool_call_repair: bool = True
     enable_doom_loop: bool = True
+    # Stitch continuations onto a final answer cut off by max_tokens.
+    enable_continue_on_max_length: bool = True
 
     # Safety — permissions, concurrency, tool-set narrowing
     enable_permission: bool = True
@@ -105,6 +107,7 @@ class AgentFeatureFlags:
                 enable_tool_call_limit=False,
                 enable_tool_call_repair=False,
                 enable_doom_loop=False,
+                enable_continue_on_max_length=False,
                 enable_permission=False,
                 enable_busy_mutex=False,
                 enable_llm_tool_selector=False,
@@ -134,6 +137,9 @@ class AgentFeatureFlags:
                 "SURFSENSE_ENABLE_TOOL_CALL_REPAIR", True
             ),
             enable_doom_loop=_env_bool("SURFSENSE_ENABLE_DOOM_LOOP", True),
+            enable_continue_on_max_length=_env_bool(
+                "SURFSENSE_ENABLE_CONTINUE_ON_MAX_LENGTH", True
+            ),
             # Safety
             enable_permission=_env_bool("SURFSENSE_ENABLE_PERMISSION", True),
             enable_busy_mutex=_env_bool("SURFSENSE_ENABLE_BUSY_MUTEX", True),
@@ -176,6 +182,7 @@ class AgentFeatureFlags:
                 self.enable_tool_call_limit,
                 self.enable_tool_call_repair,
                 self.enable_doom_loop,
+                self.enable_continue_on_max_length,
                 self.enable_permission,
                 self.enable_busy_mutex,
                 self.enable_llm_tool_selector,

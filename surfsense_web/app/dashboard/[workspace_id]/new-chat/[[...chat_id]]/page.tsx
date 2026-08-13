@@ -65,7 +65,7 @@ import {
 import { extractMentionedDocuments } from "@/lib/chat/stream-engine/helpers";
 import { chatStreamStore } from "@/lib/chat/stream-engine/store";
 import { useChatStream } from "@/lib/chat/stream-engine/use-chat-stream";
-import type { ThreadRecord } from "@/lib/chat/thread-persistence";
+import { getPendingInterrupts, type ThreadRecord } from "@/lib/chat/thread-persistence";
 import {
 	extractUserTurnForNewChatApi,
 	type NewChatUserImagePayload,
@@ -356,6 +356,50 @@ export default function NewChatPage() {
 		threadMessagesQuery.data,
 	]);
 
+	// Rebuild paused HITL cards after a refresh. The live overlay lives only in
+	// module RAM, so on reload we ask the backend for interrupts still pending
+	// in the checkpoint and repopulate the store (which re-pins the thread).
+	const reconstructedInterruptsRef = useRef<number | null>(null);
+	useEffect(() => {
+		if (!activeThreadId || isRunning || !threadMessagesQuery.data) return;
+		if (reconstructedInterruptsRef.current === activeThreadId) return;
+		if (chatStreamStore.getPendingInterrupts(activeThreadId).length > 0) return;
+
+		reconstructedInterruptsRef.current = activeThreadId;
+		const threadId = activeThreadId;
+		void getPendingInterrupts(threadId)
+			.then((resp) => {
+				if (resp.assistant_message_id == null || resp.pending_interrupts.length === 0) return;
+				if (chatStreamStore.getPendingInterrupts(threadId).length > 0) return;
+				const assistantMsgId = `msg-${resp.assistant_message_id}`;
+				const reconstructed = resp.pending_interrupts
+					.map((interruptData) => {
+						const interruptId = String(
+							interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
+						);
+						const actionRequests = Array.isArray(interruptData.action_requests)
+							? interruptData.action_requests
+							: [];
+						return {
+							interruptId,
+							threadId,
+							assistantMsgId,
+							interruptData,
+							bundleToolCallIds: actionRequests.map((_a, i) => `reconstructed-${interruptId}-${i}`),
+						} satisfies PendingInterruptState;
+					})
+					.filter((p) => p.interruptId);
+				if (reconstructed.length > 0) {
+					chatStreamStore.setPendingInterrupts(threadId, () => reconstructed);
+				}
+			})
+			.catch((err) => {
+				// Non-fatal: the thread still renders; the card just won't reappear.
+				console.error("[NewChatPage] Failed to load pending interrupts:", err);
+				reconstructedInterruptsRef.current = null;
+			});
+	}, [activeThreadId, isRunning, threadMessagesQuery.data]);
+
 	useEffect(() => {
 		const loadError = threadDetailQuery.error ?? threadMessagesQuery.error;
 		if (!activeThreadId || !loadError) return;
@@ -628,6 +672,9 @@ export default function NewChatPage() {
 			const incoming = detail.decisions;
 			if (incoming.length === 0) return;
 			const tcIds = pendingInterrupts.flatMap((p) => p.bundleToolCallIds);
+			const parentInterruptIds = pendingInterrupts.flatMap((p) =>
+				p.bundleToolCallIds.map(() => p.interruptId)
+			);
 			const N = tcIds.length;
 
 			if (incoming.length !== N) {
@@ -638,18 +685,19 @@ export default function NewChatPage() {
 			}
 
 			const byTcId = new Map<string, (typeof incoming)[number]>();
-			const submittedDecisions: typeof incoming = [];
+			const submittedDecisions: Array<(typeof incoming)[number] & { tool_call_id: string }> = [];
 			for (let i = 0; i < tcIds.length; i++) {
 				const tcId = tcIds[i];
+				const parentId = parentInterruptIds[i];
 				const decision = incoming[i];
-				if (tcId === undefined || decision === undefined) {
+				if (tcId === undefined || parentId === undefined || decision === undefined) {
 					toast.error(
 						`Cannot resume: ${incoming.length} decision(s) submitted for ${N} pending actions.`
 					);
 					return;
 				}
 				byTcId.set(tcId, decision);
-				submittedDecisions.push(decision);
+				submittedDecisions.push({ ...decision, tool_call_id: parentId });
 			}
 
 			const targetAssistantMsgId = pendingInterrupts[0].assistantMsgId;

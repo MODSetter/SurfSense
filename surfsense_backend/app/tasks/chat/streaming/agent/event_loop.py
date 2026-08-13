@@ -30,7 +30,7 @@ from app.tasks.chat.streaming.contract.file_contract import (
 )
 from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
-    all_interrupt_values,
+    all_interrupt_entries,
 )
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import safe_float
@@ -125,7 +125,8 @@ async def stream_agent_events(
 
     # A turn paused for approval is not a finished turn: the graph resumes into
     # this same working copy, so the copy has to outlive the stream.
-    pending_values = all_interrupt_values(state)
+    pending_entries = all_interrupt_entries(state)
+    pending_values = [value for value, _ in pending_entries]
 
     # Same safety net for the git-native path. The pending state is the turn's
     # working copy on disk, so no state markers gate it: no copy (or aafter_agent
@@ -221,5 +222,7 @@ async def stream_agent_events(
         # the resume slicer in
         # ``checkpointed_subagent_middleware.resume_routing`` consumes in the
         # same order — keeping emit and resume in lock-step.
-        for interrupt_value in pending_values:
-            yield streaming_service.format_interrupt_request(interrupt_value)
+        for interrupt_value, interrupt_id in pending_entries:
+            yield streaming_service.format_interrupt_request(
+                interrupt_value, interrupt_id=interrupt_id
+            )

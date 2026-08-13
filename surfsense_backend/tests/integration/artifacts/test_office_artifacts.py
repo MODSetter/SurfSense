@@ -17,13 +17,13 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
 )
 from app.artifacts import service
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
-from app.artifacts.storage import purge_artifact_blobs
 from app.artifacts.verification.formats.registry import DOCX_MIME, PPTX_MIME
 from app.artifacts.verification.receipt import (
     VerificationReceipt,
     sha256_bytes,
     write_receipt,
 )
+from app.file_storage.service import purge_document_blobs
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 from .test_service import MemoryBackend
@@ -93,11 +93,13 @@ async def _verify(
 async def test_office_tool_create_revise_editor_contract_and_purge(
     db_session,
     db_workspace,
+    patched_embed_texts,
     monkeypatch,
     format_name,
     mime_type,
     source_suffix,
 ):
+    del patched_embed_texts
     backend = MemoryBackend()
     primary_path = f"/workspace/report.{format_name}"
     source_path = f"/workspace/report{source_suffix}"
@@ -132,7 +134,6 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
     monkeypatch.setattr(save_artifact_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(save_artifact_tool.app_config, "SECRET_KEY", SECRET)
@@ -182,7 +183,7 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     loaded_path = f"/workspace/artifact-{artifact_id}-report{source_suffix}"
     assert loaded["source_path"] == loaded_path
     assert loaded["artifact_id"] == artifact_id
-    assert loaded["expected_version"] == 1
+    assert loaded["expected_generation"] == 1
     assert f"artifact_id={artifact_id}" in loaded["save_instruction"]
     assert sandbox.files[loaded_path] == b"version = 1"
 
@@ -203,13 +204,13 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
         source_path=source_path,
         preview_path=preview_path,
         artifact_id=artifact_id,
-        expected_version=loaded["expected_version"],
+        expected_generation=loaded["expected_generation"],
         runtime=runtime,
     )
     revised = json.loads(revised_command.update["messages"][0].content)
 
     assert revised["artifact_id"] == artifact_id
-    assert revised["version"] == 2
+    assert revised["generation"] == 2
     assert (
         await db_session.scalar(
             select(func.count(Artifact.id)).where(Artifact.id == artifact_id)
@@ -232,9 +233,10 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     )
     assert stored_source.original_filename == f"report{source_suffix}"
 
-    await purge_artifact_blobs(
+    artifact = await db_session.get(Artifact, artifact_id)
+    await purge_document_blobs(
         db_session,
-        artifact_ids=[artifact_id],
+        document_ids=[artifact.document_id],
         backend=backend,
     )
     assert backend.data == {}

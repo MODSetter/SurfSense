@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.artifacts.persistence import Artifact, ArtifactFile
 from app.file_storage.backends.base import StorageBackend
 from app.file_storage.factory import get_storage_backend
 from app.file_storage.keys import build_document_file_key
@@ -114,12 +115,20 @@ async def purge_document_blobs(
     if not document_ids:
         return
 
-    result = await session.execute(
+    document_files = await session.execute(
         select(DocumentFile.storage_backend, DocumentFile.storage_key).where(
             DocumentFile.document_id.in_(document_ids)
         )
     )
-    for backend_name, storage_key in result.all():
+    artifact_files = await session.execute(
+        select(ArtifactFile.storage_backend, ArtifactFile.storage_key)
+        .join(Artifact, ArtifactFile.artifact_id == Artifact.id)
+        .where(Artifact.document_id.in_(document_ids))
+    )
+    for backend_name, storage_key in [
+        *document_files.all(),
+        *artifact_files.all(),
+    ]:
         try:
             selected_backend = backend or get_storage_backend(backend_name)
             await selected_backend.delete(storage_key)

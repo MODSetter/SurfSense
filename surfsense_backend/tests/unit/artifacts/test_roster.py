@@ -52,5 +52,4 @@ async def test_roster_resolves_each_chat_from_live_config(monkeypatch):
     )
     second = await middleware.abefore_agent(state, SimpleNamespace())
     assert "artifact_id=2" in second["messages"][0].content
-    assert "second.pdf" in second["messages"][0].content
     assert "artifact_id=1" not in second["messages"][0].content

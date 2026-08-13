@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.chat.multi_agent_chat.shared.citations import CitationSourceType
 from app.agents.chat.multi_agent_chat.shared.retrieval.adapter import (
     to_renderable_document,
 )
 from app.agents.chat.multi_agent_chat.shared.retrieval.models import (
-    ArtifactHit,
     ChunkHit,
     DocumentHit,
 )
@@ -52,21 +50,3 @@ def test_document_with_no_chunks_maps_to_no_passages() -> None:
     )
 
     assert to_renderable_document(hit).passages == []
-
-
-def test_artifact_passages_are_source_qualified() -> None:
-    hit = ArtifactHit(
-        artifact_id=42,
-        title="Launch deck",
-        format="pptx",
-        path="/artifacts/launch-deck.md",
-        metadata={},
-        score=0.9,
-        chunks=[ChunkHit(chunk_id=880, content="a", position=0, score=0.9)],
-    )
-
-    document = to_renderable_document(hit)
-
-    assert document.source == "artifact:/artifacts/launch-deck.md"
-    assert document.passages[0].source_type is CitationSourceType.ARTIFACT_CHUNK
-    assert document.passages[0].locator == {"artifact_id": 42, "chunk_id": 880}

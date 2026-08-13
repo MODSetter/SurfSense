@@ -9,6 +9,7 @@ import {
 	getToolComponent,
 	type TimelineToolProps,
 } from "@/features/chat-messages/timeline/tool-registry";
+import { isDoomLoopInterrupt } from "../approval-cards";
 import type {
 	HitlDecision,
 	InterruptActionRequest,
@@ -161,7 +162,12 @@ export const HitlApprovalCard: FC<{
 	const stagedDecision = decisions[currentStep];
 	const sliced = sliceForStep(interruptData, action, reviewConfig, stagedDecision);
 
-	const Body = getToolComponent(action.name) ?? FallbackToolBody;
+	// Doom-loop's ``action.name`` is the *stuck* tool, not an approval target,
+	// so its registered body (or ``NullTimelineBody``) would suppress the card.
+	// Route it through the HITL-aware fallback, which renders ``DoomLoopApproval``.
+	const Body = isDoomLoopInterrupt(sliced)
+		? FallbackToolBody
+		: (getToolComponent(action.name) ?? FallbackToolBody);
 	const bodyProps: TimelineToolProps = {
 		// Per-step key remounts the body on navigation so per-tool
 		// internal state (useHitlPhase, edit drafts) doesn't bleed

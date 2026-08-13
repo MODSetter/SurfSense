@@ -20,6 +20,11 @@ from .prompts import load_readonly_description
 
 TOOL_NAME = "ask_knowledge_base"
 
+_MISSING_TOOL_CALL_ID_ERROR = (
+    "Error: ask_knowledge_base was invoked without a tool call id and cannot "
+    "run. Retry the call as a normal tool call."
+)
+
 
 def _forward_state(runtime: ToolRuntime, query: str) -> dict:
     forwarded = {k: v for k, v in runtime.state.items() if k not in EXCLUDED_STATE_KEYS}
@@ -84,7 +89,7 @@ def build_ask_knowledge_base_tool(
         runtime: ToolRuntime,
     ) -> str | Command:
         if not runtime.tool_call_id:
-            raise ValueError("Tool call ID is required for ask_knowledge_base")
+            return _MISSING_TOOL_CALL_ID_ERROR
         sub_state = _forward_state(runtime, query)
         sub_config = subagent_invoke_config(runtime)
         result = _resolve().invoke(sub_state, config=sub_config)
@@ -99,7 +104,7 @@ def build_ask_knowledge_base_tool(
         runtime: ToolRuntime,
     ) -> str | Command:
         if not runtime.tool_call_id:
-            raise ValueError("Tool call ID is required for ask_knowledge_base")
+            return _MISSING_TOOL_CALL_ID_ERROR
         sub_state = _forward_state(runtime, query)
         sub_config = subagent_invoke_config(runtime)
         result = await _resolve().ainvoke(sub_state, config=sub_config)

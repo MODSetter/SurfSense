@@ -4,10 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Dot, FileWarning, RefreshCw, XIcon } from "lucide-react";
 import { useState } from "react";
-import {
-	artifactPanelAtom,
-	closeArtifactPanelAtom,
-} from "@/atoms/chat/artifact-panel.atom";
+import { artifactPanelAtom, closeArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
@@ -80,7 +77,7 @@ export function ArtifactViewerContent({
 								/>
 								<Separator
 									orientation="vertical"
-									className="mx-1.5 bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25"
+									className="mx-1.5 hidden bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25 lg:block"
 								/>
 							</>
 						) : null}
@@ -88,7 +85,7 @@ export function ArtifactViewerContent({
 							variant="ghost"
 							size="icon"
 							onClick={onClose}
-							className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+							className="hidden size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:inline-flex"
 						>
 							<XIcon className="size-4" />
 							<span className="sr-only">Close artifact viewer</span>
@@ -161,10 +158,7 @@ export function MobileArtifactDrawer() {
 				<DrawerHandle />
 				<DrawerTitle className="sr-only">Artifact</DrawerTitle>
 				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-					<ArtifactViewerContent
-						artifactId={panelState.artifactId}
-						onClose={closePanel}
-					/>
+					<ArtifactViewerContent artifactId={panelState.artifactId} onClose={closePanel} />
 				</div>
 			</DrawerContent>
 		</Drawer>
@@ -184,11 +178,7 @@ function FileArtifact({
 	}
 	const Viewer = VIEWERS[primary.mime_type];
 	return Viewer ? (
-		<Viewer
-			primary={primary}
-			files={content.files}
-			zoomControlsContainer={zoomControlsContainer}
-		/>
+		<Viewer primary={primary} files={content.files} zoomControlsContainer={zoomControlsContainer} />
 	) : (
 		<UnviewableArtifact message={cannotPreviewMessage(primary.filename)} />
 	);

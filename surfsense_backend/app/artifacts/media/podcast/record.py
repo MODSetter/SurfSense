@@ -28,7 +28,7 @@ def _to_artifact_input(
     audio: bytes,
     thread_id: int | None,
     artifact_id: int | None,
-    expected_version: int | None,
+    expected_generation: int | None,
 ) -> ArtifactInput:
     return ArtifactInput(
         workspace_id=workspace_id,
@@ -45,7 +45,7 @@ def _to_artifact_input(
         thread_id=thread_id,
         format=ArtifactFormat.PODCAST,
         artifact_id=artifact_id,
-        expected_version=expected_version,
+        expected_generation=expected_generation,
         metadata=legacy_metadata("podcast", podcast_id),
     )
 
@@ -82,7 +82,7 @@ async def record(
             audio=audio,
             thread_id=podcast.thread_id,
             artifact_id=existing.id if existing else None,
-            expected_version=existing.version if existing else None,
+            expected_generation=existing.generation if existing else None,
         )
         return await persist_artifact(session, payload)
     except Exception:

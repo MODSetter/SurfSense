@@ -23,5 +23,5 @@ class ArtifactInput:
     created_by_id: UUID | None = None
     format: ArtifactFormat | None = None
     artifact_id: int | None = None
-    expected_version: int | None = None
+    expected_generation: int | None = None
     metadata: dict[str, Any] | None = None

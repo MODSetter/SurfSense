@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .models import ArtifactHit, KnowledgeHit
+from .models import DocumentHit
 
 if TYPE_CHECKING:
     from app.services.reranker_service import RerankerService
@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 
 def rerank_hits(
     query: str,
-    hits: list[KnowledgeHit],
+    hits: list[DocumentHit],
     reranker: RerankerService | None,
-) -> list[KnowledgeHit]:
+) -> list[DocumentHit]:
     """Return ``hits`` reordered by the reranker; unchanged when none is set."""
     if reranker is None or len(hits) < 2:
         return hits
@@ -34,12 +34,12 @@ def rerank_hits(
     return reordered if len(reordered) == len(hits) else hits
 
 
-def _reranker_id(hit: KnowledgeHit) -> str:
+def _reranker_id(hit: DocumentHit) -> str:
     kind, source_id = hit.source_key
     return f"{kind}:{source_id}"
 
 
-def _as_document(hit: KnowledgeHit) -> dict[str, Any]:
+def _as_document(hit: DocumentHit) -> dict[str, Any]:
     """The minimal dict shape ``RerankerService.rerank_documents`` scores on."""
     return {
         "document_id": _reranker_id(hit),
@@ -48,11 +48,7 @@ def _as_document(hit: KnowledgeHit) -> dict[str, Any]:
         "document": {
             "id": _reranker_id(hit),
             "title": hit.title,
-            "document_type": (
-                f"artifact/{hit.format}"
-                if isinstance(hit, ArtifactHit)
-                else hit.document_type
-            ),
+            "document_type": hit.document_type,
         },
     }
 

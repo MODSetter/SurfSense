@@ -51,33 +51,6 @@ class StreamingError(BaseModel):
         frozen = True
 
 
-class RejectedError(Exception):
-    """Raised when the user rejects a permission ask without feedback.
-
-    Caught by :class:`PermissionMiddleware`; the agent stops the current
-    tool fan-out and surfaces a user-facing rejection.
-    """
-
-    def __init__(self, *, tool: str | None = None, pattern: str | None = None) -> None:
-        super().__init__(f"Permission rejected for tool {tool!r}, pattern {pattern!r}")
-        self.tool = tool
-        self.pattern = pattern
-
-
-class CorrectedError(Exception):
-    """Raised when the user rejects a permission ask *with* feedback.
-
-    The :class:`PermissionMiddleware` translates the feedback into a
-    synthetic ``ToolMessage`` so the model sees the user's correction
-    and can retry the request differently.
-    """
-
-    def __init__(self, feedback: str, *, tool: str | None = None) -> None:
-        super().__init__(feedback)
-        self.feedback = feedback
-        self.tool = tool
-
-
 class BusyError(Exception):
     """Raised when a second prompt arrives while the same thread is mid-stream."""
 
@@ -88,8 +61,6 @@ class BusyError(Exception):
 
 __all__ = [
     "BusyError",
-    "CorrectedError",
     "ErrorCode",
-    "RejectedError",
     "StreamingError",
 ]
