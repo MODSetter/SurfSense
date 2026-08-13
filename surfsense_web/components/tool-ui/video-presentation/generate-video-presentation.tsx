@@ -32,7 +32,8 @@ const GenerateVideoPresentationResultSchema = z.object({
 
 const VideoPresentationStatusResponseSchema = z.object({
 	status: z.enum(["pending", "generating", "ready", "failed"]),
-	id: z.number(),
+	id: z.number().optional(),
+	artifact_id: z.number().optional(),
 	title: z.string(),
 	slides: z
 		.array(
@@ -113,10 +114,14 @@ function CompilationLoadingState({ title }: { title: string }) {
 
 function VideoPresentationPlayer({
 	presentationId,
+	artifactId,
+	workspaceId,
 	title,
 	shareToken,
 }: {
-	presentationId: number;
+	presentationId?: number;
+	artifactId?: number;
+	workspaceId?: number;
 	title: string;
 	shareToken?: string | null;
 }) {
@@ -137,7 +142,9 @@ function VideoPresentationPlayer({
 		try {
 			const apiPath = shareToken
 				? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
-				: `/api/v1/video-presentations/${presentationId}`;
+				: artifactId != null && workspaceId != null
+					? `/api/v1/workspaces/${workspaceId}/artifacts/${artifactId}/video`
+					: `/api/v1/video-presentations/${presentationId}`;
 
 			const raw = await baseApiService.get<unknown>(apiPath);
 			const data = parseStatusResponse(raw);
@@ -213,7 +220,7 @@ function VideoPresentationPlayer({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [presentationId, shareToken]);
+	}, [presentationId, artifactId, workspaceId, shareToken]);
 
 	useEffect(() => {
 		loadPresentation();
@@ -390,6 +397,42 @@ function VideoPresentationPlayer({
 
 export function StatusPoller({
 	presentationId,
+	artifactId,
+	workspaceId,
+	title,
+	shareToken,
+}: {
+	presentationId?: number;
+	artifactId?: number;
+	workspaceId?: number;
+	title: string;
+	shareToken?: string | null;
+}) {
+	if (artifactId != null && workspaceId != null) {
+		return (
+			<VideoPresentationPlayer
+				artifactId={artifactId}
+				workspaceId={workspaceId}
+				title={title}
+			/>
+		);
+	}
+	if (presentationId == null) {
+		return (
+			<p className="my-4 text-sm text-muted-foreground">Presentation not available</p>
+		);
+	}
+	return (
+		<LegacyStatusPoller
+			presentationId={presentationId}
+			title={title}
+			shareToken={shareToken}
+		/>
+	);
+}
+
+function LegacyStatusPoller({
+	presentationId,
 	title,
 	shareToken,
 }: {
@@ -444,7 +487,7 @@ export function StatusPoller({
 	if (status.status === "ready") {
 		return (
 			<VideoPresentationPlayer
-				presentationId={status.id}
+				presentationId={status.id ?? presentationId}
 				title={status.title || title}
 				shareToken={shareToken}
 			/>

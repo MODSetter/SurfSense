@@ -54,6 +54,7 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
         id=7,
         format="xlsx",
         generation=3,
+        artifact_metadata={"legacy": {"kind": "image", "id": 99}},
         updated_at=None,
         files=[
             _file(1, ArtifactFileRole.PRIMARY),
@@ -76,6 +77,7 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
     assert result["format"] == "xlsx"
     assert result["document_id"] == 9
     assert result["markdown_representation"] == "# Workbook"
+    assert result["legacy"] == {"kind": "image", "id": 99}
     assert [file["role"] for file in result["files"]] == ["primary"]
     check.assert_awaited_once()
     assert check.await_args.args[3] == Permission.ARTIFACTS_READ.value
@@ -118,6 +120,7 @@ async def test_list_reads_title_and_status_from_document(monkeypatch):
         thread_id=11,
         created_at=SimpleNamespace(isoformat=lambda: "created"),
         updated_at=SimpleNamespace(isoformat=lambda: "updated"),
+        artifact_metadata=None,
     )
     document = SimpleNamespace(title="Launch deck", status={"state": "processing"})
     session = _rows_result([(artifact, document)])
@@ -140,6 +143,43 @@ async def test_list_reads_title_and_status_from_document(monkeypatch):
         }
     ]
     assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.asyncio
+async def test_list_artifacts_includes_legacy_when_present(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    with_legacy = SimpleNamespace(
+        id=1,
+        format="podcast",
+        generation=1,
+        thread_id=3,
+        created_at=SimpleNamespace(isoformat=lambda: "2026-01-01T00:00:00+00:00"),
+        updated_at=None,
+        artifact_metadata={"legacy": {"kind": "podcast", "id": 42}},
+    )
+    without = SimpleNamespace(
+        id=2,
+        format="markdown",
+        generation=1,
+        thread_id=None,
+        created_at=SimpleNamespace(isoformat=lambda: "2026-01-02T00:00:00+00:00"),
+        updated_at=None,
+        artifact_metadata=None,
+    )
+    session = _rows_result(
+        [
+            (with_legacy, SimpleNamespace(title="Episode", status={"state": "ready"})),
+            (without, SimpleNamespace(title="Note", status={"state": "pending"})),
+        ]
+    )
+
+    result = await artifacts_routes.list_artifacts(
+        2, Response(), session, SimpleNamespace()
+    )
+
+    assert result[0]["legacy"] == {"kind": "podcast", "id": 42}
+    assert "legacy" not in result[1]
+    assert result[0]["generation"] == 1
 
 
 @pytest.mark.asyncio
@@ -247,3 +287,37 @@ async def test_delete_marks_joined_document_and_dispatches_document_delete(monke
     assert document.status == {"state": "deleting"}
     session.commit.assert_awaited_once()
     delay.assert_called_once_with(9)
+
+
+@pytest.mark.asyncio
+async def test_video_payload_rewrites_slide_audio_urls(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    artifact = SimpleNamespace(
+        id=7,
+        format="video",
+        thread_id=3,
+        artifact_metadata={
+            "legacy": {"kind": "video", "id": 99},
+            "slides": [
+                {
+                    "slide_number": 1,
+                    "title": "Intro",
+                    "audio_storage_key": "ws/1/video/99/1.mp3",
+                    "duration_in_frames": 120,
+                }
+            ],
+            "scene_codes": [{"slide_number": 1, "code": " cons()", "title": "Intro"}],
+        },
+        files=[],
+    )
+    document = SimpleNamespace(title="Deck", id=1)
+    session = _row_result((artifact, document))
+
+    result = await artifacts_routes.get_artifact_video(2, 7, session, SimpleNamespace())
+
+    assert result["status"] == "ready"
+    assert result["slides"][0]["audio_url"] == (
+        "/api/v1/workspaces/2/artifacts/7/slides/1/audio"
+    )
+    assert "audio_storage_key" not in result["slides"][0]
+    assert result["scene_codes"][0]["code"] == " cons()"

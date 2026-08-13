@@ -226,6 +226,15 @@ async def _generate_video_presentation(
                 sc_data = sc.model_dump() if hasattr(sc, "model_dump") else dict(sc)
                 serializable_scene_codes.append(sc_data)
 
+            from app.artifacts.media.video.record import record as record_video
+
+            serializable_slides, _ = await record_video(
+                session,
+                video_pres,
+                serializable_slides,
+                serializable_scene_codes,
+            )
+
             video_pres.slides = serializable_slides
             video_pres.scene_codes = serializable_scene_codes
             video_pres.status = VideoPresentationStatus.READY

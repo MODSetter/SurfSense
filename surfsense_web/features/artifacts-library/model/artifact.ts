@@ -4,15 +4,22 @@ export type LibraryArtifactKind = "file" | "report" | "resume" | "podcast" | "vi
 export type LibraryArtifactStatus = "ready" | "running" | "error";
 
 /**
- * A deliverable aggregated from the workspace's list endpoints. The heavy
- * content (report body, audio, video frames, image bytes) is fetched lazily by
- * the viewer when a card is opened.
+ * A deliverable aggregated for the library.
+ *
+ * ``artifactId`` is canonical. ``legacyEntityId`` is the podcast/video row id,
+ * still required for Remotion and transcript fallbacks. ``entityId`` is the
+ * open id for reports and media without an Artifact.
  */
 export interface LibraryArtifact {
-	/** Stable list key — `${kind}-${entityId}`. */
+	/** Stable list key — `${kind}-${artifactId ?? entityId}`. */
 	key: string;
 	kind: LibraryArtifactKind;
+	/** Legacy or report id used when ``artifactId`` is absent. */
 	entityId: number;
+	/** Canonical Artifact id when listed from the Artifact API. */
+	artifactId?: number;
+	/** Podcast / video row id. */
+	legacyEntityId?: number;
 	title: string;
 	status: LibraryArtifactStatus;
 	createdAt: string;

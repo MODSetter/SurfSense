@@ -16,8 +16,12 @@ export interface ChatArtifact {
 	status: ArtifactStatus;
 	/** Anchors the scroll-to-card jump back into the conversation. */
 	toolCallId: string;
-	/** Backing entity id for report/resume/podcast/video; null for images. */
+	/** Open / scroll identity — ``artifactId`` when known, else the legacy/report id. */
 	entityId: number | null;
+	/** Canonical Artifact id, when the tool returned one. */
+	artifactId?: number;
+	/** Podcast / video row id, when distinct from the Artifact. */
+	legacyEntityId?: number;
 	/** Report panel content type — "typst" for resumes, "markdown" otherwise. */
 	contentType: "file" | "markdown" | "typst";
 }

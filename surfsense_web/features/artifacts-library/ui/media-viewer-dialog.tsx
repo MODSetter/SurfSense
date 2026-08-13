@@ -23,21 +23,56 @@ const VideoPresentationViewer = dynamic(
 	{ ssr: false, loading: ViewerFallback }
 );
 
-// `stretch` overrides the players' inline-chat max-w/margins so they fill the dialog.
 function dialogLayout(kind: LibraryArtifactKind): { width: string; stretch: boolean } {
 	if (kind === "video") return { width: "max-w-4xl", stretch: true };
 	if (kind === "podcast") return { width: "max-w-2xl", stretch: true };
 	return { width: "max-w-2xl", stretch: false };
 }
 
-function MediaViewerBody({ artifact }: { artifact: LibraryArtifact }) {
+function MediaViewerBody({
+	artifact,
+	workspaceId,
+}: {
+	artifact: LibraryArtifact;
+	workspaceId: number;
+}) {
 	if (artifact.kind === "podcast") {
+		if (artifact.artifactId != null) {
+			return (
+				<PodcastPlayer
+					artifactId={artifact.artifactId}
+					workspaceId={workspaceId}
+					podcastId={artifact.legacyEntityId}
+					title={artifact.title}
+				/>
+			);
+		}
 		return <PodcastPlayer podcastId={artifact.entityId} title={artifact.title} />;
 	}
 	if (artifact.kind === "video") {
+		if (artifact.artifactId != null) {
+			return (
+				<VideoPresentationViewer
+					artifactId={artifact.artifactId}
+					workspaceId={workspaceId}
+					title={artifact.title}
+				/>
+			);
+		}
 		return <VideoPresentationViewer presentationId={artifact.entityId} title={artifact.title} />;
 	}
-	return <LibraryImageViewer imageId={artifact.entityId} prompt={artifact.title} />;
+	if (artifact.artifactId == null) {
+		return (
+			<p className="px-6 py-10 text-center text-sm text-muted-foreground">Image not available</p>
+		);
+	}
+	return (
+		<LibraryImageViewer
+			artifactId={artifact.artifactId}
+			workspaceId={workspaceId}
+			prompt={artifact.title}
+		/>
+	);
 }
 
 /**
@@ -46,9 +81,11 @@ function MediaViewerBody({ artifact }: { artifact: LibraryArtifact }) {
  */
 export function MediaViewerDialog({
 	artifact,
+	workspaceId,
 	onClose,
 }: {
 	artifact: LibraryArtifact | null;
+	workspaceId: number;
 	onClose: () => void;
 }) {
 	const layout = artifact ? dialogLayout(artifact.kind) : null;
@@ -76,7 +113,7 @@ export function MediaViewerDialog({
 								: "flex justify-center"
 						)}
 					>
-						<MediaViewerBody artifact={artifact} />
+						<MediaViewerBody artifact={artifact} workspaceId={workspaceId} />
 					</div>
 				) : null}
 			</DialogContent>

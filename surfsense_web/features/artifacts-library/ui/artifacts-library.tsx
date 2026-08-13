@@ -78,7 +78,7 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 
 	const handleOpen = (artifact: LibraryArtifact) => {
 		if (artifact.kind === "file") {
-			openArtifactPanel({ artifactId: artifact.entityId });
+			openArtifactPanel({ artifactId: artifact.artifactId ?? artifact.entityId });
 			return;
 		}
 		// Reports/resumes reuse the shared report panel; the rest open in the dialog.
@@ -137,7 +137,11 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 				</div>
 			)}
 
-			<MediaViewerDialog artifact={selectedMedia} onClose={() => setSelectedMedia(null)} />
+			<MediaViewerDialog
+				artifact={selectedMedia}
+				workspaceId={workspaceId}
+				onClose={() => setSelectedMedia(null)}
+			/>
 			<MobileReportPanel />
 		</div>
 	);

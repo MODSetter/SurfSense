@@ -3,12 +3,8 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { AlertCircleIcon, ImageIcon } from "lucide-react";
 import { z } from "zod";
-import {
-	Image,
-	ImageErrorBoundary,
-	ImageLoading,
-	parseSerializableImage,
-} from "@/components/tool-ui/image";
+import { Image, ImageErrorBoundary, ImageLoading } from "@/components/tool-ui/image";
+import { useArtifactImage } from "@/features/artifacts/use-artifact-image";
 
 const GenerateImageArgsSchema = z.object({
 	prompt: z.string(),
@@ -17,16 +13,15 @@ const GenerateImageArgsSchema = z.object({
 
 const GenerateImageResultSchema = z.object({
 	id: z.string(),
-	assetId: z.string(),
-	src: z.string(),
+	artifact_id: z.number(),
+	workspace_id: z.number(),
 	alt: z.string().nullish(),
 	title: z.string().nullish(),
 	description: z.string().nullish(),
 	domain: z.string().nullish(),
-	ratio: z.string().nullish(),
+	ratio: z.enum(["auto", "1:1", "4:3", "16:9", "9:16", "21:9"]).nullish(),
 	generated: z.boolean().nullish(),
 	prompt: z.string().nullish(),
-	image_count: z.number().nullish(),
 	error: z.string().nullish(),
 });
 
@@ -61,20 +56,24 @@ function ImageCancelledState({ prompt }: { prompt: string }) {
 	);
 }
 
-function ParsedImage({ result }: { result: unknown }) {
-	const image = parseSerializableImage(result);
+function ArtifactImage({ result }: { result: GenerateImageResult }) {
+	const { src, loading, error } = useArtifactImage(result.workspace_id, result.artifact_id);
+
+	if (loading) return <ImageLoading title="Loading image" maxWidth="512px" />;
+	if (error || !src) {
+		return <ImageErrorState prompt={result.prompt ?? ""} error="Image not available" />;
+	}
+
 	return (
 		<Image
-			id={image.id}
-			assetId={image.assetId}
-			src={image.src}
-			alt={image.alt}
-			title={image.title ?? undefined}
-			description={image.description ?? undefined}
-			href={image.href ?? undefined}
-			domain={image.domain ?? undefined}
-			ratio={image.ratio ?? undefined}
-			source={image.source ?? undefined}
+			id={result.id}
+			assetId={String(result.artifact_id)}
+			src={src}
+			alt={result.alt ?? result.prompt ?? "Generated image"}
+			title={result.title ?? undefined}
+			description={result.description ?? undefined}
+			domain={result.domain ?? undefined}
+			ratio={result.ratio ?? undefined}
 			maxWidth="512px"
 		/>
 	);
@@ -121,14 +120,14 @@ export const GenerateImageToolUI = ({
 		);
 	}
 
-	if (result.error) {
-		return <ImageErrorState prompt={prompt} error={result.error} />;
+	if (result.error || result.artifact_id == null) {
+		return <ImageErrorState prompt={prompt} error={result.error ?? "Image not available"} />;
 	}
 
 	return (
 		<div className="my-4">
 			<ImageErrorBoundary>
-				<ParsedImage result={result} />
+				<ArtifactImage result={result} />
 			</ImageErrorBoundary>
 		</div>
 	);

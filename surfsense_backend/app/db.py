@@ -338,11 +338,6 @@ class Permission(StrEnum):
     VIDEO_PRESENTATIONS_UPDATE = "video_presentations:update"
     VIDEO_PRESENTATIONS_DELETE = "video_presentations:delete"
 
-    # Image Generations
-    IMAGE_GENERATIONS_CREATE = "image_generations:create"
-    IMAGE_GENERATIONS_READ = "image_generations:read"
-    IMAGE_GENERATIONS_DELETE = "image_generations:delete"
-
     # Vision LLM Configs
     VISION_CONFIGS_CREATE = "vision_configs:create"
     VISION_CONFIGS_READ = "vision_configs:read"
@@ -427,9 +422,6 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.VIDEO_PRESENTATIONS_CREATE.value,
         Permission.VIDEO_PRESENTATIONS_READ.value,
         Permission.VIDEO_PRESENTATIONS_UPDATE.value,
-        # Image Generations (create and read, no delete)
-        Permission.IMAGE_GENERATIONS_CREATE.value,
-        Permission.IMAGE_GENERATIONS_READ.value,
         # Vision Configs (create and read, no delete)
         Permission.VISION_CONFIGS_CREATE.value,
         Permission.VISION_CONFIGS_READ.value,
@@ -471,8 +463,6 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PODCASTS_READ.value,
         # Video Presentations (read only)
         Permission.VIDEO_PRESENTATIONS_READ.value,
-        # Image Generations (read only)
-        Permission.IMAGE_GENERATIONS_READ.value,
         # Vision Configs (read only)
         Permission.VISION_CONFIGS_READ.value,
         # Connectors (read only)
@@ -1670,68 +1660,6 @@ class Model(BaseModel, TimestampMixin):
     )
 
 
-class ImageGeneration(BaseModel, TimestampMixin):
-    """
-    Stores image generation requests and results using litellm.aimage_generation().
-
-    Since aimage_generation is a single async call (not a background job),
-    there is no status enum. A row with response_data means success;
-    a row with error_message means failure.
-
-    Response data is stored as JSONB matching the litellm output format:
-    {
-        "created": int,
-        "data": [{"b64_json": str|None, "revised_prompt": str|None, "url": str|None}],
-        "usage": {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int}
-    }
-    """
-
-    __tablename__ = "image_generations"
-
-    # Request parameters (matching litellm.aimage_generation() params)
-    prompt = Column(Text, nullable=False)
-    model = Column(String(200), nullable=True)  # e.g., "dall-e-3", "gpt-image-1"
-    n = Column(Integer, nullable=True, default=1)
-    quality = Column(
-        String(50), nullable=True
-    )  # "auto", "high", "medium", "low", "hd", "standard"
-    size = Column(
-        String(50), nullable=True
-    )  # "1024x1024", "1536x1024", "1024x1536", etc.
-    style = Column(String(50), nullable=True)  # Model-specific style parameter
-    response_format = Column(String(50), nullable=True)  # "url" or "b64_json"
-
-    # Image generation model provenance.
-    # 0 = Auto mode, negative IDs = GLOBAL models, positive IDs = Model records.
-    image_gen_model_id = Column(Integer, nullable=True)
-
-    # Response data (full litellm response as JSONB) — present on success
-    response_data = Column(JSONB, nullable=True)
-    # Error message — present on failure
-    error_message = Column(Text, nullable=True)
-
-    # Signed access token for serving images via <img> tags.
-    # Stored in DB so it survives SECRET_KEY rotation.
-    access_token = Column(String(64), nullable=True, index=True)
-
-    # Foreign keys
-    workspace_id = Column(
-        Integer,
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    created_by_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-
-    # Relationships
-    workspace = relationship("Workspace", back_populates="image_generations")
-    created_by = relationship("User", back_populates="image_generations")
-
-
 class Workspace(BaseModel, TimestampMixin):
     __tablename__ = "workspaces"
 
@@ -1821,12 +1749,6 @@ class Workspace(BaseModel, TimestampMixin):
         "Report",
         back_populates="workspace",
         order_by="Report.id.desc()",
-        cascade="all, delete-orphan",
-    )
-    image_generations = relationship(
-        "ImageGeneration",
-        back_populates="workspace",
-        order_by="ImageGeneration.id.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(
@@ -2315,13 +2237,6 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
-        # Image generations created by this user
-        image_generations = relationship(
-            "ImageGeneration",
-            back_populates="created_by",
-            passive_deletes=True,
-        )
-
         # Connectors created by this user
         search_source_connectors = relationship(
             "SearchSourceConnector",
@@ -2448,13 +2363,6 @@ else:
         # Folders created by this user
         folders = relationship(
             "Folder",
-            back_populates="created_by",
-            passive_deletes=True,
-        )
-
-        # Image generations created by this user
-        image_generations = relationship(
-            "ImageGeneration",
             back_populates="created_by",
             passive_deletes=True,
         )

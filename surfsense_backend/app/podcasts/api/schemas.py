@@ -102,9 +102,10 @@ class PodcastDetail(BaseModel):
     created_at: datetime
     workspace_id: int
     thread_id: int | None
+    artifact_id: int | None = None
 
     @classmethod
-    def of(cls, podcast: Podcast) -> PodcastDetail:
+    def of(cls, podcast: Podcast, *, artifact_id: int | None = None) -> PodcastDetail:
         return cls(
             id=podcast.id,
             title=podcast.title,
@@ -118,4 +119,17 @@ class PodcastDetail(BaseModel):
             created_at=podcast.created_at,
             workspace_id=podcast.workspace_id,
             thread_id=podcast.thread_id,
+            artifact_id=artifact_id,
         )
+
+    @classmethod
+    async def resolve(cls, session, podcast: Podcast) -> PodcastDetail:
+        from app.artifacts.media.legacy import existing_legacy_artifact
+
+        art = await existing_legacy_artifact(
+            session,
+            workspace_id=podcast.workspace_id,
+            kind="podcast",
+            legacy_id=podcast.id,
+        )
+        return cls.of(podcast, artifact_id=art.id if art else None)

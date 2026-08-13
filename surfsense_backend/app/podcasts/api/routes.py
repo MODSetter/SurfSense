@@ -34,7 +34,11 @@ from app.podcasts.service import (
     PreconditionFailedError,
     SpecConflictError,
 )
-from app.podcasts.storage import audio_exists, open_audio_stream, purge_audio
+from app.artifacts.media.podcast.storage import (
+    exists as audio_exists,
+    open_podcast_stream,
+    purge,
+)
 from app.podcasts.tasks import draft_transcript_task
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import (
@@ -189,7 +193,7 @@ async def get_podcast(
     auth: AuthContext = Depends(get_auth_context),
 ):
     podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_READ)
-    return PodcastDetail.of(podcast)
+    return await PodcastDetail.resolve(session, podcast)
 
 
 @router.patch("/podcasts/{podcast_id}/spec", response_model=PodcastDetail)
@@ -273,7 +277,7 @@ async def delete_podcast(
     auth: AuthContext = Depends(get_auth_context),
 ):
     podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_DELETE)
-    await purge_audio(podcast)
+    await purge(podcast)
     await session.delete(podcast)
     await session.commit()
     return {"message": "Podcast deleted successfully"}
@@ -294,7 +298,7 @@ async def stream_podcast(
                 status_code=404, detail="Podcast audio is no longer available"
             )
         return StreamingResponse(
-            open_audio_stream(podcast),
+            open_podcast_stream(podcast),
             media_type="audio/mpeg",
             headers={"Accept-Ranges": "bytes"},
         )

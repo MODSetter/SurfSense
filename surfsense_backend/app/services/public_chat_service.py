@@ -204,6 +204,7 @@ async def create_snapshot(
     report_ids_seen: set[int] = set()
     video_presentations_data = []
     video_presentation_ids_seen: set[int] = set()
+    artifact_ids: set[int] = set()
 
     for msg in sorted(thread.messages, key=lambda m: m.created_at):
         author = await get_author_display(session, msg.author_id, user_cache)
@@ -216,6 +217,14 @@ async def create_snapshot(
                     continue
 
                 tool_name = part.get("toolName")
+
+                # The artifacts this share is allowed to serve to anonymous
+                # viewers; anything else stays behind the session.
+                shared_result = part.get("result")
+                if isinstance(shared_result, dict) and isinstance(
+                    shared_result.get("artifact_id"), int
+                ):
+                    artifact_ids.add(shared_result["artifact_id"])
 
                 if tool_name == "generate_podcast":
                     result_data = part.get("result", {})
@@ -300,6 +309,7 @@ async def create_snapshot(
         "podcasts": podcasts_data,
         "reports": reports_data,
         "video_presentations": video_presentations_data,
+        "artifact_ids": sorted(artifact_ids),
     }
 
     # Create new snapshot
@@ -811,6 +821,36 @@ async def get_snapshot_podcast(
             return podcast
 
     return None
+
+
+async def get_snapshot_artifact_file(
+    session: AsyncSession,
+    share_token: str,
+    artifact_id: int,
+):
+    """Primary file of an artifact this snapshot actually references.
+
+    The snapshot's ``artifact_ids`` is the allowlist: a share token grants
+    access to the artifacts produced in that thread, not to every artifact
+    in the workspace.
+    """
+    from app.artifacts.persistence import ArtifactFile, ArtifactFileRole
+
+    snapshot = await get_snapshot_by_token(session, share_token)
+    if not snapshot:
+        return None
+
+    allowed = snapshot.snapshot_data.get("artifact_ids") or []
+    if artifact_id not in allowed:
+        return None
+
+    result = await session.execute(
+        select(ArtifactFile).filter(
+            ArtifactFile.artifact_id == artifact_id,
+            ArtifactFile.role == ArtifactFileRole.PRIMARY,
+        )
+    )
+    return result.scalars().first()
 
 
 async def get_snapshot_video_presentation(

@@ -39,23 +39,31 @@ function numericId(value: unknown): number | null {
 	return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+type Described = {
+	title: string;
+	entityId: number | null;
+	artifactId?: number;
+	legacyEntityId?: number;
+	status: ArtifactStatus;
+};
+
 /** Extracts entity id, title, and status for a single deliverable tool call. */
 function describeArtifact(
 	kind: ArtifactKind,
 	args: Record<string, unknown>,
-	result: Record<string, unknown>,
-	hasResult: boolean
-): { title: string; entityId: number | null; status: ArtifactStatus } {
+	result: Record<string, unknown>
+): Described {
 	const resultStatus = typeof result.status === "string" ? result.status : null;
 	const failed = resultStatus === "failed" || resultStatus === "error" || !!result.error;
 
 	switch (kind) {
 		case "file": {
-			const entityId = numericId(result.artifact_id);
+			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
 				title: firstString(result.title, args.title) ?? "Document",
-				entityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
+				entityId: artifactId ?? null,
+				artifactId,
+				status: failed ? "error" : artifactId != null ? "ready" : "running",
 			};
 		}
 		case "report": {
@@ -75,27 +83,36 @@ function describeArtifact(
 			};
 		}
 		case "podcast": {
-			const entityId = numericId(result.podcast_id);
+			const artifactId = numericId(result.artifact_id) ?? undefined;
+			const legacyEntityId = numericId(result.podcast_id) ?? undefined;
+			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
 				title: firstString(result.title, args.podcast_title) ?? "Podcast",
 				entityId,
+				artifactId,
+				legacyEntityId,
 				status: failed ? "error" : entityId != null ? "ready" : "running",
 			};
 		}
 		case "video": {
-			const entityId = numericId(result.video_presentation_id);
+			const artifactId = numericId(result.artifact_id) ?? undefined;
+			const legacyEntityId = numericId(result.video_presentation_id) ?? undefined;
+			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
 				title: firstString(result.title, args.video_title) ?? "Presentation",
 				entityId,
+				artifactId,
+				legacyEntityId,
 				status: failed ? "error" : entityId != null ? "ready" : "running",
 			};
 		}
 		case "image": {
-			const ready = typeof result.src === "string" && result.src.length > 0;
+			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
 				title: firstString(result.title, args.prompt) ?? "Image",
-				entityId: null,
-				status: failed ? "error" : ready ? "ready" : hasResult ? "ready" : "running",
+				entityId: artifactId ?? null,
+				artifactId,
+				status: failed ? "error" : artifactId != null ? "ready" : "running",
 			};
 		}
 	}
@@ -122,11 +139,10 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 
 			const args = asRecord(part.args);
 			const result = asRecord(part.result);
-			const { title, entityId, status } = describeArtifact(
+			const { title, entityId, artifactId, legacyEntityId, status } = describeArtifact(
 				kind,
 				args,
-				result,
-				part.result !== undefined
+				result
 			);
 			if (status === "error") continue;
 
@@ -138,6 +154,8 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 				status,
 				toolCallId: part.toolCallId,
 				entityId,
+				artifactId,
+				legacyEntityId,
 				contentType: kind === "file" ? "file" : kind === "resume" ? "typst" : "markdown",
 			});
 		}
