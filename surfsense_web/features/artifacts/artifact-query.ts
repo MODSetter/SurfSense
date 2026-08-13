@@ -23,12 +23,15 @@ export const artifactManifestQueryOptions = (workspaceId: number, artifactId: nu
 		refetchOnWindowFocus: "always",
 	});
 
-export const artifactListQueryKey = (workspaceId: number) =>
-	["artifact-list", workspaceId] as const;
+export const artifactListQueryKey = (workspaceId: number, threadId?: number | null) =>
+	threadId == null
+		? (["artifact-list", workspaceId] as const)
+		: (["artifact-list", workspaceId, threadId] as const);
 
-export async function fetchArtifacts(workspaceId: number) {
+export async function fetchArtifacts(workspaceId: number, threadId?: number | null) {
+	const query = threadId == null ? "" : `?thread_id=${encodeURIComponent(threadId)}`;
 	const response = await authenticatedFetch(
-		buildBackendUrl(`/api/v1/workspaces/${workspaceId}/artifacts`),
+		buildBackendUrl(`/api/v1/workspaces/${workspaceId}/artifacts${query}`),
 		{ cache: "no-store" }
 	);
 	if (!response.ok) throw new Error("Artifacts could not be loaded");
@@ -37,9 +40,9 @@ export async function fetchArtifacts(workspaceId: number) {
 	return parsed.data;
 }
 
-export const artifactListQueryOptions = (workspaceId: number) =>
+export const artifactListQueryOptions = (workspaceId: number, threadId?: number | null) =>
 	queryOptions({
-		queryKey: artifactListQueryKey(workspaceId),
-		queryFn: () => fetchArtifacts(workspaceId),
+		queryKey: artifactListQueryKey(workspaceId, threadId),
+		queryFn: () => fetchArtifacts(workspaceId, threadId),
 		staleTime: 30_000,
 	});

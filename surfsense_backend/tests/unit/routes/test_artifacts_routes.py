@@ -183,6 +183,21 @@ async def test_list_artifacts_includes_legacy_when_present(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_list_artifacts_can_be_scoped_to_thread(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    session = _rows_result([])
+
+    await artifacts_routes.list_artifacts(
+        2, Response(), session, SimpleNamespace(), thread_id=17
+    )
+
+    query = session.execute.await_args.args[0]
+    compiled = query.compile(compile_kwargs={"literal_binds": True})
+    assert "artifacts.workspace_id = 2" in str(compiled)
+    assert "artifacts.thread_id = 17" in str(compiled)
+
+
+@pytest.mark.asyncio
 async def test_markdown_download_reads_document_body_and_disables_cache(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     artifact = SimpleNamespace(id=7, files=[])

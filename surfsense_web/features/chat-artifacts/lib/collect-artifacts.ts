@@ -1,4 +1,6 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
+import { extension } from "@/features/artifacts/file-format";
+import type { ArtifactListItem } from "@/features/artifacts/model";
 import {
 	ARTIFACT_TOOL_KINDS,
 	type ArtifactKind,
@@ -39,8 +41,24 @@ function numericId(value: unknown): number | null {
 	return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function formatFromFilename(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const format = extension(value);
+	return format === "FILE" ? null : format.toLowerCase();
+}
+
+function primaryFilename(result: Record<string, unknown>): string | null {
+	if (!Array.isArray(result.files)) return null;
+	for (const file of result.files) {
+		const record = asRecord(file);
+		if (record.role === "primary" && typeof record.filename === "string") return record.filename;
+	}
+	return null;
+}
+
 type Described = {
 	title: string;
+	format: string;
 	entityId: number | null;
 	artifactId?: number;
 	legacyEntityId?: number;
@@ -61,25 +79,13 @@ function describeArtifact(
 			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
 				title: firstString(result.title, args.title) ?? "Document",
+				format:
+					formatFromFilename(primaryFilename(result)) ??
+					formatFromFilename(args.path) ??
+					"markdown",
 				entityId: artifactId ?? null,
 				artifactId,
 				status: failed ? "error" : artifactId != null ? "ready" : "running",
-			};
-		}
-		case "report": {
-			const entityId = numericId(result.report_id);
-			return {
-				title: firstString(result.title, args.topic) ?? "Report",
-				entityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
-			};
-		}
-		case "resume": {
-			const entityId = numericId(result.report_id);
-			return {
-				title: firstString(result.title) ?? "Resume",
-				entityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
 			};
 		}
 		case "podcast": {
@@ -88,6 +94,7 @@ function describeArtifact(
 			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
 				title: firstString(result.title, args.podcast_title) ?? "Podcast",
+				format: "podcast",
 				entityId,
 				artifactId,
 				legacyEntityId,
@@ -100,6 +107,7 @@ function describeArtifact(
 			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
 				title: firstString(result.title, args.video_title) ?? "Presentation",
+				format: "video",
 				entityId,
 				artifactId,
 				legacyEntityId,
@@ -110,6 +118,7 @@ function describeArtifact(
 			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
 				title: firstString(result.title, args.prompt) ?? "Image",
+				format: "image",
 				entityId: artifactId ?? null,
 				artifactId,
 				status: failed ? "error" : artifactId != null ? "ready" : "running",
@@ -122,7 +131,7 @@ function describeArtifact(
  * Aggregate the deliverable artifacts referenced across a thread's messages.
  *
  * Scans assistant tool-call parts, keeps recognized deliverable tools, and
- * dedupes by backing entity (so a regenerated report collapses to one entry,
+ * dedupes by backing entity (so a revised artifact collapses to one entry,
  * refreshed in place to keep chronological order). Errored deliverables are
  * dropped — they have nothing to open or jump to.
  */
@@ -139,7 +148,7 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 
 			const args = asRecord(part.args);
 			const result = asRecord(part.result);
-			const { title, entityId, artifactId, legacyEntityId, status } = describeArtifact(
+			const { title, format, entityId, artifactId, legacyEntityId, status } = describeArtifact(
 				kind,
 				args,
 				result
@@ -151,15 +160,55 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 				key,
 				kind,
 				title,
+				format,
 				status,
 				toolCallId: part.toolCallId,
 				entityId,
 				artifactId,
 				legacyEntityId,
-				contentType: kind === "file" ? "file" : kind === "resume" ? "typst" : "markdown",
 			});
 		}
 	}
 
 	return Array.from(byKey.values());
+}
+
+function kindFromFormat(format: string): ArtifactKind {
+	return format === "podcast" || format === "video" || format === "image" ? format : "file";
+}
+
+export function matchesPersistedArtifact(message: ChatArtifact, row: ArtifactListItem): boolean {
+	if (message.artifactId === row.artifact_id) return true;
+	return (
+		row.legacy != null &&
+		message.kind === row.legacy.kind &&
+		(message.legacyEntityId ?? message.entityId) === row.legacy.id
+	);
+}
+
+function fromPersisted(row: ArtifactListItem, message: ChatArtifact): ChatArtifact {
+	const kind = kindFromFormat(row.format);
+	return {
+		key: `${kind}:${row.artifact_id}`,
+		kind,
+		title: row.title,
+		format: row.format,
+		status: row.indexing_status === "failed" ? "error" : "ready",
+		toolCallId: message.toolCallId,
+		entityId: row.artifact_id,
+		artifactId: row.artifact_id,
+		legacyEntityId: row.legacy?.id,
+	};
+}
+
+/** Reconcile durable thread artifacts with in-flight message tool calls. */
+export function mergePersistedArtifacts(
+	messageArtifacts: readonly ChatArtifact[],
+	persisted: readonly ArtifactListItem[]
+): ChatArtifact[] {
+	return messageArtifacts.map((message) => {
+		const row = persisted.find((candidate) => matchesPersistedArtifact(message, candidate));
+		if (!row) return message;
+		return fromPersisted(row, message);
+	});
 }
