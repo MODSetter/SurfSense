@@ -18,10 +18,10 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
 )
 from app.artifacts import service
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
-from app.artifacts.storage import purge_artifact_blobs
 from app.artifacts.verification import service as verify_service
 from app.artifacts.verification.formats.registry import XLSX_MIME
 from app.db import ChatVisibility, NewChatThread
+from app.file_storage.service import purge_document_blobs
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 from .test_service import MemoryBackend
@@ -234,9 +234,10 @@ async def test_xlsx_tool_create_revise_without_preview(
     )
     assert stored_source.original_filename == "budget.py"
 
-    await purge_artifact_blobs(
+    artifact = await db_session.get(Artifact, artifact_id)
+    await purge_document_blobs(
         db_session,
-        artifact_ids=[artifact_id],
+        document_ids=[artifact.document_id],
         backend=backend,
     )
     assert backend.data == {}
