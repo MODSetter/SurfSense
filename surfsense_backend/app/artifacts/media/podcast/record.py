@@ -49,9 +49,7 @@ def _to_artifact_input(
 
 def _representation_from_transcript(title: str, transcript: Any | None) -> str:
     turns = getattr(transcript, "turns", None) or []
-    body = "\n\n".join(
-        f"**Speaker {turn.speaker}:** {turn.text}" for turn in turns
-    )
+    body = "\n\n".join(f"**Speaker {turn.speaker}:** {turn.text}" for turn in turns)
     return f"# {title}\n\n{body}"
 
 

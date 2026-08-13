@@ -31,9 +31,7 @@ SECRET = "test-secret"
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
-OFFICE_REL_NS = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-)
+OFFICE_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 
 def _xlsx_bytes(label: str) -> bytes:

@@ -21,9 +21,7 @@ from mcp_server.features.knowledge_base import document_tools
 def _client_recording(calls: list[dict]) -> SurfSenseClient:
     async def handler(request: httpx.Request) -> httpx.Response:
         body = request.content.decode() or ""
-        calls.append(
-            {"method": request.method, "path": request.url.path, "body": body}
-        )
+        calls.append({"method": request.method, "path": request.url.path, "body": body})
         if request.method == "GET":
             return httpx.Response(
                 200,

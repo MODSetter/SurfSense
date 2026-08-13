@@ -55,7 +55,9 @@ def _model_max_tokens(request: Any) -> int | None:
     return getattr(getattr(request, "model", None), "max_tokens", None)
 
 
-def _continuation_messages(base: list[BaseMessage], accumulated: str) -> list[BaseMessage]:
+def _continuation_messages(
+    base: list[BaseMessage], accumulated: str
+) -> list[BaseMessage]:
     return [*base, AIMessage(content=accumulated), _CONTINUE_NUDGE]
 
 
@@ -127,7 +129,9 @@ class ContinueOnMaxLengthMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         while done < self.max_continuations and self._should_continue(ai, max_tokens):
             done += 1
             last_response = handler(
-                request.override(messages=_continuation_messages(request.messages, accumulated))
+                request.override(
+                    messages=_continuation_messages(request.messages, accumulated)
+                )
             )
             ai = _final_text_ai(last_response)
             if ai is None or (piece := _plain_text(ai)) is None:
@@ -162,7 +166,9 @@ class ContinueOnMaxLengthMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         while done < self.max_continuations and self._should_continue(ai, max_tokens):
             done += 1
             last_response = await handler(
-                request.override(messages=_continuation_messages(request.messages, accumulated))
+                request.override(
+                    messages=_continuation_messages(request.messages, accumulated)
+                )
             )
             ai = _final_text_ai(last_response)
             if ai is None or (piece := _plain_text(ai)) is None:

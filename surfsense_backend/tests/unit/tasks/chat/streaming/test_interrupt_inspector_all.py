@@ -9,6 +9,8 @@ that contract against a **real** paused parent graph built via
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from langchain.tools import ToolRuntime
 from langchain_core.messages import AIMessage, HumanMessage
@@ -21,8 +23,6 @@ from typing_extensions import TypedDict
 from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.task_tool import (
     build_task_tool_with_parent_config,
 )
-from types import SimpleNamespace
-
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
     all_interrupt_entries,
     all_interrupt_values,
@@ -85,7 +85,9 @@ class TestAllInterruptEntries:
     def test_pairs_value_with_id_from_state_interrupts(self):
         state = SimpleNamespace(
             interrupts=(
-                SimpleNamespace(id="i-1", value={"context": {"permission": "doom_loop"}}),
+                SimpleNamespace(
+                    id="i-1", value={"context": {"permission": "doom_loop"}}
+                ),
                 SimpleNamespace(id="i-2", value={"tool_call_id": "tcid-A"}),
             )
         )
@@ -98,7 +100,9 @@ class TestAllInterruptEntries:
     def test_prefers_task_bucket_interrupts(self):
         state = SimpleNamespace(
             tasks=(
-                SimpleNamespace(interrupts=(SimpleNamespace(id="t-1", value={"a": 1}),)),
+                SimpleNamespace(
+                    interrupts=(SimpleNamespace(id="t-1", value={"a": 1}),)
+                ),
             ),
             interrupts=(SimpleNamespace(id="ignored", value={"b": 2}),),
         )
@@ -118,9 +122,7 @@ class TestAllInterruptEntries:
         assert all_interrupt_entries(state) == [({"a": 1}, None)]
 
     def test_values_helper_derives_from_entries(self):
-        state = SimpleNamespace(
-            interrupts=(SimpleNamespace(id="i-1", value={"a": 1}),)
-        )
+        state = SimpleNamespace(interrupts=(SimpleNamespace(id="i-1", value={"a": 1}),))
 
         assert all_interrupt_values(state) == [{"a": 1}]
 

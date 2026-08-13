@@ -27,7 +27,7 @@ class _FakeRequest:
     model: _FakeModel
     messages: list[BaseMessage] = field(default_factory=list)
 
-    def override(self, **overrides: Any) -> "_FakeRequest":
+    def override(self, **overrides: Any) -> _FakeRequest:
         return replace(self, **overrides)
 
 
@@ -41,7 +41,11 @@ def _ai(text: str, *, out: int, finish: str | None, tool_calls=None) -> AIMessag
     return AIMessage(
         content=text,
         tool_calls=tool_calls or [],
-        usage_metadata={"input_tokens": 5, "output_tokens": out, "total_tokens": 5 + out},
+        usage_metadata={
+            "input_tokens": 5,
+            "output_tokens": out,
+            "total_tokens": 5 + out,
+        },
         response_metadata={"finish_reason": finish} if finish else {},
     )
 
@@ -110,9 +114,7 @@ async def test_truncated_tool_call_is_not_continued():
 @pytest.mark.asyncio
 async def test_respects_continuation_cap_when_model_keeps_truncating():
     mw = ContinueOnMaxLengthMiddleware(max_continuations=2)
-    handler, calls = _handler_from(
-        [_ai(c, out=24, finish="length") for c in "abcd"]
-    )
+    handler, calls = _handler_from([_ai(c, out=24, finish="length") for c in "abcd"])
     req = _FakeRequest(model=_FakeModel(max_tokens=24), messages=[HumanMessage("hi")])
 
     resp = await mw.awrap_model_call(req, handler)
@@ -170,4 +172,6 @@ async def test_continuation_context_includes_partial_and_nudge():
     resp = await mw.awrap_model_call(req, handler)
 
     assert _text(resp) == "START END"
-    assert any(isinstance(m, AIMessage) and "START" in m.content for m in seen["messages"])
+    assert any(
+        isinstance(m, AIMessage) and "START" in m.content for m in seen["messages"]
+    )

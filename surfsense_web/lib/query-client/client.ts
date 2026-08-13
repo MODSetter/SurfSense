@@ -1,11 +1,13 @@
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { showErrorToast } from "../error-toast";
+import { shouldRetryQuery } from "./retry";
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			staleTime: 30_000,
 			refetchOnWindowFocus: false,
+			retry: shouldRetryQuery,
 		},
 	},
 	queryCache: new QueryCache({
