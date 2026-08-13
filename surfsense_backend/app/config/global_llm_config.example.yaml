@@ -276,6 +276,12 @@ global_image_generation_configs:
     rpm: 120
     litellm_params:
       base_model: "gpt-image-1-mini"
+    # Anonymous SEO funnel (POST /api/v1/public/tools/image): flag exactly one
+    # cheap image model with anonymous_enabled so the public door can resolve
+    # it. Requires NOLOGIN_MODE_ENABLED. seo_slug backs the landing-page tool
+    # catalog at GET /api/v1/public/tools.
+    anonymous_enabled: true
+    seo_slug: "ai-image-generator"
 
 # =============================================================================
 # Field Notes
