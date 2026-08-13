@@ -228,11 +228,12 @@ def create_generate_image_tool(
 
                 from app.artifacts.media.image.record import record as record_image
 
-                await record_image(session, db_image_gen)
+                saved = await record_image(session, db_image_gen)
                 await session.commit()
                 await session.refresh(db_image_gen)
                 response_dict = db_image_gen.response_data or response_dict
                 db_image_gen_id = db_image_gen.id
+                artifact_id = saved.artifact_id if saved is not None else None
 
             images = response_dict.get("data", [])
             if not images:
@@ -285,6 +286,8 @@ def create_generate_image_tool(
                 "generated": True,
                 "prompt": prompt,
                 "image_count": len(images),
+                "image_generation_id": db_image_gen_id,
+                "artifact_id": artifact_id,
             }
             return with_receipt(
                 payload=payload,
@@ -293,7 +296,7 @@ def create_generate_image_tool(
                     type="image",
                     operation="generate",
                     status="success",
-                    external_id=str(db_image_gen_id),
+                    external_id=str(artifact_id or db_image_gen_id),
                     verifiable_url=image_url,
                     preview=(revised_prompt or prompt)[:200],
                 ),
