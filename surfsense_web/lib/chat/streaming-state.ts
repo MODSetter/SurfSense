@@ -1,20 +1,58 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 
-export interface ThinkingStepData {
+export type ActivityStatus =
+	| "running"
+	| "awaiting_approval"
+	| "completed"
+	| "error"
+	| "cancelled"
+	| "interrupted";
+
+export interface ActivityTimingData {
+	status: "running" | "paused" | "completed";
+	activeDurationMs: number;
+}
+
+/** Client-only projection anchor. Never sent to or persisted by the backend. */
+export interface ActivityTimingProjection {
+	baseDurationMs: number;
+	receivedAtPerformanceMs: number;
+}
+
+export interface ActivityData {
 	id: string;
+	sequence: number;
+	kind: string;
+	status: ActivityStatus;
 	title: string;
-	status: "pending" | "in_progress" | "completed";
-	items: string[];
-	/**
-	 * Optional relay fields from ``data-thinking-step`` when present on the wire
-	 * (e.g. ``spanId``). Populated in a later slice; equality helpers ignore until wired.
-	 */
-	metadata?: Record<string, unknown>;
+	category: "file" | "research" | "artifact" | "connector" | "action";
+	iconKey: string;
+	details?: string[];
+	startedAt: string;
+	completedAt?: string;
+	integration?: {
+		source: "native" | "connector" | "mcp";
+		key?: string;
+		name?: string;
+	};
 }
 
 export type ContentPart =
 	| { type: "text"; text: string }
-	| { type: "reasoning"; text: string }
+	| {
+			type: "reasoning";
+			text: string;
+			id?: string;
+			status?: "running" | "completed" | "interrupted";
+			startedAt?: string;
+			completedAt?: string;
+	  }
+	| {
+			type: "status";
+			code: "no_response" | "error" | "cancelled";
+			text: string;
+			errorCode?: string;
+	  }
 	| {
 			type: "tool-call";
 			toolCallId: string;
@@ -48,100 +86,243 @@ export type ContentPart =
 			 */
 			langchainToolCallId?: string;
 			/**
-			 * Relay correlation from tool SSE (e.g. ``spanId``, ``thinkingStepId``).
+			 * Relay correlation from tool SSE (for example ``activityId``).
 			 * Merged by ``mergeToolPartMetadata`` when events carry ``metadata``.
 			 */
 			metadata?: Record<string, unknown>;
 	  }
 	| {
-			type: "data-thinking-steps";
-			data: { steps: ThinkingStepData[] };
-	  }
-	| {
-			/**
-			 * Between-step separator. Pushed by `addStepSeparator` when
-			 * a `start-step` SSE event arrives AFTER the message already
-			 * has non-step content. Rendered by `StepSeparatorDataUI`
-			 * (see assistant-ui/step-separator.tsx).
-			 */
-			type: "data-step-separator";
-			data: { stepIndex: number };
+			type: "data-activities";
+			data: {
+				activities: ActivityData[];
+				timing?: ActivityTimingData;
+				timingProjection?: ActivityTimingProjection;
+			};
 	  };
 
 export interface ContentPartsState {
 	contentParts: ContentPart[];
 	currentTextPartIndex: number;
 	currentReasoningPartIndex: number;
+	currentReasoningId?: string;
+	currentReasoningStartedAt?: string;
 	toolCallIndices: Map<string, number>;
-	/**
-	 * Set by the resume flow's rehydration to suppress
-	 * ``data-step-separator`` for the rest of this turn. Without it,
-	 * the resume stream's first ``start-step`` fires
-	 * ``addStepSeparator`` while rehydrated OLD content already makes
-	 * ``hasContent`` true → a divider lands between OLD and NEW
-	 * content with no semantic value (OLD content is folded by
-	 * ``buildTimeline`` + ``reconcileInterruptedAssistantMessages``,
-	 * persisted state carries no separator, so the line vanishes on
-	 * reload).
-	 */
-	suppressStepSeparators?: boolean;
+	activities: Map<string, ActivityData>;
+	activityTiming?: ActivityTimingData;
+	activityTimingProjection?: ActivityTimingProjection;
 }
 
-function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
-	if (current.length !== next.length) return false;
+const ACTIVITY_STATUSES = new Set<ActivityStatus>([
+	"running",
+	"awaiting_approval",
+	"completed",
+	"error",
+	"cancelled",
+	"interrupted",
+]);
+const ACTIVITY_CATEGORIES = new Set<ActivityData["category"]>([
+	"file",
+	"research",
+	"artifact",
+	"connector",
+	"action",
+]);
+const TERMINAL_ACTIVITY_STATUSES = new Set<ActivityStatus>([
+	"completed",
+	"error",
+	"cancelled",
+	"interrupted",
+]);
 
-	for (let i = 0; i < current.length; i += 1) {
-		const curr = current[i];
-		const nxt = next[i];
-		if (curr.id !== nxt.id || curr.title !== nxt.title || curr.status !== nxt.status) {
-			return false;
+function nonEmptyString(value: unknown): value is string {
+	return typeof value === "string" && value.trim().length > 0;
+}
+
+export function parseActivityData(value: unknown): ActivityData | null {
+	if (typeof value !== "object" || value === null) return null;
+	const activity = value as Record<string, unknown>;
+	if (
+		!nonEmptyString(activity.id) ||
+		!Number.isSafeInteger(activity.sequence) ||
+		(activity.sequence as number) < 0 ||
+		!nonEmptyString(activity.kind) ||
+		!ACTIVITY_STATUSES.has(activity.status as ActivityStatus) ||
+		!nonEmptyString(activity.title) ||
+		!ACTIVITY_CATEGORIES.has(activity.category as ActivityData["category"]) ||
+		!nonEmptyString(activity.iconKey) ||
+		!nonEmptyString(activity.startedAt)
+	) {
+		return null;
+	}
+	if (
+		activity.details !== undefined &&
+		(!Array.isArray(activity.details) || !activity.details.every(nonEmptyString))
+	) {
+		return null;
+	}
+	const terminal = TERMINAL_ACTIVITY_STATUSES.has(activity.status as ActivityStatus);
+	if (terminal !== nonEmptyString(activity.completedAt)) return null;
+
+	let integration: ActivityData["integration"];
+	if (activity.integration !== undefined) {
+		if (typeof activity.integration !== "object" || activity.integration === null) return null;
+		const candidate = activity.integration as Record<string, unknown>;
+		if (
+			candidate.source !== "native" &&
+			candidate.source !== "connector" &&
+			candidate.source !== "mcp"
+		) {
+			return null;
 		}
-		if (curr.items.length !== nxt.items.length) return false;
-		for (let j = 0; j < curr.items.length; j += 1) {
-			if (curr.items[j] !== nxt.items[j]) return false;
-		}
+		if (candidate.key !== undefined && !nonEmptyString(candidate.key)) return null;
+		if (candidate.name !== undefined && !nonEmptyString(candidate.name)) return null;
+		integration = {
+			source: candidate.source,
+			...(candidate.key ? { key: candidate.key as string } : {}),
+			...(candidate.name ? { name: candidate.name as string } : {}),
+		};
 	}
 
+	return {
+		id: activity.id,
+		sequence: activity.sequence as number,
+		kind: activity.kind,
+		status: activity.status as ActivityStatus,
+		title: activity.title,
+		category: activity.category as ActivityData["category"],
+		iconKey: activity.iconKey,
+		...(activity.details ? { details: [...(activity.details as string[])] } : {}),
+		startedAt: activity.startedAt,
+		...(activity.completedAt ? { completedAt: activity.completedAt as string } : {}),
+		...(integration ? { integration } : {}),
+	};
+}
+
+export function parseActivityTimingData(value: unknown): ActivityTimingData | null {
+	if (typeof value !== "object" || value === null) return null;
+	const timing = value as Record<string, unknown>;
+	if (
+		(timing.status !== "running" && timing.status !== "paused" && timing.status !== "completed") ||
+		!Number.isSafeInteger(timing.activeDurationMs) ||
+		(timing.activeDurationMs as number) < 0
+	) {
+		return null;
+	}
+	return {
+		status: timing.status,
+		activeDurationMs: timing.activeDurationMs as number,
+	};
+}
+
+export function parseActivityTimingProjection(value: unknown): ActivityTimingProjection | null {
+	if (typeof value !== "object" || value === null) return null;
+	const projection = value as Record<string, unknown>;
+	if (
+		!Number.isSafeInteger(projection.baseDurationMs) ||
+		(projection.baseDurationMs as number) < 0 ||
+		!Number.isFinite(projection.receivedAtPerformanceMs) ||
+		(projection.receivedAtPerformanceMs as number) < 0
+	) {
+		return null;
+	}
+	return {
+		baseDurationMs: projection.baseDurationMs as number,
+		receivedAtPerformanceMs: projection.receivedAtPerformanceMs as number,
+	};
+}
+
+function hasSameIdentity(current: ActivityData, next: ActivityData): boolean {
+	return (
+		current.sequence === next.sequence &&
+		current.kind === next.kind &&
+		current.category === next.category &&
+		current.iconKey === next.iconKey &&
+		current.startedAt === next.startedAt
+	);
+}
+
+function activityJournalPart(
+	state: ContentPartsState,
+	activities: ActivityData[]
+): Extract<ContentPart, { type: "data-activities" }> {
+	return {
+		type: "data-activities",
+		data: {
+			activities,
+			...(state.activityTiming ? { timing: state.activityTiming } : {}),
+			...(state.activityTimingProjection
+				? { timingProjection: state.activityTimingProjection }
+				: {}),
+		},
+	};
+}
+
+export function upsertActivity(state: ContentPartsState, value: unknown): boolean {
+	const activity = parseActivityData(value);
+	if (!activity) return false;
+	const current = state.activities.get(activity.id);
+	if (
+		current &&
+		(!hasSameIdentity(current, activity) ||
+			(TERMINAL_ACTIVITY_STATUSES.has(current.status) &&
+				!TERMINAL_ACTIVITY_STATUSES.has(activity.status)))
+	) {
+		return false;
+	}
+	if (current && JSON.stringify(current) === JSON.stringify(activity)) return false;
+
+	state.activities.set(activity.id, activity);
+	const activities = [...state.activities.values()].toSorted(
+		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
+	);
+	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
+	if (existingIdx >= 0) {
+		state.contentParts[existingIdx] = activityJournalPart(state, activities);
+		return true;
+	}
+
+	state.contentParts.unshift(activityJournalPart(state, activities));
+	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
+	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
+	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
 	return true;
 }
 
-export function updateThinkingSteps(
+export function upsertActivityTiming(
 	state: ContentPartsState,
-	steps: Map<string, ThinkingStepData>
+	value: unknown,
+	receivedAtPerformanceMs: number
 ): boolean {
-	const stepsArray = Array.from(steps.values());
-	const existingIdx = state.contentParts.findIndex((p) => p.type === "data-thinking-steps");
-
+	const timing = parseActivityTimingData(value);
+	const current = state.activityTiming;
+	if (
+		!timing ||
+		(current &&
+			(timing.activeDurationMs < current.activeDurationMs ||
+				(current.status === "completed" && timing.status !== "completed"))) ||
+		JSON.stringify(current) === JSON.stringify(timing)
+	) {
+		return false;
+	}
+	state.activityTiming = timing;
+	state.activityTimingProjection =
+		timing.status === "running"
+			? { baseDurationMs: timing.activeDurationMs, receivedAtPerformanceMs }
+			: undefined;
+	const activities = [...state.activities.values()].toSorted(
+		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
+	);
+	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
+	const part = activityJournalPart(state, activities);
 	if (existingIdx >= 0) {
-		const existing = state.contentParts[existingIdx];
-		if (
-			existing?.type === "data-thinking-steps" &&
-			areThinkingStepsEqual(existing.data.steps, stepsArray)
-		) {
-			return false;
-		}
-
-		state.contentParts[existingIdx] = {
-			type: "data-thinking-steps",
-			data: { steps: stepsArray },
-		};
-		return true;
-	} else {
-		state.contentParts.unshift({
-			type: "data-thinking-steps",
-			data: { steps: stepsArray },
-		});
-		if (state.currentTextPartIndex >= 0) {
-			state.currentTextPartIndex += 1;
-		}
-		if (state.currentReasoningPartIndex >= 0) {
-			state.currentReasoningPartIndex += 1;
-		}
-		for (const [id, idx] of state.toolCallIndices) {
-			state.toolCallIndices.set(id, idx + 1);
-		}
+		state.contentParts[existingIdx] = part;
 		return true;
 	}
+	state.contentParts.unshift(part);
+	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
+	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
+	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
+	return true;
 }
 
 /**
@@ -231,44 +412,41 @@ export function appendReasoning(state: ContentPartsState, delta: string): void {
 			}
 		).text += delta;
 	} else {
-		state.contentParts.push({ type: "reasoning", text: delta });
+		state.contentParts.push({
+			type: "reasoning",
+			text: delta,
+			id: state.currentReasoningId,
+			status: "running",
+			startedAt: state.currentReasoningStartedAt,
+		});
 		state.currentReasoningPartIndex = state.contentParts.length - 1;
 	}
 }
 
-export function endReasoning(state: ContentPartsState): void {
-	state.currentReasoningPartIndex = -1;
-}
-
-export function addStepSeparator(state: ContentPartsState): void {
-	// Push a divider between consecutive model steps within a single
-	// assistant turn. We only emit it when the message already has
-	// non-step content (so the FIRST step of a turn doesn't
-	// generate a leading separator) and when the previous part isn't
-	// itself a separator (defensive against duplicate `start-step`
-	// events). Also skipped during a resume turn (see
-	// ``suppressStepSeparators`` on ``ContentPartsState``).
-	if (state.suppressStepSeparators) return;
-	const hasContent = state.contentParts.some(
-		(p) => p.type === "text" || p.type === "reasoning" || p.type === "tool-call"
-	);
-	if (!hasContent) return;
-	const last = state.contentParts[state.contentParts.length - 1];
-	if (last && last.type === "data-step-separator") return;
-
-	const stepIndex = state.contentParts.filter((p) => p.type === "data-step-separator").length;
-	state.contentParts.push({ type: "data-step-separator", data: { stepIndex } });
+export function startReasoning(state: ContentPartsState, id: string, startedAt?: string): void {
 	state.currentTextPartIndex = -1;
 	state.currentReasoningPartIndex = -1;
+	state.currentReasoningId = id;
+	state.currentReasoningStartedAt = startedAt ?? new Date().toISOString();
+}
+
+export function endReasoning(state: ContentPartsState, id?: string, completedAt?: string): void {
+	const current = state.contentParts[state.currentReasoningPartIndex];
+	if (current?.type === "reasoning" && (!id || !current.id || current.id === id)) {
+		current.status = "completed";
+		current.completedAt = completedAt ?? new Date().toISOString();
+	}
+	state.currentReasoningPartIndex = -1;
+	state.currentReasoningId = undefined;
+	state.currentReasoningStartedAt = undefined;
 }
 
 /**
  * Allowlist of tool names that should produce a UI tool card. The
  * sentinel ``"all"`` matches every tool — we dropped the legacy
  * ``BASE_TOOLS_WITH_UI`` gate so that ALL tool calls render via the
- * generic ``ToolFallback``. The backend's ``format_thinking_step``
- * summarisation and the defensive ``result_length``-only default for
- * unknown tools keep persisted message JSON from ballooning.
+ * generic ``ToolFallback``. The defensive ``result_length``-only default
+ * for unknown tools keeps persisted message JSON from ballooning.
  */
 export type ToolUIGate = Set<string> | "all";
 
@@ -279,7 +457,7 @@ function _toolPasses(gate: ToolUIGate, toolName: string): boolean {
 /**
  * Shallow-merge relay ``metadata`` into a tool-call part (SSE → content part).
  * Keys already set on ``into`` are left unchanged so chunk vs canonical tool
- * events cannot reorder or overwrite ``spanId`` / ``thinkingStepId``.
+ * events cannot reorder or overwrite correlation metadata.
  * Matches server ``AssistantContentBuilder`` merge semantics.
  */
 function mergeToolPartMetadata(
@@ -409,10 +587,10 @@ export function buildContentForUI(
 	const filtered = state.contentParts.filter((part) => {
 		if (part.type === "text") return part.text.length > 0;
 		if (part.type === "reasoning") return part.text.length > 0;
+		if (part.type === "status") return part.text.length > 0;
 		if (part.type === "tool-call")
 			return _toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part);
-		if (part.type === "data-thinking-steps") return true;
-		if (part.type === "data-step-separator") return true;
+		if (part.type === "data-activities") return true;
 		return false;
 	});
 	return filtered.length > 0
@@ -432,17 +610,16 @@ export function buildContentForPersistence(
 		} else if (part.type === "reasoning" && part.text.length > 0) {
 			// Persist reasoning blocks so a chat reload re-renders the
 			// collapsed thinking section instead of
-			// silently dropping it (mirrors the data-thinking-steps
-			// branch above).
+			// silently dropping it on reload.
+			parts.push(part);
+		} else if (part.type === "status" && part.text.length > 0) {
 			parts.push(part);
 		} else if (
 			part.type === "tool-call" &&
 			(_toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part))
 		) {
 			parts.push(part);
-		} else if (part.type === "data-thinking-steps") {
-			parts.push(part);
-		} else if (part.type === "data-step-separator") {
+		} else if (part.type === "data-activities") {
 			parts.push(part);
 		}
 	}
@@ -458,9 +635,9 @@ export type SSEEvent =
 	| { type: "text-start"; id: string }
 	| { type: "text-delta"; id?: string; delta: string }
 	| { type: "text-end"; id: string }
-	| { type: "reasoning-start"; id: string }
+	| { type: "reasoning-start"; id: string; startedAt?: string }
 	| { type: "reasoning-delta"; id?: string; delta: string }
-	| { type: "reasoning-end"; id: string }
+	| { type: "reasoning-end"; id: string; completedAt?: string }
 	| {
 			type: "tool-input-start";
 			toolCallId: string;
@@ -499,7 +676,8 @@ export type SSEEvent =
 			langchainToolCallId?: string;
 			metadata?: Record<string, unknown>;
 	  }
-	| { type: "data-thinking-step"; data: ThinkingStepData }
+	| { type: "data-activity"; data: ActivityData }
+	| { type: "data-activity-timing"; data: ActivityTimingData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
 	| { type: "data-interrupt-request"; data: Record<string, unknown> }
 	| { type: "data-documents-updated"; data: Record<string, unknown> }

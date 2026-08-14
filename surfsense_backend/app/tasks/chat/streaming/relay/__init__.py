@@ -1,6 +1,6 @@
-"""Relay: thinking steps, tool bookkeeping, and ``EventRelay``.
+"""Relay: canonical activities, tool bookkeeping, and ``EventRelay``.
 
-Package imports are lazy so ``relay.thinking_step_sse`` (and siblings) can load
+Package imports are lazy so relay helpers can load
 without pulling in ``event_relay`` (which imports handler modules that may
 import those siblings).
 """

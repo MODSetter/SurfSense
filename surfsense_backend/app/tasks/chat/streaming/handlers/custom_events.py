@@ -4,122 +4,70 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.tasks.chat.streaming.relay.thinking_step_sse import emit_thinking_step_frame
+from app.tasks.chat.streaming.relay.activity_sse import emit_activity_frame
+from app.tasks.chat.streaming.relay.state import AgentEventRelayState
+
+_PROGRESS_LABELS = {
+    "planning": "Planning sections",
+    "writing": "Writing sections",
+    "revising_section": "Revising a section",
+    "adding_section": "Adding a section",
+    "removing_section": "Removing a section",
+    "discovering": "Finding sources",
+    "scraping": "Reviewing sources",
+    "processing": "Processing results",
+    "verifying": "Checking output",
+    "rendering": "Rendering preview",
+}
 
 
-def handle_report_progress(
-    data: dict[str, Any],
-    *,
-    last_active_step_id: str | None,
-    last_active_step_title: str,
-    last_active_step_items: list[str],
-    streaming_service: Any,
-    content_builder: Any | None,
-    thinking_metadata: dict[str, Any] | None = None,
-) -> tuple[str | None, list[str]]:
-    """Update report step items; may emit one thinking SSE frame.
-
-    Returns (frame or None, items list after update).
-    """
-    message = data.get("message", "")
-    if not message or not last_active_step_id:
-        return None, last_active_step_items
-
-    phase = data.get("phase", "")
-    topic_items = [item for item in last_active_step_items if item.startswith("Topic:")]
-
-    if phase in ("revising_section", "adding_section"):
-        plan_items = [
-            item
-            for item in last_active_step_items
-            if item.startswith("Topic:")
-            or item.startswith("Modifying ")
-            or item.startswith("Adding ")
-            or item.startswith("Removing ")
-        ]
-        plan_items = [item for item in plan_items if not item.endswith("...")]
-        new_items = [*plan_items, message]
-    else:
-        new_items = [*topic_items, message]
-
-    frame = emit_thinking_step_frame(
-        streaming_service=streaming_service,
-        content_builder=content_builder,
-        step_id=last_active_step_id,
-        title=last_active_step_title,
-        status="in_progress",
-        items=new_items,
-        metadata=thinking_metadata,
-    )
-    return frame, new_items
-
-
-def _scraper_progress_label(data: dict[str, Any]) -> str:
-    """Build a one-line human status from a ``scraper_progress`` event."""
-    message = data.get("message")
-    phase = data.get("phase", "")
+def _trusted_progress_detail(data: dict[str, Any]) -> str | None:
+    """Build bounded copy only from allowlisted phases and numeric counters."""
+    phase = data.get("phase")
+    label = _PROGRESS_LABELS.get(phase) if isinstance(phase, str) else None
+    if not label:
+        return None
     current = data.get("current")
     total = data.get("total")
-    label = message or (phase.replace("_", " ").capitalize() if phase else "Working")
-    if current is not None:
-        counter = f"{current}/{total}" if total else str(current)
-        label = f"{label} ({counter})"
+    if isinstance(current, int) and current >= 0:
+        counter = (
+            f"{current}/{total}"
+            if isinstance(total, int) and total > 0
+            else str(current)
+        )
+        return f"{label} ({counter})"
     return label
 
 
-def handle_scraper_progress(
+def handle_activity_progress(
     data: dict[str, Any],
     *,
-    last_active_step_id: str | None,
-    last_active_step_title: str,
-    last_active_step_items: list[str],
+    state: AgentEventRelayState,
     streaming_service: Any,
     content_builder: Any | None,
-    thinking_metadata: dict[str, Any] | None = None,
-) -> tuple[str | None, list[str]]:
-    """Surface a scraper's live progress as an evolving thinking-step item.
-
-    Scraper capability tool calls own a fresh thinking step (see ``tool_start``),
-    so we show a single latest-status line rather than accumulating every event.
-    Returns (frame or None, items after update).
-    """
-    if not last_active_step_id:
-        return None, last_active_step_items
-    label = _scraper_progress_label(data)
-    if not label:
-        return None, last_active_step_items
-    new_items = [label]
-    frame = emit_thinking_step_frame(
-        streaming_service=streaming_service,
-        content_builder=content_builder,
-        step_id=last_active_step_id,
-        title=last_active_step_title,
-        status="in_progress",
-        items=new_items,
-        metadata=thinking_metadata,
+) -> str | None:
+    detail = _trusted_progress_detail(data)
+    if not detail:
+        return None
+    candidates = [
+        snapshot
+        for snapshot in state.activity_snapshot_by_id.values()
+        if snapshot.get("status") in {"running", "awaiting_approval"}
+    ]
+    if not candidates:
+        return None
+    current = max(candidates, key=lambda snapshot: snapshot["sequence"])
+    snapshot = state.transition_activity(
+        current["id"],
+        status="running",
+        details=[detail],
     )
-    return frame, new_items
-
-
-def handle_verification_progress(
-    data: dict[str, Any],
-    *,
-    last_active_step_id: str | None,
-    last_active_step_title: str,
-    last_active_step_items: list[str],
-    streaming_service: Any,
-    content_builder: Any | None,
-    thinking_metadata: dict[str, Any] | None = None,
-) -> tuple[str | None, list[str]]:
-    """Surface the verification service's latest step on its tool row."""
-    return handle_scraper_progress(
-        data,
-        last_active_step_id=last_active_step_id,
-        last_active_step_title=last_active_step_title,
-        last_active_step_items=last_active_step_items,
+    if snapshot is None:
+        return None
+    return emit_activity_frame(
         streaming_service=streaming_service,
         content_builder=content_builder,
-        thinking_metadata=thinking_metadata,
+        snapshot=snapshot,
     )
 
 

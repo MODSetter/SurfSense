@@ -48,11 +48,11 @@ def test_final_parts_use_last_ai_message_and_skip_trailing_tool_messages() -> No
     ]
 
 
-def test_merge_adds_final_text_when_stream_only_has_thinking_steps() -> None:
+def test_merge_adds_final_text_when_stream_only_has_activities() -> None:
     streamed = [
         {
-            "type": "data-thinking-steps",
-            "data": [{"id": "thinking-1", "status": "completed"}],
+            "type": "data-activities",
+            "data": {"activities": [{"id": "act-1", "status": "completed"}]},
         }
     ]
     final = [{"type": "text", "text": "visible answer"}]

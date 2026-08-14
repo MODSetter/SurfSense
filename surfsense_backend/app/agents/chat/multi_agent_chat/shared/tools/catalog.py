@@ -61,6 +61,11 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Run Python or Bash in an isolated artifact sandbox",
     ),
     ToolMetadata(
+        name="load_artifact_instructions",
+        description="Load trusted creation instructions for an artifact format",
+        hidden=True,
+    ),
+    ToolMetadata(
         name="read_sandbox_file",
         description="Read a UTF-8 text file from the artifact sandbox",
     ),

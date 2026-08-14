@@ -7,6 +7,7 @@ from app.capabilities.core.store import (
     register_capability,
 )
 from app.capabilities.core.types import (
+    ActivityDescriptor,
     BillableInput,
     BillableOutput,
     BillingUnit,
@@ -16,6 +17,7 @@ from app.capabilities.core.types import (
 )
 
 __all__ = [
+    "ActivityDescriptor",
     "BillableInput",
     "BillableOutput",
     "BillingUnit",

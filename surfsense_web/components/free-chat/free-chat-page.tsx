@@ -9,7 +9,6 @@ import {
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import {
 	createTokenUsageStore,
 	type TokenUsageData,
@@ -17,22 +16,13 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
-import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import { classifyChatError, GENERIC_CHAT_ERROR_MESSAGE } from "@/lib/chat/chat-error-classifier";
+import { processSharedStreamEvent } from "@/lib/chat/stream-pipeline";
 import {
-	addStepSeparator,
-	addToolCall,
-	appendReasoning,
-	appendText,
-	appendToolInputDelta,
 	buildContentForUI,
 	type ContentPartsState,
-	endReasoning,
 	FrameBatchedUpdater,
 	readSSEStream,
-	type ThinkingStepData,
-	updateThinkingSteps,
-	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
@@ -169,15 +159,14 @@ export function FreeChatPage() {
 				throw toFreeChatHttpError(response.status, body);
 			}
 
-			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 			const batcher = new FrameBatchedUpdater();
 			const contentPartsState: ContentPartsState = {
 				contentParts: [],
 				currentTextPartIndex: -1,
 				currentReasoningPartIndex: -1,
 				toolCallIndices: new Map(),
+				activities: new Map(),
 			};
-			const { toolCallIndices } = contentPartsState;
 
 			const flushMessages = () => {
 				setMessages((prev) =>
@@ -196,105 +185,13 @@ export function FreeChatPage() {
 
 			try {
 				for await (const parsed of readSSEStream(response)) {
-					switch (parsed.type) {
-						case "text-delta":
-							appendText(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-delta":
-							appendReasoning(contentPartsState, parsed.delta);
-							scheduleFlush();
-							break;
-
-						case "reasoning-end":
-							endReasoning(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "start-step":
-							addStepSeparator(contentPartsState);
-							scheduleFlush();
-							break;
-
-						case "finish-step":
-							break;
-
-						case "tool-input-start":
-							addToolCall(
-								contentPartsState,
-								TOOLS_WITH_UI,
-								parsed.toolCallId,
-								parsed.toolName,
-								{},
-								false,
-								parsed.langchainToolCallId,
-								parsed.metadata
-							);
-							forceFlush();
-							break;
-
-						case "tool-input-delta":
-							appendToolInputDelta(contentPartsState, parsed.toolCallId, parsed.inputTextDelta);
-							scheduleFlush();
-							break;
-
-						case "tool-input-available": {
-							const finalArgsText = JSON.stringify(parsed.input ?? {}, null, 2);
-							if (toolCallIndices.has(parsed.toolCallId)) {
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									args: parsed.input || {},
-									argsText: finalArgsText,
-									langchainToolCallId: parsed.langchainToolCallId,
-									metadata: parsed.metadata,
-								});
-							} else {
-								addToolCall(
-									contentPartsState,
-									TOOLS_WITH_UI,
-									parsed.toolCallId,
-									parsed.toolName,
-									parsed.input || {},
-									false,
-									parsed.langchainToolCallId,
-									parsed.metadata
-								);
-								updateToolCall(contentPartsState, parsed.toolCallId, {
-									argsText: finalArgsText,
-								});
-							}
-							forceFlush();
-							break;
-						}
-
-						case "tool-output-available":
-							updateToolCall(contentPartsState, parsed.toolCallId, {
-								result: parsed.output,
-								langchainToolCallId: parsed.langchainToolCallId,
-								metadata: parsed.metadata,
-							});
-							forceFlush();
-							break;
-
-						case "data-thinking-step": {
-							const stepData = parsed.data as ThinkingStepData;
-							if (stepData?.id) {
-								currentThinkingSteps.set(stepData.id, stepData);
-								if (updateThinkingSteps(contentPartsState, currentThinkingSteps)) scheduleFlush();
-							}
-							break;
-						}
-
-						case "data-token-usage":
-							tokenUsageStore.set(assistantMsgId, parsed.data as TokenUsageData);
-							break;
-
-						case "error":
-							throw Object.assign(new Error(parsed.message), {
-								errorCode: parsed.errorCode,
-								diagnostic: parsed.diagnostic,
-							});
-					}
+					processSharedStreamEvent(parsed, {
+						contentPartsState,
+						toolsWithUI: TOOLS_WITH_UI,
+						scheduleFlush,
+						forceFlush,
+						onTokenUsage: (data) => tokenUsageStore.set(assistantMsgId, data as TokenUsageData),
+					});
 				}
 				batcher.flush();
 			} catch (err) {
@@ -474,8 +371,6 @@ export function FreeChatPage() {
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
-				<TimelineDataUI />
-				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
 					<RemoveAdsBanner />
 

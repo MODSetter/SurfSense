@@ -381,13 +381,11 @@ async def stream_anonymous_chat(
                 )
 
                 langchain_messages = []
-                user_query = ""
                 for msg in body.messages:
                     role = msg.get("role", "")
                     content = msg.get("content", "")
                     if role == "user":
                         langchain_messages.append(HumanMessage(content=content))
-                        user_query = content
                     elif role == "assistant":
                         langchain_messages.append(AIMessage(content=content))
 
@@ -418,19 +416,6 @@ async def stream_anonymous_chat(
                 yield streaming_service.format_message_start()
                 yield streaming_service.format_start_step()
 
-                initial_step_id = "thinking-1"
-                query_preview = user_query[:80] + (
-                    "..." if len(user_query) > 80 else ""
-                )
-                initial_items = [f"Processing: {query_preview}"]
-
-                yield streaming_service.format_thinking_step(
-                    step_id=initial_step_id,
-                    title="Understanding your request",
-                    status="in_progress",
-                    items=initial_items,
-                )
-
                 stream_result = StreamResult()
 
                 async for sse in stream_agent_events(
@@ -439,10 +424,7 @@ async def stream_anonymous_chat(
                     input_data=input_state,
                     streaming_service=streaming_service,
                     result=stream_result,
-                    step_prefix="thinking",
-                    initial_step_id=initial_step_id,
-                    initial_step_title="Understanding your request",
-                    initial_step_items=initial_items,
+                    step_prefix="turn",
                 ):
                     yield sse
 

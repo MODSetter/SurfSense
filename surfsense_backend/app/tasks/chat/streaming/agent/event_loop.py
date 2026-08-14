@@ -20,6 +20,7 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_pers
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.services.new_streaming_service import VercelStreamingService
+from app.services.streaming.types import ActivityData
 from app.tasks.chat.message_parts_normalizer import (
     final_assistant_parts_from_messages,
 )
@@ -31,6 +32,13 @@ from app.tasks.chat.streaming.contract.file_contract import (
 from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
     all_interrupt_entries,
+)
+from app.tasks.chat.streaming.relay.activity_completion import (
+    iter_complete_open_activity_frames,
+)
+from app.tasks.chat.streaming.relay.activity_sse import (
+    emit_activity_frame,
+    emit_activity_timing_frame,
 )
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import safe_float
@@ -45,10 +53,8 @@ async def stream_agent_events(
     input_data: Any,
     streaming_service: VercelStreamingService,
     result: StreamResult,
-    step_prefix: str = "thinking",
-    initial_step_id: str | None = None,
-    initial_step_title: str = "",
-    initial_step_items: list[str] | None = None,
+    step_prefix: str = "turn",
+    initial_activities: list[ActivityData] | None = None,
     *,
     fallback_commit_workspace_id: int | None = None,
     fallback_commit_created_by_id: str | None = None,
@@ -70,9 +76,7 @@ async def stream_agent_events(
         streaming_service=streaming_service,
         result=result,
         step_prefix=step_prefix,
-        initial_step_id=initial_step_id,
-        initial_step_title=initial_step_title,
-        initial_step_items=initial_step_items,
+        initial_activities=initial_activities,
         content_builder=content_builder,
         runtime_context=runtime_context,
     ):
@@ -217,6 +221,28 @@ async def stream_agent_events(
 
     if pending_values:
         result.is_interrupted = True
+        yield emit_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=content_builder,
+            snapshot=result.activity_timer.pause(),
+        )
+        activity_state = result.activity_state
+        if activity_state is not None:
+            for activity_id, current in list(
+                activity_state.activity_snapshot_by_id.items()
+            ):
+                if current.get("status") not in {"running", "awaiting_approval"}:
+                    continue
+                snapshot = activity_state.transition_activity(
+                    activity_id,
+                    status="awaiting_approval",
+                )
+                if snapshot:
+                    yield emit_activity_frame(
+                        streaming_service=streaming_service,
+                        content_builder=content_builder,
+                        snapshot=snapshot,
+                    )
         # One frame per paused subagent so each parallel HITL renders its own
         # approval card on the wire. Order matches ``state.interrupts``, which
         # the resume slicer in
@@ -226,3 +252,10 @@ async def stream_agent_events(
             yield streaming_service.format_interrupt_request(
                 interrupt_value, interrupt_id=interrupt_id
             )
+    elif result.activity_state is not None:
+        for frame in iter_complete_open_activity_frames(
+            state=result.activity_state,
+            streaming_service=streaming_service,
+            content_builder=content_builder,
+        ):
+            yield frame

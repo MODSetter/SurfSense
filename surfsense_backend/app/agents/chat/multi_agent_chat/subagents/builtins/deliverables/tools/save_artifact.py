@@ -107,6 +107,7 @@ def create_save_artifact_tool(workspace_id: int):
                     session,
                     app_config.SECRET_KEY,
                     workspace_id=workspace_id,
+                    primary_path=path,
                 )
                 primary_adapter = get_format_adapter(path)
                 if verification.format != primary_adapter.name:

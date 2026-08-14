@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { agentActionsQueryKey, useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { ActionLogItem } from "./action-log-item";
 
 function EmptyState() {
@@ -62,6 +63,7 @@ function LoadingState() {
 export function ActionLogDialog() {
 	const [state, setState] = useAtom(actionLogDialogAtom);
 	const queryClient = useQueryClient();
+	const isDesktop = useMediaQuery("(min-width: 768px)");
 
 	const { data: flags } = useAtomValue(agentFlagsAtom);
 	const actionLogEnabled = !!flags?.enable_action_log && !flags?.disable_new_agent_stack;
@@ -70,7 +72,7 @@ export function ActionLogDialog() {
 
 	const { data, items, isLoading, isFetching, isError, error, refetch } = useAgentActionsQuery(
 		threadId,
-		{ enabled: state.open && actionLogEnabled }
+		{ enabled: isDesktop && state.open && actionLogEnabled }
 	);
 
 	const handleOpenChange = useCallback(
@@ -85,6 +87,8 @@ export function ActionLogDialog() {
 			queryClient.invalidateQueries({ queryKey: agentActionsQueryKey(threadId) });
 		}
 	}, [queryClient, threadId]);
+
+	if (!isDesktop) return null;
 
 	return (
 		<Dialog open={state.open} onOpenChange={handleOpenChange}>

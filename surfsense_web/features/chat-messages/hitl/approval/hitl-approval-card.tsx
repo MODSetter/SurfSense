@@ -163,7 +163,7 @@ export const HitlApprovalCard: FC<{
 	const sliced = sliceForStep(interruptData, action, reviewConfig, stagedDecision);
 
 	// Doom-loop's ``action.name`` is the *stuck* tool, not an approval target,
-	// so its registered body (or ``NullTimelineBody``) would suppress the card.
+	// so its registered body (or the null approval body) would suppress the card.
 	// Route it through the HITL-aware fallback, which renders ``DoomLoopApproval``.
 	const Body = isDoomLoopInterrupt(sliced)
 		? FallbackToolBody

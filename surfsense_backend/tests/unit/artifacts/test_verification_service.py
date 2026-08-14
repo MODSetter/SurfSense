@@ -5,7 +5,7 @@ from app.artifacts.verification.formats.base import (
     FormatAdapter,
     StructuralCheckResult,
 )
-from app.artifacts.verification.receipt import RECEIPT_PATH, read_receipt
+from app.artifacts.verification.receipt import read_receipt, receipt_path
 from app.artifacts.verification.render import PreparedPdf
 from app.artifacts.verification.vision import VisualReviewResult
 from tests.utils.fake_sandbox import FakeSandboxSession
@@ -50,7 +50,7 @@ async def test_structural_failure_produces_no_receipt(monkeypatch):
 
     assert not result.verified
     assert result.findings == ("page is blank",)
-    assert session.files[RECEIPT_PATH] == b""
+    assert session.files[receipt_path("/workspace/report.pdf")] == b""
 
 
 async def test_page_ceiling_stops_before_rasterization(monkeypatch):
@@ -84,7 +84,7 @@ async def test_page_ceiling_stops_before_rasterization(monkeypatch):
 
     assert not result.verified
     assert "at most" in result.findings[0]
-    assert session.files[RECEIPT_PATH] == b""
+    assert session.files[receipt_path("/workspace/report.pdf")] == b""
 
 
 async def test_failing_visual_verdict_produces_no_receipt(monkeypatch):
@@ -125,7 +125,7 @@ async def test_failing_visual_verdict_produces_no_receipt(monkeypatch):
 
     assert not result.verified
     assert result.findings == ("Footer is clipped",)
-    assert session.files[RECEIPT_PATH] == b""
+    assert session.files[receipt_path("/workspace/report.pdf")] == b""
 
 
 async def test_visual_warnings_are_advisory(monkeypatch):
@@ -170,7 +170,7 @@ async def test_visual_warnings_are_advisory(monkeypatch):
 
     assert result.verified
     assert result.notes == ("Final page has generous whitespace",)
-    assert session.files[RECEIPT_PATH]
+    assert session.files[receipt_path("/workspace/report.pdf")]
 
 
 async def test_unavailable_vision_issues_receipt_with_reason(monkeypatch):
@@ -208,6 +208,7 @@ async def test_unavailable_vision_issues_receipt_with_reason(monkeypatch):
         session,
         SECRET,
         workspace_id=WORKSPACE_ID,
+        primary_path="/workspace/report.pdf",
     )
 
     assert result.verified
@@ -236,7 +237,7 @@ async def test_conversion_failure_returns_failed_verdict(monkeypatch):
 
     assert not result.verified
     assert "LibreOffice conversion failed" in result.findings[0]
-    assert session.files[RECEIPT_PATH] == b""
+    assert session.files[receipt_path("/workspace/report.pdf")] == b""
 
 
 async def test_converted_page_count_must_match_structural_count(monkeypatch):
@@ -283,4 +284,4 @@ async def test_converted_page_count_must_match_structural_count(monkeypatch):
 
     assert not result.verified
     assert result.findings == ("expected 2 page(s), found 1",)
-    assert session.files[RECEIPT_PATH] == b""
+    assert session.files[receipt_path("/workspace/deck.pptx")] == b""

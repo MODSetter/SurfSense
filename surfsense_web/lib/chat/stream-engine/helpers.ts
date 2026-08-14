@@ -6,9 +6,8 @@ import type { ToolUIGate } from "@/lib/chat/streaming-state";
  * Every tool call renders a card. The sentinel ``"all"`` matches every tool
  * — the legacy ``BASE_TOOLS_WITH_UI`` allowlist was dropped so unknown tool
  * calls route through the generic ``ToolFallback``. Persisted payload size
- * stays bounded because the backend's ``format_thinking_step`` summarisation
- * and the ``result_length``-only default for unknown tools keep the JSON
- * from ballooning.
+ * stays bounded because unknown tools persist only ``result_length`` rather
+ * than their complete result payload.
  */
 export const TOOLS_WITH_UI_ALL: ToolUIGate = "all";
 

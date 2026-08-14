@@ -10,7 +10,7 @@ block in the surrounding code so the on-the-wire ordering stays explicit:
   3. Input assembly — history bootstrap, mentions, surfsense docs, reports.
   4. First SSE frames — message_start, start_step, turn-info, turn-status.
   5. Persistence join + message-id frames (ghost-thread protection).
-  6. Initial thinking step + title task + runtime context.
+  6. Title task + runtime context.
   7. Stream loop with in-stream rate-limit recovery + mid-stream title emit.
   8. Finalize — premium debit, token-usage SSE, finish frames.
   9. Exception branch — classify, emit terminal error, finish frames.
@@ -44,10 +44,6 @@ from app.tasks.chat.streaming.agent.builder import build_main_agent_for_thread
 from app.tasks.chat.streaming.contract.file_contract import log_file_contract
 from app.tasks.chat.streaming.errors.emitter import emit_stream_terminal_error
 from app.tasks.chat.streaming.flows.new_chat.auto_pin import resolve_initial_auto_pin
-from app.tasks.chat.streaming.flows.new_chat.initial_thinking_step import (
-    build_initial_thinking_step,
-    iter_initial_thinking_step_frame,
-)
 from app.tasks.chat.streaming.flows.new_chat.input_state import (
     build_new_chat_input_state,
 )
@@ -110,6 +106,7 @@ from app.tasks.chat.streaming.flows.shared.stream_loop import run_stream_loop
 from app.tasks.chat.streaming.flows.shared.terminal_error import (
     handle_terminal_exception,
 )
+from app.tasks.chat.streaming.relay.activity_sse import emit_activity_timing_frame
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.utils.perf import get_perf_logger, log_system_snapshot
 
@@ -571,23 +568,13 @@ async def stream_new_chat(
 
         stream_result.assistant_message_id = assistant_message_id
         stream_result.content_builder = AssistantContentBuilder()
-
-        # --- Block 6: Initial thinking step + title task + runtime context ---
-
-        initial_step = build_initial_thinking_step(
-            user_query=user_query,
-            user_image_data_urls=user_image_data_urls,
-        )
-        for sse in iter_initial_thinking_step_frame(
-            initial_step,
+        yield emit_activity_timing_frame(
             streaming_service=streaming_service,
             content_builder=stream_result.content_builder,
-        ):
-            yield sse
+            snapshot=stream_result.activity_timer.snapshot(),
+        )
 
-        initial_step_id = initial_step.step_id
-        initial_step_title = initial_step.title
-        initial_step_items = initial_step.items
+        # --- Block 6: Title task + runtime context ---
         # Drop the heavy ORM objects + the container that holds them so they
         # aren't retained for the entire streaming duration. ``input_state``
         # already carries the langchain_messages list independently.
@@ -707,10 +694,7 @@ async def stream_new_chat(
             config=config,
             input_data=input_state,
             stream_result=stream_result,
-            step_prefix="thinking",
-            initial_step_id=initial_step_id,
-            initial_step_title=initial_step_title,
-            initial_step_items=initial_step_items,
+            step_prefix="turn",
             fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
@@ -760,10 +744,15 @@ async def stream_new_chat(
                 log_label="interrupted new_chat",
             ):
                 yield sse
-            yield streaming_service.format_finish_step()
-            yield streaming_service.format_finish()
-            yield streaming_service.format_done()
+            for sse in iter_final_frames(streaming_service):
+                yield sse
             return
+
+        yield emit_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=stream_result.content_builder,
+            snapshot=stream_result.activity_timer.complete(),
+        )
 
         async for title_sse in await_pending_title_update(
             title_task=title_task,
@@ -796,6 +785,15 @@ async def stream_new_chat(
             yield sse
 
     except Exception as exc:
+        if (
+            stream_result.content_builder is not None
+            and stream_result.activity_timer.status == "running"
+        ):
+            yield emit_activity_timing_frame(
+                streaming_service=streaming_service,
+                content_builder=stream_result.content_builder,
+                snapshot=stream_result.activity_timer.complete(),
+            )
         frames, summary = handle_terminal_exception(
             exc,
             flow=flow,

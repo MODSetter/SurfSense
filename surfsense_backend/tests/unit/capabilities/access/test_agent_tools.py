@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import BaseModel, Field
 
-from app.capabilities.core.types import BillingUnit, Capability
+from app.capabilities.core.types import ActivityDescriptor, BillingUnit, Capability
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 
 pytestmark = pytest.mark.asyncio
@@ -103,6 +103,40 @@ async def test_input_field_docs_reach_the_model(isolate):
     tool = _verb_tool(tools, "web_scrape")
 
     assert tool.args["text"]["description"] == "The text to echo back."
+
+
+async def test_capability_activity_descriptor_reaches_structured_tool_metadata(isolate):
+    cap = _capability(name="google_search.scrape", output=_EchoOutput(echoed="a"))
+    descriptor = ActivityDescriptor(
+        active_title="Searching the web",
+        completed_title="Searched the web",
+        category="research",
+        icon_key="search",
+        integration_key="google_search",
+    )
+    cap = Capability(
+        name=cap.name,
+        description=cap.description,
+        input_schema=cap.input_schema,
+        output_schema=cap.output_schema,
+        executor=cap.executor,
+        billing_unit=cap.billing_unit,
+        activity=descriptor,
+    )
+
+    tool = _verb_tool(
+        isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap]),
+        "google_search_scrape",
+    )
+
+    assert tool.metadata["activity_descriptor"] == {
+        "active_title": "Searching the web",
+        "completed_title": "Searched the web",
+        "category": "research",
+        "icon_key": "search",
+        "kind": "google_search.scrape",
+        "integration_key": "google_search",
+    }
 
 
 async def test_tool_runs_executor_and_returns_serialized_output(isolate):

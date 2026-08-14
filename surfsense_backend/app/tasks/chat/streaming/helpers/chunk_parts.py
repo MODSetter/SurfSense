@@ -6,8 +6,13 @@ from typing import Any
 
 
 def extract_chunk_parts(chunk: Any) -> dict[str, Any]:
-    """Return dict with keys text, reasoning, and tool_call_chunks (merged from chunk fields)."""
-    out: dict[str, Any] = {"text": "", "reasoning": "", "tool_call_chunks": []}
+    """Return legacy aggregates plus provider-ordered stream fragments."""
+    out: dict[str, Any] = {
+        "text": "",
+        "reasoning": "",
+        "tool_call_chunks": [],
+        "ordered": [],
+    }
     if chunk is None:
         return out
 
@@ -26,6 +31,7 @@ def extract_chunk_parts(chunk: Any) -> dict[str, Any]:
                 value = block.get("text") or block.get("content") or ""
                 if isinstance(value, str) and value:
                     text_parts.append(value)
+                    out["ordered"].append(("text", value))
             elif block_type == "reasoning":
                 value = (
                     block.get("reasoning")
@@ -35,8 +41,10 @@ def extract_chunk_parts(chunk: Any) -> dict[str, Any]:
                 )
                 if isinstance(value, str) and value:
                     reasoning_parts.append(value)
+                    out["ordered"].append(("reasoning", value))
             elif block_type in ("tool_call_chunk", "tool_use"):
                 out["tool_call_chunks"].append(block)
+                out["ordered"].append(("tool_call_chunk", block))
         if text_parts:
             out["text"] = "".join(text_parts)
         if reasoning_parts:
@@ -50,11 +58,19 @@ def extract_chunk_parts(chunk: Any) -> dict[str, Any]:
             out["reasoning"] = (
                 (existing + extra_reasoning) if existing else extra_reasoning
             )
+            out["ordered"].append(("reasoning", extra_reasoning))
+
+    if isinstance(content, str) and content:
+        # Providers that expose ``reasoning_content`` alongside the visible
+        # string historically streamed reasoning first, then text. Preserve
+        # that semantic order while list-shaped content keeps its own order.
+        out["ordered"].append(("text", content))
 
     extra_tool_chunks = getattr(chunk, "tool_call_chunks", None)
     if isinstance(extra_tool_chunks, list):
         for tcc in extra_tool_chunks:
             if isinstance(tcc, dict):
                 out["tool_call_chunks"].append(tcc)
+                out["ordered"].append(("tool_call_chunk", tcc))
 
     return out

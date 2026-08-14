@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.walmart.reviews.executor import build_reviews_executor
 from app.capabilities.walmart.reviews.schemas import ReviewsInput, ReviewsOutput
 
@@ -19,6 +24,13 @@ WALMART_REVIEWS = Capability(
     executor=build_reviews_executor(),
     billing_unit=BillingUnit.WALMART_REVIEW,
     docs_url="/docs/connectors/native/walmart",
+    activity=ActivityDescriptor(
+        active_title="Reviewing Walmart feedback",
+        completed_title="Reviewed Walmart feedback",
+        category="research",
+        icon_key="search",
+        integration_key="walmart",
+    ),
 )
 
 register_capability(WALMART_REVIEWS)

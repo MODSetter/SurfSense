@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.tasks.chat.streaming.activity_timing import ActivityTimer
+
 
 @dataclass
 class StreamResult:
@@ -35,6 +37,10 @@ class StreamResult:
     # (``StreamResult`` is logged in some error branches) from dumping a
     # potentially-large parts list.
     content_builder: Any | None = field(default=None, repr=False)
+    activity_state: Any | None = field(default=None, repr=False)
+    activity_timer: ActivityTimer = field(
+        default_factory=ActivityTimer.start, repr=False
+    )
     # User-visible assistant message parts derived from the final LangGraph
     # state. Used after streaming completes as a provider-agnostic persistence
     # backfill when no text chunks reached the live stream.

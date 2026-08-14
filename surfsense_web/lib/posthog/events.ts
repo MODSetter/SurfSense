@@ -99,6 +99,27 @@ export function trackChatError(workspaceId: number, chatId: number, error?: stri
 	});
 }
 
+export function trackActivityTraceInteraction(
+	action: "segment_expanded" | "segment_collapsed",
+	properties?: {
+		activityCount?: number;
+		reasoningCount?: number;
+		durationMs?: number;
+		surface?: "desktop_inline" | "mobile_drawer";
+	}
+) {
+	safeCapture(
+		"chat_interleaved_activity_trace_interaction",
+		compact({
+			action,
+			activity_count: properties?.activityCount,
+			reasoning_count: properties?.reasoningCount,
+			duration_ms: properties?.durationMs,
+			surface: properties?.surface,
+		})
+	);
+}
+
 export interface ChatFailureTelemetry {
 	flow: ChatFlow;
 	kind: ChatErrorKind;

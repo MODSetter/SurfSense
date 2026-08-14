@@ -1,21 +1,10 @@
-from app.tasks.chat.streaming.handlers.tools.deliverables.save_artifact.thinking import (
-    resolve_start_thinking,
-)
+from app.tasks.chat.streaming.handlers.tools.activity import resolve_tool_activity
 
 
-def test_artifact_id_marks_save_as_revision():
-    thinking = resolve_start_thinking(
-        "save_artifact",
-        {"title": "Report", "artifact_id": 42},
-    )
+def test_save_artifact_uses_canonical_activity_presentation():
+    activity = resolve_tool_activity("save_artifact", subagent_type=None)
 
-    assert thinking.title == "Revising artifact"
-
-
-def test_document_id_does_not_mark_save_as_revision():
-    thinking = resolve_start_thinking(
-        "save_artifact",
-        {"title": "Report", "document_id": 42},
-    )
-
-    assert thinking.title == "Saving artifact"
+    assert activity.active_title == "Preparing the file"
+    assert activity.completed_title == "Presented file"
+    assert activity.category == "artifact"
+    assert activity.icon_key == "file-output"

@@ -37,16 +37,13 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
         code_or_command: str,
         runtime: ToolRuntime,
         language: Literal["python", "bash"] = "python",
-        description: str | None = None,
     ) -> str:
         """Run Python or a Bash command in the sandbox.
 
         Write multi-step work to a source file and run that file: only some
         providers keep interpreter state between calls. Long output is
-        truncated here and written in full to the returned sandbox path. Use
-        description for a short user-facing step title.
+        truncated here and written in full to the returned sandbox path.
         """
-        del description
         session = await _get_session(workspace_id, runtime)
         result = (
             await session.execute(code_or_command, language="python")
@@ -60,6 +57,18 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
             await session.write_file(full_output_path, output.encode())
             output = output[:_MAX_CONTEXT_CHARS] + "\n… [output truncated]"
         return _result_text(output, result.exit_code, full_output_path=full_output_path)
+
+    @tool
+    async def load_artifact_instructions(
+        artifact_type: Literal["pdf", "docx", "pptx", "xlsx"],
+        runtime: ToolRuntime,
+    ) -> str:
+        """Load the trusted creation instructions for one artifact format."""
+        session = await _get_session(workspace_id, runtime)
+        result = await session.run_command(f"cat /opt/skills/{artifact_type}/SKILL.md")
+        return _result_text(
+            result.output or "", result.exit_code, full_output_path=None
+        )
 
     @tool
     async def read_sandbox_file(path: str, runtime: ToolRuntime) -> str:
@@ -94,4 +103,4 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
                 "binary files"
             ) from exc
 
-    return [execute, read_sandbox_file]
+    return [execute, load_artifact_instructions, read_sandbox_file]

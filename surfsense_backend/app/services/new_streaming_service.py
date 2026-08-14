@@ -13,7 +13,10 @@ Protocol Reference:
 import json
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
+
+from app.services.streaming.types import ActivityData
 
 
 def generate_id() -> str:
@@ -251,7 +254,13 @@ class VercelStreamingService:
         if reasoning_id is None:
             reasoning_id = self.generate_reasoning_id()
         self.context.active_reasoning_id = reasoning_id
-        return self._format_sse({"type": "reasoning-start", "id": reasoning_id})
+        return self._format_sse(
+            {
+                "type": "reasoning-start",
+                "id": reasoning_id,
+                "startedAt": datetime.now(UTC).isoformat(),
+            }
+        )
 
     def format_reasoning_delta(self, reasoning_id: str, delta: str) -> str:
         """
@@ -286,7 +295,13 @@ class VercelStreamingService:
         """
         if self.context.active_reasoning_id == reasoning_id:
             self.context.active_reasoning_id = None
-        return self._format_sse({"type": "reasoning-end", "id": reasoning_id})
+        return self._format_sse(
+            {
+                "type": "reasoning-end",
+                "id": reasoning_id,
+                "completedAt": datetime.now(UTC).isoformat(),
+            }
+        )
 
     # =========================================================================
     # Source Parts
@@ -450,36 +465,9 @@ class VercelStreamingService:
         """
         return self.format_data("further-questions", {"questions": questions})
 
-    def format_thinking_step(
-        self,
-        step_id: str,
-        title: str,
-        status: str = "in_progress",
-        items: list[str] | None = None,
-        *,
-        metadata: dict[str, Any] | None = None,
-    ) -> str:
-        """
-        Format a thinking step for chain-of-thought display (SurfSense specific).
-
-        Args:
-            step_id: Unique identifier for the step
-            title: The step title (e.g., "Analyzing your request")
-            status: Step status - "pending", "in_progress", or "completed"
-            items: Optional list of sub-items/details for this step
-
-        Returns:
-            str: SSE formatted thinking step data part
-        """
-        payload: dict[str, Any] = {
-            "id": step_id,
-            "title": title,
-            "status": status,
-            "items": items or [],
-        }
-        if metadata:
-            payload["metadata"] = metadata
-        return self.format_data("thinking-step", payload)
+    def format_activity(self, snapshot: ActivityData) -> str:
+        """Format one canonical backend-owned activity snapshot."""
+        return self.format_data("activity", snapshot)
 
     def format_thread_title_update(self, thread_id: int, title: str) -> str:
         """

@@ -17,12 +17,11 @@ via the ``(thread_id, turn_id, role)`` partial unique index added in
 migration 141), which means the *server* is now responsible for
 producing the rich ``ContentPart[]`` shape the FE expects on history
 reload — text + reasoning + tool-call cards (with ``args``, ``argsText``,
-``result``, ``langchainToolCallId``) + thinking-step buckets +
-step-separators.
+``result``, ``langchainToolCallId``) + canonical activity snapshots.
 
 This module is the in-memory accumulator that mirrors the FE state for
 exactly that purpose. The streaming code calls ``on_text_*`` / ``on_reasoning_*``
-/ ``on_tool_*`` / ``on_thinking_step`` / ``on_step_separator`` /
+/ ``on_tool_*`` / ``on_activity`` / ``on_activity_timing`` /
 ``mark_interrupted`` at the same call sites it yields the matching
 ``streaming_service.format_*`` SSE event, so the in-memory ``parts`` list
 stays in lockstep with what the FE's pipeline would have produced live.
@@ -39,15 +38,15 @@ from __future__ import annotations
 import copy
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 # Mirrors the FE's filter in ``buildContentForPersistence`` / ``buildContentForUI``:
-# only text/reasoning/tool-call parts count as "meaningful". data-thinking-steps
-# and data-step-separator decorate the meaningful parts but never stand alone
-# in a successful turn.
+# only text/reasoning/tool-call parts count as "meaningful". data-activities
+# decorates the meaningful parts but never stands alone in a successful turn.
 _MEANINGFUL_PART_TYPES: frozenset[str] = frozenset({"text", "reasoning", "tool-call"})
 
 
@@ -56,7 +55,7 @@ def _merge_tool_part_metadata(
 ) -> None:
     """Shallow-merge ``metadata`` into ``part["metadata"]``; first key wins.
 
-    Used for tool-call linkage (``spanId``, ``thinkingStepId``, …): a later
+    Used for tool-call linkage (``spanId``, ``activityId``, …): a later
     event must not overwrite an existing key so chunk order vs ``on_tool_start``
     stays stable.
     """
@@ -78,21 +77,15 @@ class AssistantContentBuilder:
         | { type: "reasoning"; text: string }
         | { type: "tool-call"; toolCallId: str; toolName: str;
             args: dict; result?: any; argsText?: str; langchainToolCallId?: str;
-            metadata?: { spanId?: str; thinkingStepId?: str; ... };
+            metadata?: { spanId?: str; activityId?: str; ... };
             state?: "aborted" }
-        | { type: "data-thinking-steps"; data: { steps: ThinkingStepData[] } }
-        | { type: "data-step-separator"; data: { stepIndex: int } }
-
+        | { type: "data-activities";
+            data: { activities: ActivityData[]; timing: ActivityTimingData } }
     Order matches the wire order of the SSE events that drive the lifecycle
     methods, with two FE-mirrored exceptions:
 
-    1. ``data-thinking-steps`` is a *singleton* and pinned at index 0 the
-       first time we see a ``data-thinking-step`` SSE event (the FE's
-       ``updateThinkingSteps`` does ``unshift`` on first sight). Subsequent
-       thinking-step updates mutate that singleton in place.
-    2. ``data-step-separator`` is appended only when the message already has
-       meaningful content and the previous part isn't itself a separator
-       (so the FIRST step of a turn doesn't generate a leading divider).
+    1. ``data-activities`` is a singleton pinned at index 0. Full snapshots
+       replace entries by id and remain ordered by immutable sequence.
     """
 
     def __init__(self) -> None:
@@ -102,6 +95,8 @@ class AssistantContentBuilder:
         # opens a fresh one. Mirrors ``ContentPartsState.currentTextPartIndex``.
         self._current_text_idx: int = -1
         self._current_reasoning_idx: int = -1
+        self._current_reasoning_id: str | None = None
+        self._current_reasoning_started_at: str | None = None
         # ``ui_id``-keyed indexes for tool-call parts. ``ui_id`` is the
         # synthetic ``call_<run_id>`` (chunk fallback) or the LangChain
         # ``tool_call.id`` (indexed chunk path) — same key the streaming layer
@@ -154,7 +149,7 @@ class AssistantContentBuilder:
         Mirrors the wire-level ``text-end`` boundary the streaming layer
         emits before tool calls / reasoning / step boundaries. The FE
         pipeline implicitly closes via ``currentTextPartIndex = -1``
-        in ``addToolCall`` / ``appendReasoning`` / ``addStepSeparator``;
+        in ``addToolCall`` / ``appendReasoning``;
         our helper does the same explicitly so callers don't have to
         maintain that invariant per call site.
         """
@@ -167,6 +162,9 @@ class AssistantContentBuilder:
     def on_reasoning_start(self, reasoning_id: str) -> None:
         if self._current_text_idx >= 0:
             self._current_text_idx = -1
+        self._current_reasoning_idx = -1
+        self._current_reasoning_id = reasoning_id
+        self._current_reasoning_started_at = datetime.now(UTC).isoformat()
 
     def on_reasoning_delta(self, reasoning_id: str, delta: str) -> None:
         if not delta:
@@ -180,11 +178,29 @@ class AssistantContentBuilder:
         ):
             self.parts[self._current_reasoning_idx]["text"] += delta
             return
-        self.parts.append({"type": "reasoning", "text": delta})
+        self.parts.append(
+            {
+                "type": "reasoning",
+                "text": delta,
+                "id": self._current_reasoning_id or reasoning_id,
+                "status": "running",
+                "startedAt": self._current_reasoning_started_at
+                or datetime.now(UTC).isoformat(),
+            }
+        )
         self._current_reasoning_idx = len(self.parts) - 1
 
     def on_reasoning_end(self, reasoning_id: str) -> None:
+        if 0 <= self._current_reasoning_idx < len(self.parts):
+            part = self.parts[self._current_reasoning_idx]
+            if part.get("type") == "reasoning" and (
+                not part.get("id") or part.get("id") == reasoning_id
+            ):
+                part["status"] = "completed"
+                part["completedAt"] = datetime.now(UTC).isoformat()
         self._current_reasoning_idx = -1
+        self._current_reasoning_id = None
+        self._current_reasoning_started_at = None
 
     # ------------------------------------------------------------------
     # Tool calls
@@ -200,7 +216,7 @@ class AssistantContentBuilder:
     ) -> None:
         """Register a tool-call card. Args are filled in by later events.
 
-        Optional ``metadata`` (``spanId``, ``thinkingStepId``, …) is stored on the
+        Optional ``metadata`` (``spanId``, ``activityId``, …) is stored on the
         part; duplicate ``tool-input-start`` calls merge with first-key-wins.
         """
         if not ui_id:
@@ -340,69 +356,58 @@ class AssistantContentBuilder:
         _merge_tool_part_metadata(part, metadata)
 
     # ------------------------------------------------------------------
-    # Thinking steps & step separators
+    # Activities
     # ------------------------------------------------------------------
 
-    def on_thinking_step(
-        self,
-        step_id: str,
-        title: str,
-        status: str,
-        items: list[str] | None,
-        *,
-        metadata: dict[str, Any] | None = None,
-    ) -> None:
-        """Update / insert the singleton ``data-thinking-steps`` part.
-
-        Mirrors FE ``updateThinkingSteps``: maintain a single
-        ``data-thinking-steps`` part anchored at index 0, replacing or
-        unshifting on first sight. Each ``on_thinking_step`` call
-        replaces the entry in the steps list keyed by ``step_id`` (or
-        appends if new).
-        """
-        if not step_id:
+    def on_activity(self, snapshot: dict[str, Any]) -> None:
+        """Upsert one full canonical activity snapshot by id."""
+        activity_id = snapshot.get("id")
+        if not isinstance(activity_id, str) or not activity_id:
             return
-
-        new_step: dict[str, Any] = {
-            "id": step_id,
-            "title": title or "",
-            "status": status or "in_progress",
-            "items": list(items) if items else [],
-        }
-        if metadata:
-            new_step["metadata"] = dict(metadata)
-
-        # Find existing data-thinking-steps part.
+        new_snapshot = copy.deepcopy(snapshot)
         existing_idx = -1
         for i, p in enumerate(self.parts):
-            if p.get("type") == "data-thinking-steps":
+            if p.get("type") == "data-activities":
                 existing_idx = i
                 break
 
         if existing_idx >= 0:
-            current_steps = self.parts[existing_idx].get("data", {}).get("steps") or []
+            activities = (
+                self.parts[existing_idx].get("data", {}).get("activities") or []
+            )
             replaced = False
-            for i, step in enumerate(current_steps):
-                if step.get("id") == step_id:
-                    if not metadata and step.get("metadata"):
-                        new_step["metadata"] = dict(step["metadata"])
-                    current_steps[i] = new_step
+            for i, current in enumerate(activities):
+                if current.get("id") == activity_id:
+                    if current.get("status") in {
+                        "completed",
+                        "error",
+                        "cancelled",
+                        "interrupted",
+                    } and new_snapshot.get("status") in {
+                        "running",
+                        "awaiting_approval",
+                    }:
+                        return
+                    activities[i] = new_snapshot
                     replaced = True
                     break
             if not replaced:
-                current_steps.append(new_step)
+                activities.append(new_snapshot)
+            activities.sort(key=lambda value: value.get("sequence", 0))
             self.parts[existing_idx] = {
-                "type": "data-thinking-steps",
-                "data": {"steps": current_steps},
+                "type": "data-activities",
+                "data": {
+                    **self.parts[existing_idx].get("data", {}),
+                    "activities": activities,
+                },
             }
             return
 
-        # First sight: unshift to position 0 (FE parity).
         self.parts.insert(
             0,
             {
-                "type": "data-thinking-steps",
-                "data": {"steps": [new_step]},
+                "type": "data-activities",
+                "data": {"activities": [new_snapshot]},
             },
         )
         # Bump tracked indices since we inserted at the head.
@@ -413,30 +418,36 @@ class AssistantContentBuilder:
         for ui_id, idx in list(self._tool_call_idx_by_ui_id.items()):
             self._tool_call_idx_by_ui_id[ui_id] = idx + 1
 
-    def on_step_separator(self) -> None:
-        """Append a ``data-step-separator`` between consecutive model steps.
-
-        Mirrors FE ``addStepSeparator``: only emit when the message
-        already has meaningful content AND the previous part isn't
-        itself a separator. ``stepIndex`` is the running count of
-        separators already in ``parts``.
-        """
-        has_content = any(p.get("type") in _MEANINGFUL_PART_TYPES for p in self.parts)
-        if not has_content:
-            return
-        if self.parts and self.parts[-1].get("type") == "data-step-separator":
-            return
-        step_index = sum(
-            1 for p in self.parts if p.get("type") == "data-step-separator"
-        )
-        self.parts.append(
-            {
-                "type": "data-step-separator",
-                "data": {"stepIndex": step_index},
+    def on_activity_timing(self, snapshot: dict[str, Any]) -> None:
+        """Replace the journal's canonical active-time snapshot."""
+        for i, part in enumerate(self.parts):
+            if part.get("type") != "data-activities":
+                continue
+            self.parts[i] = {
+                "type": "data-activities",
+                "data": {
+                    **part.get("data", {}),
+                    "timing": copy.deepcopy(snapshot),
+                },
             }
+            return
+
+        self.parts.insert(
+            0,
+            {
+                "type": "data-activities",
+                "data": {
+                    "activities": [],
+                    "timing": copy.deepcopy(snapshot),
+                },
+            },
         )
-        self._current_text_idx = -1
-        self._current_reasoning_idx = -1
+        if self._current_text_idx >= 0:
+            self._current_text_idx += 1
+        if self._current_reasoning_idx >= 0:
+            self._current_reasoning_idx += 1
+        for ui_id, idx in list(self._tool_call_idx_by_ui_id.items()):
+            self._tool_call_idx_by_ui_id[ui_id] = idx + 1
 
     # ------------------------------------------------------------------
     # Interruption handling
@@ -457,8 +468,24 @@ class AssistantContentBuilder:
           as "interrupted" rather than "still running".
         """
         self._current_text_idx = -1
+        if 0 <= self._current_reasoning_idx < len(self.parts):
+            part = self.parts[self._current_reasoning_idx]
+            if part.get("type") == "reasoning":
+                part["status"] = "interrupted"
+                part["completedAt"] = datetime.now(UTC).isoformat()
         self._current_reasoning_idx = -1
+        self._current_reasoning_id = None
+        self._current_reasoning_started_at = None
         for part in self.parts:
+            if part.get("type") == "data-activities":
+                for activity in part.get("data", {}).get("activities", []):
+                    if activity.get("status") == "running":
+                        activity["status"] = "interrupted"
+                        activity["title"] = (
+                            f"Interrupted: {activity.get('title', 'activity')}"
+                        )
+                        activity["completedAt"] = datetime.now(UTC).isoformat()
+                continue
             if part.get("type") != "tool-call":
                 continue
             if "result" in part:
@@ -483,9 +510,9 @@ class AssistantContentBuilder:
     def is_empty(self) -> bool:
         """True if no meaningful content was captured.
 
-        ``data-thinking-steps`` and ``data-step-separator`` decorate
-        meaningful content but don't count on their own — a turn that
-        only emitted a thinking step before being interrupted should
+        ``data-activities`` decorates meaningful content but doesn't count on
+        its own — a turn that
+        only emitted an activity snapshot before being interrupted should
         still be treated as empty for the status-marker fallback.
         """
         return not any(p.get("type") in _MEANINGFUL_PART_TYPES for p in self.parts)
@@ -503,7 +530,7 @@ class AssistantContentBuilder:
         crosses the wire to PostgreSQL's JSONB column. We compute it
         with ``ensure_ascii=False`` to match the JSONB encoder's UTF-8
         on-disk layout closely enough for back-of-the-envelope sizing.
-        Reasoning/text/tool-call/thinking-step/step-separator counts are
+        Reasoning/text/tool-call/activity counts are
         independent so any one can spike without the others.
 
         Defensive: ``json.dumps`` failure (a non-serializable value
@@ -516,9 +543,7 @@ class AssistantContentBuilder:
         tool_calls = 0
         tool_calls_completed = 0
         tool_calls_aborted = 0
-        thinking_step_parts = 0
-        step_separators = 0
-
+        activity_parts = 0
         for part in self.parts:
             kind = part.get("type")
             if kind == "text":
@@ -531,10 +556,8 @@ class AssistantContentBuilder:
                     tool_calls_aborted += 1
                 elif "result" in part:
                     tool_calls_completed += 1
-            elif kind == "data-thinking-steps":
-                thinking_step_parts += 1
-            elif kind == "data-step-separator":
-                step_separators += 1
+            elif kind == "data-activities":
+                activity_parts += 1
 
         try:
             byte_size = len(json.dumps(self.parts, ensure_ascii=False, default=str))
@@ -549,6 +572,5 @@ class AssistantContentBuilder:
             "tool_calls": tool_calls,
             "tool_calls_completed": tool_calls_completed,
             "tool_calls_aborted": tool_calls_aborted,
-            "thinking_step_parts": thinking_step_parts,
-            "step_separators": step_separators,
+            "activity_parts": activity_parts,
         }

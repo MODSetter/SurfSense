@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 import {
-	addStepSeparator,
 	addToolCall,
 	appendReasoning,
 	appendText,
@@ -9,16 +8,16 @@ import {
 	endReasoning,
 	readSSEStream,
 	type SSEEvent,
-	type ThinkingStepData,
+	startReasoning,
 	type ToolUIGate,
-	updateThinkingSteps,
 	updateToolCall,
+	upsertActivity,
+	upsertActivityTiming,
 } from "@/lib/chat/streaming-state";
 
 export type SharedStreamEventContext = {
 	contentPartsState: ContentPartsState;
 	toolsWithUI: ToolUIGate;
-	currentThinkingSteps: Map<string, ThinkingStepData>;
 	scheduleFlush: () => void;
 	forceFlush: () => void;
 	onTokenUsage?: (data: Extract<SSEEvent, { type: "data-token-usage" }>["data"]) => void;
@@ -61,6 +60,8 @@ export function hasPersistableContent(
 		(part) =>
 			(part.type === "text" && part.text.length > 0) ||
 			(part.type === "reasoning" && part.text.length > 0) ||
+			(part.type === "status" && part.text.length > 0) ||
+			(part.type === "data-activities" && part.data.activities.length > 0) ||
 			(part.type === "tool-call" && (toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
 	);
 }
@@ -78,11 +79,15 @@ export function processSharedStreamEvent(
 	parsed: SSEEvent,
 	context: SharedStreamEventContext
 ): boolean {
-	const { contentPartsState, toolsWithUI, currentThinkingSteps, scheduleFlush, forceFlush } =
-		context;
+	const { contentPartsState, toolsWithUI, scheduleFlush, forceFlush } = context;
 	const { contentParts, toolCallIndices } = contentPartsState;
 
 	switch (parsed.type) {
+		case "reasoning-start":
+			startReasoning(contentPartsState, parsed.id, parsed.startedAt);
+			scheduleFlush();
+			return true;
+
 		case "text-delta":
 			appendText(contentPartsState, parsed.delta);
 			scheduleFlush();
@@ -94,13 +99,11 @@ export function processSharedStreamEvent(
 			return true;
 
 		case "reasoning-end":
-			endReasoning(contentPartsState);
+			endReasoning(contentPartsState, parsed.id, parsed.completedAt);
 			scheduleFlush();
 			return true;
 
 		case "start-step":
-			addStepSeparator(contentPartsState);
-			scheduleFlush();
 			return true;
 
 		case "finish-step":
@@ -168,15 +171,13 @@ export function processSharedStreamEvent(
 			forceFlush();
 			return true;
 
-		case "data-thinking-step": {
-			const stepData = parsed.data as ThinkingStepData;
-			if (stepData?.id) {
-				currentThinkingSteps.set(stepData.id, stepData);
-				const didUpdate = updateThinkingSteps(contentPartsState, currentThinkingSteps);
-				if (didUpdate) {
-					scheduleFlush();
-				}
-			}
+		case "data-activity": {
+			if (upsertActivity(contentPartsState, parsed.data)) scheduleFlush();
+			return true;
+		}
+
+		case "data-activity-timing": {
+			if (upsertActivityTiming(contentPartsState, parsed.data, performance.now())) scheduleFlush();
 			return true;
 		}
 
