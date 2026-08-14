@@ -39,6 +39,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -102,6 +103,8 @@ class AssistantContentBuilder:
         # opens a fresh one. Mirrors ``ContentPartsState.currentTextPartIndex``.
         self._current_text_idx: int = -1
         self._current_reasoning_idx: int = -1
+        self._current_reasoning_id: str | None = None
+        self._current_reasoning_started_at: str | None = None
         # ``ui_id``-keyed indexes for tool-call parts. ``ui_id`` is the
         # synthetic ``call_<run_id>`` (chunk fallback) or the LangChain
         # ``tool_call.id`` (indexed chunk path) — same key the streaming layer
@@ -167,6 +170,9 @@ class AssistantContentBuilder:
     def on_reasoning_start(self, reasoning_id: str) -> None:
         if self._current_text_idx >= 0:
             self._current_text_idx = -1
+        self._current_reasoning_idx = -1
+        self._current_reasoning_id = reasoning_id
+        self._current_reasoning_started_at = datetime.now(UTC).isoformat()
 
     def on_reasoning_delta(self, reasoning_id: str, delta: str) -> None:
         if not delta:
@@ -180,11 +186,29 @@ class AssistantContentBuilder:
         ):
             self.parts[self._current_reasoning_idx]["text"] += delta
             return
-        self.parts.append({"type": "reasoning", "text": delta})
+        self.parts.append(
+            {
+                "type": "reasoning",
+                "text": delta,
+                "id": self._current_reasoning_id or reasoning_id,
+                "status": "running",
+                "startedAt": self._current_reasoning_started_at
+                or datetime.now(UTC).isoformat(),
+            }
+        )
         self._current_reasoning_idx = len(self.parts) - 1
 
     def on_reasoning_end(self, reasoning_id: str) -> None:
+        if 0 <= self._current_reasoning_idx < len(self.parts):
+            part = self.parts[self._current_reasoning_idx]
+            if part.get("type") == "reasoning" and (
+                not part.get("id") or part.get("id") == reasoning_id
+            ):
+                part["status"] = "completed"
+                part["completedAt"] = datetime.now(UTC).isoformat()
         self._current_reasoning_idx = -1
+        self._current_reasoning_id = None
+        self._current_reasoning_started_at = None
 
     # ------------------------------------------------------------------
     # Tool calls
@@ -457,8 +481,22 @@ class AssistantContentBuilder:
           as "interrupted" rather than "still running".
         """
         self._current_text_idx = -1
+        if 0 <= self._current_reasoning_idx < len(self.parts):
+            part = self.parts[self._current_reasoning_idx]
+            if part.get("type") == "reasoning":
+                part["status"] = "interrupted"
+                part["completedAt"] = datetime.now(UTC).isoformat()
         self._current_reasoning_idx = -1
+        self._current_reasoning_id = None
+        self._current_reasoning_started_at = None
         for part in self.parts:
+            if part.get("type") == "data-thinking-steps":
+                for step in part.get("data", {}).get("steps", []):
+                    if step.get("status") == "in_progress":
+                        step["status"] = "interrupted"
+                        metadata = step.setdefault("metadata", {})
+                        metadata["completedAt"] = datetime.now(UTC).isoformat()
+                continue
             if part.get("type") != "tool-call":
                 continue
             if "result" in part:

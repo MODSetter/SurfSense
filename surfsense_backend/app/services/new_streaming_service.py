@@ -13,6 +13,7 @@ Protocol Reference:
 import json
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -251,7 +252,13 @@ class VercelStreamingService:
         if reasoning_id is None:
             reasoning_id = self.generate_reasoning_id()
         self.context.active_reasoning_id = reasoning_id
-        return self._format_sse({"type": "reasoning-start", "id": reasoning_id})
+        return self._format_sse(
+            {
+                "type": "reasoning-start",
+                "id": reasoning_id,
+                "startedAt": datetime.now(UTC).isoformat(),
+            }
+        )
 
     def format_reasoning_delta(self, reasoning_id: str, delta: str) -> str:
         """
@@ -286,7 +293,13 @@ class VercelStreamingService:
         """
         if self.context.active_reasoning_id == reasoning_id:
             self.context.active_reasoning_id = None
-        return self._format_sse({"type": "reasoning-end", "id": reasoning_id})
+        return self._format_sse(
+            {
+                "type": "reasoning-end",
+                "id": reasoning_id,
+                "completedAt": datetime.now(UTC).isoformat(),
+            }
+        )
 
     # =========================================================================
     # Source Parts
