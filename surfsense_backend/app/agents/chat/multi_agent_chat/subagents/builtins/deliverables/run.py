@@ -16,7 +16,9 @@ from typing import Any
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import get_flags
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent import (
@@ -25,6 +27,8 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.agent impo
 from app.agents.chat.multi_agent_chat.subagents.shared.invocation import (
     DEFAULT_SUBAGENT_RECURSION_LIMIT,
 )
+from app.artifacts.persistence import Artifact, ArtifactFileRole
+from app.db import Document
 
 logger = logging.getLogger(__name__)
 
@@ -52,28 +56,16 @@ class DeliverableRunResult:
     message: str
 
 
-def _file_from(entry: dict[str, Any]) -> DeliverableFile | None:
-    try:
-        return DeliverableFile(
-            file_id=int(entry["file_id"]),
-            role=str(entry.get("role", "")),
-            filename=str(entry.get("filename", "")),
-            mime_type=str(entry.get("mime_type", "")),
-            size_bytes=int(entry.get("size_bytes", 0)),
-        )
-    except (KeyError, TypeError, ValueError):
-        return None
+def _artifact_ids_from_messages(messages: list[Any]) -> list[int]:
+    """Every ``artifact_id`` the run touched, in first-seen order.
 
-
-def _artifacts_from_messages(messages: list[Any]) -> list[DeliverableArtifact]:
-    """Pull saved artifacts out of the run's ``save_artifact`` tool results.
-
-    ``save_artifact`` ships ``asdict(ArtifactSaved)`` as JSON ToolMessage
-    content (``artifact_id`` + ``generation`` + ``files``); failure payloads
-    and other tools' receipts lack that shape and are skipped. Later
-    generations of the same artifact (a revision within one run) win.
+    Tools ship heterogeneous JSON ToolMessage receipts: ``save_artifact`` uses
+    ``artifact_id`` + ``files`` + ``generation``; the image tool uses
+    ``artifact_id`` + an ``image-artifact-N`` payload with no files. Rather than
+    parse each shape, collect the ids and hydrate the real files from the DB.
     """
-    by_id: dict[int, DeliverableArtifact] = {}
+    ids: list[int] = []
+    seen: set[int] = set()
     for msg in messages:
         if not isinstance(msg, ToolMessage) or not isinstance(msg.content, str):
             continue
@@ -84,23 +76,53 @@ def _artifacts_from_messages(messages: list[Any]) -> list[DeliverableArtifact]:
         if not isinstance(payload, dict):
             continue
         artifact_id = payload.get("artifact_id")
-        files = payload.get("files")
-        if (
-            not isinstance(artifact_id, int)
-            or not isinstance(files, list)
-            or "generation" not in payload
-        ):
-            continue
-        parsed_files = [
-            f for f in (_file_from(e) for e in files if isinstance(e, dict)) if f
-        ]
-        by_id[artifact_id] = DeliverableArtifact(
-            artifact_id=artifact_id,
-            generation=int(payload.get("generation") or 1),
-            title=str(payload.get("title") or ""),
-            files=parsed_files,
+        if isinstance(artifact_id, int) and artifact_id not in seen:
+            seen.add(artifact_id)
+            ids.append(artifact_id)
+    return ids
+
+
+async def _hydrate_artifacts(
+    session: AsyncSession, workspace_id: int, artifact_ids: list[int]
+) -> list[DeliverableArtifact]:
+    """Load the run's artifacts and their visible files from the DB (source of truth)."""
+    if not artifact_ids:
+        return []
+    rows = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(
+                Artifact.id.in_(artifact_ids),
+                Artifact.workspace_id == workspace_id,
+            )
         )
-    return list(by_id.values())
+    ).all()
+    out: list[DeliverableArtifact] = []
+    for artifact, document in rows:
+        files = sorted(
+            (f for f in artifact.files if f.role is not ArtifactFileRole.SOURCE),
+            key=lambda f: (f.role is not ArtifactFileRole.PRIMARY, f.id),
+        )
+        out.append(
+            DeliverableArtifact(
+                artifact_id=artifact.id,
+                generation=artifact.generation,
+                title=document.title or "",
+                files=[
+                    DeliverableFile(
+                        file_id=f.id,
+                        role=f.role.value,
+                        filename=f.original_filename or "",
+                        mime_type=f.mime_type or "application/octet-stream",
+                        size_bytes=f.size_bytes or 0,
+                    )
+                    for f in files
+                ],
+            )
+        )
+    return out
 
 
 def _final_text(messages: list[Any]) -> str:
@@ -129,6 +151,7 @@ async def run_deliverable_subagent(
     prompt: str,
     llm: BaseChatModel,
     checkpointer: Any,
+    created_by_id: str | None = None,
     image_gen_model_id_override: int | None = None,
 ) -> DeliverableRunResult:
     """Compile the deliverables subagent and run it against ``prompt`` once."""
@@ -155,8 +178,20 @@ async def run_deliverable_subagent(
     result = await agent.ainvoke(
         {"messages": [HumanMessage(content=prompt)]}, config=config
     )
+    from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence import (
+        commit_turn_working_copy,
+    )
+
+    await commit_turn_working_copy(
+        workspace_id=workspace_id,
+        thread_id=thread_id,
+        created_by_id=created_by_id,
+        llm=llm,
+    )
     messages = result.get("messages", []) if isinstance(result, dict) else []
     return DeliverableRunResult(
-        artifacts=_artifacts_from_messages(messages),
+        artifacts=await _hydrate_artifacts(
+            session, workspace_id, _artifact_ids_from_messages(messages)
+        ),
         message=_final_text(messages),
     )

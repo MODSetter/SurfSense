@@ -159,6 +159,7 @@ def build_authenticated_artifact_router() -> APIRouter:
                 prompt=payload.prompt,
                 llm=llm,
                 checkpointer=checkpointer,
+                created_by_id=user_id,
             )
         except Exception:
             if reservation is not None:

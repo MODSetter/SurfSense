@@ -17,7 +17,7 @@ from starlette.testclient import TestClient
 
 import app.artifacts.access.authenticated as door
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.run import (
-    _artifacts_from_messages,
+    _artifact_ids_from_messages,
     _final_text,
 )
 from app.auth.context import AuthContext
@@ -45,21 +45,26 @@ def _save_receipt(artifact_id: int, generation: int = 1) -> _ToolMessage:
                 "artifact_id": artifact_id,
                 "generation": generation,
                 "title": "Quarterly report",
-                "files": [
-                    {
-                        "file_id": 99,
-                        "role": "primary",
-                        "filename": "report.pdf",
-                        "mime_type": "application/pdf",
-                        "size_bytes": 4096,
-                    }
-                ],
+                "files": [{"file_id": 99, "role": "primary"}],
             }
         )
     )
 
 
-def test_extracts_saved_artifact(monkeypatch):
+def _image_receipt(artifact_id: int) -> _ToolMessage:
+    return _ToolMessage(
+        json.dumps(
+            {
+                "id": f"image-artifact-{artifact_id}",
+                "artifact_id": artifact_id,
+                "generated": True,
+                "type": "image",
+            }
+        )
+    )
+
+
+def test_collects_ids_from_both_tool_shapes(monkeypatch):
     monkeypatch.setattr(
         "app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.run.ToolMessage",
         _ToolMessage,
@@ -69,28 +74,17 @@ def test_extracts_saved_artifact(monkeypatch):
         _AIMessage,
     )
     messages = [
-        _ToolMessage(json.dumps({"status": "ok", "note": "verified"})),  # unrelated
+        _ToolMessage(json.dumps({"status": "ok", "note": "verified"})),  # no id
         _save_receipt(42),
-        _AIMessage("Done — saved report.pdf."),
+        _image_receipt(43),
+        _save_receipt(42, 2),  # same artifact, kept once, first-seen order
+        _AIMessage("Done."),
     ]
-    artifacts = _artifacts_from_messages(messages)
-    assert [a.artifact_id for a in artifacts] == [42]
-    assert artifacts[0].files[0].file_id == 99
-    assert artifacts[0].files[0].mime_type == "application/pdf"
-    assert _final_text(messages) == "Done — saved report.pdf."
+    assert _artifact_ids_from_messages(messages) == [42, 43]
+    assert _final_text(messages) == "Done."
 
 
-def test_latest_generation_wins(monkeypatch):
-    monkeypatch.setattr(
-        "app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.run.ToolMessage",
-        _ToolMessage,
-    )
-    artifacts = _artifacts_from_messages([_save_receipt(7, 1), _save_receipt(7, 2)])
-    assert len(artifacts) == 1
-    assert artifacts[0].generation == 2
-
-
-def test_empty_run_returns_no_artifacts(monkeypatch):
+def test_empty_run_returns_no_ids(monkeypatch):
     monkeypatch.setattr(
         "app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.run.ToolMessage",
         _ToolMessage,
@@ -100,7 +94,7 @@ def test_empty_run_returns_no_artifacts(monkeypatch):
         _AIMessage,
     )
     messages = [_AIMessage("I could not build that.")]
-    assert _artifacts_from_messages(messages) == []
+    assert _artifact_ids_from_messages(messages) == []
     assert _final_text(messages) == "I could not build that."
 
 
