@@ -376,9 +376,7 @@ def test_unknown_mcp_tool_uses_generic_activity_and_mcp_integration() -> None:
 
 
 def test_mcp_descriptor_is_safe_for_known_connectors_and_generic_otherwise() -> None:
-    assert _mcp_activity_descriptor(
-        connector_name="Linear", is_generic_mcp=False
-    ) == {
+    assert _mcp_activity_descriptor(connector_name="Linear", is_generic_mcp=False) == {
         "active_title": "Using connected app",
         "completed_title": "Used connected app",
         "category": "connector",
@@ -636,19 +634,38 @@ def test_resume_seed_loader_uses_latest_snapshot_across_resume_messages() -> Non
 def test_activity_timer_excludes_hitl_wait_and_resumes_accumulation() -> None:
     started = datetime(2026, 1, 1, tzinfo=UTC)
     timer = ActivityTimer.start(now=started)
+    assert timer.snapshot(now=started + timedelta(seconds=1)) == {
+        "status": "running",
+        "activeDurationMs": 1000,
+        "sampledAt": "2026-01-01T00:00:01+00:00",
+    }
 
     paused = timer.pause(now=started + timedelta(seconds=2))
-    assert paused == {"status": "paused", "activeDurationMs": 2000}
+    assert paused == {
+        "status": "paused",
+        "activeDurationMs": 2000,
+        "sampledAt": "2026-01-01T00:00:02+00:00",
+    }
     assert timer.snapshot(now=started + timedelta(hours=1)) == paused
 
     timer = ActivityTimer.resume(paused, now=started + timedelta(hours=1))
     completed = timer.complete(now=started + timedelta(hours=1, seconds=3))
-    assert completed == {"status": "completed", "activeDurationMs": 5000}
+    assert completed == {
+        "status": "completed",
+        "activeDurationMs": 5000,
+        "sampledAt": "2026-01-01T01:00:03+00:00",
+    }
 
 
 def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
     builder = AssistantContentBuilder()
-    builder.on_activity_timing({"status": "paused", "activeDurationMs": 2000})
+    builder.on_activity_timing(
+        {
+            "status": "paused",
+            "activeDurationMs": 2000,
+            "sampledAt": "2026-01-01T00:00:02+00:00",
+        }
+    )
     builder.on_activity(
         resolve_tool_activity("write_file", subagent_type=None).snapshot(
             activity_id="act_waiting",
@@ -657,7 +674,13 @@ def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
             started_at="2026-01-01T00:00:00+00:00",
         )
     )
-    builder.on_activity_timing({"status": "completed", "activeDurationMs": 5000})
+    builder.on_activity_timing(
+        {
+            "status": "completed",
+            "activeDurationMs": 5000,
+            "sampledAt": "2026-01-01T00:00:05+00:00",
+        }
+    )
 
     journal = builder.snapshot()[0]
     assert journal["type"] == "data-activities"
@@ -665,13 +688,18 @@ def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
     assert journal["data"]["timing"] == {
         "status": "completed",
         "activeDurationMs": 5000,
+        "sampledAt": "2026-01-01T00:00:05+00:00",
     }
 
 
 def test_activity_timing_wire_and_persistence_use_the_same_snapshot() -> None:
     service = VercelStreamingService()
     builder = AssistantContentBuilder()
-    snapshot: ActivityTimingData = {"status": "paused", "activeDurationMs": 2400}
+    snapshot: ActivityTimingData = {
+        "status": "paused",
+        "activeDurationMs": 2400,
+        "sampledAt": "2026-01-01T00:00:02.400000+00:00",
+    }
 
     frame = emit_activity_timing_frame(
         streaming_service=service,

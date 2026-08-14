@@ -19,10 +19,17 @@ class ActivityTimer:
     active_duration_ms: int
     active_since: datetime | None
     status: ActivityTimingStatus
+    sampled_at: datetime
 
     @classmethod
     def start(cls, *, now: datetime | None = None) -> ActivityTimer:
-        return cls(active_duration_ms=0, active_since=now or _now(), status="running")
+        started_at = now or _now()
+        return cls(
+            active_duration_ms=0,
+            active_since=started_at,
+            status="running",
+            sampled_at=started_at,
+        )
 
     @classmethod
     def resume(
@@ -33,22 +40,27 @@ class ActivityTimer:
     ) -> ActivityTimer:
         if snapshot["status"] != "paused":
             raise ValueError("Only a paused activity timer can resume")
+        resumed_at = now or _now()
         return cls(
             active_duration_ms=snapshot["activeDurationMs"],
-            active_since=now or _now(),
+            active_since=resumed_at,
             status="running",
+            sampled_at=resumed_at,
         )
 
     def snapshot(self, *, now: datetime | None = None) -> ActivityTimingData:
         duration = self.active_duration_ms
+        sampled_at = self.sampled_at
         if self.status == "running" and self.active_since is not None:
+            sampled_at = now or _now()
             duration += max(
                 0,
-                int(((now or _now()) - self.active_since).total_seconds() * 1000),
+                int((sampled_at - self.active_since).total_seconds() * 1000),
             )
         return {
             "status": self.status,
             "activeDurationMs": duration,
+            "sampledAt": sampled_at.isoformat(),
         }
 
     def pause(self, *, now: datetime | None = None) -> ActivityTimingData:
@@ -74,3 +86,4 @@ class ActivityTimer:
             int((stopped_at - self.active_since).total_seconds() * 1000),
         )
         self.active_since = None
+        self.sampled_at = stopped_at
