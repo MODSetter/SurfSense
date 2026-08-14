@@ -7,8 +7,13 @@ from typing import Any
 
 import pytest
 
+from app.tasks.chat.content_builder import AssistantContentBuilder
 from app.tasks.chat.streaming.graph_stream import stream_output
 from app.tasks.chat.streaming.graph_stream.result import StreamingResult
+from app.tasks.chat.streaming.handlers.chat_model_stream import (
+    iter_chat_model_stream_frames,
+)
+from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 
 pytestmark = pytest.mark.unit
 
@@ -36,6 +41,29 @@ class _StreamingService:
 
     def format_text_end(self, text_id: str) -> str:
         return f"text_end:{text_id}"
+
+    def generate_reasoning_id(self) -> str:
+        return "reasoning-1"
+
+    def format_reasoning_start(self, reasoning_id: str) -> str:
+        return f"reasoning_start:{reasoning_id}"
+
+    def format_reasoning_delta(self, reasoning_id: str, text: str) -> str:
+        return f"reasoning_delta:{reasoning_id}:{text}"
+
+    def format_reasoning_end(self, reasoning_id: str) -> str:
+        return f"reasoning_end:{reasoning_id}"
+
+    def format_tool_input_start(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        **_: Any,
+    ) -> str:
+        return f"tool_start:{tool_call_id}:{tool_name}"
+
+    def format_tool_input_delta(self, tool_call_id: str, args: str) -> str:
+        return f"tool_delta:{tool_call_id}:{args}"
 
 
 class _Agent:
@@ -118,4 +146,92 @@ async def test_stream_output_passes_runtime_context_to_agent() -> None:
         "text_start:text-1",
         "text_delta:text-1:ctx-ok",
         "text_end:text-1",
+    ]
+
+
+def test_one_provider_chunk_preserves_interleaved_part_order() -> None:
+    builder = AssistantContentBuilder()
+    frames = list(
+        iter_chat_model_stream_frames(
+            {
+                "data": {
+                    "chunk": _Chunk(
+                        content=[
+                            {"type": "reasoning", "reasoning": "think one"},
+                            {"type": "text", "text": "answer one"},
+                            {"type": "reasoning", "reasoning": "think two"},
+                            {
+                                "type": "tool_call_chunk",
+                                "index": 0,
+                                "id": "call-search",
+                                "name": "google_search_scrape",
+                                "args": '{"query":"x"}',
+                            },
+                            {"type": "text", "text": "answer two"},
+                        ]
+                    )
+                }
+            },
+            state=AgentEventRelayState(),
+            streaming_service=_StreamingService(),
+            content_builder=builder,
+            step_prefix="turn",
+        )
+    )
+
+    assert frames == [
+        "reasoning_start:reasoning-1",
+        "reasoning_delta:reasoning-1:think one",
+        "reasoning_end:reasoning-1",
+        "text_start:text-1",
+        "text_delta:text-1:answer one",
+        "text_end:text-1",
+        "reasoning_start:reasoning-1",
+        "reasoning_delta:reasoning-1:think two",
+        "reasoning_end:reasoning-1",
+        "tool_start:call-search:google_search_scrape",
+        'tool_delta:call-search:{"query":"x"}',
+        "text_start:text-2",
+        "text_delta:text-2:answer two",
+    ]
+    assert [part["type"] for part in builder.snapshot()] == [
+        "reasoning",
+        "text",
+        "reasoning",
+        "tool-call",
+        "text",
+    ]
+    assert [part.get("text") for part in builder.snapshot()] == [
+        "think one",
+        "answer one",
+        "think two",
+        None,
+        "answer two",
+    ]
+
+
+def test_reasoning_content_precedes_visible_string_from_same_chunk() -> None:
+    frames = list(
+        iter_chat_model_stream_frames(
+            {
+                "data": {
+                    "chunk": _Chunk(
+                        content="visible answer",
+                        additional_kwargs={"reasoning_content": "private reasoning"},
+                    )
+                }
+            },
+            state=AgentEventRelayState(),
+            streaming_service=_StreamingService(),
+            content_builder=AssistantContentBuilder(),
+            step_prefix="turn",
+        )
+    )
+
+    assert frames == [
+        "reasoning_start:reasoning-1",
+        "reasoning_delta:reasoning-1:private reasoning",
+        "reasoning_end:reasoning-1",
+        "text_start:text-1",
+        "text_delta:text-1:visible answer",
     ]

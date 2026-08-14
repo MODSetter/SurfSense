@@ -31,56 +31,58 @@ def iter_chat_model_stream_frames(
         return
     parts = extract_chunk_parts(chunk)
 
-    reasoning_delta = parts["reasoning"]
-    text_delta = parts["text"]
-
-    if reasoning_delta:
-        if state.current_text_id is not None:
-            yield streaming_service.format_text_end(state.current_text_id)
-            if content_builder is not None:
-                content_builder.on_text_end(state.current_text_id)
-            state.current_text_id = None
-        if state.current_reasoning_id is None:
-            yield from iter_complete_open_activity_frames(
-                state=state,
-                streaming_service=streaming_service,
-                content_builder=content_builder,
+    for part_type, value in parts["ordered"]:
+        if part_type == "reasoning":
+            if state.current_text_id is not None:
+                yield streaming_service.format_text_end(state.current_text_id)
+                if content_builder is not None:
+                    content_builder.on_text_end(state.current_text_id)
+                state.current_text_id = None
+            if state.current_reasoning_id is None:
+                yield from iter_complete_open_activity_frames(
+                    state=state,
+                    streaming_service=streaming_service,
+                    content_builder=content_builder,
+                )
+                state.current_reasoning_id = streaming_service.generate_reasoning_id()
+                yield streaming_service.format_reasoning_start(
+                    state.current_reasoning_id
+                )
+                if content_builder is not None:
+                    content_builder.on_reasoning_start(state.current_reasoning_id)
+            yield streaming_service.format_reasoning_delta(
+                state.current_reasoning_id, value
             )
-            state.current_reasoning_id = streaming_service.generate_reasoning_id()
-            yield streaming_service.format_reasoning_start(state.current_reasoning_id)
             if content_builder is not None:
-                content_builder.on_reasoning_start(state.current_reasoning_id)
-        yield streaming_service.format_reasoning_delta(
-            state.current_reasoning_id, reasoning_delta
-        )
-        if content_builder is not None:
-            content_builder.on_reasoning_delta(
-                state.current_reasoning_id, reasoning_delta
-            )
+                content_builder.on_reasoning_delta(state.current_reasoning_id, value)
+            continue
 
-    if text_delta:
-        if state.current_reasoning_id is not None:
-            yield streaming_service.format_reasoning_end(state.current_reasoning_id)
+        if part_type == "text":
+            if state.current_reasoning_id is not None:
+                yield streaming_service.format_reasoning_end(
+                    state.current_reasoning_id
+                )
+                if content_builder is not None:
+                    content_builder.on_reasoning_end(state.current_reasoning_id)
+                state.current_reasoning_id = None
+            if state.current_text_id is None:
+                yield from iter_complete_open_activity_frames(
+                    state=state,
+                    streaming_service=streaming_service,
+                    content_builder=content_builder,
+                )
+                state.current_text_id = streaming_service.generate_text_id()
+                yield streaming_service.format_text_start(state.current_text_id)
+                if content_builder is not None:
+                    content_builder.on_text_start(state.current_text_id)
+            yield streaming_service.format_text_delta(state.current_text_id, value)
+            state.accumulated_text += value
             if content_builder is not None:
-                content_builder.on_reasoning_end(state.current_reasoning_id)
-            state.current_reasoning_id = None
-        if state.current_text_id is None:
-            yield from iter_complete_open_activity_frames(
-                state=state,
-                streaming_service=streaming_service,
-                content_builder=content_builder,
-            )
-            state.current_text_id = streaming_service.generate_text_id()
-            yield streaming_service.format_text_start(state.current_text_id)
-            if content_builder is not None:
-                content_builder.on_text_start(state.current_text_id)
-        yield streaming_service.format_text_delta(state.current_text_id, text_delta)
-        state.accumulated_text += text_delta
-        if content_builder is not None:
-            content_builder.on_text_delta(state.current_text_id, text_delta)
+                content_builder.on_text_delta(state.current_text_id, value)
+            continue
 
-    if parts["tool_call_chunks"]:
-        for tcc in parts["tool_call_chunks"]:
+        if part_type == "tool_call_chunk":
+            tcc = value
             idx = tcc.get("index")
 
             if idx is not None and idx not in state.index_to_meta:
