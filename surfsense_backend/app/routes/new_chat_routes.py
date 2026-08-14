@@ -39,6 +39,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
 from app.auth.context import AuthContext
 from app.config import config
 from app.db import (
+    ARTIFACT_API_SOURCE,
     ChatComment,
     ChatVisibility,
     NewChatMessage,
@@ -675,6 +676,7 @@ async def list_threads(
             select(NewChatThread)
             .filter(
                 NewChatThread.workspace_id == workspace_id,
+                NewChatThread.source != ARTIFACT_API_SOURCE,
                 or_(*filter_conditions),
             )
             .order_by(NewChatThread.updated_at.desc())
@@ -779,6 +781,7 @@ async def search_threads(
             .filter(
                 NewChatThread.workspace_id == workspace_id,
                 NewChatThread.title.ilike(f"%{title}%"),
+                NewChatThread.source != ARTIFACT_API_SOURCE,
                 or_(*filter_conditions),
             )
             .order_by(NewChatThread.updated_at.desc())

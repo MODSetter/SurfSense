@@ -91,7 +91,7 @@ def test_failed_verification_cannot_advance_to_save():
     assert "Treat verification as a state transition, not advice." in (
         deliverables_prompt
     )
-    assert "stop\n  without calling `save_artifact`" in deliverables_prompt
+    assert "stop without calling `save_artifact`" in deliverables_prompt
 
 
 # Real fragments under the hardcoded main-agent prompts package, including a

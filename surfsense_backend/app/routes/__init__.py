@@ -11,6 +11,7 @@ import app.capabilities.tiktok
 import app.capabilities.walmart
 import app.capabilities.web
 import app.capabilities.youtube  # noqa: F401
+from app.artifacts.access.authenticated import build_authenticated_artifact_router
 from app.automations.api import router as automations_router
 from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
@@ -149,3 +150,4 @@ router.include_router(team_memory_router)  # Workspace team memory
 router.include_router(automations_router)  # Automations CRUD + run history
 router.include_router(file_storage_router)  # Original file metadata + download
 router.include_router(build_capabilities_router())  # Scraper-API capability doors (05)
+router.include_router(build_authenticated_artifact_router())  # Authenticated artifact generation (dev API)

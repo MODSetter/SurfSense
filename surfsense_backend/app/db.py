@@ -579,6 +579,12 @@ def _enum_values(enum_cls):
     return [item.value for item in enum_cls]
 
 
+# Threads minted by the artifact-generation API: a vessel for the subagent's
+# sandbox key and artifact attribution, never streamed to, so the sidebar hides
+# them by this source.
+ARTIFACT_API_SOURCE = "artifact_api"
+
+
 class NewChatThread(BaseModel, TimestampMixin):
     """
     Thread model for the new chat feature using assistant-ui.

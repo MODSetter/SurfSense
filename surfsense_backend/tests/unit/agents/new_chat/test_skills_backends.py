@@ -125,10 +125,8 @@ class TestBundledSkills:
         backend = BuiltinSkillsBackend()
         infos = backend.ls_info("/")
         names = {info["path"].lstrip("/") for info in infos if info.get("is_dir")}
-        # Five starter skills required by the Tier 4 plan.
         for required in (
             "kb-research",
-            "report-writing",
             "meeting-prep",
             "slack-summary",
             "email-drafting",

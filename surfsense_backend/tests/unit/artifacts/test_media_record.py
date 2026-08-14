@@ -4,18 +4,23 @@ video still carry legacy metadata until their own row is reshaped."""
 from __future__ import annotations
 
 import base64
+import importlib
 from types import SimpleNamespace
 
 import pytest
 
+import app.artifacts.media.image.bytes as image_bytes_mod
 import app.artifacts.media.image.record as image_record_mod
-import app.artifacts.media.podcast.record as podcast_record_mod
 from app.artifacts.media.naming import primary_filename
 from app.artifacts.media.podcast.record import _to_artifact_input as podcast_input
 from app.artifacts.media.video.record import _to_artifact_input as video_input
 from app.artifacts.persistence import ArtifactFileRole, ArtifactFormat
 from app.artifacts.schemas import ArtifactFileInput, ArtifactSaved, ArtifactSavedFile
 from app.artifacts.service import _artifact_format, _validated_files
+
+# The podcast package re-exports the ``record`` function, which shadows the
+# submodule for ``import ... as``; load the module explicitly to patch it.
+podcast_record_mod = importlib.import_module("app.artifacts.media.podcast.record")
 
 
 def test_primary_filename_sanitizes_and_forces_extension():
@@ -71,9 +76,9 @@ def test_video_input_sets_explicit_format():
 
 
 def test_image_type_follows_the_bytes_not_the_request():
-    assert image_record_mod._image_type(b"\x89PNG\r\n") == ("png", "image/png")
-    assert image_record_mod._image_type(b"\xff\xd8\xff\xe0") == ("jpg", "image/jpeg")
-    assert image_record_mod._image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == (
+    assert image_bytes_mod._image_type(b"\x89PNG\r\n") == ("png", "image/png")
+    assert image_bytes_mod._image_type(b"\xff\xd8\xff\xe0") == ("jpg", "image/jpeg")
+    assert image_bytes_mod._image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == (
         "webp",
         "image/webp",
     )
