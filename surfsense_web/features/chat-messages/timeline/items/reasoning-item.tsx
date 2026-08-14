@@ -1,3 +1,4 @@
+import { History } from "lucide-react";
 import type { FC } from "react";
 import type { ReasoningItem as ReasoningItemModel } from "../types";
 import { ItemHeader } from "./item-header";
@@ -11,5 +12,5 @@ import { ItemHeader } from "./item-header";
  * component.
  */
 export const ReasoningItem: FC<{ item: ReasoningItemModel }> = ({ item }) => (
-	<ItemHeader title={item.title} status={item.status} items={item.items} itemKey={item.id} />
+	<ItemHeader title={item.title} status={item.status} icon={History} />
 );

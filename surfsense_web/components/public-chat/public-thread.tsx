@@ -2,7 +2,6 @@
 
 import {
 	ActionBarPrimitive,
-	AuiIf,
 	MessagePrimitive,
 	ThreadPrimitive,
 	type ToolCallMessagePartComponent,
@@ -14,13 +13,14 @@ import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateResumeToolUI } from "@/components/tool-ui/generate-resume";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/podcast";
 import { SaveArtifactToolUI } from "@/components/tool-ui/save-artifact";
+import { TurnActivity } from "@/features/chat-messages/timeline";
+import { copyToClipboard } from "@/lib/utils";
 
 const GenerateVideoPresentationToolUI = dynamic(
 	() =>
@@ -159,10 +159,11 @@ const PublicAssistantMessage: FC = () => {
 		>
 			<CitationMetadataProvider>
 				<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+					<TurnActivity showReasoning={false} />
 					<MessagePrimitive.Parts
 						components={{
 							Text: MarkdownText,
-							Reasoning: ReasoningMessagePart,
+							Reasoning: () => null,
 							tools: {
 								by_name: {
 									save_artifact: SaveArtifactToolUI,
@@ -188,22 +189,34 @@ const PublicAssistantMessage: FC = () => {
 };
 
 const PublicAssistantActionBar: FC = () => {
+	const content = useAuiState((state) => state.message.content);
+	const [copied, setCopied] = useState(false);
+	const answer = Array.isArray(content)
+		? content
+				.filter(
+					(part): part is { type: "text"; text: string } =>
+						part.type === "text" && typeof part.text === "string"
+				)
+				.map((part) => part.text)
+				.join("\n\n")
+		: "";
 	return (
 		<ActionBarPrimitive.Root
 			autohide="not-last"
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
 		>
-			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AuiIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AuiIf>
-					<AuiIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AuiIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
+			<TooltipIconButton
+				tooltip="Copy answer"
+				disabled={!answer}
+				onClick={async () => {
+					if (!(await copyToClipboard(answer))) return;
+					setCopied(true);
+					window.setTimeout(() => setCopied(false), 1500);
+				}}
+			>
+				{copied ? <CheckIcon /> : <CopyIcon />}
+			</TooltipIconButton>
 		</ActionBarPrimitive.Root>
 	);
 };

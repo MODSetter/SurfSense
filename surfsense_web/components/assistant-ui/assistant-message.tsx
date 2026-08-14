@@ -1,11 +1,9 @@
 import {
 	ActionBarMorePrimitive,
 	ActionBarPrimitive,
-	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
 	type ToolCallMessagePartComponent,
-	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
@@ -36,7 +34,6 @@ import {
 } from "@/components/assistant-ui/citation-metadata-context";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
-import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import {
 	type TokenUsageModelBreakdown,
@@ -60,13 +57,14 @@ import {
 } from "@/components/ui/drawer";
 import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { withArtifactAnchor } from "@/features/chat-artifacts";
+import { TurnActivity } from "@/features/chat-messages/timeline";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { formatMessageTimestamp } from "@/lib/format-date";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { tryGetHostname } from "@/lib/url";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
 const IS_QUICK_ASSIST_WINDOW =
@@ -450,10 +448,11 @@ const AssistantMessageInner: FC = () => {
 	return (
 		<CitationMetadataProvider>
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+				<TurnActivity />
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
-						Reasoning: ReasoningMessagePart,
+						Reasoning: () => null,
 						tools: {
 							by_name: BODY_TOOLS,
 							Fallback: NullBodyTool,
@@ -632,7 +631,8 @@ export const AssistantMessage: FC = () => {
 
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
-	const aui = useAui();
+	const content = useAuiState((s) => s.message.content);
+	const [copiedAnswer, setCopiedAnswer] = useState(false);
 	const api = useElectronAPI();
 	// Surface the persisted ``chat_turn_id`` so the per-turn revert
 	// affordance can scope to just this message's actions. Streamed
@@ -643,6 +643,30 @@ const AssistantActionBar: FC = () => {
 	});
 
 	const isQuickAssist = !!api?.replaceText && IS_QUICK_ASSIST_WINDOW;
+	const answerText = Array.isArray(content)
+		? content
+				.filter(
+					(part): part is { type: "text"; text: string } =>
+						part.type === "text" && typeof part.text === "string"
+				)
+				.map((part) => part.text)
+				.join("\n\n")
+		: "";
+	const copyAnswer = async () => {
+		if (!(await copyToClipboard(answerText))) return;
+		setCopiedAnswer(true);
+		window.setTimeout(() => setCopiedAnswer(false), 1500);
+	};
+	const downloadAnswer = () => {
+		const url = URL.createObjectURL(
+			new Blob([answerText], { type: "text/markdown;charset=utf-8" })
+		);
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = "response.md";
+		anchor.click();
+		URL.revokeObjectURL(url);
+	};
 
 	return (
 		<ActionBarPrimitive.Root
@@ -651,21 +675,16 @@ const AssistantActionBar: FC = () => {
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
-			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AuiIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AuiIf>
-					<AuiIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AuiIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
-			<ActionBarPrimitive.ExportMarkdown asChild>
-				<TooltipIconButton tooltip="Download as Markdown">
-					<DownloadIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.ExportMarkdown>
+			<TooltipIconButton tooltip="Copy answer" onClick={copyAnswer} disabled={!answerText}>
+				{copiedAnswer ? <CheckIcon /> : <CopyIcon />}
+			</TooltipIconButton>
+			<TooltipIconButton
+				tooltip="Download answer as Markdown"
+				onClick={downloadAnswer}
+				disabled={!answerText}
+			>
+				<DownloadIcon />
+			</TooltipIconButton>
 			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Regenerate response">
@@ -677,8 +696,7 @@ const AssistantActionBar: FC = () => {
 				<TooltipIconButton
 					tooltip="Paste back into source app"
 					onClick={() => {
-						const text = aui.message().getCopyText();
-						api?.replaceText(text);
+						api?.replaceText(answerText);
 					}}
 				>
 					<ClipboardPaste />

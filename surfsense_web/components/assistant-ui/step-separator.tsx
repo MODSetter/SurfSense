@@ -14,11 +14,7 @@ import { makeAssistantDataUI } from "@assistant-ui/react";
  * touching the persistence path.
  */
 function StepSeparatorDataRenderer() {
-	return (
-		<div className="mx-auto my-3 w-full max-w-(--thread-max-width) px-2">
-			<div className="border-t border-border/60" />
-		</div>
-	);
+	return null;
 }
 
 export const StepSeparatorDataUI = makeAssistantDataUI({

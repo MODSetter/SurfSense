@@ -1,6 +1,9 @@
+import type { LucideIcon } from "lucide-react";
+import Image from "next/image";
 import type { FC } from "react";
-import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { cn } from "@/lib/utils";
+import { FadeSwapText } from "../fade-swap-text";
 import type { ItemStatus } from "../types";
 
 /**
@@ -22,13 +25,13 @@ import type { ItemStatus } from "../types";
 export const ItemHeader: FC<{
 	title: string;
 	status: ItemStatus;
-	items?: readonly string[];
-	itemKey: string;
-}> = ({ title, status, items, itemKey }) => (
+	icon?: LucideIcon;
+	logo?: { src: string; alt: string };
+}> = ({ title, status, icon: Icon, logo }) => (
 	<div className="min-w-0">
 		<div
 			className={cn(
-				"text-sm leading-5",
+				"flex min-w-0 items-start gap-2 text-sm leading-5",
 				status === "running" && "text-foreground font-medium",
 				status === "completed" && "text-muted-foreground",
 				status === "pending" && "text-muted-foreground/60",
@@ -36,17 +39,22 @@ export const ItemHeader: FC<{
 				status === "cancelled" && "text-muted-foreground line-through"
 			)}
 		>
-			{title}
+			{logo ? (
+				<Image src={logo.src} alt="" width={16} height={16} className="mt-0.5 size-4 shrink-0" />
+			) : Icon ? (
+				<Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+			) : null}
+			<FadeSwapText
+				swapKey={`${status}:${title}`}
+				className="min-w-0 flex-1"
+				contentClassName={status === "running" ? "truncate" : "wrap-break-word"}
+			>
+				{status === "running" ? (
+					<TextShimmerLoader text={title} size="md" className="truncate" />
+				) : (
+					title
+				)}
+			</FadeSwapText>
 		</div>
-
-		{items && items.length > 0 && (
-			<div className="mt-1 space-y-0.5">
-				{items.map((item) => (
-					<ChainOfThoughtItem key={`${itemKey}-${item}`} className="text-xs">
-						{item}
-					</ChainOfThoughtItem>
-				))}
-			</div>
-		)}
 	</div>
 );
