@@ -9,7 +9,7 @@ export interface ThinkingStepInput {
 	id: string;
 	title: string;
 	items: string[];
-	status: "pending" | "in_progress" | "completed";
+	status: "pending" | "in_progress" | "completed" | "error" | "cancelled" | "interrupted";
 	metadata?: Record<string, unknown>;
 }
 
@@ -37,6 +37,61 @@ function asNonEmptyString(v: unknown): string | undefined {
 	return typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined;
 }
 
+function asFiniteNumber(v: unknown): number | undefined {
+	return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+function extractPresentationMetadata(metadata: Record<string, unknown> | undefined) {
+	const integrationValue = metadata?.integration;
+	const integration =
+		typeof integrationValue === "object" && integrationValue !== null
+			? {
+					source:
+						(integrationValue as { source?: unknown }).source === "connector" ||
+						(integrationValue as { source?: unknown }).source === "mcp"
+							? (integrationValue as { source: "connector" | "mcp" }).source
+							: ("native" as const),
+					key: asNonEmptyString((integrationValue as { key?: unknown }).key),
+					name: asNonEmptyString((integrationValue as { name?: unknown }).name),
+				}
+			: undefined;
+	const contextValue = metadata?.context;
+	const context =
+		typeof contextValue === "object" && contextValue !== null
+			? {
+					subagentType: asNonEmptyString((contextValue as { subagentType?: unknown }).subagentType),
+					intent: asNonEmptyString((contextValue as { intent?: unknown }).intent) as
+						| "inspect"
+						| "author"
+						| "verify"
+						| "persist"
+						| "discover_skill"
+						| undefined,
+					artifactType: asNonEmptyString((contextValue as { artifactType?: unknown }).artifactType),
+					skillName: asNonEmptyString((contextValue as { skillName?: unknown }).skillName),
+				}
+			: undefined;
+	const detailValue = metadata?.safeDetail;
+	const safeDetail =
+		typeof detailValue === "object" && detailValue !== null
+			? {
+					subject: asNonEmptyString((detailValue as { subject?: unknown }).subject),
+					count: asFiniteNumber((detailValue as { count?: unknown }).count),
+					domain: asNonEmptyString((detailValue as { domain?: unknown }).domain),
+					filename: asNonEmptyString((detailValue as { filename?: unknown }).filename),
+				}
+			: undefined;
+	return {
+		startedAt: asNonEmptyString(metadata?.startedAt),
+		completedAt: asNonEmptyString(metadata?.completedAt),
+		activeTitle: asNonEmptyString(metadata?.activeTitle),
+		completedTitle: asNonEmptyString(metadata?.completedTitle),
+		integration,
+		context,
+		safeDetail,
+	};
+}
+
 /**
  * True iff THIS tool-call is the actual interrupt request (carries an
  * ``action_requests[]``), not just a parent ``task`` wrapper that
@@ -45,21 +100,6 @@ function asNonEmptyString(v: unknown): string | undefined {
  * ``length > 0`` guard keeps parent task wrappers visible so their
  * children stay indented under the delegation span.
  */
-function isPendingHitlInterrupt(result: unknown): boolean {
-	if (typeof result !== "object" || result === null) return false;
-	const r = result as {
-		__interrupt__?: unknown;
-		__decided__?: unknown;
-		action_requests?: unknown;
-	};
-	return (
-		r.__interrupt__ === true &&
-		r.__decided__ === undefined &&
-		Array.isArray(r.action_requests) &&
-		r.action_requests.length > 0
-	);
-}
-
 /**
  * Stable interrupt signal across pre/post decision: the resume flow
  * spreads the original result and only adds ``__decided__``, so
@@ -137,8 +177,17 @@ function collectSupersededToolCallIds(content: readonly unknown[]): Set<string> 
 function deriveToolCallStatus(result: unknown): ItemStatus {
 	if (!result) return "running";
 	if (typeof result === "object" && result !== null) {
-		const r = result as { __interrupt__?: unknown; __decided__?: unknown };
+		const r = result as {
+			__interrupt__?: unknown;
+			__decided__?: unknown;
+			error?: unknown;
+			status?: unknown;
+			state?: unknown;
+		};
 		if (r.__interrupt__ === true && r.__decided__ === "reject") return "cancelled";
+		if (r.__interrupt__ === true && r.__decided__ === undefined) return "awaiting_approval";
+		if (r.error || r.status === "error" || r.state === "error" || r.state === "aborted")
+			return "error";
 	}
 	return "completed";
 }
@@ -187,19 +236,22 @@ export function buildTimeline(
 		const stepSpanId = asNonEmptyString(step.metadata?.spanId);
 		const joined = toolByStepId.get(step.id);
 
-		if (joined && isPendingHitlInterrupt(joined.result)) {
-			consumedToolCallIds.add(joined.toolCallId);
-			continue;
-		}
-
 		if (joined) {
 			consumedToolCallIds.add(joined.toolCallId);
+			const resultStatus = deriveToolCallStatus(joined.result);
 			const item: ToolCallItem = {
 				kind: "tool-call",
 				id: step.id,
-				status: mapStepStatus(step.status),
+				status:
+					resultStatus === "cancelled" || resultStatus === "error"
+						? resultStatus
+						: resultStatus === "awaiting_approval"
+							? "awaiting_approval"
+							: mapStepStatus(step.status),
+				sequence: items.length,
 				items: step.items.length > 0 ? step.items : undefined,
 				spanId: stepSpanId ?? asNonEmptyString(joined.metadata?.spanId),
+				...extractPresentationMetadata({ ...joined.metadata, ...step.metadata }),
 				toolName: joined.toolName,
 				toolCallId: joined.toolCallId,
 				args: joined.args ?? {},
@@ -216,8 +268,10 @@ export function buildTimeline(
 			kind: "reasoning",
 			id: step.id,
 			status: mapStepStatus(step.status),
+			sequence: items.length,
 			items: step.items.length > 0 ? step.items : undefined,
 			spanId: stepSpanId,
+			...extractPresentationMetadata(step.metadata),
 			title: step.title,
 		};
 		items.push(reasoning);
@@ -228,12 +282,13 @@ export function buildTimeline(
 			if (!isToolCallPart(part)) continue;
 			if (consumedToolCallIds.has(part.toolCallId)) continue;
 			if (superseded.has(part.toolCallId)) continue;
-			if (isPendingHitlInterrupt(part.result)) continue;
 			const orphan: ToolCallItem = {
 				kind: "tool-call",
 				id: part.toolCallId,
 				status: deriveToolCallStatus(part.result),
+				sequence: items.length,
 				spanId: asNonEmptyString(part.metadata?.spanId),
+				...extractPresentationMetadata(part.metadata),
 				toolName: part.toolName,
 				toolCallId: part.toolCallId,
 				args: part.args ?? {},

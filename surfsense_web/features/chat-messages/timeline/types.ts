@@ -10,7 +10,43 @@
  * - ``cancelled``  — user rejected (HITL ``__decided__: "reject"``)
  * - ``error``      — threw or returned an error result
  */
-export type ItemStatus = "pending" | "running" | "completed" | "cancelled" | "error";
+export type ItemStatus =
+	| "pending"
+	| "running"
+	| "awaiting_approval"
+	| "completed"
+	| "cancelled"
+	| "interrupted"
+	| "error";
+
+export type ActivityCategory =
+	| "reasoning"
+	| "file"
+	| "research"
+	| "artifact"
+	| "connector"
+	| "action";
+export type ActivityVisibility = "show" | "aggregate" | "hide";
+
+export interface ActivityIntegration {
+	source: "native" | "connector" | "mcp";
+	key?: string;
+	name?: string;
+}
+
+export interface ActivityContext {
+	subagentType?: string;
+	intent?: "inspect" | "author" | "verify" | "persist" | "discover_skill";
+	artifactType?: string;
+	skillName?: string;
+}
+
+export interface SafeActivityDetail {
+	subject?: string;
+	count?: number;
+	domain?: string;
+	filename?: string;
+}
 
 interface BaseItem {
 	/**
@@ -21,6 +57,14 @@ interface BaseItem {
 	 */
 	id: string;
 	status: ItemStatus;
+	sequence?: number;
+	startedAt?: string;
+	completedAt?: string;
+	activeTitle?: string;
+	completedTitle?: string;
+	integration?: ActivityIntegration;
+	context?: ActivityContext;
+	safeDetail?: SafeActivityDetail;
 	/**
 	 * Optional sub-bullets shown beneath the row's title. Forwarded
 	 * verbatim from ``ThinkingStep.items`` when the timeline item was
@@ -81,4 +125,12 @@ export type TimelineItem = ReasoningItem | ToolCallItem;
 export interface TimelineGroup {
 	parent: TimelineItem;
 	children: TimelineItem[];
+}
+
+export interface VisibleReasoningBlock {
+	id: string;
+	text: string;
+	status: "running" | "completed" | "interrupted";
+	startedAt?: string;
+	completedAt?: string;
 }
