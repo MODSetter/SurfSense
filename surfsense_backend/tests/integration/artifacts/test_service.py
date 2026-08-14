@@ -7,7 +7,7 @@ from app.artifacts import service
 from app.artifacts.persistence import Artifact, ArtifactFile
 from app.artifacts.service import ArtifactFileInput, save_artifact
 from app.config import config
-from app.db import Chunk, Document, DocumentType, Folder
+from app.db import Chunk, Document, DocumentType
 from app.file_storage import service as file_storage_service
 from app.file_storage.backends.base import StorageBackend
 from app.indexing_pipeline.connector_document import ConnectorDocument
@@ -78,9 +78,8 @@ async def test_markdown_artifact_payload_and_fences(
     assert artifact.created_by_tool_call_id == "call-1"
     assert artifact.updated_by_tool_call_id == "call-1"
     assert document.title == "Project brief"
-    assert document.path == "/documents/Artifacts/Project brief.md"
-    folder = await db_session.get(Folder, document.folder_id)
-    assert folder.name == "Artifacts"
+    assert document.path == "/documents/Project brief.md"
+    assert document.folder_id is None
     assert document.source_markdown == "# Project brief\n\nBody"
     assert document.document_type == DocumentType.ARTIFACT
     assert document.document_metadata == {"artifact_id": artifact.id}

@@ -56,7 +56,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     artifact = await db_session.get(Artifact, saved.artifact_id)
     document = await db_session.get(Document, artifact.document_id)
-    assert document.path == "/documents/Artifacts/Adoption proof.md"
+    assert document.path == "/documents/Adoption proof.md"
     assert document.document_type == DocumentType.ARTIFACT
     assert DocumentStatus.is_state(document.status, DocumentStatus.PENDING)
     assert (
@@ -68,7 +68,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
 
     store = KnowledgeStore.for_workspace(db_workspace.id).with_session(db_session)
     copy = await store.open_turn_copy(artifact_thread.id)
-    target = copy.path / "documents" / "Artifacts" / "Adoption proof.md"
+    target = copy.path / "documents" / "Adoption proof.md"
     assert target.read_text() == "# Adoption proof\n\nuniquely-searchable-artifact-term"
 
     async def describe(_writes, _removes):
@@ -138,7 +138,7 @@ async def test_artifact_is_projected_then_indexed_from_git(
     artifact = await db_session.get(Artifact, saved.artifact_id)
     document = await db_session.get(Document, artifact.document_id)
     assert document.title == "Renamed proof"
-    assert document.path == "/documents/Artifacts/Adoption proof.md"
+    assert document.path == "/documents/Adoption proof.md"
     assert document.document_type == DocumentType.ARTIFACT
 
     copy = await store.open_turn_copy(artifact_thread.id)
@@ -226,6 +226,6 @@ async def test_two_threads_saving_one_title_get_distinct_paths(
         paths.append(document.path)
 
     assert paths == [
-        "/documents/Artifacts/Weekly report.md",
-        "/documents/Artifacts/Weekly report (2).md",
+        "/documents/Weekly report.md",
+        "/documents/Weekly report (2).md",
     ]
