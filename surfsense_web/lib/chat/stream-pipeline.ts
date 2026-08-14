@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 import {
-	addStepSeparator,
 	addToolCall,
 	appendReasoning,
 	appendText,
@@ -105,8 +104,6 @@ export function processSharedStreamEvent(
 			return true;
 
 		case "start-step":
-			addStepSeparator(contentPartsState);
-			scheduleFlush();
 			return true;
 
 		case "finish-step":

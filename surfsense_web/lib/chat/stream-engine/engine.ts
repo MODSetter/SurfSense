@@ -874,7 +874,6 @@ export async function resumeChat(
 		.getMessages(resumeThreadId)
 		.find((m) => m.id === assistantMsgId);
 	if (existingMsg && Array.isArray(existingMsg.content)) {
-		contentPartsState.suppressStepSeparators = true;
 		for (const part of existingMsg.content) {
 			if (typeof part === "object" && part !== null) {
 				const p = part as Record<string, unknown>;
