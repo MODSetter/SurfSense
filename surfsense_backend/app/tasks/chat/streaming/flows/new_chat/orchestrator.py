@@ -44,10 +44,6 @@ from app.tasks.chat.streaming.agent.builder import build_main_agent_for_thread
 from app.tasks.chat.streaming.contract.file_contract import log_file_contract
 from app.tasks.chat.streaming.errors.emitter import emit_stream_terminal_error
 from app.tasks.chat.streaming.flows.new_chat.auto_pin import resolve_initial_auto_pin
-from app.tasks.chat.streaming.flows.new_chat.initial_thinking_step import (
-    build_initial_thinking_step,
-    iter_initial_thinking_step_frame,
-)
 from app.tasks.chat.streaming.flows.new_chat.input_state import (
     build_new_chat_input_state,
 )
@@ -572,22 +568,7 @@ async def stream_new_chat(
         stream_result.assistant_message_id = assistant_message_id
         stream_result.content_builder = AssistantContentBuilder()
 
-        # --- Block 6: Initial thinking step + title task + runtime context ---
-
-        initial_step = build_initial_thinking_step(
-            user_query=user_query,
-            user_image_data_urls=user_image_data_urls,
-        )
-        for sse in iter_initial_thinking_step_frame(
-            initial_step,
-            streaming_service=streaming_service,
-            content_builder=stream_result.content_builder,
-        ):
-            yield sse
-
-        initial_step_id = initial_step.step_id
-        initial_step_title = initial_step.title
-        initial_step_items = initial_step.items
+        # --- Block 6: Title task + runtime context ---
         # Drop the heavy ORM objects + the container that holds them so they
         # aren't retained for the entire streaming duration. ``input_state``
         # already carries the langchain_messages list independently.
@@ -708,9 +689,6 @@ async def stream_new_chat(
             input_data=input_state,
             stream_result=stream_result,
             step_prefix="thinking",
-            initial_step_id=initial_step_id,
-            initial_step_title=initial_step_title,
-            initial_step_items=initial_step_items,
             fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
@@ -760,9 +738,8 @@ async def stream_new_chat(
                 log_label="interrupted new_chat",
             ):
                 yield sse
-            yield streaming_service.format_finish_step()
-            yield streaming_service.format_finish()
-            yield streaming_service.format_done()
+            for sse in iter_final_frames(streaming_service):
+                yield sse
             return
 
         async for title_sse in await_pending_title_update(
