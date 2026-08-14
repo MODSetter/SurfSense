@@ -406,7 +406,7 @@ async def stream_resume_chat(
         # --- First SSE frames ---
 
         for sse in iter_initial_frames(
-            streaming_service, turn_id=stream_result.turn_id
+            streaming_service, turn_id=stream_result.turn_id, flow="resume"
         ):
             yield sse
 
@@ -553,9 +553,8 @@ async def stream_resume_chat(
                 log_label="interrupted resume_chat",
             ):
                 yield sse
-            yield streaming_service.format_finish_step()
-            yield streaming_service.format_finish()
-            yield streaming_service.format_done()
+            for sse in iter_final_frames(streaming_service):
+                yield sse
             return
 
         if premium_reservation is not None and user_id:
