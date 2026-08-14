@@ -147,9 +147,9 @@ export const TraceItemRow: FC<{
 				"min-w-0 text-sm leading-5",
 				status === "running" && "font-medium text-foreground",
 				(status === "completed" || status === "reasoning") && "text-muted-foreground",
-				status === "awaiting_approval" && "text-muted-foreground/70",
+				status === "awaiting_approval" && "text-muted-foreground",
 				status === "error" && "text-destructive",
-				(status === "cancelled" || status === "interrupted") && "text-muted-foreground line-through"
+				(status === "cancelled" || status === "interrupted") && "text-muted-foreground"
 			)}
 		>
 			{title}
