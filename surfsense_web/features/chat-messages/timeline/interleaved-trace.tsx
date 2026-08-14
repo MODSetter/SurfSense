@@ -121,7 +121,13 @@ export const TraceItemRow: FC<{
 	status?: ActivityStatus | "reasoning";
 	children?: ReactNode;
 }> = ({ icon: Icon, logo, title, status, children }) => (
-	<div className="relative grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] gap-x-2 pb-4">
+	<div
+		className={cn(
+			"relative grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] gap-x-2 pb-4 last:pb-0",
+			"after:pointer-events-none after:absolute after:top-6 after:bottom-1 after:left-[7.5px]",
+			"after:w-px after:bg-muted-foreground/20 last:after:hidden"
+		)}
+	>
 		<div className="relative z-10 mt-0.5 flex size-4 items-center justify-center">
 			{logo ? (
 				// biome-ignore lint/performance/noImgElement: connector paths may be extension-provided.
@@ -217,7 +223,7 @@ const TraceDetails: FC<{
 	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
 	parts: readonly PartState[];
 }> = ({ indices, renderPart, parts }) => (
-	<div className="relative pl-1 before:absolute before:top-4 before:bottom-4 before:left-[11.5px] before:w-px before:bg-muted-foreground/20">
+	<div className="pl-1">
 		{indices.map((index) => renderPart(parts[index] as EnrichedPartState, index))}
 	</div>
 );
