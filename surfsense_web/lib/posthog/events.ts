@@ -99,6 +99,25 @@ export function trackChatError(workspaceId: number, chatId: number, error?: stri
 	});
 }
 
+export function trackThinkingTraceInteraction(
+	action: "expanded" | "collapsed" | "reasoning_expanded",
+	properties?: {
+		activityCount?: number;
+		durationMs?: number;
+		hasApproval?: boolean;
+	}
+) {
+	safeCapture(
+		"chat_thinking_trace_interaction",
+		compact({
+			action,
+			activity_count: properties?.activityCount,
+			duration_ms: properties?.durationMs,
+			has_approval: properties?.hasApproval,
+		})
+	);
+}
+
 export interface ChatFailureTelemetry {
 	flow: ChatFlow;
 	kind: ChatErrorKind;
