@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { LibraryArtifact } from "../model/artifact";
 
 const CARD_CLASS_NAME =
-	"flex w-full items-start gap-3 rounded-xl border bg-muted/30 p-3 text-left transition-colors";
+	"flex min-w-0 w-full max-w-full items-start gap-3 overflow-hidden rounded-xl border bg-muted/30 p-3 text-left transition-colors";
 
 export function ArtifactCard({
 	artifact,
@@ -25,12 +25,17 @@ export function ArtifactCard({
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium text-foreground">{artifact.title}</span>
-				<span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-					<span className={artifact.status === "error" ? "text-destructive" : undefined}>
+				<span className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
+					<span
+						className={cn(
+							"shrink-0",
+							artifact.status === "error" ? "text-destructive" : undefined
+						)}
+					>
 						{statusLabel ?? <ArtifactFormatLabel format={artifact.format} />}
 					</span>
 					<Dot className="-mx-1 size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
-					<span>{formatRelativeDate(artifact.createdAt)}</span>
+					<span className="min-w-0 truncate">{formatRelativeDate(artifact.createdAt)}</span>
 				</span>
 			</span>
 		</>

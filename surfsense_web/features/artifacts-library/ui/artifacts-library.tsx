@@ -57,7 +57,7 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
 
 	return (
-		<div className="w-full space-y-6">
+		<div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden">
 			<header className="flex items-center justify-between gap-4 flex-wrap">
 				<div className="flex items-baseline gap-3">
 					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Artifacts</h1>
@@ -76,7 +76,7 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 			) : artifacts.length === 0 ? (
 				<EmptyState />
 			) : (
-				<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+				<div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 					{artifacts.map((artifact) => (
 						<ArtifactCard
 							key={artifact.key}
