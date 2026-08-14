@@ -245,6 +245,25 @@ button {
 	animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+@keyframes pixel-on {
+	0%,
+	100% {
+		opacity: 0.15;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+@keyframes shimmer-text {
+	0% {
+		background-position: 200% 50%;
+	}
+	100% {
+		background-position: -200% 50%;
+	}
+}
+
 /* Integrations section — vertical column auto-scroll */
 @keyframes integrations-scroll-up {
 	0% {
