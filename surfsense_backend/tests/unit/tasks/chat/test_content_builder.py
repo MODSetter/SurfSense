@@ -291,24 +291,24 @@ class TestToolCallSpanMetadata:
         assert md["spanId"] == "spn_x"
         assert md["extra"] == 1
 
-    def test_output_available_adds_thinking_step_id_without_clobbering_span(self):
+    def test_output_available_preserves_activity_id_without_clobbering_span(self):
         b = AssistantContentBuilder()
         b.on_tool_input_start(
             "call_t",
             "ls",
             "lc",
-            metadata={"spanId": "spn_x", "thinkingStepId": "thinking-3"},
+            metadata={"spanId": "spn_x", "activityId": "act_turn_3"},
         )
         b.on_tool_input_available("call_t", "ls", {"path": "/"}, "lc")
         b.on_tool_output_available(
             "call_t",
             {"ok": True},
             "lc",
-            metadata={"spanId": "spn_x", "thinkingStepId": "thinking-3"},
+            metadata={"spanId": "spn_x", "activityId": "act_turn_3"},
         )
         md = b.snapshot()[0]["metadata"]
         assert md["spanId"] == "spn_x"
-        assert md["thinkingStepId"] == "thinking-3"
+        assert md["activityId"] == "act_turn_3"
 
     def test_output_available_with_none_metadata_preserves_prior(self):
         b = AssistantContentBuilder()
@@ -317,7 +317,7 @@ class TestToolCallSpanMetadata:
         b.on_tool_output_available("c", {"r": 1}, "lc", metadata=None)
         assert b.snapshot()[0]["metadata"] == {"spanId": "spn_1"}
 
-    def test_available_adds_thinking_step_id_after_chunk_only_start(self):
+    def test_available_adds_activity_id_after_chunk_only_start(self):
         """Mirrors chunk ``tool-input-start`` then ``on_tool_start`` ``available``."""
         b = AssistantContentBuilder()
         b.on_tool_input_start("lc_1", "ls", "lc_1", metadata={"spanId": "spn_a"})
@@ -326,11 +326,11 @@ class TestToolCallSpanMetadata:
             "ls",
             {"path": "/"},
             "lc_1",
-            metadata={"spanId": "spn_a", "thinkingStepId": "thinking-2"},
+            metadata={"spanId": "spn_a", "activityId": "act_turn_2"},
         )
         md = b.snapshot()[0]["metadata"]
         assert md["spanId"] == "spn_a"
-        assert md["thinkingStepId"] == "thinking-2"
+        assert md["activityId"] == "act_turn_2"
 
 
 class TestVercelStreamingServiceToolMetadataWire:
@@ -349,13 +349,13 @@ class TestVercelStreamingServiceToolMetadataWire:
             "task",
             {"a": 1},
             langchain_tool_call_id="lc1",
-            metadata={"spanId": "spn_w", "thinkingStepId": "thinking-4"},
+            metadata={"spanId": "spn_w", "activityId": "act_turn_4"},
         )
         body = self._parse_sse_data_line(raw)
         assert body["type"] == "tool-input-available"
         assert body["metadata"] == {
             "spanId": "spn_w",
-            "thinkingStepId": "thinking-4",
+            "activityId": "act_turn_4",
         }
 
     def test_tool_output_available_includes_metadata_when_set(self):
@@ -364,13 +364,13 @@ class TestVercelStreamingServiceToolMetadataWire:
             "id1",
             {"status": "completed"},
             langchain_tool_call_id="lc1",
-            metadata={"spanId": "spn_o", "thinkingStepId": "thinking-9"},
+            metadata={"spanId": "spn_o", "activityId": "act_turn_9"},
         )
         body = self._parse_sse_data_line(raw)
         assert body["type"] == "tool-output-available"
         assert body["metadata"] == {
             "spanId": "spn_o",
-            "thinkingStepId": "thinking-9",
+            "activityId": "act_turn_9",
         }
 
     def test_tool_input_available_omits_metadata_key_when_none(self):

@@ -4,7 +4,7 @@ Two consecutive resume turns must not emit overlapping activity IDs.
 
 The contract this module pins: each ``stream_agent_events`` invocation must
 receive a ``step_prefix`` that is unique within the thread (we salt with the
-per-turn ``turn_id``), so the resulting step IDs across consecutive turns
+per-turn ``turn_id``), so the resulting activity IDs across consecutive turns
 are always disjoint.
 """
 
@@ -67,7 +67,7 @@ def _tool_start(*, name: str, run_id: str) -> dict[str, Any]:
     }
 
 
-async def _drain_step_ids(
+async def _drain_activity_ids(
     events: list[dict[str, Any]], *, step_prefix: str
 ) -> set[str]:
     """Run once and return every emitted activity ID."""
@@ -95,28 +95,28 @@ async def _drain_step_ids(
             continue
         if payload.get("type") != "data-activity":
             continue
-        step_id = (payload.get("data") or {}).get("id")
-        if isinstance(step_id, str):
-            ids.add(step_id)
+        activity_id = (payload.get("data") or {}).get("id")
+        if isinstance(activity_id, str):
+            ids.add(activity_id)
     return ids
 
 
 @pytest.mark.asyncio
-async def test_consecutive_invocations_with_same_prefix_produce_overlapping_ids():
+async def test_consecutive_invocations_with_same_prefix_produce_overlapping_activity_ids():
     """Pin the bug: identical ``step_prefix`` across two turns reuses ``-1``, ``-2``…
 
     This is what production was doing for resume — every resume invocation
-    passed ``step_prefix='thinking-resume'`` and the relay state's counter
+    passed the same ``step_prefix`` and the relay state's counter
     restarted at 0. Two scrollback timelines built from such turns then
-    presented React with siblings keyed by the same ``thinking-resume-1``.
+    presented React with siblings keyed by the same activity ID.
     """
     events = [
         _tool_start(name="t1", run_id="run-A-1"),
         _tool_start(name="t2", run_id="run-A-2"),
     ]
 
-    ids_turn_one = await _drain_step_ids(events, step_prefix="thinking-resume")
-    ids_turn_two = await _drain_step_ids(events, step_prefix="thinking-resume")
+    ids_turn_one = await _drain_activity_ids(events, step_prefix="resume-constant")
+    ids_turn_two = await _drain_activity_ids(events, step_prefix="resume-constant")
 
     assert ids_turn_one == ids_turn_two != set(), (
         "fixture broken: expected non-empty overlapping ids when prefix is reused"
@@ -124,11 +124,11 @@ async def test_consecutive_invocations_with_same_prefix_produce_overlapping_ids(
 
 
 @pytest.mark.asyncio
-async def test_per_turn_salted_prefix_yields_disjoint_step_ids_across_turns():
+async def test_per_turn_salted_prefix_yields_disjoint_activity_ids_across_turns():
     """The fix: salting the prefix with the per-turn ``turn_id`` makes IDs disjoint.
 
     Two consecutive resume calls in the same thread feed two different
-    ``turn_id``s into the prefix, so the resulting step IDs cannot collide
+    ``turn_id``s into the prefix, so the resulting activity IDs cannot collide
     no matter how many times the FE rehydrates from earlier assistant
     messages — which is the precondition for the React duplicate-key warning.
     """
@@ -137,23 +137,23 @@ async def test_per_turn_salted_prefix_yields_disjoint_step_ids_across_turns():
         _tool_start(name="t2", run_id="run-A-2"),
     ]
 
-    ids_turn_one = await _drain_step_ids(
-        events, step_prefix="thinking-resume-104:1778698228472"
+    ids_turn_one = await _drain_activity_ids(
+        events, step_prefix="resume-104:1778698228472"
     )
-    ids_turn_two = await _drain_step_ids(
-        events, step_prefix="thinking-resume-104:1778698244022"
+    ids_turn_two = await _drain_activity_ids(
+        events, step_prefix="resume-104:1778698244022"
     )
 
     assert ids_turn_one and ids_turn_two, "fixture broken: expected non-empty id sets"
     assert ids_turn_one.isdisjoint(ids_turn_two), (
-        f"REGRESSION: per-turn-salted prefixes produced overlapping step IDs: "
+        f"REGRESSION: per-turn-salted prefixes produced overlapping activity IDs: "
         f"{ids_turn_one & ids_turn_two!r}"
     )
 
 
 def test_resume_step_prefix_helper_includes_turn_id_verbatim():
     """Production call-site pin: ``stream_resume_chat`` builds the prefix via
-    this helper. Reverting it back to a hardcoded ``'thinking-resume'`` would
+    this helper. Reverting it back to a hardcoded prefix would
     silently re-introduce the duplicate-key React warning across consecutive
     resumes — this test fails first instead.
     """
