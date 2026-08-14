@@ -192,9 +192,11 @@ def create_generate_image_tool(
                     gen_kwargs.update(resolved_kwargs)
                     provider_base_url = resolved_kwargs.get("api_base")
 
-                billing_tier, base_model, reserve_micros = (
-                    await resolve_billing_for_image_gen(session, config_id, workspace)
-                )
+                (
+                    billing_tier,
+                    base_model,
+                    reserve_micros,
+                ) = await resolve_billing_for_image_gen(session, config_id, workspace)
                 async with billable_call(
                     user_id=workspace.user_id,
                     workspace_id=workspace_id,

@@ -13,7 +13,9 @@ export const currentUserAtom = atomWithQuery(() => {
 		// needs to fire once per session for the static profile fields.
 		staleTime: Infinity,
 		enabled: isAuthenticated(),
-		retry: false,
+		// No `retry: false` here: paired with `staleTime: Infinity`, one dropped
+		// connection would leave the profile blank for the whole session. The
+		// shared predicate already refuses to retry a 401.
 		queryFn: userQueryFn,
 	};
 });

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -64,6 +65,19 @@ class AutoPinResolution:
     resolved_llm_config_id: int
     resolved_tier: str
     from_existing_pin: bool
+
+
+def _is_known_global_config(config_id: int) -> bool:
+    """False when a global (negative) id is absent from this worker's catalogue.
+
+    Production runs ``UVICORN_WORKERS=4`` and uvicorn preforks, so each process
+    fetches and materializes its own catalogue. A config id one worker knows
+    can be missing from another — its boot fetch may have failed, or the two
+    may have refreshed either side of an upstream delisting.
+    """
+    if config_id >= 0:
+        return True
+    return any(int(model.get("id", 0)) == config_id for model in config.GLOBAL_MODELS)
 
 
 def _is_usable_global_config(cfg: dict) -> bool:
@@ -465,6 +479,11 @@ def _tier_of(cfg: dict) -> str:
     return str(cfg.get("billing_tier", "free")).lower()
 
 
+def _is_tier_a(cfg: dict) -> bool:
+    """Tier A is the operator-curated YAML pool; None predates the field."""
+    return cfg.get("auto_pin_tier") in (None, "A")
+
+
 def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
     """Pick a config with quality-first ranking + deterministic spread.
 
@@ -478,7 +497,7 @@ def _select_pin(eligible: list[dict], thread_id: int) -> tuple[dict, int]:
     Returns ``(chosen_cfg, top_k_size)``. ``top_k_size`` is exposed for
     structured logging in the caller.
     """
-    tier_a = [c for c in eligible if c.get("auto_pin_tier") in (None, "A")]
+    tier_a = [c for c in eligible if _is_tier_a(c)]
     pool = tier_a if tier_a else eligible
     pool = sorted(pool, key=lambda c: -int(c.get("quality_score") or 0))
     top_k = pool[:_QUALITY_TOP_K]
@@ -556,7 +575,9 @@ async def resolve_or_get_pinned_llm_config_id(
         )
 
     # Explicit model selected: clear any stale pin.
-    if selected_llm_config_id != AUTO_MODE_ID:
+    if selected_llm_config_id != AUTO_MODE_ID and _is_known_global_config(
+        selected_llm_config_id
+    ):
         if thread.pinned_llm_config_id is not None:
             thread.pinned_llm_config_id = None
             await session.commit()
@@ -564,6 +585,18 @@ async def resolve_or_get_pinned_llm_config_id(
             resolved_llm_config_id=selected_llm_config_id,
             resolved_tier="explicit",
             from_existing_pin=False,
+        )
+    if selected_llm_config_id != AUTO_MODE_ID:
+        # Returning it would hand ``load_llm_bundle`` an id it cannot resolve,
+        # ending the turn with SERVER_ERROR while the identical request
+        # succeeds on a sibling worker. Fall through to Auto instead.
+        logger.warning(
+            "auto_pin_selection_unknown_on_this_worker thread_id=%s "
+            "selected_config_id=%s catalogue_size=%s pid=%s",
+            thread_id,
+            selected_llm_config_id,
+            len(config.GLOBAL_MODELS),
+            os.getpid(),
         )
 
     excluded_ids = {int(cid) for cid in (exclude_config_ids or set())}
@@ -690,15 +723,24 @@ async def resolve_or_get_pinned_llm_config_id(
             premium_eligible,
         )
 
+    # ``tier_a_eligible=False`` is the fallthrough that exposes the unvetted
+    # dynamic pool. It is the signal that says how often Auto is one cooldown
+    # away from Tier B, and pid + catalogue_size make divergence between the
+    # four uvicorn workers observable instead of inferred.
     logger.info(
         "auto_pin_resolved thread_id=%s config_id=%s tier=%s "
-        "auto_pin_tier=%s score=%s top_k_size=%d from_existing_pin=False",
+        "auto_pin_tier=%s score=%s top_k_size=%d from_existing_pin=False "
+        "tier_a_eligible=%s candidates=%d catalogue_size=%d pid=%d",
         thread_id,
         selected_id,
         selected_tier,
         selected_cfg.get("auto_pin_tier", "?"),
         int(selected_cfg.get("quality_score") or 0),
         top_k_size,
+        any(_is_tier_a(c) for c in eligible),
+        len(eligible),
+        len(config.GLOBAL_MODELS),
+        os.getpid(),
     )
 
     return AutoPinResolution(

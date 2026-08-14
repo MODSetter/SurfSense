@@ -5,12 +5,12 @@ import sys
 from logging.config import fileConfig
 
 import sqlalchemy as sa
+from alembic.script import ScriptDirectory
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from alembic.script import ScriptDirectory
 
 # Ensure the app directory is in the Python path
 # This allows Alembic to find your models

@@ -37,7 +37,12 @@ def _state() -> dict:
     ai = AIMessage(
         content="",
         tool_calls=[
-            {"name": "edit_file", "args": {"path": "/x"}, "id": "c1", "type": "tool_call"}
+            {
+                "name": "edit_file",
+                "args": {"path": "/x"},
+                "id": "c1",
+                "type": "tool_call",
+            }
         ],
     )
     return {"messages": [ai]}

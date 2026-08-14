@@ -5,7 +5,7 @@ from __future__ import annotations
 from xml.etree import ElementTree
 
 from .base import StructuralCheckResult
-from .ooxml import OoxmlDefect, open_ooxml
+from .ooxml import OoxmlError, open_ooxml
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 W = f"{{{W_NS}}}"
@@ -43,7 +43,7 @@ def check_docx(data: bytes) -> StructuralCheckResult:
             part_limits={"word/document.xml": MAX_DOCUMENT_XML_BYTES},
         ) as archive:
             root = ElementTree.fromstring(archive.read("word/document.xml"))
-    except OoxmlDefect as exc:
+    except OoxmlError as exc:
         return StructuralCheckResult((str(exc),))
     except ElementTree.ParseError:
         return StructuralCheckResult(("DOCX is not valid OOXML",))

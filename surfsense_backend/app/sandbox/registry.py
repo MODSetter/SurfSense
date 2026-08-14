@@ -128,9 +128,7 @@ class SandboxRegistry:
                 self._reap_idle()
                 self._check_capacity(key, workspace_key)
                 session = await self._provider.get_or_create_session(key)
-                self._entries[key] = _Entry(
-                    session=session, workspace_id=workspace_key
-                )
+                self._entries[key] = _Entry(session=session, workspace_id=workspace_key)
                 return session
 
     def get_cached(self, thread_id: int | str) -> SandboxSession | None:

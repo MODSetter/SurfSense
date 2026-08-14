@@ -6,7 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-
 DEFAULT_RENDERED_MIN_CHARS = 20
 ReviewKind = Literal["document", "slides"]
 

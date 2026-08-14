@@ -5,19 +5,22 @@ from __future__ import annotations
 from xml.etree import ElementTree
 
 from .base import StructuralCheckResult
-from .ooxml import OoxmlDefect, open_ooxml
+from .ooxml import OoxmlError, open_ooxml
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
-OFFICE_REL_NS = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-)
+OFFICE_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 MAIN = f"{{{MAIN_NS}}}"
 REL = f"{{{PKG_REL_NS}}}"
 R_ID = f"{{{OFFICE_REL_NS}}}id"
 
 REQUIRED_PARTS = frozenset(
-    {"[Content_Types].xml", "_rels/.rels", "xl/workbook.xml", "xl/_rels/workbook.xml.rels"}
+    {
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "xl/workbook.xml",
+        "xl/_rels/workbook.xml.rels",
+    }
 )
 MAX_WORKBOOK_XML_BYTES = 2 * 1024 * 1024
 MAX_CELLS = 100_000
@@ -104,7 +107,7 @@ def check_xlsx(data: bytes) -> StructuralCheckResult:
                         non_empty += 1
                     elif has_value or has_inline:
                         non_empty += 1
-    except OoxmlDefect as exc:
+    except OoxmlError as exc:
         return StructuralCheckResult((str(exc),))
     except ElementTree.ParseError:
         return StructuralCheckResult(("XLSX is not valid OOXML",))
