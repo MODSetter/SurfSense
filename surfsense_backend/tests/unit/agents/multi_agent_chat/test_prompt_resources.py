@@ -109,6 +109,16 @@ def test_main_agent_prompt_fragments_resolve(filename: str):
     assert read_prompt_md(filename).strip(), f"prompt fragment {filename} is empty"
 
 
+def test_core_omits_routine_tool_narration_without_suppressing_reasoning():
+    core = read_prompt_md("core_behavior.md")
+    anthropic = read_prompt_md("providers/anthropic.md")
+
+    assert "Omit routine user-visible narration" in core
+    assert "does not constrain internal or\n  provider-native reasoning" in core
+    assert "Structured reasoning:" in anthropic
+    assert "`<thinking>` / short `<plan>` before tool calls is fine" in anthropic
+
+
 @pytest.mark.parametrize("snippet", ["output_contract_base", "verifiable_handle"])
 def test_shared_snippets_resolve(snippet: str):
     """Shared subagent snippets resolve from the snippets package."""
