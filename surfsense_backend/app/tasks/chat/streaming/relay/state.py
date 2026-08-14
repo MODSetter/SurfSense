@@ -26,6 +26,7 @@ class AgentEventRelayState:
     current_text_id: str | None = None
     thinking_step_counter: int = 0
     tool_step_ids: dict[str, str] = field(default_factory=dict)
+    tool_step_items_by_run: dict[str, list[str]] = field(default_factory=dict)
     completed_step_ids: set[str] = field(default_factory=set)
     last_active_step_id: str | None = None
     last_active_step_title: str = ""
@@ -36,6 +37,7 @@ class AgentEventRelayState:
     pending_tool_call_chunks: list[dict[str, Any]] = field(default_factory=list)
     lc_tool_call_id_by_run: dict[str, str] = field(default_factory=dict)
     file_path_by_run: dict[str, str] = field(default_factory=dict)
+    tool_started_at_by_run: dict[str, str] = field(default_factory=dict)
     index_to_meta: dict[int, dict[str, str]] = field(default_factory=dict)
     ui_tool_call_id_by_run: dict[str, str] = field(default_factory=dict)
     current_lc_tool_call_id: dict[str, str | None] = field(
@@ -44,6 +46,7 @@ class AgentEventRelayState:
     # Open ``task`` delegation span (one id shared by nested activity); unset outside.
     active_span_id: str | None = None
     active_task_run_id: str | None = None
+    active_subagent_type: str | None = None
     # Span id minted when a ``task`` tool_call_chunk registers (before ``on_tool_start``).
     pending_task_span_by_lc: dict[str, str] = field(default_factory=dict)
 
@@ -71,6 +74,8 @@ class AgentEventRelayState:
         out: dict[str, Any] = {}
         if self.active_span_id:
             out["spanId"] = self.active_span_id
+        if self.active_subagent_type:
+            out["context"] = {"subagentType": self.active_subagent_type}
         tid = (thinking_step_id or "").strip()
         if tid:
             out["thinkingStepId"] = tid

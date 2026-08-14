@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
 from langchain_core.messages import ToolMessage
@@ -68,6 +69,7 @@ def iter_tool_end_frames(
     state.active_tool_depth = max(0, state.active_tool_depth - 1)
     run_id = event.get("run_id", "")
     tool_name = event.get("name", "unknown_tool")
+    completed_at = datetime.now(UTC).isoformat()
     raw_output = _unwrap_command_output(event.get("data", {}).get("output", ""))
     staged_file_path = state.file_path_by_run.pop(run_id, None) if run_id else None
 
@@ -113,18 +115,31 @@ def iter_tool_end_frames(
     elif run_id and run_id in state.lc_tool_call_id_by_run:
         holder["value"] = state.lc_tool_call_id_by_run[run_id]
 
-    items = state.last_active_step_items
+    items = (
+        state.tool_step_items_by_run.pop(run_id, state.last_active_step_items)
+        if run_id
+        else state.last_active_step_items
+    )
     title, completed_items = resolve_tool_completed_thinking_step(
         tool_name, tool_output, items
     )
+    failed = tool_output_has_error(tool_output)
+    terminal_status = "error" if failed else "completed"
+    tool_metadata = state.tool_activity_metadata(
+        thinking_step_id=original_step_id,
+    ) or {}
+    started_at = state.tool_started_at_by_run.pop(run_id, None) if run_id else None
+    if started_at:
+        tool_metadata["startedAt"] = started_at
+    tool_metadata["completedAt"] = completed_at
     yield emit_thinking_step_frame(
         streaming_service=streaming_service,
         content_builder=content_builder,
         step_id=original_step_id,
         title=title,
-        status="completed",
+        status=terminal_status,
         items=completed_items,
-        metadata=state.span_metadata_if_active(),
+        metadata=tool_metadata,
     )
 
     state.just_finished_tool = True
@@ -142,9 +157,7 @@ def iter_tool_end_frames(
         stream_result=result,
         langgraph_config=config,
         staged_workspace_file_path=staged_file_path,
-        tool_metadata=state.tool_activity_metadata(
-            thinking_step_id=original_step_id,
-        ),
+        tool_metadata=tool_metadata,
     )
     yield from iter_tool_completion_emission_frames(emission_ctx)
 
