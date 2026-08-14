@@ -187,7 +187,12 @@ presentation.save("/tmp/report.pptx")
             vision_llm=None,
             secret_key=secret,
         )
-        receipt = await read_receipt(session, secret, workspace_id=1)
+        receipt = await read_receipt(
+            session,
+            secret,
+            workspace_id=1,
+            primary_path=primary_path,
+        )
         stored = await _read_artifact_file(
             session,
             primary_path,

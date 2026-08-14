@@ -8,7 +8,7 @@ import pytest
 from app.artifacts.verification import service
 from app.artifacts.verification.formats.registry import XLSX_MIME, get_format_adapter
 from app.artifacts.verification.formats.xlsx import MAX_CELLS, check_xlsx
-from app.artifacts.verification.receipt import RECEIPT_PATH, read_receipt
+from app.artifacts.verification.receipt import read_receipt, receipt_path
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 SECRET = "test-secret"
@@ -138,7 +138,10 @@ async def test_verify_xlsx_structural_only_skips_render_and_vision():
         secret_key=SECRET,
     )
     receipt = await read_receipt(
-        session, SECRET, workspace_id=WORKSPACE_ID
+        session,
+        SECRET,
+        workspace_id=WORKSPACE_ID,
+        primary_path=path,
     )
 
     assert result.verified
@@ -169,5 +172,5 @@ async def test_verify_xlsx_structural_failure_issues_no_receipt():
 
     assert not result.verified
     assert any("cached result" in finding for finding in result.findings)
-    assert session.files[RECEIPT_PATH] == b""
+    assert session.files[receipt_path(path)] == b""
     assert session.commands == []

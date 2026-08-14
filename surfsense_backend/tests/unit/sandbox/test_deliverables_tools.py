@@ -17,6 +17,7 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thre
 )
 from app.artifacts.verification.receipt import (
     VerificationReceipt,
+    receipt_path,
     sha256_bytes,
     write_receipt,
 )
@@ -163,6 +164,32 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
     }
 
 
+async def test_binary_save_uses_receipt_for_its_own_artifact(monkeypatch):
+    session = _sandbox(
+        {
+            "/workspace/report.pdf": b"%PDF-1.4\n%%EOF",
+            "/workspace/report.html": b"<h1>Report</h1>",
+            "/workspace/report.docx": b"PK\x03\x04",
+            "/workspace/report.js": b"require('docx')",
+        }
+    )
+    await _add_receipt(session, "/workspace/report.pdf")
+    await _add_receipt(session, "/workspace/report.docx")
+    captured = _patch_save_tool(monkeypatch, session)
+
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+    result = await tool.coroutine(
+        title="PDF report",
+        markdown_representation="# Report",
+        path="/workspace/report.pdf",
+        source_path="/workspace/report.html",
+        runtime=_runtime(),
+    )
+
+    assert "another artifact format" not in str(result)
+    assert captured["files"][0].filename == "report.pdf"
+
+
 async def test_binary_save_rejects_bytes_changed_after_verification(monkeypatch):
     session = _sandbox(
         {
@@ -215,9 +242,9 @@ async def test_receipt_must_name_the_saved_file(monkeypatch):
         }
     )
     await _add_receipt(session, "/workspace/data.pdf")
-    envelope = session.files.pop("/tmp/.surfsense-artifact-verification.json")
+    envelope = session.files[receipt_path("/workspace/data.pdf")]
     session.files["/workspace/copy.pdf"] = session.files["/workspace/data.pdf"]
-    session.files["/tmp/.surfsense-artifact-verification.json"] = envelope
+    session.files[receipt_path("/workspace/copy.pdf")] = envelope
     _patch_save_tool(monkeypatch, session)
     tool = save_tool.create_save_artifact_tool(3)
 

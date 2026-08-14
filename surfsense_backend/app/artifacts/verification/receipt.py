@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.sandbox import SandboxSession
 
-RECEIPT_PATH = "/tmp/.surfsense-artifact-verification.json"
+RECEIPT_PREFIX = "/tmp/.surfsense-artifact-verification-"
 RECEIPT_MAX_AGE_SECONDS = 15 * 60
 
 
@@ -34,6 +34,12 @@ class VerificationReceipt(BaseModel):
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def receipt_path(primary_path: str) -> str:
+    """Return the isolated receipt path for one sandbox artifact path."""
+    path_digest = hashlib.sha256(primary_path.encode()).hexdigest()
+    return f"{RECEIPT_PREFIX}{path_digest}.json"
 
 
 def _payload_bytes(receipt: VerificationReceipt) -> bytes:
@@ -62,7 +68,7 @@ async def write_receipt(
         "signature": _signature(receipt, secret_key),
     }
     await session.write_file(
-        RECEIPT_PATH,
+        receipt_path(receipt.primary_path),
         json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode(),
     )
 
@@ -72,10 +78,11 @@ async def read_receipt(
     secret_key: str,
     *,
     workspace_id: int,
+    primary_path: str,
     now: int | None = None,
 ) -> VerificationReceipt:
     try:
-        data = await session.read_file(RECEIPT_PATH)
+        data = await session.read_file(receipt_path(primary_path))
     except (FileNotFoundError, KeyError):
         raise ValueError("Artifact has not been verified") from None
     if not data:

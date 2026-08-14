@@ -15,8 +15,8 @@ from app.sandbox import SandboxSession
 from .formats.pdf import check_pdf
 from .formats.registry import get_format_adapter
 from .receipt import (
-    RECEIPT_PATH,
     VerificationReceipt,
+    receipt_path,
     sha256_bytes,
     write_receipt,
 )
@@ -63,7 +63,7 @@ async def verify_artifact(
         raise ValueError("SECRET_KEY is required for artifact verification")
     # Invalidate any earlier pass before starting this attempt. A failed rerun
     # must not leave a still-usable receipt for the same bytes.
-    await session.write_file(RECEIPT_PATH, b"")
+    await session.write_file(receipt_path(primary_path), b"")
     try:
         return await _verify_artifact(
             session,
