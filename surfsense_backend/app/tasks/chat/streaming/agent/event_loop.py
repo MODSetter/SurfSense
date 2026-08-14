@@ -53,7 +53,7 @@ async def stream_agent_events(
     input_data: Any,
     streaming_service: VercelStreamingService,
     result: StreamResult,
-    step_prefix: str = "thinking",
+    step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
     *,
     fallback_commit_workspace_id: int | None = None,

@@ -34,7 +34,7 @@ async def run_stream_loop(
     config: dict[str, Any],
     input_data: Any,
     stream_result: StreamResult,
-    step_prefix: str = "thinking",
+    step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
     fallback_commit_workspace_id: int | None,
     fallback_commit_created_by_id: str | None,

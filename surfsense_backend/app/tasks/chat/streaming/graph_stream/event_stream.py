@@ -18,7 +18,7 @@ async def stream_output(
     input_data: Any,
     streaming_service: Any,
     result: StreamingResult,
-    step_prefix: str = "thinking",
+    step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
     content_builder: Any | None = None,
     runtime_context: Any = None,

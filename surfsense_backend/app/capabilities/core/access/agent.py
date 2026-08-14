@@ -75,7 +75,7 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
 
         # A buffer-only reporter: coarse progress lands in ``runs.progress`` and,
         # because we're inside a LangGraph tool call, ``emit_progress`` also fires
-        # ``scraper_progress`` custom events that surface on the chat thinking step.
+        # ``scraper_progress`` custom events that surface on the active activity.
         with progress_scope() as reporter:
             async with async_session_maker() as session:
                 ctx = CapabilityContext(session=session, workspace_id=workspace_id)

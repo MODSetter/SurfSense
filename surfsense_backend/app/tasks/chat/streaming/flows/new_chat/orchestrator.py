@@ -10,7 +10,7 @@ block in the surrounding code so the on-the-wire ordering stays explicit:
   3. Input assembly — history bootstrap, mentions, surfsense docs, reports.
   4. First SSE frames — message_start, start_step, turn-info, turn-status.
   5. Persistence join + message-id frames (ghost-thread protection).
-  6. Initial thinking step + title task + runtime context.
+  6. Title task + runtime context.
   7. Stream loop with in-stream rate-limit recovery + mid-stream title emit.
   8. Finalize — premium debit, token-usage SSE, finish frames.
   9. Exception branch — classify, emit terminal error, finish frames.
@@ -694,7 +694,7 @@ async def stream_new_chat(
             config=config,
             input_data=input_state,
             stream_result=stream_result,
-            step_prefix="thinking",
+            step_prefix="turn",
             fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(

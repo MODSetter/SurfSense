@@ -99,7 +99,7 @@ export function trackChatError(workspaceId: number, chatId: number, error?: stri
 	});
 }
 
-export function trackThinkingTraceInteraction(
+export function trackActivityTraceInteraction(
 	action: "expanded" | "collapsed" | "reasoning_expanded",
 	properties?: {
 		activityCount?: number;
@@ -108,7 +108,7 @@ export function trackThinkingTraceInteraction(
 	}
 ) {
 	safeCapture(
-		"chat_thinking_trace_interaction",
+		"chat_activity_trace_interaction",
 		compact({
 			action,
 			activity_count: properties?.activityCount,

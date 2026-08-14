@@ -8,6 +8,16 @@ import {
 } from "./streaming-state";
 import type { MessageRecord } from "./thread-persistence";
 
+/**
+ * Read compatibility for assistant rows persisted before the activity journal.
+ * Keep until production no longer supports loading those historical messages.
+ */
+const LEGACY_HIDDEN_PART_TYPES = new Set(["data-thinking-steps", "thinking-steps"]);
+
+function isLegacyHiddenPart(type: unknown): boolean {
+	return typeof type === "string" && LEGACY_HIDDEN_PART_TYPES.has(type);
+}
+
 /** Minimal shape used by the interrupt/resume reconciler. */
 interface AbortableMessage {
 	id: number;
@@ -104,7 +114,7 @@ function partitionContent(content: unknown): {
 			timing = parseActivityTimingData(candidate.data?.timing);
 			continue;
 		}
-		if (candidate.type === "data-thinking-steps" || candidate.type === "thinking-steps") continue;
+		if (isLegacyHiddenPart(candidate.type)) continue;
 		others.push(part);
 	}
 	return { activities, timing, others };
@@ -216,7 +226,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 
 /**
  * Convert a backend ``MessageRecord`` to assistant-ui's
- * ``ThreadMessageLike``. Historical thinking-step parts are deliberately hidden.
+ * ``ThreadMessageLike``. Pre-activity journal parts are deliberately hidden.
  */
 export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -231,8 +241,7 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 				return (
 					partType !== "mentioned-documents" &&
 					partType !== "attachments" &&
-					partType !== "data-thinking-steps" &&
-					partType !== "thinking-steps"
+					!isLegacyHiddenPart(partType)
 				);
 			})
 			.map((part: unknown) => {

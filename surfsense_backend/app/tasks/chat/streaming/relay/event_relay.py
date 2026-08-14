@@ -50,7 +50,7 @@ class EventRelay:
         *,
         state: AgentEventRelayState,
         result: StreamingResult,
-        step_prefix: str = "thinking",
+        step_prefix: str = "turn",
         content_builder: Any | None = None,
         config: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:

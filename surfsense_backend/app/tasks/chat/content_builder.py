@@ -544,7 +544,7 @@ class AssistantContentBuilder:
 
         ``data-activities`` and ``data-step-separator`` decorate
         meaningful content but don't count on their own — a turn that
-        only emitted a thinking step before being interrupted should
+        only emitted an activity snapshot before being interrupted should
         still be treated as empty for the status-marker fallback.
         """
         return not any(p.get("type") in _MEANINGFUL_PART_TYPES for p in self.parts)

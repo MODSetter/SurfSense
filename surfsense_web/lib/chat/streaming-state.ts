@@ -442,9 +442,8 @@ export function addStepSeparator(state: ContentPartsState): void {
  * Allowlist of tool names that should produce a UI tool card. The
  * sentinel ``"all"`` matches every tool — we dropped the legacy
  * ``BASE_TOOLS_WITH_UI`` gate so that ALL tool calls render via the
- * generic ``ToolFallback``. The backend's ``format_thinking_step``
- * summarisation and the defensive ``result_length``-only default for
- * unknown tools keep persisted message JSON from ballooning.
+ * generic ``ToolFallback``. The defensive ``result_length``-only default
+ * for unknown tools keeps persisted message JSON from ballooning.
  */
 export type ToolUIGate = Set<string> | "all";
 

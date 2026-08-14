@@ -3,6 +3,7 @@
 import { CheckCircle2, ChevronRightIcon, History } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { type FC, useEffect, useId, useMemo, useRef, useState } from "react";
+import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
 import { ElapsedTime } from "@/components/prompt-kit/elapsed-time";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { PixelGridLoader } from "@/components/prompt-kit/pixel-grid-loader";
@@ -13,7 +14,7 @@ import { getActivityIcon, getConnectorLogo } from "@/features/chat-messages/time
 import type { VisibleReasoningBlock } from "@/features/chat-messages/timeline/types";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { ActivityData, ActivityStatus, ActivityTimingData } from "@/lib/chat/streaming-state";
-import { trackThinkingTraceInteraction } from "@/lib/posthog/events";
+import { trackActivityTraceInteraction } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";
 import { ItemHeader } from "./items/item-header";
@@ -43,7 +44,7 @@ const ReasoningDisclosure: FC<{
 				onClick={() =>
 					setIsOpen((value) => {
 						const next = !value;
-						if (next) trackThinkingTraceInteraction("reasoning_expanded");
+						if (next) trackActivityTraceInteraction("reasoning_expanded");
 						return next;
 					})
 				}
@@ -73,16 +74,19 @@ const ReasoningDisclosure: FC<{
 				)}
 			>
 				<div className="overflow-hidden">
-					<section
-						aria-label="Provider reasoning"
-						className="mt-2 max-h-64 overflow-y-auto border-l border-muted-foreground/30 pl-4 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-muted-foreground"
-					>
-						{blocks.map((block) => (
-							<div key={block.id} className="not-last:mb-3">
-								{block.text}
-							</div>
-						))}
-					</section>
+					<div className="mt-2 overflow-hidden rounded-xl border border-border/60 bg-muted/20">
+						<NestedScroll
+							role="region"
+							aria-label="Provider reasoning"
+							className="max-h-72 overflow-y-auto overscroll-contain px-4 py-3 text-sm leading-6 whitespace-pre-wrap wrap-break-word text-muted-foreground scrollbar-thin"
+						>
+							{blocks.map((block) => (
+								<div key={block.id} className="not-last:mb-4">
+									{block.text}
+								</div>
+							))}
+						</NestedScroll>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -147,7 +151,7 @@ const TimelineDetails: FC<{
 /**
  * The "process" surface in the body | timeline split. Pure consumer
  * of canonical backend activities. Mobile trace details open in a drawer;
- * pending HITL cards remain in chat because approvals are not thinking steps.
+ * pending HITL cards remain in chat, separate from the activity journal.
  */
 export const Timeline: FC<{
 	activities: readonly ActivityData[];
@@ -246,7 +250,7 @@ export const Timeline: FC<{
 						onClick={() => {
 							if (isMobile) {
 								setMobileDrawerOpen(true);
-								trackThinkingTraceInteraction("expanded", {
+								trackActivityTraceInteraction("expanded", {
 									activityCount: effectiveActivities.length,
 									hasApproval: hasPending,
 								});
@@ -255,7 +259,7 @@ export const Timeline: FC<{
 							userToggled.current = true;
 							setIsOpen((value) => {
 								const next = !value;
-								trackThinkingTraceInteraction(next ? "expanded" : "collapsed", {
+								trackActivityTraceInteraction(next ? "expanded" : "collapsed", {
 									activityCount: effectiveActivities.length,
 									hasApproval: hasPending,
 								});
@@ -322,7 +326,7 @@ export const Timeline: FC<{
 						onOpenChange={(open) => {
 							setMobileDrawerOpen(open);
 							if (!open) {
-								trackThinkingTraceInteraction("collapsed", {
+								trackActivityTraceInteraction("collapsed", {
 									activityCount: effectiveActivities.length,
 									hasApproval: hasPending,
 								});

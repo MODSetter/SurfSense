@@ -424,7 +424,7 @@ async def stream_anonymous_chat(
                     input_data=input_state,
                     streaming_service=streaming_service,
                     result=stream_result,
-                    step_prefix="thinking",
+                    step_prefix="turn",
                 ):
                     yield sse
 
