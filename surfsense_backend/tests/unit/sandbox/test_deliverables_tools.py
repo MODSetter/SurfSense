@@ -414,3 +414,28 @@ async def test_execute_truncates_and_preserves_full_output(monkeypatch):
     assert "output truncated" in result
     assert "Full output:" in result
     assert next(iter(session.writes.values())).endswith(b"x")
+
+
+async def test_load_artifact_instructions_uses_the_structured_format(monkeypatch):
+    commands: list[str] = []
+
+    def command_handler(command: str) -> ExecResult:
+        commands.append(command)
+        return ExecResult("trusted instructions", 0)
+
+    session = FakeSandboxSession({}, command_handler=command_handler)
+
+    async def get_session(*_args):
+        return session
+
+    monkeypatch.setattr(sandbox_tools, "_get_session", get_session)
+    tool = next(
+        tool
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
+        if tool.name == "load_artifact_instructions"
+    )
+
+    result = await tool.coroutine(artifact_type="pdf", runtime=_runtime())
+
+    assert commands == ["cat /opt/skills/pdf/SKILL.md"]
+    assert result.startswith("trusted instructions")

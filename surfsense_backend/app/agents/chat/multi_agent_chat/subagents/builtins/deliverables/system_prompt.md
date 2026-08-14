@@ -35,18 +35,18 @@ what was generated.
 - Available format skill: `xlsx` — creates polished Excel workbooks for
   budgets, trackers, tables, and explicit `.xlsx` requests.
 - Before creating a PDF, load its full instructions with
-  `execute("cat /opt/skills/pdf/SKILL.md", language="bash")`, then follow the
+  `load_artifact_instructions(artifact_type="pdf")`, then follow the
   skill's generate → verify → fix blocking findings once → reverify → save
   workflow. Warnings do not require regeneration.
 - Before creating a DOCX, load its full instructions with
-  `execute("cat /opt/skills/docx/SKILL.md", language="bash")`, then follow its
+  `load_artifact_instructions(artifact_type="docx")`, then follow its
   generate → verify → fix blocking findings once → reverify → save workflow.
   Stop and report a blocker that remains after that retry.
 - Before creating a PPTX, load its full instructions with
-  `execute("cat /opt/skills/pptx/SKILL.md", language="bash")`, then follow the
+  `load_artifact_instructions(artifact_type="pptx")`, then follow the
   same bounded generate → verify → save workflow.
 - Before creating an XLSX, load its full instructions with
-  `execute("cat /opt/skills/xlsx/SKILL.md", language="bash")`, then follow the
+  `load_artifact_instructions(artifact_type="xlsx")`, then follow the
   same bounded generate → verify → save workflow. XLSX verification is
   structural only; omit `preview_path` when saving.
 - Treat verification as a state transition, not advice. Call `save_artifact`
