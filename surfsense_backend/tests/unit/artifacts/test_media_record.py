@@ -59,7 +59,7 @@ def test_video_input_sets_explicit_format():
         workspace_id=1,
         title="Deck",
         markdown_representation="# Deck",
-        narration_audio=b"\xff\xfb",
+        primary_audio=b"\xff\xfb",
         thread_id=None,
         metadata={"legacy": {"kind": "video", "id": 9}},
         artifact_id=None,

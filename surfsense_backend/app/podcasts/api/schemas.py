@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.podcasts.duration_limits import (
     DEFAULT_MAX_SECONDS,
@@ -74,19 +74,6 @@ class LanguageOptions(BaseModel):
     allows_custom: bool
 
 
-class PodcastSummary(BaseModel):
-    """Lightweight list item."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    title: str
-    status: PodcastStatus
-    created_at: datetime
-    workspace_id: int
-    thread_id: int | None = None
-
-
 class PodcastDetail(BaseModel):
     """Full podcast state for the detail view and action responses."""
 
@@ -124,12 +111,4 @@ class PodcastDetail(BaseModel):
 
     @classmethod
     async def resolve(cls, session, podcast: Podcast) -> PodcastDetail:
-        from app.artifacts.media.legacy import existing_legacy_artifact
-
-        art = await existing_legacy_artifact(
-            session,
-            workspace_id=podcast.workspace_id,
-            kind="podcast",
-            legacy_id=podcast.id,
-        )
-        return cls.of(podcast, artifact_id=art.id if art else None)
+        return cls.of(podcast, artifact_id=podcast.artifact_id)

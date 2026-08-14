@@ -1,9 +1,12 @@
 "use client";
 
 import { RefreshCw, Shapes, TriangleAlert } from "lucide-react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { artifactChatHref } from "@/features/chat-artifacts/lib/artifact-deep-link";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
+import { useLibraryPodcastRuns } from "../hooks/use-library-podcast-runs";
+import { useLibraryVideoRuns } from "../hooks/use-library-video-runs";
 import { ArtifactCard } from "./artifact-card";
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6"];
@@ -55,15 +58,27 @@ function EmptyState() {
 
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
+	const liveVideoRuns = useLibraryVideoRuns(workspaceId);
+	const livePodcastRuns = useLibraryPodcastRuns(workspaceId);
+
+	// Delivered media comes from the Artifact API (react-query); in-flight and
+	// failed runs arrive by push from Zero. Merge newest-first.
+	const merged = useMemo(
+		() =>
+			[...artifacts, ...liveVideoRuns, ...livePodcastRuns].sort(
+				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+			),
+		[artifacts, liveVideoRuns, livePodcastRuns]
+	);
 
 	return (
 		<div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden">
 			<header className="flex items-center justify-between gap-4 flex-wrap">
 				<div className="flex items-baseline gap-3">
 					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Artifacts</h1>
-					{!loading && artifacts.length > 0 ? (
+					{!loading && merged.length > 0 ? (
 						<p className="whitespace-nowrap text-sm text-muted-foreground">
-							{artifacts.length} {artifacts.length === 1 ? "artifact" : "artifacts"}
+							{merged.length} {merged.length === 1 ? "artifact" : "artifacts"}
 						</p>
 					) : null}
 				</div>
@@ -73,11 +88,11 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 				<LoadingState />
 			) : error ? (
 				<ErrorState onRetry={() => refresh()} />
-			) : artifacts.length === 0 ? (
+			) : merged.length === 0 ? (
 				<EmptyState />
 			) : (
 				<div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-					{artifacts.map((artifact) => (
+					{merged.map((artifact) => (
 						<ArtifactCard
 							key={artifact.key}
 							artifact={artifact}

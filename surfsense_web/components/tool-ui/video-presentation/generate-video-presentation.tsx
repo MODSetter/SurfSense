@@ -25,6 +25,8 @@ const GenerateVideoPresentationArgsSchema = z.object({
 const GenerateVideoPresentationResultSchema = z.object({
 	status: z.enum(["pending", "generating", "ready", "failed"]),
 	video_presentation_id: z.number().nullish(),
+	artifact_id: z.number().nullish(),
+	workspace_id: z.number().nullish(),
 	title: z.string().nullish(),
 	message: z.string().nullish(),
 	error: z.string().nullish(),
@@ -140,11 +142,16 @@ function VideoPresentationPlayer({
 		setIsLoading(true);
 		setError(null);
 		try {
-			const apiPath = shareToken
-				? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
-				: artifactId != null && workspaceId != null
-					? `/api/v1/workspaces/${workspaceId}/artifacts/${artifactId}/video`
-					: `/api/v1/video-presentations/${presentationId}`;
+			const apiPath =
+				shareToken && artifactId != null
+					? `/api/v1/public/${shareToken}/artifacts/${artifactId}/video`
+					: shareToken
+						? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
+						: artifactId != null && workspaceId != null
+							? `/api/v1/workspaces/${workspaceId}/artifacts/${artifactId}/video`
+							: null;
+
+			if (!apiPath) throw new Error("No presentation source");
 
 			const raw = await baseApiService.get<unknown>(apiPath);
 			const data = parseStatusResponse(raw);
@@ -408,93 +415,20 @@ export function StatusPoller({
 	title: string;
 	shareToken?: string | null;
 }) {
-	if (artifactId != null && workspaceId != null) {
-		return (
-			<VideoPresentationPlayer
-				artifactId={artifactId}
-				workspaceId={workspaceId}
-				title={title}
-			/>
-		);
-	}
-	if (presentationId == null) {
+	if (artifactId == null && presentationId == null) {
 		return (
 			<p className="my-4 text-sm text-muted-foreground">Presentation not available</p>
 		);
 	}
 	return (
-		<LegacyStatusPoller
+		<VideoPresentationPlayer
 			presentationId={presentationId}
+			artifactId={artifactId}
+			workspaceId={workspaceId}
 			title={title}
 			shareToken={shareToken}
 		/>
 	);
-}
-
-function LegacyStatusPoller({
-	presentationId,
-	title,
-	shareToken,
-}: {
-	presentationId: number;
-	title: string;
-	shareToken?: string | null;
-}) {
-	const [status, setStatus] = useState<VideoPresentationStatusResponse | null>(null);
-	const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
-	useEffect(() => {
-		const poll = async () => {
-			try {
-				const apiPath = shareToken
-					? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
-					: `/api/v1/video-presentations/${presentationId}`;
-
-				const raw = await baseApiService.get<unknown>(apiPath);
-				const response = parseStatusResponse(raw);
-				if (response) {
-					setStatus(response);
-					if (response.status === "ready" || response.status === "failed") {
-						if (pollingRef.current) {
-							clearInterval(pollingRef.current);
-							pollingRef.current = null;
-						}
-					}
-				}
-			} catch (err) {
-				console.error("Error polling video presentation status:", err);
-			}
-		};
-
-		poll();
-		pollingRef.current = setInterval(poll, 5000);
-
-		return () => {
-			if (pollingRef.current) {
-				clearInterval(pollingRef.current);
-			}
-		};
-	}, [presentationId, shareToken]);
-
-	if (!status || status.status === "pending" || status.status === "generating") {
-		return <GeneratingState title={title} />;
-	}
-
-	if (status.status === "failed") {
-		return <ErrorState title={title} error="Generation failed" />;
-	}
-
-	if (status.status === "ready") {
-		return (
-			<VideoPresentationPlayer
-				presentationId={status.id ?? presentationId}
-				title={status.title || title}
-				shareToken={shareToken}
-			/>
-		);
-	}
-
-	return <ErrorState title={title} error="Unexpected state" />;
 }
 
 export const GenerateVideoPresentationToolUI = ({
@@ -561,6 +495,8 @@ export const GenerateVideoPresentationToolUI = ({
 		return (
 			<StatusPoller
 				presentationId={result.video_presentation_id}
+				artifactId={result.artifact_id ?? undefined}
+				workspaceId={result.workspace_id ?? undefined}
 				title={result.title || title}
 				shareToken={shareToken}
 			/>
@@ -571,6 +507,8 @@ export const GenerateVideoPresentationToolUI = ({
 		return (
 			<VideoPresentationPlayer
 				presentationId={result.video_presentation_id}
+				artifactId={result.artifact_id ?? undefined}
+				workspaceId={result.workspace_id ?? undefined}
 				title={result.title || title}
 				shareToken={shareToken}
 			/>

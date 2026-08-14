@@ -1,4 +1,4 @@
-"""``podcasts`` table: a generated podcast, its brief, transcript, and state."""
+"""``podcast_runs`` table: a generated podcast, its brief, transcript, state."""
 
 from __future__ import annotations
 
@@ -19,16 +19,15 @@ from .enums import PodcastStatus
 
 
 class Podcast(BaseModel, TimestampMixin):
-    """A podcast across its whole lifecycle: brief, transcript, audio, status.
+    """A podcast run: brief, transcript, lifecycle state, and its Artifact link.
 
     ``spec`` (the reviewable brief) and ``podcast_transcript`` are JSONB so the
     flexible Pydantic shapes can evolve without migrations. ``spec_version``
-    backs optimistic concurrency on brief edits. Rendered audio lives in the
-    object store, addressed by ``storage_backend`` + ``storage_key`` rather than
-    a raw path.
+    backs optimistic concurrency on brief edits. The delivered audio and
+    markdown live in the Artifact referenced by ``artifact_id``.
     """
 
-    __tablename__ = "podcasts"
+    __tablename__ = "podcast_runs"
 
     title = Column(String(500), nullable=False)
 
@@ -57,16 +56,17 @@ class Podcast(BaseModel, TimestampMixin):
     # The drafted dialogue (Transcript); null until drafting completes.
     podcast_transcript = Column(JSONB, nullable=True)
 
-    # Where the rendered audio lives in the object store; null until READY.
-    storage_backend = Column(String(32), nullable=True)
-    storage_key = Column(Text, nullable=True)
     duration_seconds = Column(Integer, nullable=True)
 
     # Human-readable reason when status is FAILED.
     error = Column(Text, nullable=True)
 
-    # Legacy local audio path; retained for back-compat until cutover.
-    file_location = Column(Text, nullable=True)
+    # The delivered Artifact; NULL until READY. The Artifact owns the audio.
+    artifact_id = Column(
+        Integer,
+        ForeignKey("artifacts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     workspace_id = Column(
         Integer,

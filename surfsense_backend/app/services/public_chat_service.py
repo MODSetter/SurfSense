@@ -32,8 +32,6 @@ from app.db import (
     PublicChatSnapshot,
     Report,
     User,
-    VideoPresentation,
-    VideoPresentationStatus,
     WorkspaceMembership,
 )
 from app.utils.rbac import check_permission
@@ -202,8 +200,6 @@ async def create_snapshot(
     podcast_ids_seen: set[int] = set()
     reports_data = []
     report_ids_seen: set[int] = set()
-    video_presentations_data = []
-    video_presentation_ids_seen: set[int] = set()
     artifact_ids: set[int] = set()
 
     for msg in sorted(thread.messages, key=lambda m: m.created_at):
@@ -236,20 +232,17 @@ async def create_snapshot(
                         if podcast_info:
                             podcasts_data.append(podcast_info)
                             podcast_ids_seen.add(podcast_id)
-                            # Update status to "ready" so frontend renders PodcastPlayer
-                            part["result"] = {**result_data, "status": "ready"}
-
-                elif tool_name == "generate_video_presentation":
-                    result_data = part.get("result", {})
-                    vp_id = result_data.get("video_presentation_id")
-                    if vp_id and vp_id not in video_presentation_ids_seen:
-                        vp_info = await _get_video_presentation_for_snapshot(
-                            session, vp_id
-                        )
-                        if vp_info:
-                            video_presentations_data.append(vp_info)
-                            video_presentation_ids_seen.add(vp_id)
-                            part["result"] = {**result_data, "status": "ready"}
+                            # The tool result carries podcast_id, not artifact_id,
+                            # so the generic allowlist check above misses it.
+                            new_result = {**result_data, "status": "ready"}
+                            artifact_id = podcast_info.get("artifact_id")
+                            if isinstance(artifact_id, int):
+                                artifact_ids.add(artifact_id)
+                                new_result["artifact_id"] = artifact_id
+                                new_result["workspace_id"] = podcast_info.get(
+                                    "workspace_id"
+                                )
+                            part["result"] = new_result
 
                 elif tool_name in ("generate_report", "generate_resume"):
                     result_data = part.get("result", {})
@@ -308,7 +301,6 @@ async def create_snapshot(
         "messages": messages_data,
         "podcasts": podcasts_data,
         "reports": reports_data,
-        "video_presentations": video_presentations_data,
         "artifact_ids": sorted(artifact_ids),
     }
 
@@ -345,35 +337,13 @@ async def _get_podcast_for_snapshot(
     if not podcast or podcast.status != PodcastStatus.READY:
         return None
 
+    # Audio is served from the Artifact; only the transcript stays embedded.
     return {
         "original_id": podcast.id,
         "title": podcast.title,
         "transcript": podcast.podcast_transcript,
-        "storage_backend": podcast.storage_backend,
-        "storage_key": podcast.storage_key,
-        # Legacy fallback for rows rendered before the storage migration.
-        "file_path": podcast.file_location,
-    }
-
-
-async def _get_video_presentation_for_snapshot(
-    session: AsyncSession,
-    video_presentation_id: int,
-) -> dict | None:
-    """Get video presentation info for embedding in snapshot_data."""
-    result = await session.execute(
-        select(VideoPresentation).filter(VideoPresentation.id == video_presentation_id)
-    )
-    vp = result.scalars().first()
-
-    if not vp or vp.status != VideoPresentationStatus.READY:
-        return None
-
-    return {
-        "original_id": vp.id,
-        "title": vp.title,
-        "slides": vp.slides,
-        "scene_codes": vp.scene_codes,
+        "artifact_id": podcast.artifact_id,
+        "workspace_id": podcast.workspace_id,
     }
 
 
@@ -667,7 +637,6 @@ async def clone_from_snapshot(
 
     data = snapshot.snapshot_data
     messages_data = data.get("messages", [])
-    podcasts_lookup = {p.get("original_id"): p for p in data.get("podcasts", [])}
     reports_lookup = {r.get("original_id"): r for r in data.get("reports", [])}
 
     new_thread = NewChatThread(
@@ -684,7 +653,6 @@ async def clone_from_snapshot(
     session.add(new_thread)
     await session.flush()
 
-    podcast_id_mapping: dict[int, int] = {}
     report_id_mapping: dict[int, int] = {}
 
     # Check which authors from snapshot still exist in DB
@@ -718,37 +686,8 @@ async def clone_from_snapshot(
 
         if isinstance(content, list):
             for part in content:
-                if (
-                    isinstance(part, dict)
-                    and part.get("type") == "tool-call"
-                    and part.get("toolName") == "generate_podcast"
-                ):
-                    result = part.get("result", {})
-                    old_podcast_id = result.get("podcast_id")
-
-                    if old_podcast_id and old_podcast_id not in podcast_id_mapping:
-                        podcast_info = podcasts_lookup.get(old_podcast_id)
-                        if podcast_info:
-                            new_podcast = Podcast(
-                                title=podcast_info.get("title", "Cloned Podcast"),
-                                podcast_transcript=podcast_info.get("transcript"),
-                                storage_backend=podcast_info.get("storage_backend"),
-                                storage_key=podcast_info.get("storage_key"),
-                                file_location=podcast_info.get("file_path"),
-                                status=PodcastStatus.READY,
-                                workspace_id=target_workspace_id,
-                                thread_id=new_thread.id,
-                            )
-                            session.add(new_podcast)
-                            await session.flush()
-                            podcast_id_mapping[old_podcast_id] = new_podcast.id
-
-                    if old_podcast_id and old_podcast_id in podcast_id_mapping:
-                        part["result"] = {
-                            **result,
-                            "podcast_id": podcast_id_mapping[old_podcast_id],
-                        }
-
+                # generate_podcast is copied verbatim; the snapshot already
+                # carries its artifact_id + workspace_id (as video does).
                 if (
                     isinstance(part, dict)
                     and part.get("type") == "tool-call"
@@ -849,6 +788,36 @@ async def get_snapshot_artifact_file(
             ArtifactFile.artifact_id == artifact_id,
             ArtifactFile.role == ArtifactFileRole.PRIMARY,
         )
+    )
+    return result.scalars().first()
+
+
+async def get_snapshot_video_artifact(
+    session: AsyncSession,
+    share_token: str,
+    artifact_id: int,
+):
+    """Video Artifact this snapshot references, or ``None``.
+
+    Same allowlist as ``get_snapshot_artifact_file``: the share token grants
+    access only to the artifacts the shared thread produced. Returns the
+    Artifact with its document loaded (for the title); the Remotion slides and
+    scene codes live in ``artifact_metadata``.
+    """
+    from app.artifacts.persistence import Artifact
+
+    snapshot = await get_snapshot_by_token(session, share_token)
+    if not snapshot:
+        return None
+
+    allowed = snapshot.snapshot_data.get("artifact_ids") or []
+    if artifact_id not in allowed:
+        return None
+
+    result = await session.execute(
+        select(Artifact)
+        .options(selectinload(Artifact.document))
+        .filter(Artifact.id == artifact_id, Artifact.format == "video")
     )
     return result.scalars().first()
 
