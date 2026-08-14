@@ -71,11 +71,15 @@ class _FakeSessionMaker:
         return self._session
 
 
-def _make_video(video_id: int = 11, thread_id: int = 99) -> SimpleNamespace:
+def _make_video(
+    video_id: int = 11, thread_id: int = 99, workspace_id: int = 777
+) -> SimpleNamespace:
     return SimpleNamespace(
         id=video_id,
         title="Test Presentation",
         thread_id=thread_id,
+        workspace_id=workspace_id,
+        artifact_id=None,
         status=None,
         slides=None,
         scene_codes=None,
