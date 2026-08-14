@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from app.artifacts.media.podcast.storage import open_stream, persist, purge
+from app.artifacts.media.podcast.record import record
 
-__all__ = ["open_stream", "persist", "purge"]
+__all__ = ["record"]

@@ -4,16 +4,16 @@ Records one verdict per catalogue model from the compatibility sweep. Status is
 a plain VARCHAR rather than a PG enum so a new verdict never needs a migration
 to land alongside the sweep that produces it.
 
-Revision ID: 179
-Revises: 178
+Revision ID: 184
+Revises: 183
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "179"
-down_revision: str | None = "178"
+revision: str = "184"
+down_revision: str | None = "183"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
