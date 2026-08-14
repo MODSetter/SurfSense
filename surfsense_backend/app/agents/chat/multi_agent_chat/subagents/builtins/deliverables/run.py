@@ -8,6 +8,7 @@ artifact attribution), the resolved chat model, and a checkpointer.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from dataclasses import dataclass
@@ -175,23 +176,29 @@ async def run_deliverable_subagent(
         "configurable": {"thread_id": thread_id},
         "recursion_limit": DEFAULT_SUBAGENT_RECURSION_LIMIT,
     }
-    result = await agent.ainvoke(
-        {"messages": [HumanMessage(content=prompt)]}, config=config
-    )
     from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_persistence import (
         commit_turn_working_copy,
     )
 
-    await commit_turn_working_copy(
-        workspace_id=workspace_id,
-        thread_id=thread_id,
-        created_by_id=created_by_id,
-        llm=llm,
-    )
-    messages = result.get("messages", []) if isinstance(result, dict) else []
-    return DeliverableRunResult(
-        artifacts=await _hydrate_artifacts(
-            session, workspace_id, _artifact_ids_from_messages(messages)
-        ),
-        message=_final_text(messages),
-    )
+    try:
+        result = await agent.ainvoke(
+            {"messages": [HumanMessage(content=prompt)]}, config=config
+        )
+        await commit_turn_working_copy(
+            workspace_id=workspace_id,
+            thread_id=thread_id,
+            created_by_id=created_by_id,
+            llm=llm,
+        )
+        messages = result.get("messages", []) if isinstance(result, dict) else []
+        return DeliverableRunResult(
+            artifacts=await _hydrate_artifacts(
+                session, workspace_id, _artifact_ids_from_messages(messages)
+            ),
+            message=_final_text(messages),
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            from app.sandbox.registry import get_registry
+
+            await (await get_registry()).terminate(thread_id)
