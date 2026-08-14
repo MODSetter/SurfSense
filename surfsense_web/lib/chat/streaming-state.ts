@@ -11,6 +11,7 @@ export type ActivityStatus =
 export interface ActivityTimingData {
 	status: "running" | "paused" | "completed";
 	activeDurationMs: number;
+	sampledAt?: string;
 }
 
 export interface ActivityData {
@@ -190,16 +191,22 @@ export function parseActivityData(value: unknown): ActivityData | null {
 export function parseActivityTimingData(value: unknown): ActivityTimingData | null {
 	if (typeof value !== "object" || value === null) return null;
 	const timing = value as Record<string, unknown>;
+	const sampledAt =
+		typeof timing.sampledAt === "string" && Number.isFinite(Date.parse(timing.sampledAt))
+			? timing.sampledAt
+			: undefined;
 	if (
 		(timing.status !== "running" && timing.status !== "paused" && timing.status !== "completed") ||
 		!Number.isSafeInteger(timing.activeDurationMs) ||
-		(timing.activeDurationMs as number) < 0
+		(timing.activeDurationMs as number) < 0 ||
+		(timing.sampledAt !== undefined && sampledAt === undefined)
 	) {
 		return null;
 	}
 	return {
 		status: timing.status,
 		activeDurationMs: timing.activeDurationMs as number,
+		...(sampledAt ? { sampledAt } : {}),
 	};
 }
 
