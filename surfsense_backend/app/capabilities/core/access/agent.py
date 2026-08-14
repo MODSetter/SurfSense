@@ -165,6 +165,15 @@ def _capability_tool(capability: Capability, workspace_id: int) -> BaseTool:
         name=name.replace(".", "_"),
         description=capability.description,
         args_schema=input_model,
+        metadata=(
+            {
+                "activity_descriptor": capability.activity.as_metadata(
+                    kind=capability.name
+                )
+            }
+            if capability.activity is not None
+            else None
+        ),
     )
 
 

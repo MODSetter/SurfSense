@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+import re
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -61,6 +62,71 @@ class CapabilityContext:
 Executor = Callable[[Any], Awaitable[Any]]
 
 
+ActivityCategory = Literal["file", "research", "artifact", "connector", "action"]
+_ACTIVITY_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityDescriptor:
+    """Trusted, backend-authored presentation metadata for an agent tool."""
+
+    active_title: str
+    completed_title: str
+    category: ActivityCategory
+    icon_key: str
+    integration_key: str | None = None
+
+    def as_metadata(self, *, kind: str | None = None) -> dict[str, str]:
+        metadata = {
+            "active_title": self.active_title,
+            "completed_title": self.completed_title,
+            "category": self.category,
+            "icon_key": self.icon_key,
+        }
+        if kind:
+            metadata["kind"] = kind
+        if self.integration_key:
+            metadata["integration_key"] = self.integration_key
+        return metadata
+
+    @classmethod
+    def from_metadata(cls, value: object) -> ActivityDescriptor | None:
+        """Accept only complete, bounded backend tool metadata."""
+        if not isinstance(value, Mapping):
+            return None
+        active = value.get("active_title")
+        completed = value.get("completed_title")
+        category = value.get("category")
+        icon_key = value.get("icon_key")
+        integration_key = value.get("integration_key")
+        if not (
+            isinstance(active, str)
+            and 0 < len(active.strip()) <= 120
+            and isinstance(completed, str)
+            and 0 < len(completed.strip()) <= 120
+            and category in {"file", "research", "artifact", "connector", "action"}
+            and isinstance(icon_key, str)
+            and _ACTIVITY_KEY_RE.fullmatch(icon_key.strip())
+            and (
+                integration_key is None
+                or (
+                    isinstance(integration_key, str)
+                    and _ACTIVITY_KEY_RE.fullmatch(integration_key.strip())
+                )
+            )
+        ):
+            return None
+        return cls(
+            active_title=active.strip(),
+            completed_title=completed.strip(),
+            category=category,
+            icon_key=icon_key.strip(),
+            integration_key=(
+                integration_key.strip() if isinstance(integration_key, str) else None
+            ),
+        )
+
+
 @dataclass(frozen=True)
 class Capability:
     """One typed verb; the source of truth the doors (05) and agent (07) read."""
@@ -72,3 +138,4 @@ class Capability:
     executor: Executor
     billing_unit: BillingUnit | None
     docs_url: str | None = None
+    activity: ActivityDescriptor | None = None
