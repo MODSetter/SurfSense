@@ -390,6 +390,7 @@ const InterleavedPartsInner: FC<{
 	const renderLeaf = useCallback(
 		(part: EnrichedPartState, index: number): ReactNode => (
 			<TraceLeaf
+				key={index}
 				part={part}
 				index={index}
 				activities={journal.byId}
