@@ -22,6 +22,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
+import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom, watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
@@ -188,6 +189,7 @@ function AuthenticatedDocumentRightPanelBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
 	const artifactsByDocument = useArtifactsByDocument(workspaceId);
@@ -1158,6 +1160,15 @@ function AuthenticatedDocumentRightPanelBase({
 						onCreateFolder={handleCreateFolder}
 						onPreviewDocument={(doc) => {
 							if (openMemoryDocument(doc)) return;
+							if (doc.document_type === "ARTIFACT") {
+								const artifact = artifactsByDocument.get(doc.id);
+								if (artifact) {
+									openArtifactPanel({ artifactId: artifact.artifact_id });
+								} else {
+									toast.error("Artifact is not available yet");
+								}
+								return;
+							}
 							openEditorPanel({
 								documentId: doc.id,
 								workspaceId,
