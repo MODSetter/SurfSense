@@ -9,7 +9,6 @@ import {
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import {
 	createTokenUsageStore,
 	type TokenUsageData,
@@ -17,7 +16,6 @@ import {
 } from "@/components/assistant-ui/token-usage-context";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAnonymousMode } from "@/contexts/anonymous-mode";
-import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import { classifyChatError, GENERIC_CHAT_ERROR_MESSAGE } from "@/lib/chat/chat-error-classifier";
 import { processSharedStreamEvent } from "@/lib/chat/stream-pipeline";
 import {
@@ -373,8 +371,6 @@ export function FreeChatPage() {
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
-				<TimelineDataUI />
-				<StepSeparatorDataUI />
 				<div className="flex h-full flex-col overflow-hidden">
 					<RemoveAdsBanner />
 

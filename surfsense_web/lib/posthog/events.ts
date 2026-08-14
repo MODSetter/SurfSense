@@ -100,20 +100,22 @@ export function trackChatError(workspaceId: number, chatId: number, error?: stri
 }
 
 export function trackActivityTraceInteraction(
-	action: "expanded" | "collapsed" | "reasoning_expanded",
+	action: "segment_expanded" | "segment_collapsed",
 	properties?: {
 		activityCount?: number;
+		reasoningCount?: number;
 		durationMs?: number;
-		hasApproval?: boolean;
+		surface?: "desktop_inline" | "mobile_drawer";
 	}
 ) {
 	safeCapture(
-		"chat_activity_trace_interaction",
+		"chat_interleaved_activity_trace_interaction",
 		compact({
 			action,
 			activity_count: properties?.activityCount,
+			reasoning_count: properties?.reasoningCount,
 			duration_ms: properties?.durationMs,
-			has_approval: properties?.hasApproval,
+			surface: properties?.surface,
 		})
 	);
 }

@@ -3,7 +3,6 @@ import {
 	ActionBarPrimitive,
 	ErrorPrimitive,
 	MessagePrimitive,
-	type ToolCallMessagePartComponent,
 	useAuiState,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
@@ -32,7 +31,6 @@ import {
 	CitationMetadataProvider,
 	useAllCitationMetadata,
 } from "@/components/assistant-ui/citation-metadata-context";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import {
@@ -57,7 +55,7 @@ import {
 } from "@/components/ui/drawer";
 import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { withArtifactAnchor } from "@/features/chat-artifacts";
-import { TurnActivity } from "@/features/chat-messages/timeline";
+import { InterleavedMessageParts } from "@/features/chat-messages/timeline";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -424,11 +422,9 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
  * Tools rendered in the message BODY — value-add deliverables only.
  *
  * Process tools (connector CRUD, sandbox execute, memory updates,
- * etc.) are NOT here; they render in the timeline via the slice's
- * tool registry (see ``features/chat-messages/timeline``). The body
- * opts out of every other tool by registering ``NullBodyTool`` as the
- * fallback — any tool name not in this map renders nothing in the
- * body and is picked up by the timeline instead.
+ * etc.) are grouped into chronological trace segments. This map is the
+ * single frontend boundary between rich deliverable cards and opaque
+ * backend-owned process activities.
  */
 const BODY_TOOLS = {
 	save_artifact: withArtifactAnchor(SaveArtifactToolUI),
@@ -440,25 +436,13 @@ const BODY_TOOLS = {
 	generate_image: withArtifactAnchor(GenerateImageToolUI),
 } as const;
 
-const NullBodyTool: ToolCallMessagePartComponent = () => null;
-
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
 
 	return (
 		<CitationMetadataProvider>
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-				<TurnActivity />
-				<MessagePrimitive.Parts
-					components={{
-						Text: MarkdownText,
-						Reasoning: () => null,
-						tools: {
-							by_name: BODY_TOOLS,
-							Fallback: NullBodyTool,
-						},
-					}}
-				/>
+				<InterleavedMessageParts bodyTools={BODY_TOOLS} />
 				<MessageError />
 			</div>
 

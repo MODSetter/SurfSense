@@ -4,7 +4,6 @@ import {
 	ActionBarPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
-	type ToolCallMessagePartComponent,
 	useAuiState,
 } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -12,14 +11,13 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateResumeToolUI } from "@/components/tool-ui/generate-resume";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/podcast";
 import { SaveArtifactToolUI } from "@/components/tool-ui/save-artifact";
-import { TurnActivity } from "@/features/chat-messages/timeline";
+import { InterleavedMessageParts } from "@/features/chat-messages/timeline";
 import { copyToClipboard } from "@/lib/utils";
 
 const GenerateVideoPresentationToolUI = dynamic(
@@ -30,7 +28,15 @@ const GenerateVideoPresentationToolUI = dynamic(
 	{ ssr: false }
 );
 
-const NullToolUi: ToolCallMessagePartComponent = () => null;
+const PUBLIC_BODY_TOOLS = {
+	save_artifact: SaveArtifactToolUI,
+	generate_podcast: GeneratePodcastToolUI,
+	generate_report: GenerateReportToolUI,
+	generate_resume: GenerateResumeToolUI,
+	generate_video_presentation: GenerateVideoPresentationToolUI,
+	display_image: GenerateImageToolUI,
+	generate_image: GenerateImageToolUI,
+} as const;
 
 interface PublicThreadProps {
 	footer?: ReactNode;
@@ -159,25 +165,7 @@ const PublicAssistantMessage: FC = () => {
 		>
 			<CitationMetadataProvider>
 				<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-					<TurnActivity showReasoning={false} />
-					<MessagePrimitive.Parts
-						components={{
-							Text: MarkdownText,
-							Reasoning: () => null,
-							tools: {
-								by_name: {
-									save_artifact: SaveArtifactToolUI,
-									generate_podcast: GeneratePodcastToolUI,
-									generate_report: GenerateReportToolUI,
-									generate_resume: GenerateResumeToolUI,
-									generate_video_presentation: GenerateVideoPresentationToolUI,
-									display_image: GenerateImageToolUI,
-									generate_image: GenerateImageToolUI,
-								},
-								Fallback: NullToolUi,
-							},
-						}}
-					/>
+					<InterleavedMessageParts bodyTools={PUBLIC_BODY_TOOLS} showReasoning={false} />
 				</div>
 
 				<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">

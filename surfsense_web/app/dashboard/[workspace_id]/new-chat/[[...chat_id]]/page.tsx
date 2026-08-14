@@ -32,7 +32,6 @@ import {
 	EditMessageDialog,
 	type EditMessageDialogChoice,
 } from "@/components/assistant-ui/edit-message-dialog";
-import { StepSeparatorDataUI } from "@/components/assistant-ui/step-separator";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
 	type TokenUsageData,
@@ -46,7 +45,6 @@ import {
 	PendingInterruptProvider,
 	type PendingInterruptState,
 } from "@/features/chat-messages/hitl";
-import { TimelineDataUI } from "@/features/chat-messages/timeline";
 import { useAgentActionsQuery } from "@/hooks/use-agent-actions-query";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesSync } from "@/hooks/use-messages-sync";
@@ -791,8 +789,6 @@ export default function NewChatPage() {
 	return (
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
-				<TimelineDataUI />
-				<StepSeparatorDataUI />
 				<PendingInterruptProvider
 					pendingInterrupts={pendingInterrupts}
 					onSubmit={handleApprovalSubmit}
