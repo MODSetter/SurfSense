@@ -12,9 +12,9 @@ from app.tasks.chat.llm_history_normalizer import (
 pytestmark = pytest.mark.unit
 
 
-def test_assistant_ui_parts_drop_thinking_steps_for_llm_history() -> None:
+def test_assistant_ui_parts_drop_activities_for_llm_history() -> None:
     content = [
-        {"type": "data-thinking-steps", "data": [{"id": "thinking-1"}]},
+        {"type": "data-activities", "data": {"activities": [{"id": "act-1"}]}},
         {"type": "text", "text": "visible answer"},
     ]
 

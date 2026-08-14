@@ -1,11 +1,6 @@
-"""Pin: thinking-step IDs must be globally unique within a thread.
+"""Pin: canonical activity IDs must be globally unique within a thread.
 
-The frontend rehydrates ``currentThinkingSteps`` from the prior assistant
-message when starting a resume. If two consecutive resume turns emit step IDs
-that overlap (e.g. both produce ``thinking-resume-1`` because each invocation
-constructs a fresh :class:`AgentEventRelayState` with
-``thinking_step_counter=0``), React renders sibling timeline rows with the
-same key — the warning the user reported in production.
+Two consecutive resume turns must not emit overlapping activity IDs.
 
 The contract this module pins: each ``stream_agent_events`` invocation must
 receive a ``step_prefix`` that is unique within the thread (we salt with the
@@ -75,7 +70,7 @@ def _tool_start(*, name: str, run_id: str) -> dict[str, Any]:
 async def _drain_step_ids(
     events: list[dict[str, Any]], *, step_prefix: str
 ) -> set[str]:
-    """Run ``_stream_agent_events`` once and return every emitted thinking-step ID."""
+    """Run once and return every emitted activity ID."""
     agent = _FakeAgent(events)
     service = VercelStreamingService()
     result = StreamResult()
@@ -98,7 +93,7 @@ async def _drain_step_ids(
             payload = json.loads(body)
         except json.JSONDecodeError:
             continue
-        if payload.get("type") != "data-thinking-step":
+        if payload.get("type") != "data-activity":
             continue
         step_id = (payload.get("data") or {}).get("id")
         if isinstance(step_id, str):
@@ -165,9 +160,6 @@ def test_resume_step_prefix_helper_includes_turn_id_verbatim():
     a = _resume_step_prefix("104:1778698228472")
     b = _resume_step_prefix("104:1778698244022")
 
-    assert a.startswith("thinking-resume-"), (
-        f"prefix shape changed; the FE log filters and the timeline contract "
-        f"expect the ``thinking-resume-`` head to remain stable: got {a!r}"
-    )
+    assert a.startswith("resume-")
     assert "104:1778698228472" in a and "104:1778698244022" in b
     assert a != b

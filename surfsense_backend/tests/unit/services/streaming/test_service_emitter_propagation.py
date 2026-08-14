@@ -72,17 +72,25 @@ def test_tool_output_available_carries_subagent_emitter(service, sub_emitter) ->
     assert payload["output"] == {"ok": True}
 
 
-def test_thinking_step_carries_subagent_emitter(service, sub_emitter) -> None:
+def test_activity_carries_subagent_emitter(service, sub_emitter) -> None:
     payload = _decode(
-        service.format_thinking_step(
-            step_id="s1",
-            title="Sending email",
-            status="in_progress",
+        service.format_activity(
+            {
+                "id": "act_1",
+                "sequence": 1,
+                "kind": "connector.action",
+                "status": "running",
+                "title": "Sending email",
+                "category": "connector",
+                "iconKey": "email",
+                "startedAt": "2026-01-01T00:00:00+00:00",
+            },
             emitter=sub_emitter,
         )
     )
-    assert payload["type"] == "data-thinking-step"
+    assert payload["type"] == "data-activity"
     assert payload["emitted_by"]["subagent_run_id"] == "sub_xyz"
+    assert payload["data"]["id"] == "act_1"
 
 
 def test_action_log_carries_subagent_emitter(service, sub_emitter) -> None:

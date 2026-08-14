@@ -90,10 +90,13 @@ class TestReasoningThenText:
         b.on_text_end("text-1")
 
         snap = b.snapshot()
-        assert snap == [
-            {"type": "reasoning", "text": "Considering options..."},
-            {"type": "text", "text": "The answer is 42."},
-        ]
+        assert snap[0]["type"] == "reasoning"
+        assert snap[0]["text"] == "Considering options..."
+        assert snap[0]["id"] == "r-1"
+        assert snap[0]["status"] == "completed"
+        assert snap[0]["startedAt"]
+        assert snap[0]["completedAt"]
+        assert snap[1] == {"type": "text", "text": "The answer is 42."}
         _assert_jsonb_safe(snap)
 
     def test_text_delta_after_reasoning_implicitly_closes_reasoning(self):
@@ -107,10 +110,10 @@ class TestReasoningThenText:
         b.on_text_delta("text-1", "answer")
 
         snap = b.snapshot()
-        assert snap == [
-            {"type": "reasoning", "text": "thinking"},
-            {"type": "text", "text": "answer"},
-        ]
+        assert snap[0]["type"] == "reasoning"
+        assert snap[0]["text"] == "thinking"
+        assert snap[0]["status"] == "running"
+        assert snap[1] == {"type": "text", "text": "answer"}
 
 
 # ---------------------------------------------------------------------------
@@ -378,63 +381,64 @@ class TestVercelStreamingServiceToolMetadataWire:
 
 
 # ---------------------------------------------------------------------------
-# Thinking steps & separators
+# Activities & separators
 # ---------------------------------------------------------------------------
 
 
-class TestThinkingSteps:
-    def test_first_thinking_step_unshifts_singleton_to_index_zero(self):
+def _activity(
+    activity_id: str,
+    sequence: int,
+    *,
+    status: str = "running",
+    title: str = "Working",
+) -> dict:
+    return {
+        "id": activity_id,
+        "sequence": sequence,
+        "kind": "action",
+        "status": status,
+        "title": title,
+        "category": "action",
+        "iconKey": "action",
+        "startedAt": "2026-01-01T00:00:00+00:00",
+    }
+
+
+class TestActivities:
+    def test_first_activity_unshifts_singleton_to_index_zero(self):
         b = AssistantContentBuilder()
         b.on_text_start("text-1")
         b.on_text_delta("text-1", "Hello")
         b.on_text_end("text-1")
 
-        b.on_thinking_step("step-1", "Analyzing", "in_progress", ["item-a"])
+        b.on_activity(_activity("act-1", 1))
 
         snap = b.snapshot()
-        # Singleton goes to index 0 (FE ``updateThinkingSteps`` unshift).
-        assert snap[0]["type"] == "data-thinking-steps"
-        assert snap[0]["data"]["steps"] == [
-            {
-                "id": "step-1",
-                "title": "Analyzing",
-                "status": "in_progress",
-                "items": ["item-a"],
-            }
-        ]
+        assert snap[0]["type"] == "data-activities"
+        assert snap[0]["data"]["activities"] == [_activity("act-1", 1)]
         assert snap[1] == {"type": "text", "text": "Hello"}
 
-    def test_subsequent_thinking_steps_mutate_the_singleton_in_place(self):
+    def test_snapshots_upsert_by_id_and_sort_by_sequence(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("step-1", "Analyzing", "in_progress", [])
-        b.on_thinking_step("step-2", "Searching", "in_progress", ["q"])
-        b.on_thinking_step("step-1", "Analyzing", "completed", ["done"])
+        b.on_activity(_activity("act-2", 2))
+        b.on_activity(_activity("act-1", 1))
+        b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
 
         snap = b.snapshot()
-        assert len([p for p in snap if p["type"] == "data-thinking-steps"]) == 1
-        steps = snap[0]["data"]["steps"]
-        assert len(steps) == 2
-        assert steps[0]["id"] == "step-1"
-        assert steps[0]["status"] == "completed"
-        assert steps[0]["items"] == ["done"]
-        assert steps[1]["id"] == "step-2"
+        assert len([p for p in snap if p["type"] == "data-activities"]) == 1
+        activities = snap[0]["data"]["activities"]
+        assert [activity["id"] for activity in activities] == ["act-1", "act-2"]
+        assert activities[0]["status"] == "completed"
 
-    def test_thinking_step_with_text_continues_appending_to_text(self):
+    def test_terminal_activity_cannot_regress(self):
         b = AssistantContentBuilder()
-        b.on_text_start("text-1")
-        b.on_text_delta("text-1", "first")
+        b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
+        b.on_activity(_activity("act-1", 1))
+        assert b.snapshot()[0]["data"]["activities"][0]["status"] == "completed"
 
-        # Thinking step inserts at index 0, bumps text idx from 0 to 1.
-        b.on_thinking_step("step-1", "Working", "in_progress", [])
-        b.on_text_delta("text-1", " second")
-
-        snap = b.snapshot()
-        text_parts = [p for p in snap if p["type"] == "text"]
-        assert text_parts == [{"type": "text", "text": "first second"}]
-
-    def test_thinking_step_without_id_is_dropped(self):
+    def test_activity_without_id_is_dropped(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("", "noop", "in_progress", None)
+        b.on_activity({})
         assert b.snapshot() == []
         assert b.is_empty()
 
@@ -484,6 +488,19 @@ class TestStepSeparators:
 
 
 class TestMarkInterrupted:
+    def test_running_activities_interrupt_but_approval_pauses_are_preserved(self):
+        b = AssistantContentBuilder()
+        b.on_activity(_activity("running", 1))
+        b.on_activity(_activity("approval", 2, status="awaiting_approval"))
+
+        b.mark_interrupted()
+
+        activities = b.snapshot()[0]["data"]["activities"]
+        assert activities[0]["status"] == "interrupted"
+        assert activities[0]["completedAt"]
+        assert activities[1]["status"] == "awaiting_approval"
+        assert "completedAt" not in activities[1]
+
     def test_running_tool_calls_get_state_aborted(self):
         b = AssistantContentBuilder()
         b.on_tool_input_start("call_a", "ls", "lc_a")
@@ -539,13 +556,9 @@ class TestIsEmpty:
         b.on_tool_input_start("call_x", "ls", None)
         assert not b.is_empty()
 
-    def test_thinking_step_alone_does_not_break_emptiness(self):
-        # Mirrors the "status marker fallback" semantic: a turn that
-        # only emitted a thinking step before being interrupted should
-        # still be treated as empty for finalize_assistant_turn's
-        # status-marker substitution.
+    def test_activity_alone_does_not_break_emptiness(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("step-1", "Working", "in_progress", [])
+        b.on_activity(_activity("act-1", 1))
         assert b.is_empty()
 
     def test_step_separator_alone_does_not_break_emptiness(self):
@@ -573,7 +586,7 @@ class TestSnapshotSemantics:
 
     def test_snapshot_round_trips_through_json(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("step-1", "Analyzing", "in_progress", ["item"])
+        b.on_activity(_activity("act-1", 1))
         b.on_text_delta("text-1", "answer")
         b.on_tool_input_start("call_x", "ls", "lc_x")
         b.on_tool_input_available("call_x", "ls", {"path": "/"}, "lc_x")
@@ -602,7 +615,7 @@ class TestStats:
             "tool_calls": 0,
             "tool_calls_completed": 0,
             "tool_calls_aborted": 0,
-            "thinking_step_parts": 0,
+            "activity_parts": 0,
             "step_separators": 0,
         }
 
@@ -614,7 +627,7 @@ class TestStats:
         b.on_reasoning_start("r1")
         b.on_reasoning_delta("r1", "thinking")
         b.on_reasoning_end("r1")
-        b.on_thinking_step("step-1", "Analyzing", "completed", ["item"])
+        b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
         b.on_step_separator()
         b.on_tool_input_start("call_done", "ls", "lc_done")
         b.on_tool_input_available("call_done", "ls", {}, "lc_done")
@@ -628,14 +641,14 @@ class TestStats:
         assert s["tool_calls"] == 2
         assert s["tool_calls_completed"] == 1
         assert s["tool_calls_aborted"] == 0
-        assert s["thinking_step_parts"] == 1
+        assert s["activity_parts"] == 1
         assert s["step_separators"] == 1
         assert s["parts"] == sum(
             [
                 s["text"],
                 s["reasoning"],
                 s["tool_calls"],
-                s["thinking_step_parts"],
+                s["activity_parts"],
                 s["step_separators"],
             ]
         )
