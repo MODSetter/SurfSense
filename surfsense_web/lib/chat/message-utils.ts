@@ -208,6 +208,18 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 						data: { steps: Array.isArray(steps) ? steps : [] },
 					};
 				}
+				if (
+					typeof part === "object" &&
+					part !== null &&
+					"type" in part &&
+					(part as { type: string }).type === "status"
+				) {
+					const text = (part as { text?: unknown }).text;
+					return {
+						type: "text",
+						text: typeof text === "string" ? text : "No response was produced.",
+					};
+				}
 				return part;
 			});
 		content =
@@ -231,7 +243,10 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 						...(msg.token_usage && { usage: msg.token_usage }),
 						// Surfaced for the assistant footer's per-turn
 						// "Revert turn" button. Null on legacy rows.
-						...(msg.turn_id && { chatTurnId: msg.turn_id }),
+						...(msg.turn_id && {
+							chatTurnId: msg.turn_id,
+							turnStartedAt: msg.created_at,
+						}),
 					},
 				}
 			: undefined;

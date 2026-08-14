@@ -112,6 +112,22 @@ async def finalize_assistant_message(
         content_payload,
         stream_result.final_message_parts,
     )
+    has_meaningful_content = any(
+        part.get("type") in {"text", "reasoning", "tool-call"}
+        and (
+            part.get("type") == "tool-call"
+            or bool(str(part.get("text") or "").strip())
+        )
+        for part in content_payload
+    )
+    if not has_meaningful_content:
+        content_payload.append(
+            {
+                "type": "status",
+                "code": "no_response",
+                "text": "No response was produced.",
+            }
+        )
     content_payload = _resolve_citations(
         content_payload, stream_result.citation_registry
     )

@@ -113,7 +113,20 @@ async function persistAssistantErrorMessage({
 }): Promise<void> {
 	if (threadId != null) {
 		chatStreamStore.setMessages(threadId, (prev) =>
-			prev.map((m) => (m.id === assistantMsgId ? { ...m, content: [{ type: "text", text }] } : m))
+			prev.map((m) => {
+				if (m.id !== assistantMsgId) return m;
+				const existing = Array.isArray(m.content) ? m.content : [];
+				const hasPartial = existing.some(
+					(part) =>
+						(part.type === "text" && part.text.trim().length > 0) ||
+						part.type === "reasoning" ||
+						part.type === "tool-call"
+				);
+				return {
+					...m,
+					content: hasPartial ? [...existing, { type: "text", text }] : [{ type: "text", text }],
+				};
+			})
 		);
 	}
 
@@ -713,7 +726,10 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 					const turnId = readStreamedChatTurnId(parsed.data);
 					if (turnId) {
 						chatStreamStore.setMessages(streamThreadId, (prev) =>
-							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
+							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId, {
+								startedAt: parsed.data.started_at,
+								flow: parsed.data.flow,
+							})
 						);
 					}
 					break;
@@ -781,6 +797,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 			trackChatResponseReceived(workspaceId, streamThreadId);
 		}
 	} catch (error) {
+		streamBatcher?.flush();
 		streamBatcher?.dispose();
 		await handleStreamTerminalError({
 			error,
@@ -1060,7 +1077,10 @@ export async function resumeChat(
 					const turnId = readStreamedChatTurnId(parsed.data);
 					if (turnId) {
 						chatStreamStore.setMessages(resumeThreadId, (prev) =>
-							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
+							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId, {
+								startedAt: parsed.data.started_at,
+								flow: parsed.data.flow,
+							})
 						);
 					}
 					break;
@@ -1087,6 +1107,7 @@ export async function resumeChat(
 
 		batcher.flush();
 	} catch (error) {
+		streamBatcher?.flush();
 		streamBatcher?.dispose();
 		await handleStreamTerminalError({
 			error,
@@ -1329,7 +1350,10 @@ export async function regenerateChat(
 					const turnId = readStreamedChatTurnId(parsed.data);
 					if (turnId) {
 						chatStreamStore.setMessages(streamThreadId, (prev) =>
-							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
+							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId, {
+								startedAt: parsed.data.started_at,
+								flow: parsed.data.flow,
+							})
 						);
 					}
 					break;
@@ -1413,6 +1437,7 @@ export async function regenerateChat(
 			trackChatResponseReceived(workspaceId, streamThreadId);
 		}
 	} catch (error) {
+		streamBatcher?.flush();
 		streamBatcher?.dispose();
 		await handleStreamTerminalError({
 			error,

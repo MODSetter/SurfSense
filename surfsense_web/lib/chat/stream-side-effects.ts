@@ -6,17 +6,22 @@ import type { ThreadMessageLike } from "@assistant-ui/react";
  */
 export function mergeChatTurnIdIntoMessage(
 	msg: ThreadMessageLike,
-	turnId: string | null | undefined
+	turnId: string | null | undefined,
+	turnInfo?: { startedAt?: string; flow?: string }
 ): ThreadMessageLike {
 	if (!turnId) return msg;
 	const existingMeta = (msg.metadata ?? {}) as { custom?: Record<string, unknown> };
 	const existingCustom = existingMeta.custom ?? {};
-	if ((existingCustom as { chatTurnId?: string }).chatTurnId === turnId) return msg;
 	return {
 		...msg,
 		metadata: {
 			...existingMeta,
-			custom: { ...existingCustom, chatTurnId: turnId },
+			custom: {
+				...existingCustom,
+				chatTurnId: turnId,
+				...(turnInfo?.startedAt ? { turnStartedAt: turnInfo.startedAt } : {}),
+				...(turnInfo?.flow ? { turnFlow: turnInfo.flow } : {}),
+			},
 		},
 	};
 }
@@ -53,7 +58,10 @@ export function readStreamedMessageId(
 export function applyTurnIdToAssistantMessageList(
 	messages: ThreadMessageLike[],
 	assistantMsgId: string,
-	turnId: string
+	turnId: string,
+	turnInfo?: { startedAt?: string; flow?: string }
 ): ThreadMessageLike[] {
-	return messages.map((m) => (m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, turnId) : m));
+	return messages.map((m) =>
+		m.id === assistantMsgId ? mergeChatTurnIdIntoMessage(m, turnId, turnInfo) : m
+	);
 }

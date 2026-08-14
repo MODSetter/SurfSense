@@ -9,6 +9,7 @@ import {
 	endReasoning,
 	readSSEStream,
 	type SSEEvent,
+	startReasoning,
 	type ThinkingStepData,
 	type ToolUIGate,
 	updateThinkingSteps,
@@ -61,6 +62,7 @@ export function hasPersistableContent(
 		(part) =>
 			(part.type === "text" && part.text.length > 0) ||
 			(part.type === "reasoning" && part.text.length > 0) ||
+			(part.type === "status" && part.text.length > 0) ||
 			(part.type === "tool-call" && (toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
 	);
 }
@@ -83,6 +85,11 @@ export function processSharedStreamEvent(
 	const { contentParts, toolCallIndices } = contentPartsState;
 
 	switch (parsed.type) {
+		case "reasoning-start":
+			startReasoning(contentPartsState, parsed.id, parsed.startedAt);
+			scheduleFlush();
+			return true;
+
 		case "text-delta":
 			appendText(contentPartsState, parsed.delta);
 			scheduleFlush();
@@ -94,7 +101,7 @@ export function processSharedStreamEvent(
 			return true;
 
 		case "reasoning-end":
-			endReasoning(contentPartsState);
+			endReasoning(contentPartsState, parsed.id, parsed.completedAt);
 			scheduleFlush();
 			return true;
 

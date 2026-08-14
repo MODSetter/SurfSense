@@ -3,7 +3,7 @@ import type { ThreadMessageLike } from "@assistant-ui/react";
 export interface ThinkingStepData {
 	id: string;
 	title: string;
-	status: "pending" | "in_progress" | "completed";
+	status: "pending" | "in_progress" | "completed" | "error" | "cancelled" | "interrupted";
 	items: string[];
 	/**
 	 * Optional relay fields from ``data-thinking-step`` when present on the wire
@@ -14,7 +14,20 @@ export interface ThinkingStepData {
 
 export type ContentPart =
 	| { type: "text"; text: string }
-	| { type: "reasoning"; text: string }
+	| {
+			type: "reasoning";
+			text: string;
+			id?: string;
+			status?: "running" | "completed" | "interrupted";
+			startedAt?: string;
+			completedAt?: string;
+	  }
+	| {
+			type: "status";
+			code: "no_response" | "error" | "cancelled";
+			text: string;
+			errorCode?: string;
+	  }
 	| {
 			type: "tool-call";
 			toolCallId: string;
@@ -72,6 +85,8 @@ export interface ContentPartsState {
 	contentParts: ContentPart[];
 	currentTextPartIndex: number;
 	currentReasoningPartIndex: number;
+	currentReasoningId?: string;
+	currentReasoningStartedAt?: string;
 	toolCallIndices: Map<string, number>;
 	/**
 	 * Set by the resume flow's rehydration to suppress
@@ -93,7 +108,12 @@ function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepDa
 	for (let i = 0; i < current.length; i += 1) {
 		const curr = current[i];
 		const nxt = next[i];
-		if (curr.id !== nxt.id || curr.title !== nxt.title || curr.status !== nxt.status) {
+		if (
+			curr.id !== nxt.id ||
+			curr.title !== nxt.title ||
+			curr.status !== nxt.status ||
+			JSON.stringify(curr.metadata) !== JSON.stringify(nxt.metadata)
+		) {
 			return false;
 		}
 		if (curr.items.length !== nxt.items.length) return false;
@@ -231,13 +251,33 @@ export function appendReasoning(state: ContentPartsState, delta: string): void {
 			}
 		).text += delta;
 	} else {
-		state.contentParts.push({ type: "reasoning", text: delta });
+		state.contentParts.push({
+			type: "reasoning",
+			text: delta,
+			id: state.currentReasoningId,
+			status: "running",
+			startedAt: state.currentReasoningStartedAt,
+		});
 		state.currentReasoningPartIndex = state.contentParts.length - 1;
 	}
 }
 
-export function endReasoning(state: ContentPartsState): void {
+export function startReasoning(state: ContentPartsState, id: string, startedAt?: string): void {
+	state.currentTextPartIndex = -1;
 	state.currentReasoningPartIndex = -1;
+	state.currentReasoningId = id;
+	state.currentReasoningStartedAt = startedAt ?? new Date().toISOString();
+}
+
+export function endReasoning(state: ContentPartsState, id?: string, completedAt?: string): void {
+	const current = state.contentParts[state.currentReasoningPartIndex];
+	if (current?.type === "reasoning" && (!id || !current.id || current.id === id)) {
+		current.status = "completed";
+		current.completedAt = completedAt ?? new Date().toISOString();
+	}
+	state.currentReasoningPartIndex = -1;
+	state.currentReasoningId = undefined;
+	state.currentReasoningStartedAt = undefined;
 }
 
 export function addStepSeparator(state: ContentPartsState): void {
@@ -409,6 +449,7 @@ export function buildContentForUI(
 	const filtered = state.contentParts.filter((part) => {
 		if (part.type === "text") return part.text.length > 0;
 		if (part.type === "reasoning") return part.text.length > 0;
+		if (part.type === "status") return part.text.length > 0;
 		if (part.type === "tool-call")
 			return _toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part);
 		if (part.type === "data-thinking-steps") return true;
@@ -435,6 +476,8 @@ export function buildContentForPersistence(
 			// silently dropping it (mirrors the data-thinking-steps
 			// branch above).
 			parts.push(part);
+		} else if (part.type === "status" && part.text.length > 0) {
+			parts.push(part);
 		} else if (
 			part.type === "tool-call" &&
 			(_toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part))
@@ -458,9 +501,9 @@ export type SSEEvent =
 	| { type: "text-start"; id: string }
 	| { type: "text-delta"; id?: string; delta: string }
 	| { type: "text-end"; id: string }
-	| { type: "reasoning-start"; id: string }
+	| { type: "reasoning-start"; id: string; startedAt?: string }
 	| { type: "reasoning-delta"; id?: string; delta: string }
-	| { type: "reasoning-end"; id: string }
+	| { type: "reasoning-end"; id: string; completedAt?: string }
 	| {
 			type: "tool-input-start";
 			toolCallId: string;
@@ -539,7 +582,11 @@ export type SSEEvent =
 			 * always learns the turn id.
 			 */
 			type: "data-turn-info";
-			data: { chat_turn_id: string };
+			data: {
+				chat_turn_id: string;
+				started_at?: string;
+				flow?: "new" | "resume" | "regenerate";
+			};
 	  }
 	| {
 			/**
