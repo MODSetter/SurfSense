@@ -18,9 +18,6 @@ from app.tasks.chat.streaming.handlers.custom_event_dispatch import (
 from app.tasks.chat.streaming.handlers.tool_end import iter_tool_end_frames
 from app.tasks.chat.streaming.handlers.tool_start import iter_tool_start_frames
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
-from app.tasks.chat.streaming.relay.thinking_step_completion import (
-    complete_active_thinking_step,
-)
 
 
 @dataclass
@@ -57,8 +54,9 @@ class EventRelay:
         content_builder: Any | None = None,
         config: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
-        """Yield SSE for each event from the async iterator, then finalize text/thinking."""
+        """Yield SSE for each event and retain canonical activity state."""
         graph_config = config or {}
+        result.activity_state = state
         async for event in events:
             event_type = event.get("event", "")
             if event_type == "on_chat_model_stream":
@@ -113,16 +111,3 @@ class EventRelay:
             if content_builder is not None:
                 content_builder.on_text_end(state.current_text_id)
             state.current_text_id = None
-
-        completion_event, new_active = complete_active_thinking_step(
-            state=state,
-            streaming_service=self.streaming_service,
-            content_builder=content_builder,
-            last_active_step_id=state.last_active_step_id,
-            last_active_step_title=state.last_active_step_title,
-            last_active_step_items=state.last_active_step_items,
-            completed_step_ids=state.completed_step_ids,
-        )
-        if completion_event:
-            yield completion_event
-        state.last_active_step_id = new_active

@@ -24,3 +24,4 @@ class StreamingResult:
     commit_gate_reason: str = ""
     assistant_message_id: int | None = None
     content_builder: Any | None = field(default=None, repr=False)
+    activity_state: Any | None = field(default=None, repr=False)

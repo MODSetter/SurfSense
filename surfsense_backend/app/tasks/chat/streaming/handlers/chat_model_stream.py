@@ -6,11 +6,11 @@ from collections.abc import Iterator
 from typing import Any
 
 from app.tasks.chat.streaming.helpers.chunk_parts import extract_chunk_parts
+from app.tasks.chat.streaming.relay.activity_completion import (
+    iter_complete_open_activity_frames,
+)
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.task_span import ensure_pending_task_span_for_lc
-from app.tasks.chat.streaming.relay.thinking_step_completion import (
-    complete_active_thinking_step,
-)
 
 
 def iter_chat_model_stream_frames(
@@ -41,23 +41,11 @@ def iter_chat_model_stream_frames(
                 content_builder.on_text_end(state.current_text_id)
             state.current_text_id = None
         if state.current_reasoning_id is None:
-            comp, new_active = complete_active_thinking_step(
+            yield from iter_complete_open_activity_frames(
                 state=state,
                 streaming_service=streaming_service,
                 content_builder=content_builder,
-                last_active_step_id=state.last_active_step_id,
-                last_active_step_title=state.last_active_step_title,
-                last_active_step_items=state.last_active_step_items,
-                completed_step_ids=state.completed_step_ids,
             )
-            if comp:
-                yield comp
-            state.last_active_step_id = new_active
-            if state.just_finished_tool:
-                state.last_active_step_id = None
-                state.last_active_step_title = ""
-                state.last_active_step_items = []
-                state.just_finished_tool = False
             state.current_reasoning_id = streaming_service.generate_reasoning_id()
             yield streaming_service.format_reasoning_start(state.current_reasoning_id)
             if content_builder is not None:
@@ -77,23 +65,11 @@ def iter_chat_model_stream_frames(
                 content_builder.on_reasoning_end(state.current_reasoning_id)
             state.current_reasoning_id = None
         if state.current_text_id is None:
-            comp, new_active = complete_active_thinking_step(
+            yield from iter_complete_open_activity_frames(
                 state=state,
                 streaming_service=streaming_service,
                 content_builder=content_builder,
-                last_active_step_id=state.last_active_step_id,
-                last_active_step_title=state.last_active_step_title,
-                last_active_step_items=state.last_active_step_items,
-                completed_step_ids=state.completed_step_ids,
             )
-            if comp:
-                yield comp
-            state.last_active_step_id = new_active
-            if state.just_finished_tool:
-                state.last_active_step_id = None
-                state.last_active_step_title = ""
-                state.last_active_step_items = []
-                state.just_finished_tool = False
             state.current_text_id = streaming_service.generate_text_id()
             yield streaming_service.format_text_start(state.current_text_id)
             if content_builder is not None:

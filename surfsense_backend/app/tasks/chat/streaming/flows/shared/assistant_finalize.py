@@ -22,6 +22,7 @@ Never raises (best-effort, logs only).
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from app.agents.chat.multi_agent_chat.shared.citations import (
@@ -91,6 +92,25 @@ async def finalize_assistant_message(
 
     builder_stats: dict[str, int] | None = None
     if stream_result.content_builder is not None:
+        if stream_result.activity_timer.status == "running":
+            stream_result.content_builder.on_activity_timing(
+                stream_result.activity_timer.complete()
+            )
+        activity_state = stream_result.activity_state
+        if activity_state is not None:
+            interrupted_at = datetime.now(UTC).isoformat()
+            for activity_id, current in list(
+                activity_state.activity_snapshot_by_id.items()
+            ):
+                if current.get("status") != "running":
+                    continue
+                snapshot = activity_state.transition_activity(
+                    activity_id,
+                    status="interrupted",
+                    completed_at=interrupted_at,
+                )
+                if snapshot:
+                    stream_result.content_builder.on_activity(snapshot)
         stream_result.content_builder.mark_interrupted()
         # Snapshot stats BEFORE ``snapshot()`` deepcopies so the perf log
         # records the actual finalised payload (post-mark_interrupted), not
@@ -115,8 +135,7 @@ async def finalize_assistant_message(
     has_meaningful_content = any(
         part.get("type") in {"text", "reasoning", "tool-call"}
         and (
-            part.get("type") == "tool-call"
-            or bool(str(part.get("text") or "").strip())
+            part.get("type") == "tool-call" or bool(str(part.get("text") or "").strip())
         )
         for part in content_payload
     )
@@ -138,7 +157,7 @@ async def finalize_assistant_message(
             "message_id=%s parts=%d bytes=%d text=%d "
             "reasoning=%d tool_calls=%d "
             "tool_calls_completed=%d tool_calls_aborted=%d "
-            "thinking_step_parts=%d step_separators=%d",
+            "activity_parts=%d step_separators=%d",
             log_prefix,
             chat_id,
             stream_result.assistant_message_id,
@@ -149,7 +168,7 @@ async def finalize_assistant_message(
             builder_stats["tool_calls"],
             builder_stats["tool_calls_completed"],
             builder_stats["tool_calls_aborted"],
-            builder_stats["thinking_step_parts"],
+            builder_stats["activity_parts"],
             builder_stats["step_separators"],
         )
 

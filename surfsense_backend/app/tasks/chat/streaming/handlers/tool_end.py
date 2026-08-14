@@ -1,4 +1,4 @@
-"""Tool end: thinking completion, tool output, and terminal SSE."""
+"""Tool end: canonical activity, tool output, and terminal SSE."""
 
 from __future__ import annotations
 
@@ -13,14 +13,13 @@ from langgraph.types import Command
 from app.tasks.chat.streaming.handlers.tools import (
     ToolCompletionEmissionContext,
     iter_tool_completion_emission_frames,
-    resolve_tool_completed_thinking_step,
 )
 from app.tasks.chat.streaming.helpers.tool_output import tool_output_has_error
+from app.tasks.chat.streaming.relay.activity_sse import emit_activity_frame
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.task_span import (
     clear_task_span_if_delegating_task_ended,
 )
-from app.tasks.chat.streaming.relay.thinking_step_sse import emit_thinking_step_frame
 
 
 def _unwrap_command_output(raw_output: Any) -> Any:
@@ -100,11 +99,6 @@ def iter_tool_end_frames(
         run_id,
         f"call_{run_id[:32]}" if run_id else "call_unknown",
     )
-    original_step_id = state.tool_step_ids.get(
-        run_id, f"{step_prefix}-unknown-{run_id[:8]}"
-    )
-    state.completed_step_ids.add(original_step_id)
-
     holder = state.current_lc_tool_call_id
     holder["value"] = None
     authoritative = getattr(raw_output, "tool_call_id", None)
@@ -115,37 +109,36 @@ def iter_tool_end_frames(
     elif run_id and run_id in state.lc_tool_call_id_by_run:
         holder["value"] = state.lc_tool_call_id_by_run[run_id]
 
-    items = (
-        state.tool_step_items_by_run.pop(run_id, state.last_active_step_items)
-        if run_id
-        else state.last_active_step_items
-    )
-    title, completed_items = resolve_tool_completed_thinking_step(
-        tool_name, tool_output, items
-    )
     failed = tool_output_has_error(tool_output)
-    terminal_status = "error" if failed else "completed"
-    tool_metadata = state.tool_activity_metadata(
-        thinking_step_id=original_step_id,
-    ) or {}
-    started_at = state.tool_started_at_by_run.pop(run_id, None) if run_id else None
-    if started_at:
-        tool_metadata["startedAt"] = started_at
-    tool_metadata["completedAt"] = completed_at
-    yield emit_thinking_step_frame(
-        streaming_service=streaming_service,
-        content_builder=content_builder,
-        step_id=original_step_id,
-        title=title,
-        status=terminal_status,
-        items=completed_items,
-        metadata=tool_metadata,
-    )
+    activity_id = state.activity_id_by_run.pop(run_id, None) if run_id else None
+    tool_metadata = state.tool_activity_metadata(activity_id=activity_id) or {}
+    if activity_id:
+        spec = state.activity_spec_by_id.get(activity_id)
+        raw_status = str(tool_output.get("status") or "").lower()
+        terminal_status = (
+            "cancelled"
+            if raw_status in {"cancelled", "canceled", "rejected"}
+            else "error"
+            if failed
+            else "completed"
+        )
+        if spec and (spec.lifecycle == "invocation" or terminal_status != "completed"):
+            snapshot = state.transition_activity(
+                activity_id,
+                status=terminal_status,
+                completed_at=completed_at,
+            )
+            if snapshot:
+                yield emit_activity_frame(
+                    streaming_service=streaming_service,
+                    content_builder=content_builder,
+                    snapshot=snapshot,
+                )
 
-    state.just_finished_tool = True
-    state.last_active_step_id = None
-    state.last_active_step_title = ""
-    state.last_active_step_items = []
+    if tool_name == "verify_artifact":
+        state.deliverable_needs_repair = failed
+    elif tool_name in {"save_artifact", "save_document"} and not failed:
+        state.deliverable_needs_repair = False
 
     emission_ctx = ToolCompletionEmissionContext(
         tool_name=tool_name,

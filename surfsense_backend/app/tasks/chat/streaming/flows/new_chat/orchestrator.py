@@ -106,6 +106,7 @@ from app.tasks.chat.streaming.flows.shared.stream_loop import run_stream_loop
 from app.tasks.chat.streaming.flows.shared.terminal_error import (
     handle_terminal_exception,
 )
+from app.tasks.chat.streaming.relay.activity_sse import emit_activity_timing_frame
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.utils.perf import get_perf_logger, log_system_snapshot
 
@@ -567,6 +568,11 @@ async def stream_new_chat(
 
         stream_result.assistant_message_id = assistant_message_id
         stream_result.content_builder = AssistantContentBuilder()
+        yield emit_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=stream_result.content_builder,
+            snapshot=stream_result.activity_timer.snapshot(),
+        )
 
         # --- Block 6: Title task + runtime context ---
         # Drop the heavy ORM objects + the container that holds them so they
@@ -742,6 +748,12 @@ async def stream_new_chat(
                 yield sse
             return
 
+        yield emit_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=stream_result.content_builder,
+            snapshot=stream_result.activity_timer.complete(),
+        )
+
         async for title_sse in await_pending_title_update(
             title_task=title_task,
             title_emitted=title_emitted,
@@ -773,6 +785,15 @@ async def stream_new_chat(
             yield sse
 
     except Exception as exc:
+        if (
+            stream_result.content_builder is not None
+            and stream_result.activity_timer.status == "running"
+        ):
+            yield emit_activity_timing_frame(
+                streaming_service=streaming_service,
+                content_builder=stream_result.content_builder,
+                snapshot=stream_result.activity_timer.complete(),
+            )
         frames, summary = handle_terminal_exception(
             exc,
             flow=flow,

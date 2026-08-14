@@ -19,6 +19,7 @@ from .events import (
     text,
     tool,
 )
+from .types import ActivityData
 
 
 class StreamingService:
@@ -230,22 +231,13 @@ class StreamingService:
     ) -> str:
         return data.format_further_questions(questions, emitter=emitter)
 
-    def format_thinking_step(
+    def format_activity(
         self,
+        snapshot: ActivityData,
         *,
-        step_id: str,
-        title: str,
-        status: str = "in_progress",
-        items: list[str] | None = None,
         emitter: Emitter | None = None,
     ) -> str:
-        return data.format_thinking_step(
-            step_id=step_id,
-            title=title,
-            status=status,
-            items=items,
-            emitter=emitter,
-        )
+        return data.format_activity(snapshot, emitter=emitter)
 
     def format_thread_title_update(
         self,

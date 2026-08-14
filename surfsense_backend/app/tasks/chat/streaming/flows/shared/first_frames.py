@@ -9,7 +9,6 @@ UI into the streaming state.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import UTC, datetime
 
 from app.services.new_streaming_service import VercelStreamingService
 
@@ -18,7 +17,6 @@ def iter_initial_frames(
     streaming_service: VercelStreamingService,
     *,
     turn_id: str,
-    flow: str = "new",
 ) -> Iterator[str]:
     """Yield the four canonical opening frames in order.
 
@@ -30,11 +28,7 @@ def iter_initial_frames(
     yield streaming_service.format_start_step()
     yield streaming_service.format_data(
         "turn-info",
-        {
-            "chat_turn_id": turn_id,
-            "started_at": datetime.now(UTC).isoformat(),
-            "flow": flow,
-        },
+        {"chat_turn_id": turn_id},
     )
     yield streaming_service.format_data("turn-status", {"status": "busy"})
 

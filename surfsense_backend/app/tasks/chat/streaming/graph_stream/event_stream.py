@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
+from app.services.streaming.types import ActivityData
 from app.tasks.chat.streaming.graph_stream.result import StreamingResult
 from app.tasks.chat.streaming.relay.event_relay import EventRelay
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
@@ -18,18 +19,12 @@ async def stream_output(
     streaming_service: Any,
     result: StreamingResult,
     step_prefix: str = "thinking",
-    initial_step_id: str | None = None,
-    initial_step_title: str = "",
-    initial_step_items: list[str] | None = None,
+    initial_activities: list[ActivityData] | None = None,
     content_builder: Any | None = None,
     runtime_context: Any = None,
 ) -> AsyncIterator[str]:
     """Yield SSE frames from agent ``astream_events`` via ``EventRelay``."""
-    state = AgentEventRelayState.for_invocation(
-        initial_step_id=initial_step_id,
-        initial_step_title=initial_step_title,
-        initial_step_items=initial_step_items,
-    )
+    state = AgentEventRelayState.for_invocation(initial_activities=initial_activities)
 
     astream_kwargs: dict[str, Any] = {"config": config, "version": "v2"}
     if runtime_context is not None:
