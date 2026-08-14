@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.instagram.scrape.executor import build_scrape_executor
 from app.capabilities.instagram.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,6 +23,13 @@ INSTAGRAM_SCRAPE = Capability(
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.INSTAGRAM_ITEM,
     docs_url="/docs/connectors/native/instagram",
+    activity=ActivityDescriptor(
+        active_title="Searching Instagram",
+        completed_title="Searched Instagram",
+        category="research",
+        icon_key="search",
+        integration_key="instagram",
+    ),
 )
 
 register_capability(INSTAGRAM_SCRAPE)

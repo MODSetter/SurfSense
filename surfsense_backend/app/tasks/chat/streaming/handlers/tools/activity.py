@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 
+from app.capabilities.core import get_capability
+from app.capabilities.core.types import ActivityDescriptor
 from app.services.streaming.types import (
     ActivityCategory,
     ActivityData,
@@ -14,6 +17,7 @@ from app.services.streaming.types import (
 
 ActivityVisibility = Literal["show", "hide"]
 ActivityLifecycle = Literal["invocation", "phase"]
+_ACTIVITY_KIND_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,125 +204,6 @@ _ACTIVITY_SPECS: dict[str, ActivitySpec] = {
         lifecycle="phase",
         icon_key="scan-text",
     ),
-    "google_search.scrape": _copy(
-        "Searching the web",
-        "Searched the web",
-        "research",
-        icon_key="search",
-        integration_key="google_search",
-    ),
-    "web.crawl": _copy(
-        "Reviewing the web",
-        "Reviewed the web",
-        "research",
-        icon_key="scan-text",
-        integration_key="web",
-    ),
-    "amazon.scrape": _copy(
-        "Searching Amazon",
-        "Searched Amazon",
-        "research",
-        icon_key="search",
-        integration_key="amazon",
-    ),
-    "walmart.scrape": _copy(
-        "Searching Walmart",
-        "Searched Walmart",
-        "research",
-        icon_key="search",
-        integration_key="walmart",
-    ),
-    "walmart.reviews": _copy(
-        "Reviewing Walmart feedback",
-        "Reviewed Walmart feedback",
-        "research",
-        icon_key="search",
-        integration_key="walmart",
-    ),
-    "google_maps.scrape": _copy(
-        "Searching Google Maps",
-        "Searched Google Maps",
-        "research",
-        icon_key="search",
-        integration_key="google_maps",
-    ),
-    "google_maps.reviews": _copy(
-        "Reviewing Google Maps feedback",
-        "Reviewed Google Maps feedback",
-        "research",
-        icon_key="search",
-        integration_key="google_maps",
-    ),
-    "indeed.scrape": _copy(
-        "Searching Indeed",
-        "Searched Indeed",
-        "research",
-        icon_key="search",
-        integration_key="indeed",
-    ),
-    "youtube.scrape": _copy(
-        "Searching YouTube",
-        "Searched YouTube",
-        "research",
-        icon_key="search",
-        integration_key="youtube",
-    ),
-    "youtube.comments": _copy(
-        "Reviewing YouTube comments",
-        "Reviewed YouTube comments",
-        "research",
-        icon_key="search",
-        integration_key="youtube",
-    ),
-    "reddit.scrape": _copy(
-        "Searching Reddit",
-        "Searched Reddit",
-        "research",
-        icon_key="search",
-        integration_key="reddit",
-    ),
-    "tiktok.scrape": _copy(
-        "Searching TikTok",
-        "Searched TikTok",
-        "research",
-        icon_key="search",
-        integration_key="tiktok",
-    ),
-    "tiktok.comments": _copy(
-        "Reviewing TikTok comments",
-        "Reviewed TikTok comments",
-        "research",
-        icon_key="search",
-        integration_key="tiktok",
-    ),
-    "tiktok.trending": _copy(
-        "Reviewing TikTok trends",
-        "Reviewed TikTok trends",
-        "research",
-        icon_key="search",
-        integration_key="tiktok",
-    ),
-    "tiktok.user_search": _copy(
-        "Searching TikTok",
-        "Searched TikTok",
-        "research",
-        icon_key="search",
-        integration_key="tiktok",
-    ),
-    "instagram.scrape": _copy(
-        "Searching Instagram",
-        "Searched Instagram",
-        "research",
-        icon_key="search",
-        integration_key="instagram",
-    ),
-    "instagram.details": _copy(
-        "Reviewing Instagram",
-        "Reviewed Instagram",
-        "research",
-        icon_key="search",
-        integration_key="instagram",
-    ),
     "link_preview": _copy(
         "Reviewing a link",
         "Reviewed a link",
@@ -413,6 +298,25 @@ def _with_kind(spec: ActivitySpec, kind: str) -> ActivitySpec:
     )
 
 
+def _activity_from_descriptor(value: object) -> ActivitySpec | None:
+    descriptor = ActivityDescriptor.from_metadata(value)
+    if descriptor is None:
+        return None
+    kind = value.get("kind") if isinstance(value, dict) else None
+    if not isinstance(kind, str) or not _ACTIVITY_KIND_RE.fullmatch(kind):
+        kind = "connector.action"
+    return _with_kind(
+        _copy(
+            descriptor.active_title,
+            descriptor.completed_title,
+            descriptor.category,
+            icon_key=descriptor.icon_key,
+            integration_key=descriptor.integration_key,
+        ),
+        kind,
+    )
+
+
 def resolve_tool_activity(
     tool_name: str,
     *,
@@ -439,33 +343,24 @@ def resolve_tool_activity(
             "artifact.repair" if repairing_artifact else "artifact.create",
         )
 
+    # StructuredTool metadata is backend-authored and takes precedence over
+    # model-visible names, which can collide across native and MCP tools.
+    described = _activity_from_descriptor(trusted_descriptor)
+    if described is not None:
+        return described
+
     explicit = _ACTIVITY_SPECS.get(tool_name)
     if explicit:
         return _with_kind(explicit, tool_name)
 
-    # Dynamic connector/MCP descriptors are backend-authored tool metadata.
-    # Require complete, bounded copy; otherwise use the generic safe fallback.
-    if isinstance(trusted_descriptor, dict):
-        active = trusted_descriptor.get("active_title")
-        completed = trusted_descriptor.get("completed_title")
-        category = trusted_descriptor.get("category")
-        icon_key = trusted_descriptor.get("icon_key")
-        if (
-            isinstance(active, str)
-            and 0 < len(active.strip()) <= 120
-            and isinstance(completed, str)
-            and 0 < len(completed.strip()) <= 120
-            and category in {"file", "research", "artifact", "connector", "action"}
-            and isinstance(icon_key, str)
-            and 0 < len(icon_key.strip()) <= 64
-        ):
-            return _with_kind(
-                _copy(
-                    active.strip(),
-                    completed.strip(),
-                    category,
-                    icon_key=icon_key.strip(),
-                ),
-                str(trusted_descriptor.get("kind") or "connector.action"),
-            )
+    try:
+        capability = get_capability(tool_name)
+    except KeyError:
+        capability = None
+    if capability is not None and capability.activity is not None:
+        described = _activity_from_descriptor(
+            capability.activity.as_metadata(kind=capability.name)
+        )
+        if described is not None:
+            return described
     return _with_kind(_fallback(), "tool.action")

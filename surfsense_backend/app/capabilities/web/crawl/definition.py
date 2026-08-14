@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.web.crawl.executor import build_crawl_executor
 from app.capabilities.web.crawl.schemas import CrawlInput, CrawlOutput
 
@@ -17,6 +22,13 @@ WEB_CRAWL = Capability(
     executor=build_crawl_executor(),
     billing_unit=BillingUnit.WEB_CRAWL,
     docs_url="/docs/connectors/native/web-crawl",
+    activity=ActivityDescriptor(
+        active_title="Reviewing the web",
+        completed_title="Reviewed the web",
+        category="research",
+        icon_key="scan-text",
+        integration_key="web",
+    ),
 )
 
 register_capability(WEB_CRAWL)

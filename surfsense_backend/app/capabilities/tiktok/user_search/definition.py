@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.tiktok.user_search.executor import build_user_search_executor
 from app.capabilities.tiktok.user_search.schemas import (
     UserSearchInput,
@@ -21,6 +26,13 @@ TIKTOK_USER_SEARCH = Capability(
     executor=build_user_search_executor(),
     billing_unit=BillingUnit.TIKTOK_USER,
     docs_url="/docs/connectors/native/tiktok",
+    activity=ActivityDescriptor(
+        active_title="Searching TikTok",
+        completed_title="Searched TikTok",
+        category="research",
+        icon_key="search",
+        integration_key="tiktok",
+    ),
 )
 
 register_capability(TIKTOK_USER_SEARCH)

@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.indeed.scrape.executor import build_scrape_executor
 from app.capabilities.indeed.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,6 +23,13 @@ INDEED_SCRAPE = Capability(
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.INDEED_JOB,
     docs_url="/docs/connectors/native/indeed",
+    activity=ActivityDescriptor(
+        active_title="Searching Indeed",
+        completed_title="Searched Indeed",
+        category="research",
+        icon_key="search",
+        integration_key="indeed",
+    ),
 )
 
 register_capability(INDEED_SCRAPE)
