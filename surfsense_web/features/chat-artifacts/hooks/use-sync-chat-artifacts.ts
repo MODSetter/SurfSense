@@ -1,8 +1,7 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSetAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
-import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { artifactListQueryOptions } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
 import {
@@ -11,6 +10,7 @@ import {
 	matchesPersistedArtifact,
 	mergePersistedArtifacts,
 } from "../lib/collect-artifacts";
+import type { ChatArtifact } from "../model/artifact";
 import { chatArtifactsAtom } from "../state/artifacts-panel.atom";
 
 const RECONCILIATION_POLL_MS = 3_000;
@@ -58,15 +58,21 @@ function shouldPollForPersistence(
  * can read the deliverable list. Clears on unmount and on thread switch (a new
  * `messages` array recomputes to the new thread's artifacts).
  */
-export function useSyncChatArtifacts(messages: readonly ThreadMessageLike[]): void {
+export function useSyncChatArtifacts(
+	messages: readonly ThreadMessageLike[],
+	threadId: number | null,
+	workspaceId: number
+): {
+	artifacts: ChatArtifact[];
+	isLoading: boolean;
+} {
 	const setArtifacts = useSetAtom(chatArtifactsAtom);
-	const thread = useAtomValue(currentThreadAtom);
 	const messageArtifacts = useMemo(() => collectArtifacts(messages), [messages]);
 	const persistencePollStartedAt = useRef(new Map<string, number>());
 	const persistedKeys = useRef(new Set<string>());
-	const canLoadPersisted = thread.id != null && thread.workspaceId != null;
-	const { data: persisted = [] } = useQuery({
-		...artifactListQueryOptions(thread.workspaceId ?? 0, thread.id),
+	const canLoadPersisted = threadId != null && workspaceId > 0;
+	const { data: persisted = [], isPending } = useQuery({
+		...artifactListQueryOptions(workspaceId, threadId),
 		enabled: canLoadPersisted,
 		// ponytail: legacy media jobs return before Artifact persistence. Poll is
 		// bounded; replace it when those jobs publish artifact-list invalidation.
@@ -74,7 +80,7 @@ export function useSyncChatArtifacts(messages: readonly ThreadMessageLike[]): vo
 			shouldPollForPersistence(
 				messageArtifacts,
 				query.state.data ?? [],
-				String(thread.id),
+				String(threadId),
 				persistencePollStartedAt.current,
 				persistedKeys.current
 			)
@@ -91,4 +97,6 @@ export function useSyncChatArtifacts(messages: readonly ThreadMessageLike[]): vo
 	}, [artifacts, setArtifacts]);
 
 	useEffect(() => () => setArtifacts([]), [setArtifacts]);
+
+	return { artifacts, isLoading: canLoadPersisted && isPending };
 }

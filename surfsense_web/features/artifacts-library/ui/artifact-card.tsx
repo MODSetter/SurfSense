@@ -1,33 +1,25 @@
-import { Dot, MessageSquareText } from "lucide-react";
+import { Dot } from "lucide-react";
 import Link from "next/link";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
 import { formatRelativeDate } from "@/lib/format-date";
+import { cn } from "@/lib/utils";
 import type { LibraryArtifact } from "../model/artifact";
+
+const CARD_CLASS_NAME =
+	"flex w-full items-start gap-3 rounded-xl border bg-muted/30 p-3 text-left transition-colors";
 
 export function ArtifactCard({
 	artifact,
-	workspaceId,
-	onOpen,
+	href,
 }: {
 	artifact: LibraryArtifact;
-	workspaceId: number;
-	onOpen: (artifact: LibraryArtifact) => void;
+	href: string | null;
 }) {
 	const statusLabel =
 		artifact.status === "running" ? "Generating…" : artifact.status === "error" ? "Failed" : null;
-
-	return (
-		<div className="group relative flex items-start gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent/50">
-			{/* Stretched overlay makes the whole card open the viewer; sibling controls sit above it via z-10. */}
-			<button
-				type="button"
-				onClick={() => onOpen(artifact)}
-				className="absolute inset-0 rounded-xl"
-			>
-				<span className="sr-only">Open {artifact.title}</span>
-			</button>
-
+	const content = (
+		<>
 			<span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
 				<ArtifactFormatIcon format={artifact.format} className="size-4" />
 			</span>
@@ -41,17 +33,26 @@ export function ArtifactCard({
 					<span>{formatRelativeDate(artifact.createdAt)}</span>
 				</span>
 			</span>
+		</>
+	);
 
-			{artifact.sourceThreadId ? (
-				<Link
-					href={`/dashboard/${workspaceId}/new-chat/${artifact.sourceThreadId}`}
-					title="Open source chat"
-					className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-				>
-					<MessageSquareText className="size-4" />
-					<span className="sr-only">Open source chat</span>
-				</Link>
-			) : null}
-		</div>
+	if (!href) {
+		return (
+			<div className={cn(CARD_CLASS_NAME, "cursor-default")} aria-disabled="true">
+				{content}
+			</div>
+		);
+	}
+
+	return (
+		<Link
+			href={href}
+			className={cn(
+				CARD_CLASS_NAME,
+				"hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			)}
+		>
+			{content}
+		</Link>
 	);
 }

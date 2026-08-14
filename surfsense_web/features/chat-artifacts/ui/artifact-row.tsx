@@ -4,10 +4,9 @@ import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms"
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
-import { getArtifactFormatMeta } from "@/features/artifacts/artifact-format-meta";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { scrollToArtifact } from "../lib/scroll-to-artifact";
+import { openChatArtifact } from "../lib/open-chat-artifact";
 import type { ChatArtifact } from "../model/artifact";
 import { closeArtifactsPanelAtom } from "../state/artifacts-panel.atom";
 
@@ -16,21 +15,14 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const closeArtifactsPanel = useSetAtom(closeArtifactsPanelAtom);
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
-	const meta = getArtifactFormatMeta(artifact.format);
 	const canDownload = Number.isFinite(workspaceId) && workspaceId > 0;
 
 	const handleOpen = () => {
-		if (meta.viewingMode === "viewer") {
-			if (!isDesktop) closeArtifactsPanel();
-			openArtifactPanel({ artifactId: artifact.artifactId });
-			scrollToArtifact(artifact.toolCallId);
-			return;
-		}
-
-		// Inline media jumps to its card. Mobile dismisses the drawer first since
-		// it covers the chat.
-		if (!isDesktop) closeArtifactsPanel();
-		scrollToArtifact(artifact.toolCallId);
+		void openChatArtifact(artifact, "in-chat", {
+			closeArtifactsPanel,
+			isDesktop,
+			openArtifactPanel,
+		});
 	};
 
 	return (

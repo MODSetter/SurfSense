@@ -1,21 +1,10 @@
 "use client";
 
-import { useSetAtom } from "jotai";
 import { RefreshCw, Shapes, TriangleAlert } from "lucide-react";
-import { useMemo, useState } from "react";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
-import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import { Button } from "@/components/ui/button";
-import {
-	ARTIFACT_GROUP_ORDER,
-	type ArtifactGroupKey,
-	getArtifactFormatMeta,
-} from "@/features/artifacts/artifact-format-meta";
+import { artifactChatHref } from "@/features/chat-artifacts/lib/artifact-deep-link";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
-import type { LibraryArtifact } from "../model/artifact";
 import { ArtifactCard } from "./artifact-card";
-import { MediaViewerDialog } from "./media-viewer-dialog";
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6"];
 
@@ -66,38 +55,6 @@ function EmptyState() {
 
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
-	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
-	const openReportPanel = useSetAtom(openReportPanelAtom);
-	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
-
-	const grouped = useMemo(() => {
-		const map = new Map<ArtifactGroupKey, LibraryArtifact[]>();
-		for (const artifact of artifacts) {
-			const groupKey = getArtifactFormatMeta(artifact.format).groupKey;
-			const bucket = map.get(groupKey);
-			if (bucket) bucket.push(artifact);
-			else map.set(groupKey, [artifact]);
-		}
-		return map;
-	}, [artifacts]);
-
-	const handleOpen = (artifact: LibraryArtifact) => {
-		const { viewingMode } = getArtifactFormatMeta(artifact.format);
-		if (viewingMode === "viewer") {
-			openArtifactPanel({ artifactId: artifact.artifactId ?? artifact.entityId });
-			return;
-		}
-		// Reports/resumes reuse the shared report panel; the rest open in the dialog.
-		if (viewingMode === "legacy-report") {
-			openReportPanel({
-				reportId: artifact.entityId,
-				title: artifact.title,
-				contentType: artifact.contentType,
-			});
-			return;
-		}
-		setSelectedMedia(artifact);
-	};
 
 	return (
 		<div className="w-full space-y-6">
@@ -105,7 +62,9 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 				<div className="flex items-baseline gap-3">
 					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Artifacts</h1>
 					{!loading && artifacts.length > 0 ? (
-						<span className="text-sm text-muted-foreground">{artifacts.length} total</span>
+						<p className="whitespace-nowrap text-sm text-muted-foreground">
+							{artifacts.length} {artifacts.length === 1 ? "artifact" : "artifacts"}
+						</p>
 					) : null}
 				</div>
 			</header>
@@ -117,39 +76,16 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 			) : artifacts.length === 0 ? (
 				<EmptyState />
 			) : (
-				<div className="space-y-8">
-					{ARTIFACT_GROUP_ORDER.map((groupKey) => {
-						const items = grouped.get(groupKey);
-						if (!items || items.length === 0) return null;
-						const groupLabel = getArtifactFormatMeta(items[0].format).groupLabel;
-						return (
-							<section key={groupKey}>
-								<h2 className="mb-3 text-sm font-medium text-muted-foreground">
-									{groupLabel}
-									<span className="ml-1.5 text-muted-foreground/60">{items.length}</span>
-								</h2>
-								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-									{items.map((artifact) => (
-										<ArtifactCard
-											key={artifact.key}
-											artifact={artifact}
-											workspaceId={workspaceId}
-											onOpen={handleOpen}
-										/>
-									))}
-								</div>
-							</section>
-						);
-					})}
+				<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					{artifacts.map((artifact) => (
+						<ArtifactCard
+							key={artifact.key}
+							artifact={artifact}
+							href={artifactChatHref(workspaceId, artifact.sourceThreadId, artifact.artifactId)}
+						/>
+					))}
 				</div>
 			)}
-
-			<MediaViewerDialog
-				artifact={selectedMedia}
-				workspaceId={workspaceId}
-				onClose={() => setSelectedMedia(null)}
-			/>
-			<MobileReportPanel />
 		</div>
 	);
 }

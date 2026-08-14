@@ -1,8 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-	getArtifactFormatMeta,
-	normalizeArtifactFormat,
-} from "@/features/artifacts/artifact-format-meta";
+import { normalizeArtifactFormat } from "@/features/artifacts/artifact-format-meta";
 import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
@@ -30,18 +27,13 @@ function indexingStatus(status: string): LibraryArtifactStatus {
 
 function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 	const format = normalizeArtifactFormat(row.format);
-	const meta = getArtifactFormatMeta(format);
-	const legacyId = row.legacy?.kind === format ? row.legacy.id : undefined;
 	return {
 		key: `artifact-${row.artifact_id}`,
 		format,
-		entityId: legacyId ?? row.artifact_id,
 		artifactId: row.artifact_id,
-		legacyEntityId: legacyId,
 		title: row.title,
 		status: indexingStatus(row.indexing_status),
 		createdAt: row.created_at,
-		contentType: meta.viewingMode === "inline-media" ? "markdown" : "file",
 		sourceThreadId: row.thread_id,
 	};
 }
@@ -77,11 +69,9 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		artifacts.push({
 			key: `report-${report.id}`,
 			format: isResume ? "resume" : "report",
-			entityId: report.id,
 			title: report.title,
 			status: report.report_metadata?.status === "failed" ? "error" : "ready",
 			createdAt: report.created_at,
-			contentType: isResume ? "typst" : "markdown",
 			sourceThreadId: report.thread_id,
 		});
 	}
@@ -91,11 +81,9 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		artifacts.push({
 			key: `podcast-${podcast.id}`,
 			format: "podcast",
-			entityId: podcast.id,
 			title: podcast.title,
 			status: podcastStatus(podcast.status),
 			createdAt: podcast.created_at,
-			contentType: "markdown",
 			sourceThreadId: podcast.thread_id,
 		});
 	}
@@ -105,11 +93,9 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		artifacts.push({
 			key: `video-${video.id}`,
 			format: "video",
-			entityId: video.id,
 			title: video.title,
 			status: videoStatus(video.status),
 			createdAt: video.created_at,
-			contentType: "markdown",
 			sourceThreadId: video.thread_id,
 		});
 	}
