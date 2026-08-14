@@ -4,6 +4,9 @@ import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+from app.agents.chat.multi_agent_chat.shared.tools.mcp.tool import (
+    _mcp_activity_descriptor,
+)
 from app.services.new_streaming_service import VercelStreamingService
 from app.services.streaming.types import ActivityTimingData
 from app.tasks.chat.content_builder import AssistantContentBuilder
@@ -370,6 +373,150 @@ def test_unknown_mcp_tool_uses_generic_activity_and_mcp_integration() -> None:
 
     assert activity["iconKey"] == "tool"
     assert activity["integration"] == {"source": "mcp"}
+
+
+def test_mcp_descriptor_is_safe_for_known_connectors_and_generic_otherwise() -> None:
+    assert _mcp_activity_descriptor(
+        connector_name="Linear", is_generic_mcp=False
+    ) == {
+        "active_title": "Using connected app",
+        "completed_title": "Used connected app",
+        "category": "connector",
+        "icon_key": "plug",
+        "kind": "connector.action",
+    }
+    assert (
+        _mcp_activity_descriptor(
+            connector_name="User named <script>", is_generic_mcp=True
+        )
+        is None
+    )
+
+
+def test_trusted_descriptor_wins_for_generated_native_tool_name() -> None:
+    descriptor = {
+        "active_title": "Searching the web",
+        "completed_title": "Searched the web",
+        "category": "research",
+        "icon_key": "search",
+        "integration_key": "google_search",
+    }
+
+    spec = resolve_tool_activity(
+        "google_search_scrape",
+        subagent_type=None,
+        trusted_descriptor=descriptor,
+    )
+    snapshot = spec.snapshot(
+        activity_id="act_search",
+        sequence=1,
+        status="running",
+        started_at="2026-01-01T00:00:00+00:00",
+    )
+
+    assert snapshot["title"] == "Searching the web"
+    assert snapshot["integration"] == {
+        "source": "native",
+        "key": "google_search",
+    }
+
+
+def test_trusted_descriptor_precedes_colliding_legacy_tool_name() -> None:
+    spec = resolve_tool_activity(
+        "read_file",
+        subagent_type=None,
+        trusted_descriptor={
+            "active_title": "Using connected app",
+            "completed_title": "Used connected app",
+            "category": "connector",
+            "icon_key": "plug",
+            "kind": "connector.action",
+        },
+    )
+
+    assert spec.kind == "connector.action"
+    assert spec.active_title == "Using connected app"
+
+
+def test_generated_native_tool_keeps_activity_id_through_result_lifecycle() -> None:
+    descriptor = {
+        "active_title": "Searching the web",
+        "completed_title": "Searched the web",
+        "category": "research",
+        "icon_key": "search",
+        "kind": "google_search.scrape",
+        "integration_key": "google_search",
+    }
+    state = AgentEventRelayState()
+    builder = AssistantContentBuilder()
+    service = VercelStreamingService()
+    result = SimpleNamespace(write_attempted=False)
+
+    list(
+        iter_tool_start_frames(
+            {
+                "name": "google_search_scrape",
+                "run_id": "search-1",
+                "metadata": {"activity_descriptor": descriptor},
+                "data": {"input": {"search_queries": ["activity trace"]}},
+            },
+            state=state,
+            streaming_service=service,
+            content_builder=builder,
+            result=result,
+            step_prefix="turn",
+        )
+    )
+    activity_id = state.activity_id_by_run["search-1"]
+
+    list(
+        iter_tool_end_frames(
+            {
+                "name": "google_search_scrape",
+                "run_id": "search-1",
+                "data": {"output": {"results": []}},
+            },
+            state=state,
+            streaming_service=service,
+            content_builder=builder,
+            result=result,
+            step_prefix="turn",
+            config={},
+        )
+    )
+
+    tool_part = next(part for part in builder.snapshot() if part["type"] == "tool-call")
+    assert tool_part["metadata"]["activityId"] == activity_id
+    assert tool_part["result"]["status"] == "completed"
+    activity = builder.snapshot()[0]["data"]["activities"][0]
+    assert activity["id"] == activity_id
+    assert activity["status"] == "completed"
+    assert activity["title"] == "Searched the web"
+
+
+def test_incomplete_or_unbounded_descriptor_uses_generic_fallback() -> None:
+    for descriptor in (
+        {"active_title": "Searching"},
+        {
+            "active_title": "x" * 121,
+            "completed_title": "Done",
+            "category": "research",
+            "icon_key": "search",
+        },
+        {
+            "active_title": "Searching",
+            "completed_title": "Done",
+            "category": "not-a-category",
+            "icon_key": "search",
+        },
+    ):
+        spec = resolve_tool_activity(
+            "untrusted_dynamic_tool",
+            subagent_type=None,
+            trusted_descriptor=descriptor,
+        )
+        assert spec.kind == "tool.action"
+        assert spec.active_title == "Using a tool"
 
 
 def test_resume_reuses_persisted_awaiting_activity_identity() -> None:

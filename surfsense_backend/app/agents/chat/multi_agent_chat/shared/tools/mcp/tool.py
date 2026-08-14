@@ -43,6 +43,7 @@ from app.agents.chat.multi_agent_chat.shared.tools.mcp.cache import (
     write_cached_tools,
 )
 from app.agents.chat.multi_agent_chat.shared.tools.mcp.client import MCPClient
+from app.capabilities.core import ActivityDescriptor
 from app.db import SearchSourceConnector
 from app.services.mcp_oauth.registry import MCP_SERVICES, get_service_by_connector_type
 from app.utils.perf import get_perf_logger
@@ -60,6 +61,20 @@ _TOOL_CALL_RETRY_DELAY = 1.5  # seconds, doubles per attempt
 # multi-agent paths cannot share tool closures with different HITL wiring.
 _MCPCacheKey = tuple[int, bool]
 _mcp_tools_cache: dict[_MCPCacheKey, tuple[float, list[StructuredTool]]] = {}
+
+
+def _mcp_activity_descriptor(
+    *, connector_name: str, is_generic_mcp: bool
+) -> dict[str, str] | None:
+    """Produce bounded copy only for backend-known connector identities."""
+    if is_generic_mcp or not connector_name.strip():
+        return None
+    return ActivityDescriptor(
+        active_title="Using connected app",
+        completed_title="Used connected app",
+        category="connector",
+        icon_key="plug",
+    ).as_metadata(kind="connector.action")
 
 
 def _evict_expired_mcp_cache() -> None:
@@ -433,6 +448,16 @@ async def _create_mcp_tool_from_definition_http(
             "dedup_key": dedup_key_full_args,
             "mcp_original_tool_name": original_tool_name,
             "mcp_connector_id": connector_id,
+            **(
+                {"activity_descriptor": descriptor}
+                if (
+                    descriptor := _mcp_activity_descriptor(
+                        connector_name=connector_name,
+                        is_generic_mcp=is_generic_mcp,
+                    )
+                )
+                else {}
+            ),
         },
     )
 
