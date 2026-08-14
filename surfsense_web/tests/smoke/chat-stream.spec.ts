@@ -24,16 +24,16 @@ test.describe("Smoke", () => {
 		expect(chat.events.some((event) => event.type === "done")).toBeTruthy();
 		expect(chat.events.some((event) => event.type === "text-delta")).toBeTruthy();
 		const turnInfo = chat.events.find((event) => event.type === "data-turn-info")?.payload as
-			| { data?: { started_at?: string } }
+			| { data?: { chat_turn_id?: string } }
 			| undefined;
-		expect(turnInfo?.data?.started_at).toBeTruthy();
+		expect(turnInfo?.data?.chat_turn_id).toBeTruthy();
 		expect(
 			chat.events.some(
 				(event) =>
-					event.type === "data-thinking-step" &&
-					(event.payload as { data?: { id?: string } }).data?.id === "thinking-1"
+					event.type === "data-activity-timing" &&
+					(event.payload as { data?: { status?: string } }).data?.status === "completed"
 			)
-		).toBeFalsy();
+		).toBeTruthy();
 		expect(chat.assistantText).toContain("No relevant indexed content found.");
 	});
 });
