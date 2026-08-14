@@ -12,7 +12,7 @@ function LoadingState() {
 	return (
 		<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			{SKELETON_KEYS.map((key) => (
-				<div key={key} className="h-[68px] animate-pulse rounded-xl border bg-muted/40" />
+				<div key={key} className="h-28 animate-pulse rounded-xl border bg-muted/40" />
 			))}
 		</div>
 	);
