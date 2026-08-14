@@ -17,12 +17,11 @@ via the ``(thread_id, turn_id, role)`` partial unique index added in
 migration 141), which means the *server* is now responsible for
 producing the rich ``ContentPart[]`` shape the FE expects on history
 reload — text + reasoning + tool-call cards (with ``args``, ``argsText``,
-``result``, ``langchainToolCallId``) + canonical activity snapshots +
-step-separators.
+``result``, ``langchainToolCallId``) + canonical activity snapshots.
 
 This module is the in-memory accumulator that mirrors the FE state for
 exactly that purpose. The streaming code calls ``on_text_*`` / ``on_reasoning_*``
-/ ``on_tool_*`` / ``on_activity`` / ``on_activity_timing`` / ``on_step_separator`` /
+/ ``on_tool_*`` / ``on_activity`` / ``on_activity_timing`` /
 ``mark_interrupted`` at the same call sites it yields the matching
 ``streaming_service.format_*`` SSE event, so the in-memory ``parts`` list
 stays in lockstep with what the FE's pipeline would have produced live.
@@ -47,8 +46,7 @@ logger = logging.getLogger(__name__)
 
 # Mirrors the FE's filter in ``buildContentForPersistence`` / ``buildContentForUI``:
 # only text/reasoning/tool-call parts count as "meaningful". data-activities
-# and data-step-separator decorate the meaningful parts but never stand alone
-# in a successful turn.
+# decorates the meaningful parts but never stands alone in a successful turn.
 _MEANINGFUL_PART_TYPES: frozenset[str] = frozenset({"text", "reasoning", "tool-call"})
 
 
@@ -83,16 +81,11 @@ class AssistantContentBuilder:
             state?: "aborted" }
         | { type: "data-activities";
             data: { activities: ActivityData[]; timing: ActivityTimingData } }
-        | { type: "data-step-separator"; data: { stepIndex: int } }
-
     Order matches the wire order of the SSE events that drive the lifecycle
     methods, with two FE-mirrored exceptions:
 
     1. ``data-activities`` is a singleton pinned at index 0. Full snapshots
        replace entries by id and remain ordered by immutable sequence.
-    2. ``data-step-separator`` is appended only when the message already has
-       meaningful content and the previous part isn't itself a separator
-       (so the FIRST step of a turn doesn't generate a leading divider).
     """
 
     def __init__(self) -> None:
@@ -156,7 +149,7 @@ class AssistantContentBuilder:
         Mirrors the wire-level ``text-end`` boundary the streaming layer
         emits before tool calls / reasoning / step boundaries. The FE
         pipeline implicitly closes via ``currentTextPartIndex = -1``
-        in ``addToolCall`` / ``appendReasoning`` / ``addStepSeparator``;
+        in ``addToolCall`` / ``appendReasoning``;
         our helper does the same explicitly so callers don't have to
         maintain that invariant per call site.
         """
@@ -363,7 +356,7 @@ class AssistantContentBuilder:
         _merge_tool_part_metadata(part, metadata)
 
     # ------------------------------------------------------------------
-    # Activities & step separators
+    # Activities
     # ------------------------------------------------------------------
 
     def on_activity(self, snapshot: dict[str, Any]) -> None:
@@ -456,31 +449,6 @@ class AssistantContentBuilder:
         for ui_id, idx in list(self._tool_call_idx_by_ui_id.items()):
             self._tool_call_idx_by_ui_id[ui_id] = idx + 1
 
-    def on_step_separator(self) -> None:
-        """Append a ``data-step-separator`` between consecutive model steps.
-
-        Mirrors FE ``addStepSeparator``: only emit when the message
-        already has meaningful content AND the previous part isn't
-        itself a separator. ``stepIndex`` is the running count of
-        separators already in ``parts``.
-        """
-        has_content = any(p.get("type") in _MEANINGFUL_PART_TYPES for p in self.parts)
-        if not has_content:
-            return
-        if self.parts and self.parts[-1].get("type") == "data-step-separator":
-            return
-        step_index = sum(
-            1 for p in self.parts if p.get("type") == "data-step-separator"
-        )
-        self.parts.append(
-            {
-                "type": "data-step-separator",
-                "data": {"stepIndex": step_index},
-            }
-        )
-        self._current_text_idx = -1
-        self._current_reasoning_idx = -1
-
     # ------------------------------------------------------------------
     # Interruption handling
     # ------------------------------------------------------------------
@@ -542,8 +510,8 @@ class AssistantContentBuilder:
     def is_empty(self) -> bool:
         """True if no meaningful content was captured.
 
-        ``data-activities`` and ``data-step-separator`` decorate
-        meaningful content but don't count on their own — a turn that
+        ``data-activities`` decorates meaningful content but doesn't count on
+        its own — a turn that
         only emitted an activity snapshot before being interrupted should
         still be treated as empty for the status-marker fallback.
         """
@@ -562,7 +530,7 @@ class AssistantContentBuilder:
         crosses the wire to PostgreSQL's JSONB column. We compute it
         with ``ensure_ascii=False`` to match the JSONB encoder's UTF-8
         on-disk layout closely enough for back-of-the-envelope sizing.
-        Reasoning/text/tool-call/activity/step-separator counts are
+        Reasoning/text/tool-call/activity counts are
         independent so any one can spike without the others.
 
         Defensive: ``json.dumps`` failure (a non-serializable value
@@ -576,8 +544,6 @@ class AssistantContentBuilder:
         tool_calls_completed = 0
         tool_calls_aborted = 0
         activity_parts = 0
-        step_separators = 0
-
         for part in self.parts:
             kind = part.get("type")
             if kind == "text":
@@ -592,8 +558,6 @@ class AssistantContentBuilder:
                     tool_calls_completed += 1
             elif kind == "data-activities":
                 activity_parts += 1
-            elif kind == "data-step-separator":
-                step_separators += 1
 
         try:
             byte_size = len(json.dumps(self.parts, ensure_ascii=False, default=str))
@@ -609,5 +573,4 @@ class AssistantContentBuilder:
             "tool_calls_completed": tool_calls_completed,
             "tool_calls_aborted": tool_calls_aborted,
             "activity_parts": activity_parts,
-            "step_separators": step_separators,
         }

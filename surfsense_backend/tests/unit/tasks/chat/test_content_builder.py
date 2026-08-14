@@ -443,45 +443,6 @@ class TestActivities:
         assert b.is_empty()
 
 
-class TestStepSeparators:
-    def test_separator_no_op_before_any_content(self):
-        b = AssistantContentBuilder()
-        b.on_step_separator()
-        assert b.snapshot() == []
-
-    def test_separator_after_text_appends_with_step_index_zero(self):
-        b = AssistantContentBuilder()
-        b.on_text_start("text-1")
-        b.on_text_delta("text-1", "first")
-        b.on_text_end("text-1")
-
-        b.on_step_separator()
-
-        snap = b.snapshot()
-        assert snap[-1] == {
-            "type": "data-step-separator",
-            "data": {"stepIndex": 0},
-        }
-
-    def test_consecutive_separators_collapse_to_one(self):
-        b = AssistantContentBuilder()
-        b.on_text_delta("text-1", "x")
-        b.on_step_separator()
-        b.on_step_separator()  # No-op: previous part is already a separator.
-        snap = b.snapshot()
-        assert sum(1 for p in snap if p["type"] == "data-step-separator") == 1
-
-    def test_step_index_increments_across_separators(self):
-        b = AssistantContentBuilder()
-        b.on_text_delta("text-1", "a")
-        b.on_step_separator()
-        b.on_text_delta("text-2", "b")
-        b.on_step_separator()
-        snap = b.snapshot()
-        seps = [p for p in snap if p["type"] == "data-step-separator"]
-        assert [s["data"]["stepIndex"] for s in seps] == [0, 1]
-
-
 # ---------------------------------------------------------------------------
 # Interruption handling
 # ---------------------------------------------------------------------------
@@ -561,15 +522,6 @@ class TestIsEmpty:
         b.on_activity(_activity("act-1", 1))
         assert b.is_empty()
 
-    def test_step_separator_alone_does_not_break_emptiness(self):
-        b = AssistantContentBuilder()
-        # Force a separator (it would normally no-op without content,
-        # but we simulate the underlying state to verify is_empty is
-        # not fooled by a stray separator).
-        b.parts.append({"type": "data-step-separator", "data": {"stepIndex": 0}})
-        assert b.is_empty()
-
-
 class TestSnapshotSemantics:
     def test_snapshot_is_deep_copied_so_mutations_do_not_leak(self):
         b = AssistantContentBuilder()
@@ -591,7 +543,6 @@ class TestSnapshotSemantics:
         b.on_tool_input_start("call_x", "ls", "lc_x")
         b.on_tool_input_available("call_x", "ls", {"path": "/"}, "lc_x")
         b.on_tool_output_available("call_x", {"files": ["a.txt"]}, "lc_x")
-        b.on_step_separator()
         snap = b.snapshot()
 
         encoded = json.dumps(snap)
@@ -616,7 +567,6 @@ class TestStats:
             "tool_calls_completed": 0,
             "tool_calls_aborted": 0,
             "activity_parts": 0,
-            "step_separators": 0,
         }
 
     def test_counts_each_part_type_independently(self):
@@ -628,7 +578,6 @@ class TestStats:
         b.on_reasoning_delta("r1", "thinking")
         b.on_reasoning_end("r1")
         b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
-        b.on_step_separator()
         b.on_tool_input_start("call_done", "ls", "lc_done")
         b.on_tool_input_available("call_done", "ls", {}, "lc_done")
         b.on_tool_output_available("call_done", {"ok": True}, "lc_done")
@@ -642,14 +591,12 @@ class TestStats:
         assert s["tool_calls_completed"] == 1
         assert s["tool_calls_aborted"] == 0
         assert s["activity_parts"] == 1
-        assert s["step_separators"] == 1
         assert s["parts"] == sum(
             [
                 s["text"],
                 s["reasoning"],
                 s["tool_calls"],
                 s["activity_parts"],
-                s["step_separators"],
             ]
         )
         assert s["bytes"] > 0

@@ -157,7 +157,7 @@ async def finalize_assistant_message(
             "message_id=%s parts=%d bytes=%d text=%d "
             "reasoning=%d tool_calls=%d "
             "tool_calls_completed=%d tool_calls_aborted=%d "
-            "activity_parts=%d step_separators=%d",
+            "activity_parts=%d",
             log_prefix,
             chat_id,
             stream_result.assistant_message_id,
@@ -169,7 +169,6 @@ async def finalize_assistant_message(
             builder_stats["tool_calls_completed"],
             builder_stats["tool_calls_aborted"],
             builder_stats["activity_parts"],
-            builder_stats["step_separators"],
         )
 
     await finalize_assistant_turn(
