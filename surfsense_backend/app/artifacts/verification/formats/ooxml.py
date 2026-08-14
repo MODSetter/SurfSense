@@ -11,7 +11,7 @@ MAX_ZIP_ENTRIES = 10_000
 MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 
 
-class OoxmlDefect(ValueError):
+class OoxmlError(ValueError):
     """A stable, user-actionable OOXML structural finding."""
 
 
@@ -30,33 +30,29 @@ def open_ooxml(
             entry_names = [entry.filename for entry in entries]
             names = set(entry_names)
             if len(entries) > MAX_ZIP_ENTRIES:
-                raise OoxmlDefect(
+                raise OoxmlError(
                     f"{format_name} contains more than {MAX_ZIP_ENTRIES} ZIP entries"
                 )
             if len(names) != len(entry_names):
-                raise OoxmlDefect(
-                    f"{format_name} contains duplicate OOXML parts"
-                )
+                raise OoxmlError(f"{format_name} contains duplicate OOXML parts")
             missing = sorted(required_parts - names)
             if missing:
-                raise OoxmlDefect(
+                raise OoxmlError(
                     f"{format_name} is missing required parts: {', '.join(missing)}"
                 )
             if any(entry.flag_bits & 1 for entry in entries):
-                raise OoxmlDefect(f"{format_name} contains encrypted ZIP entries")
+                raise OoxmlError(f"{format_name} contains encrypted ZIP entries")
             if sum(entry.file_size for entry in entries) > MAX_UNCOMPRESSED_BYTES:
-                raise OoxmlDefect(
+                raise OoxmlError(
                     f"{format_name} uncompressed content exceeds "
                     f"{MAX_UNCOMPRESSED_BYTES} bytes"
                 )
             for part, limit in (part_limits or {}).items():
                 if archive.getinfo(part).file_size > limit:
                     label = part.rsplit("/", 1)[-1].replace(".xml", " XML")
-                    raise OoxmlDefect(
-                        f"{format_name} {label} exceeds {limit} bytes"
-                    )
+                    raise OoxmlError(f"{format_name} {label} exceeds {limit} bytes")
             yield archive
-    except OoxmlDefect:
+    except OoxmlError:
         raise
     except (BadZipFile, KeyError, OSError, RuntimeError):
-        raise OoxmlDefect(f"{format_name} is not valid OOXML") from None
+        raise OoxmlError(f"{format_name} is not valid OOXML") from None

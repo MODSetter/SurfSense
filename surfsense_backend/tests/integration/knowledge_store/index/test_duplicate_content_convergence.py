@@ -1,5 +1,4 @@
-"""Two git paths, identical bytes must converge into two rows.
-"""
+"""Two git paths, identical bytes must converge into two rows."""
 
 from __future__ import annotations
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge_store.paths import PathIndex, virtual_path_of
 from app.db import Document
+from app.knowledge_store.paths import PathIndex, virtual_path_of
 
 from ..models import DocumentReference
 

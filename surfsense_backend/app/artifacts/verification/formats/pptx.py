@@ -7,7 +7,7 @@ from xml.etree import ElementTree
 from zipfile import ZipFile
 
 from .base import StructuralCheckResult
-from .ooxml import OoxmlDefect, open_ooxml
+from .ooxml import OoxmlError, open_ooxml
 
 P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -44,7 +44,7 @@ def _relationships(
     if rels_part not in archive.namelist():
         return {}
     if archive.getinfo(rels_part).file_size > MAX_XML_PART_BYTES:
-        raise OoxmlDefect(f"PPTX {rels_part} exceeds {MAX_XML_PART_BYTES} bytes")
+        raise OoxmlError(f"PPTX {rels_part} exceeds {MAX_XML_PART_BYTES} bytes")
     root = ElementTree.fromstring(archive.read(rels_part))
     relationships: dict[str, tuple[str, str, bool]] = {}
     for relationship in root.findall(f"{REL}Relationship"):
@@ -119,7 +119,7 @@ def _check_slide(
     findings: list[str],
 ) -> None:
     if archive.getinfo(slide_part).file_size > MAX_XML_PART_BYTES:
-        raise OoxmlDefect(f"PPTX {slide_part} exceeds {MAX_XML_PART_BYTES} bytes")
+        raise OoxmlError(f"PPTX {slide_part} exceeds {MAX_XML_PART_BYTES} bytes")
     slide = ElementTree.fromstring(archive.read(slide_part))
     if slide.get("show") == "0":
         findings.append(
@@ -249,7 +249,7 @@ def check_pptx(data: bytes) -> StructuralCheckResult:
                     slide_height=slide_height,
                     findings=findings,
                 )
-    except OoxmlDefect as exc:
+    except OoxmlError as exc:
         return StructuralCheckResult((str(exc),), page_count=page_count)
     except ElementTree.ParseError:
         return StructuralCheckResult(

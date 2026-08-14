@@ -82,34 +82,6 @@ def _load_fallback() -> list[dict]:
         return []
 
 
-def _is_text_output_model(model: dict) -> bool:
-    """Return True if the model's output is text-only (no audio/image generation)."""
-    output_mods = model.get("architecture", {}).get("output_modalities", [])
-    return output_mods == ["text"]
-
-
-def _supports_tool_calling(model: dict) -> bool:
-    """Return True if the model supports function/tool calling."""
-    supported = model.get("supported_parameters") or []
-    return "tools" in supported
-
-
-MIN_CONTEXT_LENGTH = 100_000
-
-
-def _has_sufficient_context(model: dict) -> bool:
-    """Return True if the model's context window is at least MIN_CONTEXT_LENGTH."""
-    ctx = model.get("context_length") or 0
-    return ctx >= MIN_CONTEXT_LENGTH
-
-
-def _is_allowed_model(model: dict) -> bool:
-    """Reuse the exclusion list from the OpenRouter integration service."""
-    from app.services.openrouter_integration_service import _is_allowed_model as _check
-
-    return _check(model)
-
-
 def _process_models(raw_models: list[dict]) -> list[dict]:
     """
     Transform raw OpenRouter model entries into a flat list of

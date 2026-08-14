@@ -19,6 +19,7 @@ from typing import Any
 
 import httpx
 
+from app.services.model_compatibility import blocked_model_ids
 from app.services.openrouter_model_normalizer import (
     is_openrouter_image_model,
     normalize_openrouter_models,
@@ -91,115 +92,6 @@ def _openrouter_tier(model: dict) -> str:
     return "premium"
 
 
-def _is_text_output_model(model: dict) -> bool:
-    """Return True if the model produces text output only (skip image/audio generators)."""
-    output_mods = model.get("architecture", {}).get("output_modalities", [])
-    return output_mods == ["text"]
-
-
-def _is_image_output_model(model: dict) -> bool:
-    """Return True if the model can produce image output.
-
-    OpenRouter's ``architecture.output_modalities`` is a list (e.g.
-    ``["image"]`` for pure image generators, ``["text", "image"]`` for
-    multi-modal generators that also emit captions). We accept any model
-    that can output images; the call site decides whether to use the
-    image-generation API or chat completion.
-    """
-    output_mods = model.get("architecture", {}).get("output_modalities", []) or []
-    return "image" in output_mods
-
-
-def _is_vision_input_model(model: dict) -> bool:
-    """Return True if the model can ingest an image AND emit text.
-
-    OpenRouter's ``architecture.input_modalities`` lists what the model
-    accepts; ``output_modalities`` lists what it produces. A vision LLM
-    is a model that takes images in and produces text out — i.e. it can
-    answer questions about a screenshot or extract content from an
-    image. Pure image-to-image models (e.g. style transfer) and
-    text-only models are excluded.
-    """
-    arch = model.get("architecture", {}) or {}
-    input_mods = arch.get("input_modalities", []) or []
-    output_mods = arch.get("output_modalities", []) or []
-    return "image" in input_mods and "text" in output_mods
-
-
-def _supports_image_input(model: dict) -> bool:
-    """Return True if the model accepts ``image`` in its input modalities.
-
-    Differs from :func:`_is_vision_input_model` in that it does NOT
-    require text output — chat-tab models always emit text already (the
-    chat catalog filters by ``_is_text_output_model``), so the only
-    extra capability we need to track per chat config is whether the
-    model can ingest user-attached images. The chat selector and the
-    streaming task both key off this flag to prevent hitting an
-    OpenRouter 404 ``"No endpoints found that support image input"``
-    when the user uploads an image and selects a text-only model
-    (DeepSeek V3, Llama 3.x base, etc.).
-    """
-    arch = model.get("architecture", {}) or {}
-    input_mods = arch.get("input_modalities", []) or []
-    return "image" in input_mods
-
-
-def _supports_tool_calling(model: dict) -> bool:
-    """Return True if the model supports function/tool calling."""
-    supported = model.get("supported_parameters") or []
-    return "tools" in supported
-
-
-MIN_CONTEXT_LENGTH = 100_000
-
-# Provider slugs whose backend is fundamentally incompatible with our agent's
-# tool-call message flow (e.g. Amazon Bedrock requires toolConfig alongside
-# tool history which OpenRouter doesn't relay).
-_EXCLUDED_PROVIDER_SLUGS = {"amazon"}
-
-_EXCLUDED_MODEL_IDS: set[str] = {
-    # Deprecated / removed upstream
-    "openai/gpt-4-1106-preview",
-    "openai/gpt-4-turbo-preview",
-    # Permanently no-capacity variant
-    "openai/gpt-4o:extended",
-    # Non-serverless model that requires a dedicated endpoint
-    "arcee-ai/virtuoso-large",
-    # Deep-research models reject standard params (temperature, etc.)
-    "openai/o3-deep-research",
-    "openai/o4-mini-deep-research",
-    # OpenRouter's own meta-router over free models. We already enumerate every
-    # concrete ``:free`` model into GLOBAL_LLM_CONFIGS and Auto-mode thread
-    # pinning handles churn via the repair path, so exposing an additional
-    # indirection layer would only duplicate the capability with an opaque slug.
-    "openrouter/free",
-}
-
-_EXCLUDED_MODEL_SUFFIXES: tuple[str, ...] = ("-deep-research",)
-
-
-def _has_sufficient_context(model: dict) -> bool:
-    """Return True if the model's context window is at least MIN_CONTEXT_LENGTH."""
-    ctx = model.get("context_length") or 0
-    return ctx >= MIN_CONTEXT_LENGTH
-
-
-def _is_compatible_provider(model: dict) -> bool:
-    """Return False for models from providers known to be incompatible."""
-    model_id = model.get("id", "")
-    slug = model_id.split("/", 1)[0] if "/" in model_id else ""
-    return slug not in _EXCLUDED_PROVIDER_SLUGS
-
-
-def _is_allowed_model(model: dict) -> bool:
-    """Return False for specific model IDs known to be broken or incompatible."""
-    model_id = model.get("id", "")
-    if model_id in _EXCLUDED_MODEL_IDS:
-        return False
-    base_id = model_id.split(":")[0]
-    return not base_id.endswith(_EXCLUDED_MODEL_SUFFIXES)
-
-
 def _fetch_models_sync() -> list[dict] | None:
     """Synchronous fetch for use during startup (before the event loop is running)."""
     try:
@@ -255,6 +147,7 @@ def _extract_raw_pricing(raw_models: list[dict]) -> dict[str, dict[str, str]]:
 def _generate_configs(
     raw_models: list[dict],
     settings: dict[str, Any],
+    blocked_ids: set[str] | None = None,
 ) -> list[dict]:
     """Convert raw OpenRouter model entries into global LLM config dicts.
 
@@ -277,9 +170,12 @@ def _generate_configs(
       via ``auto_model_pin_service``.
 
     OpenRouter's own ``openrouter/free`` meta-router is filtered out upstream
-    via ``_EXCLUDED_MODEL_IDS``; we don't expose a redundant auto-select layer
-    because our own Auto pin + 24 h refresh + repair logic already
-    cover the catalogue-churn case.
+    via ``EXCLUDED_MODEL_IDS`` in ``openrouter_model_normalizer``; we don't
+    expose a redundant auto-select layer because our own Auto pin + 24 h
+    refresh + repair logic already cover the catalogue-churn case.
+
+    ``blocked_ids`` are model ids the compatibility sweep proved cannot serve a
+    turn despite passing every metadata filter.
     """
     id_offset: int = settings.get("id_offset", -10000)
     api_key: str = settings.get("api_key", "")
@@ -296,7 +192,7 @@ def _generate_configs(
     use_default: bool = settings.get("use_default_system_instructions", True)
     citations_enabled: bool = settings.get("citations_enabled", True)
 
-    text_models = normalize_openrouter_models(raw_models)
+    text_models = normalize_openrouter_models(raw_models, blocked_ids)
 
     configs: list[dict] = []
     taken: set[int] = set()
@@ -372,8 +268,8 @@ def _generate_image_gen_configs(
       - compatible provider (excluded slugs blocked)
       - allowed model id (excluded list blocked)
 
-    Notably we *drop* the chat-only filters (``_supports_tool_calling`` and
-    ``_has_sufficient_context``) because tool calls and context windows are
+    Notably we *drop* the chat-only filters (``supports_tool_calling`` and
+    ``has_sufficient_context``) because tool calls and context windows are
     irrelevant for the ``aimage_generation`` API. ``billing_tier`` is
     derived per model the same way as chat (``_openrouter_tier``).
 
@@ -479,7 +375,7 @@ class OpenRouterIntegrationService:
             return []
 
         self._raw_models = raw_models
-        self._configs = _generate_configs(raw_models, settings)
+        self._configs = _generate_configs(raw_models, settings, blocked_model_ids())
         self._configs_by_id = {c["id"]: c for c in self._configs}
         self._raw_pricing = _extract_raw_pricing(raw_models)
 
@@ -531,7 +427,11 @@ class OpenRouterIntegrationService:
             logger.warning("OpenRouter refresh: fetch failed, keeping stale list")
             return
 
-        new_configs = _generate_configs(raw_models, self._settings)
+        # Re-read the blocklist every refresh so a sweep that runs between
+        # deploys takes effect without one. Off-loop because the reader is sync.
+        blocked = await asyncio.to_thread(blocked_model_ids)
+
+        new_configs = _generate_configs(raw_models, self._settings, blocked)
         new_by_id = {c["id"]: c for c in new_configs}
         self._raw_pricing = _extract_raw_pricing(raw_models)
         self._raw_models = raw_models
@@ -560,6 +460,15 @@ class OpenRouterIntegrationService:
             ]
             app_config.GLOBAL_IMAGE_GEN_CONFIGS = static_image + new_image
             self._image_configs = new_image
+
+        # GLOBAL_MODELS / GLOBAL_CONNECTIONS are what the picker and
+        # ``load_llm_bundle`` actually read; GLOBAL_LLM_CONFIGS above is only
+        # their source. Without re-materializing here they keep the boot
+        # snapshot forever, so a model delisted upstream stays selectable
+        # until the next restart and then 404s.
+        from app.config import refresh_global_model_catalog
+
+        refresh_global_model_catalog()
 
         # Catalogue churn invalidates per-config "recently healthy" credit
         # earned by the previous turn's preflight. Drop the whole table so

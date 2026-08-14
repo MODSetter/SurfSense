@@ -25,6 +25,7 @@ import sys
 import time
 from pathlib import Path
 
+from daytona import CreateSnapshotParams, Daytona, Resources
 from dotenv import load_dotenv
 
 _here = Path(__file__).parent
@@ -36,8 +37,6 @@ for candidate in [
     if candidate.exists():
         load_dotenv(candidate)
         break
-
-from daytona import CreateSnapshotParams, Daytona, Resources
 
 SNAPSHOT_NAME = "surfsense-sandbox"
 

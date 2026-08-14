@@ -23,8 +23,11 @@ def _payload(frame: str) -> dict:
 
 def test_interrupt_id_present_when_supplied() -> None:
     frame = VercelStreamingService().format_interrupt_request(
-        {"type": "permission_ask", "action": {"tool": "search", "params": {}},
-         "context": {"permission": "doom_loop"}},
+        {
+            "type": "permission_ask",
+            "action": {"tool": "search", "params": {}},
+            "context": {"permission": "doom_loop"},
+        },
         interrupt_id="int_7",
     )
     assert _payload(frame)["interrupt_id"] == "int_7"
