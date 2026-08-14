@@ -33,7 +33,7 @@ export function TextShimmerLoader({
 			className={cn(
 				"bg-[linear-gradient(to_right,var(--muted-foreground)_35%,var(--foreground)_50%,var(--muted-foreground)_65%)]",
 				"bg-[length:200%_100%] bg-clip-text font-medium text-transparent",
-				"animate-[shimmer-text_1.4s_infinite_linear] motion-reduce:animate-none motion-reduce:text-foreground",
+				"animate-[shimmer-text_1.8s_infinite_linear] motion-reduce:animate-none motion-reduce:text-foreground",
 				textSizes[size],
 				className
 			)}
