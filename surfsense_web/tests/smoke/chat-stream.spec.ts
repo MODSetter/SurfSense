@@ -23,6 +23,17 @@ test.describe("Smoke", () => {
 
 		expect(chat.events.some((event) => event.type === "done")).toBeTruthy();
 		expect(chat.events.some((event) => event.type === "text-delta")).toBeTruthy();
+		const turnInfo = chat.events.find((event) => event.type === "data-turn-info")?.payload as
+			| { data?: { started_at?: string } }
+			| undefined;
+		expect(turnInfo?.data?.started_at).toBeTruthy();
+		expect(
+			chat.events.some(
+				(event) =>
+					event.type === "data-thinking-step" &&
+					(event.payload as { data?: { id?: string } }).data?.id === "thinking-1"
+			)
+		).toBeFalsy();
 		expect(chat.assistantText).toContain("No relevant indexed content found.");
 	});
 });
