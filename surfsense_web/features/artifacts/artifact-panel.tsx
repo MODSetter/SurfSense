@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Dot, FileWarning, RefreshCw, XIcon } from "lucide-react";
+import { Dot, FileWarning, XIcon } from "lucide-react";
 import { useState } from "react";
 import { artifactPanelAtom, closeArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
@@ -68,11 +68,11 @@ export function ArtifactViewerContent({
 					</div>
 					<div className="flex items-center gap-1">
 						<div ref={setZoomControlsContainer} className="flex items-center gap-1" />
-						{downloadFilename ? (
+						{workspaceIsValid ? (
 							<>
 								<ArtifactDownloadButton
 									path={artifactDownloadPath(workspaceId, artifactId)}
-									filename={downloadFilename}
+									filename={downloadFilename ?? `artifact-${artifactId}`}
 									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 								/>
 								<Separator
@@ -115,8 +115,7 @@ export function ArtifactViewerContent({
 								{error instanceof Error ? error.message : "Artifact could not be loaded"}
 							</p>
 						</div>
-						<Button variant="outline" size="sm" onClick={() => void refetch()}>
-							<RefreshCw className="size-4" />
+						<Button size="sm" onClick={() => void refetch()}>
 							Try again
 						</Button>
 					</div>

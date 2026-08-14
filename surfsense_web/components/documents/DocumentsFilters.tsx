@@ -6,14 +6,137 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
+import { cn } from "@/lib/utils";
 import { getDocumentTypeIcon } from "./DocumentTypeIcon";
+
+function DocumentTypeFilterList({
+	typeCountsRecord,
+	activeTypes,
+	onToggleType,
+	mobile = false,
+}: {
+	typeCountsRecord: Partial<Record<DocumentTypeEnum, number>>;
+	activeTypes: DocumentTypeEnum[];
+	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
+	mobile?: boolean;
+}) {
+	const id = React.useId();
+	const [search, setSearch] = useState("");
+	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const typeCounts = useMemo(() => new Map(Object.entries(typeCountsRecord)), [typeCountsRecord]);
+	const filteredTypes = useMemo(() => {
+		const types = Object.keys(typeCountsRecord).sort() as DocumentTypeEnum[];
+		const query = search.trim().toLowerCase();
+		return query
+			? types.filter((type) => getDocumentTypeLabel(type).toLowerCase().includes(query))
+			: types;
+	}, [typeCountsRecord, search]);
+
+	const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+		const element = event.currentTarget;
+		const atTop = element.scrollTop <= 2;
+		const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 2;
+		setScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
+
+	return (
+		<div className={cn("flex min-h-0 flex-col", mobile && "flex-1")}>
+			{mobile ? null : (
+				<div className="p-2">
+					<div className="relative">
+						<Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+						<Input
+							aria-label="Search document types"
+							placeholder="Search types"
+							value={search}
+							onChange={(event) => setSearch(event.target.value)}
+							className="h-7 border-0 bg-transparent pl-8 text-sm shadow-none"
+						/>
+					</div>
+				</div>
+			)}
+
+			<div
+				role="listbox"
+				aria-label="Document types"
+				aria-multiselectable="true"
+				className={cn(
+					"overflow-y-auto overflow-x-hidden px-1.5 py-1.5",
+					mobile ? "min-h-0 flex-1 px-3 pb-6" : "max-h-[300px]"
+				)}
+				onScroll={handleScroll}
+				style={{
+					maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+					WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+				}}
+			>
+				{filteredTypes.length === 0 ? (
+					<div className="py-8 text-center text-sm text-muted-foreground">No types found</div>
+				) : (
+					filteredTypes.map((value) => {
+						const checked = activeTypes.includes(value);
+						const count = typeCounts.get(value) ?? 0;
+						return (
+							<div
+								role="option"
+								aria-selected={checked}
+								tabIndex={0}
+								key={value}
+								className={cn(
+									"flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 text-left transition-colors hover:bg-accent hover:text-accent-foreground",
+									mobile ? "min-h-12 py-2.5" : "py-2"
+								)}
+								onClick={() => onToggleType(value, !checked)}
+								onKeyDown={(event) => {
+									if (event.key === "Enter" || event.key === " ") {
+										event.preventDefault();
+										onToggleType(value, !checked);
+									}
+								}}
+							>
+								<div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
+									{getDocumentTypeIcon(value, "size-4")}
+								</div>
+								<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+									<span className="truncate text-[13px] font-medium leading-tight text-foreground">
+										{getDocumentTypeLabel(value)}
+									</span>
+									<span className="text-[11px] leading-tight text-muted-foreground">
+										{count} document{count !== 1 ? "s" : ""}
+									</span>
+								</div>
+								<Checkbox
+									id={`${id}-${value}`}
+									checked={checked}
+									aria-label={`Filter by ${getDocumentTypeLabel(value)}`}
+									onCheckedChange={(nextChecked) => onToggleType(value, nextChecked === true)}
+									onClick={(event) => event.stopPropagation()}
+									className="size-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+								/>
+							</div>
+						);
+					})
+				)}
+			</div>
+		</div>
+	);
+}
 
 export function DocumentsFilters({
 	typeCounts: typeCountsRecord,
@@ -37,36 +160,25 @@ export function DocumentsFilters({
 	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
+	const isMobile = useIsMobile();
 
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const handleUpload = onUploadClick ?? openUploadDialog;
-
-	const [typeSearchQuery, setTypeSearchQuery] = useState("");
-	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
-	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-		const el = e.currentTarget;
-		const atTop = el.scrollTop <= 2;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
-		setScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
-	}, []);
-
-	const uniqueTypes = useMemo(() => {
-		return Object.keys(typeCountsRecord).sort() as DocumentTypeEnum[];
-	}, [typeCountsRecord]);
-
-	const filteredTypes = useMemo(() => {
-		if (!typeSearchQuery.trim()) return uniqueTypes;
-		const query = typeSearchQuery.toLowerCase();
-		return uniqueTypes.filter((type) => getDocumentTypeLabel(type).toLowerCase().includes(query));
-	}, [uniqueTypes, typeSearchQuery]);
-
-	const typeCounts = useMemo(() => {
-		const map = new Map<string, number>();
-		for (const [type, count] of Object.entries(typeCountsRecord)) {
-			map.set(type, count);
-		}
-		return map;
-	}, [typeCountsRecord]);
+	const [filterOpen, setFilterOpen] = useState(false);
+	const filterTrigger = (
+		<ToggleGroupItem
+			value="filter"
+			aria-label="Filter"
+			className="relative size-8 shrink-0 overflow-visible border-0 bg-muted text-muted-foreground transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-border/60 before:content-[''] hover:bg-accent hover:text-accent-foreground dark:before:bg-white/10"
+		>
+			<ListFilter size={13} />
+			{activeTypes.length > 0 ? (
+				<span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
+					{activeTypes.length}
+				</span>
+			) : null}
+		</ToggleGroupItem>
+	);
 
 	return (
 		<div className="flex select-none flex-col gap-2">
@@ -145,92 +257,39 @@ export function DocumentsFilters({
 						</Tooltip>
 					)}
 
-					<Popover>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<PopoverTrigger asChild>
-									<ToggleGroupItem
-										value="filter"
-										className="relative h-8 w-8 shrink-0 overflow-visible border-0 bg-muted text-muted-foreground transition-colors before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-border/60 before:content-[''] hover:bg-accent hover:text-accent-foreground dark:before:bg-white/10"
-									>
-										<ListFilter size={13} />
-										{activeTypes.length > 0 && (
-											<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-neutral-300 text-[9px] font-medium text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
-												{activeTypes.length}
-											</span>
-										)}
-									</ToggleGroupItem>
-								</PopoverTrigger>
-							</TooltipTrigger>
-							<TooltipContent>Filter by type</TooltipContent>
-						</Tooltip>
-						<PopoverContent className="w-56 md:w-52 !p-0 overflow-hidden" align="start">
-							<div>
-								<div className="p-2">
-									<div className="relative">
-										<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-										<Input
-											placeholder="Search types"
-											value={typeSearchQuery}
-											onChange={(e) => setTypeSearchQuery(e.target.value)}
-											className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none"
-										/>
-									</div>
-								</div>
-
-								<div
-									className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5"
-									onScroll={handleScroll}
-									style={{
-										maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
-										WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
-									}}
-								>
-									{filteredTypes.length === 0 ? (
-										<div className="py-6 text-center text-sm text-muted-foreground">
-											No types found
-										</div>
-									) : (
-										filteredTypes.map((value: DocumentTypeEnum, i) => (
-											<div
-												role="option"
-												aria-selected={activeTypes.includes(value)}
-												tabIndex={0}
-												key={value}
-												className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer text-left"
-												onClick={() => onToggleType(value, !activeTypes.includes(value))}
-												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === " ") {
-														e.preventDefault();
-														onToggleType(value, !activeTypes.includes(value));
-													}
-												}}
-											>
-												<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
-													{getDocumentTypeIcon(value, "h-4 w-4")}
-												</div>
-												<div className="flex flex-col min-w-0 flex-1 gap-0.5">
-													<span className="text-[13px] font-medium text-foreground truncate leading-tight">
-														{getDocumentTypeLabel(value)}
-													</span>
-													<span className="text-[11px] text-muted-foreground leading-tight">
-														{typeCounts.get(value)} document
-														{(typeCounts.get(value) ?? 0) !== 1 ? "s" : ""}
-													</span>
-												</div>
-												<Checkbox
-													id={`${id}-${i}`}
-													checked={activeTypes.includes(value)}
-													onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
-													className="h-4 w-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-												/>
-											</div>
-										))
-									)}
-								</div>
-							</div>
-						</PopoverContent>
-					</Popover>
+					{isMobile ? (
+						<Drawer open={filterOpen} onOpenChange={setFilterOpen} shouldScaleBackground={false}>
+							<DrawerTrigger asChild>{filterTrigger}</DrawerTrigger>
+							<DrawerContent className="h-[70vh] max-h-[80vh] overflow-hidden rounded-t-2xl border bg-popover text-popover-foreground">
+								<DrawerHandle className="mt-3 h-1.5 w-10" />
+								<DrawerHeader className="px-4 pb-3 pt-2 text-center">
+									<DrawerTitle className="text-base">Filter</DrawerTitle>
+								</DrawerHeader>
+								<DocumentTypeFilterList
+									typeCountsRecord={typeCountsRecord}
+									activeTypes={activeTypes}
+									onToggleType={onToggleType}
+									mobile
+								/>
+							</DrawerContent>
+						</Drawer>
+					) : (
+						<Popover open={filterOpen} onOpenChange={setFilterOpen}>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<PopoverTrigger asChild>{filterTrigger}</PopoverTrigger>
+								</TooltipTrigger>
+								<TooltipContent>Filter</TooltipContent>
+							</Tooltip>
+							<PopoverContent className="w-52 overflow-hidden p-0" align="start">
+								<DocumentTypeFilterList
+									typeCountsRecord={typeCountsRecord}
+									activeTypes={activeTypes}
+									onToggleType={onToggleType}
+								/>
+							</PopoverContent>
+						</Popover>
+					)}
 				</ToggleGroup>
 			</div>
 		</div>

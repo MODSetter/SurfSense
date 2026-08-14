@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { documentStatus } from "@/contracts/types/document.types";
 
 export const ArtifactFileSchema = z.object({
 	file_id: z.number(),
@@ -31,10 +30,11 @@ export const ArtifactManifestSchema = z.object({
 
 export const ArtifactListItemSchema = z.object({
 	artifact_id: z.number(),
+	document_id: z.number(),
 	title: z.string(),
 	format: z.string(),
 	generation: z.number().int().positive(),
-	indexing_status: documentStatus.shape.state,
+	indexing_status: z.enum(["ready", "pending", "processing", "failed", "deleting"]),
 	thread_id: z.number().nullable(),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),

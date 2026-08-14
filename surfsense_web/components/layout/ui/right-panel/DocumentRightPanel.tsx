@@ -22,6 +22,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
+import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { expandedFolderIdsAtom, watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
@@ -60,6 +61,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
@@ -187,8 +189,10 @@ function AuthenticatedDocumentRightPanelBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
+	const artifactsByDocument = useArtifactsByDocument(workspaceId);
 
 	const [search, setSearch] = useState("");
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
@@ -437,6 +441,7 @@ function AuthenticatedDocumentRightPanelBase({
 				folderId: (d as { folderId?: number | null }).folderId ?? null,
 				createdAt: d.createdAt,
 				status: d.status as { state: string; reason?: string | null } | undefined,
+				artifactFormat: artifactsByDocument.get(d.id)?.format,
 			}));
 
 		const zeroIds = new Set(zeroDocs.map((d) => d.id));
@@ -453,7 +458,7 @@ function AuthenticatedDocumentRightPanelBase({
 			}));
 
 		return [...pendingAgentDocs, ...zeroDocs];
-	}, [zeroAllDocs, agentCreatedDocs, workspaceId]);
+	}, [zeroAllDocs, agentCreatedDocs, workspaceId, artifactsByDocument]);
 
 	// Prune agent-created docs once Zero has caught up
 	useEffect(() => {
@@ -1113,7 +1118,7 @@ function AuthenticatedDocumentRightPanelBase({
 			)}
 
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-6"}`}>
+				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-8"}`}>
 					<DocumentsFilters
 						typeCounts={typeCounts}
 						onSearch={setSearch}
@@ -1155,6 +1160,15 @@ function AuthenticatedDocumentRightPanelBase({
 						onCreateFolder={handleCreateFolder}
 						onPreviewDocument={(doc) => {
 							if (openMemoryDocument(doc)) return;
+							if (doc.document_type === "ARTIFACT") {
+								const artifact = artifactsByDocument.get(doc.id);
+								if (artifact) {
+									openArtifactPanel({ artifactId: artifact.artifact_id });
+								} else {
+									toast.error("Artifact is not available yet");
+								}
+								return;
+							}
 							openEditorPanel({
 								documentId: doc.id,
 								workspaceId,
@@ -1784,7 +1798,7 @@ function AnonymousDocumentRightPanel({
 
 			{/* Filters & upload */}
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`${workspaceView ? "" : "px-4"} pt-6 pb-1.5`}>
+				<div className={`${workspaceView ? "" : "px-4"} pt-8 pb-1.5`}>
 					<DocumentsFilters
 						typeCounts={hasDoc ? { FILE: 1 } : {}}
 						onSearch={setSearch}

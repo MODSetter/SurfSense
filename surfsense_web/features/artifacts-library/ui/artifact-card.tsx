@@ -1,63 +1,80 @@
-import { MessageSquareText } from "lucide-react";
+import { ChevronRight, Dot } from "lucide-react";
 import Link from "next/link";
+import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
 import { formatRelativeDate } from "@/lib/format-date";
+import { cn } from "@/lib/utils";
 import type { LibraryArtifact } from "../model/artifact";
-import { KIND_META } from "./kind-meta";
+
+const CARD_CLASS_NAME =
+	"flex min-h-28 min-w-0 w-full max-w-full flex-col overflow-hidden rounded-xl border bg-muted/30 p-4 text-left transition-colors";
 
 export function ArtifactCard({
 	artifact,
-	workspaceId,
-	onOpen,
+	href,
 }: {
 	artifact: LibraryArtifact;
-	workspaceId: number;
-	onOpen: (artifact: LibraryArtifact) => void;
+	href: string | null;
 }) {
-	const meta = KIND_META[artifact.kind];
-	const Icon = meta.icon;
-
-	const subtitle =
-		artifact.status === "running"
-			? "Generating…"
-			: artifact.status === "error"
-				? "Failed"
-				: meta.label;
-
-	return (
-		<div className="group relative flex items-start gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent/50">
-			{/* Stretched overlay makes the whole card open the viewer; sibling controls sit above it via z-10. */}
-			<button
-				type="button"
-				onClick={() => onOpen(artifact)}
-				className="absolute inset-0 rounded-xl"
-			>
-				<span className="sr-only">Open {artifact.title}</span>
-			</button>
-
-			<span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-				<Icon className="size-4" />
-			</span>
-			<span className="min-w-0 flex-1">
-				<span className="block truncate text-sm font-medium text-foreground">{artifact.title}</span>
-				<span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-					<span className={artifact.status === "error" ? "text-destructive" : undefined}>
-						{subtitle}
+	const statusLabel =
+		artifact.status === "running" ? "Generating…" : artifact.status === "error" ? "Failed" : null;
+	const content = (
+		<>
+			<span className="flex min-w-0 items-start gap-3">
+				<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+					<ArtifactFormatIcon format={artifact.format} className="size-4" />
+				</span>
+				<span className="min-w-0 flex-1">
+					<span className="line-clamp-2 text-sm font-medium leading-5 text-foreground">
+						{artifact.title}
 					</span>
-					<span aria-hidden>·</span>
-					<span>{formatRelativeDate(artifact.createdAt)}</span>
+					<span className="mt-1 flex min-w-0 items-center overflow-hidden text-xs text-muted-foreground">
+						<ArtifactFormatLabel format={artifact.format} className="shrink-0" />
+						{statusLabel ? (
+							<>
+								<Dot
+									className="size-4 shrink-0 text-muted-foreground/60"
+									aria-hidden="true"
+								/>
+								<span
+									className={cn(
+										"truncate",
+										artifact.status === "error" ? "text-destructive" : undefined
+									)}
+								>
+									{statusLabel}
+								</span>
+							</>
+						) : null}
+					</span>
 				</span>
 			</span>
+			<span className="mt-auto flex min-w-0 items-center justify-between gap-3 pt-3 text-xs text-muted-foreground">
+				<span className="min-w-0 truncate">
+					Created {formatRelativeDate(artifact.createdAt)}
+				</span>
+				{href ? <ChevronRight className="size-4 shrink-0" aria-hidden="true" /> : null}
+			</span>
+		</>
+	);
 
-			{artifact.sourceThreadId ? (
-				<Link
-					href={`/dashboard/${workspaceId}/new-chat/${artifact.sourceThreadId}`}
-					title="Open source chat"
-					className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
-				>
-					<MessageSquareText className="size-4" />
-					<span className="sr-only">Open source chat</span>
-				</Link>
-			) : null}
-		</div>
+	if (!href) {
+		return (
+			<div className={cn(CARD_CLASS_NAME, "cursor-default")} aria-disabled="true">
+				{content}
+			</div>
+		);
+	}
+
+	return (
+		<Link
+			href={href}
+			className={cn(
+				CARD_CLASS_NAME,
+				"hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			)}
+		>
+			{content}
+		</Link>
 	);
 }

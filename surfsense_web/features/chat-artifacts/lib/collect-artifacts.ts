@@ -1,16 +1,11 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
-import {
-	ARTIFACT_TOOL_KINDS,
-	type ArtifactKind,
-	type ArtifactStatus,
-	type ChatArtifact,
-} from "../model/artifact";
+import type { ArtifactListItem } from "@/features/artifacts/model";
+import { ARTIFACT_TOOL_KINDS, type ArtifactToolKind, type ChatArtifact } from "../model/artifact";
 
 interface ToolCallPart {
 	type: "tool-call";
 	toolCallId: string;
 	toolName: string;
-	args?: Record<string, unknown>;
 	result?: unknown;
 }
 
@@ -28,58 +23,42 @@ function asRecord(value: unknown): Record<string, unknown> {
 	return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-function firstString(...values: unknown[]): string | null {
-	for (const value of values) {
-		if (typeof value === "string" && value.trim().length > 0) return value;
-	}
-	return null;
-}
-
 function numericId(value: unknown): number | null {
 	return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 type Described = {
-	title: string;
 	entityId: number | null;
 	artifactId?: number;
 	legacyEntityId?: number;
-	status: ArtifactStatus;
+	failed: boolean;
 };
 
-/** Extracts entity id, title, and status for a single deliverable tool call. */
-function describeArtifact(
-	kind: ArtifactKind,
-	args: Record<string, unknown>,
-	result: Record<string, unknown>
-): Described {
+export interface ArtifactCandidate {
+	key: string;
+	toolKind: ArtifactToolKind;
+	toolCallId: string;
+	entityId: number;
+	artifactId?: number;
+	legacyEntityId?: number;
+}
+
+/** Extracts persistence identity and status for a single deliverable tool call. */
+function describeArtifact(kind: ArtifactToolKind, result: Record<string, unknown>): Described {
 	const resultStatus = typeof result.status === "string" ? result.status : null;
-	const failed = resultStatus === "failed" || resultStatus === "error" || !!result.error;
+	const failed =
+		resultStatus === "failed" ||
+		resultStatus === "error" ||
+		resultStatus === "cancelled" ||
+		!!result.error;
 
 	switch (kind) {
 		case "file": {
 			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
-				title: firstString(result.title, args.title) ?? "Document",
 				entityId: artifactId ?? null,
 				artifactId,
-				status: failed ? "error" : artifactId != null ? "ready" : "running",
-			};
-		}
-		case "report": {
-			const entityId = numericId(result.report_id);
-			return {
-				title: firstString(result.title, args.topic) ?? "Report",
-				entityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
-			};
-		}
-		case "resume": {
-			const entityId = numericId(result.report_id);
-			return {
-				title: firstString(result.title) ?? "Resume",
-				entityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
+				failed,
 			};
 		}
 		case "podcast": {
@@ -87,11 +66,10 @@ function describeArtifact(
 			const legacyEntityId = numericId(result.podcast_id) ?? undefined;
 			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
-				title: firstString(result.title, args.podcast_title) ?? "Podcast",
 				entityId,
 				artifactId,
 				legacyEntityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
+				failed,
 			};
 		}
 		case "video": {
@@ -99,20 +77,18 @@ function describeArtifact(
 			const legacyEntityId = numericId(result.video_presentation_id) ?? undefined;
 			const entityId = artifactId ?? legacyEntityId ?? null;
 			return {
-				title: firstString(result.title, args.video_title) ?? "Presentation",
 				entityId,
 				artifactId,
 				legacyEntityId,
-				status: failed ? "error" : entityId != null ? "ready" : "running",
+				failed,
 			};
 		}
 		case "image": {
 			const artifactId = numericId(result.artifact_id) ?? undefined;
 			return {
-				title: firstString(result.title, args.prompt) ?? "Image",
 				entityId: artifactId ?? null,
 				artifactId,
-				status: failed ? "error" : artifactId != null ? "ready" : "running",
+				failed,
 			};
 		}
 	}
@@ -121,13 +97,12 @@ function describeArtifact(
 /**
  * Aggregate the deliverable artifacts referenced across a thread's messages.
  *
- * Scans assistant tool-call parts, keeps recognized deliverable tools, and
- * dedupes by backing entity (so a regenerated report collapses to one entry,
- * refreshed in place to keep chronological order). Errored deliverables are
- * dropped — they have nothing to open or jump to.
+ * Scans assistant tool-call parts and keeps successful deliverable tool results
+ * with an identity that can be reconciled to durable Artifact rows. In-flight
+ * and failed calls remain visible only in the conversation.
  */
-export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatArtifact[] {
-	const byKey = new Map<string, ChatArtifact>();
+export function collectArtifacts(messages: readonly ThreadMessageLike[]): ArtifactCandidate[] {
+	const byKey = new Map<string, ArtifactCandidate>();
 
 	for (const message of messages) {
 		if (message.role !== "assistant" || !Array.isArray(message.content)) continue;
@@ -137,29 +112,55 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): ChatAr
 			const kind = ARTIFACT_TOOL_KINDS[part.toolName];
 			if (!kind) continue;
 
-			const args = asRecord(part.args);
 			const result = asRecord(part.result);
-			const { title, entityId, artifactId, legacyEntityId, status } = describeArtifact(
-				kind,
-				args,
-				result
-			);
-			if (status === "error") continue;
+			const { entityId, artifactId, legacyEntityId, failed } = describeArtifact(kind, result);
+			if (failed || entityId == null) continue;
 
-			const key = entityId != null ? `${kind}:${entityId}` : part.toolCallId;
+			const key = `${kind}:${entityId}`;
 			byKey.set(key, {
 				key,
-				kind,
-				title,
-				status,
+				toolKind: kind,
 				toolCallId: part.toolCallId,
 				entityId,
 				artifactId,
 				legacyEntityId,
-				contentType: kind === "file" ? "file" : kind === "resume" ? "typst" : "markdown",
 			});
 		}
 	}
 
 	return Array.from(byKey.values());
+}
+
+export function matchesPersistedArtifact(
+	message: ArtifactCandidate,
+	row: ArtifactListItem
+): boolean {
+	if (message.artifactId === row.artifact_id) return true;
+	return (
+		row.legacy != null &&
+		message.toolKind === row.legacy.kind &&
+		(message.legacyEntityId ?? message.entityId) === row.legacy.id
+	);
+}
+
+function fromPersisted(row: ArtifactListItem, message: ArtifactCandidate): ChatArtifact {
+	return {
+		key: `artifact:${row.artifact_id}`,
+		title: row.title,
+		format: row.format,
+		toolCallId: message.toolCallId,
+		artifactId: row.artifact_id,
+		legacyEntityId: row.legacy?.id,
+	};
+}
+
+/** Reconcile durable thread artifacts with in-flight message tool calls. */
+export function mergePersistedArtifacts(
+	messageArtifacts: readonly ArtifactCandidate[],
+	persisted: readonly ArtifactListItem[]
+): ChatArtifact[] {
+	return messageArtifacts.flatMap((message) => {
+		const row = persisted.find((candidate) => matchesPersistedArtifact(message, candidate));
+		return row && row.indexing_status !== "deleting" ? [fromPersisted(row, message)] : [];
+	});
 }

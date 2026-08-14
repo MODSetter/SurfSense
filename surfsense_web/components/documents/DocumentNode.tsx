@@ -37,6 +37,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { DocumentNodeDoc } from "@/lib/documents/document-tree-types";
 import { cn } from "@/lib/utils";
@@ -217,9 +218,16 @@ export const DocumentNode = React.memo(function DocumentNode({
 											(isMentioned ? "opacity-0" : "max-sm:opacity-0 group-hover/item:opacity-0")
 									)}
 								>
-									{getDocumentTypeIcon(
-										doc.document_type as DocumentTypeEnum,
-										"h-3.5 w-3.5 text-muted-foreground"
+									{doc.document_type === "ARTIFACT" ? (
+										<ArtifactFormatIcon
+											format={doc.artifactFormat}
+											className="h-3.5 w-3.5 text-muted-foreground"
+										/>
+									) : (
+										getDocumentTypeIcon(
+											doc.document_type as DocumentTypeEnum,
+											"h-3.5 w-3.5 text-muted-foreground"
+										)
 									)}
 								</span>
 								{canMention ? (

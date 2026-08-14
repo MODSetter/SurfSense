@@ -1,12 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { normalizeArtifactFormat } from "@/features/artifacts/artifact-format-meta";
 import { fetchArtifacts } from "@/features/artifacts/artifact-query";
 import type { ArtifactListItem } from "@/features/artifacts/model";
 import { reportsApiService } from "@/lib/apis/reports-api.service";
-import type {
-	LibraryArtifact,
-	LibraryArtifactKind,
-	LibraryArtifactStatus,
-} from "../model/artifact";
+import type { LibraryArtifact, LibraryArtifactStatus } from "../model/artifact";
 
 function indexingStatus(status: string): LibraryArtifactStatus {
 	if (status === "failed") return "error";
@@ -14,25 +11,15 @@ function indexingStatus(status: string): LibraryArtifactStatus {
 	return "running";
 }
 
-function kindFromFormat(format: string): LibraryArtifactKind | null {
-	if (format === "podcast" || format === "video" || format === "image") return format;
-	// Office / markdown / pdf / unknown binary formats open in the artifact panel.
-	return "file";
-}
-
 function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
-	const kind = kindFromFormat(row.format) ?? "file";
-	const legacyId = row.legacy && row.legacy.kind === kind ? row.legacy.id : undefined;
+	const format = normalizeArtifactFormat(row.format);
 	return {
-		key: `${kind}-${row.artifact_id}`,
-		kind,
-		entityId: kind === "file" ? row.artifact_id : (legacyId ?? row.artifact_id),
+		key: `artifact-${row.artifact_id}`,
+		format,
 		artifactId: row.artifact_id,
-		legacyEntityId: legacyId,
 		title: row.title,
 		status: indexingStatus(row.indexing_status),
 		createdAt: row.created_at,
-		contentType: kind === "file" ? "file" : "markdown",
 		sourceThreadId: row.thread_id,
 	};
 }
@@ -55,12 +42,10 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 		const isResume = report.content_type === "typst";
 		artifacts.push({
 			key: `report-${report.id}`,
-			kind: isResume ? "resume" : "report",
-			entityId: report.id,
+			format: isResume ? "resume" : "report",
 			title: report.title,
 			status: report.report_metadata?.status === "failed" ? "error" : "ready",
 			createdAt: report.created_at,
-			contentType: isResume ? "typst" : "markdown",
 			sourceThreadId: report.thread_id,
 		});
 	}

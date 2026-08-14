@@ -39,7 +39,8 @@ import {
 	TokenUsageProvider,
 } from "@/components/assistant-ui/token-usage-context";
 import { Button } from "@/components/ui/button";
-import { useSyncChatArtifacts } from "@/features/chat-artifacts";
+import { useArtifactDeepLink } from "@/features/chat-artifacts/hooks/use-artifact-deep-link";
+import { useSyncChatArtifacts } from "@/features/chat-artifacts/hooks/use-sync-chat-artifacts";
 import {
 	type HitlDecision,
 	PendingInterruptProvider,
@@ -743,7 +744,16 @@ export default function NewChatPage() {
 	}, [buildCtx, pendingInterrupts, activeThreadId]);
 
 	// Surface the thread's deliverables to the layout-level artifacts sidebar.
-	useSyncChatArtifacts(runtimeMessages);
+	const { artifacts: chatArtifacts, isLoading: isArtifactDataLoading } = useSyncChatArtifacts(
+		runtimeMessages,
+		activeThreadId,
+		workspaceId
+	);
+	const isPreparingArtifact = useArtifactDeepLink(
+		chatArtifacts,
+		!isThreadMessagesLoading && !isArtifactDataLoading,
+		`${workspaceId}:${activeThreadId ?? "new"}`
+	);
 
 	// Create external store runtime
 	const runtime = useExternalStoreRuntime({
@@ -792,6 +802,7 @@ export default function NewChatPage() {
 							<Thread
 								hasActiveThread={!!activeThreadId}
 								isLoadingMessages={isThreadMessagesLoading}
+								isPreparingArtifact={isPreparingArtifact}
 							/>
 						</div>
 						<MobileReportPanel />

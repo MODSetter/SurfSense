@@ -129,6 +129,7 @@ async def _load_workspace_artifact(
 def _list_item(artifact: Artifact, document: Document) -> dict[str, object]:
     item: dict[str, object] = {
         "artifact_id": artifact.id,
+        "document_id": artifact.document_id,
         "title": document.title,
         "format": artifact.format,
         "generation": artifact.generation,
@@ -151,16 +152,21 @@ async def list_artifacts(
     response: Response,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
+    thread_id: int | None = None,
 ):
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
     )
+    query = (
+        select(Artifact, Document)
+        .join(Document, Artifact.document_id == Document.id)
+        .where(Artifact.workspace_id == workspace_id)
+    )
+    if thread_id is not None:
+        query = query.where(Artifact.thread_id == thread_id)
     rows = (
         await session.execute(
-            select(Artifact, Document)
-            .join(Document, Artifact.document_id == Document.id)
-            .where(Artifact.workspace_id == workspace_id)
-            .order_by(Artifact.updated_at.desc(), Artifact.id.desc())
+            query.order_by(Artifact.updated_at.desc(), Artifact.id.desc())
         )
     ).all()
     response.headers["Cache-Control"] = "private, no-store"

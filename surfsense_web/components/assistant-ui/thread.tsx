@@ -114,6 +114,7 @@ import {
 	type DocumentMentionPickerRef,
 	promoteRecentMention,
 } from "../new-chat/document-mention-picker";
+import { ThreadMessagesSkeletonBody } from "./thread-messages-skeleton";
 
 const COMPOSER_PLACEHOLDER =
 	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
@@ -149,16 +150,31 @@ function getComposerSuggestionAnchorPoint(
 interface ThreadProps {
 	hasActiveThread?: boolean;
 	isLoadingMessages?: boolean;
+	isPreparingArtifact?: boolean;
 }
 
-export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
-	return <ThreadContent hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />;
+export const Thread: FC<ThreadProps> = ({
+	hasActiveThread = false,
+	isLoadingMessages = false,
+	isPreparingArtifact = false,
+}) => {
+	return (
+		<ThreadContent
+			hasActiveThread={hasActiveThread}
+			isLoadingMessages={isLoadingMessages}
+			isPreparingArtifact={isPreparingArtifact}
+		/>
+	);
 };
 
-const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
+const ThreadContent: FC<ThreadProps> = ({
+	hasActiveThread = false,
+	isLoadingMessages = false,
+	isPreparingArtifact = false,
+}) => {
 	return (
 		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
+			className="aui-root aui-thread-root @container relative flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "42rem",
 			}}
@@ -168,7 +184,7 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 				footer={
 					<>
 						<PremiumQuotaPinnedAlert />
-						<Composer isLoadingMessages={isLoadingMessages} />
+						<Composer isLoadingMessages={isLoadingMessages || isPreparingArtifact} />
 					</>
 				}
 			>
@@ -186,37 +202,15 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 					}}
 				/>
 			</ChatViewport>
+			{isPreparingArtifact ? (
+				<div
+					aria-hidden
+					className="absolute inset-0 z-10 flex flex-col overflow-hidden bg-main-panel px-4"
+				>
+					<ThreadMessagesSkeletonBody />
+				</div>
+			) : null}
 		</ThreadPrimitive.Root>
-	);
-};
-
-const ThreadMessagesSkeletonBody: FC = () => {
-	return (
-		<div className="mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col gap-6 py-8">
-			<div className="flex justify-end">
-				<Skeleton className="h-12 w-[65%] max-w-56 rounded-2xl" />
-			</div>
-
-			<div className="flex flex-col gap-2">
-				<Skeleton className="h-4 w-full" />
-				<Skeleton className="h-4 w-[85%]" />
-				<Skeleton className="h-18 w-[40%]" />
-			</div>
-
-			<div className="flex justify-end gap-2">
-				<Skeleton className="h-12 w-[78%] max-w-72 rounded-2xl" />
-			</div>
-
-			<div className="flex flex-col gap-2">
-				<Skeleton className="h-10 w-[30%]" />
-				<Skeleton className="h-4 w-[90%]" />
-				<Skeleton className="h-6 w-[60%]" />
-			</div>
-
-			<div className="flex justify-end gap-2">
-				<Skeleton className="h-12 w-[85%] max-w-96 rounded-2xl" />
-			</div>
-		</div>
 	);
 };
 

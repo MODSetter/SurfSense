@@ -34,13 +34,11 @@ export function useLibraryPodcastRuns(workspaceId: number): LibraryArtifact[] {
 				.filter((row) => row.status !== "ready")
 				.map((row) => ({
 					key: `podcast-run-${row.id}`,
-					kind: "podcast" as const,
-					entityId: row.id,
+					format: "podcast",
 					artifactId: row.artifactId ?? undefined,
 					title: row.title,
 					status: runStatus(row.status),
 					createdAt: new Date(row.createdAt).toISOString(),
-					contentType: "markdown" as const,
 					sourceThreadId: row.threadId ?? null,
 				})),
 		[rows]

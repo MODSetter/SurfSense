@@ -34,13 +34,11 @@ export function useLibraryVideoRuns(workspaceId: number): LibraryArtifact[] {
 				.filter((row) => row.status !== "ready")
 				.map((row) => ({
 					key: `video-run-${row.id}`,
-					kind: "video" as const,
-					entityId: row.id,
+					format: "video",
 					artifactId: row.artifactId ?? undefined,
 					title: row.title,
 					status: runStatus(row.status),
 					createdAt: new Date(row.createdAt).toISOString(),
-					contentType: "markdown" as const,
 					sourceThreadId: row.threadId ?? null,
 				})),
 		[rows]
