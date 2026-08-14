@@ -7,10 +7,10 @@ import { RunDetail } from "@/app/dashboard/[workspace_id]/playground/components/
 import { Button } from "@/components/ui/button";
 
 /** Right-panel viewer for a cited scraper run. `runId` is the `run_<uuid>` handle. */
-export const RunCitationPanelContent: FC<{ runId: string; onClose?: () => void }> = ({
-	runId,
-	onClose,
-}) => {
+export const RunCitationPanelContent: FC<{
+	runId: string;
+	onClose?: () => void;
+}> = ({ runId, onClose }) => {
 	const params = useParams();
 	const rawWorkspaceId = Array.isArray(params?.workspace_id)
 		? params.workspace_id[0]
@@ -20,7 +20,7 @@ export const RunCitationPanelContent: FC<{ runId: string; onClose?: () => void }
 
 	return (
 		<>
-			<div className="shrink-0 flex h-12 items-center justify-between px-3 border-b">
+			<div className="shrink-0 flex h-12 items-center justify-between px-3">
 				<h2 className="select-none text-lg font-semibold">Scraper run</h2>
 				{onClose && (
 					<Button
@@ -37,7 +37,7 @@ export const RunCitationPanelContent: FC<{ runId: string; onClose?: () => void }
 
 			<div className="flex-1 overflow-y-auto">
 				{Number.isFinite(workspaceId) ? (
-					<RunDetail workspaceId={workspaceId} runId={scraperRunId} />
+					<RunDetail workspaceId={workspaceId} runId={scraperRunId} showTopBorder={false} />
 				) : (
 					<p className="p-4 text-sm text-muted-foreground">Open a workspace to view this run.</p>
 				)}

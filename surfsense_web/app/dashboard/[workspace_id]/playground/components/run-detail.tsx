@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { JsonView } from "@/components/json-view";
 import { Spinner } from "@/components/ui/spinner";
 import { useScraperRun } from "@/hooks/use-scraper-runs";
+import { cn } from "@/lib/utils";
 import { OutputViewer } from "./output-viewer";
 
 const MAX_OUTPUT_LINES = 200;
@@ -36,7 +37,15 @@ function parseJsonl(text: string | null): { items: unknown[]; total: number } {
 	return { items, total: lines.length };
 }
 
-export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: string }) {
+export function RunDetail({
+	workspaceId,
+	runId,
+	showTopBorder = true,
+}: {
+	workspaceId: number;
+	runId: string;
+	showTopBorder?: boolean;
+}) {
 	const { data: run, isLoading, error } = useScraperRun(workspaceId, runId);
 
 	const parsed = useMemo(() => parseJsonl(run?.output_text ?? null), [run?.output_text]);
@@ -60,7 +69,12 @@ export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: 
 	if (!run) return null;
 
 	return (
-		<div className="space-y-4 border-t border-border/60 bg-muted/10 p-4">
+		<div
+			className={cn(
+				"space-y-4 p-4",
+				showTopBorder && "border-t border-border/60"
+			)}
+		>
 			{run.error && (
 				<div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
 					{run.error}
@@ -70,7 +84,7 @@ export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: 
 			{run.progress && run.progress.length > 0 && (
 				<div>
 					<h4 className="mb-1.5 text-xs font-medium text-muted-foreground">Progress</h4>
-					<div className="space-y-1 rounded-md border border-border/60 bg-background p-3 font-mono text-xs text-muted-foreground">
+					<div className="space-y-1 rounded-md border border-border/60 bg-muted/40 p-3 font-mono text-xs text-muted-foreground">
 						{run.progress.map((event, i) => (
 							<div key={i} className="truncate">
 								{progressLine(event)}
@@ -82,7 +96,7 @@ export function RunDetail({ workspaceId, runId }: { workspaceId: number; runId: 
 
 			<div>
 				<h4 className="mb-1.5 text-xs font-medium text-muted-foreground">Input</h4>
-				<div className="rounded-md border border-border/60 bg-background p-3">
+				<div className="rounded-md border border-border/60 bg-muted/40 p-3">
 					<JsonView src={run.input ?? {}} collapsed={2} />
 				</div>
 			</div>
