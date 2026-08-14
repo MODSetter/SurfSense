@@ -4,11 +4,13 @@ import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right
 interface ArtifactPanelState {
 	isOpen: boolean;
 	artifactId: number | null;
+	selectedCardToolCallId: string | null;
 }
 
 const initialState: ArtifactPanelState = {
 	isOpen: false,
 	artifactId: null,
+	selectedCardToolCallId: null,
 };
 
 export const artifactPanelAtom = atom<ArtifactPanelState>(initialState);
@@ -16,11 +18,18 @@ const preArtifactCollapsedAtom = atom<boolean | null>(null);
 
 export const openArtifactPanelAtom = atom(
 	null,
-	(get, set, { artifactId }: { artifactId: number }) => {
+	(
+		get,
+		set,
+		{
+			artifactId,
+			selectedCardToolCallId = null,
+		}: { artifactId: number; selectedCardToolCallId?: string | null }
+	) => {
 		if (!get(artifactPanelAtom).isOpen) {
 			set(preArtifactCollapsedAtom, get(rightPanelCollapsedAtom));
 		}
-		set(artifactPanelAtom, { isOpen: true, artifactId });
+		set(artifactPanelAtom, { isOpen: true, artifactId, selectedCardToolCallId });
 		set(rightPanelTabAtom, "artifact");
 		set(rightPanelCollapsedAtom, false);
 	}

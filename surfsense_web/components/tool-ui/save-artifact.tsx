@@ -7,7 +7,7 @@ import { FileText } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
+import { artifactPanelAtom, openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
@@ -19,6 +19,7 @@ import {
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
 import { extension } from "@/features/artifacts/file-format";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 
 const SaveArtifactArgsSchema = z.object({
 	title: z.string(),
@@ -81,13 +82,16 @@ function ArtifactCard({
 	title,
 	autoOpen,
 	publicRoute,
+	toolCallId,
 }: {
 	artifactId: number;
 	title: string;
 	autoOpen: boolean;
 	publicRoute: boolean;
+	toolCallId: string;
 }) {
 	const openPanel = useSetAtom(openArtifactPanelAtom);
+	const panelState = useAtomValue(artifactPanelAtom);
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const openedRef = useRef(false);
@@ -108,22 +112,28 @@ function ArtifactCard({
 		current && !currentPrimary
 			? `${current.title}.md`
 			: (currentPrimary?.filename ?? `${currentTitle}.md`);
+	const selected = panelState.isOpen && panelState.selectedCardToolCallId === toolCallId;
 
 	useEffect(() => {
 		if (autoOpen && isDesktop && !publicRoute && !openedRef.current) {
 			openedRef.current = true;
-			openPanel({ artifactId });
+			openPanel({ artifactId, selectedCardToolCallId: toolCallId });
 		}
-	}, [artifactId, autoOpen, isDesktop, openPanel, publicRoute]);
+	}, [artifactId, autoOpen, isDesktop, openPanel, publicRoute, toolCallId]);
 
 	return (
-		<div className="relative my-4 flex w-full items-center gap-3 rounded-xl border bg-muted/30 p-4 text-left transition-colors hover:bg-accent hover:text-accent-foreground">
+		<div
+			className={cn(
+				"relative my-4 flex w-full items-center gap-3 rounded-xl border bg-muted/30 p-4 text-left transition-colors hover:bg-accent hover:text-accent-foreground",
+				selected && "ring-1 ring-primary/60"
+			)}
+		>
 			{/* Stretched overlay opens the panel; the download button is a sibling above it,
 			    since a button cannot be nested inside another button. */}
 			<button
 				type="button"
 				disabled={publicRoute}
-				onClick={() => openPanel({ artifactId })}
+				onClick={() => openPanel({ artifactId, selectedCardToolCallId: toolCallId })}
 				className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
 			>
 				<span className="sr-only">Open {currentTitle}</span>
@@ -152,6 +162,7 @@ export const SaveArtifactToolUI = ({
 	args,
 	result,
 	status,
+	toolCallId,
 }: ToolCallMessagePartProps<SaveArtifactArgs, SaveArtifactResult>) => {
 	const pathname = usePathname();
 	const publicRoute = pathname?.startsWith("/public/") ?? false;
@@ -212,6 +223,7 @@ export const SaveArtifactToolUI = ({
 			title={result.title || args.title || "Document"}
 			autoOpen={sawRunningRef.current}
 			publicRoute={publicRoute}
+			toolCallId={toolCallId}
 		/>
 	);
 };

@@ -7,7 +7,10 @@ type ArtifactOpenSource = "deep-link" | "in-chat";
 interface OpenChatArtifactDependencies {
 	closeArtifactsPanel: () => void;
 	isDesktop: boolean;
-	openArtifactPanel: (payload: { artifactId: number }) => void;
+	openArtifactPanel: (payload: {
+		artifactId: number;
+		selectedCardToolCallId?: string | null;
+	}) => void;
 }
 
 interface ArtifactOpenPlan {
@@ -20,7 +23,7 @@ export function getArtifactOpenPlan(format: string, source: ArtifactOpenSource):
 	const openViewer = getArtifactFormatMeta(format).viewingMode === "viewer";
 	return {
 		behavior: source === "deep-link" ? "instant" : "smooth",
-		highlight: source === "in-chat" || !openViewer,
+		highlight: !openViewer,
 		openViewer,
 	};
 }
@@ -37,7 +40,12 @@ export function openChatArtifact(
 	const plan = getArtifactOpenPlan(artifact.format, source);
 
 	if (!isDesktop) closeArtifactsPanel();
-	if (plan.openViewer) openArtifactPanel({ artifactId: artifact.artifactId });
+	if (plan.openViewer) {
+		openArtifactPanel({
+			artifactId: artifact.artifactId,
+			selectedCardToolCallId: artifact.toolCallId,
+		});
+	}
 
 	return scrollToArtifact(artifact.toolCallId, {
 		behavior: plan.behavior,

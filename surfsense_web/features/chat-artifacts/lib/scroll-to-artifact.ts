@@ -1,7 +1,7 @@
 /** Data attribute stamped on each deliverable card wrapper by `ArtifactAnchor`. */
 export const ARTIFACT_ANCHOR_ATTR = "data-artifact-tool-call-id";
 
-const HIGHLIGHT_CLASSES = ["ring-2", "ring-primary/60"];
+const HIGHLIGHT_CLASSES = ["ring-1", "ring-primary/60"];
 const HIGHLIGHT_DURATION_MS = 1600;
 const RETRY_INTERVAL_MS = 120;
 const MAX_WAIT_MS = 1500;
