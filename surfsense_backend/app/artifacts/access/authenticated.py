@@ -19,7 +19,13 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.run import
 )
 from app.auth.context import AuthContext
 from app.capabilities.core.access.rate_limit import enforce_capability_rate_limit
-from app.db import ChatVisibility, NewChatThread, Workspace, get_async_session
+from app.db import (
+    ARTIFACT_API_SOURCE,
+    ChatVisibility,
+    NewChatThread,
+    Workspace,
+    get_async_session,
+)
 from app.sandbox import is_sandbox_enabled
 from app.services.token_tracking_service import start_turn
 from app.tasks.chat.streaming.flows.new_chat.auto_pin import resolve_initial_auto_pin
@@ -106,7 +112,7 @@ def build_authenticated_artifact_router() -> APIRouter:
             created_by_id=auth.user.id,
             title=(payload.title or payload.prompt).strip()[:120] or "Artifact",
             visibility=ChatVisibility.PRIVATE,
-            source="surfsense",
+            source=ARTIFACT_API_SOURCE,
         )
         session.add(thread)
         await session.commit()
