@@ -1,8 +1,10 @@
 import {
 	type ActivityData,
 	type ActivityTimingData,
+	type ActivityTimingProjection,
 	parseActivityData,
 	parseActivityTimingData,
+	parseActivityTimingProjection,
 } from "@/lib/chat/streaming-state";
 
 export interface TracePartLike {
@@ -17,20 +19,22 @@ export interface TracePartLike {
 export interface ActivityJournal {
 	byId: ReadonlyMap<string, ActivityData>;
 	timing: ActivityTimingData | null;
+	timingProjection: ActivityTimingProjection | null;
 }
 
 function activitySnapshots(part: TracePartLike): {
 	activities?: unknown;
 	timing?: unknown;
+	timingProjection?: unknown;
 } | null {
 	if (part.type === "data-activities") {
 		return typeof part.data === "object" && part.data !== null
-			? (part.data as { activities?: unknown; timing?: unknown })
+			? (part.data as { activities?: unknown; timing?: unknown; timingProjection?: unknown })
 			: null;
 	}
 	if (part.type === "data" && part.name === "activities") {
 		return typeof part.data === "object" && part.data !== null
-			? (part.data as { activities?: unknown; timing?: unknown })
+			? (part.data as { activities?: unknown; timing?: unknown; timingProjection?: unknown })
 			: null;
 	}
 	return null;
@@ -43,6 +47,7 @@ function activitySnapshots(part: TracePartLike): {
 export function buildActivityLookup(parts: readonly TracePartLike[]): ActivityJournal {
 	const byId = new Map<string, ActivityData>();
 	let timing: ActivityTimingData | null = null;
+	let timingProjection: ActivityTimingProjection | null = null;
 	for (const part of parts) {
 		const journal = activitySnapshots(part);
 		if (!journal) continue;
@@ -64,9 +69,16 @@ export function buildActivityLookup(parts: readonly TracePartLike[]): ActivityJo
 				if (!currentTerminal || nextTerminal) byId.set(activity.id, activity);
 			}
 		}
-		timing = parseActivityTimingData(journal.timing) ?? timing;
+		const candidateTiming = parseActivityTimingData(journal.timing);
+		if (candidateTiming) {
+			timing = candidateTiming;
+			timingProjection =
+				candidateTiming.status === "running"
+					? parseActivityTimingProjection(journal.timingProjection)
+					: null;
+		}
 	}
-	return { byId, timing };
+	return { byId, timing, timingProjection };
 }
 
 export function getToolActivityId(part: TracePartLike): string | null {

@@ -177,7 +177,7 @@ export function processSharedStreamEvent(
 		}
 
 		case "data-activity-timing": {
-			if (upsertActivityTiming(contentPartsState, parsed.data)) scheduleFlush();
+			if (upsertActivityTiming(contentPartsState, parsed.data, performance.now())) scheduleFlush();
 			return true;
 		}
 

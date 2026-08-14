@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from app.agents.chat.multi_agent_chat.shared.tools.mcp.tool import (
@@ -632,28 +631,24 @@ def test_resume_seed_loader_uses_latest_snapshot_across_resume_messages() -> Non
 
 
 def test_activity_timer_excludes_hitl_wait_and_resumes_accumulation() -> None:
-    started = datetime(2026, 1, 1, tzinfo=UTC)
-    timer = ActivityTimer.start(now=started)
-    assert timer.snapshot(now=started + timedelta(seconds=1)) == {
+    timer = ActivityTimer.start(now_ns=1_000_000_000)
+    assert timer.snapshot(now_ns=2_000_000_000) == {
         "status": "running",
         "activeDurationMs": 1000,
-        "sampledAt": "2026-01-01T00:00:01+00:00",
     }
 
-    paused = timer.pause(now=started + timedelta(seconds=2))
+    paused = timer.pause(now_ns=3_000_000_000)
     assert paused == {
         "status": "paused",
         "activeDurationMs": 2000,
-        "sampledAt": "2026-01-01T00:00:02+00:00",
     }
-    assert timer.snapshot(now=started + timedelta(hours=1)) == paused
+    assert timer.snapshot(now_ns=9_000_000_000) == paused
 
-    timer = ActivityTimer.resume(paused, now=started + timedelta(hours=1))
-    completed = timer.complete(now=started + timedelta(hours=1, seconds=3))
+    timer = ActivityTimer.resume(paused, now_ns=10_000_000_000)
+    completed = timer.complete(now_ns=13_000_000_000)
     assert completed == {
         "status": "completed",
         "activeDurationMs": 5000,
-        "sampledAt": "2026-01-01T01:00:03+00:00",
     }
 
 
@@ -663,7 +658,6 @@ def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
         {
             "status": "paused",
             "activeDurationMs": 2000,
-            "sampledAt": "2026-01-01T00:00:02+00:00",
         }
     )
     builder.on_activity(
@@ -678,7 +672,6 @@ def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
         {
             "status": "completed",
             "activeDurationMs": 5000,
-            "sampledAt": "2026-01-01T00:00:05+00:00",
         }
     )
 
@@ -688,7 +681,6 @@ def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
     assert journal["data"]["timing"] == {
         "status": "completed",
         "activeDurationMs": 5000,
-        "sampledAt": "2026-01-01T00:00:05+00:00",
     }
 
 
@@ -698,7 +690,6 @@ def test_activity_timing_wire_and_persistence_use_the_same_snapshot() -> None:
     snapshot: ActivityTimingData = {
         "status": "paused",
         "activeDurationMs": 2400,
-        "sampledAt": "2026-01-01T00:00:02.400000+00:00",
     }
 
     frame = emit_activity_timing_frame(

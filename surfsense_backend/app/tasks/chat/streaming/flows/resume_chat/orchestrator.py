@@ -440,7 +440,7 @@ async def stream_resume_chat(
         if resumable_journal.timing is not None:
             stream_result.activity_timer = ActivityTimer.resume(
                 resumable_journal.timing,
-                now=stream_result.activity_timer.active_since,
+                now_ns=stream_result.activity_timer.active_since_ns,
             )
         yield emit_activity_timing_frame(
             streaming_service=streaming_service,

@@ -128,7 +128,6 @@ def _is_activity_timing(value: Any) -> bool:
         and value.get("status") in {"running", "paused", "completed"}
         and isinstance(value.get("activeDurationMs"), int)
         and value["activeDurationMs"] >= 0
-        and (value.get("sampledAt") is None or isinstance(value["sampledAt"], str))
     )
 
 

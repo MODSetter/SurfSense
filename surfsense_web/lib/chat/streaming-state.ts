@@ -11,7 +11,12 @@ export type ActivityStatus =
 export interface ActivityTimingData {
 	status: "running" | "paused" | "completed";
 	activeDurationMs: number;
-	sampledAt?: string;
+}
+
+/** Client-only projection anchor. Never sent to or persisted by the backend. */
+export interface ActivityTimingProjection {
+	baseDurationMs: number;
+	receivedAtPerformanceMs: number;
 }
 
 export interface ActivityData {
@@ -88,7 +93,11 @@ export type ContentPart =
 	  }
 	| {
 			type: "data-activities";
-			data: { activities: ActivityData[]; timing?: ActivityTimingData };
+			data: {
+				activities: ActivityData[];
+				timing?: ActivityTimingData;
+				timingProjection?: ActivityTimingProjection;
+			};
 	  };
 
 export interface ContentPartsState {
@@ -100,6 +109,7 @@ export interface ContentPartsState {
 	toolCallIndices: Map<string, number>;
 	activities: Map<string, ActivityData>;
 	activityTiming?: ActivityTimingData;
+	activityTimingProjection?: ActivityTimingProjection;
 }
 
 const ACTIVITY_STATUSES = new Set<ActivityStatus>([
@@ -191,22 +201,33 @@ export function parseActivityData(value: unknown): ActivityData | null {
 export function parseActivityTimingData(value: unknown): ActivityTimingData | null {
 	if (typeof value !== "object" || value === null) return null;
 	const timing = value as Record<string, unknown>;
-	const sampledAt =
-		typeof timing.sampledAt === "string" && Number.isFinite(Date.parse(timing.sampledAt))
-			? timing.sampledAt
-			: undefined;
 	if (
 		(timing.status !== "running" && timing.status !== "paused" && timing.status !== "completed") ||
 		!Number.isSafeInteger(timing.activeDurationMs) ||
-		(timing.activeDurationMs as number) < 0 ||
-		(timing.sampledAt !== undefined && sampledAt === undefined)
+		(timing.activeDurationMs as number) < 0
 	) {
 		return null;
 	}
 	return {
 		status: timing.status,
 		activeDurationMs: timing.activeDurationMs as number,
-		...(sampledAt ? { sampledAt } : {}),
+	};
+}
+
+export function parseActivityTimingProjection(value: unknown): ActivityTimingProjection | null {
+	if (typeof value !== "object" || value === null) return null;
+	const projection = value as Record<string, unknown>;
+	if (
+		!Number.isSafeInteger(projection.baseDurationMs) ||
+		(projection.baseDurationMs as number) < 0 ||
+		!Number.isFinite(projection.receivedAtPerformanceMs) ||
+		(projection.receivedAtPerformanceMs as number) < 0
+	) {
+		return null;
+	}
+	return {
+		baseDurationMs: projection.baseDurationMs as number,
+		receivedAtPerformanceMs: projection.receivedAtPerformanceMs as number,
 	};
 }
 
@@ -218,6 +239,22 @@ function hasSameIdentity(current: ActivityData, next: ActivityData): boolean {
 		current.iconKey === next.iconKey &&
 		current.startedAt === next.startedAt
 	);
+}
+
+function activityJournalPart(
+	state: ContentPartsState,
+	activities: ActivityData[]
+): Extract<ContentPart, { type: "data-activities" }> {
+	return {
+		type: "data-activities",
+		data: {
+			activities,
+			...(state.activityTiming ? { timing: state.activityTiming } : {}),
+			...(state.activityTimingProjection
+				? { timingProjection: state.activityTimingProjection }
+				: {}),
+		},
+	};
 }
 
 export function upsertActivity(state: ContentPartsState, value: unknown): boolean {
@@ -240,24 +277,22 @@ export function upsertActivity(state: ContentPartsState, value: unknown): boolea
 	);
 	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
 	if (existingIdx >= 0) {
-		state.contentParts[existingIdx] = {
-			type: "data-activities",
-			data: { activities, ...(state.activityTiming ? { timing: state.activityTiming } : {}) },
-		};
+		state.contentParts[existingIdx] = activityJournalPart(state, activities);
 		return true;
 	}
 
-	state.contentParts.unshift({
-		type: "data-activities",
-		data: { activities, ...(state.activityTiming ? { timing: state.activityTiming } : {}) },
-	});
+	state.contentParts.unshift(activityJournalPart(state, activities));
 	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
 	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
 	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
 	return true;
 }
 
-export function upsertActivityTiming(state: ContentPartsState, value: unknown): boolean {
+export function upsertActivityTiming(
+	state: ContentPartsState,
+	value: unknown,
+	receivedAtPerformanceMs: number
+): boolean {
 	const timing = parseActivityTimingData(value);
 	const current = state.activityTiming;
 	if (
@@ -270,11 +305,15 @@ export function upsertActivityTiming(state: ContentPartsState, value: unknown): 
 		return false;
 	}
 	state.activityTiming = timing;
+	state.activityTimingProjection =
+		timing.status === "running"
+			? { baseDurationMs: timing.activeDurationMs, receivedAtPerformanceMs }
+			: undefined;
 	const activities = [...state.activities.values()].toSorted(
 		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
 	);
 	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
-	const part: ContentPart = { type: "data-activities", data: { activities, timing } };
+	const part = activityJournalPart(state, activities);
 	if (existingIdx >= 0) {
 		state.contentParts[existingIdx] = part;
 		return true;

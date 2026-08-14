@@ -34,7 +34,12 @@ import {
 	usePendingInterrupt,
 } from "@/features/chat-messages/hitl";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { ActivityData, ActivityStatus, ActivityTimingData } from "@/lib/chat/streaming-state";
+import type {
+	ActivityData,
+	ActivityStatus,
+	ActivityTimingData,
+	ActivityTimingProjection,
+} from "@/lib/chat/streaming-state";
 import { trackActivityTraceInteraction } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";
@@ -233,11 +238,21 @@ const TraceSegment: FC<{
 	indices: readonly number[];
 	activities: ReadonlyMap<string, ActivityData>;
 	timing: ActivityTimingData | null;
+	timingProjection: ActivityTimingProjection | null;
 	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
 	parts: readonly PartState[];
 	threadRunning: boolean;
 	isLastTraceSegment: boolean;
-}> = ({ indices, activities, timing, renderPart, parts, threadRunning, isLastTraceSegment }) => {
+}> = ({
+	indices,
+	activities,
+	timing,
+	timingProjection,
+	renderPart,
+	parts,
+	threadRunning,
+	isLastTraceSegment,
+}) => {
 	const id = useId();
 	const isMobile = useMediaQuery("(max-width: 767px)");
 	const reducedMotion = useReducedMotion();
@@ -302,7 +317,9 @@ const TraceSegment: FC<{
 				>
 					{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
 				</FadeSwapText>
-				{showTiming ? <ElapsedTime timing={timing} /> : null}
+				{showTiming ? (
+					<ElapsedTime timing={timing} projection={timingProjection ?? undefined} />
+				) : null}
 				<motion.span
 					className="size-4 shrink-0 opacity-0 transition-opacity group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
 					animate={{ rotate: !isMobile && open ? 90 : 0 }}
@@ -398,6 +415,7 @@ const InterleavedPartsInner: FC<{
 										indices={part.indices}
 										activities={journal.byId}
 										timing={journal.timing}
+										timingProjection={journal.timingProjection}
 										renderPart={renderLeaf}
 										parts={parts}
 										threadRunning={threadRunning}

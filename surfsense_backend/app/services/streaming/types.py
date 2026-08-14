@@ -23,7 +23,6 @@ class ActivityIntegration(TypedDict):
 class ActivityTimingData(TypedDict):
     status: ActivityTimingStatus
     activeDurationMs: int
-    sampledAt: NotRequired[str]
 
 
 class ActivityData(TypedDict):
