@@ -40,7 +40,8 @@ import {
 	buildContentForUI,
 	type ContentPartsState,
 	type FrameBatchedUpdater,
-	type ThinkingStepData,
+	parseActivityData,
+	parseActivityTimingData,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import {
@@ -500,12 +501,12 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 
 	// Prepare assistant message. Mutable for the same reason as ``userMsgId``.
 	let assistantMsgId = `msg-assistant-${Date.now()}`;
-	const currentThinkingSteps = new Map<string, ThinkingStepData>();
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
 		currentTextPartIndex: -1,
 		currentReasoningPartIndex: -1,
 		toolCallIndices: new Map(),
+		activities: new Map(),
 	};
 	const { contentParts } = contentPartsState;
 	let wasInterrupted = false;
@@ -588,7 +589,6 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 				processSharedStreamEvent(parsed, {
 					contentPartsState,
 					toolsWithUI,
-					currentThinkingSteps,
 					scheduleFlush,
 					forceFlush,
 					onTokenUsage: (data) => {
@@ -726,10 +726,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 					const turnId = readStreamedChatTurnId(parsed.data);
 					if (turnId) {
 						chatStreamStore.setMessages(streamThreadId, (prev) =>
-							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId, {
-								startedAt: parsed.data.started_at,
-								flow: parsed.data.flow,
-							})
+							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 						);
 					}
 					break;
@@ -862,12 +859,12 @@ export async function resumeChat(
 		jotaiStore.get(agentFlagsAtom).data?.enable_desktop_local_filesystem === true;
 	const disabledTools = jotaiStore.get(disabledToolsAtom);
 
-	const currentThinkingSteps = new Map<string, ThinkingStepData>();
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
 		currentTextPartIndex: -1,
 		currentReasoningPartIndex: -1,
 		toolCallIndices: new Map(),
+		activities: new Map(),
 	};
 	const { contentParts, toolCallIndices } = contentPartsState;
 	let resumeAccepted = false;
@@ -884,6 +881,18 @@ export async function resumeChat(
 				if (p.type === "text") {
 					contentParts.push({ type: "text", text: String(p.text ?? "") });
 					contentPartsState.currentTextPartIndex = contentParts.length - 1;
+				} else if (p.type === "reasoning") {
+					contentParts.push({
+						type: "reasoning",
+						text: String(p.text ?? ""),
+						...(typeof p.id === "string" ? { id: p.id } : {}),
+						...(p.status === "running" || p.status === "completed" || p.status === "interrupted"
+							? { status: p.status }
+							: {}),
+						...(typeof p.startedAt === "string" ? { startedAt: p.startedAt } : {}),
+						...(typeof p.completedAt === "string" ? { completedAt: p.completedAt } : {}),
+					});
+					contentPartsState.currentTextPartIndex = -1;
 				} else if (p.type === "tool-call") {
 					toolCallIndices.set(String(p.toolCallId), contentParts.length);
 					contentParts.push({
@@ -901,15 +910,20 @@ export async function resumeChat(
 							: {}),
 					});
 					contentPartsState.currentTextPartIndex = -1;
-				} else if (p.type === "data-thinking-steps") {
-					const stepsData = p.data as { steps: ThinkingStepData[] } | undefined;
+				} else if (p.type === "data-activities") {
+					const activityData = p.data as { activities?: unknown[]; timing?: unknown } | undefined;
+					const activities = (activityData?.activities ?? [])
+						.map(parseActivityData)
+						.filter((activity): activity is NonNullable<typeof activity> => activity !== null)
+						.toSorted((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id));
+					for (const activity of activities)
+						contentPartsState.activities.set(activity.id, activity);
+					const timing = parseActivityTimingData(activityData?.timing);
+					if (timing) contentPartsState.activityTiming = timing;
 					contentParts.push({
-						type: "data-thinking-steps",
-						data: { steps: stepsData?.steps ?? [] },
+						type: "data-activities",
+						data: { activities, ...(timing ? { timing } : {}) },
 					});
-					for (const step of stepsData?.steps ?? []) {
-						currentThinkingSteps.set(step.id, step);
-					}
 				}
 			}
 		}
@@ -983,7 +997,6 @@ export async function resumeChat(
 				processSharedStreamEvent(parsed, {
 					contentPartsState,
 					toolsWithUI,
-					currentThinkingSteps,
 					scheduleFlush,
 					forceFlush,
 					onTokenUsage: (data) => {
@@ -1077,10 +1090,7 @@ export async function resumeChat(
 					const turnId = readStreamedChatTurnId(parsed.data);
 					if (turnId) {
 						chatStreamStore.setMessages(resumeThreadId, (prev) =>
-							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId, {
-								startedAt: parsed.data.started_at,
-								flow: parsed.data.flow,
-							})
+							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 						);
 					}
 					break;
@@ -1195,13 +1205,12 @@ export async function regenerateChat(
 
 	let userMsgId = `msg-user-${Date.now()}`;
 	let assistantMsgId = `msg-assistant-${Date.now()}`;
-	const currentThinkingSteps = new Map<string, ThinkingStepData>();
-
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
 		currentTextPartIndex: -1,
 		currentReasoningPartIndex: -1,
 		toolCallIndices: new Map(),
+		activities: new Map(),
 	};
 	const { contentParts } = contentPartsState;
 	let regenerateAccepted = false;
@@ -1315,7 +1324,6 @@ export async function regenerateChat(
 				processSharedStreamEvent(parsed, {
 					contentPartsState,
 					toolsWithUI,
-					currentThinkingSteps,
 					scheduleFlush,
 					forceFlush,
 					onTokenUsage: (data) => {
@@ -1350,10 +1358,7 @@ export async function regenerateChat(
 					const turnId = readStreamedChatTurnId(parsed.data);
 					if (turnId) {
 						chatStreamStore.setMessages(streamThreadId, (prev) =>
-							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId, {
-								startedAt: parsed.data.started_at,
-								flow: parsed.data.flow,
-							})
+							applyTurnIdToAssistantMessageList(prev, assistantMsgId, turnId)
 						);
 					}
 					break;

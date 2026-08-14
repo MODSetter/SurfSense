@@ -1,15 +1,34 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 
-export interface ThinkingStepData {
+export type ActivityStatus =
+	| "running"
+	| "awaiting_approval"
+	| "completed"
+	| "error"
+	| "cancelled"
+	| "interrupted";
+
+export interface ActivityTimingData {
+	status: "running" | "paused" | "completed";
+	activeDurationMs: number;
+}
+
+export interface ActivityData {
 	id: string;
+	sequence: number;
+	kind: string;
+	status: ActivityStatus;
 	title: string;
-	status: "pending" | "in_progress" | "completed" | "error" | "cancelled" | "interrupted";
-	items: string[];
-	/**
-	 * Optional relay fields from ``data-thinking-step`` when present on the wire
-	 * (e.g. ``spanId``). Populated in a later slice; equality helpers ignore until wired.
-	 */
-	metadata?: Record<string, unknown>;
+	category: "file" | "research" | "artifact" | "connector" | "action";
+	iconKey: string;
+	details?: string[];
+	startedAt: string;
+	completedAt?: string;
+	integration?: {
+		source: "native" | "connector" | "mcp";
+		key?: string;
+		name?: string;
+	};
 }
 
 export type ContentPart =
@@ -61,14 +80,14 @@ export type ContentPart =
 			 */
 			langchainToolCallId?: string;
 			/**
-			 * Relay correlation from tool SSE (e.g. ``spanId``, ``thinkingStepId``).
+			 * Relay correlation from tool SSE (for example ``activityId``).
 			 * Merged by ``mergeToolPartMetadata`` when events carry ``metadata``.
 			 */
 			metadata?: Record<string, unknown>;
 	  }
 	| {
-			type: "data-thinking-steps";
-			data: { steps: ThinkingStepData[] };
+			type: "data-activities";
+			data: { activities: ActivityData[]; timing?: ActivityTimingData };
 	  }
 	| {
 			/**
@@ -88,6 +107,8 @@ export interface ContentPartsState {
 	currentReasoningId?: string;
 	currentReasoningStartedAt?: string;
 	toolCallIndices: Map<string, number>;
+	activities: Map<string, ActivityData>;
+	activityTiming?: ActivityTimingData;
 	/**
 	 * Set by the resume flow's rehydration to suppress
 	 * ``data-step-separator`` for the rest of this turn. Without it,
@@ -95,73 +116,188 @@ export interface ContentPartsState {
 	 * ``addStepSeparator`` while rehydrated OLD content already makes
 	 * ``hasContent`` true → a divider lands between OLD and NEW
 	 * content with no semantic value (OLD content is folded by
-	 * ``buildTimeline`` + ``reconcileInterruptedAssistantMessages``,
-	 * persisted state carries no separator, so the line vanishes on
-	 * reload).
+	 * resume reconciliation, persisted state carries no separator, so
+	 * the line vanishes on reload.
 	 */
 	suppressStepSeparators?: boolean;
 }
 
-function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
-	if (current.length !== next.length) return false;
+const ACTIVITY_STATUSES = new Set<ActivityStatus>([
+	"running",
+	"awaiting_approval",
+	"completed",
+	"error",
+	"cancelled",
+	"interrupted",
+]);
+const ACTIVITY_CATEGORIES = new Set<ActivityData["category"]>([
+	"file",
+	"research",
+	"artifact",
+	"connector",
+	"action",
+]);
+const TERMINAL_ACTIVITY_STATUSES = new Set<ActivityStatus>([
+	"completed",
+	"error",
+	"cancelled",
+	"interrupted",
+]);
 
-	for (let i = 0; i < current.length; i += 1) {
-		const curr = current[i];
-		const nxt = next[i];
+function nonEmptyString(value: unknown): value is string {
+	return typeof value === "string" && value.trim().length > 0;
+}
+
+export function parseActivityData(value: unknown): ActivityData | null {
+	if (typeof value !== "object" || value === null) return null;
+	const activity = value as Record<string, unknown>;
+	if (
+		!nonEmptyString(activity.id) ||
+		!Number.isSafeInteger(activity.sequence) ||
+		(activity.sequence as number) < 0 ||
+		!nonEmptyString(activity.kind) ||
+		!ACTIVITY_STATUSES.has(activity.status as ActivityStatus) ||
+		!nonEmptyString(activity.title) ||
+		!ACTIVITY_CATEGORIES.has(activity.category as ActivityData["category"]) ||
+		!nonEmptyString(activity.iconKey) ||
+		!nonEmptyString(activity.startedAt)
+	) {
+		return null;
+	}
+	if (
+		activity.details !== undefined &&
+		(!Array.isArray(activity.details) || !activity.details.every(nonEmptyString))
+	) {
+		return null;
+	}
+	const terminal = TERMINAL_ACTIVITY_STATUSES.has(activity.status as ActivityStatus);
+	if (terminal !== nonEmptyString(activity.completedAt)) return null;
+
+	let integration: ActivityData["integration"];
+	if (activity.integration !== undefined) {
+		if (typeof activity.integration !== "object" || activity.integration === null) return null;
+		const candidate = activity.integration as Record<string, unknown>;
 		if (
-			curr.id !== nxt.id ||
-			curr.title !== nxt.title ||
-			curr.status !== nxt.status ||
-			JSON.stringify(curr.metadata) !== JSON.stringify(nxt.metadata)
+			candidate.source !== "native" &&
+			candidate.source !== "connector" &&
+			candidate.source !== "mcp"
 		) {
-			return false;
+			return null;
 		}
-		if (curr.items.length !== nxt.items.length) return false;
-		for (let j = 0; j < curr.items.length; j += 1) {
-			if (curr.items[j] !== nxt.items[j]) return false;
-		}
+		if (candidate.key !== undefined && !nonEmptyString(candidate.key)) return null;
+		if (candidate.name !== undefined && !nonEmptyString(candidate.name)) return null;
+		integration = {
+			source: candidate.source,
+			...(candidate.key ? { key: candidate.key as string } : {}),
+			...(candidate.name ? { name: candidate.name as string } : {}),
+		};
 	}
 
+	return {
+		id: activity.id,
+		sequence: activity.sequence as number,
+		kind: activity.kind,
+		status: activity.status as ActivityStatus,
+		title: activity.title,
+		category: activity.category as ActivityData["category"],
+		iconKey: activity.iconKey,
+		...(activity.details ? { details: [...(activity.details as string[])] } : {}),
+		startedAt: activity.startedAt,
+		...(activity.completedAt ? { completedAt: activity.completedAt as string } : {}),
+		...(integration ? { integration } : {}),
+	};
+}
+
+export function parseActivityTimingData(value: unknown): ActivityTimingData | null {
+	if (typeof value !== "object" || value === null) return null;
+	const timing = value as Record<string, unknown>;
+	if (
+		(timing.status !== "running" && timing.status !== "paused" && timing.status !== "completed") ||
+		!Number.isSafeInteger(timing.activeDurationMs) ||
+		(timing.activeDurationMs as number) < 0
+	) {
+		return null;
+	}
+	return {
+		status: timing.status,
+		activeDurationMs: timing.activeDurationMs as number,
+	};
+}
+
+function hasSameIdentity(current: ActivityData, next: ActivityData): boolean {
+	return (
+		current.sequence === next.sequence &&
+		current.kind === next.kind &&
+		current.category === next.category &&
+		current.iconKey === next.iconKey &&
+		current.startedAt === next.startedAt
+	);
+}
+
+export function upsertActivity(state: ContentPartsState, value: unknown): boolean {
+	const activity = parseActivityData(value);
+	if (!activity) return false;
+	const current = state.activities.get(activity.id);
+	if (
+		current &&
+		(!hasSameIdentity(current, activity) ||
+			(TERMINAL_ACTIVITY_STATUSES.has(current.status) &&
+				!TERMINAL_ACTIVITY_STATUSES.has(activity.status)))
+	) {
+		return false;
+	}
+	if (current && JSON.stringify(current) === JSON.stringify(activity)) return false;
+
+	state.activities.set(activity.id, activity);
+	const activities = [...state.activities.values()].toSorted(
+		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
+	);
+	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
+	if (existingIdx >= 0) {
+		state.contentParts[existingIdx] = {
+			type: "data-activities",
+			data: { activities, ...(state.activityTiming ? { timing: state.activityTiming } : {}) },
+		};
+		return true;
+	}
+
+	state.contentParts.unshift({
+		type: "data-activities",
+		data: { activities, ...(state.activityTiming ? { timing: state.activityTiming } : {}) },
+	});
+	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
+	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
+	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
 	return true;
 }
 
-export function updateThinkingSteps(
-	state: ContentPartsState,
-	steps: Map<string, ThinkingStepData>
-): boolean {
-	const stepsArray = Array.from(steps.values());
-	const existingIdx = state.contentParts.findIndex((p) => p.type === "data-thinking-steps");
-
+export function upsertActivityTiming(state: ContentPartsState, value: unknown): boolean {
+	const timing = parseActivityTimingData(value);
+	const current = state.activityTiming;
+	if (
+		!timing ||
+		(current &&
+			(timing.activeDurationMs < current.activeDurationMs ||
+				(current.status === "completed" && timing.status !== "completed"))) ||
+		JSON.stringify(current) === JSON.stringify(timing)
+	) {
+		return false;
+	}
+	state.activityTiming = timing;
+	const activities = [...state.activities.values()].toSorted(
+		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
+	);
+	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
+	const part: ContentPart = { type: "data-activities", data: { activities, timing } };
 	if (existingIdx >= 0) {
-		const existing = state.contentParts[existingIdx];
-		if (
-			existing?.type === "data-thinking-steps" &&
-			areThinkingStepsEqual(existing.data.steps, stepsArray)
-		) {
-			return false;
-		}
-
-		state.contentParts[existingIdx] = {
-			type: "data-thinking-steps",
-			data: { steps: stepsArray },
-		};
-		return true;
-	} else {
-		state.contentParts.unshift({
-			type: "data-thinking-steps",
-			data: { steps: stepsArray },
-		});
-		if (state.currentTextPartIndex >= 0) {
-			state.currentTextPartIndex += 1;
-		}
-		if (state.currentReasoningPartIndex >= 0) {
-			state.currentReasoningPartIndex += 1;
-		}
-		for (const [id, idx] of state.toolCallIndices) {
-			state.toolCallIndices.set(id, idx + 1);
-		}
+		state.contentParts[existingIdx] = part;
 		return true;
 	}
+	state.contentParts.unshift(part);
+	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
+	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
+	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
+	return true;
 }
 
 /**
@@ -319,7 +455,7 @@ function _toolPasses(gate: ToolUIGate, toolName: string): boolean {
 /**
  * Shallow-merge relay ``metadata`` into a tool-call part (SSE → content part).
  * Keys already set on ``into`` are left unchanged so chunk vs canonical tool
- * events cannot reorder or overwrite ``spanId`` / ``thinkingStepId``.
+ * events cannot reorder or overwrite correlation metadata.
  * Matches server ``AssistantContentBuilder`` merge semantics.
  */
 function mergeToolPartMetadata(
@@ -452,7 +588,7 @@ export function buildContentForUI(
 		if (part.type === "status") return part.text.length > 0;
 		if (part.type === "tool-call")
 			return _toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part);
-		if (part.type === "data-thinking-steps") return true;
+		if (part.type === "data-activities") return true;
 		if (part.type === "data-step-separator") return true;
 		return false;
 	});
@@ -473,8 +609,7 @@ export function buildContentForPersistence(
 		} else if (part.type === "reasoning" && part.text.length > 0) {
 			// Persist reasoning blocks so a chat reload re-renders the
 			// collapsed thinking section instead of
-			// silently dropping it (mirrors the data-thinking-steps
-			// branch above).
+			// silently dropping it on reload.
 			parts.push(part);
 		} else if (part.type === "status" && part.text.length > 0) {
 			parts.push(part);
@@ -483,7 +618,7 @@ export function buildContentForPersistence(
 			(_toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part))
 		) {
 			parts.push(part);
-		} else if (part.type === "data-thinking-steps") {
+		} else if (part.type === "data-activities") {
 			parts.push(part);
 		} else if (part.type === "data-step-separator") {
 			parts.push(part);
@@ -542,7 +677,8 @@ export type SSEEvent =
 			langchainToolCallId?: string;
 			metadata?: Record<string, unknown>;
 	  }
-	| { type: "data-thinking-step"; data: ThinkingStepData }
+	| { type: "data-activity"; data: ActivityData }
+	| { type: "data-activity-timing"; data: ActivityTimingData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
 	| { type: "data-interrupt-request"; data: Record<string, unknown> }
 	| { type: "data-documents-updated"; data: Record<string, unknown> }
@@ -582,11 +718,7 @@ export type SSEEvent =
 			 * always learns the turn id.
 			 */
 			type: "data-turn-info";
-			data: {
-				chat_turn_id: string;
-				started_at?: string;
-				flow?: "new" | "resume" | "regenerate";
-			};
+			data: { chat_turn_id: string };
 	  }
 	| {
 			/**
