@@ -41,6 +41,7 @@ import { FadeSwapText } from "./fade-swap-text";
 import {
 	buildActivityLookup,
 	firstToolIndexByActivityId,
+	getLastTraceIndex,
 	getToolActivityId,
 	getTraceGroupPath,
 	type TracePartLike,
@@ -235,7 +236,8 @@ const TraceSegment: FC<{
 	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
 	parts: readonly PartState[];
 	threadRunning: boolean;
-}> = ({ indices, activities, timing, renderPart, parts, threadRunning }) => {
+	isLastTraceSegment: boolean;
+}> = ({ indices, activities, timing, renderPart, parts, threadRunning, isLastTraceSegment }) => {
 	const id = useId();
 	const isMobile = useMediaQuery("(max-width: 767px)");
 	const reducedMotion = useReducedMotion();
@@ -254,6 +256,8 @@ const TraceSegment: FC<{
 		segmentActivities.some((activity) => activity.status === "awaiting_approval");
 	const label =
 		segmentActivities.at(-1)?.title ?? (active ? "Spellweaving" : "Reasoned through the request");
+	const showTiming =
+		timing !== null && (active || (timing.status === "completed" && isLastTraceSegment));
 	const details = <TraceDetails indices={indices} renderPart={renderPart} parts={parts} />;
 	useEffect(() => {
 		if (isMobile || userToggled.current) return;
@@ -298,13 +302,7 @@ const TraceSegment: FC<{
 				>
 					{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
 				</FadeSwapText>
-				{active && timing ? (
-					<ElapsedTime
-						key={`${timing.status}:${timing.activeDurationMs}`}
-						activeDurationMs={timing.activeDurationMs}
-						running={timing.status === "running"}
-					/>
-				) : null}
+				{showTiming ? <ElapsedTime timing={timing} /> : null}
 				<motion.span
 					className="size-4 shrink-0 opacity-0 transition-opacity group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
 					animate={{ rotate: !isMobile && open ? 90 : 0 }}
@@ -362,6 +360,10 @@ const InterleavedPartsInner: FC<{
 	const journal = useMemo(() => buildActivityLookup(rawParts), [rawParts]);
 	const firstActivityIndices = useMemo(() => firstToolIndexByActivityId(rawParts), [rawParts]);
 	const bodyToolNames = useMemo(() => new Set(Object.keys(bodyTools)), [bodyTools]);
+	const lastTraceIndex = useMemo(
+		() => getLastTraceIndex(rawParts, bodyToolNames, showReasoning),
+		[rawParts, bodyToolNames, showReasoning]
+	);
 	const groupBy = useCallback(
 		(part: PartState) =>
 			part.type === "reasoning" && !showReasoning ? [] : getTraceGroupPath(part, bodyToolNames),
@@ -399,6 +401,7 @@ const InterleavedPartsInner: FC<{
 										renderPart={renderLeaf}
 										parts={parts}
 										threadRunning={threadRunning}
+										isLastTraceSegment={part.indices.includes(lastTraceIndex)}
 									/>
 									<PendingCards indices={part.indices} />
 								</>

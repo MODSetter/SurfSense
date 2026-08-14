@@ -98,6 +98,19 @@ export function getTraceGroupPath(
 	return [];
 }
 
+export function getLastTraceIndex(
+	parts: readonly TracePartLike[],
+	bodyToolNames: ReadonlySet<string>,
+	showReasoning: boolean
+): number {
+	for (let index = parts.length - 1; index >= 0; index -= 1) {
+		const part = parts[index];
+		if (part.type === "reasoning" && !showReasoning) continue;
+		if (getTraceGroupPath(part, bodyToolNames).length > 0) return index;
+	}
+	return -1;
+}
+
 /** First wire position for each canonical activity, used to suppress duplicate tool relays. */
 export function firstToolIndexByActivityId(
 	parts: readonly TracePartLike[]
