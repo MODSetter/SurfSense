@@ -8,33 +8,36 @@ export function formatElapsed(milliseconds: number): string {
 	return `${Math.floor(seconds / 60)}m ${(seconds % 60).toFixed(1)}s`;
 }
 
+export function projectElapsed(
+	activeDurationMs: number,
+	running: boolean,
+	monotonicDeltaMs: number
+): number {
+	return activeDurationMs + (running ? Math.max(0, monotonicDeltaMs) : 0);
+}
+
 export const ElapsedTime = memo(function ElapsedTime({
-	startedAt,
-	completedAt,
-	running = !completedAt,
+	activeDurationMs,
+	running,
 }: {
-	startedAt: string | Date;
-	completedAt?: string | Date;
-	running?: boolean;
+	activeDurationMs: number;
+	running: boolean;
 }) {
-	const start = new Date(startedAt).getTime();
-	const end = completedAt ? new Date(completedAt).getTime() : undefined;
-	const [now, setNow] = useState(() => end ?? Date.now());
+	const [elapsed, setElapsed] = useState(activeDurationMs);
 
 	useEffect(() => {
-		if (end !== undefined) {
-			setNow(end);
-			return;
-		}
 		if (!running) return;
-		const timer = window.setInterval(() => setNow(Date.now()), 100);
+		const started = performance.now();
+		const timer = window.setInterval(
+			() => setElapsed(projectElapsed(activeDurationMs, true, performance.now() - started)),
+			100
+		);
 		return () => window.clearInterval(timer);
-	}, [end, running]);
+	}, [activeDurationMs, running]);
 
-	if (!Number.isFinite(start) || (!running && end === undefined)) return null;
 	return (
-		<span className="shrink-0 font-mono text-[12px] text-muted-foreground tabular-nums">
-			{formatElapsed(now - start)}
+		<span className="shrink-0 font-mono text-[12px] text-muted-foreground/75 tabular-nums">
+			{formatElapsed(elapsed)}
 		</span>
 	);
 });

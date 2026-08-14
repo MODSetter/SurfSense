@@ -7,37 +7,26 @@ import { ElapsedTime } from "@/components/prompt-kit/elapsed-time";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { PixelGridLoader } from "@/components/prompt-kit/pixel-grid-loader";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { HitlApprovalCard, usePendingInterrupt } from "@/features/chat-messages/hitl";
+import { getActivityIcon, getConnectorLogo } from "@/features/chat-messages/timeline/presentation";
+import type { VisibleReasoningBlock } from "@/features/chat-messages/timeline/types";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import type { ActivityData, ActivityStatus, ActivityTimingData } from "@/lib/chat/streaming-state";
 import { trackThinkingTraceInteraction } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";
-import { groupItems } from "./grouping";
+import { ItemHeader } from "./items/item-header";
 import { buildActiveSummary, buildCompletionSummary } from "./summary";
-import { TimelineGroupRow } from "./timeline-group-row";
-import type { ItemStatus, TimelineItem, VisibleReasoningBlock } from "./types";
 
 /**
  * Force a stale "running" to read as "completed" once the thread
  * stops, so the chrome doesn't keep pulsing forever after a stream
  * is aborted or disconnected.
  */
-function effectiveStatus(status: ItemStatus, isThreadRunning: boolean): ItemStatus {
-	if ((status === "running" || status === "pending") && !isThreadRunning) return "interrupted";
+function effectiveStatus(status: ActivityStatus, isThreadRunning: boolean): ActivityStatus {
+	if (status === "running" && !isThreadRunning) return "interrupted";
 	return status;
-}
-
-function latestCompletedAt(
-	items: readonly TimelineItem[],
-	reasoning: readonly VisibleReasoningBlock[]
-): string | undefined {
-	const timestamps = [
-		...items.map((item) => item.completedAt),
-		...reasoning.map((item) => item.completedAt),
-	]
-		.filter((value): value is string => typeof value === "string")
-		.map((value) => new Date(value).getTime())
-		.filter(Number.isFinite);
-	return timestamps.length > 0 ? new Date(Math.max(...timestamps)).toISOString() : undefined;
 }
 
 const ReasoningDisclosure: FC<{
@@ -112,36 +101,78 @@ const AnimatedActivityLabel: FC<{ label: string; active: boolean }> = ({ label, 
 	);
 };
 
+const TimelineDetails: FC<{
+	activities: readonly ActivityData[];
+	reasoning: readonly VisibleReasoningBlock[];
+	reasoningActive: boolean;
+	allSettled: boolean;
+	hasError: boolean;
+	hasCancelled: boolean;
+}> = ({ activities, reasoning, reasoningActive, allSettled, hasError, hasCancelled }) => (
+	<div className="pl-1">
+		<ReasoningDisclosure blocks={reasoning} active={reasoningActive} />
+		{activities.map((activity, index) => {
+			const Icon = getActivityIcon(activity.iconKey, activity.category);
+			const showLine = index < activities.length - 1 || allSettled;
+			return (
+				<div key={activity.id} className="relative min-w-0 pb-4">
+					{showLine ? (
+						<div className="absolute top-5 bottom-0 left-[7.5px] w-px bg-muted-foreground/25" />
+					) : null}
+					<ItemHeader
+						title={activity.title}
+						status={activity.status}
+						icon={Icon}
+						logo={getConnectorLogo(activity.integration)}
+					/>
+					{activity.details && activity.details.length > 0 ? (
+						<ul className="mt-1 ml-6 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+							{activity.details.map((detail) => (
+								<li key={`${activity.id}:${detail}`}>{detail}</li>
+							))}
+						</ul>
+					) : null}
+				</div>
+			);
+		})}
+		{allSettled && !hasError && !hasCancelled ? (
+			<div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground">
+				<CheckCircle2 className="size-4" aria-hidden="true" />
+				<span>Done</span>
+			</div>
+		) : null}
+	</div>
+);
+
 /**
  * The "process" surface in the body | timeline split. Pure consumer
- * of ``TimelineItem[]`` — owns the collapsible chrome and tree
- * indent only. Pending HITL interrupts mount ``HitlApprovalCard`` at
- * the bottom; the card owns its own decision/pager state.
+ * of canonical backend activities. Mobile trace details open in a drawer;
+ * pending HITL cards remain in chat because approvals are not thinking steps.
  */
 export const Timeline: FC<{
-	items: readonly TimelineItem[];
+	activities: readonly ActivityData[];
 	reasoning?: readonly VisibleReasoningBlock[];
+	timing: ActivityTimingData | null;
 	isThreadRunning?: boolean;
 	hasAnswer?: boolean;
-	startedAt: string;
-}> = ({ items, reasoning = [], isThreadRunning = true, hasAnswer = false, startedAt }) => {
+}> = ({ activities, reasoning = [], timing, isThreadRunning = true, hasAnswer = false }) => {
 	const traceId = useId();
+	const mobileDrawerId = `${traceId}-drawer`;
 	const reducedMotion = useReducedMotion();
+	const isMobile = useMediaQuery("(max-width: 767px)");
 	const pendingValue = usePendingInterrupt();
 	const pendingInterrupts = pendingValue?.pendingInterrupts ?? [];
 	const onSubmit = pendingValue?.onSubmit;
 	const hasPending = pendingInterrupts.length > 0;
+	const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-	// Apply the override here so downstream (grouping, headers, dots)
-	// sees the corrected status without threading a callback. Keeps
-	// ``buildTimeline`` pure.
-	const effectiveItems = useMemo<TimelineItem[]>(
+	const effectiveActivities = useMemo<ActivityData[]>(
 		() =>
-			items.map((it) => ({
-				...it,
-				status: effectiveStatus(it.status, isThreadRunning),
+			activities.map((activity) => ({
+				...activity,
+				status: effectiveStatus(activity.status, isThreadRunning),
 			})),
-		[items, isThreadRunning]
+		[activities, isThreadRunning]
 	);
 
 	// "Settled" includes cancelled/errored, not just completed —
@@ -149,21 +180,22 @@ export const Timeline: FC<{
 	// timeline still needs to auto-collapse.
 	const allSettled = useMemo(
 		() =>
-			(effectiveItems.length > 0 || reasoning.length > 0) &&
+			(effectiveActivities.length > 0 || reasoning.length > 0) &&
 			!isThreadRunning &&
 			!hasPending &&
-			effectiveItems.every(
-				(it) =>
-					it.status === "completed" ||
-					it.status === "cancelled" ||
-					it.status === "interrupted" ||
-					it.status === "error"
+			effectiveActivities.every(
+				(activity) =>
+					activity.status === "completed" ||
+					activity.status === "cancelled" ||
+					activity.status === "interrupted" ||
+					activity.status === "error"
 			),
-		[effectiveItems, reasoning.length, isThreadRunning, hasPending]
+		[effectiveActivities, reasoning.length, isThreadRunning, hasPending]
 	);
 	const isProcessing = (isThreadRunning || hasPending) && !allSettled;
-	const hasExpandableContent = effectiveItems.length > 0 || reasoning.length > 0 || hasPending;
-	const [isOpen, setIsOpen] = useState(() => isProcessing && hasExpandableContent && !hasAnswer);
+	const hasTraceContent = effectiveActivities.length > 0 || reasoning.length > 0;
+	const hasContent = hasTraceContent || hasPending;
+	const [isOpen, setIsOpen] = useState(() => isProcessing && hasTraceContent && !hasAnswer);
 	const userToggled = useRef(false);
 	const didAutoCollapse = useRef(false);
 	useEffect(() => {
@@ -176,35 +208,31 @@ export const Timeline: FC<{
 			setIsOpen(false);
 			return;
 		}
-		if (isProcessing && hasExpandableContent && !hasAnswer && !userToggled.current) {
+		if (isProcessing && hasTraceContent && !hasAnswer && !userToggled.current) {
 			setIsOpen(true);
 		}
-	}, [hasAnswer, hasExpandableContent, hasPending, isProcessing]);
+	}, [hasAnswer, hasPending, hasTraceContent, isProcessing]);
 
-	const groups = useMemo(() => groupItems(effectiveItems), [effectiveItems]);
+	if (!isThreadRunning && !hasContent) return null;
+	if (hasAnswer && !hasContent) return null;
 
-	if (!isThreadRunning && !hasExpandableContent) return null;
-	if (hasAnswer && !hasExpandableContent) return null;
-
-	const hasError = effectiveItems.some((item) => item.status === "error");
-	const hasCancelled = effectiveItems.some(
-		(item) => item.status === "cancelled" || item.status === "interrupted"
+	const hasError = effectiveActivities.some((activity) => activity.status === "error");
+	const hasCancelled = effectiveActivities.some(
+		(activity) => activity.status === "cancelled" || activity.status === "interrupted"
 	);
 	const headerText = (() => {
 		if (hasPending) return "Waiting for your approval";
-		if (hasAnswer && effectiveItems.length === 0 && reasoning.length > 0) {
+		if (hasAnswer && effectiveActivities.length === 0 && reasoning.length > 0) {
 			return "Reasoned through the request";
 		}
 		if (!isThreadRunning && hasError) return "Couldn’t complete the work";
 		if (!isThreadRunning && hasCancelled) return "Stopped working";
-		if (allSettled) return buildCompletionSummary(effectiveItems);
-		if (isProcessing) return buildActiveSummary(effectiveItems);
-		return buildCompletionSummary(effectiveItems);
+		if (allSettled) return buildCompletionSummary(effectiveActivities);
+		if (isProcessing) return buildActiveSummary(effectiveActivities);
+		return buildCompletionSummary(effectiveActivities);
 	})();
-	const reasoningOnlyAnswer = hasAnswer && effectiveItems.length === 0 && reasoning.length > 0;
+	const reasoningOnlyAnswer = hasAnswer && effectiveActivities.length === 0 && reasoning.length > 0;
 	const gridActive = isProcessing && !hasPending && !reasoningOnlyAnswer;
-	const completedAt =
-		allSettled || reasoningOnlyAnswer ? latestCompletedAt(effectiveItems, reasoning) : undefined;
 	const reasoningActive = reasoning.some((block) => block.status === "running") && isThreadRunning;
 
 	return (
@@ -214,32 +242,48 @@ export const Timeline: FC<{
 					<Button
 						variant="ghost"
 						type="button"
-						disabled={!hasExpandableContent}
+						disabled={!hasTraceContent}
 						onClick={() => {
+							if (isMobile) {
+								setMobileDrawerOpen(true);
+								trackThinkingTraceInteraction("expanded", {
+									activityCount: effectiveActivities.length,
+									hasApproval: hasPending,
+								});
+								return;
+							}
 							userToggled.current = true;
 							setIsOpen((value) => {
 								const next = !value;
 								trackThinkingTraceInteraction(next ? "expanded" : "collapsed", {
-									activityCount: effectiveItems.length,
+									activityCount: effectiveActivities.length,
 									hasApproval: hasPending,
 								});
 								return next;
 							});
 						}}
-						aria-expanded={hasExpandableContent ? isOpen : undefined}
-						aria-controls={hasExpandableContent ? traceId : undefined}
+						aria-expanded={hasTraceContent ? (isMobile ? mobileDrawerOpen : isOpen) : undefined}
+						aria-controls={hasTraceContent ? (isMobile ? mobileDrawerId : traceId) : undefined}
 						className={cn(
-							"group/trace h-8 w-fit max-w-full justify-start gap-2.5 px-0 py-0 has-[>svg]:px-0 text-left text-sm font-normal hover:bg-transparent disabled:pointer-events-none disabled:opacity-100",
+							"group/trace h-8 max-md:min-h-11 w-fit max-w-full justify-start gap-2.5 px-0 py-0 has-[>svg]:px-0 text-left text-sm font-normal hover:bg-transparent disabled:pointer-events-none disabled:opacity-100",
 							"text-muted-foreground hover:text-foreground"
 						)}
 					>
 						<PixelGridLoader active={gridActive} />
-						<AnimatedActivityLabel label={headerText} active={gridActive} />
-						<ElapsedTime startedAt={startedAt} completedAt={completedAt} running={gridActive} />
-						{hasExpandableContent ? (
+						<span className="flex min-w-0 items-baseline gap-2.5">
+							<AnimatedActivityLabel label={headerText} active={gridActive} />
+							{timing ? (
+								<ElapsedTime
+									key={`${timing.status}:${timing.activeDurationMs}`}
+									activeDurationMs={timing.activeDurationMs}
+									running={timing.status === "running"}
+								/>
+							) : null}
+						</span>
+						{hasTraceContent ? (
 							<motion.span
-								className="size-4 shrink-0 opacity-0 transition-opacity duration-200 group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 motion-reduce:transition-none"
-								animate={{ rotate: isOpen ? 90 : 0 }}
+								className="size-4 shrink-0 opacity-0 transition-opacity duration-200 group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100 motion-reduce:transition-none"
+								animate={{ rotate: isMobile ? 0 : isOpen ? 90 : 0 }}
 								transition={{
 									duration: reducedMotion ? 0 : 0.22,
 									ease: [0.22, 1, 0.36, 1],
@@ -255,44 +299,64 @@ export const Timeline: FC<{
 				<div
 					id={traceId}
 					className={cn(
-						"grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
+						"hidden md:grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none",
 						isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
 					)}
 				>
 					<div className="overflow-hidden">
-						<div className="mt-3 pl-1">
-							<ReasoningDisclosure blocks={reasoning} active={reasoningActive} />
-							{groups.map((group, idx) => {
-								const showLine = idx < groups.length - 1 || hasPending || allSettled;
-								return (
-									<TimelineGroupRow
-										key={group.parent.id}
-										group={group}
-										parentStatus={group.parent.status}
-										showParentLine={showLine}
-									/>
-								);
-							})}
-							{hasPending && onSubmit && (
-								<div className="pl-5 space-y-3">
-									{pendingInterrupts.map((pi) => (
-										<HitlApprovalCard
-											key={pi.interruptId}
-											pendingInterrupt={pi}
-											onSubmit={(decisions) => onSubmit(pi.interruptId, decisions)}
-										/>
-									))}
-								</div>
-							)}
-							{allSettled && !hasError && !hasCancelled ? (
-								<div className="flex items-center gap-2 pb-1 text-sm text-muted-foreground">
-									<CheckCircle2 className="size-4" aria-hidden="true" />
-									<span>Done</span>
-								</div>
-							) : null}
+						<div className="mt-3">
+							<TimelineDetails
+								activities={effectiveActivities}
+								reasoning={reasoning}
+								reasoningActive={reasoningActive}
+								allSettled={allSettled}
+								hasError={hasError}
+								hasCancelled={hasCancelled}
+							/>
 						</div>
 					</div>
 				</div>
+				{isMobile && hasTraceContent ? (
+					<Drawer
+						open={mobileDrawerOpen}
+						onOpenChange={(open) => {
+							setMobileDrawerOpen(open);
+							if (!open) {
+								trackThinkingTraceInteraction("collapsed", {
+									activityCount: effectiveActivities.length,
+									hasApproval: hasPending,
+								});
+							}
+						}}
+						shouldScaleBackground={false}
+					>
+						<DrawerContent id={mobileDrawerId} className="h-[85vh] max-h-[85vh] overflow-hidden">
+							<DrawerHandle />
+							<DrawerTitle className="px-4 pt-3 pb-2 text-center text-base">Summary</DrawerTitle>
+							<div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-6">
+								<TimelineDetails
+									activities={effectiveActivities}
+									reasoning={reasoning}
+									reasoningActive={reasoningActive}
+									allSettled={allSettled}
+									hasError={hasError}
+									hasCancelled={hasCancelled}
+								/>
+							</div>
+						</DrawerContent>
+					</Drawer>
+				) : null}
+				{hasPending && onSubmit ? (
+					<div className="mt-3 flex flex-col gap-3">
+						{pendingInterrupts.map((pi) => (
+							<HitlApprovalCard
+								key={pi.interruptId}
+								pendingInterrupt={pi}
+								onSubmit={(decisions) => onSubmit(pi.interruptId, decisions)}
+							/>
+						))}
+					</div>
+				) : null}
 			</div>
 		</div>
 	);

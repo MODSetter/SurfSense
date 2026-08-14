@@ -9,9 +9,8 @@
  * (see §6 layering rules).
  */
 
-export type { ThinkingStepInput } from "./build-timeline";
 export { TimelineDataUI } from "./data-renderer";
 export { Timeline } from "./timeline";
 export type { TimelineToolComponent, TimelineToolProps } from "./tool-registry/types";
 export { TurnActivity } from "./turn-activity";
-export type { ItemStatus, ReasoningItem, TimelineGroup, TimelineItem, ToolCallItem } from "./types";
+export type { ItemStatus } from "./types";

@@ -3,24 +3,11 @@
 import { useAuiState } from "@assistant-ui/react";
 import { useMemo } from "react";
 import { PendingInterruptProvider, usePendingInterrupt } from "@/features/chat-messages/hitl";
-import { buildTimeline, type ThinkingStepInput } from "./build-timeline";
-import { buildSemanticActivities } from "./semantic-activities";
+import { buildActivityJournal } from "./build-timeline";
 import { Timeline } from "./timeline";
 import type { VisibleReasoningBlock } from "./types";
 
 const noopSubmit = () => {};
-
-function extractSteps(content: readonly unknown[]): ThinkingStepInput[] {
-	const part = content.find(
-		(
-			candidate
-		): candidate is { type: "data-thinking-steps"; data: { steps?: ThinkingStepInput[] } } =>
-			typeof candidate === "object" &&
-			candidate !== null &&
-			(candidate as { type?: unknown }).type === "data-thinking-steps"
-	);
-	return Array.isArray(part?.data?.steps) ? part.data.steps : [];
-}
 
 function extractReasoning(content: readonly unknown[]): VisibleReasoningBlock[] {
 	let legacyIndex = 0;
@@ -75,19 +62,11 @@ export function TurnActivity({ showReasoning = true }: { showReasoning?: boolean
 	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
 	const messageId = useAuiState(({ message }) => message?.id);
 	const content = useAuiState(({ message }) => message?.content);
-	const createdAt = useAuiState(({ message }) => message?.createdAt);
-	const metadata = useAuiState(({ message }) => message?.metadata);
 	const pendingValue = usePendingInterrupt();
 	const isMessageStreaming = isThreadRunning && isLastMessage;
 	const parts = Array.isArray(content) ? content : [];
 
-	const items = useMemo(
-		() =>
-			buildSemanticActivities(
-				buildTimeline(extractSteps(parts), parts).filter((item) => item.kind === "tool-call")
-			),
-		[parts]
-	);
+	const journal = useMemo(() => buildActivityJournal(parts), [parts]);
 	const reasoning = useMemo(
 		() => (showReasoning ? extractReasoning(parts) : []),
 		[parts, showReasoning]
@@ -97,22 +76,17 @@ export function TurnActivity({ showReasoning = true }: { showReasoning?: boolean
 			(pendingValue?.pendingInterrupts ?? []).filter((item) => item.assistantMsgId === messageId),
 		[pendingValue?.pendingInterrupts, messageId]
 	);
-	const custom = (metadata?.custom ?? {}) as Record<string, unknown>;
-	const startedAt =
-		(typeof custom.turnStartedAt === "string" ? custom.turnStartedAt : undefined) ??
-		(createdAt instanceof Date ? createdAt.toISOString() : new Date().toISOString());
-
 	return (
 		<PendingInterruptProvider
 			pendingInterrupts={pendingForMessage}
 			onSubmit={pendingValue?.onSubmit ?? noopSubmit}
 		>
 			<Timeline
-				items={items}
+				activities={journal.activities}
+				timing={journal.timing}
 				reasoning={reasoning}
 				isThreadRunning={isMessageStreaming}
 				hasAnswer={hasAnswerText(parts)}
-				startedAt={startedAt}
 			/>
 		</PendingInterruptProvider>
 	);

@@ -34,9 +34,9 @@ export const ItemHeader: FC<{
 				"flex min-w-0 items-start gap-2 text-sm leading-5",
 				status === "running" && "text-foreground font-medium",
 				status === "completed" && "text-muted-foreground",
-				status === "pending" && "text-muted-foreground/60",
+				status === "awaiting_approval" && "text-muted-foreground/60",
 				status === "error" && "text-destructive",
-				status === "cancelled" && "text-muted-foreground line-through"
+				(status === "cancelled" || status === "interrupted") && "text-muted-foreground line-through"
 			)}
 		>
 			{logo ? (
