@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -25,19 +26,18 @@ class StreamResult:
     commit_gate_passed: bool = True
     commit_gate_reason: str = ""
     # Pre-allocated assistant ``new_chat_messages.id`` for this turn, captured by
-    # ``persist_assistant_shell`` right after the user row is persisted. ``None``
-    # for the legacy/anonymous code paths that don't opt in to server-side
-    # ``ContentPart[]`` projection.
+    # ``persist_assistant_shell`` right after the user row is persisted.
     assistant_message_id: int | None = None
-    # In-memory mirror of the FE's assistant-ui ``ContentPartsState``, populated
-    # by the lifecycle methods called from the streaming event loop at each
-    # ``streaming_service.format_*`` yield site. Snapshot in the streaming
-    # ``finally`` to produce the rich JSONB persisted by
-    # ``finalize_assistant_turn``. ``repr=False`` keeps the log-on-error path
-    # (``StreamResult`` is logged in some error branches) from dumping a
-    # potentially-large parts list.
+    # Server-side content-part projection populated alongside SSE emission.
+    # Snapshot in ``finally`` for ``finalize_assistant_turn``. ``repr=False``
+    # prevents error logs from dumping a potentially large parts list.
     content_builder: Any | None = field(default=None, repr=False)
     activity_state: Any | None = field(default=None, repr=False)
+    # Reads the authoritative LangGraph checkpoint during disconnect cleanup.
+    # The in-memory event loop may be cancelled before it observes pending HITL.
+    load_agent_state: Callable[[], Awaitable[Any]] | None = field(
+        default=None, repr=False
+    )
     activity_timer: ActivityTimer = field(
         default_factory=ActivityTimer.start, repr=False
     )

@@ -416,9 +416,7 @@ export function StatusPoller({
 	shareToken?: string | null;
 }) {
 	if (artifactId == null && presentationId == null) {
-		return (
-			<p className="my-4 text-sm text-muted-foreground">Presentation not available</p>
-		);
+		return <p className="my-4 text-sm text-muted-foreground">Presentation not available</p>;
 	}
 	return (
 		<VideoPresentationPlayer

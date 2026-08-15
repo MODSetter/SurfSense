@@ -15,6 +15,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.invocation import (
     EXCLUDED_STATE_KEYS,
     subagent_invoke_config,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from .prompts import load_readonly_description
 
@@ -115,4 +116,13 @@ def build_ask_knowledge_base_tool(
         func=ask_knowledge_base,
         coroutine=aask_knowledge_base,
         description=load_readonly_description(),
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Reviewing your sources",
+                completed_title="Reviewed your sources",
+                category="research",
+                icon_key="library",
+                kind=TOOL_NAME,
+            ).as_metadata()
+        },
     )

@@ -12,6 +12,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import Filesys
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.sandbox import is_sandbox_enabled
 from app.utils.perf import get_perf_logger
 
@@ -122,9 +123,27 @@ class SurfSenseFilesystemMiddleware(FilesystemMiddleware):
     def _create_glob_tool(self) -> BaseTool:
         tool = super()._create_glob_tool()
         tool.description = glob_description(self._filesystem_mode).rstrip()
+        tool.metadata = {
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Finding files",
+                completed_title="Found files",
+                category="file",
+                icon_key="folder-search",
+                kind="glob",
+            ).as_metadata()
+        }
         return tool
 
     def _create_grep_tool(self) -> BaseTool:
         tool = super()._create_grep_tool()
         tool.description = grep_description(self._filesystem_mode).rstrip()
+        tool.metadata = {
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Searching project",
+                completed_title="Searched project",
+                category="file",
+                icon_key="search-code",
+                kind="grep",
+            ).as_metadata()
+        }
         return tool

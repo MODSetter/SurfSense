@@ -1,22 +1,20 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 import {
 	type ActivityData,
-	type ActivityStatus,
 	type ActivityTimingData,
-	parseActivityData,
-	parseActivityTimingData,
-} from "./streaming-state";
+	type ActivityTimingProjection,
+	createActivityJournalPart,
+	extractActivityJournal,
+	parseActivityJournalPart,
+} from "./activity-journal";
 import type { MessageRecord } from "./thread-persistence";
 
-/**
- * Read compatibility for assistant rows persisted before the activity journal.
- * Keep until production no longer supports loading those historical messages.
- */
-const LEGACY_HIDDEN_PART_TYPES = new Set(["data-thinking-steps", "thinking-steps"]);
-
-function isLegacyHiddenPart(type: unknown): boolean {
-	return typeof type === "string" && LEGACY_HIDDEN_PART_TYPES.has(type);
-}
+const HIDDEN_PERSISTED_PART_TYPES = new Set([
+	"mentioned-documents",
+	"attachments",
+	"data-thinking-steps",
+	"thinking-steps",
+]);
 
 /** Minimal shape used by the interrupt/resume reconciler. */
 interface AbortableMessage {
@@ -41,21 +39,36 @@ function hasAbortedToolCall(msg: AbortableMessage): boolean {
 	return false;
 }
 
-/**
- * True when EVERY tool-call on the row is aborted. The row is then a
- * frozen interrupt frame with no salvageable activity — safe to drop
- * outright.
- */
-function isFullyAbortedAssistantMessage(msg: AbortableMessage): boolean {
+/** True when an interrupted row contains content worth carrying forward. */
+function hasSalvageableContent(msg: AbortableMessage): boolean {
 	if (!isAssistant(msg) || !Array.isArray(msg.content)) return false;
-	let hasToolCalls = false;
 	for (const part of msg.content) {
-		if (typeof part !== "object" || part === null) continue;
-		if ((part as { type?: string }).type !== "tool-call") continue;
-		hasToolCalls = true;
-		if ((part as { state?: unknown }).state !== "aborted") return false;
+		if (parseActivityJournalPart(part)) return true;
+		if (typeof part !== "object" || part === null) {
+			if (typeof part === "string" && part.trim()) return true;
+			continue;
+		}
+		const typed = part as {
+			type?: unknown;
+			text?: unknown;
+			reasoning?: unknown;
+			state?: unknown;
+			result?: unknown;
+		};
+		if (typed.type === "tool-call") {
+			if (typed.state !== "aborted" || typed.result !== undefined) return true;
+			continue;
+		}
+		if (typed.type === "text" || typed.type === "reasoning" || typed.type === "status") {
+			const value = typed.text ?? typed.reasoning;
+			if (typeof value === "string" && value.trim()) return true;
+			continue;
+		}
+		// Unknown persisted parts are kept conservatively; only a proven-empty
+		// aborted shell may be discarded.
+		return true;
 	}
-	return hasToolCalls;
+	return false;
 }
 
 /**
@@ -79,45 +92,29 @@ function findResumeSuccessorIdx<T extends AbortableMessage>(
 	return null;
 }
 
-const TERMINAL_ACTIVITY_STATUSES = new Set<ActivityStatus>([
-	"completed",
-	"error",
-	"cancelled",
-	"interrupted",
-]);
-
 /** Split canonical activities from all independently-rendered message parts. */
 function partitionContent(content: unknown): {
 	activities: ActivityData[];
 	timing: ActivityTimingData | null;
+	timingProjection: ActivityTimingProjection | null;
 	others: unknown[];
 } {
-	if (!Array.isArray(content)) return { activities: [], timing: null, others: [] };
-	const activities: ActivityData[] = [];
-	let timing: ActivityTimingData | null = null;
+	if (!Array.isArray(content)) {
+		return { activities: [], timing: null, timingProjection: null, others: [] };
+	}
+	const journalParts: unknown[] = [];
 	const others: unknown[] = [];
 	for (const part of content) {
-		if (typeof part !== "object" || part === null) {
-			others.push(part);
-			continue;
-		}
-		const candidate = part as {
-			type?: unknown;
-			data?: { activities?: unknown; timing?: unknown };
-		};
-		if (candidate.type === "data-activities") {
-			const snapshots = Array.isArray(candidate.data?.activities) ? candidate.data.activities : [];
-			for (const snapshot of snapshots) {
-				const activity = parseActivityData(snapshot);
-				if (activity) activities.push(activity);
-			}
-			timing = parseActivityTimingData(candidate.data?.timing);
-			continue;
-		}
-		if (isLegacyHiddenPart(candidate.type)) continue;
-		others.push(part);
+		if (parseActivityJournalPart(part)) journalParts.push(part);
+		else others.push(part);
 	}
-	return { activities, timing, others };
+	const journal = extractActivityJournal(journalParts);
+	return {
+		activities: [...journal.byId.values()],
+		timing: journal.timing,
+		timingProjection: journal.timingProjection,
+		others,
+	};
 }
 
 /**
@@ -134,31 +131,23 @@ function mergeInterruptedIntoResume<T extends AbortableMessage>(older: T, newer:
 	const olderParts = partitionContent(older.content);
 	const newerParts = partitionContent(newer.content);
 
-	const mergedActivities = new Map<string, ActivityData>();
-	for (const activity of [...olderParts.activities, ...newerParts.activities]) {
-		const current = mergedActivities.get(activity.id);
-		if (
-			current &&
-			TERMINAL_ACTIVITY_STATUSES.has(current.status) &&
-			!TERMINAL_ACTIVITY_STATUSES.has(activity.status)
-		) {
-			continue;
-		}
-		mergedActivities.set(activity.id, activity);
-	}
+	const journal = extractActivityJournal([
+		createActivityJournalPart(
+			olderParts.activities,
+			olderParts.timing,
+			olderParts.timingProjection
+		),
+		createActivityJournalPart(
+			newerParts.activities,
+			newerParts.timing,
+			newerParts.timingProjection
+		),
+	]);
 	const mergedContent: unknown[] = [];
-	if (mergedActivities.size > 0 || newerParts.timing || olderParts.timing) {
-		mergedContent.push({
-			type: "data-activities",
-			data: {
-				activities: [...mergedActivities.values()].toSorted(
-					(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
-				),
-				...(newerParts.timing || olderParts.timing
-					? { timing: newerParts.timing ?? olderParts.timing }
-					: {}),
-			},
-		});
+	if (journal.byId.size > 0 || journal.timing) {
+		mergedContent.push(
+			createActivityJournalPart(journal.byId.values(), journal.timing, journal.timingProjection)
+		);
 	}
 	mergedContent.push(...olderParts.others, ...newerParts.others);
 
@@ -200,9 +189,13 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		if (successorIdx === null) continue;
 
 		dropped.add(i);
-		if (!isFullyAbortedAssistantMessage(msg)) {
+		const inherited = mergeInto.get(i) ?? [];
+		mergeInto.delete(i);
+		const salvageable = hasSalvageableContent(msg);
+		if (inherited.length > 0 || salvageable) {
 			const list = mergeInto.get(successorIdx) ?? [];
-			list.push(i);
+			list.push(...inherited);
+			if (salvageable) list.push(i);
 			mergeInto.set(successorIdx, list);
 		}
 	}
@@ -213,7 +206,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		const olderIdxs = mergeInto.get(i);
 		if (olderIdxs && olderIdxs.length > 0) {
 			let merged = messages[i];
-			for (const olderIdx of olderIdxs) {
+			for (const olderIdx of olderIdxs.toReversed()) {
 				merged = mergeInterruptedIntoResume(messages[olderIdx], merged);
 			}
 			result.push(merged);
@@ -226,7 +219,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 
 /**
  * Convert a backend ``MessageRecord`` to assistant-ui's
- * ``ThreadMessageLike``. Pre-activity journal parts are deliberately hidden.
+ * ``ThreadMessageLike``.
  */
 export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -238,11 +231,7 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 			.filter((part: unknown) => {
 				if (typeof part !== "object" || part === null || !("type" in part)) return true;
 				const partType = (part as { type: string }).type;
-				return (
-					partType !== "mentioned-documents" &&
-					partType !== "attachments" &&
-					!isLegacyHiddenPart(partType)
-				);
+				return !HIDDEN_PERSISTED_PART_TYPES.has(partType);
 			})
 			.map((part: unknown) => {
 				if (

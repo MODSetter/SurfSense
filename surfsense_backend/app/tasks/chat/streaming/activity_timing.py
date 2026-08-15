@@ -12,7 +12,12 @@ _NANOSECONDS_PER_MILLISECOND = 1_000_000
 
 @dataclass
 class ActivityTimer:
-    """Accumulate execution time while excluding HITL suspension."""
+    """Measure one assistant turn's active wall time.
+
+    The timer starts when the backend accepts a new or resumed turn, includes
+    model, tool, retry, and final-answer work, and excludes time suspended for
+    human approval.
+    """
 
     active_duration_ns: int
     active_since_ns: int | None
@@ -66,6 +71,14 @@ class ActivityTimer:
         self._stop_segment(now_ns=now_ns)
         self.status = "completed"
         return self.snapshot()
+
+    def complete_if_running(
+        self, *, now_ns: int | None = None
+    ) -> ActivityTimingData | None:
+        """Complete cleanup work once without changing paused/terminal timers."""
+        if self.status != "running":
+            return None
+        return self.complete(now_ns=now_ns)
 
     def _stop_segment(self, *, now_ns: int | None) -> None:
         if self.status != "running" or self.active_since_ns is None:

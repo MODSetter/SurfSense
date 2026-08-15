@@ -33,6 +33,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.hitl.approvals.self_gated
 from app.auth.context import AuthContext
 from app.automations.schemas.api import AutomationCreate
 from app.automations.services.automation import AutomationService
+from app.capabilities.core import ActivityDescriptor
 from app.db import async_session_maker
 from app.utils.content_utils import extract_text_content
 
@@ -194,6 +195,15 @@ def create_create_automation_tool(
             logger.exception("create_automation failed")
             return {"status": "error", "message": f"persistence failed: {exc}"}
 
+    create_automation.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Creating automation",
+            completed_title="Created automation",
+            category="action",
+            icon_key="workflow",
+            kind="create_automation",
+        ).as_metadata()
+    }
     return create_automation
 
 

@@ -52,20 +52,6 @@ export function markInterruptsCompleted(
 	}
 }
 
-export function hasPersistableContent(
-	contentParts: ContentPartsState["contentParts"],
-	toolsWithUI: ToolUIGate
-) {
-	return contentParts.some(
-		(part) =>
-			(part.type === "text" && part.text.length > 0) ||
-			(part.type === "reasoning" && part.text.length > 0) ||
-			(part.type === "status" && part.text.length > 0) ||
-			(part.type === "data-activities" && part.data.activities.length > 0) ||
-			(part.type === "tool-call" && (toolsWithUI === "all" || toolsWithUI.has(part.toolName)))
-	);
-}
-
 function toStreamTerminalError(
 	event: Extract<SSEEvent, { type: "error" }>
 ): Error & { errorCode?: string; diagnostic?: string } {

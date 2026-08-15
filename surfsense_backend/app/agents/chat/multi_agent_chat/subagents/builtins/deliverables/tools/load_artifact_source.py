@@ -9,6 +9,7 @@ from langchain_core.tools import BaseTool, tool
 from sqlalchemy import select
 
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
+from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
 from app.db import shielded_async_session
 from app.file_storage.factory import get_storage_backend
@@ -82,4 +83,14 @@ def create_load_artifact_source_tool(*, workspace_id: int) -> BaseTool:
             ),
         }
 
+    load_artifact_source.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Opening the artifact",
+            completed_title="Opened the artifact",
+            category="artifact",
+            icon_key="file-input",
+            kind="load_artifact_source",
+            lifecycle="phase",
+        ).as_metadata()
+    }
     return load_artifact_source

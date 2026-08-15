@@ -15,6 +15,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud
@@ -66,4 +67,13 @@ def create_rmdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_rmdir,
         coroutine=async_rmdir,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Deleting folder",
+                completed_title="Deleted folder",
+                category="file",
+                icon_key="folder-x",
+                kind="rmdir",
+            ).as_metadata()
+        },
     )

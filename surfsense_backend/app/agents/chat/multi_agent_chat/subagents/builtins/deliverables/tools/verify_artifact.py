@@ -6,6 +6,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
 from app.artifacts.verification.service import verify_artifact as verify
+from app.capabilities.core import ActivityDescriptor
 from app.db import shielded_async_session
 from app.sandbox import get_registry
 from app.services.llm_service import get_vision_llm
@@ -50,4 +51,13 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
             "verification_unavailable": result.unavailable_reason,
         }
 
+    verify_artifact.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Checking the artifact",
+            completed_title="Checked the artifact",
+            category="artifact",
+            icon_key="badge-check",
+            kind="verify_artifact",
+        ).as_metadata()
+    }
     return verify_artifact

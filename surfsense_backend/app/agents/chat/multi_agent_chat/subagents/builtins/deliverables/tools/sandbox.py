@@ -9,6 +9,7 @@ from typing import Literal
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
+from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
 from app.sandbox import SandboxSession, get_registry
 
@@ -103,4 +104,23 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
                 "binary files"
             ) from exc
 
+    execute.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Running command",
+            completed_title="Ran command",
+            category="action",
+            icon_key="terminal",
+            kind="execute",
+        ).as_metadata()
+    }
+    read_sandbox_file.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Reviewing the artifact",
+            completed_title="Reviewed the artifact",
+            category="artifact",
+            icon_key="file-text",
+            kind="read_sandbox_file",
+            lifecycle="phase",
+        ).as_metadata()
+    }
     return [execute, load_artifact_instructions, read_sandbox_file]

@@ -30,9 +30,7 @@ export const RunCitation: FC<{ runId: string }> = ({ runId }) => {
 					<Button
 						type="button"
 						variant="ghost"
-						onClick={() =>
-							isDesktop ? openRunPanel({ runId }) : setMobilePreviewOpen(true)
-						}
+						onClick={() => (isDesktop ? openRunPanel({ runId }) : setMobilePreviewOpen(true))}
 						className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-md bg-popover px-1.5 text-[11px] font-medium text-popover-foreground/80 align-baseline"
 						aria-label="See where this came from"
 					>

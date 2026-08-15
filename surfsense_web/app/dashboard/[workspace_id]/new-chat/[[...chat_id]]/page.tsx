@@ -23,7 +23,6 @@ import {
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
-import { clearPlanOwnerRegistry } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -275,7 +274,6 @@ export default function NewChatPage() {
 		setMentionedDocuments([]);
 		tokenUsageStore.clear();
 		setMessageDocumentsMap({});
-		clearPlanOwnerRegistry();
 		closeReportPanel();
 		closeEditorPanel();
 		chatStreamStore.clearInactive(nextThreadId);

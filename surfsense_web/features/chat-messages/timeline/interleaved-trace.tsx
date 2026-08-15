@@ -22,7 +22,6 @@ import {
 } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
-import { ElapsedTime } from "@/components/prompt-kit/elapsed-time";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { PixelGridLoader } from "@/components/prompt-kit/pixel-grid-loader";
 import { Button } from "@/components/ui/button";
@@ -34,12 +33,7 @@ import {
 	usePendingInterrupt,
 } from "@/features/chat-messages/hitl";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type {
-	ActivityData,
-	ActivityStatus,
-	ActivityTimingData,
-	ActivityTimingProjection,
-} from "@/lib/chat/streaming-state";
+import type { ActivityData, ActivityStatus } from "@/lib/chat/activity-journal";
 import { trackActivityTraceInteraction } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";
@@ -52,6 +46,8 @@ import {
 	type TracePartLike,
 } from "./grouping";
 import { getActivityIcon, getConnectorLogo } from "./presentation";
+import { AssistantTurnTiming, useAssistantTurnTiming } from "./turn-timing";
+import type { TurnTimingDisplay } from "./turn-timing-state";
 
 const noopSubmit = () => {};
 
@@ -237,22 +233,11 @@ const TraceDetails: FC<{
 const TraceSegment: FC<{
 	indices: readonly number[];
 	activities: ReadonlyMap<string, ActivityData>;
-	timing: ActivityTimingData | null;
-	timingProjection: ActivityTimingProjection | null;
 	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
 	parts: readonly PartState[];
 	threadRunning: boolean;
-	isLastTraceSegment: boolean;
-}> = ({
-	indices,
-	activities,
-	timing,
-	timingProjection,
-	renderPart,
-	parts,
-	threadRunning,
-	isLastTraceSegment,
-}) => {
+	turnTimingDisplay: TurnTimingDisplay | null;
+}> = ({ indices, activities, renderPart, parts, threadRunning, turnTimingDisplay }) => {
 	const id = useId();
 	const isMobile = useMediaQuery("(max-width: 767px)");
 	const reducedMotion = useReducedMotion();
@@ -271,8 +256,6 @@ const TraceSegment: FC<{
 		segmentActivities.some((activity) => activity.status === "awaiting_approval");
 	const label =
 		segmentActivities.at(-1)?.title ?? (active ? "Spellweaving" : "Reasoned through the request");
-	const showTiming =
-		timing !== null && (active || (timing.status === "completed" && isLastTraceSegment));
 	const details = <TraceDetails indices={indices} renderPart={renderPart} parts={parts} />;
 	useEffect(() => {
 		if (isMobile || userToggled.current) return;
@@ -317,9 +300,7 @@ const TraceSegment: FC<{
 				>
 					{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
 				</FadeSwapText>
-				{showTiming ? (
-					<ElapsedTime timing={timing} projection={timingProjection ?? undefined} />
-				) : null}
+				{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
 				<motion.span
 					className="size-4 shrink-0 opacity-0 transition-opacity group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
 					animate={{ rotate: !isMobile && open ? 90 : 0 }}
@@ -370,11 +351,18 @@ const InterleavedPartsInner: FC<{
 	showReasoning: boolean;
 }> = ({ bodyTools, showReasoning }) => {
 	const parts = useAuiState(({ message }) => message.parts);
+	const messageId = useAuiState(({ message }) => message.id);
 	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 	const isLastMessage = useAuiState(({ message }) => message.isLast);
 	const threadRunning = isThreadRunning && isLastMessage;
 	const rawParts = parts as readonly TracePartLike[];
 	const journal = useMemo(() => buildActivityLookup(rawParts), [rawParts]);
+	const turnTimingDisplay = useAssistantTurnTiming({
+		messageId: String(messageId),
+		timing: journal.timing,
+		projection: journal.timingProjection,
+		threadRunning,
+	});
 	const firstActivityIndices = useMemo(() => firstToolIndexByActivityId(rawParts), [rawParts]);
 	const bodyToolNames = useMemo(() => new Set(Object.keys(bodyTools)), [bodyTools]);
 	const lastTraceIndex = useMemo(
@@ -415,12 +403,12 @@ const InterleavedPartsInner: FC<{
 									<TraceSegment
 										indices={part.indices}
 										activities={journal.byId}
-										timing={journal.timing}
-										timingProjection={journal.timingProjection}
 										renderPart={renderLeaf}
 										parts={parts}
 										threadRunning={threadRunning}
-										isLastTraceSegment={part.indices.includes(lastTraceIndex)}
+										turnTimingDisplay={
+											part.indices.includes(lastTraceIndex) ? turnTimingDisplay : null
+										}
 									/>
 									<PendingCards indices={part.indices} />
 								</>

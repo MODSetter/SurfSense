@@ -29,6 +29,7 @@ from app.agents.chat.multi_agent_chat.shared.citations import (
     CitationRegistry,
     normalize_citations,
 )
+from app.tasks.chat.streaming.helpers.interrupt_inspector import all_interrupt_entries
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.utils.perf import get_perf_logger
 
@@ -92,25 +93,45 @@ async def finalize_assistant_message(
 
     builder_stats: dict[str, int] | None = None
     if stream_result.content_builder is not None:
-        if stream_result.activity_timer.status == "running":
-            stream_result.content_builder.on_activity_timing(
-                stream_result.activity_timer.complete()
-            )
+        paused_for_approval = (
+            stream_result.is_interrupted
+            or stream_result.activity_timer.status == "paused"
+        )
+        if (
+            stream_result.activity_timer.status == "running"
+            and stream_result.load_agent_state is not None
+        ):
+            try:
+                state = await stream_result.load_agent_state()
+                paused_for_approval = bool(all_interrupt_entries(state))
+            except Exception as exc:
+                _perf_log.warning(
+                    "[%s] unable to inspect checkpoint during timing cleanup: %s",
+                    log_prefix,
+                    exc,
+                )
+
+        terminal_timing = (
+            stream_result.activity_timer.pause()
+            if paused_for_approval and stream_result.activity_timer.status == "running"
+            else stream_result.activity_timer.complete_if_running()
+        )
+        if terminal_timing is not None:
+            stream_result.content_builder.on_activity_timing(terminal_timing)
+        if paused_for_approval:
+            stream_result.is_interrupted = True
+
         activity_state = stream_result.activity_state
         if activity_state is not None:
-            interrupted_at = datetime.now(UTC).isoformat()
-            for activity_id, current in list(
-                activity_state.activity_snapshot_by_id.items()
-            ):
-                if current.get("status") != "running":
-                    continue
-                snapshot = activity_state.transition_activity(
-                    activity_id,
-                    status="interrupted",
-                    completed_at=interrupted_at,
+            snapshots = (
+                activity_state.journal.await_approval()
+                if paused_for_approval
+                else activity_state.journal.interrupt_running(
+                    completed_at=datetime.now(UTC).isoformat()
                 )
-                if snapshot:
-                    stream_result.content_builder.on_activity(snapshot)
+            )
+            for snapshot in snapshots:
+                stream_result.content_builder.on_activity(snapshot)
         stream_result.content_builder.mark_interrupted()
         # Snapshot stats BEFORE ``snapshot()`` deepcopies so the perf log
         # records the actual finalised payload (post-mark_interrupted), not

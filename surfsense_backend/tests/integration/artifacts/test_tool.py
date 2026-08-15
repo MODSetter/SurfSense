@@ -20,11 +20,11 @@ from .test_service import MemoryBackend
 pytestmark = pytest.mark.integration
 
 
-def _runtime() -> ToolRuntime:
+def _runtime(thread_id: int) -> ToolRuntime:
     return ToolRuntime(
         state={},
         context=None,
-        config={"configurable": {"thread_id": "77::task:call-tool"}},
+        config={"configurable": {"thread_id": f"{thread_id}::task:call-tool"}},
         stream_writer=None,
         tool_call_id="call-tool",
         store=None,
@@ -32,7 +32,7 @@ def _runtime() -> ToolRuntime:
 
 
 async def test_tool_persists_and_indexes_artifact_document_immediately(
-    db_session, db_workspace, patched_embed_texts, monkeypatch
+    db_session, db_workspace, artifact_thread, patched_embed_texts, monkeypatch
 ):
     del patched_embed_texts
     backend = MemoryBackend()
@@ -51,7 +51,7 @@ async def test_tool_persists_and_indexes_artifact_document_immediately(
     command = await tool.coroutine(
         title="Legacy artifact",
         markdown_representation="# Legacy artifact\n\nimmediate-search-hit-term",
-        runtime=_runtime(),
+        runtime=_runtime(artifact_thread.id),
     )
     payload = json.loads(command.update["messages"][0].content)
 
@@ -80,7 +80,7 @@ async def test_tool_persists_and_indexes_artifact_document_immediately(
 
 
 async def test_load_artifact_source_restores_the_current_source(
-    db_session, db_workspace, patched_embed_texts, monkeypatch
+    db_session, db_workspace, artifact_thread, patched_embed_texts, monkeypatch
 ):
     del patched_embed_texts
     backend = MemoryBackend()
@@ -91,7 +91,7 @@ async def test_load_artifact_source_restores_the_current_source(
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=77,
+        thread_id=artifact_thread.id,
         tool_call_id="create",
         title="Restorable",
         markdown_representation="# Restorable",
@@ -128,7 +128,10 @@ async def test_load_artifact_source_restores_the_current_source(
     tool = load_source_tool.create_load_artifact_source_tool(
         workspace_id=db_workspace.id
     )
-    loaded = await tool.coroutine(artifact_id=saved.artifact_id, runtime=_runtime())
+    loaded = await tool.coroutine(
+        artifact_id=saved.artifact_id,
+        runtime=_runtime(artifact_thread.id),
+    )
     expected_path = f"/workspace/artifact-{saved.artifact_id}-out.py"
 
     assert loaded == {

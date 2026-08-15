@@ -1,36 +1,9 @@
-"""Server-side mirror of the frontend's assistant-ui ``ContentPart`` projection.
+"""Server-owned assistant content projection persisted at the end of a turn.
 
-Background
-----------
-The streaming chat task in ``stream_new_chat`` / ``stream_resume_chat`` yields
-SSE events that the frontend folds into a ``ContentPartsState`` (see
-``surfsense_web/lib/chat/streaming-state.ts`` and the matching pipeline in
-``stream-pipeline.ts``). When a turn ends, the frontend calls
-``buildContentForPersistence(...)`` and round-trips that ``ContentPart[]``
-JSONB to ``POST /threads/{id}/messages``, which is what was historically
-written to ``new_chat_messages.content``.
-
-After the ghost-thread fix moved persistence server-side, the assistant
-row is written by ``finalize_assistant_turn`` in the streaming finally
-block. The frontend's later ``appendMessage`` is now a no-op (recovers
-via the ``(thread_id, turn_id, role)`` partial unique index added in
-migration 141), which means the *server* is now responsible for
-producing the rich ``ContentPart[]`` shape the FE expects on history
-reload — text + reasoning + tool-call cards (with ``args``, ``argsText``,
-``result``, ``langchainToolCallId``) + canonical activity snapshots.
-
-This module is the in-memory accumulator that mirrors the FE state for
-exactly that purpose. The streaming code calls ``on_text_*`` / ``on_reasoning_*``
-/ ``on_tool_*`` / ``on_activity`` / ``on_activity_timing`` /
-``mark_interrupted`` at the same call sites it yields the matching
-``streaming_service.format_*`` SSE event, so the in-memory ``parts`` list
-stays in lockstep with what the FE's pipeline would have produced live.
-``snapshot()`` is then taken once in the ``finally`` block and persisted
-in a single UPDATE.
-
-Pure synchronous state — no DB I/O, no async, no flush callbacks. The
-streaming code is responsible for driving lifecycle methods; this class
-is a thin projection helper.
+SSE emit sites update this synchronous accumulator in lockstep with the wire.
+``snapshot()`` returns the complete assistant content-part list for one final
+database update. Activity lifecycle decisions belong to ``ActivityJournal``;
+this class only stores emitted snapshots with terminal precedence.
 """
 
 from __future__ import annotations
@@ -44,9 +17,8 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Mirrors the FE's filter in ``buildContentForPersistence`` / ``buildContentForUI``:
-# only text/reasoning/tool-call parts count as "meaningful". data-activities
-# decorates the meaningful parts but never stands alone in a successful turn.
+# Only text/reasoning/tool-call parts count as meaningful. Activity data
+# decorates those parts but never stands alone in a successful turn.
 _MEANINGFUL_PART_TYPES: frozenset[str] = frozenset({"text", "reasoning", "tool-call"})
 
 
@@ -68,10 +40,10 @@ def _merge_tool_part_metadata(
 
 
 class AssistantContentBuilder:
-    """Server-side projection of ``surfsense_web/lib/chat/streaming-state.ts``.
+    """Accumulate canonical assistant content parts beside SSE emission.
 
     Output shape (deep copy of ``self.parts`` via ``snapshot()``) strictly
-    matches the FE ``ContentPart`` union::
+    matches the web ``ContentPart`` union::
 
         | { type: "text"; text: string }
         | { type: "reasoning"; text: string }
@@ -82,7 +54,7 @@ class AssistantContentBuilder:
         | { type: "data-activities";
             data: { activities: ActivityData[]; timing: ActivityTimingData } }
     Order matches the wire order of the SSE events that drive the lifecycle
-    methods, with two FE-mirrored exceptions:
+    methods, with one canonical exception:
 
     1. ``data-activities`` is a singleton pinned at index 0. Full snapshots
        replace entries by id and remain ordered by immutable sequence.
@@ -103,9 +75,7 @@ class AssistantContentBuilder:
         # threads through every ``tool-input-*`` / ``tool-output-*`` event.
         self._tool_call_idx_by_ui_id: dict[str, int] = {}
         # Live argsText accumulator (concatenated ``tool-input-delta`` chunks)
-        # so we can reproduce the FE's ``appendToolInputDelta`` behaviour
-        # before ``tool-input-available`` overwrites it with the
-        # pretty-printed final JSON.
+        # before ``tool-input-available`` replaces it with final formatted JSON.
         self._args_text_by_ui_id: dict[str, str] = {}
 
     # ------------------------------------------------------------------
@@ -393,7 +363,9 @@ class AssistantContentBuilder:
                     break
             if not replaced:
                 activities.append(new_snapshot)
-            activities.sort(key=lambda value: value.get("sequence", 0))
+            activities.sort(
+                key=lambda value: (value.get("sequence", 0), value.get("id", ""))
+            )
             self.parts[existing_idx] = {
                 "type": "data-activities",
                 "data": {
@@ -419,10 +391,22 @@ class AssistantContentBuilder:
             self._tool_call_idx_by_ui_id[ui_id] = idx + 1
 
     def on_activity_timing(self, snapshot: dict[str, Any]) -> None:
-        """Replace the journal's canonical active-time snapshot."""
+        """Advance the journal's canonical active-time snapshot monotonically."""
         for i, part in enumerate(self.parts):
             if part.get("type") != "data-activities":
                 continue
+            current = part.get("data", {}).get("timing")
+            if isinstance(current, dict):
+                if current == snapshot or current.get("status") == "completed":
+                    return
+                current_duration = current.get("activeDurationMs")
+                next_duration = snapshot.get("activeDurationMs")
+                if (
+                    isinstance(current_duration, int)
+                    and isinstance(next_duration, int)
+                    and next_duration < current_duration
+                ):
+                    return
             self.parts[i] = {
                 "type": "data-activities",
                 "data": {
@@ -454,7 +438,7 @@ class AssistantContentBuilder:
     # ------------------------------------------------------------------
 
     def mark_interrupted(self) -> None:
-        """Close any open text/reasoning and flip running tools to aborted.
+        """Close open text/reasoning and mark unfinished tool parts aborted.
 
         Called from the streaming ``finally`` block before ``snapshot()`` so
         the persisted JSONB reflects a coherent end-state even when the
@@ -477,15 +461,6 @@ class AssistantContentBuilder:
         self._current_reasoning_id = None
         self._current_reasoning_started_at = None
         for part in self.parts:
-            if part.get("type") == "data-activities":
-                for activity in part.get("data", {}).get("activities", []):
-                    if activity.get("status") == "running":
-                        activity["status"] = "interrupted"
-                        activity["title"] = (
-                            f"Interrupted: {activity.get('title', 'activity')}"
-                        )
-                        activity["completedAt"] = datetime.now(UTC).isoformat()
-                continue
             if part.get("type") != "tool-call":
                 continue
             if "result" in part:

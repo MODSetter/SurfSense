@@ -113,8 +113,7 @@ export function RightPanelToggleButton({
 	const supportsArtifactPanel = useMediaQuery("(min-width: 1024px)");
 	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const artifactOpen =
-		supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
+	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
 		(editorState.kind === "document"
@@ -239,8 +238,7 @@ export function RightPanel({
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
-	const artifactOpen =
-		supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
+	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
 		(editorState.kind === "document"

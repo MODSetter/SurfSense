@@ -101,7 +101,7 @@ export async function parseWorkbook(data: ArrayBuffer): Promise<WorkbookView> {
 			"oversize",
 			`Workbook is ${(data.byteLength / (1024 * 1024)).toFixed(1)} MB; preview limit is ${
 				MAX_VIEWER_BYTES / (1024 * 1024)
-			} MB`,
+			} MB`
 		);
 	}
 

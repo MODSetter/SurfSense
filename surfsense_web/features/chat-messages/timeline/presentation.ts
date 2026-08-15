@@ -31,7 +31,7 @@ import {
 	Wrench,
 } from "lucide-react";
 import { CONNECTOR_TOOL_ICON_PATHS } from "@/contracts/enums/toolIcons";
-import type { ActivityData } from "@/lib/chat/streaming-state";
+import type { ActivityData } from "@/lib/chat/activity-journal";
 
 const ACTIVITY_ICONS: Record<string, LucideIcon> = {
 	"badge-check": BadgeCheck,

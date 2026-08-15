@@ -2432,6 +2432,7 @@ async def get_pending_interrupts(
     """
     from app.agents.chat.runtime.checkpointer import get_checkpointer
     from app.services.new_streaming_service import VercelStreamingService
+    from app.tasks.chat.persistence import load_assistant_message_for_turn
     from app.tasks.chat.streaming.helpers.interrupt_inspector import (
         pending_interrupt_entries_from_writes,
     )
@@ -2471,25 +2472,18 @@ async def get_pending_interrupts(
             payload = {**payload, "interrupt_id": interrupt_id}
         payloads.append(payload)
 
-    # Reattach the card to the paused turn's assistant row. ``turn_id`` on the
-    # checkpoint mirrors ``NewChatMessage.turn_id``; fall back to the newest
-    # assistant row (the paused turn is always the head).
+    # Reattach the card only to the paused turn's assistant row. ``turn_id`` on
+    # the checkpoint mirrors ``NewChatMessage.turn_id``.
     metadata = checkpoint_tuple.metadata or {}
     turn_id = metadata.get("turn_id") if isinstance(metadata, dict) else None
-    assistant_query = (
-        select(NewChatMessage.id)
-        .filter(
-            NewChatMessage.thread_id == thread_id,
-            NewChatMessage.role == NewChatMessageRole.ASSISTANT,
-        )
-        .order_by(NewChatMessage.created_at.desc())
+    assistant_message = await load_assistant_message_for_turn(
+        session,
+        chat_id=thread_id,
+        turn_id=turn_id if isinstance(turn_id, str) else None,
     )
-    if turn_id:
-        assistant_query = assistant_query.filter(NewChatMessage.turn_id == turn_id)
-    assistant_message_id = (await session.execute(assistant_query.limit(1))).scalar()
 
     return PendingInterruptsResponse(
-        assistant_message_id=assistant_message_id,
+        assistant_message_id=assistant_message.id if assistant_message else None,
         pending_interrupts=payloads,
     )
 

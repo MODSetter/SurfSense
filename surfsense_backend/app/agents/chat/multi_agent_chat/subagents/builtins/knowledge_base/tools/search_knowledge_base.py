@@ -29,6 +29,7 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.chat.runtime.references import referenced_document_ids
+from app.capabilities.core import ActivityDescriptor
 from app.db import shielded_async_session
 from app.utils.perf import get_perf_logger
 
@@ -181,4 +182,13 @@ def create_search_knowledge_base_tool(
         name="search_knowledge_base",
         description=_TOOL_DESCRIPTION,
         coroutine=_impl,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Searching your sources",
+                completed_title="Searched your sources",
+                category="research",
+                icon_key="library",
+                kind="search_knowledge_base",
+            ).as_metadata()
+        },
     )

@@ -9,6 +9,7 @@ intent classification, and interrupt detection.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence import (
@@ -33,9 +34,6 @@ from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
     all_interrupt_entries,
 )
-from app.tasks.chat.streaming.relay.activity_completion import (
-    iter_complete_open_activity_frames,
-)
 from app.tasks.chat.streaming.relay.activity_sse import (
     emit_activity_frame,
     emit_activity_timing_frame,
@@ -55,6 +53,8 @@ async def stream_agent_events(
     result: StreamResult,
     step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
+    resume_activity_id_by_tool_call: dict[str, str] | None = None,
+    resume_tool_call_ids: list[str] | None = None,
     *,
     fallback_commit_workspace_id: int | None = None,
     fallback_commit_created_by_id: str | None = None,
@@ -69,6 +69,11 @@ async def stream_agent_events(
     ``accumulated_text`` and interrupt state. See ``StreamResult`` for the
     side-channel surface populated by the underlying relay.
     """
+
+    async def load_agent_state() -> Any:
+        return await agent.aget_state(config)
+
+    result.load_agent_state = load_agent_state
     async for sse in stream_output(
         agent=agent,
         config=config,
@@ -77,6 +82,8 @@ async def stream_agent_events(
         result=result,
         step_prefix=step_prefix,
         initial_activities=initial_activities,
+        resume_activity_id_by_tool_call=resume_activity_id_by_tool_call,
+        resume_tool_call_ids=resume_tool_call_ids,
         content_builder=content_builder,
         runtime_context=runtime_context,
     ):
@@ -228,21 +235,12 @@ async def stream_agent_events(
         )
         activity_state = result.activity_state
         if activity_state is not None:
-            for activity_id, current in list(
-                activity_state.activity_snapshot_by_id.items()
-            ):
-                if current.get("status") not in {"running", "awaiting_approval"}:
-                    continue
-                snapshot = activity_state.transition_activity(
-                    activity_id,
-                    status="awaiting_approval",
+            for snapshot in activity_state.journal.await_approval():
+                yield emit_activity_frame(
+                    streaming_service=streaming_service,
+                    content_builder=content_builder,
+                    snapshot=snapshot,
                 )
-                if snapshot:
-                    yield emit_activity_frame(
-                        streaming_service=streaming_service,
-                        content_builder=content_builder,
-                        snapshot=snapshot,
-                    )
         # One frame per paused subagent so each parallel HITL renders its own
         # approval card on the wire. Order matches ``state.interrupts``, which
         # the resume slicer in
@@ -253,9 +251,11 @@ async def stream_agent_events(
                 interrupt_value, interrupt_id=interrupt_id
             )
     elif result.activity_state is not None:
-        for frame in iter_complete_open_activity_frames(
-            state=result.activity_state,
-            streaming_service=streaming_service,
-            content_builder=content_builder,
+        for snapshot in result.activity_state.journal.complete_open_phases(
+            completed_at=datetime.now(UTC).isoformat()
         ):
-            yield frame
+            yield emit_activity_frame(
+                streaming_service=streaming_service,
+                content_builder=content_builder,
+                snapshot=snapshot,
+            )

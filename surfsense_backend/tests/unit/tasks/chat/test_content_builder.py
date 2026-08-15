@@ -418,16 +418,21 @@ class TestActivities:
         assert snap[0]["data"]["activities"] == [_activity("act-1", 1)]
         assert snap[1] == {"type": "text", "text": "Hello"}
 
-    def test_snapshots_upsert_by_id_and_sort_by_sequence(self):
+    def test_snapshots_upsert_by_id_and_sort_by_sequence_then_id(self):
         b = AssistantContentBuilder()
-        b.on_activity(_activity("act-2", 2))
-        b.on_activity(_activity("act-1", 1))
-        b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
+        b.on_activity(_activity("act-c", 2))
+        b.on_activity(_activity("act-b", 1))
+        b.on_activity(_activity("act-a", 1))
+        b.on_activity(_activity("act-a", 1, status="completed", title="Done"))
 
         snap = b.snapshot()
         assert len([p for p in snap if p["type"] == "data-activities"]) == 1
         activities = snap[0]["data"]["activities"]
-        assert [activity["id"] for activity in activities] == ["act-1", "act-2"]
+        assert [activity["id"] for activity in activities] == [
+            "act-a",
+            "act-b",
+            "act-c",
+        ]
         assert activities[0]["status"] == "completed"
 
     def test_terminal_activity_cannot_regress(self):
@@ -449,7 +454,7 @@ class TestActivities:
 
 
 class TestMarkInterrupted:
-    def test_running_activities_interrupt_but_approval_pauses_are_preserved(self):
+    def test_activity_lifecycle_is_not_invented_by_persistence_builder(self):
         b = AssistantContentBuilder()
         b.on_activity(_activity("running", 1))
         b.on_activity(_activity("approval", 2, status="awaiting_approval"))
@@ -457,8 +462,8 @@ class TestMarkInterrupted:
         b.mark_interrupted()
 
         activities = b.snapshot()[0]["data"]["activities"]
-        assert activities[0]["status"] == "interrupted"
-        assert activities[0]["completedAt"]
+        assert activities[0]["status"] == "running"
+        assert "completedAt" not in activities[0]
         assert activities[1]["status"] == "awaiting_approval"
         assert "completedAt" not in activities[1]
 
@@ -521,6 +526,7 @@ class TestIsEmpty:
         b = AssistantContentBuilder()
         b.on_activity(_activity("act-1", 1))
         assert b.is_empty()
+
 
 class TestSnapshotSemantics:
     def test_snapshot_is_deep_copied_so_mutations_do_not_leak(self):

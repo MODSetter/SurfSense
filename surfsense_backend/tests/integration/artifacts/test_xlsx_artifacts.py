@@ -119,7 +119,6 @@ async def test_xlsx_tool_create_revise_without_preview(
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(service, "index_artifact", AsyncMock())
     monkeypatch.setattr(save_artifact_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(save_artifact_tool.app_config, "SECRET_KEY", SECRET)

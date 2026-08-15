@@ -173,9 +173,7 @@ export function PodcastPlayer({
 							: Promise.resolve(null),
 					]);
 					audioBlob = blob;
-					const parsed = details
-						? publicPodcastDetailsSchema.safeParse(details)
-						: null;
+					const parsed = details ? publicPodcastDetailsSchema.safeParse(details) : null;
 					lines = (parsed?.success ? (parsed.data.podcast_transcript ?? []) : []).map(
 						(entry, turn) => ({
 							key: `turn-${turn}`,

@@ -1,41 +1,14 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
-
-export type ActivityStatus =
-	| "running"
-	| "awaiting_approval"
-	| "completed"
-	| "error"
-	| "cancelled"
-	| "interrupted";
-
-export interface ActivityTimingData {
-	status: "running" | "paused" | "completed";
-	activeDurationMs: number;
-}
-
-/** Client-only projection anchor. Never sent to or persisted by the backend. */
-export interface ActivityTimingProjection {
-	baseDurationMs: number;
-	receivedAtPerformanceMs: number;
-}
-
-export interface ActivityData {
-	id: string;
-	sequence: number;
-	kind: string;
-	status: ActivityStatus;
-	title: string;
-	category: "file" | "research" | "artifact" | "connector" | "action";
-	iconKey: string;
-	details?: string[];
-	startedAt: string;
-	completedAt?: string;
-	integration?: {
-		source: "native" | "connector" | "mcp";
-		key?: string;
-		name?: string;
-	};
-}
+import {
+	type ActivityData,
+	type ActivityTimingData,
+	type ActivityTimingProjection,
+	createActivityJournalPart,
+	mergeActivity,
+	mergeActivityTiming,
+	parseActivityData,
+	sortActivities,
+} from "@/lib/chat/activity-journal";
 
 export type ContentPart =
 	| { type: "text"; text: string }
@@ -112,169 +85,26 @@ export interface ContentPartsState {
 	activityTimingProjection?: ActivityTimingProjection;
 }
 
-const ACTIVITY_STATUSES = new Set<ActivityStatus>([
-	"running",
-	"awaiting_approval",
-	"completed",
-	"error",
-	"cancelled",
-	"interrupted",
-]);
-const ACTIVITY_CATEGORIES = new Set<ActivityData["category"]>([
-	"file",
-	"research",
-	"artifact",
-	"connector",
-	"action",
-]);
-const TERMINAL_ACTIVITY_STATUSES = new Set<ActivityStatus>([
-	"completed",
-	"error",
-	"cancelled",
-	"interrupted",
-]);
-
-function nonEmptyString(value: unknown): value is string {
-	return typeof value === "string" && value.trim().length > 0;
-}
-
-export function parseActivityData(value: unknown): ActivityData | null {
-	if (typeof value !== "object" || value === null) return null;
-	const activity = value as Record<string, unknown>;
-	if (
-		!nonEmptyString(activity.id) ||
-		!Number.isSafeInteger(activity.sequence) ||
-		(activity.sequence as number) < 0 ||
-		!nonEmptyString(activity.kind) ||
-		!ACTIVITY_STATUSES.has(activity.status as ActivityStatus) ||
-		!nonEmptyString(activity.title) ||
-		!ACTIVITY_CATEGORIES.has(activity.category as ActivityData["category"]) ||
-		!nonEmptyString(activity.iconKey) ||
-		!nonEmptyString(activity.startedAt)
-	) {
-		return null;
-	}
-	if (
-		activity.details !== undefined &&
-		(!Array.isArray(activity.details) || !activity.details.every(nonEmptyString))
-	) {
-		return null;
-	}
-	const terminal = TERMINAL_ACTIVITY_STATUSES.has(activity.status as ActivityStatus);
-	if (terminal !== nonEmptyString(activity.completedAt)) return null;
-
-	let integration: ActivityData["integration"];
-	if (activity.integration !== undefined) {
-		if (typeof activity.integration !== "object" || activity.integration === null) return null;
-		const candidate = activity.integration as Record<string, unknown>;
-		if (
-			candidate.source !== "native" &&
-			candidate.source !== "connector" &&
-			candidate.source !== "mcp"
-		) {
-			return null;
-		}
-		if (candidate.key !== undefined && !nonEmptyString(candidate.key)) return null;
-		if (candidate.name !== undefined && !nonEmptyString(candidate.name)) return null;
-		integration = {
-			source: candidate.source,
-			...(candidate.key ? { key: candidate.key as string } : {}),
-			...(candidate.name ? { name: candidate.name as string } : {}),
-		};
-	}
-
-	return {
-		id: activity.id,
-		sequence: activity.sequence as number,
-		kind: activity.kind,
-		status: activity.status as ActivityStatus,
-		title: activity.title,
-		category: activity.category as ActivityData["category"],
-		iconKey: activity.iconKey,
-		...(activity.details ? { details: [...(activity.details as string[])] } : {}),
-		startedAt: activity.startedAt,
-		...(activity.completedAt ? { completedAt: activity.completedAt as string } : {}),
-		...(integration ? { integration } : {}),
-	};
-}
-
-export function parseActivityTimingData(value: unknown): ActivityTimingData | null {
-	if (typeof value !== "object" || value === null) return null;
-	const timing = value as Record<string, unknown>;
-	if (
-		(timing.status !== "running" && timing.status !== "paused" && timing.status !== "completed") ||
-		!Number.isSafeInteger(timing.activeDurationMs) ||
-		(timing.activeDurationMs as number) < 0
-	) {
-		return null;
-	}
-	return {
-		status: timing.status,
-		activeDurationMs: timing.activeDurationMs as number,
-	};
-}
-
-export function parseActivityTimingProjection(value: unknown): ActivityTimingProjection | null {
-	if (typeof value !== "object" || value === null) return null;
-	const projection = value as Record<string, unknown>;
-	if (
-		!Number.isSafeInteger(projection.baseDurationMs) ||
-		(projection.baseDurationMs as number) < 0 ||
-		!Number.isFinite(projection.receivedAtPerformanceMs) ||
-		(projection.receivedAtPerformanceMs as number) < 0
-	) {
-		return null;
-	}
-	return {
-		baseDurationMs: projection.baseDurationMs as number,
-		receivedAtPerformanceMs: projection.receivedAtPerformanceMs as number,
-	};
-}
-
-function hasSameIdentity(current: ActivityData, next: ActivityData): boolean {
-	return (
-		current.sequence === next.sequence &&
-		current.kind === next.kind &&
-		current.category === next.category &&
-		current.iconKey === next.iconKey &&
-		current.startedAt === next.startedAt
-	);
-}
-
 function activityJournalPart(
 	state: ContentPartsState,
 	activities: ActivityData[]
 ): Extract<ContentPart, { type: "data-activities" }> {
-	return {
-		type: "data-activities",
-		data: {
-			activities,
-			...(state.activityTiming ? { timing: state.activityTiming } : {}),
-			...(state.activityTimingProjection
-				? { timingProjection: state.activityTimingProjection }
-				: {}),
-		},
-	};
+	return createActivityJournalPart(
+		activities,
+		state.activityTiming,
+		state.activityTimingProjection
+	);
 }
 
 export function upsertActivity(state: ContentPartsState, value: unknown): boolean {
 	const activity = parseActivityData(value);
 	if (!activity) return false;
 	const current = state.activities.get(activity.id);
-	if (
-		current &&
-		(!hasSameIdentity(current, activity) ||
-			(TERMINAL_ACTIVITY_STATUSES.has(current.status) &&
-				!TERMINAL_ACTIVITY_STATUSES.has(activity.status)))
-	) {
-		return false;
-	}
-	if (current && JSON.stringify(current) === JSON.stringify(activity)) return false;
+	const merged = mergeActivity(current, activity);
+	if (!merged || (current && JSON.stringify(current) === JSON.stringify(merged))) return false;
 
-	state.activities.set(activity.id, activity);
-	const activities = [...state.activities.values()].toSorted(
-		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
-	);
+	state.activities.set(merged.id, merged);
+	const activities = sortActivities(state.activities.values());
 	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
 	if (existingIdx >= 0) {
 		state.contentParts[existingIdx] = activityJournalPart(state, activities);
@@ -293,25 +123,20 @@ export function upsertActivityTiming(
 	value: unknown,
 	receivedAtPerformanceMs: number
 ): boolean {
-	const timing = parseActivityTimingData(value);
 	const current = state.activityTiming;
-	if (
-		!timing ||
-		(current &&
-			(timing.activeDurationMs < current.activeDurationMs ||
-				(current.status === "completed" && timing.status !== "completed"))) ||
-		JSON.stringify(current) === JSON.stringify(timing)
-	) {
+	const timing = mergeActivityTiming(current, value);
+	if (!timing || timing === current) {
 		return false;
 	}
+	const unchanged =
+		current?.status === timing.status && current.activeDurationMs === timing.activeDurationMs;
+	if (unchanged) return false;
 	state.activityTiming = timing;
 	state.activityTimingProjection =
 		timing.status === "running"
 			? { baseDurationMs: timing.activeDurationMs, receivedAtPerformanceMs }
 			: undefined;
-	const activities = [...state.activities.values()].toSorted(
-		(a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id)
-	);
+	const activities = sortActivities(state.activities.values());
 	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
 	const part = activityJournalPart(state, activities);
 	if (existingIdx >= 0) {
@@ -598,35 +423,6 @@ export function buildContentForUI(
 		: [{ type: "text", text: "" }];
 }
 
-export function buildContentForPersistence(
-	state: ContentPartsState,
-	toolsWithUI: ToolUIGate
-): unknown[] {
-	const parts: unknown[] = [];
-
-	for (const part of state.contentParts) {
-		if (part.type === "text" && part.text.length > 0) {
-			parts.push(part);
-		} else if (part.type === "reasoning" && part.text.length > 0) {
-			// Persist reasoning blocks so a chat reload re-renders the
-			// collapsed thinking section instead of
-			// silently dropping it on reload.
-			parts.push(part);
-		} else if (part.type === "status" && part.text.length > 0) {
-			parts.push(part);
-		} else if (
-			part.type === "tool-call" &&
-			(_toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part))
-		) {
-			parts.push(part);
-		} else if (part.type === "data-activities") {
-			parts.push(part);
-		}
-	}
-
-	return parts.length > 0 ? parts : [{ type: "text", text: "" }];
-}
-
 export type SSEEvent =
 	| { type: "start"; messageId?: string }
 	| { type: "finish" }
@@ -711,10 +507,9 @@ export type SSEEvent =
 			/**
 			 * Emitted at the start of every stream so the frontend can
 			 * stamp the per-turn correlation id onto the in-flight
-			 * assistant message and replay it via
-			 * ``appendMessage``. Pure-text turns never produce
-			 * action-log events; this event guarantees the frontend
-			 * always learns the turn id.
+			 * assistant message. Pure-text turns never produce action-log
+			 * events; this event guarantees the frontend always learns the
+			 * turn id.
 			 */
 			type: "data-turn-info";
 			data: { chat_turn_id: string };

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -15,6 +16,8 @@ from app.tasks.chat.streaming.helpers.tool_call_matching import (
 from app.tasks.chat.streaming.relay.activity_sse import emit_activity_frame
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.task_span import open_task_span
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_integration_metadata(
@@ -34,13 +37,6 @@ def _safe_integration_metadata(
     if is_generic:
         return {"source": "mcp"}
     return None
-
-
-def _artifact_instruction_type(tool_name: str, tool_input: Any) -> str | None:
-    if tool_name != "load_artifact_instructions" or not isinstance(tool_input, dict):
-        return None
-    artifact_type = tool_input.get("artifact_type")
-    return artifact_type if artifact_type in {"pdf", "docx", "pptx", "xlsx"} else None
 
 
 def iter_tool_start_frames(
@@ -109,7 +105,6 @@ def iter_tool_start_frames(
             if isinstance(subagent_type, str) and subagent_type.strip():
                 state.active_subagent_type = subagent_type.strip()
 
-    artifact_type = _artifact_instruction_type(tool_name, tool_input)
     event_metadata = event.get("metadata")
     trusted_descriptor = (
         event_metadata.get("activity_descriptor")
@@ -119,57 +114,36 @@ def iter_tool_start_frames(
     activity = resolve_tool_activity(
         tool_name,
         subagent_type=state.active_subagent_type,
-        artifact_type=artifact_type,
         repairing_artifact=state.deliverable_needs_repair,
         trusted_descriptor=trusted_descriptor,
     )
+    if (
+        matched_meta is None
+        and langchain_tool_call_id is None
+        and activity.visibility != "hide"
+    ):
+        langchain_tool_call_id = state.consume_resume_tool_call_id()
+        if langchain_tool_call_id is None and state.journal.resume_id_by_tool_call:
+            logger.warning(
+                "[activity_resume] no persisted tool-call id available "
+                "for replayed tool name=%s run_id=%s remaining_bindings=%d",
+                tool_name,
+                run_id,
+                len(state.journal.resume_id_by_tool_call),
+            )
     integration = _safe_integration_metadata(event)
-    activity_id: str | None = None
-    if activity.visibility != "hide":
-        scope = state.active_span_id or "root"
-        phase_key = activity.phase_key if activity.lifecycle == "phase" else None
-        open_phase = state.open_phase_by_scope.get(scope)
-        reuse_phase = bool(
-            phase_key
-            and open_phase
-            and open_phase[0] == phase_key
-            and open_phase[1] not in state.terminal_activity_ids
-        )
-        if open_phase and not reuse_phase:
-            closed = state.transition_activity(
-                open_phase[1], status="completed", completed_at=started_at
-            )
-            if closed:
-                yield emit_activity_frame(
-                    streaming_service=streaming_service,
-                    content_builder=content_builder,
-                    snapshot=closed,
-                )
-        if reuse_phase and open_phase:
-            activity_id = open_phase[1]
-            snapshot = state.activity_snapshot_by_id[activity_id]
-        else:
-            resumable_ids = state.resumable_activity_ids_by_kind.get(activity.kind)
-            activity_id = (
-                resumable_ids.pop(0)
-                if resumable_ids
-                else state.next_activity_id(step_prefix)
-            )
-            previous = state.activity_snapshot_by_id.get(activity_id)
-            snapshot = activity.snapshot(
-                activity_id=activity_id,
-                sequence=(previous["sequence"] if previous else state.activity_counter),
-                status="running",
-                started_at=previous["startedAt"] if previous else started_at,
-                integration=integration
-                or (previous.get("integration") if previous else None),
-            )
-            state.activity_spec_by_id[activity_id] = activity
-            state.activity_snapshot_by_id[activity_id] = snapshot
-            if phase_key:
-                state.open_phase_by_scope[scope] = (phase_key, activity_id)
-        if run_id:
-            state.activity_id_by_run[run_id] = activity_id
+    activity_start = state.journal.begin_tool(
+        spec=activity,
+        run_id=run_id,
+        step_prefix=step_prefix,
+        scope=state.active_span_id or "root",
+        started_at=started_at,
+        tool_call_id=tool_call_id,
+        langchain_tool_call_id=langchain_tool_call_id,
+        integration=integration,
+    )
+    activity_id = activity_start.activity_id
+    for snapshot in activity_start.snapshots:
         yield emit_activity_frame(
             streaming_service=streaming_service,
             content_builder=content_builder,

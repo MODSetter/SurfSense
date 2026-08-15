@@ -77,7 +77,9 @@ def downgrade() -> None:
         """
     )
     op.execute("ALTER TABLE video_presentation_runs DROP COLUMN IF EXISTS error")
-    op.execute("ALTER TABLE video_presentation_runs ADD COLUMN IF NOT EXISTS slides JSONB")
+    op.execute(
+        "ALTER TABLE video_presentation_runs ADD COLUMN IF NOT EXISTS slides JSONB"
+    )
     op.execute(
         "ALTER TABLE video_presentation_runs ADD COLUMN IF NOT EXISTS scene_codes JSONB"
     )

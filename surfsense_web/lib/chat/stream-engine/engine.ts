@@ -24,6 +24,7 @@ import {
 } from "@/hooks/use-agent-actions-query";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { authenticatedFetch } from "@/lib/auth-fetch";
+import { parseActivityJournalPart } from "@/lib/chat/activity-journal";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -40,8 +41,6 @@ import {
 	buildContentForUI,
 	type ContentPartsState,
 	type FrameBatchedUpdater,
-	parseActivityData,
-	parseActivityTimingData,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import {
@@ -910,18 +909,17 @@ export async function resumeChat(
 					});
 					contentPartsState.currentTextPartIndex = -1;
 				} else if (p.type === "data-activities") {
-					const activityData = p.data as { activities?: unknown[]; timing?: unknown } | undefined;
-					const activities = (activityData?.activities ?? [])
-						.map(parseActivityData)
-						.filter((activity): activity is NonNullable<typeof activity> => activity !== null)
-						.toSorted((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id));
-					for (const activity of activities)
+					const journal = parseActivityJournalPart(p);
+					if (!journal) continue;
+					for (const activity of journal.activities)
 						contentPartsState.activities.set(activity.id, activity);
-					const timing = parseActivityTimingData(activityData?.timing);
-					if (timing) contentPartsState.activityTiming = timing;
+					if (journal.timing) contentPartsState.activityTiming = journal.timing;
+					if (journal.timingProjection) {
+						contentPartsState.activityTimingProjection = journal.timingProjection;
+					}
 					contentParts.push({
 						type: "data-activities",
-						data: { activities, ...(timing ? { timing } : {}) },
+						data: journal,
 					});
 				}
 			}

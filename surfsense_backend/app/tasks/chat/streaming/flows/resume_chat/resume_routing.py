@@ -27,6 +27,7 @@ class ResumeRoutingPayload:
 
     routed_resume_value: dict[str, Any]
     lg_resume_map: dict[str, Any]
+    pending_tool_call_ids: list[str]
 
 
 async def build_resume_routing(
@@ -75,6 +76,7 @@ async def build_resume_routing(
         return ResumeRoutingPayload(
             routed_resume_value={},
             lg_resume_map=lg_resume_map,
+            pending_tool_call_ids=[],
         )
 
     routed_resume_value = slice_decisions_by_tool_call(decisions, pending)
@@ -82,4 +84,5 @@ async def build_resume_routing(
     return ResumeRoutingPayload(
         routed_resume_value=routed_resume_value,
         lg_resume_map=lg_resume_map,
+        pending_tool_call_ids=[tool_call_id for tool_call_id, _ in pending],
     )

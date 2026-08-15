@@ -66,7 +66,9 @@ def downgrade() -> None:
         END $$;
         """
     )
-    op.execute("ALTER TABLE podcast_runs ADD COLUMN IF NOT EXISTS storage_backend VARCHAR(32)")
+    op.execute(
+        "ALTER TABLE podcast_runs ADD COLUMN IF NOT EXISTS storage_backend VARCHAR(32)"
+    )
     op.execute("ALTER TABLE podcast_runs ADD COLUMN IF NOT EXISTS storage_key TEXT")
     op.execute("ALTER TABLE podcast_runs ADD COLUMN IF NOT EXISTS file_location TEXT")
     op.execute("ALTER TABLE podcast_runs RENAME TO podcasts")

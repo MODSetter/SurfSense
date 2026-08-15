@@ -15,6 +15,7 @@ from app.artifacts import ArtifactFileInput, save_artifact
 from app.artifacts.source_formats import validate_source_file
 from app.artifacts.verification.formats.registry import get_format_adapter
 from app.artifacts.verification.receipt import read_receipt, sha256_bytes
+from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
 from app.db import shielded_async_session
 from app.sandbox import SandboxSession, get_registry
@@ -189,4 +190,13 @@ def create_save_artifact_tool(workspace_id: int):
     # Keep the public tool name frozen even though the Python symbol avoids
     # shadowing the service imported above.
     save_artifact_tool.name = "save_artifact"
+    save_artifact_tool.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Preparing the file",
+            completed_title="Presented file",
+            category="artifact",
+            icon_key="file-output",
+            kind="save_artifact",
+        ).as_metadata()
+    }
     return save_artifact_tool

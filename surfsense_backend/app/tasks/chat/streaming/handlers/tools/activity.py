@@ -109,180 +109,18 @@ def _copy(
     )
 
 
-_ACTIVITY_SPECS: dict[str, ActivitySpec] = {
-    "read_file": _copy("Reading file", "Read file", "file", icon_key="file-text"),
-    "write_file": _copy("Creating file", "Created file", "file", icon_key="file-plus"),
-    "edit_file": _copy("Editing file", "Edited file", "file", icon_key="file-pen"),
-    "move_file": _copy("Moving file", "Moved file", "file", icon_key="files"),
-    "rm": _copy("Deleting file", "Deleted file", "file", icon_key="file-x"),
-    "mkdir": _copy("Creating folder", "Created folder", "file", icon_key="folder-plus"),
-    "rmdir": _copy("Deleting folder", "Deleted folder", "file", icon_key="folder-x"),
-    "ls": _copy("Reviewing folder", "Reviewed folder", "file", icon_key="folder-open"),
-    "list_tree": _copy(
-        "Reviewing file tree", "Reviewed file tree", "file", icon_key="folder-tree"
-    ),
-    "glob": _copy("Finding files", "Found files", "file", icon_key="folder-search"),
-    "grep": _copy(
-        "Searching project", "Searched project", "file", icon_key="search-code"
-    ),
-    "execute": _copy("Running command", "Ran command", "action", icon_key="terminal"),
-    "execute_code": _copy("Running code", "Ran code", "action", icon_key="square-code"),
-    "write_todos": _copy(
-        "Planning work",
-        "Planned work",
-        "action",
-        lifecycle="phase",
-        icon_key="list-todo",
-    ),
-    "load_artifact_source": _copy(
-        "Opening the artifact",
-        "Opened the artifact",
-        "artifact",
-        lifecycle="phase",
-        icon_key="file-input",
-    ),
-    "read_sandbox_file": _copy(
-        "Reviewing the artifact",
-        "Reviewed the artifact",
-        "artifact",
-        lifecycle="phase",
-        icon_key="file-text",
-    ),
-    "load_artifact_instructions": _copy(
-        "Loading artifact instructions",
-        "Loaded artifact instructions",
-        "artifact",
-        "hide",
-        icon_key="file-input",
-    ),
-    "verify_artifact": _copy(
-        "Checking the artifact",
-        "Checked the artifact",
-        "artifact",
-        icon_key="badge-check",
-    ),
-    "save_artifact": _copy(
-        "Preparing the file", "Presented file", "artifact", icon_key="file-output"
-    ),
-    "save_document": _copy(
-        "Preparing the document",
-        "Presented document",
-        "artifact",
-        icon_key="file-output",
-    ),
-    "generate_image": _copy(
-        "Creating an image", "Created an image", "artifact", icon_key="image"
-    ),
-    "display_image": _copy(
-        "Preparing the image", "Presented image", "artifact", icon_key="image"
-    ),
-    "generate_podcast": _copy(
-        "Creating the podcast", "Created the podcast", "artifact", icon_key="microphone"
-    ),
-    "generate_video_presentation": _copy(
-        "Creating the presentation",
-        "Created the presentation",
-        "artifact",
-        icon_key="film",
-    ),
-    "search_knowledge_base": _copy(
-        "Searching your sources",
-        "Searched your sources",
-        "research",
-        icon_key="library",
-    ),
-    "ask_knowledge_base": _copy(
-        "Reviewing your sources",
-        "Reviewed your sources",
-        "research",
-        icon_key="library",
-    ),
-    "scrape_webpage": _copy(
-        "Reviewing a webpage",
-        "Reviewed a webpage",
-        "research",
-        lifecycle="phase",
-        icon_key="scan-text",
-    ),
-    "link_preview": _copy(
-        "Reviewing a link",
-        "Reviewed a link",
-        "research",
-        lifecycle="phase",
-        icon_key="external-link",
-    ),
-    "multi_link_preview": _copy(
-        "Reviewing links",
-        "Reviewed links",
-        "research",
-        lifecycle="phase",
-        icon_key="external-link",
-    ),
-    "create_calendar_event": _copy(
-        "Creating calendar event",
-        "Created calendar event",
-        "connector",
-        icon_key="calendar",
-        integration_key="google_calendar",
-    ),
-    "update_calendar_event": _copy(
-        "Updating calendar event",
-        "Updated calendar event",
-        "connector",
-        icon_key="calendar",
-        integration_key="google_calendar",
-    ),
-    "delete_calendar_event": _copy(
-        "Deleting calendar event",
-        "Deleted calendar event",
-        "connector",
-        icon_key="calendar",
-        integration_key="google_calendar",
-    ),
-    "search_calendar_events": _copy(
-        "Searching calendar",
-        "Searched calendar",
-        "connector",
-        icon_key="calendar",
-        integration_key="google_calendar",
-    ),
-    "create_automation": _copy(
-        "Creating automation", "Created automation", "action", icon_key="workflow"
-    ),
-    "update_memory": _copy(
-        "Remembering preference", "Remembered preference", "action", icon_key="brain"
-    ),
-    "task": _copy(
-        "Working with a specialist",
-        "Worked with a specialist",
-        "action",
-        "hide",
-        icon_key="route",
-    ),
-    "get_connected_accounts": _copy(
-        "Checking connected apps",
-        "Checked connected apps",
-        "connector",
-        lifecycle="phase",
-        icon_key="search",
-    ),
-    "generate_report": _copy(
-        "Creating report", "Created report", "artifact", "hide", icon_key="file-text"
-    ),
-    "generate_resume": _copy(
-        "Creating resume", "Created resume", "artifact", "hide", icon_key="file-text"
-    ),
-    "pwd": _copy(
-        "Checking folder", "Checked folder", "file", "hide", icon_key="terminal"
-    ),
-    "cd": _copy(
-        "Changing folder", "Changed folder", "file", "hide", icon_key="terminal"
-    ),
-    "noop": _copy("Working", "Worked", "action", "hide", icon_key="tool"),
-    "invalid_tool": _copy(
-        "Repairing action", "Repaired action", "action", "hide", icon_key="tool"
-    ),
-}
+_INTERNAL_TOOL_NAMES = frozenset(
+    {
+        "cd",
+        "generate_report",
+        "generate_resume",
+        "invalid_tool",
+        "load_artifact_instructions",
+        "noop",
+        "pwd",
+        "task",
+    }
+)
 
 
 def _fallback() -> ActivitySpec:
@@ -302,14 +140,16 @@ def _activity_from_descriptor(value: object) -> ActivitySpec | None:
     descriptor = ActivityDescriptor.from_metadata(value)
     if descriptor is None:
         return None
-    kind = value.get("kind") if isinstance(value, dict) else None
-    if not isinstance(kind, str) or not _ACTIVITY_KIND_RE.fullmatch(kind):
+    kind = descriptor.kind
+    if kind is None or not _ACTIVITY_KIND_RE.fullmatch(kind):
         kind = "connector.action"
     return _with_kind(
         _copy(
             descriptor.active_title,
             descriptor.completed_title,
             descriptor.category,
+            descriptor.visibility,
+            lifecycle=descriptor.lifecycle,
             icon_key=descriptor.icon_key,
             integration_key=descriptor.integration_key,
         ),
@@ -321,12 +161,10 @@ def resolve_tool_activity(
     tool_name: str,
     *,
     subagent_type: str | None,
-    artifact_type: str | None = None,
     repairing_artifact: bool = False,
     trusted_descriptor: dict[str, Any] | None = None,
 ) -> ActivitySpec:
     """Resolve display semantics from trusted runtime context, never model copy."""
-    del artifact_type
     if tool_name == "execute" and subagent_type == "deliverables":
         return _with_kind(
             _copy(
@@ -349,9 +187,11 @@ def resolve_tool_activity(
     if described is not None:
         return described
 
-    explicit = _ACTIVITY_SPECS.get(tool_name)
-    if explicit:
-        return _with_kind(explicit, tool_name)
+    if tool_name in _INTERNAL_TOOL_NAMES:
+        return _with_kind(
+            _copy("Using a tool", "Completed an action", "action", "hide"),
+            "tool.action",
+        )
 
     try:
         capability = get_capability(tool_name)

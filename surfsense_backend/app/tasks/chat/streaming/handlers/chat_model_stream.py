@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
 from app.tasks.chat.streaming.helpers.chunk_parts import extract_chunk_parts
-from app.tasks.chat.streaming.relay.activity_completion import (
-    iter_complete_open_activity_frames,
-)
+from app.tasks.chat.streaming.relay.activity_sse import emit_activity_frame
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.task_span import ensure_pending_task_span_for_lc
 
@@ -39,11 +38,14 @@ def iter_chat_model_stream_frames(
                     content_builder.on_text_end(state.current_text_id)
                 state.current_text_id = None
             if state.current_reasoning_id is None:
-                yield from iter_complete_open_activity_frames(
-                    state=state,
-                    streaming_service=streaming_service,
-                    content_builder=content_builder,
-                )
+                for snapshot in state.journal.complete_open_phases(
+                    completed_at=datetime.now(UTC).isoformat()
+                ):
+                    yield emit_activity_frame(
+                        streaming_service=streaming_service,
+                        content_builder=content_builder,
+                        snapshot=snapshot,
+                    )
                 state.current_reasoning_id = streaming_service.generate_reasoning_id()
                 yield streaming_service.format_reasoning_start(
                     state.current_reasoning_id
@@ -59,18 +61,19 @@ def iter_chat_model_stream_frames(
 
         if part_type == "text":
             if state.current_reasoning_id is not None:
-                yield streaming_service.format_reasoning_end(
-                    state.current_reasoning_id
-                )
+                yield streaming_service.format_reasoning_end(state.current_reasoning_id)
                 if content_builder is not None:
                     content_builder.on_reasoning_end(state.current_reasoning_id)
                 state.current_reasoning_id = None
             if state.current_text_id is None:
-                yield from iter_complete_open_activity_frames(
-                    state=state,
-                    streaming_service=streaming_service,
-                    content_builder=content_builder,
-                )
+                for snapshot in state.journal.complete_open_phases(
+                    completed_at=datetime.now(UTC).isoformat()
+                ):
+                    yield emit_activity_frame(
+                        streaming_service=streaming_service,
+                        content_builder=content_builder,
+                        snapshot=snapshot,
+                    )
                 state.current_text_id = streaming_service.generate_text_id()
                 yield streaming_service.format_text_start(state.current_text_id)
                 if content_builder is not None:
