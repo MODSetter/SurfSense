@@ -52,11 +52,11 @@ def create_update_memory_tool(
 
     update_memory.metadata = {
         "activity_descriptor": ActivityDescriptor(
-            active_title="Remembering preference",
-            completed_title="Remembered preference",
+            active_title="Updating your memory",
+            completed_title="Updated your memory",
             category="action",
             icon_key="brain",
-            kind="update_memory",
+            kind="memory.personal",
         ).as_metadata()
     }
     return update_memory
@@ -96,11 +96,11 @@ def create_update_team_memory_tool(
 
     update_memory.metadata = {
         "activity_descriptor": ActivityDescriptor(
-            active_title="Remembering preference",
-            completed_title="Remembered preference",
+            active_title="Updating team memory",
+            completed_title="Updated team memory",
             category="action",
             icon_key="brain",
-            kind="update_memory",
+            kind="memory.team",
         ).as_metadata()
     }
     return update_memory
