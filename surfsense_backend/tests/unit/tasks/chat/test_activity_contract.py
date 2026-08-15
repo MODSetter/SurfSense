@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,8 +14,12 @@ from app.services.new_streaming_service import VercelStreamingService
 from app.services.streaming.types import ActivityTimingData
 from app.tasks.chat.content_builder import AssistantContentBuilder
 from app.tasks.chat.streaming.activity_timing import ActivityTimer
+from app.tasks.chat.streaming.agent.event_loop import stream_agent_events
 from app.tasks.chat.streaming.flows.resume_chat.assistant_shell import (
     _resumable_journal_from_content,
+)
+from app.tasks.chat.streaming.flows.shared.assistant_finalize import (
+    finalize_assistant_message,
 )
 from app.tasks.chat.streaming.flows.shared.first_frames import iter_initial_frames
 from app.tasks.chat.streaming.handlers.custom_events import handle_activity_progress
@@ -27,6 +32,7 @@ from app.tasks.chat.streaming.relay.activity_sse import (
     emit_completed_activity_timing_frame_if_running,
 )
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
+from app.tasks.chat.streaming.shared.stream_result import StreamResult
 
 
 def _payload(frame: str) -> dict:
@@ -745,6 +751,96 @@ def test_activity_timer_cleanup_completes_only_running_timers() -> None:
     assert paused.status == "paused"
 
 
+async def test_disconnect_cleanup_uses_pending_hitl_checkpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.tasks.chat import persistence
+
+    persisted: dict = {}
+
+    async def capture_finalize(**kwargs) -> None:
+        persisted.update(kwargs)
+
+    monkeypatch.setattr(persistence, "finalize_assistant_turn", capture_finalize)
+
+    pending_state = SimpleNamespace(
+        tasks=[
+            SimpleNamespace(
+                interrupts=(
+                    SimpleNamespace(
+                        id="interrupt-1",
+                        value={"type": "approval", "message": "Approve?"},
+                    ),
+                )
+            )
+        ],
+        values={},
+    )
+
+    class Agent:
+        def __init__(self) -> None:
+            self.state_read_started = asyncio.Event()
+            self.state_reads = 0
+
+        async def astream_events(self, *_args, **_kwargs):
+            return
+            yield
+
+        async def aget_state(self, _config):
+            self.state_reads += 1
+            if self.state_reads == 1:
+                self.state_read_started.set()
+                await asyncio.Event().wait()
+            return pending_state
+
+    builder = AssistantContentBuilder()
+    builder.on_activity_timing({"status": "running", "activeDurationMs": 1200})
+    result = StreamResult(
+        turn_id="turn-hitl",
+        assistant_message_id=42,
+        content_builder=builder,
+        activity_timer=ActivityTimer.resume(
+            {"status": "paused", "activeDurationMs": 1200}
+        ),
+    )
+    agent = Agent()
+
+    async def consume_stream() -> None:
+        async for _ in stream_agent_events(
+            agent=agent,
+            config={"configurable": {}},
+            input_data={},
+            streaming_service=VercelStreamingService(),
+            result=result,
+            content_builder=builder,
+        ):
+            pass
+
+    consumer = asyncio.create_task(consume_stream())
+    await agent.state_read_started.wait()
+    consumer.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await consumer
+
+    assert result.activity_timer.status == "running"
+
+    await finalize_assistant_message(
+        stream_result=result,
+        chat_id=7,
+        workspace_id=9,
+        user_id="user-1",
+        accumulator=SimpleNamespace(),
+        log_prefix="test_disconnect",
+    )
+
+    journal = next(
+        part for part in persisted["content"] if part["type"] == "data-activities"
+    )
+    assert result.is_interrupted is True
+    assert result.activity_timer.status == "paused"
+    assert journal["data"]["timing"]["status"] == "paused"
+
+
 def test_activity_timer_excludes_multiple_hitl_waits_and_keeps_pause_strict() -> None:
     timer = ActivityTimer.start(now_ns=0)
     first_pause = timer.pause(now_ns=10_000_000_000)
@@ -779,8 +875,24 @@ def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
     )
     builder.on_activity_timing(
         {
+            "status": "running",
+            "activeDurationMs": 1500,
+        }
+    )
+    assert builder.snapshot()[0]["data"]["timing"] == {
+        "status": "paused",
+        "activeDurationMs": 2000,
+    }
+    builder.on_activity_timing(
+        {
             "status": "completed",
             "activeDurationMs": 5000,
+        }
+    )
+    builder.on_activity_timing(
+        {
+            "status": "running",
+            "activeDurationMs": 6000,
         }
     )
 

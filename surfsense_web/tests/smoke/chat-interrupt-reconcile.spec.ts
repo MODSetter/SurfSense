@@ -2,8 +2,8 @@ import { expect, test } from "../fixtures";
 import { authHeaders, BACKEND_URL } from "../helpers/api/auth";
 import { appendThreadMessage } from "../helpers/api/chat";
 
-const activity = (status: "awaiting_approval" | "completed") => ({
-	id: "act-memory",
+const activity = (status: "awaiting_approval" | "completed", id: string) => ({
+	id,
 	sequence: 1,
 	kind: "memory.team",
 	status,
@@ -14,10 +14,14 @@ const activity = (status: "awaiting_approval" | "completed") => ({
 	...(status === "completed" ? { completedAt: "2026-01-01T00:00:02Z" } : {}),
 });
 
-const journal = (status: "awaiting_approval" | "completed", activeDurationMs: number) => ({
+const journal = (
+	status: "awaiting_approval" | "completed",
+	activeDurationMs: number,
+	activityId: string
+) => ({
 	type: "data-activities",
 	data: {
-		activities: [activity(status)],
+		activities: [activity(status, activityId)],
 		timing: {
 			status: status === "completed" ? "completed" : "paused",
 			activeDurationMs,
@@ -25,13 +29,13 @@ const journal = (status: "awaiting_approval" | "completed", activeDurationMs: nu
 	},
 });
 
-const interruptedTool = (id: string) => ({
+const interruptedTool = (id: string, activityId: string) => ({
 	type: "tool-call",
 	toolCallId: id,
 	toolName: "update_memory",
 	args: {},
 	state: "aborted",
-	metadata: { activityId: "act-memory" },
+	metadata: { activityId },
 });
 
 test.describe("Smoke", () => {
@@ -63,8 +67,8 @@ test.describe("Smoke", () => {
 			role: "assistant",
 			turnId: "e2e-paused-one",
 			content: [
-				journal("awaiting_approval", 400),
-				interruptedTool("call-one"),
+				journal("awaiting_approval", 400, "act-memory-one"),
+				interruptedTool("call-one", "act-memory-one"),
 				{ type: "text", text: "First phase survived." },
 			],
 		});
@@ -73,8 +77,8 @@ test.describe("Smoke", () => {
 			role: "assistant",
 			turnId: "e2e-paused-two",
 			content: [
-				journal("completed", 2400),
-				interruptedTool("call-two"),
+				journal("completed", 2400, "act-memory-two"),
+				interruptedTool("call-two", "act-memory-two"),
 				{ type: "text", text: "Second phase survived." },
 			],
 		});
@@ -97,6 +101,12 @@ test.describe("Smoke", () => {
 		await expect(timer).toContainText("2.4s");
 		await expect(
 			assistantTurn.getByRole("button", {
+				name: "Updating team memory",
+				exact: true,
+			})
+		).not.toContainText("2.4s");
+		await expect(
+			assistantTurn.getByRole("button", {
 				name: "Updated team memory 2.4s",
 				exact: true,
 			})
@@ -113,6 +123,12 @@ test.describe("Smoke", () => {
 		const reloadedTimer = reloadedAssistantTurn.getByTestId("assistant-turn-timing");
 		await expect(reloadedTimer).toHaveCount(1);
 		await expect(reloadedTimer).toContainText("2.4s");
+		await expect(
+			reloadedAssistantTurn.getByRole("button", {
+				name: "Updating team memory",
+				exact: true,
+			})
+		).not.toContainText("2.4s");
 		await expect(
 			reloadedAssistantTurn.getByRole("button", {
 				name: "Updated team memory 2.4s",

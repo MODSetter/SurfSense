@@ -69,6 +69,11 @@ async def stream_agent_events(
     ``accumulated_text`` and interrupt state. See ``StreamResult`` for the
     side-channel surface populated by the underlying relay.
     """
+
+    async def load_agent_state() -> Any:
+        return await agent.aget_state(config)
+
+    result.load_agent_state = load_agent_state
     async for sse in stream_output(
         agent=agent,
         config=config,

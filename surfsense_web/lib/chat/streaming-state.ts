@@ -130,7 +130,7 @@ export function upsertActivityTiming(
 	}
 	const unchanged =
 		current?.status === timing.status && current.activeDurationMs === timing.activeDurationMs;
-	if (unchanged && timing.status !== "running") return false;
+	if (unchanged) return false;
 	state.activityTiming = timing;
 	state.activityTimingProjection =
 		timing.status === "running"

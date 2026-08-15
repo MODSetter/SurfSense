@@ -391,10 +391,22 @@ class AssistantContentBuilder:
             self._tool_call_idx_by_ui_id[ui_id] = idx + 1
 
     def on_activity_timing(self, snapshot: dict[str, Any]) -> None:
-        """Replace the journal's canonical active-time snapshot."""
+        """Advance the journal's canonical active-time snapshot monotonically."""
         for i, part in enumerate(self.parts):
             if part.get("type") != "data-activities":
                 continue
+            current = part.get("data", {}).get("timing")
+            if isinstance(current, dict):
+                if current == snapshot or current.get("status") == "completed":
+                    return
+                current_duration = current.get("activeDurationMs")
+                next_duration = snapshot.get("activeDurationMs")
+                if (
+                    isinstance(current_duration, int)
+                    and isinstance(next_duration, int)
+                    and next_duration < current_duration
+                ):
+                    return
             self.parts[i] = {
                 "type": "data-activities",
                 "data": {

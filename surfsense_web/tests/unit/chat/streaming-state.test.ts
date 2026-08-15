@@ -13,7 +13,7 @@ function state(): ContentPartsState {
 	};
 }
 
-test("accepted running snapshots refresh the projection anchor", () => {
+test("duplicate running snapshots preserve the projection anchor", () => {
 	const current = state();
 
 	assert.equal(
@@ -22,11 +22,11 @@ test("accepted running snapshots refresh the projection anchor", () => {
 	);
 	assert.equal(
 		upsertActivityTiming(current, { status: "running", activeDurationMs: 1000 }, 900),
-		true
+		false
 	);
 	assert.deepEqual(current.activityTimingProjection, {
 		baseDurationMs: 1000,
-		receivedAtPerformanceMs: 900,
+		receivedAtPerformanceMs: 500,
 	});
 });
 

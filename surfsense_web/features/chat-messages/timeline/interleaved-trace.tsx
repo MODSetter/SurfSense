@@ -33,12 +33,7 @@ import {
 	usePendingInterrupt,
 } from "@/features/chat-messages/hitl";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type {
-	ActivityData,
-	ActivityStatus,
-	ActivityTimingData,
-	ActivityTimingProjection,
-} from "@/lib/chat/activity-journal";
+import type { ActivityData, ActivityStatus } from "@/lib/chat/activity-journal";
 import { trackActivityTraceInteraction } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";
@@ -51,7 +46,8 @@ import {
 	type TracePartLike,
 } from "./grouping";
 import { getActivityIcon, getConnectorLogo } from "./presentation";
-import { AssistantTurnTiming } from "./turn-timing";
+import { AssistantTurnTiming, useAssistantTurnTiming } from "./turn-timing";
+import type { TurnTimingDisplay } from "./turn-timing-state";
 
 const noopSubmit = () => {};
 
@@ -237,24 +233,11 @@ const TraceDetails: FC<{
 const TraceSegment: FC<{
 	indices: readonly number[];
 	activities: ReadonlyMap<string, ActivityData>;
-	messageId: string;
-	timing: ActivityTimingData | null;
-	timingProjection: ActivityTimingProjection | null;
 	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
 	parts: readonly PartState[];
 	threadRunning: boolean;
-	showTurnTiming: boolean;
-}> = ({
-	indices,
-	activities,
-	messageId,
-	timing,
-	timingProjection,
-	renderPart,
-	parts,
-	threadRunning,
-	showTurnTiming,
-}) => {
+	turnTimingDisplay: TurnTimingDisplay | null;
+}> = ({ indices, activities, renderPart, parts, threadRunning, turnTimingDisplay }) => {
 	const id = useId();
 	const isMobile = useMediaQuery("(max-width: 767px)");
 	const reducedMotion = useReducedMotion();
@@ -317,14 +300,7 @@ const TraceSegment: FC<{
 				>
 					{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
 				</FadeSwapText>
-				{showTurnTiming ? (
-					<AssistantTurnTiming
-						messageId={messageId}
-						timing={timing}
-						projection={timingProjection}
-						threadRunning={threadRunning}
-					/>
-				) : null}
+				{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
 				<motion.span
 					className="size-4 shrink-0 opacity-0 transition-opacity group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
 					animate={{ rotate: !isMobile && open ? 90 : 0 }}
@@ -381,6 +357,12 @@ const InterleavedPartsInner: FC<{
 	const threadRunning = isThreadRunning && isLastMessage;
 	const rawParts = parts as readonly TracePartLike[];
 	const journal = useMemo(() => buildActivityLookup(rawParts), [rawParts]);
+	const turnTimingDisplay = useAssistantTurnTiming({
+		messageId: String(messageId),
+		timing: journal.timing,
+		projection: journal.timingProjection,
+		threadRunning,
+	});
 	const firstActivityIndices = useMemo(() => firstToolIndexByActivityId(rawParts), [rawParts]);
 	const bodyToolNames = useMemo(() => new Set(Object.keys(bodyTools)), [bodyTools]);
 	const lastTraceIndex = useMemo(
@@ -421,13 +403,12 @@ const InterleavedPartsInner: FC<{
 									<TraceSegment
 										indices={part.indices}
 										activities={journal.byId}
-										messageId={String(messageId)}
-										timing={journal.timing}
-										timingProjection={journal.timingProjection}
 										renderPart={renderLeaf}
 										parts={parts}
 										threadRunning={threadRunning}
-										showTurnTiming={part.indices.includes(lastTraceIndex)}
+										turnTimingDisplay={
+											part.indices.includes(lastTraceIndex) ? turnTimingDisplay : null
+										}
 									/>
 									<PendingCards indices={part.indices} />
 								</>

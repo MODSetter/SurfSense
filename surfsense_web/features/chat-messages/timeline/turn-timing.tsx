@@ -5,19 +5,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ElapsedTime, projectElapsed } from "@/components/prompt-kit/elapsed-time";
 import type { ActivityTimingData, ActivityTimingProjection } from "@/lib/chat/activity-journal";
 import { trackActivityTimingContractViolation } from "@/lib/posthog/events";
-import { resolveTurnTimingDisplay, type TimingSnapshot } from "./turn-timing-state";
+import {
+	resolveTurnTimingDisplay,
+	type TimingSnapshot,
+	type TurnTimingDisplay,
+} from "./turn-timing-state";
 
-export function AssistantTurnTiming({
-	messageId,
-	timing,
-	projection,
-	threadRunning,
-}: {
+interface AssistantTurnTimingStateProps {
 	messageId: string;
 	timing: ActivityTimingData | null;
 	projection: ActivityTimingProjection | null;
 	threadRunning: boolean;
-}) {
+}
+
+export function useAssistantTurnTiming({
+	messageId,
+	timing,
+	projection,
+	threadRunning,
+}: AssistantTurnTimingStateProps): TurnTimingDisplay {
 	const [retained, setRetained] = useState<TimingSnapshot | null>(() =>
 		timing ? { timing, projection: timing.status === "running" ? projection : null } : null
 	);
@@ -51,7 +57,10 @@ export function AssistantTurnTiming({
 		}
 	}, [current, messageId, threadRunning]);
 
-	const display = resolveTurnTimingDisplay(current, threadRunning, frozenDurationMs);
+	return resolveTurnTimingDisplay(current, threadRunning, frozenDurationMs);
+}
+
+export function AssistantTurnTiming({ display }: { display: TurnTimingDisplay }) {
 	if (display.phase === "placeholder") return null;
 
 	return (

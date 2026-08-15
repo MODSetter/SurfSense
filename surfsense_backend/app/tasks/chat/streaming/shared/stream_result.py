@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,11 @@ class StreamResult:
     # prevents error logs from dumping a potentially large parts list.
     content_builder: Any | None = field(default=None, repr=False)
     activity_state: Any | None = field(default=None, repr=False)
+    # Reads the authoritative LangGraph checkpoint during disconnect cleanup.
+    # The in-memory event loop may be cancelled before it observes pending HITL.
+    load_agent_state: Callable[[], Awaitable[Any]] | None = field(
+        default=None, repr=False
+    )
     activity_timer: ActivityTimer = field(
         default_factory=ActivityTimer.start, repr=False
     )
