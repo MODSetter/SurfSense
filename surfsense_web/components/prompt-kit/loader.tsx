@@ -17,7 +17,7 @@ const textSizes = {
 
 /**
  * TextShimmerLoader - A text loader with a shimmer gradient animation
- * Used for in-progress states in write_todos and chain-of-thought
+ * Used for in-progress activity and reasoning states.
  */
 export function TextShimmerLoader({
 	text = "Thinking",
