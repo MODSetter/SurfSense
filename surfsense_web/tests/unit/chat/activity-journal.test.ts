@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { extractActivityJournal, parseActivityJournalPart } from "@/lib/chat/activity-journal";
+import {
+	extractActivityJournal,
+	mergeActivityTiming,
+	parseActivityJournalPart,
+} from "@/lib/chat/activity-journal";
 
 const child = {
 	id: "act-child",
@@ -72,4 +76,55 @@ test("keeps terminal activity snapshots over stale running snapshots", () => {
 
 	assert.equal(journal.byId.get(child.id)?.status, "completed");
 	assert.equal(journal.byId.get(child.id)?.title, "Wrote file");
+});
+
+test("keeps timing duration monotonic while allowing HITL resume", () => {
+	const paused = { status: "paused", activeDurationMs: 900 } as const;
+
+	assert.deepEqual(mergeActivityTiming(paused, { status: "running", activeDurationMs: 900 }), {
+		status: "running",
+		activeDurationMs: 900,
+	});
+	assert.deepEqual(
+		mergeActivityTiming(paused, { status: "running", activeDurationMs: 899 }),
+		paused
+	);
+});
+
+test("completed timing is immutable against delayed frames", () => {
+	const completed = { status: "completed", activeDurationMs: 1250 } as const;
+
+	assert.equal(
+		mergeActivityTiming(completed, { status: "completed", activeDurationMs: 1500 }),
+		completed
+	);
+	assert.equal(
+		mergeActivityTiming(completed, { status: "running", activeDurationMs: 1500 }),
+		completed
+	);
+});
+
+test("a rejected timing frame cannot replace the accepted projection", () => {
+	const projection = { baseDurationMs: 1000, receivedAtPerformanceMs: 500 };
+	const journal = extractActivityJournal([
+		{
+			type: "data-activities",
+			data: {
+				activities: [],
+				timing: { status: "running", activeDurationMs: 1000 },
+				timingProjection: projection,
+			},
+		},
+		{
+			type: "data-activities",
+			data: {
+				activities: [],
+				timing: { status: "running", activeDurationMs: 900 },
+				timingProjection: { baseDurationMs: 900, receivedAtPerformanceMs: 900 },
+			},
+		},
+	]);
+
+	assert.deepEqual(journal.timing, { status: "running", activeDurationMs: 1000 });
+	assert.deepEqual(journal.timingProjection, projection);
 });

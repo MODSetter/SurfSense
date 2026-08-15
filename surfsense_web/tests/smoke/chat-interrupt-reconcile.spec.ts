@@ -92,6 +92,9 @@ test.describe("Smoke", () => {
 		await expect(assistantTurn.getByText("First phase survived.")).toBeVisible();
 		await expect(assistantTurn.getByText("Second phase survived.")).toBeVisible();
 		await expect(assistantTurn.getByText("Final phase survived.")).toBeVisible();
+		const timer = assistantTurn.getByTestId("assistant-turn-timing");
+		await expect(timer).toHaveCount(1);
+		await expect(timer).toContainText("2.4s");
 		await expect(
 			assistantTurn.getByRole("button", {
 				name: "Updated team memory 2.4s",
@@ -107,6 +110,9 @@ test.describe("Smoke", () => {
 		await expect(reloadedAssistantTurn.getByText("First phase survived.")).toBeVisible();
 		await expect(reloadedAssistantTurn.getByText("Second phase survived.")).toBeVisible();
 		await expect(reloadedAssistantTurn.getByText("Final phase survived.")).toBeVisible();
+		const reloadedTimer = reloadedAssistantTurn.getByTestId("assistant-turn-timing");
+		await expect(reloadedTimer).toHaveCount(1);
+		await expect(reloadedTimer).toContainText("2.4s");
 		await expect(
 			reloadedAssistantTurn.getByRole("button", {
 				name: "Updated team memory 2.4s",

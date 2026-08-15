@@ -33,7 +33,10 @@ const journal = (status: "running" | "completed") => ({
 	type: "data-activities",
 	data: {
 		activities: [activity(status)],
-		timing: { status: "paused", activeDurationMs: status === "completed" ? 800 : 400 },
+		timing: {
+			status: status === "completed" ? "completed" : "paused",
+			activeDurationMs: status === "completed" ? 800 : 400,
+		},
 	},
 });
 
@@ -87,10 +90,17 @@ test("preserves text, reasoning, activities, and completed tool results", () => 
 	const [reconciled] = reconcileInterruptedAssistantMessages(messages);
 	const content = reconciled.content as Array<Record<string, unknown>>;
 	const mergedJournal = content.find((part) => part.type === "data-activities") as {
-		data: { activities: Array<{ status: string }> };
+		data: {
+			activities: Array<{ status: string }>;
+			timing: { status: string; activeDurationMs: number };
+		};
 	};
 
 	assert.equal(mergedJournal.data.activities[0].status, "completed");
+	assert.deepEqual(mergedJournal.data.timing, {
+		status: "completed",
+		activeDurationMs: 800,
+	});
 	assert.ok(content.some((part) => part.text === "useful text"));
 	assert.ok(content.some((part) => part.text === "useful reasoning"));
 	assert.ok(content.some((part) => part.result !== undefined));
