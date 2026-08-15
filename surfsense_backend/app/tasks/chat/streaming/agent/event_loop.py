@@ -54,6 +54,7 @@ async def stream_agent_events(
     step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
     resume_activity_id_by_tool_call: dict[str, str] | None = None,
+    resume_tool_call_ids: list[str] | None = None,
     *,
     fallback_commit_workspace_id: int | None = None,
     fallback_commit_created_by_id: str | None = None,
@@ -77,6 +78,7 @@ async def stream_agent_events(
         step_prefix=step_prefix,
         initial_activities=initial_activities,
         resume_activity_id_by_tool_call=resume_activity_id_by_tool_call,
+        resume_tool_call_ids=resume_tool_call_ids,
         content_builder=content_builder,
         runtime_context=runtime_context,
     ):

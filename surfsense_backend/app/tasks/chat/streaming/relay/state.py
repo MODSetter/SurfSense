@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,7 @@ class AgentEventRelayState:
     file_path_by_run: dict[str, str] = field(default_factory=dict)
     index_to_meta: dict[int, dict[str, str]] = field(default_factory=dict)
     ui_tool_call_id_by_run: dict[str, str] = field(default_factory=dict)
+    resume_tool_call_ids: deque[str] = field(default_factory=deque)
     current_lc_tool_call_id: dict[str, str | None] = field(
         default_factory=lambda: {"value": None}
     )
@@ -79,10 +81,16 @@ class AgentEventRelayState:
         *,
         initial_activities: list[ActivityData] | None = None,
         resume_activity_id_by_tool_call: dict[str, str] | None = None,
+        resume_tool_call_ids: list[str] | None = None,
     ) -> AgentEventRelayState:
         return cls(
             journal=ActivityJournal.resume(
                 activities=initial_activities,
                 activity_id_by_tool_call=resume_activity_id_by_tool_call,
             ),
+            resume_tool_call_ids=deque(resume_tool_call_ids or ()),
         )
+
+    def consume_resume_tool_call_id(self) -> str | None:
+        """Consume the next persisted call identity for a replayed HITL tool."""
+        return self.resume_tool_call_ids.popleft() if self.resume_tool_call_ids else None

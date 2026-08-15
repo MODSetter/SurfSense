@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -15,6 +16,8 @@ from app.tasks.chat.streaming.helpers.tool_call_matching import (
 from app.tasks.chat.streaming.relay.activity_sse import emit_activity_frame
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.task_span import open_task_span
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_integration_metadata(
@@ -114,6 +117,23 @@ def iter_tool_start_frames(
         repairing_artifact=state.deliverable_needs_repair,
         trusted_descriptor=trusted_descriptor,
     )
+    if (
+        matched_meta is None
+        and langchain_tool_call_id is None
+        and activity.visibility != "hide"
+    ):
+        langchain_tool_call_id = state.consume_resume_tool_call_id()
+        if (
+            langchain_tool_call_id is None
+            and state.journal.resume_id_by_tool_call
+        ):
+            logger.warning(
+                "[activity_resume] no persisted tool-call id available "
+                "for replayed tool name=%s run_id=%s remaining_bindings=%d",
+                tool_name,
+                run_id,
+                len(state.journal.resume_id_by_tool_call),
+            )
     integration = _safe_integration_metadata(event)
     activity_start = state.journal.begin_tool(
         spec=activity,

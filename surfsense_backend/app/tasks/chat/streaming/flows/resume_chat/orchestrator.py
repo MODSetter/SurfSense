@@ -41,6 +41,7 @@ from app.tasks.chat.streaming.contract.file_contract import log_file_contract
 from app.tasks.chat.streaming.errors.emitter import emit_stream_terminal_error
 from app.tasks.chat.streaming.flows.resume_chat.assistant_shell import (
     load_resumable_activity_journal,
+    order_resume_tool_call_ids,
     persist_resume_assistant_shell,
 )
 from app.tasks.chat.streaming.flows.resume_chat.resume_routing import (
@@ -551,6 +552,9 @@ async def stream_resume_chat(
             initial_activities=resumable_journal.activities,
             resume_activity_id_by_tool_call=(
                 resumable_journal.activity_id_by_tool_call
+            ),
+            resume_tool_call_ids=order_resume_tool_call_ids(
+                resumable_journal, routing.pending_tool_call_ids
             ),
             fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,

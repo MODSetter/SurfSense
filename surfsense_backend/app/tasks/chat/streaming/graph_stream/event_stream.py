@@ -21,6 +21,7 @@ async def stream_output(
     step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
     resume_activity_id_by_tool_call: dict[str, str] | None = None,
+    resume_tool_call_ids: list[str] | None = None,
     content_builder: Any | None = None,
     runtime_context: Any = None,
 ) -> AsyncIterator[str]:
@@ -28,6 +29,7 @@ async def stream_output(
     state = AgentEventRelayState.for_invocation(
         initial_activities=initial_activities,
         resume_activity_id_by_tool_call=resume_activity_id_by_tool_call,
+        resume_tool_call_ids=resume_tool_call_ids,
     )
 
     astream_kwargs: dict[str, Any] = {"config": config, "version": "v2"}
