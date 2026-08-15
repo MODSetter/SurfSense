@@ -15,6 +15,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_p
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.path_resolution import resolve_list_target_path
@@ -102,4 +103,13 @@ def create_list_tree_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_list_tree,
         coroutine=async_list_tree,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Reviewing file tree",
+                completed_title="Reviewed file tree",
+                category="file",
+                icon_key="folder-tree",
+                kind="list_tree",
+            ).as_metadata()
+        },
     )

@@ -9,6 +9,7 @@ from uuid import UUID
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.capabilities.core import ActivityDescriptor
 from app.db import async_session_maker
 from app.services.memory import MemoryScope, save_memory
 
@@ -49,6 +50,15 @@ def create_update_memory_tool(
             logger.exception("Failed to update user memory: %s", e)
             return {"status": "error", "message": f"Failed to update memory: {e}"}
 
+    update_memory.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Remembering preference",
+            completed_title="Remembered preference",
+            category="action",
+            icon_key="brain",
+            kind="update_memory",
+        ).as_metadata()
+    }
     return update_memory
 
 
@@ -84,6 +94,15 @@ def create_update_team_memory_tool(
                 "message": f"Failed to update team memory: {e}",
             }
 
+    update_memory.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Remembering preference",
+            completed_title="Remembered preference",
+            category="action",
+            icon_key="brain",
+            kind="update_memory",
+        ).as_metadata()
+    }
     return update_memory
 
 

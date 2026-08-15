@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import TodoListMiddleware
 
+from app.capabilities.core import ActivityDescriptor
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
@@ -43,7 +45,20 @@ def build_todos_mw(*, system_prompt: str | None = None) -> TodoListMiddleware:
     - otherwise: append the given custom todo system prompt.
     """
     if system_prompt is None:
-        return TodoListMiddleware()
-    if not system_prompt.strip():
-        return _ToolOnlyTodoListMiddleware()
-    return TodoListMiddleware(system_prompt=system_prompt)
+        middleware = TodoListMiddleware()
+    elif not system_prompt.strip():
+        middleware = _ToolOnlyTodoListMiddleware()
+    else:
+        middleware = TodoListMiddleware(system_prompt=system_prompt)
+    descriptor = ActivityDescriptor(
+        active_title="Planning work",
+        completed_title="Planned work",
+        category="action",
+        icon_key="list-todo",
+        kind="write_todos",
+        lifecycle="phase",
+    ).as_metadata()
+    for tool in middleware.tools:
+        if tool.name == "write_todos":
+            tool.metadata = {"activity_descriptor": descriptor}
+    return middleware

@@ -17,6 +17,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud
@@ -99,4 +100,13 @@ def create_move_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_move_file,
         coroutine=async_move_file,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Moving file",
+                completed_title="Moved file",
+                category="file",
+                icon_key="files",
+                kind="move_file",
+            ).as_metadata()
+        },
     )

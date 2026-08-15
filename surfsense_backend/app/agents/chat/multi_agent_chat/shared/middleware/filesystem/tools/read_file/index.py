@@ -22,6 +22,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_p
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.path_resolution import resolve_relative
@@ -112,4 +113,13 @@ def create_read_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_read_file,
         coroutine=async_read_file,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Reading file",
+                completed_title="Read file",
+                category="file",
+                icon_key="file-text",
+                kind="read_file",
+            ).as_metadata()
+        },
     )

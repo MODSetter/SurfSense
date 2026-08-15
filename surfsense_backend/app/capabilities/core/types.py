@@ -75,6 +75,9 @@ class ActivityDescriptor:
     category: ActivityCategory
     icon_key: str
     integration_key: str | None = None
+    kind: str | None = None
+    lifecycle: Literal["invocation", "phase"] = "invocation"
+    visibility: Literal["show", "hide"] = "show"
 
     def as_metadata(self, *, kind: str | None = None) -> dict[str, str]:
         metadata = {
@@ -83,8 +86,12 @@ class ActivityDescriptor:
             "category": self.category,
             "icon_key": self.icon_key,
         }
-        if kind:
-            metadata["kind"] = kind
+        if resolved_kind := kind or self.kind:
+            metadata["kind"] = resolved_kind
+        if self.lifecycle != "invocation":
+            metadata["lifecycle"] = self.lifecycle
+        if self.visibility != "show":
+            metadata["visibility"] = self.visibility
         if self.integration_key:
             metadata["integration_key"] = self.integration_key
         return metadata
@@ -99,6 +106,9 @@ class ActivityDescriptor:
         category = value.get("category")
         icon_key = value.get("icon_key")
         integration_key = value.get("integration_key")
+        kind = value.get("kind")
+        lifecycle = value.get("lifecycle", "invocation")
+        visibility = value.get("visibility", "show")
         if not (
             isinstance(active, str)
             and 0 < len(active.strip()) <= 120
@@ -114,6 +124,15 @@ class ActivityDescriptor:
                     and _ACTIVITY_KEY_RE.fullmatch(integration_key.strip())
                 )
             )
+            and (
+                kind is None
+                or (
+                    isinstance(kind, str)
+                    and re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,127}", kind.strip())
+                )
+            )
+            and lifecycle in {"invocation", "phase"}
+            and visibility in {"show", "hide"}
         ):
             return None
         return cls(
@@ -124,6 +143,9 @@ class ActivityDescriptor:
             integration_key=(
                 integration_key.strip() if isinstance(integration_key, str) else None
             ),
+            kind=kind.strip() if isinstance(kind, str) else None,
+            lifecycle=lifecycle,
+            visibility=visibility,
         )
 
 

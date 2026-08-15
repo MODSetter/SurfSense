@@ -10,6 +10,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from .description import select_description
@@ -57,4 +58,13 @@ def create_execute_code_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_execute_code,
         coroutine=async_execute_code,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Running code",
+                completed_title="Ran code",
+                category="action",
+                icon_key="square-code",
+                kind="execute_code",
+            ).as_metadata()
+        },
     )

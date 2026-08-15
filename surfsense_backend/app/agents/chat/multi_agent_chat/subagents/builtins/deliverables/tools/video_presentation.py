@@ -25,6 +25,7 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverabl
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
     resolve_root_thread_id,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.db import (
     VideoPresentationRun,
     VideoPresentationStatus,
@@ -182,4 +183,13 @@ def create_generate_video_presentation_tool(
                 tool_call_id=runtime.tool_call_id,
             )
 
+    generate_video_presentation.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Creating the presentation",
+            completed_title="Created the presentation",
+            category="artifact",
+            icon_key="film",
+            kind="generate_video_presentation",
+        ).as_metadata()
+    }
     return generate_video_presentation

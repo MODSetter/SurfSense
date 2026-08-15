@@ -139,6 +139,28 @@ async def test_capability_activity_descriptor_reaches_structured_tool_metadata(i
     }
 
 
+async def test_activity_descriptor_round_trips_local_lifecycle_policy():
+    metadata = ActivityDescriptor(
+        active_title="Planning work",
+        completed_title="Planned work",
+        category="action",
+        icon_key="list-todo",
+        kind="write_todos",
+        lifecycle="phase",
+        visibility="hide",
+    ).as_metadata()
+
+    assert ActivityDescriptor.from_metadata(metadata) == ActivityDescriptor(
+        active_title="Planning work",
+        completed_title="Planned work",
+        category="action",
+        icon_key="list-todo",
+        kind="write_todos",
+        lifecycle="phase",
+        visibility="hide",
+    )
+
+
 async def test_tool_runs_executor_and_returns_serialized_output(isolate):
     cap = _capability(name="web.scrape", output=_EchoOutput(echoed="hi there"))
     tools = isolate.module.build_capability_tools(workspace_id=7, capabilities=[cap])

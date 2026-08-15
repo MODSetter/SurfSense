@@ -15,6 +15,7 @@ import logging
 from langchain_core.tools import BaseTool, StructuredTool
 from sqlalchemy import select
 
+from app.capabilities.core import ActivityDescriptor
 from app.services.mcp_oauth.registry import get_service_by_connector_type
 
 logger = logging.getLogger(__name__)
@@ -96,4 +97,14 @@ def create_get_connected_accounts_tool(*, workspace_id: int) -> BaseTool:
         name="get_connected_accounts",
         description=_TOOL_DESCRIPTION,
         coroutine=_impl,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Checking connected apps",
+                completed_title="Checked connected apps",
+                category="connector",
+                icon_key="search",
+                kind="get_connected_accounts",
+                lifecycle="phase",
+            ).as_metadata()
+        },
     )

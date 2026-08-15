@@ -20,6 +20,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_p
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud
@@ -137,4 +138,13 @@ def create_edit_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_edit_file,
         coroutine=async_edit_file,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Editing file",
+                completed_title="Edited file",
+                category="file",
+                icon_key="file-pen",
+                kind="edit_file",
+            ).as_metadata()
+        },
     )

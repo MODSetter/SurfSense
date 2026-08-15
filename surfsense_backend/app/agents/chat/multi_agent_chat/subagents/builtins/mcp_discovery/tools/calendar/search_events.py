@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from app.agents.chat.multi_agent_chat.subagents.connectors.google_auth import (
     build_credentials as _build_credentials,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 
 logger = logging.getLogger(__name__)
@@ -164,4 +165,14 @@ def create_search_calendar_events_tool(
                 "message": "Failed to search calendar events. Please try again.",
             }
 
+    search_calendar_events.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Searching calendar",
+            completed_title="Searched calendar",
+            category="connector",
+            icon_key="calendar",
+            integration_key="google_calendar",
+            kind="search_calendar_events",
+        ).as_metadata()
+    }
     return search_calendar_events

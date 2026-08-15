@@ -18,6 +18,7 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thre
     resolve_root_thread_id,
 )
 from app.artifacts.media.image.record import record as record_image
+from app.capabilities.core import ActivityDescriptor
 from app.db import (
     Model,
     Workspace,
@@ -281,4 +282,13 @@ def create_generate_image_tool(
                 error=err,
             )
 
+    generate_image.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Creating an image",
+            completed_title="Created an image",
+            category="artifact",
+            icon_key="image",
+            kind="generate_image",
+        ).as_metadata()
+    }
     return generate_image
