@@ -46,11 +46,11 @@ def _office_bytes(format_name: str, label: str) -> bytes:
     return output.getvalue()
 
 
-def _runtime(format_name: str) -> ToolRuntime:
+def _runtime(format_name: str, thread_id: int) -> ToolRuntime:
     return ToolRuntime(
         state={},
         context=None,
-        config={"configurable": {"thread_id": f"77::task:{format_name}"}},
+        config={"configurable": {"thread_id": f"{thread_id}::task:{format_name}"}},
         stream_writer=None,
         tool_call_id=format_name,
         store=None,
@@ -93,6 +93,7 @@ async def _verify(
 async def test_office_tool_create_revise_editor_contract_and_purge(
     db_session,
     db_workspace,
+    artifact_thread,
     patched_embed_texts,
     monkeypatch,
     format_name,
@@ -141,7 +142,7 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
     tool = save_artifact_tool.create_save_artifact_tool(db_workspace.id)
-    runtime = _runtime(format_name)
+    runtime = _runtime(format_name, artifact_thread.id)
 
     sandbox.files[primary_path] = _office_bytes(format_name, "changed-before-save")
     rejected = await tool.coroutine(

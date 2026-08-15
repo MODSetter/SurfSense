@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from app.knowledge_store.paths.naming import normalize_filename
+from app.knowledge_store.paths import normalize_filename
 
 _DOT_RUNS = re.compile(r"\.+")
 

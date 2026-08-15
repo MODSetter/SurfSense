@@ -29,12 +29,17 @@ def artifact_backend(monkeypatch, patched_embed_texts):
 
 
 async def test_save_document_rejects_artifact_with_conflict(
-    db_session, db_workspace, db_user, artifact_backend, monkeypatch
+    db_session,
+    db_workspace,
+    db_user,
+    artifact_thread,
+    artifact_backend,
+    monkeypatch,
 ):
     saved = await save_artifact(
         db_session,
         workspace_id=db_workspace.id,
-        thread_id=1,
+        thread_id=artifact_thread.id,
         tool_call_id="markdown",
         title="Current / notes",
         markdown_representation="# Current notes",
