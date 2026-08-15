@@ -39,21 +39,36 @@ function hasAbortedToolCall(msg: AbortableMessage): boolean {
 	return false;
 }
 
-/**
- * True when EVERY tool-call on the row is aborted. The row is then a
- * frozen interrupt frame with no salvageable activity — safe to drop
- * outright.
- */
-function isFullyAbortedAssistantMessage(msg: AbortableMessage): boolean {
+/** True when an interrupted row contains content worth carrying forward. */
+function hasSalvageableContent(msg: AbortableMessage): boolean {
 	if (!isAssistant(msg) || !Array.isArray(msg.content)) return false;
-	let hasToolCalls = false;
 	for (const part of msg.content) {
-		if (typeof part !== "object" || part === null) continue;
-		if ((part as { type?: string }).type !== "tool-call") continue;
-		hasToolCalls = true;
-		if ((part as { state?: unknown }).state !== "aborted") return false;
+		if (parseActivityJournalPart(part)) return true;
+		if (typeof part !== "object" || part === null) {
+			if (typeof part === "string" && part.trim()) return true;
+			continue;
+		}
+		const typed = part as {
+			type?: unknown;
+			text?: unknown;
+			reasoning?: unknown;
+			state?: unknown;
+			result?: unknown;
+		};
+		if (typed.type === "tool-call") {
+			if (typed.state !== "aborted" || typed.result !== undefined) return true;
+			continue;
+		}
+		if (typed.type === "text" || typed.type === "reasoning" || typed.type === "status") {
+			const value = typed.text ?? typed.reasoning;
+			if (typeof value === "string" && value.trim()) return true;
+			continue;
+		}
+		// Unknown persisted parts are kept conservatively; only a proven-empty
+		// aborted shell may be discarded.
+		return true;
 	}
-	return hasToolCalls;
+	return false;
 }
 
 /**
@@ -174,9 +189,13 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		if (successorIdx === null) continue;
 
 		dropped.add(i);
-		if (!isFullyAbortedAssistantMessage(msg)) {
+		const inherited = mergeInto.get(i) ?? [];
+		mergeInto.delete(i);
+		const salvageable = hasSalvageableContent(msg);
+		if (inherited.length > 0 || salvageable) {
 			const list = mergeInto.get(successorIdx) ?? [];
-			list.push(i);
+			list.push(...inherited);
+			if (salvageable) list.push(i);
 			mergeInto.set(successorIdx, list);
 		}
 	}
@@ -187,7 +206,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		const olderIdxs = mergeInto.get(i);
 		if (olderIdxs && olderIdxs.length > 0) {
 			let merged = messages[i];
-			for (const olderIdx of olderIdxs) {
+			for (const olderIdx of olderIdxs.toReversed()) {
 				merged = mergeInterruptedIntoResume(messages[olderIdx], merged);
 			}
 			result.push(merged);
