@@ -64,6 +64,8 @@ jobs:
     if: github.event.pull_request.draft == false
     env:
       EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      REDIS_APP_URL: redis://localhost:6379/0
+      SANDBOX_IMAGE: surfsense/sandbox:dev
 
     services:
       postgres:
@@ -79,6 +81,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     steps:
       - name: Checkout code
