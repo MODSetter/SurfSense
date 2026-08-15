@@ -20,11 +20,15 @@ async def stream_output(
     result: StreamingResult,
     step_prefix: str = "turn",
     initial_activities: list[ActivityData] | None = None,
+    resume_activity_id_by_tool_call: dict[str, str] | None = None,
     content_builder: Any | None = None,
     runtime_context: Any = None,
 ) -> AsyncIterator[str]:
     """Yield SSE frames from agent ``astream_events`` via ``EventRelay``."""
-    state = AgentEventRelayState.for_invocation(initial_activities=initial_activities)
+    state = AgentEventRelayState.for_invocation(
+        initial_activities=initial_activities,
+        resume_activity_id_by_tool_call=resume_activity_id_by_tool_call,
+    )
 
     astream_kwargs: dict[str, Any] = {"config": config, "version": "v2"}
     if runtime_context is not None:

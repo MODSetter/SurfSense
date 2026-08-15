@@ -49,19 +49,7 @@ def handle_activity_progress(
     detail = _trusted_progress_detail(data)
     if not detail:
         return None
-    candidates = [
-        snapshot
-        for snapshot in state.activity_snapshot_by_id.values()
-        if snapshot.get("status") in {"running", "awaiting_approval"}
-    ]
-    if not candidates:
-        return None
-    current = max(candidates, key=lambda snapshot: snapshot["sequence"])
-    snapshot = state.transition_activity(
-        current["id"],
-        status="running",
-        details=[detail],
-    )
+    snapshot = state.journal.update_current_progress(detail)
     if snapshot is None:
         return None
     return emit_activity_frame(

@@ -10,6 +10,7 @@ from typing import Any
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
+from app.services.streaming.types import ActivityStatus
 from app.tasks.chat.streaming.handlers.tools import (
     ToolCompletionEmissionContext,
     iter_tool_completion_emission_frames,
@@ -110,30 +111,28 @@ def iter_tool_end_frames(
         holder["value"] = state.lc_tool_call_id_by_run[run_id]
 
     failed = tool_output_has_error(tool_output)
-    activity_id = state.activity_id_by_run.pop(run_id, None) if run_id else None
-    tool_metadata = state.tool_activity_metadata(activity_id=activity_id) or {}
-    if activity_id:
-        spec = state.activity_spec_by_id.get(activity_id)
-        raw_status = str(tool_output.get("status") or "").lower()
-        terminal_status = (
-            "cancelled"
-            if raw_status in {"cancelled", "canceled", "rejected"}
-            else "error"
-            if failed
-            else "completed"
+    raw_status = str(tool_output.get("status") or "").lower()
+    terminal_status: ActivityStatus = (
+        "cancelled"
+        if raw_status in {"cancelled", "canceled", "rejected"}
+        else "error"
+        if failed
+        else "completed"
+    )
+    activity_finish = state.journal.finish_tool(
+        run_id=run_id,
+        status=terminal_status,
+        completed_at=completed_at,
+    )
+    tool_metadata = (
+        state.tool_activity_metadata(activity_id=activity_finish.activity_id) or {}
+    )
+    if activity_finish.snapshot:
+        yield emit_activity_frame(
+            streaming_service=streaming_service,
+            content_builder=content_builder,
+            snapshot=activity_finish.snapshot,
         )
-        if spec and (spec.lifecycle == "invocation" or terminal_status != "completed"):
-            snapshot = state.transition_activity(
-                activity_id,
-                status=terminal_status,
-                completed_at=completed_at,
-            )
-            if snapshot:
-                yield emit_activity_frame(
-                    streaming_service=streaming_service,
-                    content_builder=content_builder,
-                    snapshot=snapshot,
-                )
 
     if tool_name == "verify_artifact":
         state.deliverable_needs_repair = failed

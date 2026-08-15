@@ -99,18 +99,10 @@ async def finalize_assistant_message(
         activity_state = stream_result.activity_state
         if activity_state is not None:
             interrupted_at = datetime.now(UTC).isoformat()
-            for activity_id, current in list(
-                activity_state.activity_snapshot_by_id.items()
+            for snapshot in activity_state.journal.interrupt_running(
+                completed_at=interrupted_at
             ):
-                if current.get("status") != "running":
-                    continue
-                snapshot = activity_state.transition_activity(
-                    activity_id,
-                    status="interrupted",
-                    completed_at=interrupted_at,
-                )
-                if snapshot:
-                    stream_result.content_builder.on_activity(snapshot)
+                stream_result.content_builder.on_activity(snapshot)
         stream_result.content_builder.mark_interrupted()
         # Snapshot stats BEFORE ``snapshot()`` deepcopies so the perf log
         # records the actual finalised payload (post-mark_interrupted), not

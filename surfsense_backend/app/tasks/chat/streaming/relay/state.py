@@ -6,14 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.services.streaming.types import ActivityData
-from app.tasks.chat.streaming.handlers.tools.activity import ActivitySpec
-
-_TERMINAL_ACTIVITY_STATUSES = {
-    "completed",
-    "error",
-    "cancelled",
-    "interrupted",
-}
+from app.tasks.chat.streaming.relay.activity_journal import ActivityJournal
 
 
 @dataclass
@@ -31,13 +24,7 @@ class AgentEventRelayState:
 
     accumulated_text: str = ""
     current_text_id: str | None = None
-    activity_counter: int = 0
-    activity_id_by_run: dict[str, str] = field(default_factory=dict)
-    activity_snapshot_by_id: dict[str, ActivityData] = field(default_factory=dict)
-    activity_spec_by_id: dict[str, ActivitySpec] = field(default_factory=dict)
-    resumable_activity_ids_by_kind: dict[str, list[str]] = field(default_factory=dict)
-    open_phase_by_scope: dict[str, tuple[str, str]] = field(default_factory=dict)
-    terminal_activity_ids: set[str] = field(default_factory=set)
+    journal: ActivityJournal = field(default_factory=ActivityJournal)
     active_tool_depth: int = 0
     current_reasoning_id: str | None = None
     pending_tool_call_chunks: list[dict[str, Any]] = field(default_factory=list)
@@ -91,58 +78,11 @@ class AgentEventRelayState:
         cls,
         *,
         initial_activities: list[ActivityData] | None = None,
+        resume_activity_id_by_tool_call: dict[str, str] | None = None,
     ) -> AgentEventRelayState:
-        snapshots = {
-            activity["id"]: activity
-            for activity in initial_activities or []
-            if activity.get("status") == "awaiting_approval"
-        }
-        resumable: dict[str, list[str]] = {}
-        for activity in sorted(
-            snapshots.values(), key=lambda item: (item["sequence"], item["id"])
-        ):
-            resumable.setdefault(activity["kind"], []).append(activity["id"])
         return cls(
-            activity_counter=max(
-                (activity["sequence"] for activity in snapshots.values()), default=0
+            journal=ActivityJournal.resume(
+                activities=initial_activities,
+                activity_id_by_tool_call=resume_activity_id_by_tool_call,
             ),
-            activity_snapshot_by_id=snapshots,
-            resumable_activity_ids_by_kind=resumable,
         )
-
-    def next_activity_id(self, step_prefix: str) -> str:
-        self.activity_counter += 1
-        return f"act_{step_prefix}_{self.activity_counter}"
-
-    def transition_activity(
-        self,
-        activity_id: str,
-        *,
-        status: str,
-        completed_at: str | None = None,
-        details: list[str] | None = None,
-    ) -> ActivityData | None:
-        current = self.activity_snapshot_by_id.get(activity_id)
-        spec = self.activity_spec_by_id.get(activity_id)
-        if current is None or spec is None:
-            return None
-        if activity_id in self.terminal_activity_ids:
-            return current
-        started_at = current["startedAt"]
-        integration = current.get("integration")
-        snapshot = spec.snapshot(
-            activity_id=activity_id,
-            sequence=current["sequence"],
-            status=status,  # type: ignore[arg-type]
-            started_at=started_at,
-            completed_at=completed_at,
-            details=details if details is not None else current.get("details"),
-            integration=integration,
-        )
-        self.activity_snapshot_by_id[activity_id] = snapshot
-        if status in _TERMINAL_ACTIVITY_STATUSES:
-            self.terminal_activity_ids.add(activity_id)
-            for scope, (_, open_id) in list(self.open_phase_by_scope.items()):
-                if open_id == activity_id:
-                    self.open_phase_by_scope.pop(scope, None)
-        return snapshot
