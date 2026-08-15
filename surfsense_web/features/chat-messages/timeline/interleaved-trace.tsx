@@ -39,7 +39,7 @@ import type {
 	ActivityStatus,
 	ActivityTimingData,
 	ActivityTimingProjection,
-} from "@/lib/chat/streaming-state";
+} from "@/lib/chat/activity-journal";
 import { trackActivityTraceInteraction } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";

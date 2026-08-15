@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useState } from "react";
 
-import type { ActivityTimingData, ActivityTimingProjection } from "@/lib/chat/streaming-state";
+import type { ActivityTimingData, ActivityTimingProjection } from "@/lib/chat/activity-journal";
 
 export function formatElapsed(milliseconds: number): string {
 	const seconds = Math.max(0, milliseconds) / 1000;
