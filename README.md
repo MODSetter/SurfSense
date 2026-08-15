@@ -268,11 +268,11 @@ Thanks to all our Surfers:
 
 ## Star History
 
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+<a href="https://star-history.dera.page/#MODSetter/SurfSense&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=MODSetter/SurfSense&type=Date" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=MODSetter/SurfSense&type=Date" />
  </picture>
 </a>
 
