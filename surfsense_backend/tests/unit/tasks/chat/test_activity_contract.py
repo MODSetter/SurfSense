@@ -434,7 +434,12 @@ def test_visible_native_tools_declare_descriptors_at_their_definition() -> None:
             "create_automation"
         },
         "app/agents/chat/multi_agent_chat/main_agent/tools/update_memory.py": {
-            "update_memory"
+            "memory.personal",
+            "memory.team",
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/memory/tools/update_memory.py": {
+            "memory.personal",
+            "memory.team",
         },
     }
 
@@ -624,7 +629,8 @@ def test_resume_reuses_persisted_awaiting_activity_identity() -> None:
     )
     state = AgentEventRelayState.for_invocation(
         initial_activities=[awaiting],
-        resume_activity_id_by_tool_call={"call_resumed-write": awaiting["id"]},
+        resume_activity_id_by_tool_call={"lc-original-write": awaiting["id"]},
+        resume_tool_call_ids=["lc-original-write"],
     )
     builder = AssistantContentBuilder()
     result = SimpleNamespace(write_attempted=False)
@@ -652,6 +658,9 @@ def test_resume_reuses_persisted_awaiting_activity_identity() -> None:
     assert resumed["data"]["startedAt"] == "2026-01-01T00:00:00+00:00"
     tool_part = next(part for part in builder.snapshot() if part["type"] == "tool-call")
     assert tool_part["metadata"]["activityId"] == "act_original_7"
+    assert tool_part["langchainToolCallId"] == "lc-original-write"
+    assert not state.resume_tool_call_ids
+    assert not state.journal.resume_id_by_tool_call
 
 
 def test_resume_seed_loader_returns_paused_journal() -> None:
@@ -691,6 +700,7 @@ def test_resume_seed_loader_returns_paused_journal() -> None:
     assert seed.activities == [awaiting]
     assert seed.timing == {"status": "paused", "activeDurationMs": 2400}
     assert seed.activity_id_by_tool_call == {"call-write": awaiting["id"]}
+    assert seed.tool_call_ids == ["call-write"]
 
 
 def test_activity_timer_excludes_hitl_wait_and_resumes_accumulation() -> None:
