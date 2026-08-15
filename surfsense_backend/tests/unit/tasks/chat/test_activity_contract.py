@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from app.agents.chat.multi_agent_chat.shared.tools.mcp.tool import (
@@ -11,15 +12,12 @@ from app.services.streaming.types import ActivityTimingData
 from app.tasks.chat.content_builder import AssistantContentBuilder
 from app.tasks.chat.streaming.activity_timing import ActivityTimer
 from app.tasks.chat.streaming.flows.resume_chat.assistant_shell import (
-    _resumable_journal_from_messages,
+    _resumable_journal_from_content,
 )
 from app.tasks.chat.streaming.flows.shared.first_frames import iter_initial_frames
 from app.tasks.chat.streaming.handlers.custom_events import handle_activity_progress
 from app.tasks.chat.streaming.handlers.tool_end import iter_tool_end_frames
-from app.tasks.chat.streaming.handlers.tool_start import (
-    _artifact_instruction_type,
-    iter_tool_start_frames,
-)
+from app.tasks.chat.streaming.handlers.tool_start import iter_tool_start_frames
 from app.tasks.chat.streaming.handlers.tools.activity import resolve_tool_activity
 from app.tasks.chat.streaming.relay.activity_sse import emit_activity_timing_frame
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
@@ -76,18 +74,6 @@ def test_initial_frames_carry_turn_identity_without_timing_copy() -> None:
     ]
     turn_info = frames[2]["data"]
     assert turn_info == {"chat_turn_id": "12:activity-clock"}
-    assert all(frame["type"] != "data-thinking-step" for frame in frames)
-
-
-def test_artifact_instruction_type_comes_from_the_structured_tool() -> None:
-    assert (
-        _artifact_instruction_type(
-            "load_artifact_instructions",
-            {"artifact_type": "pdf"},
-        )
-        == "pdf"
-    )
-    assert _artifact_instruction_type("execute", {"artifact_type": "pdf"}) is None
 
 
 def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
@@ -188,7 +174,20 @@ def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
     verify_frames = [
         _payload(frame)
         for frame in iter_tool_start_frames(
-            {"name": "verify_artifact", "run_id": "verify-1", "data": {"input": {}}},
+            {
+                "name": "verify_artifact",
+                "run_id": "verify-1",
+                "metadata": {
+                    "activity_descriptor": {
+                        "active_title": "Checking the artifact",
+                        "completed_title": "Checked the artifact",
+                        "category": "artifact",
+                        "icon_key": "badge-check",
+                        "kind": "verify_artifact",
+                    }
+                },
+                "data": {"input": {}},
+            },
             state=state,
             streaming_service=service,
             content_builder=builder,
@@ -292,7 +291,7 @@ def test_unknown_tools_are_generic_and_internal_tools_are_hidden() -> None:
         assert all(frame["type"] != "data-activity" for frame in hidden)
 
 
-def test_backend_assigns_specific_icons_and_safe_fallbacks() -> None:
+def test_localized_native_descriptor_inventory_and_safe_fallbacks() -> None:
     expected_icons = {
         "read_file": "file-text",
         "write_file": "file-plus",
@@ -312,34 +311,49 @@ def test_backend_assigns_specific_icons_and_safe_fallbacks() -> None:
         "read_sandbox_file": "file-text",
         "verify_artifact": "badge-check",
         "save_artifact": "file-output",
-        "save_document": "file-output",
         "generate_image": "image",
-        "display_image": "image",
         "generate_podcast": "microphone",
         "generate_video_presentation": "film",
         "search_knowledge_base": "library",
         "ask_knowledge_base": "library",
-        "scrape_webpage": "scan-text",
-        "google_search.scrape": "search",
-        "web.crawl": "scan-text",
-        "link_preview": "external-link",
-        "multi_link_preview": "external-link",
         "create_calendar_event": "calendar",
         "update_calendar_event": "calendar",
         "delete_calendar_event": "calendar",
         "search_calendar_events": "calendar",
         "create_automation": "workflow",
         "update_memory": "brain",
+        "get_connected_accounts": "search",
     }
 
     for tool_name, icon_key in expected_icons.items():
-        spec = resolve_tool_activity(tool_name, subagent_type=None)
+        spec = resolve_tool_activity(
+            tool_name,
+            subagent_type=None,
+            trusted_descriptor={
+                "active_title": "Working",
+                "completed_title": "Worked",
+                "category": "action",
+                "icon_key": icon_key,
+                "kind": tool_name,
+            },
+        )
         assert spec.icon_key == icon_key
 
     unknown = resolve_tool_activity("dynamic_unknown_tool", subagent_type=None)
     assert unknown.icon_key == "tool"
 
-    service = resolve_tool_activity("youtube.scrape", subagent_type=None)
+    service = resolve_tool_activity(
+        "youtube.scrape",
+        subagent_type=None,
+        trusted_descriptor={
+            "active_title": "Reviewing video",
+            "completed_title": "Reviewed video",
+            "category": "research",
+            "icon_key": "youtube",
+            "kind": "youtube.scrape",
+            "integration_key": "youtube",
+        },
+    )
     snapshot = service.snapshot(
         activity_id="act_youtube",
         sequence=1,
@@ -347,6 +361,91 @@ def test_backend_assigns_specific_icons_and_safe_fallbacks() -> None:
         started_at="2026-01-01T00:00:00+00:00",
     )
     assert snapshot["integration"] == {"source": "native", "key": "youtube"}
+
+
+def test_visible_native_tools_declare_descriptors_at_their_definition() -> None:
+    backend_root = Path(__file__).parents[4]
+    inventory = {
+        "app/agents/chat/multi_agent_chat/shared/middleware/filesystem/middleware/middleware.py": {
+            "glob",
+            "grep",
+        },
+        "app/agents/chat/multi_agent_chat/shared/middleware/todos.py": {"write_todos"},
+        **{
+            f"app/agents/chat/multi_agent_chat/shared/middleware/filesystem/tools/{name}/index.py": {
+                name
+            }
+            for name in (
+                "edit_file",
+                "execute_code",
+                "list_tree",
+                "ls",
+                "mkdir",
+                "move_file",
+                "read_file",
+                "rm",
+                "rmdir",
+                "write_file",
+            )
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/generate_image.py": {
+            "generate_image"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/load_artifact_source.py": {
+            "load_artifact_source"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/podcast.py": {
+            "generate_podcast"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/sandbox.py": {
+            "read_sandbox_file"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/save_artifact.py": {
+            "save_artifact"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/verify_artifact.py": {
+            "verify_artifact"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/video_presentation.py": {
+            "generate_video_presentation"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/knowledge_base/ask_knowledge_base_tool.py": {
+            "ask_knowledge_base"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/knowledge_base/tools/search_knowledge_base.py": {
+            "search_knowledge_base"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/mcp_discovery/tools/calendar/create_event.py": {
+            "create_calendar_event"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/mcp_discovery/tools/calendar/delete_event.py": {
+            "delete_calendar_event"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/mcp_discovery/tools/calendar/search_events.py": {
+            "search_calendar_events"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/mcp_discovery/tools/calendar/update_event.py": {
+            "update_calendar_event"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/mcp_discovery/tools/get_connected_accounts.py": {
+            "get_connected_accounts"
+        },
+        "app/agents/chat/multi_agent_chat/main_agent/tools/automation/create.py": {
+            "create_automation"
+        },
+        "app/agents/chat/multi_agent_chat/main_agent/tools/update_memory.py": {
+            "update_memory"
+        },
+    }
+
+    for relative_path, tool_names in inventory.items():
+        source = (backend_root / relative_path).read_text()
+        assert source.count('"activity_descriptor"') >= len(tool_names), relative_path
+        for tool_name in tool_names:
+            assert f'kind="{tool_name}"' in source or (
+                f'"{tool_name}"' in source
+                and ("kind=TOOL_NAME" in source or "kind=tool_name" in source)
+            ), (relative_path, tool_name)
 
 
 def test_unknown_mcp_tool_uses_generic_activity_and_mcp_integration() -> None:
@@ -464,7 +563,7 @@ def test_generated_native_tool_keeps_activity_id_through_result_lifecycle() -> N
             step_prefix="turn",
         )
     )
-    activity_id = state.activity_id_by_run["search-1"]
+    activity_id = state.journal.id_by_run["search-1"]
 
     list(
         iter_tool_end_frames(
@@ -523,7 +622,10 @@ def test_resume_reuses_persisted_awaiting_activity_identity() -> None:
         status="awaiting_approval",
         started_at="2026-01-01T00:00:00+00:00",
     )
-    state = AgentEventRelayState.for_invocation(initial_activities=[awaiting])
+    state = AgentEventRelayState.for_invocation(
+        initial_activities=[awaiting],
+        resume_activity_id_by_tool_call={"call_resumed-write": awaiting["id"]},
+    )
     builder = AssistantContentBuilder()
     result = SimpleNamespace(write_attempted=False)
 
@@ -568,66 +670,27 @@ def test_resume_seed_loader_returns_paused_journal() -> None:
         completed_at="2026-01-01T00:00:01+00:00",
     )
 
-    seed = _resumable_journal_from_messages(
+    seed = _resumable_journal_from_content(
         [
-            [
-                {"type": "data-thinking-steps", "data": {"steps": []}},
-                {
-                    "type": "data-activities",
-                    "data": {
-                        "activities": [completed, awaiting],
-                        "timing": {"status": "paused", "activeDurationMs": 2400},
-                    },
+            {
+                "type": "data-activities",
+                "data": {
+                    "activities": [completed, awaiting],
+                    "timing": {"status": "paused", "activeDurationMs": 2400},
                 },
-            ]
+            },
+            {
+                "type": "tool-call",
+                "toolCallId": "call-write",
+                "toolName": "write_file",
+                "metadata": {"activityId": awaiting["id"]},
+            },
         ]
     )
 
     assert seed.activities == [awaiting]
     assert seed.timing == {"status": "paused", "activeDurationMs": 2400}
-
-
-def test_resume_seed_loader_uses_latest_snapshot_across_resume_messages() -> None:
-    spec = resolve_tool_activity("write_file", subagent_type=None)
-    awaiting = spec.snapshot(
-        activity_id="act_shared",
-        sequence=1,
-        status="awaiting_approval",
-        started_at="2026-01-01T00:00:00+00:00",
-    )
-    completed = spec.snapshot(
-        activity_id="act_shared",
-        sequence=1,
-        status="completed",
-        started_at="2026-01-01T00:00:00+00:00",
-        completed_at="2026-01-01T00:00:01+00:00",
-    )
-
-    seed = _resumable_journal_from_messages(
-        [
-            [
-                {
-                    "type": "data-activities",
-                    "data": {
-                        "activities": [completed],
-                        "timing": {"status": "completed", "activeDurationMs": 3100},
-                    },
-                }
-            ],
-            [
-                {
-                    "type": "data-activities",
-                    "data": {
-                        "activities": [awaiting],
-                        "timing": {"status": "paused", "activeDurationMs": 2000},
-                    },
-                }
-            ],
-        ]
-    )
-
-    assert seed.activities == []
-    assert seed.timing is None
+    assert seed.activity_id_by_tool_call == {"call-write": awaiting["id"]}
 
 
 def test_activity_timer_excludes_hitl_wait_and_resumes_accumulation() -> None:
@@ -713,8 +776,8 @@ def test_custom_progress_uses_allowlisted_details_not_raw_messages() -> None:
         status="running",
         started_at="2026-01-01T00:00:00+00:00",
     )
-    state.activity_spec_by_id[snapshot["id"]] = spec
-    state.activity_snapshot_by_id[snapshot["id"]] = snapshot
+    state.journal.spec_by_id[snapshot["id"]] = spec
+    state.journal.snapshot_by_id[snapshot["id"]] = snapshot
 
     frame = handle_activity_progress(
         {
@@ -743,14 +806,14 @@ def test_activity_state_preserves_terminal_monotonicity() -> None:
         status="running",
         started_at="2026-01-01T00:00:00+00:00",
     )
-    state.activity_spec_by_id[running["id"]] = spec
-    state.activity_snapshot_by_id[running["id"]] = running
+    state.journal.spec_by_id[running["id"]] = spec
+    state.journal.snapshot_by_id[running["id"]] = running
 
-    awaiting = state.transition_activity(running["id"], status="awaiting_approval")
+    awaiting = state.journal.transition(running["id"], status="awaiting_approval")
     assert awaiting and awaiting["status"] == "awaiting_approval"
     assert "completedAt" not in awaiting
 
-    interrupted = state.transition_activity(
+    interrupted = state.journal.transition(
         running["id"],
         status="interrupted",
         completed_at="2026-01-01T00:01:00+00:00",
@@ -758,6 +821,6 @@ def test_activity_state_preserves_terminal_monotonicity() -> None:
     assert interrupted and interrupted["status"] == "interrupted"
     assert interrupted["completedAt"]
     assert (
-        state.transition_activity(running["id"], status="running")["status"]
+        state.journal.transition(running["id"], status="running")["status"]
         == "interrupted"
     )

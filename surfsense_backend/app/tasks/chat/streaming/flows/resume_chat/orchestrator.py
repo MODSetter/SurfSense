@@ -373,7 +373,19 @@ async def stream_resume_chat(
         routing = await build_resume_routing(
             agent, chat_id=chat_id, decisions=decisions
         )
-        resumable_journal = await load_resumable_activity_journal(chat_id)
+        paused_checkpoint = await checkpointer.aget_tuple(
+            {"configurable": {"thread_id": str(chat_id)}}
+        )
+        paused_metadata = paused_checkpoint.metadata if paused_checkpoint else {}
+        paused_turn_id = (
+            paused_metadata.get("turn_id")
+            if isinstance(paused_metadata, dict)
+            else None
+        )
+        resumable_journal = await load_resumable_activity_journal(
+            chat_id,
+            turn_id=paused_turn_id if isinstance(paused_turn_id, str) else None,
+        )
 
         config = {
             "configurable": {
@@ -537,6 +549,9 @@ async def stream_resume_chat(
             stream_result=stream_result,
             step_prefix=resume_step_prefix(stream_result.turn_id),
             initial_activities=resumable_journal.activities,
+            resume_activity_id_by_tool_call=(
+                resumable_journal.activity_id_by_tool_call
+            ),
             fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
