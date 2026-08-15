@@ -12,7 +12,11 @@ pytestmark = pytest.mark.unit
 def test_tool_parts_matches_only_podcast_tool_calls_with_a_result():
     content = [
         {"type": "text", "text": "hi"},
-        {"type": "tool-call", "toolName": "generate_image", "result": {"artifact_id": 1}},
+        {
+            "type": "tool-call",
+            "toolName": "generate_image",
+            "result": {"artifact_id": 1},
+        },
         {"type": "tool-call", "toolName": "generate_podcast"},  # no result
         {
             "type": "tool-call",

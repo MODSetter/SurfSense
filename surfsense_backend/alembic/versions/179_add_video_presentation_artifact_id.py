@@ -27,6 +27,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER TABLE video_presentations DROP COLUMN IF EXISTS artifact_id"
-    )
+    op.execute("ALTER TABLE video_presentations DROP COLUMN IF EXISTS artifact_id")

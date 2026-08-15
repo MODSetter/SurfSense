@@ -65,20 +65,26 @@ async def test_receipts_for_multiple_artifacts_do_not_overwrite_each_other():
     await write_receipt(session, docx_receipt, SECRET)
     await write_receipt(session, pdf_receipt, SECRET)
 
-    assert await read_receipt(
-        session,
-        SECRET,
-        workspace_id=WORKSPACE_ID,
-        primary_path=docx_receipt.primary_path,
-        now=100,
-    ) == docx_receipt
-    assert await read_receipt(
-        session,
-        SECRET,
-        workspace_id=WORKSPACE_ID,
-        primary_path=pdf_receipt.primary_path,
-        now=100,
-    ) == pdf_receipt
+    assert (
+        await read_receipt(
+            session,
+            SECRET,
+            workspace_id=WORKSPACE_ID,
+            primary_path=docx_receipt.primary_path,
+            now=100,
+        )
+        == docx_receipt
+    )
+    assert (
+        await read_receipt(
+            session,
+            SECRET,
+            workspace_id=WORKSPACE_ID,
+            primary_path=pdf_receipt.primary_path,
+            now=100,
+        )
+        == pdf_receipt
+    )
 
 
 async def test_receipt_rejects_tampered_payload():

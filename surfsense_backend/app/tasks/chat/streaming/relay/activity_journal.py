@@ -278,9 +278,7 @@ class ActivityJournal:
         self.deferred_close_at_by_activity.pop(activity_id, None)
         if deferred is not None:
             status, completed_at = deferred
-        return self.transition(
-            activity_id, status=status, completed_at=completed_at
-        )
+        return self.transition(activity_id, status=status, completed_at=completed_at)
 
     def _defer_outcome(
         self,

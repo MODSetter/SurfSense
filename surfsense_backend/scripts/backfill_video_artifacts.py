@@ -235,7 +235,9 @@ async def backfill(*, apply: bool) -> None:
 
         for row in strays:
             await session.execute(
-                text("UPDATE video_presentations SET artifact_id = :aid WHERE id = :id"),
+                text(
+                    "UPDATE video_presentations SET artifact_id = :aid WHERE id = :id"
+                ),
                 {"aid": artifacts[row.id][0], "id": row.id},
             )
         if strays:

@@ -69,12 +69,7 @@ export function RunDetail({
 	if (!run) return null;
 
 	return (
-		<div
-			className={cn(
-				"space-y-4 p-4",
-				showTopBorder && "border-t border-border/60"
-			)}
-		>
+		<div className={cn("space-y-4 p-4", showTopBorder && "border-t border-border/60")}>
 			{run.error && (
 				<div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
 					{run.error}

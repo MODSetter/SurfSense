@@ -194,7 +194,9 @@ async def backfill(*, apply: bool) -> None:
             files=[
                 ArtifactFileInput(
                     data=audio,
-                    filename=primary_filename(title, extension="mp3", fallback="podcast"),
+                    filename=primary_filename(
+                        title, extension="mp3", fallback="podcast"
+                    ),
                     mime_type="audio/mpeg",
                     role=ArtifactFileRole.PRIMARY,
                 )
@@ -225,7 +227,9 @@ async def backfill(*, apply: bool) -> None:
         # before the column landed): stamp the link, don't re-create.
         strays = [row for row in rows if row.id in artifacts]
 
-        print(f"{len(rows)} pending podcast row(s); {len(artifacts)} already converted.")
+        print(
+            f"{len(rows)} pending podcast row(s); {len(artifacts)} already converted."
+        )
         if not apply:
             print(f"Dry run: {len(pending)} row(s) would become Artifacts.")
             if strays:

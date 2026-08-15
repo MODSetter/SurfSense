@@ -116,16 +116,22 @@ def test_phase_reuses_identity_until_a_different_phase_starts() -> None:
         langchain_tool_call_id=None,
         integration=None,
     )
-    assert journal.finish_tool(
-        run_id="plan-1",
-        status="completed",
-        completed_at="2026-01-01T00:00:01+00:00",
-    ).snapshot is None
-    assert journal.finish_tool(
-        run_id="plan-2",
-        status="completed",
-        completed_at="2026-01-01T00:00:01+00:00",
-    ).snapshot is None
+    assert (
+        journal.finish_tool(
+            run_id="plan-1",
+            status="completed",
+            completed_at="2026-01-01T00:00:01+00:00",
+        ).snapshot
+        is None
+    )
+    assert (
+        journal.finish_tool(
+            run_id="plan-2",
+            status="completed",
+            completed_at="2026-01-01T00:00:01+00:00",
+        ).snapshot
+        is None
+    )
     next_phase = journal.begin_tool(
         spec=research,
         run_id="research",
@@ -182,11 +188,14 @@ def test_phase_close_waits_for_all_runs_and_preserves_late_error() -> None:
     assert [snapshot["id"] for snapshot in next_phase.snapshots] == [
         next_phase.activity_id
     ]
-    assert journal.finish_tool(
-        run_id="plan-2",
-        status="completed",
-        completed_at="2026-01-01T00:00:03+00:00",
-    ).snapshot is None
+    assert (
+        journal.finish_tool(
+            run_id="plan-2",
+            status="completed",
+            completed_at="2026-01-01T00:00:03+00:00",
+        ).snapshot
+        is None
+    )
     failed = journal.finish_tool(
         run_id="plan-1",
         status="error",
@@ -214,16 +223,22 @@ def test_phase_outcomes_use_deterministic_severity() -> None:
             integration=None,
         )
 
-    assert journal.finish_tool(
-        run_id="one",
-        status="interrupted",
-        completed_at="2026-01-01T00:00:01+00:00",
-    ).snapshot is None
-    assert journal.finish_tool(
-        run_id="two",
-        status="cancelled",
-        completed_at="2026-01-01T00:00:02+00:00",
-    ).snapshot is None
+    assert (
+        journal.finish_tool(
+            run_id="one",
+            status="interrupted",
+            completed_at="2026-01-01T00:00:01+00:00",
+        ).snapshot
+        is None
+    )
+    assert (
+        journal.finish_tool(
+            run_id="two",
+            status="cancelled",
+            completed_at="2026-01-01T00:00:02+00:00",
+        ).snapshot
+        is None
+    )
     final = journal.finish_tool(
         run_id="three",
         status="error",
@@ -258,15 +273,15 @@ def test_successful_phase_closes_after_its_final_active_run() -> None:
         integration=None,
     )
 
+    assert journal.complete_open_phases(completed_at="2026-01-01T00:00:02+00:00") == []
     assert (
-        journal.complete_open_phases(completed_at="2026-01-01T00:00:02+00:00")
-        == []
+        journal.finish_tool(
+            run_id="one",
+            status="completed",
+            completed_at="2026-01-01T00:00:03+00:00",
+        ).snapshot
+        is None
     )
-    assert journal.finish_tool(
-        run_id="one",
-        status="completed",
-        completed_at="2026-01-01T00:00:03+00:00",
-    ).snapshot is None
     closed = journal.finish_tool(
         run_id="two",
         status="completed",
@@ -292,9 +307,7 @@ def test_interrupt_running_force_closes_active_phase_runs() -> None:
         integration=None,
     )
 
-    interrupted = journal.interrupt_running(
-        completed_at="2026-01-01T00:00:01+00:00"
-    )
+    interrupted = journal.interrupt_running(completed_at="2026-01-01T00:00:01+00:00")
 
     assert interrupted[0]["id"] == started.activity_id
     assert interrupted[0]["status"] == "interrupted"

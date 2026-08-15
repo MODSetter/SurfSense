@@ -34,7 +34,13 @@ async def _primary_key(db_session, artifact_id: int) -> str:
 
 
 async def test_render_marks_ready_and_records_the_artifact(
-    db_session, db_workspace, make_podcast, bind_task_session, fake_tts, fake_merge, fake_storage
+    db_session,
+    db_workspace,
+    make_podcast,
+    bind_task_session,
+    fake_tts,
+    fake_merge,
+    fake_storage,
 ):
     podcast = await make_podcast(
         workspace_id=db_workspace.id, status=PodcastStatus.RENDERING

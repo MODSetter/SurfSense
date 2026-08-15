@@ -13,14 +13,14 @@ import {
 // Run with: pnpm exec tsx --test tests/unit/artifacts/parse-workbook.test.ts
 
 async function workbookBytes(
-	build: (wb: ExcelJS.Workbook) => void | Promise<void>,
+	build: (wb: ExcelJS.Workbook) => void | Promise<void>
 ): Promise<ArrayBuffer> {
 	const wb = new ExcelJS.Workbook();
 	await build(wb);
 	const buffer = Buffer.from(await wb.xlsx.writeBuffer());
 	return buffer.buffer.slice(
 		buffer.byteOffset,
-		buffer.byteOffset + buffer.byteLength,
+		buffer.byteOffset + buffer.byteLength
 	) as ArrayBuffer;
 }
 
@@ -62,8 +62,7 @@ test("parseWorkbook rejects oversize payloads before parsing", async () => {
 	const huge = new ArrayBuffer(MAX_VIEWER_BYTES + 1);
 	await assert.rejects(
 		() => parseWorkbook(huge),
-		(error: unknown) =>
-			error instanceof ParseWorkbookError && error.code === "oversize",
+		(error: unknown) => error instanceof ParseWorkbookError && error.code === "oversize"
 	);
 });
 
@@ -71,7 +70,6 @@ test("parseWorkbook rejects corrupt workbooks", async () => {
 	const corrupt = Buffer.from("not-a-workbook").buffer;
 	await assert.rejects(
 		() => parseWorkbook(corrupt),
-		(error: unknown) =>
-			error instanceof ParseWorkbookError && error.code === "corrupt",
+		(error: unknown) => error instanceof ParseWorkbookError && error.code === "corrupt"
 	);
 });

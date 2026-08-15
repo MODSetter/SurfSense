@@ -116,9 +116,7 @@ async def _generate_video_presentation(
         video_pres = result.scalars().first()
 
         if not video_pres:
-            raise ValueError(
-                f"VideoPresentationRun {video_presentation_id} not found"
-            )
+            raise ValueError(f"VideoPresentationRun {video_presentation_id} not found")
 
         try:
             video_pres.status = VideoPresentationStatus.GENERATING
@@ -255,9 +253,7 @@ async def _generate_video_presentation(
                 video_pres.artifact_id,
             )
             await session.commit()
-            logger.info(
-                "VideoPresentationRun %s: READY commit complete", video_pres.id
-            )
+            logger.info("VideoPresentationRun %s: READY commit complete", video_pres.id)
 
             logger.info(f"Successfully generated video presentation: {video_pres.id}")
 

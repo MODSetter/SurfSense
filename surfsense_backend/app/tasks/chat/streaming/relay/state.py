@@ -93,4 +93,6 @@ class AgentEventRelayState:
 
     def consume_resume_tool_call_id(self) -> str | None:
         """Consume the next persisted call identity for a replayed HITL tool."""
-        return self.resume_tool_call_ids.popleft() if self.resume_tool_call_ids else None
+        return (
+            self.resume_tool_call_ids.popleft() if self.resume_tool_call_ids else None
+        )

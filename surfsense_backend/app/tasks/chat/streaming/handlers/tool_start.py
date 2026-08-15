@@ -123,10 +123,7 @@ def iter_tool_start_frames(
         and activity.visibility != "hide"
     ):
         langchain_tool_call_id = state.consume_resume_tool_call_id()
-        if (
-            langchain_tool_call_id is None
-            and state.journal.resume_id_by_tool_call
-        ):
+        if langchain_tool_call_id is None and state.journal.resume_id_by_tool_call:
             logger.warning(
                 "[activity_resume] no persisted tool-call id available "
                 "for replayed tool name=%s run_id=%s remaining_bindings=%d",

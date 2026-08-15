@@ -32,10 +32,7 @@ export function ArtifactCard({
 						<ArtifactFormatLabel format={artifact.format} className="shrink-0" />
 						{statusLabel ? (
 							<>
-								<Dot
-									className="size-4 shrink-0 text-muted-foreground/60"
-									aria-hidden="true"
-								/>
+								<Dot className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
 								<span
 									className={cn(
 										"truncate",
@@ -50,9 +47,7 @@ export function ArtifactCard({
 				</span>
 			</span>
 			<span className="mt-auto flex min-w-0 items-center justify-between gap-3 pt-3 text-xs text-muted-foreground">
-				<span className="min-w-0 truncate">
-					Created {formatRelativeDate(artifact.createdAt)}
-				</span>
+				<span className="min-w-0 truncate">Created {formatRelativeDate(artifact.createdAt)}</span>
 				{href ? <ChevronRight className="size-4 shrink-0" aria-hidden="true" /> : null}
 			</span>
 		</>
