@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from app.agents.chat.multi_agent_chat.shared.tools.mcp.tool import (
     _mcp_activity_descriptor,
 )
@@ -19,7 +21,11 @@ from app.tasks.chat.streaming.handlers.custom_events import handle_activity_prog
 from app.tasks.chat.streaming.handlers.tool_end import iter_tool_end_frames
 from app.tasks.chat.streaming.handlers.tool_start import iter_tool_start_frames
 from app.tasks.chat.streaming.handlers.tools.activity import resolve_tool_activity
-from app.tasks.chat.streaming.relay.activity_sse import emit_activity_timing_frame
+from app.tasks.chat.streaming.relay.activity_sse import (
+    emit_activity_timing_frame,
+    emit_completed_activity_timing_frame,
+    emit_completed_activity_timing_frame_if_running,
+)
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 
 
@@ -725,6 +731,36 @@ def test_activity_timer_excludes_hitl_wait_and_resumes_accumulation() -> None:
     }
 
 
+def test_activity_timer_cleanup_completes_only_running_timers() -> None:
+    running = ActivityTimer.start(now_ns=1_000_000_000)
+    assert running.complete_if_running(now_ns=3_000_000_000) == {
+        "status": "completed",
+        "activeDurationMs": 2000,
+    }
+    assert running.complete_if_running(now_ns=9_000_000_000) is None
+
+    paused = ActivityTimer.start(now_ns=1_000_000_000)
+    paused.pause(now_ns=2_000_000_000)
+    assert paused.complete_if_running(now_ns=9_000_000_000) is None
+    assert paused.status == "paused"
+
+
+def test_activity_timer_excludes_multiple_hitl_waits_and_keeps_pause_strict() -> None:
+    timer = ActivityTimer.start(now_ns=0)
+    first_pause = timer.pause(now_ns=10_000_000_000)
+    with pytest.raises(ValueError, match="Only a running activity timer can pause"):
+        timer.pause(now_ns=20_000_000_000)
+
+    timer = ActivityTimer.resume(first_pause, now_ns=310_000_000_000)
+    second_pause = timer.pause(now_ns=325_000_000_000)
+    timer = ActivityTimer.resume(second_pause, now_ns=925_000_000_000)
+
+    assert timer.complete(now_ns=955_000_000_000) == {
+        "status": "completed",
+        "activeDurationMs": 55_000,
+    }
+
+
 def test_activity_builder_keeps_timing_and_rows_in_one_journal() -> None:
     builder = AssistantContentBuilder()
     builder.on_activity_timing(
@@ -773,6 +809,53 @@ def test_activity_timing_wire_and_persistence_use_the_same_snapshot() -> None:
 
     assert _payload(frame) == {"type": "data-activity-timing", "data": snapshot}
     assert builder.snapshot()[0]["data"]["timing"] == snapshot
+
+
+def test_completed_timing_frame_is_strict_and_cleanup_is_idempotent() -> None:
+    service = VercelStreamingService()
+    builder = AssistantContentBuilder()
+    running = ActivityTimer.start(now_ns=1_000_000_000)
+
+    frame = emit_completed_activity_timing_frame(
+        streaming_service=service,
+        content_builder=builder,
+        timer=running,
+        now_ns=3_000_000_000,
+    )
+
+    assert frame is not None
+    assert _payload(frame)["data"] == {
+        "status": "completed",
+        "activeDurationMs": 2000,
+    }
+    assert (
+        emit_completed_activity_timing_frame_if_running(
+            streaming_service=service,
+            content_builder=builder,
+            timer=running,
+            now_ns=9_000_000_000,
+        )
+        is None
+    )
+
+    paused = ActivityTimer.start(now_ns=1_000_000_000)
+    paused.pause(now_ns=2_000_000_000)
+    with pytest.raises(ValueError, match="Only a running activity timer can complete"):
+        emit_completed_activity_timing_frame(
+            streaming_service=service,
+            content_builder=builder,
+            timer=paused,
+            now_ns=9_000_000_000,
+        )
+    assert (
+        emit_completed_activity_timing_frame_if_running(
+            streaming_service=service,
+            content_builder=builder,
+            timer=paused,
+            now_ns=9_000_000_000,
+        )
+        is None
+    )
 
 
 def test_custom_progress_uses_allowlisted_details_not_raw_messages() -> None:

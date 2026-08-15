@@ -120,6 +120,14 @@ export function trackActivityTraceInteraction(
 	);
 }
 
+export function trackActivityTimingContractViolation(messageId: string, activeDurationMs: number) {
+	safeCapture("chat_activity_timing_contract_violation", {
+		kind: "missing_terminal_snapshot",
+		message_id: messageId,
+		active_duration_ms: activeDurationMs,
+	});
+}
+
 export interface ChatFailureTelemetry {
 	flow: ChatFlow;
 	kind: ChatErrorKind;

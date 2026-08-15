@@ -106,7 +106,11 @@ from app.tasks.chat.streaming.flows.shared.stream_loop import run_stream_loop
 from app.tasks.chat.streaming.flows.shared.terminal_error import (
     handle_terminal_exception,
 )
-from app.tasks.chat.streaming.relay.activity_sse import emit_activity_timing_frame
+from app.tasks.chat.streaming.relay.activity_sse import (
+    emit_activity_timing_frame,
+    emit_completed_activity_timing_frame,
+    emit_completed_activity_timing_frame_if_running,
+)
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.utils.perf import get_perf_logger, log_system_snapshot
 
@@ -748,10 +752,10 @@ async def stream_new_chat(
                 yield sse
             return
 
-        yield emit_activity_timing_frame(
+        yield emit_completed_activity_timing_frame(
             streaming_service=streaming_service,
             content_builder=stream_result.content_builder,
-            snapshot=stream_result.activity_timer.complete(),
+            timer=stream_result.activity_timer,
         )
 
         async for title_sse in await_pending_title_update(
@@ -785,15 +789,14 @@ async def stream_new_chat(
             yield sse
 
     except Exception as exc:
-        if (
-            stream_result.content_builder is not None
-            and stream_result.activity_timer.status == "running"
-        ):
-            yield emit_activity_timing_frame(
+        if stream_result.content_builder is not None:
+            completed_timing_frame = emit_completed_activity_timing_frame_if_running(
                 streaming_service=streaming_service,
                 content_builder=stream_result.content_builder,
-                snapshot=stream_result.activity_timer.complete(),
+                timer=stream_result.activity_timer,
             )
+            if completed_timing_frame is not None:
+                yield completed_timing_frame
         frames, summary = handle_terminal_exception(
             exc,
             flow=flow,

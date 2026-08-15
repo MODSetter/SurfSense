@@ -125,9 +125,12 @@ export function upsertActivityTiming(
 ): boolean {
 	const current = state.activityTiming;
 	const timing = mergeActivityTiming(current, value);
-	if (!timing || JSON.stringify(current) === JSON.stringify(timing)) {
+	if (!timing || timing === current) {
 		return false;
 	}
+	const unchanged =
+		current?.status === timing.status && current.activeDurationMs === timing.activeDurationMs;
+	if (unchanged && timing.status !== "running") return false;
 	state.activityTiming = timing;
 	state.activityTimingProjection =
 		timing.status === "running"

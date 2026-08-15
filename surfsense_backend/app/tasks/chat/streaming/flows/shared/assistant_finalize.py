@@ -92,10 +92,9 @@ async def finalize_assistant_message(
 
     builder_stats: dict[str, int] | None = None
     if stream_result.content_builder is not None:
-        if stream_result.activity_timer.status == "running":
-            stream_result.content_builder.on_activity_timing(
-                stream_result.activity_timer.complete()
-            )
+        completed_timing = stream_result.activity_timer.complete_if_running()
+        if completed_timing is not None:
+            stream_result.content_builder.on_activity_timing(completed_timing)
         activity_state = stream_result.activity_state
         if activity_state is not None:
             interrupted_at = datetime.now(UTC).isoformat()

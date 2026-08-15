@@ -213,14 +213,12 @@ export function mergeActivityTiming(
 	value: unknown
 ): ActivityTimingData | null {
 	const next = parseActivityTimingData(value);
+	if (!next) return current ?? null;
 	if (
-		!next ||
-		(current &&
-			(next.activeDurationMs < current.activeDurationMs ||
-				(current.status === "completed" && next.status !== "completed")))
-	) {
-		return current ?? null;
-	}
+		current?.status === "completed" ||
+		(current && next.activeDurationMs < current.activeDurationMs)
+	)
+		return current;
 	return next;
 }
 
