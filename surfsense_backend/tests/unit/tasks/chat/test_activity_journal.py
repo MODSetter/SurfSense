@@ -116,6 +116,16 @@ def test_phase_reuses_identity_until_a_different_phase_starts() -> None:
         langchain_tool_call_id=None,
         integration=None,
     )
+    assert journal.finish_tool(
+        run_id="plan-1",
+        status="completed",
+        completed_at="2026-01-01T00:00:01+00:00",
+    ).snapshot is None
+    assert journal.finish_tool(
+        run_id="plan-2",
+        status="completed",
+        completed_at="2026-01-01T00:00:01+00:00",
+    ).snapshot is None
     next_phase = journal.begin_tool(
         spec=research,
         run_id="research",
@@ -131,6 +141,165 @@ def test_phase_reuses_identity_until_a_different_phase_starts() -> None:
     assert next_phase.snapshots[0]["id"] == first.activity_id
     assert next_phase.snapshots[0]["status"] == "completed"
     assert next_phase.activity_id != first.activity_id
+
+
+def test_phase_close_waits_for_all_runs_and_preserves_late_error() -> None:
+    journal = ActivityJournal()
+    planning = _activity("write_todos", lifecycle="phase")
+    research = _activity("web.crawl", lifecycle="phase")
+
+    first = journal.begin_tool(
+        spec=planning,
+        run_id="plan-1",
+        step_prefix="turn",
+        scope="root",
+        started_at="2026-01-01T00:00:00+00:00",
+        tool_call_id="call-plan-1",
+        langchain_tool_call_id=None,
+        integration=None,
+    )
+    journal.begin_tool(
+        spec=planning,
+        run_id="plan-2",
+        step_prefix="turn",
+        scope="root",
+        started_at="2026-01-01T00:00:01+00:00",
+        tool_call_id="call-plan-2",
+        langchain_tool_call_id=None,
+        integration=None,
+    )
+    next_phase = journal.begin_tool(
+        spec=research,
+        run_id="research",
+        step_prefix="turn",
+        scope="root",
+        started_at="2026-01-01T00:00:02+00:00",
+        tool_call_id="call-research",
+        langchain_tool_call_id=None,
+        integration=None,
+    )
+
+    assert [snapshot["id"] for snapshot in next_phase.snapshots] == [
+        next_phase.activity_id
+    ]
+    assert journal.finish_tool(
+        run_id="plan-2",
+        status="completed",
+        completed_at="2026-01-01T00:00:03+00:00",
+    ).snapshot is None
+    failed = journal.finish_tool(
+        run_id="plan-1",
+        status="error",
+        completed_at="2026-01-01T00:00:04+00:00",
+    ).snapshot
+
+    assert failed is not None
+    assert failed["id"] == first.activity_id
+    assert failed["status"] == "error"
+    assert failed["completedAt"] == "2026-01-01T00:00:04+00:00"
+
+
+def test_phase_outcomes_use_deterministic_severity() -> None:
+    journal = ActivityJournal()
+    phase = _activity("write_todos", lifecycle="phase")
+    for run_id in ("one", "two", "three"):
+        journal.begin_tool(
+            spec=phase,
+            run_id=run_id,
+            step_prefix="turn",
+            scope="root",
+            started_at="2026-01-01T00:00:00+00:00",
+            tool_call_id=f"call-{run_id}",
+            langchain_tool_call_id=None,
+            integration=None,
+        )
+
+    assert journal.finish_tool(
+        run_id="one",
+        status="interrupted",
+        completed_at="2026-01-01T00:00:01+00:00",
+    ).snapshot is None
+    assert journal.finish_tool(
+        run_id="two",
+        status="cancelled",
+        completed_at="2026-01-01T00:00:02+00:00",
+    ).snapshot is None
+    final = journal.finish_tool(
+        run_id="three",
+        status="error",
+        completed_at="2026-01-01T00:00:03+00:00",
+    ).snapshot
+
+    assert final is not None
+    assert final["status"] == "error"
+
+
+def test_successful_phase_closes_after_its_final_active_run() -> None:
+    journal = ActivityJournal()
+    phase = _activity("write_todos", lifecycle="phase")
+    started = journal.begin_tool(
+        spec=phase,
+        run_id="one",
+        step_prefix="turn",
+        scope="root",
+        started_at="2026-01-01T00:00:00+00:00",
+        tool_call_id="call-one",
+        langchain_tool_call_id=None,
+        integration=None,
+    )
+    journal.begin_tool(
+        spec=phase,
+        run_id="two",
+        step_prefix="turn",
+        scope="root",
+        started_at="2026-01-01T00:00:01+00:00",
+        tool_call_id="call-two",
+        langchain_tool_call_id=None,
+        integration=None,
+    )
+
+    assert (
+        journal.complete_open_phases(completed_at="2026-01-01T00:00:02+00:00")
+        == []
+    )
+    assert journal.finish_tool(
+        run_id="one",
+        status="completed",
+        completed_at="2026-01-01T00:00:03+00:00",
+    ).snapshot is None
+    closed = journal.finish_tool(
+        run_id="two",
+        status="completed",
+        completed_at="2026-01-01T00:00:04+00:00",
+    ).snapshot
+
+    assert closed is not None
+    assert closed["id"] == started.activity_id
+    assert closed["status"] == "completed"
+    assert closed["completedAt"] == "2026-01-01T00:00:02+00:00"
+
+
+def test_interrupt_running_force_closes_active_phase_runs() -> None:
+    journal = ActivityJournal()
+    started = journal.begin_tool(
+        spec=_activity("write_todos", lifecycle="phase"),
+        run_id="plan",
+        step_prefix="turn",
+        scope="root",
+        started_at="2026-01-01T00:00:00+00:00",
+        tool_call_id="call-plan",
+        langchain_tool_call_id=None,
+        integration=None,
+    )
+
+    interrupted = journal.interrupt_running(
+        completed_at="2026-01-01T00:00:01+00:00"
+    )
+
+    assert interrupted[0]["id"] == started.activity_id
+    assert interrupted[0]["status"] == "interrupted"
+    assert "plan" not in journal.id_by_run
+    assert started.activity_id not in journal.active_runs_by_activity
 
 
 def test_terminal_activity_never_regresses() -> None:

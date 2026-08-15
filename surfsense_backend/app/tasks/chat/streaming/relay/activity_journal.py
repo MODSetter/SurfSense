@@ -12,6 +12,14 @@ from app.services.streaming.types import (
 from app.tasks.chat.streaming.handlers.tools.activity import ActivitySpec
 
 _TERMINAL_STATUSES = {"completed", "error", "cancelled", "interrupted"}
+_STATUS_SEVERITY: dict[ActivityStatus, int] = {
+    "running": 0,
+    "awaiting_approval": 0,
+    "completed": 1,
+    "interrupted": 2,
+    "cancelled": 3,
+    "error": 4,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +45,11 @@ class ActivityJournal:
     open_phase_by_scope: dict[str, tuple[str, str]] = field(default_factory=dict)
     terminal_ids: set[str] = field(default_factory=set)
     resume_id_by_tool_call: dict[str, str] = field(default_factory=dict)
+    active_runs_by_activity: dict[str, set[str]] = field(default_factory=dict)
+    deferred_close_at_by_activity: dict[str, str] = field(default_factory=dict)
+    deferred_outcome_by_activity: dict[str, tuple[ActivityStatus, str]] = field(
+        default_factory=dict
+    )
 
     @classmethod
     def resume(
@@ -90,7 +103,8 @@ class ActivityJournal:
         )
 
         if open_phase and not reuse_phase:
-            closed = self.transition(
+            self.open_phase_by_scope.pop(scope, None)
+            closed = self._request_phase_close(
                 open_phase[1], status="completed", completed_at=started_at
             )
             if closed is not None:
@@ -119,6 +133,7 @@ class ActivityJournal:
 
         if run_id:
             self.id_by_run[run_id] = activity_id
+            self.active_runs_by_activity.setdefault(activity_id, set()).add(run_id)
         emitted.append(snapshot)
         return ActivityStart(activity_id, tuple(emitted))
 
@@ -133,8 +148,26 @@ class ActivityJournal:
         if activity_id is None:
             return ActivityFinish(None)
         spec = self.spec_by_id.get(activity_id)
-        if spec is None or (spec.lifecycle == "phase" and status == "completed"):
+        active_runs = self.active_runs_by_activity.get(activity_id)
+        if active_runs is not None:
+            active_runs.discard(run_id)
+            if not active_runs:
+                self.active_runs_by_activity.pop(activity_id, None)
+        if spec is None:
             return ActivityFinish(activity_id)
+        if spec.lifecycle == "phase":
+            if status != "completed":
+                self._defer_outcome(activity_id, status, completed_at)
+            if activity_id in self.active_runs_by_activity:
+                return ActivityFinish(activity_id)
+            deferred = self.deferred_outcome_by_activity.pop(activity_id, None)
+            close_at = self.deferred_close_at_by_activity.pop(activity_id, None)
+            if deferred is not None:
+                status, completed_at = deferred
+            elif close_at is not None:
+                status, completed_at = "completed", close_at
+            else:
+                return ActivityFinish(activity_id)
         return ActivityFinish(
             activity_id,
             self.transition(
@@ -177,11 +210,10 @@ class ActivityJournal:
 
     def complete_open_phases(self, *, completed_at: str) -> list[ActivityData]:
         snapshots: list[ActivityData] = []
-        for _, activity_id in list(self.open_phase_by_scope.values()):
-            snapshot = self.transition(
-                activity_id,
-                status="completed",
-                completed_at=completed_at,
+        for scope, (_, activity_id) in list(self.open_phase_by_scope.items()):
+            self.open_phase_by_scope.pop(scope, None)
+            snapshot = self._request_phase_close(
+                activity_id, status="completed", completed_at=completed_at
             )
             if snapshot is not None:
                 snapshots.append(snapshot)
@@ -202,6 +234,10 @@ class ActivityJournal:
         for activity_id, current in list(self.snapshot_by_id.items()):
             if current.get("status") != "running":
                 continue
+            for run_id in self.active_runs_by_activity.pop(activity_id, set()):
+                self.id_by_run.pop(run_id, None)
+            self.deferred_close_at_by_activity.pop(activity_id, None)
+            self.deferred_outcome_by_activity.pop(activity_id, None)
             snapshot = self.transition(
                 activity_id,
                 status="interrupted",
@@ -225,6 +261,36 @@ class ActivityJournal:
             status=current["status"],
             details=[detail],
         )
+
+    def _request_phase_close(
+        self,
+        activity_id: str,
+        *,
+        status: ActivityStatus,
+        completed_at: str,
+    ) -> ActivityData | None:
+        if status != "completed":
+            self._defer_outcome(activity_id, status, completed_at)
+        if activity_id in self.active_runs_by_activity:
+            self.deferred_close_at_by_activity.setdefault(activity_id, completed_at)
+            return None
+        deferred = self.deferred_outcome_by_activity.pop(activity_id, None)
+        self.deferred_close_at_by_activity.pop(activity_id, None)
+        if deferred is not None:
+            status, completed_at = deferred
+        return self.transition(
+            activity_id, status=status, completed_at=completed_at
+        )
+
+    def _defer_outcome(
+        self,
+        activity_id: str,
+        status: ActivityStatus,
+        completed_at: str,
+    ) -> None:
+        current = self.deferred_outcome_by_activity.get(activity_id)
+        if current is None or _STATUS_SEVERITY[status] > _STATUS_SEVERITY[current[0]]:
+            self.deferred_outcome_by_activity[activity_id] = (status, completed_at)
 
     def _next_id(self, step_prefix: str) -> str:
         self.counter += 1
