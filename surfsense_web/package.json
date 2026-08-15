@@ -26,7 +26,8 @@
 		"test:e2e:headed": "playwright test --headed",
 		"test:e2e:debug": "playwright test --debug",
 		"test:e2e:report": "playwright show-report",
-		"test:e2e:install": "playwright install --with-deps chromium"
+		"test:e2e:install": "playwright install --with-deps chromium",
+		"test:unit": "tsx --test tests/unit/*.test.ts tests/unit/**/*.test.ts"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
