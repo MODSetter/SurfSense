@@ -3,7 +3,6 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { FileText } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
@@ -11,6 +10,8 @@ import { artifactPanelAtom, openArtifactPanelAtom } from "@/atoms/chat/artifact-
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
+import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
 import {
 	artifactListQueryKey,
 	artifactManifestQueryKey,
@@ -50,14 +51,14 @@ const SaveArtifactResultSchema = z.object({
 type SaveArtifactArgs = z.infer<typeof SaveArtifactArgsSchema>;
 type SaveArtifactResult = z.infer<typeof SaveArtifactResultSchema>;
 
-function ArtifactPending({ title }: { title: string }) {
+function ArtifactPending({ title, format }: { title: string; format: string }) {
 	return (
 		<div
 			aria-busy="true"
 			className="my-4 flex w-full items-center gap-3 rounded-xl border bg-muted/30 p-4"
 		>
 			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-				<FileText className="size-5 text-muted-foreground" />
+				<ArtifactFormatIcon format={format} className="size-5 text-muted-foreground" />
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium">{title}</span>
@@ -80,12 +81,14 @@ function ArtifactError({ title, error }: { title: string; error: string }) {
 function ArtifactCard({
 	artifactId,
 	title,
+	format,
 	autoOpen,
 	publicRoute,
 	toolCallId,
 }: {
 	artifactId: number;
 	title: string;
+	format: string;
 	autoOpen: boolean;
 	publicRoute: boolean;
 	toolCallId: string;
@@ -102,12 +105,7 @@ function ArtifactCard({
 	});
 	const currentPrimary = current?.files.find((file) => file.role === "primary");
 	const currentTitle = current?.title ?? title;
-	const fileType =
-		current && !currentPrimary
-			? "Markdown"
-			: currentPrimary?.filename
-				? extension(currentPrimary.filename)
-				: "File";
+	const currentFormat = current?.format ?? format;
 	const filename =
 		current && !currentPrimary
 			? `${current.title}.md`
@@ -140,11 +138,14 @@ function ArtifactCard({
 			</button>
 
 			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-				<FileText className="size-5 text-muted-foreground" />
+				<ArtifactFormatIcon format={currentFormat} className="size-5 text-muted-foreground" />
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium">{currentTitle}</span>
-				<span className="mt-0.5 block truncate text-xs text-muted-foreground">{fileType}</span>
+				<ArtifactFormatLabel
+					format={currentFormat}
+					className="mt-0.5 text-xs text-muted-foreground"
+				/>
 			</span>
 			{canDownload ? (
 				<ArtifactDownloadButton
@@ -170,6 +171,7 @@ export const SaveArtifactToolUI = ({
 	const queryClient = useQueryClient();
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const savedArtifactId = result?.status === "saved" ? result.artifact_id : null;
+	const pendingFormat = args.path ? extension(args.path) : "markdown";
 
 	useEffect(() => {
 		if (
@@ -189,7 +191,7 @@ export const SaveArtifactToolUI = ({
 
 	if (status.type === "running" || status.type === "requires-action") {
 		sawRunningRef.current = true;
-		return <ArtifactPending title={args.title || "Document"} />;
+		return <ArtifactPending title={args.title || "Document"} format={pendingFormat} />;
 	}
 	if (status.type === "incomplete") {
 		return (
@@ -205,7 +207,7 @@ export const SaveArtifactToolUI = ({
 			/>
 		);
 	}
-	if (!result) return <ArtifactPending title={args.title || "Document"} />;
+	if (!result) return <ArtifactPending title={args.title || "Document"} format={pendingFormat} />;
 	if (result.status === "failed") {
 		return (
 			<ArtifactError
@@ -217,10 +219,13 @@ export const SaveArtifactToolUI = ({
 	if (!result.artifact_id) {
 		return <ArtifactError title={args.title || "Document"} error="Missing artifact ID" />;
 	}
+	const primary = result.files?.find((file) => file.role === "primary");
+	const format = primary?.filename ? extension(primary.filename) : pendingFormat;
 	return (
 		<ArtifactCard
 			artifactId={result.artifact_id}
 			title={result.title || args.title || "Document"}
+			format={format}
 			autoOpen={sawRunningRef.current}
 			publicRoute={publicRoute}
 			toolCallId={toolCallId}
