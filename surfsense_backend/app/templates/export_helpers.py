@@ -1,7 +1,6 @@
 """
-Helpers for report export templates.
+Helpers for document export templates.
 
-* ``get_typst_template_path()``  - path to the custom Pandoc -> Typst template.
 * ``get_html_css_path()``        - path to the CSS stylesheet for HTML exports.
 * ``get_reference_docx_path()``  - path to a styled reference.docx for Pandoc.
 
@@ -19,14 +18,9 @@ from pathlib import Path
 _DIR = Path(__file__).resolve().parent
 _GENERATED_DIR = _DIR / "_generated"
 _REFERENCE_DOCX = _GENERATED_DIR / "reference.docx"
-_TYPST_TEMPLATE = _DIR / "report_pdf.typst"
 _HTML_CSS = _DIR / "report_html.css"
 
 _docx_lock = threading.Lock()
-
-
-def get_typst_template_path() -> Path:
-    return _TYPST_TEMPLATE
 
 
 def get_html_css_path() -> Path:
