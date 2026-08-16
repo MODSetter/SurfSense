@@ -23,7 +23,6 @@ from app.services.public_chat_service import (
     get_public_chat,
     get_snapshot_artifact_file,
     get_snapshot_podcast,
-    get_snapshot_report,
     get_snapshot_video_artifact,
     get_snapshot_video_presentation,
 )
@@ -392,89 +391,3 @@ def _replace_audio_paths_with_public_urls(
 
         result.append(slide_copy)
     return result
-
-
-@router.get("/{share_token}/reports/{report_id}/preview")
-async def preview_public_report_pdf(
-    share_token: str,
-    report_id: int,
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Return a compiled PDF preview for a Typst-based report in a public snapshot.
-
-    No authentication required - the share_token provides access.
-    """
-    import asyncio
-    import io
-    import re
-
-    import typst as typst_compiler
-
-    report_info = await get_snapshot_report(session, share_token, report_id)
-
-    if not report_info:
-        raise HTTPException(status_code=404, detail="Report not found")
-
-    content = report_info.get("content")
-    content_type = report_info.get("content_type", "markdown")
-
-    if not content:
-        raise HTTPException(status_code=400, detail="Report has no content to preview")
-
-    if content_type != "typst":
-        raise HTTPException(
-            status_code=400,
-            detail="Preview is only available for Typst-based reports",
-        )
-
-    def _compile() -> bytes:
-        return typst_compiler.compile(content.encode("utf-8"))
-
-    pdf_bytes = await asyncio.to_thread(_compile)
-
-    safe_title = re.sub(r"[^\w\s-]", "", report_info.get("title") or "Resume").strip()
-    filename = f"{safe_title}.pdf"
-
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"',
-        },
-    )
-
-
-@router.get("/{share_token}/reports/{report_id}/content")
-async def get_public_report_content(
-    share_token: str,
-    report_id: int,
-    session: AsyncSession = Depends(get_async_session),
-):
-    """
-    Get report content from a public chat snapshot.
-
-    No authentication required - the share_token provides access.
-    Returns report content including title, markdown body, metadata, and versions.
-    """
-    from app.services.public_chat_service import get_snapshot_report_versions
-
-    report_info = await get_snapshot_report(session, share_token, report_id)
-
-    if not report_info:
-        raise HTTPException(status_code=404, detail="Report not found")
-
-    # Get version siblings from the same snapshot
-    versions = await get_snapshot_report_versions(
-        session, share_token, report_info.get("report_group_id")
-    )
-
-    return {
-        "id": report_info.get("original_id"),
-        "title": report_info.get("title"),
-        "content": report_info.get("content"),
-        "content_type": report_info.get("content_type", "markdown"),
-        "report_metadata": report_info.get("report_metadata"),
-        "report_group_id": report_info.get("report_group_id"),
-        "versions": versions,
-    }

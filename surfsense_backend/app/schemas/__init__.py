@@ -80,13 +80,6 @@ from .rbac_schemas import (
     RoleUpdate,
     UserWorkspaceAccess,
 )
-from .reports import (
-    ReportBase,
-    ReportContentRead,
-    ReportContentUpdate,
-    ReportRead,
-    ReportVersionInfo,
-)
 from .search_source_connector import (
     MCPConnectorCreate,
     MCPConnectorRead,
@@ -213,12 +206,6 @@ __all__ = [
     # Podcast schemas
     "RefreshTokenRequest",
     "RefreshTokenResponse",
-    # Report schemas
-    "ReportBase",
-    "ReportContentRead",
-    "ReportContentUpdate",
-    "ReportRead",
-    "ReportVersionInfo",
     "RoleCreate",
     "RoleRead",
     "RoleUpdate",
