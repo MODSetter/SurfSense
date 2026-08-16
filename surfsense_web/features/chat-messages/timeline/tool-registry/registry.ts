@@ -183,10 +183,8 @@ const NullApprovalBody: TimelineToolComponent = () => null;
  *
  * Includes only "process" tools (connector CRUD, sandbox execute,
  * memory updates) and the 4 invisible tools mapped to a null component.
- * Deliverables (``generate_report``, ``generate_resume``,
- * ``generate_podcast``, ``generate_video_presentation``,
- * ``display_image``, ``generate_image``) live in ``BODY_TOOLS`` in
- * ``assistant-message.tsx`` — they're product, not process.
+ * Deliverables live in ``BODY_TOOLS`` in ``assistant-message.tsx`` —
+ * they're product, not process.
  *
  * Tools NOT in this map fall through to ``FallbackToolBody`` (which
  * itself dispatches between HITL approval cards and

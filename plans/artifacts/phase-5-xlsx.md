@@ -1,104 +1,83 @@
-# Phase 5 — XLSX Skill + Native Grid
+# Phase 5 — XLSX Artifact Pipeline
 
-**Status:** Planned. Persistence/API support and service-level primary+source coverage are already in place; the XLSX adapter, skill, and viewer in this phase are not.
+**Status:** Complete (2026-08-16).
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 3 verification service and phase 4 shared OOXML guard.
 
-## 1. Goal and scope
+## 1. Shipped scope
 
-Ship spreadsheet authoring, programmatic verification, and a read-only native grid without changing the artifact schema or API.
+Phase 5 added spreadsheet generation, structural verification, persistence, and an authenticated read-only grid without changing the artifact schema or API.
 
-In:
+- The sandbox ships an XLSX skill backed by preinstalled XlsxWriter.
+- `.xlsx` has a structural `FormatAdapter` with the canonical spreadsheet MIME.
+- Verification is programmatic: no conversion, rasterization, vision review, or preview file.
+- Binary persistence uses the existing primary + private source artifact roles.
+- The artifact panel lazy-loads a native spreadsheet viewer for XLSX manifests.
 
-- total generic format-adapter behavior if not already complete;
-- XLSX skill and structural adapter;
-- programmatic receipt path with no rasterization, vision, or preview;
-- `XlsxViewer`;
-- public/share-token artifact manifest and file access required before phase 6 removes legacy public preview.
+Generic unknown formats, public artifact viewing, and cross-format hardening are phase 7. Legacy report and Typst removal is documented separately in phase 6.
 
-Out: legacy report/Typst deletion (phase 6).
+## 2. Persistence
 
-## 2. Persistence contract already available
+An XLSX artifact is one `Document(document_type=ARTIFACT)` plus one `Artifact(format="xlsx")`. Its files are:
 
-An XLSX save is:
+- a primary `.xlsx` file;
+- a private `.py` generation source;
+- no preview.
 
-- one `Artifact(format="xlsx")` over one artifact `Document`;
-- primary `.xlsx` `ArtifactFile`;
-- private source `.py` `ArtifactFile`;
-- no preview;
-- searchable Markdown on the document under `/documents/Artifacts/`;
-- ordinary document chunking and search;
-- `artifact_id + expected_generation` revisions;
-- artifact manifest/download/file routes.
+The document owns searchable Markdown under `/documents/Artifacts/` and follows ordinary chunking, indexing, search, move, rename, and deletion behavior. Artifact revisions load the private source and save with `artifact_id + expected_generation`.
 
-Existing service tests prove this shape. This phase must not add a document type, migration, chunk table, document API branch, or search side channel.
+XLSX required no migration, document subtype, chunk table, search branch, or format-specific artifact route.
 
-## 3. Verification adapter
+## 3. Verification
 
-`FormatAdapter` represents rendered verification as an optional policy. XLSX has no rendered policy: after structural checks, verification issues a receipt with visual review not required, no page count, and no preview hash.
+The XLSX adapter reuses the shared OOXML trust boundary and verifies:
 
-The adapter reuses the shared OOXML trust boundary and checks:
+- required workbook package parts;
+- at least one worksheet and one non-empty cell;
+- a cached value for every formula cell;
+- no cached Excel error literal;
+- a maximum of 100,000 cells.
 
-- workbook and required parts exist;
-- at least one sheet and non-empty cell;
-- every formula cell has a cached result;
-- cached results are not Excel error literals;
-- total cells stay below the parser/viewer safety ceiling.
+A successful receipt records `visual="not_required"` and binds the primary hash. It has no page count, preview path, or preview hash. Verification inspects the workbook bytes but never recalculates or rewrites them.
 
-The adapter owns `.xlsx` and the canonical spreadsheet MIME.
+## 4. Generation skill
 
-Verification only inspects. It never recalculates or rewrites the workbook.
+The XLSX skill authors deliverable-named `.xlsx` and `.py` files with XlsxWriter. It teaches reusable formats, deliberate widths, frozen headers, multiple sheets, formulas with computed cached values, and recalculation-on-open.
 
-## 4. Skill
+The generation flow is:
 
-Author with preinstalled XlsxWriter. The skill covers formulas, number formats, header styles, widths, panes, and multiple sheets.
+1. create the workbook and complete Python source in the sandbox;
+2. call `verify_artifact` on the workbook;
+3. call `save_artifact` with primary and source paths and no preview;
+4. for revisions, load the source by artifact ID and save with the returned generation.
 
-Every formula must include a computed cached result via XlsxWriter's value argument. The same script also sets recalculation-on-open. This keeps the primary complete for the browser grid while Excel/LibreOffice recalculates on open.
+The Markdown representation summarizes sheets, columns, and key figures for search and accessibility.
 
-The flow is:
+## 5. Native viewer
 
-1. generate deliverable-named `.xlsx` and `.py`;
-2. `verify_artifact(<workbook>.xlsx)`;
-3. `save_artifact(path=..., source_path=..., ...)`;
-4. on revision, load by `artifact_id` and save with current expected generation.
+The viewer registry maps the spreadsheet MIME to a client-only `XlsxViewer`. The viewer:
 
-## 5. Viewer
+- rejects oversized files before fetch and again before parse;
+- parses through the isolated `parseWorkbook(bytes): WorkbookView` boundary;
+- uses ExcelJS for workbook values and `ssf` for formatted numbers and dates;
+- shows cached formula results;
+- renders sheet tabs and a virtualized read-only grid with row and column headers;
+- limits each displayed sheet to 500 rows and directs users to download the full workbook;
+- degrades corrupt or unsupported workbooks to the shared unviewable state while preserving download.
 
-Register the spreadsheet MIME behind a lazy-loaded `XlsxViewer`:
+Charts, pivot tables, macros, editing, and full Excel emulation are outside the XLSX viewer contract.
 
-- fetch the primary artifact file URL from the manifest;
-- reject oversize files before mounting/parsing;
-- parse behind one `parseWorkbook(bytes): WorkbookView` module boundary;
-- use ExcelJS for workbook/style parsing and `ssf` for formatted display values;
-- render a read-only grid with sheet tabs, row/column headers, and a row cap;
-- use `content-visibility: auto` for rows;
-- degrade corruption, oversize, or unsupported workbook features to download.
+## 6. Verification evidence
 
-Charts, pivot tables, editing, and full Excel emulation are out of scope. ExcelJS remains isolated so the parser can be replaced without rewriting the viewer.
+- Unit coverage exercises clean workbooks, formula caches, missing caches, Excel errors, empty content, the cell ceiling, and receipt behavior.
+- Receipt tests prove XLSX never enters conversion, rasterization, or vision.
+- Integration coverage proves primary + private source persistence, post-verification mutation rejection, source loading, optimistic revision, and blob purge.
+- Parser tests cover formatted values, formula results, row truncation, oversized payloads, and corrupt workbooks.
 
-## 6. Generic unknown formats
+## 7. Exit criteria
 
-An unknown suffix resolves to a generic adapter: bounded non-empty bytes, canonical `application/octet-stream`, no rendered policy. It verifies, persists through the same document + `Artifact`/`ArtifactFile` service, and renders as a download fallback. Persistence must never enumerate XLSX or any future format.
-
-## 7. Public artifact access
-
-Add token-scoped manifest/file/download access constrained to artifacts produced by the shared thread. Reuse the same manifest and viewer registry rather than forking the panel. Workspace-authenticated artifact routes remain unchanged.
-
-## 8. Checks
-
-- Adapter fixtures for formulas/caches/errors/empty workbooks/cell ceiling/OOXML attacks.
-- Programmatic receipt emits no preview and never calls renderer or vision.
-- Primary+source save, source privacy, optimistic revision, and stale-generation failure.
-- LibreOffice recalculation smoke check.
-- Parser unit tests for values, number formats, and styles.
-- Viewer smoke/Playwright coverage for formula values, style, tabs, oversize, and corrupt fallback.
-- Unknown format verifies and downloads with no code path special-casing it.
-- Public-token isolation across threads/workspaces.
-
-## 9. Exit criteria
-
-1. XLSX generates, verifies programmatically, persists primary+source, renders in the native grid, and downloads the real workbook.
-2. All four launch formats operate through the same artifact model and routes.
-3. Unknown binaries persist and download through the generic adapter.
-4. No active routing reaches legacy report/resume tools.
-5. Public shared threads can view/download their artifacts before phase 6 removes legacy public preview.
+1. XLSX requests route to the spreadsheet skill.
+2. The generated workbook verifies without a rendered preview or visual review.
+3. Save and revision use the same document-backed artifact model as PDF, DOCX, and PPTX.
+4. The authenticated artifact panel renders the real workbook in a native grid and downloads the original `.xlsx`.
+5. No XLSX-specific schema, persistence API, search path, or document editor path exists.

@@ -112,8 +112,6 @@ def _copy(
 _INTERNAL_TOOL_NAMES = frozenset(
     {
         "cd",
-        "generate_report",
-        "generate_resume",
         "invalid_tool",
         "load_artifact_instructions",
         "noop",

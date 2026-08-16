@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
 	AudioLines,
-	Contact,
 	FileCode,
 	FileSpreadsheet,
 	FileText,
@@ -10,15 +9,9 @@ import {
 	Shapes,
 } from "lucide-react";
 
-export type ArtifactGroupKey =
-	| "files"
-	| "reports"
-	| "resumes"
-	| "podcasts"
-	| "presentations"
-	| "images";
+export type ArtifactGroupKey = "files" | "podcasts" | "presentations" | "images";
 
-export type ArtifactViewingMode = "viewer" | "inline-media" | "legacy-report";
+export type ArtifactViewingMode = "viewer" | "inline-media";
 
 export interface ArtifactFormatMeta {
 	icon: LucideIcon;
@@ -31,8 +24,6 @@ export interface ArtifactFormatMeta {
 
 export const ARTIFACT_GROUP_ORDER: readonly ArtifactGroupKey[] = [
 	"files",
-	"reports",
-	"resumes",
 	"podcasts",
 	"presentations",
 	"images",
@@ -121,21 +112,6 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		groupKey: "images",
 		groupLabel: "Images",
 		viewingMode: "inline-media",
-	},
-	// Compatibility-only formats until legacy reports are removed in phase 6.
-	report: {
-		icon: FileText,
-		label: "Report",
-		groupKey: "reports",
-		groupLabel: "Reports",
-		viewingMode: "legacy-report",
-	},
-	resume: {
-		icon: Contact,
-		label: "Resume",
-		groupKey: "resumes",
-		groupLabel: "Resumes",
-		viewingMode: "legacy-report",
 	},
 };
 

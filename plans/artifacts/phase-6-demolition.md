@@ -1,6 +1,6 @@
 # Phase 6 — Legacy Deliverable Demolition
 
-**Status:** Planned.
+**Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 5 completion and proof that no active route invokes legacy report/resume generation.
 **Goal:** Delete the legacy `Report`/Typst system. Do not migrate legacy rows into artifacts.

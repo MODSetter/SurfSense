@@ -145,7 +145,7 @@ O workspace de pesquisa que fez do SurfSense a principal alternativa open source
 
 **Estúdio de entregáveis**
 
-- Gerador de relatórios com IA, com exportação para PDF, DOCX, HTML, LaTeX, EPUB, ODT ou texto simples.
+- Artefatos de IA para download, incluindo relatórios, currículos, documentos, planilhas e apresentações.
 - Podcasts de IA com dois apresentadores a partir de qualquer documento ou pasta em menos de 20 segundos.
 - Apresentações de slides editáveis, resumos em vídeo narrados e geração de imagens por IA.
 

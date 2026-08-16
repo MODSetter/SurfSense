@@ -5,14 +5,12 @@ Pipeline:
   1. **History bootstrap** — only for cloned chats with no LangGraph checkpoint
      yet; flips the per-thread ``needs_history_bootstrap`` flag back to False
      once the rows are loaded.
-  2. **Recent reports** — top 3 by id desc with non-null content, so the LLM
-     can resolve ``report_id`` for versioning without spelunking history.
-  3. **@-mention resolve** (cloud mode) — substitute ``@title`` tokens in the
+  2. **@-mention resolve** (cloud mode) — substitute ``@title`` tokens in the
      query with canonical ``\`/documents/...\``` paths the LLM expects.
-  4. **Context block render** — XML-wrap @-mentioned connectors and recent
-     reports, prepend to the rewritten query, optionally prefix with display
-     name for SEARCH_SPACE visibility.
-  5. **HumanMessage** — multimodal content if images are attached.
+  3. **Context block render** — XML-wrap @-mentioned connectors and referenced
+     chats, prepend to the rewritten query, optionally prefix with display name
+     for SEARCH_SPACE visibility.
+  4. **HumanMessage** — multimodal content if images are attached.
 
 Returns the assembled ``input_state`` dict plus side-channel data the
 orchestrator needs downstream (``accepted_folder_ids`` for runtime context).
@@ -40,7 +38,6 @@ from app.agents.chat.runtime.referenced_chat_context import (
 from app.db import (
     ChatVisibility,
     NewChatThread,
-    Report,
 )
 from app.utils.content_utils import bootstrap_history_from_db
 from app.utils.user_message_multimodal import build_human_message_content
@@ -94,20 +91,6 @@ async def build_new_chat_input_state(
             thread.needs_history_bootstrap = False
             await session.commit()
 
-    # Top 3 reports keyed by id desc (newest first) with content present,
-    # surfaced inline so the LLM resolves ``report_id`` for versioning without
-    # digging through conversation history.
-    recent_reports_result = await session.execute(
-        select(Report)
-        .filter(
-            Report.thread_id == chat_id,
-            Report.content.isnot(None),
-        )
-        .order_by(Report.id.desc())
-        .limit(3)
-    )
-    recent_reports = list(recent_reports_result.scalars().all())
-
     agent_user_query, accepted_folder_ids = await _resolve_mentions_for_query(
         session,
         workspace_id=workspace_id,
@@ -132,7 +115,6 @@ async def build_new_chat_input_state(
     final_query = _render_query_with_context(
         agent_user_query=agent_user_query,
         mentioned_connectors=mentioned_connectors,
-        recent_reports=recent_reports,
         referenced_chat_context=referenced_chat_context,
     )
 
@@ -220,39 +202,14 @@ def _render_query_with_context(
     *,
     agent_user_query: str,
     mentioned_connectors: list[dict[str, Any]] | None,
-    recent_reports: list[Report],
     referenced_chat_context: str | None = None,
 ) -> str:
-    """Prepend ``<mentioned_connectors>``, ``<report_context>``, then
-    ``<referenced_chat_context>`` blocks.
-
-    Order of connectors then reports is load-bearing for legacy parity;
-    referenced chats are appended last as read-only background.
-    """
+    """Prepend connector and referenced-chat context blocks."""
     context_parts: list[str] = []
 
     connector_context = _render_mentioned_connectors(mentioned_connectors)
     if connector_context:
         context_parts.append(connector_context)
-
-    if recent_reports:
-        report_lines: list[str] = []
-        for r in recent_reports:
-            report_lines.append(
-                f'  - report_id={r.id}, title="{r.title}", '
-                f'style="{r.report_style or "detailed"}"'
-            )
-        reports_listing = "\n".join(report_lines)
-        context_parts.append(
-            "<report_context>\n"
-            "Previously generated reports in this conversation:\n"
-            f"{reports_listing}\n\n"
-            "If the user wants to MODIFY, REVISE, UPDATE, or ADD to one of "
-            "these reports, set parent_report_id to the relevant report_id above.\n"
-            "If the user wants a completely NEW report on a different topic, "
-            "leave parent_report_id unset.\n"
-            "</report_context>"
-        )
 
     if referenced_chat_context:
         context_parts.append(referenced_chat_context)

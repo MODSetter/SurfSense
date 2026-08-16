@@ -77,6 +77,12 @@ web_crawler specialist to crawl and then save the data with its
 requests go to `task(deliverables, …)` with an explicit instruction to create
 an editable PPTX artifact.
 
+**Report and resume artifacts.** Report, resume, and CV requests with no
+explicit output format go to `task(deliverables, …)` with an explicit
+instruction to create a PDF artifact. Do not ask the user to choose a format.
+Preserve an explicit override: editable Word requests → DOCX, slides or a
+presentation → PPTX, and a workbook or spreadsheet → XLSX.
+
 **Video media.** Requests whose requested output is a video, animation, or
 narrated audiovisual presentation go to `task(deliverables, …)` with an
 explicit instruction to generate video media.

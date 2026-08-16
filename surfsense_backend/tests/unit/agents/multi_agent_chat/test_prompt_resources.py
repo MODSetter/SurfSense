@@ -63,6 +63,33 @@ def test_presentation_routing_separates_pptx_from_video():
     assert "narrated audiovisual output" in deliverables_prompt
 
 
+def test_reports_and_resumes_default_to_pdf_without_format_clarification():
+    """Supervisor and specialist apply the canonical artifact format policy."""
+    routing = read_prompt_md("routing.md")
+    deliverables_package = _route_resource_package(
+        SUBAGENT_BUILDERS_BY_NAME["deliverables"]
+    )
+    deliverables_prompt = read_md_file(deliverables_package, "system_prompt")
+
+    assert "**Report and resume artifacts.**" in routing
+    assert "create a PDF artifact" in routing
+    assert "Do not ask the user to choose a format." in routing
+    assert "Choose the output format from the user's intent without asking" in (
+        deliverables_prompt
+    )
+    assert "Reports, resumes/CVs, printable documents, letters, and one-pagers" in (
+        deliverables_prompt
+    )
+    assert "An omitted format is never a missing constraint" in deliverables_prompt
+    assert (
+        '"artifact_type": "artifact" | "podcast" | "video_presentation" | "image"'
+        in deliverables_prompt
+    )
+    assert 'Files saved through `save_artifact` use `type="artifact"`' in (
+        deliverables_prompt
+    )
+
+
 def test_file_deliverable_revisions_are_in_place():
     """Supervisor and specialist must preserve an artifact's document ID."""
     routing = read_prompt_md("routing.md")

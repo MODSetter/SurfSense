@@ -2,7 +2,6 @@
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { Navbar } from "@/components/homepage/navbar";
-import { ReportPanel } from "@/components/report-panel/report-panel";
 import { Spinner } from "@/components/ui/spinner";
 import { usePublicChat } from "@/hooks/use-public-chat";
 import { usePublicChatRuntime } from "@/hooks/use-public-chat-runtime";
@@ -43,7 +42,6 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 						<PublicThread footer={<PublicChatFooter shareToken={shareToken} />} />
 					</div>
-					<ReportPanel />
 				</div>
 			</AssistantRuntimeProvider>
 		</main>

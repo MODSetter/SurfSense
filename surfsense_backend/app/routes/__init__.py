@@ -72,7 +72,6 @@ from .personal_access_tokens_routes import router as personal_access_tokens_rout
 from .prompts_routes import router as prompts_router
 from .public_chat_routes import router as public_chat_router
 from .rbac_routes import router as rbac_router
-from .reports_routes import router as reports_router
 from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .slack_add_connector_route import router as slack_add_connector_router
@@ -112,7 +111,6 @@ router.include_router(agent_flags_router)  # GET /agent/flags
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
-router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)

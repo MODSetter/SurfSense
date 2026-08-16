@@ -145,7 +145,7 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 
 **成果工作室**
 
-- AI 报告生成器，可导出为 PDF、DOCX、HTML、LaTeX、EPUB、ODT 或纯文本。
+- 可下载的 AI 成果，涵盖报告、简历、文档、电子表格和演示文稿。
 - 20 秒内基于任意文档或文件夹生成双主持人 AI 播客。
 - 可编辑的幻灯片、带旁白的视频概览以及 AI 图像生成。
 
