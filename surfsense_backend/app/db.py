@@ -1560,39 +1560,6 @@ class VideoPresentationRun(BaseModel, TimestampMixin):
     )
 
 
-class Report(BaseModel, TimestampMixin):
-    """Report model for storing generated reports (Markdown or Typst)."""
-
-    __tablename__ = "reports"
-
-    title = Column(String(500), nullable=False)
-    content = Column(Text, nullable=True)
-    content_type = Column(String(20), nullable=False, server_default="markdown")
-    report_metadata = Column(JSONB, nullable=True)  # section headings, word count, etc.
-    report_style = Column(
-        String(100), nullable=True
-    )  # e.g. "executive_summary", "deep_research"
-
-    workspace_id = Column(
-        Integer,
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    workspace = relationship("Workspace", back_populates="reports")
-
-    # Versioning: reports sharing the same report_group_id are versions of the same report.
-    # For v1, report_group_id = the report's own id (set after insert).
-    report_group_id = Column(Integer, nullable=True, index=True)
-
-    thread_id = Column(
-        Integer,
-        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    thread = relationship("NewChatThread")
-
-
 class Connection(BaseModel, TimestampMixin):
     __tablename__ = "connections"
 
@@ -1754,12 +1721,6 @@ class Workspace(BaseModel, TimestampMixin):
         "VideoPresentationRun",
         back_populates="workspace",
         order_by="VideoPresentationRun.id.desc()",
-        cascade="all, delete-orphan",
-    )
-    reports = relationship(
-        "Report",
-        back_populates="workspace",
-        order_by="Report.id.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(
