@@ -1,18 +1,19 @@
 """
 Editor routes for document editing with markdown (Plate.js frontend).
-Includes multi-format export (PDF, DOCX, HTML, LaTeX, EPUB, ODT, plain text).
+Includes multi-format export (DOCX, HTML, LaTeX, EPUB, ODT, plain text).
 """
 
 import asyncio
 import io
 import logging
 import os
+import re
 import tempfile
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 import pypandoc
-import typst
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
@@ -21,18 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.db import Chunk, Document, DocumentType, Permission, get_async_session
 from app.knowledge_store.service import record_saved_document
-from app.routes.reports_routes import (
-    _FILE_EXTENSIONS,
-    _MEDIA_TYPES,
-    ExportFormat,
-    _normalize_latex_delimiters,
-    _strip_wrapping_code_fences,
-)
-from app.templates.export_helpers import (
-    get_html_css_path,
-    get_reference_docx_path,
-    get_typst_template_path,
-)
+from app.templates.export_helpers import get_html_css_path, get_reference_docx_path
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
@@ -42,6 +32,73 @@ router = APIRouter()
 
 EDITOR_PLATE_MAX_BYTES = 1 * 1024 * 1024
 EDITOR_PLATE_MAX_LINES = 5000
+
+
+class ExportFormat(StrEnum):
+    DOCX = "docx"
+    HTML = "html"
+    LATEX = "latex"
+    EPUB = "epub"
+    ODT = "odt"
+    PLAIN = "plain"
+
+
+_MEDIA_TYPES: dict[ExportFormat, str] = {
+    ExportFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ExportFormat.HTML: "text/html; charset=utf-8",
+    ExportFormat.LATEX: "application/x-tex",
+    ExportFormat.EPUB: "application/epub+zip",
+    ExportFormat.ODT: "application/vnd.oasis.opendocument.text",
+    ExportFormat.PLAIN: "text/plain; charset=utf-8",
+}
+
+_FILE_EXTENSIONS: dict[ExportFormat, str] = {
+    ExportFormat.DOCX: "docx",
+    ExportFormat.HTML: "html",
+    ExportFormat.LATEX: "tex",
+    ExportFormat.EPUB: "epub",
+    ExportFormat.ODT: "odt",
+    ExportFormat.PLAIN: "txt",
+}
+
+_CODE_FENCE_RE = re.compile(r"^```(?:markdown|md)?\s*\n", re.MULTILINE)
+
+
+def _strip_wrapping_code_fences(text: str) -> str:
+    """Remove wrapping code fences that LLMs often add."""
+    stripped = text.strip()
+    match = _CODE_FENCE_RE.match(stripped)
+    if match and stripped.endswith("```"):
+        stripped = stripped[match.end() : -3].rstrip()
+    return stripped
+
+
+def _normalize_latex_delimiters(text: str) -> str:
+    """Convert common LaTeX math delimiters to dollar-sign form for Pandoc."""
+    text = re.sub(r"\\\[([\s\S]*?)\\\]", lambda match: f"$${match.group(1)}$$", text)
+    text = re.sub(r"\\\(([\s\S]*?)\\\)", lambda match: f"${match.group(1)}$", text)
+    text = re.sub(
+        r"\\begin\{equation\}([\s\S]*?)\\end\{equation\}",
+        lambda match: f"$${match.group(1)}$$",
+        text,
+    )
+    text = re.sub(
+        r"\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}",
+        lambda match: f"$${match.group(1)}$$",
+        text,
+    )
+    text = re.sub(
+        r"\\begin\{math\}([\s\S]*?)\\end\{math\}",
+        lambda match: f"${match.group(1)}$",
+        text,
+    )
+    text = re.sub(r"`(\${1,2})((?:(?!\1).)+)\1`", r"\1\2\1", text)
+
+    def _trim_inline_math(match: re.Match) -> str:
+        inner = match.group(1).strip()
+        return f"${inner}$" if inner else match.group(0)
+
+    return re.sub(r"(?<!\$)\$(?!\$) +(.+?) +\$(?!\$)", _trim_inline_math, text)
 
 
 @router.get("/workspaces/{workspace_id}/documents/{document_id}/editor-content")
@@ -347,13 +404,13 @@ async def export_document(
     workspace_id: int,
     document_id: int,
     format: ExportFormat = Query(
-        ExportFormat.PDF,
-        description="Export format: pdf, docx, html, latex, epub, odt, or plain",
+        ExportFormat.DOCX,
+        description="Export format: docx, html, latex, epub, odt, or plain",
     ),
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ):
-    """Export a document in the requested format (reuses the report export pipeline)."""
+    """Export a document in the requested format."""
     await check_permission(
         session,
         auth,
@@ -401,24 +458,6 @@ async def export_document(
     meta_args = ["-M", f"title:{doc_title}", "-M", f"date:{formatted_date}"]
 
     def _convert_and_read() -> bytes:
-        if format == ExportFormat.PDF:
-            typst_template = str(get_typst_template_path())
-            typst_markup: str = pypandoc.convert_text(
-                markdown_content,
-                "typst",
-                format=input_fmt,
-                extra_args=[
-                    "--standalone",
-                    f"--template={typst_template}",
-                    "-V",
-                    "mainfont:Libertinus Serif",
-                    "-V",
-                    "codefont:DejaVu Sans Mono",
-                    *meta_args,
-                ],
-            )
-            return typst.compile(typst_markup.encode("utf-8"))
-
         if format == ExportFormat.DOCX:
             return _pandoc_to_tempfile(
                 format.value,

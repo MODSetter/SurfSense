@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const EXPORT_FILE_EXTENSIONS: Record<string, string> = {
-	pdf: "pdf",
 	docx: "docx",
 	html: "html",
 	latex: "tex",
@@ -22,41 +21,25 @@ export const EXPORT_FILE_EXTENSIONS: Record<string, string> = {
 interface ExportMenuItemsProps {
 	onExport: (format: string) => void;
 	exporting: string | null;
-	/** Hide server-side formats (PDF, DOCX, etc.) — only show md */
+	/** Hide server-side formats (DOCX, HTML, etc.) — only show md */
 	showAllFormats?: boolean;
-	/** When true, only show PDF export (used for Typst-based resumes) */
-	pdfOnly?: boolean;
 }
 
 export function ExportDropdownItems({
 	onExport,
 	exporting,
 	showAllFormats = true,
-	pdfOnly = false,
 }: ExportMenuItemsProps) {
 	const handle = (format: string) => (e: React.MouseEvent) => {
 		e.stopPropagation();
 		onExport(format);
 	};
 
-	if (pdfOnly) {
-		return (
-			<DropdownMenuItem onClick={handle("pdf")} disabled={exporting !== null}>
-				{exporting === "pdf" && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-				PDF (.pdf)
-			</DropdownMenuItem>
-		);
-	}
-
 	return (
 		<>
 			{showAllFormats && (
 				<>
 					<DropdownMenuLabel className="text-xs text-muted-foreground">Documents</DropdownMenuLabel>
-					<DropdownMenuItem onClick={handle("pdf")} disabled={exporting !== null}>
-						{exporting === "pdf" && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-						PDF (.pdf)
-					</DropdownMenuItem>
 					<DropdownMenuItem onClick={handle("docx")} disabled={exporting !== null}>
 						{exporting === "docx" && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
 						Word (.docx)
@@ -115,10 +98,6 @@ export function ExportContextItems({
 		<>
 			{showAllFormats && (
 				<>
-					<ContextMenuItem onClick={handle("pdf")} disabled={exporting !== null}>
-						{exporting === "pdf" && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-						PDF (.pdf)
-					</ContextMenuItem>
 					<ContextMenuItem onClick={handle("docx")} disabled={exporting !== null}>
 						{exporting === "docx" && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
 						Word (.docx)
