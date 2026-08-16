@@ -124,7 +124,7 @@ function ArtifactCard({
 	return (
 		<div
 			className={cn(
-				"relative my-4 flex w-full items-center gap-3 rounded-xl border bg-muted/30 p-4 text-left transition-colors hover:bg-accent hover:text-accent-foreground",
+				"relative my-4 flex w-full select-none items-center gap-3 rounded-xl border bg-muted/30 p-4 text-left transition-colors hover:bg-accent hover:text-accent-foreground",
 				selected && "ring-1 ring-primary/60"
 			)}
 		>

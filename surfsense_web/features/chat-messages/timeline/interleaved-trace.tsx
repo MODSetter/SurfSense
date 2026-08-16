@@ -283,7 +283,7 @@ const TraceSegment: FC<{
 		});
 	};
 	return (
-		<section className="mb-3 w-full leading-normal">
+		<section className="mb-3 w-full select-none leading-normal">
 			<Button
 				variant="ghost"
 				type="button"
