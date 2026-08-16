@@ -41,6 +41,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import type { SerializableCitation } from "@/components/tool-ui/citation";
+import { LegacyDeliverableToolUI } from "@/components/tool-ui/legacy-deliverable";
 import {
 	openSafeNavigationHref,
 	resolveSafeNavigationHref,
@@ -70,24 +71,10 @@ const IS_QUICK_ASSIST_WINDOW =
 	new URLSearchParams(window.location.search).get("quickAssist") === "true";
 
 // Dynamically import tool UI components to avoid loading them in main bundle
-const GenerateReportToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/generate-report").then((m) => ({
-			default: m.GenerateReportToolUI,
-		})),
-	{ ssr: false }
-);
 const SaveArtifactToolUI = dynamic(
 	() =>
 		import("@/components/tool-ui/save-artifact").then((m) => ({
 			default: m.SaveArtifactToolUI,
-		})),
-	{ ssr: false }
-);
-const GenerateResumeToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/generate-resume").then((m) => ({
-			default: m.GenerateResumeToolUI,
 		})),
 	{ ssr: false }
 );
@@ -428,8 +415,8 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
  */
 const BODY_TOOLS = {
 	save_artifact: withArtifactAnchor(SaveArtifactToolUI),
-	generate_report: withArtifactAnchor(GenerateReportToolUI),
-	generate_resume: withArtifactAnchor(GenerateResumeToolUI),
+	generate_report: LegacyDeliverableToolUI,
+	generate_resume: LegacyDeliverableToolUI,
 	generate_podcast: withArtifactAnchor(GeneratePodcastToolUI),
 	generate_video_presentation: withArtifactAnchor(GenerateVideoPresentationToolUI),
 	display_image: withArtifactAnchor(GenerateImageToolUI),

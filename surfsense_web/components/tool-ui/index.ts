@@ -16,7 +16,6 @@ export {
 	GenerateImageResultSchema,
 	GenerateImageToolUI,
 } from "./generate-image";
-export { GenerateReportToolUI } from "./generate-report";
 export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
 export {
 	Image,
@@ -27,6 +26,7 @@ export {
 	parseSerializableImage,
 	type SerializableImage,
 } from "./image";
+export { LegacyDeliverableToolUI } from "./legacy-deliverable";
 export {
 	CreateLinearIssueToolUI,
 	DeleteLinearIssueToolUI,

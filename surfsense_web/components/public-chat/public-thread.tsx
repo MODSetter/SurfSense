@@ -13,8 +13,7 @@ import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
-import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateResumeToolUI } from "@/components/tool-ui/generate-resume";
+import { LegacyDeliverableToolUI } from "@/components/tool-ui/legacy-deliverable";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/podcast";
 import { SaveArtifactToolUI } from "@/components/tool-ui/save-artifact";
 import { InterleavedMessageParts } from "@/features/chat-messages/timeline";
@@ -31,8 +30,8 @@ const GenerateVideoPresentationToolUI = dynamic(
 const PUBLIC_BODY_TOOLS = {
 	save_artifact: SaveArtifactToolUI,
 	generate_podcast: GeneratePodcastToolUI,
-	generate_report: GenerateReportToolUI,
-	generate_resume: GenerateResumeToolUI,
+	generate_report: LegacyDeliverableToolUI,
+	generate_resume: LegacyDeliverableToolUI,
 	generate_video_presentation: GenerateVideoPresentationToolUI,
 	display_image: GenerateImageToolUI,
 	generate_image: GenerateImageToolUI,
