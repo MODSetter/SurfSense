@@ -8,8 +8,6 @@ from langchain_core.tools import BaseTool
 
 PRUNE_PROTECTED_TOOL_NAMES: frozenset[str] = frozenset(
     {
-        "generate_report",
-        "generate_resume",
         "generate_podcast",
         "generate_video_presentation",
         "generate_image",

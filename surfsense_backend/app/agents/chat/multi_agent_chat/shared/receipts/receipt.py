@@ -100,7 +100,7 @@ class Receipt(TypedDict, total=False):
     in ``shared/snippets/verifiable_handle.md`` keys off this field."""
 
     external_id: str | None
-    """Backend identifier. Report row id, Notion ``page_id``, Slack ``ts``,
+    """Backend identifier. Artifact id, Notion ``page_id``, Slack ``ts``,
     Gmail ``message_id``, Linear identifier, KB ``virtualPath``, etc.
     ``None`` only when the operation failed before the backend assigned one."""
 
