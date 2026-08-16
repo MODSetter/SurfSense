@@ -3,7 +3,7 @@
 Deliverables tools run inside the ``deliverables`` subagent, which is invoked
 with a *namespaced* ``thread_id`` of the form ``{chat_id}::task:{tool_call_id}``
 (see :func:`subagent_invoke_config`). To attribute a generated deliverable
-(podcast / report / resume / video) to the correct chat, we parse the leading
+(artifact, podcast, image, or video) to the correct chat, we parse the leading
 segment of that namespaced id rather than trusting a ``thread_id`` captured at
 tool-build time — the latter would be stale once a single compiled agent graph
 is reused across chats (cross-thread ``agent_cache`` reuse).
