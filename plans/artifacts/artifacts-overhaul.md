@@ -1,6 +1,6 @@
 # Artifacts Overhaul — Authoritative Architecture
 
-**Status:** Sandbox generation, backend verification, PDF, DOCX, and PPTX are implemented. The persistence, indexing, and search model in sections 1, 3, 4, and 5 is under implementation. Phase 5 (full XLSX skill, verification adapter, and viewer) and phase 6 (legacy report/Typst demolition) remain planned.
+**Status:** Sandbox generation, backend verification, PDF, DOCX, and PPTX are implemented. The persistence, indexing, and search model in sections 1, 3, 4, and 5 is under implementation. Phase 5 (full XLSX skill, verification adapter, and viewer) remains planned. Phase 6 (legacy report/Typst demolition) is complete.
 **Scope:** Generated non-media deliverables. Media generation remains on its existing pipelines.
 **Shape:** [ADR 0003](../../docs/adr/0003-artifacts-as-documents.md) records why a deliverable's body is a document type rather than a second corpus, and the obligations that creates.
 
@@ -190,11 +190,11 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 3 | Shipped | Backend verification service and DOCX |
 | 4 | Shipped | PPTX and format-general rendered verification |
 | 5 | Planned | XLSX adapter/skill/native viewer and public-share artifact rendering |
-| 6 | Planned | Legacy report/resume/Typst demolition and library repoint |
+| 6 | Complete | Legacy report/resume/Typst demolition and library repoint |
 
 ## 10. Phase 6 boundary
 
-Legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows remain until phase 6. Phase 6 drops that system without migrating it into `Artifact` or into an artifact document; old tool parts become static unavailable cards. This is independent of the artifact architecture above.
+Phase 6 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
 
 ## 11. Required invariants
 
