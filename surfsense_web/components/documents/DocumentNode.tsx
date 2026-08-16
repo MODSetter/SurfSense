@@ -3,7 +3,6 @@
 import {
 	AlertCircle,
 	Clock,
-	Download,
 	History,
 	MoreHorizontal,
 	Move,
@@ -13,25 +12,18 @@ import {
 import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
-import { ExportContextItems, ExportDropdownItems } from "@/components/shared/ExportMenuItems";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
@@ -54,7 +46,6 @@ interface DocumentNodeProps {
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
 	onReset?: (doc: DocumentNodeDoc) => void;
-	onExport?: (doc: DocumentNodeDoc, format: string) => void;
 	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	canDelete?: boolean;
 	canMove?: boolean;
@@ -72,7 +63,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onDelete,
 	onMove,
 	onReset,
-	onExport,
 	onVersionHistory,
 	canDelete = true,
 	canMove = true,
@@ -122,20 +112,9 @@ export const DocumentNode = React.memo(function DocumentNode({
 	);
 
 	const [dropdownOpen, setDropdownOpen] = useState(false);
-	const [exporting, setExporting] = useState<string | null>(null);
 	const [titleTooltipOpen, setTitleTooltipOpen] = useState(false);
 	const rowRef = useRef<HTMLDivElement>(null);
 	const titleRef = useRef<HTMLSpanElement>(null);
-
-	const handleExport = useCallback(
-		(format: string) => {
-			if (!onExport) return;
-			setExporting(format);
-			onExport(doc, format);
-			setTimeout(() => setExporting(null), 2000);
-		},
-		[doc, onExport]
-	);
 
 	const handleTitleTooltipOpenChange = useCallback((open: boolean) => {
 		if (open && titleRef.current) {
@@ -304,22 +283,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 										Move to...
 									</DropdownMenuItem>
 								)}
-								{onExport && isMemoryDocument ? (
-									<DropdownMenuItem disabled={isUnavailable} onClick={() => handleExport("md")}>
-										<Download className="mr-2 h-4 w-4" />
-										Export as MD
-									</DropdownMenuItem>
-								) : onExport ? (
-									<DropdownMenuSub>
-										<DropdownMenuSubTrigger disabled={isUnavailable}>
-											<Download className="mr-2 h-4 w-4" />
-											Export
-										</DropdownMenuSubTrigger>
-										<DropdownMenuSubContent className="min-w-[180px]">
-											<ExportDropdownItems onExport={handleExport} exporting={exporting} />
-										</DropdownMenuSubContent>
-									</DropdownMenuSub>
-								) : null}
 								{onVersionHistory && isVersionableType(doc.document_type) && (
 									<DropdownMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
 										<History className="mr-2 h-4 w-4" />
@@ -352,22 +315,6 @@ export const DocumentNode = React.memo(function DocumentNode({
 							Move to...
 						</ContextMenuItem>
 					)}
-					{onExport && isMemoryDocument ? (
-						<ContextMenuItem disabled={isUnavailable} onClick={() => handleExport("md")}>
-							<Download className="mr-2 h-4 w-4" />
-							Export as MD
-						</ContextMenuItem>
-					) : onExport ? (
-						<ContextMenuSub>
-							<ContextMenuSubTrigger disabled={isUnavailable}>
-								<Download className="mr-2 h-4 w-4" />
-								Export
-							</ContextMenuSubTrigger>
-							<ContextMenuSubContent className="min-w-[180px]">
-								<ExportContextItems onExport={handleExport} exporting={exporting} />
-							</ContextMenuSubContent>
-						</ContextMenuSub>
-					) : null}
 					{onVersionHistory && isVersionableType(doc.document_type) && (
 						<ContextMenuItem disabled={isUnavailable} onClick={() => onVersionHistory(doc)}>
 							<History className="mr-2 h-4 w-4" />

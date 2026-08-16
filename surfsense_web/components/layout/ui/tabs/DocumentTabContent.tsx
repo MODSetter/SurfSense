@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileQuestionMark, FileText, Pencil, RefreshCw } from "lucide-react";
+import { FileQuestionMark, FileText, Pencil, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +9,6 @@ import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 
@@ -75,7 +74,6 @@ export function DocumentTabContent({ documentId, workspaceId, title }: DocumentT
 	const [error, setError] = useState<string | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
 	const [saving, setSaving] = useState(false);
-	const [downloading, setDownloading] = useState(false);
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 	const markdownRef = useRef<string>("");
 	const initialLoadDone = useRef(false);
@@ -297,52 +295,10 @@ export function DocumentTabContent({ documentId, workspaceId, title }: DocumentT
 					<div className="flex h-full min-h-0 flex-col">
 						<Alert className="m-4 shrink-0">
 							<FileText className="size-4" />
-							<AlertDescription className="flex items-center justify-between gap-4">
-								<span>
-									This document is too large for the editor (
-									{Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
-									{doc.chunk_count ?? 0} chunks). Showing raw markdown below.
-								</span>
-								<Button
-									variant="outline"
-									size="sm"
-									className="relative shrink-0"
-									disabled={downloading}
-									onClick={async () => {
-										setDownloading(true);
-										try {
-											const response = await authenticatedFetch(
-												buildBackendUrl(
-													`/api/v1/workspaces/${workspaceId}/documents/${documentId}/download-markdown`
-												),
-												{ method: "GET" }
-											);
-											if (!response.ok) throw new Error("Download failed");
-											const blob = await response.blob();
-											const url = URL.createObjectURL(blob);
-											const a = document.createElement("a");
-											a.href = url;
-											const disposition = response.headers.get("content-disposition");
-											const match = disposition?.match(/filename="(.+)"/);
-											a.download = match?.[1] ?? `${doc.title || "document"}.md`;
-											document.body.appendChild(a);
-											a.click();
-											a.remove();
-											URL.revokeObjectURL(url);
-											toast.success("Download started");
-										} catch {
-											toast.error("Failed to download document");
-										} finally {
-											setDownloading(false);
-										}
-									}}
-								>
-									<span className={`flex items-center gap-1.5 ${downloading ? "opacity-0" : ""}`}>
-										<Download className="size-3.5" />
-										Download .md
-									</span>
-									{downloading && <Spinner size="sm" className="absolute" />}
-								</Button>
+							<AlertDescription>
+								This document is too large for the editor (
+								{Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
+								{doc.chunk_count ?? 0} chunks). Showing raw markdown below.
 							</AlertDescription>
 						</Alert>
 						<div className="min-h-0 flex-1 overflow-hidden">

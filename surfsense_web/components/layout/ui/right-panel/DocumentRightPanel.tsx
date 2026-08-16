@@ -38,7 +38,6 @@ import { DocumentsView } from "@/components/documents/DocumentsView";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
-import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	DEFAULT_EXCLUDE_PATTERNS,
 	FolderWatchDialog,
@@ -107,17 +106,6 @@ function isMemoryDocument(doc: { document_type: string }) {
 	return doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
 }
 
-function downloadTextFile(content: string, fileName: string, type = "text/markdown;charset=utf-8") {
-	const blob = new Blob([content], { type });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = fileName;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
-}
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
 
@@ -751,69 +739,6 @@ function AuthenticatedDocumentRightPanelBase({
 		[workspaceId, getPendingCountInSubtree, doExport]
 	);
 
-	const handleExportDocument = useCallback(
-		async (doc: DocumentNodeDoc, format: string) => {
-			if (isMemoryDocument(doc)) {
-				try {
-					const endpoint =
-						doc.document_type === "USER_MEMORY"
-							? buildBackendUrl("/api/v1/users/me/memory")
-							: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory`);
-					const response = await authenticatedFetch(endpoint, { method: "GET" });
-					if (!response.ok) {
-						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
-						throw new Error(errorData.detail || "Export failed");
-					}
-					const data = (await response.json()) as { memory_md?: string };
-					downloadTextFile(
-						data.memory_md ?? "",
-						doc.title.endsWith(".md") ? doc.title : `${doc.title}.md`
-					);
-					return;
-				} catch (err) {
-					console.error("Memory export failed:", err);
-					toast.error(err instanceof Error ? err.message : "Export failed");
-					return;
-				}
-			}
-
-			const safeTitle =
-				doc.title
-					.replace(/[^a-zA-Z0-9 _-]/g, "_")
-					.trim()
-					.slice(0, 80) || "document";
-			const ext = EXPORT_FILE_EXTENSIONS[format] ?? format;
-
-			try {
-				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${doc.id}/export`, {
-						format,
-					}),
-					{ method: "GET" }
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
-					throw new Error(errorData.detail || "Export failed");
-				}
-
-				const blob = await response.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = `${safeTitle}.${ext}`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-			} catch (err) {
-				console.error(`Export ${format} failed:`, err);
-				toast.error(err instanceof Error ? err.message : `Export failed`);
-			}
-		},
-		[workspaceId]
-	);
-
 	const handleFolderPickerSelect = useCallback(
 		async (targetFolderId: number | null) => {
 			if (!folderPickerTarget) return;
@@ -1178,7 +1103,6 @@ function AuthenticatedDocumentRightPanelBase({
 						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 						onMoveDocument={handleMoveDocument}
 						onResetDocument={handleResetMemoryDocument}
-						onExportDocument={handleExportDocument}
 						onVersionHistory={(doc) => setVersionDocId(doc.id)}
 						onDropIntoFolder={handleDropIntoFolder}
 						onReorderFolder={handleReorderFolder}
@@ -1831,7 +1755,6 @@ function AnonymousDocumentRightPanel({
 							return true;
 						}}
 						onMoveDocument={() => gate("organize documents")}
-						onExportDocument={() => gate("export documents")}
 						onVersionHistory={() => gate("view version history")}
 						onDropIntoFolder={async () => gate("organize documents")}
 						onReorderFolder={async () => gate("organize folders")}
