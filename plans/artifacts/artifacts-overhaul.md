@@ -1,6 +1,6 @@
 # Artifacts Overhaul — Authoritative Architecture
 
-**Status:** Sandbox generation, backend verification, PDF, DOCX, and PPTX are implemented. The persistence, indexing, and search model in sections 1, 3, 4, and 5 is under implementation. Phase 5 (full XLSX skill, verification adapter, and viewer) remains planned. Phase 6 (legacy report/Typst demolition) is complete.
+**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, and phase 6 legacy demolition are implemented. Unified indexing and search remain under implementation. Phase 7 will complete generic-format handling, public artifact access, and XLSX hardening.
 **Scope:** Generated non-media deliverables. Media generation remains on its existing pipelines.
 **Shape:** [ADR 0003](../../docs/adr/0003-artifacts-as-documents.md) records why a deliverable's body is a document type rather than a second corpus, and the obligations that creates.
 
@@ -160,15 +160,14 @@ An artifact's document is read-only through the editor: `save_document` refuses 
 
 `verify_artifact(path)` owns structural checking, optional conversion/rasterization/vision review, and the signed receipt. `save_artifact` validates the receipt audience, expiry, adapter, and primary/preview hashes. “Could not visually verify” may be represented in a valid receipt; skipping verification may not.
 
-Persistence is format-blind:
+Persistence remains format-blind:
 
 - `Artifact.format` is an adapter-owned string, not a database enum.
-- Primary MIME comes from the adapter; unknown formats use the generic adapter and `application/octet-stream`.
-- The generic adapter checks non-empty bounded bytes and has no rendered policy.
+- Primary MIME comes from the selected adapter.
 - Source MIME validation is role-specific and source remains private.
 - The manifest and viewer registry degrade unknown or unviewable formats to download.
 
-Shipped formats are Markdown, PDF, DOCX, and PPTX. The schema and API already support XLSX as primary + source with no preview, and tests prove that shape. Full XLSX authoring, programmatic verification adapter, native grid viewer, and public-share work remain phase 5.
+Shipped formats are Markdown, PDF, DOCX, PPTX, and XLSX. XLSX uses programmatic verification, primary + private source persistence, no preview, and a native read-only grid. Phase 7 adds the generic adapter for bounded unknown binaries and uses `application/octet-stream` with attachment-only delivery.
 
 ## 8. Rendering and revision UX
 
@@ -177,6 +176,7 @@ The artifact panel and caches are keyed by `artifact_id`. It fetches the dedicat
 - no primary file -> read-only Markdown;
 - PDF -> primary in the PDF viewer;
 - DOCX/PPTX -> receipt-bound PDF preview;
+- XLSX -> primary in the native grid;
 - unknown/missing preview/oversized/parse failure -> unviewable state with download.
 
 All viewers are read-only. Revisions return to the deliverables agent, which loads the stored source and saves with `artifact_id + expected_generation`. The current manifest is the only product-visible generation; prior file rows/blobs are purged. Git may retain Markdown history, but it is not an artifact restoration mechanism.
@@ -189,14 +189,19 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 2 | Shipped | Sandbox and PDF |
 | 3 | Shipped | Backend verification service and DOCX |
 | 4 | Shipped | PPTX and format-general rendered verification |
-| 5 | Planned | XLSX adapter/skill/native viewer and public-share artifact rendering |
+| 5 | Complete | XLSX skill, programmatic verification, persistence, and authenticated native grid |
 | 6 | Complete | Legacy report/resume/Typst demolition and library repoint |
+| 7 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
 
-## 10. Phase 6 boundary
+## 10. Completed demolition boundary
 
 Phase 6 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
 
-## 11. Required invariants
+## 11. Phase 7 boundary
+
+Phase 7 completes access and fallback behavior around the existing model. It adds token-scoped public reads, not public artifact copies; a generic adapter, not persistence suffix branches; and XLSX hardening, not spreadsheet editing. Public snapshots allowlist artifact IDs and resolve the current generation. Source-role files remain private on every route.
+
+## 12. Required invariants
 
 1. One artifact is one document. `artifact.document_id` is non-null and unique, and no artifact operation creates a second row for the same deliverable.
 2. Title, path, Markdown, and indexing state live only on the document. Format, generation, roles, and receipts live only on the artifact.
@@ -209,4 +214,5 @@ Phase 6 removed legacy `Report`, report/resume tools, Typst routes, old panels, 
 9. One citation namespace; document type decides which panel a citation opens.
 10. An artifact document is not editable through the editor, and the guard is enforced server-side.
 11. Source blobs are never user-readable.
-12. XLSX requires no persistence/API schema change; only phase-5 format and viewer work.
+12. New formats require an adapter and optional viewer, not a persistence or API schema change.
+13. Public artifact routes reuse the manifest model, expose only allowlisted primary/preview files, and never expose source.
