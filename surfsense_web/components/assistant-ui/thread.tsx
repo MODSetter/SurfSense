@@ -1538,13 +1538,7 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Generate",
-		tools: [
-			"generate_podcast",
-			"generate_video_presentation",
-			"generate_report",
-			"generate_resume",
-			"generate_image",
-		],
+		tools: ["generate_podcast", "generate_video_presentation", "generate_image"],
 	},
 	{
 		label: "Memory",

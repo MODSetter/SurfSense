@@ -35,13 +35,6 @@ const GatedTab: FC<GatedTabProps> = ({ title, description }) => (
 	</Empty>
 );
 
-export const ReportsGatedPlaceholder: FC = () => (
-	<GatedTab
-		title="Generate Reports"
-		description="Create a free account to generate structured reports from your conversations."
-	/>
-);
-
 export const EditorGatedPlaceholder: FC = () => (
 	<GatedTab
 		title="Document Editor"

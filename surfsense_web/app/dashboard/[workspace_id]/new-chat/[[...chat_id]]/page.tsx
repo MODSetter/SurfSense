@@ -23,7 +23,6 @@ import {
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
-import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { removeChatTabAtom, syncChatTabAtom } from "@/atoms/tabs/tabs.atom";
@@ -84,13 +83,6 @@ const MobileHitlEditPanel = dynamic(
 		})),
 	{ ssr: false }
 );
-const MobileReportPanel = dynamic(
-	() =>
-		import("@/components/report-panel/report-panel").then((m) => ({
-			default: m.MobileReportPanel,
-		})),
-	{ ssr: false }
-);
 const MobileArtifactsPanel = dynamic(
 	() =>
 		import("@/features/chat-artifacts/ui/artifacts-panel").then((m) => ({
@@ -144,7 +136,6 @@ export default function NewChatPage() {
 	const setCurrentThreadMetadata = useSetAtom(setCurrentThreadMetadataAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
-	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 	const syncChatTab = useSetAtom(syncChatTabAtom);
 	const removeChatTab = useSetAtom(removeChatTabAtom);
@@ -274,16 +265,9 @@ export default function NewChatPage() {
 		setMentionedDocuments([]);
 		tokenUsageStore.clear();
 		setMessageDocumentsMap({});
-		closeReportPanel();
 		closeEditorPanel();
 		chatStreamStore.clearInactive(nextThreadId);
-	}, [
-		urlChatId,
-		setMentionedDocuments,
-		setMessageDocumentsMap,
-		closeReportPanel,
-		closeEditorPanel,
-	]);
+	}, [urlChatId, setMentionedDocuments, setMessageDocumentsMap, closeEditorPanel]);
 
 	useEffect(() => {
 		if (!activeThreadId) {
@@ -799,7 +783,6 @@ export default function NewChatPage() {
 								isPreparingArtifact={isPreparingArtifact}
 							/>
 						</div>
-						<MobileReportPanel />
 						<MobileEditorPanel />
 						<MobileHitlEditPanel />
 						<MobileArtifactsPanel />

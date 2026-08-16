@@ -6,7 +6,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
 import { artifactPanelAtom, closeArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
-import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
@@ -55,14 +54,6 @@ const HitlEditPanelContent = dynamic(
 	{ ssr: false, loading: () => null }
 );
 
-const ReportPanelContent = dynamic(
-	() =>
-		import("@/components/report-panel/report-panel").then((m) => ({
-			default: m.ReportPanelContent,
-		})),
-	{ ssr: false, loading: () => null }
-);
-
 const ArtifactViewerContent = dynamic(
 	() =>
 		import("@/features/artifacts").then((m) => ({
@@ -104,7 +95,6 @@ export function RightPanelToggleButton({
 	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
 	const activeTab = useAtomValue(rightPanelTabAtom);
 	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
-	const reportState = useAtomValue(reportPanelAtom);
 	const artifactState = useAtomValue(artifactPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
@@ -112,7 +102,6 @@ export function RightPanelToggleButton({
 	const artifactsPanelOpen = useAtomValue(artifactsPanelOpenAtom);
 	const supportsArtifactPanel = useMediaQuery("(min-width: 1024px)");
 	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
-	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
@@ -124,17 +113,10 @@ export function RightPanelToggleButton({
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.target != null;
 	const hasContent =
-		documentsOpen ||
-		artifactOpen ||
-		reportOpen ||
-		editorOpen ||
-		hitlEditOpen ||
-		citationOpen ||
-		artifactsOpen;
+		documentsOpen || artifactOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
 	const effectiveTab = resolveEffectiveTab(activeTab, {
 		sources: documentsOpen,
 		artifact: artifactOpen,
-		report: reportOpen,
 		editor: editorOpen,
 		"hitl-edit": hitlEditOpen,
 		citation: citationOpen,
@@ -173,7 +155,6 @@ export function RightPanelToggleButton({
 const PANEL_WIDTHS = {
 	sources: 420,
 	artifact: 640,
-	report: 640,
 	editor: 640,
 	"hitl-edit": 640,
 	citation: 560,
@@ -200,7 +181,6 @@ const TAB_FALLBACK_ORDER: RightPanelTab[] = [
 	"citation",
 	"editor",
 	"artifact",
-	"report",
 	"artifacts",
 	"sources",
 ];
@@ -219,8 +199,6 @@ export function RightPanel({
 	showTopBorder = false,
 }: RightPanelProps) {
 	const [activeTab] = useAtom(rightPanelTabAtom);
-	const reportState = useAtomValue(reportPanelAtom);
-	const closeReport = useSetAtom(closeReportPanelAtom);
 	const artifactState = useAtomValue(artifactPanelAtom);
 	const closeArtifact = useSetAtom(closeArtifactPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
@@ -237,7 +215,6 @@ export function RightPanel({
 	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
 
 	const documentsOpen = documentsPanel?.open ?? false;
-	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
 	const editorOpen =
 		editorState.isOpen &&
@@ -250,35 +227,24 @@ export function RightPanel({
 	const citationOpen = citationState.isOpen && citationState.target != null;
 
 	useEffect(() => {
-		if (
-			!artifactOpen &&
-			!reportOpen &&
-			!editorOpen &&
-			!hitlEditOpen &&
-			!citationOpen &&
-			!artifactsOpen
-		)
-			return;
+		if (!artifactOpen && !editorOpen && !hitlEditOpen && !citationOpen && !artifactsOpen) return;
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				if (artifactOpen) closeArtifact();
 				else if (hitlEditOpen) closeHitlEdit();
 				else if (citationOpen) closeCitation();
 				else if (editorOpen) closeEditor();
-				else if (reportOpen) closeReport();
 				else if (artifactsOpen) closeArtifacts();
 			}
 		};
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [
-		reportOpen,
 		artifactOpen,
 		editorOpen,
 		hitlEditOpen,
 		citationOpen,
 		artifactsOpen,
-		closeReport,
 		closeArtifact,
 		closeEditor,
 		closeHitlEdit,
@@ -289,7 +255,6 @@ export function RightPanel({
 	const isVisible =
 		(documentsOpen ||
 			artifactOpen ||
-			reportOpen ||
 			editorOpen ||
 			hitlEditOpen ||
 			citationOpen ||
@@ -299,7 +264,6 @@ export function RightPanel({
 	const effectiveTab = resolveEffectiveTab(activeTab, {
 		sources: documentsOpen,
 		artifact: artifactOpen,
-		report: reportOpen,
 		editor: editorOpen,
 		"hitl-edit": hitlEditOpen,
 		citation: citationOpen,
@@ -336,16 +300,6 @@ export function RightPanel({
 												<div aria-hidden="true" className="h-8 w-8 shrink-0" />
 											) : null
 										}
-									/>
-								</div>
-							)}
-							{effectiveTab === "report" && reportOpen && (
-								<div className="h-full flex flex-col">
-									<ReportPanelContent
-										reportId={reportState.reportId as number}
-										title={reportState.title || "Report"}
-										onClose={closeReport}
-										shareToken={reportState.shareToken}
 									/>
 								</div>
 							)}
