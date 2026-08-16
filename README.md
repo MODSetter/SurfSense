@@ -145,7 +145,7 @@ The research workspace that made SurfSense the leading open-source NotebookLM al
 
 **Deliverable studio**
 
-- AI report generator with export to PDF, DOCX, HTML, LaTeX, EPUB, ODT, or plain text.
+- Downloadable AI artifacts for reports, resumes, documents, spreadsheets, and presentations.
 - Two-host AI podcasts from any document or folder in under 20 seconds.
 - Editable slide decks, narrated video overviews, and AI image generation.
 
