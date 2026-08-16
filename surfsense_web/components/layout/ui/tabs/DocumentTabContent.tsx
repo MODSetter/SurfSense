@@ -297,8 +297,8 @@ export function DocumentTabContent({ documentId, workspaceId, title }: DocumentT
 							<FileText className="size-4" />
 							<AlertDescription>
 								This document is too large for the editor (
-								{Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB,{" "}
-								{doc.chunk_count ?? 0} chunks). Showing raw markdown below.
+								{Math.round((doc.content_size_bytes ?? 0) / 1024 / 1024)}MB, {doc.chunk_count ?? 0}{" "}
+								chunks). Showing raw markdown below.
 							</AlertDescription>
 						</Alert>
 						<div className="min-h-0 flex-1 overflow-hidden">
