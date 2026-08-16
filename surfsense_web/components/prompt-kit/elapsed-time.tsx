@@ -44,7 +44,7 @@ export const ElapsedTime = memo(function ElapsedTime({
 	}, [timing, projection]);
 
 	return (
-		<span className="shrink-0 font-mono text-[12px] text-muted-foreground/75 tabular-nums">
+		<span className="shrink-0 font-mono text-[12px] font-semibold text-muted-foreground/75 tabular-nums">
 			{formatElapsed(elapsed)}
 		</span>
 	);
