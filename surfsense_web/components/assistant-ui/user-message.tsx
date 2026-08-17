@@ -6,25 +6,19 @@ import {
 	useMessagePartText,
 } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-	CheckIcon,
-	CopyIcon,
-	Folder as FolderIcon,
-	MessageSquare,
-	Pencil,
-	Plug,
-} from "lucide-react";
+import { CheckIcon, CopyIcon, Pencil } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
 import { MentionChip } from "@/components/assistant-ui/mention-chip";
+import { MentionIcon } from "@/components/assistant-ui/mention-icon";
 import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { parseMentionSegments } from "@/lib/chat/parse-mention-segments";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
@@ -74,10 +68,11 @@ const UserTextPart: FC = () => {
 	const text = (part as { text?: string }).text ?? "";
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = (messageId ? messageDocumentsMap[messageId] : undefined) ?? [];
-	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const router = useRouter();
 	const params = useParams();
 	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
+	const artifactsByDocument = useArtifactsByDocument(resolvedWorkspaceId ?? 0);
 
 	const handleOpenDoc = useCallback(
 		(docId: number, title: string) => {
@@ -85,14 +80,13 @@ const UserTextPart: FC = () => {
 				toast.error("Cannot open document outside a workspace.");
 				return;
 			}
-			openEditorPanel({
-				kind: "document",
+			openDocumentViewer({
 				documentId: docId,
 				workspaceId: resolvedWorkspaceId,
 				title,
 			});
 		},
-		[openEditorPanel, resolvedWorkspaceId]
+		[openDocumentViewer, resolvedWorkspaceId]
 	);
 
 	const handleOpenThread = useCallback(
@@ -115,20 +109,16 @@ const UserTextPart: FC = () => {
 					return <span key={`txt-${segment.start}`}>{segment.value}</span>;
 				}
 				const doc = segment.doc;
-				const icon =
-					doc.kind === "folder" ? (
-						<FolderIcon className="size-3.5" />
-					) : doc.kind === "thread" ? (
-						<MessageSquare className="size-3.5" />
-					) : doc.kind === "connector" ? (
-						(getConnectorIcon(doc.connector_type, "size-3.5") ?? <Plug className="size-3.5" />)
-					) : (
-						getConnectorIcon(doc.document_type ?? "UNKNOWN", "size-3.5")
-					);
+				const artifactFormat =
+					doc.kind === "doc" && doc.document_type === "ARTIFACT"
+						? artifactsByDocument.get(doc.id)?.format
+						: undefined;
 				return (
 					<MentionChip
 						key={`mention-${getMentionDocKey(doc)}-${segment.start}`}
-						icon={icon}
+						icon={
+							<MentionIcon mention={doc} artifactFormat={artifactFormat} className="size-3.5" />
+						}
 						label={doc.title}
 						tooltip={
 							doc.kind === "folder"

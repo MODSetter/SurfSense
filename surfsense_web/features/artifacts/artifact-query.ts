@@ -1,10 +1,20 @@
-import { queryOptions } from "@tanstack/react-query";
+import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { ArtifactListSchema, ArtifactManifestSchema } from "./model";
 
 export const artifactManifestQueryKey = (workspaceId: number, artifactId: number) =>
 	["artifact-manifest", workspaceId, artifactId] as const;
+
+const artifactImageBlobQueryPrefix = (workspaceId: number, artifactId: number) =>
+	["artifact-image-blob", workspaceId, artifactId] as const;
+
+export const artifactImageBlobQueryKey = (
+	workspaceId: number,
+	artifactId: number,
+	shareToken: string | null,
+	fileId?: number
+) => [...artifactImageBlobQueryPrefix(workspaceId, artifactId), shareToken, fileId] as const;
 
 export const artifactManifestQueryOptions = (workspaceId: number, artifactId: number) =>
 	queryOptions({
@@ -47,3 +57,28 @@ export const artifactListQueryOptions = (workspaceId: number, threadId?: number 
 		staleTime: 30_000,
 		refetchOnWindowFocus: "always",
 	});
+
+/** Refresh every cache surface that can retain an artifact revision. */
+export async function invalidatePublishedArtifact(
+	queryClient: QueryClient,
+	workspaceId: number,
+	artifactId: number
+): Promise<void> {
+	const blobPrefixes = [artifactImageBlobQueryPrefix(workspaceId, artifactId)];
+	await Promise.all(blobPrefixes.map((queryKey) => queryClient.cancelQueries({ queryKey })));
+	for (const queryKey of blobPrefixes) {
+		// Notify mounted observers before removal so stale revision blobs disappear
+		// while the fresh manifest is loading.
+		queryClient.setQueriesData<string | null>({ queryKey }, null);
+		queryClient.removeQueries({ queryKey });
+	}
+
+	await Promise.all([
+		queryClient.resetQueries({
+			queryKey: artifactManifestQueryKey(workspaceId, artifactId),
+			exact: true,
+		}),
+		queryClient.invalidateQueries({ queryKey: artifactListQueryKey(workspaceId) }),
+		queryClient.invalidateQueries({ queryKey: ["artifacts-library", workspaceId] }),
+	]);
+}

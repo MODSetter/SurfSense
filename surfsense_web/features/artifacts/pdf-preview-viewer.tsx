@@ -1,19 +1,19 @@
 "use client";
 
 import { PdfViewer } from "@/components/shared/pdf-viewer";
+import { cannotPreviewMessage } from "@/features/file-viewers/file-format";
+import type { FileViewerProps } from "@/features/file-viewers/model";
+import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { buildBackendUrl } from "@/lib/env-config";
-import { cannotPreviewMessage } from "./file-format";
-import { UnviewableArtifact } from "./unviewable-artifact";
-import type { ArtifactFileViewerProps } from "./viewer-registry";
 
 export default function PdfPreviewViewer({
 	primary,
 	files,
 	zoomControlsContainer,
-}: ArtifactFileViewerProps) {
+}: FileViewerProps) {
 	const preview = files.find((file) => file.role === "preview");
 	if (!preview) {
-		return <UnviewableArtifact message={cannotPreviewMessage(primary.filename)} />;
+		return <UnviewableFile message={cannotPreviewMessage(primary.filename)} />;
 	}
 	return (
 		<PdfViewer

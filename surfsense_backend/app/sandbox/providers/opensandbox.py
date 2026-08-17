@@ -11,10 +11,12 @@ import asyncio
 import logging
 import time
 from datetime import timedelta
+from typing import NoReturn
 
 from code_interpreter import CodeInterpreter, SupportedLanguage
 from opensandbox import Sandbox, SandboxManager
 from opensandbox.config import ConnectionConfig
+from opensandbox.exceptions import SandboxApiException, SandboxReadyTimeoutException
 from opensandbox.models import NetworkPolicy, SandboxFilter
 
 from app.config import config as app_config
@@ -25,9 +27,8 @@ logger = logging.getLogger(__name__)
 
 THREAD_METADATA_KEY = "surfsense_thread"
 
-# The image's entrypoint is inherited, but OpenSandbox only starts the Jupyter
-# kernel when it is passed explicitly; PYTHON_VERSION selects which interpreter
-# the kernel binds to (see docker/sandbox/Dockerfile).
+# OpenSandbox requires the image service entrypoint explicitly; PYTHON_VERSION
+# selects the image's Python runtime (see docker/sandbox/Dockerfile).
 _ENTRYPOINT = ["/opt/code-interpreter/code-interpreter.sh"]
 _ENV = {"PYTHON_VERSION": "3.12"}
 _RUNNING_STATES = {"RUNNING", "PENDING"}
@@ -40,13 +41,33 @@ _LANGUAGES = {
 }
 
 
-def _to_result(execution) -> ExecResult:
-    """Flatten an SDK Execution into the protocol shape.
+def _raise_normalized(
+    exc: Exception, *, operation: str, path: str | None = None
+) -> NoReturn:
+    """Keep provider diagnostics in logs while exposing the sandbox contract."""
+    logger.warning(
+        "OpenSandbox %s failed%s",
+        operation,
+        f" for {path}" if path else "",
+        exc_info=exc,
+    )
+    if isinstance(exc, SandboxApiException):
+        if exc.status_code == 404 and path is not None:
+            raise FileNotFoundError(path) from None
+        if exc.status_code in {401, 403}:
+            raise PermissionError(f"Sandbox {operation} was denied") from None
+        if exc.status_code in {408, 504}:
+            raise TimeoutError(f"Sandbox {operation} timed out") from None
+        raise RuntimeError(f"Sandbox {operation} failed") from None
+    if isinstance(
+        exc, (TimeoutError, asyncio.TimeoutError, SandboxReadyTimeoutException)
+    ):
+        raise TimeoutError(f"Sandbox {operation} timed out") from None
+    raise exc
 
-    `exit_code` is only populated for commands; kernel executions report failure
-    through `error`, so an errored run has to be mapped to a non-zero code for
-    callers that only check `ok`.
-    """
+
+def _to_result(execution) -> ExecResult:
+    """Flatten an SDK execution into the provider-neutral result shape."""
     if execution.error is not None:
         return ExecResult(output=str(execution), exit_code=1)
     return ExecResult(output=str(execution), exit_code=execution.exit_code or 0)
@@ -68,8 +89,6 @@ class OpenSandboxSession:
         return self._sandbox.id
 
     async def _get_interpreter(self) -> CodeInterpreter:
-        # Created lazily and once: the kernel's cold start is ~5 s, and its
-        # whole value is that later executions share its process state.
         async with self._interpreter_mu:
             if self._interpreter is None:
                 self._interpreter = await CodeInterpreter.create(sandbox=self._sandbox)
@@ -92,21 +111,33 @@ class OpenSandboxSession:
                 output=f"Unsupported language: {language}. Use python or bash.",
                 exit_code=1,
             )
-        await self._renew_if_needed()
-        interpreter = await self._get_interpreter()
-        return _to_result(await interpreter.codes.run(code, language=lang))
+        try:
+            await self._renew_if_needed()
+            interpreter = await self._get_interpreter()
+            return _to_result(await interpreter.codes.run(code, language=lang))
+        except Exception as exc:
+            _raise_normalized(exc, operation="execution")
 
     async def run_command(self, command: str) -> ExecResult:
-        await self._renew_if_needed()
-        return _to_result(await self._sandbox.commands.run(command))
+        try:
+            await self._renew_if_needed()
+            return _to_result(await self._sandbox.commands.run(command))
+        except Exception as exc:
+            _raise_normalized(exc, operation="command")
 
     async def read_file(self, path: str) -> bytes:
-        await self._renew_if_needed()
-        return await self._sandbox.files.read_bytes(path)
+        try:
+            await self._renew_if_needed()
+            return await self._sandbox.files.read_bytes(path)
+        except Exception as exc:
+            _raise_normalized(exc, operation="read", path=path)
 
     async def write_file(self, path: str, data: bytes) -> None:
-        await self._renew_if_needed()
-        await self._sandbox.files.write_file(path, data)
+        try:
+            await self._renew_if_needed()
+            await self._sandbox.files.write_file(path, data)
+        except Exception as exc:
+            _raise_normalized(exc, operation="write", path=path)
 
     async def terminate(self) -> None:
         await self._sandbox.kill()
@@ -125,7 +156,7 @@ class OpenSandboxProvider:
             # blocks on the server pulling the image when it is not already on
             # the host daemon.
             request_timeout=timedelta(
-                seconds=app_config.SANDBOX_REQUEST_TIMEOUT_SECONDS
+                seconds=app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS
             ),
         )
         self._ttl = app_config.SANDBOX_IDLE_TTL_SECONDS

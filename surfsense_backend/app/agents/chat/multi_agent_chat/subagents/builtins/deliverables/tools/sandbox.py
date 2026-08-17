@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import shlex
 import uuid
 from typing import Literal
@@ -11,11 +13,15 @@ from langchain_core.tools import BaseTool, tool
 
 from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
-from app.sandbox import SandboxSession, get_registry
+from app.sandbox import ExecResult, SandboxSession, get_registry
 
 from .thread_resolver import resolve_root_thread_id
 
 _MAX_CONTEXT_CHARS = 16_000
+_PROCESS_TERMINATION_GRACE_SECONDS = 5
+_TRANSPORT_GRACE_SECONDS = 5
+
+logger = logging.getLogger(__name__)
 
 
 async def _get_session(workspace_id: int, runtime: ToolRuntime) -> SandboxSession:
@@ -30,6 +36,57 @@ def _result_text(output: str, exit_code: int, *, full_output_path: str | None) -
     return output + suffix
 
 
+async def _run_python_script(
+    session: SandboxSession,
+    code: str,
+) -> ExecResult:
+    """Materialize agent-authored code and run it as one bounded process."""
+    script_path = f"/tmp/.surfsense-exec-{uuid.uuid4().hex}.py"
+    quoted_script = shlex.quote(script_path)
+    operation_timeout = app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS
+    process_timeout = max(
+        1,
+        operation_timeout
+        - _PROCESS_TERMINATION_GRACE_SECONDS
+        - _TRANSPORT_GRACE_SECONDS,
+    )
+    await session.write_file(script_path, code.encode())
+    command = (
+        f"script={quoted_script}; "
+        """trap 'rm -f -- "$script"' EXIT; """
+        "cd -- /workspace && "
+        "timeout --signal=TERM "
+        f"--kill-after={_PROCESS_TERMINATION_GRACE_SECONDS}s {process_timeout}s "
+        'python3 "$script"'
+    )
+    try:
+        async with asyncio.timeout(operation_timeout):
+            result = await session.run_command(command)
+    except TimeoutError:
+        raise TimeoutError(
+            f"Sandbox Python execution exceeded {operation_timeout} seconds"
+        ) from None
+    finally:
+        # The shell trap handles normal completion and provider-stream failures
+        # after process exit. This fallback covers failures before the shell starts.
+        try:
+            async with asyncio.timeout(
+                min(_PROCESS_TERMINATION_GRACE_SECONDS, operation_timeout)
+            ):
+                await session.run_command(f"rm -f -- {quoted_script}")
+        except Exception:
+            logger.warning("Could not remove temporary sandbox script", exc_info=True)
+
+    if result.exit_code == 124:
+        detail = f"Python execution exceeded {process_timeout} seconds"
+        return ExecResult(
+            output=f"{result.output}\n{detail}".lstrip(),
+            exit_code=result.exit_code,
+            truncated=result.truncated,
+        )
+    return result
+
+
 def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
     """Build the provider-agnostic authoring tools."""
 
@@ -41,13 +98,13 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
     ) -> str:
         """Run Python or a Bash command in the sandbox.
 
-        Write multi-step work to a source file and run that file: only some
-        providers keep interpreter state between calls. Long output is
-        truncated here and written in full to the returned sandbox path.
+        Each Python call runs as a fresh process; carry state between calls in
+        files, not interpreter variables. Long output is truncated here and
+        written in full to the returned sandbox path.
         """
         session = await _get_session(workspace_id, runtime)
         result = (
-            await session.execute(code_or_command, language="python")
+            await _run_python_script(session, code_or_command)
             if language == "python"
             else await session.run_command(code_or_command)
         )

@@ -16,6 +16,7 @@ from langchain.tools import ToolRuntime
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.config import config as app_config
 from app.sandbox import ExecResult, SandboxUnavailableError, get_registry
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MAX_EXECUTE_TIMEOUT = 300
+MAX_EXECUTE_TIMEOUT = app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS
 
 
 async def execute_in_sandbox(
@@ -34,8 +35,9 @@ async def execute_in_sandbox(
 ) -> str:
     """Top-level entry: run *command* as Python, retrying once."""
     assert mw._thread_id is not None
+    effective_timeout = timeout or MAX_EXECUTE_TIMEOUT
     try:
-        return _format(await _run(mw, command, timeout))
+        return _format(await _run(mw, command, effective_timeout))
     except SandboxUnavailableError as err:
         return f"Error: {err}"
     except TimeoutError:
@@ -43,7 +45,7 @@ async def execute_in_sandbox(
         # the kernel until the sandbox expires. Upgrade path is an interrupt
         # call on the execution id once the SDK exposes one for kernel runs.
         return (
-            f"Error: execution exceeded {timeout or MAX_EXECUTE_TIMEOUT}s and was "
+            f"Error: execution exceeded {effective_timeout}s and was "
             "abandoned. The interpreter may still be busy; simplify the code."
         )
     except Exception as first_err:
@@ -57,14 +59,14 @@ async def execute_in_sandbox(
             # may have a wedged kernel, and reconnecting would inherit it.
             registry = await get_registry()
             await registry.terminate(mw._thread_id)
-            return _format(await _run(mw, command, timeout))
+            return _format(await _run(mw, command, effective_timeout))
         except Exception:
             logger.exception("Sandbox retry also failed for thread %s", mw._thread_id)
             return "Error: Code execution is temporarily unavailable. Please try again."
 
 
 async def _run(
-    mw: SurfSenseFilesystemMiddleware, code: str, timeout: int | None
+    mw: SurfSenseFilesystemMiddleware, code: str, timeout: int
 ) -> ExecResult:
     registry = await get_registry()
     # Without a workspace every such thread would share one cap bucket and
@@ -73,7 +75,7 @@ async def _run(
     session = await registry.get_session(mw._thread_id, workspace_id)
     return await asyncio.wait_for(
         session.execute(code, language="python"),
-        timeout=timeout or MAX_EXECUTE_TIMEOUT,
+        timeout=timeout,
     )
 
 

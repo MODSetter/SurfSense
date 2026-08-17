@@ -25,6 +25,7 @@ import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
 import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
 import { expandedFolderIdsAtom, watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
@@ -178,6 +179,7 @@ function AuthenticatedDocumentRightPanelBase({
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
 	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
+	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
 	const artifactsByDocument = useArtifactsByDocument(workspaceId);
@@ -1094,7 +1096,7 @@ function AuthenticatedDocumentRightPanelBase({
 								}
 								return;
 							}
-							openEditorPanel({
+							openDocumentViewer({
 								documentId: doc.id,
 								workspaceId,
 								title: doc.title,

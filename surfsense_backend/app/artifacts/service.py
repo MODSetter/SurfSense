@@ -63,9 +63,7 @@ def _validated_files(
     try:
         validated = [(file, ArtifactFileRole(file.role)) for file in files]
     except ValueError:
-        raise ValueError(
-            "artifact file role must be 'primary', 'preview', or 'source'"
-        ) from None
+        raise ValueError("artifact file role must be 'primary' or 'preview'") from None
     roles = [role for _, role in validated]
     if len(roles) != len(set(roles)):
         raise ValueError("an artifact may contain at most one file per role")
@@ -279,7 +277,8 @@ async def save_artifact(
             )
         if artifact.generation != expected_generation:
             raise ValueError(
-                "artifact was revised by another operation; load its source again"
+                "artifact was revised by another operation; refresh the artifact "
+                "roster and load the latest revision workspace"
             )
         document = artifact.document
         old_files = list(artifact.files)
@@ -350,7 +349,6 @@ async def save_artifact(
                     size_bytes=record.size_bytes,
                 )
                 for record in new_records
-                if record.role is not ArtifactFileRole.SOURCE
             ],
         )
         if working_copy_root is not None:

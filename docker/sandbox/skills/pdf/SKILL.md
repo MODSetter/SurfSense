@@ -19,30 +19,37 @@ never run `pip install`, `npm install`, or download dependencies.
 - Available families include DejaVu, Liberation, and Noto (including CJK).
   Prefer Liberation Sans/Serif for office-style documents and Noto for broad
   Unicode coverage.
+- Do not embed page numbers, folios, `Page X of Y` labels, CSS page counters,
+  or numbered ReportLab footers. SurfSense's PDF viewer supplies its own page
+  indicator, so embedded numbering would duplicate the interface.
 
-Write deterministic source alongside the output (`.py` or `.html`) so defects
-can be fixed without rebuilding from scratch. Escape untrusted text before
-placing it in HTML.
+Escape untrusted text before placing it in HTML.
 
-When revising, `load_artifact_source` returns the existing `document_id` and
-`source_path`. Edit that source, regenerate and verify the PDF, then pass the
-returned `document_id` to `save_artifact`. A changed title, filename, or design
-is still the same artifact unless the user explicitly asks for a separate copy.
+## Revisions
+
+Start an in-place revision with `load_artifact_for_revision`. Read its
+`markdown_path` for the artifact's substantive content and any other context
+provided by the user, then regenerate the PDF at `expected_output_path`. PDF
+revisions are rebuilds from Markdown/context, not edits inferred from rendered
+pages. Do not use vision to reconstruct the old PDF; vision may still be used
+by `verify_artifact` after regeneration.
+
+Save the verified revision with the returned `artifact_id` and
+`expected_generation`. A changed title, filename, or design is still the same
+artifact unless the user explicitly asks for a separate copy.
 
 ## Required quality gate
 
-Use one deliverable-derived stem for the source and output, for example
-`project-brief.html` and `project-brief.pdf`; the output basename is the
-filename the user downloads. After generating it, call
-`verify_artifact(path="project-brief.pdf")`. Warnings are advisory and do not
-require regeneration. If verification reports blocking findings, fix them in
-the source and regenerate once. Reverify that revision; if a blocker remains,
-stop and explain it instead of entering another automatic rewrite loop. Only a
-verified file can be saved.
+After generating the requested PDF, call `verify_artifact(path=output_path)`.
+Warnings are advisory and do not require regeneration. If verification reports
+blocking findings, fix all blockers together, regenerate once at the same
+output path, and reverify. If a blocker remains, stop and explain it instead of
+entering another automatic rewrite loop. Only a verified file can be saved.
 
-Then call `save_artifact(path="project-brief.pdf",
-source_path="project-brief.html", title="...", markdown_representation="...")`,
-using the actual `.html` or `.py` source path that produced the PDF.
+Then call `save_artifact(path=output_path, title="...",
+markdown_representation="...")`. Working files may use any paths; no source
+file, preview file, or matching filename stem is part of the publication
+contract.
 
 The Markdown representation must faithfully contain the document's substantive
 text so the artifact remains accessible and searchable without parsing the PDF.

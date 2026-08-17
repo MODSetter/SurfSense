@@ -10,6 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.sandbox import (
+    _run_python_script,
+)
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.save_artifact import (
     _read_artifact_file,
 )
@@ -48,7 +51,7 @@ pytestmark = [
         )
     ],
 )
-async def test_opensandbox_persistent_kernel_binary_io_and_terminate(
+async def test_opensandbox_one_shot_python_binary_io_and_terminate(
     monkeypatch, skill, prompt, expected_mime, expected_evidence_steps
 ):
     monkeypatch.setattr(app_config, "OPENSANDBOX_DOMAIN", "localhost:8080")
@@ -62,9 +65,10 @@ async def test_opensandbox_persistent_kernel_binary_io_and_terminate(
     session = await provider.get_or_create_session(thread_id)
     try:
         evidence: list[str] = []
-        first = await session.execute("contract_value = 41\nprint(contract_value)")
-        second = await session.execute("print(contract_value + 1)")
-        pdf = await session.execute(
+        first = await _run_python_script(session, "print(41)")
+        second = await _run_python_script(session, "print(42)")
+        pdf = await _run_python_script(
+            session,
             """
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
@@ -75,7 +79,7 @@ c.setFont("DejaVu", 12)
 for y, fact in zip((740, 710, 680), ("Fact one", "Fact two", "Fact three")):
     c.drawString(72, y, fact)
 c.save()
-"""
+""",
         )
         rendered = await session.run_command(
             "mkdir -p /tmp/three-facts-pages && "
@@ -144,7 +148,8 @@ Packer.toBuffer(doc).then((buffer) => fs.writeFileSync("/tmp/report.docx", buffe
 """
             generated = await session.run_command(f"node -e {shlex.quote(javascript)}")
         else:
-            generated = await session.execute(
+            generated = await _run_python_script(
+                session,
                 """
 import base64
 from io import BytesIO
@@ -175,7 +180,7 @@ group.shapes.add_shape(
     MSO_SHAPE.RECTANGLE, Inches(8), Inches(1), Inches(1), Inches(1)
 )
 presentation.save("/tmp/report.pptx")
-"""
+""",
             )
         assert skills.ok and generated.ok
 
@@ -206,7 +211,7 @@ presentation.save("/tmp/report.pptx")
         assert result.preview_path
         assert receipt.primary_path == primary_path
         assert receipt.preview_path == result.preview_path
-        assert pages.ok
+        assert not pages.ok
         assert stored.mime_type == mime_type
     finally:
         await provider.terminate_session(thread_id)

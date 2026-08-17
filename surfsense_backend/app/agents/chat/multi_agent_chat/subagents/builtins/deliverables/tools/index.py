@@ -12,7 +12,7 @@ from langchain_core.tools import BaseTool
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 
 from .generate_image import create_generate_image_tool
-from .load_artifact_source import create_load_artifact_source_tool
+from .load_artifact_for_revision import create_load_artifact_for_revision_tool
 from .podcast import create_generate_podcast_tool
 from .sandbox import create_sandbox_tools
 from .save_artifact import create_save_artifact_tool
@@ -36,7 +36,7 @@ def load_tools(
     if is_sandbox_enabled():
         sandbox_tools = [
             *create_sandbox_tools(workspace_id=d["workspace_id"]),
-            create_load_artifact_source_tool(
+            create_load_artifact_for_revision_tool(
                 workspace_id=d["workspace_id"],
             ),
             create_verify_artifact_tool(workspace_id=d["workspace_id"]),

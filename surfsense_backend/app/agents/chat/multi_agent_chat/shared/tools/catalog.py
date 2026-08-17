@@ -53,8 +53,8 @@ TOOL_CATALOG: list[ToolMetadata] = [
         description="Save a Markdown or sandbox-generated file as a durable artifact",
     ),
     ToolMetadata(
-        name="load_artifact_source",
-        description="Load a generated artifact's source into its sandbox for revision",
+        name="load_artifact_for_revision",
+        description="Load an artifact's current deliverable and context for revision",
     ),
     ToolMetadata(
         name="execute",

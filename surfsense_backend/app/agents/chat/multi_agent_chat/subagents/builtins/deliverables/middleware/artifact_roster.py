@@ -48,6 +48,8 @@ class ArtifactRosterMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 await session.execute(
                     select(
                         Artifact.id,
+                        Artifact.generation,
+                        Artifact.format,
                         Document.title,
                         ArtifactFile.original_filename,
                     )
@@ -70,9 +72,10 @@ class ArtifactRosterMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             return None
 
         entries = "\n".join(
-            f"- artifact_id={artifact_id}; title={title!r}; "
+            f"- artifact_id={artifact_id}; generation={generation}; "
+            f"format={artifact_format}; title={title!r}; "
             f"filename={filename or '(Markdown artifact)'}"
-            for artifact_id, title, filename in rows
+            for artifact_id, generation, artifact_format, title, filename in rows
         )
         roster = SystemMessage(
             content=(

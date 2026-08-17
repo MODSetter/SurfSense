@@ -729,7 +729,7 @@ export default function NewChatPage() {
 		activeThreadId,
 		workspaceId
 	);
-	const isPreparingArtifact = useArtifactDeepLink(
+	useArtifactDeepLink(
 		chatArtifacts,
 		!isThreadMessagesLoading && !isArtifactDataLoading,
 		`${workspaceId}:${activeThreadId ?? "new"}`
@@ -739,6 +739,7 @@ export default function NewChatPage() {
 	const runtime = useExternalStoreRuntime({
 		messages: runtimeMessages,
 		isRunning,
+		isLoading: isThreadMessagesLoading,
 		onNew,
 		onEdit,
 		onReload,
@@ -780,7 +781,6 @@ export default function NewChatPage() {
 							<Thread
 								hasActiveThread={!!activeThreadId}
 								isLoadingMessages={isThreadMessagesLoading}
-								isPreparingArtifact={isPreparingArtifact}
 							/>
 						</div>
 						<MobileEditorPanel />

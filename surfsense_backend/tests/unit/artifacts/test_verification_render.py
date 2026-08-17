@@ -56,6 +56,8 @@ async def test_render_office_file_uses_private_profile_and_quotes_paths():
     assert "-env:UserInstallation=file:///tmp/surfsense-soffice-" in conversion
     assert "--outdir /tmp/surfsense-verify-" in conversion
     assert "/primary.docx" in conversion
+    assert result.profile_dir
+    assert result.profile_dir not in result.build_dir
     assert result.pdf_path.endswith("/primary.pdf")
     assert session.files[result.source_path] == b"docx-bytes"
 
@@ -64,11 +66,15 @@ async def test_render_failure_is_actionable():
     session = RecordingSession(fail_step="soffice")
 
     with pytest.raises(
-        RuntimeError, match=r"converting artifact to PDF.*conversion error"
-    ):
+        render.ArtifactRenderError, match=r"converting artifact to PDF failed"
+    ) as raised:
         await render.prepare_pdf(
             session,
             "/workspace/report.docx",
             b"docx-bytes",
             convert_to_pdf=True,
         )
+
+    assert "conversion error" not in str(raised.value)
+    assert session.commands[-1].startswith("rm -rf -- /tmp/surfsense-verify-")
+    assert "/tmp/surfsense-soffice-" in session.commands[-1]

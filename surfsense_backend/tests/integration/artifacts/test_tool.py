@@ -7,7 +7,7 @@ from langchain.tools import ToolRuntime
 from sqlalchemy import func, select
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
-    load_artifact_source as load_source_tool,
+    load_artifact_for_revision as load_revision_tool,
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
@@ -79,7 +79,7 @@ async def test_tool_persists_and_indexes_artifact_document_immediately(
     )
 
 
-async def test_load_artifact_source_restores_the_current_source(
+async def test_load_artifact_for_revision_restores_primary_and_markdown(
     db_session, db_workspace, artifact_thread, patched_embed_texts, monkeypatch
 ):
     del patched_embed_texts
@@ -97,7 +97,6 @@ async def test_load_artifact_source_restores_the_current_source(
         markdown_representation="# Restorable",
         files=[
             ArtifactFileInput(b"%PDF", "out.pdf", "application/pdf"),
-            ArtifactFileInput(b"print('current')", "out.py", "text/x-python", "source"),
         ],
     )
 
@@ -108,6 +107,9 @@ async def test_load_artifact_source_restores_the_current_source(
     class Sandbox:
         def __init__(self):
             self.writes = {}
+
+        async def run_command(self, _command):
+            return type("Result", (), {"ok": True})()
 
         async def write_file(self, path, data):
             self.writes[path] = data
@@ -121,27 +123,35 @@ async def test_load_artifact_source_restores_the_current_source(
     async def get_registry():
         return Registry()
 
-    monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
-    monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
-    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
+    monkeypatch.setattr(load_revision_tool, "shielded_async_session", session_context)
+    monkeypatch.setattr(load_revision_tool, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(load_revision_tool, "get_registry", get_registry)
+    monkeypatch.setattr(
+        load_revision_tool, "uuid4", lambda: type("Uuid", (), {"hex": "revision"})()
+    )
 
-    tool = load_source_tool.create_load_artifact_source_tool(
+    tool = load_revision_tool.create_load_artifact_for_revision_tool(
         workspace_id=db_workspace.id
     )
     loaded = await tool.coroutine(
         artifact_id=saved.artifact_id,
         runtime=_runtime(artifact_thread.id),
     )
-    expected_path = f"/workspace/artifact-{saved.artifact_id}-out.py"
+    revision_dir = f"/workspace/artifact-revisions/{saved.artifact_id}/revision"
 
     assert loaded == {
-        "source_path": expected_path,
         "artifact_id": saved.artifact_id,
+        "format": "pdf",
+        "primary_path": f"{revision_dir}/current.pdf",
+        "markdown_path": f"{revision_dir}/context.md",
+        "expected_output_path": f"{revision_dir}/revised.pdf",
         "expected_generation": saved.generation,
+        "revision_instruction": load_revision_tool._REVISION_INSTRUCTIONS["pdf"],
         "save_instruction": (
             f"Pass artifact_id={saved.artifact_id} and "
             f"expected_generation={saved.generation} to save_artifact so this "
             "revision replaces the existing artifact."
         ),
     }
-    assert sandbox.writes[expected_path] == b"print('current')"
+    assert sandbox.writes[f"{revision_dir}/current.pdf"] == b"%PDF"
+    assert sandbox.writes[f"{revision_dir}/context.md"] == b"# Restorable"

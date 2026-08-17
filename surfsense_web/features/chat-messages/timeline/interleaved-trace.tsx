@@ -1,8 +1,8 @@
 "use client";
 
 import {
-	type EnrichedPartState,
 	MessagePrimitive,
+	PartByIndexProvider,
 	type PartState,
 	type ToolCallMessagePartComponent,
 	useAuiState,
@@ -12,12 +12,10 @@ import { motion, useReducedMotion } from "motion/react";
 import {
 	type ComponentType,
 	type FC,
+	Fragment,
 	type ReactNode,
-	useCallback,
-	useEffect,
 	useId,
 	useMemo,
-	useRef,
 	useState,
 } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -39,17 +37,20 @@ import { cn } from "@/lib/utils";
 import { FadeSwapText } from "./fade-swap-text";
 import {
 	buildActivityLookup,
+	buildTurnRenderItems,
 	firstToolIndexByActivityId,
-	getLastTraceIndex,
 	getToolActivityId,
-	getTraceGroupPath,
 	type TracePartLike,
+	type TurnRenderItem,
 } from "./grouping";
 import { getActivityIcon, getConnectorLogo } from "./presentation";
 import { AssistantTurnTiming, useAssistantTurnTiming } from "./turn-timing";
 import type { TurnTimingDisplay } from "./turn-timing-state";
 
 const noopSubmit = () => {};
+const TEXT_PART_COMPONENTS = { Text: MarkdownText };
+const TURN_HEADER_ROW_CLASS =
+	"group/trace h-8 w-fit max-w-full justify-start gap-2.5 px-0 py-0 text-left text-sm font-semibold text-muted-foreground hover:bg-transparent hover:text-foreground has-[>svg]:px-0 max-md:min-h-11";
 
 function effectiveActivityStatus(status: ActivityStatus, threadRunning: boolean): ActivityStatus {
 	return status === "running" && !threadRunning ? "interrupted" : status;
@@ -127,10 +128,15 @@ export const TraceItemRow: FC<{
 		className={cn(
 			"relative grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] gap-x-2 pb-4 last:pb-0",
 			"after:pointer-events-none after:absolute after:top-6 after:bottom-1 after:left-[7.5px]",
-			"after:w-px after:bg-muted-foreground/20 last:after:hidden"
+			"after:w-px after:bg-muted-foreground/20 last:after:hidden",
+			status === "running" && "text-foreground",
+			(status === "completed" || status === "reasoning" || status === "error") &&
+				"text-muted-foreground",
+			status === "awaiting_approval" && "text-muted-foreground",
+			(status === "cancelled" || status === "interrupted") && "text-muted-foreground"
 		)}
 	>
-		<div className="relative z-10 mt-0.5 flex size-4 items-center justify-center">
+		<div className="relative z-10 mt-0.5 flex size-4 items-center justify-center text-muted-foreground">
 			{logo ? (
 				// biome-ignore lint/performance/noImgElement: connector paths may be extension-provided.
 				<img src={logo.src} alt="" className="size-4 object-contain" />
@@ -138,17 +144,8 @@ export const TraceItemRow: FC<{
 				<Icon className="size-4" aria-hidden={true} />
 			) : null}
 		</div>
-		<div
-			className={cn(
-				"min-w-0 text-sm leading-5",
-				status === "running" && "font-medium text-foreground",
-				(status === "completed" || status === "reasoning") && "text-muted-foreground",
-				status === "awaiting_approval" && "text-muted-foreground",
-				status === "error" && "text-destructive",
-				(status === "cancelled" || status === "interrupted") && "text-muted-foreground"
-			)}
-		>
-			{title}
+		<div className="min-w-0 text-sm leading-5">
+			<div>{title}</div>
 			{children}
 		</div>
 	</div>
@@ -158,7 +155,13 @@ const ReasoningEpisode: FC<{ text: string; running: boolean }> = ({ text, runnin
 	<TraceItemRow
 		icon={History}
 		status="reasoning"
-		title={running ? <TextShimmerLoader text="Reasoning" size="md" /> : "Reasoning"}
+		title={
+			running ? (
+				<TextShimmerLoader text="Reasoning" size="md" className="font-normal!" />
+			) : (
+				"Reasoning"
+			)
+		}
 	>
 		<NestedScroll
 			role="region"
@@ -182,7 +185,7 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 			logo={getConnectorLogo(activity.integration)}
 			title={
 				status === "running" ? (
-					<TextShimmerLoader text={activity.title} size="md" className="truncate" />
+					<TextShimmerLoader text={activity.title} size="md" className="truncate font-normal!" />
 				) : (
 					activity.title
 				)
@@ -201,7 +204,7 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 };
 
 const TraceLeaf: FC<{
-	part: EnrichedPartState;
+	part: PartState;
 	index: number;
 	activities: ReadonlyMap<string, ActivityData>;
 	firstActivityIndices: ReadonlyMap<string, number>;
@@ -220,50 +223,157 @@ const TraceLeaf: FC<{
 	) : null;
 };
 
+const TraceLeafByIndex: FC<{
+	index: number;
+	activities: ReadonlyMap<string, ActivityData>;
+	firstActivityIndices: ReadonlyMap<string, number>;
+	showReasoning: boolean;
+	threadRunning: boolean;
+}> = ({ index, activities, firstActivityIndices, showReasoning, threadRunning }) => (
+	<PartByIndexProvider index={index}>
+		<ScopedTraceLeaf
+			index={index}
+			activities={activities}
+			firstActivityIndices={firstActivityIndices}
+			showReasoning={showReasoning}
+			threadRunning={threadRunning}
+		/>
+	</PartByIndexProvider>
+);
+
+const ScopedTraceLeaf: FC<{
+	index: number;
+	activities: ReadonlyMap<string, ActivityData>;
+	firstActivityIndices: ReadonlyMap<string, number>;
+	showReasoning: boolean;
+	threadRunning: boolean;
+}> = ({ index, activities, firstActivityIndices, showReasoning, threadRunning }) => {
+	const part = useAuiState((state) => state.part);
+	return (
+		<TraceLeaf
+			part={part}
+			index={index}
+			activities={activities}
+			firstActivityIndices={firstActivityIndices}
+			showReasoning={showReasoning}
+			threadRunning={threadRunning}
+		/>
+	);
+};
+
 const TraceDetails: FC<{
 	indices: readonly number[];
-	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
-	parts: readonly PartState[];
-}> = ({ indices, renderPart, parts }) => (
+	activities: ReadonlyMap<string, ActivityData>;
+	firstActivityIndices: ReadonlyMap<string, number>;
+	showReasoning: boolean;
+	threadRunning: boolean;
+}> = ({ indices, activities, firstActivityIndices, showReasoning, threadRunning }) => (
 	<div className="pl-1">
-		{indices.map((index) => renderPart(parts[index] as EnrichedPartState, index))}
+		{indices.map((index) => (
+			<TraceLeafByIndex
+				key={index}
+				index={index}
+				activities={activities}
+				firstActivityIndices={firstActivityIndices}
+				showReasoning={showReasoning}
+				threadRunning={threadRunning}
+			/>
+		))}
 	</div>
 );
 
-const TraceSegment: FC<{
-	indices: readonly number[];
+const TurnHeaderContent: FC<{
+	active: boolean;
+	label: string;
+	swapKey: string;
+	turnTimingDisplay: TurnTimingDisplay | null;
+	trailing: ReactNode;
+}> = ({ active, label, swapKey, turnTimingDisplay, trailing }) => (
+	<>
+		<PixelGridLoader active={active} />
+		<FadeSwapText
+			swapKey={swapKey}
+			className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
+			contentClassName="truncate whitespace-nowrap"
+		>
+			{active ? (
+				<TextShimmerLoader text={label} size="md" className="truncate font-semibold!" />
+			) : (
+				label
+			)}
+		</FadeSwapText>
+		{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
+		{trailing}
+	</>
+);
+
+type SegmentRenderItem = Extract<TurnRenderItem, { kind: "segment" }>;
+
+interface SegmentInteractionState {
+	open?: boolean;
+	drawerOpen?: boolean;
+}
+
+const TurnSegment: FC<{
+	item: SegmentRenderItem;
 	activities: ReadonlyMap<string, ActivityData>;
-	renderPart: (part: EnrichedPartState, index: number) => ReactNode;
+	firstActivityIndices: ReadonlyMap<string, number>;
 	parts: readonly PartState[];
+	showReasoning: boolean;
 	threadRunning: boolean;
 	turnTimingDisplay: TurnTimingDisplay | null;
-}> = ({ indices, activities, renderPart, parts, threadRunning, turnTimingDisplay }) => {
+	interaction: SegmentInteractionState | undefined;
+	onOpenChange: (open: boolean) => void;
+	onDrawerOpenChange: (open: boolean) => void;
+}> = ({
+	item,
+	activities,
+	firstActivityIndices,
+	parts,
+	showReasoning,
+	threadRunning,
+	turnTimingDisplay,
+	interaction,
+	onOpenChange,
+	onDrawerOpenChange,
+}) => {
 	const id = useId();
 	const isMobile = useMediaQuery("(max-width: 767px)");
 	const reducedMotion = useReducedMotion();
-	const [open, setOpen] = useState(false);
-	const [drawerOpen, setDrawerOpen] = useState(false);
-	const userToggled = useRef(false);
+	const { indices, phase, segmentId } = item;
+	const hasTrace = segmentId !== null;
 	const segmentActivities = indices.flatMap((index) => {
 		const activityId = getToolActivityId(parts[index] as TracePartLike);
 		const activity = activityId ? activities.get(activityId) : undefined;
 		return activity ? [activity] : [];
 	});
-	const active =
-		(threadRunning &&
-			(indices.some((index) => partIsRunning(parts[index])) ||
-				segmentActivities.some((activity) => activity.status === "running"))) ||
-		segmentActivities.some((activity) => activity.status === "awaiting_approval");
-	const label =
-		segmentActivities.at(-1)?.title ?? (active ? "Spellweaving" : "Reasoned through the request");
-	const details = <TraceDetails indices={indices} renderPart={renderPart} parts={parts} />;
-	useEffect(() => {
-		if (isMobile || userToggled.current) return;
-		setOpen(active);
-	}, [active, isMobile]);
+	const active = hasTrace
+		? (threadRunning &&
+				(indices.some((index) => partIsRunning(parts[index])) ||
+					segmentActivities.some((activity) => activity.status === "running"))) ||
+			segmentActivities.some((activity) => activity.status === "awaiting_approval")
+		: phase === "spellweaving";
+	const label = hasTrace
+		? (segmentActivities.at(-1)?.title ??
+			(active ? "Spellweaving" : "Reasoned through the request"))
+		: phase === "spellweaving"
+			? "Spellweaving"
+			: "Responded";
+	const open = interaction?.open ?? active;
+	const drawerOpen = interaction?.drawerOpen ?? false;
+	const details = (
+		<TraceDetails
+			indices={indices}
+			activities={activities}
+			firstActivityIndices={firstActivityIndices}
+			showReasoning={showReasoning}
+			threadRunning={threadRunning}
+		/>
+	);
 	const toggle = () => {
+		if (!hasTrace) return;
 		if (isMobile) {
-			setDrawerOpen(true);
+			onDrawerOpenChange(true);
 			trackActivityTraceInteraction("segment_expanded", {
 				activityCount: segmentActivities.length,
 				reasoningCount: indices.filter((index) => parts[index]?.type === "reasoning").length,
@@ -271,61 +381,73 @@ const TraceSegment: FC<{
 			});
 			return;
 		}
-		userToggled.current = true;
-		setOpen((current) => {
-			const next = !current;
-			trackActivityTraceInteraction(next ? "segment_expanded" : "segment_collapsed", {
-				activityCount: segmentActivities.length,
-				reasoningCount: indices.filter((index) => parts[index]?.type === "reasoning").length,
-				surface: "desktop_inline",
-			});
-			return next;
+		const next = !open;
+		onOpenChange(next);
+		trackActivityTraceInteraction(next ? "segment_expanded" : "segment_collapsed", {
+			activityCount: segmentActivities.length,
+			reasoningCount: indices.filter((index) => parts[index]?.type === "reasoning").length,
+			surface: "desktop_inline",
 		});
 	};
 	return (
-		<section className="mb-3 w-full select-none leading-normal">
+		<section
+			aria-label={hasTrace ? undefined : "Assistant response status"}
+			className="mb-3 w-full select-none leading-normal"
+			data-testid="assistant-turn-header"
+			data-live={item.live ? "true" : "false"}
+			data-segment-id={segmentId ?? "standalone"}
+		>
 			<Button
 				variant="ghost"
 				type="button"
-				onClick={toggle}
-				aria-expanded={isMobile ? drawerOpen : open}
-				aria-controls={id}
-				className="group/trace h-8 w-fit max-w-full justify-start gap-2.5 px-0 py-0 text-left text-sm font-normal text-muted-foreground hover:bg-transparent hover:text-foreground has-[>svg]:px-0 max-md:min-h-11"
+				onClick={hasTrace ? toggle : undefined}
+				aria-disabled={hasTrace ? undefined : true}
+				aria-expanded={hasTrace ? (isMobile ? drawerOpen : open) : undefined}
+				aria-controls={hasTrace ? id : undefined}
+				tabIndex={hasTrace ? undefined : -1}
+				className={TURN_HEADER_ROW_CLASS}
 			>
-				<PixelGridLoader active={active} />
-				<FadeSwapText
+				<TurnHeaderContent
+					active={active}
+					label={label}
 					swapKey={`${active}:${label}`}
-					className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
-					contentClassName="truncate whitespace-nowrap"
-				>
-					{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
-				</FadeSwapText>
-				{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
-				<motion.span
-					className="size-4 shrink-0 opacity-0 transition-opacity group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
-					animate={{ rotate: !isMobile && open ? 90 : 0 }}
-					transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-					aria-hidden="true"
-				>
-					<ChevronRightIcon className="size-4" />
-				</motion.span>
+					turnTimingDisplay={turnTimingDisplay}
+					trailing={
+						<motion.span
+							className={cn(
+								"size-4 shrink-0 opacity-0 transition-opacity",
+								hasTrace &&
+									"group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
+							)}
+							animate={{ rotate: !isMobile && open ? 90 : 0 }}
+							transition={{
+								duration: reducedMotion ? 0 : 0.22,
+								ease: [0.22, 1, 0.36, 1],
+							}}
+							aria-hidden="true"
+						>
+							<ChevronRightIcon className="size-4" />
+						</motion.span>
+					}
+				/>
 			</Button>
 			<div
 				id={id}
+				aria-hidden={!hasTrace}
 				className={cn(
 					"hidden transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none md:grid",
-					open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+					hasTrace && open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
 				)}
 			>
 				<div className="overflow-hidden">
 					<div className="mt-3">{details}</div>
 				</div>
 			</div>
-			{isMobile ? (
+			{isMobile && hasTrace ? (
 				<Drawer
 					open={drawerOpen}
 					onOpenChange={(next) => {
-						setDrawerOpen(next);
+						onDrawerOpenChange(next);
 						if (!next) {
 							trackActivityTraceInteraction("segment_collapsed", {
 								activityCount: segmentActivities.length,
@@ -343,6 +465,48 @@ const TraceSegment: FC<{
 				</Drawer>
 			) : null}
 		</section>
+	);
+};
+
+const TurnSegmentSlot: FC<{
+	item: SegmentRenderItem;
+	activities: ReadonlyMap<string, ActivityData>;
+	firstActivityIndices: ReadonlyMap<string, number>;
+	parts: readonly PartState[];
+	showReasoning: boolean;
+	threadRunning: boolean;
+	turnTimingDisplay: TurnTimingDisplay | null;
+	interaction: SegmentInteractionState | undefined;
+	onOpenChange: (open: boolean) => void;
+	onDrawerOpenChange: (open: boolean) => void;
+}> = ({
+	item,
+	activities,
+	firstActivityIndices,
+	parts,
+	showReasoning,
+	threadRunning,
+	turnTimingDisplay,
+	interaction,
+	onOpenChange,
+	onDrawerOpenChange,
+}) => {
+	return (
+		<>
+			<TurnSegment
+				item={item}
+				activities={activities}
+				firstActivityIndices={firstActivityIndices}
+				parts={parts}
+				showReasoning={showReasoning}
+				threadRunning={threadRunning}
+				turnTimingDisplay={turnTimingDisplay}
+				interaction={interaction}
+				onOpenChange={onOpenChange}
+				onDrawerOpenChange={onDrawerOpenChange}
+			/>
+			{item.segmentId ? <PendingCards indices={item.indices} /> : null}
+		</>
 	);
 };
 
@@ -365,78 +529,82 @@ const InterleavedPartsInner: FC<{
 	});
 	const firstActivityIndices = useMemo(() => firstToolIndexByActivityId(rawParts), [rawParts]);
 	const bodyToolNames = useMemo(() => new Set(Object.keys(bodyTools)), [bodyTools]);
-	const lastTraceIndex = useMemo(
-		() => getLastTraceIndex(rawParts, bodyToolNames, showReasoning),
-		[rawParts, bodyToolNames, showReasoning]
+	const renderItems = useMemo(
+		() =>
+			buildTurnRenderItems({
+				parts: rawParts,
+				bodyToolNames,
+				showReasoning,
+				threadRunning,
+				timingStatus: journal.timing?.status,
+			}),
+		[rawParts, bodyToolNames, showReasoning, threadRunning, journal.timing?.status]
 	);
-	const groupBy = useCallback(
-		(part: PartState) =>
-			part.type === "reasoning" && !showReasoning ? [] : getTraceGroupPath(part, bodyToolNames),
-		[bodyToolNames, showReasoning]
+	const bodyToolOverride = useMemo<ToolCallMessagePartComponent>(
+		() =>
+			function BodyToolOverride(props) {
+				const Body = bodyTools[props.toolName];
+				return Body ? <Body {...props} /> : null;
+			},
+		[bodyTools]
 	);
-
-	const renderLeaf = useCallback(
-		(part: EnrichedPartState, index: number): ReactNode => (
-			<TraceLeaf
-				key={index}
-				part={part}
-				index={index}
-				activities={journal.byId}
-				firstActivityIndices={firstActivityIndices}
-				showReasoning={showReasoning}
-				threadRunning={threadRunning}
-			/>
-		),
-		[firstActivityIndices, journal.byId, showReasoning, threadRunning]
+	const bodyPartComponents = useMemo(
+		() => ({
+			tools: { Override: bodyToolOverride },
+		}),
+		[bodyToolOverride]
 	);
+	const [segmentInteractions, setSegmentInteractions] = useState<
+		Record<string, SegmentInteractionState>
+	>({});
+	const updateSegmentInteraction = (
+		segmentId: string,
+		field: keyof SegmentInteractionState,
+		value: boolean
+	) =>
+		setSegmentInteractions((current) => ({
+			...current,
+			[segmentId]: { ...current[segmentId], [field]: value },
+		}));
 
 	return (
 		<>
-			{/* data-activities needs no makeAssistantDataUI registrar: GroupedParts exposes
-			    the normalized data leaf while buildActivityLookup consumes it directly. */}
-			<MessagePrimitive.GroupedParts groupBy={groupBy} indicator="never">
-				{({ part }) => {
-					switch (part.type) {
-						case "group-trace":
-							return (
-								<>
-									<TraceSegment
-										indices={part.indices}
-										activities={journal.byId}
-										renderPart={renderLeaf}
-										parts={parts}
-										threadRunning={threadRunning}
-										turnTimingDisplay={
-											part.indices.includes(lastTraceIndex) ? turnTimingDisplay : null
-										}
-									/>
-									<PendingCards indices={part.indices} />
-								</>
-							);
-						case "text":
-							return <MarkdownText />;
-						case "tool-call": {
-							const Body = bodyTools[part.toolName];
-							const index = parts.findIndex(
-								(candidate) =>
-									candidate.type === "tool-call" && candidate.toolCallId === part.toolCallId
-							);
-							return (
-								<>
-									{Body ? <Body {...part} /> : null}
-									<PendingCards indices={index >= 0 ? [index] : []} />
-								</>
-							);
-						}
-						case "data":
-						case "reasoning":
-						case "indicator":
-							return null;
-						default:
-							return null;
-					}
-				}}
-			</MessagePrimitive.GroupedParts>
+			{renderItems.map((item) => {
+				if (item.kind === "segment") {
+					const segmentId = item.segmentId;
+					return (
+						<TurnSegmentSlot
+							key={item.key}
+							item={item}
+							activities={journal.byId}
+							firstActivityIndices={firstActivityIndices}
+							parts={parts}
+							showReasoning={showReasoning}
+							threadRunning={threadRunning}
+							turnTimingDisplay={item.live ? turnTimingDisplay : null}
+							interaction={segmentId ? segmentInteractions[segmentId] : undefined}
+							onOpenChange={(open) => {
+								if (segmentId) updateSegmentInteraction(segmentId, "open", open);
+							}}
+							onDrawerOpenChange={(drawerOpen) => {
+								if (segmentId) {
+									updateSegmentInteraction(segmentId, "drawerOpen", drawerOpen);
+								}
+							}}
+						/>
+					);
+				}
+
+				return (
+					<Fragment key={item.key}>
+						<MessagePrimitive.PartByIndex
+							index={item.index}
+							components={item.kind === "body-tool" ? bodyPartComponents : TEXT_PART_COMPONENTS}
+						/>
+						{item.kind === "body-tool" ? <PendingCards indices={[item.index]} /> : null}
+					</Fragment>
+				);
+			})}
 			<UnmatchedPendingCards />
 		</>
 	);

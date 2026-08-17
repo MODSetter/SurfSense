@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shlex
 from dataclasses import asdict
 from pathlib import PurePosixPath
 
@@ -12,9 +13,13 @@ from langchain_core.tools import tool
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.artifacts import ArtifactFileInput, save_artifact
-from app.artifacts.source_formats import validate_source_file
 from app.artifacts.verification.formats.registry import get_format_adapter
-from app.artifacts.verification.receipt import read_receipt, sha256_bytes
+from app.artifacts.verification.receipt import (
+    artifact_path_lock,
+    read_receipt,
+    receipt_path,
+    sha256_bytes,
+)
 from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
 from app.db import shielded_async_session
@@ -40,21 +45,54 @@ async def _read_artifact_file(
             f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes"
         )
 
-    if role == "source":
-        mime_type = validate_source_file(path, data)
-    else:
-        adapter = get_format_adapter(path)
-        if role == "preview" and adapter.name != "pdf":
-            raise ValueError("Artifact previews must be PDF files")
-        if role not in {"primary", "preview"}:
-            raise ValueError(f"Unsupported artifact file role: {role}")
-        mime_type = adapter.mime_type
+    adapter = get_format_adapter(path)
+    if role == "preview" and adapter.name != "pdf":
+        raise ValueError("Artifact previews must be PDF files")
+    if role not in {"primary", "preview"}:
+        raise ValueError(f"Unsupported artifact file role: {role}")
+    mime_type = adapter.mime_type
     return ArtifactFileInput(
         data=data,
         filename=filename,
         mime_type=mime_type,
         role=role,
     )
+
+
+async def _consume_verification(
+    session: SandboxSession, primary_path: str, preview_path: str | None
+) -> None:
+    paths = [receipt_path(primary_path)]
+    if preview_path:
+        paths.append(preview_path)
+    try:
+        # Invalidate first so a failed best-effort unlink cannot replay the receipt.
+        await session.write_file(receipt_path(primary_path), b"")
+        result = await session.run_command(
+            f"rm -f -- {' '.join(shlex.quote(path) for path in paths)}"
+        )
+        if not result.ok:
+            logger.warning("Could not clean consumed artifact verification state")
+    except Exception:
+        logger.warning(
+            "Could not clean consumed artifact verification state", exc_info=True
+        )
+
+
+def _public_error(exc: Exception) -> str:
+    if isinstance(exc, FileNotFoundError):
+        return (
+            "The artifact file is missing. Generate it again, then verify and save it."
+        )
+    if isinstance(exc, PermissionError):
+        return "The artifact file could not be accessed in the sandbox."
+    if isinstance(exc, TimeoutError):
+        return "The sandbox timed out while saving the artifact. Please try again."
+    if isinstance(exc, ValueError):
+        if "verification receipt" in str(exc).lower():
+            return "Verify this file again before presenting it"
+        return str(exc)
+    return "The artifact could not be saved. Please try again."
 
 
 def create_save_artifact_tool(workspace_id: int):
@@ -66,8 +104,6 @@ def create_save_artifact_tool(workspace_id: int):
         runtime: ToolRuntime,
         markdown_representation: str | None = None,
         path: str | None = None,
-        source_path: str | None = None,
-        preview_path: str | None = None,
         artifact_id: int | None = None,
         expected_generation: int | None = None,
         description: str | None = None,
@@ -75,14 +111,12 @@ def create_save_artifact_tool(workspace_id: int):
         """Save a durable deliverable, or revise an existing generated artifact.
 
         For Markdown-only work, omit path and pass markdown_representation.
-        For generated files, pass both the deliverable path and the source_path
-        that produced it, plus an accessible Markdown representation for search.
-        preview_path is an optional rendered preview. To revise an artifact, use
-        the artifact_id and expected_generation returned by load_artifact_source,
-        edit and re-render the stored source, then save with both values. Changing
-        the title, filename, or design does not make a new artifact. Omit
-        artifact_id only for a genuinely new deliverable or an explicitly
-        requested separate copy.
+        Generated files must first pass verify_artifact for the exact output
+        bytes at path; the backend owns any preview. To revise an artifact, use
+        the artifact_id and expected_generation returned by
+        load_artifact_for_revision. Changing the title, filename, or design does
+        not make a new artifact. Omit artifact_id only for a genuinely new
+        deliverable or an explicitly requested separate copy.
         """
         del description
         root_thread_id = resolve_root_thread_id(runtime)
@@ -92,74 +126,85 @@ def create_save_artifact_tool(workspace_id: int):
             files: list[ArtifactFileInput] = []
             extra_metadata = None
             if path is not None:
-                if source_path is None:
-                    raise ValueError("source_path is required for generated files")
                 session = await (await get_registry()).get_session(
                     root_thread_id, workspace_id
                 )
-                primary = await _read_artifact_file(session, path, "primary")
-                source = await _read_artifact_file(session, source_path, "source")
-                preview = (
-                    await _read_artifact_file(session, preview_path, "preview")
-                    if preview_path is not None
-                    else None
-                )
-                verification = await read_receipt(
-                    session,
-                    app_config.SECRET_KEY,
-                    workspace_id=workspace_id,
-                    primary_path=path,
-                )
-                primary_adapter = get_format_adapter(path)
-                if verification.format != primary_adapter.name:
-                    raise ValueError(
-                        "The verification receipt names another artifact format"
+                lock = artifact_path_lock(session.session_id, path)
+                async with lock:
+                    primary = await _read_artifact_file(session, path, "primary")
+                    verification = await read_receipt(
+                        session,
+                        app_config.SECRET_KEY,
+                        workspace_id=workspace_id,
+                        primary_path=path,
                     )
-                if verification.primary_path != path or (
-                    verification.primary_sha256 != sha256_bytes(primary.data)
-                ):
-                    raise ValueError(
-                        "The artifact changed after verification. Verify it again, "
-                        "then save."
+                    primary_adapter = get_format_adapter(path)
+                    if verification.format != primary_adapter.name:
+                        raise ValueError(
+                            "The verification receipt names another artifact format"
+                        )
+                    if verification.primary_path != path or (
+                        verification.primary_sha256 != sha256_bytes(primary.data)
+                    ):
+                        raise ValueError(
+                            "The artifact changed after verification. Verify it "
+                            "again, then save."
+                        )
+                    preview = (
+                        await _read_artifact_file(
+                            session, verification.preview_path, "preview"
+                        )
+                        if verification.preview_path is not None
+                        else None
                     )
-                if verification.preview_path != preview_path:
-                    raise ValueError(
-                        "The preview does not match the verified artifact. Verify the "
-                        "artifact again and save the returned preview."
-                    )
-                if preview is not None and (
-                    verification.preview_sha256 != sha256_bytes(preview.data)
-                ):
-                    raise ValueError(
-                        "The preview changed after verification. Verify the artifact "
-                        "again, then save."
-                    )
-                extra_metadata = {
-                    "verification": {
-                        "verified": verification.visual != "unavailable",
-                        "reason": verification.unavailable_reason,
+                    if preview is not None and (
+                        verification.preview_sha256 != sha256_bytes(preview.data)
+                    ):
+                        raise ValueError(
+                            "The preview changed after verification. Verify the "
+                            "artifact again, then save."
+                        )
+                    extra_metadata = {
+                        "verification": {
+                            "verified": verification.visual != "unavailable",
+                            "reason": verification.unavailable_reason,
+                        }
                     }
-                }
-                files.extend((primary, source))
-                if preview is not None:
-                    files.append(preview)
-            elif source_path is not None or preview_path is not None:
-                raise ValueError("source_path and preview_path require a primary path")
-
-            async with shielded_async_session() as session:
-                saved = await save_artifact(
-                    session,
-                    workspace_id=workspace_id,
-                    thread_id=root_thread_id,
-                    tool_call_id=runtime.tool_call_id,
-                    title=title,
-                    markdown_representation=markdown_representation,
-                    files=files,
-                    artifact_id=artifact_id,
-                    expected_generation=expected_generation,
-                    extra_metadata=extra_metadata,
-                    committed_by_turn=True,
-                )
+                    files.append(primary)
+                    if preview is not None:
+                        files.append(preview)
+                    async with shielded_async_session() as db_session:
+                        saved = await save_artifact(
+                            db_session,
+                            workspace_id=workspace_id,
+                            thread_id=root_thread_id,
+                            tool_call_id=runtime.tool_call_id,
+                            title=title,
+                            markdown_representation=markdown_representation,
+                            files=files,
+                            artifact_id=artifact_id,
+                            expected_generation=expected_generation,
+                            extra_metadata=extra_metadata,
+                            committed_by_turn=True,
+                        )
+                    await _consume_verification(
+                        session, path, verification.preview_path
+                    )
+            else:
+                async with shielded_async_session() as db_session:
+                    saved = await save_artifact(
+                        db_session,
+                        workspace_id=workspace_id,
+                        thread_id=root_thread_id,
+                        tool_call_id=runtime.tool_call_id,
+                        title=title,
+                        markdown_representation=markdown_representation,
+                        files=files,
+                        artifact_id=artifact_id,
+                        expected_generation=expected_generation,
+                        extra_metadata=extra_metadata,
+                        committed_by_turn=True,
+                    )
             return with_receipt(
                 payload=asdict(saved),
                 receipt=make_receipt(
@@ -173,7 +218,7 @@ def create_save_artifact_tool(workspace_id: int):
                 tool_call_id=runtime.tool_call_id,
             )
         except Exception as exc:
-            error = str(exc)
+            error = _public_error(exc)
             logger.exception("[save_artifact] %s", error)
             return with_receipt(
                 payload={"status": "failed", "error": error},

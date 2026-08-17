@@ -7,6 +7,10 @@ import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
 import { artifactPanelAtom, closeArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
+import {
+	closeDocumentViewerAtom,
+	documentViewerAtom,
+} from "@/atoms/documents/document-viewer.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import {
@@ -26,6 +30,14 @@ const EditorPanelContent = dynamic(
 	() =>
 		import("@/components/editor-panel/editor-panel").then((m) => ({
 			default: m.EditorPanelContent,
+		})),
+	{ ssr: false, loading: () => null }
+);
+
+const DocumentViewerContent = dynamic(
+	() =>
+		import("@/features/documents/viewer/document-viewer-panel").then((module) => ({
+			default: module.DocumentViewerContent,
 		})),
 	{ ssr: false, loading: () => null }
 );
@@ -96,6 +108,7 @@ export function RightPanelToggleButton({
 	const activeTab = useAtomValue(rightPanelTabAtom);
 	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const artifactState = useAtomValue(artifactPanelAtom);
+	const documentState = useAtomValue(documentViewerAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
@@ -103,19 +116,27 @@ export function RightPanelToggleButton({
 	const supportsArtifactPanel = useMediaQuery("(min-width: 1024px)");
 	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
 	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
+	const documentOpen =
+		supportsArtifactPanel &&
+		documentState.isOpen &&
+		!!documentState.documentId &&
+		!!documentState.workspaceId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document"
-			? !!editorState.documentId
-			: editorState.kind === "memory"
-				? !!editorState.memoryScope
-				: !!editorState.localFilePath);
+		(editorState.kind === "memory" ? !!editorState.memoryScope : !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.target != null;
 	const hasContent =
-		documentsOpen || artifactOpen || editorOpen || hitlEditOpen || citationOpen || artifactsOpen;
+		documentsOpen ||
+		documentOpen ||
+		artifactOpen ||
+		editorOpen ||
+		hitlEditOpen ||
+		citationOpen ||
+		artifactsOpen;
 	const effectiveTab = resolveEffectiveTab(activeTab, {
 		sources: documentsOpen,
+		document: documentOpen,
 		artifact: artifactOpen,
 		editor: editorOpen,
 		"hitl-edit": hitlEditOpen,
@@ -154,6 +175,7 @@ export function RightPanelToggleButton({
 
 const PANEL_WIDTHS = {
 	sources: 420,
+	document: 640,
 	artifact: 640,
 	editor: 640,
 	"hitl-edit": 640,
@@ -180,6 +202,7 @@ const TAB_FALLBACK_ORDER: RightPanelTab[] = [
 	"hitl-edit",
 	"citation",
 	"editor",
+	"document",
 	"artifact",
 	"artifacts",
 	"sources",
@@ -201,6 +224,8 @@ export function RightPanel({
 	const [activeTab] = useAtom(rightPanelTabAtom);
 	const artifactState = useAtomValue(artifactPanelAtom);
 	const closeArtifact = useSetAtom(closeArtifactPanelAtom);
+	const documentState = useAtomValue(documentViewerAtom);
+	const closeDocument = useSetAtom(closeDocumentViewerAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const closeEditor = useSetAtom(closeEditorPanelAtom);
 	const hitlEditState = useAtomValue(hitlEditPanelAtom);
@@ -216,21 +241,31 @@ export function RightPanel({
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
+	const documentOpen =
+		supportsArtifactPanel &&
+		documentState.isOpen &&
+		!!documentState.documentId &&
+		!!documentState.workspaceId;
 	const editorOpen =
 		editorState.isOpen &&
-		(editorState.kind === "document"
-			? !!editorState.documentId
-			: editorState.kind === "memory"
-				? !!editorState.memoryScope
-				: !!editorState.localFilePath);
+		(editorState.kind === "memory" ? !!editorState.memoryScope : !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.target != null;
 
 	useEffect(() => {
-		if (!artifactOpen && !editorOpen && !hitlEditOpen && !citationOpen && !artifactsOpen) return;
+		if (
+			!artifactOpen &&
+			!documentOpen &&
+			!editorOpen &&
+			!hitlEditOpen &&
+			!citationOpen &&
+			!artifactsOpen
+		)
+			return;
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
-				if (artifactOpen) closeArtifact();
+				if (documentOpen) closeDocument();
+				else if (artifactOpen) closeArtifact();
 				else if (hitlEditOpen) closeHitlEdit();
 				else if (citationOpen) closeCitation();
 				else if (editorOpen) closeEditor();
@@ -241,11 +276,13 @@ export function RightPanel({
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [
 		artifactOpen,
+		documentOpen,
 		editorOpen,
 		hitlEditOpen,
 		citationOpen,
 		artifactsOpen,
 		closeArtifact,
+		closeDocument,
 		closeEditor,
 		closeHitlEdit,
 		closeCitation,
@@ -254,6 +291,7 @@ export function RightPanel({
 
 	const isVisible =
 		(documentsOpen ||
+			documentOpen ||
 			artifactOpen ||
 			editorOpen ||
 			hitlEditOpen ||
@@ -263,6 +301,7 @@ export function RightPanel({
 
 	const effectiveTab = resolveEffectiveTab(activeTab, {
 		sources: documentsOpen,
+		document: documentOpen,
 		artifact: artifactOpen,
 		editor: editorOpen,
 		"hitl-edit": hitlEditOpen,
@@ -311,11 +350,23 @@ export function RightPanel({
 									/>
 								</div>
 							)}
+							{effectiveTab === "document" &&
+								documentOpen &&
+								documentState.documentId &&
+								documentState.workspaceId && (
+									<div className="h-full flex flex-col">
+										<DocumentViewerContent
+											documentId={documentState.documentId}
+											workspaceId={documentState.workspaceId}
+											title={documentState.title}
+											onClose={closeDocument}
+										/>
+									</div>
+								)}
 							{effectiveTab === "editor" && editorOpen && (
 								<div className="h-full flex flex-col">
 									<EditorPanelContent
 										kind={editorState.kind}
-										documentId={editorState.documentId ?? undefined}
 										localFilePath={editorState.localFilePath ?? undefined}
 										memoryScope={editorState.memoryScope ?? undefined}
 										workspaceId={editorState.workspaceId ?? undefined}

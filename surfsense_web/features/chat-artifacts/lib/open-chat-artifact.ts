@@ -19,6 +19,8 @@ interface ArtifactOpenPlan {
 	openViewer: boolean;
 }
 
+type ResolvedChatArtifact = ChatArtifact & { artifactId: number };
+
 export function getArtifactOpenPlan(format: string, source: ArtifactOpenSource): ArtifactOpenPlan {
 	const openViewer = getArtifactFormatMeta(format).viewingMode === "viewer";
 	return {
@@ -33,7 +35,7 @@ export function getArtifactOpenPlan(format: string, source: ArtifactOpenSource):
  * Backend `Artifact.format` selects the viewer; the source only selects motion.
  */
 export function openChatArtifact(
-	artifact: ChatArtifact,
+	artifact: ResolvedChatArtifact,
 	source: ArtifactOpenSource,
 	{ closeArtifactsPanel, isDesktop, openArtifactPanel }: OpenChatArtifactDependencies
 ): Promise<void> {

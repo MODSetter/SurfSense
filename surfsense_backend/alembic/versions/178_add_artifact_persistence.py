@@ -33,7 +33,7 @@ def upgrade() -> None:
         )
     op.execute(
         """
-        CREATE TYPE artifact_file_role AS ENUM ('primary', 'preview', 'source')
+        CREATE TYPE artifact_file_role AS ENUM ('primary', 'preview')
         """
     )
     op.execute(

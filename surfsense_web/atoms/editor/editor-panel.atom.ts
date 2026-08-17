@@ -3,8 +3,7 @@ import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right
 
 interface EditorPanelState {
 	isOpen: boolean;
-	kind: "document" | "local_file" | "memory";
-	documentId: number | null;
+	kind: "local_file" | "memory";
 	localFilePath: string | null;
 	workspaceId: number | null;
 	memoryScope: "user" | "team" | null;
@@ -13,8 +12,7 @@ interface EditorPanelState {
 
 const initialState: EditorPanelState = {
 	isOpen: false,
-	kind: "document",
-	documentId: null,
+	kind: "memory",
 	localFilePath: null,
 	workspaceId: null,
 	memoryScope: null,
@@ -33,7 +31,6 @@ export const openEditorPanelAtom = atom(
 		get,
 		set,
 		payload:
-			| { documentId: number; workspaceId: number; title?: string; kind?: "document" }
 			| {
 					kind: "local_file";
 					localFilePath: string;
@@ -54,7 +51,6 @@ export const openEditorPanelAtom = atom(
 			set(editorPanelAtom, {
 				isOpen: true,
 				kind: "local_file",
-				documentId: null,
 				localFilePath: payload.localFilePath,
 				workspaceId: payload.workspaceId ?? null,
 				memoryScope: null,
@@ -64,27 +60,12 @@ export const openEditorPanelAtom = atom(
 			set(rightPanelCollapsedAtom, false);
 			return;
 		}
-		if (payload.kind === "memory") {
-			set(editorPanelAtom, {
-				isOpen: true,
-				kind: "memory",
-				documentId: null,
-				localFilePath: null,
-				workspaceId: payload.workspaceId ?? null,
-				memoryScope: payload.memoryScope,
-				title: payload.title ?? null,
-			});
-			set(rightPanelTabAtom, "editor");
-			set(rightPanelCollapsedAtom, false);
-			return;
-		}
 		set(editorPanelAtom, {
 			isOpen: true,
-			kind: "document",
-			documentId: payload.documentId,
+			kind: "memory",
 			localFilePath: null,
-			workspaceId: payload.workspaceId,
-			memoryScope: null,
+			workspaceId: payload.workspaceId ?? null,
+			memoryScope: payload.memoryScope,
 			title: payload.title ?? null,
 		});
 		set(rightPanelTabAtom, "editor");

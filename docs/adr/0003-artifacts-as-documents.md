@@ -9,7 +9,7 @@
 
 ## Context
 
-A generated deliverable (PDF, DOCX, PPTX, XLSX, Markdown) has state the document model does not represent: an adapter `format`, rendered bytes in `primary`/`preview`/`source` roles, an optimistic `generation` for later-turn revision, a signed verification receipt, and the tool-call provenance that produced it. That part is uncontroversial — it needs its own tables.
+A generated deliverable (PDF, DOCX, PPTX, XLSX, Markdown) has state the document model does not represent: an adapter `format`, rendered bytes in durable `primary`/`preview` roles, an optimistic `generation` for later-turn revision, a signed verification receipt, and the tool-call provenance that produced it. That part is uncontroversial — it needs its own tables.
 
 The question is the **searchable text**. Every deliverable also has a Markdown body that must be committed to git, chunked, embedded, ranked, cited, and pruned. Two shapes were available:
 
@@ -24,7 +24,7 @@ Shape 1 is the natural read of "artifacts are not documents", and it is what the
 
 - `Document` owns title, path (`documents/Artifacts/<title>.md`), Markdown, content hash, folder, and indexing status.
 - `Artifact` owns `format`, `generation`, provenance, verification metadata, and `document_id` — a non-null unique cascading key. It owns **no** title, path, body, hash, or indexing state.
-- `ArtifactFile` owns one immutable blob per role. Binary bytes never enter git and never become `DocumentFile` rows.
+- `ArtifactFile` owns one immutable blob per durable role: `primary` or `preview`. Generation source files are transient sandbox inputs, not persisted artifact files. Binary bytes never enter git and never become `DocumentFile` rows.
 - One projected git root, one `Chunk` table, one search leg, one citation namespace.
 - `document_type` earns exactly three behaviors: the library badge, the type filter, and the editor's read-only guard. Nothing in storage, convergence, or retrieval branches on it.
 

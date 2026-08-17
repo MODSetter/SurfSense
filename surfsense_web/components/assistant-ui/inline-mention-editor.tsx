@@ -1,11 +1,7 @@
 "use client";
 
-import {
-	Folder as FolderIcon,
-	MessageSquare as MessageSquareIcon,
-	Plug as PlugIcon,
-	X as XIcon,
-} from "lucide-react";
+import { X as XIcon } from "lucide-react";
+import { useParams } from "next/navigation";
 import type { NodeEntry, TElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import {
@@ -25,10 +21,12 @@ import {
 	useMemo,
 	useRef,
 } from "react";
+import { MentionIcon } from "@/components/assistant-ui/mention-icon";
 import { Button } from "@/components/ui/button";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
+import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 
 export type MentionKind = "doc" | "folder" | "connector" | "thread";
@@ -153,6 +151,7 @@ type MentionEditorContextValue = {
 		kind: MentionKind | undefined,
 		connectorType: string | undefined
 	) => void;
+	getArtifactFormat: (documentId: number) => string | undefined;
 };
 const MentionEditorContext = createContext<MentionEditorContextValue | null>(null);
 
@@ -168,10 +167,9 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 				? "text-emerald-700"
 				: "text-amber-700";
 
-	const isFolder = element.kind === "folder";
-	const isConnector = element.kind === "connector";
-	const isThread = element.kind === "thread";
 	const ctx = useContext(MentionEditorContext);
+	const artifactFormat =
+		element.document_type === "ARTIFACT" ? ctx?.getArtifactFormat(element.id) : undefined;
 
 	return (
 		<span {...attributes} className="inline-flex align-middle">
@@ -179,18 +177,7 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 				<span className={MENTION_CHIP_ICON_CLASSNAME}>
 					<span className="relative flex h-3 w-3 items-center justify-center">
 						<span className="flex items-center justify-center transition-opacity group-hover:opacity-0">
-							{isFolder ? (
-								<FolderIcon className="h-3 w-3" />
-							) : isThread ? (
-								<MessageSquareIcon className="h-3 w-3" />
-							) : isConnector ? (
-								(getConnectorIcon(
-									element.connector_type ?? element.document_type ?? "UNKNOWN",
-									"h-3 w-3"
-								) ?? <PlugIcon className="h-3 w-3" />)
-							) : (
-								getConnectorIcon(element.document_type ?? "UNKNOWN", "h-3 w-3")
-							)}
+							<MentionIcon mention={element} artifactFormat={artifactFormat} className="h-3 w-3" />
 						</span>
 						{ctx ? (
 							<Button
@@ -294,7 +281,7 @@ type EditorSelection = {
 } | null;
 
 function getCursorTextContext(value: ComposerValue, selection: EditorSelection) {
-	if (!selection || !selection.anchor || !selection.focus) return null;
+	if (!selection?.anchor || !selection.focus) return null;
 	if (
 		selection.anchor.path.length < 2 ||
 		selection.focus.path.length < 2 ||
@@ -404,6 +391,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		},
 		ref
 	) => {
+		const params = useParams();
+		const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+		const artifactsByDocument = useArtifactsByDocument(workspaceId);
 		const editableRef = useRef<HTMLDivElement | null>(null);
 		const editor = usePlateEditor({
 			readOnly: disabled,
@@ -706,7 +696,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				if (e.key !== "Backspace") return;
 				const selection = editor.selection;
-				if (!selection || !selection.anchor || !selection.focus) return;
+				if (!selection?.anchor || !selection.focus) return;
 				if (
 					selection.anchor.path.length < 2 ||
 					selection.focus.path.length < 2 ||
@@ -738,9 +728,13 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[handleKeyDown, placeholder]
 		);
 
+		const getArtifactFormat = useCallback(
+			(documentId: number) => artifactsByDocument.get(documentId)?.format,
+			[artifactsByDocument]
+		);
 		const mentionEditorContextValue = useMemo<MentionEditorContextValue>(
-			() => ({ removeChip }),
-			[removeChip]
+			() => ({ removeChip, getArtifactFormat }),
+			[removeChip, getArtifactFormat]
 		);
 
 		return (

@@ -1,13 +1,11 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Check, Copy, FileQuestionMark, FileText, Pencil, RefreshCw, XIcon } from "lucide-react";
+import { Check, Copy, FileQuestionMark, Pencil, RefreshCw, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
-import { DownloadOriginalButton } from "@/components/documents/download-original-button";
-import { VersionHistoryButton } from "@/components/documents/version-history";
 import { PlateErrorBoundary } from "@/components/editor/plate-error-boundary";
 import { SourceCodeEditor } from "@/components/editor/source-code-editor";
 import {
@@ -16,42 +14,25 @@ import {
 	type MemoryLimits,
 	saveMemoryMarkdown,
 } from "@/components/editor-panel/memory";
-import { MarkdownViewer } from "@/components/markdown-viewer";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { authenticatedFetch } from "@/lib/auth-fetch";
 import { inferMonacoLanguageFromPath } from "@/lib/editor-language";
-import { buildBackendUrl } from "@/lib/env-config";
 
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((m) => ({ default: m.PlateEditor })),
 	{ ssr: false, loading: () => <EditorPanelSkeleton /> }
 );
 
-const LARGE_DOCUMENT_THRESHOLD = 1 * 1024 * 1024; // 1MB, matches backend
-const LARGE_DOCUMENT_LINE_THRESHOLD = 5000;
-
 interface EditorContent {
 	document_id: number;
 	title: string;
 	document_type?: string;
 	source_markdown: string;
-	content_size_bytes?: number;
-	line_count?: number;
-	chunk_count?: number;
-	viewer_mode?: ViewerMode;
-	editor_plate_max_bytes?: number;
-	editor_plate_max_lines?: number;
 }
-
-const EDITABLE_DOCUMENT_TYPES = new Set(["FILE", "NOTE"]);
-type EditorRenderMode = "rich_markdown" | "source_code";
-type ViewerMode = "plate" | "monaco";
 
 type AgentFilesystemMount = {
 	mount: string;
@@ -109,40 +90,15 @@ function EditorPanelSkeleton() {
 	);
 }
 
-function getUtf8ByteSize(value: string): number {
-	return new TextEncoder().encode(value).byteLength;
-}
-
-function countLines(value: string): number {
-	if (!value) return 0;
-	let count = 1;
-	for (let i = 0; i < value.length; i++) {
-		if (value.charCodeAt(i) === 10) count++;
-	}
-	return count;
-}
-
-function formatBytes(bytes: number): string {
-	if (bytes >= 1024 * 1024) {
-		return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-	}
-	if (bytes >= 1024) {
-		return `${Math.round(bytes / 1024)}KB`;
-	}
-	return `${bytes}B`;
-}
-
 export function EditorPanelContent({
-	kind = "document",
-	documentId,
+	kind = "memory",
 	localFilePath,
 	memoryScope,
 	workspaceId,
 	title,
 	onClose,
 }: {
-	kind?: "document" | "local_file" | "memory";
-	documentId?: number;
+	kind?: "local_file" | "memory";
 	localFilePath?: string;
 	memoryScope?: "user" | "team";
 	workspaceId?: number;
@@ -167,7 +123,6 @@ export function EditorPanelContent({
 	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
 	const isLocalFileMode = kind === "local_file";
 	const isMemoryMode = kind === "memory";
-	const editorRenderMode: EditorRenderMode = isLocalFileMode ? "source_code" : "rich_markdown";
 
 	const resolveLocalVirtualPath = useCallback(
 		async (candidatePath: string): Promise<string> => {
@@ -185,19 +140,6 @@ export function EditorPanelContent({
 		},
 		[electronAPI, workspaceId]
 	);
-
-	const plateMaxBytes = editorDoc?.editor_plate_max_bytes ?? LARGE_DOCUMENT_THRESHOLD;
-	const plateMaxLines = editorDoc?.editor_plate_max_lines ?? LARGE_DOCUMENT_LINE_THRESHOLD;
-	const docSizeBytes = editorDoc?.content_size_bytes ?? 0;
-	const docLineCount =
-		editorDoc?.line_count ??
-		(editorDoc?.source_markdown ? countLines(editorDoc.source_markdown) : 0);
-	const isLargeDocument = docSizeBytes > plateMaxBytes || docLineCount > plateMaxLines;
-	const viewerMode: ViewerMode = isMemoryMode
-		? "plate"
-		: editorDoc?.viewer_mode === "monaco" || isLargeDocument
-			? "monaco"
-			: "plate";
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -260,40 +202,6 @@ export function EditorPanelContent({
 					initialLoadDone.current = true;
 					return;
 				}
-
-				if (!documentId || !workspaceId) {
-					throw new Error("Missing document context");
-				}
-				const response = await authenticatedFetch(
-					buildBackendUrl(
-						`/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content`
-					),
-					{ method: "GET" }
-				);
-
-				if (controller.signal.aborted) return;
-
-				if (!response.ok) {
-					const errorData = await response
-						.json()
-						.catch(() => ({ detail: "Failed to fetch document" }));
-					throw new Error(errorData.detail || "Failed to fetch document");
-				}
-
-				const data = await response.json();
-
-				if (data.source_markdown === undefined || data.source_markdown === null) {
-					setError(
-						"This document does not have editable content. Please re-upload to enable editing."
-					);
-					setIsLoading(false);
-					return;
-				}
-
-				markdownRef.current = data.source_markdown;
-				setDisplayTitle(data.title || title || "Untitled");
-				setEditorDoc(data);
-				initialLoadDone.current = true;
 			} catch (err) {
 				if (controller.signal.aborted) return;
 				console.error("Error fetching document:", err);
@@ -306,7 +214,6 @@ export function EditorPanelContent({
 		doFetch().catch(() => {});
 		return () => controller.abort();
 	}, [
-		documentId,
 		electronAPI,
 		isLocalFileMode,
 		isMemoryMode,
@@ -397,38 +304,7 @@ export function EditorPanelContent({
 					}
 					return true;
 				}
-
-				if (!workspaceId || !documentId) {
-					throw new Error("Missing document context");
-				}
-				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/save`),
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ source_markdown: markdownRef.current }),
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response
-						.json()
-						.catch(() => ({ detail: "Failed to save document" }));
-					throw new Error(errorData.detail || "Failed to save document");
-				}
-
-				setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
-				setEditedMarkdown(null);
-				if (!options?.silent) {
-					const savedSizeBytes = getUtf8ByteSize(markdownRef.current);
-					const savedLineCount = countLines(markdownRef.current);
-					if (savedSizeBytes > plateMaxBytes || savedLineCount > plateMaxLines) {
-						toast.success("Document saved. It will reopen in raw markdown mode.");
-					} else {
-						toast.success("Document saved! Reindexing in background...");
-					}
-				}
-				return true;
+				throw new Error("Unsupported editor mode");
 			} catch (err) {
 				console.error("Error saving document:", err);
 				if (!options?.silent) {
@@ -440,43 +316,23 @@ export function EditorPanelContent({
 			}
 		},
 		[
-			documentId,
 			electronAPI,
 			isLocalFileMode,
 			isMemoryMode,
 			localFilePath,
 			memoryLimits,
 			memoryScope,
-			plateMaxBytes,
-			plateMaxLines,
 			resolveLocalVirtualPath,
 			workspaceId,
 		]
 	);
 
-	const isEditableType = editorDoc
-		? (isMemoryMode ||
-				editorRenderMode === "source_code" ||
-				EDITABLE_DOCUMENT_TYPES.has(editorDoc.document_type ?? "")) &&
-			viewerMode === "plate"
-		: false;
-	// Render through PlateEditor only when the backend says the rich editor is safe.
-	// Monaco mode is a raw markdown safety path for large documents.
-	const renderInPlateEditor = isEditableType;
+	const isEditableType = editorDoc !== null;
 	const hasUnsavedChanges = editedMarkdown !== null;
 	const showDesktopHeader = !!onClose;
 	const showEditingActions = isEditableType && isEditing;
 	const localFileLanguage = inferMonacoLanguageFromPath(localFilePath);
 	const activeMarkdown = editedMarkdown ?? editorDoc?.source_markdown ?? "";
-	const activeMarkdownSizeBytes = useMemo(() => getUtf8ByteSize(activeMarkdown), [activeMarkdown]);
-	const activeMarkdownLineCount = useMemo(() => countLines(activeMarkdown), [activeMarkdown]);
-	const isNearPlateLimit =
-		activeMarkdownSizeBytes >= plateMaxBytes * 0.9 ||
-		activeMarkdownLineCount >= plateMaxLines * 0.9;
-	const isOverPlateLimit =
-		activeMarkdownSizeBytes > plateMaxBytes || activeMarkdownLineCount > plateMaxLines;
-	const showPlateSizeWarning =
-		showEditingActions && !isMemoryMode && !isLocalFileMode && isNearPlateLimit;
 	const memoryLimitState = isMemoryMode
 		? getMemoryLimitState(activeMarkdown.length, memoryLimits)
 		: null;
@@ -488,11 +344,7 @@ export function EditorPanelContent({
 				: "text-muted-foreground";
 	const saveDisabled = saving || !hasUnsavedChanges || (memoryLimitState?.isOverLimit ?? false);
 	const editorInstanceKey = `${
-		isMemoryMode
-			? `memory-${memoryScope ?? "user"}`
-			: isLocalFileMode
-				? (localFilePath ?? "local-file")
-				: documentId
+		isMemoryMode ? `memory-${memoryScope ?? "user"}` : (localFilePath ?? "local-file")
 	}-${isEditing ? "editing" : "viewing"}`;
 
 	const handleCancelEditing = useCallback(() => {
@@ -551,15 +403,6 @@ export function EditorPanelContent({
 								</>
 							) : (
 								<>
-									{!isLocalFileMode && !isMemoryMode && editorDoc?.document_type && documentId && (
-										<VersionHistoryButton
-											documentId={documentId}
-											documentType={editorDoc.document_type}
-										/>
-									)}
-									{!isLocalFileMode && !isMemoryMode && documentId && (
-										<DownloadOriginalButton documentId={documentId} />
-									)}
 									<Button
 										variant="ghost"
 										size="icon"
@@ -651,15 +494,6 @@ export function EditorPanelContent({
 							</>
 						) : (
 							<>
-								{!isLocalFileMode && !isMemoryMode && editorDoc?.document_type && documentId && (
-									<VersionHistoryButton
-										documentId={documentId}
-										documentType={editorDoc.document_type}
-									/>
-								)}
-								{!isLocalFileMode && !isMemoryMode && documentId && (
-									<DownloadOriginalButton documentId={documentId} />
-								)}
 								<Button
 									variant="ghost"
 									size="icon"
@@ -720,7 +554,7 @@ export function EditorPanelContent({
 							</p>
 						</div>
 					</div>
-				) : editorRenderMode === "source_code" ? (
+				) : isLocalFileMode ? (
 					<div className="h-full overflow-hidden">
 						<SourceCodeEditor
 							path={localFilePath ?? "local-file.txt"}
@@ -738,32 +572,8 @@ export function EditorPanelContent({
 							}}
 						/>
 					</div>
-				) : viewerMode === "monaco" && !isLocalFileMode ? (
-					// Large doc — raw markdown in Monaco. Rich renderers are intentionally skipped.
+				) : (
 					<div className="flex h-full min-h-0 flex-col">
-						<div className="min-h-0 flex-1 overflow-hidden">
-							<SourceCodeEditor
-								path={`${editorDoc.title || "document"}.md`}
-								language="markdown"
-								value={editorDoc.source_markdown}
-								readOnly
-								onChange={() => {}}
-							/>
-						</div>
-					</div>
-				) : renderInPlateEditor ? (
-					// Editable doc (FILE/NOTE) — Plate editing UX.
-					<div className="flex h-full min-h-0 flex-col">
-						{showPlateSizeWarning && (
-							<Alert className="m-4 mb-0 shrink-0">
-								<FileText className="size-4" />
-								<AlertDescription>
-									{isOverPlateLimit
-										? `This document is ${formatBytes(activeMarkdownSizeBytes)} and ${activeMarkdownLineCount.toLocaleString()} lines, above the rich editor limit of ${formatBytes(plateMaxBytes)} or ${plateMaxLines.toLocaleString()} lines. You can save, but it will reopen in raw markdown mode.`
-										: `This document is approaching the rich editor limit (${formatBytes(activeMarkdownSizeBytes)} of ${formatBytes(plateMaxBytes)}, ${activeMarkdownLineCount.toLocaleString()} of ${plateMaxLines.toLocaleString()} lines).`}
-								</AlertDescription>
-							</Alert>
-						)}
 						<div className="flex-1 min-h-0 overflow-hidden">
 							<PlateErrorBoundary
 								key={`plate-boundary-${editorInstanceKey}`}
@@ -798,10 +608,6 @@ export function EditorPanelContent({
 							</PlateErrorBoundary>
 						</div>
 					</div>
-				) : (
-					<div className="h-full overflow-y-auto px-5 py-4">
-						<MarkdownViewer content={editorDoc.source_markdown} enableCitations />
-					</div>
 				)}
 			</div>
 		</>
@@ -821,18 +627,13 @@ function DesktopEditorPanel() {
 	}, [closePanel]);
 
 	const hasTarget =
-		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.workspaceId
-			: panelState.kind === "local_file"
-				? !!panelState.localFilePath
-				: !!panelState.memoryScope;
+		panelState.kind === "local_file" ? !!panelState.localFilePath : !!panelState.memoryScope;
 	if (!panelState.isOpen || !hasTarget) return null;
 
 	return (
 		<div className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-sidebar text-sidebar-foreground animate-in slide-in-from-right-4 duration-300 ease-out">
 			<EditorPanelContent
 				kind={panelState.kind}
-				documentId={panelState.documentId ?? undefined}
 				localFilePath={panelState.localFilePath ?? undefined}
 				memoryScope={panelState.memoryScope ?? undefined}
 				workspaceId={panelState.workspaceId ?? undefined}
@@ -849,10 +650,7 @@ function MobileEditorDrawer() {
 
 	if (panelState.kind === "local_file") return null;
 
-	const hasTarget =
-		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.workspaceId
-			: !!panelState.memoryScope;
+	const hasTarget = !!panelState.memoryScope;
 	if (!hasTarget) return null;
 
 	return (
@@ -872,7 +670,6 @@ function MobileEditorDrawer() {
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
 					<EditorPanelContent
 						kind={panelState.kind}
-						documentId={panelState.documentId ?? undefined}
 						localFilePath={panelState.localFilePath ?? undefined}
 						memoryScope={panelState.memoryScope ?? undefined}
 						workspaceId={panelState.workspaceId ?? undefined}
@@ -888,11 +685,7 @@ export function EditorPanel() {
 	const panelState = useAtomValue(editorPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const hasTarget =
-		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.workspaceId
-			: panelState.kind === "local_file"
-				? !!panelState.localFilePath
-				: !!panelState.memoryScope;
+		panelState.kind === "local_file" ? !!panelState.localFilePath : !!panelState.memoryScope;
 
 	if (!panelState.isOpen || !hasTarget) return null;
 	if (!isDesktop && panelState.kind === "local_file") return null;
@@ -908,11 +701,7 @@ export function MobileEditorPanel() {
 	const panelState = useAtomValue(editorPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const hasTarget =
-		panelState.kind === "document"
-			? !!panelState.documentId && !!panelState.workspaceId
-			: panelState.kind === "local_file"
-				? !!panelState.localFilePath
-				: !!panelState.memoryScope;
+		panelState.kind === "local_file" ? !!panelState.localFilePath : !!panelState.memoryScope;
 
 	if (isDesktop || !panelState.isOpen || !hasTarget || panelState.kind === "local_file")
 		return null;

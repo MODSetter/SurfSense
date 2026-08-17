@@ -13,9 +13,8 @@ def iter_completion_emission_frames(
     ctx: ToolCompletionEmissionContext,
 ) -> Iterator[str]:
     output = ctx.tool_output
-    payload = output if isinstance(output, dict) else {"result": output}
-    yield ctx.emit_tool_output_card(payload)
     if isinstance(output, dict) and output.get("status") == "saved":
+        yield ctx.emit_tool_output_card(output)
         yield ctx.streaming_service.format_terminal_info(
             f"Artifact saved: {output.get('title', 'Document')}",
             "success",

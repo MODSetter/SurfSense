@@ -24,7 +24,7 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
         """Verify a sandbox-generated PDF or office artifact before saving it.
 
         Returns actionable findings when the artifact needs changes. A clean
-        result includes the preview path to pass to save_artifact when present.
+        result authorizes save_artifact to use the signed verification receipt.
         Use description for a short user-facing step title.
         """
         del description
@@ -46,7 +46,6 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
             "status": "verified" if result.verified else "failed",
             "findings": list(result.findings),
             "notes": list(result.notes),
-            "preview_path": result.preview_path,
             "page_count": result.page_count,
             "verification_unavailable": result.unavailable_reason,
         }

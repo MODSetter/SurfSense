@@ -4,7 +4,7 @@ import * as SSF from "ssf";
 /** Soft ceiling for in-browser grid rows per sheet (full file still downloads). */
 export const MAX_DISPLAY_ROWS = 500;
 
-/** Reject before ExcelJS allocates — keep below server artifact max (30 MiB). */
+/** Reject before ExcelJS allocates — keep below the server file limit. */
 export const MAX_VIEWER_BYTES = 15 * 1024 * 1024;
 
 export type ParseWorkbookErrorCode = "oversize" | "corrupt";

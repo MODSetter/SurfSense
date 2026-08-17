@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -10,13 +11,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
-from app.db import Permission, get_async_session
+from app.db import Document, Permission, get_async_session
+from app.file_storage.persistence.enums import DocumentFileKind
 from app.file_storage.persistence.models import DocumentFile
-from app.file_storage.service import open_document_file_stream
+from app.file_storage.schemas import DocumentViewFileRead, DocumentViewManifestRead
+from app.file_storage.service import get_document_file, open_document_file_stream
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 router = APIRouter()
+
+_ORIGINAL_VIEW_MIME_BY_SUFFIX = {
+    ".pdf": "application/pdf",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
 
 
 def _content_disposition(filename: str, *, inline: bool) -> str:
@@ -32,6 +40,111 @@ def _is_inline(mime_type: str) -> bool:
     # downloads. Widen per MIME type, by name with a consumer attached — never
     # by wildcard (image/* once smuggled in scriptable SVG).
     return mime_type == "application/pdf"
+
+
+def _canonical_original_mime(filename: str, stored_mime: str | None) -> str | None:
+    """Return a MIME supported by the original-file viewers, including legacy rows."""
+    by_suffix = _ORIGINAL_VIEW_MIME_BY_SUFFIX.get(
+        PurePosixPath(filename).suffix.lower()
+    )
+    if by_suffix is not None:
+        return by_suffix
+    if stored_mime in _ORIGINAL_VIEW_MIME_BY_SUFFIX.values():
+        return stored_mime
+    return None
+
+
+@router.get(
+    "/workspaces/{workspace_id}/documents/{document_id}/view-manifest",
+    response_model=DocumentViewManifestRead,
+)
+async def get_document_view_manifest(
+    workspace_id: int,
+    document_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> DocumentViewManifestRead:
+    """Describe how a knowledge document should open without returning its text."""
+    await check_permission(
+        session,
+        auth,
+        workspace_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this workspace",
+    )
+    document = await session.scalar(
+        select(Document).where(
+            Document.id == document_id,
+            Document.workspace_id == workspace_id,
+        )
+    )
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    original = await get_document_file(
+        session,
+        document_id=document_id,
+        kind=DocumentFileKind.ORIGINAL,
+    )
+    candidate_filename = (
+        original.original_filename if original is not None else document.title
+    )
+    canonical_mime = _canonical_original_mime(
+        candidate_filename,
+        original.mime_type if original is not None else None,
+    )
+    status = (
+        document.status.get("state", "ready")
+        if isinstance(document.status, dict)
+        else "ready"
+    )
+    document_type = (
+        document.document_type.value
+        if hasattr(document.document_type, "value")
+        else str(document.document_type)
+    )
+    view_file = (
+        DocumentViewFileRead(
+            file_id=original.id,
+            filename=original.original_filename,
+            mime_type=canonical_mime
+            or original.mime_type
+            or "application/octet-stream",
+            size_bytes=original.size_bytes,
+            content_url=(
+                f"/api/v1/workspaces/{workspace_id}/documents/{document_id}/"
+                f"files/{original.id}/content"
+            ),
+        )
+        if original is not None
+        else None
+    )
+
+    if canonical_mime is None:
+        return DocumentViewManifestRead(
+            document_id=document.id,
+            title=document.title,
+            document_type=document_type,
+            status=status,
+            presentation="text",
+            file=view_file,
+        )
+    if original is None:
+        return DocumentViewManifestRead(
+            document_id=document.id,
+            title=document.title,
+            document_type=document_type,
+            status=status,
+            presentation="missing_original",
+        )
+    return DocumentViewManifestRead(
+        document_id=document.id,
+        title=document.title,
+        document_type=document_type,
+        status=status,
+        presentation="original",
+        file=view_file,
+    )
 
 
 @router.get(

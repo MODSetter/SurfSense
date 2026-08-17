@@ -23,9 +23,9 @@ async def test_roster_resolves_each_chat_from_live_config(monkeypatch):
         async def execute(self, statement):
             values = {str(value) for value in statement.compile().params.values()}
             if "101" in values:
-                return Result([(1, "First", None)])
+                return Result([(1, 2, "markdown", "First", None)])
             if "202" in values:
-                return Result([(2, "Second", "second.pdf")])
+                return Result([(2, 4, "pdf", "Second", "second.pdf")])
             return Result([])
 
     @asynccontextmanager
@@ -43,6 +43,8 @@ async def test_roster_resolves_each_chat_from_live_config(monkeypatch):
     )
     first = await middleware.abefore_agent(state, SimpleNamespace())
     assert "artifact_id=1" in first["messages"][0].content
+    assert "generation=2" in first["messages"][0].content
+    assert "format=markdown" in first["messages"][0].content
     assert "artifact_id=2" not in first["messages"][0].content
 
     monkeypatch.setattr(
@@ -52,4 +54,6 @@ async def test_roster_resolves_each_chat_from_live_config(monkeypatch):
     )
     second = await middleware.abefore_agent(state, SimpleNamespace())
     assert "artifact_id=2" in second["messages"][0].content
+    assert "generation=4" in second["messages"][0].content
+    assert "format=pdf" in second["messages"][0].content
     assert "artifact_id=1" not in second["messages"][0].content

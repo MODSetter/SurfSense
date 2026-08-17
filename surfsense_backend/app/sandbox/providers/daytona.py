@@ -29,16 +29,11 @@ from ..protocol import ExecResult
 logger = logging.getLogger(__name__)
 
 THREAD_LABEL_KEY = "surfsense_thread"
-_DEFAULT_TIMEOUT = 300
 _START_TIMEOUT = 60
 
 
 def _wrap_as_python(code: str) -> str:
-    """Wrap code in a unique-sentinel heredoc.
-
-    Daytona exposes commands, not a kernel, so Python arrives as a shell
-    command and state does not carry across calls.
-    """
+    """Wrap code in a unique-sentinel heredoc for Daytona's command API."""
     sentinel = f"_PYEOF_{secrets.token_hex(8)}"
     return f"python3 << '{sentinel}'\n{code}\n{sentinel}"
 
@@ -58,7 +53,10 @@ class DaytonaSession:
 
     async def run_command(self, command: str) -> ExecResult:
         def _run() -> ExecResult:
-            result = self._sandbox.process.exec(command, timeout=_DEFAULT_TIMEOUT)
+            result = self._sandbox.process.exec(
+                command,
+                timeout=app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS,
+            )
             return ExecResult(
                 output=result.result or "",
                 exit_code=result.exit_code or 0,

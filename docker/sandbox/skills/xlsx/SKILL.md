@@ -6,13 +6,9 @@ description: Create polished Excel workbooks for budgets, trackers, tables, and 
 # XLSX
 
 Create the requested workbook in `/workspace` with the preinstalled
-`xlsxwriter` package. Never install or download dependencies. Do not use
-openpyxl to author deliverables; XlsxWriter writes complete formula caches that
-verification and the browser grid require.
-
-Use one deliverable-derived stem for deterministic Python source and output, for
-example `budget.py` and `budget.xlsx`. The source must regenerate the complete
-workbook so later revisions edit rather than reconstruct it.
+`xlsxwriter` and `openpyxl` packages. Never install or download dependencies.
+Use XlsxWriter for new workbooks because it can write explicit formula caches
+that verification and the browser grid require.
 
 ## Authoring rules
 
@@ -34,22 +30,39 @@ workbook so later revisions edit rather than reconstruct it.
 - Charts, pivot tables, macros, and VBA are out of scope for this skill. Stick
   to values, formulas, formats, panes, and multiple sheets.
 
-When revising, `load_artifact_source` returns the existing `artifact_id` and a
-`source_path` with a name such as `artifact-42-budget.py`. Copy that source to
-`budget.py` before editing so the `artifact-42-` prefix does not compound, then
-pass the returned `artifact_id` to `save_artifact`. A changed title, filename,
-or design is still the same artifact unless the user explicitly asks for a
-separate copy.
+## Revisions
+
+Start an in-place revision with `load_artifact_for_revision`. Open
+`primary_path` with `openpyxl` using `data_only=False`, edit that current
+workbook directly, and write the revision to `expected_output_path`. Preserve
+unaffected worksheets, formulas, formatting, panes, validation, links, and
+workbook settings. Use `markdown_path` as textual context, not as a replacement
+workbook. Do not use vision to reconstruct workbook contents.
+
+If the workbook contains formulas, saving with `openpyxl` is not the final
+step: run headless LibreOffice on a temporary copy and place the recalculated
+XLSX at `expected_output_path` before verification. This refreshes formula
+caches for verification and the browser grid. Use distinct temporary input and
+conversion-output paths so LibreOffice never overwrites its own input. Check
+the command's exit status and confirm the recalculated file exists. The
+conversion command is
+`libreoffice --headless --convert-to xlsx --outdir <recalc-dir> <temporary.xlsx>`;
+move its output to `expected_output_path`.
+
+Save the verified revision with the returned `artifact_id` and
+`expected_generation`. A changed title, filename, or design is still the same
+artifact unless the user explicitly asks for a separate copy.
 
 ## Verify and save
 
-Call `verify_artifact(path="budget.xlsx")`. Spreadsheet verification is
+Call `verify_artifact(path=output_path)`. Spreadsheet verification is
 structural only: there is no PDF preview and no vision pass. Warnings are
-advisory. If it reports blocking findings, fix them in the Python source and
-regenerate once. Reverify that revision; if a blocker remains, stop and explain
-it instead of entering another automatic rewrite loop.
+advisory. If it reports blocking findings, fix all blockers together,
+regenerate once at the same output path, and reverify. If a blocker remains,
+stop and explain it instead of entering another automatic rewrite loop.
 
-Then call `save_artifact` with the XLSX path and Python source path only — omit
-`preview_path`. The Markdown representation must faithfully summarize the
-workbook's sheets, column meanings, and key figures for accessibility and
-search.
+Then call `save_artifact(path=output_path, title="...",
+markdown_representation="...")`. Working files may use any paths; no source
+file, preview file, or matching filename stem is part of the publication
+contract. The Markdown representation must faithfully summarize the workbook's
+sheets, column meanings, and key figures for accessibility and search.
