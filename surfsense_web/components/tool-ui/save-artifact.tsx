@@ -1,7 +1,7 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -15,7 +15,6 @@ import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label"
 import {
 	artifactListQueryKey,
 	artifactManifestQueryKey,
-	artifactManifestQueryOptions,
 } from "@/features/artifacts/artifact-query";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
 import { extension } from "@/features/artifacts/file-format";
@@ -68,12 +67,27 @@ function ArtifactPending({ title, format }: { title: string; format: string }) {
 	);
 }
 
-function ArtifactError({ title, error }: { title: string; error: string }) {
+function ArtifactError({
+	title,
+	format,
+	message,
+}: {
+	title: string;
+	format: string;
+	message: string;
+}) {
 	return (
-		<div role="alert" className="my-4 w-full rounded-xl border bg-muted/30 px-5 py-4">
-			<p className="text-sm font-semibold text-destructive">Artifact save failed</p>
-			<p className="mt-1 text-sm text-foreground">{title}</p>
-			<p className="mt-1 text-xs text-muted-foreground">{error}</p>
+		<div
+			role="alert"
+			className="my-4 flex w-full items-center gap-3 rounded-xl border bg-muted/30 p-4"
+		>
+			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+				<ArtifactFormatIcon format={format} className="size-5 text-muted-foreground" />
+			</span>
+			<span className="min-w-0 flex-1">
+				<span className="block truncate text-sm font-medium text-foreground">{title}</span>
+				<span className="mt-0.5 block truncate text-xs text-destructive">{message}</span>
+			</span>
 		</div>
 	);
 }
@@ -82,6 +96,7 @@ function ArtifactCard({
 	artifactId,
 	title,
 	format,
+	filename,
 	autoOpen,
 	publicRoute,
 	toolCallId,
@@ -89,6 +104,7 @@ function ArtifactCard({
 	artifactId: number;
 	title: string;
 	format: string;
+	filename: string;
 	autoOpen: boolean;
 	publicRoute: boolean;
 	toolCallId: string;
@@ -99,17 +115,6 @@ function ArtifactCard({
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const openedRef = useRef(false);
 	const canDownload = !publicRoute && Number.isFinite(workspaceId) && workspaceId > 0;
-	const { data: current } = useQuery({
-		...artifactManifestQueryOptions(workspaceId, artifactId),
-		enabled: canDownload,
-	});
-	const currentPrimary = current?.files.find((file) => file.role === "primary");
-	const currentTitle = current?.title ?? title;
-	const currentFormat = current?.format ?? format;
-	const filename =
-		current && !currentPrimary
-			? `${current.title}.md`
-			: (currentPrimary?.filename ?? `${currentTitle}.md`);
 	const selected = panelState.isOpen && panelState.selectedCardToolCallId === toolCallId;
 
 	useEffect(() => {
@@ -134,16 +139,16 @@ function ArtifactCard({
 				onClick={() => openPanel({ artifactId, selectedCardToolCallId: toolCallId })}
 				className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
 			>
-				<span className="sr-only">Open {currentTitle}</span>
+				<span className="sr-only">Open {title}</span>
 			</button>
 
 			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-				<ArtifactFormatIcon format={currentFormat} className="size-5 text-muted-foreground" />
+				<ArtifactFormatIcon format={format} className="size-5 text-muted-foreground" />
 			</span>
 			<span className="min-w-0 flex-1">
-				<span className="block truncate text-sm font-medium">{currentTitle}</span>
+				<span className="block truncate text-sm font-medium">{title}</span>
 				<ArtifactFormatLabel
-					format={currentFormat}
+					format={format}
 					className="mt-0.5 text-xs text-muted-foreground"
 				/>
 			</span>
@@ -171,7 +176,7 @@ export const SaveArtifactToolUI = ({
 	const queryClient = useQueryClient();
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const savedArtifactId = result?.status === "saved" ? result.artifact_id : null;
-	const pendingFormat = args.path ? extension(args.path) : "markdown";
+	const pendingFormat = args.path ? extension(args.path) : "file";
 
 	useEffect(() => {
 		if (
@@ -197,12 +202,11 @@ export const SaveArtifactToolUI = ({
 		return (
 			<ArtifactError
 				title={args.title || "Document"}
-				error={
+				format={pendingFormat}
+				message={
 					status.reason === "cancelled"
 						? "Artifact saving was cancelled"
-						: typeof status.error === "string"
-							? status.error
-							: "An error occurred"
+						: "Artifact save failed"
 				}
 			/>
 		);
@@ -212,20 +216,29 @@ export const SaveArtifactToolUI = ({
 		return (
 			<ArtifactError
 				title={result.title || args.title || "Document"}
-				error={result.error || "The artifact could not be saved"}
+				format={pendingFormat}
+				message="Artifact save failed"
 			/>
 		);
 	}
 	if (!result.artifact_id) {
-		return <ArtifactError title={args.title || "Document"} error="Missing artifact ID" />;
+		return (
+			<ArtifactError
+				title={args.title || "Document"}
+				format={pendingFormat}
+				message="Artifact save failed"
+			/>
+		);
 	}
 	const primary = result.files?.find((file) => file.role === "primary");
 	const format = primary?.filename ? extension(primary.filename) : pendingFormat;
+	const title = result.title || args.title || "Document";
 	return (
 		<ArtifactCard
 			artifactId={result.artifact_id}
-			title={result.title || args.title || "Document"}
+			title={title}
 			format={format}
+			filename={primary?.filename ?? `${title}.md`}
 			autoOpen={sawRunningRef.current}
 			publicRoute={publicRoute}
 			toolCallId={toolCallId}
