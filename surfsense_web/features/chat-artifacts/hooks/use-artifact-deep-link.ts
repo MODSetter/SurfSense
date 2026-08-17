@@ -16,15 +16,14 @@ function removeArtifactTargetFromUrl(artifactId: number): void {
 }
 
 /**
- * Resolve a library link after both messages and persisted artifact metadata
- * hydrate. The caller keeps the existing chat skeleton visible until this
- * returns `false`, hiding assistant-ui's initialize-to-bottom positioning.
+ * Resolve artifact navigation independently of thread rendering. Viewer
+ * formats open their panel and inline media scrolls to its message card.
  */
 export function useArtifactDeepLink(
 	artifacts: readonly ChatArtifact[],
 	isArtifactDataReady: boolean,
 	routeKey: string
-): boolean {
+): void {
 	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const closeArtifactsPanel = useSetAtom(closeArtifactsPanelAtom);
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -33,8 +32,6 @@ export function useArtifactDeepLink(
 	const currentTargetRef = useRef<number | null>(null);
 	const processingTargetRef = useRef<number | null>(null);
 
-	// The normal thread-loading skeleton is already present on navigation. This
-	// keeps that state active when hydrated messages replace it.
 	useEffect(() => {
 		const artifactId = artifactIdFromSearch(window.location.search);
 		currentRouteRef.current = routeKey;
@@ -56,8 +53,10 @@ export function useArtifactDeepLink(
 			return;
 		}
 
+		const artifactId = artifact.artifactId;
+		if (artifactId == null) return;
 		processingTargetRef.current = targetArtifactId;
-		void openChatArtifact(artifact, "deep-link", {
+		void openChatArtifact({ ...artifact, artifactId }, "deep-link", {
 			closeArtifactsPanel,
 			isDesktop,
 			openArtifactPanel,
@@ -78,6 +77,4 @@ export function useArtifactDeepLink(
 		routeKey,
 		targetArtifactId,
 	]);
-
-	return targetArtifactId != null;
 }
