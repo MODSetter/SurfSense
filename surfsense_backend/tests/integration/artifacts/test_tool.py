@@ -137,9 +137,7 @@ async def test_load_artifact_for_revision_restores_primary_and_markdown(
         artifact_id=saved.artifact_id,
         runtime=_runtime(artifact_thread.id),
     )
-    revision_dir = (
-        f"/workspace/artifact-revisions/{saved.artifact_id}/revision"
-    )
+    revision_dir = f"/workspace/artifact-revisions/{saved.artifact_id}/revision"
 
     assert loaded == {
         "artifact_id": saved.artifact_id,

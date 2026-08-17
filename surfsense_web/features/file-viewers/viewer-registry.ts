@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { createElement, type ComponentType } from "react";
+import { type ComponentType, createElement } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import type { FileViewerProps } from "./model";
 

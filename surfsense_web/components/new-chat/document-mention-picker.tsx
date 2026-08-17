@@ -3,13 +3,7 @@
 import { useQuery as useZeroQuery } from "@rocicorp/zero/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import {
-	ChevronLeft,
-	ChevronRight,
-	Files,
-	MessageCircleMore,
-	Unplug,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Files, MessageCircleMore, Unplug } from "lucide-react";
 import {
 	Fragment,
 	forwardRef,

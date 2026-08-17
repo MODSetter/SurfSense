@@ -465,9 +465,7 @@ async def test_load_artifact_for_revision_writes_primary_and_markdown(monkeypatc
         return FakeRegistry(sandbox)
 
     monkeypatch.setattr(load_revision_tool, "shielded_async_session", db_session)
-    monkeypatch.setattr(
-        load_revision_tool, "get_storage_backend", get_storage_backend
-    )
+    monkeypatch.setattr(load_revision_tool, "get_storage_backend", get_storage_backend)
     monkeypatch.setattr(load_revision_tool, "get_registry", get_registry)
     monkeypatch.setattr(load_revision_tool, "resolve_root_thread_id", lambda *_: 4)
     monkeypatch.setattr(
@@ -537,7 +535,9 @@ async def test_execute_python_uses_unique_one_shot_scripts_and_cleans_up(monkeyp
         "/tmp/.surfsense-exec-first.py": b"print('first')",
         "/tmp/.surfsense-exec-second.py": b"print('second')",
     }
-    execution_commands = [command for command in commands if command.startswith("script=")]
+    execution_commands = [
+        command for command in commands if command.startswith("script=")
+    ]
     assert len(execution_commands) == 2
     assert "/tmp/.surfsense-exec-first.py" in execution_commands[0]
     assert "/tmp/.surfsense-exec-second.py" in execution_commands[1]

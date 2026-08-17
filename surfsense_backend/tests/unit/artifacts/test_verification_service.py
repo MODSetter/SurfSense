@@ -326,6 +326,7 @@ async def test_converted_preview_is_stable_and_temporary_files_are_cleaned(
         "get_format_adapter",
         lambda _path: _adapter(clean, convert_to_pdf=True, rendered_min_chars=0),
     )
+
     async def prepare(*_args, **_kwargs):
         return prepared
 
@@ -355,8 +356,7 @@ async def test_converted_preview_is_stable_and_temporary_files_are_cleaned(
     assert receipt.preview_path == preview_path(path)
     assert session.files[preview_path(path)] == b"pdf"
     assert any(
-        command
-        == "rm -rf -- /tmp/build-unique /tmp/profile-unique"
+        command == "rm -rf -- /tmp/build-unique /tmp/profile-unique"
         for command in session.commands
     )
 

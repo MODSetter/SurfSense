@@ -76,7 +76,5 @@ async def test_render_failure_is_actionable():
         )
 
     assert "conversion error" not in str(raised.value)
-    assert session.commands[-1].startswith(
-        "rm -rf -- /tmp/surfsense-verify-"
-    )
+    assert session.commands[-1].startswith("rm -rf -- /tmp/surfsense-verify-")
     assert "/tmp/surfsense-soffice-" in session.commands[-1]

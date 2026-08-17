@@ -17,9 +17,7 @@ from app.sandbox import SandboxSession
 RECEIPT_PREFIX = "/tmp/.surfsense-artifact-verification-"
 PREVIEW_PREFIX = "/tmp/.surfsense-artifact-preview-"
 RECEIPT_MAX_AGE_SECONDS = 15 * 60
-_PATH_LOCKS: WeakValueDictionary[tuple[str, str], asyncio.Lock] = (
-    WeakValueDictionary()
-)
+_PATH_LOCKS: WeakValueDictionary[tuple[str, str], asyncio.Lock] = WeakValueDictionary()
 
 
 class VerificationReceipt(BaseModel):

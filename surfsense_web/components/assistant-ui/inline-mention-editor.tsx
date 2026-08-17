@@ -177,11 +177,7 @@ const MentionElement: FC<PlateElementProps<MentionElementNode>> = ({
 				<span className={MENTION_CHIP_ICON_CLASSNAME}>
 					<span className="relative flex h-3 w-3 items-center justify-center">
 						<span className="flex items-center justify-center transition-opacity group-hover:opacity-0">
-							<MentionIcon
-								mention={element}
-								artifactFormat={artifactFormat}
-								className="h-3 w-3"
-							/>
+							<MentionIcon mention={element} artifactFormat={artifactFormat} className="h-3 w-3" />
 						</span>
 						{ctx ? (
 							<Button

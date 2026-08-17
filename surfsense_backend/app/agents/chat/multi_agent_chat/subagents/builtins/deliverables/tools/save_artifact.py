@@ -81,7 +81,9 @@ async def _consume_verification(
 
 def _public_error(exc: Exception) -> str:
     if isinstance(exc, FileNotFoundError):
-        return "The artifact file is missing. Generate it again, then verify and save it."
+        return (
+            "The artifact file is missing. Generate it again, then verify and save it."
+        )
     if isinstance(exc, PermissionError):
         return "The artifact file could not be accessed in the sandbox."
     if isinstance(exc, TimeoutError):

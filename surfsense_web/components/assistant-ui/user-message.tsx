@@ -117,11 +117,7 @@ const UserTextPart: FC = () => {
 					<MentionChip
 						key={`mention-${getMentionDocKey(doc)}-${segment.start}`}
 						icon={
-							<MentionIcon
-								mention={doc}
-								artifactFormat={artifactFormat}
-								className="size-3.5"
-							/>
+							<MentionIcon mention={doc} artifactFormat={artifactFormat} className="size-3.5" />
 						}
 						label={doc.title}
 						tooltip={

@@ -64,8 +64,7 @@ async def prepare_pdf(
                     (
                         "soffice",
                         "--headless",
-                        "-env:UserInstallation="
-                        f"{shlex.quote(f'file://{profile_dir}')}",
+                        f"-env:UserInstallation={shlex.quote(f'file://{profile_dir}')}",
                         "--convert-to pdf",
                         f"--outdir {quoted_build}",
                         shlex.quote(source_path),

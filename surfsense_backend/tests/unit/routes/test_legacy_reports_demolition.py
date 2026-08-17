@@ -39,7 +39,9 @@ def test_legacy_reports_and_typst_are_absent() -> None:
 def test_document_exports_are_absent_but_workspace_export_remains() -> None:
     route_paths = {route.path for route in router.routes}
 
-    assert "/workspaces/{workspace_id}/documents/{document_id}/export" not in route_paths
+    assert (
+        "/workspaces/{workspace_id}/documents/{document_id}/export" not in route_paths
+    )
     assert (
         "/workspaces/{workspace_id}/documents/{document_id}/download-markdown"
         not in route_paths

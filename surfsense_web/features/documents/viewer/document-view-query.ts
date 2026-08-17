@@ -11,9 +11,7 @@ export function documentViewQueryOptions(workspaceId: number, documentId: number
 		queryKey: documentViewQueryKey(workspaceId, documentId),
 		queryFn: async () => {
 			const response = await authenticatedFetch(
-				buildBackendUrl(
-					`/api/v1/workspaces/${workspaceId}/documents/${documentId}/view-manifest`
-				),
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/view-manifest`),
 				{ skipAuthRedirect: true }
 			);
 			if (!response.ok) {

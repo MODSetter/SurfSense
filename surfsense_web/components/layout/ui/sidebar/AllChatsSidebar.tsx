@@ -375,9 +375,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 										</span>
 									</Button>
 
-									<div
-										className="pointer-events-none absolute inset-y-0 right-1 flex items-center"
-									>
+									<div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
 										<div className="relative flex h-7 w-7 items-center justify-end">
 											<DropdownMenu
 												open={openDropdownId === thread.id}

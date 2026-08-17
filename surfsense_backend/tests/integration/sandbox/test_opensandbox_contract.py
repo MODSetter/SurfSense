@@ -79,7 +79,7 @@ c.setFont("DejaVu", 12)
 for y, fact in zip((740, 710, 680), ("Fact one", "Fact two", "Fact three")):
     c.drawString(72, y, fact)
 c.save()
-"""
+""",
         )
         rendered = await session.run_command(
             "mkdir -p /tmp/three-facts-pages && "
@@ -180,7 +180,7 @@ group.shapes.add_shape(
     MSO_SHAPE.RECTANGLE, Inches(8), Inches(1), Inches(1), Inches(1)
 )
 presentation.save("/tmp/report.pptx")
-"""
+""",
             )
         assert skills.ok and generated.ok
 

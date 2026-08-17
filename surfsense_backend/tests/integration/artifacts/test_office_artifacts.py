@@ -182,9 +182,7 @@ async def test_office_tool_create_revise_revision_workspace_and_purge(
         workspace_id=db_workspace.id
     )
     loaded = await load_tool.coroutine(artifact_id=artifact_id, runtime=runtime)
-    revision_dir = (
-        f"/workspace/artifact-revisions/{artifact_id}/{format_name}-revision"
-    )
+    revision_dir = f"/workspace/artifact-revisions/{artifact_id}/{format_name}-revision"
     assert loaded["format"] == format_name
     assert loaded["primary_path"] == f"{revision_dir}/current.{format_name}"
     assert loaded["markdown_path"] == f"{revision_dir}/context.md"

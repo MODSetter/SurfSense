@@ -134,7 +134,10 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
     )
     assert verified.verified
     assert verified.preview_path is None
-    assert all("soffice" not in command and "pdftoppm" not in command for command in sandbox.commands)
+    assert all(
+        "soffice" not in command and "pdftoppm" not in command
+        for command in sandbox.commands
+    )
 
     tool = save_artifact_tool.create_save_artifact_tool(db_workspace.id)
     runtime = _runtime(thread.id)

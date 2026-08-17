@@ -103,15 +103,11 @@ def create_load_artifact_for_revision_tool(*, workspace_id: int) -> BaseTool:
         if len(markdown_data) > app_config.ARTIFACT_MAX_FILE_BYTES:
             raise ValueError("artifact Markdown exceeds the configured size limit")
 
-        working_dir = (
-            f"/workspace/artifact-revisions/{artifact_id}/{uuid4().hex}"
-        )
+        working_dir = f"/workspace/artifact-revisions/{artifact_id}/{uuid4().hex}"
         markdown_path = f"{working_dir}/context.md"
         root_thread_id = resolve_root_thread_id(runtime)
         sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
-        created = await sandbox.run_command(
-            f"mkdir -p -- {shlex.quote(working_dir)}"
-        )
+        created = await sandbox.run_command(f"mkdir -p -- {shlex.quote(working_dir)}")
         if not created.ok:
             raise RuntimeError("Could not create the artifact revision workspace")
         await sandbox.write_file(markdown_path, markdown_data)

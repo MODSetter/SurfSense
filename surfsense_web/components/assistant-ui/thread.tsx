@@ -152,17 +152,11 @@ interface ThreadProps {
 	isLoadingMessages?: boolean;
 }
 
-export const Thread: FC<ThreadProps> = ({
-	hasActiveThread = false,
-	isLoadingMessages = false,
-}) => {
+export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return <ThreadContent hasActiveThread={hasActiveThread} isLoadingMessages={isLoadingMessages} />;
 };
 
-const ThreadContent: FC<ThreadProps> = ({
-	hasActiveThread = false,
-	isLoadingMessages = false,
-}) => {
+const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container relative flex h-full min-h-0 flex-col bg-main-panel"
@@ -413,10 +407,7 @@ interface ComposerProps {
 	showExamplePrompts?: boolean;
 }
 
-const Composer: FC<ComposerProps> = ({
-	isLoadingMessages = false,
-	showExamplePrompts = false,
-}) => {
+const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePrompts = false }) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
@@ -947,10 +938,7 @@ const Composer: FC<ComposerProps> = ({
 						onChatModelSelected={handleChatModelSelected}
 					/>
 				</div>
-				{showExamplePrompts &&
-				!isLoadingMessages &&
-				isThreadEmpty &&
-				isComposerInputEmpty ? (
+				{showExamplePrompts && !isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
 					<div className="absolute top-full left-0 right-0 z-20">
 						<ChatExamplePrompts onSelect={handleExampleSelect} />
 					</div>

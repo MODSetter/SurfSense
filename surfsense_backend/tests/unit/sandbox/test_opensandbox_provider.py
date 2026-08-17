@@ -70,9 +70,7 @@ async def test_read_file_hides_other_provider_details() -> None:
 async def test_read_file_normalizes_permission_and_timeout_failures(
     status_code: int, error_type: type[Exception], message: str
 ) -> None:
-    session = _session(
-        SandboxApiException("provider detail", status_code=status_code)
-    )
+    session = _session(SandboxApiException("provider detail", status_code=status_code))
 
     with pytest.raises(error_type, match=message):
         await session.read_file("/workspace/report.pdf")

@@ -109,9 +109,7 @@ def test_initial_timing_precedes_agent_stream(relative_path: str) -> None:
 
 
 def test_hitl_pauses_timing_before_awaiting_activity_and_interrupt() -> None:
-    source = _streaming_source(
-        "app/tasks/chat/streaming/agent/event_loop.py"
-    )
+    source = _streaming_source("app/tasks/chat/streaming/agent/event_loop.py")
     pending_branch = source.index("if pending_values:")
     paused_timing = source.index("yield emit_activity_timing_frame(", pending_branch)
     awaiting_activity = source.index(

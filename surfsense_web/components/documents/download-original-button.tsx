@@ -10,10 +10,7 @@ interface DownloadOriginalButtonProps {
 }
 
 /** Renders only when the document has a stored ORIGINAL file; downloads it on click. */
-export function DownloadOriginalButton({
-	documentId,
-	workspaceId,
-}: DownloadOriginalButtonProps) {
+export function DownloadOriginalButton({ documentId, workspaceId }: DownloadOriginalButtonProps) {
 	const { data: manifest } = useQuery(documentViewQueryOptions(workspaceId, documentId));
 	const file = manifest?.file;
 	if (!file) return null;

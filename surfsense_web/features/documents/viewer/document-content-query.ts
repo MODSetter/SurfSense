@@ -16,9 +16,7 @@ export function documentContentQueryOptions(workspaceId: number, documentId: num
 		queryKey: ["document-content", workspaceId, documentId] as const,
 		queryFn: async () => {
 			const response = await authenticatedFetch(
-				buildBackendUrl(
-					`/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content`
-				),
+				buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${documentId}/editor-content`),
 				{ skipAuthRedirect: true }
 			);
 			if (!response.ok) {

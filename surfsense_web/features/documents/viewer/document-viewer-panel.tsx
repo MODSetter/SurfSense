@@ -128,18 +128,13 @@ function DocumentHeader({
 			<div className="flex min-w-0 items-center gap-2">
 				<p className="truncate text-sm text-muted-foreground">{manifest?.title ?? title}</p>
 				{file ? (
-					<span className="shrink-0 text-xs text-muted-foreground">
-						{extension(file.filename)}
-					</span>
+					<span className="shrink-0 text-xs text-muted-foreground">{extension(file.filename)}</span>
 				) : null}
 			</div>
 			<div className="flex shrink-0 items-center gap-1">
 				<div ref={zoomControlsContainerRef} className="flex items-center gap-1" />
 				{manifest?.document_type ? (
-					<VersionHistoryButton
-						documentId={documentId}
-						documentType={manifest.document_type}
-					/>
+					<VersionHistoryButton documentId={documentId} documentType={manifest.document_type} />
 				) : null}
 				<DownloadOriginalButton documentId={documentId} workspaceId={workspaceId} />
 				{onClose ? (
@@ -176,9 +171,12 @@ export function DocumentViewerContent({
 	onClose?: () => void;
 }) {
 	const [zoomControlsContainer, setZoomControlsContainer] = useState<HTMLDivElement | null>(null);
-	const { data: manifest, error, isPending, refetch } = useQuery(
-		documentViewQueryOptions(workspaceId, documentId)
-	);
+	const {
+		data: manifest,
+		error,
+		isPending,
+		refetch,
+	} = useQuery(documentViewQueryOptions(workspaceId, documentId));
 	const file = manifest?.file;
 	const Viewer = file ? FILE_VIEWERS[file.mime_type] : undefined;
 
@@ -216,11 +214,7 @@ export function DocumentViewerContent({
 						}
 					/>
 				) : file && Viewer ? (
-					<Viewer
-						primary={file}
-						files={[file]}
-						zoomControlsContainer={zoomControlsContainer}
-					/>
+					<Viewer primary={file} files={[file]} zoomControlsContainer={zoomControlsContainer} />
 				) : (
 					<UnviewableFile message="This original file format cannot be previewed." />
 				)}
@@ -235,8 +229,15 @@ function MobileDocumentDrawer() {
 	if (!state.documentId || !state.workspaceId) return null;
 
 	return (
-		<Drawer open={state.isOpen} onOpenChange={(open) => !open && close()} shouldScaleBackground={false}>
-			<DrawerContent className="z-80 h-[90vh] max-h-[90vh] overflow-hidden bg-sidebar" overlayClassName="z-80">
+		<Drawer
+			open={state.isOpen}
+			onOpenChange={(open) => !open && close()}
+			shouldScaleBackground={false}
+		>
+			<DrawerContent
+				className="z-80 h-[90vh] max-h-[90vh] overflow-hidden bg-sidebar"
+				overlayClassName="z-80"
+			>
 				<DrawerHandle />
 				<DrawerTitle className="sr-only">{state.title || "Document"}</DrawerTitle>
 				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">

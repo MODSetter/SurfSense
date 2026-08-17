@@ -23,11 +23,7 @@ export const openDocumentViewerAtom = atom(
 	(
 		get,
 		set,
-		{
-			documentId,
-			workspaceId,
-			title,
-		}: { documentId: number; workspaceId: number; title: string }
+		{ documentId, workspaceId, title }: { documentId: number; workspaceId: number; title: string }
 	) => {
 		if (!get(documentViewerAtom).isOpen) {
 			set(previousCollapsedAtom, get(rightPanelCollapsedAtom));
