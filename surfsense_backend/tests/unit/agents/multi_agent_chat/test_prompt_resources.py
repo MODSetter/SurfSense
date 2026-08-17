@@ -66,6 +66,7 @@ def test_presentation_routing_separates_pptx_from_video():
 def test_reports_and_resumes_default_to_pdf_without_format_clarification():
     """Supervisor and specialist apply the canonical artifact format policy."""
     routing = read_prompt_md("routing.md")
+    task_description = read_prompt_md("tools/task/description.md")
     deliverables_package = _route_resource_package(
         SUBAGENT_BUILDERS_BY_NAME["deliverables"]
     )
@@ -73,7 +74,9 @@ def test_reports_and_resumes_default_to_pdf_without_format_clarification():
 
     assert "**Report and resume artifacts.**" in routing
     assert "create a PDF artifact" in routing
-    assert "Do not ask the user to choose a format." in routing
+    assert "rather than asking follow-up questions or drafting the" in routing
+    assert 'brief follow-ups such as "just do it" preserve this intent' in routing
+    assert "including any required artifact format" in task_description
     assert "Choose the output format from the user's intent without asking" in (
         deliverables_prompt
     )
@@ -81,6 +84,8 @@ def test_reports_and_resumes_default_to_pdf_without_format_clarification():
         deliverables_prompt
     )
     assert "An omitted format is never a missing constraint" in deliverables_prompt
+    assert "rather than substituting" in deliverables_prompt
+    assert "a Markdown-only artifact or an inline draft" in deliverables_prompt
     assert (
         '"artifact_type": "artifact" | "podcast" | "video_presentation" | "image"'
         in deliverables_prompt

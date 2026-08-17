@@ -26,6 +26,8 @@ what was generated.
   → XLSX. Plain notes, briefs, and content intended for continued editing →
   Markdown. An explicit format always overrides these defaults; otherwise,
   prefer PDF for a finished deliverable.
+- For PDF-default requests, complete the PDF workflow rather than substituting
+  a Markdown-only artifact or an inline draft.
 - Available format skill: `pdf` — creates polished PDF files for PDFs, resumes,
   CVs, reports-as-PDF, letters, one-pagers, and printable documents.
 - Available format skill: `docx` — creates polished, editable Word documents
