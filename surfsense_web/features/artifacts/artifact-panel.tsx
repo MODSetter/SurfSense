@@ -11,13 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { cannotPreviewMessage, extension } from "@/features/file-viewers/file-format";
+import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 import { artifactManifestQueryOptions } from "./artifact-query";
 import { artifactDownloadPath } from "./download-file";
-import { cannotPreviewMessage, extension } from "./file-format";
 import type { ArtifactManifest } from "./model";
-import { UnviewableArtifact } from "./unviewable-artifact";
 import { VIEWERS } from "./viewer-registry";
 
 function artifactFilename(manifest: ArtifactManifest | undefined): string | null {
@@ -170,12 +170,12 @@ function FileArtifact({
 }) {
 	const primary = content.files.find((file) => file.role === "primary");
 	if (!primary) {
-		return <UnviewableArtifact message="This artifact has no primary file." />;
+		return <UnviewableFile message="This artifact has no primary file." />;
 	}
 	const Viewer = VIEWERS[primary.mime_type];
 	return Viewer ? (
 		<Viewer primary={primary} files={content.files} zoomControlsContainer={zoomControlsContainer} />
 	) : (
-		<UnviewableArtifact message={cannotPreviewMessage(primary.filename)} />
+		<UnviewableFile message={cannotPreviewMessage(primary.filename)} />
 	);
 }

@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cannotPreviewMessage } from "./file-format";
+import type { FileViewerProps } from "./model";
 import {
 	MAX_VIEWER_BYTES,
 	ParseWorkbookError,
@@ -15,8 +16,7 @@ import {
 	type SheetView,
 	type WorkbookView,
 } from "./parse-workbook";
-import { UnviewableArtifact } from "./unviewable-artifact";
-import type { ArtifactFileViewerProps } from "./viewer-registry";
+import { UnviewableFile } from "./unviewable-file";
 
 function columnLabel(index: number): string {
 	let n = index;
@@ -82,7 +82,7 @@ function fallbackMessage(error: unknown, filename: string): string {
 	return cannotPreviewMessage(filename);
 }
 
-export default function XlsxViewer({ primary }: ArtifactFileViewerProps) {
+export default function XlsxViewer({ primary }: FileViewerProps) {
 	const [view, setView] = useState<WorkbookView | null>(null);
 	const [active, setActive] = useState(0);
 	const [error, setError] = useState<unknown>(null);
@@ -141,7 +141,7 @@ export default function XlsxViewer({ primary }: ArtifactFileViewerProps) {
 	}
 	if (error || !view) {
 		if (error instanceof ParseWorkbookError && error.code === "oversize") {
-			return <UnviewableArtifact message={fallbackMessage(error, primary.filename)} />;
+			return <UnviewableFile message={fallbackMessage(error, primary.filename)} />;
 		}
 		return (
 			<div className="flex h-full flex-col items-center justify-center gap-3 bg-white p-6 text-center text-neutral-950">

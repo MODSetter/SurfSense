@@ -8,9 +8,7 @@ import {
 	MAX_VIEWER_BYTES,
 	ParseWorkbookError,
 	parseWorkbook,
-} from "@/features/artifacts/parse-workbook";
-
-// Run with: pnpm exec tsx --test tests/unit/artifacts/parse-workbook.test.ts
+} from "@/features/file-viewers/parse-workbook";
 
 async function workbookBytes(
 	build: (wb: ExcelJS.Workbook) => void | Promise<void>

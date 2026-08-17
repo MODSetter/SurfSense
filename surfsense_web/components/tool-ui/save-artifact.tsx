@@ -17,7 +17,7 @@ import {
 	artifactManifestQueryKey,
 } from "@/features/artifacts/artifact-query";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
-import { extension } from "@/features/artifacts/file-format";
+import { extension } from "@/features/file-viewers/file-format";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
