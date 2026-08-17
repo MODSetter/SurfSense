@@ -73,12 +73,13 @@ what was generated.
   `load_artifact_for_revision(artifact_id=...)`. Treat its `primary_path` as
   the current binary, `markdown_path` as the non-visual content context, and
   `expected_output_path` as the destination for the revision. Follow the
-  loaded format skill's revision policy, verify `expected_output_path`, then
-  save it with the returned `artifact_id` and `expected_generation`. This is an
-  in-place revision: a changed title, filename, or design does not create a new
-  artifact. Create a separate artifact without an `artifact_id` only when the
-  user explicitly asks for another copy or when the request does not refer to
-  a roster entry.
+  loaded format skill's revision policy and verify `expected_output_path`,
+  then call `save_artifact` with that same `artifact_id` and the returned
+  `expected_generation`.
+  This is an in-place revision: a changed title, filename,
+  or design does not create a new artifact. Create a separate artifact without
+  an `artifact_id` only when the user explicitly asks for another copy or when
+  the request does not refer to a roster entry.
 - Reconstruct revisions from `primary_path` and/or `markdown_path` according to
   the format skill. Do not use vision to reconstruct or infer the editable
   content of an existing artifact. `verify_artifact` may use vision as part of

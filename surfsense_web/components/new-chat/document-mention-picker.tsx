@@ -7,7 +7,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Files,
-	Folder as FolderIcon,
 	MessageCircleMore,
 	Unplug,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import {
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { getConnectorTitle } from "@/components/assistant-ui/connector-popup/constants/connector-constants";
 import { getConnectorDisplayName } from "@/components/assistant-ui/connector-popup/tabs/all-connectors-tab";
+import { MentionIcon } from "@/components/assistant-ui/mention-icon";
 import {
 	ComposerSuggestionGroup,
 	ComposerSuggestionGroupHeading,
@@ -48,7 +48,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -146,20 +145,8 @@ export function promoteRecentMention(workspaceId: number, mention: MentionedDocu
 	return next;
 }
 
-function getDocumentIcon(documentType: string, artifactFormat?: string) {
-	if (documentType === "ARTIFACT") {
-		return <ArtifactFormatIcon format={artifactFormat} className="size-4" />;
-	}
-	return getConnectorIcon(documentType, "size-4");
-}
-
 function getMentionIcon(mention: MentionedDocumentInfo, artifactFormat?: string) {
-	if (mention.kind === "folder") return <FolderIcon className="size-4" />;
-	if (mention.kind === "thread") return <MessageCircleMore className="size-4" />;
-	if (mention.kind === "connector") {
-		return getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />;
-	}
-	return getDocumentIcon(mention.document_type, artifactFormat);
+	return <MentionIcon mention={mention} artifactFormat={artifactFormat} className="size-4" />;
 }
 
 function refreshRecentMention(
@@ -547,7 +534,7 @@ export const DocumentMentionPicker = forwardRef<
 			return {
 				id: getMentionDocKey(mention),
 				label: doc.title,
-				icon: getDocumentIcon(doc.document_type, artifactsByDocument.get(doc.id)?.format),
+				icon: getMentionIcon(mention, artifactsByDocument.get(doc.id)?.format),
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -557,7 +544,7 @@ export const DocumentMentionPicker = forwardRef<
 			id: getMentionDocKey(mention),
 			label: mention.title,
 			subtitle: "Folder",
-			icon: <FolderIcon className="size-4" />,
+			icon: getMentionIcon(mention),
 			type: "item" as const,
 			disabled: selectedKeys.has(getMentionDocKey(mention)),
 			value: { kind: "mention" as const, mention },
@@ -568,7 +555,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: getMentionDocKey(mention),
 				label: mention.title,
 				subtitle: "Connector account",
-				icon: getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />,
+				icon: getMentionIcon(mention),
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -578,7 +565,7 @@ export const DocumentMentionPicker = forwardRef<
 			id: getMentionDocKey(mention),
 			label: mention.title,
 			subtitle: "Chat",
-			icon: <MessageCircleMore className="size-4" />,
+			icon: getMentionIcon(mention),
 			type: "item" as const,
 			disabled: selectedKeys.has(getMentionDocKey(mention)),
 			value: { kind: "mention" as const, mention },
@@ -616,7 +603,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: getMentionDocKey(mention),
 				label: mention.title,
 				subtitle: "Folder",
-				icon: <FolderIcon className="size-4" />,
+				icon: getMentionIcon(mention),
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -626,7 +613,7 @@ export const DocumentMentionPicker = forwardRef<
 				return {
 					id: getMentionDocKey(mention),
 					label: doc.title,
-					icon: getDocumentIcon(doc.document_type, artifactsByDocument.get(doc.id)?.format),
+					icon: getMentionIcon(mention, artifactsByDocument.get(doc.id)?.format),
 					type: "item" as const,
 					disabled: selectedKeys.has(getMentionDocKey(mention)),
 					value: { kind: "mention" as const, mention },
@@ -639,7 +626,7 @@ export const DocumentMentionPicker = forwardRef<
 				id: getMentionDocKey(mention),
 				label: mention.title,
 				subtitle: "Chat",
-				icon: <MessageCircleMore className="size-4" />,
+				icon: getMentionIcon(mention),
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -670,9 +657,7 @@ export const DocumentMentionPicker = forwardRef<
 					id: getMentionDocKey(mention),
 					label: getConnectorDisplayName(connector.name),
 					subtitle: `${view.title} account`,
-					icon: getConnectorIcon(connector.connector_type, "size-4") ?? (
-						<Unplug className="size-4" />
-					),
+					icon: getMentionIcon(mention),
 					type: "item" as const,
 					disabled: selectedKeys.has(getMentionDocKey(mention)),
 					value: { kind: "mention" as const, mention },
