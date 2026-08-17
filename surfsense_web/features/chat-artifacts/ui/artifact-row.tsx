@@ -1,6 +1,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
@@ -15,10 +16,13 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const closeArtifactsPanel = useSetAtom(closeArtifactsPanelAtom);
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
-	const canDownload = Number.isFinite(workspaceId) && workspaceId > 0;
+	const canOpen = artifact.artifactId != null;
+	const canDownload = canOpen && Number.isFinite(workspaceId) && workspaceId > 0;
 
 	const handleOpen = () => {
-		void openChatArtifact(artifact, "in-chat", {
+		const artifactId = artifact.artifactId;
+		if (artifactId == null) return;
+		void openChatArtifact({ ...artifact, artifactId }, "in-chat", {
 			closeArtifactsPanel,
 			isDesktop,
 			openArtifactPanel,
@@ -29,22 +33,29 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 		<div className="group relative flex min-h-20 w-full items-center gap-3 rounded-xl border bg-muted/30 px-3 py-3 text-left transition-colors hover:bg-accent hover:text-accent-foreground">
 			<button
 				type="button"
+				disabled={!canOpen}
 				onClick={handleOpen}
-				className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
 			>
-				<span className="sr-only">Open {artifact.title}</span>
+				<span className="sr-only">
+					{canOpen ? `Open ${artifact.title}` : `${artifact.title} metadata is loading`}
+				</span>
 			</button>
 			<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
 				<ArtifactFormatIcon format={artifact.format} className="size-4" />
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium text-foreground">{artifact.title}</span>
-				<ArtifactFormatLabel
-					format={artifact.format}
-					className="mt-0.5 text-xs text-muted-foreground"
-				/>
+				{artifact.metadataStatus === "pending" ? (
+					<TextShimmerLoader text="Loading metadata" size="sm" className="mt-0.5 block" />
+				) : (
+					<ArtifactFormatLabel
+						format={artifact.format}
+						className="mt-0.5 text-xs text-muted-foreground"
+					/>
+				)}
 			</span>
-			{canDownload ? (
+			{canDownload && artifact.artifactId != null ? (
 				<ArtifactDownloadButton
 					path={artifactDownloadPath(workspaceId, artifact.artifactId)}
 					filename={`${artifact.title}.${artifact.format}`}

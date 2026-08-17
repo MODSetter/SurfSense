@@ -7,8 +7,8 @@ import type { ArtifactListItem } from "@/features/artifacts/model";
 import {
 	type ArtifactCandidate,
 	collectArtifacts,
+	enrichArtifactRows,
 	matchesPersistedArtifact,
-	mergePersistedArtifacts,
 } from "../lib/collect-artifacts";
 import type { ChatArtifact } from "../model/artifact";
 import { chatArtifactsAtom } from "../state/artifacts-panel.atom";
@@ -88,7 +88,7 @@ export function useSyncChatArtifacts(
 				: false,
 	});
 	const artifacts = useMemo(
-		() => mergePersistedArtifacts(messageArtifacts, persisted),
+		() => enrichArtifactRows(messageArtifacts, persisted),
 		[messageArtifacts, persisted]
 	);
 
