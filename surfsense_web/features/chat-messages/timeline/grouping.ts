@@ -1,12 +1,20 @@
-import { type ActivityJournal, extractActivityJournal } from "@/lib/chat/activity-journal";
+import {
+	type ActivityJournal,
+	type ActivityTimingData,
+	extractActivityJournal,
+} from "@/lib/chat/activity-journal";
 
 export interface TracePartLike {
 	type?: unknown;
 	data?: unknown;
+	text?: unknown;
+	code?: unknown;
 	toolName?: unknown;
 	toolCallId?: unknown;
 	metadata?: unknown;
 }
+
+export type StandaloneTurnHeaderPhase = "spellweaving" | "responded";
 
 /**
  * Build the canonical activity lookup. Duplicate snapshots are resolved by ID;
@@ -56,6 +64,38 @@ export function getLastTraceIndex(
 		if (getTraceGroupPath(part, bodyToolNames).length > 0) return index;
 	}
 	return -1;
+}
+
+export function getStandaloneTurnHeaderPhase({
+	parts,
+	bodyToolNames,
+	threadRunning,
+	lastTraceIndex,
+	timingStatus,
+}: {
+	parts: readonly TracePartLike[];
+	bodyToolNames: ReadonlySet<string>;
+	threadRunning: boolean;
+	lastTraceIndex: number;
+	timingStatus?: ActivityTimingData["status"];
+}): StandaloneTurnHeaderPhase | null {
+	if (lastTraceIndex >= 0) return null;
+	if (threadRunning) return "spellweaving";
+	if (timingStatus !== "completed") return null;
+
+	const failed = parts.some(
+		(part) =>
+			part.type === "status" &&
+			(part.code === "error" || part.code === "cancelled" || part.code === "no_response")
+	);
+	if (failed) return null;
+
+	const hasVisibleOutput = parts.some(
+		(part) =>
+			(part.type === "text" && typeof part.text === "string" && part.text.trim().length > 0) ||
+			isBodyTool(part, bodyToolNames)
+	);
+	return hasVisibleOutput ? "responded" : null;
 }
 
 /** First wire position for each canonical activity, used to suppress duplicate tool relays. */

@@ -39,6 +39,10 @@ def _payload(frame: str) -> dict:
     return json.loads(frame.removeprefix("data: ").strip())
 
 
+def _streaming_source(relative_path: str) -> str:
+    return (Path(__file__).parents[4] / relative_path).read_text()
+
+
 def test_reasoning_frames_and_persistence_carry_lifecycle() -> None:
     service = VercelStreamingService()
     builder = AssistantContentBuilder()
@@ -86,6 +90,38 @@ def test_initial_frames_carry_turn_identity_without_timing_copy() -> None:
     ]
     turn_info = frames[2]["data"]
     assert turn_info == {"chat_turn_id": "12:activity-clock"}
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "app/tasks/chat/streaming/flows/new_chat/orchestrator.py",
+        "app/tasks/chat/streaming/flows/resume_chat/orchestrator.py",
+    ],
+)
+def test_initial_timing_precedes_agent_stream(relative_path: str) -> None:
+    source = _streaming_source(relative_path)
+    assistant_id = source.index('"assistant-message-id"')
+    initial_timing = source.index("yield emit_activity_timing_frame(", assistant_id)
+    agent_stream = source.index("async for sse in run_stream_loop(", initial_timing)
+
+    assert assistant_id < initial_timing < agent_stream
+
+
+def test_hitl_pauses_timing_before_awaiting_activity_and_interrupt() -> None:
+    source = _streaming_source(
+        "app/tasks/chat/streaming/agent/event_loop.py"
+    )
+    pending_branch = source.index("if pending_values:")
+    paused_timing = source.index("yield emit_activity_timing_frame(", pending_branch)
+    awaiting_activity = source.index(
+        "for snapshot in activity_state.journal.await_approval():", paused_timing
+    )
+    interrupt = source.index(
+        "yield streaming_service.format_interrupt_request(", awaiting_activity
+    )
+
+    assert paused_timing < awaiting_activity < interrupt
 
 
 def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:

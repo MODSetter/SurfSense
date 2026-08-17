@@ -41,8 +41,10 @@ import {
 	buildActivityLookup,
 	firstToolIndexByActivityId,
 	getLastTraceIndex,
+	getStandaloneTurnHeaderPhase,
 	getToolActivityId,
 	getTraceGroupPath,
+	type StandaloneTurnHeaderPhase,
 	type TracePartLike,
 } from "./grouping";
 import { getActivityIcon, getConnectorLogo } from "./presentation";
@@ -346,6 +348,33 @@ const TraceSegment: FC<{
 	);
 };
 
+const StandaloneTurnHeader: FC<{
+	phase: StandaloneTurnHeaderPhase;
+	turnTimingDisplay: TurnTimingDisplay;
+}> = ({ phase, turnTimingDisplay }) => {
+	const active = phase === "spellweaving";
+	const label = active ? "Spellweaving" : "Responded";
+	return (
+		<section
+			aria-label="Assistant response status"
+			className="mb-3 w-full select-none leading-normal"
+			data-testid="assistant-standalone-turn-header"
+		>
+			<div className="flex h-8 w-fit max-w-full items-center gap-2.5 text-sm text-muted-foreground">
+				<PixelGridLoader active={active} />
+				<FadeSwapText
+					swapKey={phase}
+					className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
+					contentClassName="truncate whitespace-nowrap"
+				>
+					{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
+				</FadeSwapText>
+				<AssistantTurnTiming display={turnTimingDisplay} />
+			</div>
+		</section>
+	);
+};
+
 const InterleavedPartsInner: FC<{
 	bodyTools: Readonly<Record<string, ToolCallMessagePartComponent>>;
 	showReasoning: boolean;
@@ -368,6 +397,17 @@ const InterleavedPartsInner: FC<{
 	const lastTraceIndex = useMemo(
 		() => getLastTraceIndex(rawParts, bodyToolNames, showReasoning),
 		[rawParts, bodyToolNames, showReasoning]
+	);
+	const standaloneHeaderPhase = useMemo(
+		() =>
+			getStandaloneTurnHeaderPhase({
+				parts: rawParts,
+				bodyToolNames,
+				threadRunning,
+				lastTraceIndex,
+				timingStatus: journal.timing?.status,
+			}),
+		[rawParts, bodyToolNames, threadRunning, lastTraceIndex, journal.timing?.status]
 	);
 	const groupBy = useCallback(
 		(part: PartState) =>
@@ -392,6 +432,9 @@ const InterleavedPartsInner: FC<{
 
 	return (
 		<>
+			{standaloneHeaderPhase ? (
+				<StandaloneTurnHeader phase={standaloneHeaderPhase} turnTimingDisplay={turnTimingDisplay} />
+			) : null}
 			{/* data-activities needs no makeAssistantDataUI registrar: GroupedParts exposes
 			    the normalized data leaf while buildActivityLookup consumes it directly. */}
 			<MessagePrimitive.GroupedParts groupBy={groupBy} indicator="never">
