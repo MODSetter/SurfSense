@@ -498,13 +498,131 @@ async def test_load_artifact_for_revision_writes_primary_and_markdown(monkeypatc
     assert resolved_backends == ["azure"]
 
 
+async def test_execute_python_uses_unique_one_shot_scripts_and_cleans_up(monkeypatch):
+    commands: list[str] = []
+    session = FakeSandboxSession({})
+
+    async def run_command(command: str) -> ExecResult:
+        commands.append(command)
+        return ExecResult("created", 0)
+
+    session.run_command = run_command  # type: ignore[method-assign]
+    ids = iter(("first", "second"))
+    monkeypatch.setattr(
+        sandbox_tools.uuid,
+        "uuid4",
+        lambda: SimpleNamespace(hex=next(ids)),
+    )
+
+    async def get_session(*_args):
+        return session
+
+    monkeypatch.setattr(sandbox_tools, "_get_session", get_session)
+    tool = next(
+        tool
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
+        if tool.name == "execute"
+    )
+
+    first = await tool.coroutine(
+        code_or_command="print('first')", language="python", runtime=_runtime()
+    )
+    second = await tool.coroutine(
+        code_or_command="print('second')", language="python", runtime=_runtime()
+    )
+
+    assert "created" in first
+    assert "created" in second
+    assert session.writes == {
+        "/tmp/.surfsense-exec-first.py": b"print('first')",
+        "/tmp/.surfsense-exec-second.py": b"print('second')",
+    }
+    execution_commands = [command for command in commands if command.startswith("script=")]
+    assert len(execution_commands) == 2
+    assert "/tmp/.surfsense-exec-first.py" in execution_commands[0]
+    assert "/tmp/.surfsense-exec-second.py" in execution_commands[1]
+    assert all("cd -- /workspace" in command for command in execution_commands)
+    assert all(
+        "timeout --signal=TERM --kill-after=5s" in command
+        for command in execution_commands
+    )
+    assert [command for command in commands if command.startswith("rm -f --")] == [
+        "rm -f -- /tmp/.surfsense-exec-first.py",
+        "rm -f -- /tmp/.surfsense-exec-second.py",
+    ]
+
+
+async def test_execute_python_cleans_up_when_command_fails(monkeypatch):
+    commands: list[str] = []
+    session = FakeSandboxSession({})
+
+    async def run_command(command: str) -> ExecResult:
+        commands.append(command)
+        if command.startswith("script="):
+            raise RuntimeError("provider failed")
+        return ExecResult("", 0)
+
+    session.run_command = run_command  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        sandbox_tools.uuid,
+        "uuid4",
+        lambda: SimpleNamespace(hex="failed"),
+    )
+
+    with pytest.raises(RuntimeError, match="provider failed"):
+        await sandbox_tools._run_python_script(session, "raise RuntimeError")
+
+    assert commands[-1] == "rm -f -- /tmp/.surfsense-exec-failed.py"
+
+
+async def test_execute_python_returns_before_provider_stream_can_wedge(monkeypatch):
+    session = FakeSandboxSession({})
+
+    async def run_command(command: str) -> ExecResult:
+        if command.startswith("rm -f --"):
+            return ExecResult("", 0)
+        await asyncio.sleep(1)
+        return ExecResult("", 0)
+
+    session.run_command = run_command  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        sandbox_tools.app_config, "SANDBOX_OPERATION_TIMEOUT_SECONDS", 0.01
+    )
+
+    with pytest.raises(TimeoutError, match="exceeded"):
+        await sandbox_tools._run_python_script(session, "print('never returned')")
+
+
+async def test_execute_python_reports_process_timeout(monkeypatch):
+    session = FakeSandboxSession({})
+
+    async def run_command(command: str) -> ExecResult:
+        return (
+            ExecResult("partial output", 124)
+            if command.startswith("script=")
+            else ExecResult("", 0)
+        )
+
+    session.run_command = run_command  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        sandbox_tools.app_config, "SANDBOX_OPERATION_TIMEOUT_SECONDS", 27
+    )
+
+    result = await sandbox_tools._run_python_script(session, "while True: pass")
+
+    assert result.exit_code == 124
+    assert result.output == "partial output\nPython execution exceeded 17 seconds"
+
+
 async def test_execute_truncates_and_preserves_full_output(monkeypatch):
-    session = _sandbox({})
+    session = FakeSandboxSession({})
 
-    async def execute(code: str, language: str = "python") -> ExecResult:
-        return ExecResult("x" * (sandbox_tools._MAX_CONTEXT_CHARS + 1), 0)
+    async def run_command(command: str) -> ExecResult:
+        if command.startswith("script="):
+            return ExecResult("x" * (sandbox_tools._MAX_CONTEXT_CHARS + 1), 0)
+        return ExecResult("", 0)
 
-    session.execute = execute  # type: ignore[attr-defined]
+    session.run_command = run_command  # type: ignore[method-assign]
 
     async def get_session(*_args):
         return session
@@ -522,7 +640,35 @@ async def test_execute_truncates_and_preserves_full_output(monkeypatch):
 
     assert "output truncated" in result
     assert "Full output:" in result
-    assert next(iter(session.writes.values())).endswith(b"x")
+    output = next(
+        data
+        for path, data in session.writes.items()
+        if path.startswith("/tmp/surfsense-output-")
+    )
+    assert output.endswith(b"x")
+
+
+async def test_execute_bash_remains_a_direct_command(monkeypatch):
+    session = FakeSandboxSession(
+        {}, command_handler=lambda command: ExecResult(command, 0)
+    )
+
+    async def get_session(*_args):
+        return session
+
+    monkeypatch.setattr(sandbox_tools, "_get_session", get_session)
+    tool = next(
+        tool
+        for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
+        if tool.name == "execute"
+    )
+
+    result = await tool.coroutine(
+        code_or_command="printf done", language="bash", runtime=_runtime()
+    )
+
+    assert session.commands == ["printf done"]
+    assert result.startswith("printf done")
 
 
 async def test_load_artifact_instructions_uses_the_structured_format(monkeypatch):

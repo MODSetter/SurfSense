@@ -10,6 +10,7 @@ import pytest
 from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.tools.execute_code import (
     helpers,
 )
+from app.config import config as app_config
 from app.sandbox import ExecResult, SandboxUnavailableError
 
 
@@ -50,6 +51,13 @@ def _install(monkeypatch, registry: FakeRegistry) -> None:
         return registry
 
     monkeypatch.setattr(helpers, "get_registry", _get_registry)
+
+
+def test_execute_code_uses_the_shared_sandbox_operation_budget():
+    assert (
+        helpers.MAX_EXECUTE_TIMEOUT
+        == app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS
+    )
 
 
 async def test_successful_run_reports_exit_code(monkeypatch, middleware):

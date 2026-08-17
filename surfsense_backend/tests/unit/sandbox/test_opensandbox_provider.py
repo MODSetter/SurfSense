@@ -1,9 +1,11 @@
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
 from opensandbox.exceptions import SandboxApiException
 
-from app.sandbox.providers.opensandbox import OpenSandboxSession
+from app.config import config as app_config
+from app.sandbox.providers.opensandbox import OpenSandboxProvider, OpenSandboxSession
 
 
 class _Files:
@@ -17,6 +19,14 @@ class _Files:
 def _session(exc: Exception) -> OpenSandboxSession:
     sandbox = SimpleNamespace(id="sandbox-1", files=_Files(exc))
     return OpenSandboxSession(sandbox, ttl_seconds=900)
+
+
+def test_provider_uses_the_shared_sandbox_operation_budget(monkeypatch) -> None:
+    monkeypatch.setattr(app_config, "SANDBOX_OPERATION_TIMEOUT_SECONDS", 37)
+
+    provider = OpenSandboxProvider()
+
+    assert provider._config.request_timeout == timedelta(seconds=37)
 
 
 async def test_read_file_normalizes_provider_404() -> None:

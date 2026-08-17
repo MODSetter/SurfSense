@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pytest
 from daytona import Daytona, SandboxState
 
+from app.config import config as app_config
 from app.sandbox.providers.daytona import (
     THREAD_LABEL_KEY,
     DaytonaProvider,
@@ -33,6 +34,10 @@ async def test_daytona_session_maps_command_and_binary_file_operations():
     assert result.ok
     assert result.output == "ok"
     assert "python3 <<" in sandbox.process.exec.call_args.args[0]
+    assert (
+        sandbox.process.exec.call_args.kwargs["timeout"]
+        == app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS
+    )
     assert downloaded == b"\x00binary"
     sandbox.fs.upload_file.assert_called_once_with(b"new", "/workspace/file.bin")
     client.delete.assert_called_once_with(sandbox)

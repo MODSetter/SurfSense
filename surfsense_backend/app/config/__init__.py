@@ -572,8 +572,8 @@ class Config:
     # Creation blocks server-side while the image is pulled onto the host
     # daemon, which the SDK's 30s default turns into an error rather than a slow
     # first request. Compose pre-pulls; this covers hosts that did not.
-    SANDBOX_REQUEST_TIMEOUT_SECONDS = int(
-        os.getenv("SANDBOX_REQUEST_TIMEOUT_SECONDS", "120")
+    SANDBOX_OPERATION_TIMEOUT_SECONDS = int(
+        os.getenv("SANDBOX_OPERATION_TIMEOUT_SECONDS", "200")
     )
     SANDBOX_MAX_SESSIONS_PER_WORKSPACE = int(
         os.getenv("SANDBOX_MAX_SESSIONS_PER_WORKSPACE", "2")

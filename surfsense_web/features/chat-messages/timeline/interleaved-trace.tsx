@@ -130,9 +130,9 @@ export const TraceItemRow: FC<{
 			"after:pointer-events-none after:absolute after:top-6 after:bottom-1 after:left-[7.5px]",
 			"after:w-px after:bg-muted-foreground/20 last:after:hidden",
 			status === "running" && "text-foreground",
-			(status === "completed" || status === "reasoning") && "text-muted-foreground",
+			(status === "completed" || status === "reasoning" || status === "error") &&
+				"text-muted-foreground",
 			status === "awaiting_approval" && "text-muted-foreground",
-			status === "error" && "text-destructive",
 			(status === "cancelled" || status === "interrupted") && "text-muted-foreground"
 		)}
 	>

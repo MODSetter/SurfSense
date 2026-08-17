@@ -27,9 +27,8 @@ logger = logging.getLogger(__name__)
 
 THREAD_METADATA_KEY = "surfsense_thread"
 
-# The image's entrypoint is inherited, but OpenSandbox only starts the Jupyter
-# kernel when it is passed explicitly; PYTHON_VERSION selects which interpreter
-# the kernel binds to (see docker/sandbox/Dockerfile).
+# OpenSandbox requires the image service entrypoint explicitly; PYTHON_VERSION
+# selects the image's Python runtime (see docker/sandbox/Dockerfile).
 _ENTRYPOINT = ["/opt/code-interpreter/code-interpreter.sh"]
 _ENV = {"PYTHON_VERSION": "3.12"}
 _RUNNING_STATES = {"RUNNING", "PENDING"}
@@ -68,12 +67,7 @@ def _raise_normalized(
 
 
 def _to_result(execution) -> ExecResult:
-    """Flatten an SDK Execution into the protocol shape.
-
-    `exit_code` is only populated for commands; kernel executions report failure
-    through `error`, so an errored run has to be mapped to a non-zero code for
-    callers that only check `ok`.
-    """
+    """Flatten an SDK execution into the provider-neutral result shape."""
     if execution.error is not None:
         return ExecResult(output=str(execution), exit_code=1)
     return ExecResult(output=str(execution), exit_code=execution.exit_code or 0)
@@ -95,8 +89,6 @@ class OpenSandboxSession:
         return self._sandbox.id
 
     async def _get_interpreter(self) -> CodeInterpreter:
-        # Created lazily and once: the kernel's cold start is ~5 s, and its
-        # whole value is that later executions share its process state.
         async with self._interpreter_mu:
             if self._interpreter is None:
                 self._interpreter = await CodeInterpreter.create(sandbox=self._sandbox)
@@ -164,7 +156,7 @@ class OpenSandboxProvider:
             # blocks on the server pulling the image when it is not already on
             # the host daemon.
             request_timeout=timedelta(
-                seconds=app_config.SANDBOX_REQUEST_TIMEOUT_SECONDS
+                seconds=app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS
             ),
         )
         self._ttl = app_config.SANDBOX_IDLE_TTL_SECONDS
