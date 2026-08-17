@@ -149,7 +149,9 @@ async def test_verify_xlsx_structural_only_skips_render_and_vision():
     assert receipt.preview_sha256 is None
     assert receipt.primary_sha256
     # Early exit must not touch LibreOffice / rasterize / vision.
-    assert session.commands == []
+    assert not any(
+        "soffice" in command or "pdftoppm" in command for command in session.commands
+    )
 
 
 async def test_verify_xlsx_structural_failure_issues_no_receipt():
@@ -169,4 +171,6 @@ async def test_verify_xlsx_structural_failure_issues_no_receipt():
     assert not result.verified
     assert any("cached result" in finding for finding in result.findings)
     assert session.files[receipt_path(path)] == b""
-    assert session.commands == []
+    assert not any(
+        "soffice" in command or "pdftoppm" in command for command in session.commands
+    )

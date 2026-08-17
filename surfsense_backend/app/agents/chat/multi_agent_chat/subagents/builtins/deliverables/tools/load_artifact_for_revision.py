@@ -1,0 +1,159 @@
+"""Restore an artifact's current deliverable and Markdown into the sandbox."""
+
+from __future__ import annotations
+
+import shlex
+from pathlib import PurePosixPath
+from uuid import uuid4
+
+from langchain.tools import ToolRuntime
+from langchain_core.tools import BaseTool, tool
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
+from app.artifacts.persistence import Artifact, ArtifactFileRole
+from app.capabilities.core import ActivityDescriptor
+from app.config import config as app_config
+from app.db import shielded_async_session
+from app.file_storage.factory import get_storage_backend
+from app.sandbox import get_registry
+
+from .thread_resolver import resolve_root_thread_id
+
+_REVISION_INSTRUCTIONS = {
+    "pptx": (
+        "Open primary_path with python-pptx, preserve unaffected package content, "
+        "and save the edited deck to expected_output_path."
+    ),
+    "xlsx": (
+        "Open primary_path with openpyxl. For formulas, recalculate a temporary "
+        "copy with headless LibreOffice and place the result at expected_output_path."
+    ),
+    "docx": (
+        "Open primary_path with python-docx for supported edits and save to "
+        "expected_output_path; stop before lossy changes to unsupported structures."
+    ),
+    "pdf": (
+        "Regenerate expected_output_path from markdown_path and current user "
+        "context; do not reconstruct the PDF with vision."
+    ),
+    "markdown": "Edit markdown_path directly and save it as a Markdown-only revision.",
+}
+
+
+async def _read_primary(record) -> bytes:
+    if record.size_bytes > app_config.ARTIFACT_MAX_FILE_BYTES:
+        raise ValueError(
+            f"Artifact primary is {record.size_bytes} bytes; limit is "
+            f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes"
+        )
+    data = bytearray()
+    backend = get_storage_backend(record.storage_backend)
+    async for chunk in backend.open_stream(record.storage_key):
+        data.extend(chunk)
+        if len(data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            raise ValueError("artifact primary exceeds the configured size limit")
+    return bytes(data)
+
+
+def create_load_artifact_for_revision_tool(*, workspace_id: int) -> BaseTool:
+    """Build the binary-oriented revision loader."""
+
+    @tool
+    async def load_artifact_for_revision(
+        artifact_id: int,
+        runtime: ToolRuntime,
+    ) -> dict[str, str | int | None]:
+        """Load the latest artifact generation into an isolated revision directory.
+
+        Use this before revising an artifact from the roster. Binary artifacts
+        restore their current primary plus Markdown context. Markdown artifacts
+        restore only their editable context. Save the result with the returned
+        artifact_id and expected_generation so the revision updates in place.
+        """
+        async with shielded_async_session() as db_session:
+            artifact = await db_session.scalar(
+                select(Artifact)
+                .options(
+                    selectinload(Artifact.document),
+                    selectinload(Artifact.files),
+                )
+                .where(
+                    Artifact.id == artifact_id,
+                    Artifact.workspace_id == workspace_id,
+                )
+            )
+            if artifact is None:
+                raise ValueError("artifact does not exist in this workspace")
+            primary = next(
+                (
+                    record
+                    for record in artifact.files
+                    if record.role is ArtifactFileRole.PRIMARY
+                ),
+                None,
+            )
+            markdown = (
+                artifact.document.source_markdown or artifact.document.content or ""
+            )
+            generation = artifact.generation
+            artifact_format = artifact.format
+
+        markdown_data = markdown.encode()
+        if len(markdown_data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            raise ValueError("artifact Markdown exceeds the configured size limit")
+
+        working_dir = (
+            f"/workspace/artifact-revisions/{artifact_id}/{uuid4().hex}"
+        )
+        markdown_path = f"{working_dir}/context.md"
+        root_thread_id = resolve_root_thread_id(runtime)
+        sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
+        created = await sandbox.run_command(
+            f"mkdir -p -- {shlex.quote(working_dir)}"
+        )
+        if not created.ok:
+            raise RuntimeError("Could not create the artifact revision workspace")
+        await sandbox.write_file(markdown_path, markdown_data)
+
+        primary_path: str | None = None
+        if primary is not None:
+            suffix = PurePosixPath(primary.original_filename).suffix.lower()
+            if not suffix:
+                raise ValueError("artifact primary filename has no extension")
+            primary_path = f"{working_dir}/current{suffix}"
+            expected_output_path = f"{working_dir}/revised{suffix}"
+            await sandbox.write_file(primary_path, await _read_primary(primary))
+        else:
+            expected_output_path = markdown_path
+
+        return {
+            "artifact_id": artifact_id,
+            "format": artifact_format,
+            "primary_path": primary_path,
+            "markdown_path": markdown_path,
+            "expected_output_path": expected_output_path,
+            "expected_generation": generation,
+            "revision_instruction": _REVISION_INSTRUCTIONS.get(
+                artifact_format,
+                "Edit the restored primary with a format-aware library and save "
+                "the result to expected_output_path.",
+            ),
+            "save_instruction": (
+                f"Pass artifact_id={artifact_id} and "
+                f"expected_generation={generation} to save_artifact so this "
+                "revision replaces the existing artifact."
+            ),
+        }
+
+    load_artifact_for_revision.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Opening the artifact",
+            completed_title="Opened the artifact",
+            category="artifact",
+            icon_key="file-input",
+            kind="load_artifact_for_revision",
+            lifecycle="phase",
+        ).as_metadata()
+    }
+    return load_artifact_for_revision

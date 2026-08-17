@@ -128,10 +128,15 @@ export const TraceItemRow: FC<{
 		className={cn(
 			"relative grid min-w-0 grid-cols-[1rem_minmax(0,1fr)] gap-x-2 pb-4 last:pb-0",
 			"after:pointer-events-none after:absolute after:top-6 after:bottom-1 after:left-[7.5px]",
-			"after:w-px after:bg-muted-foreground/20 last:after:hidden"
+			"after:w-px after:bg-muted-foreground/20 last:after:hidden",
+			status === "running" && "text-foreground",
+			(status === "completed" || status === "reasoning") && "text-muted-foreground",
+			status === "awaiting_approval" && "text-muted-foreground",
+			status === "error" && "text-destructive",
+			(status === "cancelled" || status === "interrupted") && "text-muted-foreground"
 		)}
 	>
-		<div className="relative z-10 mt-0.5 flex size-4 items-center justify-center">
+		<div className="relative z-10 mt-0.5 flex size-4 items-center justify-center text-muted-foreground">
 			{logo ? (
 				// biome-ignore lint/performance/noImgElement: connector paths may be extension-provided.
 				<img src={logo.src} alt="" className="size-4 object-contain" />
@@ -139,17 +144,8 @@ export const TraceItemRow: FC<{
 				<Icon className="size-4" aria-hidden={true} />
 			) : null}
 		</div>
-		<div
-			className={cn(
-				"min-w-0 text-sm leading-5",
-				status === "running" && "font-medium text-foreground",
-				(status === "completed" || status === "reasoning") && "text-muted-foreground",
-				status === "awaiting_approval" && "text-muted-foreground",
-				status === "error" && "text-destructive",
-				(status === "cancelled" || status === "interrupted") && "text-muted-foreground"
-			)}
-		>
-			<div className="font-semibold">{title}</div>
+		<div className="min-w-0 text-sm leading-5">
+			<div>{title}</div>
 			{children}
 		</div>
 	</div>
@@ -159,7 +155,13 @@ const ReasoningEpisode: FC<{ text: string; running: boolean }> = ({ text, runnin
 	<TraceItemRow
 		icon={History}
 		status="reasoning"
-		title={running ? <TextShimmerLoader text="Reasoning" size="md" /> : "Reasoning"}
+		title={
+			running ? (
+				<TextShimmerLoader text="Reasoning" size="md" className="font-normal!" />
+			) : (
+				"Reasoning"
+			)
+		}
 	>
 		<NestedScroll
 			role="region"
@@ -183,7 +185,7 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 			logo={getConnectorLogo(activity.integration)}
 			title={
 				status === "running" ? (
-					<TextShimmerLoader text={activity.title} size="md" className="truncate" />
+					<TextShimmerLoader text={activity.title} size="md" className="truncate font-normal!" />
 				) : (
 					activity.title
 				)
@@ -191,7 +193,7 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 			status={status}
 		>
 			{activity.details?.length ? (
-				<ul className="mt-1 list-disc space-y-1 pl-4 text-sm font-semibold text-muted-foreground">
+				<ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
 					{activity.details.map((detail) => (
 						<li key={`${activity.id}:${detail}`}>{detail}</li>
 					))}
@@ -294,7 +296,11 @@ const TurnHeaderContent: FC<{
 			className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
 			contentClassName="truncate whitespace-nowrap"
 		>
-			{active ? <TextShimmerLoader text={label} size="md" className="truncate" /> : label}
+			{active ? (
+				<TextShimmerLoader text={label} size="md" className="truncate font-semibold!" />
+			) : (
+				label
+			)}
 		</FadeSwapText>
 		{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
 		{trailing}

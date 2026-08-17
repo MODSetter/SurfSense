@@ -11,10 +11,12 @@ import asyncio
 import logging
 import time
 from datetime import timedelta
+from typing import NoReturn
 
 from code_interpreter import CodeInterpreter, SupportedLanguage
 from opensandbox import Sandbox, SandboxManager
 from opensandbox.config import ConnectionConfig
+from opensandbox.exceptions import SandboxApiException, SandboxReadyTimeoutException
 from opensandbox.models import NetworkPolicy, SandboxFilter
 
 from app.config import config as app_config
@@ -38,6 +40,31 @@ _LANGUAGES = {
     "javascript": SupportedLanguage.JAVASCRIPT,
     "typescript": SupportedLanguage.TYPESCRIPT,
 }
+
+
+def _raise_normalized(
+    exc: Exception, *, operation: str, path: str | None = None
+) -> NoReturn:
+    """Keep provider diagnostics in logs while exposing the sandbox contract."""
+    logger.warning(
+        "OpenSandbox %s failed%s",
+        operation,
+        f" for {path}" if path else "",
+        exc_info=exc,
+    )
+    if isinstance(exc, SandboxApiException):
+        if exc.status_code == 404 and path is not None:
+            raise FileNotFoundError(path) from None
+        if exc.status_code in {401, 403}:
+            raise PermissionError(f"Sandbox {operation} was denied") from None
+        if exc.status_code in {408, 504}:
+            raise TimeoutError(f"Sandbox {operation} timed out") from None
+        raise RuntimeError(f"Sandbox {operation} failed") from None
+    if isinstance(
+        exc, (TimeoutError, asyncio.TimeoutError, SandboxReadyTimeoutException)
+    ):
+        raise TimeoutError(f"Sandbox {operation} timed out") from None
+    raise exc
 
 
 def _to_result(execution) -> ExecResult:
@@ -92,21 +119,33 @@ class OpenSandboxSession:
                 output=f"Unsupported language: {language}. Use python or bash.",
                 exit_code=1,
             )
-        await self._renew_if_needed()
-        interpreter = await self._get_interpreter()
-        return _to_result(await interpreter.codes.run(code, language=lang))
+        try:
+            await self._renew_if_needed()
+            interpreter = await self._get_interpreter()
+            return _to_result(await interpreter.codes.run(code, language=lang))
+        except Exception as exc:
+            _raise_normalized(exc, operation="execution")
 
     async def run_command(self, command: str) -> ExecResult:
-        await self._renew_if_needed()
-        return _to_result(await self._sandbox.commands.run(command))
+        try:
+            await self._renew_if_needed()
+            return _to_result(await self._sandbox.commands.run(command))
+        except Exception as exc:
+            _raise_normalized(exc, operation="command")
 
     async def read_file(self, path: str) -> bytes:
-        await self._renew_if_needed()
-        return await self._sandbox.files.read_bytes(path)
+        try:
+            await self._renew_if_needed()
+            return await self._sandbox.files.read_bytes(path)
+        except Exception as exc:
+            _raise_normalized(exc, operation="read", path=path)
 
     async def write_file(self, path: str, data: bytes) -> None:
-        await self._renew_if_needed()
-        await self._sandbox.files.write_file(path, data)
+        try:
+            await self._renew_if_needed()
+            await self._sandbox.files.write_file(path, data)
+        except Exception as exc:
+            _raise_normalized(exc, operation="write", path=path)
 
     async def terminate(self) -> None:
         await self._sandbox.kill()

@@ -11,6 +11,7 @@ export interface TracePartLike {
 	code?: unknown;
 	toolName?: unknown;
 	toolCallId?: unknown;
+	result?: unknown;
 	metadata?: unknown;
 }
 
@@ -50,10 +51,20 @@ export function getToolActivityId(part: TracePartLike): string | null {
 }
 
 export function isBodyTool(part: TracePartLike, bodyToolNames: ReadonlySet<string>): boolean {
+	if (
+		part.type !== "tool-call" ||
+		typeof part.toolName !== "string" ||
+		!bodyToolNames.has(part.toolName)
+	) {
+		return false;
+	}
+	if (part.toolName !== "save_artifact") return true;
+	if (typeof part.result !== "object" || part.result === null) return false;
+	const result = part.result as Record<string, unknown>;
 	return (
-		part.type === "tool-call" &&
-		typeof part.toolName === "string" &&
-		bodyToolNames.has(part.toolName)
+		result.status === "saved" &&
+		typeof result.artifact_id === "number" &&
+		Number.isFinite(result.artifact_id)
 	);
 }
 

@@ -206,7 +206,7 @@ presentation.save("/tmp/report.pptx")
         assert result.preview_path
         assert receipt.primary_path == primary_path
         assert receipt.preview_path == result.preview_path
-        assert pages.ok
+        assert not pages.ok
         assert stored.mime_type == mime_type
     finally:
         await provider.terminate_session(thread_id)

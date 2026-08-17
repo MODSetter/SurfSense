@@ -355,7 +355,7 @@ def test_localized_native_descriptor_inventory_and_safe_fallbacks() -> None:
         "execute": "terminal",
         "execute_code": "square-code",
         "write_todos": "list-todo",
-        "load_artifact_source": "file-input",
+        "load_artifact_for_revision": "file-input",
         "read_sandbox_file": "file-text",
         "verify_artifact": "badge-check",
         "save_artifact": "file-output",
@@ -439,8 +439,8 @@ def test_visible_native_tools_declare_descriptors_at_their_definition() -> None:
         "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/generate_image.py": {
             "generate_image"
         },
-        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/load_artifact_source.py": {
-            "load_artifact_source"
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/load_artifact_for_revision.py": {
+            "load_artifact_for_revision"
         },
         "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/podcast.py": {
             "generate_podcast"

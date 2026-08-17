@@ -3,7 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { artifactManifestQueryOptions } from "@/features/artifacts/artifact-query";
+import {
+	artifactImageBlobQueryKey,
+	artifactManifestQueryOptions,
+} from "@/features/artifacts/artifact-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
@@ -28,7 +31,7 @@ export function useArtifactImage(workspaceId: number, artifactId: number) {
 	const primary = manifestQuery.data?.files.find((file) => file.role === "primary");
 
 	const imageQuery = useQuery({
-		queryKey: ["artifact-image-blob", shareToken, workspaceId, artifactId, primary?.file_id],
+		queryKey: artifactImageBlobQueryKey(workspaceId, artifactId, shareToken, primary?.file_id),
 		enabled: shareToken != null || primary != null,
 		queryFn: async () => {
 			const blob = shareToken

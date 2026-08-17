@@ -31,12 +31,13 @@ RUN set -euo pipefail \
         openpyxl \
         pandas \
         pypdf \
+        python-docx \
         python-pptx \
         reportlab \
         weasyprint \
         xlsxwriter \
     && python3 -c "import sys; assert sys.version_info[:2] == (3, 12), sys.version; assert sys.prefix.startswith('/opt/python/versions'), sys.prefix" \
-    && python3 -c "import matplotlib, openpyxl, pandas, pypdf, pptx, reportlab, weasyprint, xlsxwriter"
+    && python3 -c "import docx, matplotlib, openpyxl, pandas, pypdf, pptx, reportlab, weasyprint, xlsxwriter"
 
 # A global npm install is not on node's resolution path from /workspace, so pin
 # the prefix and point NODE_PATH at it to make require('docx') work anywhere.

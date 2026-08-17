@@ -27,12 +27,26 @@ from .document_files_routes import _content_disposition, _is_inline
 router = APIRouter()
 
 
-def _markdown_filename(title: str) -> str:
+def _safe_filename_stem(title: str) -> str:
     safe = "".join(
         character if character.isalnum() or character in " -_" else "_"
         for character in title
     ).strip()[:80]
-    return f"{safe or 'artifact'}.md"
+    return safe or "artifact"
+
+
+def _artifact_filename(title: str, original_filename: str) -> str:
+    suffix = Path(original_filename).suffix.lower()
+    if not suffix[1:].isalnum() or len(suffix) > 16:
+        suffix = ""
+    title_without_suffix = (
+        title[: -len(suffix)] if suffix and title.lower().endswith(suffix) else title
+    )
+    return f"{_safe_filename_stem(title_without_suffix)}{suffix}"
+
+
+def _markdown_filename(title: str) -> str:
+    return f"{_safe_filename_stem(title)}.md"
 
 
 async def _authorize_artifact(
@@ -53,7 +67,7 @@ async def _authorize_artifact(
 
 def _visible_files(artifact: Artifact) -> list[ArtifactFile]:
     return sorted(
-        (file for file in artifact.files if file.role is not ArtifactFileRole.SOURCE),
+        artifact.files,
         key=lambda item: (item.role is not ArtifactFileRole.PRIMARY, item.id),
     )
 
@@ -260,7 +274,8 @@ async def download_artifact(
             headers={
                 **headers,
                 "Content-Disposition": _content_disposition(
-                    primary.original_filename, inline=False
+                    _artifact_filename(document.title, primary.original_filename),
+                    inline=False,
                 ),
             },
         )
@@ -414,7 +429,6 @@ async def stream_artifact_file(
             ArtifactFile.id == file_id,
             ArtifactFile.artifact_id == artifact_id,
             Artifact.workspace_id == workspace_id,
-            ArtifactFile.role != ArtifactFileRole.SOURCE,
         )
     )
     if record is None:

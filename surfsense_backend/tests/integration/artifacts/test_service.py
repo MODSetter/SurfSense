@@ -103,12 +103,6 @@ async def test_binary_create_and_revision_replace_files(
                 filename="seeded.pdf",
                 mime_type="application/pdf",
             ),
-            ArtifactFileInput(
-                data=b"old source",
-                filename="seeded.py",
-                mime_type="text/x-python",
-                role="source",
-            ),
         ],
         extra_metadata={"verification": {"verified": True, "reason": None}},
     )
@@ -135,12 +129,6 @@ async def test_binary_create_and_revision_replace_files(
                 filename="retitled.pdf",
                 mime_type="application/pdf",
             ),
-            ArtifactFileInput(
-                data=b"new source",
-                filename="retitled.py",
-                mime_type="text/x-python",
-                role="source",
-            ),
         ],
         extra_metadata={
             "verification": {
@@ -166,7 +154,6 @@ async def test_binary_create_and_revision_replace_files(
     )
     assert {(row.role, row.original_filename) for row in rows} == {
         ("primary", "retitled.pdf"),
-        ("source", "retitled.py"),
     }
     artifact = await db_session.get(Artifact, created.artifact_id)
     assert artifact.updated_by_tool_call_id == "call-2"
@@ -306,6 +293,20 @@ async def test_direct_reindex_preserves_unchanged_chunk_ids(
         )
     )
     assert current_table_chunk.id == original_table_chunk.id
+    await db_session.refresh(artifact)
+    document = await db_session.get(Document, artifact.document_id)
+    await db_session.refresh(document)
+    assert artifact.generation == 2
+    assert document.title == "Retitled"
+    assert document.content == f"# Revised\n\nNew introduction.\n\n{table}\n"
+    assert document.source_markdown == document.content
+    assert document.status["state"] == "ready"
+    assert await db_session.scalar(
+        select(func.count(Chunk.id)).where(
+            Chunk.document_id == document.id,
+            Chunk.content.ilike("%New introduction%"),
+        )
+    )
 
 
 async def test_identical_markdown_creates_distinct_artifact_documents(

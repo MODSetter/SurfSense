@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -8,13 +9,15 @@ from types import SimpleNamespace
 import pytest
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
-    load_artifact_source as load_source_tool,
+    load_artifact_for_revision as load_revision_tool,
     sandbox as sandbox_tools,
     save_artifact as save_tool,
+    verify_artifact as verify_tool,
 )
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
     root_thread_id_from_config,
 )
+from app.artifacts.persistence import ArtifactFileRole
 from app.artifacts.verification.receipt import (
     VerificationReceipt,
     receipt_path,
@@ -32,6 +35,8 @@ def _sandbox(files: dict[str, bytes]) -> FakeSandboxSession:
     session: FakeSandboxSession
 
     def command_handler(command: str) -> ExecResult:
+        if command.startswith(("rm -f --", "mkdir -p --")):
+            return ExecResult("", 0)
         path = command.split("-- ", 1)[1].strip("'")
         return ExecResult(str(len(session.files[path])), 0)
 
@@ -50,7 +55,8 @@ class FakeRegistry:
 @dataclass
 class Saved:
     status: str = "saved"
-    document_id: int = 9
+    artifact_id: int = 9
+    generation: int = 1
     title: str = "Facts"
     files: list | None = None
 
@@ -61,6 +67,46 @@ def _runtime():
         state={},
         config={"configurable": {"thread_id": "4::task:call-1"}},
     )
+
+
+async def test_verify_tool_keeps_receipt_preview_path_backend_owned(monkeypatch):
+    session = FakeSandboxSession({"/workspace/report.docx": b"docx"})
+
+    async def get_registry():
+        return FakeRegistry(session)
+
+    @asynccontextmanager
+    async def db_session():
+        yield object()
+
+    async def get_vision_llm(*_args, **_kwargs):
+        return object()
+
+    async def verify(*_args, **_kwargs):
+        return SimpleNamespace(
+            verified=True,
+            findings=(),
+            notes=(),
+            preview_path="/tmp/backend-owned-preview.pdf",
+            page_count=1,
+            unavailable_reason=None,
+        )
+
+    monkeypatch.setattr(verify_tool, "get_registry", get_registry)
+    monkeypatch.setattr(verify_tool, "shielded_async_session", db_session)
+    monkeypatch.setattr(verify_tool, "get_vision_llm", get_vision_llm)
+    monkeypatch.setattr(verify_tool, "verify", verify)
+    monkeypatch.setattr(verify_tool, "resolve_root_thread_id", lambda *_args: 4)
+    tool = verify_tool.create_verify_artifact_tool(workspace_id=WORKSPACE_ID)
+
+    assert tool.coroutine is not None
+    result = await tool.coroutine(
+        path="/workspace/report.docx",
+        runtime=_runtime(),
+    )
+
+    assert result["status"] == "verified"
+    assert "preview_path" not in result
 
 
 def _patch_save_tool(monkeypatch, session: FakeSandboxSession) -> dict:
@@ -128,7 +174,6 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
     session = _sandbox(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
-            "/workspace/source.py": b"print('pdf')",
             "/workspace/preview.pdf": b"%PDF-1.4\n%%EOF",
         }
     )
@@ -144,19 +189,15 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
         title="Facts",
         markdown_representation="# Three facts",
         path="/workspace/out.pdf",
-        source_path="/workspace/source.py",
-        preview_path="/workspace/preview.pdf",
         runtime=_runtime(),
     )
 
     assert [file.role for file in captured["files"]] == [
         "primary",
-        "source",
         "preview",
     ]
     assert [file.mime_type for file in captured["files"]] == [
         "application/pdf",
-        "text/x-python",
         "application/pdf",
     ]
     assert captured["extra_metadata"] == {
@@ -168,9 +209,7 @@ async def test_binary_save_uses_receipt_for_its_own_artifact(monkeypatch):
     session = _sandbox(
         {
             "/workspace/report.pdf": b"%PDF-1.4\n%%EOF",
-            "/workspace/report.html": b"<h1>Report</h1>",
             "/workspace/report.docx": b"PK\x03\x04",
-            "/workspace/report.js": b"require('docx')",
         }
     )
     await _add_receipt(session, "/workspace/report.pdf")
@@ -182,7 +221,6 @@ async def test_binary_save_uses_receipt_for_its_own_artifact(monkeypatch):
         title="PDF report",
         markdown_representation="# Report",
         path="/workspace/report.pdf",
-        source_path="/workspace/report.html",
         runtime=_runtime(),
     )
 
@@ -194,7 +232,6 @@ async def test_binary_save_rejects_bytes_changed_after_verification(monkeypatch)
     session = _sandbox(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
-            "/workspace/source.py": b"print('pdf')",
         }
     )
     await _add_receipt(session, "/workspace/out.pdf")
@@ -206,7 +243,6 @@ async def test_binary_save_rejects_bytes_changed_after_verification(monkeypatch)
         title="Facts",
         markdown_representation="# Facts",
         path="/workspace/out.pdf",
-        source_path="/workspace/source.py",
         runtime=_runtime(),
     )
 
@@ -217,7 +253,6 @@ async def test_binary_save_requires_a_signed_receipt(monkeypatch):
     session = _sandbox(
         {
             "/workspace/out.docx": b"PK\x03\x04",
-            "/workspace/source.js": b"require('docx')",
         }
     )
     _patch_save_tool(monkeypatch, session)
@@ -227,18 +262,83 @@ async def test_binary_save_requires_a_signed_receipt(monkeypatch):
         title="Facts",
         markdown_representation="# Facts",
         path="/workspace/out.docx",
-        source_path="/workspace/source.js",
         runtime=_runtime(),
     )
 
-    assert "has not been verified" in str(result)
+    assert "Verify this file again before presenting it" in str(result)
+
+
+async def test_same_path_concurrent_saves_consume_one_receipt(monkeypatch):
+    path = "/workspace/out.pdf"
+    session = _sandbox({path: b"%PDF-1.4\n%%EOF"})
+    await _add_receipt(session, path)
+    _patch_save_tool(monkeypatch, session)
+    calls = 0
+
+    async def save_artifact(_session, **_kwargs):
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.01)
+        return Saved(files=[])
+
+    monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+
+    results = await asyncio.gather(
+        *(
+            tool.coroutine(
+                title="Facts",
+                markdown_representation="# Facts",
+                path=path,
+                runtime=_runtime(),
+            )
+            for _ in range(2)
+        )
+    )
+
+    assert calls == 1
+    assert sum("Verify this file again" in str(result) for result in results) == 1
+
+
+async def test_distinct_paths_save_independently(monkeypatch):
+    paths = ("/workspace/a.pdf", "/workspace/b.pdf")
+    session = _sandbox(dict.fromkeys(paths, b"%PDF-1.4\n%%EOF"))
+    for path in paths:
+        await _add_receipt(session, path)
+    _patch_save_tool(monkeypatch, session)
+    entered = 0
+    both_entered = asyncio.Event()
+
+    async def save_artifact(_session, **_kwargs):
+        nonlocal entered
+        entered += 1
+        if entered == 2:
+            both_entered.set()
+        await asyncio.wait_for(both_entered.wait(), timeout=0.2)
+        return Saved(files=[])
+
+    monkeypatch.setattr(save_tool, "save_artifact", save_artifact)
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+
+    await asyncio.gather(
+        *(
+            tool.coroutine(
+                title=path,
+                markdown_representation=f"# {path}",
+                path=path,
+                runtime=_runtime(),
+            )
+            for path in paths
+        )
+    )
+
+    assert entered == 2
 
 
 async def test_receipt_must_name_the_saved_file(monkeypatch):
     session = _sandbox(
         {
             "/workspace/data.pdf": b"%PDF-1.4\n%%EOF",
-            "/workspace/source.py": b"print('pdf')",
         }
     )
     await _add_receipt(session, "/workspace/data.pdf")
@@ -252,7 +352,6 @@ async def test_receipt_must_name_the_saved_file(monkeypatch):
         title="Numbers",
         markdown_representation="# Numbers",
         path="/workspace/copy.pdf",
-        source_path="/workspace/source.py",
         runtime=_runtime(),
     )
     assert "changed after verification" in str(rejected)
@@ -262,7 +361,6 @@ async def test_receipt_must_name_the_saved_format(monkeypatch):
     session = _sandbox(
         {
             "/workspace/data.pdf": b"%PDF-1.4\n%%EOF",
-            "/workspace/source.py": b"print('pdf')",
         }
     )
     await _add_receipt(session, "/workspace/data.pdf", format_name="docx")
@@ -273,11 +371,10 @@ async def test_receipt_must_name_the_saved_format(monkeypatch):
         title="Numbers",
         markdown_representation="# Numbers",
         path="/workspace/data.pdf",
-        source_path="/workspace/source.py",
         runtime=_runtime(),
     )
 
-    assert "another artifact format" in str(rejected)
+    assert "Verify this file again before presenting it" in str(rejected)
 
 
 async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
@@ -285,7 +382,6 @@ async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
     session = _sandbox(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
-            "/workspace/source.py": b"print('pdf')",
         }
     )
     await _add_receipt(
@@ -300,7 +396,6 @@ async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
         title="Facts",
         markdown_representation="# Facts",
         path="/workspace/out.pdf",
-        source_path="/workspace/source.py",
         runtime=_runtime(),
     )
 
@@ -320,60 +415,35 @@ async def test_binary_save_enforces_file_cap(monkeypatch):
         )
 
 
-async def test_javascript_source_uses_canonical_mime():
-    source = await save_tool._read_artifact_file(
-        _sandbox({"/workspace/source.js": b"const answer = 42;"}),
-        "/workspace/source.js",
-        "source",
-    )
-
-    assert source.mime_type == "text/javascript"
-
-
-async def test_source_rejects_binary_and_unknown_extensions():
-    with pytest.raises(ValueError, match="NUL"):
-        await save_tool._read_artifact_file(
-            _sandbox({"/workspace/source.js": b"const\x00answer = 42;"}),
-            "/workspace/source.js",
-            "source",
-        )
-    with pytest.raises(ValueError, match="Unsupported artifact source type"):
-        await save_tool._read_artifact_file(
-            _sandbox({"/workspace/source.txt": b"const answer = 42;"}),
-            "/workspace/source.txt",
-            "source",
-        )
-
-
-async def test_generated_file_requires_source_and_has_no_content_alias():
+async def test_generated_file_schema_has_no_source_or_preview_paths():
     tool = save_tool.create_save_artifact_tool(3)
 
     assert "content" not in tool.args
-    result = await tool.coroutine(
-        title="Facts",
-        markdown_representation="# Facts",
-        path="/workspace/out.pdf",
-        runtime=_runtime(),
-    )
-
-    assert "source_path is required" in str(result)
+    assert "source_path" not in tool.args
+    assert "preview_path" not in tool.args
 
 
-async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
-    artifact = SimpleNamespace(generation=3)
-    source = SimpleNamespace(
+async def test_load_artifact_for_revision_writes_primary_and_markdown(monkeypatch):
+    primary = SimpleNamespace(
+        role=ArtifactFileRole.PRIMARY,
         size_bytes=16,
         storage_backend="azure",
-        storage_key="source-key",
-        original_filename="out.py",
+        storage_key="primary-key",
+        original_filename="out.pdf",
+    )
+    artifact = SimpleNamespace(
+        generation=3,
+        format="pdf",
+        files=[primary],
+        document=SimpleNamespace(
+            source_markdown="# Current",
+            content="# Current",
+        ),
     )
 
     class DbSession:
-        calls = 0
-
         async def scalar(self, _statement):
-            self.calls += 1
-            return artifact if self.calls == 1 else source
+            return artifact
 
     @asynccontextmanager
     async def db_session():
@@ -381,7 +451,7 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
 
     class Backend:
         async def open_stream(self, _key):
-            yield b"print('stored')"
+            yield b"%PDF stored"
 
     resolved_backends = []
 
@@ -394,25 +464,37 @@ async def test_load_artifact_source_writes_stored_bytes_to_sandbox(monkeypatch):
     async def get_registry():
         return FakeRegistry(sandbox)
 
-    monkeypatch.setattr(load_source_tool, "shielded_async_session", db_session)
-    monkeypatch.setattr(load_source_tool, "get_storage_backend", get_storage_backend)
-    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
-    monkeypatch.setattr(load_source_tool, "resolve_root_thread_id", lambda *_: 4)
+    monkeypatch.setattr(load_revision_tool, "shielded_async_session", db_session)
+    monkeypatch.setattr(
+        load_revision_tool, "get_storage_backend", get_storage_backend
+    )
+    monkeypatch.setattr(load_revision_tool, "get_registry", get_registry)
+    monkeypatch.setattr(load_revision_tool, "resolve_root_thread_id", lambda *_: 4)
+    monkeypatch.setattr(
+        load_revision_tool,
+        "uuid4",
+        lambda: SimpleNamespace(hex="invocation"),
+    )
 
-    tool = load_source_tool.create_load_artifact_source_tool(workspace_id=3)
+    tool = load_revision_tool.create_load_artifact_for_revision_tool(workspace_id=3)
     loaded = await tool.coroutine(artifact_id=9, runtime=_runtime())
-    path = "/workspace/artifact-9-out.py"
+    working_dir = "/workspace/artifact-revisions/9/invocation"
 
     assert loaded == {
-        "source_path": path,
         "artifact_id": 9,
+        "format": "pdf",
+        "primary_path": f"{working_dir}/current.pdf",
+        "markdown_path": f"{working_dir}/context.md",
+        "expected_output_path": f"{working_dir}/revised.pdf",
         "expected_generation": 3,
+        "revision_instruction": load_revision_tool._REVISION_INSTRUCTIONS["pdf"],
         "save_instruction": (
             "Pass artifact_id=9 and expected_generation=3 to save_artifact so "
             "this revision replaces the existing artifact."
         ),
     }
-    assert sandbox.writes[path] == b"print('stored')"
+    assert sandbox.writes[f"{working_dir}/current.pdf"] == b"%PDF stored"
+    assert sandbox.writes[f"{working_dir}/context.md"] == b"# Current"
     assert resolved_backends == ["azure"]
 
 

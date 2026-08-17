@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
 import time
 from typing import Literal
+from weakref import WeakValueDictionary
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.sandbox import SandboxSession
 
 RECEIPT_PREFIX = "/tmp/.surfsense-artifact-verification-"
+PREVIEW_PREFIX = "/tmp/.surfsense-artifact-preview-"
 RECEIPT_MAX_AGE_SECONDS = 15 * 60
+_PATH_LOCKS: WeakValueDictionary[tuple[str, str], asyncio.Lock] = (
+    WeakValueDictionary()
+)
 
 
 class VerificationReceipt(BaseModel):
@@ -40,6 +46,22 @@ def receipt_path(primary_path: str) -> str:
     """Return the isolated receipt path for one sandbox artifact path."""
     path_digest = hashlib.sha256(primary_path.encode()).hexdigest()
     return f"{RECEIPT_PREFIX}{path_digest}.json"
+
+
+def preview_path(primary_path: str) -> str:
+    """Return the stable staged-preview path for one sandbox artifact path."""
+    path_digest = hashlib.sha256(primary_path.encode()).hexdigest()
+    return f"{PREVIEW_PREFIX}{path_digest}.pdf"
+
+
+def artifact_path_lock(session_id: str, primary_path: str) -> asyncio.Lock:
+    """Serialize verification and promotion for one sandbox output path."""
+    key = (session_id, primary_path)
+    lock = _PATH_LOCKS.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _PATH_LOCKS[key] = lock
+    return lock
 
 
 def _payload_bytes(receipt: VerificationReceipt) -> bytes:
@@ -80,13 +102,14 @@ async def read_receipt(
     workspace_id: int,
     primary_path: str,
     now: int | None = None,
+    allow_expired: bool = False,
 ) -> VerificationReceipt:
     try:
         data = await session.read_file(receipt_path(primary_path))
     except (FileNotFoundError, KeyError):
-        raise ValueError("Artifact has not been verified") from None
+        raise ValueError("Verify this file again before presenting it") from None
     if not data:
-        raise ValueError("Artifact has not been verified")
+        raise ValueError("Verify this file again before presenting it")
     try:
         envelope = json.loads(data.decode())
         if not isinstance(envelope, dict) or set(envelope) != {"payload", "signature"}:
@@ -105,7 +128,8 @@ async def read_receipt(
             "Artifact verification receipt belongs to another workspace or sandbox"
         )
 
-    age = (int(time.time()) if now is None else now) - receipt.issued_at
-    if age < 0 or age > RECEIPT_MAX_AGE_SECONDS:
-        raise ValueError("Artifact verification receipt has expired")
+    if not allow_expired:
+        age = (int(time.time()) if now is None else now) - receipt.issued_at
+        if age < 0 or age > RECEIPT_MAX_AGE_SECONDS:
+            raise ValueError("Artifact verification receipt has expired")
     return receipt

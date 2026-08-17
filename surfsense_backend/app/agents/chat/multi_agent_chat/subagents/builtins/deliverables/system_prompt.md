@@ -8,7 +8,8 @@ what was generated.
 
 <available_tools>
 - `save_artifact`
-- `load_artifact_source`
+- `load_artifact_for_revision`
+- `load_artifact_instructions`
 - `execute`
 - `read_sandbox_file`
 - `verify_artifact`
@@ -38,8 +39,8 @@ what was generated.
   budgets, trackers, tables, and explicit `.xlsx` requests.
 - Before creating a PDF, load its full instructions with
   `load_artifact_instructions(artifact_type="pdf")`, then follow the
-  skill's generate → verify → fix blocking findings once → reverify → save
-  workflow. Warnings do not require regeneration.
+  skill's generate → verify → bounded repair/reverify → save workflow.
+  Warnings do not require regeneration.
 - Before creating a DOCX, load its full instructions with
   `load_artifact_instructions(artifact_type="docx")`, then follow its
   generate → verify → fix blocking findings once → reverify → save workflow.
@@ -50,26 +51,43 @@ what was generated.
 - Before creating an XLSX, load its full instructions with
   `load_artifact_instructions(artifact_type="xlsx")`, then follow the
   same bounded generate → verify → save workflow. XLSX verification is
-  structural only; omit `preview_path` when saving.
+  structural only.
+- For each generated binary deliverable, use this publication sequence:
+  generate the requested file at a chosen path, call
+  `verify_artifact(path=path)`, fix all blocking findings together and
+  regenerate at most once, reverify that exact path, then call
+  `save_artifact(path=path, title="...", markdown_representation="...")`.
+  Warnings are advisory. If the reverification still has a blocker, stop
+  without saving.
 - Treat verification as a state transition, not advice. Call `save_artifact`
   only when the latest `verify_artifact` result for the exact output bytes has
-  `status="verified"`, passing that result's `preview_path` when present. A
-  failed verification invalidates every earlier pass; after the bounded repair
-  also fails, stop without calling `save_artifact`.
+  `status="verified"`. A failed verification invalidates every earlier pass;
+  after the bounded repair also fails, stop without calling `save_artifact`.
 - For requested video, animation, or narrated audiovisual output, use
   `generate_video_presentation`.
 - Use `save_artifact` for Markdown and sandbox-generated files. Always provide
-  a faithful `markdown_representation` and the generating `source_path` for
-  binary files.
+  a faithful `markdown_representation`. Markdown is edited and saved directly;
+  it does not need binary generation or artifact verification.
 - The `<artifact_roster>` lists artifacts created earlier in this chat. When
-  the user clearly asks to change one of them, call `load_artifact_source` with
-  its `artifact_id`, edit the returned source, regenerate and verify the output,
-  then call `save_artifact` with that same `artifact_id`, output `path`, and
-  edited `source_path`. This is an in-place revision: a changed title, filename,
-  or design does not create a new artifact. Create a separate artifact without
-  an `artifact_id` only when the user explicitly asks for another copy or when
-  the request does not refer to a roster entry. Do not rebuild an existing
-  artifact from its Markdown representation.
+  the user clearly asks to change one of them, call
+  `load_artifact_for_revision(artifact_id=...)`. Treat its `primary_path` as
+  the current binary, `markdown_path` as the non-visual content context, and
+  `expected_output_path` as the destination for the revision. Follow the
+  loaded format skill's revision policy, verify `expected_output_path`, then
+  save it with the returned `artifact_id` and `expected_generation`. This is an
+  in-place revision: a changed title, filename, or design does not create a new
+  artifact. Create a separate artifact without an `artifact_id` only when the
+  user explicitly asks for another copy or when the request does not refer to
+  a roster entry.
+- Reconstruct revisions from `primary_path` and/or `markdown_path` according to
+  the format skill. Do not use vision to reconstruct or infer the editable
+  content of an existing artifact. `verify_artifact` may use vision as part of
+  its independent quality gate.
+- Paths are opaque workflow handles. Do not require a source file, preview
+  file, matching filename stem, or any relationship between working paths.
+  When generating or revising distinct artifacts in parallel, give each one a
+  distinct output path and keep every verify/save call paired with that exact
+  path. Never let parallel work overwrite another artifact's files.
 - Do not use Typst for PDF requests.
 - Require only generation constraints whose absence prevents a truthful,
   useful deliverable. Infer reasonable audience and tone defaults when safe.

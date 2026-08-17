@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import HTTPException, Response
+from fastapi import Response
 from starlette.requests import Request
 
 from app.artifacts.persistence import ArtifactFileRole
@@ -28,6 +28,13 @@ def _file(file_id: int, role: ArtifactFileRole):
     )
 
 
+def test_artifact_filename_is_title_based_and_does_not_duplicate_extension():
+    assert (
+        artifacts_routes._artifact_filename("Quarterly Report.pdf", "revised.pdf")
+        == "Quarterly Report.pdf"
+    )
+
+
 def _row_result(row):
     result = SimpleNamespace(first=lambda: row)
     session = AsyncMock()
@@ -47,7 +54,7 @@ async def _body(response) -> bytes:
 
 
 @pytest.mark.asyncio
-async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
+async def test_manifest_is_format_blind_and_orders_durable_files(monkeypatch):
     check = AsyncMock()
     monkeypatch.setattr(artifacts_routes, "check_permission", check)
     artifact = SimpleNamespace(
@@ -57,8 +64,8 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
         artifact_metadata={"legacy": {"kind": "image", "id": 99}},
         updated_at=None,
         files=[
+            _file(2, ArtifactFileRole.PREVIEW),
             _file(1, ArtifactFileRole.PRIMARY),
-            _file(2, ArtifactFileRole.SOURCE),
         ],
     )
     document = SimpleNamespace(
@@ -78,7 +85,7 @@ async def test_manifest_is_format_blind_and_hides_source(monkeypatch):
     assert result["document_id"] == 9
     assert result["markdown_representation"] == "# Workbook"
     assert result["legacy"] == {"kind": "image", "id": 99}
-    assert [file["role"] for file in result["files"]] == ["primary"]
+    assert [file["role"] for file in result["files"]] == ["primary", "preview"]
     check.assert_awaited_once()
     assert check.await_args.args[3] == Permission.ARTIFACTS_READ.value
 
@@ -223,7 +230,11 @@ async def test_markdown_download_reads_document_body_and_disables_cache(monkeypa
 async def test_current_binary_download_is_attachment_even_for_pdf(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     artifact = SimpleNamespace(id=7, files=[_file(8, ArtifactFileRole.PRIMARY)])
-    document = SimpleNamespace(title="PDF", source_markdown="# PDF", content="# PDF")
+    document = SimpleNamespace(
+        title="AI Agents: Concise Business Report",
+        source_markdown="# PDF",
+        content="# PDF",
+    )
     session = _row_result((artifact, document))
 
     async def stream():
@@ -238,21 +249,10 @@ async def test_current_binary_download_is_attachment_even_for_pdf(monkeypatch):
 
     assert await _body(response) == b"%PDF"
     assert response.headers["cache-control"] == "private, no-store"
-    assert response.headers["content-disposition"].startswith("attachment;")
-
-
-@pytest.mark.asyncio
-async def test_file_source_is_not_addressable(monkeypatch):
-    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
-    session = AsyncMock()
-    session.scalar.return_value = None
-
-    with pytest.raises(HTTPException) as exc:
-        await artifacts_routes.stream_artifact_file(
-            2, 7, 8, _request(), session, SimpleNamespace()
-        )
-
-    assert exc.value.status_code == 404
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert 'filename="AI Agents_ Concise Business Report.pdf"' in disposition
+    assert "primary.pdf" not in disposition
 
 
 @pytest.mark.asyncio

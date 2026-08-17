@@ -8,12 +8,16 @@ from app.artifacts.service import (
 )
 
 
-def test_validate_files_accepts_one_source_and_rejects_duplicate_roles():
-    source = ArtifactFileInput(b"source", "out.py", "text/x-python", "source")
-    _validate_files([source])
+def test_validate_files_accepts_primary_and_rejects_duplicate_or_source_roles():
+    primary = ArtifactFileInput(b"pdf", "out.pdf", "application/pdf", "primary")
+    _validate_files([primary])
 
     with pytest.raises(ValueError, match="at most one"):
-        _validate_files([source, source])
+        _validate_files([primary, primary])
+    with pytest.raises(ValueError, match=r"primary.*preview"):
+        _validate_files(
+            [ArtifactFileInput(b"source", "out.py", "text/x-python", "source")]
+        )
 
 
 def test_artifact_format_uses_markdown_or_primary_extension():

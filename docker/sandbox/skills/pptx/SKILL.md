@@ -8,10 +8,6 @@ description: Create polished, editable PowerPoint files for slide decks, present
 Create the requested presentation in `/workspace` with the preinstalled
 `python-pptx` package. Never install or download dependencies.
 
-Use one deliverable-derived stem for deterministic Python source and output, for
-example `quarterly-review.py` and `quarterly-review.pptx`. The source must
-regenerate the complete deck so later revisions edit rather than reconstruct it.
-
 ## Authoring rules
 
 - Use a 16:9 presentation unless the user requests another aspect ratio. Set
@@ -48,8 +44,8 @@ regenerate the complete deck so later revisions edit rather than reconstruct it.
 - Prefer editable native text, shapes, tables, and charts. Avoid SmartArt and
   elaborate gradients whose LibreOffice conversion is unreliable.
 
-Build slides incrementally in the Python source. Before saving the PPTX, run
-local assertions that name the slide and shape when they fail:
+Build the complete deck before verification. Before saving the PPTX, run local
+assertions that name the slide and shape when they fail:
 
 - required slide count and content are present;
 - title and subtitle regions do not overlap;
@@ -62,23 +58,31 @@ Generate the complete PPTX and pass those local checks before verification. Do
 not call `verify_artifact` after each slide because each call renders and reviews
 the whole draft again.
 
-When revising, `load_artifact_source` returns the existing `document_id` and a
-`source_path` with a name such as `artifact-42-quarterly-review.py`. Copy that
-source to `quarterly-review.py` before editing so the `artifact-42-` prefix does
-not compound, then pass the returned `document_id` to `save_artifact`. A changed
-title, filename, or design is still the same artifact unless the user explicitly
-asks for a separate copy.
+## Revisions
+
+Start an in-place revision with `load_artifact_for_revision`. Open
+`primary_path` with `python-pptx`, edit that current deck directly, and save the
+result to `expected_output_path`. Preserve unaffected slide masters, layouts,
+notes, relationships, and media. Use `markdown_path` as textual context, not as
+a replacement deck. Do not reconstruct slides with vision; `verify_artifact`
+may use vision after the revision is written.
+
+Save the verified revision with the returned `artifact_id` and
+`expected_generation`. A changed title, filename, or design is still the same
+artifact unless the user explicitly asks for a separate copy.
 
 ## Verify and save
 
-Call `verify_artifact(path="quarterly-review.pptx")`. Warnings are advisory. If
-it reports blocking findings, fix all reported blockers together in the Python
-source, rerun the local checks, regenerate once, and reverify. If a blocker
-remains, stop and explain it rather than entering another automatic rewrite
-loop.
+Call `verify_artifact(path=output_path)`. Warnings are advisory. If it reports
+blocking findings, fix all reported blockers together, rerun the local checks,
+regenerate once at the same output path, and reverify. If a blocker remains,
+stop and explain it rather than entering another automatic rewrite loop.
 
 Call `save_artifact` only when the latest verification of those exact PPTX bytes
-returned `status="verified"`. Use the Python source path and exact `preview_path`
-from that result. A failed verification invalidates every earlier pass: never
-attempt to save afterward. The Markdown representation must faithfully contain
-the deck's substantive text for accessibility and search.
+returned `status="verified"`, using
+`save_artifact(path=output_path, title="...", markdown_representation="...")`.
+A failed verification invalidates every earlier pass: never attempt to save
+afterward. Working files may use any paths; no source file, preview file, or
+matching filename stem is part of the publication contract. The Markdown
+representation must faithfully contain the deck's substantive text for
+accessibility and search.

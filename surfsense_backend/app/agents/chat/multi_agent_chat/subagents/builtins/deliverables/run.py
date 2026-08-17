@@ -103,7 +103,7 @@ async def _hydrate_artifacts(
     out: list[DeliverableArtifact] = []
     for artifact, document in rows:
         files = sorted(
-            (f for f in artifact.files if f.role is not ArtifactFileRole.SOURCE),
+            artifact.files,
             key=lambda f: (f.role is not ArtifactFileRole.PRIMARY, f.id),
         )
         out.append(

@@ -62,7 +62,7 @@ function describeArtifact(kind: ArtifactToolKind, result: Record<string, unknown
 			return {
 				entityId: artifactId ?? null,
 				artifactId,
-				failed,
+				failed: failed || resultStatus !== "saved",
 			};
 		}
 		case "podcast": {
@@ -161,7 +161,7 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): Artifa
 			if (failed || entityId == null) continue;
 			const metadata = fallbackMetadata(kind, args, result);
 
-			const key = `${kind}:${entityId}`;
+			const key = artifactId == null ? `${kind}:${entityId}` : `artifact:${artifactId}`;
 			byKey.set(key, {
 				key,
 				toolKind: kind,

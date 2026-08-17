@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shlex
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -12,15 +13,25 @@ from langchain_core.callbacks import dispatch_custom_event
 from app.config import config as app_config
 from app.sandbox import SandboxSession
 
+from .formats.base import FormatAdapter, StructuralCheckResult
 from .formats.pdf import check_pdf
 from .formats.registry import get_format_adapter
 from .receipt import (
     VerificationReceipt,
+    artifact_path_lock,
+    preview_path,
+    read_receipt,
     receipt_path,
     sha256_bytes,
     write_receipt,
 )
-from .render import prepare_pdf, rasterize_pdf
+from .render import (
+    ArtifactRenderError,
+    PreparedPdf,
+    cleanup_render_files,
+    prepare_pdf,
+    rasterize_pdf,
+)
 from .vision import review_pages
 
 logger = logging.getLogger(__name__)
@@ -49,6 +60,20 @@ def _progress(phase: str, message: str, **details: int) -> None:
         logger.debug("verification progress dispatch skipped", exc_info=True)
 
 
+def _public_verification_error(exc: Exception) -> str:
+    if isinstance(exc, FileNotFoundError):
+        return "The artifact file is missing. Generate it again before verification."
+    if isinstance(exc, PermissionError):
+        return "The artifact file could not be accessed in the sandbox."
+    if isinstance(exc, TimeoutError):
+        return "The sandbox timed out while verifying the artifact."
+    if isinstance(exc, ArtifactRenderError):
+        return str(exc)
+    if isinstance(exc, ValueError):
+        return str(exc)
+    return "Artifact verification could not complete. Please try again."
+
+
 async def verify_artifact(
     session: SandboxSession,
     primary_path: str,
@@ -61,23 +86,58 @@ async def verify_artifact(
     signing_key = secret_key if secret_key is not None else app_config.SECRET_KEY
     if not signing_key:
         raise ValueError("SECRET_KEY is required for artifact verification")
-    # Invalidate any earlier pass before starting this attempt. A failed rerun
-    # must not leave a still-usable receipt for the same bytes.
-    await session.write_file(receipt_path(primary_path), b"")
-    try:
-        return await _verify_artifact(
+    lock = artifact_path_lock(session.session_id, primary_path)
+    async with lock:
+        await _invalidate_previous_verification(
             session,
             primary_path,
             workspace_id=workspace_id,
-            vision_llm=vision_llm,
             signing_key=signing_key,
         )
-    except Exception as exc:
-        logger.warning("Artifact verification failed: %s", exc, exc_info=True)
-        return VerificationResult(
-            verified=False,
-            findings=(f"Artifact verification failed: {exc}",),
+        try:
+            return await _verify_artifact(
+                session,
+                primary_path,
+                workspace_id=workspace_id,
+                vision_llm=vision_llm,
+                signing_key=signing_key,
+            )
+        except Exception as exc:
+            logger.warning("Artifact verification failed: %s", exc, exc_info=True)
+            return VerificationResult(
+                verified=False,
+                findings=(_public_verification_error(exc),),
+            )
+
+
+async def _invalidate_previous_verification(
+    session: SandboxSession,
+    primary_path: str,
+    *,
+    workspace_id: int,
+    signing_key: str,
+) -> None:
+    """Invalidate the receipt and any staged preview before a new attempt."""
+    staged_paths = {preview_path(primary_path)}
+    try:
+        previous = await read_receipt(
+            session,
+            signing_key,
+            workspace_id=workspace_id,
+            primary_path=primary_path,
+            allow_expired=True,
         )
+        if previous.preview_path:
+            staged_paths.add(previous.preview_path)
+    except ValueError:
+        pass
+
+    await session.write_file(receipt_path(primary_path), b"")
+    for path in staged_paths:
+        await session.write_file(path, b"")
+    await session.run_command(
+        f"rm -f -- {' '.join(shlex.quote(path) for path in sorted(staged_paths))}"
+    )
 
 
 async def _verify_artifact(
@@ -158,6 +218,38 @@ async def _verify_artifact(
         primary_data,
         convert_to_pdf=adapter.convert_to_pdf,
     )
+    try:
+        return await _verify_prepared_pdf(
+            session,
+            primary_path,
+            primary_data,
+            workspace_id=workspace_id,
+            vision_llm=vision_llm,
+            signing_key=signing_key,
+            adapter=adapter,
+            structural=structural,
+            prepared=prepared,
+        )
+    finally:
+        await cleanup_render_files(
+            session,
+            build_dir=prepared.build_dir,
+            profile_dir=prepared.profile_dir,
+        )
+
+
+async def _verify_prepared_pdf(
+    session: SandboxSession,
+    primary_path: str,
+    primary_data: bytes,
+    *,
+    workspace_id: int,
+    vision_llm: Any | None,
+    signing_key: str,
+    adapter: FormatAdapter,
+    structural: StructuralCheckResult,
+    prepared: PreparedPdf,
+) -> VerificationResult:
     preview_data = (
         await session.read_file(prepared.pdf_path)
         if adapter.convert_to_pdf
@@ -179,7 +271,6 @@ async def _verify_artifact(
             verified=False,
             findings=rendered_pdf.findings,
             notes=structural.notes,
-            preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
             page_count=rendered_pdf.page_count,
         )
 
@@ -192,7 +283,6 @@ async def _verify_artifact(
                 f"{ARTIFACT_MAX_VERIFY_PAGES}",
             ),
             notes=structural.notes,
-            preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
             page_count=page_count,
         )
 
@@ -205,28 +295,9 @@ async def _verify_artifact(
                 f"Rendered {len(page_paths)} page image(s) for a {page_count}-page document",
             ),
             notes=structural.notes,
-            preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
             page_count=page_count,
         )
-    if await session.read_file(prepared.source_path) != primary_data:
-        return VerificationResult(
-            verified=False,
-            findings=("The verification source changed while it was being rendered",),
-            notes=structural.notes,
-            preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
-            page_count=page_count,
-        )
-    if await session.read_file(prepared.pdf_path) != preview_data:
-        return VerificationResult(
-            verified=False,
-            findings=("The rendered preview changed during verification",),
-            notes=structural.notes,
-            preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
-            page_count=page_count,
-        )
-    page_images = []
-    for path in page_paths:
-        page_images.append((path, await session.read_file(path)))
+    page_images = [(path, await session.read_file(path)) for path in page_paths]
 
     notes = list(structural.notes)
     unavailable_reason = None
@@ -253,35 +324,54 @@ async def _verify_artifact(
                 verified=False,
                 findings=visual.findings,
                 notes=tuple(notes),
-                preview_path=prepared.pdf_path if adapter.convert_to_pdf else None,
                 page_count=page_count,
             )
 
-    preview_path = prepared.pdf_path if adapter.convert_to_pdf else None
+    if await session.read_file(primary_path) != primary_data:
+        return VerificationResult(
+            verified=False,
+            findings=("The artifact changed while it was being verified",),
+            notes=tuple(notes),
+            page_count=page_count,
+        )
+    if await session.read_file(prepared.source_path) != primary_data:
+        return VerificationResult(
+            verified=False,
+            findings=("The verification source changed while it was being rendered",),
+            notes=tuple(notes),
+            page_count=page_count,
+        )
+    if await session.read_file(prepared.pdf_path) != preview_data:
+        return VerificationResult(
+            verified=False,
+            findings=("The rendered preview changed during verification",),
+            notes=tuple(notes),
+            page_count=page_count,
+        )
+
+    staged_preview_path = preview_path(primary_path) if adapter.convert_to_pdf else None
+    if staged_preview_path:
+        await session.write_file(staged_preview_path, preview_data)
     receipt = VerificationReceipt(
         workspace_id=workspace_id,
         session_id=session.session_id,
         format=adapter.name,
         primary_path=primary_path,
         primary_sha256=sha256_bytes(primary_data),
-        preview_path=preview_path,
-        preview_sha256=sha256_bytes(preview_data) if preview_path else None,
+        preview_path=staged_preview_path,
+        preview_sha256=sha256_bytes(preview_data) if staged_preview_path else None,
         page_count=page_count,
         visual="unavailable" if unavailable_reason else "clean",
         unavailable_reason=unavailable_reason,
         issued_at=int(time.time()),
     )
-    await write_receipt(
-        session,
-        receipt,
-        signing_key,
-    )
+    await write_receipt(session, receipt, signing_key)
     _progress("complete", "Document verification complete")
     return VerificationResult(
         verified=True,
         findings=(),
         notes=tuple(notes),
-        preview_path=preview_path,
+        preview_path=staged_preview_path,
         page_count=page_count,
         unavailable_reason=unavailable_reason,
     )

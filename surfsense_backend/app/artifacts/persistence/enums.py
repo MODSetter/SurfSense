@@ -6,7 +6,6 @@ from enum import StrEnum
 class ArtifactFileRole(StrEnum):
     PRIMARY = "primary"
     PREVIEW = "preview"
-    SOURCE = "source"
 
 
 class ArtifactFormat(StrEnum):

@@ -133,11 +133,27 @@ async def test_receipt_rejects_expired_payload():
         )
 
 
+async def test_expired_signed_receipt_can_be_read_for_cleanup():
+    session = FakeSandboxSession()
+    await write_receipt(session, _receipt(), SECRET)
+
+    receipt = await read_receipt(
+        session,
+        SECRET,
+        workspace_id=WORKSPACE_ID,
+        primary_path=_receipt().primary_path,
+        now=100 + RECEIPT_MAX_AGE_SECONDS + 1,
+        allow_expired=True,
+    )
+
+    assert receipt.preview_path == _receipt().preview_path
+
+
 async def test_blank_receipt_is_not_verified():
     path = _receipt().primary_path
     session = FakeSandboxSession({receipt_path(path): b""})
 
-    with pytest.raises(ValueError, match="has not been verified"):
+    with pytest.raises(ValueError, match="Verify this file again"):
         await read_receipt(
             session,
             SECRET,

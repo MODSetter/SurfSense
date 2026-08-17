@@ -13,14 +13,14 @@ from langchain.tools import ToolRuntime
 from sqlalchemy import func, select
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
-    load_artifact_source as load_source_tool,
+    load_artifact_for_revision as load_revision_tool,
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
 from app.artifacts.verification import service as verify_service
 from app.artifacts.verification.formats.registry import XLSX_MIME
-from app.db import ChatVisibility, NewChatThread
+from app.db import ChatVisibility, Chunk, Document, NewChatThread
 from app.file_storage.service import purge_document_blobs
 from tests.utils.fake_sandbox import FakeSandboxSession
 
@@ -79,7 +79,7 @@ def _runtime(thread_id: int) -> ToolRuntime:
     )
 
 
-async def test_xlsx_tool_create_revise_without_preview(
+async def test_xlsx_tool_create_revise_without_persisted_preview(
     db_session,
     db_workspace,
     db_user,
@@ -96,13 +96,7 @@ async def test_xlsx_tool_create_revise_without_preview(
 
     backend = MemoryBackend()
     primary_path = "/workspace/budget.xlsx"
-    source_path = "/workspace/budget.py"
-    sandbox = FakeSandboxSession(
-        {
-            primary_path: _xlsx_bytes("first"),
-            source_path: b"version = 1",
-        }
-    )
+    sandbox = FakeSandboxSession({primary_path: _xlsx_bytes("first")})
 
     class Registry:
         async def get_session(self, _thread_id, _workspace_id):
@@ -122,9 +116,14 @@ async def test_xlsx_tool_create_revise_without_preview(
     monkeypatch.setattr(save_artifact_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(save_artifact_tool.app_config, "SECRET_KEY", SECRET)
-    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
-    monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
-    monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(load_revision_tool, "get_registry", get_registry)
+    monkeypatch.setattr(load_revision_tool, "shielded_async_session", session_context)
+    monkeypatch.setattr(load_revision_tool, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(
+        load_revision_tool,
+        "uuid4",
+        lambda: type("Uuid", (), {"hex": "xlsx-revision"})(),
+    )
 
     verified = await verify_service.verify_artifact(
         sandbox,
@@ -135,17 +134,18 @@ async def test_xlsx_tool_create_revise_without_preview(
     )
     assert verified.verified
     assert verified.preview_path is None
-    assert sandbox.commands == []
+    assert all("soffice" not in command and "pdftoppm" not in command for command in sandbox.commands)
 
     tool = save_artifact_tool.create_save_artifact_tool(db_workspace.id)
     runtime = _runtime(thread.id)
+    assert "source_path" not in tool.args
+    assert "preview_path" not in tool.args
 
     sandbox.files[primary_path] = _xlsx_bytes("changed-before-save")
     rejected = await tool.coroutine(
         title="Budget",
         markdown_representation="# Budget\n\nFirst version",
         path=primary_path,
-        source_path=source_path,
         runtime=runtime,
     )
     assert "changed after verification" in str(rejected)
@@ -164,7 +164,6 @@ async def test_xlsx_tool_create_revise_without_preview(
         title="Budget",
         markdown_representation="# Budget\n\nFirst version",
         path=primary_path,
-        source_path=source_path,
         runtime=runtime,
     )
     created = json.loads(created_command.update["messages"][0].content)
@@ -176,20 +175,26 @@ async def test_xlsx_tool_create_revise_without_preview(
     assert not any(file["role"] == "preview" for file in created["files"])
     assert not any(file["role"] == "source" for file in created["files"])
 
-    load_tool = load_source_tool.create_load_artifact_source_tool(
+    load_tool = load_revision_tool.create_load_artifact_for_revision_tool(
         workspace_id=db_workspace.id
     )
     loaded = await load_tool.coroutine(artifact_id=artifact_id, runtime=runtime)
-    loaded_path = f"/workspace/artifact-{artifact_id}-budget.py"
-    assert loaded["source_path"] == loaded_path
+    revision_dir = f"/workspace/artifact-revisions/{artifact_id}/xlsx-revision"
+    assert loaded["format"] == "xlsx"
+    assert loaded["artifact_id"] == artifact_id
+    assert loaded["primary_path"] == f"{revision_dir}/current.xlsx"
+    assert loaded["markdown_path"] == f"{revision_dir}/context.md"
+    assert loaded["expected_output_path"] == f"{revision_dir}/revised.xlsx"
     assert loaded["expected_generation"] == 1
-    assert sandbox.files[loaded_path] == b"version = 1"
+    assert sandbox.files[loaded["primary_path"]] == _xlsx_bytes("first")
+    assert sandbox.files[loaded["markdown_path"]] == b"# Budget\n\nFirst version"
+    assert loaded["primary_path"] != primary_path
 
-    sandbox.files[primary_path] = _xlsx_bytes("second")
-    sandbox.files[source_path] = sandbox.files[loaded_path] + b"\nversion = 2"
+    revised_path = loaded["expected_output_path"]
+    sandbox.files[revised_path] = _xlsx_bytes("second")
     revised_ok = await verify_service.verify_artifact(
         sandbox,
-        primary_path,
+        revised_path,
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,
@@ -199,8 +204,7 @@ async def test_xlsx_tool_create_revise_without_preview(
     revised_command = await tool.coroutine(
         title="Budget",
         markdown_representation="# Budget\n\nSecond version",
-        path=primary_path,
-        source_path=source_path,
+        path=revised_path,
         artifact_id=artifact_id,
         expected_generation=loaded["expected_generation"],
         runtime=runtime,
@@ -221,17 +225,29 @@ async def test_xlsx_tool_create_revise_without_preview(
                 ArtifactFile.artifact_id == artifact_id
             )
         )
-        == 2
+        == 1
     )
-    stored_source = await db_session.scalar(
-        select(ArtifactFile).where(
-            ArtifactFile.artifact_id == artifact_id,
-            ArtifactFile.role == ArtifactFileRole.SOURCE,
+    stored_files = (
+        await db_session.scalars(
+            select(ArtifactFile).where(ArtifactFile.artifact_id == artifact_id)
         )
-    )
-    assert stored_source.original_filename == "budget.py"
+    ).all()
+    assert [(file.role, file.original_filename) for file in stored_files] == [
+        (ArtifactFileRole.PRIMARY, "revised.xlsx")
+    ]
 
     artifact = await db_session.get(Artifact, artifact_id)
+    document = await db_session.get(Document, artifact.document_id)
+    assert document.source_markdown == "# Budget\n\nSecond version"
+    assert (
+        await db_session.scalar(
+            select(func.count(Chunk.id)).where(
+                Chunk.document_id == document.id,
+                Chunk.content.ilike("%Second version%"),
+            )
+        )
+        > 0
+    )
     await purge_document_blobs(
         db_session,
         document_ids=[artifact.document_id],

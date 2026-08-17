@@ -12,7 +12,7 @@ from langchain.tools import ToolRuntime
 from sqlalchemy import func, select
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
-    load_artifact_source as load_source_tool,
+    load_artifact_for_revision as load_revision_tool,
     save_artifact as save_artifact_tool,
 )
 from app.artifacts import service
@@ -23,6 +23,7 @@ from app.artifacts.verification.receipt import (
     sha256_bytes,
     write_receipt,
 )
+from app.db import Chunk, Document
 from app.file_storage.service import purge_document_blobs
 from tests.utils.fake_sandbox import FakeSandboxSession
 
@@ -84,13 +85,13 @@ async def _verify(
 
 
 @pytest.mark.parametrize(
-    ("format_name", "mime_type", "source_suffix"),
+    ("format_name", "mime_type"),
     [
-        ("docx", DOCX_MIME, ".js"),
-        ("pptx", PPTX_MIME, ".py"),
+        ("docx", DOCX_MIME),
+        ("pptx", PPTX_MIME),
     ],
 )
-async def test_office_tool_create_revise_editor_contract_and_purge(
+async def test_office_tool_create_revise_revision_workspace_and_purge(
     db_session,
     db_workspace,
     artifact_thread,
@@ -98,17 +99,14 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     monkeypatch,
     format_name,
     mime_type,
-    source_suffix,
 ):
     del patched_embed_texts
     backend = MemoryBackend()
     primary_path = f"/workspace/report.{format_name}"
-    source_path = f"/workspace/report{source_suffix}"
     preview_path = "/tmp/report.pdf"
     sandbox = FakeSandboxSession(
         {
             primary_path: _office_bytes(format_name, "first"),
-            source_path: b"version = 1",
             preview_path: b"%PDF-preview",
         }
     )
@@ -138,19 +136,24 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
     monkeypatch.setattr(save_artifact_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(save_artifact_tool.app_config, "SECRET_KEY", SECRET)
-    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
-    monkeypatch.setattr(load_source_tool, "shielded_async_session", session_context)
-    monkeypatch.setattr(load_source_tool, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(load_revision_tool, "get_registry", get_registry)
+    monkeypatch.setattr(load_revision_tool, "shielded_async_session", session_context)
+    monkeypatch.setattr(load_revision_tool, "get_storage_backend", lambda *_: backend)
+    monkeypatch.setattr(
+        load_revision_tool,
+        "uuid4",
+        lambda: type("Uuid", (), {"hex": f"{format_name}-revision"})(),
+    )
     tool = save_artifact_tool.create_save_artifact_tool(db_workspace.id)
     runtime = _runtime(format_name, artifact_thread.id)
+    assert "source_path" not in tool.args
+    assert "preview_path" not in tool.args
 
     sandbox.files[primary_path] = _office_bytes(format_name, "changed-before-save")
     rejected = await tool.coroutine(
         title="Report",
         markdown_representation="# Report\n\nFirst version",
         path=primary_path,
-        source_path=source_path,
-        preview_path=preview_path,
         runtime=runtime,
     )
     assert "changed after verification" in str(rejected)
@@ -166,8 +169,6 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
         title="Report",
         markdown_representation="# Report\n\nFirst version",
         path=primary_path,
-        source_path=source_path,
-        preview_path=preview_path,
         runtime=runtime,
     )
     created = json.loads(created_command.update["messages"][0].content)
@@ -177,33 +178,40 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
         ("primary", mime_type),
         ("preview", "application/pdf"),
     ]
-    load_tool = load_source_tool.create_load_artifact_source_tool(
+    load_tool = load_revision_tool.create_load_artifact_for_revision_tool(
         workspace_id=db_workspace.id
     )
     loaded = await load_tool.coroutine(artifact_id=artifact_id, runtime=runtime)
-    loaded_path = f"/workspace/artifact-{artifact_id}-report{source_suffix}"
-    assert loaded["source_path"] == loaded_path
+    revision_dir = (
+        f"/workspace/artifact-revisions/{artifact_id}/{format_name}-revision"
+    )
+    assert loaded["format"] == format_name
+    assert loaded["primary_path"] == f"{revision_dir}/current.{format_name}"
+    assert loaded["markdown_path"] == f"{revision_dir}/context.md"
+    assert loaded["expected_output_path"] == f"{revision_dir}/revised.{format_name}"
     assert loaded["artifact_id"] == artifact_id
     assert loaded["expected_generation"] == 1
     assert f"artifact_id={artifact_id}" in loaded["save_instruction"]
-    assert sandbox.files[loaded_path] == b"version = 1"
+    assert sandbox.files[loaded["primary_path"]] == _office_bytes(
+        format_name, "changed-before-save"
+    )
+    assert sandbox.files[loaded["markdown_path"]] == b"# Report\n\nFirst version"
+    assert loaded["primary_path"] != primary_path
 
-    sandbox.files[primary_path] = _office_bytes(format_name, "second")
-    sandbox.files[source_path] = sandbox.files[loaded_path] + b"\nversion = 2"
+    revised_path = loaded["expected_output_path"]
+    sandbox.files[revised_path] = _office_bytes(format_name, "second")
     sandbox.files[preview_path] = b"%PDF-preview-2"
     await _verify(
         sandbox,
         db_workspace.id,
         format_name=format_name,
-        primary_path=primary_path,
+        primary_path=revised_path,
         preview_path=preview_path,
     )
     revised_command = await tool.coroutine(
         title="Report",
         markdown_representation="# Report\n\nSecond version",
-        path=primary_path,
-        source_path=source_path,
-        preview_path=preview_path,
+        path=revised_path,
         artifact_id=artifact_id,
         expected_generation=loaded["expected_generation"],
         runtime=runtime,
@@ -224,17 +232,30 @@ async def test_office_tool_create_revise_editor_contract_and_purge(
                 ArtifactFile.artifact_id == artifact_id
             )
         )
-        == 3
+        == 2
     )
-    stored_source = await db_session.scalar(
-        select(ArtifactFile).where(
-            ArtifactFile.artifact_id == artifact_id,
-            ArtifactFile.role == ArtifactFileRole.SOURCE,
+    stored_files = (
+        await db_session.scalars(
+            select(ArtifactFile).where(ArtifactFile.artifact_id == artifact_id)
         )
-    )
-    assert stored_source.original_filename == f"report{source_suffix}"
+    ).all()
+    assert {file.role for file in stored_files} == {
+        ArtifactFileRole.PRIMARY,
+        ArtifactFileRole.PREVIEW,
+    }
 
     artifact = await db_session.get(Artifact, artifact_id)
+    document = await db_session.get(Document, artifact.document_id)
+    assert document.source_markdown == "# Report\n\nSecond version"
+    assert (
+        await db_session.scalar(
+            select(func.count(Chunk.id)).where(
+                Chunk.document_id == document.id,
+                Chunk.content.ilike("%Second version%"),
+            )
+        )
+        > 0
+    )
     await purge_document_blobs(
         db_session,
         document_ids=[artifact.document_id],
