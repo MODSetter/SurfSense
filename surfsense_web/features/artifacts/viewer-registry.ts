@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ComponentType } from "react";
+import { createElement, type ComponentType } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import type { ArtifactFile } from "./model";
 
 export interface ArtifactFileViewerProps {
@@ -10,14 +11,25 @@ export interface ArtifactFileViewerProps {
 	zoomControlsContainer?: HTMLElement | null;
 }
 
+function ViewerLoading() {
+	return createElement(
+		"div",
+		{ className: "flex h-full items-center justify-center" },
+		createElement(Spinner, { size: "lg" })
+	);
+}
+
 const PdfFileViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-file-viewer"), {
 	ssr: false,
+	loading: ViewerLoading,
 });
 const PdfPreviewViewer = dynamic<ArtifactFileViewerProps>(() => import("./pdf-preview-viewer"), {
 	ssr: false,
+	loading: ViewerLoading,
 });
 const XlsxViewer = dynamic<ArtifactFileViewerProps>(() => import("./xlsx-viewer"), {
 	ssr: false,
+	loading: ViewerLoading,
 });
 
 // Unknown MIME types deliberately fall through to the panel's unviewable state,
