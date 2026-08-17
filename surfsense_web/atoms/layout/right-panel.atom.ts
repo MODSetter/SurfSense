@@ -11,10 +11,27 @@ const rightPanelCookieStorage = {
 		return match ? match[1] === "true" : initialValue;
 	},
 	setItem: (_key: string, value: boolean) => {
-		document.cookie = `${RIGHT_PANEL_COLLAPSED_COOKIE}=${value}; path=/; max-age=${RIGHT_PANEL_COOKIE_MAX_AGE}; samesite=lax`;
+		void window.cookieStore
+			?.set({
+				name: RIGHT_PANEL_COLLAPSED_COOKIE,
+				value: String(value),
+				path: "/",
+				expires: Date.now() + RIGHT_PANEL_COOKIE_MAX_AGE * 1000,
+				sameSite: "lax",
+			})
+			.catch(() => {
+				// Ignore preference persistence failures.
+			});
 	},
 	removeItem: () => {
-		document.cookie = `${RIGHT_PANEL_COLLAPSED_COOKIE}=; path=/; max-age=0; samesite=lax`;
+		void window.cookieStore
+			?.delete({
+				name: RIGHT_PANEL_COLLAPSED_COOKIE,
+				path: "/",
+			})
+			.catch(() => {
+				// Ignore preference persistence failures.
+			});
 	},
 };
 
@@ -24,7 +41,8 @@ export type RightPanelTab =
 	| "editor"
 	| "hitl-edit"
 	| "citation"
-	| "artifacts";
+	| "artifacts"
+	| "document";
 
 export const rightPanelTabAtom = atom<RightPanelTab>("sources");
 

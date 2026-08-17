@@ -16,6 +16,7 @@ import { createContext, memo, type ReactNode, useCallback, useContext, useRef } 
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import { MentionChip } from "@/components/assistant-ui/mention-chip";
@@ -181,12 +182,13 @@ function isStandaloneDocumentsPathText(node: ReactNode): string | null {
 	if (value.includes(" ")) return null;
 	const normalized = value.replace(/\/+$/, "");
 	const leaf = normalized.split("/").filter(Boolean).at(-1) ?? "";
-	if (!leaf || !leaf.includes(".")) return null;
+	if (!leaf?.includes(".")) return null;
 	return value;
 }
 
 function FilePathLink({ path, className }: { path: string; className?: string }) {
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const params = useParams();
 	const electronAPI = useElectronAPI();
 	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
@@ -226,8 +228,7 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 						workspace_id: resolvedWorkspaceId,
 						virtual_path: path,
 					});
-					openEditorPanel({
-						kind: "document",
+					openDocumentViewer({
 						documentId: doc.id,
 						workspaceId: resolvedWorkspaceId,
 						title: doc.title,
@@ -237,10 +238,10 @@ function FilePathLink({ path, className }: { path: string; className?: string })
 				}
 			})();
 		},
-		[electronAPI, openEditorPanel, path, resolvedWorkspaceId]
+		[electronAPI, openDocumentViewer, openEditorPanel, path, resolvedWorkspaceId]
 	);
 
-	// Folders cannot open in the editor panel — keep them as visual chips.
+	// Folders cannot open in a file panel — keep them as visual chips.
 	const onClick = isFolder ? undefined : handleClick;
 
 	return (

@@ -20,7 +20,7 @@ import { type FC, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
 import { MentionChip } from "@/components/assistant-ui/mention-chip";
 import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -74,7 +74,7 @@ const UserTextPart: FC = () => {
 	const text = (part as { text?: string }).text ?? "";
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = (messageId ? messageDocumentsMap[messageId] : undefined) ?? [];
-	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const router = useRouter();
 	const params = useParams();
 	const resolvedWorkspaceId = getWorkspaceIdNumber(params);
@@ -85,14 +85,13 @@ const UserTextPart: FC = () => {
 				toast.error("Cannot open document outside a workspace.");
 				return;
 			}
-			openEditorPanel({
-				kind: "document",
+			openDocumentViewer({
 				documentId: docId,
 				workspaceId: resolvedWorkspaceId,
 				title,
 			});
 		},
-		[openEditorPanel, resolvedWorkspaceId]
+		[openDocumentViewer, resolvedWorkspaceId]
 	);
 
 	const handleOpenThread = useCallback(

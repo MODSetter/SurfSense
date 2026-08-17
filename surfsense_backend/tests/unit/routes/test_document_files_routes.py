@@ -104,3 +104,80 @@ async def test_stream_disposition_allowlist(monkeypatch, mime_type, mode):
         in response.headers["content-disposition"]
     )
     assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def _document(*, title: str):
+    return SimpleNamespace(
+        id=3,
+        workspace_id=2,
+        title=title,
+        document_type=SimpleNamespace(value="FILE"),
+        status={"state": "ready"},
+    )
+
+
+@pytest.mark.asyncio
+async def test_view_manifest_exposes_stored_original_with_canonical_mime(monkeypatch):
+    monkeypatch.setattr(document_files_routes, "check_permission", AsyncMock())
+    original = SimpleNamespace(
+        id=4,
+        original_filename="budget.xlsx",
+        mime_type="application/octet-stream",
+        size_bytes=128,
+    )
+    monkeypatch.setattr(
+        document_files_routes,
+        "get_document_file",
+        AsyncMock(return_value=original),
+    )
+    session = AsyncMock()
+    session.scalar.return_value = _document(title="budget.xlsx")
+
+    manifest = await document_files_routes.get_document_view_manifest(
+        2, 3, session, SimpleNamespace()
+    )
+
+    assert manifest.presentation == "original"
+    assert manifest.file is not None
+    assert (
+        manifest.file.mime_type
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert manifest.file.content_url.endswith("/documents/3/files/4/content")
+
+
+@pytest.mark.asyncio
+async def test_view_manifest_never_falls_back_to_text_for_missing_pdf(monkeypatch):
+    monkeypatch.setattr(document_files_routes, "check_permission", AsyncMock())
+    monkeypatch.setattr(
+        document_files_routes,
+        "get_document_file",
+        AsyncMock(return_value=None),
+    )
+    session = AsyncMock()
+    session.scalar.return_value = _document(title="report.pdf")
+
+    manifest = await document_files_routes.get_document_view_manifest(
+        2, 3, session, SimpleNamespace()
+    )
+
+    assert manifest.presentation == "missing_original"
+    assert manifest.file is None
+
+
+@pytest.mark.asyncio
+async def test_view_manifest_keeps_text_native_documents_in_editor(monkeypatch):
+    monkeypatch.setattr(document_files_routes, "check_permission", AsyncMock())
+    monkeypatch.setattr(
+        document_files_routes,
+        "get_document_file",
+        AsyncMock(return_value=None),
+    )
+    session = AsyncMock()
+    session.scalar.return_value = _document(title="notes.md")
+
+    manifest = await document_files_routes.get_document_view_manifest(
+        2, 3, session, SimpleNamespace()
+    )
+
+    assert manifest.presentation == "text"
