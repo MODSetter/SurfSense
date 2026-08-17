@@ -48,6 +48,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
+import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { searchThreads } from "@/lib/chat/thread-persistence";
@@ -144,13 +146,20 @@ export function promoteRecentMention(workspaceId: number, mention: MentionedDocu
 	return next;
 }
 
-function getMentionIcon(mention: MentionedDocumentInfo) {
+function getDocumentIcon(documentType: string, artifactFormat?: string) {
+	if (documentType === "ARTIFACT") {
+		return <ArtifactFormatIcon format={artifactFormat} className="size-4" />;
+	}
+	return getConnectorIcon(documentType, "size-4");
+}
+
+function getMentionIcon(mention: MentionedDocumentInfo, artifactFormat?: string) {
 	if (mention.kind === "folder") return <FolderIcon className="size-4" />;
 	if (mention.kind === "thread") return <MessageCircleMore className="size-4" />;
 	if (mention.kind === "connector") {
 		return getConnectorIcon(mention.connector_type, "size-4") ?? <Unplug className="size-4" />;
 	}
-	return getConnectorIcon(mention.document_type, "size-4");
+	return getDocumentIcon(mention.document_type, artifactFormat);
 }
 
 function refreshRecentMention(
@@ -292,6 +301,7 @@ export const DocumentMentionPicker = forwardRef<
 	const [zeroFolders] = useZeroQuery(queries.folders.bySpace({ workspaceId }));
 	const { data: connectors = [], isLoading: isConnectorsLoading } = useAtomValue(connectorsAtom);
 	const activeConnectors = useMemo(() => connectors.filter(isConnectorActive), [connectors]);
+	const artifactsByDocument = useArtifactsByDocument(workspaceId);
 	const paginationScopeKey = useMemo(
 		() => `${workspaceId}:${debouncedSearch}`,
 		[workspaceId, debouncedSearch]
@@ -481,12 +491,15 @@ export const DocumentMentionPicker = forwardRef<
 			visibleRecentMentions.map((mention) => ({
 				id: `recent:${getMentionDocKey(mention)}`,
 				label: mention.title,
-				icon: getMentionIcon(mention),
+				icon: getMentionIcon(
+					mention,
+					mention.kind === "doc" ? artifactsByDocument.get(mention.id)?.format : undefined
+				),
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
 			})),
-		[visibleRecentMentions, selectedKeys]
+		[artifactsByDocument, visibleRecentMentions, selectedKeys]
 	);
 
 	const rootNodes = useMemo<ComposerSuggestionNode<ResourceNodeValue>[]>(() => {
@@ -534,7 +547,7 @@ export const DocumentMentionPicker = forwardRef<
 			return {
 				id: getMentionDocKey(mention),
 				label: doc.title,
-				icon: getConnectorIcon(doc.document_type, "size-4"),
+				icon: getDocumentIcon(doc.document_type, artifactsByDocument.get(doc.id)?.format),
 				type: "item" as const,
 				disabled: selectedKeys.has(getMentionDocKey(mention)),
 				value: { kind: "mention" as const, mention },
@@ -574,6 +587,7 @@ export const DocumentMentionPicker = forwardRef<
 		return [...docNodes, ...folderNodes, ...connectorNodes, ...threadNodes];
 	}, [
 		actualDocuments,
+		artifactsByDocument,
 		connectorMentions,
 		debouncedSearch,
 		deferredSearch,
@@ -612,7 +626,7 @@ export const DocumentMentionPicker = forwardRef<
 				return {
 					id: getMentionDocKey(mention),
 					label: doc.title,
-					icon: getConnectorIcon(doc.document_type, "size-4"),
+					icon: getDocumentIcon(doc.document_type, artifactsByDocument.get(doc.id)?.format),
 					type: "item" as const,
 					disabled: selectedKeys.has(getMentionDocKey(mention)),
 					value: { kind: "mention" as const, mention },
@@ -667,6 +681,7 @@ export const DocumentMentionPicker = forwardRef<
 	}, [
 		actualDocuments,
 		activeConnectors,
+		artifactsByDocument,
 		connectorTypeEntries,
 		folderMentions,
 		rootNodes,

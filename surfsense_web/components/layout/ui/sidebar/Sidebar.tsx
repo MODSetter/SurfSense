@@ -223,7 +223,7 @@ export function Sidebar({
 
 			<div
 				className={cn(
-					"relative flex flex-col gap-0.5 pt-1.5 pb-0 after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-border after:transition-opacity",
+					"relative z-10 flex flex-col gap-0.5 pt-1.5 pb-0 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-panel after:to-transparent after:transition-opacity",
 					isSidebarNavScrolled ? "after:opacity-100" : "after:opacity-0"
 				)}
 			>
