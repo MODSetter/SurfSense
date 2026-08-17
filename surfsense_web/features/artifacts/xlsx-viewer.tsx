@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { type Column, DataGrid } from "react-data-grid";
 import "react-data-grid/lib/styles.css";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cannotPreviewMessage } from "./file-format";
@@ -85,8 +87,10 @@ export default function XlsxViewer({ primary }: ArtifactFileViewerProps) {
 	const [active, setActive] = useState(0);
 	const [error, setError] = useState<unknown>(null);
 	const [loading, setLoading] = useState(true);
+	const [retryKey, setRetryKey] = useState(0);
 
 	useEffect(() => {
+		void retryKey;
 		let cancelled = false;
 		setLoading(true);
 		setError(null);
@@ -123,20 +127,35 @@ export default function XlsxViewer({ primary }: ArtifactFileViewerProps) {
 		return () => {
 			cancelled = true;
 		};
-	}, [primary.content_url, primary.size_bytes]);
+	}, [primary.content_url, primary.size_bytes, retryKey]);
 
 	if (loading) {
 		return (
 			<div
 				aria-busy="true"
-				className="flex h-full items-center justify-center bg-white text-sm text-neutral-500"
+				className="flex h-full items-center justify-center bg-white text-neutral-500"
 			>
-				Loading spreadsheet…
+				<Spinner size="lg" />
 			</div>
 		);
 	}
 	if (error || !view) {
-		return <UnviewableArtifact message={fallbackMessage(error, primary.filename)} />;
+		if (error instanceof ParseWorkbookError && error.code === "oversize") {
+			return <UnviewableArtifact message={fallbackMessage(error, primary.filename)} />;
+		}
+		return (
+			<div className="flex h-full flex-col items-center justify-center gap-3 bg-white p-6 text-center text-neutral-950">
+				<div>
+					<p className="text-sm font-medium">Couldn&apos;t open this spreadsheet</p>
+					<p className="mt-1 text-xs text-neutral-500">
+						{fallbackMessage(error, primary.filename)}
+					</p>
+				</div>
+				<Button variant="secondary" size="sm" onClick={() => setRetryKey((key) => key + 1)}>
+					Try again
+				</Button>
+			</div>
+		);
 	}
 
 	const sheet = view.sheets[active] ?? view.sheets[0];

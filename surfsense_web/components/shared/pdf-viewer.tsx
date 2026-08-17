@@ -84,11 +84,13 @@ export function PdfViewer({
 	const [numPages, setNumPages] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
+	const [retryKey, setRetryKey] = useState(0);
 	const viewerHostRef = useRef<HTMLDivElement>(null);
 	const viewerElementRef = useRef<HTMLDivElement>(null);
 	const pdfViewerRef = useRef<EmbeddedPdfViewer | null>(null);
 
 	useEffect(() => {
+		void retryKey;
 		const container = viewerHostRef.current;
 		const viewerElement = viewerElementRef.current;
 		if (!container || !viewerElement) return;
@@ -283,7 +285,7 @@ export function PdfViewer({
 				});
 
 				resizeObserver = new ResizeObserver(() => {
-					if (!pdfViewer || pdfViewer.currentScaleValue !== "page-width") return;
+					if (pdfViewer?.currentScaleValue !== "page-width") return;
 					if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
 					resizeFrame = requestAnimationFrame(() => {
 						resizeFrame = null;
@@ -321,7 +323,7 @@ export function PdfViewer({
 				void loadingTask?.destroy();
 			}
 		};
-	}, [pdfUrl]);
+	}, [pdfUrl, retryKey]);
 
 	const zoomIn = useCallback(() => {
 		pdfViewerRef.current?.increaseScale({ drawingDelay: ZOOM_RENDER_DELAY_MS });
@@ -361,6 +363,9 @@ export function PdfViewer({
 			<div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
 				<p className="font-medium text-foreground">Failed to load PDF</p>
 				<p className="text-sm text-muted-foreground">{loadError}</p>
+				<Button variant="secondary" size="sm" onClick={() => setRetryKey((key) => key + 1)}>
+					Try again
+				</Button>
 			</div>
 		);
 	}
