@@ -10,7 +10,7 @@ import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 import { artifactManifestQueryOptions } from "./artifact-query";
@@ -97,11 +97,8 @@ export function ArtifactViewerContent({
 			{/* Viewers fill the panel edge to edge; everything else scrolls with padding. */}
 			<div className="min-h-0 flex-1 overflow-hidden" aria-busy={loading}>
 				{loading ? (
-					<div className="h-full space-y-3 px-5 py-4">
-						<Skeleton className="h-7 w-2/3" />
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-5/6" />
-						<Skeleton className="h-4 w-4/6" />
+					<div className="flex h-full items-center justify-center px-5 py-4">
+						<Spinner size="lg" />
 					</div>
 				) : error ? (
 					<div
@@ -115,7 +112,7 @@ export function ArtifactViewerContent({
 								{error instanceof Error ? error.message : "Artifact could not be loaded"}
 							</p>
 						</div>
-						<Button size="sm" onClick={() => void refetch()}>
+						<Button variant="secondary" size="sm" onClick={() => void refetch()}>
 							Try again
 						</Button>
 					</div>
