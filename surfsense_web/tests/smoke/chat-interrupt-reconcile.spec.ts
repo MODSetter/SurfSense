@@ -81,16 +81,19 @@ test.describe("Smoke", () => {
 
 		const assistantTurn = page.locator('[data-role="assistant"]');
 		await expect(assistantTurn).toHaveCount(1, { timeout: 60_000 });
-		const header = assistantTurn.getByTestId("assistant-standalone-turn-header");
+		const header = assistantTurn.getByTestId("assistant-turn-header");
 		await expect(header).toHaveCount(1);
+		await expect(header).toHaveAttribute("data-live", "true");
+		await expect(header).toHaveAttribute("data-segment-id", "standalone");
 		await expect(header.getByText("Responded", { exact: true })).toBeVisible();
 		await expect(header.getByTestId("assistant-turn-timing")).toContainText("1.6s");
 
 		await page.reload();
 		const reloadedHeader = page
 			.locator('[data-role="assistant"]')
-			.getByTestId("assistant-standalone-turn-header");
+			.getByTestId("assistant-turn-header");
 		await expect(reloadedHeader).toHaveCount(1, { timeout: 60_000 });
+		await expect(reloadedHeader).toHaveAttribute("data-live", "true");
 		await expect(reloadedHeader.getByText("Responded", { exact: true })).toBeVisible();
 		await expect(reloadedHeader.getByTestId("assistant-turn-timing")).toContainText("1.6s");
 	});
@@ -152,6 +155,13 @@ test.describe("Smoke", () => {
 		await expect(assistantTurn.getByText("First phase survived.")).toBeVisible();
 		await expect(assistantTurn.getByText("Second phase survived.")).toBeVisible();
 		await expect(assistantTurn.getByText("Final phase survived.")).toBeVisible();
+		const headers = assistantTurn.getByTestId("assistant-turn-header");
+		await expect(headers).toHaveCount(2);
+		await expect(
+			assistantTurn.locator('[data-testid="assistant-turn-header"][data-live="true"]')
+		).toHaveCount(1);
+		await expect(assistantTurn.locator('[data-segment-id="trace:call-one"]')).toHaveCount(1);
+		await expect(assistantTurn.locator('[data-segment-id="trace:call-two"]')).toHaveCount(1);
 		const timer = assistantTurn.getByTestId("assistant-turn-timing");
 		await expect(timer).toHaveCount(1);
 		await expect(timer).toContainText("2.4s");
@@ -167,6 +177,33 @@ test.describe("Smoke", () => {
 				exact: true,
 			})
 		).toBeVisible();
+		expect(
+			await assistantTurn.locator('[data-segment-id="trace:call-one"]').evaluate((header) => {
+				const firstText = Array.from(
+					header.closest('[data-role="assistant"]')?.querySelectorAll("p") ?? []
+				).find((element) => element.textContent === "First phase survived.");
+				return firstText
+					? Boolean(header.compareDocumentPosition(firstText) & Node.DOCUMENT_POSITION_FOLLOWING)
+					: false;
+			})
+		).toBe(true);
+		expect(
+			await assistantTurn.locator('[data-segment-id="trace:call-two"]').evaluate((header) => {
+				const paragraphs = Array.from(
+					header.closest('[data-role="assistant"]')?.querySelectorAll("p") ?? []
+				);
+				const firstText = paragraphs.find(
+					(element) => element.textContent === "First phase survived."
+				);
+				const secondText = paragraphs.find(
+					(element) => element.textContent === "Second phase survived."
+				);
+				return firstText && secondText
+					? Boolean(firstText.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+							Boolean(header.compareDocumentPosition(secondText) & Node.DOCUMENT_POSITION_FOLLOWING)
+					: false;
+			})
+		).toBe(true);
 
 		await page.reload();
 		const reloadedAssistantTurn = page.locator('[data-role="assistant"]');
@@ -179,6 +216,10 @@ test.describe("Smoke", () => {
 		const reloadedTimer = reloadedAssistantTurn.getByTestId("assistant-turn-timing");
 		await expect(reloadedTimer).toHaveCount(1);
 		await expect(reloadedTimer).toContainText("2.4s");
+		await expect(reloadedAssistantTurn.getByTestId("assistant-turn-header")).toHaveCount(2);
+		await expect(
+			reloadedAssistantTurn.locator('[data-testid="assistant-turn-header"][data-live="true"]')
+		).toHaveCount(1);
 		await expect(
 			reloadedAssistantTurn.getByRole("button", {
 				name: "Updating team memory",

@@ -14,7 +14,24 @@ export interface TracePartLike {
 	metadata?: unknown;
 }
 
-export type StandaloneTurnHeaderPhase = "spellweaving" | "responded";
+export type TurnHeaderPhase = "spellweaving" | "responded";
+
+export const LIVE_TURN_SEGMENT_KEY = "live-turn-segment";
+
+export type TurnRenderItem =
+	| {
+			kind: "segment";
+			key: string;
+			segmentId: string | null;
+			indices: readonly number[];
+			phase: TurnHeaderPhase | null;
+			live: boolean;
+	  }
+	| {
+			kind: "text" | "body-tool";
+			key: string;
+			index: number;
+	  };
 
 /**
  * Build the canonical activity lookup. Duplicate snapshots are resolved by ID;
@@ -40,46 +57,17 @@ export function isBodyTool(part: TracePartLike, bodyToolNames: ReadonlySet<strin
 	);
 }
 
-export function getTraceGroupPath(
-	part: TracePartLike,
-	bodyToolNames: ReadonlySet<string>
-): readonly ["group-trace"] | readonly [] {
-	if (
-		part.type === "reasoning" ||
-		(part.type === "tool-call" && !isBodyTool(part, bodyToolNames))
-	) {
-		return ["group-trace"];
-	}
-	return [];
-}
-
-export function getLastTraceIndex(
-	parts: readonly TracePartLike[],
-	bodyToolNames: ReadonlySet<string>,
-	showReasoning: boolean
-): number {
-	for (let index = parts.length - 1; index >= 0; index -= 1) {
-		const part = parts[index];
-		if (part.type === "reasoning" && !showReasoning) continue;
-		if (getTraceGroupPath(part, bodyToolNames).length > 0) return index;
-	}
-	return -1;
-}
-
-export function getStandaloneTurnHeaderPhase({
+function getNoTraceTurnHeaderPhase({
 	parts,
 	bodyToolNames,
 	threadRunning,
-	lastTraceIndex,
 	timingStatus,
 }: {
 	parts: readonly TracePartLike[];
 	bodyToolNames: ReadonlySet<string>;
 	threadRunning: boolean;
-	lastTraceIndex: number;
 	timingStatus?: ActivityTimingData["status"];
-}): StandaloneTurnHeaderPhase | null {
-	if (lastTraceIndex >= 0) return null;
+}): TurnHeaderPhase | null {
 	if (threadRunning) return "spellweaving";
 	if (timingStatus !== "completed") return null;
 
@@ -96,6 +84,106 @@ export function getStandaloneTurnHeaderPhase({
 			isBodyTool(part, bodyToolNames)
 	);
 	return hasVisibleOutput ? "responded" : null;
+}
+
+function traceSegmentId(parts: readonly TracePartLike[], firstIndex: number): string {
+	const firstPart = parts[firstIndex];
+	if (firstPart?.type === "tool-call" && typeof firstPart.toolCallId === "string") {
+		return `trace:${firstPart.toolCallId}`;
+	}
+	return `trace:${firstIndex}`;
+}
+
+function partKey(part: TracePartLike, index: number): string {
+	return part.type === "tool-call" && typeof part.toolCallId === "string"
+		? `part:${part.toolCallId}`
+		: `part:${index}`;
+}
+
+/**
+ * Projects canonical wire parts into the single sibling list rendered by a turn.
+ * The final trace (or the no-trace placeholder) owns one message-scoped live key,
+ * allowing React to move that slot without remounting it.
+ */
+export function buildTurnRenderItems({
+	parts,
+	bodyToolNames,
+	showReasoning,
+	threadRunning,
+	timingStatus,
+}: {
+	parts: readonly TracePartLike[];
+	bodyToolNames: ReadonlySet<string>;
+	showReasoning: boolean;
+	threadRunning: boolean;
+	timingStatus?: ActivityTimingData["status"];
+}): readonly TurnRenderItem[] {
+	const items: TurnRenderItem[] = [];
+	let traceIndices: number[] = [];
+
+	const flushTrace = () => {
+		if (traceIndices.length === 0) return;
+		const segmentId = traceSegmentId(parts, traceIndices[0]);
+		items.push({
+			kind: "segment",
+			key: segmentId,
+			segmentId,
+			indices: traceIndices,
+			phase: null,
+			live: false,
+		});
+		traceIndices = [];
+	};
+
+	for (let index = 0; index < parts.length; index += 1) {
+		const part = parts[index];
+		const isTrace =
+			(part.type === "reasoning" && showReasoning) ||
+			(part.type === "tool-call" && !isBodyTool(part, bodyToolNames));
+		if (isTrace) {
+			traceIndices.push(index);
+			continue;
+		}
+
+		flushTrace();
+		if (part.type === "text") {
+			items.push({ kind: "text", key: partKey(part, index), index });
+		} else if (isBodyTool(part, bodyToolNames)) {
+			items.push({ kind: "body-tool", key: partKey(part, index), index });
+		}
+	}
+	flushTrace();
+
+	const lastTraceItemIndex = items.findLastIndex((item) => item.kind === "segment");
+	if (lastTraceItemIndex >= 0) {
+		const lastTrace = items[lastTraceItemIndex];
+		if (lastTrace.kind === "segment") {
+			items[lastTraceItemIndex] = {
+				...lastTrace,
+				key: LIVE_TURN_SEGMENT_KEY,
+				live: true,
+			};
+		}
+		return items;
+	}
+
+	const phase = getNoTraceTurnHeaderPhase({
+		parts,
+		bodyToolNames,
+		threadRunning,
+		timingStatus,
+	});
+	if (phase) {
+		items.unshift({
+			kind: "segment",
+			key: LIVE_TURN_SEGMENT_KEY,
+			segmentId: null,
+			indices: [],
+			phase,
+			live: true,
+		});
+	}
+	return items;
 }
 
 /** First wire position for each canonical activity, used to suppress duplicate tool relays. */
