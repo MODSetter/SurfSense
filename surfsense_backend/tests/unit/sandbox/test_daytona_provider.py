@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from daytona import Daytona, SandboxState
+from daytona.common.errors import DaytonaError
 
 from app.config import config as app_config
 from app.sandbox.providers.daytona import (
@@ -41,6 +42,36 @@ async def test_daytona_session_maps_command_and_binary_file_operations():
     assert downloaded == b"\x00binary"
     sandbox.fs.upload_file.assert_called_once_with(b"new", "/workspace/file.bin")
     client.delete.assert_called_once_with(sandbox)
+
+
+async def test_read_file_maps_missing_file_to_file_not_found():
+    """A FILE_NOT_FOUND body must surface as FileNotFoundError, not DaytonaError.
+
+    read_receipt only catches FileNotFoundError; a raw DaytonaError escapes and
+    crashes the stream on the first (receiptless) verification.
+    """
+    missing = DaytonaError(
+        'Failed to download file: {"code":"FILE_NOT_FOUND","statusCode":404}'
+    )
+    sandbox = SimpleNamespace(
+        id="daytona-1",
+        fs=SimpleNamespace(download_file=Mock(side_effect=missing)),
+    )
+    session = DaytonaSession(sandbox, SimpleNamespace(delete=Mock()))
+
+    with pytest.raises(FileNotFoundError):
+        await session.read_file("/tmp/receipt.json")
+
+
+async def test_read_file_propagates_non_not_found_errors():
+    sandbox = SimpleNamespace(
+        id="daytona-1",
+        fs=SimpleNamespace(download_file=Mock(side_effect=DaytonaError("boom"))),
+    )
+    session = DaytonaSession(sandbox, SimpleNamespace(delete=Mock()))
+
+    with pytest.raises(DaytonaError):
+        await session.read_file("/tmp/receipt.json")
 
 
 def _client(items: list[object]) -> Mock:
