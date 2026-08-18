@@ -54,7 +54,7 @@ class ActivitySpec:
         status: ActivityStatus,
         started_at: str,
         completed_at: str | None = None,
-        details: list[str] | None = None,
+        progress_title: str | None = None,
         integration: ActivityIntegration | None = None,
     ) -> ActivityData:
         snapshot: ActivityData = {
@@ -67,8 +67,8 @@ class ActivitySpec:
             "iconKey": self.icon_key,
             "startedAt": started_at,
         }
-        if details:
-            snapshot["details"] = details[:5]
+        if progress_title and status in {"running", "awaiting_approval"}:
+            snapshot["progressTitle"] = progress_title
         if completed_at:
             snapshot["completedAt"] = completed_at
         resolved_integration = integration

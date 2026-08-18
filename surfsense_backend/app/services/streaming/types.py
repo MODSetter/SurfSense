@@ -35,7 +35,7 @@ class ActivityData(TypedDict):
     title: str
     category: ActivityCategory
     iconKey: str
-    details: NotRequired[list[str]]
+    progressTitle: NotRequired[str]
     startedAt: str
     completedAt: NotRequired[str]
     integration: NotRequired[ActivityIntegration]
