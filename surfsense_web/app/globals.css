@@ -253,40 +253,31 @@ button {
 .timeline-activity-light,
 .timeline-activity-goo {
 	mix-blend-mode: screen;
-	transition: opacity 200ms ease;
 }
 
-.timeline-activity-indicator[data-active="false"] .timeline-activity-light {
-	opacity: 0.32;
-}
-
-.timeline-activity-indicator[data-active="false"] .timeline-activity-goo {
-	opacity: 0.08;
-}
-
-.timeline-activity-indicator[data-active="true"] .timeline-activity-dot {
+.timeline-activity-indicator .timeline-activity-dot {
 	animation-duration: 6s;
 	animation-iteration-count: infinite;
 	animation-timing-function: ease-in-out;
 }
 
-.timeline-activity-indicator[data-active="true"] .timeline-activity-dot-a {
+.timeline-activity-indicator .timeline-activity-dot-a {
 	animation-name: timeline-activity-pair-a;
 }
 
-.timeline-activity-indicator[data-active="true"] .timeline-activity-dot-b {
+.timeline-activity-indicator .timeline-activity-dot-b {
 	animation-name: timeline-activity-pair-b;
 }
 
-.timeline-activity-indicator[data-active="true"] .timeline-activity-dot-c {
+.timeline-activity-indicator .timeline-activity-dot-c {
 	animation-name: timeline-activity-pair-c;
 }
 
-.timeline-activity-indicator[data-active="true"] .timeline-activity-light {
+.timeline-activity-indicator .timeline-activity-light {
 	animation: timeline-activity-luminance 6s ease-in-out infinite;
 }
 
-.timeline-activity-indicator[data-active="true"] .timeline-activity-goo {
+.timeline-activity-indicator .timeline-activity-goo {
 	animation: timeline-activity-goo 6s ease-in-out infinite;
 }
 
@@ -397,9 +388,9 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.timeline-activity-indicator[data-active="true"] .timeline-activity-dot,
-	.timeline-activity-indicator[data-active="true"] .timeline-activity-light,
-	.timeline-activity-indicator[data-active="true"] .timeline-activity-goo {
+	.timeline-activity-indicator .timeline-activity-dot,
+	.timeline-activity-indicator .timeline-activity-light,
+	.timeline-activity-indicator .timeline-activity-goo {
 		animation: none;
 	}
 }

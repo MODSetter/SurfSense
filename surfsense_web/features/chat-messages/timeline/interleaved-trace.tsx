@@ -14,6 +14,7 @@ import {
 	type FC,
 	Fragment,
 	type ReactNode,
+	useEffect,
 	useId,
 	useMemo,
 	useState,
@@ -285,27 +286,61 @@ const TraceDetails: FC<{
 const TurnHeaderContent: FC<{
 	active: boolean;
 	label: string;
+	reducedMotion: boolean | null;
+	showIndicator: boolean;
 	swapKey: string;
 	turnTimingDisplay: TurnTimingDisplay | null;
 	trailing: ReactNode;
-}> = ({ active, label, swapKey, turnTimingDisplay, trailing }) => (
-	<>
-		<TimelineActivityIndicator active={active} />
-		<FadeSwapText
-			swapKey={swapKey}
-			className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
-			contentClassName="truncate whitespace-nowrap"
-		>
-			{active ? (
-				<TextShimmerLoader text={label} size="md" className="truncate font-semibold!" />
-			) : (
-				label
-			)}
-		</FadeSwapText>
-		{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
-		{trailing}
-	</>
-);
+}> = ({ active, label, reducedMotion, showIndicator, swapKey, turnTimingDisplay, trailing }) => {
+	const [retainIndicatorSlot, setRetainIndicatorSlot] = useState(showIndicator);
+	const exiting = retainIndicatorSlot && !showIndicator;
+	const renderIndicatorSlot = showIndicator || retainIndicatorSlot;
+
+	useEffect(() => {
+		if (showIndicator) setRetainIndicatorSlot(true);
+	}, [showIndicator]);
+
+	return (
+		<>
+			{renderIndicatorSlot ? (
+				<motion.span
+					initial={false}
+					animate={{ opacity: showIndicator ? 1 : 0 }}
+					transition={{ duration: reducedMotion ? 0 : 0.14 }}
+					className="flex size-6 shrink-0 items-center"
+				>
+					<TimelineActivityIndicator />
+				</motion.span>
+			) : null}
+			<motion.span
+				initial={false}
+				animate={{ x: exiting ? -34 : 0 }}
+				transition={{
+					duration: exiting && !reducedMotion ? 0.22 : 0,
+					ease: [0.22, 1, 0.36, 1],
+				}}
+				onAnimationComplete={() => {
+					if (exiting && !showIndicator) setRetainIndicatorSlot(false);
+				}}
+				className="flex min-w-0 items-center gap-2.5"
+			>
+				<FadeSwapText
+					swapKey={swapKey}
+					className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
+					contentClassName="truncate whitespace-nowrap"
+				>
+					{active ? (
+						<TextShimmerLoader text={label} size="md" className="truncate font-semibold!" />
+					) : (
+						label
+					)}
+				</FadeSwapText>
+				{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
+				{trailing}
+			</motion.span>
+		</>
+	);
+};
 
 type SegmentRenderItem = Extract<TurnRenderItem, { kind: "segment" }>;
 
@@ -353,6 +388,10 @@ const TurnSegment: FC<{
 					segmentActivities.some((activity) => activity.status === "running"))) ||
 			segmentActivities.some((activity) => activity.status === "awaiting_approval")
 		: phase === "spellweaving";
+	const showIndicator =
+		item.live &&
+		(threadRunning ||
+			segmentActivities.some((activity) => activity.status === "awaiting_approval"));
 	const label = hasTrace
 		? (segmentActivities.at(-1)?.title ??
 			(active ? "Spellweaving" : "Reasoned through the request"))
@@ -410,6 +449,8 @@ const TurnSegment: FC<{
 				<TurnHeaderContent
 					active={active}
 					label={label}
+					reducedMotion={reducedMotion}
+					showIndicator={showIndicator}
 					swapKey={`${active}:${label}`}
 					turnTimingDisplay={turnTimingDisplay}
 					trailing={

@@ -36,12 +36,9 @@ const dotStyles = DOTS.map(
 		}) as const
 );
 
-export interface TimelineActivityIndicatorProps extends Omit<SVGProps<SVGSVGElement>, "children"> {
-	active?: boolean;
-}
+export type TimelineActivityIndicatorProps = Omit<SVGProps<SVGSVGElement>, "children">;
 
 export const TimelineActivityIndicator = memo(function TimelineActivityIndicator({
-	active = true,
 	className,
 	...props
 }: TimelineActivityIndicatorProps) {
@@ -55,7 +52,6 @@ export const TimelineActivityIndicator = memo(function TimelineActivityIndicator
 			{...props}
 			aria-hidden="true"
 			className={cn("timeline-activity-indicator block size-6 shrink-0", className)}
-			data-active={active}
 			focusable="false"
 			viewBox="0 0 24 24"
 		>
