@@ -247,7 +247,17 @@ button {
 
 .timeline-activity-dot {
 	transform: translate(var(--timeline-x), var(--timeline-y));
+	transform-box: view-box;
 	transform-origin: 12px 12px;
+}
+
+.timeline-activity-orbit,
+.timeline-activity-pulse,
+.timeline-activity-breathe-primary,
+.timeline-activity-breathe-secondary {
+	transform-box: view-box;
+	transform-origin: 12px 12px;
+	will-change: transform;
 }
 
 .timeline-activity-light,
@@ -255,10 +265,29 @@ button {
 	mix-blend-mode: screen;
 }
 
+.timeline-activity-indicator .timeline-activity-orbit {
+	animation: timeline-activity-orbit 17.95s linear infinite;
+}
+
 .timeline-activity-indicator .timeline-activity-dot {
 	animation-duration: 6s;
 	animation-iteration-count: infinite;
 	animation-timing-function: ease-in-out;
+}
+
+.timeline-activity-indicator .timeline-activity-pulse {
+	animation: timeline-activity-pulse var(--timeline-pulse-duration) cubic-bezier(0.45, 0, 0.55, 1)
+		var(--timeline-pulse-delay) infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-breathe-primary {
+	animation: timeline-activity-breathe-primary 4.833s linear var(--timeline-breathe-primary-delay)
+		infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-breathe-secondary {
+	animation: timeline-activity-breathe-secondary 2.618s linear
+		var(--timeline-breathe-secondary-delay) infinite;
 }
 
 .timeline-activity-indicator .timeline-activity-dot-a {
@@ -279,6 +308,56 @@ button {
 
 .timeline-activity-indicator .timeline-activity-goo {
 	animation: timeline-activity-goo 6s ease-in-out infinite;
+}
+
+@keyframes timeline-activity-orbit {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes timeline-activity-pulse {
+	0%,
+	100% {
+		transform: translate(0, 0);
+	}
+	34% {
+		transform: translate(var(--timeline-pulse-x), var(--timeline-pulse-y));
+	}
+	68% {
+		transform: translate(var(--timeline-recoil-x), var(--timeline-recoil-y));
+	}
+}
+
+@keyframes timeline-activity-breathe-primary {
+	0%,
+	50%,
+	100% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.18);
+	}
+	75% {
+		transform: scale(0.82);
+	}
+}
+
+@keyframes timeline-activity-breathe-secondary {
+	0%,
+	50%,
+	100% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.08);
+	}
+	75% {
+		transform: scale(0.92);
+	}
 }
 
 @keyframes timeline-activity-luminance {
@@ -389,6 +468,10 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
 	.timeline-activity-indicator .timeline-activity-dot,
+	.timeline-activity-indicator .timeline-activity-orbit,
+	.timeline-activity-indicator .timeline-activity-pulse,
+	.timeline-activity-indicator .timeline-activity-breathe-primary,
+	.timeline-activity-indicator .timeline-activity-breathe-secondary,
 	.timeline-activity-indicator .timeline-activity-light,
 	.timeline-activity-indicator .timeline-activity-goo {
 		animation: none;
