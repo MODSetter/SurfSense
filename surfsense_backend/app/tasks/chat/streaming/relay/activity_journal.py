@@ -183,7 +183,7 @@ class ActivityJournal:
         *,
         status: ActivityStatus,
         completed_at: str | None = None,
-        details: list[str] | None = None,
+        progress_title: str | None = None,
     ) -> ActivityData | None:
         current = self.snapshot_by_id.get(activity_id)
         spec = self.spec_by_id.get(activity_id)
@@ -197,7 +197,11 @@ class ActivityJournal:
             status=status,
             started_at=current["startedAt"],
             completed_at=completed_at,
-            details=details if details is not None else current.get("details"),
+            progress_title=(
+                progress_title
+                if progress_title is not None
+                else current.get("progressTitle")
+            ),
             integration=current.get("integration"),
         )
         self.snapshot_by_id[activity_id] = snapshot
@@ -259,7 +263,7 @@ class ActivityJournal:
         return self.transition(
             current["id"],
             status=current["status"],
-            details=[detail],
+            progress_title=detail,
         )
 
     def _request_phase_close(

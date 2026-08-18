@@ -340,7 +340,7 @@ def test_terminal_activity_never_regresses() -> None:
     assert stale == completed
 
 
-def test_progress_updates_details_without_unpausing_activity() -> None:
+def test_progress_updates_title_without_unpausing_activity() -> None:
     awaiting = _awaiting("act_waiting", 1)
     journal = ActivityJournal.resume(activities=[awaiting])
     spec = _activity("write_file")
@@ -350,4 +350,12 @@ def test_progress_updates_details_without_unpausing_activity() -> None:
 
     assert updated is not None
     assert updated["status"] == "awaiting_approval"
-    assert updated["details"] == ["Reviewing sources (1/2)"]
+    assert updated["progressTitle"] == "Reviewing sources (1/2)"
+
+    completed = journal.transition(
+        awaiting["id"],
+        status="completed",
+        completed_at="2026-01-01T00:00:01+00:00",
+    )
+    assert completed is not None
+    assert "progressTitle" not in completed

@@ -68,7 +68,7 @@ class ProgressReporter:
 
         if len(self.coarse) < _MAX_COARSE_EVENTS:
             self.coarse.append(event)
-        # Chat surface: coarse events become activity details when a LangGraph
+        # Chat surface: coarse events become the current activity title when a LangGraph
         # run context is active (agent door). No-op elsewhere.
         _dispatch_chat_event(event)
 

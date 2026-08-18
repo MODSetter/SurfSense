@@ -25,7 +25,7 @@ export interface ActivityData {
 	title: string;
 	category: "file" | "research" | "artifact" | "connector" | "action";
 	iconKey: string;
-	details?: string[];
+	progressTitle?: string;
 	startedAt: string;
 	completedAt?: string;
 	integration?: {
@@ -108,10 +108,7 @@ export function parseActivityData(value: unknown): ActivityData | null {
 	) {
 		return null;
 	}
-	if (
-		activity.details !== undefined &&
-		(!Array.isArray(activity.details) || !activity.details.every(nonEmptyString))
-	) {
+	if (activity.progressTitle !== undefined && !nonEmptyString(activity.progressTitle)) {
 		return null;
 	}
 	const terminal = isTerminalActivityStatus(activity.status as ActivityStatus);
@@ -145,7 +142,7 @@ export function parseActivityData(value: unknown): ActivityData | null {
 		title: activity.title,
 		category: activity.category as ActivityData["category"],
 		iconKey: activity.iconKey,
-		...(activity.details ? { details: [...(activity.details as string[])] } : {}),
+		...(activity.progressTitle ? { progressTitle: activity.progressTitle as string } : {}),
 		startedAt: activity.startedAt,
 		...(activity.completedAt ? { completedAt: activity.completedAt as string } : {}),
 		...(integration ? { integration } : {}),

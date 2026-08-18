@@ -14,6 +14,7 @@ import {
 	type FC,
 	Fragment,
 	type ReactNode,
+	useEffect,
 	useId,
 	useMemo,
 	useState,
@@ -21,9 +22,9 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { PixelGridLoader } from "@/components/prompt-kit/pixel-grid-loader";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { TimelineActivityIndicator } from "@/components/ui/timeline-activity-indicator";
 import {
 	HitlApprovalCard,
 	PendingInterruptProvider,
@@ -43,7 +44,7 @@ import {
 	type TracePartLike,
 	type TurnRenderItem,
 } from "./grouping";
-import { getActivityIcon, getConnectorLogo } from "./presentation";
+import { getActivityIcon, getActivityPresentation, getConnectorLogo } from "./presentation";
 import { AssistantTurnTiming, useAssistantTurnTiming } from "./turn-timing";
 import type { TurnTimingDisplay } from "./turn-timing-state";
 
@@ -51,10 +52,6 @@ const noopSubmit = () => {};
 const TEXT_PART_COMPONENTS = { Text: MarkdownText };
 const TURN_HEADER_ROW_CLASS =
 	"group/trace h-8 w-fit max-w-full justify-start gap-2.5 px-0 py-0 text-left text-sm font-semibold text-muted-foreground hover:bg-transparent hover:text-foreground has-[>svg]:px-0 max-md:min-h-11";
-
-function effectiveActivityStatus(status: ActivityStatus, threadRunning: boolean): ActivityStatus {
-	return status === "running" && !threadRunning ? "interrupted" : status;
-}
 
 function partIsRunning(part: PartState | undefined): boolean {
 	return part?.status.type === "running";
@@ -177,7 +174,7 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 	activity,
 	threadRunning,
 }) => {
-	const status = effectiveActivityStatus(activity.status, threadRunning);
+	const { status, title } = getActivityPresentation(activity, threadRunning);
 	const Icon = getActivityIcon(activity.iconKey, activity.category);
 	return (
 		<TraceItemRow
@@ -185,21 +182,13 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 			logo={getConnectorLogo(activity.integration)}
 			title={
 				status === "running" ? (
-					<TextShimmerLoader text={activity.title} size="md" className="truncate font-normal!" />
+					<TextShimmerLoader text={title} size="md" className="truncate font-normal!" />
 				) : (
-					activity.title
+					title
 				)
 			}
 			status={status}
-		>
-			{activity.details?.length ? (
-				<ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
-					{activity.details.map((detail) => (
-						<li key={`${activity.id}:${detail}`}>{detail}</li>
-					))}
-				</ul>
-			) : null}
-		</TraceItemRow>
+		/>
 	);
 };
 
@@ -285,27 +274,61 @@ const TraceDetails: FC<{
 const TurnHeaderContent: FC<{
 	active: boolean;
 	label: string;
+	reducedMotion: boolean | null;
+	showIndicator: boolean;
 	swapKey: string;
 	turnTimingDisplay: TurnTimingDisplay | null;
 	trailing: ReactNode;
-}> = ({ active, label, swapKey, turnTimingDisplay, trailing }) => (
-	<>
-		<PixelGridLoader active={active} />
-		<FadeSwapText
-			swapKey={swapKey}
-			className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
-			contentClassName="truncate whitespace-nowrap"
-		>
-			{active ? (
-				<TextShimmerLoader text={label} size="md" className="truncate font-semibold!" />
-			) : (
-				label
-			)}
-		</FadeSwapText>
-		{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
-		{trailing}
-	</>
-);
+}> = ({ active, label, reducedMotion, showIndicator, swapKey, turnTimingDisplay, trailing }) => {
+	const [retainIndicatorSlot, setRetainIndicatorSlot] = useState(showIndicator);
+	const exiting = retainIndicatorSlot && !showIndicator;
+	const renderIndicatorSlot = showIndicator || retainIndicatorSlot;
+
+	useEffect(() => {
+		if (showIndicator) setRetainIndicatorSlot(true);
+	}, [showIndicator]);
+
+	return (
+		<>
+			{renderIndicatorSlot ? (
+				<motion.span
+					initial={false}
+					animate={{ opacity: showIndicator ? 1 : 0 }}
+					transition={{ duration: reducedMotion ? 0 : 0.14 }}
+					className="flex size-6 shrink-0 items-center"
+				>
+					<TimelineActivityIndicator />
+				</motion.span>
+			) : null}
+			<motion.span
+				initial={false}
+				animate={{ x: exiting ? -34 : 0 }}
+				transition={{
+					duration: exiting && !reducedMotion ? 0.22 : 0,
+					ease: [0.22, 1, 0.36, 1],
+				}}
+				onAnimationComplete={() => {
+					if (exiting && !showIndicator) setRetainIndicatorSlot(false);
+				}}
+				className="flex min-w-0 items-center gap-2.5"
+			>
+				<FadeSwapText
+					swapKey={swapKey}
+					className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
+					contentClassName="truncate whitespace-nowrap"
+				>
+					{active ? (
+						<TextShimmerLoader text={label} size="md" className="truncate font-semibold!" />
+					) : (
+						label
+					)}
+				</FadeSwapText>
+				{turnTimingDisplay ? <AssistantTurnTiming display={turnTimingDisplay} /> : null}
+				{trailing}
+			</motion.span>
+		</>
+	);
+};
 
 type SegmentRenderItem = Extract<TurnRenderItem, { kind: "segment" }>;
 
@@ -353,9 +376,16 @@ const TurnSegment: FC<{
 					segmentActivities.some((activity) => activity.status === "running"))) ||
 			segmentActivities.some((activity) => activity.status === "awaiting_approval")
 		: phase === "spellweaving";
+	const showIndicator =
+		item.live &&
+		(threadRunning ||
+			segmentActivities.some((activity) => activity.status === "awaiting_approval"));
+	const latestActivity = segmentActivities.at(-1);
+	const latestActivityTitle = latestActivity
+		? getActivityPresentation(latestActivity, threadRunning).title
+		: undefined;
 	const label = hasTrace
-		? (segmentActivities.at(-1)?.title ??
-			(active ? "Spellweaving" : "Reasoned through the request"))
+		? (latestActivityTitle ?? (active ? "Spellweaving" : "Reasoned through the request"))
 		: phase === "spellweaving"
 			? "Spellweaving"
 			: "Responded";
@@ -410,6 +440,8 @@ const TurnSegment: FC<{
 				<TurnHeaderContent
 					active={active}
 					label={label}
+					reducedMotion={reducedMotion}
+					showIndicator={showIndicator}
 					swapKey={`${active}:${label}`}
 					turnTimingDisplay={turnTimingDisplay}
 					trailing={

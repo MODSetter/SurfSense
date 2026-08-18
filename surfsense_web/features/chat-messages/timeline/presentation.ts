@@ -31,7 +31,18 @@ import {
 	Wrench,
 } from "lucide-react";
 import { CONNECTOR_TOOL_ICON_PATHS } from "@/contracts/enums/toolIcons";
-import type { ActivityData } from "@/lib/chat/activity-journal";
+import type { ActivityData, ActivityStatus } from "@/lib/chat/activity-journal";
+
+export function getActivityPresentation(
+	activity: ActivityData,
+	threadRunning: boolean
+): { status: ActivityStatus; title: string } {
+	const status = activity.status === "running" && !threadRunning ? "interrupted" : activity.status;
+	return {
+		status,
+		title: status === "running" && activity.progressTitle ? activity.progressTitle : activity.title,
+	};
+}
 
 const ACTIVITY_ICONS: Record<string, LucideIcon> = {
 	"badge-check": BadgeCheck,

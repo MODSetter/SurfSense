@@ -1004,7 +1004,7 @@ def test_completed_timing_frame_is_strict_and_cleanup_is_idempotent() -> None:
     )
 
 
-def test_custom_progress_uses_allowlisted_details_not_raw_messages() -> None:
+def test_custom_progress_uses_allowlisted_title_not_raw_messages() -> None:
     service = VercelStreamingService()
     builder = AssistantContentBuilder()
     state = AgentEventRelayState()
@@ -1032,7 +1032,7 @@ def test_custom_progress_uses_allowlisted_details_not_raw_messages() -> None:
 
     assert frame is not None
     data = _payload(frame)["data"]
-    assert data["details"] == ["Reviewing sources (2/5)"]
+    assert data["progressTitle"] == "Reviewing sources (2/5)"
     assert "Untrusted connector output" not in json.dumps(data)
 
 

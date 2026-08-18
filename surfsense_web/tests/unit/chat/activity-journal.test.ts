@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { getActivityPresentation } from "@/features/chat-messages/timeline/presentation";
 import {
 	extractActivityJournal,
 	mergeActivityTiming,
@@ -49,6 +50,36 @@ test("parses assistant-ui normalized activities with timing", () => {
 	assert.deepEqual(parsed?.timing, {
 		status: "paused",
 		activeDurationMs: 900,
+	});
+});
+
+test("uses progress titles while silently dropping legacy detail bullets", () => {
+	const parsed = parseActivityJournalPart({
+		type: "data-activities",
+		data: {
+			activities: [
+				{
+					...child,
+					status: "running",
+					title: "Checking the artifact",
+					progressTitle: "Rendering preview",
+					details: ["Old progress detail"],
+					completedAt: undefined,
+				},
+			],
+		},
+	});
+	const activity = parsed?.activities[0];
+
+	assert.equal(activity?.progressTitle, "Rendering preview");
+	assert.equal("details" in (activity ?? {}), false);
+	assert.deepEqual(activity ? getActivityPresentation(activity, true) : null, {
+		status: "running",
+		title: "Rendering preview",
+	});
+	assert.deepEqual(activity ? getActivityPresentation(activity, false) : null, {
+		status: "interrupted",
+		title: "Checking the artifact",
 	});
 });
 

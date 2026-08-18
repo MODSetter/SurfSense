@@ -245,13 +245,236 @@ button {
 	animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes pixel-on {
+.timeline-activity-dot {
+	transform: translate(var(--timeline-x), var(--timeline-y));
+	transform-box: view-box;
+	transform-origin: 12px 12px;
+}
+
+.timeline-activity-orbit,
+.timeline-activity-pulse,
+.timeline-activity-breathe-primary,
+.timeline-activity-breathe-secondary {
+	transform-box: view-box;
+	transform-origin: 12px 12px;
+	will-change: transform;
+}
+
+.timeline-activity-light,
+.timeline-activity-goo {
+	mix-blend-mode: screen;
+}
+
+.timeline-activity-indicator .timeline-activity-orbit {
+	animation: timeline-activity-orbit 17.95s linear infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-dot {
+	animation-duration: 6s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.timeline-activity-indicator .timeline-activity-pulse {
+	animation: timeline-activity-pulse var(--timeline-pulse-duration) cubic-bezier(0.45, 0, 0.55, 1)
+		var(--timeline-pulse-delay) infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-breathe-primary {
+	animation: timeline-activity-breathe-primary 4.833s linear var(--timeline-breathe-primary-delay)
+		infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-breathe-secondary {
+	animation: timeline-activity-breathe-secondary 2.618s linear
+		var(--timeline-breathe-secondary-delay) infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-dot-a {
+	animation-name: timeline-activity-pair-a;
+}
+
+.timeline-activity-indicator .timeline-activity-dot-b {
+	animation-name: timeline-activity-pair-b;
+}
+
+.timeline-activity-indicator .timeline-activity-dot-c {
+	animation-name: timeline-activity-pair-c;
+}
+
+.timeline-activity-indicator .timeline-activity-light {
+	animation: timeline-activity-luminance 6s ease-in-out infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-goo {
+	animation: timeline-activity-goo 6s ease-in-out infinite;
+}
+
+@keyframes timeline-activity-orbit {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes timeline-activity-pulse {
 	0%,
 	100% {
-		opacity: 0.15;
+		transform: translate(0, 0);
 	}
-	50% {
+	34% {
+		transform: translate(var(--timeline-pulse-x), var(--timeline-pulse-y));
+	}
+	68% {
+		transform: translate(var(--timeline-recoil-x), var(--timeline-recoil-y));
+	}
+}
+
+@keyframes timeline-activity-breathe-primary {
+	0%,
+	50%,
+	100% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.18);
+	}
+	75% {
+		transform: scale(0.82);
+	}
+}
+
+@keyframes timeline-activity-breathe-secondary {
+	0%,
+	50%,
+	100% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.08);
+	}
+	75% {
+		transform: scale(0.92);
+	}
+}
+
+@keyframes timeline-activity-luminance {
+	0%,
+	72%,
+	100% {
+		opacity: 0.92;
+	}
+	88% {
+		opacity: 0.72;
+	}
+	92% {
 		opacity: 1;
+	}
+}
+
+@keyframes timeline-activity-goo {
+	0%,
+	10%,
+	20%,
+	28%,
+	40%,
+	72%,
+	100% {
+		opacity: 0.08;
+	}
+	16%,
+	24%,
+	32% {
+		opacity: 0.48;
+	}
+	82% {
+		opacity: 0.56;
+	}
+	88% {
+		opacity: 0.82;
+	}
+	92% {
+		opacity: 0.18;
+	}
+}
+
+@keyframes timeline-activity-pair-a {
+	0%,
+	6%,
+	27%,
+	72%,
+	100% {
+		transform: translate(var(--timeline-x), var(--timeline-y)) scale(1);
+	}
+	16% {
+		transform: translate(var(--timeline-cross-x), var(--timeline-cross-y)) scale(1.08);
+	}
+	82% {
+		transform: translate(0, 0) scale(0.88);
+	}
+	88% {
+		transform: translate(0, 0) scale(0.64);
+	}
+	92% {
+		transform: translate(var(--timeline-burst-x), var(--timeline-burst-y)) scale(1.1);
+	}
+}
+
+@keyframes timeline-activity-pair-b {
+	0%,
+	14%,
+	35%,
+	72%,
+	100% {
+		transform: translate(var(--timeline-x), var(--timeline-y)) scale(1);
+	}
+	24% {
+		transform: translate(var(--timeline-cross-x), var(--timeline-cross-y)) scale(1.08);
+	}
+	82% {
+		transform: translate(0, 0) scale(0.88);
+	}
+	88% {
+		transform: translate(0, 0) scale(0.64);
+	}
+	92% {
+		transform: translate(var(--timeline-burst-x), var(--timeline-burst-y)) scale(1.1);
+	}
+}
+
+@keyframes timeline-activity-pair-c {
+	0%,
+	22%,
+	43%,
+	72%,
+	100% {
+		transform: translate(var(--timeline-x), var(--timeline-y)) scale(1);
+	}
+	32% {
+		transform: translate(var(--timeline-cross-x), var(--timeline-cross-y)) scale(1.08);
+	}
+	82% {
+		transform: translate(0, 0) scale(0.88);
+	}
+	88% {
+		transform: translate(0, 0) scale(0.64);
+	}
+	92% {
+		transform: translate(var(--timeline-burst-x), var(--timeline-burst-y)) scale(1.1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.timeline-activity-indicator .timeline-activity-dot,
+	.timeline-activity-indicator .timeline-activity-orbit,
+	.timeline-activity-indicator .timeline-activity-pulse,
+	.timeline-activity-indicator .timeline-activity-breathe-primary,
+	.timeline-activity-indicator .timeline-activity-breathe-secondary,
+	.timeline-activity-indicator .timeline-activity-light,
+	.timeline-activity-indicator .timeline-activity-goo {
+		animation: none;
 	}
 }
 
