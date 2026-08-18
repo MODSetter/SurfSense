@@ -576,7 +576,7 @@ class Config:
         os.getenv("SANDBOX_OPERATION_TIMEOUT_SECONDS", "200")
     )
     SANDBOX_MAX_SESSIONS_PER_WORKSPACE = int(
-        os.getenv("SANDBOX_MAX_SESSIONS_PER_WORKSPACE", "2")
+        os.getenv("SANDBOX_MAX_SESSIONS_PER_WORKSPACE", "5")
     )
     ARTIFACT_MAX_FILE_BYTES = int(os.getenv("ARTIFACT_MAX_FILE_BYTES", "31457280"))
 
