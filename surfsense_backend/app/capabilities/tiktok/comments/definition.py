@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.tiktok.comments.executor import build_comments_executor
 from app.capabilities.tiktok.comments.schemas import CommentsInput, CommentsOutput
 
@@ -18,6 +23,13 @@ TIKTOK_COMMENTS = Capability(
     executor=build_comments_executor(),
     billing_unit=BillingUnit.TIKTOK_COMMENT,
     docs_url="/docs/connectors/native/tiktok",
+    activity=ActivityDescriptor(
+        active_title="Reviewing TikTok comments",
+        completed_title="Reviewed TikTok comments",
+        category="research",
+        icon_key="search",
+        integration_key="tiktok",
+    ),
 )
 
 register_capability(TIKTOK_COMMENTS)

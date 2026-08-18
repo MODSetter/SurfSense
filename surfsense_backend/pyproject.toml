@@ -58,7 +58,6 @@ dependencies = [
     "langchain-unstructured>=1.0.1",
     "slowapi>=0.1.9",
     "pypandoc_binary>=1.16.2",
-    "typst>=0.14.0",
     "daytona>=0.146.0",
     "langchain-daytona>=0.0.2",
     "pypandoc>=1.16.2",
@@ -88,6 +87,8 @@ dependencies = [
     "scrapling[fetchers]>=0.4.11",
     "posthog>=6.0.0",
     "dulwich>=0.22.0",
+    "opensandbox==0.1.15",
+    "opensandbox-code-interpreter==0.1.2",
 ]
 
 [project.optional-dependencies]

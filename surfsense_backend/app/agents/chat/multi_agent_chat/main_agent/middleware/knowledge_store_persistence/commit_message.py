@@ -7,6 +7,8 @@ import logging
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from app.tasks.chat.llm_history_normalizer import assistant_content_to_llm_text
+
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
@@ -71,9 +73,9 @@ async def generate_commit_message(
             ),
             timeout=_GENERATION_TIMEOUT_SECONDS,
         )
-        content = getattr(reply, "content", "")
-        if not isinstance(content, str):
-            content = str(content)
+        # A reasoning model answers in content blocks, so the subject has to be
+        # read out of them: ``str()`` on the list commits the model's thinking.
+        content = assistant_content_to_llm_text(getattr(reply, "content", ""))
         subject = content.strip().splitlines()[0].strip() if content.strip() else ""
         if subject:
             return subject

@@ -9,8 +9,8 @@
       entry in `<specialists>`).
     - `description` — the FULL task prompt. The specialist cannot see this
       thread, so include all context and constraints, plus what you need
-      back. The specialist will respond in its own format — don't dictate
-      one.
+      back. The specialist owns its response structure; preserve and explicitly
+      pass all user constraints, including any required artifact format.
   - Args (batch mode):
     - `tasks` — array of `{description, subagent_type}` objects to fan out
       concurrently. Mutually exclusive with single-mode args. Use when a

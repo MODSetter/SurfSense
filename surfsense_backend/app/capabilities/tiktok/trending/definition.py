@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.tiktok.trending.executor import build_trending_executor
 from app.capabilities.tiktok.trending.schemas import TrendingInput, TrendingOutput
 
@@ -18,6 +23,13 @@ TIKTOK_TRENDING = Capability(
     executor=build_trending_executor(),
     billing_unit=BillingUnit.TIKTOK_VIDEO,
     docs_url="/docs/connectors/native/tiktok",
+    activity=ActivityDescriptor(
+        active_title="Reviewing TikTok trends",
+        completed_title="Reviewed TikTok trends",
+        category="research",
+        icon_key="search",
+        integration_key="tiktok",
+    ),
 )
 
 register_capability(TIKTOK_TRENDING)

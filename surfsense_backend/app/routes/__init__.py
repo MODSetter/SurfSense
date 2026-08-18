@@ -11,6 +11,7 @@ import app.capabilities.tiktok
 import app.capabilities.walmart
 import app.capabilities.web
 import app.capabilities.youtube  # noqa: F401
+from app.artifacts.access.authenticated import build_authenticated_artifact_router
 from app.automations.api import router as automations_router
 from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
@@ -25,12 +26,14 @@ from .agent_revert_route import router as agent_revert_router
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .artifacts_routes import router as artifacts_router
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
 from .composio_routes import router as composio_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
 from .discord_add_connector_route import router as discord_add_connector_router
+from .document_files_routes import router as document_files_router
 from .documents_routes import router as documents_router
 from .dropbox_add_connector_route import router as dropbox_add_connector_router
 from .editor_routes import router as editor_router
@@ -51,7 +54,6 @@ from .google_drive_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
-from .image_generation_routes import router as image_generation_router
 from .incentive_tasks_routes import router as incentive_tasks_router
 from .jira_add_connector_route import router as jira_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router
@@ -70,14 +72,12 @@ from .personal_access_tokens_routes import router as personal_access_tokens_rout
 from .prompts_routes import router as prompts_router
 from .public_chat_routes import router as public_chat_router
 from .rbac_routes import router as rbac_router
-from .reports_routes import router as reports_router
 from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .stripe_routes import router as stripe_router
 from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
-from .video_presentations_routes import router as video_presentations_router
 from .workspaces_routes import router as workspaces_router
 from .youtube_routes import router as youtube_router
 
@@ -88,6 +88,8 @@ router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(export_router)
 router.include_router(documents_router)
+router.include_router(document_files_router)
+router.include_router(artifacts_router)
 router.include_router(folders_router)
 _gateway_enabled_dep = [Depends(require_gateway_enabled)]
 router.include_router(gateway_config_router)
@@ -109,11 +111,6 @@ router.include_router(agent_flags_router)  # GET /agent/flags
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
-router.include_router(
-    video_presentations_router
-)  # Video presentation status and streaming
-router.include_router(reports_router)  # Report CRUD and multi-format export
-router.include_router(image_generation_router)  # Image generation via litellm
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
@@ -151,3 +148,6 @@ router.include_router(team_memory_router)  # Workspace team memory
 router.include_router(automations_router)  # Automations CRUD + run history
 router.include_router(file_storage_router)  # Original file metadata + download
 router.include_router(build_capabilities_router())  # Scraper-API capability doors (05)
+router.include_router(
+    build_authenticated_artifact_router()
+)  # Authenticated artifact generation (dev API)

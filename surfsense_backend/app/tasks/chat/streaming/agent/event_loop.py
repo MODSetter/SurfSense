@@ -9,6 +9,7 @@ intent classification, and interrupt detection.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from typing import Any
 
 from app.agents.chat.multi_agent_chat.main_agent.middleware.kb_persistence import (
@@ -20,6 +21,7 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.knowledge_store_pers
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.services.new_streaming_service import VercelStreamingService
+from app.services.streaming.types import ActivityData
 from app.tasks.chat.message_parts_normalizer import (
     final_assistant_parts_from_messages,
 )
@@ -30,7 +32,11 @@ from app.tasks.chat.streaming.contract.file_contract import (
 )
 from app.tasks.chat.streaming.graph_stream.event_stream import stream_output
 from app.tasks.chat.streaming.helpers.interrupt_inspector import (
-    all_interrupt_values,
+    all_interrupt_entries,
+)
+from app.tasks.chat.streaming.relay.activity_sse import (
+    emit_activity_frame,
+    emit_activity_timing_frame,
 )
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import safe_float
@@ -45,10 +51,10 @@ async def stream_agent_events(
     input_data: Any,
     streaming_service: VercelStreamingService,
     result: StreamResult,
-    step_prefix: str = "thinking",
-    initial_step_id: str | None = None,
-    initial_step_title: str = "",
-    initial_step_items: list[str] | None = None,
+    step_prefix: str = "turn",
+    initial_activities: list[ActivityData] | None = None,
+    resume_activity_id_by_tool_call: dict[str, str] | None = None,
+    resume_tool_call_ids: list[str] | None = None,
     *,
     fallback_commit_workspace_id: int | None = None,
     fallback_commit_created_by_id: str | None = None,
@@ -63,6 +69,11 @@ async def stream_agent_events(
     ``accumulated_text`` and interrupt state. See ``StreamResult`` for the
     side-channel surface populated by the underlying relay.
     """
+
+    async def load_agent_state() -> Any:
+        return await agent.aget_state(config)
+
+    result.load_agent_state = load_agent_state
     async for sse in stream_output(
         agent=agent,
         config=config,
@@ -70,9 +81,9 @@ async def stream_agent_events(
         streaming_service=streaming_service,
         result=result,
         step_prefix=step_prefix,
-        initial_step_id=initial_step_id,
-        initial_step_title=initial_step_title,
-        initial_step_items=initial_step_items,
+        initial_activities=initial_activities,
+        resume_activity_id_by_tool_call=resume_activity_id_by_tool_call,
+        resume_tool_call_ids=resume_tool_call_ids,
         content_builder=content_builder,
         runtime_context=runtime_context,
     ):
@@ -125,7 +136,8 @@ async def stream_agent_events(
 
     # A turn paused for approval is not a finished turn: the graph resumes into
     # this same working copy, so the copy has to outlive the stream.
-    pending_values = all_interrupt_values(state)
+    pending_entries = all_interrupt_entries(state)
+    pending_values = [value for value, _ in pending_entries]
 
     # Same safety net for the git-native path. The pending state is the turn's
     # working copy on disk, so no state markers gate it: no copy (or aafter_agent
@@ -216,10 +228,34 @@ async def stream_agent_events(
 
     if pending_values:
         result.is_interrupted = True
+        yield emit_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=content_builder,
+            snapshot=result.activity_timer.pause(),
+        )
+        activity_state = result.activity_state
+        if activity_state is not None:
+            for snapshot in activity_state.journal.await_approval():
+                yield emit_activity_frame(
+                    streaming_service=streaming_service,
+                    content_builder=content_builder,
+                    snapshot=snapshot,
+                )
         # One frame per paused subagent so each parallel HITL renders its own
         # approval card on the wire. Order matches ``state.interrupts``, which
         # the resume slicer in
         # ``checkpointed_subagent_middleware.resume_routing`` consumes in the
         # same order — keeping emit and resume in lock-step.
-        for interrupt_value in pending_values:
-            yield streaming_service.format_interrupt_request(interrupt_value)
+        for interrupt_value, interrupt_id in pending_entries:
+            yield streaming_service.format_interrupt_request(
+                interrupt_value, interrupt_id=interrupt_id
+            )
+    elif result.activity_state is not None:
+        for snapshot in result.activity_state.journal.complete_open_phases(
+            completed_at=datetime.now(UTC).isoformat()
+        ):
+            yield emit_activity_frame(
+                streaming_service=streaming_service,
+                content_builder=content_builder,
+                snapshot=snapshot,
+            )

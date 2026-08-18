@@ -2,10 +2,8 @@
 
 import {
 	ActionBarPrimitive,
-	AuiIf,
 	MessagePrimitive,
 	ThreadPrimitive,
-	type ToolCallMessagePartComponent,
 	useAuiState,
 } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -13,13 +11,13 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { type FC, type ReactNode, useState } from "react";
 import { CitationMetadataProvider } from "@/components/assistant-ui/citation-metadata-context";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
-import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateResumeToolUI } from "@/components/tool-ui/generate-resume";
+import { LegacyDeliverableToolUI } from "@/components/tool-ui/legacy-deliverable";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/podcast";
+import { SaveArtifactToolUI } from "@/components/tool-ui/save-artifact";
+import { InterleavedMessageParts } from "@/features/chat-messages/timeline";
+import { copyToClipboard } from "@/lib/utils";
 
 const GenerateVideoPresentationToolUI = dynamic(
 	() =>
@@ -29,7 +27,15 @@ const GenerateVideoPresentationToolUI = dynamic(
 	{ ssr: false }
 );
 
-const NullToolUi: ToolCallMessagePartComponent = () => null;
+const PUBLIC_BODY_TOOLS = {
+	save_artifact: SaveArtifactToolUI,
+	generate_podcast: GeneratePodcastToolUI,
+	generate_report: LegacyDeliverableToolUI,
+	generate_resume: LegacyDeliverableToolUI,
+	generate_video_presentation: GenerateVideoPresentationToolUI,
+	display_image: GenerateImageToolUI,
+	generate_image: GenerateImageToolUI,
+} as const;
 
 interface PublicThreadProps {
 	footer?: ReactNode;
@@ -158,23 +164,7 @@ const PublicAssistantMessage: FC = () => {
 		>
 			<CitationMetadataProvider>
 				<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-					<MessagePrimitive.Parts
-						components={{
-							Text: MarkdownText,
-							Reasoning: ReasoningMessagePart,
-							tools: {
-								by_name: {
-									generate_podcast: GeneratePodcastToolUI,
-									generate_report: GenerateReportToolUI,
-									generate_resume: GenerateResumeToolUI,
-									generate_video_presentation: GenerateVideoPresentationToolUI,
-									display_image: GenerateImageToolUI,
-									generate_image: GenerateImageToolUI,
-								},
-								Fallback: NullToolUi,
-							},
-						}}
-					/>
+					<InterleavedMessageParts bodyTools={PUBLIC_BODY_TOOLS} showReasoning={false} />
 				</div>
 
 				<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
@@ -186,22 +176,34 @@ const PublicAssistantMessage: FC = () => {
 };
 
 const PublicAssistantActionBar: FC = () => {
+	const content = useAuiState((state) => state.message.content);
+	const [copied, setCopied] = useState(false);
+	const answer = Array.isArray(content)
+		? content
+				.filter(
+					(part): part is { type: "text"; text: string } =>
+						part.type === "text" && typeof part.text === "string"
+				)
+				.map((part) => part.text)
+				.join("\n\n")
+		: "";
 	return (
 		<ActionBarPrimitive.Root
 			autohide="not-last"
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
 		>
-			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AuiIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AuiIf>
-					<AuiIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AuiIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
+			<TooltipIconButton
+				tooltip="Copy answer"
+				disabled={!answer}
+				onClick={async () => {
+					if (!(await copyToClipboard(answer))) return;
+					setCopied(true);
+					window.setTimeout(() => setCopied(false), 1500);
+				}}
+			>
+				{copied ? <CheckIcon /> : <CopyIcon />}
+			</TooltipIconButton>
 		</ActionBarPrimitive.Root>
 	);
 };

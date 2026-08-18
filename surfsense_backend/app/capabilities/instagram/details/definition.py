@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.instagram.details.executor import build_details_executor
 from app.capabilities.instagram.details.schemas import DetailsInput, DetailsOutput
 
@@ -18,6 +23,13 @@ INSTAGRAM_DETAILS = Capability(
     executor=build_details_executor(),
     billing_unit=BillingUnit.INSTAGRAM_ITEM,
     docs_url="/docs/connectors/native/instagram",
+    activity=ActivityDescriptor(
+        active_title="Reviewing Instagram",
+        completed_title="Reviewed Instagram",
+        category="research",
+        icon_key="search",
+        integration_key="instagram",
+    ),
 )
 
 register_capability(INSTAGRAM_DETAILS)

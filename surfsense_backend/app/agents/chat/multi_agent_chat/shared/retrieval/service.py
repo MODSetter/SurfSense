@@ -2,8 +2,8 @@
 
 The tail of the retrieval spine: rerank → adapt → render, registering each
 shown passage for ``[n]`` citation. Hybrid search itself lives in
-``hybrid_search``; callers (the ``search_knowledge_base`` tool) pass its hits
-straight into :func:`build_context`.
+``hybrid_search``; callers pass its document hits straight into
+:func:`build_context`.
 """
 
 from __future__ import annotations

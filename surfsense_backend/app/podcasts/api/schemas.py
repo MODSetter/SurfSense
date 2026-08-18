@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.podcasts.duration_limits import (
     DEFAULT_MAX_SECONDS,
@@ -74,19 +74,6 @@ class LanguageOptions(BaseModel):
     allows_custom: bool
 
 
-class PodcastSummary(BaseModel):
-    """Lightweight list item."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    title: str
-    status: PodcastStatus
-    created_at: datetime
-    workspace_id: int
-    thread_id: int | None = None
-
-
 class PodcastDetail(BaseModel):
     """Full podcast state for the detail view and action responses."""
 
@@ -102,9 +89,10 @@ class PodcastDetail(BaseModel):
     created_at: datetime
     workspace_id: int
     thread_id: int | None
+    artifact_id: int | None = None
 
     @classmethod
-    def of(cls, podcast: Podcast) -> PodcastDetail:
+    def of(cls, podcast: Podcast, *, artifact_id: int | None = None) -> PodcastDetail:
         return cls(
             id=podcast.id,
             title=podcast.title,
@@ -118,4 +106,9 @@ class PodcastDetail(BaseModel):
             created_at=podcast.created_at,
             workspace_id=podcast.workspace_id,
             thread_id=podcast.thread_id,
+            artifact_id=artifact_id,
         )
+
+    @classmethod
+    async def resolve(cls, session, podcast: Podcast) -> PodcastDetail:
+        return cls.of(podcast, artifact_id=podcast.artifact_id)

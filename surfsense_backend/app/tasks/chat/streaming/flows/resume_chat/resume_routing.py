@@ -27,6 +27,7 @@ class ResumeRoutingPayload:
 
     routed_resume_value: dict[str, Any]
     lg_resume_map: dict[str, Any]
+    pending_tool_call_ids: list[str]
 
 
 async def build_resume_routing(
@@ -43,21 +44,45 @@ async def build_resume_routing(
     """
     from app.agents.chat.multi_agent_chat.main_agent.middleware.checkpointed_subagent_middleware.resume_routing import (
         build_lg_resume_map,
+        build_parent_resume_map,
+        collect_pending_parent_interrupts,
         collect_pending_tool_calls,
         slice_decisions_by_tool_call,
     )
 
     parent_state = await agent.aget_state({"configurable": {"thread_id": str(chat_id)}})
     pending = collect_pending_tool_calls(parent_state)
+    parent_pending = collect_pending_parent_interrupts(parent_state)
     _perf_log.info(
-        "[hitl_route] resume_entry chat_id=%s decisions=%d pending_subagents=%d",
+        "[hitl_route] resume_entry chat_id=%s decisions=%d pending_subagents=%d "
+        "pending_parent=%d",
         chat_id,
         len(decisions),
         len(pending),
+        len(parent_pending),
     )
+
+    if parent_pending:
+        # Parent-side interrupts route by Interrupt.id with no subagent bridge.
+        # A mix with subagent pauses can't occur (they fire pre-delegation);
+        # fail loud rather than mis-route.
+        if pending:
+            raise ValueError(
+                "Cannot resume: both parent-side and subagent-side interrupts "
+                f"are pending (parent={len(parent_pending)}, "
+                f"subagent={len(pending)}); mixed HITL routing is unsupported."
+            )
+        lg_resume_map = build_parent_resume_map(decisions, parent_pending)
+        return ResumeRoutingPayload(
+            routed_resume_value={},
+            lg_resume_map=lg_resume_map,
+            pending_tool_call_ids=[],
+        )
+
     routed_resume_value = slice_decisions_by_tool_call(decisions, pending)
     lg_resume_map = build_lg_resume_map(parent_state, routed_resume_value)
     return ResumeRoutingPayload(
         routed_resume_value=routed_resume_value,
         lg_resume_map=lg_resume_map,
+        pending_tool_call_ids=[tool_call_id for tool_call_id, _ in pending],
     )

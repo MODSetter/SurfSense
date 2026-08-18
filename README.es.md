@@ -145,7 +145,7 @@ El espacio de trabajo de investigación que convirtió a SurfSense en la alterna
 
 **Estudio de entregables**
 
-- Generador de informes con IA con exportación a PDF, DOCX, HTML, LaTeX, EPUB, ODT o texto plano.
+- Artefactos de IA descargables para informes, currículums, documentos, hojas de cálculo y presentaciones.
 - Podcasts de IA con dos presentadores a partir de cualquier documento o carpeta en menos de 20 segundos.
 - Presentaciones de diapositivas editables, resúmenes en video narrados y generación de imágenes con IA.
 

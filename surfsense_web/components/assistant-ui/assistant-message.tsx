@@ -1,11 +1,8 @@
 import {
 	ActionBarMorePrimitive,
 	ActionBarPrimitive,
-	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
-	type ToolCallMessagePartComponent,
-	useAui,
 	useAuiState,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
@@ -34,9 +31,7 @@ import {
 	CitationMetadataProvider,
 	useAllCitationMetadata,
 } from "@/components/assistant-ui/citation-metadata-context";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
-import { ReasoningMessagePart } from "@/components/assistant-ui/reasoning-message-part";
 import { RevertTurnButton } from "@/components/assistant-ui/revert-turn-button";
 import {
 	type TokenUsageModelBreakdown,
@@ -46,6 +41,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import type { SerializableCitation } from "@/components/tool-ui/citation";
+import { LegacyDeliverableToolUI } from "@/components/tool-ui/legacy-deliverable";
 import {
 	openSafeNavigationHref,
 	resolveSafeNavigationHref,
@@ -60,13 +56,14 @@ import {
 } from "@/components/ui/drawer";
 import { DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { withArtifactAnchor } from "@/features/chat-artifacts";
+import { InterleavedMessageParts } from "@/features/chat-messages/timeline";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { formatMessageTimestamp } from "@/lib/format-date";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { tryGetHostname } from "@/lib/url";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 // Captured once at module load — survives client-side navigations that strip the query param.
 const IS_QUICK_ASSIST_WINDOW =
@@ -74,17 +71,10 @@ const IS_QUICK_ASSIST_WINDOW =
 	new URLSearchParams(window.location.search).get("quickAssist") === "true";
 
 // Dynamically import tool UI components to avoid loading them in main bundle
-const GenerateReportToolUI = dynamic(
+const SaveArtifactToolUI = dynamic(
 	() =>
-		import("@/components/tool-ui/generate-report").then((m) => ({
-			default: m.GenerateReportToolUI,
-		})),
-	{ ssr: false }
-);
-const GenerateResumeToolUI = dynamic(
-	() =>
-		import("@/components/tool-ui/generate-resume").then((m) => ({
-			default: m.GenerateResumeToolUI,
+		import("@/components/tool-ui/save-artifact").then((m) => ({
+			default: m.SaveArtifactToolUI,
 		})),
 	{ ssr: false }
 );
@@ -419,22 +409,19 @@ const MessageInfoDropdown: FC<{ chatTurnId: string | null | undefined }> = ({ ch
  * Tools rendered in the message BODY — value-add deliverables only.
  *
  * Process tools (connector CRUD, sandbox execute, memory updates,
- * etc.) are NOT here; they render in the timeline via the slice's
- * tool registry (see ``features/chat-messages/timeline``). The body
- * opts out of every other tool by registering ``NullBodyTool`` as the
- * fallback — any tool name not in this map renders nothing in the
- * body and is picked up by the timeline instead.
+ * etc.) are grouped into chronological trace segments. This map is the
+ * single frontend boundary between rich deliverable cards and opaque
+ * backend-owned process activities.
  */
 const BODY_TOOLS = {
-	generate_report: withArtifactAnchor(GenerateReportToolUI),
-	generate_resume: withArtifactAnchor(GenerateResumeToolUI),
+	save_artifact: withArtifactAnchor(SaveArtifactToolUI),
+	generate_report: LegacyDeliverableToolUI,
+	generate_resume: LegacyDeliverableToolUI,
 	generate_podcast: withArtifactAnchor(GeneratePodcastToolUI),
 	generate_video_presentation: withArtifactAnchor(GenerateVideoPresentationToolUI),
 	display_image: withArtifactAnchor(GenerateImageToolUI),
 	generate_image: withArtifactAnchor(GenerateImageToolUI),
 } as const;
-
-const NullBodyTool: ToolCallMessagePartComponent = () => null;
 
 const AssistantMessageInner: FC = () => {
 	const isMobile = !useMediaQuery("(min-width: 768px)");
@@ -442,16 +429,7 @@ const AssistantMessageInner: FC = () => {
 	return (
 		<CitationMetadataProvider>
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-				<MessagePrimitive.Parts
-					components={{
-						Text: MarkdownText,
-						Reasoning: ReasoningMessagePart,
-						tools: {
-							by_name: BODY_TOOLS,
-							Fallback: NullBodyTool,
-						},
-					}}
-				/>
+				<InterleavedMessageParts bodyTools={BODY_TOOLS} />
 				<MessageError />
 			</div>
 
@@ -624,7 +602,8 @@ export const AssistantMessage: FC = () => {
 
 const AssistantActionBar: FC = () => {
 	const isLast = useAuiState((s) => s.message.isLast);
-	const aui = useAui();
+	const content = useAuiState((s) => s.message.content);
+	const [copiedAnswer, setCopiedAnswer] = useState(false);
 	const api = useElectronAPI();
 	// Surface the persisted ``chat_turn_id`` so the per-turn revert
 	// affordance can scope to just this message's actions. Streamed
@@ -635,6 +614,30 @@ const AssistantActionBar: FC = () => {
 	});
 
 	const isQuickAssist = !!api?.replaceText && IS_QUICK_ASSIST_WINDOW;
+	const answerText = Array.isArray(content)
+		? content
+				.filter(
+					(part): part is { type: "text"; text: string } =>
+						part.type === "text" && typeof part.text === "string"
+				)
+				.map((part) => part.text)
+				.join("\n\n")
+		: "";
+	const copyAnswer = async () => {
+		if (!(await copyToClipboard(answerText))) return;
+		setCopiedAnswer(true);
+		window.setTimeout(() => setCopiedAnswer(false), 1500);
+	};
+	const downloadAnswer = () => {
+		const url = URL.createObjectURL(
+			new Blob([answerText], { type: "text/markdown;charset=utf-8" })
+		);
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = "response.md";
+		anchor.click();
+		URL.revokeObjectURL(url);
+	};
 
 	return (
 		<ActionBarPrimitive.Root
@@ -643,21 +646,16 @@ const AssistantActionBar: FC = () => {
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
-			<ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AuiIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AuiIf>
-					<AuiIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AuiIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
-			<ActionBarPrimitive.ExportMarkdown asChild>
-				<TooltipIconButton tooltip="Download as Markdown">
-					<DownloadIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.ExportMarkdown>
+			<TooltipIconButton tooltip="Copy answer" onClick={copyAnswer} disabled={!answerText}>
+				{copiedAnswer ? <CheckIcon /> : <CopyIcon />}
+			</TooltipIconButton>
+			<TooltipIconButton
+				tooltip="Download answer as Markdown"
+				onClick={downloadAnswer}
+				disabled={!answerText}
+			>
+				<DownloadIcon />
+			</TooltipIconButton>
 			{isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Regenerate response">
@@ -669,8 +667,7 @@ const AssistantActionBar: FC = () => {
 				<TooltipIconButton
 					tooltip="Paste back into source app"
 					onClick={() => {
-						const text = aui.message().getCopyText();
-						api?.replaceText(text);
+						api?.replaceText(answerText);
 					}}
 				>
 					<ClipboardPaste />

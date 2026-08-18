@@ -11,7 +11,7 @@ from app.agents.video_presentation.graph import graph as video_presentation_grap
 from app.agents.video_presentation.state import State as VideoPresentationState
 from app.celery_app import celery_app
 from app.config import config as app_config
-from app.db import VideoPresentation, VideoPresentationStatus
+from app.db import VideoPresentationRun, VideoPresentationStatus
 from app.observability import analytics as ph_analytics
 from app.services.billable_calls import (
     BillingSettlementError,
@@ -61,13 +61,16 @@ def generate_video_presentation_task(
             )
         )
     except Exception as e:
-        logger.error(f"Error generating video presentation: {e!s}")
+        error_text = str(e)
+        logger.error(f"Error generating video presentation: {error_text}")
         # Mark FAILED in a fresh loop — the previous loop is closed.
         # Swallow secondary failures; the row will simply stay in
         # GENERATING and be flushed by the periodic stale cleanup.
         try:
             run_async_celery_task(
-                lambda: _mark_video_presentation_failed(video_presentation_id)
+                lambda: _mark_video_presentation_failed(
+                    video_presentation_id, error=error_text
+                )
             )
         except Exception:
             logger.exception(
@@ -77,18 +80,21 @@ def generate_video_presentation_task(
         return {"status": "failed", "video_presentation_id": video_presentation_id}
 
 
-async def _mark_video_presentation_failed(video_presentation_id: int) -> None:
-    """Mark a video presentation as failed in the database."""
+async def _mark_video_presentation_failed(
+    video_presentation_id: int, *, error: str | None = None
+) -> None:
+    """Mark a video presentation run as failed, recording why."""
     async with get_celery_session_maker()() as session:
         try:
             result = await session.execute(
-                select(VideoPresentation).filter(
-                    VideoPresentation.id == video_presentation_id
+                select(VideoPresentationRun).filter(
+                    VideoPresentationRun.id == video_presentation_id
                 )
             )
             video_pres = result.scalars().first()
             if video_pres:
                 video_pres.status = VideoPresentationStatus.FAILED
+                video_pres.error = error
                 await session.commit()
         except Exception as e:
             logger.error(f"Failed to mark video presentation as failed: {e}")
@@ -103,14 +109,14 @@ async def _generate_video_presentation(
     """Generate video presentation and update existing record."""
     async with get_celery_session_maker()() as session:
         result = await session.execute(
-            select(VideoPresentation).filter(
-                VideoPresentation.id == video_presentation_id
+            select(VideoPresentationRun).filter(
+                VideoPresentationRun.id == video_presentation_id
             )
         )
         video_pres = result.scalars().first()
 
         if not video_pres:
-            raise ValueError(f"VideoPresentation {video_presentation_id} not found")
+            raise ValueError(f"VideoPresentationRun {video_presentation_id} not found")
 
         try:
             video_pres.status = VideoPresentationStatus.GENERATING
@@ -128,12 +134,13 @@ async def _generate_video_presentation(
                 )
             except ValueError as resolve_err:
                 logger.error(
-                    "VideoPresentation %s: cannot resolve billing for workspace=%s: %s",
+                    "VideoPresentationRun %s: cannot resolve billing for workspace=%s: %s",
                     video_pres.id,
                     workspace_id,
                     resolve_err,
                 )
                 video_pres.status = VideoPresentationStatus.FAILED
+                video_pres.error = "Could not resolve billing for this workspace."
                 await session.commit()
                 return {
                     "status": "failed",
@@ -174,13 +181,14 @@ async def _generate_video_presentation(
                     )
             except QuotaInsufficientError as exc:
                 logger.info(
-                    "VideoPresentation %s denied: out of credits "
+                    "VideoPresentationRun %s denied: out of credits "
                     "(balance=%d remaining=%d)",
                     video_pres.id,
                     exc.balance_micros,
                     exc.remaining_micros,
                 )
                 video_pres.status = VideoPresentationStatus.FAILED
+                video_pres.error = "Out of credits for premium video generation."
                 await session.commit()
                 return {
                     "status": "failed",
@@ -189,10 +197,11 @@ async def _generate_video_presentation(
                 }
             except BillingSettlementError:
                 logger.exception(
-                    "VideoPresentation %s: premium billing settlement failed",
+                    "VideoPresentationRun %s: premium billing settlement failed",
                     video_pres.id,
                 )
                 video_pres.status = VideoPresentationStatus.FAILED
+                video_pres.error = "Billing settlement failed."
                 await session.commit()
                 return {
                     "status": "failed",
@@ -226,17 +235,25 @@ async def _generate_video_presentation(
                 sc_data = sc.model_dump() if hasattr(sc, "model_dump") else dict(sc)
                 serializable_scene_codes.append(sc_data)
 
-            video_pres.slides = serializable_slides
-            video_pres.scene_codes = serializable_scene_codes
+            from app.artifacts.media.video.record import record as record_video
+
+            _slides, saved_artifact = await record_video(
+                session,
+                video_pres,
+                serializable_slides,
+                serializable_scene_codes,
+            )
+
+            if saved_artifact is not None:
+                video_pres.artifact_id = saved_artifact.artifact_id
             video_pres.status = VideoPresentationStatus.READY
             logger.info(
-                "VideoPresentation %s: committing READY slides=%d scene_codes=%d",
+                "VideoPresentationRun %s: committing READY artifact_id=%s",
                 video_pres.id,
-                len(serializable_slides),
-                len(serializable_scene_codes),
+                video_pres.artifact_id,
             )
             await session.commit()
-            logger.info("VideoPresentation %s: READY commit complete", video_pres.id)
+            logger.info("VideoPresentationRun %s: READY commit complete", video_pres.id)
 
             logger.info(f"Successfully generated video presentation: {video_pres.id}")
 

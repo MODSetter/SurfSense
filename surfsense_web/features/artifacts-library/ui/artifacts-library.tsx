@@ -1,16 +1,13 @@
 "use client";
 
-import { useSetAtom } from "jotai";
 import { RefreshCw, Shapes, TriangleAlert } from "lucide-react";
-import { useMemo, useState } from "react";
-import { openReportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { MobileReportPanel } from "@/components/report-panel/report-panel";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { artifactChatHref } from "@/features/chat-artifacts/lib/artifact-deep-link";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
-import type { LibraryArtifact, LibraryArtifactKind } from "../model/artifact";
+import { useLibraryPodcastRuns } from "../hooks/use-library-podcast-runs";
+import { useLibraryVideoRuns } from "../hooks/use-library-video-runs";
 import { ArtifactCard } from "./artifact-card";
-import { KIND_META, KIND_ORDER } from "./kind-meta";
-import { MediaViewerDialog } from "./media-viewer-dialog";
 
 const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6"];
 
@@ -18,7 +15,7 @@ function LoadingState() {
 	return (
 		<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			{SKELETON_KEYS.map((key) => (
-				<div key={key} className="h-[68px] animate-pulse rounded-xl border bg-muted/40" />
+				<div key={key} className="h-28 animate-pulse rounded-xl border bg-muted/40" />
 			))}
 		</div>
 	);
@@ -61,39 +58,28 @@ function EmptyState() {
 
 export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
-	const openReportPanel = useSetAtom(openReportPanelAtom);
-	const [selectedMedia, setSelectedMedia] = useState<LibraryArtifact | null>(null);
+	const liveVideoRuns = useLibraryVideoRuns(workspaceId);
+	const livePodcastRuns = useLibraryPodcastRuns(workspaceId);
 
-	const grouped = useMemo(() => {
-		const map = new Map<LibraryArtifactKind, LibraryArtifact[]>();
-		for (const artifact of artifacts) {
-			const bucket = map.get(artifact.kind);
-			if (bucket) bucket.push(artifact);
-			else map.set(artifact.kind, [artifact]);
-		}
-		return map;
-	}, [artifacts]);
-
-	const handleOpen = (artifact: LibraryArtifact) => {
-		// Reports/resumes reuse the shared report panel; the rest open in the dialog.
-		if (artifact.kind === "report" || artifact.kind === "resume") {
-			openReportPanel({
-				reportId: artifact.entityId,
-				title: artifact.title,
-				contentType: artifact.contentType,
-			});
-			return;
-		}
-		setSelectedMedia(artifact);
-	};
+	// Delivered media comes from the Artifact API (react-query); in-flight and
+	// failed runs arrive by push from Zero. Merge newest-first.
+	const merged = useMemo(
+		() =>
+			[...artifacts, ...liveVideoRuns, ...livePodcastRuns].sort(
+				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+			),
+		[artifacts, liveVideoRuns, livePodcastRuns]
+	);
 
 	return (
-		<div className="w-full space-y-6">
+		<div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden">
 			<header className="flex items-center justify-between gap-4 flex-wrap">
 				<div className="flex items-baseline gap-3">
 					<h1 className="text-xl md:text-2xl font-semibold text-foreground">Artifacts</h1>
-					{!loading && artifacts.length > 0 ? (
-						<span className="text-sm text-muted-foreground">{artifacts.length} total</span>
+					{!loading && merged.length > 0 ? (
+						<p className="whitespace-nowrap text-sm text-muted-foreground">
+							{merged.length} {merged.length === 1 ? "artifact" : "artifacts"}
+						</p>
 					) : null}
 				</div>
 			</header>
@@ -102,37 +88,19 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 				<LoadingState />
 			) : error ? (
 				<ErrorState onRetry={() => refresh()} />
-			) : artifacts.length === 0 ? (
+			) : merged.length === 0 ? (
 				<EmptyState />
 			) : (
-				<div className="space-y-8">
-					{KIND_ORDER.map((kind) => {
-						const items = grouped.get(kind);
-						if (!items || items.length === 0) return null;
-						return (
-							<section key={kind}>
-								<h2 className="mb-3 text-sm font-medium text-muted-foreground">
-									{KIND_META[kind].group}
-									<span className="ml-1.5 text-muted-foreground/60">{items.length}</span>
-								</h2>
-								<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-									{items.map((artifact) => (
-										<ArtifactCard
-											key={artifact.key}
-											artifact={artifact}
-											workspaceId={workspaceId}
-											onOpen={handleOpen}
-										/>
-									))}
-								</div>
-							</section>
-						);
-					})}
+				<div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					{merged.map((artifact) => (
+						<ArtifactCard
+							key={artifact.key}
+							artifact={artifact}
+							href={artifactChatHref(workspaceId, artifact.sourceThreadId, artifact.artifactId)}
+						/>
+					))}
 				</div>
 			)}
-
-			<MediaViewerDialog artifact={selectedMedia} onClose={() => setSelectedMedia(null)} />
-			<MobileReportPanel />
 		</div>
 	);
 }

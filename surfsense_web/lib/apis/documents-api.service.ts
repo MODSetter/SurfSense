@@ -3,7 +3,6 @@ import {
 	createDocumentRequest,
 	createDocumentResponse,
 	type DeleteDocumentRequest,
-	type DocumentFileRead,
 	deleteDocumentRequest,
 	deleteDocumentResponse,
 	documentTitleRead,
@@ -17,7 +16,6 @@ import {
 	getDocumentByChunkResponse,
 	getDocumentChunksRequest,
 	getDocumentChunksResponse,
-	getDocumentFilesResponse,
 	getDocumentRequest,
 	getDocumentResponse,
 	getDocumentsRequest,
@@ -357,14 +355,6 @@ class DocumentsApiService {
 			`/api/v1/documents/${parsedRequest.data.document_id}/chunks?${params}`,
 			getDocumentChunksResponse
 		);
-	};
-
-	/**
-	 * List the stored files for a document (e.g. its original upload).
-	 * Used to gate the "Download original" affordance.
-	 */
-	getDocumentFiles = async (documentId: number): Promise<DocumentFileRead[]> => {
-		return baseApiService.get(`/api/v1/documents/${documentId}/files`, getDocumentFilesResponse);
 	};
 
 	listDocumentVersions = async (documentId: number) => {

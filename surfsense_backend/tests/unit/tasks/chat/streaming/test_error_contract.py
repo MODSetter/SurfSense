@@ -26,6 +26,7 @@ def test_every_backend_chat_error_has_display_copy() -> None:
         "PREMIUM_QUOTA_EXHAUSTED",
         "RATE_LIMITED",
         "SERVER_ERROR",
+        "THREAD_AWAITING_APPROVAL",
         "THREAD_BUSY",
         "TOOL_EXECUTION_ERROR",
         "TURN_CANCELLING",

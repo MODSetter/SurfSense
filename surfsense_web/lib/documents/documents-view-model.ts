@@ -130,9 +130,7 @@ export function buildDocumentsViewModel({
 	}
 
 	const visibleFolders =
-		activeTypes.length === 0
-			? folders
-			: foldersContainingDocuments(folders, filteredDocuments);
+		activeTypes.length === 0 ? folders : foldersContainingDocuments(folders, filteredDocuments);
 
 	if (!trimmedQuery) {
 		return {

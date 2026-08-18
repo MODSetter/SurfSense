@@ -1,6 +1,6 @@
 import { toast } from "sonner";
-import { AbortedError, AppError, AuthenticationError, SURFSENSE_ISSUES_URL } from "./error";
 import { detectEnvironment } from "./env-config";
+import { AbortedError, AppError, AuthenticationError, SURFSENSE_ISSUES_URL } from "./error";
 
 /**
  * Build a GitHub issue URL pre-filled with diagnostic context.
@@ -67,6 +67,10 @@ export function showErrorToast(error: unknown, fallbackMessage?: string) {
 	if (requestId) descParts.push(`ID: ${requestId}`);
 
 	toast.error(message, {
+		// A dropped connection fails every in-flight query at once, and each one
+		// lands here separately. A shared id makes sonner replace rather than
+		// stack, so one blip reads as one problem instead of ten.
+		id: code === "NETWORK_ERROR" ? "network-error" : undefined,
 		description: descParts.length > 0 ? descParts.join(" | ") : undefined,
 		duration: 8000,
 		action: {

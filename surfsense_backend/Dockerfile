@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     espeak-ng \
     libsndfile1 \
+    # python-magic sniffs artifact bytes through this; Debian 13 renamed the
+    # package from libmagic1 and ships no transitional alias.
+    libmagic1t64 \
     libgl1 \
     libglib2.0-0 \
     libsm6 \

@@ -65,6 +65,7 @@ class DocumentType(StrEnum):
     CIRCLEBACK = "CIRCLEBACK"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"
     NOTE = "NOTE"
+    ARTIFACT = "ARTIFACT"
     DROPBOX_FILE = "DROPBOX_FILE"
     COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
     COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
@@ -302,6 +303,12 @@ class Permission(StrEnum):
     DOCUMENTS_UPDATE = "documents:update"
     DOCUMENTS_DELETE = "documents:delete"
 
+    # Artifacts
+    ARTIFACTS_CREATE = "artifacts:create"
+    ARTIFACTS_READ = "artifacts:read"
+    ARTIFACTS_UPDATE = "artifacts:update"
+    ARTIFACTS_DELETE = "artifacts:delete"
+
     # Chats
     CHATS_CREATE = "chats:create"
     CHATS_READ = "chats:read"
@@ -330,11 +337,6 @@ class Permission(StrEnum):
     VIDEO_PRESENTATIONS_READ = "video_presentations:read"
     VIDEO_PRESENTATIONS_UPDATE = "video_presentations:update"
     VIDEO_PRESENTATIONS_DELETE = "video_presentations:delete"
-
-    # Image Generations
-    IMAGE_GENERATIONS_CREATE = "image_generations:create"
-    IMAGE_GENERATIONS_READ = "image_generations:read"
-    IMAGE_GENERATIONS_DELETE = "image_generations:delete"
 
     # Vision LLM Configs
     VISION_CONFIGS_CREATE = "vision_configs:create"
@@ -397,6 +399,10 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.DOCUMENTS_CREATE.value,
         Permission.DOCUMENTS_READ.value,
         Permission.DOCUMENTS_UPDATE.value,
+        # Artifacts (no delete)
+        Permission.ARTIFACTS_CREATE.value,
+        Permission.ARTIFACTS_READ.value,
+        Permission.ARTIFACTS_UPDATE.value,
         # Chats (no delete)
         Permission.CHATS_CREATE.value,
         Permission.CHATS_READ.value,
@@ -416,9 +422,6 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.VIDEO_PRESENTATIONS_CREATE.value,
         Permission.VIDEO_PRESENTATIONS_READ.value,
         Permission.VIDEO_PRESENTATIONS_UPDATE.value,
-        # Image Generations (create and read, no delete)
-        Permission.IMAGE_GENERATIONS_CREATE.value,
-        Permission.IMAGE_GENERATIONS_READ.value,
         # Vision Configs (create and read, no delete)
         Permission.VISION_CONFIGS_CREATE.value,
         Permission.VISION_CONFIGS_READ.value,
@@ -447,6 +450,8 @@ DEFAULT_ROLE_PERMISSIONS = {
     "Viewer": [
         # Documents (read only)
         Permission.DOCUMENTS_READ.value,
+        # Artifacts (read only)
+        Permission.ARTIFACTS_READ.value,
         # Chats (read only)
         Permission.CHATS_READ.value,
         # Comments (can create and read, but not delete)
@@ -458,8 +463,6 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.PODCASTS_READ.value,
         # Video Presentations (read only)
         Permission.VIDEO_PRESENTATIONS_READ.value,
-        # Image Generations (read only)
-        Permission.IMAGE_GENERATIONS_READ.value,
         # Vision Configs (read only)
         Permission.VISION_CONFIGS_READ.value,
         # Connectors (read only)
@@ -574,6 +577,12 @@ class ExternalChatEventStatus(StrEnum):
 
 def _enum_values(enum_cls):
     return [item.value for item in enum_cls]
+
+
+# Threads minted by the artifact-generation API: a vessel for the subagent's
+# sandbox key and artifact attribution, never streamed to, so the sidebar hides
+# them by this source.
+ARTIFACT_API_SOURCE = "artifact_api"
 
 
 class NewChatThread(BaseModel, TimestampMixin):
@@ -1446,6 +1455,13 @@ class Document(BaseModel, TimestampMixin):
     files = relationship(
         "DocumentFile", back_populates="document", cascade="all, delete-orphan"
     )
+    artifact = relationship(
+        "Artifact",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
+    )
 
 
 class DocumentVersion(BaseModel, TimestampMixin):
@@ -1497,19 +1513,17 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class VideoPresentation(BaseModel, TimestampMixin):
-    """Video presentation model for storing AI-generated video presentations.
+class VideoPresentationRun(BaseModel, TimestampMixin):
+    """Lifecycle record for one video-presentation generation.
 
-    The slides JSONB stores per-slide data including Remotion component code,
-    audio file paths, and durations. The frontend compiles the code and renders
-    the video using Remotion Player.
+    The delivered result — Remotion slides, scene codes, narration — lives in
+    the Artifact pointed to by ``artifact_id``. This row tracks only the run:
+    its status, and the reason a failed one failed.
     """
 
-    __tablename__ = "video_presentations"
+    __tablename__ = "video_presentation_runs"
 
     title = Column(String(500), nullable=False)
-    slides = Column(JSONB, nullable=True)
-    scene_codes = Column(JSONB, nullable=True)
     status = Column(
         SQLAlchemyEnum(
             VideoPresentationStatus,
@@ -1522,13 +1536,14 @@ class VideoPresentation(BaseModel, TimestampMixin):
         server_default="ready",
         index=True,
     )
+    error = Column(Text, nullable=True)
 
     workspace_id = Column(
         Integer,
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    workspace = relationship("Workspace", back_populates="video_presentations")
+    workspace = relationship("Workspace", back_populates="video_presentation_runs")
 
     thread_id = Column(
         Integer,
@@ -1538,38 +1553,11 @@ class VideoPresentation(BaseModel, TimestampMixin):
     )
     thread = relationship("NewChatThread")
 
-
-class Report(BaseModel, TimestampMixin):
-    """Report model for storing generated reports (Markdown or Typst)."""
-
-    __tablename__ = "reports"
-
-    title = Column(String(500), nullable=False)
-    content = Column(Text, nullable=True)
-    content_type = Column(String(20), nullable=False, server_default="markdown")
-    report_metadata = Column(JSONB, nullable=True)  # section headings, word count, etc.
-    report_style = Column(
-        String(100), nullable=True
-    )  # e.g. "executive_summary", "deep_research"
-
-    workspace_id = Column(
+    artifact_id = Column(
         Integer,
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    workspace = relationship("Workspace", back_populates="reports")
-
-    # Versioning: reports sharing the same report_group_id are versions of the same report.
-    # For v1, report_group_id = the report's own id (set after insert).
-    report_group_id = Column(Integer, nullable=True, index=True)
-
-    thread_id = Column(
-        Integer,
-        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        ForeignKey("artifacts.id", ondelete="SET NULL"),
         nullable=True,
-        index=True,
     )
-    thread = relationship("NewChatThread")
 
 
 class Connection(BaseModel, TimestampMixin):
@@ -1648,68 +1636,6 @@ class Model(BaseModel, TimestampMixin):
         ),
         Index("ix_models_model_id", "model_id"),
     )
-
-
-class ImageGeneration(BaseModel, TimestampMixin):
-    """
-    Stores image generation requests and results using litellm.aimage_generation().
-
-    Since aimage_generation is a single async call (not a background job),
-    there is no status enum. A row with response_data means success;
-    a row with error_message means failure.
-
-    Response data is stored as JSONB matching the litellm output format:
-    {
-        "created": int,
-        "data": [{"b64_json": str|None, "revised_prompt": str|None, "url": str|None}],
-        "usage": {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int}
-    }
-    """
-
-    __tablename__ = "image_generations"
-
-    # Request parameters (matching litellm.aimage_generation() params)
-    prompt = Column(Text, nullable=False)
-    model = Column(String(200), nullable=True)  # e.g., "dall-e-3", "gpt-image-1"
-    n = Column(Integer, nullable=True, default=1)
-    quality = Column(
-        String(50), nullable=True
-    )  # "auto", "high", "medium", "low", "hd", "standard"
-    size = Column(
-        String(50), nullable=True
-    )  # "1024x1024", "1536x1024", "1024x1536", etc.
-    style = Column(String(50), nullable=True)  # Model-specific style parameter
-    response_format = Column(String(50), nullable=True)  # "url" or "b64_json"
-
-    # Image generation model provenance.
-    # 0 = Auto mode, negative IDs = GLOBAL models, positive IDs = Model records.
-    image_gen_model_id = Column(Integer, nullable=True)
-
-    # Response data (full litellm response as JSONB) — present on success
-    response_data = Column(JSONB, nullable=True)
-    # Error message — present on failure
-    error_message = Column(Text, nullable=True)
-
-    # Signed access token for serving images via <img> tags.
-    # Stored in DB so it survives SECRET_KEY rotation.
-    access_token = Column(String(64), nullable=True, index=True)
-
-    # Foreign keys
-    workspace_id = Column(
-        Integer,
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    created_by_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-
-    # Relationships
-    workspace = relationship("Workspace", back_populates="image_generations")
-    created_by = relationship("User", back_populates="image_generations")
 
 
 class Workspace(BaseModel, TimestampMixin):
@@ -1791,22 +1717,10 @@ class Workspace(BaseModel, TimestampMixin):
         order_by="Podcast.id.desc()",
         cascade="all, delete-orphan",
     )
-    video_presentations = relationship(
-        "VideoPresentation",
+    video_presentation_runs = relationship(
+        "VideoPresentationRun",
         back_populates="workspace",
-        order_by="VideoPresentation.id.desc()",
-        cascade="all, delete-orphan",
-    )
-    reports = relationship(
-        "Report",
-        back_populates="workspace",
-        order_by="Report.id.desc()",
-        cascade="all, delete-orphan",
-    )
-    image_generations = relationship(
-        "ImageGeneration",
-        back_populates="workspace",
-        order_by="ImageGeneration.id.desc()",
+        order_by="VideoPresentationRun.id.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(
@@ -2295,13 +2209,6 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
-        # Image generations created by this user
-        image_generations = relationship(
-            "ImageGeneration",
-            back_populates="created_by",
-            passive_deletes=True,
-        )
-
         # Connectors created by this user
         search_source_connectors = relationship(
             "SearchSourceConnector",
@@ -2428,13 +2335,6 @@ else:
         # Folders created by this user
         folders = relationship(
             "Folder",
-            back_populates="created_by",
-            passive_deletes=True,
-        )
-
-        # Image generations created by this user
-        image_generations = relationship(
-            "ImageGeneration",
             back_populates="created_by",
             passive_deletes=True,
         )
@@ -2881,9 +2781,41 @@ class ToolOutputSpill(Base, TimestampMixin):
     char_count = Column(Integer, nullable=False, default=0)
 
 
+class ModelCompatibility(Base):
+    """Per-model verdict from the compatibility sweep.
+
+    Passing our metadata filters does not mean a model can serve a turn through
+    this agent harness. ``scripts/sweep_model_compatibility.py`` probes each
+    catalogue model and writes the result here; catalogue generation reads the
+    ``blocked`` ids back so those models never reach a user. Shared through
+    Postgres so all uvicorn workers converge on the same blocklist.
+    """
+
+    __tablename__ = "model_compatibility"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_id = Column(String(255), unique=True, nullable=False, index=True)
+    status = Column(String(16), nullable=False, index=True)
+    # Which of the three escalating probes broke; NULL when all passed.
+    failure_stage = Column(String(32), nullable=True)
+    error_code = Column(String(64), nullable=True)
+    error_excerpt = Column(Text, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    checked_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+
 # Register model packages that live outside this file so their classes
 # are present in Base.metadata before configure_mappers() resolves any
 # string-based relationship() references.
+from app.artifacts.persistence import (  # noqa: E402, F401
+    Artifact,
+    ArtifactFile,
+)
 from app.automations.persistence import (  # noqa: E402, F401
     Automation,
     AutomationRun,

@@ -11,12 +11,14 @@ export function mergeChatTurnIdIntoMessage(
 	if (!turnId) return msg;
 	const existingMeta = (msg.metadata ?? {}) as { custom?: Record<string, unknown> };
 	const existingCustom = existingMeta.custom ?? {};
-	if ((existingCustom as { chatTurnId?: string }).chatTurnId === turnId) return msg;
 	return {
 		...msg,
 		metadata: {
 			...existingMeta,
-			custom: { ...existingCustom, chatTurnId: turnId },
+			custom: {
+				...existingCustom,
+				chatTurnId: turnId,
+			},
 		},
 	};
 }

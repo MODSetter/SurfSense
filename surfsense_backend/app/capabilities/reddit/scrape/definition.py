@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.reddit.scrape.executor import build_scrape_executor
 from app.capabilities.reddit.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,6 +23,13 @@ REDDIT_SCRAPE = Capability(
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.REDDIT_ITEM,
     docs_url="/docs/connectors/native/reddit",
+    activity=ActivityDescriptor(
+        active_title="Searching Reddit",
+        completed_title="Searched Reddit",
+        category="research",
+        icon_key="search",
+        integration_key="reddit",
+    ),
 )
 
 register_capability(REDDIT_SCRAPE)

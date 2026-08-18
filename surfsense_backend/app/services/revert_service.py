@@ -38,11 +38,6 @@ from typing import Any, Literal
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge_store.paths import (
-    DOCUMENTS_ROOT,
-    safe_filename,
-    safe_folder_segment,
-)
 from app.db import (
     AgentActionLog,
     Chunk,
@@ -52,6 +47,11 @@ from app.db import (
     Folder,
     FolderRevision,
     NewChatThread,
+)
+from app.knowledge_store.paths import (
+    DOCUMENTS_ROOT,
+    safe_filename,
+    safe_folder_segment,
 )
 from app.utils.document_converters import (
     embed_texts,

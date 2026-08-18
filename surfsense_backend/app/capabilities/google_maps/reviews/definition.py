@@ -3,7 +3,12 @@ config ``GOOGLE_MAPS_MICROS_PER_REVIEW``)."""
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.google_maps.reviews.executor import build_reviews_executor
 from app.capabilities.google_maps.reviews.schemas import ReviewsInput, ReviewsOutput
 
@@ -18,6 +23,13 @@ GOOGLE_MAPS_REVIEWS = Capability(
     executor=build_reviews_executor(),
     billing_unit=BillingUnit.GOOGLE_MAPS_REVIEW,
     docs_url="/docs/connectors/native/google-maps",
+    activity=ActivityDescriptor(
+        active_title="Reviewing Google Maps feedback",
+        completed_title="Reviewed Google Maps feedback",
+        category="research",
+        icon_key="search",
+        integration_key="google_maps",
+    ),
 )
 
 register_capability(GOOGLE_MAPS_REVIEWS)

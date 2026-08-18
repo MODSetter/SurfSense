@@ -11,6 +11,29 @@ export type ChatStreamResult = {
 	events: ChatStreamEvent[];
 };
 
+export async function appendThreadMessage(
+	request: APIRequestContext,
+	token: string,
+	args: {
+		threadId: number;
+		role: "user" | "assistant";
+		content: unknown;
+		turnId: string;
+	}
+): Promise<void> {
+	const response = await request.post(`${BACKEND_URL}/api/v1/threads/${args.threadId}/messages`, {
+		headers: authHeaders(token),
+		data: {
+			role: args.role,
+			content: args.content,
+			turn_id: args.turnId,
+		},
+	});
+	if (!response.ok()) {
+		throw new Error(`appendThreadMessage failed (${response.status()}): ${await response.text()}`);
+	}
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }

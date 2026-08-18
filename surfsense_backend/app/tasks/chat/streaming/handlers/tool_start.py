@@ -1,21 +1,42 @@
-"""Tool start: thinking-step and tool-input SSE."""
+"""Tool start: canonical activity and tool-input SSE."""
 
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
-from app.tasks.chat.streaming.handlers.tools import resolve_tool_start_thinking
+from app.services.streaming.types import ActivityIntegration
+from app.tasks.chat.streaming.handlers.tools.activity import resolve_tool_activity
 from app.tasks.chat.streaming.helpers.tool_call_matching import (
     match_buffered_langchain_tool_call_id,
 )
+from app.tasks.chat.streaming.relay.activity_sse import emit_activity_frame
 from app.tasks.chat.streaming.relay.state import AgentEventRelayState
 from app.tasks.chat.streaming.relay.task_span import open_task_span
-from app.tasks.chat.streaming.relay.thinking_step_completion import (
-    complete_active_thinking_step,
-)
-from app.tasks.chat.streaming.relay.thinking_step_sse import emit_thinking_step_frame
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_integration_metadata(
+    event: dict[str, Any],
+) -> ActivityIntegration | None:
+    metadata = event.get("metadata")
+    if not isinstance(metadata, dict):
+        return None
+    name = metadata.get("mcp_connector_name")
+    is_generic = metadata.get("mcp_is_generic") is True
+    if isinstance(name, str) and name.strip():
+        return {
+            "source": "mcp",
+            "key": name.strip().lower().replace(" ", "_"),
+            "name": name.strip(),
+        }
+    if is_generic:
+        return {"source": "mcp"}
+    return None
 
 
 def iter_tool_start_frames(
@@ -32,6 +53,7 @@ def iter_tool_start_frames(
     tool_name = event.get("name", "unknown_tool")
     run_id = event.get("run_id", "")
     tool_input = event.get("data", {}).get("input", {})
+    started_at = datetime.now(UTC).isoformat()
     if tool_name in ("write_file", "edit_file"):
         result.write_attempted = True
         if isinstance(tool_input, dict):
@@ -44,25 +66,6 @@ def iter_tool_start_frames(
         if content_builder is not None:
             content_builder.on_text_end(state.current_text_id)
         state.current_text_id = None
-
-    if state.last_active_step_title != "Synthesizing response":
-        comp, new_active = complete_active_thinking_step(
-            state=state,
-            streaming_service=streaming_service,
-            content_builder=content_builder,
-            last_active_step_id=state.last_active_step_id,
-            last_active_step_title=state.last_active_step_title,
-            last_active_step_items=state.last_active_step_items,
-            completed_step_ids=state.completed_step_ids,
-        )
-        if comp:
-            yield comp
-        state.last_active_step_id = new_active
-
-    state.just_finished_tool = False
-    tool_step_id = state.next_thinking_step_id(step_prefix)
-    state.tool_step_ids[run_id] = tool_step_id
-    state.last_active_step_id = tool_step_id
 
     matched_meta: dict[str, str] | None = None
     taken_ui_ids = set(state.ui_tool_call_id_by_run.values())
@@ -97,9 +100,57 @@ def iter_tool_start_frames(
             run_id=run_id,
             langchain_tool_call_id=langchain_tool_call_id,
         )
+        if isinstance(tool_input, dict):
+            subagent_type = tool_input.get("subagent_type")
+            if isinstance(subagent_type, str) and subagent_type.strip():
+                state.active_subagent_type = subagent_type.strip()
 
-    span_md = state.span_metadata_if_active()
-    tool_md = state.tool_activity_metadata(thinking_step_id=tool_step_id)
+    event_metadata = event.get("metadata")
+    trusted_descriptor = (
+        event_metadata.get("activity_descriptor")
+        if isinstance(event_metadata, dict)
+        else None
+    )
+    activity = resolve_tool_activity(
+        tool_name,
+        subagent_type=state.active_subagent_type,
+        repairing_artifact=state.deliverable_needs_repair,
+        trusted_descriptor=trusted_descriptor,
+    )
+    if (
+        matched_meta is None
+        and langchain_tool_call_id is None
+        and activity.visibility != "hide"
+    ):
+        langchain_tool_call_id = state.consume_resume_tool_call_id()
+        if langchain_tool_call_id is None and state.journal.resume_id_by_tool_call:
+            logger.warning(
+                "[activity_resume] no persisted tool-call id available "
+                "for replayed tool name=%s run_id=%s remaining_bindings=%d",
+                tool_name,
+                run_id,
+                len(state.journal.resume_id_by_tool_call),
+            )
+    integration = _safe_integration_metadata(event)
+    activity_start = state.journal.begin_tool(
+        spec=activity,
+        run_id=run_id,
+        step_prefix=step_prefix,
+        scope=state.active_span_id or "root",
+        started_at=started_at,
+        tool_call_id=tool_call_id,
+        langchain_tool_call_id=langchain_tool_call_id,
+        integration=integration,
+    )
+    activity_id = activity_start.activity_id
+    for snapshot in activity_start.snapshots:
+        yield emit_activity_frame(
+            streaming_service=streaming_service,
+            content_builder=content_builder,
+            snapshot=snapshot,
+        )
+
+    tool_md = state.tool_activity_metadata(activity_id=activity_id) or {}
 
     if matched_meta is None:
         yield streaming_service.format_tool_input_start(
@@ -115,21 +166,6 @@ def iter_tool_start_frames(
                 langchain_tool_call_id,
                 metadata=tool_md,
             )
-
-    thinking = resolve_tool_start_thinking(tool_name, tool_input)
-    state.last_active_step_title = thinking.title
-    state.last_active_step_items = thinking.items
-    frame_kw: dict[str, Any] = {
-        "streaming_service": streaming_service,
-        "content_builder": content_builder,
-        "step_id": tool_step_id,
-        "title": thinking.title,
-        "status": "in_progress",
-        "metadata": span_md,
-    }
-    if thinking.include_items_on_frame:
-        frame_kw["items"] = thinking.items
-    yield emit_thinking_step_frame(**frame_kw)
 
     if run_id:
         state.ui_tool_call_id_by_run[run_id] = tool_call_id

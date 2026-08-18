@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.youtube.scrape.executor import build_scrape_executor
 from app.capabilities.youtube.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,6 +23,13 @@ YOUTUBE_SCRAPE = Capability(
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.YOUTUBE_VIDEO,
     docs_url="/docs/connectors/native/youtube",
+    activity=ActivityDescriptor(
+        active_title="Searching YouTube",
+        completed_title="Searched YouTube",
+        category="research",
+        icon_key="search",
+        integration_key="youtube",
+    ),
 )
 
 register_capability(YOUTUBE_SCRAPE)

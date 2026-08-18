@@ -245,6 +245,248 @@ button {
 	animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.timeline-activity-dot {
+	transform: translate(var(--timeline-x), var(--timeline-y));
+	transform-box: view-box;
+	transform-origin: 12px 12px;
+}
+
+.timeline-activity-orbit,
+.timeline-activity-pulse,
+.timeline-activity-breathe-primary,
+.timeline-activity-breathe-secondary {
+	transform-box: view-box;
+	transform-origin: 12px 12px;
+	will-change: transform;
+}
+
+.timeline-activity-light,
+.timeline-activity-goo {
+	mix-blend-mode: screen;
+}
+
+.timeline-activity-indicator .timeline-activity-orbit {
+	animation: timeline-activity-orbit 17.95s linear infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-dot {
+	animation-duration: 6s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+}
+
+.timeline-activity-indicator .timeline-activity-pulse {
+	animation: timeline-activity-pulse var(--timeline-pulse-duration) cubic-bezier(0.45, 0, 0.55, 1)
+		var(--timeline-pulse-delay) infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-breathe-primary {
+	animation: timeline-activity-breathe-primary 4.833s linear var(--timeline-breathe-primary-delay)
+		infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-breathe-secondary {
+	animation: timeline-activity-breathe-secondary 2.618s linear
+		var(--timeline-breathe-secondary-delay) infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-dot-a {
+	animation-name: timeline-activity-pair-a;
+}
+
+.timeline-activity-indicator .timeline-activity-dot-b {
+	animation-name: timeline-activity-pair-b;
+}
+
+.timeline-activity-indicator .timeline-activity-dot-c {
+	animation-name: timeline-activity-pair-c;
+}
+
+.timeline-activity-indicator .timeline-activity-light {
+	animation: timeline-activity-luminance 6s ease-in-out infinite;
+}
+
+.timeline-activity-indicator .timeline-activity-goo {
+	animation: timeline-activity-goo 6s ease-in-out infinite;
+}
+
+@keyframes timeline-activity-orbit {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes timeline-activity-pulse {
+	0%,
+	100% {
+		transform: translate(0, 0);
+	}
+	34% {
+		transform: translate(var(--timeline-pulse-x), var(--timeline-pulse-y));
+	}
+	68% {
+		transform: translate(var(--timeline-recoil-x), var(--timeline-recoil-y));
+	}
+}
+
+@keyframes timeline-activity-breathe-primary {
+	0%,
+	50%,
+	100% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.18);
+	}
+	75% {
+		transform: scale(0.82);
+	}
+}
+
+@keyframes timeline-activity-breathe-secondary {
+	0%,
+	50%,
+	100% {
+		transform: scale(1);
+	}
+	25% {
+		transform: scale(1.08);
+	}
+	75% {
+		transform: scale(0.92);
+	}
+}
+
+@keyframes timeline-activity-luminance {
+	0%,
+	72%,
+	100% {
+		opacity: 0.92;
+	}
+	88% {
+		opacity: 0.72;
+	}
+	92% {
+		opacity: 1;
+	}
+}
+
+@keyframes timeline-activity-goo {
+	0%,
+	10%,
+	20%,
+	28%,
+	40%,
+	72%,
+	100% {
+		opacity: 0.08;
+	}
+	16%,
+	24%,
+	32% {
+		opacity: 0.48;
+	}
+	82% {
+		opacity: 0.56;
+	}
+	88% {
+		opacity: 0.82;
+	}
+	92% {
+		opacity: 0.18;
+	}
+}
+
+@keyframes timeline-activity-pair-a {
+	0%,
+	6%,
+	27%,
+	72%,
+	100% {
+		transform: translate(var(--timeline-x), var(--timeline-y)) scale(1);
+	}
+	16% {
+		transform: translate(var(--timeline-cross-x), var(--timeline-cross-y)) scale(1.08);
+	}
+	82% {
+		transform: translate(0, 0) scale(0.88);
+	}
+	88% {
+		transform: translate(0, 0) scale(0.64);
+	}
+	92% {
+		transform: translate(var(--timeline-burst-x), var(--timeline-burst-y)) scale(1.1);
+	}
+}
+
+@keyframes timeline-activity-pair-b {
+	0%,
+	14%,
+	35%,
+	72%,
+	100% {
+		transform: translate(var(--timeline-x), var(--timeline-y)) scale(1);
+	}
+	24% {
+		transform: translate(var(--timeline-cross-x), var(--timeline-cross-y)) scale(1.08);
+	}
+	82% {
+		transform: translate(0, 0) scale(0.88);
+	}
+	88% {
+		transform: translate(0, 0) scale(0.64);
+	}
+	92% {
+		transform: translate(var(--timeline-burst-x), var(--timeline-burst-y)) scale(1.1);
+	}
+}
+
+@keyframes timeline-activity-pair-c {
+	0%,
+	22%,
+	43%,
+	72%,
+	100% {
+		transform: translate(var(--timeline-x), var(--timeline-y)) scale(1);
+	}
+	32% {
+		transform: translate(var(--timeline-cross-x), var(--timeline-cross-y)) scale(1.08);
+	}
+	82% {
+		transform: translate(0, 0) scale(0.88);
+	}
+	88% {
+		transform: translate(0, 0) scale(0.64);
+	}
+	92% {
+		transform: translate(var(--timeline-burst-x), var(--timeline-burst-y)) scale(1.1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.timeline-activity-indicator .timeline-activity-dot,
+	.timeline-activity-indicator .timeline-activity-orbit,
+	.timeline-activity-indicator .timeline-activity-pulse,
+	.timeline-activity-indicator .timeline-activity-breathe-primary,
+	.timeline-activity-indicator .timeline-activity-breathe-secondary,
+	.timeline-activity-indicator .timeline-activity-light,
+	.timeline-activity-indicator .timeline-activity-goo {
+		animation: none;
+	}
+}
+
+@keyframes shimmer-text {
+	0% {
+		background-position: 200% 50%;
+	}
+	100% {
+		background-position: -200% 50%;
+	}
+}
+
 /* Integrations section — vertical column auto-scroll */
 @keyframes integrations-scroll-up {
 	0% {
@@ -273,6 +515,84 @@ button {
 .sidebar-item-lazy {
 	content-visibility: auto;
 	contain-intrinsic-size: 0 40px;
+}
+
+/* Scoped subset of PDF.js viewer styles required by the embedded canvas viewer. */
+.surfsense-pdf-viewer.pdfViewer {
+	--scale-factor: 1;
+	box-sizing: border-box;
+	min-width: 100%;
+	width: max-content;
+	padding: 16px;
+}
+
+.surfsense-pdf-viewer.pdfViewer .canvasWrapper {
+	overflow: hidden;
+	width: 100%;
+	height: 100%;
+}
+
+.surfsense-pdf-viewer.pdfViewer .canvasWrapper canvas {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	contain: content;
+}
+
+.surfsense-pdf-viewer.pdfViewer .canvasWrapper canvas.detailView {
+	image-rendering: pixelated;
+}
+
+.surfsense-pdf-viewer.pdfViewer .page {
+	--user-unit: 1;
+	--total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
+	--scale-round-x: 1px;
+	--scale-round-y: 1px;
+	position: relative;
+	width: 816px;
+	height: 1056px;
+	margin: 0 auto 16px;
+	overflow: visible;
+	direction: ltr;
+	box-shadow:
+		0 10px 15px -3px rgb(0 0 0 / 0.1),
+		0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.surfsense-pdf-viewer.pdfViewer .page:last-child {
+	margin-bottom: 0;
+}
+
+.surfsense-pdf-viewer.pdfViewer.multiple-pages .page::before {
+	position: absolute;
+	right: 12px;
+	bottom: 8px;
+	z-index: 2;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: rgb(0 0 0 / 0.5);
+	color: rgb(255 255 255 / 0.8);
+	content: "Page " attr(data-page-number) "/" var(--pdf-pages-count);
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1rem;
+	pointer-events: none;
+}
+
+.surfsense-pdf-viewer.pdfViewer.noUserSelect {
+	user-select: none;
+}
+
+.hiddenCanvasElement {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: none;
+	width: 0;
+	height: 0;
 }
 
 @source "../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}";

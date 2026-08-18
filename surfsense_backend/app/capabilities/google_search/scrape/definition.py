@@ -3,7 +3,12 @@ config ``GOOGLE_SEARCH_MICROS_PER_SERP``)."""
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.google_search.scrape.executor import build_scrape_executor
 from app.capabilities.google_search.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,6 +23,13 @@ GOOGLE_SEARCH_SCRAPE = Capability(
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.GOOGLE_SEARCH_SERP,
     docs_url="/docs/connectors/native/google-search",
+    activity=ActivityDescriptor(
+        active_title="Searching the web",
+        completed_title="Searched the web",
+        category="research",
+        icon_key="search",
+        integration_key="google_search",
+    ),
 )
 
 register_capability(GOOGLE_SEARCH_SCRAPE)

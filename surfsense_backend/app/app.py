@@ -913,6 +913,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
+    expose_headers=["Content-Disposition"],
     # Cache CORS preflight (OPTIONS) responses for 24h. Browsers clamp:
     # Chrome/Edge cap at 7200s, Firefox honours up to 86400s. Setting the
     # higher value lets each browser cache for as long as it allows. This

@@ -32,11 +32,6 @@ from .folders import (
     FolderUpdate,
 )
 from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
-from .image_generation import (
-    ImageGenerationCreate,
-    ImageGenerationListRead,
-    ImageGenerationRead,
-)
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .model_connections import (
     ConnectionCreate,
@@ -85,13 +80,6 @@ from .rbac_schemas import (
     RoleUpdate,
     UserWorkspaceAccess,
 )
-from .reports import (
-    ReportBase,
-    ReportContentRead,
-    ReportContentUpdate,
-    ReportRead,
-    ReportVersionInfo,
-)
 from .search_source_connector import (
     MCPConnectorCreate,
     MCPConnectorRead,
@@ -113,12 +101,6 @@ from .stripe import (
     StripeWebhookResponse,
 )
 from .users import UserCreate, UserRead, UserUpdate
-from .video_presentations import (
-    VideoPresentationBase,
-    VideoPresentationCreate,
-    VideoPresentationRead,
-    VideoPresentationUpdate,
-)
 from .workspace import (
     WorkspaceApiAccessUpdate,
     WorkspaceBase,
@@ -173,9 +155,6 @@ __all__ = [
     # Base schemas
     "IDModel",
     # Image Generation schemas
-    "ImageGenerationCreate",
-    "ImageGenerationListRead",
-    "ImageGenerationRead",
     # RBAC schemas
     "InviteAcceptRequest",
     "InviteAcceptResponse",
@@ -227,12 +206,6 @@ __all__ = [
     # Podcast schemas
     "RefreshTokenRequest",
     "RefreshTokenResponse",
-    # Report schemas
-    "ReportBase",
-    "ReportContentRead",
-    "ReportContentUpdate",
-    "ReportRead",
-    "ReportVersionInfo",
     "RoleCreate",
     "RoleRead",
     "RoleUpdate",
@@ -252,10 +225,6 @@ __all__ = [
     "UserWorkspaceAccess",
     "VerifyConnectionResponse",
     # Video Presentation schemas
-    "VideoPresentationBase",
-    "VideoPresentationCreate",
-    "VideoPresentationRead",
-    "VideoPresentationUpdate",
     "WorkspaceApiAccessUpdate",
     # Workspace schemas
     "WorkspaceBase",

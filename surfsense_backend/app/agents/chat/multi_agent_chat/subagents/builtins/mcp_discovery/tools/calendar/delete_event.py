@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.services.google_calendar import GoogleCalendarToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -309,4 +310,14 @@ def create_delete_calendar_event_tool(
                 "message": "Something went wrong while deleting the event. Please try again.",
             }
 
+    delete_calendar_event.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Deleting calendar event",
+            completed_title="Deleted calendar event",
+            category="connector",
+            icon_key="calendar",
+            integration_key="google_calendar",
+            kind="delete_calendar_event",
+        ).as_metadata()
+    }
     return delete_calendar_event

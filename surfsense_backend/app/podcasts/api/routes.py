@@ -8,33 +8,26 @@ then enqueues the matching Celery task; lifecycle errors map to 409/422.
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from fastapi.responses import StreamingResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.config import config as app_config
 from app.db import (
     Permission,
-    Workspace,
-    WorkspaceMembership,
     get_async_session,
 )
 from app.podcasts.generation.brief import propose_brief
-from app.podcasts.persistence import Podcast, PodcastRepository, PodcastStatus
+from app.podcasts.persistence import Podcast, PodcastRepository
 from app.podcasts.service import (
     InvalidTransitionError,
     PodcastService,
     PreconditionFailedError,
     SpecConflictError,
 )
-from app.podcasts.storage import audio_exists, open_audio_stream, purge_audio
 from app.podcasts.tasks import draft_transcript_task
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import (
@@ -49,47 +42,11 @@ from .schemas import (
     CreatePodcastRequest,
     LanguageOptions,
     PodcastDetail,
-    PodcastSummary,
     UpdateSpecRequest,
     VoiceOption,
 )
 
 router = APIRouter()
-
-
-@router.get("/podcasts", response_model=list[PodcastSummary])
-async def list_podcasts(
-    workspace_id: int | None = None,
-    skip: int = 0,
-    limit: int = 100,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    user = auth.user
-    if skip < 0 or limit < 1:
-        raise HTTPException(status_code=400, detail="Invalid pagination parameters")
-
-    if workspace_id is not None:
-        await _require(session, auth, workspace_id, Permission.PODCASTS_READ)
-        query = (
-            select(Podcast)
-            .where(Podcast.workspace_id == workspace_id)
-            .order_by(Podcast.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
-    else:
-        query = (
-            select(Podcast)
-            .join(Workspace)
-            .join(WorkspaceMembership)
-            .where(WorkspaceMembership.user_id == user.id)
-            .order_by(Podcast.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
-    result = await session.execute(query)
-    return list(result.scalars().all())
 
 
 @router.get("/podcasts/voices", response_model=list[VoiceOption])
@@ -189,7 +146,7 @@ async def get_podcast(
     auth: AuthContext = Depends(get_auth_context),
 ):
     podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_READ)
-    return PodcastDetail.of(podcast)
+    return await PodcastDetail.resolve(session, podcast)
 
 
 @router.patch("/podcasts/{podcast_id}/spec", response_model=PodcastDetail)
@@ -273,53 +230,9 @@ async def delete_podcast(
     auth: AuthContext = Depends(get_auth_context),
 ):
     podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_DELETE)
-    await purge_audio(podcast)
     await session.delete(podcast)
     await session.commit()
     return {"message": "Podcast deleted successfully"}
-
-
-@router.get("/podcasts/{podcast_id}/stream")
-async def stream_podcast(
-    podcast_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    podcast = await _load(session, auth, podcast_id, Permission.PODCASTS_READ)
-
-    if podcast.storage_key:
-        # Verify first so a missing object is a 404, not a mid-stream crash.
-        if not await audio_exists(podcast):
-            raise HTTPException(
-                status_code=404, detail="Podcast audio is no longer available"
-            )
-        return StreamingResponse(
-            open_audio_stream(podcast),
-            media_type="audio/mpeg",
-            headers={"Accept-Ranges": "bytes"},
-        )
-
-    # Back-compat: rows rendered before the storage migration kept a local path.
-    if podcast.file_location and os.path.isfile(podcast.file_location):
-        path = podcast.file_location
-
-        def iterfile():
-            with open(path, mode="rb") as handle:
-                yield from handle
-
-        return StreamingResponse(
-            iterfile(),
-            media_type="audio/mpeg",
-            headers={
-                "Accept-Ranges": "bytes",
-                "Content-Disposition": f"inline; filename={Path(path).name}",
-            },
-        )
-
-    # No audio: terminal states never will have any, otherwise it's in flight.
-    if PodcastStatus(podcast.status).is_terminal:
-        raise HTTPException(status_code=404, detail="Podcast audio not found")
-    raise HTTPException(status_code=409, detail="Podcast audio is not ready yet")
 
 
 async def _require(

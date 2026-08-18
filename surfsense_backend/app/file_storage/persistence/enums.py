@@ -1,4 +1,4 @@
-"""DocumentFile kinds: the original upload plus future derived artifacts."""
+"""Kinds of durable files attached to knowledge-base documents."""
 
 from __future__ import annotations
 

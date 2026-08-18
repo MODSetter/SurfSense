@@ -1,0 +1,1 @@
+"""Artifact integration tests."""

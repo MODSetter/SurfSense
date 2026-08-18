@@ -1,8 +1,8 @@
 """Audio-rendering task: RENDERING -> READY.
 
-Synthesises and merges the approved transcript, stores the MP3 in the object
-store, and marks the podcast ready. The working directory is stable per podcast
-so a re-render (e.g. after a voice change) reuses the segment cache.
+Synthesises and merges the approved transcript, records the delivered Artifact
+(which owns the MP3 and markdown), and marks the podcast ready. The working
+directory is stable per podcast so a re-render reuses the segment cache.
 """
 
 from __future__ import annotations
@@ -15,15 +15,13 @@ from sqlalchemy import select
 
 from app.celery_app import celery_app
 from app.observability import analytics as ph_analytics
-from app.podcasts.persistence import PodcastRepository
+from app.podcasts.persistence import PodcastRepository, PodcastStatus
 from app.podcasts.rendering import PodcastRenderer
 from app.podcasts.service import (
-    InvalidTransitionError,
     PodcastService,
     read_spec,
     read_transcript,
 )
-from app.podcasts.storage import purge_audio_object, store_audio
 from app.podcasts.tts import get_text_to_speech
 from app.podcasts.voices import get_voice_catalog
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
@@ -67,49 +65,48 @@ async def _render_audio(podcast_id: int) -> dict:
             spec=spec, transcript=transcript, workdir=workdir
         )
 
-        superseded_key = podcast.storage_key
-
-        backend_name, key = await store_audio(
-            workspace_id=podcast.workspace_id,
-            podcast_id=podcast_id,
-            data=rendered.data,
-        )
-        try:
-            await PodcastService(session).attach_audio(
-                podcast, storage_backend=backend_name, storage_key=key
-            )
-            await session.commit()
-
-            # Credit-consuming deliverable; the frontend never confirms the
-            # render finished. Owner (workspace.user_id) resolved lazily so
-            # disabled installs pay nothing for the extra query.
-            if ph_analytics.is_enabled():
-                # Local import: app.db <-> app.podcasts.persistence have a
-                # module-init cycle; deferring keeps this task importable.
-                from app.db import Workspace
-
-                owner_id = await session.scalar(
-                    select(Workspace.user_id).where(
-                        Workspace.id == podcast.workspace_id
-                    )
-                )
-                if owner_id:
-                    ph_analytics.capture(
-                        "podcast_generated",
-                        distinct_id=str(owner_id),
-                        properties={
-                            "workspace_id": podcast.workspace_id,
-                            "podcast_id": podcast_id,
-                        },
-                        groups={"workspace": str(podcast.workspace_id)},
-                    )
-        except InvalidTransitionError:
-            # A user back-out won the race (e.g. the regeneration was
-            # reverted): drop the stale render and leave the row alone.
-            await purge_audio_object(key)
+        # A user back-out during the render leaves the row out of RENDERING;
+        # bail before creating an Artifact that would never be linked.
+        if PodcastStatus(podcast.status) is not PodcastStatus.RENDERING:
             return {"status": "superseded", "podcast_id": podcast_id}
 
-    # Purge only after the new audio is committed, so a failed re-render never
-    # destroys the episode the user can still play.
-    await purge_audio_object(superseded_key)
+        from app.artifacts.media.podcast.record import record as record_podcast
+
+        # Record the Artifact while still RENDERING, then flip to READY and link
+        # it in one commit: a READY row is never committed without its audio.
+        saved = await record_podcast(
+            session,
+            podcast,
+            audio=rendered.data,
+            transcript=transcript,
+        )
+        if saved is None:
+            raise RuntimeError(f"podcast {podcast_id}: recording the Artifact failed")
+
+        await PodcastService(session).mark_ready(podcast)
+        podcast.artifact_id = saved.artifact_id
+        await session.commit()
+
+        # Credit-consuming deliverable; the frontend never confirms the
+        # render finished. Owner (workspace.user_id) resolved lazily so
+        # disabled installs pay nothing for the extra query.
+        if ph_analytics.is_enabled():
+            # Local import: app.db <-> app.podcasts.persistence have a
+            # module-init cycle; deferring keeps this task importable.
+            from app.db import Workspace
+
+            owner_id = await session.scalar(
+                select(Workspace.user_id).where(Workspace.id == podcast.workspace_id)
+            )
+            if owner_id:
+                ph_analytics.capture(
+                    "podcast_generated",
+                    distinct_id=str(owner_id),
+                    properties={
+                        "workspace_id": podcast.workspace_id,
+                        "podcast_id": podcast_id,
+                    },
+                    groups={"workspace": str(podcast.workspace_id)},
+                )
+
     return {"status": "ready", "podcast_id": podcast_id}

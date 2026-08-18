@@ -114,6 +114,7 @@ import {
 	type DocumentMentionPickerRef,
 	promoteRecentMention,
 } from "../new-chat/document-mention-picker";
+import { ThreadMessagesSkeletonBody } from "./thread-messages-skeleton";
 
 const COMPOSER_PLACEHOLDER =
 	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
@@ -158,7 +159,7 @@ export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return (
 		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
+			className="aui-root aui-thread-root @container relative flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "42rem",
 			}}
@@ -187,36 +188,6 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 				/>
 			</ChatViewport>
 		</ThreadPrimitive.Root>
-	);
-};
-
-const ThreadMessagesSkeletonBody: FC = () => {
-	return (
-		<div className="mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col gap-6 py-8">
-			<div className="flex justify-end">
-				<Skeleton className="h-12 w-[65%] max-w-56 rounded-2xl" />
-			</div>
-
-			<div className="flex flex-col gap-2">
-				<Skeleton className="h-4 w-full" />
-				<Skeleton className="h-4 w-[85%]" />
-				<Skeleton className="h-18 w-[40%]" />
-			</div>
-
-			<div className="flex justify-end gap-2">
-				<Skeleton className="h-12 w-[78%] max-w-72 rounded-2xl" />
-			</div>
-
-			<div className="flex flex-col gap-2">
-				<Skeleton className="h-10 w-[30%]" />
-				<Skeleton className="h-4 w-[90%]" />
-				<Skeleton className="h-6 w-[60%]" />
-			</div>
-
-			<div className="flex justify-end gap-2">
-				<Skeleton className="h-12 w-[85%] max-w-96 rounded-2xl" />
-			</div>
-		</div>
 	);
 };
 
@@ -301,7 +272,7 @@ const ThreadWelcome: FC = () => {
 					</h1>
 				</div>
 				<div className="flex w-full items-start justify-center">
-					<Composer />
+					<Composer showExamplePrompts />
 				</div>
 			</section>
 		</div>
@@ -433,9 +404,10 @@ const ChatUnavailableNotice: FC<{ workspaceId: number; canConfigure: boolean }> 
 
 interface ComposerProps {
 	isLoadingMessages?: boolean;
+	showExamplePrompts?: boolean;
 }
 
-const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
+const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePrompts = false }) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
@@ -959,6 +931,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
 						/>
 					</div>
 					<ComposerAction
+						onSend={handleSubmit}
 						isBlockedByOtherUser={isBlockedByOtherUser}
 						isLoadingMessages={isLoadingMessages}
 						isThreadRunning={isThreadRunning}
@@ -966,7 +939,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false }) => {
 						onChatModelSelected={handleChatModelSelected}
 					/>
 				</div>
-				{!isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
+				{showExamplePrompts && !isLoadingMessages && isThreadEmpty && isComposerInputEmpty ? (
 					<div className="absolute top-full left-0 right-0 z-20">
 						<ChatExamplePrompts onSelect={handleExampleSelect} />
 					</div>
@@ -1033,6 +1006,12 @@ interface ComposerActionProps {
 	isThreadRunning?: boolean;
 	workspaceId: number;
 	onChatModelSelected?: () => void;
+	/**
+	 * Must be the same handler the editor's Enter key uses. Going through
+	 * ``ComposerPrimitive.Send`` instead would send without the composer's
+	 * mention snapshot and editor reset.
+	 */
+	onSend: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
@@ -1041,6 +1020,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	isThreadRunning = false,
 	workspaceId,
 	onChatModelSelected,
+	onSend,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const router = useRouter();
@@ -1488,23 +1468,22 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
-					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
-						<TooltipIconButton
-							tooltip={sendTooltip}
-							side="bottom"
-							type="submit"
-							variant="default"
-							size="icon"
-							className={cn(
-								"aui-composer-send size-9 shrink-0 rounded-full",
-								isSendDisabled && "cursor-not-allowed opacity-50"
-							)}
-							aria-label="Send message"
-							disabled={isSendDisabled}
-						>
-							<ArrowUpIcon className="aui-composer-send-icon size-5" />
-						</TooltipIconButton>
-					</ComposerPrimitive.Send>
+					<TooltipIconButton
+						tooltip={sendTooltip}
+						side="bottom"
+						type="button"
+						variant="default"
+						size="icon"
+						className={cn(
+							"aui-composer-send size-9 shrink-0 rounded-full",
+							isSendDisabled && "cursor-not-allowed opacity-50"
+						)}
+						aria-label="Send message"
+						disabled={isSendDisabled}
+						onClick={onSend}
+					>
+						<ArrowUpIcon className="aui-composer-send-icon size-5" />
+					</TooltipIconButton>
 				</AuiIf>
 
 				<AuiIf condition={({ thread }) => thread.isRunning}>
@@ -1544,13 +1523,7 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 	{
 		label: "Generate",
-		tools: [
-			"generate_podcast",
-			"generate_video_presentation",
-			"generate_report",
-			"generate_resume",
-			"generate_image",
-		],
+		tools: ["generate_podcast", "generate_video_presentation", "generate_image"],
 	},
 	{
 		label: "Memory",

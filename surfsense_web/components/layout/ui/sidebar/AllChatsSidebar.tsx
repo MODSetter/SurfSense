@@ -101,7 +101,7 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 		queryKey: ["all-threads", workspaceId],
 		queryFn: () => fetchThreads(Number(workspaceId)),
 		enabled: !!workspaceId && !isSearchMode,
-		placeholderData: () => queryClient.getQueryData(["threads", workspaceId, { limit: 6 }]),
+		placeholderData: () => queryClient.getQueryData(["threads", workspaceId, { limit: 14 }]),
 	});
 
 	const {
@@ -323,85 +323,60 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 										index > 0 && "border-t border-border/60"
 									)}
 								>
-									{isMobile ? (
-										<Button
-											type="button"
-											variant="ghost"
-											onClick={() => {
-												if (wasLongPress()) return;
-												handleThreadClick(thread);
-											}}
-											onMouseEnter={() => prefetchChatThread(thread.id)}
-											onFocus={() => prefetchChatThread(thread.id)}
-											onTouchStart={() => {
-												pendingThreadIdRef.current = thread.id;
-												longPressHandlers.onTouchStart();
-											}}
-											onTouchEnd={longPressHandlers.onTouchEnd}
-											onTouchMove={longPressHandlers.onTouchMove}
-											disabled={isBusy}
-											className={cn(
-												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
-												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
-												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												thread.visibility === "SEARCH_SPACE" ? "pr-44" : "pr-36",
-												isActive && "bg-accent text-accent-foreground",
-												isBusy && "opacity-50 pointer-events-none"
-											)}
-										>
-											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
-										</Button>
-									) : (
-										<Button
-											type="button"
-											variant="ghost"
-											onClick={() => handleThreadClick(thread)}
-											onMouseEnter={() => prefetchChatThread(thread.id)}
-											onFocus={() => prefetchChatThread(thread.id)}
-											disabled={isBusy}
-											className={cn(
-												"h-auto w-full justify-start gap-2.5 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
-												"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
-												"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-												thread.visibility === "SEARCH_SPACE" ? "pr-44" : "pr-36",
-												isActive && "bg-accent text-accent-foreground",
-												isBusy && "opacity-50 pointer-events-none"
-											)}
-										>
-											<span className="min-w-0 flex-1 truncate">{thread.title || "New Chat"}</span>
-										</Button>
-									)}
-
-									<div
+									<Button
+										type="button"
+										variant="ghost"
+										onClick={() => {
+											if (isMobile && wasLongPress()) return;
+											handleThreadClick(thread);
+										}}
+										onMouseEnter={() => prefetchChatThread(thread.id)}
+										onFocus={() => prefetchChatThread(thread.id)}
+										onTouchStart={() => {
+											if (!isMobile) return;
+											pendingThreadIdRef.current = thread.id;
+											longPressHandlers.onTouchStart();
+										}}
+										onTouchEnd={() => {
+											if (isMobile) longPressHandlers.onTouchEnd();
+										}}
+										onTouchMove={() => {
+											if (isMobile) longPressHandlers.onTouchMove();
+										}}
+										disabled={isBusy}
 										className={cn(
-											"pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md pl-6 pr-1",
-											isActive
-												? "bg-gradient-to-l from-accent from-60% to-transparent"
-												: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
-											"opacity-100"
+											"grid h-auto w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 overflow-hidden px-3 py-2.5 text-left text-base font-normal",
+											"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
+											"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+											isActive && "bg-accent text-accent-foreground",
+											isBusy && "opacity-50 pointer-events-none"
 										)}
 									>
-										<div className="relative flex h-7 w-40 items-center justify-end">
-											<div
-												className={cn(
-													"absolute right-1 flex items-center justify-end gap-2 transition-opacity",
-													openDropdownId === thread.id
-														? "opacity-0"
-														: "opacity-100 group-hover/item:opacity-0"
-												)}
-											>
-												{thread.visibility === "SEARCH_SPACE" ? (
-													<Badge
-														variant="secondary"
-														className="h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10"
-													>
-														Shared
-													</Badge>
-												) : null}
-												<span className="whitespace-nowrap text-xs text-muted-foreground">
-													{formatRelativeDate(thread.updatedAt)}
-												</span>
-											</div>
+										<span className="min-w-0 truncate">{thread.title || "New Chat"}</span>
+										<span
+											className={cn(
+												"flex shrink-0 items-center gap-2 whitespace-nowrap transition-opacity",
+												openDropdownId === thread.id
+													? "opacity-0"
+													: "opacity-100 md:group-hover/item:opacity-0"
+											)}
+										>
+											{thread.visibility === "SEARCH_SPACE" ? (
+												<Badge
+													variant="secondary"
+													className="h-5 shrink-0 rounded-sm border-0 bg-popover-foreground/10 px-1.5 text-[11px] text-popover-foreground hover:bg-popover-foreground/10"
+												>
+													Shared
+												</Badge>
+											) : null}
+											<span className="text-xs text-muted-foreground">
+												{formatRelativeDate(thread.updatedAt)}
+											</span>
+										</span>
+									</Button>
+
+									<div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
+										<div className="relative flex h-7 w-7 items-center justify-end">
 											<DropdownMenu
 												open={openDropdownId === thread.id}
 												onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
@@ -411,10 +386,11 @@ function AllChatsContent({ workspaceId, className }: AllChatsContentProps) {
 														variant="ghost"
 														size="icon"
 														className={cn(
-															"pointer-events-auto absolute right-0 h-7 w-7 hover:bg-transparent",
-															openDropdownId === thread.id && "bg-accent hover:bg-accent",
+															"absolute right-0 h-7 w-7 hover:bg-transparent",
+															openDropdownId === thread.id &&
+																"pointer-events-auto bg-accent hover:bg-accent",
 															openDropdownId !== thread.id &&
-																"opacity-0 group-hover/item:opacity-100"
+																"pointer-events-none opacity-0 md:pointer-events-auto md:group-hover/item:opacity-100"
 														)}
 														disabled={isBusy}
 													>

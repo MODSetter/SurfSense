@@ -20,6 +20,7 @@ from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receip
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
     resolve_root_thread_id,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.db import PodcastStatus, shielded_async_session
 from app.podcasts.generation.brief import propose_brief
 from app.podcasts.service import PodcastService
@@ -30,9 +31,8 @@ logger = logging.getLogger(__name__)
 def create_generate_podcast_tool(
     workspace_id: int,
     db_session: AsyncSession,
-    thread_id: int | None = None,
 ):
-    """Create ``generate_podcast`` with bound workspace and thread; DB writes use a tool-local session."""
+    """Create ``generate_podcast`` with bound workspace; writes use a local session."""
     del db_session  # writes use a fresh tool-local session, see below
 
     @tool
@@ -78,7 +78,7 @@ def create_generate_podcast_tool(
                 podcast = await service.create(
                     title=podcast_title,
                     workspace_id=workspace_id,
-                    thread_id=resolve_root_thread_id(runtime, thread_id),
+                    thread_id=resolve_root_thread_id(runtime),
                 )
                 podcast.source_content = source_content
                 spec = await propose_brief(
@@ -143,4 +143,13 @@ def create_generate_podcast_tool(
                 tool_call_id=runtime.tool_call_id,
             )
 
+    generate_podcast.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Creating the podcast",
+            completed_title="Created the podcast",
+            category="artifact",
+            icon_key="microphone",
+            kind="generate_podcast",
+        ).as_metadata()
+    }
     return generate_podcast

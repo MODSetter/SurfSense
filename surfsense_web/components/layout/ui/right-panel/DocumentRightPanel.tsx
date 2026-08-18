@@ -22,8 +22,10 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
+import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
 import { expandedFolderIdsAtom, watchedFoldersRefreshAtom } from "@/atoms/documents/folder.atoms";
 import { agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
@@ -37,7 +39,6 @@ import { DocumentsView } from "@/components/documents/DocumentsView";
 import { FolderPickerDialog } from "@/components/documents/FolderPickerDialog";
 import { VersionHistoryDialog } from "@/components/documents/version-history";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
-import { EXPORT_FILE_EXTENSIONS } from "@/components/shared/ExportMenuItems";
 import {
 	DEFAULT_EXCLUDE_PATTERNS,
 	FolderWatchDialog,
@@ -60,6 +61,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { downloadFile } from "@/features/file-viewers/download-file-button";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
@@ -68,6 +71,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { documentDownloadTarget } from "@/lib/documents/document-download";
 import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
@@ -105,17 +109,6 @@ function isMemoryDocument(doc: { document_type: string }) {
 	return doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
 }
 
-function downloadTextFile(content: string, fileName: string, type = "text/markdown;charset=utf-8") {
-	const blob = new Blob([content], { type });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = fileName;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
-}
 const LOCAL_FILESYSTEM_TRUST_KEY = "surfsense.local-filesystem-trust.v1";
 const MAX_LOCAL_FILESYSTEM_ROOTS = 10;
 
@@ -187,14 +180,19 @@ function AuthenticatedDocumentRightPanelBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
+	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 	const { data: agentFlags } = useAtomValue(agentFlagsAtom);
+	const artifactsByDocument = useArtifactsByDocument(workspaceId);
 
 	const [search, setSearch] = useState("");
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [filesystemSettings, setFilesystemSettings] = useState<FilesystemSettings | null>(null);
 	const [localTrustDialogOpen, setLocalTrustDialogOpen] = useState(false);
 	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
+	const [folderPendingDelete, setFolderPendingDelete] = useState<FolderDisplay | null>(null);
+	const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
@@ -435,6 +433,7 @@ function AuthenticatedDocumentRightPanelBase({
 				folderId: (d as { folderId?: number | null }).folderId ?? null,
 				createdAt: d.createdAt,
 				status: d.status as { state: string; reason?: string | null } | undefined,
+				artifactFormat: artifactsByDocument.get(d.id)?.format,
 			}));
 
 		const zeroIds = new Set(zeroDocs.map((d) => d.id));
@@ -451,7 +450,7 @@ function AuthenticatedDocumentRightPanelBase({
 			}));
 
 		return [...pendingAgentDocs, ...zeroDocs];
-	}, [zeroAllDocs, agentCreatedDocs, workspaceId]);
+	}, [zeroAllDocs, agentCreatedDocs, workspaceId, artifactsByDocument]);
 
 	// Prune agent-created docs once Zero has caught up
 	useEffect(() => {
@@ -584,27 +583,32 @@ function AuthenticatedDocumentRightPanelBase({
 		}
 	}, []);
 
-	const handleDeleteFolder = useCallback(
-		async (folder: FolderDisplay) => {
-			if (!confirm(`Delete folder "${folder.name}" and all its contents?`)) return;
-			try {
-				if (electronAPI) {
-					const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
-					const matched = watchedFolders.find(
-						(wf: WatchedFolderEntry) => wf.rootFolderId === folder.id
-					);
-					if (matched) {
-						await electronAPI.removeWatchedFolder(matched.path);
-					}
+	const handleDeleteFolder = useCallback((folder: FolderDisplay) => {
+		setFolderPendingDelete(folder);
+	}, []);
+
+	const handleConfirmDeleteFolder = useCallback(async () => {
+		if (!folderPendingDelete) return;
+		setIsDeletingFolder(true);
+		try {
+			if (electronAPI) {
+				const watchedFolders = (await electronAPI.getWatchedFolders()) as WatchedFolderEntry[];
+				const matched = watchedFolders.find(
+					(wf: WatchedFolderEntry) => wf.rootFolderId === folderPendingDelete.id
+				);
+				if (matched) {
+					await electronAPI.removeWatchedFolder(matched.path);
 				}
-				await foldersApiService.deleteFolder(folder.id);
-				toast.success("Folder deleted");
-			} catch (e: unknown) {
-				toast.error((e as Error)?.message || "Failed to delete folder");
 			}
-		},
-		[electronAPI]
-	);
+			await foldersApiService.deleteFolder(folderPendingDelete.id);
+			setFolderPendingDelete(null);
+			toast.success("Folder deleted");
+		} catch (e: unknown) {
+			toast.error((e as Error)?.message || "Failed to delete folder");
+		} finally {
+			setIsDeletingFolder(false);
+		}
+	}, [electronAPI, folderPendingDelete]);
 
 	const handleMoveFolder = useCallback(
 		(folder: FolderDisplay) => {
@@ -630,6 +634,22 @@ function AuthenticatedDocumentRightPanelBase({
 		setFolderPickerTarget({ type: "document", id: doc.id });
 		setFolderPickerOpen(true);
 	}, []);
+
+	const handleDownloadDocument = useCallback(
+		async (doc: DocumentNodeDoc) => {
+			const target = documentDownloadTarget(doc, workspaceId, artifactsByDocument.get(doc.id));
+			if (!target) {
+				toast.error("Artifact is not available yet");
+				return;
+			}
+			try {
+				await downloadFile(target.path, target.filename);
+			} catch {
+				toast.error("Could not download this file");
+			}
+		},
+		[artifactsByDocument, workspaceId]
+	);
 
 	const isExportingKBRef = useRef(false);
 	const [exportWarningOpen, setExportWarningOpen] = useState(false);
@@ -737,69 +757,6 @@ function AuthenticatedDocumentRightPanelBase({
 			}
 		},
 		[workspaceId, getPendingCountInSubtree, doExport]
-	);
-
-	const handleExportDocument = useCallback(
-		async (doc: DocumentNodeDoc, format: string) => {
-			if (isMemoryDocument(doc)) {
-				try {
-					const endpoint =
-						doc.document_type === "USER_MEMORY"
-							? buildBackendUrl("/api/v1/users/me/memory")
-							: buildBackendUrl(`/api/v1/workspaces/${workspaceId}/memory`);
-					const response = await authenticatedFetch(endpoint, { method: "GET" });
-					if (!response.ok) {
-						const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
-						throw new Error(errorData.detail || "Export failed");
-					}
-					const data = (await response.json()) as { memory_md?: string };
-					downloadTextFile(
-						data.memory_md ?? "",
-						doc.title.endsWith(".md") ? doc.title : `${doc.title}.md`
-					);
-					return;
-				} catch (err) {
-					console.error("Memory export failed:", err);
-					toast.error(err instanceof Error ? err.message : "Export failed");
-					return;
-				}
-			}
-
-			const safeTitle =
-				doc.title
-					.replace(/[^a-zA-Z0-9 _-]/g, "_")
-					.trim()
-					.slice(0, 80) || "document";
-			const ext = EXPORT_FILE_EXTENSIONS[format] ?? format;
-
-			try {
-				const response = await authenticatedFetch(
-					buildBackendUrl(`/api/v1/workspaces/${workspaceId}/documents/${doc.id}/export`, {
-						format,
-					}),
-					{ method: "GET" }
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
-					throw new Error(errorData.detail || "Export failed");
-				}
-
-				const blob = await response.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = `${safeTitle}.${ext}`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-			} catch (err) {
-				console.error(`Export ${format} failed:`, err);
-				toast.error(err instanceof Error ? err.message : `Export failed`);
-			}
-		},
-		[workspaceId]
 	);
 
 	const handleFolderPickerSelect = useCallback(
@@ -1106,7 +1063,7 @@ function AuthenticatedDocumentRightPanelBase({
 			)}
 
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-6"}`}>
+				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-8"}`}>
 					<DocumentsFilters
 						typeCounts={typeCounts}
 						onSearch={setSearch}
@@ -1148,7 +1105,16 @@ function AuthenticatedDocumentRightPanelBase({
 						onCreateFolder={handleCreateFolder}
 						onPreviewDocument={(doc) => {
 							if (openMemoryDocument(doc)) return;
-							openEditorPanel({
+							if (doc.document_type === "ARTIFACT") {
+								const artifact = artifactsByDocument.get(doc.id);
+								if (artifact) {
+									openArtifactPanel({ artifactId: artifact.artifact_id });
+								} else {
+									toast.error("Artifact is not available yet");
+								}
+								return;
+							}
+							openDocumentViewer({
 								documentId: doc.id,
 								workspaceId,
 								title: doc.title,
@@ -1156,8 +1122,8 @@ function AuthenticatedDocumentRightPanelBase({
 						}}
 						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 						onMoveDocument={handleMoveDocument}
+						onDownloadDocument={handleDownloadDocument}
 						onResetDocument={handleResetMemoryDocument}
-						onExportDocument={handleExportDocument}
 						onVersionHistory={(doc) => setVersionDocId(doc.id)}
 						onDropIntoFolder={handleDropIntoFolder}
 						onReorderFolder={handleReorderFolder}
@@ -1381,6 +1347,37 @@ function AuthenticatedDocumentRightPanelBase({
 				parentFolderName={createFolderParentName}
 				onConfirm={handleCreateFolderConfirm}
 			/>
+
+			<AlertDialog
+				open={folderPendingDelete !== null}
+				onOpenChange={(open) => {
+					if (!open && !isDeletingFolder) setFolderPendingDelete(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete this folder?</AlertDialogTitle>
+						<AlertDialogDescription>
+							<span className="font-medium text-foreground">{folderPendingDelete?.name}</span> and
+							all of its contents will be permanently deleted. This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingFolder}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(event) => {
+								event.preventDefault();
+								void handleConfirmDeleteFolder();
+							}}
+							disabled={isDeletingFolder}
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							<span className={isDeletingFolder ? "opacity-0" : ""}>Delete</span>
+							{isDeletingFolder ? <Spinner size="sm" className="absolute" /> : null}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			<AlertDialog
 				open={bulkDeleteConfirmOpen}
@@ -1746,7 +1743,7 @@ function AnonymousDocumentRightPanel({
 
 			{/* Filters & upload */}
 			<div className="flex-1 min-h-0 pt-0 flex flex-col">
-				<div className={`${workspaceView ? "" : "px-4"} pt-6 pb-1.5`}>
+				<div className={`${workspaceView ? "" : "px-4"} pt-8 pb-1.5`}>
 					<DocumentsFilters
 						typeCounts={hasDoc ? { FILE: 1 } : {}}
 						onSearch={setSearch}
@@ -1779,7 +1776,7 @@ function AnonymousDocumentRightPanel({
 							return true;
 						}}
 						onMoveDocument={() => gate("organize documents")}
-						onExportDocument={() => gate("export documents")}
+						onDownloadDocument={() => gate("download documents")}
 						onVersionHistory={() => gate("view version history")}
 						onDropIntoFolder={async () => gate("organize documents")}
 						onReorderFolder={async () => gate("organize folders")}

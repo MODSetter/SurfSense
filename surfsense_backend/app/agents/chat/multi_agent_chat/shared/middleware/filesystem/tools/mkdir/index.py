@@ -17,6 +17,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.knowledge_store.paths import DOCUMENTS_ROOT
 
 from ...middleware.async_dispatch import run_async_blocking
@@ -100,4 +101,13 @@ def create_mkdir_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_mkdir,
         coroutine=async_mkdir,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Creating folder",
+                completed_title="Created folder",
+                category="file",
+                icon_key="folder-plus",
+                kind="mkdir",
+            ).as_metadata()
+        },
     )

@@ -549,14 +549,36 @@ class Config:
     )
 
     # Daytona sandbox (code execution / filesystem sandbox)
-    DAYTONA_SANDBOX_ENABLED = (
-        os.getenv("DAYTONA_SANDBOX_ENABLED", "FALSE").upper() == "TRUE"
-    )
     DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
     DAYTONA_API_URL = os.getenv("DAYTONA_API_URL", "https://app.daytona.io/api")
     DAYTONA_TARGET = os.getenv("DAYTONA_TARGET", "us")
     DAYTONA_SNAPSHOT_ID = os.getenv("DAYTONA_SNAPSHOT_ID") or None
     SANDBOX_FILES_DIR = os.getenv("SANDBOX_FILES_DIR", "sandbox_files")
+
+    # Sandbox provider selection. A deployment choice, not a fallback chain:
+    # opensandbox is self-hosted, daytona is cloud.
+    #
+    # On by default because compose always runs the control plane. A backend run
+    # outside compose has none, so it needs OPENSANDBOX_DOMAIN pointed at a
+    # reachable server or SANDBOX_ENABLED=FALSE.
+    SANDBOX_ENABLED = os.getenv("SANDBOX_ENABLED", "TRUE").strip().upper() == "TRUE"
+    SANDBOX_PROVIDER = os.getenv("SANDBOX_PROVIDER", "opensandbox").lower()
+    OPENSANDBOX_DOMAIN = os.getenv("OPENSANDBOX_DOMAIN", "opensandbox-server:8080")
+    OPENSANDBOX_API_KEY = os.getenv("OPENSANDBOX_API_KEY", "")
+    SANDBOX_IMAGE = os.getenv(
+        "SANDBOX_IMAGE", "ghcr.io/modsetter/surfsense-sandbox:latest"
+    )
+    SANDBOX_IDLE_TTL_SECONDS = int(os.getenv("SANDBOX_IDLE_TTL_SECONDS", "900"))
+    # Creation blocks server-side while the image is pulled onto the host
+    # daemon, which the SDK's 30s default turns into an error rather than a slow
+    # first request. Compose pre-pulls; this covers hosts that did not.
+    SANDBOX_OPERATION_TIMEOUT_SECONDS = int(
+        os.getenv("SANDBOX_OPERATION_TIMEOUT_SECONDS", "200")
+    )
+    SANDBOX_MAX_SESSIONS_PER_WORKSPACE = int(
+        os.getenv("SANDBOX_MAX_SESSIONS_PER_WORKSPACE", "5")
+    )
+    ARTIFACT_MAX_FILE_BYTES = int(os.getenv("ARTIFACT_MAX_FILE_BYTES", "31457280"))
 
     # Agent cache (in-process LRU+TTL cache for built agents)
     AGENT_CACHE_MAXSIZE = int(os.getenv("SURFSENSE_AGENT_CACHE_MAXSIZE", "256"))
@@ -830,9 +852,9 @@ class Config:
     QUOTA_MAX_RESERVE_PER_CALL = int(os.getenv("QUOTA_MAX_RESERVE_PER_CALL", "8000"))
 
     # Per-image reservation (in micro-USD) used by ``billable_call`` for the
-    # ``POST /image-generations`` endpoint when the global config does not
-    # override it. $0.05 covers realistic worst-cases for current OpenAI /
-    # OpenRouter image-gen pricing. Bypassed entirely for free configs.
+    # ``generate_image`` tool when the global config does not override it.
+    # $0.05 covers realistic worst-cases for current OpenAI / OpenRouter
+    # image-gen pricing. Bypassed entirely for free configs.
     QUOTA_DEFAULT_IMAGE_RESERVE_MICROS = int(
         os.getenv("QUOTA_DEFAULT_IMAGE_RESERVE_MICROS", "50000")
     )

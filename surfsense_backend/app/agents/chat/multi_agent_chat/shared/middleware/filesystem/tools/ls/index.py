@@ -14,6 +14,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.kb_p
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.path_resolution import resolve_list_target_path
@@ -97,4 +98,13 @@ def create_ls_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_ls,
         coroutine=async_ls,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Reviewing folder",
+                completed_title="Reviewed folder",
+                category="file",
+                icon_key="folder-open",
+                kind="ls",
+            ).as_metadata()
+        },
     )

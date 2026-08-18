@@ -1,42 +1,17 @@
-"""
-Editor routes for document editing with markdown (Plate.js frontend).
-Includes multi-format export (PDF, DOCX, HTML, LaTeX, EPUB, ODT, plain text).
-"""
+"""Editor routes for document editing with markdown (Plate.js frontend)."""
 
-import asyncio
-import io
-import logging
-import os
-import tempfile
 from datetime import UTC, datetime
 from typing import Any
 
-import pypandoc
-import typst
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.db import Chunk, Document, DocumentType, Permission, get_async_session
 from app.knowledge_store.service import record_saved_document
-from app.routes.reports_routes import (
-    _FILE_EXTENSIONS,
-    _MEDIA_TYPES,
-    ExportFormat,
-    _normalize_latex_delimiters,
-    _strip_wrapping_code_fences,
-)
-from app.templates.export_helpers import (
-    get_html_css_path,
-    get_reference_docx_path,
-    get_typst_template_path,
-)
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -173,71 +148,6 @@ async def get_editor_content(
     return _build_response(markdown_content)
 
 
-@router.get("/workspaces/{workspace_id}/documents/{document_id}/download-markdown")
-async def download_document_markdown(
-    workspace_id: int,
-    document_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    """
-    Download the full document content as a .md file.
-    Reconstructs markdown from source_markdown or chunks.
-    """
-    await check_permission(
-        session,
-        auth,
-        workspace_id,
-        Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this workspace",
-    )
-
-    result = await session.execute(
-        select(Document).filter(
-            Document.id == document_id,
-            Document.workspace_id == workspace_id,
-        )
-    )
-    document = result.scalars().first()
-
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    markdown: str | None = document.source_markdown
-    if markdown is None and document.blocknote_document:
-        from app.utils.blocknote_to_markdown import blocknote_to_markdown
-
-        markdown = blocknote_to_markdown(document.blocknote_document)
-    if markdown is None:
-        chunk_contents_result = await session.execute(
-            select(Chunk.content)
-            .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.position, Chunk.id)
-        )
-        chunk_contents = chunk_contents_result.scalars().all()
-        if chunk_contents:
-            markdown = "\n\n".join(chunk_contents)
-
-    if not markdown or not markdown.strip():
-        raise HTTPException(
-            status_code=400, detail="Document has no content to download"
-        )
-
-    safe_title = (
-        "".join(
-            c if c.isalnum() or c in " -_" else "_"
-            for c in (document.title or "document")
-        ).strip()[:80]
-        or "document"
-    )
-
-    return StreamingResponse(
-        io.BytesIO(markdown.encode("utf-8")),
-        media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{safe_title}.md"'},
-    )
-
-
 @router.post("/workspaces/{workspace_id}/documents/{document_id}/save")
 async def save_document(
     workspace_id: int,
@@ -276,6 +186,12 @@ async def save_document(
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.document_type == DocumentType.ARTIFACT:
+        raise HTTPException(
+            status_code=409,
+            detail="Artifact documents are read-only; revise them through the artifact tools.",
+        )
 
     source_markdown = data.get("source_markdown")
     if source_markdown is None:
@@ -334,164 +250,3 @@ async def save_document(
         "message": "Document saved and will be reindexed in the background",
         "updated_at": document.updated_at.isoformat(),
     }
-
-
-@router.get("/workspaces/{workspace_id}/documents/{document_id}/export")
-async def export_document(
-    workspace_id: int,
-    document_id: int,
-    format: ExportFormat = Query(
-        ExportFormat.PDF,
-        description="Export format: pdf, docx, html, latex, epub, odt, or plain",
-    ),
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(get_auth_context),
-):
-    """Export a document in the requested format (reuses the report export pipeline)."""
-    await check_permission(
-        session,
-        auth,
-        workspace_id,
-        Permission.DOCUMENTS_READ.value,
-        "You don't have permission to read documents in this workspace",
-    )
-
-    result = await session.execute(
-        select(Document).filter(
-            Document.id == document_id,
-            Document.workspace_id == workspace_id,
-        )
-    )
-    document = result.scalars().first()
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    markdown_content: str | None = document.source_markdown
-    if markdown_content is None and document.blocknote_document:
-        from app.utils.blocknote_to_markdown import blocknote_to_markdown
-
-        markdown_content = blocknote_to_markdown(document.blocknote_document)
-    if markdown_content is None:
-        chunk_contents_result = await session.execute(
-            select(Chunk.content)
-            .filter(Chunk.document_id == document_id)
-            .order_by(Chunk.position, Chunk.id)
-        )
-        chunk_contents = chunk_contents_result.scalars().all()
-        if chunk_contents:
-            markdown_content = "\n\n".join(chunk_contents)
-
-    if not markdown_content or not markdown_content.strip():
-        raise HTTPException(status_code=400, detail="Document has no content to export")
-
-    markdown_content = _strip_wrapping_code_fences(markdown_content)
-    markdown_content = _normalize_latex_delimiters(markdown_content)
-
-    doc_title = document.title or "Document"
-    formatted_date = (
-        document.created_at.strftime("%B %d, %Y") if document.created_at else ""
-    )
-    input_fmt = "gfm+tex_math_dollars"
-    meta_args = ["-M", f"title:{doc_title}", "-M", f"date:{formatted_date}"]
-
-    def _convert_and_read() -> bytes:
-        if format == ExportFormat.PDF:
-            typst_template = str(get_typst_template_path())
-            typst_markup: str = pypandoc.convert_text(
-                markdown_content,
-                "typst",
-                format=input_fmt,
-                extra_args=[
-                    "--standalone",
-                    f"--template={typst_template}",
-                    "-V",
-                    "mainfont:Libertinus Serif",
-                    "-V",
-                    "codefont:DejaVu Sans Mono",
-                    *meta_args,
-                ],
-            )
-            return typst.compile(typst_markup.encode("utf-8"))
-
-        if format == ExportFormat.DOCX:
-            return _pandoc_to_tempfile(
-                format.value,
-                [
-                    "--standalone",
-                    f"--reference-doc={get_reference_docx_path()}",
-                    *meta_args,
-                ],
-            )
-
-        if format == ExportFormat.HTML:
-            html_str: str = pypandoc.convert_text(
-                markdown_content,
-                "html5",
-                format=input_fmt,
-                extra_args=[
-                    "--standalone",
-                    "--embed-resources",
-                    f"--css={get_html_css_path()}",
-                    "--syntax-highlighting=pygments",
-                    *meta_args,
-                ],
-            )
-            return html_str.encode("utf-8")
-
-        if format == ExportFormat.EPUB:
-            return _pandoc_to_tempfile("epub3", ["--standalone", *meta_args])
-
-        if format == ExportFormat.ODT:
-            return _pandoc_to_tempfile("odt", ["--standalone", *meta_args])
-
-        if format == ExportFormat.LATEX:
-            tex_str: str = pypandoc.convert_text(
-                markdown_content,
-                "latex",
-                format=input_fmt,
-                extra_args=["--standalone", *meta_args],
-            )
-            return tex_str.encode("utf-8")
-
-        plain_str: str = pypandoc.convert_text(
-            markdown_content,
-            "plain",
-            format=input_fmt,
-            extra_args=["--wrap=auto", "--columns=80"],
-        )
-        return plain_str.encode("utf-8")
-
-    def _pandoc_to_tempfile(output_format: str, extra_args: list[str]) -> bytes:
-        fd, tmp_path = tempfile.mkstemp(suffix=f".{output_format}")
-        os.close(fd)
-        try:
-            pypandoc.convert_text(
-                markdown_content,
-                output_format,
-                format=input_fmt,
-                extra_args=extra_args,
-                outputfile=tmp_path,
-            )
-            with open(tmp_path, "rb") as f:
-                return f.read()
-        finally:
-            os.unlink(tmp_path)
-
-    try:
-        loop = asyncio.get_running_loop()
-        output = await loop.run_in_executor(None, _convert_and_read)
-    except Exception as e:
-        logger.exception("Document export failed")
-        raise HTTPException(status_code=500, detail=f"Export failed: {e!s}") from e
-
-    safe_title = (
-        "".join(c if c.isalnum() or c in " -_" else "_" for c in doc_title).strip()[:80]
-        or "document"
-    )
-    ext = _FILE_EXTENSIONS[format]
-
-    return StreamingResponse(
-        io.BytesIO(output),
-        media_type=_MEDIA_TYPES[format],
-        headers={"Content-Disposition": f'attachment; filename="{safe_title}.{ext}"'},
-    )

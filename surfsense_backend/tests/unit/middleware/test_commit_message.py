@@ -50,6 +50,25 @@ async def test_uses_the_models_reply_as_subject():
     assert message == "docs: add meeting notes"
 
 
+async def test_a_reasoning_models_thinking_never_reaches_the_subject():
+    """Reasoning models answer in blocks; the shape below is a real reply."""
+
+    class _ReasoningModel:
+        async def ainvoke(self, _input, config=None, **kwargs):
+            return SimpleNamespace(
+                content=[
+                    {"type": "thinking", "thinking": "**Inferring commit message**"},
+                    {"type": "thinking", "thinking": " the user wants a leaf image"},
+                    "docs: add simple green leaf image prompt",
+                ]
+            )
+
+    message = await generate_commit_message(
+        _ReasoningModel(), writes={"documents/leaf.md": b"# Leaf"}, removes=[]
+    )
+    assert message == "docs: add simple green leaf image prompt"
+
+
 async def test_falls_back_deterministically_when_the_model_fails():
     message = await generate_commit_message(
         _BrokenModel(),

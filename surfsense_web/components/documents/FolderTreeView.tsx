@@ -32,8 +32,8 @@ export interface FolderTreeViewProps {
 	onPreviewDocument: (doc: DocumentNodeDoc) => void;
 	onDeleteDocument: (doc: DocumentNodeDoc) => void;
 	onMoveDocument: (doc: DocumentNodeDoc) => void;
+	onDownloadDocument?: (doc: DocumentNodeDoc) => void;
 	onResetDocument?: (doc: DocumentNodeDoc) => void;
-	onExportDocument?: (doc: DocumentNodeDoc, format: string) => void;
 	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	onDropIntoFolder?: (
 		itemType: "folder" | "document",
@@ -72,8 +72,8 @@ export function FolderTreeView({
 	onPreviewDocument,
 	onDeleteDocument,
 	onMoveDocument,
+	onDownloadDocument,
 	onResetDocument,
-	onExportDocument,
 	onVersionHistory,
 	onDropIntoFolder,
 	onReorderFolder,
@@ -170,8 +170,8 @@ export function FolderTreeView({
 					onPreview={onPreviewDocument}
 					onDelete={onDeleteDocument}
 					onMove={onMoveDocument}
+					onDownload={isMemoryDocument ? undefined : onDownloadDocument}
 					onReset={onResetDocument}
-					onExport={onExportDocument}
 					onVersionHistory={isMemoryDocument ? undefined : onVersionHistory}
 					canDelete={!isMemoryDocument}
 					canMove={!isMemoryDocument}
@@ -184,7 +184,7 @@ export function FolderTreeView({
 		[
 			mentionedDocKeys,
 			onDeleteDocument,
-			onExportDocument,
+			onDownloadDocument,
 			onMoveDocument,
 			onPreviewDocument,
 			onResetDocument,

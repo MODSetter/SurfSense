@@ -12,12 +12,13 @@ from app.file_storage.settings import (
 )
 
 
-@lru_cache(maxsize=1)
-def get_storage_backend() -> StorageBackend:
-    """Build the backend selected by ``FILE_STORAGE_BACKEND`` (lazy-imported)."""
+@lru_cache(maxsize=2)
+def get_storage_backend(backend_name: str | None = None) -> StorageBackend:
+    """Build the selected or recorded storage backend as a singleton."""
     settings = load_storage_settings()
+    backend_name = backend_name or settings.backend
 
-    if settings.backend == AZURE_BACKEND:
+    if backend_name == AZURE_BACKEND:
         if not settings.azure_connection_string or not settings.azure_container:
             raise ValueError(
                 "Azure storage requires AZURE_STORAGE_CONNECTION_STRING and "
@@ -30,9 +31,9 @@ def get_storage_backend() -> StorageBackend:
             container=settings.azure_container,
         )
 
-    if settings.backend == LOCAL_BACKEND:
+    if backend_name == LOCAL_BACKEND:
         from app.file_storage.backends.local import LocalFileBackend
 
         return LocalFileBackend(settings.local_root)
 
-    raise ValueError(f"Unknown FILE_STORAGE_BACKEND: {settings.backend!r}")
+    raise ValueError(f"Unknown file storage backend: {backend_name!r}")

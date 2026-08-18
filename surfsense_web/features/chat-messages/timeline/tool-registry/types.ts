@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 import type { ItemStatus } from "../types";
 
 /**
- * The exact prop subset the timeline supplies when mounting a tool
- * component. A strict subset of assistant-ui's
+ * The exact prop subset the HITL approval surface supplies when mounting a
+ * tool component. A strict subset of assistant-ui's
  * ``ToolCallMessagePartProps`` — only the fields we actually have when
- * rendering manually from a ``ToolCallItem``.
+ * rendering a pending approval action.
  *
  * Notably absent vs. assistant-ui:
  * - ``addResult`` / ``resume`` (runtime-only, not available to us)
@@ -22,20 +22,10 @@ export interface TimelineToolProps {
 	result?: unknown;
 	langchainToolCallId?: string;
 	status: ItemStatus;
-	/**
-	 * Live activity lines for this tool (the joined thinking-step items).
-	 * While ``status === "running"`` these are the streamed progress updates
-	 * (e.g. scraper ``scraper_progress`` events) so the fallback card can show
-	 * output inside its dropdown instead of a static "input only" view.
-	 */
-	progress?: readonly string[];
 }
 
 /**
- * Contract for every tool component mounted by the timeline. The 15
- * existing HITL-aware ``components/tool-ui/*`` files retype to this
- * during the cutover commit (a mechanical rename from
- * ``ToolCallMessagePartComponent`` → ``TimelineToolComponent``).
+ * Contract for tool components mounted by the HITL approval card.
  *
  * Components are expected to perform internal discrimination on
  * ``result`` to pick a view (interrupt → approval card; success →

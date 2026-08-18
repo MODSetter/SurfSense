@@ -1,7 +1,7 @@
 """Initial SSE frames every flow emits right after pre-stream setup.
 
 Order matters: ``message_start`` opens the assistant message, ``start_step``
-opens the first thinking step, ``turn-info`` lets the frontend stamp the
+opens the assistant-ui stream step, ``turn-info`` lets the frontend stamp the
 correlation id onto the in-flight message, and ``turn-status: busy`` flips the
 UI into the streaming state.
 """
@@ -26,7 +26,10 @@ def iter_initial_frames(
     """
     yield streaming_service.format_message_start()
     yield streaming_service.format_start_step()
-    yield streaming_service.format_data("turn-info", {"chat_turn_id": turn_id})
+    yield streaming_service.format_data(
+        "turn-info",
+        {"chat_turn_id": turn_id},
+    )
     yield streaming_service.format_data("turn-status", {"status": "busy"})
 
 

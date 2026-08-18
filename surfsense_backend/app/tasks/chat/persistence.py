@@ -57,6 +57,7 @@ from uuid import UUID
 
 from sqlalchemy import text as sa_text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import (
@@ -87,13 +88,27 @@ _EMPTY_SHELL_CONTENT: list[dict[str, Any]] = [{"type": "text", "text": ""}]
 # no tool calls). The streaming layer flips to this when
 # ``AssistantContentBuilder.is_empty()`` returns True so the persisted
 # row is at least somewhat self-describing instead of an empty text
-# bubble. The FE's ``ContentPart`` union doesn't include ``status``
-# yet, so the history loader will silently drop this part and render
-# a blank bubble (matches today's behaviour for empty turns); a follow-up
-# FE PR adds the explicit "no response" rendering.
+# bubble. The history converter presents this status as readable text.
 _STATUS_NO_RESPONSE: list[dict[str, Any]] = [
     {"type": "status", "text": "(no text response)"}
 ]
+
+
+async def load_assistant_message_for_turn(
+    session: AsyncSession,
+    *,
+    chat_id: int,
+    turn_id: str | None,
+) -> NewChatMessage | None:
+    """Resolve the paused assistant row by checkpoint turn identity."""
+    if not turn_id:
+        return None
+    query = select(NewChatMessage).where(
+        NewChatMessage.thread_id == chat_id,
+        NewChatMessage.role == NewChatMessageRole.ASSISTANT,
+        NewChatMessage.turn_id == turn_id,
+    )
+    return (await session.execute(query.limit(1))).scalar_one_or_none()
 
 
 def _build_user_content(

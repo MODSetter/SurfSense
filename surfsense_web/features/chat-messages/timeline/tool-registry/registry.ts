@@ -29,6 +29,13 @@ const SandboxExecuteToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+const VerifyArtifactToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/verify-artifact").then((m) => ({
+			default: m.VerifyArtifactToolUI,
+		})),
+	{ ssr: false }
+);
 const CreateNotionPageToolUI = dynamic(
 	() => import("@/components/tool-ui/notion").then((m) => ({ default: m.CreateNotionPageToolUI })),
 	{ ssr: false }
@@ -169,29 +176,27 @@ const DeleteConfluencePageToolUI = dynamic(
  *    ``scrape_webpage``): citations they produce render inline in
  *    markdown; a separate card would be redundant noise.
  */
-const NullTimelineBody: TimelineToolComponent = () => null;
+const NullApprovalBody: TimelineToolComponent = () => null;
 
 /**
- * The timeline's tool-name → component map. Mounted by
- * ``timeline/items/tool-call-item.tsx`` via ``getToolComponent(name)``.
+ * Tool-name → component map used only to render pending HITL actions.
  *
  * Includes only "process" tools (connector CRUD, sandbox execute,
  * memory updates) and the 4 invisible tools mapped to a null component.
- * Deliverables (``generate_report``, ``generate_resume``,
- * ``generate_podcast``, ``generate_video_presentation``,
- * ``display_image``, ``generate_image``) live in ``BODY_TOOLS`` in
- * ``assistant-message.tsx`` — they're product, not process.
+ * Deliverables live in ``BODY_TOOLS`` in ``assistant-message.tsx`` —
+ * they're product, not process.
  *
  * Tools NOT in this map fall through to ``FallbackToolBody`` (which
  * itself dispatches between HITL approval cards and
  * ``DefaultFallbackCard`` based on result discrimination).
  */
 const TOOLS_BY_NAME = {
-	task: NullTimelineBody,
+	task: NullApprovalBody,
 	create_automation: CreateAutomationToolUI,
 	update_memory: UpdateMemoryToolUI,
 	execute: SandboxExecuteToolUI,
 	execute_code: SandboxExecuteToolUI,
+	verify_artifact: VerifyArtifactToolUI,
 	create_notion_page: CreateNotionPageToolUI,
 	update_notion_page: UpdateNotionPageToolUI,
 	delete_notion_page: DeleteNotionPageToolUI,
@@ -217,9 +222,9 @@ const TOOLS_BY_NAME = {
 	create_confluence_page: CreateConfluencePageToolUI,
 	update_confluence_page: UpdateConfluencePageToolUI,
 	delete_confluence_page: DeleteConfluencePageToolUI,
-	link_preview: NullTimelineBody,
-	multi_link_preview: NullTimelineBody,
-	scrape_webpage: NullTimelineBody,
+	link_preview: NullApprovalBody,
+	multi_link_preview: NullApprovalBody,
+	scrape_webpage: NullApprovalBody,
 } as unknown as Record<string, TimelineToolComponent>;
 
 /**
@@ -229,5 +234,3 @@ const TOOLS_BY_NAME = {
 export function getToolComponent(toolName: string): TimelineToolComponent | undefined {
 	return TOOLS_BY_NAME[toolName];
 }
-
-export const TIMELINE_TOOL_NAMES = Object.keys(TOOLS_BY_NAME) as readonly string[];

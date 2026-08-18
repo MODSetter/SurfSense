@@ -17,6 +17,7 @@ from typing import Any
 
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
 from app.services.new_streaming_service import VercelStreamingService
+from app.services.streaming.types import ActivityData
 from app.tasks.chat.streaming.agent.event_loop import stream_agent_events
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 
@@ -33,10 +34,10 @@ async def run_stream_loop(
     config: dict[str, Any],
     input_data: Any,
     stream_result: StreamResult,
-    step_prefix: str = "thinking",
-    initial_step_id: str | None = None,
-    initial_step_title: str = "",
-    initial_step_items: list[str] | None = None,
+    step_prefix: str = "turn",
+    initial_activities: list[ActivityData] | None = None,
+    resume_activity_id_by_tool_call: dict[str, str] | None = None,
+    resume_tool_call_ids: list[str] | None = None,
     fallback_commit_workspace_id: int | None,
     fallback_commit_created_by_id: str | None,
     fallback_commit_filesystem_mode: FilesystemMode,
@@ -61,9 +62,9 @@ async def run_stream_loop(
                 streaming_service=streaming_service,
                 result=stream_result,
                 step_prefix=step_prefix,
-                initial_step_id=initial_step_id,
-                initial_step_title=initial_step_title,
-                initial_step_items=initial_step_items,
+                initial_activities=initial_activities,
+                resume_activity_id_by_tool_call=resume_activity_id_by_tool_call,
+                resume_tool_call_ids=resume_tool_call_ids,
                 fallback_commit_workspace_id=fallback_commit_workspace_id,
                 fallback_commit_created_by_id=fallback_commit_created_by_id,
                 fallback_commit_filesystem_mode=fallback_commit_filesystem_mode,

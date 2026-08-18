@@ -128,7 +128,9 @@ async def _failed_receipts(
 ) -> list[Receipt]:
     """One failed receipt per leftover change, read back off the kept copy."""
     try:
-        writes, removes = await store.diff_working_copy(thread_working_copy_id(thread_id))
+        writes, removes = await store.diff_working_copy(
+            thread_working_copy_id(thread_id)
+        )
     except FileNotFoundError:
         writes, removes = {}, []
     return [

@@ -64,7 +64,11 @@ async def reconcile_folders(
             folder_parts=list(chain),
         )
     rows = (
-        (await session.execute(select(Folder).where(Folder.workspace_id == workspace_id)))
+        (
+            await session.execute(
+                select(Folder).where(Folder.workspace_id == workspace_id)
+            )
+        )
         .scalars()
         .all()
     )
@@ -90,7 +94,11 @@ async def reconcile_tree_folders(
     the changes is what lets the incremental and projection paths derive the same
     folder rows the full rebuild does.
     """
-    tracked = [entry.path for entry in await store.list_paths(revision)]
+    tracked = [
+        entry.path
+        for entry in await store.list_paths(revision)
+        if entry.path.strip("/").startswith("documents/")
+    ]
     return await reconcile_folders(
         session,
         workspace_id=workspace_id,
@@ -119,7 +127,11 @@ async def reparent_folder(
     if not source_chain or not destination_chain:
         return False
     rows = (
-        (await session.execute(select(Folder).where(Folder.workspace_id == workspace_id)))
+        (
+            await session.execute(
+                select(Folder).where(Folder.workspace_id == workspace_id)
+            )
+        )
         .scalars()
         .all()
     )

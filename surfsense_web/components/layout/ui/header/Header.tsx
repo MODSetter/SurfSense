@@ -8,6 +8,7 @@ import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms"
 import { ActionLogButton } from "@/components/agent-action-log/action-log-button";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
 import { ArtifactsToggleButton } from "@/features/chat-artifacts";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { ThreadRecord } from "@/lib/chat/thread-persistence";
 
 interface HeaderProps {
@@ -18,6 +19,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const pathname = usePathname();
 	const workspaceId = useAtomValue(activeWorkspaceIdAtom);
 	const activeTab = useAtomValue(activeTabAtom);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
 
 	const isFreePage = pathname?.startsWith("/free") ?? false;
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
@@ -71,7 +73,7 @@ export function Header({ mobileMenuTrigger }: HeaderProps) {
 
 			{/* Right side - Actions */}
 			<div className="ml-auto flex items-center gap-2">
-				{hasThread && <ActionLogButton threadId={currentThreadState.id} />}
+				{hasThread && isDesktop ? <ActionLogButton threadId={currentThreadState.id} /> : null}
 				{hasThread && <ArtifactsToggleButton />}
 				{threadForButton && <ChatShareButton thread={threadForButton} />}
 			</div>

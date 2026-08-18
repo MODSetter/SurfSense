@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.youtube.comments.executor import build_comments_executor
 from app.capabilities.youtube.comments.schemas import CommentsInput, CommentsOutput
 
@@ -18,6 +23,13 @@ YOUTUBE_COMMENTS = Capability(
     executor=build_comments_executor(),
     billing_unit=BillingUnit.YOUTUBE_COMMENT,
     docs_url="/docs/connectors/native/youtube",
+    activity=ActivityDescriptor(
+        active_title="Reviewing YouTube comments",
+        completed_title="Reviewed YouTube comments",
+        category="research",
+        icon_key="search",
+        integration_key="youtube",
+    ),
 )
 
 register_capability(YOUTUBE_COMMENTS)

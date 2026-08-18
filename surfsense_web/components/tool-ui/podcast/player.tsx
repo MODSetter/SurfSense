@@ -11,10 +11,13 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { artifactManifestQueryOptions } from "@/features/artifacts/artifact-query";
+import type { ArtifactManifest } from "@/features/artifacts/model";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
+import { queryClient } from "@/lib/query-client/client";
 import { speakerLabel } from "./schema";
 
 // Public snapshots predate the transcript.turns shape and keep their own.
@@ -55,17 +58,65 @@ function AudioLoadingState({ title }: { title: string }) {
 	);
 }
 
+function linesFromMarkdown(markdown: string): TranscriptLine[] {
+	const lines: TranscriptLine[] = [];
+	for (const [index, block] of markdown.split(/\n\n+/).entries()) {
+		const match = /^\*\*(.+?):\*\*\s*([\s\S]*)$/.exec(block.trim());
+		if (!match) continue;
+		lines.push({ key: `md-${index}`, label: match[1], text: match[2].trim() });
+	}
+	return lines;
+}
+
+async function loadFromArtifact(
+	workspaceId: number,
+	artifactId: number,
+	legacyPodcastId: number | undefined,
+	signal: AbortSignal
+): Promise<{ audioBlob: Blob; lines: TranscriptLine[] }> {
+	const manifest = await queryClient.fetchQuery(
+		artifactManifestQueryOptions(workspaceId, artifactId)
+	);
+	const primary = manifest.files.find((file) => file.role === "primary");
+	if (!primary) throw new Error("Podcast audio file missing");
+
+	const audioResponse = await authenticatedFetch(buildBackendUrl(primary.content_url), {
+		method: "GET",
+		signal,
+	});
+	if (!audioResponse.ok) {
+		throw new Error(`Failed to load audio: ${audioResponse.status}`);
+	}
+	const audioBlob = await audioResponse.blob();
+
+	let lines = linesFromMarkdown(manifest.markdown_representation);
+	if (lines.length === 0 && legacyPodcastId != null) {
+		const detail = await podcastsApiService.getDetail(legacyPodcastId);
+		lines = (detail.transcript?.turns ?? []).map((entry, turn) => ({
+			key: `turn-${turn}`,
+			label: speakerLabel(detail.spec, entry.speaker),
+			text: entry.text,
+		}));
+	}
+	return { audioBlob, lines };
+}
+
 /**
- * Streams the rendered episode and shows its transcript. Works in two modes:
- * authenticated (lifecycle stream + detail endpoints) and public shared chat
- * (share-token snapshot endpoints), detected from the route.
+ * Streams the rendered episode and shows its transcript.
+ *
+ * Prefer ``artifactId`` + ``workspaceId``; ``podcastId`` is the only path for
+ * public shares and podcasts with no Artifact.
  */
 export function PodcastPlayer({
 	podcastId,
+	artifactId,
+	workspaceId,
 	title,
 	durationMs,
 }: {
-	podcastId: number;
+	podcastId?: number;
+	artifactId?: number;
+	workspaceId?: number;
 	title: string;
 	durationMs?: number;
 }) {
@@ -106,38 +157,39 @@ export function PodcastPlayer({
 				let lines: TranscriptLine[] = [];
 
 				if (shareToken) {
+					// Artifact route when available; legacy per-podcast stream for
+					// snapshots predating the backfill.
+					const audioUrl =
+						artifactId != null
+							? `/api/v1/public/${shareToken}/artifacts/${artifactId}/content`
+							: podcastId != null
+								? `/api/v1/public/${shareToken}/podcasts/${podcastId}/stream`
+								: null;
+					if (!audioUrl) throw new Error("Podcast identity missing for shared chat");
 					const [blob, details] = await Promise.all([
-						baseApiService.getBlob(`/api/v1/public/${shareToken}/podcasts/${podcastId}/stream`),
-						baseApiService.get(`/api/v1/public/${shareToken}/podcasts/${podcastId}`),
+						baseApiService.getBlob(audioUrl),
+						podcastId != null
+							? baseApiService.get(`/api/v1/public/${shareToken}/podcasts/${podcastId}`)
+							: Promise.resolve(null),
 					]);
 					audioBlob = blob;
-					const parsed = publicPodcastDetailsSchema.safeParse(details);
-					lines = (parsed.success ? (parsed.data.podcast_transcript ?? []) : []).map(
+					const parsed = details ? publicPodcastDetailsSchema.safeParse(details) : null;
+					lines = (parsed?.success ? (parsed.data.podcast_transcript ?? []) : []).map(
 						(entry, turn) => ({
 							key: `turn-${turn}`,
 							label: `Speaker ${entry.speaker_id + 1}`,
 							text: entry.dialog,
 						})
 					);
+				} else if (artifactId != null && workspaceId != null) {
+					({ audioBlob, lines } = await loadFromArtifact(
+						workspaceId,
+						artifactId,
+						podcastId,
+						controller.signal
+					));
 				} else {
-					const [audioResponse, detail] = await Promise.all([
-						authenticatedFetch(buildBackendUrl(`/api/v1/podcasts/${podcastId}/stream`), {
-							method: "GET",
-							signal: controller.signal,
-						}),
-						podcastsApiService.getDetail(podcastId),
-					]);
-
-					if (!audioResponse.ok) {
-						throw new Error(`Failed to load audio: ${audioResponse.status}`);
-					}
-
-					audioBlob = await audioResponse.blob();
-					lines = (detail.transcript?.turns ?? []).map((entry, turn) => ({
-						key: `turn-${turn}`,
-						label: speakerLabel(detail.spec, entry.speaker),
-						text: entry.text,
-					}));
+					throw new Error("Podcast identity missing");
 				}
 
 				const objectUrl = URL.createObjectURL(audioBlob);
@@ -157,7 +209,7 @@ export function PodcastPlayer({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [podcastId, shareToken]);
+	}, [podcastId, artifactId, workspaceId, shareToken]);
 
 	useEffect(() => {
 		loadPodcast();
@@ -172,11 +224,12 @@ export function PodcastPlayer({
 	}
 
 	const hasTranscript = transcriptLines && transcriptLines.length > 0;
+	const playerId = artifactId ?? podcastId ?? "podcast";
 
 	return (
 		<div className="my-4">
 			<Audio
-				id={`podcast-${podcastId}`}
+				id={`podcast-${playerId}`}
 				src={audioSrc}
 				title={title}
 				durationMs={durationMs}
@@ -207,3 +260,6 @@ export function PodcastPlayer({
 		</div>
 	);
 }
+
+// Keep TypeScript happy if tree-shaking drops the type-only import path.
+void (0 as unknown as ArtifactManifest);

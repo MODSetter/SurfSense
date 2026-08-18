@@ -25,7 +25,12 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverabl
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.thread_resolver import (
     resolve_root_thread_id,
 )
-from app.db import VideoPresentation, VideoPresentationStatus, shielded_async_session
+from app.capabilities.core import ActivityDescriptor
+from app.db import (
+    VideoPresentationRun,
+    VideoPresentationStatus,
+    shielded_async_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +38,8 @@ logger = logging.getLogger(__name__)
 def create_generate_video_presentation_tool(
     workspace_id: int,
     db_session: AsyncSession,
-    thread_id: int | None = None,
 ):
-    """Create ``generate_video_presentation`` with bound workspace and thread; writes use a tool-local session."""
+    """Create ``generate_video_presentation`` with bound workspace."""
     del db_session  # writes use a fresh tool-local session, see below
 
     @tool
@@ -45,23 +49,21 @@ def create_generate_video_presentation_tool(
         video_title: str = "SurfSense Presentation",
         user_prompt: str | None = None,
     ) -> Command:
-        """Generate a video presentation from the provided content.
-
-        Use this tool when the user asks to create a video, presentation, slides, or slide deck.
+        """Generate narrated audiovisual presentation media.
 
         Args:
-            source_content: The text content to turn into a presentation.
-            video_title: Title for the presentation (default: "SurfSense Presentation")
-            user_prompt: Optional style/tone instructions.
+            source_content: The source material for the video.
+            video_title: Title for the video (default: "SurfSense Presentation")
+            user_prompt: Optional audiovisual style and tone instructions.
         """
         try:
             # One DB session per tool call so parallel invocations never share an AsyncSession.
             async with shielded_async_session() as session:
-                video_pres = VideoPresentation(
+                video_pres = VideoPresentationRun(
                     title=video_title,
                     status=VideoPresentationStatus.PENDING,
                     workspace_id=workspace_id,
-                    thread_id=resolve_root_thread_id(runtime, thread_id),
+                    thread_id=resolve_root_thread_id(runtime),
                 )
                 session.add(video_pres)
                 await session.commit()
@@ -89,15 +91,19 @@ def create_generate_video_presentation_tool(
             # state. The wait is bounded only by the subagent invoke
             # timeout (multi-agent) or HTTP lifetime (single-agent) —
             # see app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.deliverable_wait for details.
-            terminal_status, _columns, elapsed = await wait_for_deliverable(
-                model=VideoPresentation,
+            terminal_status, columns, elapsed = await wait_for_deliverable(
+                model=VideoPresentationRun,
                 row_id=video_pres_id,
-                columns=[VideoPresentation.status],
+                columns=[
+                    VideoPresentationRun.status,
+                    VideoPresentationRun.artifact_id,
+                ],
                 terminal_statuses={
                     VideoPresentationStatus.READY,
                     VideoPresentationStatus.FAILED,
                 },
             )
+            artifact_id = columns[1] if len(columns) > 1 else None
 
             if terminal_status == VideoPresentationStatus.READY:
                 logger.info(
@@ -108,6 +114,8 @@ def create_generate_video_presentation_tool(
                 payload: dict[str, Any] = {
                     "status": VideoPresentationStatus.READY.value,
                     "video_presentation_id": video_pres_id,
+                    "artifact_id": artifact_id,
+                    "workspace_id": workspace_id,
                     "title": video_title,
                     "message": "Video presentation generated and saved.",
                 }
@@ -175,4 +183,13 @@ def create_generate_video_presentation_tool(
                 tool_call_id=runtime.tool_call_id,
             )
 
+    generate_video_presentation.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Creating the presentation",
+            completed_title="Created the presentation",
+            category="artifact",
+            icon_key="film",
+            kind="generate_video_presentation",
+        ).as_metadata()
+    }
     return generate_video_presentation

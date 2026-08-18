@@ -4,9 +4,13 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { getDocumentTypeLabel } from "@/lib/documents/document-type-labels";
 
 export function getDocumentTypeIcon(type: string, className?: string): React.ReactNode {
+	if (type === "ARTIFACT") {
+		return <ArtifactFormatIcon format="artifact" className={className} />;
+	}
 	return getConnectorIcon(type, className);
 }
 

@@ -1,9 +1,9 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
-import { Dot, Download, Loader2, Presentation, X } from "lucide-react";
+import { Dot, Download, Loader2, X } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -13,13 +13,8 @@ import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
-import {
-	buildCompositionComponent,
-	buildSlideWithWatermark,
-	CombinedPlayer,
-	type CompiledSlide,
-} from "./combined-player";
-import { getPptxExportErrorToast, getVideoDownloadErrorToast } from "./errors";
+import { buildCompositionComponent, CombinedPlayer, type CompiledSlide } from "./combined-player";
+import { getVideoDownloadErrorToast } from "./errors";
 
 const GenerateVideoPresentationArgsSchema = z.object({
 	source_content: z.string(),
@@ -30,6 +25,8 @@ const GenerateVideoPresentationArgsSchema = z.object({
 const GenerateVideoPresentationResultSchema = z.object({
 	status: z.enum(["pending", "generating", "ready", "failed"]),
 	video_presentation_id: z.number().nullish(),
+	artifact_id: z.number().nullish(),
+	workspace_id: z.number().nullish(),
 	title: z.string().nullish(),
 	message: z.string().nullish(),
 	error: z.string().nullish(),
@@ -37,7 +34,8 @@ const GenerateVideoPresentationResultSchema = z.object({
 
 const VideoPresentationStatusResponseSchema = z.object({
 	status: z.enum(["pending", "generating", "ready", "failed"]),
-	id: z.number(),
+	id: z.number().optional(),
+	artifact_id: z.number().optional(),
 	title: z.string(),
 	slides: z
 		.array(
@@ -118,10 +116,14 @@ function CompilationLoadingState({ title }: { title: string }) {
 
 function VideoPresentationPlayer({
 	presentationId,
+	artifactId,
+	workspaceId,
 	title,
 	shareToken,
 }: {
-	presentationId: number;
+	presentationId?: number;
+	artifactId?: number;
+	workspaceId?: number;
 	title: string;
 	shareToken?: string | null;
 }) {
@@ -134,18 +136,22 @@ function VideoPresentationPlayer({
 	const [renderFormat, setRenderFormat] = useState<string | null>(null);
 	const abortControllerRef = useRef<AbortController | null>(null);
 
-	const [isPptxExporting, setIsPptxExporting] = useState(false);
-	const [pptxProgress, setPptxProgress] = useState<string | null>(null);
-
 	const audioBlobUrlsRef = useRef<string[]>([]);
 
 	const loadPresentation = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const apiPath = shareToken
-				? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
-				: `/api/v1/video-presentations/${presentationId}`;
+			const apiPath =
+				shareToken && artifactId != null
+					? `/api/v1/public/${shareToken}/artifacts/${artifactId}/video`
+					: shareToken
+						? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
+						: artifactId != null && workspaceId != null
+							? `/api/v1/workspaces/${workspaceId}/artifacts/${artifactId}/video`
+							: null;
+
+			if (!apiPath) throw new Error("No presentation source");
 
 			const raw = await baseApiService.get<unknown>(apiPath);
 			const data = parseStatusResponse(raw);
@@ -221,7 +227,7 @@ function VideoPresentationPlayer({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [presentationId, shareToken]);
+	}, [presentationId, artifactId, workspaceId, shareToken]);
 
 	useEffect(() => {
 		loadPresentation();
@@ -326,74 +332,6 @@ function VideoPresentationPlayer({
 		abortControllerRef.current?.abort();
 	};
 
-	const handleDownloadPPTX = async () => {
-		if (isPptxExporting || compiledSlides.length === 0) return;
-
-		setIsPptxExporting(true);
-		setPptxProgress("Preparing...");
-
-		try {
-			const { exportToPptx } = await import("dom-to-pptx");
-			const { Thumbnail } = await import("@remotion/player");
-			const { createRoot } = await import("react-dom/client");
-			const { flushSync } = await import("react-dom");
-
-			const offscreen = document.createElement("div");
-			offscreen.style.cssText =
-				"position:fixed;left:-99999px;top:0;overflow:hidden;pointer-events:none;";
-			document.body.appendChild(offscreen);
-
-			const slideElements: HTMLElement[] = [];
-			const roots: ReturnType<typeof createRoot>[] = [];
-
-			for (let i = 0; i < compiledSlides.length; i++) {
-				const slide = compiledSlides[i];
-				setPptxProgress(`Rendering slide ${i + 1}/${compiledSlides.length}...`);
-
-				const wrapper = document.createElement("div");
-				wrapper.style.cssText = "width:1920px;height:1080px;overflow:hidden;";
-				offscreen.appendChild(wrapper);
-
-				const holdFrame = Math.floor(slide.durationInFrames * 0.3);
-				const root = createRoot(wrapper);
-				const SlideWithWatermark = buildSlideWithWatermark(slide.component);
-
-				flushSync(() => {
-					root.render(
-						React.createElement(Thumbnail, {
-							component: SlideWithWatermark,
-							compositionWidth: 1920,
-							compositionHeight: 1080,
-							frameToDisplay: holdFrame,
-							durationInFrames: slide.durationInFrames,
-							fps: FPS,
-							style: { width: 1920, height: 1080 },
-						})
-					);
-				});
-
-				await new Promise((r) => setTimeout(r, 500));
-				slideElements.push(wrapper);
-				roots.push(root);
-			}
-
-			setPptxProgress("Converting to editable PPTX...");
-
-			await exportToPptx(slideElements, {
-				fileName: "presentation.pptx",
-			});
-
-			for (const r of roots) r.unmount();
-			document.body.removeChild(offscreen);
-		} catch (err) {
-			const { title, description } = getPptxExportErrorToast(err);
-			toast.error(title, { description });
-		} finally {
-			setIsPptxExporting(false);
-			setPptxProgress(null);
-		}
-	};
-
 	if (isLoading) {
 		return <CompilationLoadingState title={title} />;
 	}
@@ -449,36 +387,15 @@ function VideoPresentationPlayer({
 						</Button>
 					</>
 				) : (
-					<>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleDownload}
-							className="gap-1.5 h-7 px-2.5 text-xs text-muted-foreground"
-						>
-							<Download className="size-3.5" />
-							Download MP4
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleDownloadPPTX}
-							disabled={isPptxExporting}
-							className="gap-1.5 h-7 px-2.5 text-xs text-muted-foreground"
-						>
-							{isPptxExporting ? (
-								<>
-									<Loader2 className="size-3.5 animate-spin" />
-									{pptxProgress ?? "Exporting..."}
-								</>
-							) : (
-								<>
-									<Presentation className="size-3.5" />
-									Download PPTX
-								</>
-							)}
-						</Button>
-					</>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={handleDownload}
+						className="gap-1.5 h-7 px-2.5 text-xs text-muted-foreground"
+					>
+						<Download className="size-3.5" />
+						Download MP4
+					</Button>
 				)}
 			</div>
 		</div>
@@ -487,68 +404,29 @@ function VideoPresentationPlayer({
 
 export function StatusPoller({
 	presentationId,
+	artifactId,
+	workspaceId,
 	title,
 	shareToken,
 }: {
-	presentationId: number;
+	presentationId?: number;
+	artifactId?: number;
+	workspaceId?: number;
 	title: string;
 	shareToken?: string | null;
 }) {
-	const [status, setStatus] = useState<VideoPresentationStatusResponse | null>(null);
-	const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
-	useEffect(() => {
-		const poll = async () => {
-			try {
-				const apiPath = shareToken
-					? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
-					: `/api/v1/video-presentations/${presentationId}`;
-
-				const raw = await baseApiService.get<unknown>(apiPath);
-				const response = parseStatusResponse(raw);
-				if (response) {
-					setStatus(response);
-					if (response.status === "ready" || response.status === "failed") {
-						if (pollingRef.current) {
-							clearInterval(pollingRef.current);
-							pollingRef.current = null;
-						}
-					}
-				}
-			} catch (err) {
-				console.error("Error polling video presentation status:", err);
-			}
-		};
-
-		poll();
-		pollingRef.current = setInterval(poll, 5000);
-
-		return () => {
-			if (pollingRef.current) {
-				clearInterval(pollingRef.current);
-			}
-		};
-	}, [presentationId, shareToken]);
-
-	if (!status || status.status === "pending" || status.status === "generating") {
-		return <GeneratingState title={title} />;
+	if (artifactId == null && presentationId == null) {
+		return <p className="my-4 text-sm text-muted-foreground">Presentation not available</p>;
 	}
-
-	if (status.status === "failed") {
-		return <ErrorState title={title} error="Generation failed" />;
-	}
-
-	if (status.status === "ready") {
-		return (
-			<VideoPresentationPlayer
-				presentationId={status.id}
-				title={status.title || title}
-				shareToken={shareToken}
-			/>
-		);
-	}
-
-	return <ErrorState title={title} error="Unexpected state" />;
+	return (
+		<VideoPresentationPlayer
+			presentationId={presentationId}
+			artifactId={artifactId}
+			workspaceId={workspaceId}
+			title={title}
+			shareToken={shareToken}
+		/>
+	);
 }
 
 export const GenerateVideoPresentationToolUI = ({
@@ -615,6 +493,8 @@ export const GenerateVideoPresentationToolUI = ({
 		return (
 			<StatusPoller
 				presentationId={result.video_presentation_id}
+				artifactId={result.artifact_id ?? undefined}
+				workspaceId={result.workspace_id ?? undefined}
 				title={result.title || title}
 				shareToken={shareToken}
 			/>
@@ -625,6 +505,8 @@ export const GenerateVideoPresentationToolUI = ({
 		return (
 			<VideoPresentationPlayer
 				presentationId={result.video_presentation_id}
+				artifactId={result.artifact_id ?? undefined}
+				workspaceId={result.workspace_id ?? undefined}
 				title={result.title || title}
 				shareToken={shareToken}
 			/>

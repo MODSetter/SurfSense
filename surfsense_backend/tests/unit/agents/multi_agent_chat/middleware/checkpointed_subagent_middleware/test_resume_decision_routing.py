@@ -72,6 +72,93 @@ class TestSliceDecisionsByToolCall:
         assert routed == {}
 
 
+class TestIdBasedRouting:
+    """Decisions carrying a ``tool_call_id`` route by identity, not position."""
+
+    def test_routes_by_id_ignoring_submission_order(self):
+        decisions = [
+            {"type": "reject", "tool_call_id": "tcid-B"},
+            {"type": "approve", "tool_call_id": "tcid-A"},
+        ]
+        pending = [("tcid-A", 1), ("tcid-B", 1)]
+
+        routed = slice_decisions_by_tool_call(decisions, pending)
+
+        assert routed == {
+            "tcid-A": {"decisions": [{"type": "approve", "tool_call_id": "tcid-A"}]},
+            "tcid-B": {"decisions": [{"type": "reject", "tool_call_id": "tcid-B"}]},
+        }
+
+    def test_groups_multi_action_bundle_by_id(self):
+        decisions = [
+            {"type": "approve", "tool_call_id": "tcid-B"},
+            {"type": "approve", "tool_call_id": "tcid-A"},
+            {"type": "edit", "tool_call_id": "tcid-A"},
+        ]
+        pending = [("tcid-A", 2), ("tcid-B", 1)]
+
+        routed = slice_decisions_by_tool_call(decisions, pending)
+
+        assert routed == {
+            "tcid-A": {
+                "decisions": [
+                    {"type": "approve", "tool_call_id": "tcid-A"},
+                    {"type": "edit", "tool_call_id": "tcid-A"},
+                ]
+            },
+            "tcid-B": {"decisions": [{"type": "approve", "tool_call_id": "tcid-B"}]},
+        }
+
+    def test_raises_on_unknown_id(self):
+        decisions = [{"type": "approve", "tool_call_id": "tcid-ghost"}]
+        pending = [("tcid-A", 1)]
+
+        with pytest.raises(ValueError, match=r"tcid-ghost|does not match"):
+            slice_decisions_by_tool_call(decisions, pending)
+
+    def test_raises_on_missing_id(self):
+        decisions = [{"type": "approve", "tool_call_id": "tcid-A"}]
+        pending = [("tcid-A", 1), ("tcid-B", 1)]
+
+        with pytest.raises(ValueError, match=r"tcid-B|does not match"):
+            slice_decisions_by_tool_call(decisions, pending)
+
+    def test_raises_on_per_id_count_mismatch(self):
+        decisions = [
+            {"type": "approve", "tool_call_id": "tcid-A"},
+            {"type": "approve", "tool_call_id": "tcid-A"},
+        ]
+        pending = [("tcid-A", 1)]
+
+        with pytest.raises(ValueError, match=r"tcid-A|count"):
+            slice_decisions_by_tool_call(decisions, pending)
+
+    def test_partial_ids_fall_back_to_positional(self):
+        decisions = [
+            {"type": "approve"},
+            {"type": "reject", "tool_call_id": "tcid-B"},
+        ]
+        pending = [("tcid-A", 1), ("tcid-B", 1)]
+
+        routed = slice_decisions_by_tool_call(decisions, pending)
+
+        assert routed == {
+            "tcid-A": {"decisions": [decisions[0]]},
+            "tcid-B": {"decisions": [decisions[1]]},
+        }
+
+    def test_null_ids_fall_back_to_positional(self):
+        decisions = [
+            {"type": "approve", "tool_call_id": None},
+            {"type": "reject", "tool_call_id": None},
+        ]
+        pending = [("tcid-only", 2)]
+
+        routed = slice_decisions_by_tool_call(decisions, pending)
+
+        assert routed == {"tcid-only": {"decisions": decisions}}
+
+
 def _interrupt_with(tool_call_id: str, action_count: int):
     return SimpleNamespace(
         id=f"i-{tool_call_id}",

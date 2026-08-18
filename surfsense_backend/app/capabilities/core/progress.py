@@ -8,7 +8,7 @@ is held in a :class:`contextvars.ContextVar`, so:
   event is streamed live over SSE and coarse ones are buffered for persistence;
 * the REST sync door and the agent door set a buffer-only reporter — coarse
   events still land in ``runs.progress`` and (in a chat/graph context) surface
-  as ``scraper_progress`` custom events on the active thinking step;
+  as ``scraper_progress`` custom events on the active activity;
 * outside any run (unit tests calling a scraper directly) the var is unset and
   :func:`emit_progress` is a **no-op**, so scraper code can call it freely.
 
@@ -68,7 +68,7 @@ class ProgressReporter:
 
         if len(self.coarse) < _MAX_COARSE_EVENTS:
             self.coarse.append(event)
-        # Chat surface: coarse events become thinking-step items when a LangGraph
+        # Chat surface: coarse events become the current activity title when a LangGraph
         # run context is active (agent door). No-op elsewhere.
         _dispatch_chat_event(event)
 

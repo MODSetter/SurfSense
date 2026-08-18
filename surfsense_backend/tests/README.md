@@ -60,3 +60,25 @@ AUTH_TYPE=LOCAL uv run pytest -m integration
 # a single module's tests
 uv run pytest tests/unit/notifications
 ```
+
+### Network-restricted machines
+
+`app/config/__init__.py` instantiates the embedding model in the `Config` class
+body, so importing `app.db` — which `tests/conftest.py` does — reaches out to
+huggingface.co before a single test runs. Behind a proxy or an allowlist that
+fails the request (rather than refusing the connection) the HF client retries
+five times and then aborts collection, even when the weights are already cached.
+
+Force the cached copy:
+
+```bash
+HF_HUB_OFFLINE=1 uv run pytest -m unit
+```
+
+This is the same switch the hermetic E2E container uses (`docker/docker-compose.e2e.yml`).
+It only works once the model is in `~/.cache/huggingface`; warm it once from a
+machine with network access (same command as `Dockerfile`):
+
+```bash
+uv run python -c "from chonkie import AutoEmbeddings; AutoEmbeddings.get_embeddings('sentence-transformers/all-MiniLM-L6-v2')"
+```

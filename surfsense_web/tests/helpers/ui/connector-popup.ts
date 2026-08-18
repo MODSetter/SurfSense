@@ -11,9 +11,7 @@ import { expect } from "@playwright/test";
  */
 
 export async function openConnectorPopup(page: Page): Promise<void> {
-	const trigger = page
-		.getByRole("button", { name: "Upload files, manage tools and more" })
-		.first();
+	const trigger = page.getByRole("button", { name: "Upload files, manage tools and more" }).first();
 
 	// Long timeout absorbs Next.js dev cold-compile of the new-chat route.
 	await expect(trigger).toBeVisible({ timeout: 60_000 });

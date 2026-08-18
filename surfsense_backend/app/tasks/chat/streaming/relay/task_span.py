@@ -72,3 +72,5 @@ def clear_task_span_if_delegating_task_ended(
         return
     state.active_span_id = None
     state.active_task_run_id = None
+    state.active_subagent_type = None
+    state.deliverable_needs_repair = False

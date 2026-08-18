@@ -29,6 +29,7 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
 from app.agents.chat.runtime.references import referenced_document_ids
+from app.capabilities.core import ActivityDescriptor
 from app.db import shielded_async_session
 from app.utils.perf import get_perf_logger
 
@@ -38,11 +39,11 @@ _DEFAULT_TOP_K = 5
 _MAX_TOP_K = 20
 
 _TOOL_DESCRIPTION = (
-    "Search the user's knowledge base — their own uploaded files, documents, "
-    "and notes — for passages relevant to a query, using hybrid semantic + "
+    "Search the user's knowledge base — uploaded files, documents, notes, and "
+    "generated artifacts — for passages relevant to a query, using hybrid semantic + "
     "keyword retrieval.\n\n"
     "Use this FIRST to ground any factual or informational answer about the "
-    "user's personal files and notes. It returns a <retrieved_context> block: "
+    "user's workspace content. It returns a <retrieved_context> block: "
     "each matched passage is labelled [n]. Cite a passage by writing that [n] "
     "after the statement it supports.\n\n"
     "This searches only the user's stored files and notes — live data in "
@@ -156,7 +157,7 @@ def create_search_knowledge_base_tool(
             rendered = build_context(cleaned_query, hits, registry)
 
         _perf_log.info(
-            "[search_knowledge_base] tool query=%r docs=%d in %.3fs",
+            "[search_knowledge_base] tool query=%r sources=%d in %.3fs",
             cleaned_query[:60],
             len(hits),
             time.perf_counter() - t0,
@@ -181,4 +182,13 @@ def create_search_knowledge_base_tool(
         name="search_knowledge_base",
         description=_TOOL_DESCRIPTION,
         coroutine=_impl,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Searching your sources",
+                completed_title="Searched your sources",
+                category="research",
+                icon_key="library",
+                kind="search_knowledge_base",
+            ).as_metadata()
+        },
     )

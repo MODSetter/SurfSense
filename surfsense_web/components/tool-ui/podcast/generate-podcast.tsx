@@ -3,7 +3,7 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Loader2, RotateCcw, Undo2, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import {
@@ -195,8 +195,6 @@ function BackOutButton({ podcastId, hasEpisode }: { podcastId: number; hasEpisod
 	);
 }
 
-const BACK_OUT_STATUSES = new Set(["awaiting_brief", "drafting", "rendering"]);
-
 /** Status-driven card for an authenticated viewer, fed by Zero push. */
 function LivePodcastCard({
 	podcastId,
@@ -206,26 +204,6 @@ function LivePodcastCard({
 	fallbackTitle: string;
 }) {
 	const { podcast, isLoading } = usePodcastLive(podcastId);
-
-	// Whether a finished episode exists decides revert-vs-cancel, and Zero
-	// doesn't publish audio fields — so the in-flight states check over REST,
-	// re-checking on each status change (a fresh podcast gains its episode,
-	// a regeneration starts with one).
-	const status = podcast?.status;
-	const [hasEpisode, setHasEpisode] = useState(false);
-	useEffect(() => {
-		if (!status || !BACK_OUT_STATUSES.has(status)) return;
-		let stale = false;
-		podcastsApiService
-			.getDetail(podcastId)
-			.then((detail) => {
-				if (!stale) setHasEpisode(detail.has_audio);
-			})
-			.catch(() => {});
-		return () => {
-			stale = true;
-		};
-	}, [podcastId, status]);
 
 	if (!podcast) {
 		if (isLoading) {
@@ -240,8 +218,10 @@ function LivePodcastCard({
 	}
 
 	const title = podcast.title || fallbackTitle;
-
-	const backOut = <BackOutButton podcastId={podcast.id} hasEpisode={hasEpisode} />;
+	// A finished episode is exactly a stamped Artifact; it decides
+	// revert-vs-cancel and feeds the player, both straight from the Zero row.
+	const artifactId = podcast.artifactId ?? undefined;
+	const backOut = <BackOutButton podcastId={podcast.id} hasEpisode={artifactId != null} />;
 
 	switch (podcast.status) {
 		case "pending":
@@ -296,6 +276,8 @@ function LivePodcastCard({
 				<div>
 					<PodcastPlayer
 						podcastId={podcast.id}
+						artifactId={artifactId}
+						workspaceId={podcast.workspaceId}
 						title={title}
 						durationMs={podcast.durationSeconds ? podcast.durationSeconds * 1000 : undefined}
 					/>

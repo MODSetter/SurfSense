@@ -17,6 +17,7 @@ from app.agents.chat.multi_agent_chat.shared.middleware.filesystem.backends.git_
 from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
     SurfSenseFilesystemState,
 )
+from app.capabilities.core import ActivityDescriptor
 
 from ...middleware.async_dispatch import run_async_blocking
 from ...middleware.mode import is_cloud
@@ -86,4 +87,13 @@ def create_write_file_tool(mw: SurfSenseFilesystemMiddleware) -> BaseTool:
         description=description,
         func=sync_write_file,
         coroutine=async_write_file,
+        metadata={
+            "activity_descriptor": ActivityDescriptor(
+                active_title="Creating file",
+                completed_title="Created file",
+                category="file",
+                icon_key="file-plus",
+                kind="write_file",
+            ).as_metadata()
+        },
     )

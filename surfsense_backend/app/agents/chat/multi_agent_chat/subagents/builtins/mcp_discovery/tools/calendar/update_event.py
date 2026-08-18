@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.chat.multi_agent_chat.subagents.shared.hitl.approvals.self_gated import (
     request_approval,
 )
+from app.capabilities.core import ActivityDescriptor
 from app.services.google_calendar import GoogleCalendarToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -395,4 +396,14 @@ def create_update_calendar_event_tool(
                 "message": "Something went wrong while updating the event. Please try again.",
             }
 
+    update_calendar_event.metadata = {
+        "activity_descriptor": ActivityDescriptor(
+            active_title="Updating calendar event",
+            completed_title="Updated calendar event",
+            category="connector",
+            icon_key="calendar",
+            integration_key="google_calendar",
+            kind="update_calendar_event",
+        ).as_metadata()
+    }
     return update_calendar_event

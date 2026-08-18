@@ -173,7 +173,7 @@ async def _drain(
     config = {"configurable": {"thread_id": "test-thread"}}
     sse_lines: list[str] = []
     async for sse in _stream_agent_events(
-        agent, config, {}, service, result, step_prefix="thinking"
+        agent, config, {}, service, result, step_prefix="turn"
     ):
         sse_lines.append(sse)
 

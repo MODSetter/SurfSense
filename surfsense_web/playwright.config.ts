@@ -29,6 +29,8 @@ process.env.NEXT_PUBLIC_ZERO_CACHE_URL ??= zeroCacheURL;
  */
 export default defineConfig({
 	testDir: "./tests",
+	// Node unit tests live under tests/unit; Playwright only runs *.spec.ts journeys.
+	testIgnore: ["**/unit/**"],
 	timeout: 30_000,
 	expect: { timeout: 15_000 },
 	fullyParallel: true,

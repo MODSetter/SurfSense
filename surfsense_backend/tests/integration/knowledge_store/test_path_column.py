@@ -48,7 +48,9 @@ async def test_the_healed_column_resolves_without_a_marker(
         marker=None,
     )
     resolved = await virtual_path_to_doc(
-        db_session, workspace_id=db_workspace.id, virtual_path="/documents/notes/plan.md"
+        db_session,
+        workspace_id=db_workspace.id,
+        virtual_path="/documents/notes/plan.md",
     )
     assert resolved is doc
 

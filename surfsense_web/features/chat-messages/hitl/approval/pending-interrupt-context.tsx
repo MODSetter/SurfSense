@@ -32,7 +32,7 @@ export interface PendingInterruptValue {
 const PendingInterruptContext = createContext<PendingInterruptValue | null>(null);
 
 /**
- * Bridges page-level interrupt state to the Timeline, which is mounted
+ * Bridges page-level interrupt state to the interleaved message trace, which is mounted
  * by assistant-ui and can't be prop-drilled. Mount once at the chat
  * page root.
  */

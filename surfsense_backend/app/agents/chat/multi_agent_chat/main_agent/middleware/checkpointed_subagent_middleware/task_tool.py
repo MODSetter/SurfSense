@@ -13,15 +13,15 @@ import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from typing import Annotated, Any, NoReturn, TypeVar
+from typing import Annotated, Any, Literal, NoReturn, TypeVar
 
-from deepagents.middleware.subagents import TASK_TOOL_DESCRIPTION
 from langchain.tools import BaseTool, ToolRuntime
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 from langgraph.errors import GraphInterrupt
 from langgraph.types import Command, Interrupt
+from pydantic import ConfigDict, Field, create_model, field_validator
 
 from app.agents.chat.multi_agent_chat.constants import LEGACY_SUBAGENT_ALIASES
 from app.agents.chat.multi_agent_chat.subagents.shared.invocation import (
@@ -57,6 +57,24 @@ from .spawn_paused import is_spawn_paused
 
 logger = logging.getLogger(__name__)
 _perf_log = get_perf_logger()
+
+_DEFAULT_TASK_DESCRIPTION = (
+    "Invoke a specialist subagent: pass its `subagent_type` and a full "
+    "`description` of the task. See the `<specialists>` roster for who exists."
+)
+
+_MISSING_RUNTIME_ERROR = (
+    "task: could not read the tool runtime for this call (likely a truncated or "
+    "malformed tool call). Re-issue the task with a complete `description` and "
+    "`subagent_type`."
+)
+
+
+def _runtime_error(runtime: ToolRuntime | None) -> str | None:
+    """Model-readable error string if no usable runtime was injected, else ``None``."""
+    if runtime is None or not getattr(runtime, "tool_call_id", None):
+        return _MISSING_RUNTIME_ERROR
+    return None
 
 
 class SubagentInvokeTimeoutError(Exception):
@@ -194,18 +212,7 @@ def build_task_tool_with_parent_config(
         for spec in subagents
         if (provider := spec.get(SURF_CONTEXT_HINT_PROVIDER_KEY)) is not None
     }
-    subagent_description_str = "\n".join(
-        f"- {s['name']}: {s['description']}" for s in subagents
-    )
-
-    if task_description is None:
-        description = TASK_TOOL_DESCRIPTION.format(
-            available_agents=subagent_description_str
-        )
-    elif "{available_agents}" in task_description:
-        description = task_description.format(available_agents=subagent_description_str)
-    else:
-        description = task_description
+    description = task_description or _DEFAULT_TASK_DESCRIPTION
 
     def _billable_call_update(
         subagent_type: str, runtime: ToolRuntime
@@ -669,6 +676,8 @@ def build_task_tool_with_parent_config(
             ),
         ] = None,
     ) -> str | Command:
+        if (err := _runtime_error(runtime)) is not None:
+            return err
         if tasks is not None:
             return (
                 "task: batch mode (`tasks=[...]`) is only supported on the async "
@@ -687,8 +696,6 @@ def build_task_tool_with_parent_config(
                 f"We cannot invoke subagent {subagent_type} because it does not exist, "
                 f"the only allowed types are {allowed_types}"
             )
-        if not runtime.tool_call_id:
-            raise ValueError("Tool call ID is required for subagent invocation")
         subagent, subagent_state = _validate_and_prepare_state(
             subagent_type, description, runtime
         )
@@ -850,6 +857,8 @@ def build_task_tool_with_parent_config(
         ] = None,
     ) -> str | Command:
         atask_start = time.perf_counter()
+        if (err := _runtime_error(runtime)) is not None:
+            return err
         # Ops kill switch: short-circuit every task() call for this workspace
         # so the orchestrator stops hammering downstream APIs.
         if await is_spawn_paused(workspace_id):
@@ -869,8 +878,6 @@ def build_task_tool_with_parent_config(
                     "task: cannot combine `tasks` with `description`/`subagent_type`. "
                     "Use either single-mode (description+subagent_type) or batch-mode (tasks)."
                 )
-            if not runtime.tool_call_id:
-                raise ValueError("Tool call ID is required for subagent invocation")
             coerced = _coerce_batch_arg(tasks)
             if isinstance(coerced, str):
                 return coerced
@@ -897,8 +904,6 @@ def build_task_tool_with_parent_config(
                 f"We cannot invoke subagent {subagent_type} because it does not exist, "
                 f"the only allowed types are {allowed_types}"
             )
-        if not runtime.tool_call_id:
-            raise ValueError("Tool call ID is required for subagent invocation")
         subagent, subagent_state = _validate_and_prepare_state(
             subagent_type, description, runtime
         )
@@ -1130,4 +1135,72 @@ def build_task_tool_with_parent_config(
         func=task,
         coroutine=atask,
         description=description,
+        args_schema=_build_task_args_schema(subagent_names),
+        handle_validation_error=_on_invalid_task_args(subagent_names),
     )
+
+
+def _build_task_args_schema(subagent_names: set[str]) -> type:
+    """Args schema constraining single-mode ``subagent_type`` to the live roster.
+
+    The ``Literal`` surfaces the roster as a provider-side enum. A before-validator
+    rewrites legacy connector aliases onto their consolidated route so paused
+    pre-consolidation checkpoints still resolve; the aliases stay out of the enum.
+    """
+    roster = sorted(subagent_names)
+
+    def _canonicalize_legacy(cls, value):
+        if isinstance(value, str) and value not in subagent_names:
+            return LEGACY_SUBAGENT_ALIASES.get(value, value)
+        return value
+
+    return create_model(
+        "TaskToolArgs",
+        __config__=ConfigDict(arbitrary_types_allowed=True),
+        __validators__={
+            "_canonicalize_legacy_subagent_type": field_validator(
+                "subagent_type", mode="before"
+            )(_canonicalize_legacy)
+        },
+        # ``runtime`` is injected by ToolNode; it must be a declared field or
+        # validation drops it (ToolRuntime is directly-injected, so it is not in
+        # ``_injected_args_keys``). Bare ``ToolRuntime`` (not a Union) so
+        # ``_is_directly_injected_arg_type`` keeps it out of the model-facing schema.
+        runtime=(ToolRuntime, Field(default=None)),
+        description=(
+            str | None,
+            Field(
+                default=None,
+                description="Single-mode: full task prompt. Required unless `tasks` is provided.",
+            ),
+        ),
+        subagent_type=(
+            Literal[tuple(roster)] | None if roster else str | None,
+            Field(
+                default=None,
+                description="Single-mode: which specialist to invoke. Required unless `tasks` is provided.",
+            ),
+        ),
+        tasks=(
+            list[dict] | None,
+            Field(
+                default=None,
+                description=(
+                    "Batch-mode: array of `{description, subagent_type}` objects to "
+                    "fan out concurrently. Mutually exclusive with single-mode args."
+                ),
+            ),
+        ),
+    )
+
+
+def _on_invalid_task_args(subagent_names: set[str]) -> Callable[[Exception], str]:
+    allowed = ", ".join(f"`{n}`" for n in sorted(subagent_names))
+
+    def _handle(_exc: Exception) -> str:
+        return (
+            f"Invalid `task` arguments. `subagent_type` must be one of: {allowed}. "
+            "For batch mode send `tasks=[{description, subagent_type}, ...]`."
+        )
+
+    return _handle

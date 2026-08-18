@@ -6,17 +6,12 @@ import { DocumentsEmptyState } from "./DocumentsEmptyState";
 import { DocumentsSearchResults } from "./DocumentsSearchResults";
 import { FolderTreeView, type FolderTreeViewProps } from "./FolderTreeView";
 
-interface DocumentsViewProps
-	extends Omit<FolderTreeViewProps, "folders" | "documents"> {
+interface DocumentsViewProps extends Omit<FolderTreeViewProps, "folders" | "documents"> {
 	viewModel: DocumentsViewModel;
 	onOpenFolder: (folder: FolderDisplay) => void;
 }
 
-export function DocumentsView({
-	viewModel,
-	onOpenFolder,
-	...treeProps
-}: DocumentsViewProps) {
+export function DocumentsView({ viewModel, onOpenFolder, ...treeProps }: DocumentsViewProps) {
 	if (viewModel.mode === "empty") {
 		return <DocumentsEmptyState reason={viewModel.reason} />;
 	}
@@ -32,10 +27,6 @@ export function DocumentsView({
 	}
 
 	return (
-		<FolderTreeView
-			{...treeProps}
-			folders={viewModel.folders}
-			documents={viewModel.documents}
-		/>
+		<FolderTreeView {...treeProps} folders={viewModel.folders} documents={viewModel.documents} />
 	);
 }

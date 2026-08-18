@@ -38,6 +38,20 @@ const DocumentTabContent = dynamic(
 		),
 	}
 );
+const MobileArtifactDrawer = dynamic(
+	() =>
+		import("@/features/artifacts").then((m) => ({
+			default: m.MobileArtifactDrawer,
+		})),
+	{ ssr: false }
+);
+const MobileDocumentViewerPanel = dynamic(
+	() =>
+		import("@/features/documents/viewer/document-viewer-panel").then((module) => ({
+			default: module.MobileDocumentViewerPanel,
+		})),
+	{ ssr: false }
+);
 
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
 const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -441,6 +455,8 @@ export function LayoutShell({
 								{children}
 							</main>
 						)}
+						<MobileArtifactDrawer />
+						<MobileDocumentViewerPanel />
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>
@@ -612,6 +628,8 @@ export function LayoutShell({
 								</>
 							)}
 						</DesktopWorkspaceRegion>
+						<MobileArtifactDrawer />
+						<MobileDocumentViewerPanel />
 					</div>
 				</div>
 			</TooltipProvider>

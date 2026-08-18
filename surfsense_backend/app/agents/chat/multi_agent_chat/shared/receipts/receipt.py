@@ -1,9 +1,9 @@
 """Receipt: structured handle returned by every mutating subagent tool.
 
 Generalises the Hermes ``entry`` dict (see ``references/hermes-agent/tools/
-delegate_tool.py:1663-1697``) for our 5 deliverable types + 15 connectors +
-KB writes. The supervisor reads the Receipt to verify what actually happened
-without round-tripping through LLM paraphrase.
+delegate_tool.py:1663-1697``) across artifacts, media generation, connectors,
+and KB writes. The supervisor reads the Receipt to verify what actually
+happened without round-tripping through LLM paraphrase.
 
 **Why this lives under ``app.agents.chat.shared`` and not under either of the
 two agent packages:** the Receipt is a *contract* shared between
@@ -86,9 +86,9 @@ class Receipt(TypedDict, total=False):
     by route without re-deriving from ``type``."""
 
     type: ReceiptType
-    """Within-route kind. e.g. for ``deliverables`` one of ``{report,
-    podcast, video_presentation, resume, image}``; for ``notion`` ``page``;
-    for ``slack`` ``message``."""
+    """Within-route kind. e.g. for ``deliverables`` one of ``{artifact,
+    podcast, video_presentation, image}``; for ``notion`` ``page``; for
+    ``slack`` ``message``."""
 
     operation: ReceiptOperation
     """Verb. e.g. ``generate`` (deliverables), ``create`` / ``update`` /
@@ -100,7 +100,7 @@ class Receipt(TypedDict, total=False):
     in ``shared/snippets/verifiable_handle.md`` keys off this field."""
 
     external_id: str | None
-    """Backend identifier. Report row id, Notion ``page_id``, Slack ``ts``,
+    """Backend identifier. Artifact id, Notion ``page_id``, Slack ``ts``,
     Gmail ``message_id``, Linear identifier, KB ``virtualPath``, etc.
     ``None`` only when the operation failed before the backend assigned one."""
 
@@ -111,7 +111,7 @@ class Receipt(TypedDict, total=False):
 
     preview: str | None
     """Short snippet (~200 chars) of what was produced. First lines of
-    a generated report's markdown, transcript opener for a podcast,
+    an artifact's Markdown representation, transcript opener for a podcast,
     thumbnail URL for an image. Lets the orchestrator decide whether to
     re-render in the UI without re-loading the artefact."""
 

@@ -153,18 +153,6 @@ export const podcastDetail = z.object({
 	created_at: z.string(),
 	workspace_id: z.number(),
 	thread_id: z.number().nullable(),
+	artifact_id: z.number().int().positive().nullish(),
 });
 export type PodcastDetail = z.infer<typeof podcastDetail>;
-
-// Lightweight list item — mirror app/podcasts/api/schemas.py PodcastSummary.
-export const podcastSummary = z.object({
-	id: z.number(),
-	title: z.string(),
-	status: podcastStatus,
-	created_at: z.string(),
-	workspace_id: z.number(),
-	thread_id: z.number().nullish(),
-});
-export type PodcastSummary = z.infer<typeof podcastSummary>;
-
-export const podcastSummaryList = z.array(podcastSummary);

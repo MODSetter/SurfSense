@@ -1,20 +1,31 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
-
-export interface ThinkingStepData {
-	id: string;
-	title: string;
-	status: "pending" | "in_progress" | "completed";
-	items: string[];
-	/**
-	 * Optional relay fields from ``data-thinking-step`` when present on the wire
-	 * (e.g. ``spanId``). Populated in a later slice; equality helpers ignore until wired.
-	 */
-	metadata?: Record<string, unknown>;
-}
+import {
+	type ActivityData,
+	type ActivityTimingData,
+	type ActivityTimingProjection,
+	createActivityJournalPart,
+	mergeActivity,
+	mergeActivityTiming,
+	parseActivityData,
+	sortActivities,
+} from "@/lib/chat/activity-journal";
 
 export type ContentPart =
 	| { type: "text"; text: string }
-	| { type: "reasoning"; text: string }
+	| {
+			type: "reasoning";
+			text: string;
+			id?: string;
+			status?: "running" | "completed" | "interrupted";
+			startedAt?: string;
+			completedAt?: string;
+	  }
+	| {
+			type: "status";
+			code: "no_response" | "error" | "cancelled";
+			text: string;
+			errorCode?: string;
+	  }
 	| {
 			type: "tool-call";
 			toolCallId: string;
@@ -48,100 +59,95 @@ export type ContentPart =
 			 */
 			langchainToolCallId?: string;
 			/**
-			 * Relay correlation from tool SSE (e.g. ``spanId``, ``thinkingStepId``).
+			 * Relay correlation from tool SSE (for example ``activityId``).
 			 * Merged by ``mergeToolPartMetadata`` when events carry ``metadata``.
 			 */
 			metadata?: Record<string, unknown>;
 	  }
 	| {
-			type: "data-thinking-steps";
-			data: { steps: ThinkingStepData[] };
-	  }
-	| {
-			/**
-			 * Between-step separator. Pushed by `addStepSeparator` when
-			 * a `start-step` SSE event arrives AFTER the message already
-			 * has non-step content. Rendered by `StepSeparatorDataUI`
-			 * (see assistant-ui/step-separator.tsx).
-			 */
-			type: "data-step-separator";
-			data: { stepIndex: number };
+			type: "data-activities";
+			data: {
+				activities: ActivityData[];
+				timing?: ActivityTimingData;
+				timingProjection?: ActivityTimingProjection;
+			};
 	  };
 
 export interface ContentPartsState {
 	contentParts: ContentPart[];
 	currentTextPartIndex: number;
 	currentReasoningPartIndex: number;
+	currentReasoningId?: string;
+	currentReasoningStartedAt?: string;
 	toolCallIndices: Map<string, number>;
-	/**
-	 * Set by the resume flow's rehydration to suppress
-	 * ``data-step-separator`` for the rest of this turn. Without it,
-	 * the resume stream's first ``start-step`` fires
-	 * ``addStepSeparator`` while rehydrated OLD content already makes
-	 * ``hasContent`` true → a divider lands between OLD and NEW
-	 * content with no semantic value (OLD content is folded by
-	 * ``buildTimeline`` + ``reconcileInterruptedAssistantMessages``,
-	 * persisted state carries no separator, so the line vanishes on
-	 * reload).
-	 */
-	suppressStepSeparators?: boolean;
+	activities: Map<string, ActivityData>;
+	activityTiming?: ActivityTimingData;
+	activityTimingProjection?: ActivityTimingProjection;
 }
 
-function areThinkingStepsEqual(current: ThinkingStepData[], next: ThinkingStepData[]): boolean {
-	if (current.length !== next.length) return false;
+function activityJournalPart(
+	state: ContentPartsState,
+	activities: ActivityData[]
+): Extract<ContentPart, { type: "data-activities" }> {
+	return createActivityJournalPart(
+		activities,
+		state.activityTiming,
+		state.activityTimingProjection
+	);
+}
 
-	for (let i = 0; i < current.length; i += 1) {
-		const curr = current[i];
-		const nxt = next[i];
-		if (curr.id !== nxt.id || curr.title !== nxt.title || curr.status !== nxt.status) {
-			return false;
-		}
-		if (curr.items.length !== nxt.items.length) return false;
-		for (let j = 0; j < curr.items.length; j += 1) {
-			if (curr.items[j] !== nxt.items[j]) return false;
-		}
+export function upsertActivity(state: ContentPartsState, value: unknown): boolean {
+	const activity = parseActivityData(value);
+	if (!activity) return false;
+	const current = state.activities.get(activity.id);
+	const merged = mergeActivity(current, activity);
+	if (!merged || (current && JSON.stringify(current) === JSON.stringify(merged))) return false;
+
+	state.activities.set(merged.id, merged);
+	const activities = sortActivities(state.activities.values());
+	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
+	if (existingIdx >= 0) {
+		state.contentParts[existingIdx] = activityJournalPart(state, activities);
+		return true;
 	}
 
+	state.contentParts.unshift(activityJournalPart(state, activities));
+	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
+	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
+	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
 	return true;
 }
 
-export function updateThinkingSteps(
+export function upsertActivityTiming(
 	state: ContentPartsState,
-	steps: Map<string, ThinkingStepData>
+	value: unknown,
+	receivedAtPerformanceMs: number
 ): boolean {
-	const stepsArray = Array.from(steps.values());
-	const existingIdx = state.contentParts.findIndex((p) => p.type === "data-thinking-steps");
-
+	const current = state.activityTiming;
+	const timing = mergeActivityTiming(current, value);
+	if (!timing || timing === current) {
+		return false;
+	}
+	const unchanged =
+		current?.status === timing.status && current.activeDurationMs === timing.activeDurationMs;
+	if (unchanged) return false;
+	state.activityTiming = timing;
+	state.activityTimingProjection =
+		timing.status === "running"
+			? { baseDurationMs: timing.activeDurationMs, receivedAtPerformanceMs }
+			: undefined;
+	const activities = sortActivities(state.activities.values());
+	const existingIdx = state.contentParts.findIndex((part) => part.type === "data-activities");
+	const part = activityJournalPart(state, activities);
 	if (existingIdx >= 0) {
-		const existing = state.contentParts[existingIdx];
-		if (
-			existing?.type === "data-thinking-steps" &&
-			areThinkingStepsEqual(existing.data.steps, stepsArray)
-		) {
-			return false;
-		}
-
-		state.contentParts[existingIdx] = {
-			type: "data-thinking-steps",
-			data: { steps: stepsArray },
-		};
-		return true;
-	} else {
-		state.contentParts.unshift({
-			type: "data-thinking-steps",
-			data: { steps: stepsArray },
-		});
-		if (state.currentTextPartIndex >= 0) {
-			state.currentTextPartIndex += 1;
-		}
-		if (state.currentReasoningPartIndex >= 0) {
-			state.currentReasoningPartIndex += 1;
-		}
-		for (const [id, idx] of state.toolCallIndices) {
-			state.toolCallIndices.set(id, idx + 1);
-		}
+		state.contentParts[existingIdx] = part;
 		return true;
 	}
+	state.contentParts.unshift(part);
+	if (state.currentTextPartIndex >= 0) state.currentTextPartIndex += 1;
+	if (state.currentReasoningPartIndex >= 0) state.currentReasoningPartIndex += 1;
+	for (const [id, idx] of state.toolCallIndices) state.toolCallIndices.set(id, idx + 1);
+	return true;
 }
 
 /**
@@ -231,44 +237,41 @@ export function appendReasoning(state: ContentPartsState, delta: string): void {
 			}
 		).text += delta;
 	} else {
-		state.contentParts.push({ type: "reasoning", text: delta });
+		state.contentParts.push({
+			type: "reasoning",
+			text: delta,
+			id: state.currentReasoningId,
+			status: "running",
+			startedAt: state.currentReasoningStartedAt,
+		});
 		state.currentReasoningPartIndex = state.contentParts.length - 1;
 	}
 }
 
-export function endReasoning(state: ContentPartsState): void {
-	state.currentReasoningPartIndex = -1;
-}
-
-export function addStepSeparator(state: ContentPartsState): void {
-	// Push a divider between consecutive model steps within a single
-	// assistant turn. We only emit it when the message already has
-	// non-step content (so the FIRST step of a turn doesn't
-	// generate a leading separator) and when the previous part isn't
-	// itself a separator (defensive against duplicate `start-step`
-	// events). Also skipped during a resume turn (see
-	// ``suppressStepSeparators`` on ``ContentPartsState``).
-	if (state.suppressStepSeparators) return;
-	const hasContent = state.contentParts.some(
-		(p) => p.type === "text" || p.type === "reasoning" || p.type === "tool-call"
-	);
-	if (!hasContent) return;
-	const last = state.contentParts[state.contentParts.length - 1];
-	if (last && last.type === "data-step-separator") return;
-
-	const stepIndex = state.contentParts.filter((p) => p.type === "data-step-separator").length;
-	state.contentParts.push({ type: "data-step-separator", data: { stepIndex } });
+export function startReasoning(state: ContentPartsState, id: string, startedAt?: string): void {
 	state.currentTextPartIndex = -1;
 	state.currentReasoningPartIndex = -1;
+	state.currentReasoningId = id;
+	state.currentReasoningStartedAt = startedAt ?? new Date().toISOString();
+}
+
+export function endReasoning(state: ContentPartsState, id?: string, completedAt?: string): void {
+	const current = state.contentParts[state.currentReasoningPartIndex];
+	if (current?.type === "reasoning" && (!id || !current.id || current.id === id)) {
+		current.status = "completed";
+		current.completedAt = completedAt ?? new Date().toISOString();
+	}
+	state.currentReasoningPartIndex = -1;
+	state.currentReasoningId = undefined;
+	state.currentReasoningStartedAt = undefined;
 }
 
 /**
  * Allowlist of tool names that should produce a UI tool card. The
  * sentinel ``"all"`` matches every tool — we dropped the legacy
  * ``BASE_TOOLS_WITH_UI`` gate so that ALL tool calls render via the
- * generic ``ToolFallback``. The backend's ``format_thinking_step``
- * summarisation and the defensive ``result_length``-only default for
- * unknown tools keep persisted message JSON from ballooning.
+ * generic ``ToolFallback``. The defensive ``result_length``-only default
+ * for unknown tools keeps persisted message JSON from ballooning.
  */
 export type ToolUIGate = Set<string> | "all";
 
@@ -279,7 +282,7 @@ function _toolPasses(gate: ToolUIGate, toolName: string): boolean {
 /**
  * Shallow-merge relay ``metadata`` into a tool-call part (SSE → content part).
  * Keys already set on ``into`` are left unchanged so chunk vs canonical tool
- * events cannot reorder or overwrite ``spanId`` / ``thinkingStepId``.
+ * events cannot reorder or overwrite correlation metadata.
  * Matches server ``AssistantContentBuilder`` merge semantics.
  */
 function mergeToolPartMetadata(
@@ -409,45 +412,15 @@ export function buildContentForUI(
 	const filtered = state.contentParts.filter((part) => {
 		if (part.type === "text") return part.text.length > 0;
 		if (part.type === "reasoning") return part.text.length > 0;
+		if (part.type === "status") return part.text.length > 0;
 		if (part.type === "tool-call")
 			return _toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part);
-		if (part.type === "data-thinking-steps") return true;
-		if (part.type === "data-step-separator") return true;
+		if (part.type === "data-activities") return true;
 		return false;
 	});
 	return filtered.length > 0
 		? (filtered as ThreadMessageLike["content"])
 		: [{ type: "text", text: "" }];
-}
-
-export function buildContentForPersistence(
-	state: ContentPartsState,
-	toolsWithUI: ToolUIGate
-): unknown[] {
-	const parts: unknown[] = [];
-
-	for (const part of state.contentParts) {
-		if (part.type === "text" && part.text.length > 0) {
-			parts.push(part);
-		} else if (part.type === "reasoning" && part.text.length > 0) {
-			// Persist reasoning blocks so a chat reload re-renders the
-			// collapsed thinking section instead of
-			// silently dropping it (mirrors the data-thinking-steps
-			// branch above).
-			parts.push(part);
-		} else if (
-			part.type === "tool-call" &&
-			(_toolPasses(toolsWithUI, part.toolName) || _hasInterruptResult(part))
-		) {
-			parts.push(part);
-		} else if (part.type === "data-thinking-steps") {
-			parts.push(part);
-		} else if (part.type === "data-step-separator") {
-			parts.push(part);
-		}
-	}
-
-	return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 }
 
 export type SSEEvent =
@@ -458,9 +431,9 @@ export type SSEEvent =
 	| { type: "text-start"; id: string }
 	| { type: "text-delta"; id?: string; delta: string }
 	| { type: "text-end"; id: string }
-	| { type: "reasoning-start"; id: string }
+	| { type: "reasoning-start"; id: string; startedAt?: string }
 	| { type: "reasoning-delta"; id?: string; delta: string }
-	| { type: "reasoning-end"; id: string }
+	| { type: "reasoning-end"; id: string; completedAt?: string }
 	| {
 			type: "tool-input-start";
 			toolCallId: string;
@@ -499,7 +472,8 @@ export type SSEEvent =
 			langchainToolCallId?: string;
 			metadata?: Record<string, unknown>;
 	  }
-	| { type: "data-thinking-step"; data: ThinkingStepData }
+	| { type: "data-activity"; data: ActivityData }
+	| { type: "data-activity-timing"; data: ActivityTimingData }
 	| { type: "data-thread-title-update"; data: { threadId: number; title: string } }
 	| { type: "data-interrupt-request"; data: Record<string, unknown> }
 	| { type: "data-documents-updated"; data: Record<string, unknown> }
@@ -533,10 +507,9 @@ export type SSEEvent =
 			/**
 			 * Emitted at the start of every stream so the frontend can
 			 * stamp the per-turn correlation id onto the in-flight
-			 * assistant message and replay it via
-			 * ``appendMessage``. Pure-text turns never produce
-			 * action-log events; this event guarantees the frontend
-			 * always learns the turn id.
+			 * assistant message. Pure-text turns never produce action-log
+			 * events; this event guarantees the frontend always learns the
+			 * turn id.
 			 */
 			type: "data-turn-info";
 			data: { chat_turn_id: string };
@@ -644,6 +617,8 @@ export type SSEEvent =
 					total_tokens: number;
 					cost_micros?: number;
 				}>;
+				/** Some generation in the turn hit its output-token cap. */
+				truncated?: boolean;
 			};
 	  }
 	| { type: "error"; message: string; errorCode?: string; diagnostic?: string };

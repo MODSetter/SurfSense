@@ -1,0 +1,456 @@
+"""Workspace-scoped artifact manifests, files, downloads, and lifecycle."""
+
+from __future__ import annotations
+
+import io
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.artifacts.persistence import (
+    Artifact,
+    ArtifactFile,
+    ArtifactFileRole,
+)
+from app.artifacts.storage import open_artifact_file_stream
+from app.auth.context import AuthContext
+from app.db import Document, Permission, get_async_session
+from app.users import get_auth_context
+from app.utils.rbac import check_permission
+
+from .document_files_routes import _content_disposition, _is_inline
+
+router = APIRouter()
+
+
+def _safe_filename_stem(title: str) -> str:
+    safe = "".join(
+        character if character.isalnum() or character in " -_" else "_"
+        for character in title
+    ).strip()[:80]
+    return safe or "artifact"
+
+
+def _artifact_filename(title: str, original_filename: str) -> str:
+    suffix = Path(original_filename).suffix.lower()
+    if not suffix[1:].isalnum() or len(suffix) > 16:
+        suffix = ""
+    title_without_suffix = (
+        title[: -len(suffix)] if suffix and title.lower().endswith(suffix) else title
+    )
+    return f"{_safe_filename_stem(title_without_suffix)}{suffix}"
+
+
+def _markdown_filename(title: str) -> str:
+    return f"{_safe_filename_stem(title)}.md"
+
+
+async def _authorize_artifact(
+    session: AsyncSession,
+    auth: AuthContext,
+    workspace_id: int,
+    permission: Permission,
+    action: str,
+) -> None:
+    await check_permission(
+        session,
+        auth,
+        workspace_id,
+        permission.value,
+        f"You don't have permission to {action} artifacts in this workspace",
+    )
+
+
+def _visible_files(artifact: Artifact) -> list[ArtifactFile]:
+    return sorted(
+        artifact.files,
+        key=lambda item: (item.role is not ArtifactFileRole.PRIMARY, item.id),
+    )
+
+
+def _file_manifest(
+    workspace_id: int, artifact_id: int, record: ArtifactFile
+) -> dict[str, object]:
+    return {
+        "file_id": record.id,
+        "role": record.role.value,
+        "filename": record.original_filename,
+        "mime_type": record.mime_type or "application/octet-stream",
+        "size_bytes": record.size_bytes,
+        "content_url": (
+            f"/api/v1/workspaces/{workspace_id}/artifacts/"
+            f"{artifact_id}/files/{record.id}/content"
+        ),
+    }
+
+
+def _legacy_ref(artifact: Artifact) -> dict[str, object] | None:
+    """Legacy podcast / video / image reference stashed under ``metadata.legacy``."""
+    meta = artifact.artifact_metadata or {}
+    legacy = meta.get("legacy")
+    if not isinstance(legacy, dict):
+        return None
+    kind = legacy.get("kind")
+    legacy_id = legacy.get("id")
+    if not isinstance(kind, str) or not isinstance(legacy_id, int):
+        return None
+    return {"kind": kind, "id": legacy_id}
+
+
+def _slides_for_remotion(
+    workspace_id: int, artifact_id: int, slides: list[object]
+) -> list[dict[str, object]]:
+    """Public slide payload: artifact-scoped audio URLs, no storage keys."""
+    out: list[dict[str, object]] = []
+    for raw in slides:
+        if not isinstance(raw, dict):
+            continue
+        slide = dict(raw)
+        slide_number = slide.get("slide_number")
+        has_audio = bool(
+            slide.pop("audio_storage_key", None) or slide.pop("audio_file", None)
+        )
+        slide.pop("storage_backend", None)
+        if has_audio and isinstance(slide_number, int):
+            slide["audio_url"] = (
+                f"/api/v1/workspaces/{workspace_id}/artifacts/"
+                f"{artifact_id}/slides/{slide_number}/audio"
+            )
+        else:
+            slide["audio_url"] = None
+        out.append(slide)
+    return out
+
+
+async def _load_workspace_artifact(
+    session: AsyncSession, workspace_id: int, artifact_id: int
+) -> tuple[Artifact, Document]:
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return row[0], row[1]
+
+
+def _list_item(artifact: Artifact, document: Document) -> dict[str, object]:
+    item: dict[str, object] = {
+        "artifact_id": artifact.id,
+        "document_id": artifact.document_id,
+        "title": document.title,
+        "format": artifact.format,
+        "generation": artifact.generation,
+        "indexing_status": (document.status or {}).get("state", "ready"),
+        "thread_id": artifact.thread_id,
+        "created_at": artifact.created_at.isoformat(),
+        "updated_at": (
+            artifact.updated_at.isoformat() if artifact.updated_at else None
+        ),
+    }
+    legacy = _legacy_ref(artifact)
+    if legacy is not None:
+        item["legacy"] = legacy
+    return item
+
+
+@router.get("/workspaces/{workspace_id}/artifacts")
+async def list_artifacts(
+    workspace_id: int,
+    response: Response,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+    thread_id: int | None = None,
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    query = (
+        select(Artifact, Document)
+        .join(Document, Artifact.document_id == Document.id)
+        .where(Artifact.workspace_id == workspace_id)
+    )
+    if thread_id is not None:
+        query = query.where(Artifact.thread_id == thread_id)
+    rows = (
+        await session.execute(
+            query.order_by(Artifact.updated_at.desc(), Artifact.id.desc())
+        )
+    ).all()
+    response.headers["Cache-Control"] = "private, no-store"
+    return [_list_item(artifact, document) for artifact, document in rows]
+
+
+@router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/manifest")
+async def get_artifact_manifest(
+    workspace_id: int,
+    artifact_id: int,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    artifact, document = row
+    etag = f'"{document.content_hash}:{artifact.generation}"'
+    cache_headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=cache_headers)
+    response.headers.update(cache_headers)
+    payload: dict[str, object] = {
+        "artifact_id": artifact.id,
+        "document_id": document.id,
+        "title": document.title,
+        "format": artifact.format,
+        "generation": artifact.generation,
+        "markdown_representation": document.source_markdown or document.content,
+        "files": [
+            _file_manifest(workspace_id, artifact.id, file)
+            for file in _visible_files(artifact)
+        ],
+        "updated_at": (
+            artifact.updated_at.isoformat() if artifact.updated_at else None
+        ),
+    }
+    legacy = _legacy_ref(artifact)
+    if legacy is not None:
+        payload["legacy"] = legacy
+    return payload
+
+
+@router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/download")
+async def download_artifact(
+    workspace_id: int,
+    artifact_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> StreamingResponse:
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .options(selectinload(Artifact.files))
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    artifact, document = row
+    primary = next(
+        (file for file in artifact.files if file.role is ArtifactFileRole.PRIMARY),
+        None,
+    )
+    headers = {
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if primary is not None:
+        return StreamingResponse(
+            open_artifact_file_stream(primary),
+            media_type=primary.mime_type or "application/octet-stream",
+            headers={
+                **headers,
+                "Content-Disposition": _content_disposition(
+                    _artifact_filename(document.title, primary.original_filename),
+                    inline=False,
+                ),
+            },
+        )
+    filename = _markdown_filename(document.title)
+    return StreamingResponse(
+        io.BytesIO((document.source_markdown or document.content).encode()),
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            **headers,
+            "Content-Disposition": _content_disposition(filename, inline=False),
+        },
+    )
+
+
+@router.delete("/workspaces/{workspace_id}/artifacts/{artifact_id}", status_code=204)
+async def delete_artifact(
+    workspace_id: int,
+    artifact_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> Response:
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_DELETE, "delete"
+    )
+    row = (
+        await session.execute(
+            select(Artifact, Document)
+            .join(Document, Artifact.document_id == Document.id)
+            .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    _, document = row
+
+    document.status = {"state": "deleting"}
+    await session.commit()
+    try:
+        from app.tasks.celery_tasks.document_tasks import delete_document_task
+
+        delete_document_task.delay(document.id)
+    except Exception as dispatch_error:
+        document.status = {"state": "ready"}
+        await session.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to queue background deletion. Please try again.",
+        ) from dispatch_error
+    return Response(status_code=204, headers={"Cache-Control": "private, no-store"})
+
+
+@router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/video")
+async def get_artifact_video(
+    workspace_id: int,
+    artifact_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """Remotion payload for a video Artifact (slides + scene_codes)."""
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    artifact, document = await _load_workspace_artifact(
+        session, workspace_id, artifact_id
+    )
+    if artifact.format != "video":
+        raise HTTPException(status_code=404, detail="Artifact is not a video")
+    meta = artifact.artifact_metadata or {}
+    slides = meta.get("slides")
+    scene_codes = meta.get("scene_codes")
+    if not isinstance(slides, list) or not isinstance(scene_codes, list):
+        raise HTTPException(
+            status_code=404, detail="Video Remotion payload not available"
+        )
+    return {
+        "artifact_id": artifact.id,
+        "title": document.title,
+        "status": "ready",
+        "slides": _slides_for_remotion(workspace_id, artifact.id, slides),
+        "scene_codes": scene_codes,
+        "slide_count": len(slides),
+        "workspace_id": workspace_id,
+        "thread_id": artifact.thread_id,
+    }
+
+
+@router.get(
+    "/workspaces/{workspace_id}/artifacts/{artifact_id}/slides/{slide_number}/audio"
+)
+async def stream_artifact_slide_audio(
+    workspace_id: int,
+    artifact_id: int,
+    slide_number: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    artifact, _document = await _load_workspace_artifact(
+        session, workspace_id, artifact_id
+    )
+    if artifact.format != "video":
+        raise HTTPException(status_code=404, detail="Artifact is not a video")
+    slides = (artifact.artifact_metadata or {}).get("slides") or []
+    slide_data = next(
+        (
+            slide
+            for slide in slides
+            if isinstance(slide, dict) and slide.get("slide_number") == slide_number
+        ),
+        None,
+    )
+    if slide_data is None:
+        raise HTTPException(status_code=404, detail=f"Slide {slide_number} not found")
+    storage_key = slide_data.get("audio_storage_key")
+    if not storage_key:
+        raise HTTPException(status_code=404, detail="Slide audio file not found")
+    from app.artifacts.media.video import open_stream
+
+    ext = Path(str(storage_key)).suffix.lower()
+    media_type = "audio/wav" if ext == ".wav" else "audio/mpeg"
+    return StreamingResponse(
+        open_stream(str(storage_key)),
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": (f"inline; filename={Path(str(storage_key)).name}"),
+        },
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/artifacts/{artifact_id}/files/{file_id}/content"
+)
+async def stream_artifact_file(
+    workspace_id: int,
+    artifact_id: int,
+    file_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> Response:
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_READ, "read"
+    )
+    record = await session.scalar(
+        select(ArtifactFile)
+        .join(Artifact, ArtifactFile.artifact_id == Artifact.id)
+        .where(
+            ArtifactFile.id == file_id,
+            ArtifactFile.artifact_id == artifact_id,
+            Artifact.workspace_id == workspace_id,
+        )
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="Artifact file not found")
+
+    etag_value = record.checksum_sha256 or f"artifact-file-{record.id}"
+    etag = f'"{etag_value}"'
+    headers = {
+        "ETag": etag,
+        "Cache-Control": "private, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    mime_type = record.mime_type or "application/octet-stream"
+    return StreamingResponse(
+        open_artifact_file_stream(record),
+        media_type=mime_type,
+        headers={
+            **headers,
+            "Content-Disposition": _content_disposition(
+                record.original_filename, inline=_is_inline(mime_type)
+            ),
+        },
+    )

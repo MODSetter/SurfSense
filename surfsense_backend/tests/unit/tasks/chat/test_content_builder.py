@@ -90,10 +90,13 @@ class TestReasoningThenText:
         b.on_text_end("text-1")
 
         snap = b.snapshot()
-        assert snap == [
-            {"type": "reasoning", "text": "Considering options..."},
-            {"type": "text", "text": "The answer is 42."},
-        ]
+        assert snap[0]["type"] == "reasoning"
+        assert snap[0]["text"] == "Considering options..."
+        assert snap[0]["id"] == "r-1"
+        assert snap[0]["status"] == "completed"
+        assert snap[0]["startedAt"]
+        assert snap[0]["completedAt"]
+        assert snap[1] == {"type": "text", "text": "The answer is 42."}
         _assert_jsonb_safe(snap)
 
     def test_text_delta_after_reasoning_implicitly_closes_reasoning(self):
@@ -107,10 +110,10 @@ class TestReasoningThenText:
         b.on_text_delta("text-1", "answer")
 
         snap = b.snapshot()
-        assert snap == [
-            {"type": "reasoning", "text": "thinking"},
-            {"type": "text", "text": "answer"},
-        ]
+        assert snap[0]["type"] == "reasoning"
+        assert snap[0]["text"] == "thinking"
+        assert snap[0]["status"] == "running"
+        assert snap[1] == {"type": "text", "text": "answer"}
 
 
 # ---------------------------------------------------------------------------
@@ -288,24 +291,24 @@ class TestToolCallSpanMetadata:
         assert md["spanId"] == "spn_x"
         assert md["extra"] == 1
 
-    def test_output_available_adds_thinking_step_id_without_clobbering_span(self):
+    def test_output_available_preserves_activity_id_without_clobbering_span(self):
         b = AssistantContentBuilder()
         b.on_tool_input_start(
             "call_t",
             "ls",
             "lc",
-            metadata={"spanId": "spn_x", "thinkingStepId": "thinking-3"},
+            metadata={"spanId": "spn_x", "activityId": "act_turn_3"},
         )
         b.on_tool_input_available("call_t", "ls", {"path": "/"}, "lc")
         b.on_tool_output_available(
             "call_t",
             {"ok": True},
             "lc",
-            metadata={"spanId": "spn_x", "thinkingStepId": "thinking-3"},
+            metadata={"spanId": "spn_x", "activityId": "act_turn_3"},
         )
         md = b.snapshot()[0]["metadata"]
         assert md["spanId"] == "spn_x"
-        assert md["thinkingStepId"] == "thinking-3"
+        assert md["activityId"] == "act_turn_3"
 
     def test_output_available_with_none_metadata_preserves_prior(self):
         b = AssistantContentBuilder()
@@ -314,7 +317,7 @@ class TestToolCallSpanMetadata:
         b.on_tool_output_available("c", {"r": 1}, "lc", metadata=None)
         assert b.snapshot()[0]["metadata"] == {"spanId": "spn_1"}
 
-    def test_available_adds_thinking_step_id_after_chunk_only_start(self):
+    def test_available_adds_activity_id_after_chunk_only_start(self):
         """Mirrors chunk ``tool-input-start`` then ``on_tool_start`` ``available``."""
         b = AssistantContentBuilder()
         b.on_tool_input_start("lc_1", "ls", "lc_1", metadata={"spanId": "spn_a"})
@@ -323,11 +326,11 @@ class TestToolCallSpanMetadata:
             "ls",
             {"path": "/"},
             "lc_1",
-            metadata={"spanId": "spn_a", "thinkingStepId": "thinking-2"},
+            metadata={"spanId": "spn_a", "activityId": "act_turn_2"},
         )
         md = b.snapshot()[0]["metadata"]
         assert md["spanId"] == "spn_a"
-        assert md["thinkingStepId"] == "thinking-2"
+        assert md["activityId"] == "act_turn_2"
 
 
 class TestVercelStreamingServiceToolMetadataWire:
@@ -346,13 +349,13 @@ class TestVercelStreamingServiceToolMetadataWire:
             "task",
             {"a": 1},
             langchain_tool_call_id="lc1",
-            metadata={"spanId": "spn_w", "thinkingStepId": "thinking-4"},
+            metadata={"spanId": "spn_w", "activityId": "act_turn_4"},
         )
         body = self._parse_sse_data_line(raw)
         assert body["type"] == "tool-input-available"
         assert body["metadata"] == {
             "spanId": "spn_w",
-            "thinkingStepId": "thinking-4",
+            "activityId": "act_turn_4",
         }
 
     def test_tool_output_available_includes_metadata_when_set(self):
@@ -361,13 +364,13 @@ class TestVercelStreamingServiceToolMetadataWire:
             "id1",
             {"status": "completed"},
             langchain_tool_call_id="lc1",
-            metadata={"spanId": "spn_o", "thinkingStepId": "thinking-9"},
+            metadata={"spanId": "spn_o", "activityId": "act_turn_9"},
         )
         body = self._parse_sse_data_line(raw)
         assert body["type"] == "tool-output-available"
         assert body["metadata"] == {
             "spanId": "spn_o",
-            "thinkingStepId": "thinking-9",
+            "activityId": "act_turn_9",
         }
 
     def test_tool_input_available_omits_metadata_key_when_none(self):
@@ -378,104 +381,71 @@ class TestVercelStreamingServiceToolMetadataWire:
 
 
 # ---------------------------------------------------------------------------
-# Thinking steps & separators
+# Activities & separators
 # ---------------------------------------------------------------------------
 
 
-class TestThinkingSteps:
-    def test_first_thinking_step_unshifts_singleton_to_index_zero(self):
+def _activity(
+    activity_id: str,
+    sequence: int,
+    *,
+    status: str = "running",
+    title: str = "Working",
+) -> dict:
+    return {
+        "id": activity_id,
+        "sequence": sequence,
+        "kind": "action",
+        "status": status,
+        "title": title,
+        "category": "action",
+        "iconKey": "action",
+        "startedAt": "2026-01-01T00:00:00+00:00",
+    }
+
+
+class TestActivities:
+    def test_first_activity_unshifts_singleton_to_index_zero(self):
         b = AssistantContentBuilder()
         b.on_text_start("text-1")
         b.on_text_delta("text-1", "Hello")
         b.on_text_end("text-1")
 
-        b.on_thinking_step("step-1", "Analyzing", "in_progress", ["item-a"])
+        b.on_activity(_activity("act-1", 1))
 
         snap = b.snapshot()
-        # Singleton goes to index 0 (FE ``updateThinkingSteps`` unshift).
-        assert snap[0]["type"] == "data-thinking-steps"
-        assert snap[0]["data"]["steps"] == [
-            {
-                "id": "step-1",
-                "title": "Analyzing",
-                "status": "in_progress",
-                "items": ["item-a"],
-            }
-        ]
+        assert snap[0]["type"] == "data-activities"
+        assert snap[0]["data"]["activities"] == [_activity("act-1", 1)]
         assert snap[1] == {"type": "text", "text": "Hello"}
 
-    def test_subsequent_thinking_steps_mutate_the_singleton_in_place(self):
+    def test_snapshots_upsert_by_id_and_sort_by_sequence_then_id(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("step-1", "Analyzing", "in_progress", [])
-        b.on_thinking_step("step-2", "Searching", "in_progress", ["q"])
-        b.on_thinking_step("step-1", "Analyzing", "completed", ["done"])
+        b.on_activity(_activity("act-c", 2))
+        b.on_activity(_activity("act-b", 1))
+        b.on_activity(_activity("act-a", 1))
+        b.on_activity(_activity("act-a", 1, status="completed", title="Done"))
 
         snap = b.snapshot()
-        assert len([p for p in snap if p["type"] == "data-thinking-steps"]) == 1
-        steps = snap[0]["data"]["steps"]
-        assert len(steps) == 2
-        assert steps[0]["id"] == "step-1"
-        assert steps[0]["status"] == "completed"
-        assert steps[0]["items"] == ["done"]
-        assert steps[1]["id"] == "step-2"
+        assert len([p for p in snap if p["type"] == "data-activities"]) == 1
+        activities = snap[0]["data"]["activities"]
+        assert [activity["id"] for activity in activities] == [
+            "act-a",
+            "act-b",
+            "act-c",
+        ]
+        assert activities[0]["status"] == "completed"
 
-    def test_thinking_step_with_text_continues_appending_to_text(self):
+    def test_terminal_activity_cannot_regress(self):
         b = AssistantContentBuilder()
-        b.on_text_start("text-1")
-        b.on_text_delta("text-1", "first")
+        b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
+        b.on_activity(_activity("act-1", 1))
+        assert b.snapshot()[0]["data"]["activities"][0]["status"] == "completed"
 
-        # Thinking step inserts at index 0, bumps text idx from 0 to 1.
-        b.on_thinking_step("step-1", "Working", "in_progress", [])
-        b.on_text_delta("text-1", " second")
-
-        snap = b.snapshot()
-        text_parts = [p for p in snap if p["type"] == "text"]
-        assert text_parts == [{"type": "text", "text": "first second"}]
-
-    def test_thinking_step_without_id_is_dropped(self):
+    def test_activity_without_id_is_dropped(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("", "noop", "in_progress", None)
+        b.on_activity({})
         assert b.snapshot() == []
         assert b.is_empty()
-
-
-class TestStepSeparators:
-    def test_separator_no_op_before_any_content(self):
-        b = AssistantContentBuilder()
-        b.on_step_separator()
-        assert b.snapshot() == []
-
-    def test_separator_after_text_appends_with_step_index_zero(self):
-        b = AssistantContentBuilder()
-        b.on_text_start("text-1")
-        b.on_text_delta("text-1", "first")
-        b.on_text_end("text-1")
-
-        b.on_step_separator()
-
-        snap = b.snapshot()
-        assert snap[-1] == {
-            "type": "data-step-separator",
-            "data": {"stepIndex": 0},
-        }
-
-    def test_consecutive_separators_collapse_to_one(self):
-        b = AssistantContentBuilder()
-        b.on_text_delta("text-1", "x")
-        b.on_step_separator()
-        b.on_step_separator()  # No-op: previous part is already a separator.
-        snap = b.snapshot()
-        assert sum(1 for p in snap if p["type"] == "data-step-separator") == 1
-
-    def test_step_index_increments_across_separators(self):
-        b = AssistantContentBuilder()
-        b.on_text_delta("text-1", "a")
-        b.on_step_separator()
-        b.on_text_delta("text-2", "b")
-        b.on_step_separator()
-        snap = b.snapshot()
-        seps = [p for p in snap if p["type"] == "data-step-separator"]
-        assert [s["data"]["stepIndex"] for s in seps] == [0, 1]
 
 
 # ---------------------------------------------------------------------------
@@ -484,6 +454,19 @@ class TestStepSeparators:
 
 
 class TestMarkInterrupted:
+    def test_activity_lifecycle_is_not_invented_by_persistence_builder(self):
+        b = AssistantContentBuilder()
+        b.on_activity(_activity("running", 1))
+        b.on_activity(_activity("approval", 2, status="awaiting_approval"))
+
+        b.mark_interrupted()
+
+        activities = b.snapshot()[0]["data"]["activities"]
+        assert activities[0]["status"] == "running"
+        assert "completedAt" not in activities[0]
+        assert activities[1]["status"] == "awaiting_approval"
+        assert "completedAt" not in activities[1]
+
     def test_running_tool_calls_get_state_aborted(self):
         b = AssistantContentBuilder()
         b.on_tool_input_start("call_a", "ls", "lc_a")
@@ -539,21 +522,9 @@ class TestIsEmpty:
         b.on_tool_input_start("call_x", "ls", None)
         assert not b.is_empty()
 
-    def test_thinking_step_alone_does_not_break_emptiness(self):
-        # Mirrors the "status marker fallback" semantic: a turn that
-        # only emitted a thinking step before being interrupted should
-        # still be treated as empty for finalize_assistant_turn's
-        # status-marker substitution.
+    def test_activity_alone_does_not_break_emptiness(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("step-1", "Working", "in_progress", [])
-        assert b.is_empty()
-
-    def test_step_separator_alone_does_not_break_emptiness(self):
-        b = AssistantContentBuilder()
-        # Force a separator (it would normally no-op without content,
-        # but we simulate the underlying state to verify is_empty is
-        # not fooled by a stray separator).
-        b.parts.append({"type": "data-step-separator", "data": {"stepIndex": 0}})
+        b.on_activity(_activity("act-1", 1))
         assert b.is_empty()
 
 
@@ -573,12 +544,11 @@ class TestSnapshotSemantics:
 
     def test_snapshot_round_trips_through_json(self):
         b = AssistantContentBuilder()
-        b.on_thinking_step("step-1", "Analyzing", "in_progress", ["item"])
+        b.on_activity(_activity("act-1", 1))
         b.on_text_delta("text-1", "answer")
         b.on_tool_input_start("call_x", "ls", "lc_x")
         b.on_tool_input_available("call_x", "ls", {"path": "/"}, "lc_x")
         b.on_tool_output_available("call_x", {"files": ["a.txt"]}, "lc_x")
-        b.on_step_separator()
         snap = b.snapshot()
 
         encoded = json.dumps(snap)
@@ -602,8 +572,7 @@ class TestStats:
             "tool_calls": 0,
             "tool_calls_completed": 0,
             "tool_calls_aborted": 0,
-            "thinking_step_parts": 0,
-            "step_separators": 0,
+            "activity_parts": 0,
         }
 
     def test_counts_each_part_type_independently(self):
@@ -614,8 +583,7 @@ class TestStats:
         b.on_reasoning_start("r1")
         b.on_reasoning_delta("r1", "thinking")
         b.on_reasoning_end("r1")
-        b.on_thinking_step("step-1", "Analyzing", "completed", ["item"])
-        b.on_step_separator()
+        b.on_activity(_activity("act-1", 1, status="completed", title="Done"))
         b.on_tool_input_start("call_done", "ls", "lc_done")
         b.on_tool_input_available("call_done", "ls", {}, "lc_done")
         b.on_tool_output_available("call_done", {"ok": True}, "lc_done")
@@ -628,15 +596,13 @@ class TestStats:
         assert s["tool_calls"] == 2
         assert s["tool_calls_completed"] == 1
         assert s["tool_calls_aborted"] == 0
-        assert s["thinking_step_parts"] == 1
-        assert s["step_separators"] == 1
+        assert s["activity_parts"] == 1
         assert s["parts"] == sum(
             [
                 s["text"],
                 s["reasoning"],
                 s["tool_calls"],
-                s["thinking_step_parts"],
-                s["step_separators"],
+                s["activity_parts"],
             ]
         )
         assert s["bytes"] > 0

@@ -10,6 +10,7 @@ from typing import Any
 
 from ..emitter import Emitter, attach_emitted_by
 from ..envelope import format_sse
+from ..types import ActivityData
 
 
 def format_data(
@@ -43,24 +44,12 @@ def format_further_questions(
     return format_data("further-questions", {"questions": questions}, emitter=emitter)
 
 
-def format_thinking_step(
+def format_activity(
+    snapshot: ActivityData,
     *,
-    step_id: str,
-    title: str,
-    status: str = "in_progress",
-    items: list[str] | None = None,
     emitter: Emitter | None = None,
 ) -> str:
-    return format_data(
-        "thinking-step",
-        {
-            "id": step_id,
-            "title": title,
-            "status": status,
-            "items": items or [],
-        },
-        emitter=emitter,
-    )
+    return format_data("activity", snapshot, emitter=emitter)
 
 
 def format_thread_title_update(

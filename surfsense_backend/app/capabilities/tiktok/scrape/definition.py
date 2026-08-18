@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
-from app.capabilities.core import BillingUnit, Capability, register_capability
+from app.capabilities.core import (
+    ActivityDescriptor,
+    BillingUnit,
+    Capability,
+    register_capability,
+)
 from app.capabilities.tiktok.scrape.executor import build_scrape_executor
 from app.capabilities.tiktok.scrape.schemas import ScrapeInput, ScrapeOutput
 
@@ -18,6 +23,13 @@ TIKTOK_SCRAPE = Capability(
     executor=build_scrape_executor(),
     billing_unit=BillingUnit.TIKTOK_VIDEO,
     docs_url="/docs/connectors/native/tiktok",
+    activity=ActivityDescriptor(
+        active_title="Searching TikTok",
+        completed_title="Searched TikTok",
+        category="research",
+        icon_key="search",
+        integration_key="tiktok",
+    ),
 )
 
 register_capability(TIKTOK_SCRAPE)

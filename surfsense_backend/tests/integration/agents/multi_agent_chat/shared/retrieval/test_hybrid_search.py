@@ -234,3 +234,31 @@ async def test_top_k_caps_the_number_of_documents(db_session, db_workspace):
     )
 
     assert len(results) == 2
+
+
+async def test_search_chunks_returns_artifact_document_type_and_identity(
+    db_session, db_workspace
+):
+    artifact_document = await _add_document(
+        db_session,
+        workspace_id=db_workspace.id,
+        title="Launch deck",
+        document_type=DocumentType.ARTIFACT,
+        chunks=[("artifact-only-search-term", 0, _axis(0))],
+    )
+    artifact_document.document_metadata = {"artifact_id": 42}
+    await db_session.flush()
+
+    results = await search_chunks(
+        db_session,
+        workspace_id=db_workspace.id,
+        query="artifact-only-search-term",
+        scope=SearchScope(),
+        top_k=5,
+        query_embedding=_axis(0),
+    )
+
+    hit = next(hit for hit in results if hit.document_id == artifact_document.id)
+    assert hit.document_type == "ARTIFACT"
+    assert hit.metadata == {"artifact_id": 42}
+    assert hit.source_key == ("document", artifact_document.id)

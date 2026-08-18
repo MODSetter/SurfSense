@@ -1,5 +1,20 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
+import {
+	type ActivityData,
+	type ActivityTimingData,
+	type ActivityTimingProjection,
+	createActivityJournalPart,
+	extractActivityJournal,
+	parseActivityJournalPart,
+} from "./activity-journal";
 import type { MessageRecord } from "./thread-persistence";
+
+const HIDDEN_PERSISTED_PART_TYPES = new Set([
+	"mentioned-documents",
+	"attachments",
+	"data-thinking-steps",
+	"thinking-steps",
+]);
 
 /** Minimal shape used by the interrupt/resume reconciler. */
 interface AbortableMessage {
@@ -24,21 +39,36 @@ function hasAbortedToolCall(msg: AbortableMessage): boolean {
 	return false;
 }
 
-/**
- * True when EVERY tool-call on the row is aborted. The row is then a
- * frozen interrupt frame with no salvageable activity — safe to drop
- * outright.
- */
-function isFullyAbortedAssistantMessage(msg: AbortableMessage): boolean {
+/** True when an interrupted row contains content worth carrying forward. */
+function hasSalvageableContent(msg: AbortableMessage): boolean {
 	if (!isAssistant(msg) || !Array.isArray(msg.content)) return false;
-	let hasToolCalls = false;
 	for (const part of msg.content) {
-		if (typeof part !== "object" || part === null) continue;
-		if ((part as { type?: string }).type !== "tool-call") continue;
-		hasToolCalls = true;
-		if ((part as { state?: unknown }).state !== "aborted") return false;
+		if (parseActivityJournalPart(part)) return true;
+		if (typeof part !== "object" || part === null) {
+			if (typeof part === "string" && part.trim()) return true;
+			continue;
+		}
+		const typed = part as {
+			type?: unknown;
+			text?: unknown;
+			reasoning?: unknown;
+			state?: unknown;
+			result?: unknown;
+		};
+		if (typed.type === "tool-call") {
+			if (typed.state !== "aborted" || typed.result !== undefined) return true;
+			continue;
+		}
+		if (typed.type === "text" || typed.type === "reasoning" || typed.type === "status") {
+			const value = typed.text ?? typed.reasoning;
+			if (typeof value === "string" && value.trim()) return true;
+			continue;
+		}
+		// Unknown persisted parts are kept conservatively; only a proven-empty
+		// aborted shell may be discarded.
+		return true;
 	}
-	return hasToolCalls;
+	return false;
 }
 
 /**
@@ -62,34 +92,29 @@ function findResumeSuccessorIdx<T extends AbortableMessage>(
 	return null;
 }
 
-/** Read ``data.steps`` from either ``data-thinking-steps`` (modern) or ``thinking-steps`` (legacy). */
-function extractStepsFromPart(part: unknown): unknown[] | null {
-	if (typeof part !== "object" || part === null) return null;
-	const p = part as { type?: unknown; data?: unknown; steps?: unknown };
-	if (p.type === "data-thinking-steps") {
-		const data = p.data as { steps?: unknown } | undefined;
-		return Array.isArray(data?.steps) ? data.steps : [];
+/** Split canonical activities from all independently-rendered message parts. */
+function partitionContent(content: unknown): {
+	activities: ActivityData[];
+	timing: ActivityTimingData | null;
+	timingProjection: ActivityTimingProjection | null;
+	others: unknown[];
+} {
+	if (!Array.isArray(content)) {
+		return { activities: [], timing: null, timingProjection: null, others: [] };
 	}
-	if (p.type === "thinking-steps") {
-		return Array.isArray(p.steps) ? (p.steps as unknown[]) : [];
-	}
-	return null;
-}
-
-/** Split a content array into (combined steps, all other parts in order). */
-function partitionContent(content: unknown): { steps: unknown[]; others: unknown[] } {
-	if (!Array.isArray(content)) return { steps: [], others: [] };
-	const steps: unknown[] = [];
+	const journalParts: unknown[] = [];
 	const others: unknown[] = [];
 	for (const part of content) {
-		const partSteps = extractStepsFromPart(part);
-		if (partSteps !== null) {
-			steps.push(...partSteps);
-			continue;
-		}
-		others.push(part);
+		if (parseActivityJournalPart(part)) journalParts.push(part);
+		else others.push(part);
 	}
-	return { steps, others };
+	const journal = extractActivityJournal(journalParts);
+	return {
+		activities: [...journal.byId.values()],
+		timing: journal.timing,
+		timingProjection: journal.timingProjection,
+		others,
+	};
 }
 
 /**
@@ -98,21 +123,31 @@ function partitionContent(content: unknown): { steps: unknown[]; others: unknown
  * Successor's metadata wins (id, created_at, turn_id, token_usage,
  * author) — that's the row the per-turn revert button keys to.
  *
- * Order: combined ``data-thinking-steps`` (older steps then newer) at
- * index 0, followed by older's other parts in order, then newer's. The
- * older row's aborted ``task`` wrapper is preserved so the rejected
- * attempt remains visible alongside the successful retry; both spans
- * survive and ``groupItems`` renders them as sibling task branches in
- * one timeline.
+ * Canonical activities merge by ID. A terminal snapshot wins over a
+ * nonterminal one across interruption/resume rows; the successor wins
+ * ties. Tool-call parts remain independent for HITL and result cards.
  */
 function mergeInterruptedIntoResume<T extends AbortableMessage>(older: T, newer: T): T {
 	const olderParts = partitionContent(older.content);
 	const newerParts = partitionContent(newer.content);
 
-	const mergedSteps = [...olderParts.steps, ...newerParts.steps];
+	const journal = extractActivityJournal([
+		createActivityJournalPart(
+			olderParts.activities,
+			olderParts.timing,
+			olderParts.timingProjection
+		),
+		createActivityJournalPart(
+			newerParts.activities,
+			newerParts.timing,
+			newerParts.timingProjection
+		),
+	]);
 	const mergedContent: unknown[] = [];
-	if (mergedSteps.length > 0) {
-		mergedContent.push({ type: "data-thinking-steps", data: { steps: mergedSteps } });
+	if (journal.byId.size > 0 || journal.timing) {
+		mergedContent.push(
+			createActivityJournalPart(journal.byId.values(), journal.timing, journal.timingProjection)
+		);
 	}
 	mergedContent.push(...olderParts.others, ...newerParts.others);
 
@@ -154,9 +189,13 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		if (successorIdx === null) continue;
 
 		dropped.add(i);
-		if (!isFullyAbortedAssistantMessage(msg)) {
+		const inherited = mergeInto.get(i) ?? [];
+		mergeInto.delete(i);
+		const salvageable = hasSalvageableContent(msg);
+		if (inherited.length > 0 || salvageable) {
 			const list = mergeInto.get(successorIdx) ?? [];
-			list.push(i);
+			list.push(...inherited);
+			if (salvageable) list.push(i);
 			mergeInto.set(successorIdx, list);
 		}
 	}
@@ -167,7 +206,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		const olderIdxs = mergeInto.get(i);
 		if (olderIdxs && olderIdxs.length > 0) {
 			let merged = messages[i];
-			for (const olderIdx of olderIdxs) {
+			for (const olderIdx of olderIdxs.toReversed()) {
 				merged = mergeInterruptedIntoResume(messages[olderIdx], merged);
 			}
 			result.push(merged);
@@ -180,8 +219,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 
 /**
  * Convert a backend ``MessageRecord`` to assistant-ui's
- * ``ThreadMessageLike``. Also migrates legacy ``thinking-steps`` parts
- * to ``data-thinking-steps``.
+ * ``ThreadMessageLike``.
  */
 export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -193,19 +231,19 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 			.filter((part: unknown) => {
 				if (typeof part !== "object" || part === null || !("type" in part)) return true;
 				const partType = (part as { type: string }).type;
-				return partType !== "mentioned-documents" && partType !== "attachments";
+				return !HIDDEN_PERSISTED_PART_TYPES.has(partType);
 			})
 			.map((part: unknown) => {
 				if (
 					typeof part === "object" &&
 					part !== null &&
 					"type" in part &&
-					(part as { type: string }).type === "thinking-steps"
+					(part as { type: string }).type === "status"
 				) {
-					const steps = (part as unknown as { steps?: unknown[] }).steps;
+					const text = (part as { text?: unknown }).text;
 					return {
-						type: "data-thinking-steps",
-						data: { steps: Array.isArray(steps) ? steps : [] },
+						type: "text",
+						text: typeof text === "string" ? text : "No response was produced.",
 					};
 				}
 				return part;
@@ -231,7 +269,9 @@ export function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 						...(msg.token_usage && { usage: msg.token_usage }),
 						// Surfaced for the assistant footer's per-turn
 						// "Revert turn" button. Null on legacy rows.
-						...(msg.turn_id && { chatTurnId: msg.turn_id }),
+						...(msg.turn_id && {
+							chatTurnId: msg.turn_id,
+						}),
 					},
 				}
 			: undefined;

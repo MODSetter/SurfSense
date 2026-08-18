@@ -11,6 +11,7 @@ on:
     paths:
       - 'surfsense_backend/**'
       - 'surfsense_web/**'
+      - 'docker/sandbox/**'
   workflow_dispatch:
     inputs:
       branch:
@@ -109,12 +110,16 @@ jobs:
       fail-fast: false
       matrix:
         platform: [linux/amd64, linux/arm64]
-        image: [backend, web]
+        image: [backend, web, sandbox]
         variant: [cpu, cuda, cuda126]
         exclude:
           - image: web
             variant: cuda
           - image: web
+            variant: cuda126
+          - image: sandbox
+            variant: cuda
+          - image: sandbox
             variant: cuda126
         include:
           - platform: linux/amd64
@@ -133,6 +138,10 @@ jobs:
             context: ./surfsense_web
             file: ./surfsense_web/Dockerfile
             target: runner
+          - image: sandbox
+            name: surfsense-sandbox
+            context: ./docker/sandbox
+            file: ./docker/sandbox/Dockerfile
           - variant: cpu
             tag_suffix: ""
             use_cuda: "false"
@@ -244,6 +253,7 @@ jobs:
           check backend-cuda
           check backend-cuda126
           check web-cpu
+          check sandbox-cpu
           [ "$fail" -eq 0 ] || exit 1
 
   create_manifest:
@@ -271,6 +281,10 @@ jobs:
             tag_suffix: "-cuda126"
           - name: surfsense-web
             image: web
+            variant: cpu
+            tag_suffix: ""
+          - name: surfsense-sandbox
+            image: sandbox
             variant: cpu
             tag_suffix: ""
     env:

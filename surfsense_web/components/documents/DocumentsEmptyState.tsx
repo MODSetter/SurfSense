@@ -9,16 +9,14 @@ export function DocumentsEmptyState({ reason }: { reason: DocumentsEmptyReason }
 
 	if (reason.kind === "loading") {
 		return (
-			<div className="space-y-1 px-4 py-2" aria-busy="true" aria-label={t("loading")}>
-				{["loading-1", "loading-2", "loading-3", "loading-4", "loading-5"].map(
-					(key, index) => (
-						<div key={key} className="flex h-8 items-center gap-2">
-							<Skeleton className="size-4 rounded-sm" />
-							<Skeleton className={index % 2 === 0 ? "h-4 w-44" : "h-4 w-32"} />
-						</div>
-					)
-				)}
-			</div>
+			<output className="block space-y-1 px-4 py-2" aria-busy="true" aria-label={t("loading")}>
+				{["loading-1", "loading-2", "loading-3", "loading-4", "loading-5"].map((key, index) => (
+					<div key={key} className="flex h-8 items-center gap-2">
+						<Skeleton className="size-4 rounded-sm" />
+						<Skeleton className={index % 2 === 0 ? "h-4 w-44" : "h-4 w-32"} />
+					</div>
+				))}
+			</output>
 		);
 	}
 
@@ -32,13 +30,12 @@ export function DocumentsEmptyState({ reason }: { reason: DocumentsEmptyReason }
 				: t("empty_adjust_filters");
 
 	return (
-		<div
+		<output
 			className="flex flex-1 select-none flex-col items-center justify-center gap-1 px-4 py-12 text-center text-muted-foreground"
-			role="status"
 			aria-live="polite"
 		>
 			<p className="text-sm font-medium">{title}</p>
 			<p className="text-xs text-muted-foreground/70">{description}</p>
-		</div>
+		</output>
 	);
 }

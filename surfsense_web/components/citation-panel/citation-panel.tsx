@@ -5,7 +5,7 @@ import { useSetAtom } from "jotai";
 import { XIcon } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef } from "react";
-import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -23,10 +23,10 @@ interface CitationPanelContentProps {
  * Right-panel citation viewer. Shows the cited chunk surrounded by
  * adjacent chunks (±N chunks via the API's `chunk_window` parameter),
  * with the cited one visually highlighted and auto-scrolled into view.
- * The user can jump to the full document via the editor panel.
+ * The user can jump to the full document via the document panel.
  */
 export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, onClose }) => {
-	const openEditorPanel = useSetAtom(openEditorPanelAtom);
+	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 
 	const chunkWindow = DEFAULT_CHUNK_WINDOW;
 
@@ -71,7 +71,7 @@ export const CitationPanelContent: FC<CitationPanelContentProps> = ({ chunkId, o
 
 	const handleOpenFullDocument = () => {
 		if (!data) return;
-		openEditorPanel({
+		openDocumentViewer({
 			documentId: data.id,
 			workspaceId: data.workspace_id,
 			title: data.title,

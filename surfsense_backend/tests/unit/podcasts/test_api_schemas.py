@@ -9,6 +9,7 @@ test builds a row in one lifecycle shape and asserts the mapping reflects it.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -54,15 +55,15 @@ def test_an_awaiting_brief_podcast_exposes_the_deserialized_brief(make_spec):
 
 
 def test_a_legacy_episode_still_exposes_its_transcript_and_audio():
-    # Pre-rework rows stored [{speaker_id, dialog}] and a local file path;
-    # they must keep flowing through the new read model, not fail validation.
+    # Pre-rework rows stored [{speaker_id, dialog}]; they must keep flowing
+    # through the new read model. Audio now lives in the linked Artifact.
     podcast = _podcast(
         status=PodcastStatus.READY,
         podcast_transcript=[
             {"speaker_id": 0, "dialog": "Welcome back."},
             {"speaker_id": 1, "dialog": "Glad to be here."},
         ],
-        file_location="/var/old/podcast.mp3",
+        artifact_id=99,
     )
 
     detail = PodcastDetail.of(podcast)
@@ -80,15 +81,22 @@ def test_a_ready_podcast_reports_available_audio(make_spec, make_transcript):
         status=PodcastStatus.READY,
         spec=make_spec().model_dump(mode="json"),
         podcast_transcript=make_transcript().model_dump(mode="json"),
-        storage_backend="local",
-        storage_key="k",
+        artifact_id=77,
         duration_seconds=120,
     )
 
-    detail = PodcastDetail.of(podcast)
+    detail = PodcastDetail.of(podcast, artifact_id=77)
 
     assert detail.status == PodcastStatus.READY
     assert detail.has_audio is True
     assert detail.duration_seconds == 120
     assert detail.transcript is not None
     assert detail.error is None
+    assert detail.artifact_id == 77
+
+
+@pytest.mark.asyncio
+async def test_resolve_reads_the_stamped_artifact_id():
+    podcast = _podcast(status=PodcastStatus.READY, artifact_id=55)
+    detail = await PodcastDetail.resolve(AsyncMock(), podcast)
+    assert detail.artifact_id == 55

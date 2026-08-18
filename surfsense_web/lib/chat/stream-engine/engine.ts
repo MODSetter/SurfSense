@@ -24,6 +24,7 @@ import {
 } from "@/hooks/use-agent-actions-query";
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { authenticatedFetch } from "@/lib/auth-fetch";
+import { parseActivityJournalPart } from "@/lib/chat/activity-journal";
 import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
@@ -40,7 +41,6 @@ import {
 	buildContentForUI,
 	type ContentPartsState,
 	type FrameBatchedUpdater,
-	type ThinkingStepData,
 	updateToolCall,
 } from "@/lib/chat/streaming-state";
 import {
@@ -113,7 +113,20 @@ async function persistAssistantErrorMessage({
 }): Promise<void> {
 	if (threadId != null) {
 		chatStreamStore.setMessages(threadId, (prev) =>
-			prev.map((m) => (m.id === assistantMsgId ? { ...m, content: [{ type: "text", text }] } : m))
+			prev.map((m) => {
+				if (m.id !== assistantMsgId) return m;
+				const existing = Array.isArray(m.content) ? m.content : [];
+				const hasPartial = existing.some(
+					(part) =>
+						(part.type === "text" && part.text.trim().length > 0) ||
+						part.type === "reasoning" ||
+						part.type === "tool-call"
+				);
+				return {
+					...m,
+					content: hasPartial ? [...existing, { type: "text", text }] : [{ type: "text", text }],
+				};
+			})
 		);
 	}
 
@@ -487,12 +500,12 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 
 	// Prepare assistant message. Mutable for the same reason as ``userMsgId``.
 	let assistantMsgId = `msg-assistant-${Date.now()}`;
-	const currentThinkingSteps = new Map<string, ThinkingStepData>();
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
 		currentTextPartIndex: -1,
 		currentReasoningPartIndex: -1,
 		toolCallIndices: new Map(),
+		activities: new Map(),
 	};
 	const { contentParts } = contentPartsState;
 	let wasInterrupted = false;
@@ -575,7 +588,6 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 				processSharedStreamEvent(parsed, {
 					contentPartsState,
 					toolsWithUI,
-					currentThinkingSteps,
 					scheduleFlush,
 					forceFlush,
 					onTokenUsage: (data) => {
@@ -671,11 +683,13 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 								: m
 						)
 					);
-					// ``tool_call_id`` is stamped on the backend by
-					// ``checkpointed_subagent_middleware``. Without it we can't
-					// address the paused subagent on resume — skip rather than
-					// fabricate a synthetic key.
-					const interruptId = String(interruptData.tool_call_id ?? "");
+					// Subagent interrupts carry ``tool_call_id``; parent-side ones
+					// (doom-loop, permission asks) carry only the langgraph
+					// ``interrupt_id``. Either addresses the pause on resume — skip
+					// only when neither is present.
+					const interruptId = String(
+						interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
+					);
 					if (interruptId) {
 						const incoming: PendingInterruptState = {
 							interruptId,
@@ -779,6 +793,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 			trackChatResponseReceived(workspaceId, streamThreadId);
 		}
 	} catch (error) {
+		streamBatcher?.flush();
 		streamBatcher?.dispose();
 		await handleStreamTerminalError({
 			error,
@@ -822,6 +837,7 @@ export async function resumeChat(
 		type: string;
 		message?: string;
 		edited_action?: { name: string; args: Record<string, unknown> };
+		tool_call_id?: string;
 	}>
 ): Promise<void> {
 	const { workspaceId, threadId } = ctx;
@@ -842,12 +858,12 @@ export async function resumeChat(
 		jotaiStore.get(agentFlagsAtom).data?.enable_desktop_local_filesystem === true;
 	const disabledTools = jotaiStore.get(disabledToolsAtom);
 
-	const currentThinkingSteps = new Map<string, ThinkingStepData>();
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
 		currentTextPartIndex: -1,
 		currentReasoningPartIndex: -1,
 		toolCallIndices: new Map(),
+		activities: new Map(),
 	};
 	const { contentParts, toolCallIndices } = contentPartsState;
 	let resumeAccepted = false;
@@ -857,13 +873,24 @@ export async function resumeChat(
 		.getMessages(resumeThreadId)
 		.find((m) => m.id === assistantMsgId);
 	if (existingMsg && Array.isArray(existingMsg.content)) {
-		contentPartsState.suppressStepSeparators = true;
 		for (const part of existingMsg.content) {
 			if (typeof part === "object" && part !== null) {
 				const p = part as Record<string, unknown>;
 				if (p.type === "text") {
 					contentParts.push({ type: "text", text: String(p.text ?? "") });
 					contentPartsState.currentTextPartIndex = contentParts.length - 1;
+				} else if (p.type === "reasoning") {
+					contentParts.push({
+						type: "reasoning",
+						text: String(p.text ?? ""),
+						...(typeof p.id === "string" ? { id: p.id } : {}),
+						...(p.status === "running" || p.status === "completed" || p.status === "interrupted"
+							? { status: p.status }
+							: {}),
+						...(typeof p.startedAt === "string" ? { startedAt: p.startedAt } : {}),
+						...(typeof p.completedAt === "string" ? { completedAt: p.completedAt } : {}),
+					});
+					contentPartsState.currentTextPartIndex = -1;
 				} else if (p.type === "tool-call") {
 					toolCallIndices.set(String(p.toolCallId), contentParts.length);
 					contentParts.push({
@@ -881,15 +908,19 @@ export async function resumeChat(
 							: {}),
 					});
 					contentPartsState.currentTextPartIndex = -1;
-				} else if (p.type === "data-thinking-steps") {
-					const stepsData = p.data as { steps: ThinkingStepData[] } | undefined;
-					contentParts.push({
-						type: "data-thinking-steps",
-						data: { steps: stepsData?.steps ?? [] },
-					});
-					for (const step of stepsData?.steps ?? []) {
-						currentThinkingSteps.set(step.id, step);
+				} else if (p.type === "data-activities") {
+					const journal = parseActivityJournalPart(p);
+					if (!journal) continue;
+					for (const activity of journal.activities)
+						contentPartsState.activities.set(activity.id, activity);
+					if (journal.timing) contentPartsState.activityTiming = journal.timing;
+					if (journal.timingProjection) {
+						contentPartsState.activityTimingProjection = journal.timingProjection;
 					}
+					contentParts.push({
+						type: "data-activities",
+						data: journal,
+					});
 				}
 			}
 		}
@@ -963,7 +994,6 @@ export async function resumeChat(
 				processSharedStreamEvent(parsed, {
 					contentPartsState,
 					toolsWithUI,
-					currentThinkingSteps,
 					scheduleFlush,
 					forceFlush,
 					onTokenUsage: (data) => {
@@ -1018,7 +1048,9 @@ export async function resumeChat(
 						)
 					);
 					{
-						const interruptId = String(interruptData.tool_call_id ?? "");
+						const interruptId = String(
+							interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
+						);
 						if (interruptId) {
 							const incoming: PendingInterruptState = {
 								interruptId,
@@ -1082,6 +1114,7 @@ export async function resumeChat(
 
 		batcher.flush();
 	} catch (error) {
+		streamBatcher?.flush();
 		streamBatcher?.dispose();
 		await handleStreamTerminalError({
 			error,
@@ -1169,13 +1202,12 @@ export async function regenerateChat(
 
 	let userMsgId = `msg-user-${Date.now()}`;
 	let assistantMsgId = `msg-assistant-${Date.now()}`;
-	const currentThinkingSteps = new Map<string, ThinkingStepData>();
-
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
 		currentTextPartIndex: -1,
 		currentReasoningPartIndex: -1,
 		toolCallIndices: new Map(),
+		activities: new Map(),
 	};
 	const { contentParts } = contentPartsState;
 	let regenerateAccepted = false;
@@ -1289,7 +1321,6 @@ export async function regenerateChat(
 				processSharedStreamEvent(parsed, {
 					contentPartsState,
 					toolsWithUI,
-					currentThinkingSteps,
 					scheduleFlush,
 					forceFlush,
 					onTokenUsage: (data) => {
@@ -1408,6 +1439,7 @@ export async function regenerateChat(
 			trackChatResponseReceived(workspaceId, streamThreadId);
 		}
 	} catch (error) {
+		streamBatcher?.flush();
 		streamBatcher?.dispose();
 		await handleStreamTerminalError({
 			error,

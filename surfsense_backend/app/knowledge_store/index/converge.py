@@ -19,10 +19,10 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.knowledge_store.paths import PATH_MARKER, to_virtual_path
 from app.db import Document, DocumentStatus, Workspace
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.engines.base import Change
 from app.knowledge_store.index.folders import reconcile_tree_folders
 from app.knowledge_store.index.rows import (
@@ -34,8 +34,8 @@ from app.knowledge_store.index.rows import (
     revision_author_id,
     upsert_row,
 )
-from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.locks import workspace_index_lock
+from app.knowledge_store.paths import PATH_MARKER, to_virtual_path
 from app.utils.document_converters import generate_content_hash
 
 logger = logging.getLogger(__name__)
@@ -171,14 +171,23 @@ async def _converge(
     author_id = await revision_author_id(store, head, workspace)
 
     for from_path, to_path in plan.renames:
-        follow_rename(
-            owned,
-            workspace.id,
-            to_virtual_path(from_path),
-            to_virtual_path(to_path),
-        )
+        if _is_document_store_path(from_path) and _is_document_store_path(to_path):
+            follow_rename(
+                owned,
+                workspace.id,
+                to_virtual_path(from_path),
+                to_virtual_path(to_path),
+            )
+        elif _is_document_store_path(from_path):
+            removed = await delete_row(
+                session, workspace.id, to_virtual_path(from_path), owned
+            )
+            outcome.deleted += 1 if removed is not None else 0
 
     for store_path in plan.upserts:
+        if not _is_document_store_path(store_path):
+            outcome.skipped += 1
+            continue
         virtual_path = to_virtual_path(store_path)
         content = await read_indexable(store, head, store_path)
         if content is None:
@@ -198,14 +207,19 @@ async def _converge(
             outcome.failed += 1
 
     for store_path in plan.removals:
-        removed = await delete_row(
-            session, workspace.id, to_virtual_path(store_path), owned
-        )
+        if _is_document_store_path(store_path):
+            removed = await delete_row(
+                session, workspace.id, to_virtual_path(store_path), owned
+            )
+        else:
+            removed = None
         outcome.deleted += 1 if removed is not None else 0
 
     if plan.tree is not None:
-        live = {to_virtual_path(path) for path in plan.tree}
-        outcome.deleted += await prune(session, owned, live)
+        live_documents = {
+            to_virtual_path(path) for path in plan.tree if _is_document_store_path(path)
+        }
+        outcome.deleted += await prune(session, owned, live_documents)
 
     # A failed document must not advance the marker, or the drift sweep can never
     # re-drive it. An intentional skip (unreadable blob) must not block it, or one
@@ -291,3 +305,7 @@ async def _index_one(
     # Recorded only once index() has committed it, so every entry is a real row.
     owned[virtual_path] = document
     return True
+
+
+def _is_document_store_path(path: str) -> bool:
+    return path.strip("/").startswith("documents/")

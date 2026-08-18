@@ -35,10 +35,13 @@ from app.observability import otel as ot
 from app.services.chat_session_state_service import set_ai_responding
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.content_builder import AssistantContentBuilder
+from app.tasks.chat.streaming.activity_timing import ActivityTimer
 from app.tasks.chat.streaming.agent.builder import build_main_agent_for_thread
 from app.tasks.chat.streaming.contract.file_contract import log_file_contract
 from app.tasks.chat.streaming.errors.emitter import emit_stream_terminal_error
 from app.tasks.chat.streaming.flows.resume_chat.assistant_shell import (
+    load_resumable_activity_journal,
+    order_resume_tool_call_ids,
     persist_resume_assistant_shell,
 )
 from app.tasks.chat.streaming.flows.resume_chat.resume_routing import (
@@ -88,6 +91,11 @@ from app.tasks.chat.streaming.flows.shared.span import (
 from app.tasks.chat.streaming.flows.shared.stream_loop import run_stream_loop
 from app.tasks.chat.streaming.flows.shared.terminal_error import (
     handle_terminal_exception,
+)
+from app.tasks.chat.streaming.relay.activity_sse import (
+    emit_activity_timing_frame,
+    emit_completed_activity_timing_frame,
+    emit_completed_activity_timing_frame_if_running,
 )
 from app.tasks.chat.streaming.shared.stream_result import StreamResult
 from app.tasks.chat.streaming.shared.utils import resume_step_prefix
@@ -370,6 +378,19 @@ async def stream_resume_chat(
         routing = await build_resume_routing(
             agent, chat_id=chat_id, decisions=decisions
         )
+        paused_checkpoint = await checkpointer.aget_tuple(
+            {"configurable": {"thread_id": str(chat_id)}}
+        )
+        paused_metadata = paused_checkpoint.metadata if paused_checkpoint else {}
+        paused_turn_id = (
+            paused_metadata.get("turn_id")
+            if isinstance(paused_metadata, dict)
+            else None
+        )
+        resumable_journal = await load_resumable_activity_journal(
+            chat_id,
+            turn_id=paused_turn_id if isinstance(paused_turn_id, str) else None,
+        )
 
         config = {
             "configurable": {
@@ -433,6 +454,16 @@ async def stream_resume_chat(
 
         stream_result.assistant_message_id = assistant_message_id
         stream_result.content_builder = AssistantContentBuilder()
+        if resumable_journal.timing is not None:
+            stream_result.activity_timer = ActivityTimer.resume(
+                resumable_journal.timing,
+                now_ns=stream_result.activity_timer.active_since_ns,
+            )
+        yield emit_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=stream_result.content_builder,
+            snapshot=stream_result.activity_timer.snapshot(),
+        )
 
         runtime_context = build_resume_chat_runtime_context(
             workspace_id=workspace_id,
@@ -522,6 +553,13 @@ async def stream_resume_chat(
             input_data=Command(resume=routing.lg_resume_map),
             stream_result=stream_result,
             step_prefix=resume_step_prefix(stream_result.turn_id),
+            initial_activities=resumable_journal.activities,
+            resume_activity_id_by_tool_call=(
+                resumable_journal.activity_id_by_tool_call
+            ),
+            resume_tool_call_ids=order_resume_tool_call_ids(
+                resumable_journal, routing.pending_tool_call_ids
+            ),
             fallback_commit_workspace_id=workspace_id,
             fallback_commit_created_by_id=user_id,
             fallback_commit_filesystem_mode=(
@@ -553,10 +591,15 @@ async def stream_resume_chat(
                 log_label="interrupted resume_chat",
             ):
                 yield sse
-            yield streaming_service.format_finish_step()
-            yield streaming_service.format_finish()
-            yield streaming_service.format_done()
+            for sse in iter_final_frames(streaming_service):
+                yield sse
             return
+
+        yield emit_completed_activity_timing_frame(
+            streaming_service=streaming_service,
+            content_builder=stream_result.content_builder,
+            timer=stream_result.activity_timer,
+        )
 
         if premium_reservation is not None and user_id:
             await finalize_credit(
@@ -575,6 +618,14 @@ async def stream_resume_chat(
             yield sse
 
     except Exception as exc:
+        if stream_result.content_builder is not None:
+            completed_timing_frame = emit_completed_activity_timing_frame_if_running(
+                streaming_service=streaming_service,
+                content_builder=stream_result.content_builder,
+                timer=stream_result.activity_timer,
+            )
+            if completed_timing_frame is not None:
+                yield completed_timing_frame
         frames, summary = handle_terminal_exception(
             exc,
             flow="resume",

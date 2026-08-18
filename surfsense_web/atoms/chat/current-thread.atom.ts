@@ -1,6 +1,5 @@
 import { atom } from "jotai";
 import type { ChatVisibility } from "@/lib/chat/thread-persistence";
-import { reportPanelAtom } from "./report-panel.atom";
 
 interface CurrentThreadState {
 	id: number | null;
@@ -84,14 +83,6 @@ export const patchCurrentThreadMetadataAtom = atom(
 
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);
-	set(reportPanelAtom, {
-		isOpen: false,
-		reportId: null,
-		title: null,
-		wordCount: null,
-		shareToken: null,
-		contentType: "markdown",
-	});
 });
 
 /** Target comment ID to scroll to (from URL navigation or inbox click) */
