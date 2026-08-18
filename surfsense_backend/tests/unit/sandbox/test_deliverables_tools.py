@@ -10,6 +10,7 @@ import pytest
 
 from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
     load_artifact_for_revision as load_revision_tool,
+    load_source_document as load_source_tool,
     sandbox as sandbox_tools,
     save_artifact as save_tool,
     verify_artifact as verify_tool,
@@ -24,6 +25,7 @@ from app.artifacts.verification.receipt import (
     sha256_bytes,
     write_receipt,
 )
+from app.file_storage.persistence.enums import DocumentFileKind
 from app.sandbox import ExecResult
 from tests.utils.fake_sandbox import FakeSandboxSession
 
@@ -494,6 +496,102 @@ async def test_load_artifact_for_revision_writes_primary_and_markdown(monkeypatc
     assert sandbox.writes[f"{working_dir}/current.pdf"] == b"%PDF stored"
     assert sandbox.writes[f"{working_dir}/context.md"] == b"# Current"
     assert resolved_backends == ["azure"]
+
+
+def _patch_load_source_tool(monkeypatch, *, document, record, sandbox=None):
+    """Point the source loader at a fake knowledge base, store, and sandbox."""
+
+    @asynccontextmanager
+    async def db_session():
+        yield object()
+
+    async def virtual_path_to_doc(_session, *, workspace_id, virtual_path):
+        return document
+
+    async def get_document_file(_session, *, document_id, kind):
+        assert kind is DocumentFileKind.ORIGINAL
+        return record
+
+    def open_document_file_stream(_record):
+        async def stream():
+            yield b"PK\x03\x04"
+            yield b"pptx-bytes"
+
+        return stream()
+
+    async def get_registry():
+        return FakeRegistry(sandbox)
+
+    monkeypatch.setattr(load_source_tool, "shielded_async_session", db_session)
+    monkeypatch.setattr(load_source_tool, "virtual_path_to_doc", virtual_path_to_doc)
+    monkeypatch.setattr(load_source_tool, "get_document_file", get_document_file)
+    monkeypatch.setattr(
+        load_source_tool, "open_document_file_stream", open_document_file_stream
+    )
+    monkeypatch.setattr(load_source_tool, "get_registry", get_registry)
+    monkeypatch.setattr(load_source_tool, "resolve_root_thread_id", lambda *_: 4)
+
+
+async def test_load_source_document_lands_the_upload_under_its_real_extension(
+    monkeypatch,
+):
+    sandbox = _sandbox({})
+    _patch_load_source_tool(
+        monkeypatch,
+        document=SimpleNamespace(id=7),
+        record=SimpleNamespace(
+            size_bytes=14,
+            original_filename="rohan-verma-resume.pptx",
+            mime_type="application/vnd.openxmlformats-officedocument."
+            "presentationml.presentation",
+        ),
+        sandbox=sandbox,
+    )
+
+    tool = load_source_tool.create_load_source_document_tool(workspace_id=3)
+    loaded = await tool.coroutine(
+        path="/documents/rohan-verma-resume.pptx.xml",
+        runtime=_runtime(),
+    )
+
+    # LibreOffice and python-pptx dispatch on the extension, so the `.xml` the
+    # knowledge base appends to the title must not reach the sandbox path.
+    assert loaded["source_path"] == "/workspace/sources/7/source.pptx"
+    assert loaded["filename"] == "rohan-verma-resume.pptx"
+    assert sandbox.writes["/workspace/sources/7/source.pptx"] == b"PK\x03\x04pptx-bytes"
+
+
+async def test_load_source_document_keeps_a_hostile_filename_out_of_the_path(
+    monkeypatch,
+):
+    sandbox = _sandbox({})
+    _patch_load_source_tool(
+        monkeypatch,
+        document=SimpleNamespace(id=7),
+        record=SimpleNamespace(
+            size_bytes=14,
+            original_filename="../../etc/passwd.pptx",
+            mime_type=None,
+        ),
+        sandbox=sandbox,
+    )
+
+    tool = load_source_tool.create_load_source_document_tool(workspace_id=3)
+    loaded = await tool.coroutine(path="/documents/x.pptx.xml", runtime=_runtime())
+
+    assert loaded["source_path"] == "/workspace/sources/7/source.pptx"
+    assert list(sandbox.writes) == ["/workspace/sources/7/source.pptx"]
+
+
+async def test_load_source_document_sends_authored_content_to_the_text_route(
+    monkeypatch,
+):
+    _patch_load_source_tool(monkeypatch, document=SimpleNamespace(id=9), record=None)
+
+    tool = load_source_tool.create_load_source_document_tool(workspace_id=3)
+
+    with pytest.raises(ValueError, match="knowledge_base"):
+        await tool.coroutine(path="/documents/Notes.md", runtime=_runtime())
 
 
 async def test_execute_python_uses_unique_one_shot_scripts_and_cleans_up(monkeypatch):

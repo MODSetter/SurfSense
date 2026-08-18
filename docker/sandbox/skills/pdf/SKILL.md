@@ -25,6 +25,25 @@ never run `pip install`, `npm install`, or download dependencies.
 
 Escape untrusted text before placing it in HTML.
 
+## Converting a file the user already has
+
+When the request is to turn an existing workspace file into a PDF, call
+`load_source_document(path="/documents/...")` and convert the `source_path` it
+returns. Re-authoring the content with a renderer above would discard the
+original layout, so reach for it only when the source has no stored upload.
+
+A source that is already a PDF needs no conversion. Convert Office formats with
+headless LibreOffice, giving each run its own profile directory so concurrent
+conversions cannot collide, and confirm the output exists before verifying:
+
+```
+soffice --headless -env:UserInstallation=file:///tmp/soffice-<unique> \
+  --convert-to pdf --outdir <out-dir> <source_path>
+```
+
+LibreOffice names the output after the source stem, so read it back from
+`<out-dir>` rather than assuming your own filename.
+
 ## Revisions
 
 Start an in-place revision with `load_artifact_for_revision`. Read its

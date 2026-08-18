@@ -30,7 +30,7 @@ function responseFilename(disposition: string | null): string | null {
 	return fallback;
 }
 
-async function downloadFile(path: string, filename: string): Promise<void> {
+export async function downloadFile(path: string, filename: string): Promise<void> {
 	const response = await authenticatedFetch(buildBackendUrl(path));
 	if (!response.ok) throw new Error("Download failed");
 	const url = URL.createObjectURL(await response.blob());

@@ -13,6 +13,7 @@ from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
 
 from .generate_image import create_generate_image_tool
 from .load_artifact_for_revision import create_load_artifact_for_revision_tool
+from .load_source_document import create_load_source_document_tool
 from .podcast import create_generate_podcast_tool
 from .sandbox import create_sandbox_tools
 from .save_artifact import create_save_artifact_tool
@@ -39,6 +40,7 @@ def load_tools(
             create_load_artifact_for_revision_tool(
                 workspace_id=d["workspace_id"],
             ),
+            create_load_source_document_tool(workspace_id=d["workspace_id"]),
             create_verify_artifact_tool(workspace_id=d["workspace_id"]),
         ]
     return [
