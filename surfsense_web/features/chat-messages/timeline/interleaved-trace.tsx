@@ -21,9 +21,9 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { NestedScroll } from "@/components/assistant-ui/nested-scroll";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { PixelGridLoader } from "@/components/prompt-kit/pixel-grid-loader";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { TimelineActivityIndicator } from "@/components/ui/timeline-activity-indicator";
 import {
 	HitlApprovalCard,
 	PendingInterruptProvider,
@@ -290,7 +290,7 @@ const TurnHeaderContent: FC<{
 	trailing: ReactNode;
 }> = ({ active, label, swapKey, turnTimingDisplay, trailing }) => (
 	<>
-		<PixelGridLoader active={active} />
+		<TimelineActivityIndicator active={active} />
 		<FadeSwapText
 			swapKey={swapKey}
 			className="h-5 max-w-[min(28rem,60vw)] overflow-hidden"
