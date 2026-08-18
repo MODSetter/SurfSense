@@ -13,7 +13,7 @@ from app.config import config as app_config
 from app.db import shielded_async_session
 from app.file_storage.persistence.enums import DocumentFileKind
 from app.file_storage.service import get_document_file, open_document_file_stream
-from app.knowledge_store.paths.resolve import virtual_path_to_doc
+from app.knowledge_store.paths import virtual_path_to_doc
 from app.sandbox import get_registry
 
 from .thread_resolver import resolve_root_thread_id
