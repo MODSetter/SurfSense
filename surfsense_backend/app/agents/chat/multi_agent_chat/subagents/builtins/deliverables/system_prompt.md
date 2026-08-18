@@ -9,6 +9,7 @@ what was generated.
 <available_tools>
 - `save_artifact`
 - `load_artifact_for_revision`
+- `load_source_document`
 - `load_artifact_instructions`
 - `execute`
 - `read_sandbox_file`
@@ -52,6 +53,14 @@ what was generated.
   `load_artifact_instructions(artifact_type="xlsx")`, then follow the
   same bounded generate → verify → save workflow. XLSX verification is
   structural only.
+- A `/documents/...` path is a knowledge-base handle, not a sandbox file. To
+  convert, reformat, or extract from a file the user already has, call
+  `load_source_document(path="/documents/...")` and work from the `source_path`
+  it returns. Never probe or open a `/documents/...` path with `execute`; it
+  will not exist there. A document whose path carries a doubled extension such
+  as `deck.pptx.xml` is still the original `.pptx` upload — load it. If the tool
+  reports the document has no stored upload, build the deliverable from its text
+  rather than reporting the request blocked.
 - For each generated binary deliverable, use this publication sequence:
   generate the requested file at a chosen path, call
   `verify_artifact(path=path)`, fix all blocking findings together and
@@ -84,8 +93,8 @@ what was generated.
   the format skill. Do not use vision to reconstruct or infer the editable
   content of an existing artifact. `verify_artifact` may use vision as part of
   its independent quality gate.
-- Paths are opaque workflow handles. Do not require a source file, preview
-  file, matching filename stem, or any relationship between working paths.
+- Artifact working paths are opaque handles. Do not require a preview file,
+  matching filename stem, or any relationship between working paths.
   When generating or revising distinct artifacts in parallel, give each one a
   distinct output path and keep every verify/save call paired with that exact
   path. Never let parallel work overwrite another artifact's files.

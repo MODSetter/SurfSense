@@ -1,6 +1,16 @@
 "use client";
 
-import { AlertCircle, Clock, History, MoreHorizontal, Move, RotateCcw, Trash2 } from "lucide-react";
+import {
+	AlertCircle,
+	Clock,
+	Download,
+	Eye,
+	History,
+	MoreHorizontal,
+	Move,
+	RotateCcw,
+	Trash2,
+} from "lucide-react";
 import React, { useCallback, useRef, useState } from "react";
 import { useDrag } from "react-dnd";
 import { getDocumentTypeIcon } from "@/components/documents/DocumentTypeIcon";
@@ -23,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isDownloadableDocumentType } from "@/lib/documents/document-download";
 import type { DocumentNodeDoc } from "@/lib/documents/document-tree-types";
 import { cn } from "@/lib/utils";
 import { SidebarListItem } from "../layout/ui/sidebar/SidebarListItem";
@@ -37,6 +48,7 @@ interface DocumentNodeProps {
 	onPreview: (doc: DocumentNodeDoc) => void;
 	onDelete: (doc: DocumentNodeDoc) => void;
 	onMove: (doc: DocumentNodeDoc) => void;
+	onDownload?: (doc: DocumentNodeDoc) => void;
 	onReset?: (doc: DocumentNodeDoc) => void;
 	onVersionHistory?: (doc: DocumentNodeDoc) => void;
 	canDelete?: boolean;
@@ -54,6 +66,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	onPreview,
 	onDelete,
 	onMove,
+	onDownload,
 	onReset,
 	onVersionHistory,
 	canDelete = true,
@@ -69,6 +82,7 @@ export const DocumentNode = React.memo(function DocumentNode({
 	const isMemoryDocument =
 		doc.document_type === "USER_MEMORY" || doc.document_type === "TEAM_MEMORY";
 	const isSelectable = canMention && !isUnavailable;
+	const canDownload = !!onDownload && isDownloadableDocumentType(doc.document_type);
 	const isMobile = useIsMobile();
 
 	const handleCheckChange = useCallback(() => {
@@ -269,6 +283,16 @@ export const DocumentNode = React.memo(function DocumentNode({
 								className="w-40"
 								onClick={(e) => e.stopPropagation()}
 							>
+								<DropdownMenuItem disabled={isUnavailable} onClick={() => onPreview(doc)}>
+									<Eye className="mr-2 h-4 w-4" />
+									Open
+								</DropdownMenuItem>
+								{canDownload && (
+									<DropdownMenuItem disabled={isUnavailable} onClick={() => onDownload?.(doc)}>
+										<Download className="mr-2 h-4 w-4" />
+										Download
+									</DropdownMenuItem>
+								)}
 								{canMove && (
 									<DropdownMenuItem onClick={() => onMove(doc)}>
 										<Move className="mr-2 h-4 w-4" />
@@ -301,6 +325,16 @@ export const DocumentNode = React.memo(function DocumentNode({
 
 			{contextMenuOpen && (
 				<ContextMenuContent className="w-40" onClick={(e) => e.stopPropagation()}>
+					<ContextMenuItem disabled={isUnavailable} onClick={() => onPreview(doc)}>
+						<Eye className="mr-2 h-4 w-4" />
+						Open
+					</ContextMenuItem>
+					{canDownload && (
+						<ContextMenuItem disabled={isUnavailable} onClick={() => onDownload?.(doc)}>
+							<Download className="mr-2 h-4 w-4" />
+							Download
+						</ContextMenuItem>
+					)}
 					{canMove && (
 						<ContextMenuItem onClick={() => onMove(doc)}>
 							<Move className="mr-2 h-4 w-4" />

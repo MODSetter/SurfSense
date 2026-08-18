@@ -931,6 +931,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 						/>
 					</div>
 					<ComposerAction
+						onSend={handleSubmit}
 						isBlockedByOtherUser={isBlockedByOtherUser}
 						isLoadingMessages={isLoadingMessages}
 						isThreadRunning={isThreadRunning}
@@ -1005,6 +1006,12 @@ interface ComposerActionProps {
 	isThreadRunning?: boolean;
 	workspaceId: number;
 	onChatModelSelected?: () => void;
+	/**
+	 * Must be the same handler the editor's Enter key uses. Going through
+	 * ``ComposerPrimitive.Send`` instead would send without the composer's
+	 * mention snapshot and editor reset.
+	 */
+	onSend: () => void;
 }
 
 const ComposerAction: FC<ComposerActionProps> = ({
@@ -1013,6 +1020,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	isThreadRunning = false,
 	workspaceId,
 	onChatModelSelected,
+	onSend,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const router = useRouter();
@@ -1460,23 +1468,22 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
-					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
-						<TooltipIconButton
-							tooltip={sendTooltip}
-							side="bottom"
-							type="submit"
-							variant="default"
-							size="icon"
-							className={cn(
-								"aui-composer-send size-9 shrink-0 rounded-full",
-								isSendDisabled && "cursor-not-allowed opacity-50"
-							)}
-							aria-label="Send message"
-							disabled={isSendDisabled}
-						>
-							<ArrowUpIcon className="aui-composer-send-icon size-5" />
-						</TooltipIconButton>
-					</ComposerPrimitive.Send>
+					<TooltipIconButton
+						tooltip={sendTooltip}
+						side="bottom"
+						type="button"
+						variant="default"
+						size="icon"
+						className={cn(
+							"aui-composer-send size-9 shrink-0 rounded-full",
+							isSendDisabled && "cursor-not-allowed opacity-50"
+						)}
+						aria-label="Send message"
+						disabled={isSendDisabled}
+						onClick={onSend}
+					>
+						<ArrowUpIcon className="aui-composer-send-icon size-5" />
+					</TooltipIconButton>
 				</AuiIf>
 
 				<AuiIf condition={({ thread }) => thread.isRunning}>

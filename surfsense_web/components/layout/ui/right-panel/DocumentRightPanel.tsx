@@ -62,6 +62,7 @@ import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { downloadFile } from "@/features/file-viewers/download-file-button";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
@@ -70,6 +71,7 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { foldersApiService } from "@/lib/apis/folders-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
+import { documentDownloadTarget } from "@/lib/documents/document-download";
 import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
@@ -633,6 +635,22 @@ function AuthenticatedDocumentRightPanelBase({
 		setFolderPickerOpen(true);
 	}, []);
 
+	const handleDownloadDocument = useCallback(
+		async (doc: DocumentNodeDoc) => {
+			const target = documentDownloadTarget(doc, workspaceId, artifactsByDocument.get(doc.id));
+			if (!target) {
+				toast.error("Artifact is not available yet");
+				return;
+			}
+			try {
+				await downloadFile(target.path, target.filename);
+			} catch {
+				toast.error("Could not download this file");
+			}
+		},
+		[artifactsByDocument, workspaceId]
+	);
+
 	const isExportingKBRef = useRef(false);
 	const [exportWarningOpen, setExportWarningOpen] = useState(false);
 	const [exportWarningContext, setExportWarningContext] = useState<{
@@ -1104,6 +1122,7 @@ function AuthenticatedDocumentRightPanelBase({
 						}}
 						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
 						onMoveDocument={handleMoveDocument}
+						onDownloadDocument={handleDownloadDocument}
 						onResetDocument={handleResetMemoryDocument}
 						onVersionHistory={(doc) => setVersionDocId(doc.id)}
 						onDropIntoFolder={handleDropIntoFolder}
@@ -1757,6 +1776,7 @@ function AnonymousDocumentRightPanel({
 							return true;
 						}}
 						onMoveDocument={() => gate("organize documents")}
+						onDownloadDocument={() => gate("download documents")}
 						onVersionHistory={() => gate("view version history")}
 						onDropIntoFolder={async () => gate("organize documents")}
 						onReorderFolder={async () => gate("organize folders")}
