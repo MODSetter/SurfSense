@@ -44,7 +44,7 @@ import {
 	type TracePartLike,
 	type TurnRenderItem,
 } from "./grouping";
-import { getActivityIcon, getConnectorLogo } from "./presentation";
+import { getActivityIcon, getActivityPresentation, getConnectorLogo } from "./presentation";
 import { AssistantTurnTiming, useAssistantTurnTiming } from "./turn-timing";
 import type { TurnTimingDisplay } from "./turn-timing-state";
 
@@ -52,10 +52,6 @@ const noopSubmit = () => {};
 const TEXT_PART_COMPONENTS = { Text: MarkdownText };
 const TURN_HEADER_ROW_CLASS =
 	"group/trace h-8 w-fit max-w-full justify-start gap-2.5 px-0 py-0 text-left text-sm font-semibold text-muted-foreground hover:bg-transparent hover:text-foreground has-[>svg]:px-0 max-md:min-h-11";
-
-function effectiveActivityStatus(status: ActivityStatus, threadRunning: boolean): ActivityStatus {
-	return status === "running" && !threadRunning ? "interrupted" : status;
-}
 
 function partIsRunning(part: PartState | undefined): boolean {
 	return part?.status.type === "running";
@@ -178,7 +174,7 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 	activity,
 	threadRunning,
 }) => {
-	const status = effectiveActivityStatus(activity.status, threadRunning);
+	const { status, title } = getActivityPresentation(activity, threadRunning);
 	const Icon = getActivityIcon(activity.iconKey, activity.category);
 	return (
 		<TraceItemRow
@@ -186,21 +182,13 @@ const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 			logo={getConnectorLogo(activity.integration)}
 			title={
 				status === "running" ? (
-					<TextShimmerLoader text={activity.title} size="md" className="truncate font-normal!" />
+					<TextShimmerLoader text={title} size="md" className="truncate font-normal!" />
 				) : (
-					activity.title
+					title
 				)
 			}
 			status={status}
-		>
-			{activity.details?.length ? (
-				<ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
-					{activity.details.map((detail) => (
-						<li key={`${activity.id}:${detail}`}>{detail}</li>
-					))}
-				</ul>
-			) : null}
-		</TraceItemRow>
+		/>
 	);
 };
 
@@ -392,9 +380,12 @@ const TurnSegment: FC<{
 		item.live &&
 		(threadRunning ||
 			segmentActivities.some((activity) => activity.status === "awaiting_approval"));
+	const latestActivity = segmentActivities.at(-1);
+	const latestActivityTitle = latestActivity
+		? getActivityPresentation(latestActivity, threadRunning).title
+		: undefined;
 	const label = hasTrace
-		? (segmentActivities.at(-1)?.title ??
-			(active ? "Spellweaving" : "Reasoned through the request"))
+		? (latestActivityTitle ?? (active ? "Spellweaving" : "Reasoned through the request"))
 		: phase === "spellweaving"
 			? "Spellweaving"
 			: "Responded";
