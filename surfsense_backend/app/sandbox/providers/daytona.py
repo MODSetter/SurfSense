@@ -21,6 +21,7 @@ from daytona import (
     DaytonaConfig,
     SandboxState,
 )
+from daytona.common.errors import DaytonaError, DaytonaNotFoundError
 
 from app.config import config as app_config
 
@@ -30,6 +31,19 @@ logger = logging.getLogger(__name__)
 
 THREAD_LABEL_KEY = "surfsense_thread"
 _START_TIMEOUT = 60
+
+
+def _is_not_found(exc: DaytonaError) -> bool:
+    """Whether a Daytona failure means the file is absent.
+
+    The daemon returns a FILE_NOT_FOUND body as a plain DaytonaError rather than
+    the typed DaytonaNotFoundError, so match on both the subclass and the body.
+    """
+    return (
+        isinstance(exc, DaytonaNotFoundError)
+        or getattr(exc, "status_code", None) == 404
+        or "FILE_NOT_FOUND" in str(exc)
+    )
 
 
 def _wrap_as_python(code: str) -> str:
@@ -65,7 +79,12 @@ class DaytonaSession:
         return await asyncio.to_thread(_run)
 
     async def read_file(self, path: str) -> bytes:
-        data = await asyncio.to_thread(self._sandbox.fs.download_file, path)
+        try:
+            data = await asyncio.to_thread(self._sandbox.fs.download_file, path)
+        except DaytonaError as exc:
+            if _is_not_found(exc):
+                raise FileNotFoundError(path) from None
+            raise
         if data is None:
             raise FileNotFoundError(path)
         return data
