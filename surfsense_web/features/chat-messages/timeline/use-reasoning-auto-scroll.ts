@@ -33,7 +33,11 @@ export function useReasoningAutoScroll(text: string, running: boolean) {
 	const followsBottomRef = useRef(true);
 	const wasRunningRef = useRef(running);
 	const programmaticScrollRef = useRef(false);
+	const hasContentAboveRef = useRef(false);
+	const hasContentBelowRef = useRef(false);
 	const [scrollMode, setScrollMode] = useState<ReasoningScrollMode>("following");
+	const [hasContentAbove, setHasContentAbove] = useState(false);
+	const [hasContentBelow, setHasContentBelow] = useState(false);
 	const reducedMotion = useReducedMotion();
 
 	const updateScrollMode = useCallback((mode: ReasoningScrollMode) => {
@@ -42,8 +46,23 @@ export function useReasoningAutoScroll(text: string, running: boolean) {
 		setScrollMode(mode);
 	}, []);
 
+	const updateScrollEdges = useCallback((element: HTMLDivElement) => {
+		const nextHasContentAbove = element.scrollTop > 0;
+		if (hasContentAboveRef.current !== nextHasContentAbove) {
+			hasContentAboveRef.current = nextHasContentAbove;
+			setHasContentAbove(nextHasContentAbove);
+		}
+
+		const nextHasContentBelow = !isReasoningAtBottom(element);
+		if (hasContentBelowRef.current !== nextHasContentBelow) {
+			hasContentBelowRef.current = nextHasContentBelow;
+			setHasContentBelow(nextHasContentBelow);
+		}
+	}, []);
+
 	const handleScroll = useCallback<UIEventHandler<HTMLDivElement>>(
 		(event) => {
+			updateScrollEdges(event.currentTarget);
 			updateScrollMode(
 				resolveReasoningScrollMode(
 					followsBottomRef.current ? "following" : "manual",
@@ -52,7 +71,7 @@ export function useReasoningAutoScroll(text: string, running: boolean) {
 				)
 			);
 		},
-		[updateScrollMode]
+		[updateScrollEdges, updateScrollMode]
 	);
 
 	const handleWheel = useCallback<WheelEventHandler<HTMLDivElement>>(
@@ -99,6 +118,8 @@ export function useReasoningAutoScroll(text: string, running: boolean) {
 	useEffect(() => {
 		const shouldFollow = running || wasRunningRef.current;
 		wasRunningRef.current = running;
+		const element = scrollRef.current;
+		if (element) updateScrollEdges(element);
 		if (text.length === 0 || !shouldFollow || !followsBottomRef.current) return;
 
 		const frame = requestAnimationFrame(() => {
@@ -112,10 +133,12 @@ export function useReasoningAutoScroll(text: string, running: boolean) {
 		});
 
 		return () => cancelAnimationFrame(frame);
-	}, [reducedMotion, running, text]);
+	}, [reducedMotion, running, text, updateScrollEdges]);
 
 	return {
 		scrollRef,
+		hasContentAbove,
+		hasContentBelow,
 		scrollMode,
 		handleKeyDown,
 		handlePointerDown,
