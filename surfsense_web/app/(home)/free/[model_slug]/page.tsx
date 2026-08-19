@@ -2,7 +2,7 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FreeChatPage } from "@/components/free-chat/free-chat-page";
+import { FreeChatClient } from "@/components/free-chat/free-chat-client";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -183,62 +183,64 @@ export default async function FreeModelPage({ params }: PageProps) {
 			/>
 			<FAQJsonLd questions={faqItems} />
 
-			{/* Chat fills the entire viewport area inside LayoutShell */}
-			<div className="h-full">
-				<FreeChatPage />
-			</div>
+			{/* Chat chrome is client-only; placeholder keeps SEO below the fold. */}
+			<div className="h-screen overflow-hidden">
+				<div className="h-full">
+					<FreeChatClient modelSlug={model.seo_slug ?? model_slug} />
+				</div>
 
-			{/* SEO content: in DOM for crawlers, clipped by parent overflow-hidden */}
-			<div className="border-t bg-background">
-				<article className="container mx-auto px-4 py-10 max-w-3xl">
-					<header className="mb-6">
-						<h1 className="text-2xl font-bold mb-2">Chat with {model.name} Free, No Login</h1>
-						<p className="text-sm text-muted-foreground leading-relaxed">
-							Use <strong>{model.name}</strong> free online without login or sign-up. No account, no
-							email, no password needed. Powered by SurfSense.
-						</p>
-					</header>
+				{/* SEO content: in DOM for crawlers, clipped by overflow-hidden */}
+				<div className="border-t bg-background">
+					<article className="container mx-auto px-4 py-10 max-w-3xl">
+						<header className="mb-6">
+							<h1 className="text-2xl font-bold mb-2">Chat with {model.name} Free, No Login</h1>
+							<p className="text-sm text-muted-foreground leading-relaxed">
+								Use <strong>{model.name}</strong> free online without login or sign-up. No account, no
+								email, no password needed. Powered by SurfSense.
+							</p>
+						</header>
 
-					<Separator className="my-8" />
+						<Separator className="my-8" />
 
-					<section>
-						<h2 className="text-xl font-bold mb-4">
-							{model.name} Free: Frequently Asked Questions
-						</h2>
-						<dl className="flex flex-col gap-3">
-							{faqItems.map((item) => (
-								<div key={item.question} className="rounded-lg border bg-card p-4">
-									<dt className="font-medium text-sm">{item.question}</dt>
-									<dd className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-										{item.answer}
-									</dd>
-								</div>
-							))}
-						</dl>
-					</section>
+						<section>
+							<h2 className="text-xl font-bold mb-4">
+								{model.name} Free: Frequently Asked Questions
+							</h2>
+							<dl className="flex flex-col gap-3">
+								{faqItems.map((item) => (
+									<div key={item.question} className="rounded-lg border bg-card p-4">
+										<dt className="font-medium text-sm">{item.question}</dt>
+										<dd className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+											{item.answer}
+										</dd>
+									</div>
+								))}
+							</dl>
+						</section>
 
-					{relatedModels.length > 0 && (
-						<>
-							<Separator className="my-8" />
-							<nav aria-label="Other free AI models">
-								<h2 className="text-xl font-bold mb-4">Try Other Free AI Models</h2>
-								<div className="flex flex-wrap gap-2">
-									{relatedModels.map((m) => (
-										<Button key={m.id} variant="outline" size="sm" asChild>
-											<Link href={`/free/${m.seo_slug}`}>
-												{m.name}
-												<SquareArrowOutUpRight className="size-3" />
-											</Link>
+						{relatedModels.length > 0 && (
+							<>
+								<Separator className="my-8" />
+								<nav aria-label="Other free AI models">
+									<h2 className="text-xl font-bold mb-4">Try Other Free AI Models</h2>
+									<div className="flex flex-wrap gap-2">
+										{relatedModels.map((m) => (
+											<Button key={m.id} variant="outline" size="sm" asChild>
+												<Link href={`/free/${m.seo_slug}`}>
+													{m.name}
+													<SquareArrowOutUpRight className="size-3" />
+												</Link>
+											</Button>
+										))}
+										<Button variant="outline" size="sm" asChild>
+											<Link href="/free">View All Models</Link>
 										</Button>
-									))}
-									<Button variant="outline" size="sm" asChild>
-										<Link href="/free">View All Models</Link>
-									</Button>
-								</div>
-							</nav>
-						</>
-					)}
-				</article>
+									</div>
+								</nav>
+							</>
+						)}
+					</article>
+				</div>
 			</div>
 		</>
 	);
