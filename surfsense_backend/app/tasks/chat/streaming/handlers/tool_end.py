@@ -111,7 +111,11 @@ def iter_tool_end_frames(
         holder["value"] = state.lc_tool_call_id_by_run[run_id]
 
     failed = tool_output_has_error(tool_output)
-    raw_status = str(tool_output.get("status") or "").lower()
+    raw_status = (
+        str(tool_output.get("status") or "").lower()
+        if isinstance(tool_output, dict)
+        else ""
+    )
     terminal_status: ActivityStatus = (
         "cancelled"
         if raw_status in {"cancelled", "canceled", "rejected"}
