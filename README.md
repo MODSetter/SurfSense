@@ -3,6 +3,7 @@
 
 
 <div align="center">
+<a href="https://inspect.software/software/MODSetter/SurfSense"><img src="https://raw.githubusercontent.com/inspect-software/badges/main/v1/m/MODSetter/SurfSense.svg" alt="inspect.software score badge for MODSetter/SurfSense" /></a>
 <a href="https://discord.gg/ejRNvftDp9">
 <img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
 </a>
