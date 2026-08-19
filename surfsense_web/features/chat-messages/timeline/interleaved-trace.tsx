@@ -47,6 +47,7 @@ import {
 import { getActivityIcon, getActivityPresentation, getConnectorLogo } from "./presentation";
 import { AssistantTurnTiming, useAssistantTurnTiming } from "./turn-timing";
 import type { TurnTimingDisplay } from "./turn-timing-state";
+import { useReasoningAutoScroll } from "./use-reasoning-auto-scroll";
 
 const noopSubmit = () => {};
 const TEXT_PART_COMPONENTS = { Text: MarkdownText };
@@ -148,27 +149,42 @@ export const TraceItemRow: FC<{
 	</div>
 );
 
-const ReasoningEpisode: FC<{ text: string; running: boolean }> = ({ text, running }) => (
-	<TraceItemRow
-		icon={History}
-		status="reasoning"
-		title={
-			running ? (
-				<TextShimmerLoader text="Reasoning" size="md" className="font-normal!" />
-			) : (
-				"Reasoning"
-			)
-		}
-	>
-		<NestedScroll
-			role="region"
-			aria-label="Provider reasoning"
-			className="mt-2 max-h-52 overflow-y-auto overscroll-contain rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm leading-6 whitespace-pre-wrap wrap-break-word text-muted-foreground scrollbar-thin"
+const ReasoningEpisode: FC<{ text: string; running: boolean }> = ({ text, running }) => {
+	const { scrollRef, scrollMode, handleKeyDown, handlePointerDown, handleScroll, handleWheel } =
+		useReasoningAutoScroll(text, running);
+
+	return (
+		<TraceItemRow
+			icon={History}
+			status="reasoning"
+			title={
+				running ? (
+					<TextShimmerLoader text="Reasoning" size="md" className="font-normal!" />
+				) : (
+					"Reasoning"
+				)
+			}
 		>
-			{text}
-		</NestedScroll>
-	</TraceItemRow>
-);
+			<NestedScroll
+				ref={scrollRef}
+				onKeyDown={handleKeyDown}
+				onPointerDown={handlePointerDown}
+				onScroll={handleScroll}
+				onWheel={handleWheel}
+				role="region"
+				aria-label="Provider reasoning"
+				aria-busy={running}
+				tabIndex={0}
+				className={cn(
+					"mt-2 max-h-52 overflow-y-auto overscroll-contain rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm leading-6 whitespace-pre-wrap wrap-break-word text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+					scrollMode === "following" ? "scrollbar-hide" : "scrollbar-thin"
+				)}
+			>
+				{text}
+			</NestedScroll>
+		</TraceItemRow>
+	);
+};
 
 const ActivityRow: FC<{ activity: ActivityData; threadRunning: boolean }> = ({
 	activity,
