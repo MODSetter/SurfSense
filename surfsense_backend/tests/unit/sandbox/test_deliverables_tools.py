@@ -641,6 +641,9 @@ async def test_execute_python_uses_unique_one_shot_scripts_and_cleans_up(monkeyp
     assert "/tmp/.surfsense-exec-second.py" in execution_commands[1]
     assert all("cd -- /workspace" in command for command in execution_commands)
     assert all(
+        "code-interpreter-env.sh" in command for command in execution_commands
+    )
+    assert all(
         "timeout --signal=TERM --kill-after=5s" in command
         for command in execution_commands
     )

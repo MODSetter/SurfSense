@@ -49,7 +49,11 @@ def _is_not_found(exc: DaytonaError) -> bool:
 def _wrap_as_python(code: str) -> str:
     """Wrap code in a unique-sentinel heredoc for Daytona's command API."""
     sentinel = f"_PYEOF_{secrets.token_hex(8)}"
-    return f"python3 << '{sentinel}'\n{code}\n{sentinel}"
+    return (
+        ". /opt/code-interpreter/code-interpreter-env.sh python "
+        f'"${{PYTHON_VERSION:-3.12}}" >/dev/null 2>&1 && '
+        f"python3 << '{sentinel}'\n{code}\n{sentinel}"
+    )
 
 
 class DaytonaSession:
