@@ -34,7 +34,9 @@ async def test_daytona_session_maps_command_and_binary_file_operations():
 
     assert result.ok
     assert result.output == "ok"
-    assert "python3 <<" in sandbox.process.exec.call_args.args[0]
+    wrapped = sandbox.process.exec.call_args.args[0]
+    assert "code-interpreter-env.sh" in wrapped
+    assert "python3 <<" in wrapped
     assert (
         sandbox.process.exec.call_args.kwargs["timeout"]
         == app_config.SANDBOX_OPERATION_TIMEOUT_SECONDS

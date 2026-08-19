@@ -55,6 +55,8 @@ async def _run_python_script(
         f"script={quoted_script}; "
         """trap 'rm -f -- "$script"' EXIT; """
         "cd -- /workspace && "
+        '. /opt/code-interpreter/code-interpreter-env.sh python '
+        '"${PYTHON_VERSION:-3.12}" >/dev/null 2>&1 && '
         "timeout --signal=TERM "
         f"--kill-after={_PROCESS_TERMINATION_GRACE_SECONDS}s {process_timeout}s "
         'python3 "$script"'
