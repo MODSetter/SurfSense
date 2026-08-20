@@ -1,8 +1,10 @@
-# Phase 8 — Migration & backfill
+# Phase 7 — Migration & backfill
 
 **Status:** DESIGN.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phases 1–5 (a working sandbox render path).
+**Depends on:** Phases 1–5 (a working sandbox render path). Runs **before** Phase 8 removes any legacy code.
+
+**Flag-independent.** `VIDEO_SANDBOX_RENDERING_ENABLED` gates the *agent authoring* entrypoint (Phase 2). Backfill does not go through the agent — it drives the `ArtifactBuilder` directly — so it renders regardless of the flag's value; it only requires the Phase-1–5 render/verify/persist path to be deployed.
 
 **New script:** `surfsense_backend/scripts/backfill_video_mp4.py` — a **separate, dedicated** migrator. Do **not** extend `backfill_video_artifacts.py` (that script solved a different migration: legacy `VideoPresentationRun` rows → the artifact table with audio-as-primary). This one takes *already-migrated* video artifacts and renders them to MP4; keeping it separate avoids overloading the older script's semantics and lets it be deleted independently once the migration is done.
 
@@ -19,18 +21,28 @@ Backfill is a **re-render, not a transcode.** Legacy artifacts store no MP4 — 
 
 ## 3. Backfill mechanics (eager batch)
 
-Eager (render everything at migration time), not lazy-on-view — so the browser renderer can be deleted on flip-day with no dual-path. Two layers:
+Eager (render everything at migration time), not lazy-on-view — so the legacy browser renderer can be deleted in Phase 8 with no dual-path lingering. New script, concrete shape (`backfill_video_mp4.py`):
+
+```python
+def reconstruct_props(artifact) -> dict          # stored scene_codes + audio filenames → props.json (Phase 1 §4)
+async def render_one(session, props) -> bytes     # provision sandbox, write inputs, node render.mjs → MP4 bytes
+def is_reproducible(artifact) -> bool             # has scene_codes + all per-slide audio → Backfill, else Freeze
+async def attach_mp4(artifact_id, mp4_bytes)      # structural-verify → save_artifact (MP4 as new PRIMARY)
+async def main(apply: bool, limit: int | None, workspace_id: str | None)
+```
+
+Two layers:
 
 - **Orchestration — backend batch (`backfill_video_mp4.py`, CLI or Celery), no agent/LLM.** It enumerates legacy video artifacts (`_legacy_ref.kind == "video"` whose PRIMARY is still `audio/mpeg`), and for each: rehydrates per-slide audio via `open_stream(audio_storage_key)`, provisions a sandbox session, `write_file`s `public/slide-N.mp3` + the reconstructed `props.json`, invokes the render, reads the MP4 back, verifies, and calls `save_artifact`. Because backfill uses stored code (no authoring), it drives the `ArtifactBuilder` **directly, bypassing the agent loop**.
 - **Execution — inside the OpenSandbox container.** The actual render (`node render.mjs` → headless Chrome + FFmpeg → MP4) runs in the same network-denied jail and image as live/new-video renders — never in the backend process, never in the browser. Long decks segment + `ffmpeg concat` to fit `SANDBOX_OPERATION_TIMEOUT_SECONDS`.
-- **Idempotent + resumable + throttled.** Skip artifacts already on a `video/mp4` PRIMARY (re-runnable after a crash; each artifact commits independently). A `--apply` flag gates dry-run vs. write. Bound concurrent sandbox sessions (the admission-gate shape, used offline) so the migration never starves live traffic.
+- **Idempotent + resumable + throttled.** Skip artifacts already on a `video/mp4` PRIMARY (re-runnable after a crash; each artifact commits independently). The `--apply` flag gates dry-run vs. write. Bound concurrent sandbox sessions (the admission-gate shape, used offline) so the migration never starves live traffic.
 - **Structural verify only.** ffprobe: 1920×1080, duration > 0, video + audio stream. The Phase-4 **vision quality gate is skipped for backfill** — we faithfully reproduce already-shipped content, not author new work, and old `scene_codes` were never vision-verified, so gating on it would reject old-but-fine decks. It still produces the byte-bound receipt `save_artifact` requires. Genuine failures (won't bundle, audio missing) route to Freeze, not a quality rejection.
-- **Ordering.** Runs **before** Phase 5 deletes per-slide audio storage (those blobs are the render inputs), or snapshot the keys first.
+- **Ordering.** Runs **before** Phase 8 deletes per-slide audio storage (those blobs are the render inputs), or snapshot the keys first.
 
 ## 4. Risks
 
 - **Injected-globals contract:** legacy `scene_codes` assume the browser's `INJECTED_NAMES`. The harness preamble (Phase 1 §4) must supply the same symbols or old code fails to bundle — **validate on a real legacy sample first** (also Phase 1 exit criterion 4).
-- **Audio availability:** backfill must run before per-slide audio blobs are deleted (Phase 5), or snapshot those keys.
+- **Audio availability:** backfill must run before per-slide audio blobs are deleted (Phase 8), or snapshot those keys.
 - **Missing data:** artifacts lacking `scene_codes`/audio cannot be rebuilt → route to the Freeze option.
 
 ## 5. Checks
@@ -43,6 +55,6 @@ Eager (render everything at migration time), not lazy-on-view — so the browser
 ## 6. Exit criteria
 
 1. Every legacy video artifact has an MP4 PRIMARY or a defined frozen state — and **no user was asked to re-generate**.
-2. No orphaned per-slide audio blobs remain after backfill + Phase-5 cleanup.
-3. `VideoPresentationRun` tables can be dropped (Phase 7 migration) once backfill no longer needs them.
-4. `backfill_video_mp4.py` is self-contained and can be removed after the migration without touching `backfill_video_artifacts.py`.
+2. Per-slide audio blobs are preserved until this phase completes (their deletion is Phase 8).
+3. `backfill_video_mp4.py` is self-contained and can be removed after the migration without touching `backfill_video_artifacts.py`.
+4. Backfill success/Freeze counts are recorded so Phase 8 can confirm nothing legacy remains unhandled before deleting the old path.

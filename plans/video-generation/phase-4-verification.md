@@ -12,8 +12,12 @@
 
 `save_artifact` (`deliverables/tools/save_artifact.py`) reads the primary at `path`, then requires a receipt whose `format == get_format_adapter(path).name` and whose `primary_sha256 == sha256(bytes)`. Without a video format adapter, `get_format_adapter("out.mp4")` fails and the file can never be saved. So video needs:
 
-1. **Format adapter** (`verification/formats/registry.py`): `.mp4` → name `"video"`, mime `video/mp4`, mapping to `ArtifactFormat.VIDEO`.
-2. **Verify strategy** dispatched by that adapter in `service.py`.
+1. **New adapter module** `verification/formats/video.py` — `check_video(data: bytes) -> StructuralCheckResult` (the ffprobe structural gate, §3). New file, parallel to `formats/pdf.py`/`pptx.py`.
+2. **Registry entry** in `verification/formats/registry.py` — add `MP4_MIME = "video/mp4"` and a `".mp4": FormatAdapter(name="video", suffix=".mp4", mime_type=MP4_MIME, convert_to_pdf=False, check=check_video, review_kind="video", requires_visual_review=True)` line, mapping to `ArtifactFormat.VIDEO`.
+3. **Shared contract touch** in `verification/formats/base.py` — extend `ReviewKind` to include `"video"` (additive; documents keep `"document"`/`"slides"`).
+4. **Verify strategy** dispatched by that adapter in `service.py`.
+
+**Flag-agnostic (register unconditionally).** The adapter is a plain dict entry — inert unless an `.mp4` is actually verified — so it ships independent of `VIDEO_SANDBOX_RENDERING_ENABLED` and needs no gating; a legacy build with the flag off simply never produces an `.mp4` to look up.
 
 ## 3. Verify strategy (final MP4)
 

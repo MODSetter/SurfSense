@@ -24,23 +24,54 @@ A trusted instruction file (baked into `/opt/skills/video/` by the existing skil
   6. `save_artifact(path=..., title=..., markdown_representation=...)` — the markdown must faithfully carry the deck's substantive text for search/accessibility.
 - **Constraints:** never `npm install` / download (everything baked); a single render must fit `SANDBOX_OPERATION_TIMEOUT_SECONDS` — for long decks, render in segments and `ffmpeg concat`.
 
-## 3. Wiring
+## 3. The rollout flag (the on/off switch)
 
-- **`deliverables/tools/sandbox.py`** — extend `load_artifact_instructions`'s `Literal["pdf","docx","pptx","xlsx"]` to include `"video"` so it `cat`s `/opt/skills/video/SKILL.md`.
-- **`deliverables/system_prompt.md`** — route "make a video / presentation / narrated deck" into the skill workflow, exactly as documents are routed. Remove any language that points at the old `generate_video_presentation` tool (its removal is Phase 7).
-- **No new tool registration** for authoring — `execute`, `verify_artifact`, `save_artifact` already exist in `tools/index.py`.
+The whole legacy-vs-new choice is one boolean, so the new path can be shipped dark, enabled per-env, and rolled back without a deploy.
 
-## 4. Language guarantee (unchanged)
+- **Definition** — `app/config` (mirroring the existing `*_ENABLED` flags such as `SANDBOX_ENABLED`):
+
+  ```python
+  # app/config/__init__.py
+  VIDEO_SANDBOX_RENDERING_ENABLED = (
+      os.getenv("VIDEO_SANDBOX_RENDERING_ENABLED", "FALSE").strip().upper() == "TRUE"
+  )
+  ```
+
+  Document the key in `surfsense_backend/.env.example`. Default `FALSE` ⇒ **today's LangGraph path runs, unchanged**.
+
+- **Semantics** — the flag gates the **authoring entrypoint only**. `TRUE` ⇒ the deliverables agent gets the skill loop (this phase) + `synthesize_narration` (Phase 3); `FALSE` ⇒ it gets the legacy `create_generate_video_presentation_tool`. The Phase-4 adapter, Phase-5 persistence/serving, and the Phase-6 `<video>` renderer are all **flag-agnostic** (additive, inert until an MP4 exists), so nothing else branches.
+
+## 4. Wiring
+
+- **`deliverables/tools/index.py::load_tools`** — the single switch point. Register the legacy tool **or** the new narration bridge by the flag; the shared `execute`/`verify_artifact`/`save_artifact` are always present, so authoring needs **no new tool** on the new path:
+
+  ```python
+  from app.config import config
+
+  if config.VIDEO_SANDBOX_RENDERING_ENABLED:
+      tools.append(create_synthesize_narration_tool(          # Phase 3
+          workspace_id=d["workspace_id"], db_session=d["db_session"]))
+  else:
+      tools.append(create_generate_video_presentation_tool(    # legacy (deleted in Phase 8)
+          workspace_id=d["workspace_id"], db_session=d["db_session"]))
+  ```
+
+- **`deliverables/tools/sandbox.py`** — extend `load_artifact_instructions`'s `Literal["pdf","docx","pptx","xlsx"]` to include `"video"` so it `cat`s `/opt/skills/video/SKILL.md`. Safe to land unconditionally (the skill is only reached when the flag routes video work to it).
+- **Prompt routing — `deliverables/agent.py`** — the system prompt is static markdown (`read_md_file(__package__, "system_prompt")`), so make routing **flag-aware at compose time** rather than editing the base file to point at one path: when `VIDEO_SANDBOX_RENDERING_ENABLED` is on, append a small "video → skill loop" routing block; when off, the base prompt keeps today's `generate_video_presentation` guidance. This keeps the prompt consistent with the tool that is actually registered.
+
+## 5. Language guarantee (unchanged)
 
 Rendering runs through `execute(language="bash")` invoking `node render.mjs`. The `execute` schema stays `Literal["python","bash"]`; JS/TS is authored as files and run via Node under bash. No new language surface is exposed.
 
-## 5. Checks
+## 6. Checks
 
 - Unit: `load_artifact_instructions("video")` returns the skill body (mirror the existing skill-load contract test).
-- Agent test: a "make a video" request drives `load_artifact_instructions("video")` → `execute` (stills) → `execute` (mp4) → `verify_artifact` → `save_artifact`, with no Celery dispatch and no `generate_video_presentation` call.
+- Flag off (default): `load_tools` registers `create_generate_video_presentation_tool` and **not** `synthesize_narration`; a video request drives the legacy path (regression guard — existing behavior is untouched).
+- Flag on: `load_tools` registers `synthesize_narration` and **not** the legacy tool; a "make a video" request drives `load_artifact_instructions("video")` → `execute` (stills) → `execute` (mp4) → `verify_artifact` → `save_artifact`, with no Celery dispatch and no `generate_video_presentation` call.
 
-## 6. Exit criteria
+## 7. Exit criteria
 
-1. The video skill is present in the image and loadable by the agent.
-2. The deliverables prompt routes video work to the skill loop.
-3. A model run produces `/workspace/out.mp4` using only `execute` + the baked harness.
+1. `VIDEO_SANDBOX_RENDERING_ENABLED` toggles the authoring path with no other code change; off preserves today's LangGraph behavior exactly.
+2. The video skill is present in the image and loadable by the agent.
+3. With the flag on, the deliverables prompt routes video work to the skill loop.
+4. A flag-on model run produces `/workspace/out.mp4` using only `execute` + the baked harness.
