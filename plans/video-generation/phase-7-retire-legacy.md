@@ -14,7 +14,7 @@ One way to make a video: the skill loop. Delete the monolithic graph/tool/Celery
 - **Task:** delete `app/tasks/celery_tasks/video_presentation_tasks.py`.
 - **Graph:** delete `app/agents/video_presentation/` (`graph.py`, `nodes.py`, `state.py`, `prompts.py`).
 - **Frontend renderer:** removed in Phase 6.
-- **DB:** `VideoPresentationRun` / `VideoPresentationStatus` — keep only if Phase 8 backfill needs them; otherwise schedule a drop migration after backfill.
+- **DB:** `VideoPresentationRun` / `VideoPresentationStatus` — keep only if Phase 8 backfill needs them; otherwise schedule a drop migration after backfill. Note: the deferred queued render fleet (umbrella §4) does **not** revive this table — it would introduce a *lean, generic* render-job row (job id, status, artifact_id, error), reusable across artifact types, not this video-specific orchestration record.
 
 ## 3. Risks / grep before deleting
 

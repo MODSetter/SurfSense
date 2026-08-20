@@ -30,6 +30,7 @@
 - **Cost:** cap sampled frames (1/slide) to bound vision spend per verify.
 - **Byte binding:** the receipt binds to the final MP4; any re-render invalidates it (correct — forces re-verify before save).
 - **Preview role:** `save_artifact._read_artifact_file` rejects non-PDF previews; video saves **primary-only**, which the save flow already allows.
+- **Queued scale-out (umbrella §4):** under the deferred render-fleet mode, this same verify + the subsequent `save_artifact` run **inside the render worker** after the final MP4 (not inline in the agent turn). The strategy and receipt binding are unchanged — only the call site moves.
 
 ## 6. Checks
 

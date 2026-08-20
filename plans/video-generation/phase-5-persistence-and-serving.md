@@ -23,7 +23,7 @@ The verified MP4 is persisted as the PRIMARY artifact file via the generic path,
 ## 4. Notes / risks
 
 - **Range correctness:** cover open-ended (`bytes=N-`) and closed (`bytes=A-B`) ranges and an out-of-range `416`; off-by-one in `Content-Range` is the classic bug.
-- **Signed URLs deferred** (umbrella §4): backend Range first; direct-to-blob is a later, capability-gated bandwidth optimization.
+- **Signed URLs deferred** (umbrella §4): backend Range first; direct-to-blob signed URLs + CDN are the later, capability-gated read-path scale-out. Because the MP4 is already the PRIMARY blob, that path is a serving-layer swap — no change to how the artifact is produced or persisted here.
 
 ## 5. Checks
 
