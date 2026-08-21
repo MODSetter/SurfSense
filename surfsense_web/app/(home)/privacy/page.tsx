@@ -16,7 +16,7 @@ export const metadata: Metadata = {
  * mismatches and makes the policy look professionally maintained to reviewers
  * (including AdSense reviewers).
  */
-const LAST_UPDATED = "May 21, 2026";
+const LAST_UPDATED = "August 21, 2026";
 
 export default function PrivacyPolicy() {
 	return (
@@ -229,11 +229,26 @@ export default function PrivacyPolicy() {
 					<h2 className="text-2xl font-semibold mb-4">7. Data Retention</h2>
 					<p>
 						We retain personal data only for as long as necessary to provide the Service and to
-						comply with our legal, accounting, and reporting obligations. Account data is retained
-						for the life of your account; you can request deletion at any time. Aggregated data that
-						no longer identifies you may be retained indefinitely for analytics and product
-						improvement purposes. Anonymous chat sessions on our free pages are not retained in any
-						user-linked database.
+						comply with our legal, accounting, and reporting obligations. Aggregated data that no
+						longer identifies you may be retained indefinitely for analytics and product improvement
+						purposes. Anonymous chat sessions on our free pages are not retained in any user-linked
+						database.
+					</p>
+					<p className="mt-4">
+						Account data is retained for the life of your account. You can delete your account
+						yourself at any time from Settings. Deletion is immediate and cannot be undone: your
+						profile, chats, documents, connectors, and API keys are erased, along with every
+						workspace you own — including workspaces shared with other members, who will lose access
+						to their work in them. Any unused credit is forfeited.
+					</p>
+					<p className="mt-4">
+						Two things outlive your account. We keep a one-way keyed hash (HMAC-SHA256) of your
+						account identifier so that a new account created with the same identifier does not
+						receive the free welcome credit a second time. This value cannot be reversed to recover
+						your email or provider ID, and we use it for no other purpose. We rely on our legitimate
+						interest in preventing abuse of promotional credit (GDPR Article 6(1)(f), Recital 47).
+						Separately, our payment processor retains invoices and charge records where tax and
+						accounting law requires it (GDPR Article 17(3)(b)).
 					</p>
 				</section>
 
@@ -283,7 +298,11 @@ export default function PrivacyPolicy() {
 					<ul className="list-disc pl-6 my-4 space-y-2">
 						<li>The right to access the personal data we hold about you.</li>
 						<li>The right to request correction of inaccurate or incomplete data.</li>
-						<li>The right to request erasure of your personal data ("right to be forgotten").</li>
+						<li>
+							The right to request erasure of your personal data ("right to be forgotten"). You can
+							exercise this yourself at any time by deleting your account in Settings, subject to
+							the limited retention described in Section 7.
+						</li>
 						<li>The right to object to or restrict certain processing of your data.</li>
 						<li>The right to data portability (to receive your data in a portable format).</li>
 						<li>
