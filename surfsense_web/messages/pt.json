@@ -129,7 +129,15 @@
 		"copy": "Copiar para a área de transferência",
 		"no_api_key": "Nenhuma chave API encontrada",
 		"usage_title": "Como usar",
-		"usage_description": "Inclua sua chave API no cabeçalho Authorization:"
+		"usage_description": "Inclua sua chave API no cabeçalho Authorization:",
+		"delete_account_heading": "Excluir conta",
+		"delete_account_description": "Excluir sua conta é imediato e não pode ser desfeito.",
+		"delete_account_title": "Excluir sua conta?",
+		"delete_account_consequences": "Todos os espaços de trabalho dos quais você é proprietário serão excluídos, junto com seus chats, documentos, conectores e chaves de API; quem compartilha um deles com você também perderá esse trabalho. O crédito restante é perdido e não será reembolsado, e cadastrar-se novamente com esta conta não incluirá o crédito de boas-vindas gratuito.",
+		"delete_account_confirm_label": "Digite {word} para confirmar",
+		"delete_account_confirm": "Excluir minha conta",
+		"delete_account_cancel": "Cancelar",
+		"delete_account_error": "Não foi possível excluir sua conta"
 	},
 	"dashboard": {
 		"title": "Painel",

@@ -129,7 +129,15 @@
 		"copy": "क्लिपबोर्ड पर कॉपी करें",
 		"no_api_key": "कोई API कुंजी नहीं मिली",
 		"usage_title": "कैसे उपयोग करें",
-		"usage_description": "Authorization हेडर में अपनी API कुंजी शामिल करें:"
+		"usage_description": "Authorization हेडर में अपनी API कुंजी शामिल करें:",
+		"delete_account_heading": "खाता हटाएं",
+		"delete_account_description": "खाता हटाना तुरंत होता है और इसे पूर्ववत नहीं किया जा सकता।",
+		"delete_account_title": "अपना खाता हटाएं?",
+		"delete_account_consequences": "आपके स्वामित्व वाले सभी कार्यक्षेत्र, उनकी चैट, दस्तावेज़, कनेक्टर और API कुंजियों सहित हटा दिए जाएंगे; जिनके साथ आपने कोई कार्यक्षेत्र साझा किया है, वे भी वह काम खो देंगे। बचा हुआ क्रेडिट समाप्त हो जाएगा और वापस नहीं किया जाएगा, और इसी खाते से दोबारा साइन अप करने पर मुफ़्त स्वागत क्रेडिट नहीं मिलेगा।",
+		"delete_account_confirm_label": "पुष्टि के लिए {word} टाइप करें",
+		"delete_account_confirm": "मेरा खाता हटाएं",
+		"delete_account_cancel": "रद्द करें",
+		"delete_account_error": "आपका खाता हटाया नहीं जा सका"
 	},
 	"dashboard": {
 		"title": "डैशबोर्ड",
