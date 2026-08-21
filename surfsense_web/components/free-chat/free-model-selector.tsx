@@ -48,7 +48,7 @@ export function FreeModelSelector({ className }: { className?: string }) {
 
 	// Free models first, premium last; immutable sort to avoid mutating state.
 	const sortedModels = useMemo(
-		() => models.toSorted((a, b) => Number(a.is_premium) - Number(b.is_premium)),
+		() => [...models].sort((a, b) => Number(a.is_premium) - Number(b.is_premium)),
 		[models]
 	);
 

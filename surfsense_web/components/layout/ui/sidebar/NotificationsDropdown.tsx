@@ -124,7 +124,7 @@ export function NotificationsDropdown({
 
 		return sourceItems
 			.filter((item) => activeFilter !== "unread" || !item.read)
-			.toSorted((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 	}, [activeFilter, notifications.comments.items, notifications.status.items]);
 
 	const loadMoreForActiveFilter = useCallback(() => {

@@ -206,7 +206,7 @@ export function reconcileInterruptedAssistantMessages<T extends AbortableMessage
 		const olderIdxs = mergeInto.get(i);
 		if (olderIdxs && olderIdxs.length > 0) {
 			let merged = messages[i];
-			for (const olderIdx of olderIdxs.toReversed()) {
+			for (const olderIdx of [...olderIdxs].reverse()) {
 				merged = mergeInterruptedIntoResume(messages[olderIdx], merged);
 			}
 			result.push(merged);
