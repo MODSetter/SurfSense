@@ -16,12 +16,13 @@ A trusted instruction file (baked into `/opt/skills/video/` by the existing skil
 - **Authoring contract:** write each slide as a Remotion component; imports from the baked `node_modules` are allowed (real bundler). The harness supplies `stagger` and standard `remotion` symbols via the preamble.
 - **Narration:** call `synthesize_narration` (Phase 3) for the slide transcripts; it writes audio into the render workdir's `public/` and returns filenames. Reference them in `props.json`; do not fetch audio yourself (no network).
 - **The loop:**
-  1. author scenes + `props.json`;
-  2. `execute` `node render.mjs --stills props.json /tmp/stills` and review the PNGs (`read_sandbox_file` is text-only, so review via the verify/vision path or re-render);
-  3. fix and re-run stills until they pass the skill's checklist;
-  4. `execute` the full render → `/workspace/out.mp4`;
-  5. `verify_artifact(path="/workspace/out.mp4")`;
-  6. `save_artifact(path=..., title=..., markdown_representation=...)` — the markdown must be a **complete deck spec** (per-slide content **and** the narration script), not just a blurb. It is the only durable, editable representation of the video — the scene components and `props.json` are ephemeral sandbox files that are never persisted — so it doubles as search/accessibility text **and** the source a later revision regenerates from (§4, Revision).
+  1. **draft the deck spec first** — per-slide on-screen text **and** the narration line for each slide. This is both the render plan and the eventual `markdown_representation`; author from it, never reconstruct it from the finished video;
+  2. turn each spec slide into a Remotion scene + `props.json`; the narration lines are what you pass to `synthesize_narration`, referencing the returned audio from `props.json`;
+  3. `execute` `node render.mjs --stills props.json /tmp/stills` and review the PNGs (`read_sandbox_file` is text-only, so review via the verify/vision path or re-render);
+  4. fix and re-run stills until they pass the skill's checklist;
+  5. `execute` the full render → `/workspace/out.mp4`;
+  6. `verify_artifact(path="/workspace/out.mp4")`;
+  7. `save_artifact(path=..., title=..., markdown_representation=<the step-1 deck spec>)` — carry that spec through **unchanged** (per-slide content **and** narration), not a blurb summarized after the fact. It is the only durable, editable representation of the video — the scene components and `props.json` are ephemeral sandbox files that are never persisted — so it doubles as search/accessibility text **and** the source a later revision regenerates from (§4, Revision).
 - **Constraints:** never `npm install` / download (everything baked); a single render must fit `SANDBOX_OPERATION_TIMEOUT_SECONDS` — for long decks the harness renders in segments and `ffmpeg concat`s them (the knobs and rationale are §5, Render sizing & concurrency).
 
 ## 3. The rollout flag (the on/off switch)
