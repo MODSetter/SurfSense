@@ -154,13 +154,21 @@ services:
     depends_on:
       backend: { condition: service_healthy }
     healthcheck:
+      # Probe over the broker, not through the app. `-A app.celery_app` makes
+      # the CLI import the entire application before it can send a single
+      # ping -- embeddings, litellm, docling, the lot -- which takes ~40s in
+      # CI and can never finish inside `timeout`. Every probe was killed
+      # mid-import, so the worker was reported unhealthy while it was in fact
+      # up and serving. `-b` reaches the broadcast exchange directly and
+      # needs no import, so the probe costs ~3s.
       test:
         - CMD-SHELL
-        - "celery -A app.celery_app inspect ping --timeout 2 | grep -q pong"
+        - 'celery -b "$$CELERY_BROKER_URL" inspect ping --timeout 2 | grep -q pong'
       interval: 5s
-      timeout: 5s
+      timeout: 10s
       retries: 12
-      start_period: 20s
+      # The worker itself needs ~40s to import the app and report ready.
+      start_period: 45s
     networks: [internal]
 
 networks:
