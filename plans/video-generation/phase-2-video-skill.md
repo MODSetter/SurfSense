@@ -22,7 +22,7 @@ A trusted instruction file (baked into `/opt/skills/video/` by the existing skil
   4. `execute` the full render → `/workspace/out.mp4`;
   5. `verify_artifact(path="/workspace/out.mp4")`;
   6. `save_artifact(path=..., title=..., markdown_representation=...)` — the markdown must faithfully carry the deck's substantive text for search/accessibility.
-- **Constraints:** never `npm install` / download (everything baked); a single render must fit `SANDBOX_OPERATION_TIMEOUT_SECONDS` — for long decks, render in segments and `ffmpeg concat`.
+- **Constraints:** never `npm install` / download (everything baked); a single render must fit `SANDBOX_OPERATION_TIMEOUT_SECONDS` — for long decks the harness renders in segments and `ffmpeg concat`s them (the knobs and rationale are §5, Render sizing & concurrency).
 
 ## 3. The rollout flag (the on/off switch)
 
@@ -59,17 +59,27 @@ The whole legacy-vs-new choice is one boolean, so the new path can be shipped da
 - **`deliverables/tools/sandbox.py`** — extend `load_artifact_instructions`'s `Literal["pdf","docx","pptx","xlsx"]` to include `"video"` so it `cat`s `/opt/skills/video/SKILL.md`. Safe to land unconditionally (the skill is only reached when the flag routes video work to it).
 - **Prompt routing — `deliverables/agent.py`** — the system prompt is static markdown (`read_md_file(__package__, "system_prompt")`), so make routing **flag-aware at compose time** rather than editing the base file to point at one path: when `VIDEO_SANDBOX_RENDERING_ENABLED` is on, append a small "video → skill loop" routing block; when off, the base prompt keeps today's `generate_video_presentation` guidance. This keeps the prompt consistent with the tool that is actually registered.
 
-## 5. Language guarantee (unchanged)
+## 5. Render sizing & concurrency
+
+The in-turn render is bounded by `SANDBOX_OPERATION_TIMEOUT_SECONDS` per `execute` call. Three knobs make the render fit that budget deterministically **and** carry over unchanged if rendering later moves to the deferred queued fleet (umbrella §4) — they are durable capacity controls, not stopgaps:
+
+- **`VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT` (config).** Sized from measured render throughput (frames/sec on the target hardware, captured by the Phase-1 spike) so one segment renders at ~60–70% of `SANDBOX_OPERATION_TIMEOUT_SECONDS`, leaving headroom for `bundle()` + Chrome launch + variance. The **harness** (not the model) splits any deck beyond this bound into back-to-back segment renders and joins them with a stream-copy `ffmpeg concat` (the system ffmpeg baked in Phase 1 §2 — no re-encode, so the join is near-free). Segmentation stays useful under the queued fleet too: segments render in parallel and retry cheaply and independently.
+- **Product length cap — reuse `VIDEO_PRESENTATION_MAX_SLIDES`.** Maximum deck length is a deliberate *product* ceiling — the same one today's browser-rendered path already enforces — not a timeout artifact. The skill **refuses** a request past it with a clear message instead of attempting an unreasonable multi-segment render. This stays a product decision across the inline→queued flip.
+- **`VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS` (admission gate).** A video render holds its sandbox slot for the whole (long) render, so concurrent renders pass through a bounded semaphore sized to fleet capacity: a burst **queues** rather than exhausting the fleet into timeouts (umbrella §3). This is the one value whose *implementation* changes but whose *meaning* does not across the flip — a semaphore today, the render worker-pool concurrency later.
+
+All three live in `app/config` alongside `VIDEO_SANDBOX_RENDERING_ENABLED` and are documented in `surfsense_backend/.env.example`.
+
+## 6. Language guarantee (unchanged)
 
 Rendering runs through `execute(language="bash")` invoking `node render.mjs`. The `execute` schema stays `Literal["python","bash"]`; JS/TS is authored as files and run via Node under bash. No new language surface is exposed.
 
-## 6. Checks
+## 7. Checks
 
 - Unit: `load_artifact_instructions("video")` returns the skill body (mirror the existing skill-load contract test).
 - Flag off (default): `load_tools` registers `create_generate_video_presentation_tool` and **not** `synthesize_narration`; a video request drives the legacy path (regression guard — existing behavior is untouched).
 - Flag on: `load_tools` registers `synthesize_narration` and **not** the legacy tool; a "make a video" request drives `load_artifact_instructions("video")` → `execute` (stills) → `execute` (mp4) → `verify_artifact` → `save_artifact`, with no Celery dispatch and no `generate_video_presentation` call.
 
-## 7. Exit criteria
+## 8. Exit criteria
 
 1. `VIDEO_SANDBOX_RENDERING_ENABLED` toggles the authoring path with no other code change; off preserves today's LangGraph behavior exactly.
 2. The video skill is present in the image and loadable by the agent.

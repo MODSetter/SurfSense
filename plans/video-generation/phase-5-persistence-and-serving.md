@@ -10,7 +10,8 @@ The verified MP4 is persisted as the PRIMARY artifact file via the generic path,
 
 ## 2. Persistence
 
-- `save_artifact` already handles it once the Phase-4 adapter exists: the MP4 becomes the PRIMARY `ArtifactFile` (`video/mp4`), offloaded to blob by `persist_artifact`; `format = ArtifactFormat.VIDEO` from the adapter; primary-only (no preview). **No new recorder** — MP4-as-PRIMARY rides the generic `save_artifact`.
+- **MP4-as-PRIMARY rides the generic `save_artifact` — no new recorder.** Once the Phase-4 adapter exists, the verified MP4 becomes the PRIMARY `ArtifactFile` (`video/mp4`), primary-only (no preview), and its blob is offloaded by the same persistence path documents already use.
+- **Persist the format explicitly from the receipt, not the filename suffix.** `save_artifact`'s `_artifact_format` falls back to the primary's suffix when no `format=` is passed, so an `.mp4` would persist as `format="mp4"` — a string that neither `ArtifactFormat.VIDEO` (`"video"`) nor the frontend format-meta ever match. The deliverables `save_artifact_tool` already reads the verify receipt (whose `format` is checked to equal the adapter name, i.e. `"video"`), so it threads that through in the one existing persistence call: `save_artifact(..., format=verification.format)`. A single argument — it mirrors how the media shim `persist_artifact` already sets `format=` explicitly, and `_artifact_format(explicit=...)` records it verbatim. The Markdown-only branch passes nothing and stays `format="markdown"`.
 - The legacy writers `app/artifacts/media/video/record.py` (audio-as-primary + `scene_codes` in metadata) and `storage.py` (per-slide audio offload) are **left untouched here** — they still produce/serve legacy artifacts and hold backfill inputs. Deleted in Phase 8.
 
 ## 3. Serving
@@ -33,6 +34,6 @@ The verified MP4 is persisted as the PRIMARY artifact file via the generic path,
 
 ## 6. Exit criteria
 
-1. A verified MP4 persists as PRIMARY and appears in the artifact manifest with a `content_url`.
+1. A verified MP4 persists as PRIMARY with `format="video"` (`ArtifactFormat.VIDEO`, from the receipt — not the `.mp4` suffix) and appears in the artifact manifest with a `content_url`.
 2. `<video>` playback + seeking works via `206` responses on every storage backend.
 3. Nothing is deleted: legacy writers, routes, and per-slide audio storage remain until Phase 8.
