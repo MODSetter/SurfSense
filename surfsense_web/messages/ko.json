@@ -129,7 +129,15 @@
 		"copy": "클립보드에 복사",
 		"no_api_key": "API 키를 찾을 수 없습니다",
 		"usage_title": "사용 방법",
-		"usage_description": "Authorization 헤더에 API 키를 포함하세요:"
+		"usage_description": "Authorization 헤더에 API 키를 포함하세요:",
+		"delete_account_heading": "계정 삭제",
+		"delete_account_description": "계정 삭제는 즉시 적용되며 되돌릴 수 없습니다.",
+		"delete_account_title": "계정을 삭제할까요?",
+		"delete_account_consequences": "소유한 모든 워크스페이스가 그 안의 채팅, 문서, 커넥터, API 키와 함께 삭제되며, 해당 워크스페이스를 함께 사용하던 사람들도 그 작업을 잃게 됩니다. 남은 크레딧은 소멸되며 환불되지 않고, 이 계정으로 다시 가입해도 무료 웰컴 크레딧은 제공되지 않습니다.",
+		"delete_account_confirm_label": "확인하려면 {word}를 입력하세요",
+		"delete_account_confirm": "내 계정 삭제",
+		"delete_account_cancel": "취소",
+		"delete_account_error": "계정을 삭제하지 못했습니다"
 	},
 	"dashboard": {
 		"title": "대시보드",
