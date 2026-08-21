@@ -6,27 +6,25 @@
 
 ## 1. Goal
 
-`verify_artifact(path="/workspace/out.mp4")` produces a **signed receipt bound to the MP4 bytes**, so `save_artifact` accepts the file. This is the authoritative gate; the per-slide stills in Phase 2 are a model-side aid only.
+`verify_artifact(path="/workspace/out.mp4")` produces a **signed receipt bound to the MP4 bytes**, so `save_artifact` accepts the file. The gate is **structural only** (`ffprobe`) — **deliberately no per-frame vision review**. Sampled-still vision adds real per-verify cost, a hard vision-model dependency, and uncontrolled provider fan-out that does not survive target concurrency (§5), for little gain on a constrained slide template. Visual quality is handled advisory-side by the Phase-2 authoring loop, where the model inspects its own stills; the authoritative save gate stays fast, free, and provider-independent.
 
 ## 2. Why an adapter is required
 
 `save_artifact` (`deliverables/tools/save_artifact.py`) reads the primary at `path`, then requires a receipt whose `format == get_format_adapter(path).name` and whose `primary_sha256 == sha256(bytes)`. Without a video format adapter, `get_format_adapter("out.mp4")` fails and the file can never be saved. So video needs:
 
-1. **New adapter module** `verification/formats/video.py` — `check_video(data: bytes) -> StructuralCheckResult` (the ffprobe structural gate, §3). New file, parallel to `formats/pdf.py`/`pptx.py`. Like `check_pdf`, it is a **pure function of the bytes** run trusted-side (`service.py` calls it at the structural gate before any sandbox render), so it shells `ffprobe` over a temp file using the backend image's ffmpeg — the same trusted-side probe the legacy `_get_audio_duration` already relies on. Video has no pages, so it returns `page_count=None`.
-2. **Registry entry** in `verification/formats/registry.py` — add `MP4_MIME = "video/mp4"` and a `".mp4": FormatAdapter(name="video", suffix=".mp4", mime_type=MP4_MIME, convert_to_pdf=False, check=check_video, review_kind="video", requires_visual_review=True)` line. The adapter's `name="video"` is the **canonical format identity**: it is what the receipt is signed with (§3) and what persistence records verbatim (Phase 5). The `.mp4` filename suffix is only the registry lookup key — it never decides the stored `Artifact.format`.
-3. **Shared contract touch** in `verification/formats/base.py` — extend `ReviewKind` to include `"video"` (additive; documents keep `"document"`/`"slides"`).
-4. **A second verify pipeline** in `service.py`, dispatched by that adapter (§3). This is the substantive change: the existing visual path is PDF-shaped end to end (`prepare_pdf` → `_verify_prepared_pdf` → `rasterize_pdf`, with a PDF preview, `page_count`, and PDF byte re-checks), and video reuses none of that machinery. So after the shared structural gate, `_verify_artifact` branches on the video adapter into a `_verify_video` that mirrors `_verify_prepared_pdf`'s *shape* but swaps the render step (§3).
+1. **New adapter module** `verification/formats/video.py` — `check_video(data: bytes) -> StructuralCheckResult` (the ffprobe structural gate, §3). New file, parallel to `formats/pdf.py`/`xlsx.py`. Like `check_pdf`, it is a **pure function of the bytes** run trusted-side (`service.py` calls it at the structural gate — the only verify step for video), so it shells `ffprobe` over a temp file using the backend image's ffmpeg — the same trusted-side probe the legacy `_get_audio_duration` already relies on. Video has no pages, so it returns `page_count=None`.
+2. **Registry entry** in `verification/formats/registry.py` — add `MP4_MIME = "video/mp4"` and a `".mp4": FormatAdapter(name="video", suffix=".mp4", mime_type=MP4_MIME, convert_to_pdf=False, check=check_video, requires_visual_review=False)` line — **the same shape as the existing `.xlsx` adapter**, which is likewise structural-only. `requires_visual_review=False` *is* the strategy: it routes video through the structural-only branch that already exists in `service.py` (§3), so **no new verify pipeline is written** and `ReviewKind` is left untouched. The adapter's `name="video"` is the **canonical format identity**: what the receipt is signed with (§3) and what persistence records verbatim (Phase 5); the `.mp4` filename suffix is only the registry lookup key and never decides the stored `Artifact.format`.
+3. **No `service.py` or `base.py` change.** Because `requires_visual_review=False`, `_verify_artifact` takes its existing structural-only branch (the one `.xlsx` uses): run `adapter.check`, and on a clean result write a `visual="not_required"` receipt and return verified — no render, no frame extraction, no vision call, no `ReviewKind` extension. **Video adds an adapter, not a pipeline.**
 
 **Flag-agnostic (register unconditionally).** The adapter is a plain dict entry — inert unless an `.mp4` is actually verified — so it ships independent of `VIDEO_SANDBOX_RENDERING_ENABLED` and needs no gating; a legacy build with the flag off simply never produces an `.mp4` to look up.
 
 ## 3. Verify strategy (final MP4)
 
-The pipeline mirrors document verification stage-for-stage — trusted-side structural probe, jailed render-to-images, trusted-side vision review, byte-bound receipt — swapping only the render step (frames instead of pages):
+Structural gate only — no jailed render, no vision pass. It reuses the exact structural-only path `.xlsx` already takes:
 
-- **Structural (ffprobe, trusted-side):** `check_video` on the MP4 bytes — duration > 0; resolution 1920×1080; has a video stream **and a non-empty audio stream (mandatory — a mute MP4 is a hard fail)**; container not corrupt. Same pure-bytes `check` contract as `check_pdf`. Any failure → blocking finding, before any sandbox work.
-- **Visual (frames → vision LLM):** the `_verify_video` branch samples K frames (default one per slide, deduped and capped at `ARTIFACT_MAX_VERIFY_PAGES`) by running **`ffmpeg` inside the sandbox** via `session.run_command` — the same jailed render-to-images pattern as `rasterize_pdf`, using the ffmpeg baked into the sandbox in Phase 1 §2. The frames are read back as `(path, bytes)` and sent through the **same** `review_pages` / `get_vision_llm` path documents use, with `review_kind="video"`. Findings map to the same advisory/blocking model. The MP4 bytes are re-read and compared after sampling (the `_verify_prepared_pdf` "changed during verification" guard) before the receipt is written.
-- **Dispatch seam:** `_verify_artifact` selects the video branch off the adapter — `review_kind == "video"` is the only non-document kind, so it is the smallest seam; promote it to an explicit `media` flag on `FormatAdapter` only when a second media format appears.
-- **Receipt:** sign with `format="video"` — the authoritative identity threaded into persistence (Phase 5) — and `primary_sha256` of the MP4. `preview_path=None` (video has no PDF preview; `save_artifact` already allows primary-only).
+- **Structural (ffprobe, trusted-side):** `check_video` on the MP4 bytes — duration > 0; resolution 1920×1080; has a video stream **and a non-empty audio stream (mandatory — a mute MP4 is a hard fail)**; container not corrupt. Same pure-bytes `check` contract as `check_pdf`/`check_xlsx`. Any failure → blocking finding.
+- **No visual pass.** Video takes the `requires_visual_review=False` branch, so verify stops at the structural gate — no frame extraction, no `review_pages`. (Rationale in §5; the Phase-2 authoring loop is the advisory visual net.)
+- **Receipt:** written by that existing structural-only branch with `visual="not_required"`, `format="video"` — the authoritative identity threaded into persistence (Phase 5) — and `primary_sha256` of the MP4. `preview_path=None` (video has no preview; `save_artifact` already allows primary-only).
 
 ## 4. Tool change
 
@@ -34,7 +32,7 @@ The pipeline mirrors document verification stage-for-stage — trusted-side stru
 
 ## 5. Notes / risks
 
-- **Cost:** cap sampled frames (1/slide) to bound vision spend per verify.
+- **Why structural-only (no vision gate):** sampled-still vision review does not survive target concurrency. `review_pages` fans out with **no global rate limiter** (`VISION_CONCURRENCY` is per-call), so N concurrent long-video verifies burst into N× provider calls and millions of tokens — hitting TPM/RPM ceilings, `120s`-timeout-induced *false* blocking findings, and the re-render loops those trigger — on top of a hard vision-model dependency and per-verify token cost. The marginal catch on a fixed 1920×1080 slide template is low. So the gate is structural (~ms, free, provider-independent). **Reversible:** flip the adapter's `requires_visual_review=True` (and add frame sampling) for a bounded, *queued* visual pass later, if defects show up in practice.
 - **Byte binding:** the receipt binds to the final MP4; any re-render invalidates it (correct — forces re-verify before save).
 - **Preview role:** `save_artifact._read_artifact_file` rejects non-PDF previews; video saves **primary-only**, which the save flow already allows.
 - **Queued scale-out (umbrella §4):** under the deferred render-fleet mode, this same verify + the subsequent `save_artifact` run **inside the render worker** after the final MP4 (not inline in the agent turn). The strategy and receipt binding are unchanged — only the call site moves.
@@ -45,6 +43,7 @@ The pipeline mirrors document verification stage-for-stage — trusted-side stru
 - A truncated/corrupt MP4 → `status="failed"` with a structural finding.
 - A **mute MP4 (no audio stream) → `status="failed"`** with a blocking structural finding; it can never reach `save_artifact`.
 - A mutated MP4 after verify → `save_artifact` rejects on sha mismatch (reuse the existing receipt-mismatch test pattern).
+- A valid MP4 verifies on a workspace with **no vision model configured** (structural-only never touches the vision path — no `"unavailable"` degradation).
 
 ## 7. Exit criteria
 

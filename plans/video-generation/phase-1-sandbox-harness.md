@@ -15,9 +15,10 @@ Graft the official Remotion Docker layer onto the **existing** base (do **not** 
 ```dockerfile
 # ---- Remotion server-side render harness (Node 22 already in base) ----
 # Chrome shared libraries — canonical list from Remotion /docs/docker — plus a
-# system ffmpeg used for segment concat (§ Render sizing, Phase 2) and verify
-# frame sampling (Phase 4). Remotion's own bundled ffmpeg handles render/mux
-# (§3); those two call sites need a binary on PATH, so we add it explicitly.
+# system ffmpeg used for segment concat of long decks (Phase 2 §5). Remotion's
+# own bundled ffmpeg handles render/mux (§3); concat is the one step that shells
+# out to ffmpeg directly, so we add a binary on PATH. (Verify is structural-only
+# — Phase 4 — so it needs no frame extraction.)
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libnss3 libdbus-1-3 libatk1.0-0 libgbm-dev libasound2 libxrandr2 \
@@ -45,7 +46,7 @@ Notes:
 
 Baked at build time (scaffolding + deps only; scenes/audio are injected at runtime):
 
-- **`package.json`** — `remotion`, `react`, `react-dom`, `@remotion/bundler`, `@remotion/renderer`, `@remotion/media` (the modern, Mediabunny-backed `<Audio>` — the recommended tag for new projects, not the legacy core `remotion` `<Audio>`), `@remotion/media-parser` (`parseMedia`, the non-deprecated successor to `getAudioDurationInSeconds`, used for duration probing in §4). FFmpeg ships inside `@remotion/renderer` for the render/mux step, so no apt ffmpeg is needed *for rendering* — but a system `ffmpeg` is still installed in §2 because two adjacent steps shell out to it directly: **segment concat** for long decks (Phase 2 render sizing) and **verify frame sampling** (Phase 4), neither of which goes through the renderer.
+- **`package.json`** — `remotion`, `react`, `react-dom`, `@remotion/bundler`, `@remotion/renderer`, `@remotion/media` (the modern, Mediabunny-backed `<Audio>` — the recommended tag for new projects, not the legacy core `remotion` `<Audio>`), `@remotion/media-parser` (`parseMedia`, the non-deprecated successor to `getAudioDurationInSeconds`, used for duration probing in §4). FFmpeg ships inside `@remotion/renderer` for the render/mux step, so no apt ffmpeg is needed *for rendering* — but a system `ffmpeg` is still installed in §2 for the one step that shells out to it directly: **segment concat** for long decks (Phase 2 §5), which does not go through the renderer. Verify is structural-only (Phase 4), so it needs no frame extraction.
   - **Pin all Remotion packages to one exact version** (Remotion hard-requires `remotion` + every `@remotion/*` to be the *same* version; a floating `^` in a baked image risks a mismatched patch at build time). Install with `--save-exact` / `npx remotion add` so versions stay aligned. Target the latest **4.0.x** stable (4.0.514 at time of writing). **Do not adopt the 5.0 migration** — v5 is not the npm `latest` tag yet (only `4.1.0-alpha` prereleases exist); staying on 4.0.x keeps us on the released line.
 - **`src/index.ts`** — `registerRoot(Root)`.
 - **`src/Root.tsx`** — registers ONE `<Composition id="Main" component={Deck} calculateMetadata={calculateMetadata} />`. Even with `calculateMetadata`, v4 still **requires** the static `width={1920} height={1080}`, placeholder `fps={30}` and `durationInFrames={1}`, and a `defaultProps` (mandatory because `Deck` takes props) — `calculateMetadata` overrides `fps`/`durationInFrames` at render. `calculateMetadata` is Remotion's canonical data-driven-duration hook: it measures each slide's narration and returns the resolved `fps` + total `durationInFrames` and passes per-slide durations down via `props`, so timing is owned by Remotion's own metadata pipeline rather than hand-computed. Props are declared as a `type` (v4 forbids `interface` for composition props). `Deck` lays the slides out with `<Series>` (see §4).
