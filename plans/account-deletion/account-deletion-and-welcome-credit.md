@@ -1,7 +1,7 @@
-# Account Deletion, Ownership Transfer, and the One-Time Welcome Credit
+# Account Deletion and the One-Time Welcome Credit
 
 **Status:** Planned, not started.
-**Goal:** Ship self-serve account deletion, make workspace ownership transferable so deletion never destroys other people's work, and stop the welcome credit from being re-issued when a deleted user registers again.
+**Goal:** Ship self-serve account deletion, and stop the welcome credit from being re-issued when a deleted user registers again.
 
 ## 1. Problem
 
@@ -11,9 +11,7 @@ Three requirements, two of which pull against each other.
 
 **Deleting must not become a way to farm credit.** Every account starts with $5 because `User.credit_micros_balance` carries a SQL default of `DEFAULT_CREDIT_MICROS_BALANCE` (5,000,000 micro-USD). There is no welcome-grant event and no identity check — any new row is a new $5. With a delete button in the product, "spend, delete, re-register" becomes an unbounded free-compute loop against real LLM spend.
 
-**Deleting must not destroy other people's work.** Workspaces are multi-member. If the deleting user owns a shared workspace, erasing it takes every other member's documents and chats with it.
-
-Erasing the person, remembering that the person already claimed $5, and keeping their collaborators' data intact are all required at the same time.
+Erasing the person and remembering that the person already claimed $5 are required at the same time.
 
 ## 2. Decisions
 
@@ -29,7 +27,7 @@ Erasing the person, remembering that the person already claimed $5, and keeping 
 
 **No grace period.** Deletion is immediate and irreversible. Lockout is synchronous; the heavy erase runs in Celery within seconds, matching how workspace deletion already works. A recovery window, if wanted later, is additive.
 
-**Ownership transfer ships as part of this work, and deletion never resolves ownership silently.** The user is shown exactly which workspaces block deletion and chooses, per workspace, whether to hand it to a named member or destroy it. No auto-promotion, no surprise inheritance.
+**Deleting an account deletes every workspace it owns, shared or not.** Members of a shared workspace lose it; the dialog says so before the user confirms. Nobody has asked to keep a shared workspace alive past its owner, so nothing is built for it.
 
 ### Rejected
 
@@ -40,8 +38,8 @@ Erasing the person, remembering that the person already claimed $5, and keeping 
 | Require a card for the $5 | Kills the "no credit card required" conversion the marketing pages sell. The right lever only once abuse is measured. |
 | Email normalization (Gmail dots, `+tags`) | Not needed while Google is the only production login. Written the day password auth is enabled, as one new source function. |
 | Plaintext email on a tombstone | More PII than the job needs. |
-| Auto-promote the longest-tenured member | Silent. The successor inherits responsibility they never accepted, and the departing user never sees what happened to their team's data. |
-| Block deletion until ownership is transferred elsewhere | Would be correct only if transfer existed. Building transfer is what makes blocking humane, so the two ship together. |
+| Auto-promote the longest-tenured member | Silent. The successor inherits responsibility they never accepted. |
+| Workspace ownership transfer, and blocking deletion until it happens | Two features (transfer endpoint, a per-workspace resolution step in the delete dialog) for a case nobody has reported. Deleting what you own is the behaviour every other resource here already has. Build it when a user asks. |
 
 ## 3. Identity claims ledger
 
@@ -99,48 +97,13 @@ Same migration, after table creation. Batched through Python rather than pure SQ
 
 LOCAL databases have no `oauth_account` rows, so the backfill writes nothing and existing self-hosted users are unaffected.
 
-## 4. Workspace ownership transfer
-
-A standalone feature that account deletion depends on. It also fixes an existing dead end: `leave_workspace` tells owners to "Transfer ownership first or delete the workspace", but no transfer path exists — `is_owner = True` is only ever set at workspace creation, and both `update_member_role` and `remove_member` refuse to touch an owner.
-
-### Ownership is two columns, not one
-
-- `workspaces.user_id` — `ForeignKey("user.id", ondelete="CASCADE")`, non-nullable.
-- `workspace_memberships.is_owner` — the RBAC flag the routes check.
-
-A transfer that moves only `is_owner` is cosmetic: the FK still points at the departing user, so their deletion cascades the workspace away regardless. **Both must move in one transaction.** Because `user_id` is non-nullable, there is no "ownerless" state to fall back to; every transfer names a successor.
-
-### Endpoint
-
-`POST /workspaces/{workspace_id}/transfer-ownership`, body `{ "membership_id": <int> }`.
-
-Authorization is the current owner's own `is_owner` flag, not a role permission. Ownership carries the billing and lifecycle consequences of the workspace, so it is not delegable through `MEMBERS_MANAGE_ROLES`.
-
-In one transaction:
-
-1. Verify the caller owns the workspace and the target membership belongs to it and is not the caller.
-2. Target membership: `is_owner = True`, `role_id` = the workspace's Owner role.
-3. Caller's membership: `is_owner = False`, role unchanged — they keep their permissions and simply stop being the owner, which is the smallest change and lets them subsequently use `leave_workspace`.
-4. `workspaces.user_id` = target user id.
-5. Write a `Notification` to the new owner naming the workspace and the previous owner.
-
-### Frontend
-
-The team page already separates `owners` from `nonOwnerMembers` and renders a per-member action menu gated on permissions. Add "Transfer ownership" to that menu, visible only to the current owner, with a confirmation naming the recipient and stating that the action cannot be undone by the departing owner.
-
-## 5. Account deletion
-
-### Preflight
-
-`GET /users/me/deletion-preflight` returns the workspaces that block deletion: those the user owns that still have other members. Each entry carries workspace id, name, and the candidate members (id, display name, email) so the UI can render a picker without N further calls.
+## 4. Account deletion
 
 ### Route
 
 `DELETE /users/me` in `app/routes/users_routes.py`, behind `require_session_context` so a leaked PAT cannot destroy an account.
 
-The route re-runs the preflight check server-side and returns `409` with the same payload if anything still blocks. The UI check is a convenience; this is the guarantee. A shared workspace is never destroyed as a side effect of someone leaving.
-
-When clear, synchronously: set `is_active = False` and revoke all refresh tokens via the existing `revoke_all_user_tokens`. That is the entire lockout — `get_auth_context` already gates both the session and PAT paths on `user.is_active`, so no new column and no auth changes are needed. Then enqueue the erase task, clear the session cookie, and return `204`.
+Synchronously: set `is_active = False` and revoke all refresh tokens via the existing `revoke_all_user_tokens`. That is the entire lockout — `get_auth_context` already gates both the session and PAT paths on `user.is_active`, so no new column and no auth changes are needed. Then enqueue the erase task, clear the session cookie, and return `204`.
 
 Nothing about deletion touches `identity_claims`: the claim was written at grant time and simply survives.
 
@@ -148,38 +111,34 @@ Nothing about deletion touches `identity_claims`: the claim was written at grant
 
 `delete_user_task`, with the retry/backoff options used by `delete_workspace_task`. Steps, in order:
 
-1. Re-assert that no owned workspace has other members. The preflight could have gone stale between the request and the task; a workspace that gained a member in that window is skipped and logged rather than destroyed.
-2. For each remaining owned workspace, call the existing `_delete_workspace_background(workspace_id)` — batched chunk and document deletion, `purge_document_blobs`, then `drop_workspace_store`. Reusing this is the point: raw FK cascade from `user` would drop workspace rows while orphaning blobs and git trees.
-3. Best-effort delete the Stripe customer when `stripe_customer_id` is set. Charges and invoices stay at Stripe under GDPR 17(3)(b); Stripe is the system of record for tax.
-4. Delete the user row. Existing cascades handle memberships, notifications, prompts, PATs, refresh tokens, incentive tasks, OAuth accounts, and purchases.
+1. For each owned workspace, call the existing `_delete_workspace_background(workspace_id)` — batched chunk and document deletion, `purge_document_blobs`, then `drop_workspace_store`. Reusing this is the point: raw FK cascade from `user` would drop workspace rows while orphaning blobs and git trees.
+2. Best-effort delete the Stripe customer when `stripe_customer_id` is set. Charges and invoices stay at Stripe under GDPR 17(3)(b); Stripe is the system of record for tax.
+3. Delete the user row. Existing cascades handle memberships, notifications, prompts, PATs, refresh tokens, incentive tasks, OAuth accounts, and purchases.
 
 Idempotent throughout, so a retry after a partial run completes rather than failing. If the task exhausts retries the account is locked out with data intact and the failure is visible in Celery — recoverable, unlike a half-cascade.
 
 ### Retained after deletion
 
-The `identity_claims` row (welcome-grant control). Stripe-side charges and invoices (tax). Workspaces transferred to other members. Nothing else.
+The `identity_claims` row (welcome-grant control). Stripe-side charges and invoices (tax). Workspaces the user was only a member of. Nothing else.
 
-## 6. Deletion UI
+## 5. Deletion UI
 
 Danger zone at the bottom of `user-settings/profile`, using the existing shadcn dialog and the `userSettings` i18n namespace.
 
-On open, call the preflight. If workspaces block, the dialog lists them and requires a resolution for each — transfer to a chosen member, or delete this workspace — wired to the transfer endpoint and the existing workspace delete route. The account-delete button stays disabled until every entry is resolved.
-
-Final confirmation requires typing `DELETE` and states: permanent and immediate; chats, documents, connectors, and API keys are destroyed; remaining credit is forfeited and not refunded; a new account with the same Google identity will not include the $5 welcome credit.
+Confirmation requires typing `DELETE` and states: every workspace they own is destroyed along with its chats, documents, connectors, and API keys, and anyone they share one with loses that work; remaining credit is forfeited and not refunded; a new account with the same Google identity will not include the $5 welcome credit.
 
 On success, clear client state and redirect to the marketing home.
 
-## 7. Policy
+## 6. Policy
 
 Privacy policy section 7 gains: deletion is self-serve in Settings; deletion is immediate; we retain a one-way keyed hash of your account identifier solely to prevent re-issue of promotional credit (legitimate interest); Stripe retains invoices for tax.
 
-## 8. Tests
+## 7. Tests
 
 - **Welcome credit:** same Google `sub` twice grants `$5` then `$0`; a user with no OAuth account still grants `$5` and logs the ungated warning; `people/<sub>` and bare `<sub>` resolve to one key.
-- **Transfer:** moves both `is_owner` and `workspaces.user_id`; non-owners are rejected; the old owner can then leave; the new owner is notified.
-- **Deletion:** returns `409` while a shared owned workspace is unresolved; deactivates and revokes tokens when clear; rejects the PAT path; the erase task removes the user and their solo workspaces, leaves transferred workspaces intact, and is safe to run twice.
+- **Deletion:** deactivates and revokes tokens; rejects the PAT path; the erase task removes the user and every workspace they owned, shared ones included, leaves workspaces they were only a member of alone, and is safe to run twice.
 
-## 9. Follow-ups
+## 8. Follow-ups
 
 **`CreditPurchase` cascade.** Purchase rows are `cascade="all, delete-orphan"` and vanish with the user. Accepted: Stripe retains the authoritative charge record. Revisit if local invoice history is ever needed for accounting.
 
