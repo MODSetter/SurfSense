@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
+import httpx
 import pytest
+from litellm.exceptions import RateLimitError
 
 from app.agents.chat.shared.middleware.retry_after import (
     RetryAfterMiddleware,
@@ -14,15 +18,33 @@ pytestmark = pytest.mark.unit
 
 
 class _FakeResponse:
-    def __init__(self, headers: dict[str, str]) -> None:
+    def __init__(self, headers: Mapping[str, str]) -> None:
         self.headers = headers
 
 
 class _FakeRateLimitError(Exception):
-    def __init__(self, msg: str, headers: dict[str, str] | None = None) -> None:
+    def __init__(self, msg: str, headers: Mapping[str, str] | None = None) -> None:
         super().__init__(msg)
         if headers is not None:
             self.response = _FakeResponse(headers)
+
+
+def _litellm_rate_limit_error(**headers: str) -> RateLimitError:
+    """A rate-limit error shaped the way litellm actually raises one.
+
+    ``RateLimitError.__init__`` rebuilds ``self.response`` as an
+    ``httpx.Response``, so ``response.headers`` is always ``httpx.Headers``.
+    """
+    return RateLimitError(
+        message="rate limited",
+        llm_provider="openai",
+        model="gpt-4o",
+        response=httpx.Response(
+            429,
+            headers=headers,
+            request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions"),
+        ),
+    )
 
 
 class TestExtractRetryAfter:
@@ -49,6 +71,19 @@ class TestExtractRetryAfter:
     def test_handles_missing_headers_attr(self) -> None:
         exc = ValueError("no headers")
         assert _extract_retry_after_seconds(exc) is None
+
+    def test_reads_headers_off_a_real_litellm_error(self) -> None:
+        """The shape production actually raises: ``httpx.Headers``.
+
+        The message carries no "retry after N", so this can only pass through
+        the header branch.
+        """
+        exc = _litellm_rate_limit_error(**{"Retry-After": "45"})
+        assert _extract_retry_after_seconds(exc) == 45.0
+
+    def test_reads_milliseconds_off_a_real_litellm_error(self) -> None:
+        exc = _litellm_rate_limit_error(**{"retry-after-ms": "1500"})
+        assert _extract_retry_after_seconds(exc) == 1.5
 
 
 class TestIsNonRetryable:
@@ -111,6 +146,19 @@ class TestDelayCalculation:
         )
         delay = mw._delay_for_attempt(5, RuntimeError("x"))
         assert delay <= 15.0
+
+    def test_caps_a_header_delay_at_max_delay(self) -> None:
+        """A provider hint is a hint, not a licence to hold the turn open.
+
+        The retry loop runs inside the live chat turn, so an hour-long
+        ``retry-after-ms`` would hold the SSE stream, the thread's busy lock
+        and the DB session for that hour.
+        """
+        mw = RetryAfterMiddleware(
+            max_retries=3, initial_delay=1.0, max_delay=30.0, jitter=False
+        )
+        exc = _litellm_rate_limit_error(**{"retry-after-ms": "3600000"})
+        assert mw._delay_for_attempt(0, exc) == pytest.approx(30.0)
 
 
 class TestShouldRetry:
