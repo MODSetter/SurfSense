@@ -21,6 +21,13 @@ class UserApiService {
 			body: request,
 		});
 	};
+
+	/**
+	 * Delete the current account. Locks it out immediately; the erase follows.
+	 */
+	deleteMe = async () => {
+		return baseApiService.delete(`/users/me`);
+	};
 }
 
 export const userApiService = new UserApiService();

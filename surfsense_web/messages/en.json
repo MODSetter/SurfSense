@@ -129,7 +129,15 @@
 		"copy": "Copy to clipboard",
 		"no_api_key": "No API key found",
 		"usage_title": "How to use",
-		"usage_description": "Include your API key in the Authorization header:"
+		"usage_description": "Include your API key in the Authorization header:",
+		"delete_account_heading": "Delete account",
+		"delete_account_description": "Deleting your account is immediate and cannot be undone.",
+		"delete_account_title": "Delete your account?",
+		"delete_account_consequences": "Every workspace you own is deleted, along with its chats, documents, connectors and API keys — anyone you share one with loses that work too. Leftover credit is forfeited and not refunded, and signing up again with this account will not include the free welcome credit.",
+		"delete_account_confirm_label": "Type {word} to confirm",
+		"delete_account_confirm": "Delete my account",
+		"delete_account_cancel": "Cancel",
+		"delete_account_error": "Could not delete your account"
 	},
 	"dashboard": {
 		"title": "Dashboard",

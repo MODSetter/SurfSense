@@ -191,6 +191,7 @@ celery_app = Celery(
     broker=CELERY_BROKER_URL,
     backend=CELERY_RESULT_BACKEND,
     include=[
+        "app.account_deletion.erase",
         "app.tasks.celery_tasks.document_tasks",
         "app.podcasts.tasks.draft",
         "app.podcasts.tasks.render",

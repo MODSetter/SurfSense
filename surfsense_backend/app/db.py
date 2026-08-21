@@ -2250,11 +2250,13 @@ if config.AUTH_TYPE == "GOOGLE":
         # Decreases on use (ETL pages + premium model calls), increases on
         # purchase / incentive grant / auto-reload. May dip slightly negative
         # when an actual cost exceeds its pre-charge estimate; UI clamps at $0.
+        # Starts empty: app.signup_credit grants it once per person, so that a
+        # default here cannot mint another $5 for every new account.
         credit_micros_balance = Column(
             BigInteger,
             nullable=False,
-            default=config.DEFAULT_CREDIT_MICROS_BALANCE,
-            server_default=str(config.DEFAULT_CREDIT_MICROS_BALANCE),
+            default=0,
+            server_default="0",
         )
         # In-flight reservation holds (released/settled at finalize).
         credit_micros_reserved = Column(
@@ -2380,11 +2382,13 @@ else:
         # Decreases on use (ETL pages + premium model calls), increases on
         # purchase / incentive grant / auto-reload. May dip slightly negative
         # when an actual cost exceeds its pre-charge estimate; UI clamps at $0.
+        # Starts empty: app.signup_credit grants it once per person, so that a
+        # default here cannot mint another $5 for every new account.
         credit_micros_balance = Column(
             BigInteger,
             nullable=False,
-            default=config.DEFAULT_CREDIT_MICROS_BALANCE,
-            server_default=str(config.DEFAULT_CREDIT_MICROS_BALANCE),
+            default=0,
+            server_default="0",
         )
         # In-flight reservation holds (released/settled at finalize).
         credit_micros_reserved = Column(
@@ -2831,6 +2835,7 @@ from app.podcasts.persistence import (  # noqa: E402, F401
     Podcast,
     PodcastStatus,
 )
+from app.signup_credit.persistence import SignupCreditClaim  # noqa: E402, F401
 
 
 def _build_connect_args() -> dict:

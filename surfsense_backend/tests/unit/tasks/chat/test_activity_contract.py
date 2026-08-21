@@ -293,6 +293,81 @@ def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
     assert tool_part["metadata"]["activityId"] == "act_turn_1"
 
 
+@pytest.mark.parametrize(
+    ("content", "expected", "expected_status"),
+    [
+        (
+            '{"status":"completed","value":1}',
+            {"status": "completed", "value": 1},
+            "completed",
+        ),
+        ('{"status":"cancelled"}', {"status": "cancelled"}, "cancelled"),
+        ("[]", {"result": []}, "completed"),
+        ('[{"id":1}]', {"result": [{"id": 1}]}, "completed"),
+        ('"done"', {"result": "done"}, "completed"),
+        ('"Error: failed"', {"result": "Error: failed"}, "error"),
+        ("42", {"result": 42}, "completed"),
+        ("true", {"result": True}, "completed"),
+        ("null", {"result": None}, "completed"),
+        ("not-json", {"result": "not-json"}, "completed"),
+        ("Error: failed", {"result": "Error: failed"}, "error"),
+    ],
+)
+def test_tool_end_handles_json_content_shapes(
+    content: str,
+    expected: dict,
+    expected_status: str,
+) -> None:
+    service = VercelStreamingService()
+    builder = AssistantContentBuilder()
+    state = AgentEventRelayState()
+    result = SimpleNamespace(write_attempted=False)
+
+    list(
+        iter_tool_start_frames(
+            {
+                "name": "create_calendar_event",
+                "run_id": "tool-1",
+                "data": {"input": {}},
+            },
+            state=state,
+            streaming_service=service,
+            content_builder=builder,
+            result=result,
+            step_prefix="turn",
+        )
+    )
+
+    frames = [
+        _payload(frame)
+        for frame in iter_tool_end_frames(
+            {
+                "name": "create_calendar_event",
+                "run_id": "tool-1",
+                "data": {
+                    "output": SimpleNamespace(
+                        content=content,
+                        tool_call_id="lc-tool-1",
+                    )
+                },
+            },
+            state=state,
+            streaming_service=service,
+            content_builder=builder,
+            result=result,
+            step_prefix="turn",
+            config={},
+        )
+    ]
+
+    output = next(frame for frame in frames if frame["type"] == "tool-output-available")
+    assert output["output"] == expected
+    activity_part = next(
+        part for part in builder.snapshot() if part["type"] == "data-activities"
+    )
+    assert activity_part["data"]["activities"][0]["status"] == expected_status
+
+
 def test_unknown_tools_are_generic_and_internal_tools_are_hidden() -> None:
     service = VercelStreamingService()
     result = SimpleNamespace(write_attempted=False)

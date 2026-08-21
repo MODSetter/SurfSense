@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { getUserAvatarColor, getUserInitials } from "@/lib/user-avatar";
+import { DeleteAccountDialog } from "./DeleteAccountDialog";
 
 function AvatarDisplay({
 	url,
@@ -56,6 +57,7 @@ export function ProfileContent() {
 	const { mutateAsync: updateUser, isPending } = useAtomValue(updateUserMutationAtom);
 
 	const [displayName, setDisplayName] = useState("");
+	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	useEffect(() => {
 		if (user) {
@@ -131,6 +133,20 @@ export function ProfileContent() {
 					</div>
 				</form>
 			)}
+
+			{!isUserLoading && (
+				<div className="mt-10 space-y-3 rounded-lg border border-destructive/30 p-4">
+					<div className="space-y-1">
+						<h2 className="text-sm font-medium">{t("delete_account_heading")}</h2>
+						<p className="text-xs text-muted-foreground">{t("delete_account_description")}</p>
+					</div>
+					<Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+						{t("delete_account_heading")}
+					</Button>
+				</div>
+			)}
+
+			<DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} />
 		</div>
 	);
 }

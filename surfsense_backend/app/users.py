@@ -33,6 +33,7 @@ from app.db import (
 )
 from app.observability import analytics as ph_analytics
 from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
+from app.signup_credit.award import award_signup_credit
 from app.utils.pat import PAT_PREFIX, maybe_touch_last_used, resolve_pat
 from app.utils.refresh_tokens import create_refresh_token
 
@@ -150,13 +151,17 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_register(self, user: User, request: Request | None = None):
         """
-        Called after a user registers. Creates a default workspace for the user
-        so they can start chatting immediately without manual setup.
+        Called after a user registers. Grants the welcome credit and creates a
+        default workspace so they can start chatting without manual setup.
         """
         logger.info(f"User {user.id} has registered. Creating default workspace...")
 
         try:
             async with async_session_maker() as session:
+                # Shares the transaction below: a rollback must not leave an
+                # identity marked as having taken a credit it never received.
+                granted = await award_signup_credit(session, user)
+
                 # Create default workspace
                 default_workspace = Workspace(
                     name="My Workspace",
@@ -210,6 +215,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 logger.info(
                     f"Created default workspace (ID: {default_workspace.id}) for user {user.id}"
                 )
+
+                # Keep the registration response honest; the grant was applied
+                # to the row, not to this instance.
+                user.credit_micros_balance = (user.credit_micros_balance or 0) + granted
 
                 # Authoritative registration + auto-created default workspace.
                 ph_analytics.capture(
