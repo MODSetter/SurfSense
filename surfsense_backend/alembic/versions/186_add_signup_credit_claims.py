@@ -93,7 +93,7 @@ def _claim_existing_google_identities() -> None:
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE signup_credit_claims (
+        CREATE TABLE IF NOT EXISTS signup_credit_claims (
             id SERIAL PRIMARY KEY,
             identity_kind VARCHAR NOT NULL,
             identity_fingerprint VARCHAR(64) NOT NULL,
@@ -104,7 +104,7 @@ def upgrade() -> None:
         """
     )
     op.execute(
-        "CREATE INDEX ix_signup_credit_claims_created_at "
+        "CREATE INDEX IF NOT EXISTS ix_signup_credit_claims_created_at "
         "ON signup_credit_claims(created_at)"
     )
 
@@ -120,4 +120,4 @@ def downgrade() -> None:
         'ALTER TABLE "user" ALTER COLUMN credit_micros_balance '
         f"SET DEFAULT {int(config.DEFAULT_CREDIT_MICROS_BALANCE)}"
     )
-    op.execute("DROP TABLE signup_credit_claims")
+    op.execute("DROP TABLE IF EXISTS signup_credit_claims")
