@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.account_deletion.erase import SharedWorkspacesRemainError, erase_account
+from app.account_deletion.erase import erase_account
 from app.db import User, Workspace
 from app.routes.workspaces_routes import create_default_roles_and_membership
 
@@ -62,21 +62,23 @@ async def test_erasing_takes_the_account_and_the_workspaces_it_owned_alone(
     assert await survives(bind_task_session, Workspace, not_mine)
 
 
-async def test_a_workspace_that_gained_a_member_stops_the_erase(
+async def test_a_workspace_the_user_shares_goes_with_them(
     bind_task_session: AsyncSession,
     db_user: User,
     db_workspace: Workspace,
     make_user,
     add_member,
 ):
-    await add_member(db_workspace, await make_user())
-    user_id, workspace_id = db_user.id, db_workspace.id
+    colleague = await make_user()
+    await add_member(db_workspace, colleague)
+    user_id, workspace_id, colleague_id = db_user.id, db_workspace.id, colleague.id
 
-    with pytest.raises(SharedWorkspacesRemainError):
-        await erase_account(user_id)
+    await erase_account(user_id)
 
-    assert await survives(bind_task_session, User, user_id)
-    assert await survives(bind_task_session, Workspace, workspace_id)
+    assert not await survives(bind_task_session, User, user_id)
+    assert not await survives(bind_task_session, Workspace, workspace_id)
+    # Their account is their own; only their access to this workspace ends.
+    assert await survives(bind_task_session, User, colleague_id)
 
 
 async def test_erasing_an_account_that_is_already_gone_finishes_quietly(

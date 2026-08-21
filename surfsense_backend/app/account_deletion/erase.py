@@ -7,17 +7,12 @@ from uuid import UUID
 
 from sqlalchemy import delete, select
 
-from app.account_deletion.preflight import workspaces_blocking_deletion
 from app.celery_app import celery_app
 from app.config import config
 from app.db import User, Workspace
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
-
-
-class SharedWorkspacesRemainError(Exception):
-    """The account still owns workspaces other people are working in."""
 
 
 @celery_app.task(
@@ -34,22 +29,11 @@ def erase_account_task(self, user_id: str) -> None:
 
 
 async def erase_account(user_id: UUID) -> None:
-    """Erase the account and everything only it can lose.
+    """Erase the account and every workspace it owns, members and all.
 
     Safe to run twice: a retry after a partial run finishes the rest.
     """
     async with get_celery_session_maker()() as session:
-        # The request-time check can go stale, and "user" cascades to
-        # workspaces -- deleting the row now would silently take a colleague's
-        # workspace with it. Abort instead; the account stays locked out with
-        # its data intact, which is recoverable.
-        blocking = await workspaces_blocking_deletion(session, user_id)
-        if blocking:
-            raise SharedWorkspacesRemainError(
-                f"Account {user_id} still owns shared workspaces: "
-                f"{[w.workspace_id for w in blocking]}"
-            )
-
         owned = (
             await session.scalars(
                 select(Workspace.id).where(Workspace.user_id == user_id)

@@ -7,10 +7,6 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.account_deletion.erase import erase_account_task
-from app.account_deletion.preflight import (
-    BlockingWorkspace,
-    workspaces_blocking_deletion,
-)
 from app.auth.context import AuthContext
 from app.auth.session_cookies import clear_session
 from app.db import User, get_async_session
@@ -48,15 +44,6 @@ async def update_current_user_profile(
     return updated_user
 
 
-@router.get("/me/deletion-preflight", response_model=list[BlockingWorkspace])
-async def get_account_deletion_blockers(
-    session: AsyncSession = Depends(get_async_session),
-    auth: AuthContext = Depends(require_session_context),
-):
-    """Workspaces the user must hand over or destroy before they can leave."""
-    return await workspaces_blocking_deletion(session, auth.user.id)
-
-
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_current_user_account(
     request: Request,
@@ -67,22 +54,6 @@ async def delete_current_user_account(
     auth: AuthContext = Depends(require_session_context),
 ):
     """Lock the account out now; erase it in the background."""
-    blocking = await workspaces_blocking_deletion(session, auth.user.id)
-    if blocking:
-        # The client checks this too, but only the server's answer is a
-        # guarantee that nobody else's workspace disappears.
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "WORKSPACES_NEED_A_NEW_OWNER",
-                "message": (
-                    "Hand these workspaces over or delete them before "
-                    "deleting your account."
-                ),
-                "workspaces": [w.model_dump(mode="json") for w in blocking],
-            },
-        )
-
     # Deactivating is the whole lockout: get_auth_context already turns away
     # inactive users on both the session and the token path.
     await session.execute(
