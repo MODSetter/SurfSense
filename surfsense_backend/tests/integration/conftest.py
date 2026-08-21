@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import text
+from sqlalchemy import select as sa_select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -22,6 +22,8 @@ DocumentType = app_db.DocumentType
 SearchSourceConnector = app_db.SearchSourceConnector
 SearchSourceConnectorType = app_db.SearchSourceConnectorType
 Workspace = app_db.Workspace
+WorkspaceMembership = app_db.WorkspaceMembership
+WorkspaceRole = app_db.WorkspaceRole
 User = app_db.User
 ConnectorDocument = importlib.import_module(
     "app.indexing_pipeline.connector_document"
@@ -91,6 +93,50 @@ async def db_user(db_session: AsyncSession) -> User:
     db_session.add(user)
     await db_session.flush()
     return user
+
+
+@pytest.fixture
+def make_user(db_session: AsyncSession):
+    """Build an extra account, for the multi-member cases db_user cannot cover."""
+
+    async def build() -> User:
+        user = User(
+            id=uuid.uuid4(),
+            email=f"{uuid.uuid4().hex[:8]}@surfsense.net",
+            hashed_password="hashed",
+            is_active=True,
+            is_superuser=False,
+            is_verified=True,
+        )
+        db_session.add(user)
+        await db_session.flush()
+        return user
+
+    return build
+
+
+@pytest.fixture
+def add_member(db_session: AsyncSession):
+    """Join a user to a workspace under one of its default roles."""
+
+    async def join(workspace: Workspace, user: User, role_name: str = "Editor"):
+        role_id = await db_session.scalar(
+            sa_select(WorkspaceRole.id).where(
+                WorkspaceRole.workspace_id == workspace.id,
+                WorkspaceRole.name == role_name,
+            )
+        )
+        membership = WorkspaceMembership(
+            user_id=user.id,
+            workspace_id=workspace.id,
+            role_id=role_id,
+            is_owner=False,
+        )
+        db_session.add(membership)
+        await db_session.flush()
+        return membership
+
+    return join
 
 
 @pytest_asyncio.fixture
