@@ -2831,6 +2831,7 @@ from app.podcasts.persistence import (  # noqa: E402, F401
     Podcast,
     PodcastStatus,
 )
+from app.signup_credit.persistence import SignupCreditClaim  # noqa: E402, F401
 
 
 def _build_connect_args() -> dict:
