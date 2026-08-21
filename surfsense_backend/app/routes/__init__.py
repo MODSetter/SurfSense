@@ -18,6 +18,7 @@ from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
 from app.notifications.api import router as notifications_router
 from app.podcasts.api import router as podcasts_router
+from app.workspaces.ownership.api import router as workspace_ownership_router
 
 from .agent_action_log_route import router as agent_action_log_router
 from .agent_flags_route import router as agent_flags_router
@@ -147,6 +148,7 @@ router.include_router(memory_router)  # User personal memory (memory.md style)
 router.include_router(team_memory_router)  # Workspace team memory
 router.include_router(automations_router)  # Automations CRUD + run history
 router.include_router(file_storage_router)  # Original file metadata + download
+router.include_router(workspace_ownership_router)  # Hand a workspace to another member
 router.include_router(build_capabilities_router())  # Scraper-API capability doors (05)
 router.include_router(
     build_authenticated_artifact_router()
