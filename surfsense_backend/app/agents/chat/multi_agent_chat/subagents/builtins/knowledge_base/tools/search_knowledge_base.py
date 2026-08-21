@@ -121,6 +121,7 @@ def create_search_knowledge_base_tool(
 
     _space_id = workspace_id
     _document_types = _search_types(available_connectors, available_document_types)
+    reranker = RerankerService.get_reranker_instance()
 
     async def _impl(
         query: Annotated[
@@ -156,13 +157,14 @@ def create_search_knowledge_base_tool(
                 top_k=clamped_top_k,
             )
 
-            reranker = RerankerService.get_reranker_instance()
             if reranker is not None:
                 rendered = await asyncio.to_thread(
                     build_context, cleaned_query, hits, registry, reranker=reranker
                 )
             else:
-                rendered = build_context(cleaned_query, hits, registry)
+                rendered = build_context(
+                    cleaned_query, hits, registry, reranker=reranker
+                )
 
         _perf_log.info(
             "[search_knowledge_base] tool query=%r sources=%d in %.3fs",
