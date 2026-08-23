@@ -13,6 +13,11 @@ The deliverables agent authors a video the same way it authors a PDF: load the s
 A trusted instruction file (baked into `/opt/skills/video/` by the existing skills copy in `docker/sandbox/Dockerfile`). It encodes taste + the loop, mirroring `docker/sandbox/skills/{pdf,pptx}/SKILL.md`:
 
 - **Composition rules:** 1920×1080 @ fps 30; safe outer margins; body contrast; motion timing/easing; one purpose per slide; keep shapes on-canvas; the SurfSense watermark is supplied by the harness (do not re-add).
+- **Typography — pick from exactly three baked families, nothing else.** The jail has no network, so any other font silently falls back to a default and ships a wrong-looking video that structural verify won't catch (Phase 1 §2a). Reference them by `fontFamily` name only (they are system-installed; no `loadFont`/`@font-face`/`@remotion/google-fonts`):
+  - **`Inter`** — default sans: body copy, most headings, UI-style slides.
+  - **`Lora`** — serif: editorial titles, quotes, contrast.
+  - **`JetBrains Mono`** — monospace: code, figures, data labels, tabular numerals.
+  The skill must state these are the *only* permitted families and that requesting another is not possible offline.
 - **Authoring contract:** write each slide as a Remotion component; imports from the baked `node_modules` are allowed (real bundler). The harness supplies `stagger` and standard `remotion` symbols via the preamble.
 - **Narration:** call `synthesize_narration` (Phase 3) for the slide transcripts; it writes audio into the render workdir's `public/` and returns filenames. Reference them in `props.json`; do not fetch audio yourself (no network).
 - **The loop:**
@@ -67,9 +72,21 @@ The in-turn render is bounded by `SANDBOX_OPERATION_TIMEOUT_SECONDS` per `execut
 
 - **`VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT` (config).** Sized from measured render throughput (frames/sec on the target hardware, captured by the Phase-1 spike) so one segment renders at ~60–70% of `SANDBOX_OPERATION_TIMEOUT_SECONDS`, leaving headroom for `bundle()` + Chrome launch + variance. The **harness** (not the model) splits any deck beyond this bound into back-to-back segment renders and joins them with a stream-copy `ffmpeg concat` (the system ffmpeg baked in Phase 1 §2 — no re-encode, so the join is near-free). Segmentation stays useful under the queued fleet too: segments render in parallel and retry cheaply and independently.
 - **Product length cap — reuse `VIDEO_PRESENTATION_MAX_SLIDES`.** Maximum deck length is a deliberate *product* ceiling — the same one today's browser-rendered path already enforces — not a timeout artifact. The skill **refuses** a request past it with a clear message instead of attempting an unreasonable multi-segment render. This stays a product decision across the inline→queued flip.
-- **`VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS` (admission gate).** A video render holds its sandbox slot for the whole (long) render, so concurrent renders pass through a bounded semaphore sized to fleet capacity: a burst **queues** rather than exhausting the fleet into timeouts (umbrella §3). This is the one value whose *implementation* changes but whose *meaning* does not across the flip — a semaphore today, the render worker-pool concurrency later.
+- **`VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS` (admission gate).** A video render holds its sandbox slot for the whole (long) render, so concurrent renders pass through a bounded gate sized to fleet capacity: a burst **queues** rather than exhausting the fleet into timeouts (umbrella §3). This is the one value whose *implementation* changes but whose *meaning* does not across the flip — a gate today, the render worker-pool concurrency later.
+  - **The gate must bound the *fleet*, not one process.** A bare in-process `asyncio.Semaphore` bounds a single API worker; with `W` workers/pods you get `W × N` concurrent renders — the exact fleet exhaustion the gate exists to prevent. Two acceptable shapes: **(a)** keep the semaphore in-process but define the knob as *per-worker* and size the sandbox fleet to `W × N` (document that scaling workers re-sizes the fleet); or **(b)** a **distributed limiter** (Redis lease/token) so `N` is a true global ceiling regardless of `W`. Given SurfSense already runs Redis (Celery), (b) is the honest choice for a real fleet; (a) is acceptable only while `W` is fixed and known. This distinction is invisible today but silently wrong the moment the API runs more than one worker — call it out so it isn't discovered under load.
 
 All three live in `app/config` alongside `VIDEO_SANDBOX_RENDERING_ENABLED` and are documented in `surfsense_backend/.env.example`.
+
+## 5a. Render telemetry (make the inline→queued flip a data decision)
+
+The umbrella defers the queued render fleet "if sustained concurrency outgrows the sandbox fleet" (§4) — but nothing measures that today, so the decision would be guesswork. Emit metrics from the first inline render so the threshold is observed, not vibed:
+
+- **`render_seconds`** (per render; and per segment for long decks) — throughput drift vs. the Phase-1 spike; feeds `VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT` re-sizing.
+- **`admission_queue_wait_seconds`** + **current gate depth** — the primary signal that the gate is saturating and the fleet needs the queued shape.
+- **`segment_count`** per deck — how often long-deck segmentation actually triggers.
+- **`verify_fail_total{reason}`** — structural vs. frame-sanity vs. concat-duration (Phase 4), so silent-failure classes are visible.
+
+Reuse the existing observability sink (whatever `app/observability` already exports); these are counters/histograms, not a new subsystem.
 
 ## 6. Language guarantee (unchanged)
 
