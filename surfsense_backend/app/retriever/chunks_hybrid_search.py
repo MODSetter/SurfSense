@@ -10,6 +10,31 @@ from app.utils.perf import get_perf_logger
 _MAX_FETCH_CHUNKS_PER_DOC = 20
 
 
+def _cap_chunks_per_document(
+    chunks: list[dict], matched_ids: set[int], *, limit: int
+) -> list[dict]:
+    """Keep at most ``limit`` chunks for one document, matched ones first.
+
+    ``chunks`` arrives in reading order and the returned list preserves it;
+    only the selection is priority-ordered. Matched chunks are the citable
+    ones, so they are kept ahead of surrounding context.
+    """
+    if len(chunks) <= limit:
+        return chunks
+
+    keep: set[int] = set()
+    for chunk in chunks:
+        if len(keep) >= limit:
+            break
+        if chunk["chunk_id"] in matched_ids:
+            keep.add(chunk["chunk_id"])
+    for chunk in chunks:
+        if len(keep) >= limit:
+            break
+        keep.add(chunk["chunk_id"])
+    return [chunk for chunk in chunks if chunk["chunk_id"] in keep]
+
+
 def _instrument_search(mode: str):
     def _decorator(func):
         @functools.wraps(func)
@@ -344,7 +369,10 @@ class ChucksHybridSearchRetriever:
             )
             .options(joinedload(Chunk.document))
             .order_by(text("score DESC"))
-            .limit(top_k)
+            # Chunk rows, not documents: a chunk-dense document would otherwise
+            # fill a top_k-sized fusion window on its own and crowd every other
+            # document out. The document cap is applied after grouping, below.
+            .limit(n_results)
         )
 
         # Execute the RRF query
@@ -484,6 +512,20 @@ class ChucksHybridSearchRetriever:
         final_docs: list[dict] = []
         for doc_id in doc_ids:
             entry = doc_map[doc_id]
+            # The fusion window is sized in chunks, so a chunk-dense
+            # document can match far more passages than one prompt should
+            # carry. Bound what each document contributes, keeping the
+            # citable chunks first.
+            entry["chunks"] = _cap_chunks_per_document(
+                entry["chunks"],
+                matched_chunk_ids,
+                limit=_MAX_FETCH_CHUNKS_PER_DOC,
+            )
+            entry["matched_chunk_ids"] = [
+                chunk["chunk_id"]
+                for chunk in entry["chunks"]
+                if chunk["chunk_id"] in matched_chunk_ids
+            ]
             entry["content"] = "\n\n".join(
                 c["content"] for c in entry.get("chunks", []) if c.get("content")
             )
