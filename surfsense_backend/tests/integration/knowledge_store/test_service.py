@@ -545,6 +545,29 @@ async def test_a_resync_before_converge_does_not_fork(
     assert await store.read_as_of(second, recorded) == b"# Roadmap v2"
 
 
+async def test_a_reingest_of_an_unmarked_row_reattaches_instead_of_forking(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """A row can lose both its marker and its path column — the crash window
+    between the git commit and the mark, and the legacy unmarked-orphan rows in
+    production. Its file is still in git. A re-ingest must re-attach to that file
+    by the row's identity, not author ``Roadmap (2).md`` and strand the first."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    document.document_metadata = {}
+    document.path = None
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+
+
 # --- record_deleted_documents: the file has to go with the row ---
 #
 # Without this verb the row goes and the file stays, so the next whole-tree

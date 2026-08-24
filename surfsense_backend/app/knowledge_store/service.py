@@ -299,6 +299,13 @@ class KnowledgeStore:
                 taken.add(virtual)
         return taken
 
+    def _folder_parts(self, folder_id: int | None, index) -> tuple[str, ...]:
+        from app.knowledge_store.paths import DOCUMENTS_ROOT
+
+        base = index.folder_paths.get(folder_id, DOCUMENTS_ROOT)
+        relative = base[len(DOCUMENTS_ROOT) :].strip("/")
+        return tuple(relative.split("/")) if relative else ()
+
     def _author_path(
         self, *, title: str, folder_id: int | None, index, taken: set[str]
     ) -> str:
@@ -307,14 +314,41 @@ class KnowledgeStore:
         The naming law, not the legacy ``.xml`` derivation: this is the one place
         a live write chooses a name, so it is the one place the spelling is fixed.
         """
-        from app.knowledge_store.paths import DOCUMENTS_ROOT, allocate_path
+        from app.knowledge_store.paths import allocate_path
 
-        base = index.folder_paths.get(folder_id, DOCUMENTS_ROOT)
-        relative = base[len(DOCUMENTS_ROOT) :].strip("/")
-        folder_parts = relative.split("/") if relative else ()
         return allocate_path(
-            name=str(title or "untitled"), folder_parts=folder_parts, taken=taken
+            name=str(title or "untitled"),
+            folder_parts=self._folder_parts(folder_id, index),
+            taken=taken,
         ).virtual_path
+
+    async def _place_unmarked(self, doc: Document, *, index, taken: set[str]) -> str:
+        """Where a doc with no recorded path should write its file.
+
+        Re-attach to its own stranded file when git already holds the canonical
+        name and the row still resolves back to this doc; only then author a
+        fresh name. Without the re-attach a lost marker (the crash window, a
+        legacy unmarked row) forks the file into ``name (2)``.
+        """
+        from app.knowledge_store.paths import allocate_path
+        from app.knowledge_store.paths.resolve import virtual_path_to_doc
+
+        canonical = allocate_path(
+            name=str(doc.title or "untitled"),
+            folder_parts=self._folder_parts(doc.folder_id, index),
+            taken=set(),
+        ).virtual_path
+        if canonical in taken:
+            existing = await virtual_path_to_doc(
+                self._require_session(),
+                workspace_id=self._workspace_id,
+                virtual_path=canonical,
+            )
+            if existing is not None and existing.id == doc.id:
+                return canonical
+        return self._author_path(
+            title=doc.title, folder_id=doc.folder_id, index=index, taken=taken
+        )
 
     # ---------------------------------------------------------- capabilities
 
@@ -430,11 +464,8 @@ class KnowledgeStore:
                 if previous is not None:
                     virtual_path = previous
                 else:
-                    virtual_path = self._author_path(
-                        title=doc.title,
-                        folder_id=doc.folder_id,
-                        index=index,
-                        taken=taken,
+                    virtual_path = await self._place_unmarked(
+                        doc, index=index, taken=taken
                     )
                 files[to_store_path(virtual_path)] = doc.source_markdown
                 placed.append((doc, virtual_path))
