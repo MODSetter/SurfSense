@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 DOCUMENTS_ROOT = "/documents"
@@ -66,6 +66,24 @@ class StorePath:
     @property
     def name(self) -> str:
         return self.segments[-1] if self.segments else ""
+
+
+def recorded_virtual_path(
+    document_metadata: Mapping[str, object] | None, path: str | None
+) -> str | None:
+    """The path a doc already lives at: marker first, then the durable column.
+
+    Both are ``/documents/...`` virtual paths. The marker rides on metadata a
+    connector re-sync rewrites, so it can vanish; the ``path`` column is set by
+    the same writers and is not overwritten by a sync, so it is the fallback. The
+    live recorder and the Phase-5 seeder share this one reader, so a re-sync and a
+    re-seed can never pin one row to two different files.
+    """
+    prefix = f"{DOCUMENTS_ROOT}/"
+    for value in ((document_metadata or {}).get(PATH_MARKER), path):
+        if isinstance(value, str) and value.startswith(prefix):
+            return value
+    return None
 
 
 def validate_segments(segments: Iterable[str]) -> tuple[str, ...]:

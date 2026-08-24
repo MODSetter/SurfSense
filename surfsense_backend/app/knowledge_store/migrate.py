@@ -24,6 +24,7 @@ from app.knowledge_store.paths import (
     PATH_MARKER,
     allocate_path,
     build_path_index,
+    recorded_virtual_path,
     to_store_path,
 )
 
@@ -206,7 +207,7 @@ async def migrate_workspace(
                 continue
             if folder_id is not None:
                 seeded_folder_ids.add(folder_id)
-            recorded = _recorded_path(path, metadata)
+            recorded = recorded_virtual_path(metadata, path)
             if recorded is not None:
                 taken.add(recorded)
                 files[to_store_path(recorded)] = markdown
@@ -237,14 +238,6 @@ async def migrate_workspace(
     if report.ok and not dry_run:
         await _record_seeded_paths(session, seeded_paths)
     return report
-
-
-def _recorded_path(path: str | None, metadata: Mapping[str, str] | None) -> str | None:
-    """The authored-once path a row already carries, column before marker."""
-    for value in (path, (metadata or {}).get(PATH_MARKER)):
-        if isinstance(value, str) and value.startswith(f"{DOCUMENTS_ROOT}/"):
-            return value
-    return None
 
 
 def _folder_parts(folder_path: str | None) -> list[str]:

@@ -66,6 +66,30 @@ async def test_a_recorded_path_is_seeded_verbatim(
     assert await _seeded_paths(report) == {"documents/canary.md"}
 
 
+async def test_seed_honors_the_marker_over_a_disagreeing_path_column(
+    knowledge_root, db_session, db_workspace
+):
+    """Runtime pins a doc by its marker first, the path column only as a fallback
+    (``_recorded_virtual_path``). A legacy row can carry a marker and a path
+    column that disagree; the seeder must resolve to the same marker, or a re-seed
+    and a live re-sync write the document at two different paths and fork it.
+    """
+    document = await _add_document(
+        db_session,
+        db_workspace,
+        title="Whatever",
+        markdown="# Body",
+        marker="/documents/marker.md",
+    )
+    document.path = "/documents/column.md"
+    await db_session.flush()
+
+    report = await migrate_workspace(db_session, db_workspace.id)
+
+    assert report.ok, report
+    assert await _seeded_paths(report) == {"documents/marker.md"}
+
+
 async def test_an_unmarked_row_is_authored_as_markdown(
     knowledge_root, db_session, db_workspace
 ):

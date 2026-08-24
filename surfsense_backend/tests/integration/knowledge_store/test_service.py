@@ -282,6 +282,7 @@ async def _agent_authored(session, workspace, user, path: str, markdown: str):
         author_user_id=str(user.id),
     )
     document = await _make_document(session, workspace, user, path.rsplit("/", 1)[-1])
+    document.path = path
     document.document_metadata = {PATH_MARKER: path}
     await session.commit()
     return document
@@ -587,7 +588,7 @@ async def test_a_delete_removes_the_document_s_file(
     assert await _store_paths(db_workspace, revision) == set()
 
 
-async def test_a_delete_follows_the_marker_rather_than_the_title(
+async def test_a_delete_follows_the_recorded_path_rather_than_the_title(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip
 ):
     """An agent names its own files, so deriving the path from the title deletes

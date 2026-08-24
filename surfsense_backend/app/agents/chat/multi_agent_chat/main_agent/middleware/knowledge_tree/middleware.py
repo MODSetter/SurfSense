@@ -203,7 +203,7 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                         Document.id,
                         Document.title,
                         Document.folder_id,
-                        Document.document_metadata,
+                        Document.path,
                     ).where(Document.workspace_id == self.workspace_id)
                 )
                 docs = list(doc_rows.all())
@@ -219,7 +219,7 @@ class KnowledgeTreeMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         folder_paths = sorted(set(index.folder_paths.values()))
         doc_paths = sorted(
             virtual_path_of(
-                metadata=row.document_metadata,
+                path=row.path,
                 doc_id=row.id,
                 title=str(row.title or "untitled"),
                 folder_id=row.folder_id,

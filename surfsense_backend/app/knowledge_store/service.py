@@ -36,6 +36,7 @@ from app.knowledge_store.locks import workspace_write_lock
 from app.knowledge_store.paths import (
     PATH_MARKER,
     StorePathError,
+    recorded_virtual_path,
     workspace_store_path,
     workspace_working_copies_path,
 )
@@ -460,7 +461,7 @@ class KnowledgeStore:
                 # column: a connector re-sync overwrites its own metadata and can
                 # drop the marker, but the column survives it. Re-authoring a path
                 # for a doc that already has a file forks it into a duplicate.
-                previous = _recorded_virtual_path(doc, DOCUMENTS_ROOT)
+                previous = recorded_virtual_path(doc.document_metadata, doc.path)
                 if previous is not None:
                     virtual_path = previous
                 else:
@@ -474,7 +475,9 @@ class KnowledgeStore:
             )
             if revision:
                 for doc, virtual_path in placed:
-                    if _recorded_virtual_path(doc, DOCUMENTS_ROOT) == virtual_path:
+                    if recorded_virtual_path(doc.document_metadata, doc.path) == (
+                        virtual_path
+                    ):
                         continue
                     doc.document_metadata = {
                         **(doc.document_metadata or {}),
@@ -874,7 +877,7 @@ def _store_path_of(document: Document, index) -> str | None:
     from app.knowledge_store.paths import to_store_path, virtual_path_of
 
     virtual_path = virtual_path_of(
-        metadata=document.document_metadata,
+        path=document.path,
         doc_id=document.id,
         title=document.title,
         folder_id=document.folder_id,
@@ -918,24 +921,6 @@ def _relocation_of(
         return to_store_path(previous), to_store_path(current), current
     except StorePathError:
         return None
-
-
-def _recorded_virtual_path(document: Document, documents_root: str) -> str | None:
-    """The path a doc already lives at: marker first, then the durable column.
-
-    Both are ``/documents/...`` virtual paths. The marker rides on metadata a
-    connector re-sync rewrites, so it can vanish; the ``path`` column is set by
-    the same writers and is not overwritten by a sync, so it is the fallback that
-    keeps a re-sync overwriting in place instead of authoring a fresh duplicate.
-    """
-    prefix = f"{documents_root}/"
-    for value in (
-        (document.document_metadata or {}).get(PATH_MARKER),
-        document.path,
-    ):
-        if isinstance(value, str) and value.startswith(prefix):
-            return value
-    return None
 
 
 def _stale_store_path(previous: str | None, current: str) -> str | None:

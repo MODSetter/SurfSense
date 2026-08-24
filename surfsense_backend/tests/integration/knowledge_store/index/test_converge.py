@@ -80,10 +80,7 @@ async def by_path(session, workspace_id) -> dict[str, Document]:
     result = await session.execute(
         select(Document).where(Document.workspace_id == workspace_id)
     )
-    return {
-        (document.document_metadata or {}).get(PATH_MARKER): document
-        for document in result.scalars()
-    }
+    return {document.path: document for document in result.scalars()}
 
 
 async def chunk_ids(session, document_id) -> list[int]:
@@ -282,11 +279,11 @@ async def test_a_new_file_at_a_moved_from_path_gets_its_own_row(
     assert rows["/documents/old.xml"].id != moved_id
 
 
-async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
+async def test_a_move_that_rewrites_the_file_keeps_the_relocated_document(
     store, db_session, db_workspace, patched_embed_texts
 ):
     """With nothing in common git sees no move, so the halves arrive separately —
-    and an editor retitle has already moved the marker while leaving
+    and an editor retitle has already moved the path column while leaving
     unique_identifier_hash behind. The removal then resolves by that hash to the
     row the upsert just updated, dropping a document whose file is still in the
     tree, invisible until the next full rebuild."""
@@ -294,7 +291,7 @@ async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
     await index_changes(db_session, db_workspace.id)
     row = (await titles(db_session, db_workspace.id))["old"]
     document_id = row.id
-    row.document_metadata = {**row.document_metadata, PATH_MARKER: "/documents/new.xml"}
+    row.path = "/documents/new.xml"
     await db_session.commit()
 
     await commit(
@@ -476,6 +473,27 @@ async def test_a_rebuild_prunes_a_row_whose_file_is_gone(
     await index_changes(db_session, db_workspace.id)
 
     # Remove the file without letting the incremental path see the removal.
+    await commit(store, removes=["documents/a.xml"])
+    await index_tree(db_session, db_workspace.id)
+
+    assert set(await titles(db_session, db_workspace.id)) == {"b"}
+
+
+async def test_a_rebuild_prunes_a_path_only_row_whose_file_is_gone(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    """A backfilled legacy row is identified by its ``path`` column, not a marker.
+    Ownership — and so prune — has to key on the column, or such a row is never
+    reclaimed when its file leaves the tree."""
+    await commit(store, {"documents/a.xml": "# A", "documents/b.xml": "# B"})
+    await index_changes(db_session, db_workspace.id)
+
+    # A backfilled legacy row: the path column names its file, no marker.
+    doc = (await titles(db_session, db_workspace.id))["a"]
+    assert doc.path == "/documents/a.xml"
+    doc.document_metadata = {}
+    await db_session.commit()
+
     await commit(store, removes=["documents/a.xml"])
     await index_tree(db_session, db_workspace.id)
 

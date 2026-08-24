@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from app.knowledge_store.paths.legacy import parse_doc_id_suffix, safe_filename
 from app.knowledge_store.paths.naming import normalize_filename, safe_folder_segment
 from app.knowledge_store.paths.store_path import (
-    PATH_MARKER,
     StorePath,
     StorePathError,
 )
@@ -47,17 +46,6 @@ async def virtual_path_to_doc(
     if document is not None:
         return document
 
-    # Marker fallback: rows written before the column existed.
-    marked = await session.execute(
-        select(Document).where(
-            Document.workspace_id == workspace_id,
-            Document.document_metadata[PATH_MARKER].as_string() == virtual_path,
-        )
-    )
-    document = marked.scalars().first()
-    if document is not None:
-        return document
-
     unique_hash = generate_unique_identifier_hash(
         DocumentType.NOTE, virtual_path, workspace_id
     )
@@ -90,20 +78,18 @@ async def virtual_path_to_doc(
 async def _resolve_by_title(
     session: AsyncSession, workspace_id: int, path: StorePath
 ) -> Document | None:
-    """Match an unmarked row by title in its folder, re-encoding lossy titles.
+    """Match a locationless row by title in its folder, re-encoding lossy titles.
 
-    Restricted to rows with no authoritative location. A row that carries a path
-    column or a marker was already matched by it above; reclaiming it here by
-    title would let a fresh note at a name a moved note used to hold merge into
-    that moved row — the title is Postgres-owned and no longer tracks the file.
+    Restricted to rows with no ``path`` column. A row that carries one was
+    already matched by it above; reclaiming it here by title would let a fresh
+    note at a name a moved note used to hold merge into that moved row — the
+    title is Postgres-owned and no longer tracks the file.
     """
     from sqlalchemy import select
 
     from app.db import Document
 
-    unlocated = Document.path.is_(None) & Document.document_metadata[
-        PATH_MARKER
-    ].as_string().is_(None)
+    unlocated = Document.path.is_(None)
     folder_id = await _resolve_folder_id(
         session, workspace_id=workspace_id, folder_parts=list(path.folder_parts)
     )
