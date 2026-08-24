@@ -105,6 +105,25 @@ def test_runner_returns_value_and_disposes_engine_around_call() -> None:
     assert stub.dispose_loop_ids[0] == stub.dispose_loop_ids[1]
 
 
+def test_runner_resets_sandbox_handles_before_task_body(monkeypatch) -> None:
+    from app.sandbox import registry as sandbox_registry
+    from app.tasks.celery_tasks import run_async_celery_task
+
+    resets: list[str] = []
+    monkeypatch.setattr(
+        sandbox_registry,
+        "reset_registry_for_new_event_loop",
+        lambda: resets.append("reset"),
+    )
+
+    async def _body() -> str:
+        assert resets == ["reset"]
+        return "ok"
+
+    with _patch_shared_engine(_StaleLoopEngine()):
+        assert run_async_celery_task(_body) == "ok"
+
+
 def test_runner_creates_fresh_loop_per_invocation() -> None:
     """Each call must spin its own loop. Without this guarantee a
     previous task's loop would be reused and the asyncpg-stale-loop
