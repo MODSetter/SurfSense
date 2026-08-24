@@ -1,61 +1,70 @@
 # Phase 3 — Queued narration bridge and duration policy
 
-**Status:** DESIGN.
+**Status:** IMPLEMENTED.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phase 1 (sandbox harness), Phase 2 (video skill), and Phase 2b (queued deliverable jobs).
+**Depends on:** Phases 1, 2, and 2b.
 
-## 1. Goal
+## 1. Outcome
 
-Run narration as part of the queued video workflow, inside the dedicated worker's invocation of the existing deliverables subagent. The interactive request path only validates and enqueues a `DeliverableJob`; it never synthesizes narration, authors scenes, or waits for rendering.
+Narration runs inside the backend-owned queued video executor. The interactive request path only enqueues a job and never performs TTS or waits for audio.
 
-The trusted worker performs TTS without granting the sandbox network access, writes inert audio bytes into the job-owned workdir, measures the resulting media, and applies the exact 180-second output policy before authoring can proceed to final rendering.
+The executor directly calls `synthesize_narration()` as a trusted Python function. It does not expose narration as an interactive model tool or invoke it through a queued subagent mode.
 
-## 2. Worker-owned narration
+## 2. Trusted narration flow
 
-Reuse `deliverables/tools/synthesize_narration.py` in trusted `execution_mode="queued_job"`:
+For each normalized scene:
 
-- Resolve the sandbox and workdir from trusted job context. The sandbox owner is `deliverable-job:{job_id}` and the workdir is `/workspace/deliverable-job-{job_id}`; neither value is model-controlled.
-- Reuse current voice/language resolution, provider calls, token/TTS accounting, and quota checks. Narration billing occurs exactly once in the worker; do not add a second video-level reserve around the nested tool.
-- Write each generated audio file with `SandboxSession.write_file()` under `<workdir>/public/`, returning filenames suitable for Remotion `staticFile()`.
-- Keep credentials and network access on the trusted side. The sandbox remains network-disabled.
-- Emit lifecycle progress through queued-job middleware. Progress and phase are trusted job metadata, not model-authored chat text.
-- Check for cancellation between provider calls and before project preparation. A cancelling job stops before render, verify, or save.
+1. resolve voice/language and the configured TTS provider using existing video narration policy;
+2. call the provider from the trusted backend with existing quota and billing;
+3. write returned audio bytes into the attempt workdir's `public/` directory through `SandboxSession.write_file()`;
+4. probe each file with ffprobe;
+5. return the filename and measured duration used by Remotion.
 
-The tool is available to the existing deliverables subagent only in queued-job mode for video work. Interactive mode exposes the enqueue tool instead, and queued-job mode excludes enqueue and unrelated image, podcast, and legacy-video tools to prevent recursive dispatch.
+Scene audio synthesis runs concurrently with `asyncio.gather`. Credentials and provider network access never enter the sandbox.
 
-## 3. Exact duration gate
+Attempt ownership is:
 
-Duration is output policy, not a worker timeout:
+```text
+owner:   deliverable-job-{job_id}-attempt-{attempt_count}
+workdir: /workspace/deliverable-job-{job_id}-attempt-{attempt_count}
+audio:   <workdir>/public/slide-{scene_number}.{extension}
+```
 
-- `max_duration_seconds = 180` is defined by the version-controlled video `DeliverableKindSpec`; do not add an environment variable.
-- After narration, measure the exact duration of every generated audio file from the media itself and calculate the transcript/audio total using the same timing inputs that will drive composition metadata.
-- Accept an exact total of `180.000` seconds. Reject only when the measured total is strictly greater than 180 seconds.
-- On rejection, stop before final render, verification, artifact persistence, or blob upload and mark the job failed with public `failure_code="duration_limit"`.
-- Do not expose provider, ffmpeg, Remotion, sandbox, Celery, stack-trace, or subagent-timeout text. Full detail is logged with the job ID and only bounded diagnostics may be stored internally.
-- The Remotion harness independently enforces the authoritative second gate after `selectComposition()`: `composition.durationInFrames / composition.fps <= 180` before `renderMedia()`. Narration acceptance never bypasses that composition gate.
+## 3. Duration policy
 
-The 180-second output cap is independent of bounded worker soft/hard execution limits. The queued worker must not inherit the interactive 300-second subagent timeout and must not run unbounded.
+`VIDEO_SPEC.max_duration_seconds` is 180.
 
-## 4. Lifecycle and failure invariants
+- The narration bridge sums measured media durations after synthesis.
+- A total at or below 180 seconds proceeds.
+- A total above 180 seconds raises the typed duration-limit failure before final rendering or persistence.
+- The Remotion harness independently calls `selectComposition()` and rejects selected composition duration above 180 seconds.
 
-- The `DeliverableJob` exists before narration starts; no `Artifact` exists while the job is queued, running, cancelling, failed, or cancelled.
-- Narration output is resumable job-owned sandbox input, not an artifact blob.
-- Terminal narration, quota, policy, or cancellation paths clean up job-owned temporary output and leave no `Artifact` row or retained PRIMARY blob.
-- Automatic retries are limited to typed transient provider/infrastructure failures. Policy and quota failures require the user's explicit Retry, which requeues the same job identity and increments its attempt.
-- Sandbox termination runs in worker `finally`; lifecycle state updates survive cleanup errors.
+The product duration cap is independent of the Celery task's 3600-second soft and 3900-second hard limits.
 
-## 5. Checks
+## 4. Lifecycle, cancellation, and billing
 
-- Interactive video execution returns a pending job receipt without invoking TTS.
-- The queued worker invokes narration in the existing deliverables subagent and writes N non-empty files under the trusted job workdir's `public/`.
-- Billing and quota accounting occur once across worker and narration tool boundaries.
-- Measured totals below 180 seconds and exactly 180 seconds pass; any value above 180 seconds fails with `duration_limit` before render.
-- Cancellation during multi-scene narration stops subsequent provider calls and never reaches verify/save.
-- Public job data and chat output contain only stable failure codes/client-safe copy, never internal exception text.
+The executor writes the trusted `narrating` heartbeat before synthesis and commits it. Model text cannot set phase or progress.
 
-## 6. Exit criteria
+The cancellation watcher runs in parallel with the full executor. A cancellation request cancels the executor task and terminates the attempt sandbox. Because all scene TTS calls are started together, cancellation does not serially prevent “later” provider calls; it cancels the in-flight narration operation as part of executor cancellation.
 
-1. Narration is wholly owned by the queued worker workflow and never blocks the interactive turn.
-2. Audio reaches the network-disabled, job-isolated sandbox through trusted file writes.
-3. The exact post-narration 180-second gate runs before rendering, with the composition-duration gate retained as the final authority.
-4. Failed or cancelled narration leaves a durable job lifecycle but no Artifact or retained PRIMARY blob.
+Narration keeps its existing `video_presentation_generation` billing boundary and quota reserve. Worker creative LLM calls use the separate queued-deliverable billing wrapper. No duplicate outer narration reserve is added.
+
+Transient provider failures may use the bounded Celery retry path. Duration and quota failures are terminal for the current attempt and require explicit Retry.
+
+## 5. Persistence invariants
+
+- `DeliverableJob` exists before TTS starts.
+- Narration files are temporary attempt-owned sandbox inputs, not Artifact files.
+- No Artifact is created during narration.
+- Cancellation or narration failure prevents render, verification, and save.
+- Sandbox cleanup is attempted in worker `finally`; cleanup failure does not change the committed lifecycle result.
+
+## 6. Acceptance
+
+- interactive enqueue invokes no TTS;
+- queued execution writes non-empty audio under the exact attempt workdir;
+- provider secrets remain outside the sandbox;
+- billing and quota checks occur through the existing narration boundary;
+- measured output above 180 seconds fails before render;
+- selected composition duration is checked again by the harness;
+- failed/cancelled narration creates no Artifact.

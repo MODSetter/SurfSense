@@ -1,79 +1,99 @@
 # Phase 5 — Worker-owned persistence and MP4 serving
 
-**Status:** DESIGN.
+**Status:** IMPLEMENTED WITH A TRANSACTIONAL HARDENING GAP.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phase 2b (queued deliverable jobs), Phase 4 (signed video verification), and existing artifact storage/serving.
+**Depends on:** Phase 2b, Phase 4, and existing artifact storage/serving.
 
-## 1. Goal
+## 1. Outcome
 
-Persist a verified MP4 as the PRIMARY artifact file through the existing generic artifact spine, then serve it with HTTP Range support. Persistence is the final operation of the queued worker workflow; the interactive turn only creates a `DeliverableJob` and returns its pending receipt.
+A successfully verified MP4 is streamed from the attempt sandbox into the generic Artifact platform and served through the existing authenticated manifest, content, download, and HTTP Range routes.
 
-The ordering invariant is:
+```text
+DeliverableJob
+  → queued/running pipeline
+  → verified MP4 + signed receipt
+  → streamed PRIMARY ArtifactFile
+  → Artifact ID
+  → job ready
+```
 
-`DeliverableJob → queued/running work → verified MP4 → streamed save → Artifact link + ready`
+There is no job-specific media endpoint or second video storage model.
 
-There is never a placeholder Artifact. Queued, running, cancelling, failed, and cancelled jobs have `artifact_id = null`.
+## 2. Save path
 
-## 2. Atomic save contract
+`execute_video_deliverable()` calls `save_artifact()` directly with:
 
-Reuse `deliverables/tools/save_artifact.py` from the existing deliverables subagent in trusted queued-job mode. Do not add a second video recorder or a worker-only persistence model.
+```text
+ArtifactFileStreamInput
+  chunks = sandbox.read_file_stream(output_path)
+  filename = generated .mp4 name
+  mime_type = video/mp4
+  expected_sha256 = verification receipt digest
+```
 
-1. Recheck that the job is running, not cancelling, has no linked artifact, and owns the sandbox/workdir.
-2. Validate the signed verification receipt against the final MP4 path and canonical `format="video"`.
-3. Stream the MP4 from the sandbox into storage while calculating SHA-256 and byte count in one pass; never buffer the full MP4 in backend memory.
-4. Reject and delete the uploaded blob if the stream hash differs from the receipt.
-5. Create the `Artifact`/PRIMARY `ArtifactFile`, link `job.artifact_id`, and transition the job to `ready` in one database transaction.
-6. If storage succeeds but the database transaction fails, perform compensating blob cleanup. If cleanup itself fails, record/log a cleanup incident without converting the job to ready.
+Before save, the executor checks that the receipt path and canonical `format="video"` match the exact final output.
 
-The job must be durable before broker dispatch and long before artifact creation. `ready` and non-null `artifact_id` become visible together; clients must never observe a ready job without its Artifact or an Artifact belonging to a non-ready job.
+`store_artifact_file_stream()`:
 
-## 3. Streaming storage
+- consumes the async byte stream without buffering the whole MP4;
+- calculates byte count and SHA-256 while writing;
+- uses the generic local or Azure streaming backend;
+- rejects a final digest mismatch;
+- deletes the uploaded blob when streaming or database persistence fails within the artifact service.
 
-Add the minimum format-neutral streaming primitives needed by the existing artifact service:
+The saved file is the PRIMARY file and the Artifact format is explicitly `video`.
 
-- `StorageBackend.put_stream(key, chunks, *, content_type)`: Azure passes the async iterable to `upload_blob`; local storage writes chunks to one open file.
-- A streaming artifact-file save path reads the job-owned sandbox MP4 in chunks, updates SHA-256 and byte count, and writes the PRIMARY blob.
-- Populate `ArtifactFile.size_bytes` from the streamed count and compare the final digest with the Phase-4 receipt.
-- Persist the artifact format explicitly from `verification.format`, producing `format="video"` rather than deriving `"mp4"` from the suffix.
-- Keep document byte-based persistence unchanged; do not build a broader streaming abstraction than this path requires.
+## 3. Current transaction boundary
 
-No blob produced during rendering, narration, previews, or verification is an Artifact file. Those files remain temporary in the isolated job sandbox.
+The earlier design required Artifact creation, `job.artifact_id`, and `job.status=ready` in one transaction. That is not the current implementation:
 
-## 4. Failure, cancellation, and retry
+1. `save_artifact()` creates and commits the Artifact and PRIMARY blob;
+2. the Celery task separately calls `complete_deliverable_job(artifact_id=...)`;
+3. that transition commits `artifact_id`, `ready`, progress 100, and finish time.
 
-- Check cancellation before storage upload and immediately before the linking transaction. Once Artifact linking begins, cancellation is rejected.
-- A cancelled job stops before save and leaves no Artifact row or retained PRIMARY blob.
-- A save, hash, quota, verification, or database failure leaves the job failed with `artifact_id = null` and no retained PRIMARY blob.
-- Map failures at the job boundary to stable public codes such as `quota_exceeded`, `verification_failed`, or `generation_failed`; storage/provider/Celery/stack details remain internal.
-- Explicit Retry requeues the same job identity, increments attempts, rechecks quota/policy, and starts with no Artifact/blob from the failed attempt.
-- Automatic retries are only for typed transient failures and remain safe through deterministic task IDs, atomic worker claim, and the idempotent save/link checks.
-- Worker cleanup always terminates the job-owned sandbox in `finally`; a cleanup failure cannot overwrite a committed ready/failed/cancelled lifecycle state.
+This creates a small failure window in which an Artifact can exist while the job has not reached ready. The database still prevents a ready job without an Artifact ID, but it does not guarantee the reverse.
+
+Future hardening must either make the final linkage atomic or add explicit reconciliation/compensation for a successful Artifact save followed by job-completion failure. The specs must not claim that this is already transactional.
+
+## 4. Cancellation, retries, and revisions
+
+- Stage heartbeats and the parallel watcher prevent a cancelled/superseded attempt from normally reaching save.
+- Cancel is not allowed for ready/failed/cancelled jobs.
+- Explicit Retry starts a new attempt with a clean attempt sandbox and no linked artifact on the job.
+- Transient provider retry requeues the current job safely through conditional state changes.
+- Revision save supplies `expected_generation` for optimistic concurrency against the target Artifact.
+- Sandbox cleanup remains independent from storage cleanup and cannot overwrite the lifecycle state.
 
 ## 5. Serving
 
-Extend the existing authenticated artifact content path; do not add a video-specific read route:
+The existing Artifact routes provide:
 
-- Parse single open-ended and closed byte ranges and return `206 Partial Content`, correct inclusive `Content-Range`, `Accept-Ranges: bytes`, MIME `video/mp4`, existing ETag, and immutable cache headers.
-- Return `200` for a full request and `416` for an unsatisfiable range. Multipart byte ranges remain out of scope.
-- Add `StorageBackend.open_range(key, start, end)` (Azure ranged download; local seek/read) through the existing artifact-file service.
-- Permit inline serving for `video/mp4`; retain workspace RBAC on every request.
-- Downloads continue through the existing PRIMARY-file download path.
+- manifest lookup with the PRIMARY `video/mp4` content URL;
+- full `200` responses;
+- single closed/open-ended byte ranges with `206 Partial Content`;
+- correct inclusive `Content-Range` and `Accept-Ranges: bytes`;
+- `416` for unsatisfiable ranges;
+- ETag handling;
+- inline MP4 disposition;
+- workspace authorization;
+- existing PRIMARY-file download.
 
-Legacy writers, routes, and per-slide audio remain in this phase for rollout/backfill compatibility and are removed only by Phase 8.
+Local storage seeks and reads the requested range. Azure uses ranged blob download. Multipart ranges remain out of scope.
 
-## 6. Checks
+The browser's native `<video>` element therefore seeks through the same generic artifact route used by all MP4 viewers.
 
-- Enqueue creates a job and no Artifact; queued/running/cancelling states keep `artifact_id = null`.
-- A verified fixture streams to local and Azure storage without a full MP4 buffer; size and SHA-256 match the receipt.
-- Artifact creation, job linkage, and ready transition commit atomically.
-- Hash mismatch, failed verification, cancellation, upload failure, and database failure leave no Artifact and no retained PRIMARY blob; storage-success/database-failure exercises compensating cleanup.
-- Duplicate delivery cannot create a second Artifact or blob.
-- `Range: bytes=0-1023` returns correct `206`; full GET returns `200`; an invalid range returns `416`; seeking works on every backend.
-- Public lifecycle data contains no internal storage, sandbox, Celery, or stack-trace text.
+## 6. Temporary and legacy data
 
-## 7. Exit criteria
+Narration, generated scene source, stills, segments, receipts, and intermediate outputs remain temporary in the attempt sandbox. Only the verified MP4 becomes an Artifact file.
 
-1. The durable job always precedes the Artifact, and only successful worker verification/save creates and links one.
-2. Failed and cancelled attempts retain neither an Artifact row nor a PRIMARY blob.
-3. A ready job points to one canonical `format="video"` MP4 artifact saved through the generic streaming path.
-4. Existing authenticated manifest, download, and ranged content routes serve the MP4 to the existing frontend player.
+Legacy per-slide audio, scene metadata, old writers, and compatibility readers remain until the Phase-7 migration decision and Phase-8 retirement gates are complete.
+
+## 7. Acceptance
+
+- verified bytes stream to local/Azure-compatible storage without a full backend buffer;
+- stored size and SHA-256 match the verification receipt;
+- digest mismatch removes the partial blob and fails the attempt;
+- the final Artifact uses canonical format `video` and MIME `video/mp4`;
+- manifest, download, full content, `206`, `416`, ETag, and seeking use existing routes;
+- no placeholder Artifact is created at enqueue;
+- the separate Artifact-save and job-ready commits are tracked as an explicit remaining gap.

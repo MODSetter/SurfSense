@@ -1,108 +1,97 @@
-# Phase 2 — Video skill + mode-specific agent wiring
+# Phase 2 — Video authoring and agent wiring
 
-**Status:** DESIGN.
+**Status:** IMPLEMENTED.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phase 1 and [`phase-2b-queued-deliverable-jobs.md`](phase-2b-queued-deliverable-jobs.md).
+**Depends on:** Phase 1 and Phase 2b.
 
-## 1. Goal
+## 1. Outcome
 
-Keep the existing deliverables subagent as the sole video owner while giving it two sharply separated modes:
+Video generation has two separate execution boundaries:
 
-- **interactive:** validate and enqueue one video deliverable job, then return a pending receipt;
-- **trusted `queued_job`:** perform the complete authoring, narration, preflight, still review, render, verification, and streaming-save workflow.
+- **interactive deliverables subagent:** validates the request, calls `enqueue_deliverable_job` once, and returns a pending receipt;
+- **backend video executor:** performs authoring, narration, preparation, review, rendering, verification, and save inside the Celery task.
 
-Interactive mode never authors scenes, synthesizes narration, opens a sandbox, waits for completion, calls `wait_for_deliverable`, or invokes `renderMedia()`.
+There is no trusted `queued_job` mode in `run_deliverable_subagent()`, no queued tool allowlist, and no agent checkpoint used by the worker. The explicit executor is the canonical architecture.
 
-## 2. Skill contract
+## 2. Interactive routing
 
-`docker/sandbox/skills/video/SKILL.md` is baked into `/opt/skills/video/` and is loaded only for trusted queued video work. It describes:
+When `VIDEO_SANDBOX_RENDERING_ENABLED` and sandboxing are enabled:
 
-- 1920×1080 output, safe margins, readable contrast, restrained motion, and one clear purpose per scene;
-- the closed offline font set: Inter, Lora, and JetBrains Mono;
-- explicit imports and complete self-contained TSX modules with `export default`;
-- arbitrary layouts—no fixed slide templates;
-- narration through the existing trusted `synthesize_narration` tool, never runtime network fetches;
-- the 12-scene and 180-second product limits;
-- a bounded quality loop with at most two repair cycles.
+1. the existing main-agent routing sends video work to the deliverables subagent;
+2. its prompt tells it to enqueue once and return;
+3. only `enqueue_deliverable_job` is exposed for video creation;
+4. the server supplies kind, workspace, root-thread attribution, creator, tool-call identity, and request version;
+5. the tool commits the idempotent job, attempts dispatch, and returns `status="pending"` with `job_id`.
 
-The skill must not document injected globals, a compile-check preamble, regex export rewriting, browser rendering, inline execution, or environment-controlled render sizing.
+Interactive execution never authors scenes, synthesizes narration, opens a sandbox, waits for completion, verifies output, or saves an Artifact. Broker failures after commit remain recoverable through queued-row reconciliation and are not exposed in chat.
 
-## 3. Interactive mode
+When the flag is off or sandboxing is unavailable, the existing `generate_video_presentation` path remains the rollback behavior until Phase 8.
 
-When the existing rollout flag enables sandbox video:
+## 3. Backend-owned authoring
 
-1. Main-agent routing sends a video request to the existing deliverables subagent.
-2. The subagent normalizes a narrow brief: title, source references, requested content, and optional revision target.
-3. It calls the thin video enqueue tool backed by the generic deliverable-job adapter.
-4. The tool creates or returns the idempotent `DeliverableJob`, commits it, dispatches the generic task, and returns `status="pending"` plus `job_id`.
-5. The subagent tells the user that the card tracks progress and returns immediately.
+`execute_video_deliverable()` in `app/deliverables/video/executor.py` owns the ordered pipeline. It directly calls trusted Python functions instead of asking an agent to select tools.
 
-Only the enqueue tool is video-specific. The server, not the model, supplies the trusted kind, attribution, execution mode, checkpoint identity, sandbox owner, and policy.
+```text
+creative authoring
+  → backend normalization
+  → narration
+  → deterministic project preparation
+  → native preflight
+  → still review
+  → bounded repair when required
+  → final render
+  → structural verification
+  → bounded repair when required
+  → receipt-bound streaming save
+```
 
-Interactive mode keeps normal document/podcast/image behavior, but video does not receive queued-only authoring tools. Infrastructure errors are never echoed into chat. If broker publication fails after commit, return the durable pending receipt and let reconciliation republish the queued row.
+The worker obtains the billable LLM from the configured provider and wraps generation calls with queued-deliverable accounting. Vision review obtains the configured vision model separately. TTS retains its existing narration billing path.
 
-## 4. Trusted queued-job mode
+## 4. Deterministic authoring contract
 
-The generic Celery task loads the durable job, resolves its kind policy, atomically claims it, establishes trusted queued context, creates an isolated sandbox/workdir, and invokes the same `run_deliverable_subagent()` implementation.
+The LLM controls creative fields:
 
-Queued context includes trusted:
+- title and visual direction;
+- scene copy and narration transcript;
+- complete TSX body for each scene;
+- markdown representation.
 
-- `execution_mode="queued_job"`;
-- `deliverable_job_id`;
-- root thread/workspace/creator attribution;
-- checkpoint key `{root_thread_id}::deliverable_job:{job_id}`;
-- sandbox owner `deliverable-job:{job_id}`;
-- fixed workdir `/workspace/deliverable-job-{job_id}`;
-- normalized request and optional revision checkpoint.
+The backend controls structural fields:
 
-These values are not model arguments.
+- scene count validation;
+- sequential scene numbers;
+- stable scene and audio filenames;
+- scene ordering;
+- normalization of accepted field-name aliases;
+- repair merge behavior;
+- preservation of narration and scene count during repair.
 
-### Queued tool allowlist
+This separation prevents probabilistic model output from choosing filesystem identity or producing inconsistent scene numbering. The strict normalized result is `AuthoredVideo`, regardless of harmless naming variations in the creative draft.
 
-Queued video mode includes only tools needed for the workflow, including:
+## 5. Prompt and skill roles
 
-- load video instructions/source/revision material;
-- typed `prepare_video_project`;
-- narration synthesis;
-- sandbox execution/preflight;
-- multi-frame still review;
-- final verification;
-- streaming `save_artifact`.
+`executor.py` contains the authoritative author and repair prompts for queued work. They require complete self-contained TSX modules, explicit imports, default exports, safe margins, readable contrast, restrained motion, supported offline fonts, and no duplicate watermark.
 
-It excludes:
+`docker/sandbox/skills/video/SKILL.md` remains baked into the sandbox for video guidance and future interactive sandbox use. The queued worker does not load that skill through a subagent and does not expose narration, preparation, review, verification, or save as model-selected tools.
 
-- enqueue (prevents recursive jobs);
-- podcast;
-- image generation;
-- legacy video generation;
-- unrelated deliverable creation tools.
+Prompts never explain Celery, queue topology, sandbox ownership, or other infrastructure to the user.
 
-## 5. Complete queued authoring loop
+## 6. Repair policy
 
-The queued subagent:
+The executor uses one shared repair counter:
 
-1. drafts a durable scene/deck specification containing each scene's on-screen content and narration;
-2. checks the 12-scene policy before authoring;
-3. synthesizes narration through the existing trusted tool and rejects measured total audio above 180 seconds;
-4. writes complete default-export TSX modules and trusted props through `prepare_video_project`;
-5. runs native preflight (`bundle()` + `selectComposition()`), including the authoritative selected-duration gate;
-6. renders and reviews start/middle/end frames per scene plus the contact sheet;
-7. if needed, performs at most one compile/still repair;
-8. renders one final MP4 with progress and cooperative cancellation;
-9. calls `verify_artifact` on that exact MP4 using distributed frame plus stream/audio/duration/hash checks;
-10. if needed, performs at most one final-verification repair and re-renders/re-verifies;
-11. calls `save_artifact` with the unchanged deck specification as `markdown_representation`;
-12. links the verified Artifact and marks the job ready.
+- preflight or blocking still-review findings can trigger one repair before that stage becomes terminal;
+- post-render structural verification can trigger repair while the total remains below `VIDEO_SPEC.max_repair_cycles` (currently two);
+- repaired output is prepared/rendered and verified again;
+- repairs may update scene code and markdown but cannot change narration transcripts or scene count.
 
-After the two allowed repairs are consumed, failure is terminal until the user explicitly retries. The agent must never loop until the worker deadline.
+The loop is bounded and cannot continue until a worker deadline.
 
-The complete loop runs in queued-job mode. Moving only final rendering to Celery is explicitly non-compliant because it leaves authoring and repairs bounded by the interactive turn.
+## 7. Lifecycle and failure mapping
 
-## 6. Progress, failure, and billing behavior
+The executor writes trusted phase/progress heartbeats directly. Model prose never controls lifecycle state.
 
-Trusted middleware—not model prose—maps narration, preparation, preflight, still review, rendering, verification, and save into job phase/progress updates.
-
-The job boundary maps typed failures to stable public codes such as:
+Failures map to stable public codes:
 
 - `duration_limit`
 - `quota_exceeded`
@@ -111,49 +100,18 @@ The job boundary maps typed failures to stable public codes such as:
 - `verification_failed`
 - `cancelled`
 
-Full diagnostics are logged with the job ID and may be stored only as bounded internal detail. Celery, provider, ffmpeg, Remotion, stack trace, and subagent-timeout text never reaches the receipt, Zero, API, card, or chat.
+Bounded diagnostics may be stored in `internal_error`, but that field and all provider, Celery, OpenSandbox, Remotion, ffmpeg, path, and stack-trace detail remain private.
 
-Worker LLM/TTS usage is billed exactly once using existing accounting. Quota checks occur in the worker. Do not reserve or bill a duplicate wrapper around already billed narration.
+## 8. Revision behavior
 
-## 7. Rollout and revision
+An optional `revision_artifact_id` is stored in the private request. The executor loads the current Artifact and expected generation, authors the requested revision, and saves a new verified generation through optimistic concurrency. It does not edit MP4 bytes in place.
 
-Reuse the existing `VIDEO_SANDBOX_RENDERING_ENABLED` flag as the single authoring-entrypoint switch:
+## 9. Acceptance
 
-- off: current legacy video path remains available for rollback;
-- on: interactive video requests enqueue the generic durable job.
-
-Do not add environment variables. Queue routing, output limits, repair limits, worker time budgets, and Remotion limits are code policy; dedicated worker concurrency is Compose/Celery configuration.
-
-Video revision remains regenerate-from-markdown: queued mode loads the current Artifact plus the stored deck specification, re-authors from that specification and the new instruction, and saves a verified new generation. It does not edit MP4 bytes or depend on persisted scene source.
-
-## 8. Prompt and routing requirements
-
-The main-agent and deliverables prompts must say:
-
-- video requests return after enqueue;
-- the pending card is the lifecycle source of truth;
-- the existing deliverables subagent later performs the entire workflow in trusted queued-job mode;
-- no scene code or raw infrastructure error is returned in chat;
-- the browser receives only the verified MP4.
-
-Prompt composition and tool loading must derive from the same execution mode and rollout decision so a prompt cannot advertise a tool that is absent.
-
-## 9. Checks
-
-- Interactive mode exposes video enqueue but not video authoring/render tools.
-- Interactive video creates one idempotent job, returns pending, and performs no TTS/sandbox/render/verify/save work.
-- Queued mode excludes enqueue, podcast, image, and legacy video tools.
-- Trusted context creates unique checkpoint/workdir/sandbox ownership for concurrent jobs from one thread.
-- One queued run executes the full authoring-to-save loop and publishes trusted phase progress.
-- Native compile/still failure allows one repair; final verification failure allows one repair; no third repair occurs.
-- Cancellation stops before verify/save and creates no Artifact.
-- Public failures are stable/sanitized, and LLM/TTS billing occurs exactly once.
-- Flag-off behavior remains the legacy rollback path; flag-on behavior uses the queue.
-
-## 10. Exit criteria
-
-1. Interactive video handling is enqueue-only.
-2. The same deliverables subagent executes the whole workflow in trusted queued-job mode.
-3. Mode-specific tool allowlists prevent recursive dispatch and unrelated work.
-4. A successful queued run creates exactly one verified Artifact and marks its job ready.
-5. Repairs, execution time, output duration, cancellation, failures, and billing are bounded and testable.
+- the interactive path performs enqueue only;
+- repeated tool execution returns the same job;
+- the Celery worker has no dependency on `run_deliverable_subagent` or a LangGraph checkpointer;
+- backend normalization always assigns deterministic scene identity;
+- one worker attempt executes the complete author-to-save pipeline;
+- repair, duration, scene count, task time, billing, and cancellation are bounded;
+- flag-off continues to select the legacy rollback path.

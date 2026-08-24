@@ -1,218 +1,160 @@
 # Phase 2b — Queued deliverable jobs
 
-**Status:** DESIGN.
+**Status:** IMPLEMENTED.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Role:** Authoritative generic job, dispatch, worker-mode, lifecycle API, and live-card specification for queued video and future long-running deliverables.
+**Role:** Authoritative generic job, dispatch, worker, cancellation/retry, API, and live-state contract.
 
-## 1. Goal
-
-Add one reusable durable adapter around the existing deliverables subagent. Video is the first kind:
+## 1. Architecture
 
 ```text
 interactive enqueue
   → DeliverableJob
-  → generic Celery task routed to video_render
-  → existing deliverables subagent in trusted queued_job mode
+  → deliverables.execute_queued on shared surfsense Celery worker
+  → kind-specific backend executor
   → verified Artifact
 ```
 
-Each request has its own row, task attempt, sandbox, billing, cancellation, retry, and Artifact linkage. Deliverable kinds share infrastructure, never a job instance.
+The model and lifecycle are generic, but only the `video` kind is registered today. The shared worker uses the existing backend/Celery image and sandbox-provider configuration. There is no dedicated `video_render` queue, worker service, image, or `DeliverableKindSpec.queue`.
 
-## 2. Generic model
+## 2. Data model
 
-Add `DeliverableJob` and stable enums through a new migration; do not extend the legacy `VideoPresentationRun`.
+Migration `186_add_deliverable_jobs.py` adds `DeliverableJob` and stable enums rather than extending `VideoPresentationRun`.
 
-Store only generic lifecycle data:
+The row stores:
 
-- kind and title;
-- workspace, root thread, and creator attribution;
-- tool-call idempotency key;
-- trusted request/checkpoint JSON;
-- status, phase, and progress percentage;
-- nullable final `artifact_id`;
-- Celery task ID and attempt count;
-- stable public failure code and bounded internal diagnostic detail;
-- cancellation timestamp;
-- claim, heartbeat, finish, creation, and update timestamps.
+- `kind`, `title`, workspace, root thread, creator, and tool-call identity;
+- private versioned request and checkpoint JSON;
+- status, phase, progress, and nullable `artifact_id`;
+- current Celery task ID and attempt count;
+- stable failure code and bounded private diagnostic;
+- cancellation, claim, heartbeat, finish, create, and update timestamps.
 
-Enforce unique `(workspace_id, kind, tool_call_id)`. Repeated tool execution returns the existing job and cannot dispatch or bill twice.
-
-Do not create format-specific columns. Video-specific constants belong in trusted kind policy.
+Unique `(workspace_id, kind, tool_call_id)` makes enqueue idempotent. Video limits remain in `app/deliverables/jobs/policy.py`, not format-specific columns.
 
 ## 3. State machine
-
-The service permits only:
 
 ```text
 queued → running → ready
                  ↘ failed
 
-queued|running → cancelling → cancelled
-failed|cancelled → queued       (explicit Retry only)
+queued → cancelled
+running → cancelling → cancelled
+failed|cancelled → queued  (explicit Retry)
 ```
 
-Use conditional SQL updates for atomic claims/transitions. No repository abstraction is needed beyond the small set of lifecycle queries.
+Transitions use conditional SQL updates:
 
-Rules:
+- claim requires `queued`, no artifact, and the expected attempt/task identity;
+- running heartbeats and terminal transitions can be bound to `celery_task_id`;
+- `ready` requires an Artifact ID;
+- queued cancellation becomes terminal without worker execution;
+- running cancellation first becomes `cancelling`;
+- Retry keeps the same row/card ID, increments `attempt_count`, clears terminal fields, and assigns `deliverable-job:{id}:attempt:{attempt}`;
+- compile, policy, quota, render, and verification failures require explicit user Retry;
+- only classified transient provider failures use bounded Celery retry.
 
-- `ready` requires a linked verified Artifact.
-- No Artifact is present in queued, running, cancelling, failed, or cancelled states.
-- Pending cancellation reaches `cancelled` without worker execution.
-- Running cancellation reaches `cancelling`; worker cooperation stops before verify/save.
-- Retry preserves the same job/card identity, increments the attempt, rechecks policy/quota, assigns a deterministic new task ID, and returns to queued.
-- Automatic retry is limited to classified transient broker/provider failures with bounded backoff. Compile, product policy, quota, and verification failures require explicit Retry.
+`checkpoint` is present in the generic schema but the current video executor does not persist or resume mid-pipeline checkpoints.
 
-## 4. Trusted kind registry
+## 4. Kind policy
 
-A code-defined `DeliverableKindSpec` registry selects queue, policy, and worker budgets. Video defines:
+`DeliverableKindSpec` currently defines for video:
 
-- queue: `video_render`;
 - maximum duration: 180 seconds;
 - maximum scenes: 12;
-- repair cycles: one compile/still repair and one final-verification repair;
-- bounded soft/hard worker time limits suitable for a three-minute 1080p output.
+- repair cycles: 2;
+- soft task limit: 3600 seconds;
+- hard task limit: 3900 seconds.
 
-Do not add environment variables for these values, queue names, concurrency, or Remotion delay-render limits. Future kinds add one registry entry and a thin enqueue tool. They share `video_render` only if CPU, memory, latency, and operational characteristics are genuinely similar.
+Queue routing is intentionally absent. `deliverables.execute_queued` uses the default `surfsense` queue. A dedicated resource queue is a future operational option only if production measurements justify it.
 
-## 5. Enqueue, idempotency, and outbox
+## 5. Enqueue and outbox behavior
 
-The video enqueue tool exposes only a narrow schema: title, normalized brief/source references, and optional revision target. The server constructs kind and trusted context.
+`enqueue_deliverable_job` accepts title, brief, source references, and optional revision artifact. The server builds trusted request v1.
 
-Enqueue:
+1. Create or retrieve the idempotent row.
+2. Assign and persist the deterministic attempt task ID.
+3. Commit before broker publication.
+4. Publish `deliverables.execute_queued(job_id)`.
+5. Return a pending receipt immediately.
 
-1. create or return the idempotent job in a database transaction;
-2. commit before broker publication;
-3. preassign and persist a deterministic task ID for the attempt;
-4. publish `execute_queued_deliverable(job_id)` to the registry-selected queue;
-5. return `{"status":"pending","job_id":...}` immediately.
+The tool never calls `wait_for_deliverable`. Publication failure leaves a valid queued row and safe receipt. `deliverables.reconcile_queued` runs every minute and republishes queued rows older than two minutes. Atomic claim makes duplicate publication harmless.
 
-It never calls `wait_for_deliverable`.
+## 6. Celery task
 
-Treat queued rows as a small outbox. If publication fails after commit, retain and return the durable queued job without broker detail. A periodic reconciler republishes old queued rows whose dispatch is absent/stale. Deterministic task IDs plus atomic worker claims make duplicate publication harmless.
+`app/tasks/celery_tasks/deliverable_job_tasks.py`:
 
-## 6. Generic Celery executor
+1. opens a Celery-safe async database session;
+2. claims the expected queued attempt;
+3. invokes the registered kind executor (`execute_video_deliverable` for video);
+4. runs a parallel cancellation/supersession watcher;
+5. marks the current attempt ready, failed, cancelled, requeued, or ignored;
+6. bills worker LLM calls through the existing accounting boundary;
+7. terminates the attempt sandbox in `finally`.
 
-Implement one `execute_queued_deliverable(job_id)` task. It:
+Task behavior retains late acknowledgement, worker-lost rejection, and global prefetch multiplier `1`. The async runner resets process-wide loop-bound sandbox SDK handles before each fresh task event loop.
 
-1. opens the Celery database session and atomically claims the job;
-2. loads trusted request data and the kind policy;
-3. establishes heartbeat and lifecycle monitoring;
-4. creates a fresh isolated sandbox and trusted workdir;
-5. invokes the existing `run_deliverable_subagent()` with `execution_mode="queued_job"`;
-6. records ready, failed, or cancelled through typed state transitions;
-7. always terminates the job-owned sandbox in `finally`.
+The worker does not invoke a queued subagent, use a LangGraph checkpointer, or run only `renderMedia()`.
 
-Preserve `acks_late`, `worker_prefetch_multiplier=1`, and `task_reject_on_worker_lost`.
+## 7. Attempt isolation
 
-Artifact attribution uses `root_thread_id`. Background checkpoint state uses `{root_thread_id}::deliverable_job:{job_id}`. Sandbox ownership uses `deliverable-job:{job_id}`. This separation prevents same-thread jobs from sharing state or terminating each other's sandbox.
+```text
+task id: deliverable-job:{job_id}:attempt:{attempt_count}
+owner:   deliverable-job-{job_id}-attempt-{attempt_count}
+workdir: /workspace/deliverable-job-{job_id}-attempt-{attempt_count}
+output:  /workspace/deliverable-job-{job_id}-attempt-{attempt_count}.mp4
+```
 
-The task runs the whole deliverables workflow—not just `renderMedia()`.
+This prevents concurrent jobs and retried attempts from sharing files, sandbox ownership, cancellation, or state transitions.
 
-## 7. Queue and worker topology
+## 8. Cancellation and retry
 
-Add a dedicated worker service for `video_render` to production and development Compose:
+The database is the cancellation source of truth:
 
-- reuse the existing backend/Celery image and broker;
-- listen only to the code-defined `video_render` queue;
-- start with concurrency `1`;
-- process later video requests in queue order while the slot is occupied;
-- scale replicas/concurrency only after production metrics show queue pressure and sufficient CPU/memory headroom.
+- `POST .../{job_id}/cancel` atomically cancels queued work or changes running work to `cancelling`;
+- the worker watcher polls every 0.5 seconds in a separate session;
+- on cancellation it cancels the executor task, terminates the exact attempt sandbox, and commits `cancelled`;
+- if task identity changes, the old attempt is superseded and ignored;
+- stale cancelling rows older than five minutes are force-completed and their sandboxes are terminated.
 
-Do not create a Docker image, queue-name environment variable, or concurrency environment variable.
+`POST .../{job_id}/retry` accepts failed/cancelled jobs, creates the next attempt identity, commits, and republishes. Repeated action is idempotent once that retry is already queued.
 
-Different resource classes use different queues while retaining the same task and model. For example, a future I/O-heavy export can use `io_deliverables` and its own worker so it does not contend with Chrome rendering.
+The worker terminates the sandbox rather than writing the Remotion cancel marker. Stale-running reconciliation is not implemented.
 
-## 8. Progress and cooperative cancellation
+## 9. Save and completion
 
-Trusted middleware maps lifecycle phases such as narration, preparation, preflight, still review, rendering, verification, and save to bounded percentages. Model text never controls status or progress.
+The executor validates a signed receipt, streams the exact MP4 through generic artifact storage, and receives an Artifact ID. The task then calls `complete_deliverable_job`.
 
-During render, the harness atomically writes progress JSON. A worker monitor:
+These are currently separate commits: `save_artifact()` commits the Artifact first, then job completion commits `artifact_id` and `ready`. A fully atomic save/link transition described in earlier designs is not implemented and remains a hardening item.
 
-- updates the job heartbeat/progress;
-- notices a database transition to `cancelling`;
-- writes the trusted cancel marker consumed by Remotion's cancellation signal.
+## 10. Public lifecycle
 
-SIGTERM/SIGINT and user cancellation remove partial output and stop before verification/save. State updates survive cleanup errors.
+Migration 187 and `zero_publication.py` expose only:
 
-Reconciliation republishes undispatched queued rows. It marks a running job failed only when both task state and heartbeat are stale; elapsed render time alone is not evidence of failure.
-
-## 9. Verification and transactional save
-
-Queued mode reuses narration, verification, artifact streaming, and persistence services.
-
-`save_artifact` must:
-
-1. confirm the signed verification receipt matches the exact MP4 hash;
-2. stream bytes through the existing `ArtifactFileStreamInput` path;
-3. link `job.artifact_id` and transition the job to ready in one database transaction;
-4. compensate by deleting the uploaded blob if storage succeeds but the database transaction fails.
-
-Failed/cancelled jobs retain neither an Artifact row nor a PRIMARY blob.
-
-Worker LLM and TTS billing uses existing accounting exactly once. Quota checks run in the worker; no duplicate video-level reserve wraps nested narration billing.
-
-## 10. Public lifecycle and APIs
-
-Publish only lifecycle-safe job fields through Zero:
-
-- id, kind, title;
+- ID, kind, title;
 - status, phase, progress, failure code;
-- artifact ID;
-- workspace/root-thread IDs;
-- lifecycle timestamps.
+- Artifact ID;
+- workspace/thread IDs;
+- creation/update timestamps.
 
-Never publish request/checkpoint JSON, task IDs, heartbeat internals, sandbox details, or internal diagnostics.
+Request/checkpoint JSON, task IDs, attempts, heartbeats, cancellation internals, sandbox data, billing, and `internal_error` remain private.
 
-Authenticated endpoints provide GET, Cancel, and Retry. They enforce workspace authorization and ownership, reject cancellation after Artifact linking begins, and apply state-machine/idempotency rules.
+Authenticated workspace routes provide GET, Cancel, and Retry. Public failure codes are stable and user copy is mapped on the client.
 
-Public errors are stable codes such as `duration_limit`, `quota_exceeded`, `generation_failed`, `render_failed`, `verification_failed`, and `cancelled`. Provider, Celery, OpenSandbox, Remotion, ffmpeg, stack trace, and subagent-timeout details remain internal.
+## 11. Frontend contract
 
-## 11. Generic live job card
+The chat card subscribes by stable job ID through Zero and represents queued, running, cancelling, cancelled, failed, and ready. Cancel and Retry target that exact workspace/job pair. Controls are disabled while their request is pending, and the resulting state comes from Zero rather than optimistic mutation.
 
-Create a generic card for:
+Ready hands `artifact_id` to the existing MP4 artifact card. The artifacts library merges queued/running/cancelling video jobs; failed/cancelled jobs are currently omitted and ready jobs come from the normal Artifact list.
 
-- queued;
-- running with phase/progress;
-- cancelling;
-- cancelled;
-- failed;
-- ready.
+## 12. Implemented coverage and known gaps
 
-The card subscribes through the existing authorized thin-row/Zero pattern. Cancel is available until Artifact linking starts. Retry is available for failed/cancelled jobs and preserves card identity. Failure copy is mapped client-side from stable codes.
+Coverage includes lifecycle transitions, idempotent enqueue, task identities, duplicate dispatch, cancellation watcher, stale-cancelling reconciliation, retry, sandbox isolation, safe publication/API fields, frontend states/actions, shared-worker Compose configuration, and MP4 handoff.
 
-When video becomes ready, the card hands the linked Artifact to the existing manifest/HTTP Range/`Mp4VideoPlayer` path. It does not request media before playback and does not introduce a second video player.
+Known gaps:
 
-Merge in-flight jobs into the artifacts library using the existing lifecycle merge pattern. Podcasts may retain their dedicated lifecycle initially.
-
-## 12. Checks and exit criteria
-
-Backend coverage:
-
-- transition legality and conditional-claim races;
-- idempotent enqueue, deterministic attempts, and outbox reconciliation;
-- duplicate broker delivery and worker loss;
-- mode-specific tool allowlists;
-- same-thread sandbox/checkpoint isolation;
-- cancellation before and during render;
-- explicit retry and quota recheck;
-- sanitized public failures;
-- billing exactly once;
-- no Artifact before verified transactional save.
-
-Integration coverage:
-
-- migration upgrade/downgrade;
-- enqueue → `video_render` → queued subagent → verify → streaming save → ready;
-- stale heartbeat/task reconciliation;
-- cancellation and failed verification;
-- concurrent jobs from one thread;
-- Compose configuration with the existing image and concurrency `1`.
-
-Frontend coverage:
-
-- every lifecycle state;
-- safe failure-code mapping;
-- Cancel/Retry;
-- ready handoff to the existing MP4 player and library identity.
-
-Exit when one real queued video shows durable progress, survives chat disconnect, supports cancellation/retry, creates no premature Artifact, and reaches ready with one verified MP4.
+- no atomic Artifact-save/job-ready transaction;
+- no stale-running reconciler;
+- no executor checkpoint/resume;
+- no frame-level `progress.json` consumption;
+- no dedicated resource queue;
+- no end-to-end migration/backfill path.

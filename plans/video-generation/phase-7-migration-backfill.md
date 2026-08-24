@@ -1,92 +1,93 @@
-# Phase 7 — Migration & backfill
+# Phase 7 — Legacy video migration and backfill
 
-**Status:** DESIGN.
+**Status:** DESIGN. Not implemented.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phases 1–6 and the generic `DeliverableJob` worker described by the queued-deliverables plan. Runs before Phase 8 retires any legacy video path.
+**Depends on:** Production validation of Phases 1–6.
 
 ## 1. Goal
 
-Convert every reproducible legacy video artifact from an audio PRIMARY plus browser-rendered `scene_codes` to a verified MP4 PRIMARY without asking the user to regenerate it.
+Convert every legacy video Artifact that currently stores narration plus browser-rendered scene source into a verified MP4 PRIMARY file without requiring the user to regenerate it.
 
-This is a re-render, not a transcode: legacy artifacts contain narration and scene source, but no MP4. Backfill must use the production sandbox harness, verification gate, streaming persistence path, and durable job lifecycle. It must not introduce a second video worker, a second lifecycle table, or an in-process rendering path.
+This is a server-side sandbox re-render, not a transcode. Legacy scene source is untrusted code and must never be executed in the browser after migration. The backfill must execute that source only inside the network-disabled sandbox, then reuse structural verification, streaming persistence, and the durable `DeliverableJob` lifecycle.
 
-The rollout flag remains an authoring cutover control. Backfill may run while `VIDEO_SANDBOX_RENDERING_ENABLED` is either value, but only after the queued worker path has passed production acceptance. Backfill dispatches directly from trusted server code; it is never exposed as an interactive model tool.
+Phase 7 does not exist in the current codebase. In particular:
 
-## 2. Reuse the generic job system
+- there is no `backfill_video_mp4.py`;
+- the existing `backfill_video_artifacts.py` performs the historical `VideoPresentationRun` to Artifact migration and must not be confused with MP4 re-rendering;
+- the current live video executor accepts an authored-video request, not a legacy-source backfill intent;
+- no legacy compatibility adapter or migration ledger has been implemented.
 
-Keep `surfsense_backend/scripts/backfill_video_mp4.py` as a separate one-time enumerator. Do not extend `backfill_video_artifacts.py`, whose historical purpose is `VideoPresentationRun` to Artifact migration.
+## 2. Locked migration contract
 
-The script does only control-plane work:
+The implementation must:
 
-1. Select legacy video artifacts whose PRIMARY is still `audio/mpeg`.
-2. Determine whether all required scene and per-slide audio inputs exist.
-3. In dry-run mode, report reproducible, already-migrated, and frozen candidates without creating jobs.
-4. In apply mode, create or return one idempotent `DeliverableJob` per source artifact and dispatch the existing generic `execute_queued_deliverable(job_id)` task.
-5. Record a bounded migration ledger from job outcomes; do not poll Celery internals or render in the CLI process.
+1. inventory every legacy video Artifact and its scene source, narration, and metadata;
+2. create a new verified MP4 generation on the **same Artifact identity**;
+3. execute historical scene code only inside an isolated, network-disabled sandbox;
+4. support historical injected globals through a versioned compatibility runtime, without regex source mutation;
+5. preserve legacy inputs only for migration retry and rollback—not for continued client execution;
+6. keep the current Artifact PRIMARY unchanged until the replacement MP4 is verified and committed;
+7. reconcile the current separate Artifact-save/job-ready commits before production backfill;
+8. block Phase 8 while any legacy video still requires browser execution of stored scene code.
 
-Use the existing video kind policy and its `video_render` route. Store a trusted backfill intent and source artifact ID in the private request/checkpoint payload; do not add a public backfill schema, a video-specific job model, or a second Celery task. The idempotency key must be deterministic for the source artifact and migration version so rerunning the script cannot create duplicate jobs or billing.
+The live deterministic authoring prompt must not be used to rewrite historical content. Backfill needs a trusted adapter and explicit executor entrypoint.
 
-The generic worker continues to own:
+## 3. Proposed control plane
 
-- atomic claim, heartbeat, progress, cancellation, retry, and stale-job reconciliation;
-- the isolated job sandbox and trusted workdir;
-- queue routing to `video_render`;
-- bounded soft/hard execution limits and worker-loss behavior;
-- verification, streaming save, Artifact linkage, failure sanitization, and cleanup.
+Add a separately named one-time script only after the design above is approved. It should:
 
-Backfill uses the same dedicated `video_render` worker service, concurrency `1`, broker, and existing backend/Celery image as new video jobs. It receives no separate image, queue, worker implementation, or capacity environment variable. New and backfill jobs therefore share the same resource ceiling and FIFO capacity behavior.
+- support dry-run inventory without database writes;
+- classify already-MP4, ready-to-backfill, and blocked candidates;
+- create at most one versioned idempotent `DeliverableJob` per source Artifact in apply mode;
+- dispatch the existing generic `deliverables.execute_queued` task;
+- enqueue bounded batches;
+- report database outcomes without polling Celery internals or rendering in the script process.
 
-## 3. Deterministic backfill execution
+The private job request may add a versioned trusted backfill intent and source Artifact ID. No public backfill schema, video-specific lifecycle table, or second Celery task is required.
 
-Backfill does not need the model to invent or rewrite content. In trusted queued-job mode, the worker loads the stored inputs and follows the deterministic video preparation/render path:
+Backfill should use the current shared `surfsense` Celery worker and existing backend/Celery image unless production measurements lead to a separately approved queue change. It must not assume a `video_render` queue.
 
-1. Stream the stored per-slide audio into the job-owned workdir.
-2. Reconstruct typed project inputs from the stored `scene_codes`, timing, and audio references.
-3. Apply an explicit legacy-source compatibility adapter before the normal native bundler preflight. Keep this adapter confined to migration input handling; do not restore regex rewriting to the live scene contract.
-4. Run preflight, distributed still/contact-sheet checks where supported, final render, authoritative video verification, and byte-bound save.
-5. Save the MP4 as a new PRIMARY generation on the same source `artifact_id`, then link that artifact to the job and mark the job ready atomically.
+## 4. Proposed deterministic execution
 
-The compatibility adapter may supply the historical injected symbols required by stored scenes, but it must never modify source with regexes or promote exports heuristically. Validate the adapter against representative real legacy artifacts before enqueueing the full batch.
+A backfill-capable executor would:
 
-The normal 180-second and 12-scene product limits govern newly authored videos. They must not silently strand historical artifacts that previously exceeded those limits. Inventory those artifacts during dry-run and define a versioned migration policy before apply: either permit their existing measured duration/scene count only for trusted backfill, within the worker's bounded execution budget, or classify them as frozen. User input cannot select this exception.
+1. claim the generic job and create the normal attempt-owned sandbox/workdir;
+2. stream stored legacy audio into `public/`;
+3. adapt stored scene source into typed harness input without regex source mutation;
+4. run native preflight and supported still review;
+5. render the final MP4;
+6. run the existing structural verification and signed-receipt checks;
+7. stream the verified MP4 through generic Artifact storage;
+8. record a terminal migration outcome and preserve the original data through the rollback window.
 
-## 4. Outcomes and persistence safety
+It must retain attempt-scoped task IDs, sandbox ownership, cancellation, retry, failure sanitization, and cleanup from the live job system.
 
-Each source artifact has exactly one terminal migration outcome:
+## 5. Outcomes and remediation
 
-- **Backfilled:** verification succeeds and the MP4 becomes the artifact's PRIMARY generation.
-- **Already migrated:** the source already has a valid MP4 PRIMARY; no job is dispatched.
-- **Frozen:** required source data is missing, compatibility preflight fails, visual/frame sanity fails, or a terminal render/verification failure remains after the bounded retry policy.
+Every source Artifact has a tracked migration state:
 
-Frozen means immutable and explicitly accounted for; it does not mean silently deleting the artifact or asking the user to regenerate it. Phase 8 must not remove the playback/data path needed by frozen artifacts unless they have first been migrated, exported to a supported immutable representation, or covered by an approved product decision.
+- **Backfilled:** a verified MP4 became the approved PRIMARY generation.
+- **Already migrated:** a valid MP4 PRIMARY already existed.
+- **Blocked:** required data is missing or compatibility/render/verification has not yet succeeded.
 
-No queued, running, failed, cancelled, or frozen job may replace the source PRIMARY. Storage success followed by database failure uses the same compensating blob cleanup as live queued video generation. Per-slide audio and legacy scene metadata remain intact until the migration ledger and rollback window are closed.
+Blocked is not an acceptable final state for Phase 7. It requires operator remediation, a corrected compatibility adapter, restored inputs, or an approved server-side conversion/export path. The system must not solve a blocked migration by continuing to execute stored scene code in the client.
 
-## 5. Idempotency, load, and operations
+## 6. Safety and operations
 
-- Use a versioned source-artifact key as the tool-call/idempotency identity.
-- Commit the `DeliverableJob` before broker publication and let the normal queued-row reconciler recover publication failures.
-- Skip MP4 PRIMARY artifacts before job creation and recheck after worker claim to close races.
-- Do not create all jobs at once. Enqueue bounded batches and observe queue wait, render duration, worker memory, failures, and live-job latency before continuing.
-- Live and backfill work share `video_render`; pause the enumerator, rather than adding an ad hoc admission gate, if migration load harms interactive jobs.
-- Cancel and retry through the generic job state machine. Retry preserves the same job identity and increments its attempt.
-- Keep internal compatibility and render diagnostics private. Reports expose source ID, terminal category, stable failure code, and timestamps only.
-
-## 6. Validation and rollout
-
-1. Run dry-run inventory over a representative production sample and then the full population.
-2. Validate real examples for injected-symbol compatibility, fonts, audio timing, legacy durations, missing blobs, and blank/solid-color output.
-3. Backfill one artifact through `DeliverableJob` and observe queued/running progress, verification, streamed save, ready linkage, and MP4 playback.
-4. Prove cancellation leaves the original PRIMARY untouched and retry resumes through the same job.
-5. Prove duplicate enumeration and duplicate task publication do not create duplicate jobs, Artifacts, blobs, or billing.
-6. Run bounded batches while measuring both backfill and newly requested video queue latency.
-7. Re-run inventory after drain and reconcile every source artifact to Backfilled, Already migrated, or Frozen.
+- Use a versioned source-Artifact identity so reruns cannot duplicate jobs or billing.
+- Recheck current PRIMARY state after claim to close enumeration races.
+- Preserve original audio and scene metadata through validation and rollback, then remove client dependency on them after migration is accepted.
+- Pause bounded enqueue batches if migration work harms interactive latency.
+- Keep compatibility diagnostics private; reports expose IDs, timestamps, terminal category, and stable failure code.
+- Prove cancellation and failed attempts leave the original PRIMARY unchanged.
+- Account explicitly for the current Artifact-save/job-ready transactional gap before production backfill.
 
 ## 7. Exit criteria
 
-1. Every legacy video artifact is represented in the migration ledger with a terminal outcome.
-2. Every reproducible artifact has a verified MP4 PRIMARY on the same artifact identity; no user was asked to regenerate.
-3. Backfill used the generic `DeliverableJob` state machine, generic Celery task, `video_render` queue, existing worker image, sandbox isolation, verification, and streaming save path.
-4. Re-running enumeration is a no-op except for explicitly retried failed/cancelled jobs.
-5. Frozen artifacts and their required legacy playback/data dependencies are explicitly enumerated for Phase 8.
-6. Per-slide audio and legacy metadata remain available through the production validation and rollback window.
+1. Dry-run inventory classifies the full legacy population.
+2. Representative real artifacts pass the compatibility adapter, verification, save, and playback flow.
+3. Duplicate enumeration and duplicate task publication create no duplicate job, blob, Artifact generation, or billing.
+4. Every legacy video is Backfilled or Already migrated; no Blocked item remains.
+5. Every migrated Artifact plays from its verified MP4 and never executes stored scene code in the client.
+6. Original legacy inputs remain available only through the production validation and rollback window.
+7. Phase 8 receives proof that the browser renderer and stored scene-code playback path are no longer required.

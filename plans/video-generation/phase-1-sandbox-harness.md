@@ -1,94 +1,42 @@
 # Phase 1 — Sandbox Remotion harness + Chrome
 
-**Status:** DESIGN.
+**Status:** IMPLEMENTED.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** the existing sandbox image and provider.
 
-## 1. Goal
+## 1. Outcome
 
-Provide an offline, deterministic harness that turns typed, complete LLM-authored TSX scene modules plus trusted props/audio into:
+The existing `opensandbox/code-interpreter` image now includes an offline Remotion project that converts trusted typed inputs and complete generated TSX scene modules into preflight diagnostics, review stills, and one narrated 1920×1080 MP4.
 
-- native bundle/metadata preflight diagnostics;
-- start/middle/end stills for every scene and one contact sheet;
-- one narrated MP4;
-- atomic progress suitable for a durable queued job; and
-- cooperative cancellation with partial-output cleanup.
+The harness is invoked by the backend video executor inside an attempt-owned sandbox. It is not an inline browser renderer and is not driven by a queued subagent.
 
-The harness executes only inside a fresh job-owned sandbox. The entire video workflow is driven by the deliverables subagent in trusted `queued_job` mode; this phase does not define an inline/chat-turn renderer.
+## 2. Image and project contract
 
-## 2. Image contract
+`docker/sandbox/Dockerfile` bakes:
 
-Graft the official Remotion Docker requirements onto the existing `opensandbox/code-interpreter` base; do not replace it with `node:22-slim`. Bake:
+- Node/React/Remotion dependencies from `docker/sandbox/remotion/package.json`;
+- Chrome Headless Shell through Remotion's browser setup;
+- system ffmpeg/ffprobe;
+- the Remotion harness and installed `node_modules`;
+- Inter, Lora, and JetBrains Mono for offline use.
 
-- exact, matching stable versions of `remotion`, React, `@remotion/bundler`, `@remotion/renderer`, `@remotion/media`, and `@remotion/media-parser`;
-- Chrome Headless Shell via `npx remotion browser ensure`;
-- system ffmpeg/ffprobe for structural checks and cleanup validation;
-- the render harness and all `node_modules`, so runtime never installs or downloads;
-- the closed offline font palette already selected for the video skill: Inter, Lora, and JetBrains Mono.
+The code-interpreter entrypoint remains unchanged and generated code executes with sandbox networking disabled.
 
-Keep the code-interpreter entrypoint. Rendering is invoked per queued job through the sandbox provider. Network remains denied.
+`docker/sandbox/remotion/src/Root.tsx` registers composition `Main` at 1920×1080 and 30 fps. `calculateMetadata()` probes narration audio, resolves scene durations, and computes the total frame count. `Deck.tsx` sequences each scene with its audio and adds the shared SurfSense icon watermark from `public/icon-128.svg`.
 
-This image is the sandbox image that executes generated TSX. The dedicated `video_render` Celery worker is a separate Compose service that reuses the existing backend/Celery image; no new worker image is introduced.
+## 3. Scene input and deterministic preparation
 
-## 3. Scene and project-writing contract
+Every generated scene is a complete module with explicit imports and a default export. The system does not strip imports, promote exports, inject globals, parse source with regexes, or force a fixed slide template.
 
-Every generated scene is a complete, self-contained `.tsx` module:
+The backend assigns:
 
-```tsx
-import React from "react";
-import {
-  AbsoluteFill,
-  interpolate,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
+- sequential scene numbers;
+- `scene-NN.tsx` module filenames;
+- corresponding narration filenames;
+- scene order and stable metadata.
 
-export default function Scene() {
-  const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  const opacity = interpolate(frame, [0, 12, durationInFrames - 12, durationInFrames], [0, 1, 1, 0]);
+`prepare_video_project()` validates the authored schema and writes `props.json` with `SandboxSession.write_file()`. The current props include each scene's complete source code; `render.mjs` validates the payload and writes those modules into `src/scenes/` before bundling. Generated code is never interpolated through shell commands.
 
-  return (
-    <AbsoluteFill style={{ backgroundColor: "#0b1020", color: "white", opacity }}>
-      <h1 style={{ margin: 120, fontFamily: "Inter", fontSize: 88 }}>Example scene</h1>
-    </AbsoluteFill>
-  );
-}
-```
-
-Requirements:
-
-- imports are explicit;
-- a default export is mandatory;
-- modules are written verbatim;
-- any layout is allowed within output/safe-margin policy;
-- generated modules do not depend on injected globals;
-- no regex parsing, source rewriting, import stripping, export promotion, or fixed slide template exists.
-
-A trusted `prepare_video_project` deliverables tool accepts typed scene objects and trusted metadata. It writes files with `SandboxSession.write_file()` and serializes `props.json` as JSON. It never constructs TSX with Python f-strings or passes scene source through shell quoting.
-
-Representative trusted input:
-
-```json
-{
-  "fps": 30,
-  "scenes": [
-    {
-      "scene_number": 1,
-      "module_filename": "scene-001.tsx",
-      "audio_filename": "scene-001.mp3"
-    }
-  ]
-}
-```
-
-Scene code is stored in its module file, not duplicated in `props.json`.
-
-## 4. Remotion project
-
-The baked project registers one 1920×1080 composition. `calculateMetadata()` measures the exact narration bytes that will be muxed, computes per-scene durations, and returns resolved props and total frames. The deck sequences scenes and their audio without reconstructing or rewriting scene source.
-
-The harness exposes:
+## 4. Harness commands
 
 ```text
 node render.mjs --preflight props.json
@@ -96,83 +44,64 @@ node render.mjs --stills props.json outdir/
 node render.mjs props.json out.mp4
 ```
 
-All modes share the same input loading, `bundle()`, `selectComposition()`, bundle cache, progress format, cancellation behavior, Chrome options, and bounded per-frame delay-render timeout.
+All modes share validation, scene writing, bundling, composition selection, Chrome settings, and exact-input bundle reuse.
 
-### 4.1 Native preflight
+### Preflight
 
-`--preflight`:
+Preflight:
 
-1. validates trusted props and referenced files;
-2. bundles the real project with esbuild/Remotion;
-3. calls `selectComposition()` so `calculateMetadata()` runs;
-4. verifies dimensions, fps, scene count, audio references, and selected duration;
-5. returns concise structured diagnostics tied to scene number/module filename.
+1. validates props, scene count, and referenced audio;
+2. writes the generated scene modules;
+3. validates modules with esbuild;
+4. bundles the real Remotion project;
+5. runs `selectComposition()` and `calculateMetadata()`;
+6. enforces dimensions, fps, and the selected duration limit;
+7. returns bounded diagnostics.
 
-Missing/malformed default exports fail through the bundler. Diagnostics may classify native errors, but must not inspect or transform source with regular expressions.
+### Still review assets
 
-### 4.2 Product gates
+Stills mode renders start, middle, and end frames for every scene and creates one ffmpeg contact sheet. The backend sends these files to `review_video_stills()` when a vision model is available.
 
-Version-controlled policy allows at most:
+### Final rendering
 
-- 12 scenes; and
-- 180 seconds of final output.
+Full mode renders bounded frame segments and concatenates them into the requested MP4. Temporary output retains an `.mp4` suffix so ffmpeg can select the output format. A `.segments.json` sidecar records expected segment timing for final verification.
 
-Enforce duration twice:
+## 5. Product and runtime bounds
 
-1. after narration, reject measured transcript/audio total above 180 seconds;
-2. after `selectComposition()`, reject `composition.durationInFrames / composition.fps > 180` before any still or `renderMedia()` call.
+- maximum 12 scenes;
+- maximum selected duration 180 seconds;
+- exact 180 seconds is valid;
+- `VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT` controls segment size;
+- `VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS` controls bounded frame timeout;
+- `VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS` gates concurrent full renders per worker process.
 
-The exact 180-second boundary is valid. Product limits are distinct from the queued worker's bounded soft/hard execution budget.
+These render settings are existing configuration, while scene count, duration, repair count, and Celery task limits are defined by `DeliverableKindSpec`.
 
-### 4.3 Exact-input bundle reuse
+## 6. Ownership, progress, and cancellation
 
-Hash all complete module bytes, props, and other bundle-affecting inputs with Node's `crypto` SHA-256. Cache the resulting bundle only inside the trusted job workdir. Reuse it between preflight, still review, and final render only on an exact hash match.
+Each attempt uses:
 
-No cross-job cache is required. Changed module/props input must invalidate the cache.
-
-### 4.4 Multi-frame visual review
-
-For each scene, render representative start, middle, and end frames based on the resolved cumulative timeline, plus one contact sheet. Stills use the same selected composition and exact-input bundle as final rendering.
-
-The queued deliverables subagent reviews them through a bounded `review_video_stills` tool using the existing configured vision model when available. The rubric covers clipping, overflow, contrast, hierarchy, blank frames, motion endpoints, and safe margins. It does not impose a template or fixed layout.
-
-### 4.5 Progress and cancellation
-
-`renderMedia({ onProgress })` writes a small progress snapshot atomically (temporary file then rename). The payload is trusted machine state, for example:
-
-```json
-{"phase":"rendering","rendered_frames":900,"total_frames":2700,"fraction":0.3333}
+```text
+owner:   deliverable-job-{job_id}-attempt-{attempt_count}
+workdir: /workspace/deliverable-job-{job_id}-attempt-{attempt_count}
+output:  /workspace/deliverable-job-{job_id}-attempt-{attempt_count}.mp4
 ```
 
-A worker-side monitor maps this to job progress and checks the database for `cancelling`. When requested, it writes a trusted cancel marker into the job workdir. The harness checks that marker from `onProgress` and calls Remotion's `makeCancelSignal()` cancellation path.
+`render.mjs` atomically writes `progress.json`, supports a cancel marker, reacts to SIGTERM/SIGINT through Remotion cancellation, and removes partial output in cleanup.
 
-Handle SIGTERM/SIGINT cooperatively. In `finally`, remove partial segments, temporary stills, and incomplete MP4 output while retaining only inputs/checkpoints explicitly needed for a permitted retry. Cancellation must stop before verification and save.
+The current Celery implementation uses stage-level database heartbeats. Its cancellation watcher cancels the executor task and terminates the attempt sandbox; it does not currently poll `progress.json` or write the harness cancel marker.
 
-## 5. Runtime ownership and cleanup
+The task always attempts sandbox termination in `finally`. Cleanup failures are logged and do not replace the job's lifecycle result.
 
-Before agent invocation, the queued worker creates a fresh sandbox and a trusted workdir such as `/workspace/deliverable-job-{job_id}`, then copies the baked harness. Sandbox ownership is `deliverable-job:{job_id}` and is separate from root-thread Artifact attribution.
+## 7. Implemented checks
 
-The model cannot choose the workdir, cancellation marker, progress path, or cleanup root. Two jobs from the same chat never share a sandbox or checkpoint namespace.
+- native bundle and composition preflight;
+- typed scene/project validation;
+- exact-input bundle invalidation;
+- 12-scene and 180-second gates;
+- start/middle/end still generation and contact sheet;
+- segmented MP4 rendering with audio-derived timing;
+- atomic progress snapshots and cancellation primitives;
+- structural verification exercised by the backend pipeline.
 
-The worker terminates the job-owned sandbox in `finally`. Cleanup errors are logged but cannot overwrite a ready, failed, or cancelled state transition.
-
-## 6. Checks
-
-- A complete two-scene default-export fixture passes preflight, emits three frames per scene plus a contact sheet, and renders an audible 1920×1080 MP4 offline.
-- Missing and malformed default exports fail through bundling with scene/file diagnostics.
-- A repository search/test proves the harness has no source regex or `prepareSource()` transformation.
-- Typed preparation preserves module bytes exactly and safely serializes props.
-- 180 seconds passes; any positive amount above it fails before rendering.
-- Exact inputs reuse a bundle; one-byte module/props changes invalidate it.
-- Progress snapshots are atomic and monotonic enough for the worker mapping.
-- A cancel marker interrupts an active real Chrome render and leaves no partial MP4.
-- The review set includes start/middle/end for every scene and one contact sheet.
-
-## 7. Exit criteria
-
-1. The sandbox image builds and Chrome launches with network denied.
-2. Native preflight is the only compile contract; there is no regex scene rewriting.
-3. Product duration/scene gates run before expensive rendering.
-4. Preflight, stills, and final render reuse an exact-input bundle.
-5. Real rendering publishes progress and responds to cooperative cancellation.
-6. A playable, narrated MP4 is produced by the queued-job harness path.
+Frame-level progress integration and a real-browser cancellation integration test remain optional hardening work; they are not part of the current worker behavior.
