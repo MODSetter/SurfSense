@@ -125,7 +125,8 @@ validates (`extra="allow"`) but they are ignored.
 
 ```python
 from app.proprietary.platforms.google_search import (
-    GoogleSearchScrapeInput, scrape_serps,
+    GoogleSearchScrapeInput,
+    scrape_serps,
 )
 
 # One output item per SERP page; queries mixes terms and Google Search URLs.
