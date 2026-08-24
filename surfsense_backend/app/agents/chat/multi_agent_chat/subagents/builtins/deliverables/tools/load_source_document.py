@@ -79,8 +79,9 @@ def create_load_source_document_tool(*, workspace_id: int) -> BaseTool:
         working_dir = f"/workspace/sources/{document_id}"
         source_path = f"{working_dir}/source{suffix}"
 
-        root_thread_id = resolve_root_thread_id(runtime)
-        sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
+        sandbox = await (await get_registry()).get_session(
+            resolve_root_thread_id(runtime), workspace_id
+        )
         created = await sandbox.run_command(f"mkdir -p -- {shlex.quote(working_dir)}")
         if not created.ok:
             raise RuntimeError("Could not create the source document workspace")

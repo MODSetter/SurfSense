@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import shlex
+import time
 import uuid
 from typing import Literal
 
@@ -13,6 +15,7 @@ from langchain_core.tools import BaseTool, tool
 
 from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
+from app.observability import metrics as ot_metrics
 from app.sandbox import ExecResult, SandboxSession, get_registry
 
 from .thread_resolver import resolve_root_thread_id
@@ -20,13 +23,23 @@ from .thread_resolver import resolve_root_thread_id
 _MAX_CONTEXT_CHARS = 16_000
 _PROCESS_TERMINATION_GRACE_SECONDS = 5
 _TRANSPORT_GRACE_SECONDS = 5
+_VIDEO_RENDER_GATE = asyncio.Semaphore(
+    max(1, app_config.VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS)
+)
+_VIDEO_SEGMENTS_RE = re.compile(r"SURFSENSE_SEGMENT_COUNT=(\d+)")
+_VIDEO_SEGMENT_SECONDS_RE = re.compile(r"SURFSENSE_SEGMENT_SECONDS=([0-9.]+)")
+_video_render_waiters = 0
 
 logger = logging.getLogger(__name__)
 
 
-async def _get_session(workspace_id: int, runtime: ToolRuntime) -> SandboxSession:
-    root_thread_id = resolve_root_thread_id(runtime)
-    return await (await get_registry()).get_session(root_thread_id, workspace_id)
+async def _get_session(
+    workspace_id: int,
+    runtime: ToolRuntime,
+) -> SandboxSession:
+    return await (await get_registry()).get_session(
+        resolve_root_thread_id(runtime), workspace_id
+    )
 
 
 def _result_text(output: str, exit_code: int, *, full_output_path: str | None) -> str:
@@ -55,7 +68,7 @@ async def _run_python_script(
         f"script={quoted_script}; "
         """trap 'rm -f -- "$script"' EXIT; """
         "cd -- /workspace && "
-        '. /opt/code-interpreter/code-interpreter-env.sh python '
+        ". /opt/code-interpreter/code-interpreter-env.sh python "
         '"${PYTHON_VERSION:-3.12}" >/dev/null 2>&1 && '
         "timeout --signal=TERM "
         f"--kill-after={_PROCESS_TERMINATION_GRACE_SECONDS}s {process_timeout}s "
@@ -89,6 +102,50 @@ async def _run_python_script(
     return result
 
 
+def _is_full_video_render(command: str) -> bool:
+    return "render.mjs" in command and "--stills" not in command
+
+
+async def _run_bash(session: SandboxSession, command: str) -> ExecResult:
+    if "render.mjs" not in command:
+        return await session.run_command(command)
+    command = (
+        f"export VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT="
+        f"{app_config.VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT} "
+        f"VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS="
+        f"{app_config.VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS}; {command}"
+    )
+    if not _is_full_video_render(command):
+        return await session.run_command(command)
+
+    global _video_render_waiters
+    queued_at = time.monotonic()
+    _video_render_waiters += 1
+    queue_depth = max(
+        0,
+        _video_render_waiters - app_config.VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS,
+    )
+    try:
+        await _VIDEO_RENDER_GATE.acquire()
+    finally:
+        _video_render_waiters -= 1
+    ot_metrics.record_video_admission_wait(
+        time.monotonic() - queued_at,
+        queue_depth=queue_depth,
+    )
+    started_at = time.monotonic()
+    try:
+        result = await session.run_command(command)
+    finally:
+        _VIDEO_RENDER_GATE.release()
+        ot_metrics.record_video_render_duration(time.monotonic() - started_at)
+    match = _VIDEO_SEGMENTS_RE.search(result.output)
+    for seconds in _VIDEO_SEGMENT_SECONDS_RE.findall(result.output):
+        ot_metrics.record_video_render_duration(float(seconds), scope="segment")
+    ot_metrics.record_video_segment_count(int(match.group(1)) if match else 1)
+    return result
+
+
 def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
     """Build the provider-agnostic authoring tools."""
 
@@ -108,7 +165,7 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
         result = (
             await _run_python_script(session, code_or_command)
             if language == "python"
-            else await session.run_command(code_or_command)
+            else await _run_bash(session, code_or_command)
         )
         output = result.output or ""
         full_output_path = None
@@ -120,7 +177,7 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
 
     @tool
     async def load_artifact_instructions(
-        artifact_type: Literal["pdf", "docx", "pptx", "xlsx"],
+        artifact_type: Literal["pdf", "docx", "pptx", "xlsx", "video"],
         runtime: ToolRuntime,
     ) -> str:
         """Load the trusted creation instructions for one artifact format."""
