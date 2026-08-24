@@ -578,6 +578,19 @@ class Config:
     SANDBOX_MAX_SESSIONS_PER_WORKSPACE = int(
         os.getenv("SANDBOX_MAX_SESSIONS_PER_WORKSPACE", "5")
     )
+    VIDEO_SANDBOX_RENDERING_ENABLED = (
+        os.getenv("VIDEO_SANDBOX_RENDERING_ENABLED", "FALSE").strip().upper() == "TRUE"
+    )
+    # Per API worker in v1; fleet capacity is workers x this value.
+    VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS = int(
+        os.getenv("VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS", "1")
+    )
+    VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT = int(
+        os.getenv("VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT", "1800")
+    )
+    VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS = int(
+        os.getenv("VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS", "7000")
+    )
     ARTIFACT_MAX_FILE_BYTES = int(os.getenv("ARTIFACT_MAX_FILE_BYTES", "31457280"))
 
     # Agent cache (in-process LRU+TTL cache for built agents)

@@ -151,6 +151,41 @@ def _tool_call_errors():
 
 
 @lru_cache(maxsize=1)
+def _video_render_duration():
+    return _get_meter().create_histogram(
+        "surfsense.video.render.duration",
+        unit="s",
+        description="Duration of sandbox-native video renders.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _video_admission_wait():
+    return _get_meter().create_histogram(
+        "surfsense.video.admission.wait",
+        unit="s",
+        description="Time video renders wait for the per-worker admission gate.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _video_segment_count():
+    return _get_meter().create_histogram(
+        "surfsense.video.segment.count",
+        unit="{segment}",
+        description="Rendered segment count per video.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _video_verify_failures():
+    return _get_meter().create_counter(
+        "surfsense.video.verify.failures",
+        description="Count of video verification failures by reason.",
+    )
+
+
+@lru_cache(maxsize=1)
 def _kb_search_duration():
     return _get_meter().create_histogram(
         "surfsense.kb.search.duration",
@@ -916,6 +951,26 @@ def record_knowledge_store_drift_check(*, workspace_id: int, status: str) -> Non
     )
 
 
+def record_video_render_duration(seconds: float, *, scope: str = "render") -> None:
+    _record(_video_render_duration(), seconds, {"scope": scope})
+
+
+def record_video_admission_wait(seconds: float, *, queue_depth: int) -> None:
+    _record(
+        _video_admission_wait(),
+        seconds,
+        {"queue.depth": max(0, queue_depth)},
+    )
+
+
+def record_video_segment_count(count: int) -> None:
+    _record(_video_segment_count(), count, {})
+
+
+def record_video_verify_failure(reason: str) -> None:
+    _add(_video_verify_failures(), 1, {"reason": reason})
+
+
 def _runtime_snapshot_value(key: str, transform: Any = None) -> list[Any]:
     from opentelemetry.metrics import Observation
 
@@ -1034,5 +1089,9 @@ __all__ = [
     "record_subagent_invoke_outcome",
     "record_tool_call_duration",
     "record_tool_call_error",
+    "record_video_admission_wait",
+    "record_video_render_duration",
+    "record_video_segment_count",
+    "record_video_verify_failure",
     "register_runtime_observables",
 ]
