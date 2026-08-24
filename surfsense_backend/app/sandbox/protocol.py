@@ -6,6 +6,7 @@ torn down; everything above this module talks only to these three types.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -39,6 +40,10 @@ class SandboxSession(Protocol):
         ...
 
     async def read_file(self, path: str) -> bytes: ...
+
+    def read_file_stream(
+        self, path: str, *, chunk_size: int = 1024 * 1024
+    ) -> AsyncIterator[bytes]: ...
 
     async def write_file(self, path: str, data: bytes) -> None: ...
 
