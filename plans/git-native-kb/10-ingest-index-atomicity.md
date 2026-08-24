@@ -1,6 +1,6 @@
 # Phase 10 — Ingest→Index Atomicity & One Write Path
 
-**Status:** In progress — A done (`service.py` ingest mark-back; guard `tests/integration/knowledge_store/test_service.py::test_a_resync_before_converge_does_not_fork`).
+**Status:** In progress — A done (`service.py` ingest mark-back). Signup born-flipped done (`users.py::create_default_workspace`).
 **Umbrella:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
 
 ## Objective
