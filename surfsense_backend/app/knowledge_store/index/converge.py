@@ -250,7 +250,11 @@ async def _index_one(
     author_id: str,
     owned: dict[str, Document],
 ) -> bool:
-    """Upsert the row for one path, then hand it to the indexing pipeline."""
+    """Upsert the row for one path, then index it in its own session.
+
+    ``index`` rolls the shared session back on failure, which would discard the
+    whole batch; giving each document its own session isolates that rollback.
+    """
     # index_tree replays every path in the tree, so the hourly drift sweep would
     # re-embed rows that never changed. Read whether this row is already converged
     # before the upsert mutates it in place: a READY row whose body still hashes to
@@ -290,19 +294,31 @@ async def _index_one(
         metadata=document.document_metadata,
         folder_id=document.folder_id,
     )
-    indexed = await IndexingPipelineService(session).index(document, connector_doc)
-    if not DocumentStatus.is_state(indexed.status, DocumentStatus.READY):
-        logger.warning(
-            "Indexing failed for %s: %s",
-            virtual_path,
-            (indexed.status or {}).get("reason"),
+    document_id = document.id
+
+    # Commit so the per-document session can read the row on its own connection.
+    await session.commit()
+
+    from app.tasks.celery_tasks import get_celery_session_maker
+
+    session_maker = get_celery_session_maker()
+    async with session_maker() as doc_session:
+        refetched = await doc_session.get(Document, document_id)
+        if refetched is None:
+            return False
+        indexed = await IndexingPipelineService(doc_session).index(
+            refetched, connector_doc
         )
-        # index() rolls back on failure, which un-persists a row this run created.
-        # Leaving it in the owned set would hand prune a transient object.
+        ready = DocumentStatus.is_state(indexed.status, DocumentStatus.READY)
+        reason = None if ready else (indexed.status or {}).get("reason")
+
+    # Pull back the status/chunks the other connection committed.
+    await session.refresh(document)
+    if not ready:
+        logger.warning("Indexing failed for %s: %s", virtual_path, reason)
         owned.pop(virtual_path, None)
         return False
 
-    # Recorded only once index() has committed it, so every entry is a real row.
     owned[virtual_path] = document
     return True
 

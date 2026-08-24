@@ -585,3 +585,47 @@ async def test_a_failed_document_withholds_the_stamp(
     assert outcome.stamped is False
     await db_session.refresh(db_workspace)
     assert db_workspace.last_indexed_revision is None
+
+
+async def test_a_failing_document_does_not_discard_its_batch(
+    store, db_session, db_workspace, monkeypatch
+):
+    """One un-indexable file must not roll back the rows of the documents that
+    indexed cleanly beside it in the same run."""
+    from app.indexing_pipeline.cache import cached_indexing
+
+    real_embed = cached_indexing.embed_texts
+
+    def selective(texts):
+        if any("POISON" in text for text in texts):
+            raise RuntimeError("embedding unavailable")
+        return real_embed(texts)
+
+    monkeypatch.setattr(cached_indexing, "embed_texts", selective)
+
+    await commit(
+        store,
+        {
+            "documents/good.xml": "# Good\n\na clean body to index\n",
+            "documents/bad.xml": "# Bad\n\nPOISON body that cannot embed\n",
+        },
+    )
+
+    workspace_id = db_workspace.id
+    outcome = await index_changes(db_session, workspace_id)
+
+    assert outcome.failed == 1
+    db_session.expire_all()
+    good = await db_session.scalar(
+        select(Document).where(
+            Document.workspace_id == workspace_id,
+            Document.document_metadata[PATH_MARKER].as_string()
+            == "/documents/good.xml",
+        )
+    )
+    assert good is not None
+    assert DocumentStatus.is_state(good.status, DocumentStatus.READY)
+    chunk_count = await db_session.scalar(
+        select(func.count(Chunk.id)).where(Chunk.document_id == good.id)
+    )
+    assert chunk_count and chunk_count > 0

@@ -1,6 +1,6 @@
 # Phase 10 — Ingest→Index Atomicity & One Write Path
 
-**Status:** In progress — A done (`service.py` ingest mark-back). B done (`service.py::_place_unmarked` re-attaches an unmarked row to its own file via `virtual_path_to_doc` instead of authoring `(2)`). Signup born-flipped done (`users.py::create_default_workspace`).
+**Status:** In progress — A done (`service.py` ingest mark-back). B done (`service.py::_place_unmarked` re-attaches an unmarked row to its own file via `virtual_path_to_doc` instead of authoring `(2)`). C done (`converge.py::_index_one` runs the pipeline `index` in a per-document session so one unindexable file no longer rolls back or crashes its batch-mates). Signup born-flipped done (`users.py::create_default_workspace`).
 **Umbrella:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
 
 ## Objective
