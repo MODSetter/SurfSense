@@ -518,6 +518,33 @@ async def test_a_resync_that_kept_the_marker_overwrites_in_place(
     assert await _store_paths(db_workspace, second) == {recorded}
 
 
+async def test_a_resync_before_converge_does_not_fork(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The prod drift engine. A connector re-sync can arrive before projection
+    catches up (the doc is still pending/failed, so converge never marked it).
+    Ingest has to pin the row itself — write its path back — or the re-sync
+    re-authors ``Roadmap (2).md`` against the git tree and strands the first file
+    as an orphan. No manual path fix-up here: that is the whole point."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    # Pinned the moment ingest lands, without waiting for converge.
+    assert document.path == f"/{recorded}"
+    assert document.document_metadata.get(PATH_MARKER) == f"/{recorded}"
+
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    assert await store.read_as_of(second, recorded) == b"# Roadmap v2"
+
+
 # --- record_deleted_documents: the file has to go with the row ---
 #
 # Without this verb the row goes and the file stays, so the next whole-tree

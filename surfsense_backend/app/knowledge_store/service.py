@@ -418,6 +418,7 @@ class KnowledgeStore:
             )
             taken = await self._taken_virtual_paths()
             files: dict[str, str] = {}
+            placed: list[tuple[Document, str]] = []
             for doc in documents:
                 if not doc.source_markdown:
                     continue
@@ -436,9 +437,20 @@ class KnowledgeStore:
                         taken=taken,
                     )
                 files[to_store_path(virtual_path)] = doc.source_markdown
+                placed.append((doc, virtual_path))
             revision = await self._commit_files(
                 files=files, message=f"sync: index {len(files)} document(s)"
             )
+            if revision:
+                for doc, virtual_path in placed:
+                    if _recorded_virtual_path(doc, DOCUMENTS_ROOT) == virtual_path:
+                        continue
+                    doc.document_metadata = {
+                        **(doc.document_metadata or {}),
+                        PATH_MARKER: virtual_path,
+                    }
+                    doc.path = virtual_path
+                await session.commit()
         except Exception as exc:
             _record_failure(metrics, "sync_batch", exc, self._workspace_id)
             return Outcome(revision=None)
