@@ -36,10 +36,10 @@ def _content_disposition(filename: str, *, inline: bool) -> str:
 
 def _is_inline(mime_type: str) -> bool:
     # Stored files are user- or agent-authored, so rendering one on our origin
-    # is an XSS grant. Only PDF has a sandboxed native viewer; everything else
-    # downloads. Widen per MIME type, by name with a consumer attached — never
+    # is an XSS grant. PDF and MP4 have constrained native viewers; everything
+    # else downloads. Widen per MIME type, by name with a consumer attached — never
     # by wildcard (image/* once smuggled in scriptable SVG).
-    return mime_type == "application/pdf"
+    return mime_type in {"application/pdf", "video/mp4"}
 
 
 def _canonical_original_mime(filename: str, stored_mime: str | None) -> str | None:
