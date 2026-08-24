@@ -208,6 +208,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.tasks.celery_tasks.model_compatibility_task",
+        "app.tasks.celery_tasks.deliverable_job_tasks",
         "app.etl_pipeline.cache.eviction.task",
         "app.indexing_pipeline.cache.eviction.task",
         "app.automations.tasks.execute_run",
@@ -325,6 +326,11 @@ celery_app.conf.beat_schedule = {
         "task": "gateway.retention_sweep",
         "schedule": crontab(hour="3", minute="17"),
         "options": {"expires": 600},
+    },
+    "reconcile-queued-deliverables": {
+        "task": "deliverables.reconcile_queued",
+        "schedule": crontab(minute="*"),
+        "options": {"expires": 55},
     },
     "purge-refresh-tokens": {
         "task": "purge_refresh_tokens",
