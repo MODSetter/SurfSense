@@ -1,112 +1,159 @@
-# Phase 2 — The `video` skill + agent wiring
+# Phase 2 — Video skill + mode-specific agent wiring
 
 **Status:** DESIGN.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phase 1 (harness in the image); the deliverables sub-agent (`app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/`).
+**Depends on:** Phase 1 and [`phase-2b-queued-deliverable-jobs.md`](phase-2b-queued-deliverable-jobs.md).
 
 ## 1. Goal
 
-The deliverables agent authors a video the same way it authors a PDF: load the skill, `execute` render code in the sandbox, self-review stills, iterate, then `verify_artifact` → `save_artifact`. No dedicated video tool.
+Keep the existing deliverables subagent as the sole video owner while giving it two sharply separated modes:
 
-## 2. The skill — `docker/sandbox/skills/video/SKILL.md`
+- **interactive:** validate and enqueue one video deliverable job, then return a pending receipt;
+- **trusted `queued_job`:** perform the complete authoring, narration, preflight, still review, render, verification, and streaming-save workflow.
 
-A trusted instruction file (baked into `/opt/skills/video/` by the existing skills copy in `docker/sandbox/Dockerfile`). It encodes taste + the loop, mirroring `docker/sandbox/skills/{pdf,pptx}/SKILL.md`:
+Interactive mode never authors scenes, synthesizes narration, opens a sandbox, waits for completion, calls `wait_for_deliverable`, or invokes `renderMedia()`.
 
-- **Composition rules:** 1920×1080 @ fps 30; safe outer margins; body contrast; motion timing/easing; one purpose per slide; keep shapes on-canvas; the SurfSense watermark is supplied by the harness (do not re-add).
-- **Typography — pick from exactly three baked families, nothing else.** The jail has no network, so any other font silently falls back to a default and ships a wrong-looking video that structural verify won't catch (Phase 1 §2a). Reference them by `fontFamily` name only (they are system-installed; no `loadFont`/`@font-face`/`@remotion/google-fonts`):
-  - **`Inter`** — default sans: body copy, most headings, UI-style slides.
-  - **`Lora`** — serif: editorial titles, quotes, contrast.
-  - **`JetBrains Mono`** — monospace: code, figures, data labels, tabular numerals.
-  The skill must state these are the *only* permitted families and that requesting another is not possible offline.
-- **Authoring contract:** write each slide as a Remotion component; imports from the baked `node_modules` are allowed (real bundler). The harness supplies `stagger` and standard `remotion` symbols via the preamble.
-- **Narration:** call `synthesize_narration` (Phase 3) for the slide transcripts; it writes audio into the render workdir's `public/` and returns filenames. Reference them in `props.json`; do not fetch audio yourself (no network).
-- **The loop:**
-  1. **draft the deck spec first** — per-slide on-screen text **and** the narration line for each slide. This is both the render plan and the eventual `markdown_representation`; author from it, never reconstruct it from the finished video;
-  2. turn each spec slide into a Remotion scene + `props.json`; the narration lines are what you pass to `synthesize_narration`, referencing the returned audio from `props.json`;
-  3. `execute` `node render.mjs --stills props.json /tmp/stills` and review the PNGs (`read_sandbox_file` is text-only, so review via the verify/vision path or re-render);
-  4. fix and re-run stills until they pass the skill's checklist;
-  5. `execute` the full render → `/workspace/out.mp4`;
-  6. `verify_artifact(path="/workspace/out.mp4")`;
-  7. `save_artifact(path=..., title=..., markdown_representation=<the step-1 deck spec>)` — carry that spec through **unchanged** (per-slide content **and** narration), not a blurb summarized after the fact. It is the only durable, editable representation of the video — the scene components and `props.json` are ephemeral sandbox files that are never persisted — so it doubles as search/accessibility text **and** the source a later revision regenerates from (§4, Revision).
-- **Constraints:** never `npm install` / download (everything baked); a single render must fit `SANDBOX_OPERATION_TIMEOUT_SECONDS` — for long decks the harness renders in segments and `ffmpeg concat`s them (the knobs and rationale are §5, Render sizing & concurrency).
+## 2. Skill contract
 
-## 3. The rollout flag (the on/off switch)
+`docker/sandbox/skills/video/SKILL.md` is baked into `/opt/skills/video/` and is loaded only for trusted queued video work. It describes:
 
-The whole legacy-vs-new choice is one boolean, so the new path can be shipped dark, enabled per-env, and rolled back without a deploy.
+- 1920×1080 output, safe margins, readable contrast, restrained motion, and one clear purpose per scene;
+- the closed offline font set: Inter, Lora, and JetBrains Mono;
+- explicit imports and complete self-contained TSX modules with `export default`;
+- arbitrary layouts—no fixed slide templates;
+- narration through the existing trusted `synthesize_narration` tool, never runtime network fetches;
+- the 12-scene and 180-second product limits;
+- a bounded quality loop with at most two repair cycles.
 
-- **Definition** — `app/config` (mirroring the existing `*_ENABLED` flags such as `SANDBOX_ENABLED`):
+The skill must not document injected globals, a compile-check preamble, regex export rewriting, browser rendering, inline execution, or environment-controlled render sizing.
 
-  ```python
-  # app/config/__init__.py
-  VIDEO_SANDBOX_RENDERING_ENABLED = (
-      os.getenv("VIDEO_SANDBOX_RENDERING_ENABLED", "FALSE").strip().upper() == "TRUE"
-  )
-  ```
+## 3. Interactive mode
 
-  Document the key in `surfsense_backend/.env.example`. Default `FALSE` ⇒ **today's LangGraph path runs, unchanged**.
+When the existing rollout flag enables sandbox video:
 
-- **Semantics** — the flag gates the **authoring entrypoint only**. `TRUE` ⇒ the deliverables agent gets the skill loop (this phase) + `synthesize_narration` (Phase 3); `FALSE` ⇒ it gets the legacy `create_generate_video_presentation_tool`. The Phase-4 adapter, Phase-5 persistence/serving, and the Phase-6 `<video>` renderer are all **flag-agnostic** (additive, inert until an MP4 exists), so nothing else branches.
+1. Main-agent routing sends a video request to the existing deliverables subagent.
+2. The subagent normalizes a narrow brief: title, source references, requested content, and optional revision target.
+3. It calls the thin video enqueue tool backed by the generic deliverable-job adapter.
+4. The tool creates or returns the idempotent `DeliverableJob`, commits it, dispatches the generic task, and returns `status="pending"` plus `job_id`.
+5. The subagent tells the user that the card tracks progress and returns immediately.
 
-## 4. Wiring
+Only the enqueue tool is video-specific. The server, not the model, supplies the trusted kind, attribution, execution mode, checkpoint identity, sandbox owner, and policy.
 
-- **`deliverables/tools/index.py::load_tools`** — the single switch point. Register the legacy tool **or** the new narration bridge by the flag; the shared `execute`/`verify_artifact`/`save_artifact` are always present, so authoring needs **no new tool** on the new path:
+Interactive mode keeps normal document/podcast/image behavior, but video does not receive queued-only authoring tools. Infrastructure errors are never echoed into chat. If broker publication fails after commit, return the durable pending receipt and let reconciliation republish the queued row.
 
-  ```python
-  from app.config import config
+## 4. Trusted queued-job mode
 
-  if config.VIDEO_SANDBOX_RENDERING_ENABLED:
-      tools.append(create_synthesize_narration_tool(          # Phase 3
-          workspace_id=d["workspace_id"], db_session=d["db_session"]))
-  else:
-      tools.append(create_generate_video_presentation_tool(    # legacy (deleted in Phase 8)
-          workspace_id=d["workspace_id"], db_session=d["db_session"]))
-  ```
+The generic Celery task loads the durable job, resolves its kind policy, atomically claims it, establishes trusted queued context, creates an isolated sandbox/workdir, and invokes the same `run_deliverable_subagent()` implementation.
 
-- **`deliverables/tools/sandbox.py`** — extend `load_artifact_instructions`'s `Literal["pdf","docx","pptx","xlsx"]` to include `"video"` so it `cat`s `/opt/skills/video/SKILL.md`. Safe to land unconditionally (the skill is only reached when the flag routes video work to it).
-- **Revision — `deliverables/tools/load_artifact_for_revision.py`** — add a `"video"` entry to `_REVISION_INSTRUCTIONS`. Video is **regenerate-from-markdown** (the `pdf` family, not the byte-editable `docx`/`pptx` family): the MP4 is not editable in place and the scene source is not persisted, so a "make it better" request re-authors the deck from the saved spec and re-renders. The entry instructs exactly that — e.g. *"Regenerate the video: re-author the deck from `markdown_path` plus the user's new instruction, re-render to the expected output path, then re-verify. Do not attempt to edit `current.mp4` — it is restored for reference only."* The rest is the shared revision loop, unchanged: `load_artifact_for_revision` restores the current MP4 **and** the deck-spec markdown (from `document.source_markdown`, which is always stored independent of KB indexing), the model re-renders + `verify_artifact`s, and `save_artifact(artifact_id=..., expected_generation=...)` replaces it in place as a new generation. Additive and safe to land unconditionally (only reached for an existing `video` artifact). As with PDF, exact visual layout may drift across a revision because it regenerates from the spec rather than editing pixels — the accepted trade-off for not persisting scene source (deferred, umbrella §8).
-- **Prompt routing — `deliverables/agent.py`** — the system prompt is static markdown (`read_md_file(__package__, "system_prompt")`), so make routing **flag-aware at compose time** rather than editing the base file to point at one path: when `VIDEO_SANDBOX_RENDERING_ENABLED` is on, append the "video → skill loop" routing block below; when off, the base prompt keeps today's `generate_video_presentation` guidance untouched. This keeps the prompt consistent with the tool that is **actually registered** (§4 above): editing the base `system_prompt.md` now to describe the new path would mis-instruct the agent while the flag is off — the prompt would advertise a skill loop while `load_tools` still registers the legacy tool, a guaranteed prompt/tool desync. So the base file is not edited until Phase 8 makes the new path unconditional; until then the new instructions exist **only** as this compose-time block.
+Queued context includes trusted:
 
-  The appended block tells the agent, in the deliverables voice, that video is now an artifact like PDF/PPTX — no dedicated tool:
+- `execution_mode="queued_job"`;
+- `deliverable_job_id`;
+- root thread/workspace/creator attribution;
+- checkpoint key `{root_thread_id}::deliverable_job:{job_id}`;
+- sandbox owner `deliverable-job:{job_id}`;
+- fixed workdir `/workspace/deliverable-job-{job_id}`;
+- normalized request and optional revision checkpoint.
 
-  > **Video artifacts.** Author a video the same way you author a document. Load the video skill with `load_artifact_instructions("video")`, then follow its loop: draft the deck spec (on-screen text **and** a narration line per slide), write each slide as a Remotion scene, call `synthesize_narration` for the transcripts (it returns audio filenames — never fetch audio yourself), `execute` the stills render to self-review and iterate, then `execute` the full render to a single MP4, `verify_artifact` it, and `save_artifact` with the deck spec as `markdown_representation`. Do **not** call `generate_video_presentation` — it does not exist on this path. The output is one narrated MP4; the browser plays it directly, so never ship scene code or expect client-side rendering.
+These values are not model arguments.
 
-  Keep it short and behavioral; the taste/composition detail lives in the skill (§2), not the prompt. Phase 8 folds this block into the base `system_prompt.md` verbatim and drops the flag-aware compose.
+### Queued tool allowlist
 
-## 5. Render sizing & concurrency
+Queued video mode includes only tools needed for the workflow, including:
 
-The in-turn render is bounded by `SANDBOX_OPERATION_TIMEOUT_SECONDS` per `execute` call. Three knobs make the render fit that budget deterministically **and** carry over unchanged if rendering later moves to the deferred queued fleet (umbrella §4) — they are durable capacity controls, not stopgaps:
+- load video instructions/source/revision material;
+- typed `prepare_video_project`;
+- narration synthesis;
+- sandbox execution/preflight;
+- multi-frame still review;
+- final verification;
+- streaming `save_artifact`.
 
-- **`VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT` (config).** Sized from measured render throughput (frames/sec on the target hardware, captured by the Phase-1 spike) so one segment renders at ~60–70% of `SANDBOX_OPERATION_TIMEOUT_SECONDS`, leaving headroom for `bundle()` + Chrome launch + variance. The **harness** (not the model) splits any deck beyond this bound into back-to-back segment renders and joins them with a stream-copy `ffmpeg concat` (the system ffmpeg baked in Phase 1 §2 — no re-encode, so the join is near-free). Segmentation stays useful under the queued fleet too: segments render in parallel and retry cheaply and independently.
-- **Product length cap — reuse `VIDEO_PRESENTATION_MAX_SLIDES`.** Maximum deck length is a deliberate *product* ceiling — the same one today's browser-rendered path already enforces — not a timeout artifact. The skill **refuses** a request past it with a clear message instead of attempting an unreasonable multi-segment render. This stays a product decision across the inline→queued flip.
-- **`VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS` (admission gate).** A video render holds its sandbox slot for the whole (long) render, so concurrent renders pass through a bounded gate sized to fleet capacity: a burst **queues** rather than exhausting the fleet into timeouts (umbrella §3). This is the one value whose *implementation* changes but whose *meaning* does not across the flip — a gate today, the render worker-pool concurrency later.
-  - **The gate must bound the *fleet*, not one process.** A bare in-process `asyncio.Semaphore` bounds a single API worker; with `W` workers/pods you get `W × N` concurrent renders — the exact fleet exhaustion the gate exists to prevent. Two acceptable shapes: **(a)** keep the semaphore in-process but define the knob as *per-worker* and size the sandbox fleet to `W × N` (document that scaling workers re-sizes the fleet); or **(b)** a **distributed limiter** (Redis lease/token) so `N` is a true global ceiling regardless of `W`. Given SurfSense already runs Redis (Celery), (b) is the honest choice for a real fleet; (a) is acceptable only while `W` is fixed and known. This distinction is invisible today but silently wrong the moment the API runs more than one worker — call it out so it isn't discovered under load.
+It excludes:
 
-Both new knobs here (`VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT`, `VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS`) live in `app/config` alongside `VIDEO_SANDBOX_RENDERING_ENABLED` and the Phase-1 `VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS`, documented in `surfsense_backend/.env.example`. The product length cap is the **reused** `VIDEO_PRESENTATION_MAX_SLIDES`, not a new key. These four `VIDEO_SANDBOX_*` keys are the **only** env vars the whole plan adds — see the umbrella §7 hard budget; nothing else in any phase introduces config.
+- enqueue (prevents recursive jobs);
+- podcast;
+- image generation;
+- legacy video generation;
+- unrelated deliverable creation tools.
 
-## 5a. Render telemetry (make the inline→queued flip a data decision)
+## 5. Complete queued authoring loop
 
-The umbrella defers the queued render fleet "if sustained concurrency outgrows the sandbox fleet" (§4) — but nothing measures that today, so the decision would be guesswork. Emit metrics from the first inline render so the threshold is observed, not vibed:
+The queued subagent:
 
-- **`render_seconds`** (per render; and per segment for long decks) — throughput drift vs. the Phase-1 spike; feeds `VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT` re-sizing.
-- **`admission_queue_wait_seconds`** + **current gate depth** — the primary signal that the gate is saturating and the fleet needs the queued shape.
-- **`segment_count`** per deck — how often long-deck segmentation actually triggers.
-- **`verify_fail_total{reason}`** — structural vs. frame-sanity vs. concat-duration (Phase 4), so silent-failure classes are visible.
+1. drafts a durable scene/deck specification containing each scene's on-screen content and narration;
+2. checks the 12-scene policy before authoring;
+3. synthesizes narration through the existing trusted tool and rejects measured total audio above 180 seconds;
+4. writes complete default-export TSX modules and trusted props through `prepare_video_project`;
+5. runs native preflight (`bundle()` + `selectComposition()`), including the authoritative selected-duration gate;
+6. renders and reviews start/middle/end frames per scene plus the contact sheet;
+7. if needed, performs at most one compile/still repair;
+8. renders one final MP4 with progress and cooperative cancellation;
+9. calls `verify_artifact` on that exact MP4 using distributed frame plus stream/audio/duration/hash checks;
+10. if needed, performs at most one final-verification repair and re-renders/re-verifies;
+11. calls `save_artifact` with the unchanged deck specification as `markdown_representation`;
+12. links the verified Artifact and marks the job ready.
 
-Reuse the existing observability sink (whatever `app/observability` already exports); these are counters/histograms, not a new subsystem.
+After the two allowed repairs are consumed, failure is terminal until the user explicitly retries. The agent must never loop until the worker deadline.
 
-## 6. Language guarantee (unchanged)
+The complete loop runs in queued-job mode. Moving only final rendering to Celery is explicitly non-compliant because it leaves authoring and repairs bounded by the interactive turn.
 
-Rendering runs through `execute(language="bash")` invoking `node render.mjs`. The `execute` schema stays `Literal["python","bash"]`; JS/TS is authored as files and run via Node under bash. No new language surface is exposed.
+## 6. Progress, failure, and billing behavior
 
-## 7. Checks
+Trusted middleware—not model prose—maps narration, preparation, preflight, still review, rendering, verification, and save into job phase/progress updates.
 
-- Unit: `load_artifact_instructions("video")` returns the skill body (mirror the existing skill-load contract test).
-- Flag off (default): `load_tools` registers `create_generate_video_presentation_tool` and **not** `synthesize_narration`; a video request drives the legacy path (regression guard — existing behavior is untouched).
-- Flag on: `load_tools` registers `synthesize_narration` and **not** the legacy tool; a "make a video" request drives `load_artifact_instructions("video")` → `execute` (stills) → `execute` (mp4) → `verify_artifact` → `save_artifact`, with no Celery dispatch and no `generate_video_presentation` call.
+The job boundary maps typed failures to stable public codes such as:
 
-## 8. Exit criteria
+- `duration_limit`
+- `quota_exceeded`
+- `generation_failed`
+- `render_failed`
+- `verification_failed`
+- `cancelled`
 
-1. `VIDEO_SANDBOX_RENDERING_ENABLED` toggles the authoring path with no other code change; off preserves today's LangGraph behavior exactly.
-2. The video skill is present in the image and loadable by the agent.
-3. With the flag on, the deliverables prompt routes video work to the skill loop.
-4. A flag-on model run produces `/workspace/out.mp4` using only `execute` + the baked harness.
+Full diagnostics are logged with the job ID and may be stored only as bounded internal detail. Celery, provider, ffmpeg, Remotion, stack trace, and subagent-timeout text never reaches the receipt, Zero, API, card, or chat.
+
+Worker LLM/TTS usage is billed exactly once using existing accounting. Quota checks occur in the worker. Do not reserve or bill a duplicate wrapper around already billed narration.
+
+## 7. Rollout and revision
+
+Reuse the existing `VIDEO_SANDBOX_RENDERING_ENABLED` flag as the single authoring-entrypoint switch:
+
+- off: current legacy video path remains available for rollback;
+- on: interactive video requests enqueue the generic durable job.
+
+Do not add environment variables. Queue routing, output limits, repair limits, worker time budgets, and Remotion limits are code policy; dedicated worker concurrency is Compose/Celery configuration.
+
+Video revision remains regenerate-from-markdown: queued mode loads the current Artifact plus the stored deck specification, re-authors from that specification and the new instruction, and saves a verified new generation. It does not edit MP4 bytes or depend on persisted scene source.
+
+## 8. Prompt and routing requirements
+
+The main-agent and deliverables prompts must say:
+
+- video requests return after enqueue;
+- the pending card is the lifecycle source of truth;
+- the existing deliverables subagent later performs the entire workflow in trusted queued-job mode;
+- no scene code or raw infrastructure error is returned in chat;
+- the browser receives only the verified MP4.
+
+Prompt composition and tool loading must derive from the same execution mode and rollout decision so a prompt cannot advertise a tool that is absent.
+
+## 9. Checks
+
+- Interactive mode exposes video enqueue but not video authoring/render tools.
+- Interactive video creates one idempotent job, returns pending, and performs no TTS/sandbox/render/verify/save work.
+- Queued mode excludes enqueue, podcast, image, and legacy video tools.
+- Trusted context creates unique checkpoint/workdir/sandbox ownership for concurrent jobs from one thread.
+- One queued run executes the full authoring-to-save loop and publishes trusted phase progress.
+- Native compile/still failure allows one repair; final verification failure allows one repair; no third repair occurs.
+- Cancellation stops before verify/save and creates no Artifact.
+- Public failures are stable/sanitized, and LLM/TTS billing occurs exactly once.
+- Flag-off behavior remains the legacy rollback path; flag-on behavior uses the queue.
+
+## 10. Exit criteria
+
+1. Interactive video handling is enqueue-only.
+2. The same deliverables subagent executes the whole workflow in trusted queued-job mode.
+3. Mode-specific tool allowlists prevent recursive dispatch and unrelated work.
+4. A successful queued run creates exactly one verified Artifact and marks its job ready.
+5. Repairs, execution time, output duration, cancellation, failures, and billing are bounded and testable.

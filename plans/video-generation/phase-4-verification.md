@@ -1,59 +1,73 @@
-# Phase 4 — Video verification adapter + strategy
+# Phase 4 — Worker-owned video verification
 
 **Status:** DESIGN.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** the verification framework (`app/artifacts/verification/`, `formats/registry.py`, `receipt.py`, `service.py`) and `deliverables/tools/verify_artifact.py`.
+**Depends on:** Phase 1 (deterministic harness), Phase 2b (queued deliverable jobs), Phase 3 (narration duration gate), and the existing artifact verification framework.
 
 ## 1. Goal
 
-`verify_artifact(path="/workspace/out.mp4")` produces a **signed receipt bound to the MP4 bytes**, so `save_artifact` accepts the file. The gate is **structural + a zero-cost content-sanity check** (`ffprobe` + one sampled frame's histogram) — **deliberately no per-frame *vision-LLM* review**. Sampled-still *vision* adds real per-verify cost, a hard vision-model dependency, and uncontrolled provider fan-out that does not survive target concurrency (§5), for little gain on a constrained slide template. Visual quality is handled advisory-side by the Phase-2 authoring loop, where the model inspects its own stills; the authoritative save gate stays fast, free, and provider-independent — but it still catches the one catastrophic silent failure structural checks miss (a solid-black / single-color render), which matters most for **backfill** (Phase 7), where there is no model in the loop to notice.
+Make verification the authoritative worker-owned gate between a rendered MP4 and persistence. The existing deliverables subagent, running in trusted queued-job mode on the dedicated video worker, calls the existing `verify_artifact` tool after render. Interactive execution never verifies or waits.
 
-## 2. Why an adapter is required
+A pending `DeliverableJob` card exists before any artifact. An `Artifact` must not exist until the exact rendered MP4 has passed verification and `save_artifact` completes.
 
-`save_artifact` (`deliverables/tools/save_artifact.py`) reads the primary at `path`, then requires a receipt whose `format == get_format_adapter(path).name` and whose `primary_sha256 == sha256(bytes)`. Without a video format adapter, `get_format_adapter("out.mp4")` fails and the file can never be saved. So video needs:
+## 2. Video adapter and byte-bound receipt
 
-1. **New adapter module** `verification/formats/video.py` — `check_video(...) -> StructuralCheckResult` (the ffprobe structural + frame-sanity gate, §3). New file, parallel to `formats/pdf.py`/`xlsx.py`. Video has no pages, so it returns `page_count=None`.
-   - **Probe in the sandbox, not over a materialized copy — the one deliberate deviation from the `check(data: bytes)` pattern.** `check_pdf`/`check_xlsx` are pure functions of the whole bytes because documents are small. An MP4 is not: reading it into backend memory to `ffprobe` a temp file is the same per-render spike that scales with the admission gate (Phase 5 §2), so verify avoids it too. The video path runs `ffprobe` (and the frame sample, §3) **inside the sandbox** via `session.run_command` against `/workspace/out.mp4`, and only the small JSON + histogram summary cross back. `service.py` therefore hands the video adapter the **session + path**, not `data` — a narrow, documented exception carried only by this adapter (the structural-only branch already special-cases; this rides that seam).
-   - **Receipt sha without a full read.** The receipt still binds `primary_sha256`, computed by `sha256sum /workspace/out.mp4` **in the sandbox** (trusted binary, render-output file). It is re-bound trusted-side at save: `save_artifact` **stream-hashes the upload** (Phase 5 `put_stream`) and rejects on mismatch, so the whole file is never buffered in the backend at verify *or* save, and a tampered digest cannot slip through.
-2. **Registry entry** in `verification/formats/registry.py` — add `MP4_MIME = "video/mp4"` and a `".mp4": FormatAdapter(name="video", suffix=".mp4", mime_type=MP4_MIME, convert_to_pdf=False, check=check_video, requires_visual_review=False)` line — **the same shape as the existing `.xlsx` adapter**, which is likewise structural-only. `requires_visual_review=False` *is* the strategy: it routes video through the structural-only branch that already exists in `service.py` (§3), so **no new verify pipeline is written** and `ReviewKind` is left untouched. The adapter's `name="video"` is the **canonical format identity**: what the receipt is signed with (§3) and what persistence records verbatim (Phase 5); the `.mp4` filename suffix is only the registry lookup key and never decides the stored `Artifact.format`.
-3. **No `service.py` or `base.py` change.** Because `requires_visual_review=False`, `_verify_artifact` takes its existing structural-only branch (the one `.xlsx` uses): run `adapter.check`, and on a clean result write a `visual="not_required"` receipt and return verified — no render, no frame extraction, no vision call, no `ReviewKind` extension. **Video adds an adapter, not a pipeline.**
+Register `verification/formats/video.py` for `.mp4` with canonical adapter identity `video` and MIME type `video/mp4`. `verify_artifact` keeps its existing public signature and dispatches through the adapter.
 
-**Flag-agnostic (register unconditionally).** The adapter is a plain dict entry — inert unless an `.mp4` is actually verified — so it ships independent of `VIDEO_SANDBOX_RENDERING_ENABLED` and needs no gating; a legacy build with the flag off simply never produces an `.mp4` to look up.
+Verification produces a signed receipt bound to the final MP4's SHA-256:
 
-## 3. Verify strategy (final MP4)
+- Probe and hash the MP4 in the job-owned sandbox so the backend does not materialize the full video in memory.
+- Return only bounded probe, frame-analysis, duration, and digest results to the trusted verification service.
+- Any mutation or repair render invalidates the receipt and requires verification again.
+- `save_artifact` must stream-hash the exact uploaded bytes and reject a digest that does not match the signed receipt.
+- The receipt's `format="video"` is the canonical persistence format; the filename suffix is only adapter lookup.
 
-Structural gate only — no jailed render, no vision pass. It reuses the exact structural-only path `.xlsx` already takes:
+The adapter is inert unless an MP4 is verified and may be registered independently of rollout state. The existing rollout flag controls whether queued video generation is offered, not receipt validity.
 
-- **Structural (ffprobe, in-sandbox):** `check_video` — duration > 0; resolution 1920×1080; has a video stream **and a non-empty audio stream (mandatory — a mute MP4 is a hard fail)**; container not corrupt. Any failure → blocking finding.
-- **Concat-duration consistency (long decks):** when the deck was rendered in segments and `ffmpeg concat`-joined (Phase 2 §5), stream-copy concat is A/V-desync- and truncation-prone at boundaries. Assert the final container `duration ≈ Σ sceneDurations / fps` within a small tolerance **and** the audio stream spans the whole file (no early cutoff). Catches a silently-truncated or desynced join before it becomes the saved artifact. Single-segment renders skip this check.
-- **Content sanity (one frame, no LLM):** sample a single frame with the baked ffmpeg (`ffmpeg -ss <mid> -frames:v 1`) and reject a **near-zero-entropy / single-color** frame (histogram/stddev threshold). This is the cheap net for the catastrophic silent failure — a solid-black or blank render that is structurally perfect (1920×1080 + audio + duration>0). ~ms, no provider, no `review_pages`. It is **not** a quality judgement (layout/contrast/pacing stay advisory in the Phase-2 loop) — only a "the render produced actual pixels" floor. Most valuable in backfill (Phase 7), which has no authoring loop.
-- **No vision-LLM pass.** Video takes the `requires_visual_review=False` branch, so verify never calls `review_pages` or a vision model. The frame-sanity check above is a local histogram, not a model call — it keeps the gate fast, free, and provider-independent.
-- **Receipt:** written by the structural-only branch with `visual="not_required"`, `format="video"` — the authoritative identity threaded into persistence (Phase 5) — and the sandbox-computed `primary_sha256` (§2). `preview_path=None` (video has no preview; `save_artifact` already allows primary-only).
+## 3. Authoritative final checks
 
-## 4. Tool change
+Preserve the existing stream, audio, duration, and hash checks and improve visual sampling:
 
-- `deliverables/tools/verify_artifact.py` — extend the docstring to include video; **no signature change** (it already dispatches by adapter via `verify()`).
+- Require a readable MP4 container, at least one non-empty video stream, mandatory non-empty audio, positive duration, and 1920×1080 output.
+- Recheck the exact duration policy from composition/media metadata. `duration <= 180.000` seconds passes; any value strictly above 180 seconds fails with `failure_code="duration_limit"`.
+- For segmented output, compare final duration with expected scene duration within a documented small tolerance and require audio to span the file.
+- Sample multiple distributed frames across the final MP4, not only one midpoint. Reject blank, black, single-color, corrupt, or missing samples.
+- Preserve the bounded pre-render still review from the authoring loop: start/middle/end frames per scene plus a contact sheet may use the existing configured vision model. This review has no fixed slide-template assumption and checks clipping, overflow, contrast, hierarchy, blank frames, and safe margins.
+- Final verification remains authoritative even when advisory still review passed. It must remain bounded and cannot fan out without limit.
 
-## 5. Notes / risks
+The workflow permits at most one final-verification repair after the earlier compile/still repair. A repaired output is rendered and verified from scratch. Failure after the second total repair cycle is terminal until explicit user Retry.
 
-- **Why structural-only (no vision gate):** sampled-still vision review does not survive target concurrency. `review_pages` fans out with **no global rate limiter** (`VISION_CONCURRENCY` is per-call), so N concurrent long-video verifies burst into N× provider calls and millions of tokens — hitting TPM/RPM ceilings, `120s`-timeout-induced *false* blocking findings, and the re-render loops those trigger — on top of a hard vision-model dependency and per-verify token cost. The marginal catch on a fixed 1920×1080 slide template is low. So the gate is structural (~ms, free, provider-independent). **Reversible:** flip the adapter's `requires_visual_review=True` (and add frame sampling) for a bounded, *queued* visual pass later, if defects show up in practice.
-- **Byte binding:** the receipt binds to the final MP4; any re-render invalidates it (correct — forces re-verify before save).
-- **Preview role:** `save_artifact._read_artifact_file` rejects non-PDF previews; video saves **primary-only**, which the save flow already allows.
-- **Queued scale-out (umbrella §4):** under the deferred render-fleet mode, this same verify + the subsequent `save_artifact` run **inside the render worker** after the final MP4 (not inline in the agent turn). The strategy and receipt binding are unchanged — only the call site moves.
+## 4. Queue, progress, and cancellation
+
+Verification executes inside `execute_queued_deliverable(job_id)` through the same queued deliverables subagent—not through a second video agent or a standalone render-only task.
+
+- Queued-job middleware sets a trusted verification phase/progress value before calling the tool.
+- Progress is lifecycle metadata and is published through the job row; model text cannot set it.
+- Check cancellation immediately before verification and again before save.
+- A running cancellation transitions through `cancelling`; the worker stops before persistence and marks `cancelled`.
+- Compile, policy, quota, and verification failures are terminal for the current attempt. Only typed transient infrastructure/provider failures may be automatically retried with bounded backoff.
+
+## 5. Failure and cleanup invariants
+
+- Verification failure maps to stable public `failure_code="verification_failed"` unless a more specific policy code such as `duration_limit` applies.
+- Public/chat/Zero payloads never contain Celery, OpenSandbox, ffmpeg, Remotion, stack-trace, provider, or subagent-timeout text.
+- Full diagnostics are logged with the job ID; only bounded internal detail is stored, and `internal_error` is never published.
+- Failed or cancelled verification leaves no `Artifact` row and no retained PRIMARY blob.
+- Partial renders, segments, and outputs are removed in worker cleanup. Ready/failed/cancelled state transitions must survive sandbox cleanup errors.
 
 ## 6. Checks
 
-- Verify the Phase-1 fixture MP4 → `status="verified"`; receipt sha matches the file (sandbox `sha256sum`), and re-hashing the streamed upload at save matches the receipt.
-- A truncated/corrupt MP4 → `status="failed"` with a structural finding.
-- A **mute MP4 (no audio stream) → `status="failed"`** with a blocking structural finding; it can never reach `save_artifact`.
-- A **solid-black / single-color MP4 → `status="failed"`** on the frame-sanity histogram (structurally perfect but blank), proving the silent-black net fires.
-- A **segmented deck whose concat is truncated/desynced → `status="failed"`** on the duration-consistency check (`duration ≉ Σ sceneDurations/fps`).
-- A mutated MP4 after verify → `save_artifact` rejects on sha mismatch (reuse the existing receipt-mismatch test pattern).
-- A valid MP4 verifies on a workspace with **no vision model configured** (the gate never touches the vision path — the frame check is a local histogram, not a model call — so no `"unavailable"` degradation).
-- Verify **holds no full-MP4 buffer**: the probe/hash run in-sandbox and only small results cross back (assert the backend never `read_file`s the whole MP4 at verify).
+- A valid queued MP4 verifies to a signed receipt whose hash matches the stream-hash used by save.
+- Exact 180-second output passes; output above 180 seconds fails before save with `duration_limit`.
+- Corrupt, mute, truncated/desynchronized, and distributed-frame blank output fail verification.
+- A changed MP4 is rejected by `save_artifact` because its hash no longer matches the receipt.
+- Cancellation before or during the verify/save boundary produces `cancelled` and leaves no Artifact/blob.
+- Verification failure exposes only a stable failure code while preserving bounded internal diagnostics.
+- The queued path enforces the two-repair ceiling and never loops until the worker deadline.
 
 ## 7. Exit criteria
 
-1. `get_format_adapter("x.mp4").name == "video"`; that name is what the receipt carries and what persists as `ArtifactFormat.VIDEO` (Phase 5) — independent of the filename suffix.
-2. `verify_artifact` returns a signed, byte-bound receipt for a valid MP4.
-3. `save_artifact` accepts a verified MP4 and rejects a changed one.
+1. Verification runs wholly in the queued worker's existing deliverables-subagent workflow.
+2. A valid MP4 receives a signed, byte-bound `format="video"` receipt after exact duration and distributed-frame checks.
+3. Verification, policy failure, or cancellation cannot create an Artifact or retain a PRIMARY blob.
+4. Only a successfully verified MP4 may proceed to worker-owned streaming save.

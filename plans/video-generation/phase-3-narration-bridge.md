@@ -1,46 +1,61 @@
-# Phase 3 — Trusted-side narration bridge
+# Phase 3 — Queued narration bridge and duration policy
 
 **Status:** DESIGN.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phase 1 (harness `public/` convention). Reuses TTS logic from `app/agents/video_presentation/nodes.py::create_slide_audio`.
+**Depends on:** Phase 1 (sandbox harness), Phase 2 (video skill), and Phase 2b (queued deliverable jobs).
 
 ## 1. Goal
 
-Narration audio (TTS needs network) reaches the sandbox **without** giving the jail network — the trusted side generates it and writes the bytes into the render workdir's `public/`.
+Run narration as part of the queued video workflow, inside the dedicated worker's invocation of the existing deliverables subagent. The interactive request path only validates and enqueues a `DeliverableJob`; it never synthesizes narration, authors scenes, or waits for rendering.
 
-## 2. New tool — `deliverables/tools/synthesize_narration.py`
+The trusted worker performs TTS without granting the sandbox network access, writes inert audio bytes into the job-owned workdir, measures the resulting media, and applies the exact 180-second output policy before authoring can proceed to final rendering.
 
-A trusted, network-using deliverables tool (same class/factory shape as `generate_image`/`podcast`), net-new and importing nothing from the legacy graph beyond the lifted TTS helper:
+## 2. Worker-owned narration
 
-```python
-# deliverables/tools/synthesize_narration.py
-def create_synthesize_narration_tool(*, workspace_id: str, db_session) -> BaseTool: ...
-#   internal: _synthesize(transcript, voice, language) -> bytes   (lifted TTS provider call + billing)
-#             _write_into_public(session, slide_number, audio_bytes) -> str  (returns "slide-<n>.<ext>")
-```
+Reuse `deliverables/tools/synthesize_narration.py` in trusted `execution_mode="queued_job"`:
 
-- **Input:** `[{ slide_number, transcript }]` and the render workdir (or resolves the session like `_get_session`).
-- **Behavior:** lift the existing per-slide TTS from `video_presentation/nodes.py::create_slide_audio` (voice resolution, provider call, billing hooks) into `_synthesize`. For each slide, synthesize audio and `session.write_file` it to `<workdir>/public/slide-<n>.<ext>`. (Lifting — not importing — is what lets Phase 8 delete `video_presentation/nodes.py` without breaking this tool.)
-- **Output:** `[{ slide_number, audio: "slide-<n>.<ext>" }]` — **filenames only**, so the model references them via `staticFile()` in `props.json`. Durations are derived in-sandbox from the file by `calculateMetadata` (`parseMedia`, Phase 1 §4.3), so the tool need not report frame counts.
-- **Registration is flag-gated** in `deliverables/tools/index.py::load_tools` (Phase 2 §4): it is added **only when `VIDEO_SANDBOX_RENDERING_ENABLED` is on**, replacing the legacy `generate_video_presentation` tool. It is the one new tool the new authoring path introduces.
+- Resolve the sandbox and workdir from trusted job context. The sandbox owner is `deliverable-job:{job_id}` and the workdir is `/workspace/deliverable-job-{job_id}`; neither value is model-controlled.
+- Reuse current voice/language resolution, provider calls, token/TTS accounting, and quota checks. Narration billing occurs exactly once in the worker; do not add a second video-level reserve around the nested tool.
+- Write each generated audio file with `SandboxSession.write_file()` under `<workdir>/public/`, returning filenames suitable for Remotion `staticFile()`.
+- Keep credentials and network access on the trusted side. The sandbox remains network-disabled.
+- Emit lifecycle progress through queued-job middleware. Progress and phase are trusted job metadata, not model-authored chat text.
+- Check for cancellation between provider calls and before project preparation. A cancelling job stops before render, verify, or save.
 
-## 3. Trust boundary
+The tool is available to the existing deliverables subagent only in queued-job mode for video work. Interactive mode exposes the enqueue tool instead, and queued-job mode excludes enqueue and unrelated image, podcast, and legacy-video tools to prevent recursive dispatch.
 
-The TTS call and credentials live on the trusted side. Only inert audio **bytes** cross into the sandbox via `session.write_file` into `public/`. The jail still has no network — it receives audio files to stitch, exactly as it receives scene code.
+## 3. Exact duration gate
 
-## 4. Notes / risks
+Duration is output policy, not a worker timeout:
 
-- **Billing:** reuse the existing video-presentation billing hooks so narration cost accounting does not regress.
-- **Placement law:** audio must land in `public/` (not arbitrary paths) or `staticFile()` will not resolve at bundle time.
-- **Language/voice:** carry over the language handling from the current graph (`PresentationSlides.language`).
+- `max_duration_seconds = 180` is defined by the version-controlled video `DeliverableKindSpec`; do not add an environment variable.
+- After narration, measure the exact duration of every generated audio file from the media itself and calculate the transcript/audio total using the same timing inputs that will drive composition metadata.
+- Accept an exact total of `180.000` seconds. Reject only when the measured total is strictly greater than 180 seconds.
+- On rejection, stop before final render, verification, artifact persistence, or blob upload and mark the job failed with public `failure_code="duration_limit"`.
+- Do not expose provider, ffmpeg, Remotion, sandbox, Celery, stack-trace, or subagent-timeout text. Full detail is logged with the job ID and only bounded diagnostics may be stored internally.
+- The Remotion harness independently enforces the authoritative second gate after `selectComposition()`: `composition.durationInFrames / composition.fps <= 180` before `renderMedia()`. Narration acceptance never bypasses that composition gate.
+
+The 180-second output cap is independent of bounded worker soft/hard execution limits. The queued worker must not inherit the interactive 300-second subagent timeout and must not run unbounded.
+
+## 4. Lifecycle and failure invariants
+
+- The `DeliverableJob` exists before narration starts; no `Artifact` exists while the job is queued, running, cancelling, failed, or cancelled.
+- Narration output is resumable job-owned sandbox input, not an artifact blob.
+- Terminal narration, quota, policy, or cancellation paths clean up job-owned temporary output and leave no `Artifact` row or retained PRIMARY blob.
+- Automatic retries are limited to typed transient provider/infrastructure failures. Policy and quota failures require the user's explicit Retry, which requeues the same job identity and increments its attempt.
+- Sandbox termination runs in worker `finally`; lifecycle state updates survive cleanup errors.
 
 ## 5. Checks
 
-- Unit: given N transcripts and a fake session, the tool writes N files under `public/` and returns matching `{slide_number, audio}` filenames.
-- Integration (mock TTS): filenames returned resolve to non-empty files that `parseMedia` can measure a positive `durationInSeconds` from.
+- Interactive video execution returns a pending job receipt without invoking TTS.
+- The queued worker invokes narration in the existing deliverables subagent and writes N non-empty files under the trusted job workdir's `public/`.
+- Billing and quota accounting occur once across worker and narration tool boundaries.
+- Measured totals below 180 seconds and exactly 180 seconds pass; any value above 180 seconds fails with `duration_limit` before render.
+- Cancellation during multi-scene narration stops subsequent provider calls and never reaches verify/save.
+- Public job data and chat output contain only stable failure codes/client-safe copy, never internal exception text.
 
 ## 6. Exit criteria
 
-1. The agent can obtain narration for a deck via one trusted tool call.
-2. Audio lands in the workdir `public/`, referenced by filename.
-3. The sandbox never gains network to produce narration.
+1. Narration is wholly owned by the queued worker workflow and never blocks the interactive turn.
+2. Audio reaches the network-disabled, job-isolated sandbox through trusted file writes.
+3. The exact post-narration 180-second gate runs before rendering, with the composition-duration gate retained as the final authority.
+4. Failed or cancelled narration leaves a durable job lifecycle but no Artifact or retained PRIMARY blob.

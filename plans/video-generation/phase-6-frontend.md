@@ -1,50 +1,94 @@
-# Phase 6 — Frontend reduction to `<video>`
+# Phase 6 — Live deliverable job card and MP4 handoff
 
 **Status:** DESIGN.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** Phase 5 (MP4 served with Range). `surfsense_web/`.
+**Depends on:** Phase 2b (generic job lifecycle/API), Phase 5 (ready Artifact and ranged MP4 serving), and `surfsense_web/`.
 
 ## 1. Goal
 
-For an MP4 artifact the browser renders **nothing but a plain, lazy `<video>`** pointed at the PRIMARY file's ranged `content_url` — no Remotion, no `new Function`, no compile step. It appears in **two** places, both playing the same file over HTTP Range: **inline in the chat message** where it was produced (the same place podcasts play), and — because a video is a first-class artifact — in the **KB documents right panel** when opened from the roster, carrying a correct **Video** identity (icon + label) instead of the "Presentation" it inherits today. **This phase is additive**: it adds the `video/mp4` branches, selected by the PRIMARY file's **mime**, and leaves the legacy player for artifacts still shaped as audio + `scene_codes` (flag-off output and not-yet-backfilled artifacts). The old player and its deps are deleted in Phase 8, once Phase 7 backfill has left no legacy-shaped artifact behind.
+Render a generic live card as soon as interactive video execution returns its pending `DeliverableJob` receipt. The card follows the durable job through queued, running, cancelling, cancelled, failed, and ready states without requiring an Artifact to exist early.
 
-## 2. Where it renders — two surfaces, both mime-keyed
+When the job becomes ready and Zero publishes `artifact_id`, the card hands off to the exact existing MP4 artifact player/manifest/Range path. Do not add a second player or a job-specific media endpoint.
 
-Both branches key off the PRIMARY file's `mime_type` (data-driven, not flag-driven, so rollout and rollback are automatic):
+## 2. Zero lifecycle data
 
-- **Inline in chat — the save-artifact card** (`components/tool-ui/save-artifact.tsx`). The new MP4 arrives through the **generic `save_artifact`** tool (Phase 2), so this card is its chat UI — **not** the legacy `generate-video-presentation.tsx`. The card today renders a file chip that opens the side-panel; branch it: `video/mp4` → render `Mp4VideoPlayer` **inline** in place of the chip (keep the download button); anything else → today's chip-opens-panel behavior, unchanged. `viewingMode: "video" → "inline-media"` in `artifact-format-meta.ts` already encodes this: clicking the video in the roster scrolls to this inline card rather than opening the panel.
-- **KB documents panel — the artifact viewer** (`features/artifacts/artifact-panel.tsx` → `features/artifacts/viewer-registry.ts`). Opened from the documents list, the panel dispatches by PRIMARY mime through the `VIEWERS` map — which today has **no** `video/mp4` entry, so a new-arch video would fall to the "can't preview" fallback. Register `video/mp4 → Mp4FileViewer` (the same player wrapped as `FileViewerProps`, reading `buildBackendUrl(primary.content_url)`). This **supersedes** the earlier "viewer-registry is not touched" note: a video is browsable in the KB panel like any other artifact — it simply isn't the *primary* play surface (chat is), so both mounts exist.
+Publish a thin `deliverable_jobs` row and mirror the existing podcast/automation lifecycle subscription pattern:
 
-## 3. Artifact identity — Video, not Presentation
+- Add `zero/schema/deliverable-jobs.ts`, `zero/queries/deliverable-jobs.ts`, barrel registrations, and `hooks/use-deliverable-job-live.ts`.
+- Expose only lifecycle-safe fields: `id`, `kind`, `title`, `status`, `phase`, `progress`, `failure_code`, nullable `artifact_id`, workspace/thread attribution, and timestamps.
+- Never publish trusted request/checkpoint JSON, Celery task IDs, sandbox/workdir details, heartbeats, billing diagnostics, or `internal_error`.
+- Apply existing `canReadSpace`/allowed-space constraints to by-space and by-id queries.
+- Subscribe by stable job ID from the enqueue receipt. Retry preserves this same card/job identity.
 
-Today `artifact-format-meta.ts` maps `format="video"` to the **Presentation** icon and label under the "Presentations" group — which, combined with the legacy audio-backed primary, is exactly why a saved video shows a "ppt" icon yet plays as mp3. Fix the `video` entry to a real video identity: `icon: Video` (lucide), `label: "Video"`, `detailLabel: "MP4"`, and its own group — add `videos` / "Videos" to `ArtifactGroupKey` and `ARTIFACT_GROUP_ORDER`. Because every surface reads `getArtifactFormatMeta`, this single change is authoritative at once across the KB documents node, the save-artifact card, the artifact roster/library, and mentions. `viewingMode` stays `"inline-media"` (chat is the primary play surface; the panel open is served by the §2 viewer, independent of this field).
+The pending card is the pre-artifact UI. It must render correctly while `artifact_id` is null and must not query a media manifest until the job is ready.
 
-## 4. The player — lazy by construction
+## 3. Generic lifecycle card
 
-- **New component** `components/tool-ui/video-presentation/mp4-player.tsx` — `Mp4VideoPlayer({ src, poster? })` → `<video controls playsInline preload="none" poster={poster} src={src} />`. No Remotion, no `new Function`. The KB-panel viewer (§2) is a thin `FileViewerProps` wrapper over this same element — **one player, two mounts**.
-- **`preload="none"` *is* the lazy-load.** The browser fetches **zero** media bytes until the user presses play, so a thread with many saved videos costs ~nothing at rest (a poster image at most) — the native, no-JS answer to "load only when the user actually views it". Add an `IntersectionObserver` to defer even mounting the element **only** if long threads prove it necessary; don't build that speculatively.
-- **`src`** is the primary file's ranged content route: `buildBackendUrl(content_url)` → `…/workspaces/{workspaceId}/artifacts/{artifactId}/files/{file_id}/content` (the Phase-5 Range endpoint). The card result already carries `artifact_id` + `file_id` and knows `workspaceId`, and the manifest exposes `content_url` directly — either source builds the URL.
+Add a generic component under `components/tool-ui/deliverable-job` and register the video enqueue tool as a body tool in the assistant message/tool UI mappings.
 
-## 5. Notes / risks
+- **Queued:** show that work is waiting for the video worker. With concurrency `1`, later jobs remain queued without being treated as stalled.
+- **Running:** show trusted `phase` and bounded `progress` from Zero for narration, project preparation, preflight, still review, render, verify, and save.
+- **Cancelling:** disable repeated cancellation and show a neutral cooperative-cancellation state.
+- **Cancelled:** show client-owned copy and offer Retry.
+- **Failed:** map stable `failure_code` values to sanitized copy and offer Retry when allowed.
+- **Ready:** resolve `artifact_id` and hand off to the reusable existing video artifact card.
 
-- **Lazy playback *requires* Phase 5 Range.** With `preload="none"` the first play and every seek issue a `Range` request; if `stream_artifact_file` doesn't answer `206`, scrubbing breaks and some browsers refuse to start playback at all. Phase 6 therefore hard-depends on Phase 5 — that dependency is exactly what makes lazy loading safe rather than a broken-seek trap.
-- **Poster is optional in v1.** A thumbnail would come from a verify frame, but `save_artifact._read_artifact_file` rejects non-PDF secondary files, so shipping a poster means either widening that to accept one JPEG poster or going posterless (a neutral first frame). Off the critical path — defer.
-- **Transition — identity is format-keyed, playback is mime-keyed.** Both legacy and new videos are `format="video"`, so the §3 fix gives a not-yet-backfilled legacy video the new **Video** icon/label immediately — while it is still audio-backed it keeps playing via its legacy chat player and is download-only (unviewable) in the KB panel until Phase 7 converts it to `mp4`. Cosmetic and self-healing. The playback branches key off the **current** PRIMARY mime each render, so both shapes render correctly during rollout and rollback with no reload path that 500s.
-- **Legacy stays (do not delete yet):** the audio-+-`scene_codes` shape keeps rendering via `generate-video-presentation.tsx` → `combined-player.tsx` (its own tool-call UI), with `lib/remotion/compile-check.ts`, `lib/remotion/constants.ts`, and the `@remotion/*` / `@babel/standalone` deps. All removed in Phase 8.
+Unknown phases and failure codes use neutral fallback copy. Never render backend exception strings, tool output, or model-authored status text.
 
-## 6. Checks
+Merge generic in-flight jobs into the artifacts library using the existing podcast/video-run merge pattern. Keep podcasts on their current dedicated lifecycle for now. Do not expose queued generation in public threads without an explicit authentication, billing, and immutable-snapshot contract.
 
-- A saved MP4 renders an **inline** `<video>` inside the save-artifact card, plays, and seeks via `206` — and issues **no** content request until play is pressed (the lazy-load guard).
-- **Opening that MP4 from the KB documents panel** plays it in-panel via `Mp4FileViewer` (`video/mp4` registered), not the "can't preview" fallback.
-- **A video artifact shows the Video icon and "Video" label** (not Presentation) in the documents node, the save-artifact card, and the roster.
-- A legacy (audio + `scene_codes`) artifact still mounts `combined-player.tsx` and plays (regression guard — nothing is removed here).
-- Download still works from the card for both shapes.
-- No new dead imports (typecheck + lint clean). The Remotion/Babel deps are **still present** (their removal is a Phase-8 check).
+## 4. Cancel and Retry
 
-## 7. Exit criteria
+Add a small authenticated API client following `PodcastsApiService`:
 
-1. MP4 artifacts play via a plain inline `<video>` in chat, with no client-side compilation or rendering.
-2. Opening an MP4 from the KB documents panel plays it in-panel; the artifact carries a **Video** icon/label on every surface (was Presentation).
-3. `preload="none"` loads bytes only on play; seeking works via Phase-5 `206` on every storage backend.
-4. Legacy artifacts still play via the retained player (dual-render by mime).
-5. Download works from the card for both shapes.
+- **Cancel** is available for queued and running jobs until Artifact linking begins. A queued job may become cancelled without worker execution; a running job transitions to cancelling while the worker cooperatively stops.
+- **Retry** is available for failed and cancelled jobs. It requeues the same job/card identity, increments attempts server-side, clears public failure state, and rechecks quota/policy.
+- Disable controls while requests are pending, make repeat actions idempotent, and reconcile the result from Zero rather than inventing optimistic terminal states.
+- Respect workspace RBAC/ownership failures and render sanitized client copy only.
+
+The UI cannot cancel a ready job and never deletes an Artifact as a cancellation side effect.
+
+## 5. Sanitized failure copy
+
+Map stable codes locally, including:
+
+- `duration_limit`: the video exceeds the three-minute limit.
+- `quota_exceeded`: generation cannot continue under current quota.
+- `generation_failed`: the authoring workflow could not complete.
+- `render_failed`: rendering could not complete.
+- `verification_failed`: the MP4 did not pass final checks.
+- `cancelled`: generation was cancelled.
+
+Do not display Celery, OpenSandbox, ffmpeg, Remotion, stack traces, provider responses, internal paths, or subagent timeout details. Log correlation belongs on the backend by job ID, not in the card or chat transcript.
+
+## 6. Ready handoff to the existing MP4 path
+
+Extract/reuse the ready MP4 card currently reached from `components/tool-ui/save-artifact.tsx` so both save results and ready jobs use one implementation:
+
+- On `status="ready"` with `artifact_id`, load the existing artifact manifest and PRIMARY `video/mp4` `content_url`.
+- Render the existing `Mp4VideoPlayer` with the same authenticated backend URL and HTTP Range behavior.
+- Keep `controls`, `playsInline`, and `preload="none"` so no media request occurs before play.
+- Preserve existing download and artifact-library behavior.
+- Reuse the existing KB viewer registration for `video/mp4`; the job card adds lifecycle UI, not another artifact-viewing architecture.
+
+Ready without `artifact_id` is an invalid server state and should show a neutral recoverable card error, not attempt playback.
+
+Legacy audio/scene-code playback remains during rollout and is removed only in Phase 8.
+
+## 7. Checks
+
+- The enqueue receipt immediately renders a queued card before any Artifact exists.
+- Zero updates exercise queued, each running phase/progress state, cancelling, cancelled, failed, and ready.
+- Every stable failure code maps to safe copy; unknown codes are neutral; raw backend/internal errors never render.
+- Cancel works for queued/running, is disabled once linking starts, and cancelled jobs never request artifact media.
+- Retry preserves job/card identity and returns through queued/running states.
+- Ready transitions to the existing artifact manifest/Range/`Mp4VideoPlayer` path and issues no media request before play.
+- In-flight jobs merge into the artifact library without duplicate identity; workspace authorization applies to all subscriptions/actions.
+- Existing MP4 seeking/download and legacy playback remain regression-covered.
+
+## 8. Exit criteria
+
+1. Users receive a live generic job card immediately after enqueue, before any Artifact exists.
+2. Zero exposes only safe lifecycle data and the UI displays only client-mapped failure copy.
+3. Cancel and explicit Retry follow the durable backend state machine while preserving card identity.
+4. Ready jobs hand off to the existing MP4 artifact player and authenticated Range-serving path without duplicating media UI.

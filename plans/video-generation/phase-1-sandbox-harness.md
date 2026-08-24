@@ -2,127 +2,177 @@
 
 **Status:** DESIGN.
 **Parent spec:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Depends on:** the existing sandbox image (`docker/sandbox/Dockerfile`, `FROM opensandbox/code-interpreter:v1.1.0`) and provider (`app/sandbox/providers/opensandbox.py`).
+**Depends on:** the existing sandbox image and provider.
 
 ## 1. Goal
 
-The jail can turn arbitrary LLM-authored scene strings into (a) one still PNG per slide and (b) one MP4 with muxed audio — **offline**, following the official Remotion Node SSR path (`/docs/docker`).
+Provide an offline, deterministic harness that turns typed, complete LLM-authored TSX scene modules plus trusted props/audio into:
 
-## 2. Image changes — `docker/sandbox/Dockerfile`
+- native bundle/metadata preflight diagnostics;
+- start/middle/end stills for every scene and one contact sheet;
+- one narrated MP4;
+- atomic progress suitable for a durable queued job; and
+- cooperative cancellation with partial-output cleanup.
 
-Graft the official Remotion Docker layer onto the **existing** base (do **not** switch to `node:22-slim`; the code-interpreter base already carries Node 22 + Python/bash/kernels/skills/LibreOffice the rest of the sandbox needs). Add after the npm `docx` layer, before the skills copy:
+The harness executes only inside a fresh job-owned sandbox. The entire video workflow is driven by the deliverables subagent in trusted `queued_job` mode; this phase does not define an inline/chat-turn renderer.
 
-```dockerfile
-# ---- Remotion server-side render harness (Node 22 already in base) ----
-# Chrome shared libraries — canonical list from Remotion /docs/docker — plus a
-# system ffmpeg/ffprobe used for: segment concat of long decks (Phase 2 §5),
-# the in-sandbox structural probe, and the single-frame content-sanity sample
-# (Phase 4). Remotion's own bundled ffmpeg handles render/mux (§3); these are the
-# steps that shell out to ffmpeg/ffprobe directly, so we add the binaries on PATH.
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libnss3 libdbus-1-3 libatk1.0-0 libgbm-dev libasound2 libxrandr2 \
-        libxkbcommon-dev libxfixes3 libxcomposite1 libxdamage1 \
-        libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-        ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+## 2. Image contract
 
-# Bake the harness scaffolding + node_modules + Chrome so rendering needs no network.
-ENV REMOTION_HOME=/opt/remotion
-COPY remotion/ ${REMOTION_HOME}/
-RUN set -euo pipefail \
-    && cd ${REMOTION_HOME} \
-    && npm install \
-    && npx remotion browser ensure \
-    && node -e "require('@remotion/renderer'); require('@remotion/bundler')"
-```
+Graft the official Remotion Docker requirements onto the existing `opensandbox/code-interpreter` base; do not replace it with `node:22-slim`. Bake:
 
-Notes:
-- `libpango-1.0-0` is already installed in the artifact layer — harmless duplicate (apt is idempotent).
-- `-dev` variants (`libgbm-dev`, `libxkbcommon-dev`) match the doc exactly; downgrading to runtime `libgbm1`/`libxkbcommon0` is a **deferred** size pass.
-- `chromeMode` stays default `headless-shell` (lightest). No `CMD` — the code-interpreter `ENTRYPOINT` is unchanged; renders are invoked per-call via `execute`/`run_command`.
-- `ffprobe` ships **with** the `ffmpeg` package installed above, so the trusted-side verify (Phase 4) and the in-sandbox structural probe need no extra layer.
+- exact, matching stable versions of `remotion`, React, `@remotion/bundler`, `@remotion/renderer`, `@remotion/media`, and `@remotion/media-parser`;
+- Chrome Headless Shell via `npx remotion browser ensure`;
+- system ffmpeg/ffprobe for structural checks and cleanup validation;
+- the render harness and all `node_modules`, so runtime never installs or downloads;
+- the closed offline font palette already selected for the video skill: Inter, Lora, and JetBrains Mono.
 
-## 2a. Baked font palette (offline — the jail has no network)
+Keep the code-interpreter entrypoint. Rendering is invoked per queued job through the sandbox provider. Network remains denied.
 
-The jail is `NetworkPolicy(default_action="deny")`, so any web font the model references (`@remotion/google-fonts`, a bare `@font-face url()`) **silently fails and Chrome falls back** — producing a structurally-valid MP4 that looks wrong, which structural verify (Phase 4) cannot catch. So the harness ships a **fixed, closed set of three families**, installed as *system* fonts (fontconfig) so scene code uses them by `fontFamily` name with no `loadFont` wiring:
+This image is the sandbox image that executes generated TSX. The dedicated `video_render` Celery worker is a separate Compose service that reuses the existing backend/Celery image; no new worker image is introduced.
 
-```dockerfile
-# ---- Baked fonts: the ONLY families scene code may use (offline) ----
-# Vendored .ttf under docker/sandbox/remotion/fonts/ (Inter, Lora, JetBrains Mono),
-# installed system-wide so headless Chrome resolves them by family name.
-COPY remotion/fonts/ /usr/share/fonts/truetype/surfsense/
-RUN fc-cache -f && fc-list | grep -Ei 'inter|lora|jetbrains' >/dev/null
-```
+## 3. Scene and project-writing contract
 
-The three families are a deliberate, versatile trio — **do not expand without also vendoring the file** (an unlisted family will fall back, not error):
+Every generated scene is a complete, self-contained `.tsx` module:
 
-| Role | Family | Use |
-|---|---|---|
-| Sans (default) | **Inter** | body copy, most headings, UI-style slides |
-| Serif | **Lora** | editorial/quote/title contrast |
-| Mono | **JetBrains Mono** | code, figures, data labels, tabular numerals |
+```tsx
+import React from "react";
+import {
+  AbsoluteFill,
+  interpolate,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 
-The `fc-list` grep is the build-time assertion: a font that didn't install fails `docker build` rather than falling back at render. Vendoring the `.ttf` bytes (not an apt package) keeps the set reproducible across base-image changes and free of network at build.
+export default function Scene() {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const opacity = interpolate(frame, [0, 12, durationInFrames - 12, durationInFrames], [0, 1, 1, 0]);
 
-## 3. New harness — `docker/sandbox/remotion/`
-
-Baked at build time (scaffolding + deps only; scenes/audio are injected at runtime):
-
-- **`package.json`** — `remotion`, `react`, `react-dom`, `@remotion/bundler`, `@remotion/renderer`, `@remotion/media` (the modern, Mediabunny-backed `<Audio>` — the recommended tag for new projects, not the legacy core `remotion` `<Audio>`), `@remotion/media-parser` (`parseMedia`, the non-deprecated successor to `getAudioDurationInSeconds`, used for duration probing in §4). FFmpeg ships inside `@remotion/renderer` for the render/mux step, so no apt ffmpeg is needed *for rendering* — but a system `ffmpeg`/`ffprobe` is still installed in §2 for the steps that shell out directly: **segment concat** for long decks (Phase 2 §5), the **in-sandbox structural probe**, and the **single-frame content-sanity sample** (Phase 4). None of these go through the renderer. Verify uses no *vision LLM* and no *per-frame* extraction — just one sampled frame for a local histogram.
-  - **Pin all Remotion packages to one exact version** (Remotion hard-requires `remotion` + every `@remotion/*` to be the *same* version; a floating `^` in a baked image risks a mismatched patch at build time). Install with `--save-exact` / `npx remotion add` so versions stay aligned. Target the latest **4.0.x** stable (4.0.514 at time of writing). **Do not adopt the 5.0 migration** — v5 is not the npm `latest` tag yet (only `4.1.0-alpha` prereleases exist); staying on 4.0.x keeps us on the released line.
-- **`src/index.ts`** — `registerRoot(Root)`.
-- **`src/Root.tsx`** — registers ONE `<Composition id="Main" component={Deck} calculateMetadata={calculateMetadata} />`. Even with `calculateMetadata`, v4 still **requires** the static `width={1920} height={1080}`, placeholder `fps={30}` and `durationInFrames={1}`, and a `defaultProps` (mandatory because `Deck` takes props) — `calculateMetadata` overrides `fps`/`durationInFrames` at render. `calculateMetadata` is Remotion's canonical data-driven-duration hook: it measures each slide's narration and returns the resolved `fps` + total `durationInFrames` and passes per-slide durations down via `props`, so timing is owned by Remotion's own metadata pipeline rather than hand-computed. Props are declared as a `type` (v4 forbids `interface` for composition props). `Deck` lays the slides out with `<Series>` (see §4).
-- **`stagger.ts`** — server port of `createStagger` from `surfsense_web/lib/remotion/compile-check.ts` (keeps the injected `stagger` symbol available to scene code).
-- **`render.mjs`** — the entry, aligned to the `/docs/docker` template.
-
-## 4. `render.mjs` contract
-
-Two modes, one file (`node render.mjs <mode> props.json [outdir|out.mp4]`):
-
-1. **Compile step (replaces `new Function`).** For each scene string in `props.json`:
-   - prepend the import preamble that supplies the symbols scene code expects as free variables:
-     ```ts
-     import React from "react";
-     import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring,
-              interpolate, Sequence, Easing } from "remotion";
-     import { Audio } from "@remotion/media";
-     import { staticFile } from "remotion";
-     import { stagger } from "../../stagger";
-     ```
-   - apply the same `prepareSource` rename as `compile-check.ts` (export → known symbol);
-   - write a **real `.tsx` module** under `src/scenes/`. The bundler (`@remotion/bundler`) transpiles it — no `new Function`.
-2. **Assemble the deck with `<Series>`.** `Deck` is the production port of `CombinedComposition` (`combined-player.tsx`): a `<Series>` mapping each slide to `<Series.Sequence durationInFrames={sceneDurations[i]} premountFor={fps}>` containing the scene component + `<Audio src={staticFile(audioFilename)} />`, plus the `Watermark`. `<Series>` chains sequences back-to-back automatically — no manual `from={offset}` bookkeeping (which is what the browser player did). Per-slide `sceneDurations` arrive as resolved props from `calculateMetadata`, so the component never re-measures.
-3. **Durations via `calculateMetadata` (exact parity with today's `create_slide_audio`).** For each slide, measure the *actual narration file that will be muxed* with `parseMedia({ src: staticFile(audio), fields: { durationInSeconds: true } })`. `parseMedia` (Mediabunny core) is chosen over `getAudioDurationInSeconds` for two reasons: the latter is **officially deprecated** (docs point to `getMediaMetadata`), and `parseMedia` is **cross-platform (browser + Node + Bun), faster, and format-broader** — so it is robust wherever Remotion evaluates the composition. Then `frames = max(ceil(seconds * fps), min_duration_in_frames)`, reusing the backend's `FPS=30` and 10s (300-frame) floor from `props.json`. Return `{ fps, durationInFrames: Σ frames }` and expose the per-slide `sceneDurations` via `props`. Measuring the bytes that are actually muxed (not a number passed from outside) makes measured and rendered identical, killing sync drift. Slides with no narration fall back to the floor (silent that slide; the MP4 still carries an audio stream from the others).
-4. **`--stills props.json outdir/`** — `selectComposition` once, then `renderStill({ composition, serveUrl, output, frame })` per slide, where `frame` is the slide's **cumulative start frame** (the same running offset `<Series>` produces) — not frame 0 each time — so each PNG is a representative keyframe of its slide. Cheap iteration aid.
-5. **`props.json out.mp4`** — `bundle()` → `selectComposition({ serveUrl, id: 'Main', inputProps })` (this executes `calculateMetadata`, resolving `fps` + total duration) → `renderMedia({ composition, serveUrl, codec: 'h264', outputLocation: 'out.mp4', inputProps, chromiumOptions: { enableMultiProcessOnLinux: true }, timeoutInMilliseconds: RENDER_FRAME_TIMEOUT_MS })`. Pass the **same `inputProps` to both** `selectComposition` and `renderMedia` (per the official template). Audio is muxed automatically. (`enableMultiProcessOnLinux` is default-on since 4.0.42; kept explicit to mirror the canonical `/docs/docker` template.)
-   - **Bound a pathological frame.** `timeoutInMilliseconds` caps per-frame work (the `delayRender()` budget). Model code executes in Chrome during render, so a scene with an unresolved `delayRender()`, a `fetch` that hangs on the denied network, or a runaway loop would otherwise pin the sandbox slot for the entire `SANDBOX_OPERATION_TIMEOUT_SECONDS` and starve the admission gate (Phase 2 §5). Set `RENDER_FRAME_TIMEOUT_MS` **well below** that per-`execute` budget (default Remotion is 30 000 ms; tighten to a few seconds) so a bad frame throws a captured error fast instead of eating the whole render. `--stills` (§4.4) takes the same `timeoutInMilliseconds`.
-
-`props.json` shape (written by the backend at runtime, §5). `fps` and `min_duration_in_frames` are passed through from backend config (`VIDEO_PRESENTATION_FPS`, `VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES`) so timing has **one source of truth** — `calculateMetadata` reads them from here instead of hardcoding `30`/`300`:
-```json
-{
-  "fps": 30,
-  "min_duration_in_frames": 300,
-  "scenes": [ { "slide_number": 1, "code": "<tsx string>", "audio": "slide-1.mp3" } ]
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#0b1020", color: "white", opacity }}>
+      <h1 style={{ margin: 120, fontFamily: "Inter", fontSize: 88 }}>Example scene</h1>
+    </AbsoluteFill>
+  );
 }
 ```
 
-## 5. Runtime layout (per render)
+Requirements:
 
-The backend copies `/opt/remotion` → a per-render workdir, `write_file`s scene modules + `props.json`, and `write_file`s narration into `<workdir>/public/` (Phase 3) so `staticFile()` resolves. `bundle()` uses the workdir's `public/` as the public dir. Because each video has different generated code, **the bundle is rebuilt per render** (no cross-video reuse) — accepted cost.
+- imports are explicit;
+- a default export is mandatory;
+- modules are written verbatim;
+- any layout is allowed within output/safe-margin policy;
+- generated modules do not depend on injected globals;
+- no regex parsing, source rewriting, import stripping, export promotion, or fixed slide template exists.
 
-**Clean the workdir in a `finally`.** Each render's workdir (copied harness + injected scenes/audio + the bundle output + `out.mp4`) is deleted after the MP4 is read back — success or failure — mirroring `verification/render.py::cleanup_render_files`. Segment renders for long decks (Phase 2 §5) and backfill batches (Phase 7) run many renders through one long-lived session, so without cleanup the sandbox disk fills. Cleanup must never mask the render verdict (best-effort `rm -rf`, swallow its own error).
+A trusted `prepare_video_project` deliverables tool accepts typed scene objects and trusted metadata. It writes files with `SandboxSession.write_file()` and serializes `props.json` as JSON. It never constructs TSX with Python f-strings or passes scene source through shell quoting.
+
+Representative trusted input:
+
+```json
+{
+  "fps": 30,
+  "scenes": [
+    {
+      "scene_number": 1,
+      "module_filename": "scene-001.tsx",
+      "audio_filename": "scene-001.mp3"
+    }
+  ]
+}
+```
+
+Scene code is stored in its module file, not duplicated in `props.json`.
+
+## 4. Remotion project
+
+The baked project registers one 1920×1080 composition. `calculateMetadata()` measures the exact narration bytes that will be muxed, computes per-scene durations, and returns resolved props and total frames. The deck sequences scenes and their audio without reconstructing or rewriting scene source.
+
+The harness exposes:
+
+```text
+node render.mjs --preflight props.json
+node render.mjs --stills props.json outdir/
+node render.mjs props.json out.mp4
+```
+
+All modes share the same input loading, `bundle()`, `selectComposition()`, bundle cache, progress format, cancellation behavior, Chrome options, and bounded per-frame delay-render timeout.
+
+### 4.1 Native preflight
+
+`--preflight`:
+
+1. validates trusted props and referenced files;
+2. bundles the real project with esbuild/Remotion;
+3. calls `selectComposition()` so `calculateMetadata()` runs;
+4. verifies dimensions, fps, scene count, audio references, and selected duration;
+5. returns concise structured diagnostics tied to scene number/module filename.
+
+Missing/malformed default exports fail through the bundler. Diagnostics may classify native errors, but must not inspect or transform source with regular expressions.
+
+### 4.2 Product gates
+
+Version-controlled policy allows at most:
+
+- 12 scenes; and
+- 180 seconds of final output.
+
+Enforce duration twice:
+
+1. after narration, reject measured transcript/audio total above 180 seconds;
+2. after `selectComposition()`, reject `composition.durationInFrames / composition.fps > 180` before any still or `renderMedia()` call.
+
+The exact 180-second boundary is valid. Product limits are distinct from the queued worker's bounded soft/hard execution budget.
+
+### 4.3 Exact-input bundle reuse
+
+Hash all complete module bytes, props, and other bundle-affecting inputs with Node's `crypto` SHA-256. Cache the resulting bundle only inside the trusted job workdir. Reuse it between preflight, still review, and final render only on an exact hash match.
+
+No cross-job cache is required. Changed module/props input must invalidate the cache.
+
+### 4.4 Multi-frame visual review
+
+For each scene, render representative start, middle, and end frames based on the resolved cumulative timeline, plus one contact sheet. Stills use the same selected composition and exact-input bundle as final rendering.
+
+The queued deliverables subagent reviews them through a bounded `review_video_stills` tool using the existing configured vision model when available. The rubric covers clipping, overflow, contrast, hierarchy, blank frames, motion endpoints, and safe margins. It does not impose a template or fixed layout.
+
+### 4.5 Progress and cancellation
+
+`renderMedia({ onProgress })` writes a small progress snapshot atomically (temporary file then rename). The payload is trusted machine state, for example:
+
+```json
+{"phase":"rendering","rendered_frames":900,"total_frames":2700,"fraction":0.3333}
+```
+
+A worker-side monitor maps this to job progress and checks the database for `cancelling`. When requested, it writes a trusted cancel marker into the job workdir. The harness checks that marker from `onProgress` and calls Remotion's `makeCancelSignal()` cancellation path.
+
+Handle SIGTERM/SIGINT cooperatively. In `finally`, remove partial segments, temporary stills, and incomplete MP4 output while retaining only inputs/checkpoints explicitly needed for a permitted retry. Cancellation must stop before verification and save.
+
+## 5. Runtime ownership and cleanup
+
+Before agent invocation, the queued worker creates a fresh sandbox and a trusted workdir such as `/workspace/deliverable-job-{job_id}`, then copies the baked harness. Sandbox ownership is `deliverable-job:{job_id}` and is separate from root-thread Artifact attribution.
+
+The model cannot choose the workdir, cancellation marker, progress path, or cleanup root. Two jobs from the same chat never share a sandbox or checkpoint namespace.
+
+The worker terminates the job-owned sandbox in `finally`. Cleanup errors are logged but cannot overwrite a ready, failed, or cancelled state transition.
 
 ## 6. Checks
 
-- In-image fixture: a 2-slide `props.json` (with a short silent WAV in `public/`) →
-  - `node render.mjs --stills props.json /tmp/stills` produces 2 PNGs;
-  - `node render.mjs props.json /tmp/out.mp4` produces an MP4 that `ffprobe` reports as 1920×1080, duration > 0, with an audio stream.
-- A scene string that throws fails the bundle with a captured error on stderr (proves errors surface to the caller, not a silent black frame).
+- A complete two-scene default-export fixture passes preflight, emits three frames per scene plus a contact sheet, and renders an audible 1920×1080 MP4 offline.
+- Missing and malformed default exports fail through bundling with scene/file diagnostics.
+- A repository search/test proves the harness has no source regex or `prepareSource()` transformation.
+- Typed preparation preserves module bytes exactly and safely serializes props.
+- 180 seconds passes; any positive amount above it fails before rendering.
+- Exact inputs reuse a bundle; one-byte module/props changes invalidate it.
+- Progress snapshots are atomic and monotonic enough for the worker mapping.
+- A cancel marker interrupts an active real Chrome render and leaves no partial MP4.
+- The review set includes start/middle/end for every scene and one contact sheet.
 
 ## 7. Exit criteria
 
-1. `docker build` of `docker/sandbox` succeeds with the Remotion layer on the code-interpreter base.
-2. Headless Chrome launches inside the sandbox (no missing `.so`).
-3. The fixture produces both stills and a playable MP4 with audio, offline.
-4. A legacy scene string (old injected-globals contract) bundles unchanged via the preamble — validated on one real sample.
+1. The sandbox image builds and Chrome launches with network denied.
+2. Native preflight is the only compile contract; there is no regex scene rewriting.
+3. Product duration/scene gates run before expensive rendering.
+4. Preflight, stills, and final render reuse an exact-input bundle.
+5. Real rendering publishes progress and responds to cooperative cancellation.
+6. A playable, narrated MP4 is produced by the queued-job harness path.
