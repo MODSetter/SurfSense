@@ -1,15 +1,15 @@
 """Add generic queued deliverable jobs.
 
-Revision ID: 186
-Revises: 185
+Revision ID: 187
+Revises: 186
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "186"
-down_revision: str | None = "185"
+revision: str = "187"
+down_revision: str | None = "186"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
