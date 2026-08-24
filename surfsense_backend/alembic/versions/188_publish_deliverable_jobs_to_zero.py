@@ -1,7 +1,7 @@
 """Publish the safe deliverable-job lifecycle projection to Zero.
 
-Revision ID: 187
-Revises: 186
+Revision ID: 188
+Revises: 187
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 from alembic import op
 from app.zero_publication import apply_publication
 
-revision: str = "187"
-down_revision: str | None = "186"
+revision: str = "188"
+down_revision: str | None = "187"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

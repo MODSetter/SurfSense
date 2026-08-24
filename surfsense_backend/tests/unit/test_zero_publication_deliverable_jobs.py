@@ -39,15 +39,15 @@ def test_deliverable_jobs_publish_only_public_lifecycle_columns(monkeypatch) -> 
         assert f'"{column}"' not in entry
 
 
-def test_migration_187_reconciles_canonical_publication() -> None:
+def test_migration_188_reconciles_canonical_publication() -> None:
     migration = (
         Path(__file__).resolve().parents[2]
         / "alembic"
         / "versions"
-        / "187_publish_deliverable_jobs_to_zero.py"
+        / "188_publish_deliverable_jobs_to_zero.py"
     ).read_text()
 
-    assert 'revision: str = "187"' in migration
-    assert 'down_revision: str | None = "186"' in migration
+    assert 'revision: str = "188"' in migration
+    assert 'down_revision: str | None = "187"' in migration
     assert "apply_publication(op.get_bind())" in migration
     assert "Historical publication shapes are immutable" in migration
