@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 from app.knowledge_store.remote.exceptions import RemoteError
@@ -15,6 +16,9 @@ from app.knowledge_store.remote.schemas import (
     RemoteStatus,
 )
 from app.knowledge_store.settings import knowledge_store_enabled_for
+from app.observability import metrics, otel
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +44,36 @@ class WorkspaceRemotes:
         return await self._rows.list_statuses(self._workspace_id)
 
     async def add(self, spec: RemoteSpec) -> RemoteStatus:
+        with otel.remote_connect_span(
+            workspace_id=self._workspace_id, provider=spec.provider
+        ) as sp:
+            try:
+                status = await self._add(spec)
+            except RemoteError as exc:
+                sp.set_attribute("connect.status", "rejected")
+                sp.set_attribute("connect.code", exc.code)
+                metrics.record_knowledge_store_remote_connect(
+                    provider=spec.provider, status="rejected"
+                )
+                logger.info(
+                    "Git remote rejected workspace=%s provider=%s code=%s",
+                    self._workspace_id,
+                    spec.provider,
+                    exc.code,
+                )
+                raise
+            sp.set_attribute("connect.status", "connected")
+            metrics.record_knowledge_store_remote_connect(
+                provider=spec.provider, status="connected"
+            )
+            logger.info(
+                "Git remote connected workspace=%s provider=%s",
+                self._workspace_id,
+                spec.provider,
+            )
+            return status
+
+    async def _add(self, spec: RemoteSpec) -> RemoteStatus:
         if not await knowledge_store_enabled_for(self._workspace_id):
             raise RemoteError("not_git_native", "workspace is not git-native")
         if await self.list():
