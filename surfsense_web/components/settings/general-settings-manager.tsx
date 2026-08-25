@@ -15,13 +15,18 @@ import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
+import { GitRemoteSettings } from "./git-remote-settings";
 import { WorkspaceApiAccessControl } from "./workspace-api-access-control";
 
 interface GeneralSettingsManagerProps {
 	workspaceId: number;
+	githubInstallationId?: string;
 }
 
-export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerProps) {
+export function GeneralSettingsManager({
+	workspaceId,
+	githubInstallationId,
+}: GeneralSettingsManagerProps) {
 	const t = useTranslations("workspaceSettings");
 	const tCommon = useTranslations("common");
 	const {
@@ -181,6 +186,13 @@ export function GeneralSettingsManager({ workspaceId }: GeneralSettingsManagerPr
 			</form>
 
 			<WorkspaceApiAccessControl workspaceId={workspaceId} className="border-t pt-6" />
+
+			{workspace?.knowledge_store_enabled ? (
+				<GitRemoteSettings
+					workspaceId={workspaceId}
+					githubInstallationId={githubInstallationId}
+				/>
+			) : null}
 
 			<div className="border-t pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div className="space-y-1">

@@ -1,6 +1,18 @@
 import { GeneralSettingsManager } from "@/components/settings/general-settings-manager";
 
-export default async function Page({ params }: { params: Promise<{ workspace_id: string }> }) {
+export default async function Page({
+	params,
+	searchParams,
+}: {
+	params: Promise<{ workspace_id: string }>;
+	searchParams: Promise<{ github_installation_id?: string }>;
+}) {
 	const { workspace_id } = await params;
-	return <GeneralSettingsManager workspaceId={Number(workspace_id)} />;
+	const { github_installation_id } = await searchParams;
+	return (
+		<GeneralSettingsManager
+			workspaceId={Number(workspace_id)}
+			githubInstallationId={github_installation_id}
+		/>
+	);
 }
