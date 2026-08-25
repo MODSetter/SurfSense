@@ -45,7 +45,7 @@ async def resolve_document_references(
                 entity_id=document.id,
                 label=title,
                 path=virtual_path_of(
-                    metadata=document.document_metadata,
+                    path=document.path,
                     doc_id=document.id,
                     title=title,
                     folder_id=document.folder_id,

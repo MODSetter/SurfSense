@@ -1,7 +1,10 @@
+import contextlib
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artifacts import service
 from app.artifacts.persistence import Artifact
@@ -16,6 +19,36 @@ from app.knowledge_store.paths import to_store_path
 from .test_service import MemoryBackend
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def per_doc_sessions(db_session: AsyncSession, monkeypatch):
+    """Bind converge's per-document session to the test's connection.
+
+    Mirrors the knowledge_store suite's harness: converge indexes each document
+    in its own session (a separate connection in production), so this test's
+    savepoint connection must serve that session too, or the row converge
+    committed is invisible and the document never leaves PENDING. Scoped to this
+    module, not the artifacts suite — the other artifact tests drive real
+    background processing that needs the true separate connection.
+    """
+
+    def maker():
+        @contextlib.asynccontextmanager
+        async def _ctx() -> AsyncIterator[AsyncSession]:
+            conn = await db_session.connection()
+            async with AsyncSession(
+                bind=conn,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            ) as doc_session:
+                yield doc_session
+
+        return _ctx()
+
+    monkeypatch.setattr(
+        "app.tasks.celery_tasks.get_celery_session_maker", lambda: maker
+    )
 
 
 @pytest.fixture
