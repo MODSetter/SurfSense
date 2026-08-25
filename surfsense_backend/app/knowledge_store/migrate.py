@@ -21,7 +21,6 @@ from app.knowledge_store.identities import MIGRATION_IDENTITY
 from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     KEEP_FILE,
-    PATH_MARKER,
     allocate_path,
     build_path_index,
     recorded_virtual_path,
@@ -282,12 +281,11 @@ async def _empty_folder_keeps(
 async def _record_seeded_paths(
     session: AsyncSession, seeded_paths: Mapping[int, str]
 ) -> None:
-    """Mark each seeded row with the path its content was written to.
+    """Record on each seeded row the path its content was written to.
 
-    Only rows whose marker would change are touched, so a re-seed of an already
-    marked workspace writes nothing. Best-effort: the seed revision is already
-    committed, and an unmarked row still resolves by derivation — it just cannot
-    survive a retitle, which the next seed repairs.
+    Best-effort: the seed revision is already committed, and a row without the
+    column still resolves by derivation — it just cannot survive a retitle, which
+    the next seed repairs.
     """
     from app.db import Document
 
@@ -298,14 +296,7 @@ async def _record_seeded_paths(
             select(Document).where(Document.id.in_(list(seeded_paths)))
         )
         for document in rows.scalars().all():
-            path = seeded_paths[document.id]
-            document.path = path
-            metadata = dict(document.document_metadata or {})
-            if metadata.get(PATH_MARKER) == path:
-                continue
-            metadata[PATH_MARKER] = path
-            # Reassigned, not mutated: SQLAlchemy tracks JSON columns by identity.
-            document.document_metadata = metadata
+            document.path = seeded_paths[document.id]
         await session.commit()
     except Exception:
         logger.warning("Could not record seeded paths", exc_info=True)

@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Document, DocumentStatus, DocumentType, Workspace
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.paths import (
-    PATH_MARKER,
     parse_documents_path,
     virtual_path_to_doc,
 )
@@ -73,9 +72,6 @@ async def upsert_row(
         created_by_id=author_id,
         folder_parts=folder_parts,
     )
-    metadata = {**(document.document_metadata or {} if document else {})}
-    metadata[PATH_MARKER] = virtual_path
-
     created = document is None
     if document is None:
         # Agent-authored note: title is the filename without the storage .md.
@@ -84,7 +80,7 @@ async def upsert_row(
         document = Document(
             title=title.removesuffix(".md") or title,
             document_type=DocumentType.NOTE,
-            document_metadata=metadata,
+            document_metadata={},
             path=virtual_path,
             content=content,
             content_hash=generate_content_hash(content, workspace_id),
@@ -106,7 +102,6 @@ async def upsert_row(
         document.path = virtual_path
         document.source_markdown = content
         document.content_hash = generate_content_hash(content, workspace_id)
-        document.document_metadata = metadata
         document.updated_at = datetime.now(UTC)
 
     await session.flush()

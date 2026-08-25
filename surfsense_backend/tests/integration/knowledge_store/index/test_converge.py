@@ -28,7 +28,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
-from app.knowledge_store.index.converge import PATH_MARKER, index_changes, index_tree
+from app.knowledge_store.index.converge import index_changes, index_tree
 from app.knowledge_store.service import record_deleted_documents
 from app.utils.document_converters import generate_unique_identifier_hash
 
@@ -156,11 +156,51 @@ async def test_uploaded_file_is_adopted_not_duplicated(
     assert total == 1
     await db_session.refresh(upload)
     assert upload.id == upload_id
-    # Identity and type stay the upload's; only the location marker is added.
+    # Identity and type stay the upload's; only the location path is added.
     assert upload.document_type == DocumentType.FILE
     assert upload.unique_identifier_hash == upload_hash
-    assert upload.document_metadata[PATH_MARKER] == "/documents/report.pdf.xml"
+    assert upload.path == "/documents/report.pdf.xml"
     assert upload.document_metadata["FILE_NAME"] == "report.pdf"
+
+
+async def test_reindexing_leaves_a_rows_metadata_untouched(
+    store, db_session, db_workspace, db_user, patched_embed_texts
+):
+    """A content update must not rewrite metadata a connector or upload owns.
+
+    The existing-row branch of the upsert once reassigned document_metadata to
+    carry the path marker; the path column now records the location, so a reindex
+    has no reason to touch metadata — and must not resurrect the marker.
+    """
+    metadata = {"FILE_NAME": "report.pdf", "ETAG": "v1"}
+    upload = Document(
+        title="report.pdf",
+        document_type=DocumentType.FILE,
+        document_metadata=dict(metadata),
+        content="# Report",
+        content_hash=f"hash-{uuid.uuid4().hex}",
+        unique_identifier_hash=generate_unique_identifier_hash(
+            DocumentType.FILE, "report.pdf", db_workspace.id
+        ),
+        source_markdown="# Report",
+        workspace_id=db_workspace.id,
+        created_by_id=db_user.id,
+        status=DocumentStatus.ready(),
+    )
+    db_session.add(upload)
+    await db_session.flush()
+
+    await commit(store, {"documents/report.pdf.xml": "# Report"})
+    await index_changes(db_session, db_workspace.id)
+
+    # A real content change forces the existing-row branch to run a second time.
+    await commit(store, {"documents/report.pdf.xml": "# Report\n\nRevised."})
+    await index_changes(db_session, db_workspace.id)
+
+    await db_session.refresh(upload)
+    assert "Revised." in upload.source_markdown
+    # Exact equality proves the branch neither wiped the dict nor stamped a marker.
+    assert upload.document_metadata == metadata
 
 
 async def test_existing_path_updates_in_place(
@@ -189,7 +229,7 @@ async def test_a_document_in_a_folder_lands_under_that_folder(
 
     row = (await titles(db_session, db_workspace.id))["paper"]
     assert row.folder_id is not None
-    assert row.document_metadata[PATH_MARKER] == "/documents/Research/paper.xml"
+    assert row.path == "/documents/Research/paper.xml"
 
 
 # ── Chunk reuse and removal ─────────────────────────────────────────────────
@@ -637,8 +677,7 @@ async def test_a_failing_document_does_not_discard_its_batch(
     good = await db_session.scalar(
         select(Document).where(
             Document.workspace_id == workspace_id,
-            Document.document_metadata[PATH_MARKER].as_string()
-            == "/documents/good.xml",
+            Document.path == "/documents/good.xml",
         )
     )
     assert good is not None

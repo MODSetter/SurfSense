@@ -71,16 +71,16 @@ class StorePath:
 def recorded_virtual_path(
     document_metadata: Mapping[str, object] | None, path: str | None
 ) -> str | None:
-    """The path a doc already lives at: marker first, then the durable column.
+    """The path a doc already lives at: the durable column, then the marker.
 
-    Both are ``/documents/...`` virtual paths. The marker rides on metadata a
-    connector re-sync rewrites, so it can vanish; the ``path`` column is set by
-    the same writers and is not overwritten by a sync, so it is the fallback. The
-    live recorder and the Phase-5 seeder share this one reader, so a re-sync and a
-    re-seed can never pin one row to two different files.
+    Both are ``/documents/...`` virtual paths. The column is what writers set and
+    is authoritative; the marker is legacy and, once writers stop stamping it, can
+    go stale — so it is only the fallback for a row written before 189 filled the
+    column. The live recorder and the Phase-5 seeder share this one reader, so a
+    re-sync and a re-seed can never pin one row to two different files.
     """
     prefix = f"{DOCUMENTS_ROOT}/"
-    for value in ((document_metadata or {}).get(PATH_MARKER), path):
+    for value in (path, (document_metadata or {}).get(PATH_MARKER)):
         if isinstance(value, str) and value.startswith(prefix):
             return value
     return None

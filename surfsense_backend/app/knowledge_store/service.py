@@ -34,7 +34,6 @@ from app.knowledge_store.factory import build_engine
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
 from app.knowledge_store.locks import workspace_write_lock
 from app.knowledge_store.paths import (
-    PATH_MARKER,
     StorePathError,
     recorded_virtual_path,
     workspace_store_path,
@@ -364,19 +363,18 @@ class KnowledgeStore:
     ) -> Outcome:
         """Record one document's save at its canonical path.
 
-        The path is remembered on the row (:data:`PATH_MARKER`) so the next save
+        The path is remembered on the row's ``path`` column so the next save
         knows where the document used to live and can drop that file when a
-        retitle moves it. The marker is written only once a revision landed: a
-        marker without a file would look indexer-owned and a rebuild would prune
+        retitle moves it. The column is written only once a revision landed: a
+        path without a file would look indexer-owned and a rebuild would prune
         it. ``title_is_explicit`` lets an authored title place the file; a title
-        re-read from a heading follows the marker instead.
+        re-read from a heading follows the recorded path instead.
         """
         if not await knowledge_store_enabled_for(self._workspace_id):
             return Outcome(revision=None)
         session = self._require_session()
         from app.db import Document
         from app.knowledge_store.paths import (
-            DOCUMENTS_ROOT,
             build_path_index,
             to_store_path,
         )
@@ -388,29 +386,19 @@ class KnowledgeStore:
             )
             document = await session.get(Document, doc_id)
             metadata = document.document_metadata if document else None
-            previous = (metadata or {}).get(PATH_MARKER)
-            recorded = (
-                previous
-                if isinstance(previous, str)
-                and previous.startswith(f"{DOCUMENTS_ROOT}/")
-                else None
+            previous = recorded_virtual_path(
+                metadata, document.path if document else None
             )
             # A recorded path stays put; only an explicit title, or a first write,
             # authors a new one. Re-deriving a recorded path is the legacy churn.
-            if recorded is not None and not title_is_explicit:
-                virtual_path = recorded
+            if previous is not None and not title_is_explicit:
+                virtual_path = previous
             else:
                 # The row's own file must not read as a rival, or a re-derivation
-                # after a lost marker collides the document with itself. The path
-                # column still names it once the marker is gone.
-                own = recorded or (
-                    document.path
-                    if document is not None
-                    and isinstance(document.path, str)
-                    and document.path.startswith(f"{DOCUMENTS_ROOT}/")
-                    else None
+                # collides the document with itself.
+                taken = await self._taken_virtual_paths(
+                    exclude={previous} if previous else set()
                 )
-                taken = await self._taken_virtual_paths(exclude={own} if own else set())
                 virtual_path = self._author_path(
                     title=title, folder_id=folder_id, index=index, taken=taken
                 )
@@ -421,10 +409,6 @@ class KnowledgeStore:
                 removes=[stale] if stale else (),
             )
             if revision and document is not None and previous != virtual_path:
-                document.document_metadata = {
-                    **(document.document_metadata or {}),
-                    PATH_MARKER: virtual_path,
-                }
                 document.path = virtual_path
                 await session.commit()
         except Exception as exc:
@@ -441,7 +425,6 @@ class KnowledgeStore:
             return Outcome(revision=None)
         session = self._require_session()
         from app.knowledge_store.paths import (
-            DOCUMENTS_ROOT,
             build_path_index,
             to_store_path,
         )
@@ -457,10 +440,10 @@ class KnowledgeStore:
             for doc in documents:
                 if not doc.source_markdown:
                     continue
-                # Where the doc's file already lives, marker first then the path
-                # column: a connector re-sync overwrites its own metadata and can
-                # drop the marker, but the column survives it. Re-authoring a path
-                # for a doc that already has a file forks it into a duplicate.
+                # Where the doc's file already lives, the path column first then
+                # the legacy marker: a connector re-sync overwrites its own
+                # metadata but never the column. Re-authoring a path for a doc
+                # that already has a file forks it into a duplicate.
                 previous = recorded_virtual_path(doc.document_metadata, doc.path)
                 if previous is not None:
                     virtual_path = previous
@@ -475,14 +458,6 @@ class KnowledgeStore:
             )
             if revision:
                 for doc, virtual_path in placed:
-                    if recorded_virtual_path(doc.document_metadata, doc.path) == (
-                        virtual_path
-                    ):
-                        continue
-                    doc.document_metadata = {
-                        **(doc.document_metadata or {}),
-                        PATH_MARKER: virtual_path,
-                    }
                     doc.path = virtual_path
                 await session.commit()
         except Exception as exc:
@@ -535,7 +510,7 @@ class KnowledgeStore:
         churning id would take saved citations and version history with it. One
         verb covers a document move, a bulk move, a folder rename and a folder
         move — a folder is only a path prefix, so renaming one moves every
-        descendant. Leaves the updated marker for the caller's own commit.
+        descendant. Leaves the updated path for the caller's own commit.
         """
         if not documents or not await knowledge_store_enabled_for(self._workspace_id):
             return Outcome(revision=None)
@@ -550,9 +525,9 @@ class KnowledgeStore:
             # Drop the movers' own paths so a batch never collides with a name it
             # is itself vacating; a chosen destination is added back as we go.
             own = {
-                (d.document_metadata or {}).get(PATH_MARKER)
+                p
                 for d in documents
-                if isinstance((d.document_metadata or {}).get(PATH_MARKER), str)
+                if (p := recorded_virtual_path(d.document_metadata, d.path)) is not None
             }
             taken = await self._taken_virtual_paths(exclude=own)
             moves: list[tuple[str, str]] = []
@@ -571,10 +546,6 @@ class KnowledgeStore:
             )
             if revision:
                 for document, virtual_path in moved:
-                    document.document_metadata = {
-                        **(document.document_metadata or {}),
-                        PATH_MARKER: virtual_path,
-                    }
                     document.path = virtual_path
         except Exception as exc:
             _record_failure(metrics, "move", exc, self._workspace_id)
@@ -896,7 +867,8 @@ def _relocation_of(
 
     Destination follows the row's folder and title through the ``.md`` naming
     law, the same rule a save uses, so a move never forks the spelling. A row
-    with no marker has no file yet; the next save writes it where the row says.
+    with no recorded path has no file yet; the next save writes it where the row
+    says.
     """
     from app.knowledge_store.paths import (
         DOCUMENTS_ROOT,
@@ -904,8 +876,8 @@ def _relocation_of(
         to_store_path,
     )
 
-    previous = (document.document_metadata or {}).get(PATH_MARKER)
-    if not isinstance(previous, str) or not previous.startswith(f"{DOCUMENTS_ROOT}/"):
+    previous = recorded_virtual_path(document.document_metadata, document.path)
+    if previous is None:
         return None
     base = index.folder_paths.get(document.folder_id, DOCUMENTS_ROOT)
     relative = base[len(DOCUMENTS_ROOT) :].strip("/")
