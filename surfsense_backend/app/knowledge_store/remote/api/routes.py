@@ -150,7 +150,7 @@ async def github_install_callback(
     workspace_id = int(data["space_id"])
     qs = urlencode({"github_installation_id": installation_id})
     return RedirectResponse(
-        url=f"{config.NEXT_FRONTEND_URL}/dashboard/{workspace_id}/workspace-settings/general?{qs}"
+        url=f"{config.NEXT_FRONTEND_URL}/dashboard/{workspace_id}/workspace-settings/git-remote?{qs}"
     )
 
 

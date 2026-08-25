@@ -1,13 +1,24 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Github, Gitlab } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { gitRemotesApiService } from "@/lib/apis/git-remotes-api.service";
+import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
 
@@ -20,16 +31,24 @@ export function GitRemoteSettings({
 	workspaceId,
 	githubInstallationId,
 }: GitRemoteSettingsProps) {
+	const t = useTranslations("workspaceSettings");
 	const router = useRouter();
 	const queryClient = useQueryClient();
+	const workspaceQuery = useQuery({
+		queryKey: cacheKeys.workspaces.detail(workspaceId.toString()),
+		queryFn: () => workspacesApiService.getWorkspace({ id: workspaceId }),
+		enabled: !!workspaceId,
+	});
+	const gitNative = workspaceQuery.data?.knowledge_store_enabled === true;
 	const remotesQuery = useQuery({
 		queryKey: cacheKeys.workspaces.gitRemotes(workspaceId),
 		queryFn: () => gitRemotesApiService.list(workspaceId),
+		enabled: gitNative,
 	});
 	const reposQuery = useQuery({
 		queryKey: cacheKeys.workspaces.githubRepos(workspaceId, githubInstallationId ?? ""),
 		queryFn: () => gitRemotesApiService.listGithubRepos(workspaceId, githubInstallationId ?? ""),
-		enabled: !!githubInstallationId,
+		enabled: gitNative && !!githubInstallationId,
 	});
 
 	const [gitlabUrl, setGitlabUrl] = useState("");
@@ -38,8 +57,9 @@ export function GitRemoteSettings({
 	const [busy, setBusy] = useState(false);
 
 	const remote = remotesQuery.data?.[0];
+	const settingsPath = `/dashboard/${workspaceId}/workspace-settings/git-remote`;
 	const clearGithubQuery = () => {
-		router.replace(`/dashboard/${workspaceId}/workspace-settings/general`);
+		router.replace(settingsPath);
 	};
 
 	const refresh = () =>
@@ -51,7 +71,7 @@ export function GitRemoteSettings({
 			const { url } = await gitRemotesApiService.githubInstallUrl(workspaceId);
 			window.location.href = url;
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not start GitHub install");
+			toast.error(err instanceof Error ? err.message : t("connected_repo_github_error"));
 			setBusy(false);
 		}
 	};
@@ -66,11 +86,11 @@ export function GitRemoteSettings({
 				branch: "main",
 				installation_id: githubInstallationId,
 			});
-			toast.success("GitHub remote connected");
+			toast.success(t("connected_repo_github_connected"));
 			await refresh();
 			clearGithubQuery();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not add GitHub remote");
+			toast.error(err instanceof Error ? err.message : t("connected_repo_github_add_error"));
 		} finally {
 			setBusy(false);
 		}
@@ -86,11 +106,11 @@ export function GitRemoteSettings({
 				branch: gitlabBranch.trim() || "main",
 				token: gitlabToken.trim(),
 			});
-			toast.success("GitLab remote connected");
+			toast.success(t("connected_repo_gitlab_connected"));
 			setGitlabToken("");
 			await refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not add GitLab remote");
+			toast.error(err instanceof Error ? err.message : t("connected_repo_gitlab_add_error"));
 		} finally {
 			setBusy(false);
 		}
@@ -100,10 +120,10 @@ export function GitRemoteSettings({
 		setBusy(true);
 		try {
 			await gitRemotesApiService.remove(workspaceId);
-			toast.success("Remote disconnected");
+			toast.success(t("connected_repo_disconnected"));
 			await refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not disconnect");
+			toast.error(err instanceof Error ? err.message : t("connected_repo_disconnect_error"));
 		} finally {
 			setBusy(false);
 		}
@@ -113,48 +133,61 @@ export function GitRemoteSettings({
 		setBusy(true);
 		try {
 			await gitRemotesApiService.retryPush(workspaceId);
-			toast.success("Push queued");
+			toast.success(t("connected_repo_push_queued"));
 			await refresh();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not retry push");
+			toast.error(err instanceof Error ? err.message : t("connected_repo_retry_error"));
 		} finally {
 			setBusy(false);
 		}
 	};
 
-	return (
-		<div className="border-t pt-6 space-y-4">
-			<div className="space-y-1">
-				<Label>Git remote</Label>
-				<p className="text-xs text-muted-foreground">
-					Push this workspace&apos;s markdown history to a GitHub or GitLab repo you own. The
-					remote must start empty.
-				</p>
+	if (workspaceQuery.isLoading) {
+		return (
+			<div className="flex flex-col gap-4">
+				<Skeleton className="h-4 w-2/3" />
+				<Skeleton className="h-10 w-40" />
 			</div>
+		);
+	}
+
+	if (!gitNative) {
+		return <p className="text-sm text-muted-foreground">{t("connected_repo_not_native")}</p>;
+	}
+
+	return (
+		<div className="flex flex-col gap-6">
+			<p className="text-sm text-muted-foreground">{t("connected_repo_description")}</p>
 
 			{remotesQuery.isLoading ? (
-				<div className="h-10 w-40 rounded-md bg-muted animate-pulse" />
+				<Skeleton className="h-24 w-full" />
 			) : remote ? (
-				<div className="space-y-3">
-					<p className="text-sm break-all">
-						{remote.provider}: {remote.url} ({remote.branch})
-					</p>
+				<div className="flex flex-col gap-4 rounded-lg border p-4">
+					<div className="flex flex-col gap-2">
+						<Badge variant="secondary" className="capitalize">
+							{remote.provider === "github" ? "GitHub" : "GitLab"}
+						</Badge>
+						<p className="text-sm break-all">{remote.url}</p>
+						<p className="text-xs text-muted-foreground">{t("connected_repo_branch", { branch: remote.branch })}</p>
+					</div>
 					{remote.last_pushed_revision ? (
 						<p className="text-xs text-muted-foreground font-mono">
-							last pushed {remote.last_pushed_revision.slice(0, 12)}
-							{remote.last_pushed_at
-								? ` · ${new Date(remote.last_pushed_at).toLocaleString()}`
-								: ""}
+							{t("connected_repo_last_pushed", {
+								sha: remote.last_pushed_revision.slice(0, 12),
+								when: remote.last_pushed_at
+									? ` · ${new Date(remote.last_pushed_at).toLocaleString()}`
+									: "",
+							})}
 						</p>
 					) : (
-						<p className="text-xs text-muted-foreground">Not pushed yet</p>
+						<p className="text-xs text-muted-foreground">{t("connected_repo_not_pushed")}</p>
 					)}
 					{remote.last_push_error ? (
 						<p className="text-xs text-destructive">{remote.last_push_error}</p>
 					) : null}
 					<div className="flex flex-wrap gap-2">
 						<Button type="button" variant="secondary" size="sm" disabled={busy} onClick={onRetry}>
-							{busy ? <Spinner size="sm" /> : "Retry push"}
+							{busy ? <Spinner size="sm" /> : t("connected_repo_retry")}
 						</Button>
 						<Button
 							type="button"
@@ -163,19 +196,19 @@ export function GitRemoteSettings({
 							disabled={busy}
 							onClick={onDisconnect}
 						>
-							Disconnect
+							{t("connected_repo_disconnect")}
 						</Button>
 					</div>
 				</div>
 			) : githubInstallationId ? (
-				<div className="space-y-2">
-					<p className="text-sm">Choose a repository to push to. It must have no commits on main.</p>
+				<div className="flex flex-col gap-3 rounded-lg border p-4">
+					<p className="text-sm">{t("connected_repo_pick")}</p>
 					{reposQuery.isLoading ? (
-						<div className="h-10 w-full rounded-md bg-muted animate-pulse" />
+						<Skeleton className="h-10 w-full" />
 					) : (reposQuery.data ?? []).length === 0 ? (
-						<p className="text-xs text-muted-foreground">No repositories on this installation.</p>
+						<p className="text-xs text-muted-foreground">{t("connected_repo_no_repos")}</p>
 					) : (
-						<ul className="space-y-1">
+						<ul className="flex flex-col gap-1">
 							{(reposQuery.data ?? []).map((repo) => (
 								<li key={repo.full_name}>
 									<Button
@@ -191,62 +224,82 @@ export function GitRemoteSettings({
 							))}
 						</ul>
 					)}
-					<Button type="button" variant="ghost" size="sm" onClick={clearGithubQuery}>
-						Cancel
+					<Button type="button" variant="ghost" size="sm" onClick={clearGithubQuery} className="w-fit">
+						{t("connected_repo_cancel")}
 					</Button>
 				</div>
 			) : (
-				<div className="space-y-6">
-					<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-						<p className="text-sm">GitHub App install, then pick a repo.</p>
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							disabled={busy}
-							onClick={onGithubConnect}
-							className="w-fit"
-						>
-							Connect GitHub
-						</Button>
-					</div>
-					<form onSubmit={onGitlabConnect} className="space-y-3">
-						<p className="text-sm">Or paste a GitLab.com HTTPS URL and a PAT with write_repository.</p>
-						<div className="space-y-2">
-							<Label htmlFor="gitlab-url">GitLab clone URL</Label>
-							<Input
-								id="gitlab-url"
-								type="url"
-								placeholder="https://gitlab.com/group/project.git"
-								value={gitlabUrl}
-								onChange={(e) => setGitlabUrl(e.target.value)}
-								required
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="gitlab-branch">Branch</Label>
-							<Input
-								id="gitlab-branch"
-								value={gitlabBranch}
-								onChange={(e) => setGitlabBranch(e.target.value)}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="gitlab-token">Personal access token</Label>
-							<Input
-								id="gitlab-token"
-								type="password"
-								autoComplete="off"
-								value={gitlabToken}
-								onChange={(e) => setGitlabToken(e.target.value)}
-								required
-							/>
-						</div>
-						<Button type="submit" variant="secondary" size="sm" disabled={busy} className="w-fit">
-							{busy ? <Spinner size="sm" /> : "Connect GitLab"}
-						</Button>
-					</form>
-				</div>
+				<Accordion type="single" collapsible defaultValue="github" className="rounded-lg border">
+					<AccordionItem value="github" className="px-4">
+						<AccordionTrigger className="hover:no-underline">
+							<span className="flex items-center gap-2">
+								<Github />
+								GitHub
+							</span>
+						</AccordionTrigger>
+						<AccordionContent>
+							<div className="flex flex-col gap-3">
+								<p className="text-muted-foreground">{t("connected_repo_github_blurb")}</p>
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									disabled={busy}
+									onClick={onGithubConnect}
+									className="w-fit"
+								>
+									{busy ? <Spinner size="sm" /> : t("connected_repo_github_cta")}
+								</Button>
+							</div>
+						</AccordionContent>
+					</AccordionItem>
+					<AccordionItem value="gitlab" className="px-4">
+						<AccordionTrigger className="hover:no-underline">
+							<span className="flex items-center gap-2">
+								<Gitlab />
+								GitLab
+							</span>
+						</AccordionTrigger>
+						<AccordionContent>
+							<form onSubmit={onGitlabConnect} className="flex flex-col gap-3">
+								<p className="text-muted-foreground">{t("connected_repo_gitlab_blurb")}</p>
+								<div className="flex flex-col gap-2">
+									<Label htmlFor="gitlab-url">{t("connected_repo_gitlab_url")}</Label>
+									<Input
+										id="gitlab-url"
+										type="url"
+										placeholder="https://gitlab.com/group/project.git"
+										value={gitlabUrl}
+										onChange={(e) => setGitlabUrl(e.target.value)}
+										required
+									/>
+								</div>
+								<div className="flex flex-col gap-2">
+									<Label htmlFor="gitlab-branch">{t("connected_repo_gitlab_branch")}</Label>
+									<Input
+										id="gitlab-branch"
+										value={gitlabBranch}
+										onChange={(e) => setGitlabBranch(e.target.value)}
+									/>
+								</div>
+								<div className="flex flex-col gap-2">
+									<Label htmlFor="gitlab-token">{t("connected_repo_gitlab_token")}</Label>
+									<Input
+										id="gitlab-token"
+										type="password"
+										autoComplete="off"
+										value={gitlabToken}
+										onChange={(e) => setGitlabToken(e.target.value)}
+										required
+									/>
+								</div>
+								<Button type="submit" variant="secondary" size="sm" disabled={busy} className="w-fit">
+									{busy ? <Spinner size="sm" /> : t("connected_repo_gitlab_cta")}
+								</Button>
+							</form>
+						</AccordionContent>
+					</AccordionItem>
+				</Accordion>
 			)}
 		</div>
 	);
