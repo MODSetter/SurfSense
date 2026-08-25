@@ -547,6 +547,10 @@ class Config:
         "KNOWLEDGE_STORE_ROOT",
         os.path.join(FILE_STORAGE_LOCAL_PATH, "knowledge_store"),
     )
+    # GitHub App used to push a git-native workspace to the user's GitHub repo.
+    GITHUB_APP_ID = os.getenv("GITHUB_APP_ID", "")
+    GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
+    GITHUB_APP_SLUG = os.getenv("GITHUB_APP_SLUG", "")
 
     # Daytona sandbox (code execution / filesystem sandbox)
     DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
