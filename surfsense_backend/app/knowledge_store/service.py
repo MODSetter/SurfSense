@@ -322,23 +322,35 @@ class KnowledgeStore:
             taken=taken,
         ).virtual_path
 
-    async def _place_unmarked(self, doc: Document, *, index, taken: set[str]) -> str:
-        """Where a doc with no recorded path should write its file.
+    async def _reattach_or_author_path(
+        self,
+        doc: Document | None,
+        *,
+        title: str,
+        folder_id: int | None,
+        index,
+        taken: set[str],
+    ) -> str:
+        """Place a document that records no path: re-attach its file, else author.
 
-        Re-attach to its own stranded file when git already holds the canonical
-        name and the row still resolves back to this doc; only then author a
-        fresh name. Without the re-attach a lost marker (the crash window, a
-        legacy unmarked row) forks the file into ``name (2)``.
+        The one such decision the live writers (a save and a sync ingest) share:
+        re-attach to the doc's own stranded file when git already holds the
+        canonical name and the row still resolves back to this doc, and only then
+        author a fresh name. Without the re-attach a lost recorded path — the
+        crash window between the commit and the write-back, or a legacy row that
+        never had one — forks the file into ``name (2)``. A row loaded as ``None``
+        (a save whose row was deleted underfoot) has no identity to re-attach by,
+        so it authors.
         """
         from app.knowledge_store.paths import allocate_path
         from app.knowledge_store.paths.resolve import virtual_path_to_doc
 
         canonical = allocate_path(
-            name=str(doc.title or "untitled"),
-            folder_parts=self._folder_parts(doc.folder_id, index),
+            name=str(title or "untitled"),
+            folder_parts=self._folder_parts(folder_id, index),
             taken=set(),
         ).virtual_path
-        if canonical in taken:
+        if doc is not None and canonical in taken:
             existing = await virtual_path_to_doc(
                 self._require_session(),
                 workspace_id=self._workspace_id,
@@ -347,7 +359,7 @@ class KnowledgeStore:
             if existing is not None and existing.id == doc.id:
                 return canonical
         return self._author_path(
-            title=doc.title, folder_id=doc.folder_id, index=index, taken=taken
+            title=title, folder_id=folder_id, index=index, taken=taken
         )
 
     # ---------------------------------------------------------- capabilities
@@ -399,8 +411,12 @@ class KnowledgeStore:
                 taken = await self._taken_virtual_paths(
                     exclude={previous} if previous else set()
                 )
-                virtual_path = self._author_path(
-                    title=title, folder_id=folder_id, index=index, taken=taken
+                virtual_path = await self._reattach_or_author_path(
+                    document,
+                    title=title,
+                    folder_id=folder_id,
+                    index=index,
+                    taken=taken,
                 )
             stale = _stale_store_path(previous, virtual_path)
             revision = await self._commit_files(
@@ -448,8 +464,12 @@ class KnowledgeStore:
                 if previous is not None:
                     virtual_path = previous
                 else:
-                    virtual_path = await self._place_unmarked(
-                        doc, index=index, taken=taken
+                    virtual_path = await self._reattach_or_author_path(
+                        doc,
+                        title=doc.title,
+                        folder_id=doc.folder_id,
+                        index=index,
+                        taken=taken,
                     )
                 files[to_store_path(virtual_path)] = doc.source_markdown
                 placed.append((doc, virtual_path))

@@ -227,6 +227,39 @@ async def test_a_same_titled_document_gets_a_numbered_name(
     assert second.path == "/documents/Report (2).md"
 
 
+async def test_a_resave_of_an_unmarked_row_reattaches_instead_of_forking(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The editor twin of ``test_a_reingest_of_an_unmarked_row_reattaches...``.
+
+    A row can lose both its marker and its path column — the crash window between
+    the git commit and the mark. Its file is still in git. A re-save must
+    re-attach to that file by the row's identity, not author ``Meeting notes
+    (2).md`` and strand the first. Ingest already heals this; save authored a
+    fresh path instead, so the two live writers forked the same row two ways.
+    One placement decision, one outcome."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    first = await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    # The crash window: git kept the file, the row lost the link back to it.
+    document.document_metadata = {}
+    document.path = None
+    await db_session.commit()
+
+    second = await _save(
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="Meeting notes",
+        markdown="# Meeting notes\n\nEdited.",
+    )
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+
+
 async def test_a_retitle_leaves_only_the_new_path(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip
 ):
