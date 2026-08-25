@@ -36,6 +36,7 @@ class WorkspaceRead(WorkspaceBase, IDModel, TimestampModel):
     api_access_enabled: bool = False
     qna_custom_instructions: str | None = None
     shared_memory_md: str | None = None
+    knowledge_store_enabled: bool = False
     # Populated only by create_workspace so the client can route straight to
     # onboarding vs. new-chat on the first hop. Null everywhere else.
     llm_setup: LlmSetupStatusRead | None = None

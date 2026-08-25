@@ -383,6 +383,33 @@ def drift_check_span(
     )
 
 
+def remote_connect_span(*, workspace_id: int, provider: str):
+    """Span around attaching one git remote to a workspace."""
+    return span(
+        "knowledge_store.remote.connect",
+        attributes={
+            "workspace.id": int(workspace_id),
+            "remote.provider": provider,
+        },
+    )
+
+
+def remote_push_span(*, workspace_id: int, extra: dict[str, Any] | None = None):
+    """Span around one worker attempt to fast-forward HEAD to the remote."""
+    attrs: dict[str, Any] = {"workspace.id": int(workspace_id)}
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.push", attributes=attrs)
+
+
+def remote_sweep_span(*, extra: dict[str, Any] | None = None):
+    """Parent span for one scheduled push of remotes whose stamp trails HEAD."""
+    attrs: dict[str, Any] = {}
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.sweep", attributes=attrs)
+
+
 def etl_extract_span(
     *,
     content_type: str | None = None,
@@ -548,6 +575,9 @@ __all__ = [
     "permission_asked_span",
     "record_error",
     "reload_for_tests",
+    "remote_connect_span",
+    "remote_push_span",
+    "remote_sweep_span",
     "span",
     "subagent_invoke_span",
     "tool_call_span",

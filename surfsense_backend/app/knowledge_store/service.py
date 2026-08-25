@@ -27,9 +27,10 @@ import asyncio
 import logging
 from collections.abc import Mapping, Sequence
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.knowledge_store.engines.base import VersionedContentEngine
+from app.knowledge_store.engines.git import GitContentEngine
 from app.knowledge_store.factory import build_engine
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
 from app.knowledge_store.locks import workspace_write_lock
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.db import Document, Folder
+    from app.knowledge_store.remote.facade import WorkspaceRemotes
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +146,35 @@ class KnowledgeStore:
     def compute_content_id(self, data: bytes) -> str:
         """Content address for ``data`` (no I/O)."""
         return self._engine.compute_content_id(data)
+
+    @property
+    def remotes(self) -> WorkspaceRemotes:
+        """Git remotes attached to this workspace."""
+        from app.knowledge_store.remote.facade import WorkspaceRemotes
+
+        return WorkspaceRemotes(
+            self._workspace_id,
+            cast(GitContentEngine, self._engine),
+            self._require_session(),
+        )
+
+    async def push(
+        self, *, url: str, ref: str, username: str, password: str
+    ) -> str:
+        """Fast-forward HEAD to ``url`` at ``ref``. Thread hop onto the engine."""
+        engine = cast(GitContentEngine, self._engine)
+        return await asyncio.to_thread(
+            lambda: engine.push(
+                url=url, ref=ref, username=username, password=password
+            )
+        )
+
+    def _enqueue_after_revision(self) -> None:
+        from app.knowledge_store.index.queue import enqueue_index
+        from app.knowledge_store.remote.queue import enqueue_push
+
+        enqueue_index(self._workspace_id)
+        enqueue_push(self._workspace_id)
 
     # --------------------------------------------------------- working copies
 
@@ -253,8 +284,8 @@ class KnowledgeStore:
         """Record markdown writes, removes and moves as one revision, then enqueue.
 
         ``None`` when the store is disabled, the batch is empty, or the content
-        was unchanged. Enqueues the derived index only once the revision is
-        durable, so a broker outage degrades to the drift sweep.
+        was unchanged. Enqueues the derived index and a remote push only once
+        the revision is durable, so a broker outage degrades to the sweep.
         """
         if (not files and not removes and not moves) or not (
             load_knowledge_store_settings().enabled
@@ -268,9 +299,7 @@ class KnowledgeStore:
             for source, destination in moves:
                 tx.move(source, destination)
         if tx.revision is not None:
-            from app.knowledge_store.index.queue import enqueue_index
-
-            enqueue_index(self._workspace_id)
+            self._enqueue_after_revision()
         return tx.revision
 
     async def _taken_virtual_paths(
@@ -770,9 +799,7 @@ class KnowledgeStore:
         if tx.revision is None:
             return Outcome(revision=None)
         projection = await self._project_turn(tx.revision)
-        from app.knowledge_store.index.queue import enqueue_index
-
-        enqueue_index(self._workspace_id)
+        self._enqueue_after_revision()
         return Outcome(
             revision=tx.revision,
             changes=await self.list_changes(tx.revision),

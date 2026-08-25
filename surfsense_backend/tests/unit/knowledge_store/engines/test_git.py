@@ -10,6 +10,9 @@ import time
 
 import pytest
 
+from app.knowledge_store.exceptions import GitPushError
+from app.knowledge_store.engines.git import GitContentEngine
+
 pytestmark = pytest.mark.unit
 
 AUTHOR = "SurfSense <1@users.surfsense>"
@@ -350,3 +353,50 @@ class TestWorkingCopies:
         assert pruned == ["stale-turn"]
         assert not stale.path.exists()
         assert fresh.path.exists()
+
+
+class TestPush:
+    def test_push_to_empty_remote_copies_head(self, tmp_path):
+        source = GitContentEngine(tmp_path / "a", tmp_path / "wc-a")
+        dest = GitContentEngine(tmp_path / "b", tmp_path / "wc-b")
+        dest._ensure_exists()
+        rev = source.record(
+            writes={"documents/a.md": b"hello"},
+            removes=[],
+            message="add a",
+            author=AUTHOR,
+        )
+        pushed = source.push(
+            url=str(dest._path),
+            ref="refs/heads/main",
+            username="git",
+            password="x",
+        )
+        assert pushed == rev
+        assert dest.read_as_of(rev, "documents/a.md") == b"hello"
+
+    def test_non_fast_forward_raises_and_leaves_source_head(self, tmp_path):
+        source = GitContentEngine(tmp_path / "a", tmp_path / "wc-a")
+        dest = GitContentEngine(tmp_path / "b", tmp_path / "wc-b")
+        source.record(
+            writes={"documents/a.md": b"a"},
+            removes=[],
+            message="a",
+            author=AUTHOR,
+        )
+        dest.record(
+            writes={"documents/a.md": b"b"},
+            removes=[],
+            message="b",
+            author=AUTHOR,
+        )
+        before = source.get_current_revision()
+        with pytest.raises(GitPushError):
+            source.push(
+                url=str(dest._path),
+                ref="refs/heads/master",
+                username="git",
+                password="x",
+            )
+        assert source.get_current_revision() == before
+
