@@ -16,6 +16,7 @@ from app.automations.api import router as automations_router
 from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
+from app.knowledge_store.remote.api import router as git_remotes_router
 from app.notifications.api import router as notifications_router
 from app.podcasts.api import router as podcasts_router
 
@@ -85,6 +86,7 @@ from .youtube_routes import router as youtube_router
 router = APIRouter()
 
 router.include_router(workspaces_router)
+router.include_router(git_remotes_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(export_router)
