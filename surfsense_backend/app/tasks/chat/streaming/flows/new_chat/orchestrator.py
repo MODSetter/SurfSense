@@ -37,7 +37,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
 )
 from app.auth.context import AuthContext
 from app.db import ChatVisibility, async_session_maker
-from app.observability import otel as ot
+from app.observability.signals import tracing
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.content_builder import AssistantContentBuilder
 from app.tasks.chat.streaming.agent.builder import build_main_agent_for_thread
@@ -65,7 +65,6 @@ from app.tasks.chat.streaming.flows.new_chat.title_gen import (
     spawn_title_task,
 )
 from app.tasks.chat.streaming.flows.shared.analytics import (
-    build_llm_callback_handler,
     capture_chat_turn_completed,
 )
 from app.tasks.chat.streaming.flows.shared.assistant_finalize import (
@@ -273,7 +272,7 @@ async def stream_new_chat(
                 user_id=user_id,  # type: ignore[arg-type]
             )
             if not premium_reservation.allowed:
-                ot.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
+                tracing.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
                 if requested_llm_config_id == 0:
                     pin_fallback = await resolve_initial_auto_pin(
                         session,
@@ -295,7 +294,7 @@ async def stream_new_chat(
                         yield streaming_service.format_done()
                         return
                     llm_config_id = pin_fallback.llm_config_id  # type: ignore[assignment]
-                    ot.add_event(
+                    tracing.add_event(
                         "model.repin",
                         {
                             "repin.reason": "premium_quota_exhausted",
@@ -487,23 +486,6 @@ async def stream_new_chat(
             # legitimate multi-tool plans.
             "recursion_limit": 10_000,
         }
-
-        # PostHog LLM analytics: attach a callback so the full agent trace
-        # tree (LLM calls, tools, subagents) is captured per turn. No-op when
-        # PostHog is unconfigured.
-        _llm_handler = build_llm_callback_handler(
-            distinct_id=user_id,
-            trace_id=stream_result.turn_id,
-            properties={
-                "workspace_id": workspace_id,
-                "chat_id": chat_id,
-                "$ai_session_id": str(chat_id),
-                "flow": flow,
-            },
-            groups={"workspace": str(workspace_id)},
-        )
-        if _llm_handler is not None:
-            config["callbacks"] = [_llm_handler]
 
         # --- Block 4: First SSE frames ---
 
@@ -739,7 +721,7 @@ async def stream_new_chat(
         # --- Block 8: Finalize ---
 
         if stream_result.is_interrupted:
-            ot.add_event("chat.interrupted", {"chat.flow": flow})
+            tracing.add_event("chat.interrupted", {"chat.flow": flow})
             if title_task is not None and not title_task.done():
                 title_task.cancel()
             for sse in iter_token_usage_frame(

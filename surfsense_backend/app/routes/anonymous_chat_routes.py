@@ -18,12 +18,9 @@ from app.etl_pipeline.file_classifier import (
     DIRECT_CONVERT_EXTENSIONS,
     PLAINTEXT_EXTENSIONS,
 )
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.rate_limiter import limiter
 from app.tasks.chat.streaming.errors.classifier import classify_stream_exception
-from app.tasks.chat.streaming.flows.shared.analytics import (
-    build_llm_callback_handler,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -397,21 +394,6 @@ async def stream_anonymous_chat(
                     "configurable": {"thread_id": anon_thread_id},
                     "recursion_limit": 40,
                 }
-
-                # PostHog LLM analytics for the free tier — model spend per
-                # model is the highest-value cost insight. distinct_id is the
-                # anon session id (not joined to any registered person).
-                _anon_llm_handler = build_llm_callback_handler(
-                    distinct_id=session_id,
-                    trace_id=anon_thread_id,
-                    properties={
-                        "client": "anonymous",
-                        "model_slug": body.model_slug,
-                        "$ai_session_id": session_id,
-                    },
-                )
-                if _anon_llm_handler is not None:
-                    langgraph_config["callbacks"] = [_anon_llm_handler]
 
                 yield streaming_service.format_message_start()
                 yield streaming_service.format_start_step()

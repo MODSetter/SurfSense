@@ -1217,12 +1217,6 @@ class Config:
     # merge onto the persons the web app already identifies by user id.
     POSTHOG_API_KEY = os.getenv("POSTHOG_API_KEY")
     POSTHOG_HOST = os.getenv("POSTHOG_HOST", "https://us.i.posthog.com")
-    # When true (default), the LLM-analytics LangChain handler suppresses
-    # prompt/completion bodies ($ai_input / $ai_output_choices) and captures
-    # only metrics — chat content includes users' private documents.
-    POSTHOG_AI_PRIVACY_MODE = (
-        os.getenv("POSTHOG_AI_PRIVACY_MODE", "TRUE").upper() == "TRUE"
-    )
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
