@@ -55,7 +55,9 @@ def get_celery_session_maker() -> async_sessionmaker:
             connect_args=connect_args,
         )
         with contextlib.suppress(Exception):
-            from app.observability.bootstrap import instrument_sqlalchemy_engine
+            from app.observability.setup.instrumentation import (
+                instrument_sqlalchemy_engine,
+            )
 
             instrument_sqlalchemy_engine(_celery_engine)
         _celery_session_maker = async_sessionmaker(
