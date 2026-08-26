@@ -32,11 +32,11 @@ async def test_retriever_wrapper_records_one_span_and_metric(monkeypatch) -> Non
     calls: list[dict[str, Any]] = []
 
     monkeypatch.setattr(
-        "app.retriever.documents_hybrid_search.ot.kb_search_span",
+        "app.retriever.documents_hybrid_search.kb.kb_search_span",
         lambda **kwargs: _fake_span(**kwargs),
     )
     monkeypatch.setattr(
-        "app.retriever.documents_hybrid_search.ot_metrics.record_kb_search_duration",
+        "app.retriever.documents_hybrid_search.kb.record_kb_search_duration",
         lambda duration_ms, **attrs: calls.append(
             {"duration_ms": duration_ms, **attrs}
         ),

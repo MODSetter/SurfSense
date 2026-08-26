@@ -25,11 +25,11 @@ def _disable_otel(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
     monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     monkeypatch.setenv("SURFSENSE_DISABLE_OTEL", "true")
-    from app.observability import otel as ot
+    from app.observability.core import config
 
-    ot.reload_for_tests()
+    config.reload_for_tests()
     yield
-    ot.reload_for_tests()
+    config.reload_for_tests()
 
 
 class TestResolveModelAttrs:
@@ -177,9 +177,9 @@ class TestMiddlewareIntegration:
     ) -> None:
         monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-        from app.observability import otel as ot
+        from app.observability.core import config
 
-        ot.reload_for_tests()
+        config.reload_for_tests()
         try:
             mw = OtelSpanMiddleware()
 
@@ -194,29 +194,29 @@ class TestMiddlewareIntegration:
             assert isinstance(result, AIMessage)
             assert result.content == "enabled"
         finally:
-            ot.reload_for_tests()
+            config.reload_for_tests()
 
     async def test_enabled_model_call_records_metrics(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-        from app.observability import otel as ot
+        from app.observability.core import config
 
         duration_calls: list[dict[str, Any]] = []
         token_calls: list[dict[str, Any]] = []
         monkeypatch.setattr(
-            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_model_call_duration",
+            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.agent.record_model_call_duration",
             lambda duration_ms, **attrs: duration_calls.append(
                 {"duration_ms": duration_ms, **attrs}
             ),
         )
         monkeypatch.setattr(
-            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_model_token_usage",
+            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.agent.record_model_token_usage",
             lambda **attrs: token_calls.append(attrs),
         )
 
-        ot.reload_for_tests()
+        config.reload_for_tests()
         try:
             mw = OtelSpanMiddleware()
 
@@ -246,26 +246,26 @@ class TestMiddlewareIntegration:
                 }
             ]
         finally:
-            ot.reload_for_tests()
+            config.reload_for_tests()
 
     async def test_enabled_tool_call_records_error_metric(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("SURFSENSE_DISABLE_OTEL", raising=False)
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-        from app.observability import otel as ot
+        from app.observability.core import config
 
         errors: list[str] = []
         monkeypatch.setattr(
-            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_tool_call_error",
+            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.agent.record_tool_call_error",
             lambda *, tool_name: errors.append(tool_name),
         )
         monkeypatch.setattr(
-            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.ot_metrics.record_tool_call_duration",
+            "app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span.middleware.agent.record_tool_call_duration",
             lambda *args, **kwargs: None,
         )
 
-        ot.reload_for_tests()
+        config.reload_for_tests()
         try:
             mw = OtelSpanMiddleware()
 
@@ -282,4 +282,4 @@ class TestMiddlewareIntegration:
             await mw.awrap_tool_call(request, handler)
             assert errors == ["scrape_webpage"]
         finally:
-            ot.reload_for_tests()
+            config.reload_for_tests()
