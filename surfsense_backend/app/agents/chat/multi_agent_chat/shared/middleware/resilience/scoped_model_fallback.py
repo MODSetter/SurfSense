@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware import ModelFallbackMiddleware
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.core.errors import categorize_exception
+from app.observability.signals import tracing
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -58,13 +59,13 @@ class ScopedModelFallbackMiddleware(ModelFallbackMiddleware):
             last_exception = e
 
         for attempt, fallback_model in enumerate(self.models, start=1):
-            ot.add_event(
+            tracing.add_event(
                 "model.fallback",
                 {
                     "fallback.attempt": attempt,
                     "fallback.from": attempt - 1,
                     "fallback.to": attempt,
-                    "fallback.reason": ot_metrics.categorize_exception(last_exception),
+                    "fallback.reason": categorize_exception(last_exception),
                 },
             )
             try:
@@ -91,13 +92,13 @@ class ScopedModelFallbackMiddleware(ModelFallbackMiddleware):
             last_exception = e
 
         for attempt, fallback_model in enumerate(self.models, start=1):
-            ot.add_event(
+            tracing.add_event(
                 "model.fallback",
                 {
                     "fallback.attempt": attempt,
                     "fallback.from": attempt - 1,
                     "fallback.to": attempt,
-                    "fallback.reason": ot_metrics.categorize_exception(last_exception),
+                    "fallback.reason": categorize_exception(last_exception),
                 },
             )
             try:

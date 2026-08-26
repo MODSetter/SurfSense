@@ -17,7 +17,7 @@ from langchain_core.tools import BaseTool
 from langgraph.types import interrupt
 
 from app.agents.chat.multi_agent_chat.shared.permissions.model import Rule
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.domains import agent
 
 from .decision import normalize_permission_decision
 from .payload import PERMISSION_ASK_INTERRUPT_TYPE, build_permission_ask_payload
@@ -45,15 +45,15 @@ def request_permission_decision(
     )
 
     with (
-        ot.permission_asked_span(
+        agent.permission_asked_span(
             permission=tool_name,
             pattern=patterns[0] if patterns else None,
             extra={"permission.patterns": list(patterns)},
         ),
-        ot.interrupt_span(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE),
+        agent.interrupt_span(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE),
     ):
-        ot_metrics.record_permission_ask(permission=tool_name)
-        ot_metrics.record_interrupt(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE)
+        agent.record_permission_ask(permission=tool_name)
+        agent.record_interrupt(interrupt_type=PERMISSION_ASK_INTERRUPT_TYPE)
         decision = interrupt(payload)
     return normalize_permission_decision(decision)
 
