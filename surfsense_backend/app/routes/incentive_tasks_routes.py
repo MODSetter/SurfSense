@@ -15,7 +15,7 @@ from app.db import (
     UserIncentiveTask,
     get_async_session,
 )
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.schemas.incentive_tasks import (
     CompleteTaskResponse,
     IncentiveTaskInfo,

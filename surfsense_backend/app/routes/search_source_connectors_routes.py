@@ -47,11 +47,12 @@ from app.db import (
 )
 from app.knowledge_store.service import record_deleted_documents
 from app.notifications.service import NotificationService
-from app.observability import (
-    analytics as ph_analytics,
-    metrics as ot_metrics,
-    otel as ot,
+from app.observability.analytics import posthog as ph_analytics
+from app.observability.domains.celery import (
+    record_celery_heartbeat_failure,
+    record_celery_heartbeat_refresh,
 )
+from app.observability.signals import tracing
 from app.schemas import (
     GoogleDriveIndexRequest,
     MCPConnectorCreate,
@@ -113,9 +114,9 @@ async def _run_indexing_heartbeat_loop(notification_id: int) -> None:
             await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
             try:
                 get_heartbeat_redis_client().setex(key, HEARTBEAT_TTL_SECONDS, "alive")
-                ot_metrics.record_celery_heartbeat_refresh(heartbeat_type="connector")
+                record_celery_heartbeat_refresh(heartbeat_type="connector")
             except Exception as e:
-                ot_metrics.record_celery_heartbeat_failure(heartbeat_type="connector")
+                record_celery_heartbeat_failure(heartbeat_type="connector")
                 logger.warning(
                     f"Failed to refresh Redis heartbeat for notification "
                     f"{notification_id}: {e}"
@@ -1339,7 +1340,7 @@ async def _persist_auth_expired(session: AsyncSession, connector_id: int) -> Non
     """Flag a connector as auth_expired so the frontend shows a re-auth prompt."""
     from sqlalchemy.orm.attributes import flag_modified
 
-    ot.add_event(
+    tracing.add_event(
         "connector.auth.expired",
         {
             "error.category": "auth_failed",
@@ -1404,7 +1405,7 @@ async def _run_indexing_with_notifications(
     try:
         connector_lock_acquired = acquire_connector_indexing_lock(connector_id)
         if not connector_lock_acquired:
-            ot.add_event(
+            tracing.add_event(
                 "connector.sync.skipped",
                 {
                     "skip.reason": "lock_contention",
@@ -1447,11 +1448,11 @@ async def _run_indexing_with_notifications(
                     get_heartbeat_redis_client().setex(
                         heartbeat_key, HEARTBEAT_TTL_SECONDS, "0"
                     )
-                    ot_metrics.record_celery_heartbeat_refresh(
+                    record_celery_heartbeat_refresh(
                         heartbeat_type="connector"
                     )
                 except Exception as e:
-                    ot_metrics.record_celery_heartbeat_failure(
+                    record_celery_heartbeat_failure(
                         heartbeat_type="connector"
                     )
                     logger.warning(f"Failed to set initial Redis heartbeat: {e}")
@@ -1481,7 +1482,7 @@ async def _run_indexing_with_notifications(
         ) -> None:
             """Callback to update notification during API retries (rate limits, etc.)"""
             nonlocal notification
-            ot.add_event(
+            tracing.add_event(
                 "connector.retry.scheduled",
                 {
                     "retry.reason": retry_reason,
@@ -1521,12 +1522,12 @@ async def _run_indexing_with_notifications(
                     get_heartbeat_redis_client().setex(
                         heartbeat_key, HEARTBEAT_TTL_SECONDS, str(indexed_count)
                     )
-                    ot_metrics.record_celery_heartbeat_refresh(
+                    record_celery_heartbeat_refresh(
                         heartbeat_type="connector"
                     )
                 except Exception as e:
                     # Don't let Redis errors break the indexing
-                    ot_metrics.record_celery_heartbeat_failure(
+                    record_celery_heartbeat_failure(
                         heartbeat_type="connector"
                     )
                     logger.warning(f"Failed to set Redis heartbeat: {e}")

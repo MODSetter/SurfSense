@@ -27,7 +27,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.schemas.stripe import (
     AutoReloadSettingsResponse,
     CreateAutoReloadSetupSessionRequest,
