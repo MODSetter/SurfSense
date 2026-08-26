@@ -14,7 +14,7 @@ from app.gateway.ratelimit import wait_for_token
 from app.gateway.telegram.adapter import TelegramAdapter
 from app.gateway.telegram.client import retry_plaintext_on_bad_markdown
 from app.gateway.telegram.formatting import chunk_message, escape_markdown_v2
-from app.observability.metrics import (
+from app.observability.domains.gateway import (
     record_gateway_hitl_aborted,
     record_gateway_outbound,
     record_gateway_rate_limit_hit,

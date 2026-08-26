@@ -30,7 +30,7 @@ from app.gateway.agent_invoke import call_agent_for_gateway
 from app.gateway.base.commands import command_name
 from app.gateway.bindings import get_or_create_thread_for_binding
 from app.gateway.registry import resolve_platform_bundle
-from app.observability.metrics import record_gateway_inbox_processed
+from app.observability.domains.gateway import record_gateway_inbox_processed
 
 logger = logging.getLogger(__name__)
 

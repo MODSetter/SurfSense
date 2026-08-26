@@ -9,7 +9,7 @@ from app.gateway.base.adapter import BasePlatformAdapter, PlatformSendResult
 from app.gateway.base.formatting import split_text_message
 from app.gateway.base.translator import BaseStreamTranslator, GatewayStreamEvent
 from app.gateway.whatsapp.adapter_cloud import WhatsAppCloudAdapter
-from app.observability.metrics import (
+from app.observability.domains.gateway import (
     record_gateway_hitl_aborted,
     record_gateway_outbound,
 )
