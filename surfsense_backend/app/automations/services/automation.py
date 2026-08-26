@@ -29,7 +29,7 @@ from app.automations.services.model_policy import (
 from app.automations.triggers import get_trigger
 from app.automations.triggers.builtin.schedule import compute_next_fire_at
 from app.db import Permission, Workspace, get_async_session
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 

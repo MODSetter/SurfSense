@@ -15,7 +15,7 @@ from app.automations.schemas.definition.envelope import (
 )
 from app.automations.schemas.definition.plan_step import PlanStep
 from app.automations.templating import build_run_context
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 
 from . import repository
 from .step import execute_step

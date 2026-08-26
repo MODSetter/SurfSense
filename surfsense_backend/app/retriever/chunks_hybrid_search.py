@@ -4,7 +4,7 @@ import functools
 import time
 from datetime import datetime
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.domains import kb
 from app.utils.perf import get_perf_logger
 
 _MAX_FETCH_CHUNKS_PER_DOC = 20
@@ -17,7 +17,7 @@ def _instrument_search(mode: str):
             self, query_text: str, top_k: int, workspace_id: int, *args, **kwargs
         ):
             t0 = time.perf_counter()
-            with ot.kb_search_span(
+            with kb.kb_search_span(
                 workspace_id=workspace_id,
                 query_chars=len(query_text),
                 extra={"search.surface": "chunks", "search.mode": mode},
@@ -27,14 +27,14 @@ def _instrument_search(mode: str):
                         self, query_text, top_k, workspace_id, *args, **kwargs
                     )
                 except Exception:
-                    ot_metrics.record_kb_search_duration(
+                    kb.record_kb_search_duration(
                         (time.perf_counter() - t0) * 1000,
                         workspace_id=workspace_id,
                         surface="chunks",
                     )
                     raise
                 sp.set_attribute("result.count", len(result))
-                ot_metrics.record_kb_search_duration(
+                kb.record_kb_search_duration(
                     (time.perf_counter() - t0) * 1000,
                     workspace_id=workspace_id,
                     surface="chunks",

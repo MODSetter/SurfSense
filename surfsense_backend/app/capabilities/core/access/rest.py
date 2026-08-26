@@ -45,7 +45,7 @@ from app.capabilities.core.store import all_capabilities
 from app.capabilities.core.types import Capability, CapabilityContext
 from app.db import Run, async_session_maker, get_async_session
 from app.exceptions import ExternalServiceError, SurfSenseError
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.services.web_crawl_credit_service import InsufficientCreditsError
 from app.users import get_auth_context
 from app.utils.rbac import check_workspace_access
