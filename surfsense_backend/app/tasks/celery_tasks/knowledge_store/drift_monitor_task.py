@@ -22,7 +22,7 @@ from sqlalchemy import select
 from app.celery_app import celery_app
 from app.knowledge_store.migrate import MigrationReport, migrate_workspace
 from app.knowledge_store.settings import load_knowledge_store_settings
-from app.observability import metrics
+from app.observability.domains import knowledge_store
 from app.tasks.celery_tasks.knowledge_store.index_tasks import reindex_knowledge_store
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def _check_flipped_workspaces() -> dict[str, int]:
             report = await migrate_workspace(session, workspace_id, dry_run=True)
         status = _status(report)
         counts[status] = counts.get(status, 0) + 1
-        metrics.record_knowledge_store_drift_check(
+        knowledge_store.record_knowledge_store_drift_check(
             workspace_id=workspace_id, status=status
         )
         if status != "ok":

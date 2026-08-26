@@ -24,7 +24,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.observability import otel as ot
+from app.observability.signals import tracing
 from app.services.auto_model_pin_service import resolve_or_get_pinned_llm_config_id
 
 
@@ -68,7 +68,7 @@ async def resolve_initial_auto_pin(
             requires_image_input=requires_image_input,
             force_repin_free=force_repin_free,
         )
-        ot.add_event(
+        tracing.add_event(
             "model.pin.resolved",
             {
                 "pin.requested_id": requested_llm_config_id,
@@ -92,7 +92,7 @@ async def resolve_initial_auto_pin(
             "user_error" if is_vision_failure else "server_error"
         )
         if is_vision_failure:
-            ot.add_event("quota.denied", {"quota.code": error_code})
+            tracing.add_event("quota.denied", {"quota.code": error_code})
         return AutoPinResult(
             llm_config_id=None, error=(error_code, error_kind, str(pin_error))
         )
