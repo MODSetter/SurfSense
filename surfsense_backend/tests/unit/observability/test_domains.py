@@ -18,6 +18,7 @@ from app.observability.domains import (
     media,
     runtime,
     security,
+    speech,
 )
 
 pytestmark = pytest.mark.unit
@@ -46,6 +47,7 @@ class TestDomainSpansAreNoop:
             kb.rerank_span(document_count=25),
             indexing.connector_sync_span(connector_type="index_notion_pages"),
             embedding.embedding_span(count=8, model="openai:text-embedding-3-small"),
+            speech.transcription_span(provider="litellm", model="whisper-1"),
         ]
         for cm in spans:
             with cm as sp:
@@ -69,6 +71,8 @@ class TestDomainMetricsAreNoop:
         embedding.record_embedding_duration(
             9.0, model="openai:text-embedding-3-small", count=8
         )
+        speech.record_transcription_duration(7.0, provider="litellm", model="whisper-1")
+        speech.record_transcription_duration(2.0, provider="local")
         media.record_media_render(3.5, kind="podcast", status="ready")
         media.record_media_render(
             1.0, kind="video", status="failed", error_category="TIMEOUT"
