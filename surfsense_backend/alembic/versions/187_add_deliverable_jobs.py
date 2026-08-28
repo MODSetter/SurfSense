@@ -6,6 +6,8 @@ Revises: 186
 
 from collections.abc import Sequence
 
+from sqlalchemy.dialects import postgresql
+
 from alembic import op
 
 revision: str = "187"
@@ -15,16 +17,21 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # Every object below may already exist: the startup bootstrap
+    # (Base.metadata.create_all) builds the current model shape, so a dev DB
+    # that booted the backend before migrating already has the whole table.
+    postgresql.ENUM(
+        "queued",
+        "running",
+        "cancelling",
+        "cancelled",
+        "ready",
+        "failed",
+        name="deliverable_job_status",
+    ).create(op.get_bind(), checkfirst=True)
     op.execute(
         """
-        CREATE TYPE deliverable_job_status AS ENUM (
-            'queued', 'running', 'cancelling', 'cancelled', 'ready', 'failed'
-        )
-        """
-    )
-    op.execute(
-        """
-        CREATE TABLE deliverable_jobs (
+        CREATE TABLE IF NOT EXISTS deliverable_jobs (
             id SERIAL PRIMARY KEY,
             kind VARCHAR(64) NOT NULL,
             title VARCHAR(500) NOT NULL,
@@ -62,16 +69,19 @@ def upgrade() -> None:
         """
     )
     for statement in (
-        "CREATE INDEX ix_deliverable_jobs_workspace_id "
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_workspace_id "
         "ON deliverable_jobs(workspace_id)",
-        "CREATE INDEX ix_deliverable_jobs_thread_id ON deliverable_jobs(thread_id)",
-        "CREATE INDEX ix_deliverable_jobs_workspace_status "
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_thread_id "
+        "ON deliverable_jobs(thread_id)",
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_workspace_status "
         "ON deliverable_jobs(workspace_id, status)",
-        "CREATE INDEX ix_deliverable_jobs_created_at ON deliverable_jobs(created_at)",
-        "CREATE INDEX ix_deliverable_jobs_updated_at ON deliverable_jobs(updated_at)",
-        "CREATE INDEX ix_deliverable_jobs_outbox ON deliverable_jobs(updated_at) "
-        "WHERE status = 'queued'",
-        "CREATE INDEX ix_deliverable_jobs_stale_running "
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_created_at "
+        "ON deliverable_jobs(created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_updated_at "
+        "ON deliverable_jobs(updated_at)",
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_outbox "
+        "ON deliverable_jobs(updated_at) WHERE status = 'queued'",
+        "CREATE INDEX IF NOT EXISTS ix_deliverable_jobs_stale_running "
         "ON deliverable_jobs(heartbeat_at, id) "
         "WHERE status IN ('running', 'cancelling')",
     ):
@@ -79,5 +89,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP TABLE deliverable_jobs")
-    op.execute("DROP TYPE deliverable_job_status")
+    op.execute("DROP TABLE IF EXISTS deliverable_jobs")
+    op.execute("DROP TYPE IF EXISTS deliverable_job_status")
