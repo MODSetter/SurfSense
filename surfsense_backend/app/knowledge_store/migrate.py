@@ -21,9 +21,9 @@ from app.knowledge_store.identities import MIGRATION_IDENTITY
 from app.knowledge_store.paths import (
     DOCUMENTS_ROOT,
     KEEP_FILE,
-    PATH_MARKER,
     allocate_path,
     build_path_index,
+    recorded_virtual_path,
     to_store_path,
 )
 
@@ -168,15 +168,17 @@ async def migrate_workspace(
 ) -> MigrationReport:
     """Seed a workspace, applying the path law to each of its documents.
 
-    A row that already records an authored-once path keeps it. An unmarked row
-    is authored a fresh ``.md`` path via :func:`allocate_path`, in ``created_at``
-    then ``id`` order so collisions resolve the same way on every re-seed. The
-    chosen path is recorded back onto the row.
+    A row that already records an authored-once path keeps it, whatever its
+    status. An unmarked row is authored a fresh ``.md`` path via
+    :func:`allocate_path`, in ``created_at`` then ``id`` order so collisions
+    resolve the same way on every re-seed, and the chosen path is recorded back
+    onto the row — unless it is still processing or failed before it was
+    recorded, which the store is not yet meant to hold.
 
     Never raises: a failure fetching or mapping documents is returned as
     ``MigrationReport.error``.
     """
-    from app.db import Document
+    from app.db import Document, DocumentStatus
 
     try:
         index = await build_path_index(session, workspace_id, populate_occupants=False)
@@ -189,6 +191,7 @@ async def migrate_workspace(
                 Document.path,
                 Document.source_markdown,
                 Document.content,
+                Document.status,
             )
             .where(Document.workspace_id == workspace_id)
             .order_by(Document.created_at, Document.id)
@@ -198,21 +201,44 @@ async def migrate_workspace(
         seeded_folder_ids: set[int] = set()
         taken: set[str] = set()
         pending: list[tuple[int, str, int | None, str]] = []
-        for doc_id, title, folder_id, metadata, path, source_markdown, content in rows:
+        # An unplaced row in one of these never earned a git file — still
+        # processing, or failed before it was recorded — so the store is not yet
+        # its to hold. A row that already records a path keeps its file whatever
+        # its status.
+        unready = {
+            DocumentStatus.PENDING,
+            DocumentStatus.PROCESSING,
+            DocumentStatus.FAILED,
+        }
+        for (
+            doc_id,
+            title,
+            folder_id,
+            metadata,
+            path,
+            source_markdown,
+            content,
+            status,
+        ) in rows:
             # "Pending..." is the pre-index placeholder; rows predating the
             # nullable source_markdown column hold text in content only.
             markdown = source_markdown or content
             if not markdown or markdown == "Pending...":
                 continue
-            if folder_id is not None:
-                seeded_folder_ids.add(folder_id)
-            recorded = _recorded_path(path, metadata)
+            recorded = recorded_virtual_path(metadata, path)
             if recorded is not None:
                 taken.add(recorded)
                 files[to_store_path(recorded)] = markdown
                 seeded_paths[doc_id] = recorded
+            elif DocumentStatus.get_state(status) in unready:
+                # Seeding would write unfinished bytes, and the drift check would
+                # then alarm on a row the reindex repair (git→Postgres) cannot
+                # turn into a file. The live writer records it once it is ready.
+                continue
             else:
                 pending.append((doc_id, title, folder_id, markdown))
+            if folder_id is not None:
+                seeded_folder_ids.add(folder_id)
         # Author the unmarked rows only after every recorded path is reserved,
         # so a fresh name never lands on one a marked row already owns.
         for doc_id, title, folder_id, markdown in pending:
@@ -237,14 +263,6 @@ async def migrate_workspace(
     if report.ok and not dry_run:
         await _record_seeded_paths(session, seeded_paths)
     return report
-
-
-def _recorded_path(path: str | None, metadata: Mapping[str, str] | None) -> str | None:
-    """The authored-once path a row already carries, column before marker."""
-    for value in (path, (metadata or {}).get(PATH_MARKER)):
-        if isinstance(value, str) and value.startswith(f"{DOCUMENTS_ROOT}/"):
-            return value
-    return None
 
 
 def _folder_parts(folder_path: str | None) -> list[str]:
@@ -289,12 +307,11 @@ async def _empty_folder_keeps(
 async def _record_seeded_paths(
     session: AsyncSession, seeded_paths: Mapping[int, str]
 ) -> None:
-    """Mark each seeded row with the path its content was written to.
+    """Record on each seeded row the path its content was written to.
 
-    Only rows whose marker would change are touched, so a re-seed of an already
-    marked workspace writes nothing. Best-effort: the seed revision is already
-    committed, and an unmarked row still resolves by derivation — it just cannot
-    survive a retitle, which the next seed repairs.
+    Best-effort: the seed revision is already committed, and a row without the
+    column still resolves by derivation — it just cannot survive a retitle, which
+    the next seed repairs.
     """
     from app.db import Document
 
@@ -305,14 +322,7 @@ async def _record_seeded_paths(
             select(Document).where(Document.id.in_(list(seeded_paths)))
         )
         for document in rows.scalars().all():
-            path = seeded_paths[document.id]
-            document.path = path
-            metadata = dict(document.document_metadata or {})
-            if metadata.get(PATH_MARKER) == path:
-                continue
-            metadata[PATH_MARKER] = path
-            # Reassigned, not mutated: SQLAlchemy tracks JSON columns by identity.
-            document.document_metadata = metadata
+            document.path = seeded_paths[document.id]
         await session.commit()
     except Exception:
         logger.warning("Could not record seeded paths", exc_info=True)

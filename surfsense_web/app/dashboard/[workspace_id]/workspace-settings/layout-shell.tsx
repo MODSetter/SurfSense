@@ -1,13 +1,19 @@
 "use client";
 
-import { BookText, Cpu, Earth, Settings, UserKey } from "lucide-react";
+import { BookText, Cpu, Earth, FolderGit2, Settings, UserKey } from "lucide-react";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useMemo } from "react";
 import { type RoutedSectionItem, RoutedSectionShell } from "@/components/layout";
 
-export type WorkspaceSettingsTab = "general" | "models" | "team-roles" | "prompts" | "public-links";
+export type WorkspaceSettingsTab =
+	| "general"
+	| "git-remote"
+	| "models"
+	| "team-roles"
+	| "prompts"
+	| "public-links";
 
 const DEFAULT_TAB: WorkspaceSettingsTab = "general";
 
@@ -30,6 +36,12 @@ export function WorkspaceSettingsLayoutShell({
 				label: t("nav_general"),
 				href: `/dashboard/${workspaceId}/workspace-settings/general`,
 				icon: <Settings className="h-4 w-4" />,
+			},
+			{
+				value: "git-remote" as const,
+				label: t("nav_connected_repo"),
+				href: `/dashboard/${workspaceId}/workspace-settings/git-remote`,
+				icon: <FolderGit2 className="h-4 w-4" />,
 			},
 			{
 				value: "models" as const,

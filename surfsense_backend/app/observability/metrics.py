@@ -541,6 +541,22 @@ def _knowledge_store_drift_checks():
     )
 
 
+@lru_cache(maxsize=1)
+def _knowledge_store_remote_connect():
+    return _get_meter().create_counter(
+        "surfsense.knowledge_store.remote.connect",
+        description="Count of workspace git-remote attach attempts per outcome.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _knowledge_store_remote_push():
+    return _get_meter().create_counter(
+        "surfsense.knowledge_store.remote.push",
+        description="Count of workspace git-remote push attempts per outcome.",
+    )
+
+
 def record_model_call_duration(
     duration_ms: float, *, model: str | None, provider: str | None
 ) -> None:
@@ -951,6 +967,26 @@ def record_knowledge_store_drift_check(*, workspace_id: int, status: str) -> Non
     )
 
 
+def record_knowledge_store_remote_connect(*, provider: str, status: str) -> None:
+    """Record one attach. ``status`` is ``connected`` or ``rejected``."""
+    _add(
+        _knowledge_store_remote_connect(),
+        1,
+        {"remote.provider": provider, "status": status},
+    )
+
+
+def record_knowledge_store_remote_push(
+    *, status: str, provider: str | None = None
+) -> None:
+    """Record one push attempt. ``status`` is ``pushed``, ``noop``, or ``failed``."""
+    _add(
+        _knowledge_store_remote_push(),
+        1,
+        {"remote.provider": provider or "none", "status": status},
+    )
+
+
 def record_video_render_duration(seconds: float, *, scope: str = "render") -> None:
     _record(_video_render_duration(), seconds, {"scope": scope})
 
@@ -1080,6 +1116,8 @@ __all__ = [
     "record_kb_search_duration",
     "record_knowledge_store_drift_check",
     "record_knowledge_store_record_outcome",
+    "record_knowledge_store_remote_connect",
+    "record_knowledge_store_remote_push",
     "record_model_call_duration",
     "record_model_token_usage",
     "record_perf_elapsed",

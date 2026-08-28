@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Document, DocumentStatus, DocumentType, Workspace
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.paths import (
-    PATH_MARKER,
     parse_documents_path,
     virtual_path_to_doc,
 )
@@ -36,8 +35,8 @@ from app.utils.document_converters import (
 
 logger = logging.getLogger(__name__)
 
-# PATH_MARKER marks a row as living at a store path, i.e. owned by this indexer.
-# Rows without it (Slack, Notion, the folder indexers) are never pruned.
+# A non-NULL ``path`` marks a row as living at a store path, i.e. owned by this
+# indexer. Rows without it (Slack, Notion, the folder indexers) are never pruned.
 
 _USER_AUTHOR = re.compile(r"<([^@>]+)@users\.surfsense>")
 
@@ -73,9 +72,6 @@ async def upsert_row(
         created_by_id=author_id,
         folder_parts=folder_parts,
     )
-    metadata = {**(document.document_metadata or {} if document else {})}
-    metadata[PATH_MARKER] = virtual_path
-
     created = document is None
     if document is None:
         # Agent-authored note: title is the filename without the storage .md.
@@ -84,7 +80,7 @@ async def upsert_row(
         document = Document(
             title=title.removesuffix(".md") or title,
             document_type=DocumentType.NOTE,
-            document_metadata=metadata,
+            document_metadata={},
             path=virtual_path,
             content=content,
             content_hash=generate_content_hash(content, workspace_id),
@@ -106,7 +102,6 @@ async def upsert_row(
         document.path = virtual_path
         document.source_markdown = content
         document.content_hash = generate_content_hash(content, workspace_id)
-        document.document_metadata = metadata
         document.updated_at = datetime.now(UTC)
 
     await session.flush()
@@ -195,13 +190,12 @@ async def delete_row(
     document = await resolve(session, workspace_id, virtual_path, owned)
     if document is None:
         return None
-    marker = (document.document_metadata or {}).get(PATH_MARKER)
-    if marker and marker != virtual_path:
+    if document.path and document.path != virtual_path:
         # The row moved, it did not go away: the upsert has already claimed it, so
         # deleting here would drop what this same run just wrote. Reached when git
         # cannot see the move — a rewrite in flight leaves nothing to match, so it
         # arrives as a removal and an addition — while the recorder has moved the
-        # marker and left unique_identifier_hash, resolve's fallback, behind.
+        # path and left unique_identifier_hash, resolve's fallback, behind.
         return None
     from app.file_storage.service import purge_document_blobs
 
@@ -216,9 +210,9 @@ async def prune(
 ) -> int:
     """Delete indexer-owned rows whose path is no longer in the tree.
 
-    Scoped to the marker, never to the workspace: connector rows (Slack, Notion,
-    the folder indexers) have no path in the tree at all, and a workspace-wide
-    prune would delete every one of them on the first rebuild.
+    Scoped to the ``path`` column, never to the workspace: connector rows (Slack,
+    Notion, the folder indexers) have no path in the tree at all, and a
+    workspace-wide prune would delete every one of them on the first rebuild.
     """
     stale = [
         (virtual_path, document)
@@ -246,14 +240,13 @@ async def load_owned(session: AsyncSession, workspace_id: int) -> dict[str, Docu
     result = await session.execute(
         select(Document).where(
             Document.workspace_id == workspace_id,
-            Document.document_metadata[PATH_MARKER].as_string().is_not(None),
+            Document.path.is_not(None),
         )
     )
     owned: dict[str, Document] = {}
     for document in result.scalars():
-        marker = (document.document_metadata or {}).get(PATH_MARKER)
-        if marker:
-            owned[marker] = document
+        if document.path:
+            owned[document.path] = document
     return owned
 
 

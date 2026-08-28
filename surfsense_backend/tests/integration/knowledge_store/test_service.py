@@ -194,7 +194,7 @@ async def test_a_save_records_the_document_and_remembers_its_path(
     assert len(paths) == 1
     assert "Meeting notes" in next(iter(paths))
     # Remembered so the *next* save knows where the document used to live.
-    assert "Meeting notes" in document.document_metadata[PATH_MARKER]
+    assert "Meeting notes" in document.path
 
 
 async def test_a_new_document_is_authored_as_markdown(
@@ -209,7 +209,7 @@ async def test_a_new_document_is_authored_as_markdown(
     )
 
     assert await _store_paths(db_workspace, revision) == {"documents/Meeting notes.md"}
-    assert document.document_metadata[PATH_MARKER] == "/documents/Meeting notes.md"
+    assert document.path == "/documents/Meeting notes.md"
 
 
 async def test_a_same_titled_document_gets_a_numbered_name(
@@ -223,14 +223,48 @@ async def test_a_same_titled_document_gets_a_numbered_name(
 
     await _save(db_session, db_workspace, db_user, second, title="Report")
 
-    assert first.document_metadata[PATH_MARKER] == "/documents/Report.md"
-    assert second.document_metadata[PATH_MARKER] == "/documents/Report (2).md"
+    assert first.path == "/documents/Report.md"
+    assert second.path == "/documents/Report (2).md"
+
+
+async def test_a_resave_of_an_unmarked_row_reattaches_instead_of_forking(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The editor twin of ``test_a_reingest_of_an_unmarked_row_reattaches...``.
+
+    A row can lose both its marker and its path column — the crash window between
+    the git commit and the mark. Its file is still in git. A re-save must
+    re-attach to that file by the row's identity, not author ``Meeting notes
+    (2).md`` and strand the first. Ingest already heals this; save authored a
+    fresh path instead, so the two live writers forked the same row two ways.
+    One placement decision, one outcome."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Meeting notes")
+    first = await _save(db_session, db_workspace, db_user, document, title="Meeting notes")
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    # The crash window: git kept the file, the row lost the link back to it.
+    document.document_metadata = {}
+    document.path = None
+    await db_session.commit()
+
+    second = await _save(
+        db_session,
+        db_workspace,
+        db_user,
+        document,
+        title="Meeting notes",
+        markdown="# Meeting notes\n\nEdited.",
+    )
+
+    assert await _store_paths(db_workspace, second) == {recorded}
 
 
 async def test_a_retitle_leaves_only_the_new_path(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip
 ):
-    """The removal has to be derived from the marker, not supplied by the caller."""
+    """The removal has to be derived from the recorded path, not supplied by the
+    caller."""
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Old title")
     await _save(db_session, db_workspace, db_user, document, title="Old title")
@@ -248,7 +282,7 @@ async def test_a_retitle_leaves_only_the_new_path(
     paths = await _store_paths(db_workspace, revision)
     assert len(paths) == 1
     assert "New title" in next(iter(paths))
-    assert "New title" in document.document_metadata[PATH_MARKER]
+    assert "New title" in document.path
 
 
 async def test_a_retitle_records_the_move_as_one_revision(
@@ -282,6 +316,7 @@ async def _agent_authored(session, workspace, user, path: str, markdown: str):
         author_user_id=str(user.id),
     )
     document = await _make_document(session, workspace, user, path.rsplit("/", 1)[-1])
+    document.path = path
     document.document_metadata = {PATH_MARKER: path}
     await session.commit()
     return document
@@ -308,7 +343,7 @@ async def test_an_inferred_retitle_keeps_the_name_the_agent_chose(
     )
 
     assert await _store_paths(db_workspace, revision) == {"documents/summary.md"}
-    assert document.document_metadata[PATH_MARKER] == "/documents/summary.md"
+    assert document.path == "/documents/summary.md"
 
 
 async def test_an_explicit_rename_still_moves_the_agent_s_file(
@@ -332,7 +367,7 @@ async def test_an_explicit_rename_still_moves_the_agent_s_file(
 
     paths = await _store_paths(db_workspace, revision)
     assert paths == {"documents/Key Points.md"}
-    assert document.document_metadata[PATH_MARKER] == "/documents/Key Points.md"
+    assert document.path == "/documents/Key Points.md"
 
 
 async def test_no_marker_is_left_when_nothing_was_recorded(
@@ -518,6 +553,55 @@ async def test_a_resync_that_kept_the_marker_overwrites_in_place(
     assert await _store_paths(db_workspace, second) == {recorded}
 
 
+async def test_a_resync_before_converge_does_not_fork(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """The prod drift engine. A connector re-sync can arrive before projection
+    catches up (the doc is still pending/failed, so converge never marked it).
+    Ingest has to pin the row itself — write its path back — or the re-sync
+    re-authors ``Roadmap (2).md`` against the git tree and strands the first file
+    as an orphan. No manual path fix-up here: that is the whole point."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    # Pinned the moment ingest lands, without waiting for converge.
+    assert document.path == f"/{recorded}"
+
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+    store = KnowledgeStore.for_workspace(db_workspace.id)
+    assert await store.read_as_of(second, recorded) == b"# Roadmap v2"
+
+
+async def test_a_reingest_of_an_unmarked_row_reattaches_instead_of_forking(
+    knowledge_root, db_session, db_workspace, db_user, workspace_flip
+):
+    """A row can lose both its marker and its path column — the crash window
+    between the git commit and the mark, and the legacy unmarked-orphan rows in
+    production. Its file is still in git. A re-ingest must re-attach to that file
+    by the row's identity, not author ``Roadmap (2).md`` and strand the first."""
+    workspace_flip(True)
+    document = await _make_document(db_session, db_workspace, db_user, "Roadmap")
+
+    first = await record_prepared_documents(db_session, [document])
+    recorded = next(iter(await _store_paths(db_workspace, first)))
+
+    document.document_metadata = {}
+    document.path = None
+    document.source_markdown = "# Roadmap v2"
+    await db_session.commit()
+
+    second = await record_prepared_documents(db_session, [document])
+
+    assert await _store_paths(db_workspace, second) == {recorded}
+
+
 # --- record_deleted_documents: the file has to go with the row ---
 #
 # Without this verb the row goes and the file stays, so the next whole-tree
@@ -537,7 +621,7 @@ async def test_a_delete_removes_the_document_s_file(
     assert await _store_paths(db_workspace, revision) == set()
 
 
-async def test_a_delete_follows_the_marker_rather_than_the_title(
+async def test_a_delete_follows_the_recorded_path_rather_than_the_title(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip
 ):
     """An agent names its own files, so deriving the path from the title deletes
@@ -611,7 +695,7 @@ async def test_a_move_relocates_the_file_and_remembers_where(
     paths = await _store_paths(db_workspace, revision)
     assert len(paths) == 1
     assert "New name" in next(iter(paths))
-    assert "New name" in document.document_metadata[PATH_MARKER]
+    assert "New name" in document.path
 
 
 async def test_a_move_carries_the_content_the_caller_never_read(
@@ -727,10 +811,10 @@ async def test_dropping_a_workspace_that_never_had_a_store_is_quiet(
     await drop_workspace_store(db_workspace.id)
 
 
-async def test_a_move_failure_leaves_the_marker_alone(
+async def test_a_move_failure_leaves_the_recorded_path_alone(
     knowledge_root, db_session, db_workspace, db_user, workspace_flip, monkeypatch
 ):
-    """A marker pointing where the file is not would make the next delete miss."""
+    """A path pointing where the file is not would make the next delete miss."""
     workspace_flip(True)
     document = await _make_document(db_session, db_workspace, db_user, "Old name")
     await _save(db_session, db_workspace, db_user, document, title="Old name")
@@ -742,4 +826,4 @@ async def test_a_move_failure_leaves_the_marker_alone(
     document.title = "New name"
 
     assert await record_moved_documents(db_session, [document]) is None
-    assert "Old name" in document.document_metadata[PATH_MARKER]
+    assert "Old name" in document.path

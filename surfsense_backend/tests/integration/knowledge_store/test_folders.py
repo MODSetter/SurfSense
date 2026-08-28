@@ -13,7 +13,7 @@ from app.config import config as app_config
 from app.db import Document, Folder
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.index.converge import index_changes, index_tree
-from app.knowledge_store.paths import KEEP_FILE, PATH_MARKER, StorePath, StorePathError
+from app.knowledge_store.paths import KEEP_FILE, StorePath, StorePathError
 
 pytestmark = pytest.mark.integration
 
@@ -167,7 +167,7 @@ async def test_a_document_folder_change_reparents_its_git_file(
         markdown="# note\n\na body to index\n",
         author_user_id=str(db_user.id),
     )
-    before = document.document_metadata[PATH_MARKER]  # authored at the root
+    before = document.path  # authored at the root
 
     target = await ensure_folder_hierarchy(
         db_session,
@@ -180,7 +180,7 @@ async def test_a_document_folder_change_reparents_its_git_file(
     await record_moved_documents(db_session, [document], author_user_id=str(db_user.id))
     await db_session.commit()
 
-    moved = document.document_metadata[PATH_MARKER]
+    moved = document.path
     filename = before.rsplit("/", 1)[-1]
     assert moved == f"/documents/B/{filename}"  # reparented, name unchanged
     paths = await _paths(store, await store.head())

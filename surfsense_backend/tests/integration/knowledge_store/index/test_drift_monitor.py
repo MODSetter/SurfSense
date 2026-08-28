@@ -75,6 +75,26 @@ def drift_metrics(monkeypatch):
     return recorded
 
 
+@pytest.fixture
+def drift_spans(monkeypatch):
+    """Capture per-workspace drift spans, in place of an OTel exporter.
+
+    Mirrors ``drift_metrics``: the span carries the drift *magnitude* the
+    status-only metric cannot, so an alert can open a trace that already says
+    how far git and Postgres are apart instead of sending someone to the logs.
+    """
+    import contextlib
+
+    recorded: list[dict[str, object]] = []
+
+    def fake_drift_check_span(**kwargs: object):
+        recorded.append(kwargs)
+        return contextlib.nullcontext()
+
+    monkeypatch.setattr(monitor.otel, "drift_check_span", fake_drift_check_span)
+    return recorded
+
+
 async def make_workspace(session, user_id, *, flipped: bool) -> Workspace:
     space = Workspace(name="Watched", user_id=user_id, knowledge_store_enabled=flipped)
     session.add(space)
@@ -82,7 +102,7 @@ async def make_workspace(session, user_id, *, flipped: bool) -> Workspace:
     return space
 
 
-async def add_document(session, workspace, user_id) -> Document:
+async def add_document(session, workspace, user_id, *, status=None) -> Document:
     document = Document(
         title="Note",
         document_type=DocumentType.NOTE,
@@ -93,7 +113,7 @@ async def add_document(session, workspace, user_id) -> Document:
         source_markdown="# Note\n\nBody.",
         workspace_id=workspace.id,
         created_by_id=user_id,
-        status=DocumentStatus.ready(),
+        status=status or DocumentStatus.ready(),
     )
     session.add(document)
     await session.flush()
@@ -122,6 +142,63 @@ async def test_a_document_missing_from_the_store_reports_drift(
 
     assert await monitor._check_flipped_workspaces() == {"drift": 1}
     assert drift_metrics == [(space.id, "drift")]
+
+
+async def test_the_drift_span_carries_the_magnitude(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    drift_spans,
+    repairs_enqueued,
+):
+    """The status-only metric says a workspace drifted; the span says by how much.
+
+    One document Postgres holds and git never received is exactly one ``missing``
+    path — the number that turns a red alert into a starting point.
+    """
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+    await migrate_workspace(db_session, space.id)
+    await add_document(db_session, space, db_user.id)
+
+    assert await monitor._check_flipped_workspaces() == {"drift": 1}
+    assert drift_spans == [
+        {
+            "workspace_id": space.id,
+            "status": "drift",
+            "missing": 1,
+            "extra": 0,
+            "mismatched": 0,
+        }
+    ]
+
+
+async def test_a_row_never_placed_in_git_is_not_drift_until_it_is_ready(
+    db_session,
+    db_user,
+    knowledge_root,
+    session_on_test_connection,
+    drift_metrics,
+    repairs_enqueued,
+):
+    """A body that never earned a git file — still pending, or failed before it
+    was recorded — is not content the store is missing; it is content the store
+    was never asked to hold. Only a ready row is canonical. Counting an unready
+    one alarms every run, and the repair (reindex, git→Postgres) cannot make a
+    file out of a row, so the alarm and its no-op rebuild would recur forever.
+    """
+    space = await make_workspace(db_session, db_user.id, flipped=True)
+    await add_document(db_session, space, db_user.id)
+    await migrate_workspace(db_session, space.id)
+    await add_document(db_session, space, db_user.id, status=DocumentStatus.pending())
+    await add_document(
+        db_session, space, db_user.id, status=DocumentStatus.failed("boom")
+    )
+
+    assert await monitor._check_flipped_workspaces() == {"ok": 1}
+    assert repairs_enqueued == []
 
 
 async def test_an_unflipped_workspace_is_not_checked(

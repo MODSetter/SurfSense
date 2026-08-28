@@ -2944,6 +2944,9 @@ from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
 from app.indexing_pipeline.cache.persistence.models import (  # noqa: E402, F401
     CachedEmbeddingSet,
 )
+from app.knowledge_store.remote.persistence.models import (  # noqa: E402, F401
+    WorkspaceGitRemotes,
+)
 from app.notifications.persistence import Notification  # noqa: E402, F401
 from app.podcasts.persistence import (  # noqa: E402, F401
     Podcast,
