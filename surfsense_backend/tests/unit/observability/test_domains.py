@@ -48,6 +48,7 @@ class TestDomainSpansAreNoop:
             indexing.connector_sync_span(connector_type="index_notion_pages"),
             embedding.embedding_span(count=8, model="openai:text-embedding-3-small"),
             speech.transcription_span(provider="litellm", model="whisper-1"),
+            speech.synthesis_span(provider="kokoro"),
         ]
         for cm in spans:
             with cm as sp:
@@ -73,6 +74,8 @@ class TestDomainMetricsAreNoop:
         )
         speech.record_transcription_duration(7.0, provider="litellm", model="whisper-1")
         speech.record_transcription_duration(2.0, provider="local")
+        speech.record_synthesis_duration(8.0, provider="litellm", model="openai/tts-1")
+        speech.record_synthesis_duration(4.0, provider="kokoro")
         media.record_media_render(3.5, kind="podcast", status="ready")
         media.record_media_render(
             1.0, kind="video", status="failed", error_category="TIMEOUT"

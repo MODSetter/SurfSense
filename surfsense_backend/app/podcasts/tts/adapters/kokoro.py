@@ -49,33 +49,44 @@ class KokoroTextToSpeech(TextToSpeech):
         return "wav"
 
     async def synthesize(self, request: SynthesisRequest) -> SynthesizedAudio:
+        import time
+
+        from app.observability.domains import speech
+
         if not isinstance(request.voice, str):
             raise TextToSpeechError("Kokoro voices are named by string, not a mapping")
 
         pipeline = self._pipeline_for(request.language)
         loop = asyncio.get_event_loop()
-        try:
-            generator = await loop.run_in_executor(
-                None,
-                lambda: pipeline(
-                    request.text,
-                    voice=request.voice,
-                    speed=request.speed,
-                    split_pattern=r"\n+",
-                ),
-            )
-            segments = [audio for _gs, _ps, audio in generator]
-        except Exception as exc:
-            raise TextToSpeechError(f"Kokoro synthesis failed: {exc}") from exc
+        t0 = time.perf_counter()
+        with speech.synthesis_span(provider="kokoro"):
+            try:
+                try:
+                    generator = await loop.run_in_executor(
+                        None,
+                        lambda: pipeline(
+                            request.text,
+                            voice=request.voice,
+                            speed=request.speed,
+                            split_pattern=r"\n+",
+                        ),
+                    )
+                    segments = [audio for _gs, _ps, audio in generator]
+                except Exception as exc:
+                    raise TextToSpeechError(f"Kokoro synthesis failed: {exc}") from exc
 
-        if not segments:
-            raise TextToSpeechError("Kokoro produced no audio for the text")
+                if not segments:
+                    raise TextToSpeechError("Kokoro produced no audio for the text")
 
-        return SynthesizedAudio(
-            data=_encode_wav(segments, _SAMPLE_RATE),
-            container="wav",
-            sample_rate=_SAMPLE_RATE,
-        )
+                return SynthesizedAudio(
+                    data=_encode_wav(segments, _SAMPLE_RATE),
+                    container="wav",
+                    sample_rate=_SAMPLE_RATE,
+                )
+            finally:
+                speech.record_synthesis_duration(
+                    (time.perf_counter() - t0) * 1000, provider="kokoro"
+                )
 
     def _pipeline_for(self, language: str) -> KPipeline:
         lang_code = _lang_code(language)
