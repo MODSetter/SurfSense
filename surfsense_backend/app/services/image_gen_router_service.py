@@ -15,6 +15,7 @@ AWS Bedrock, Recraft, OpenRouter, Xinference, Nscale.
 """
 
 import logging
+import time
 from typing import Any
 
 from litellm import Router
@@ -229,7 +230,16 @@ class ImageGenRouterService:
             gen_kwargs["n"] = n
         gen_kwargs.update(kwargs)
 
-        return await instance._router.aimage_generation(**gen_kwargs)
+        from app.observability.domains import image as obs_image
+
+        t0 = time.perf_counter()
+        with obs_image.image_generation_span(model=model, count=n):
+            try:
+                return await instance._router.aimage_generation(**gen_kwargs)
+            finally:
+                obs_image.record_image_generation_duration(
+                    (time.perf_counter() - t0) * 1000, model=model
+                )
 
 
 def is_image_gen_auto_mode(config_id: int | None) -> bool:

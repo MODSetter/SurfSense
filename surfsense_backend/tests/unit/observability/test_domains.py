@@ -13,6 +13,7 @@ from app.observability.domains import (
     agent,
     celery,
     embedding,
+    image,
     indexing,
     kb,
     media,
@@ -49,6 +50,7 @@ class TestDomainSpansAreNoop:
             embedding.embedding_span(count=8, model="openai:text-embedding-3-small"),
             speech.transcription_span(provider="litellm", model="whisper-1"),
             speech.synthesis_span(provider="kokoro"),
+            image.image_generation_span(model="auto", count=2),
         ]
         for cm in spans:
             with cm as sp:
@@ -76,6 +78,7 @@ class TestDomainMetricsAreNoop:
         speech.record_transcription_duration(2.0, provider="local")
         speech.record_synthesis_duration(8.0, provider="litellm", model="openai/tts-1")
         speech.record_synthesis_duration(4.0, provider="kokoro")
+        image.record_image_generation_duration(11.0, model="auto")
         media.record_media_render(3.5, kind="podcast", status="ready")
         media.record_media_render(
             1.0, kind="video", status="failed", error_category="TIMEOUT"
