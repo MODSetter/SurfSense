@@ -95,6 +95,8 @@ async def run(
         f"paa={len(it['peopleAlsoAsk'])} (answered={len(paa_answered)}) "
         f"({time.perf_counter() - t0:.0f}s)"
     )
+    for o in it["organicResults"][:3]:
+        print(f"    #{o['position']} {o['title'][:40]!r} -> {(o['url'] or '')[:60]}")
     for o in sitelinked[:2]:
         print(
             f"    [sitelinks on #{o['position']}] "
@@ -118,6 +120,10 @@ async def run(
         print(f"          A: {p['answer'][:90]!r}")
         print(f"          src: {p['url'] or '-'} | {(p['title'] or '-')[:45]}")
     assert it["organicResults"], f"{label}: no organic results"
+    # Google serves outbound links as opaque /goto redirects; every one of them
+    # must have been resolved back to a destination before the item is emitted.
+    unresolved = [o for o in it["organicResults"] if "/goto?" in (o["url"] or "")]
+    assert not unresolved, f"{label}: {len(unresolved)} unresolved /goto URLs"
     if expect_ads:
         assert it["paidResults"], f"{label}: expected text ads, got none"
     if expect_products:

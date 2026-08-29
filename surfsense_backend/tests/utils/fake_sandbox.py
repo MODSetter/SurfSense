@@ -39,6 +39,14 @@ class FakeSandboxSession:
         except KeyError:
             raise FileNotFoundError(path) from None
 
+    async def _read_file_stream(self, path: str, chunk_size: int):
+        data = await self.read_file(path)
+        for offset in range(0, len(data), chunk_size):
+            yield data[offset : offset + chunk_size]
+
+    def read_file_stream(self, path: str, *, chunk_size: int = 1024 * 1024):
+        return self._read_file_stream(path, chunk_size)
+
     async def write_file(self, path: str, data: bytes) -> None:
         self.files[path] = data
         self.writes[path] = data

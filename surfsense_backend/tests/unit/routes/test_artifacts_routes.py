@@ -10,8 +10,14 @@ from app.db import Permission
 from app.routes import artifacts_routes
 
 
-def _request(if_none_match: str | None = None) -> Request:
-    headers = [(b"if-none-match", if_none_match.encode())] if if_none_match else []
+def _request(
+    if_none_match: str | None = None, *, range_header: str | None = None
+) -> Request:
+    headers = []
+    if if_none_match:
+        headers.append((b"if-none-match", if_none_match.encode()))
+    if range_header:
+        headers.append((b"range", range_header.encode()))
     return Request({"type": "http", "method": "GET", "path": "/", "headers": headers})
 
 
@@ -33,6 +39,23 @@ def test_artifact_filename_is_title_based_and_does_not_duplicate_extension():
         artifacts_routes._artifact_filename("Quarterly Report.pdf", "revised.pdf")
         == "Quarterly Report.pdf"
     )
+
+
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
+        ("bytes=4-", (4, 9)),
+        ("bytes=-3", (7, 9)),
+        ("bytes=1-99", (1, 9)),
+    ],
+)
+def test_range_parser_supports_video_request_shapes(header, expected):
+    assert artifacts_routes._parse_range(header, 10) == expected
+
+
+def test_range_parser_rejects_multiple_ranges():
+    with pytest.raises(ValueError, match="Multiple"):
+        artifacts_routes._parse_range("bytes=1-2,7-8", 10)
 
 
 def _row_result(row):
@@ -287,6 +310,53 @@ async def test_file_honors_checksum_etag(monkeypatch):
     )
 
     assert response.status_code == 304
+
+
+@pytest.mark.asyncio
+async def test_file_serves_single_byte_range(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    record = _file(8, ArtifactFileRole.PRIMARY)
+    session = AsyncMock()
+    session.scalar.return_value = record
+
+    async def ranged(_record, start, end):
+        assert (start, end) == (2, 5)
+        yield b"2345"
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_range", ranged)
+    response = await artifacts_routes.stream_artifact_file(
+        2,
+        7,
+        8,
+        _request(range_header="bytes=2-5"),
+        session,
+        SimpleNamespace(),
+    )
+
+    assert response.status_code == 206
+    assert response.headers["content-range"] == "bytes 2-5/10"
+    assert response.headers["content-length"] == "4"
+    assert response.headers["accept-ranges"] == "bytes"
+    assert await _body(response) == b"2345"
+
+
+@pytest.mark.asyncio
+async def test_file_rejects_unsatisfiable_range(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    session = AsyncMock()
+    session.scalar.return_value = _file(8, ArtifactFileRole.PRIMARY)
+
+    response = await artifacts_routes.stream_artifact_file(
+        2,
+        7,
+        8,
+        _request(range_header="bytes=10-"),
+        session,
+        SimpleNamespace(),
+    )
+
+    assert response.status_code == 416
+    assert response.headers["content-range"] == "bytes */10"
 
 
 @pytest.mark.asyncio

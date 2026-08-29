@@ -6,6 +6,7 @@ import {
 	newChatMessageTable,
 	newChatThreadTable,
 } from "./chat";
+import { deliverableJobTable } from "./deliverable-jobs";
 import { documentTable, searchSourceConnectorTable } from "./documents";
 import { folderTable } from "./folders";
 import { notificationTable } from "./inbox";
@@ -75,6 +76,7 @@ export const schema = createSchema({
 		automationRunTable,
 		podcastRunTable,
 		videoPresentationRunTable,
+		deliverableJobTable,
 	],
 	relationships: [
 		chatCommentRelationships,

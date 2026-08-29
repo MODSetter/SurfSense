@@ -21,15 +21,16 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
         runtime: ToolRuntime,
         description: str | None = None,
     ) -> dict:
-        """Verify a sandbox-generated PDF or office artifact before saving it.
+        """Verify a sandbox-generated document or MP4 before saving it.
 
         Returns actionable findings when the artifact needs changes. A clean
         result authorizes save_artifact to use the signed verification receipt.
         Use description for a short user-facing step title.
         """
         del description
-        root_thread_id = resolve_root_thread_id(runtime)
-        session = await (await get_registry()).get_session(root_thread_id, workspace_id)
+        session = await (await get_registry()).get_session(
+            resolve_root_thread_id(runtime), workspace_id
+        )
         async with shielded_async_session() as db_session:
             vision_llm = await get_vision_llm(
                 db_session,

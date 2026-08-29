@@ -31,7 +31,8 @@ def test_deliverables_prompt_lists_every_installed_format_skill():
         assert match is not None, f"{skill_path}: missing name frontmatter"
         installed.add(match.group(1))
 
-    assert advertised == installed
+    # Video is transitional and advertised only by the flag-aware prompt block.
+    assert advertised == installed - {"video"}
 
 
 def test_deliverables_prompt_uses_pathless_publication_contract():

@@ -158,7 +158,7 @@ def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
         "status": "running",
         "title": "Creating the artifact",
         "category": "artifact",
-        "iconKey": "terminal",
+        "iconKey": "square-terminal",
         "startedAt": started["data"]["startedAt"],
     }
     assert "Untrusted model label" not in json.dumps(started)
@@ -512,6 +512,9 @@ def test_visible_native_tools_declare_descriptors_at_their_definition() -> None:
         "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/generate_image.py": {
             "generate_image"
         },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/enqueue_deliverable_job.py": {
+            "enqueue_deliverable_job"
+        },
         "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/load_artifact_for_revision.py": {
             "load_artifact_for_revision"
         },
@@ -523,6 +526,9 @@ def test_visible_native_tools_declare_descriptors_at_their_definition() -> None:
         },
         "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/save_artifact.py": {
             "save_artifact"
+        },
+        "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/synthesize_narration.py": {
+            "synthesize_narration"
         },
         "app/agents/chat/multi_agent_chat/subagents/builtins/deliverables/tools/verify_artifact.py": {
             "verify_artifact"

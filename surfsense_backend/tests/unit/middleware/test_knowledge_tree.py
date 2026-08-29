@@ -96,7 +96,7 @@ class TestFormatTreeRendering:
 
         class _Row:
             def __init__(self, **kw):
-                self.document_metadata = None  # unmarked: path comes from the title
+                self.path = None  # unlocated: path comes from the title
                 self.__dict__.update(kw)
 
         docs = [_Row(**spec) for spec in doc_specs]

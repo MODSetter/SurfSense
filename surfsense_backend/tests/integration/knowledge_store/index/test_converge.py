@@ -28,7 +28,7 @@ from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.identities import AGENT_IDENTITY, user_identity
-from app.knowledge_store.index.converge import PATH_MARKER, index_changes, index_tree
+from app.knowledge_store.index.converge import index_changes, index_tree
 from app.knowledge_store.service import record_deleted_documents
 from app.utils.document_converters import generate_unique_identifier_hash
 
@@ -80,10 +80,7 @@ async def by_path(session, workspace_id) -> dict[str, Document]:
     result = await session.execute(
         select(Document).where(Document.workspace_id == workspace_id)
     )
-    return {
-        (document.document_metadata or {}).get(PATH_MARKER): document
-        for document in result.scalars()
-    }
+    return {document.path: document for document in result.scalars()}
 
 
 async def chunk_ids(session, document_id) -> list[int]:
@@ -159,11 +156,51 @@ async def test_uploaded_file_is_adopted_not_duplicated(
     assert total == 1
     await db_session.refresh(upload)
     assert upload.id == upload_id
-    # Identity and type stay the upload's; only the location marker is added.
+    # Identity and type stay the upload's; only the location path is added.
     assert upload.document_type == DocumentType.FILE
     assert upload.unique_identifier_hash == upload_hash
-    assert upload.document_metadata[PATH_MARKER] == "/documents/report.pdf.xml"
+    assert upload.path == "/documents/report.pdf.xml"
     assert upload.document_metadata["FILE_NAME"] == "report.pdf"
+
+
+async def test_reindexing_leaves_a_rows_metadata_untouched(
+    store, db_session, db_workspace, db_user, patched_embed_texts
+):
+    """A content update must not rewrite metadata a connector or upload owns.
+
+    The existing-row branch of the upsert once reassigned document_metadata to
+    carry the path marker; the path column now records the location, so a reindex
+    has no reason to touch metadata — and must not resurrect the marker.
+    """
+    metadata = {"FILE_NAME": "report.pdf", "ETAG": "v1"}
+    upload = Document(
+        title="report.pdf",
+        document_type=DocumentType.FILE,
+        document_metadata=dict(metadata),
+        content="# Report",
+        content_hash=f"hash-{uuid.uuid4().hex}",
+        unique_identifier_hash=generate_unique_identifier_hash(
+            DocumentType.FILE, "report.pdf", db_workspace.id
+        ),
+        source_markdown="# Report",
+        workspace_id=db_workspace.id,
+        created_by_id=db_user.id,
+        status=DocumentStatus.ready(),
+    )
+    db_session.add(upload)
+    await db_session.flush()
+
+    await commit(store, {"documents/report.pdf.xml": "# Report"})
+    await index_changes(db_session, db_workspace.id)
+
+    # A real content change forces the existing-row branch to run a second time.
+    await commit(store, {"documents/report.pdf.xml": "# Report\n\nRevised."})
+    await index_changes(db_session, db_workspace.id)
+
+    await db_session.refresh(upload)
+    assert "Revised." in upload.source_markdown
+    # Exact equality proves the branch neither wiped the dict nor stamped a marker.
+    assert upload.document_metadata == metadata
 
 
 async def test_existing_path_updates_in_place(
@@ -192,7 +229,7 @@ async def test_a_document_in_a_folder_lands_under_that_folder(
 
     row = (await titles(db_session, db_workspace.id))["paper"]
     assert row.folder_id is not None
-    assert row.document_metadata[PATH_MARKER] == "/documents/Research/paper.xml"
+    assert row.path == "/documents/Research/paper.xml"
 
 
 # ── Chunk reuse and removal ─────────────────────────────────────────────────
@@ -282,11 +319,11 @@ async def test_a_new_file_at_a_moved_from_path_gets_its_own_row(
     assert rows["/documents/old.xml"].id != moved_id
 
 
-async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
+async def test_a_move_that_rewrites_the_file_keeps_the_relocated_document(
     store, db_session, db_workspace, patched_embed_texts
 ):
     """With nothing in common git sees no move, so the halves arrive separately —
-    and an editor retitle has already moved the marker while leaving
+    and an editor retitle has already moved the path column while leaving
     unique_identifier_hash behind. The removal then resolves by that hash to the
     row the upsert just updated, dropping a document whose file is still in the
     tree, invisible until the next full rebuild."""
@@ -294,7 +331,7 @@ async def test_a_move_that_rewrites_the_file_keeps_the_marked_document(
     await index_changes(db_session, db_workspace.id)
     row = (await titles(db_session, db_workspace.id))["old"]
     document_id = row.id
-    row.document_metadata = {**row.document_metadata, PATH_MARKER: "/documents/new.xml"}
+    row.path = "/documents/new.xml"
     await db_session.commit()
 
     await commit(
@@ -482,6 +519,27 @@ async def test_a_rebuild_prunes_a_row_whose_file_is_gone(
     assert set(await titles(db_session, db_workspace.id)) == {"b"}
 
 
+async def test_a_rebuild_prunes_a_path_only_row_whose_file_is_gone(
+    store, db_session, db_workspace, patched_embed_texts
+):
+    """A backfilled legacy row is identified by its ``path`` column, not a marker.
+    Ownership — and so prune — has to key on the column, or such a row is never
+    reclaimed when its file leaves the tree."""
+    await commit(store, {"documents/a.xml": "# A", "documents/b.xml": "# B"})
+    await index_changes(db_session, db_workspace.id)
+
+    # A backfilled legacy row: the path column names its file, no marker.
+    doc = (await titles(db_session, db_workspace.id))["a"]
+    assert doc.path == "/documents/a.xml"
+    doc.document_metadata = {}
+    await db_session.commit()
+
+    await commit(store, removes=["documents/a.xml"])
+    await index_tree(db_session, db_workspace.id)
+
+    assert set(await titles(db_session, db_workspace.id)) == {"b"}
+
+
 # ── Authorship, skips, failures ─────────────────────────────────────────────
 
 
@@ -585,3 +643,46 @@ async def test_a_failed_document_withholds_the_stamp(
     assert outcome.stamped is False
     await db_session.refresh(db_workspace)
     assert db_workspace.last_indexed_revision is None
+
+
+async def test_a_failing_document_does_not_discard_its_batch(
+    store, db_session, db_workspace, monkeypatch
+):
+    """One un-indexable file must not roll back the rows of the documents that
+    indexed cleanly beside it in the same run."""
+    from app.indexing_pipeline.cache import cached_indexing
+
+    real_embed = cached_indexing.embed_texts
+
+    def selective(texts):
+        if any("POISON" in text for text in texts):
+            raise RuntimeError("embedding unavailable")
+        return real_embed(texts)
+
+    monkeypatch.setattr(cached_indexing, "embed_texts", selective)
+
+    await commit(
+        store,
+        {
+            "documents/good.xml": "# Good\n\na clean body to index\n",
+            "documents/bad.xml": "# Bad\n\nPOISON body that cannot embed\n",
+        },
+    )
+
+    workspace_id = db_workspace.id
+    outcome = await index_changes(db_session, workspace_id)
+
+    assert outcome.failed == 1
+    db_session.expire_all()
+    good = await db_session.scalar(
+        select(Document).where(
+            Document.workspace_id == workspace_id,
+            Document.path == "/documents/good.xml",
+        )
+    )
+    assert good is not None
+    assert DocumentStatus.is_state(good.status, DocumentStatus.READY)
+    chunk_count = await db_session.scalar(
+        select(func.count(Chunk.id)).where(Chunk.document_id == good.id)
+    )
+    assert chunk_count and chunk_count > 0
