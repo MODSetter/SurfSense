@@ -20,6 +20,33 @@ answer + cited sources as its own item; `includeIcons` puts the base64 favicon
 on organic/paid results; `saveHtml` attaches the raw page. The only remaining
 piece is the HTTP route.
 
+### Result links are redirects (`/goto`), not destinations
+
+Google rolled out `google.com/goto?url=<blob>` server-side redirects on the
+desktop SERP in **Jul 2026** — confirmed by Google, and an explicit
+anti-scraping measure. Every outbound result anchor now points at google.com,
+and the `blob` is a base64url protobuf whose payload is **encrypted with a key
+only Google holds**, so the destination cannot be recovered from the DOM at any
+price. The only exceptions are Google's own properties
+(`developers.google.com` et al.), which stay unwrapped.
+
+This is what broke `organicResults`: the parser accepted a block only when it
+found an anchor whose `href` started with `http`, so post-rollout it skipped
+every block on the page and emitted the one or two Google-owned results that
+were left — the "empty, or 1-2 results" symptom.
+
+The fix is two-part: `parsers.py` reads anchors through `_anchor_target()`,
+which understands all three shapes in circulation (`https://…` direct,
+`/url?q=<target>` — still what the **mobile** lightweight layout serves, target
+in the clear — and `/goto?url=<blob>`), and `goto.py` turns the redirects back
+into destinations by **following the 302**. Resolution is one bodyless GET per
+unique link, all of them concurrent, egressing through the *rotating* gateway
+(the redirect carries no session state, so a fresh IP per link spreads the load
+instead of burning a warm solved IP). That adds **~2 s to a page**, against a
+~12-16 s warm render. It is best-effort: a link that will not resolve keeps its
+`/goto` URL rather than being dropped, so a resolver outage degrades the `url`
+field on some results instead of losing the results themselves.
+
 ### How fetching works (and why it's slow)
 
 Google's web `/search` is hostile: most residential IPs get a 429 "unusual
@@ -155,6 +182,7 @@ the progressive rollout.)
 | `fetch.py`         | Proxy-vetted two-phase fetch: cheap precheck GET + headless render on a **warm sticky-IP pool** (spread across IPs, per-IP soft cap, grow-to-target), retrying across IPs. Caches per-IP reCAPTCHA exemptions. |
 | `pool_store.py`    | Best-effort Redis cache of solved-IP exemptions so a solve on one worker warms that IP for the whole fleet (adopt/publish/evict); silent no-op without Redis. |
 | `captcha.py`       | Async reCAPTCHA-Enterprise solve for the `/sorry` wall (via the `app.utils.captcha` solver seam — capsolver/2captcha, `enterprise`+`data-s`), run inside the render's `page_action`.  |
+| `goto.py`          | Resolves Google's opaque `/goto?url=<blob>` result redirects back to real URLs by following the 302 — concurrently, deduped, best-effort. See the section above. |
 | `parsers.py`       | Rendered SERP HTML → organic / text ads / product ads / related / People-Also-Ask / `resultsTotal` (degrades per-field). |
 
 ## Input semantics (matching Apify)
