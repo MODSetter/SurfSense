@@ -206,11 +206,9 @@ celery_app = Celery(
         "app.tasks.celery_tasks.knowledge_store.janitor_task",
         "app.tasks.celery_tasks.knowledge_store.index_tasks",
         "app.tasks.celery_tasks.knowledge_store.drift_monitor_task",
-        "app.tasks.celery_tasks.knowledge_store.push_task",
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.tasks.celery_tasks.model_compatibility_task",
-        "app.tasks.celery_tasks.deliverable_job_tasks",
         "app.etl_pipeline.cache.eviction.task",
         "app.indexing_pipeline.cache.eviction.task",
         "app.automations.tasks.execute_run",
@@ -329,11 +327,6 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="3", minute="17"),
         "options": {"expires": 600},
     },
-    "reconcile-queued-deliverables": {
-        "task": "deliverables.reconcile_queued",
-        "schedule": crontab(minute="*"),
-        "options": {"expires": 55},
-    },
     "purge-refresh-tokens": {
         "task": "purge_refresh_tokens",
         "schedule": crontab(hour="3", minute="41"),
@@ -364,14 +357,6 @@ celery_app.conf.beat_schedule = {
     "reindex-drifted-workspaces": {
         "task": "reindex_drifted_workspaces",
         "schedule": crontab(minute="20"),
-        "options": {"expires": 600},
-    },
-    # Re-drive remotes whose last-pushed stamp trails the store HEAD. Same
-    # hourly cadence as the index sweep: fire-and-forget push is the only
-    # recovery for a broker drop after a save.
-    "push-lagging-workspace-remotes": {
-        "task": "push_lagging_workspace_remotes",
-        "schedule": crontab(minute="25"),
         "options": {"expires": 600},
     },
     # Parity-check flipped workspaces against git by content address. Covers the

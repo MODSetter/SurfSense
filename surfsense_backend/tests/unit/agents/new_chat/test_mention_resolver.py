@@ -118,7 +118,9 @@ class TestResolveMentions:
             document_type="EXTENSION",
             kind="doc",
         )
-        doc_row = SimpleNamespace(id=42, title="Notes", folder_id=None, path=None)
+        doc_row = SimpleNamespace(
+            id=42, title="Notes", folder_id=None, document_metadata=None
+        )
 
         async def fake_build_index(_session, _ssid):
             return PathIndex()
@@ -220,8 +222,10 @@ class TestResolveMentions:
             id=2, title="A long one", document_type="EXTENSION", kind="doc"
         )
         rows = [
-            SimpleNamespace(id=1, title="A", folder_id=None, path=None),
-            SimpleNamespace(id=2, title="A long one", folder_id=None, path=None),
+            SimpleNamespace(id=1, title="A", folder_id=None, document_metadata=None),
+            SimpleNamespace(
+                id=2, title="A long one", folder_id=None, document_metadata=None
+            ),
         ]
 
         async def fake_build_index(_session, _ssid):
@@ -249,7 +253,9 @@ class TestResolveMentions:
         # ``mentioned_document_ids`` (the legacy parallel array) must
         # still resolve when no chip metadata is available — covers
         # callers that haven't migrated to the discriminated chip list.
-        doc_row = SimpleNamespace(id=7, title="Legacy", folder_id=None, path=None)
+        doc_row = SimpleNamespace(
+            id=7, title="Legacy", folder_id=None, document_metadata=None
+        )
 
         async def fake_build_index(_session, _ssid):
             return PathIndex()

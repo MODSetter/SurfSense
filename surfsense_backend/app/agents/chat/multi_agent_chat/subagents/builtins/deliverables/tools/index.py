@@ -10,10 +10,7 @@ from typing import Any
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.permissions import Ruleset
-from app.config import config
-from app.deliverables.jobs.dispatch import dispatch_deliverable_job
 
-from .enqueue_deliverable_job import create_enqueue_deliverable_job_tool
 from .generate_image import create_generate_image_tool
 from .load_artifact_for_revision import create_load_artifact_for_revision_tool
 from .load_source_document import create_load_source_document_tool
@@ -36,9 +33,8 @@ def load_tools(
     d = {**(dependencies or {}), **kwargs}
     # Offering these with no sandbox behind them would have the model follow the
     # prompt's skill workflow up to the first tool call, then fail.
-    sandbox_enabled = is_sandbox_enabled()
     sandbox_tools = []
-    if sandbox_enabled:
+    if is_sandbox_enabled():
         sandbox_tools = [
             *create_sandbox_tools(workspace_id=d["workspace_id"]),
             create_load_artifact_for_revision_tool(
@@ -47,24 +43,6 @@ def load_tools(
             create_load_source_document_tool(workspace_id=d["workspace_id"]),
             create_verify_artifact_tool(workspace_id=d["workspace_id"]),
         ]
-
-    video_tools = (
-        [
-            create_enqueue_deliverable_job_tool(
-                workspace_id=d["workspace_id"],
-                created_by_id=d.get("user_id") or d.get("created_by_id"),
-                dispatcher=d.get("deliverable_job_dispatcher")
-                or dispatch_deliverable_job,
-            )
-        ]
-        if config.VIDEO_SANDBOX_RENDERING_ENABLED and sandbox_enabled
-        else [
-            create_generate_video_presentation_tool(
-                workspace_id=d["workspace_id"],
-                db_session=d["db_session"],
-            )
-        ]
-    )
     return [
         *sandbox_tools,
         create_save_artifact_tool(workspace_id=d["workspace_id"]),
@@ -72,7 +50,10 @@ def load_tools(
             workspace_id=d["workspace_id"],
             db_session=d["db_session"],
         ),
-        *video_tools,
+        create_generate_video_presentation_tool(
+            workspace_id=d["workspace_id"],
+            db_session=d["db_session"],
+        ),
         create_generate_image_tool(
             workspace_id=d["workspace_id"],
             db_session=d["db_session"],

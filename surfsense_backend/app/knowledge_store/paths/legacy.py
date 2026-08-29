@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.knowledge_store.paths.naming import (
     _INVALID_FILENAME_CHARS,
@@ -14,6 +15,7 @@ from app.knowledge_store.paths.naming import (
 )
 from app.knowledge_store.paths.store_path import (
     DOCUMENTS_ROOT,
+    PATH_MARKER,
     StorePath,
 )
 
@@ -163,17 +165,18 @@ def doc_to_virtual_path(
 
 def virtual_path_of(
     *,
-    path: str | None,
+    metadata: Mapping[str, Any] | None,
     doc_id: int | None,
     title: str,
     folder_id: int | None,
     index: PathIndex,
 ) -> str:
-    """A row's path from its ``path`` column, else derived from its title."""
-    if isinstance(path, str) and path.startswith(f"{DOCUMENTS_ROOT}/"):
+    """A row's path from its :data:`PATH_MARKER`, else derived from its title."""
+    recorded = (metadata or {}).get(PATH_MARKER)
+    if isinstance(recorded, str) and recorded.startswith(f"{DOCUMENTS_ROOT}/"):
         if doc_id is not None:
-            index.occupants[path] = doc_id
-        return path
+            index.occupants[recorded] = doc_id
+        return recorded
     return doc_to_virtual_path(
         doc_id=doc_id, title=title, folder_id=folder_id, index=index
     )

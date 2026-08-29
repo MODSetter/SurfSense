@@ -14,10 +14,8 @@ No API keys, no Apify account, no headless browser on the happy path.
 
 ```python
 from app.proprietary.platforms.youtube import (
-    YouTubeScrapeInput,
-    scrape_youtube,
-    YouTubeCommentsInput,
-    scrape_comments,
+    YouTubeScrapeInput, scrape_youtube,
+    YouTubeCommentsInput, scrape_comments,
 )
 
 # Videos — by search query and/or direct URLs (video/channel/playlist/hashtag/search)
@@ -25,19 +23,15 @@ videos = await scrape_youtube(
     YouTubeScrapeInput(searchQueries=["surfsense"], maxResults=50)
 )
 videos = await scrape_youtube(
-    YouTubeScrapeInput(
-        startUrls=[{"url": "https://www.youtube.com/@SomeChannel"}],
-        maxResults=20,
-        downloadSubtitles=True,
-    )
+    YouTubeScrapeInput(startUrls=[{"url": "https://www.youtube.com/@SomeChannel"}],
+                       maxResults=20, downloadSubtitles=True)
 )
 
 # Comments — one output item per top-level comment AND per reply
 comments = await scrape_comments(
     YouTubeCommentsInput(
         startUrls=[{"url": "https://www.youtube.com/watch?v=VIDEO_ID"}],
-        maxComments=200,
-        sortCommentsBy="TOP_COMMENTS",
+        maxComments=200, sortCommentsBy="TOP_COMMENTS",
     )
 )
 ```

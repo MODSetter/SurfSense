@@ -96,8 +96,7 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
 
     backend = MemoryBackend()
     primary_path = "/workspace/budget.xlsx"
-    first_bytes = _xlsx_bytes("first")
-    sandbox = FakeSandboxSession({primary_path: first_bytes})
+    sandbox = FakeSandboxSession({primary_path: _xlsx_bytes("first")})
 
     class Registry:
         async def get_session(self, _thread_id, _workspace_id):
@@ -154,7 +153,7 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
     )
     assert "changed after verification" in str(rejected)
 
-    sandbox.files[primary_path] = first_bytes
+    sandbox.files[primary_path] = _xlsx_bytes("first")
     reverified = await verify_service.verify_artifact(
         sandbox,
         primary_path,
@@ -190,7 +189,7 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
     assert loaded["markdown_path"] == f"{revision_dir}/context.md"
     assert loaded["expected_output_path"] == f"{revision_dir}/revised.xlsx"
     assert loaded["expected_generation"] == 1
-    assert sandbox.files[loaded["primary_path"]] == first_bytes
+    assert sandbox.files[loaded["primary_path"]] == _xlsx_bytes("first")
     assert sandbox.files[loaded["markdown_path"]] == b"# Budget\n\nFirst version"
     assert loaded["primary_path"] != primary_path
 

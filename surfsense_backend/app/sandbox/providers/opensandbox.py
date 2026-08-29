@@ -21,7 +21,6 @@ from opensandbox.models import NetworkPolicy, SandboxFilter
 
 from app.config import config as app_config
 
-from ..file_stream import read_file_stream_via_commands
 from ..protocol import ExecResult
 
 logger = logging.getLogger(__name__)
@@ -132,12 +131,6 @@ class OpenSandboxSession:
             return await self._sandbox.files.read_bytes(path)
         except Exception as exc:
             _raise_normalized(exc, operation="read", path=path)
-
-    def read_file_stream(self, path: str, *, chunk_size: int = 1024 * 1024):
-        # OpenSandbox 0.1.x exposes read_bytes but no streamed download.
-        return read_file_stream_via_commands(
-            self.run_command, path, chunk_size=chunk_size
-        )
 
     async def write_file(self, path: str, data: bytes) -> None:
         try:

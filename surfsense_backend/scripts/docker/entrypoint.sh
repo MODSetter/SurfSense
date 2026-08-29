@@ -95,9 +95,9 @@ start_worker() {
     if [ -n "${CELERY_QUEUES}" ]; then
         QUEUE_ARGS="--queues=${CELERY_QUEUES}"
     else
-        # When no queues are specified, the shared worker consumes every queue
-        # used by the default deployment.
-        # Without --queues, Celery consumes only the default queue.
+        # When no queues specified, consume from the default, connectors, and
+        # gateway maintenance queues. Without --queues, Celery only consumes
+        # from the default queue, leaving connector/gateway maintenance tasks stuck.
         DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
         QUEUE_ARGS="--queues=${DEFAULT_Q},${DEFAULT_Q}.connectors,${DEFAULT_Q}.gateway"
     fi

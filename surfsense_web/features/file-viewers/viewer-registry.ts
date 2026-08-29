@@ -21,14 +21,9 @@ const XlsxViewer = dynamic<FileViewerProps>(() => import("./xlsx-viewer"), {
 	ssr: false,
 	loading: FileViewerLoading,
 });
-const Mp4FileViewer = dynamic<FileViewerProps>(() => import("./mp4-file-viewer"), {
-	ssr: false,
-	loading: FileViewerLoading,
-});
 
 /** Direct viewers render the file itself; domain-specific preview adapters remain with their owner. */
 export const FILE_VIEWERS: Readonly<Partial<Record<string, ComponentType<FileViewerProps>>>> = {
 	"application/pdf": PdfFileViewer,
-	"video/mp4": Mp4FileViewer,
 	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": XlsxViewer,
 };

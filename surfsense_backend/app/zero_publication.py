@@ -96,21 +96,6 @@ VIDEO_PRESENTATION_RUN_COLS = [
     "created_at",
 ]
 
-DELIVERABLE_JOB_COLS = [
-    "id",
-    "kind",
-    "title",
-    "status",
-    "phase",
-    "progress",
-    "failure_code",
-    "artifact_id",
-    "workspace_id",
-    "thread_id",
-    "created_at",
-    "updated_at",
-]
-
 ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "notifications": None,
     "documents": DOCUMENT_COLS,
@@ -125,7 +110,6 @@ ZERO_PUBLICATION: Mapping[str, Sequence[str] | None] = {
     "automation_runs": AUTOMATION_RUN_COLS,
     "podcast_runs": PODCAST_COLS,
     "video_presentation_runs": VIDEO_PRESENTATION_RUN_COLS,
-    "deliverable_jobs": DELIVERABLE_JOB_COLS,
 }
 
 
@@ -155,7 +139,6 @@ def _expected_columns(conn: Connection, table: str) -> list[str] | None:
         "user",
         "podcast_runs",
         "video_presentation_runs",
-        "deliverable_jobs",
     } and "_0_version" in _table_columns(conn, table):
         expected.append("_0_version")
     return expected

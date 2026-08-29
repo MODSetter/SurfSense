@@ -16,8 +16,7 @@ Behaviour:
 - Extracts ``Retry-After`` / ``retry-after-ms`` from
   ``litellm.exceptions.RateLimitError.response.headers`` (or any exception
   exposing a similar shape).
-- Sleeps ``max(exponential_backoff, header_delay)`` between retries,
-  capped at ``max_delay``.
+- Sleeps ``max(exponential_backoff, header_delay)`` between retries.
 - Returns ``False`` from ``retry_on`` for context overflow so
   :class:`SurfSenseCompactionMiddleware` (or the LangChain summarization
   fallback path) handles it instead, and for the other categories a retry
@@ -34,7 +33,7 @@ import logging
 import random
 import re
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain.agents.middleware.types import (
@@ -90,18 +89,14 @@ def _extract_retry_after_seconds(exc: BaseException) -> float | None:
     to a regex on the exception message for shapes like
     ``"Please retry after 30s"``.
     """
-    headers: Mapping[str, Any] | None = None
+    headers: dict[str, Any] | None = None
     response = getattr(exc, "response", None)
     if response is not None:
         headers = getattr(response, "headers", None)
     if headers is None:
         headers = getattr(exc, "headers", None)
 
-    # ``Mapping``, not ``dict``: litellm rebuilds the error's ``response`` as an
-    # ``httpx.Response``, whose ``.headers`` is ``httpx.Headers`` -- a Mapping
-    # that is not a dict subclass. A ``dict`` check silently skips every real
-    # provider response.
-    if isinstance(headers, Mapping):
+    if isinstance(headers, dict):
         # Normalize keys to lowercase for case-insensitive matching
         norm = {str(k).lower(): v for k, v in headers.items()}
         ms = norm.get("retry-after-ms")
@@ -202,10 +197,7 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
             jitter=self.jitter,
         )
         header = _extract_retry_after_seconds(exc) or 0.0
-        # ``max_delay`` caps the header hint as well as the backoff: this loop
-        # runs inside the live turn, holding the SSE stream, the thread's busy
-        # lock and the DB session for whatever it sleeps.
-        return min(max(backoff, header), self.max_delay)
+        return max(backoff, header)
 
     def wrap_model_call(  # type: ignore[override]
         self,
