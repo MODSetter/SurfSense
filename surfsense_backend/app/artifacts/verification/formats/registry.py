@@ -8,14 +8,12 @@ from .base import FormatAdapter
 from .docx import check_docx
 from .pdf import check_pdf
 from .pptx import check_pptx
-from .video import check_video, reject_buffered_video_check
 from .xlsx import check_xlsx
 
 PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-MP4_MIME = "video/mp4"
 
 _ADAPTERS = {
     ".pdf": FormatAdapter(
@@ -49,15 +47,6 @@ _ADAPTERS = {
         convert_to_pdf=False,
         check=check_xlsx,
         requires_visual_review=False,
-    ),
-    ".mp4": FormatAdapter(
-        name="video",
-        suffix=".mp4",
-        mime_type=MP4_MIME,
-        convert_to_pdf=False,
-        check=reject_buffered_video_check,
-        requires_visual_review=False,
-        sandbox_check=check_video,
     ),
 }
 

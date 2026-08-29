@@ -16,10 +16,7 @@ from app.artifacts.persistence import (
     ArtifactFile,
     ArtifactFileRole,
 )
-from app.artifacts.storage import (
-    open_artifact_file_range,
-    open_artifact_file_stream,
-)
+from app.artifacts.storage import open_artifact_file_stream
 from app.auth.context import AuthContext
 from app.db import Document, Permission, get_async_session
 from app.users import get_auth_context
@@ -28,34 +25,6 @@ from app.utils.rbac import check_permission
 from .document_files_routes import _content_disposition, _is_inline
 
 router = APIRouter()
-
-
-def _parse_range(value: str, size: int) -> tuple[int, int]:
-    """Parse one byte range, returning inclusive offsets."""
-    if size <= 0 or not value.startswith("bytes="):
-        raise ValueError("Invalid byte range")
-    first = value.removeprefix("bytes=").strip()
-    if "," in first:
-        raise ValueError("Multiple byte ranges are not supported")
-    start_text, separator, end_text = first.partition("-")
-    if separator != "-":
-        raise ValueError("Invalid byte range")
-    if not start_text:
-        try:
-            suffix_length = int(end_text)
-        except ValueError:
-            raise ValueError("Invalid byte range") from None
-        if suffix_length <= 0:
-            raise ValueError("Invalid byte range")
-        return max(size - suffix_length, 0), size - 1
-    try:
-        start = int(start_text)
-        end = int(end_text) if end_text else size - 1
-    except ValueError:
-        raise ValueError("Invalid byte range") from None
-    if start < 0 or start >= size or end < start:
-        raise ValueError("Unsatisfiable byte range")
-    return start, min(end, size - 1)
 
 
 def _safe_filename_stem(title: str) -> str:
@@ -471,43 +440,17 @@ async def stream_artifact_file(
         "ETag": etag,
         "Cache-Control": "private, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
-        "Accept-Ranges": "bytes",
     }
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
     mime_type = record.mime_type or "application/octet-stream"
-    disposition = _content_disposition(
-        record.original_filename, inline=_is_inline(mime_type)
-    )
-    range_header = request.headers.get("range")
-    if range_header:
-        try:
-            start, end = _parse_range(range_header, record.size_bytes)
-        except ValueError:
-            return Response(
-                status_code=416,
-                headers={
-                    **headers,
-                    "Content-Range": f"bytes */{record.size_bytes}",
-                },
-            )
-        return StreamingResponse(
-            open_artifact_file_range(record, start, end),
-            status_code=206,
-            media_type=mime_type,
-            headers={
-                **headers,
-                "Content-Disposition": disposition,
-                "Content-Range": f"bytes {start}-{end}/{record.size_bytes}",
-                "Content-Length": str(end - start + 1),
-            },
-        )
     return StreamingResponse(
         open_artifact_file_stream(record),
         media_type=mime_type,
         headers={
             **headers,
-            "Content-Disposition": disposition,
-            "Content-Length": str(record.size_bytes),
+            "Content-Disposition": _content_disposition(
+                record.original_filename, inline=_is_inline(mime_type)
+            ),
         },
     )

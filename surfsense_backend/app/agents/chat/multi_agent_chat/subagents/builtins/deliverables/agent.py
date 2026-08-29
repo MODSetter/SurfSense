@@ -19,16 +19,9 @@ from app.agents.chat.multi_agent_chat.subagents.shared.spec import SurfSenseSuba
 from app.agents.chat.multi_agent_chat.subagents.shared.subagent_builder import (
     pack_subagent,
 )
-from app.config import config
-from app.sandbox import is_sandbox_enabled
 
 from .middleware import ArtifactRosterMiddleware
 from .tools.index import NAME, RULESET, load_tools
-
-_INTERACTIVE_VIDEO_PROMPT = """
-**Video requests.** Call `enqueue_deliverable_job` exactly once and return its
-Receipt immediately.
-""".strip()
 
 
 def build_subagent(
@@ -44,8 +37,6 @@ def build_subagent(
         or "Handles deliverables tasks for this workspace."
     )
     system_prompt = read_md_file(__package__, "system_prompt").strip()
-    if config.VIDEO_SANDBOX_RENDERING_ENABLED and is_sandbox_enabled():
-        system_prompt = f"{system_prompt}\n\n{_INTERACTIVE_VIDEO_PROMPT}"
     route_middleware = {
         **(middleware_stack or {}),
         "artifact_roster": ArtifactRosterMiddleware(

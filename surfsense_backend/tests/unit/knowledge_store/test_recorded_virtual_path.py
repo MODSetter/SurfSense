@@ -2,7 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.knowledge_store.paths import DOCUMENTS_ROOT, PATH_MARKER, recorded_virtual_path
+from app.knowledge_store.paths import DOCUMENTS_ROOT, PATH_MARKER
+from app.knowledge_store.service import _recorded_virtual_path
 
 pytestmark = pytest.mark.unit
 
@@ -11,27 +12,24 @@ def _doc(metadata=None, path=None):
     return SimpleNamespace(document_metadata=metadata, path=path)
 
 
-def _recorded(doc):
-    return recorded_virtual_path(doc.document_metadata, doc.path)
-
-
-def test_column_is_preferred():
-    """The durable column is what writers set; the marker is legacy and can go
-    stale once writers stop stamping it, so the column wins when both are set."""
+def test_marker_is_preferred():
     doc = _doc(
-        metadata={PATH_MARKER: f"{DOCUMENTS_ROOT}/stale-marker.md"},
+        metadata={PATH_MARKER: f"{DOCUMENTS_ROOT}/from-marker.md"},
         path=f"{DOCUMENTS_ROOT}/from-column.md",
     )
-    assert _recorded(doc) == f"{DOCUMENTS_ROOT}/from-column.md"
+    assert (
+        _recorded_virtual_path(doc, DOCUMENTS_ROOT)
+        == f"{DOCUMENTS_ROOT}/from-marker.md"
+    )
 
 
-def test_marker_is_the_fallback_until_the_column_is_backfilled():
-    """A legacy row carries the path only on its marker until 189 fills the
-    column; resolution must still find it in the meantime."""
-    doc = _doc(metadata={PATH_MARKER: f"{DOCUMENTS_ROOT}/legacy.md"}, path=None)
-    assert _recorded(doc) == f"{DOCUMENTS_ROOT}/legacy.md"
+def test_column_is_the_fallback_when_marker_was_wiped():
+    """A connector re-sync can drop the marker; the column must still pin the
+    file so ingest overwrites in place instead of forking a duplicate."""
+    doc = _doc(metadata={"md5_checksum": "x"}, path=f"{DOCUMENTS_ROOT}/kept.md")
+    assert _recorded_virtual_path(doc, DOCUMENTS_ROOT) == f"{DOCUMENTS_ROOT}/kept.md"
 
 
 def test_none_when_neither_names_a_store_path():
-    assert _recorded(_doc()) is None
-    assert _recorded(_doc(path="/elsewhere/x.md")) is None
+    assert _recorded_virtual_path(_doc(), DOCUMENTS_ROOT) is None
+    assert _recorded_virtual_path(_doc(path="/elsewhere/x.md"), DOCUMENTS_ROOT) is None

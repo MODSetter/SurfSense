@@ -9,7 +9,6 @@ fallback and its own idea of what a parse failure looks like.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import TYPE_CHECKING, TypeVar
 
@@ -48,17 +47,9 @@ async def invoke_json[T: BaseModel](
     start = content.find("{")
     end = content.rfind("}") + 1
     if 0 <= start < end:
-        candidate = content[start:end]
         try:
-            return model.model_validate_json(candidate)
-        except (ValidationError, ValueError):
-            pass
-        try:
-            # Models occasionally place literal newlines or tabs inside large
-            # source-code strings. They are valid string content but must be
-            # escaped in strict JSON; decode those controls before validation.
-            return model.model_validate(json.loads(candidate, strict=False))
-        except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+            return model.model_validate_json(content[start:end])
+        except (ValidationError, ValueError) as exc:
             logger.error(
                 "Failed to parse %s from model reply: %s\nRaw reply: %s",
                 model.__name__,

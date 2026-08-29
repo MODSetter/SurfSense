@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
-from app.artifacts.storage import store_artifact_file, store_artifact_file_stream
+from app.artifacts.storage import store_artifact_file
 from app.db import Document, DocumentStatus, DocumentType, Workspace
 from app.file_storage.factory import get_storage_backend
 from app.indexing_pipeline.connector_document import ConnectorDocument
@@ -41,18 +40,6 @@ class ArtifactFileInput:
 
 
 @dataclass(frozen=True)
-class ArtifactFileStreamInput:
-    chunks: AsyncIterable[bytes]
-    filename: str
-    mime_type: str
-    expected_sha256: str
-    role: str = "primary"
-
-
-type ArtifactInputFile = ArtifactFileInput | ArtifactFileStreamInput
-
-
-@dataclass(frozen=True)
 class ArtifactSavedFile:
     file_id: int
     role: str
@@ -71,8 +58,8 @@ class ArtifactSaved:
 
 
 def _validated_files(
-    files: list[ArtifactInputFile],
-) -> list[tuple[ArtifactInputFile, ArtifactFileRole]]:
+    files: list[ArtifactFileInput],
+) -> list[tuple[ArtifactFileInput, ArtifactFileRole]]:
     try:
         validated = [(file, ArtifactFileRole(file.role)) for file in files]
     except ValueError:
@@ -83,13 +70,13 @@ def _validated_files(
     return validated
 
 
-def _validate_files(files: list[ArtifactInputFile]) -> None:
+def _validate_files(files: list[ArtifactFileInput]) -> None:
     """Compatibility validation seam used by focused unit tests."""
     _validated_files(files)
 
 
 def _artifact_format(
-    files: list[tuple[ArtifactInputFile, ArtifactFileRole]],
+    files: list[tuple[ArtifactFileInput, ArtifactFileRole]],
     *,
     explicit: str | None = None,
 ) -> str:
@@ -189,7 +176,7 @@ async def save_artifact(
     tool_call_id: str | None,
     title: str,
     markdown_representation: str,
-    files: list[ArtifactInputFile],
+    files: list[ArtifactFileInput],
     artifact_id: int | None = None,
     expected_generation: int | None = None,
     extra_metadata: dict[str, Any] | None = None,
@@ -335,29 +322,16 @@ async def save_artifact(
     working_copy_state: tuple[Path, bytes | None] | None = None
     try:
         for file, role in validated_files:
-            if isinstance(file, ArtifactFileStreamInput):
-                record = await store_artifact_file_stream(
-                    session,
-                    artifact_id=artifact.id,
-                    workspace_id=workspace_id,
-                    role=role,
-                    chunks=file.chunks,
-                    filename=file.filename,
-                    mime_type=file.mime_type,
-                    expected_sha256=file.expected_sha256,
-                    backend=backend,
-                )
-            else:
-                record = await store_artifact_file(
-                    session,
-                    artifact_id=artifact.id,
-                    workspace_id=workspace_id,
-                    role=role,
-                    data=file.data,
-                    filename=file.filename,
-                    mime_type=file.mime_type,
-                    backend=backend,
-                )
+            record = await store_artifact_file(
+                session,
+                artifact_id=artifact.id,
+                workspace_id=workspace_id,
+                role=role,
+                data=file.data,
+                filename=file.filename,
+                mime_type=file.mime_type,
+                backend=backend,
+            )
             new_records.append(record)
             new_blob_refs.append((record.storage_backend, record.storage_key))
         await session.flush()

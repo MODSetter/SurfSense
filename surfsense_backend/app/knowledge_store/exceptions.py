@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-Operation = Literal["record", "read", "lock", "project", "seed", "working_copy", "push"]
+Operation = Literal["record", "read", "lock", "project", "seed", "working_copy"]
 
 
 class KnowledgeStoreError(RuntimeError):
@@ -21,10 +21,3 @@ class KnowledgeStoreLockError(KnowledgeStoreError):
 
     def __init__(self, message: str) -> None:
         super().__init__("lock", message)
-
-
-class GitPushError(KnowledgeStoreError):
-    """send-pack rejected the update (non-fast-forward, auth, or network)."""
-
-    def __init__(self, message: str) -> None:
-        super().__init__("push", message)

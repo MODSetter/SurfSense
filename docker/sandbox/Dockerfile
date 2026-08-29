@@ -48,34 +48,6 @@ RUN set -euo pipefail \
     && npm install --global docx \
     && node -e "require('docx')"
 
-# ---- Remotion server-side render harness (Node 22 already in base) ----
-# Remotion uses its bundled ffmpeg for rendering. The system binaries support
-# later segment concat and structural/content probes without network access.
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 libxrandr2 \
-        libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-        libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-        ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV REMOTION_HOME=/opt/remotion
-COPY remotion/package*.json ${REMOTION_HOME}/
-RUN set -euo pipefail \
-    && cd ${REMOTION_HOME} \
-    && npm ci \
-    && npx remotion browser ensure \
-    && node -e "require('@remotion/renderer'); require('@remotion/bundler')"
-COPY remotion/ ${REMOTION_HOME}/
-
-# ---- Baked fonts: the ONLY families scene code may use (offline) ----
-COPY remotion/fonts/ /usr/share/fonts/truetype/surfsense/
-RUN set -euo pipefail \
-    && fc-cache -f \
-    && for family in Inter Lora "JetBrains Mono"; do \
-        fc-list : family | grep -Fqi "${family}"; \
-    done
-
 # The base image also ships skills. Replace the formats SurfSense owns in one
 # layer so OverlayFS records removed base-image files as deletions.
 COPY skills /tmp/surfsense-skills

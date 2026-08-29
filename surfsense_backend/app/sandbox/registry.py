@@ -171,18 +171,6 @@ _registry: SandboxRegistry | None = None
 _registry_mu = asyncio.Lock()
 
 
-def reset_registry_for_new_event_loop() -> None:
-    """Drop loop-bound local handles before a fresh-loop Celery task.
-
-    Remote sandboxes remain discoverable by provider metadata. The next access
-    adopts one when appropriate, while constructing SDK clients and asyncio
-    locks on the current task's loop.
-    """
-    global _registry, _registry_mu
-    _registry = None
-    _registry_mu = asyncio.Lock()
-
-
 async def get_registry() -> SandboxRegistry:
     """Process-wide registry, built from config on first use.
 

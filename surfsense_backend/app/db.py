@@ -125,24 +125,6 @@ class VideoPresentationStatus(StrEnum):
     FAILED = "failed"
 
 
-class DeliverableJobStatus(StrEnum):
-    QUEUED = "queued"
-    RUNNING = "running"
-    CANCELLING = "cancelling"
-    CANCELLED = "cancelled"
-    READY = "ready"
-    FAILED = "failed"
-
-
-class DeliverableFailureCode(StrEnum):
-    DURATION_LIMIT = "duration_limit"
-    QUOTA_EXCEEDED = "quota_exceeded"
-    GENERATION_FAILED = "generation_failed"
-    RENDER_FAILED = "render_failed"
-    VERIFICATION_FAILED = "verification_failed"
-    CANCELLED = "cancelled"
-
-
 class DocumentStatus:
     """
     Helper class for document processing status (stored as JSONB).
@@ -1578,102 +1560,6 @@ class VideoPresentationRun(BaseModel, TimestampMixin):
     )
 
 
-class DeliverableJob(BaseModel, TimestampMixin):
-    """Durable lifecycle for one independently executed deliverable request."""
-
-    __tablename__ = "deliverable_jobs"
-
-    kind = Column(String(64), nullable=False)
-    title = Column(String(500), nullable=False)
-    workspace_id = Column(
-        Integer,
-        ForeignKey("workspaces.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    thread_id = Column(
-        Integer,
-        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    created_by_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    tool_call_id = Column(String(255), nullable=False)
-    request = Column(JSONB, nullable=False, default=dict, server_default="{}")
-    checkpoint = Column(JSONB, nullable=False, default=dict, server_default="{}")
-    status = Column(
-        SQLAlchemyEnum(
-            DeliverableJobStatus,
-            name="deliverable_job_status",
-            create_type=False,
-            values_callable=lambda enum: [item.value for item in enum],
-        ),
-        nullable=False,
-        default=DeliverableJobStatus.QUEUED,
-        server_default=DeliverableJobStatus.QUEUED.value,
-    )
-    phase = Column(String(64), nullable=True)
-    progress = Column(Integer, nullable=False, default=0, server_default="0")
-    artifact_id = Column(
-        Integer,
-        ForeignKey("artifacts.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    celery_task_id = Column(String(255), nullable=True)
-    attempt_count = Column(Integer, nullable=False, default=1, server_default="1")
-    failure_code = Column(String(64), nullable=True)
-    internal_error = Column(String(2000), nullable=True)
-    cancel_requested_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    heartbeat_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    finished_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        server_default=text("NOW()"),
-        index=True,
-    )
-
-    __table_args__ = (
-        UniqueConstraint(
-            "workspace_id",
-            "kind",
-            "tool_call_id",
-            name="uq_deliverable_jobs_workspace_kind_tool_call",
-        ),
-        CheckConstraint(
-            "progress >= 0 AND progress <= 100",
-            name="ck_deliverable_jobs_progress",
-        ),
-        CheckConstraint(
-            "attempt_count >= 1",
-            name="ck_deliverable_jobs_attempt_count",
-        ),
-        Index(
-            "ix_deliverable_jobs_workspace_status",
-            "workspace_id",
-            "status",
-        ),
-        Index(
-            "ix_deliverable_jobs_outbox",
-            "updated_at",
-            postgresql_where=text("status = 'queued'"),
-        ),
-        Index(
-            "ix_deliverable_jobs_stale_running",
-            "heartbeat_at",
-            "id",
-            postgresql_where=text("status IN ('running', 'cancelling')"),
-        ),
-    )
-
-
 class Connection(BaseModel, TimestampMixin):
     __tablename__ = "connections"
 
@@ -2943,9 +2829,6 @@ from app.etl_pipeline.cache.persistence.models import CachedParse  # noqa: E402,
 from app.file_storage.persistence import DocumentFile  # noqa: E402, F401
 from app.indexing_pipeline.cache.persistence.models import (  # noqa: E402, F401
     CachedEmbeddingSet,
-)
-from app.knowledge_store.remote.persistence.models import (  # noqa: E402, F401
-    WorkspaceGitRemotes,
 )
 from app.notifications.persistence import Notification  # noqa: E402, F401
 from app.podcasts.persistence import (  # noqa: E402, F401

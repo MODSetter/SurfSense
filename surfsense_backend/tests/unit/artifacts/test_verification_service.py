@@ -5,7 +5,6 @@ import asyncio
 from app.artifacts.verification import service
 from app.artifacts.verification.formats.base import (
     FormatAdapter,
-    SandboxCheckResult,
     StructuralCheckResult,
 )
 from app.artifacts.verification.receipt import (
@@ -67,58 +66,6 @@ async def test_structural_failure_produces_no_receipt(monkeypatch):
     assert not result.verified
     assert result.findings == ("page is blank",)
     assert session.files[receipt_path("/workspace/report.pdf")] == b""
-
-
-async def test_video_probe_never_reads_the_mp4_into_backend_memory(monkeypatch):
-    class TrackingSession(FakeSandboxSession):
-        def __init__(self):
-            super().__init__()
-            self.reads = []
-
-        async def read_file(self, path):
-            self.reads.append(path)
-            return await super().read_file(path)
-
-    session = TrackingSession()
-
-    async def sandbox_check(_session, path):
-        assert path == "/workspace/out.mp4"
-        return SandboxCheckResult(
-            StructuralCheckResult(()),
-            "a" * 64,
-        )
-
-    monkeypatch.setattr(
-        service,
-        "get_format_adapter",
-        lambda _path: FormatAdapter(
-            name="video",
-            suffix=".mp4",
-            mime_type="video/mp4",
-            convert_to_pdf=False,
-            check=lambda _data: StructuralCheckResult(("must not run",)),
-            requires_visual_review=False,
-            sandbox_check=sandbox_check,
-        ),
-    )
-
-    result = await service.verify_artifact(
-        session,
-        "/workspace/out.mp4",
-        workspace_id=WORKSPACE_ID,
-        vision_llm=None,
-        secret_key=SECRET,
-    )
-
-    assert result.verified
-    assert "/workspace/out.mp4" not in session.reads
-    receipt = await read_receipt(
-        session,
-        SECRET,
-        workspace_id=WORKSPACE_ID,
-        primary_path="/workspace/out.mp4",
-    )
-    assert receipt.primary_sha256 == "a" * 64
 
 
 async def test_page_ceiling_stops_before_rasterization(monkeypatch):

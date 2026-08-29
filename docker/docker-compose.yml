@@ -220,15 +220,6 @@ services:
       PYTHONPATH: /app
       FILE_STORAGE_LOCAL_PATH: /app/.local_object_store
       SEARXNG_URL: ${SEARXNG_URL:-http://searxng:8080}
-      SANDBOX_ENABLED: ${SANDBOX_ENABLED:-TRUE}
-      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-opensandbox}
-      OPENSANDBOX_DOMAIN: ${OPENSANDBOX_DOMAIN:-opensandbox-server:8080}
-      OPENSANDBOX_API_KEY: ${OPENSANDBOX_API_KEY:-surfsense-dev-sandbox}
-      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-ghcr.io/modsetter/surfsense-sandbox:${SURFSENSE_VERSION:-latest}}
-      DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
-      DAYTONA_API_URL: ${DAYTONA_API_URL:-https://app.daytona.io/api}
-      DAYTONA_TARGET: ${DAYTONA_TARGET:-us}
-      DAYTONA_SNAPSHOT_ID: ${DAYTONA_SNAPSHOT_ID:-}
       SERVICE_ROLE: worker
     depends_on:
       db:

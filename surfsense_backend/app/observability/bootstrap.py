@@ -28,7 +28,6 @@ _CELERY_INSTRUMENTED = False
 
 _TRACER_PROVIDER: Any | None = None
 _METER_PROVIDER: Any | None = None
-_LOGGER_PROVIDER: Any | None = None
 
 
 def _env_truthy(name: str) -> bool:
@@ -46,7 +45,6 @@ def is_otel_configured() -> bool:
         os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
         or os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
         or os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
-        or os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
     )
 
 
@@ -113,21 +111,6 @@ def _metric_exporter():
 
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
     return OTLPMetricExporter(endpoint=endpoint) if endpoint else OTLPMetricExporter()
-
-
-def _log_exporter():
-    if _otlp_protocol() == "http/protobuf":
-        from opentelemetry.exporter.otlp.proto.http._log_exporter import (
-            OTLPLogExporter,
-        )
-
-        endpoint = os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
-        return OTLPLogExporter(endpoint=endpoint) if endpoint else OTLPLogExporter()
-
-    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
-    return OTLPLogExporter(endpoint=endpoint) if endpoint else OTLPLogExporter()
 
 
 def _safe_instrument(name: str, instrument: Any) -> bool:
@@ -343,56 +326,22 @@ def init_metrics() -> None:
     register_runtime_observables()
 
 
-def _install_otlp_log_handler() -> None:
-    """Ship stdlib LogRecords to the collector. Idempotent on the root logger."""
-    global _LOGGER_PROVIDER
-    from opentelemetry._logs import get_logger_provider, set_logger_provider
-    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-
-    provider = LoggerProvider(resource=_build_resource())
-    provider.add_log_record_processor(BatchLogRecordProcessor(_log_exporter()))
-    try:
-        set_logger_provider(provider)
-    except Exception:
-        logger.warning(
-            "OpenTelemetry logger provider was already set; reusing existing provider",
-            exc_info=True,
-        )
-        _LOGGER_PROVIDER = get_logger_provider()
-    else:
-        _LOGGER_PROVIDER = provider
-
-    root = logging.getLogger()
-    if not any(isinstance(handler, LoggingHandler) for handler in root.handlers):
-        root.addHandler(LoggingHandler(logger_provider=_LOGGER_PROVIDER))
-
-
 def init_logs() -> None:
-    """Export stdlib logging over OTLP and stamp records with trace/span ids.
-
-    ``LoggingInstrumentor`` only fills ``otelTraceID`` / ``otelSpanID`` on
-    LogRecords (stdout). Grafana's logs sink needs a LoggerProvider plus an
-    OTLP exporter attached as a root handler.
-    """
+    """Enable trace/span correlation fields on stdlib LogRecords."""
     global _LOGS_INITIALIZED
     if _LOGS_INITIALIZED:
         return
 
-    exported = False
-    try:
-        _install_otlp_log_handler()
-        exported = True
-    except Exception:
-        logger.warning("OpenTelemetry log exporter failed", exc_info=True)
-
     def _run() -> None:
         from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
+        # Required for stdlib LogRecords to receive otelTraceID/otelSpanID.
+        # logging.basicConfig is already installed by main.py, so this does not
+        # take over formatting in normal app startup.
         LoggingInstrumentor().instrument(set_logging_format=True)
 
-    correlated = _safe_instrument("logging", _run)
-    _LOGS_INITIALIZED = exported or correlated
+    if _safe_instrument("logging", _run):
+        _LOGS_INITIALIZED = True
 
 
 def init_otel(
@@ -417,7 +366,7 @@ def init_otel(
 
 def shutdown_otel(timeout_millis: int = 5000) -> None:
     """Best-effort flush and shutdown for installed providers."""
-    for provider in (_TRACER_PROVIDER, _METER_PROVIDER, _LOGGER_PROVIDER):
+    for provider in (_TRACER_PROVIDER, _METER_PROVIDER):
         if provider is None:
             continue
         with contextlib.suppress(Exception):

@@ -70,14 +70,13 @@ def _claim_existing_google_identities() -> None:
     )
 
     # Claim dates are this migration's own timestamp: "user" has no created_at
-    # to copy. NOW() is explicit: a create_all-built table has no DB default.
+    # to copy, and a shared one marks exactly which claims were inferred.
     for start in range(0, len(subjects), _BACKFILL_BATCH):
         bind.execute(
             sa.text(
                 """
-                INSERT INTO signup_credit_claims
-                    (identity_kind, identity_fingerprint, created_at)
-                VALUES (:identity_kind, :identity_fingerprint, NOW())
+                INSERT INTO signup_credit_claims (identity_kind, identity_fingerprint)
+                VALUES (:identity_kind, :identity_fingerprint)
                 ON CONFLICT (identity_kind, identity_fingerprint) DO NOTHING
                 """
             ),

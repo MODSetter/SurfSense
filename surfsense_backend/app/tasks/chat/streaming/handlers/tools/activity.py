@@ -174,7 +174,7 @@ def resolve_tool_activity(
                 else "Created the artifact",
                 "artifact",
                 lifecycle="phase",
-                icon_key="square-terminal",
+                icon_key="terminal",
             ),
             "artifact.repair" if repairing_artifact else "artifact.create",
         )
