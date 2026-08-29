@@ -1,8 +1,15 @@
 "use client";
 
-import ReactJson, { type InteractionProps } from "@microlink/react-json-view";
+import type { InteractionProps } from "@microlink/react-json-view";
 import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo } from "react";
+
+// @microlink/react-json-view reads `document` at module-eval time, which throws
+// under SSR even though this is a client component. Load it browser-only.
+const ReactJson = dynamic(() => import("@microlink/react-json-view").then((m) => m.default), {
+	ssr: false,
+});
 
 /**
  * Shared JSON viewer/editor wrapper around @microlink/react-json-view.
