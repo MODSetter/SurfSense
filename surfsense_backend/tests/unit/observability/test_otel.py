@@ -150,6 +150,7 @@ class TestBootstrapConfig:
             return True
 
         monkeypatch.setattr(bootstrap, "_LOGS_INITIALIZED", False)
+        monkeypatch.setattr(bootstrap, "_install_otlp_log_handler", lambda: None)
         monkeypatch.setattr(bootstrap, "_safe_instrument", fake_safe_instrument)
 
         bootstrap.init_logs()

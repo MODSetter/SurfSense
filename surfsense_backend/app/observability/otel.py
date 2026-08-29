@@ -348,6 +348,68 @@ def connector_sync_span(
     return span("connector.sync", attributes=attrs)
 
 
+def drift_sweep_span(*, extra: dict[str, Any] | None = None):
+    """Parent span for one scheduled knowledge-store parity (drift) sweep."""
+    attrs: dict[str, Any] = {}
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.drift.sweep", attributes=attrs)
+
+
+def drift_check_span(
+    *,
+    workspace_id: int,
+    status: str,
+    missing: int = 0,
+    extra: int = 0,
+    mismatched: int = 0,
+):
+    """Span for one workspace's parity check.
+
+    The workspace and the drift *magnitude* — the ``missing``/``extra``/
+    ``mismatched`` path counts, named as in :class:`MigrationReport` — live in
+    attributes, so a ``drift.status != ok`` alert opens a trace that already
+    quantifies the gap between git and Postgres instead of pointing at the logs.
+    """
+    return span(
+        "knowledge_store.drift.check",
+        attributes={
+            "workspace.id": int(workspace_id),
+            "drift.status": status,
+            "drift.missing": int(missing),
+            "drift.extra": int(extra),
+            "drift.mismatched": int(mismatched),
+        },
+    )
+
+
+def remote_connect_span(*, workspace_id: int, provider: str):
+    """Span around attaching one git remote to a workspace."""
+    return span(
+        "knowledge_store.remote.connect",
+        attributes={
+            "workspace.id": int(workspace_id),
+            "remote.provider": provider,
+        },
+    )
+
+
+def remote_push_span(*, workspace_id: int, extra: dict[str, Any] | None = None):
+    """Span around one worker attempt to fast-forward HEAD to the remote."""
+    attrs: dict[str, Any] = {"workspace.id": int(workspace_id)}
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.push", attributes=attrs)
+
+
+def remote_sweep_span(*, extra: dict[str, Any] | None = None):
+    """Parent span for one scheduled push of remotes whose stamp trails HEAD."""
+    attrs: dict[str, Any] = {}
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.sweep", attributes=attrs)
+
+
 def etl_extract_span(
     *,
     content_type: str | None = None,
@@ -498,6 +560,8 @@ __all__ = [
     "chat_request_span",
     "compaction_span",
     "connector_sync_span",
+    "drift_check_span",
+    "drift_sweep_span",
     "etl_extract_span",
     "etl_ocr_span",
     "etl_parse_span",
@@ -511,6 +575,9 @@ __all__ = [
     "permission_asked_span",
     "record_error",
     "reload_for_tests",
+    "remote_connect_span",
+    "remote_push_span",
+    "remote_sweep_span",
     "span",
     "subagent_invoke_span",
     "tool_call_span",

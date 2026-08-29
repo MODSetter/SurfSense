@@ -114,3 +114,41 @@ async def test_score_is_positive_float(db_session, seed_large_doc):
     for result in results:
         assert isinstance(result["score"], float)
         assert result["score"] > 0
+
+
+async def test_top_k_counts_documents_not_chunks(db_session, seed_large_doc):
+    """``top_k`` is documented as a document count, so a chunk-dense document
+    must not be able to consume the whole result set.
+
+    ``large_doc`` has 35 matching chunks and ``small_doc`` has one. If the
+    fused query is capped at ``top_k`` *chunk* rows, the large document fills
+    that cap by itself and the second document never reaches the caller.
+    """
+    space_id = seed_large_doc["workspace"].id
+
+    retriever = ChucksHybridSearchRetriever(db_session)
+    results = await retriever.hybrid_search(
+        query_text="quarterly performance review",
+        top_k=10,
+        workspace_id=space_id,
+        query_embedding=DUMMY_EMBEDDING,
+    )
+
+    returned = {result["document"]["id"] for result in results}
+    assert seed_large_doc["large_doc"].id in returned
+    assert seed_large_doc["small_doc"].id in returned
+
+
+async def test_top_k_still_caps_the_number_of_documents(db_session, seed_large_doc):
+    """The cap itself keeps working: two matching documents, ``top_k=1``."""
+    space_id = seed_large_doc["workspace"].id
+
+    retriever = ChucksHybridSearchRetriever(db_session)
+    results = await retriever.hybrid_search(
+        query_text="quarterly performance review",
+        top_k=1,
+        workspace_id=space_id,
+        query_embedding=DUMMY_EMBEDDING,
+    )
+
+    assert len(results) == 1

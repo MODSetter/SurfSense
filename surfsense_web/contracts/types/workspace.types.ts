@@ -12,6 +12,7 @@ export const workspace = z.object({
 	api_access_enabled: z.boolean().optional().default(false),
 	qna_custom_instructions: z.string().nullable(),
 	shared_memory_md: z.string().nullable().optional(),
+	knowledge_store_enabled: z.boolean().optional().default(false),
 	member_count: z.number(),
 	is_owner: z.boolean(),
 });

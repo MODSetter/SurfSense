@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterable, AsyncIterator
 
 from app.file_storage.backends.base import StorageBackend
 
@@ -32,10 +32,41 @@ class AzureBlobBackend(StorageBackend):
             blob = service.get_blob_client(self._container, key)
             await blob.upload_blob(data, overwrite=True, content_settings=settings)
 
+    async def put_stream(
+        self,
+        key: str,
+        chunks: AsyncIterable[bytes],
+        *,
+        content_type: str | None = None,
+    ) -> None:
+        from azure.storage.blob import ContentSettings
+
+        settings = ContentSettings(content_type=content_type) if content_type else None
+        async with self._service() as service:
+            blob = service.get_blob_client(self._container, key)
+            await blob.upload_blob(
+                chunks,
+                overwrite=True,
+                content_settings=settings,
+                max_concurrency=1,
+            )
+
     async def open_stream(self, key: str) -> AsyncIterator[bytes]:
         async with self._service() as service:
             blob = service.get_blob_client(self._container, key)
             downloader = await blob.download_blob()
+            async for chunk in downloader.chunks():
+                yield chunk
+
+    async def open_range(self, key: str, start: int, end: int) -> AsyncIterator[bytes]:
+        if start < 0 or end < start:
+            raise ValueError("Invalid byte range")
+        async with self._service() as service:
+            blob = service.get_blob_client(self._container, key)
+            downloader = await blob.download_blob(
+                offset=start,
+                length=end - start + 1,
+            )
             async for chunk in downloader.chunks():
                 yield chunk
 

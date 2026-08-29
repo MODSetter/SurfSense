@@ -1,6 +1,7 @@
 import { defineQueries } from "@rocicorp/zero";
 import { automationRunQueries } from "./automations";
 import { chatSessionQueries, commentQueries, messageQueries } from "./chat";
+import { deliverableJobQueries } from "./deliverable-jobs";
 import { connectorQueries, documentQueries } from "./documents";
 import { folderQueries } from "./folders";
 import { notificationQueries } from "./inbox";
@@ -20,4 +21,5 @@ export const queries = defineQueries({
 	automationRuns: automationRunQueries,
 	podcastRuns: podcastRunQueries,
 	videoRuns: videoPresentationRunQueries,
+	deliverableJobs: deliverableJobQueries,
 });

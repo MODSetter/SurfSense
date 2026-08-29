@@ -89,7 +89,7 @@ export function compareActivities(a: ActivityData, b: ActivityData): number {
 }
 
 export function sortActivities(activities: Iterable<ActivityData>): ActivityData[] {
-	return [...activities].toSorted(compareActivities);
+	return [...activities].sort(compareActivities);
 }
 
 export function parseActivityData(value: unknown): ActivityData | null {

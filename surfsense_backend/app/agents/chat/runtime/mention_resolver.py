@@ -190,7 +190,7 @@ async def resolve_mentions(
             continue
         title = chip_titles_by_id.get(("doc", doc_id), str(row.title or ""))
         path = virtual_path_of(
-            metadata=row.document_metadata,
+            path=row.path,
             doc_id=row.id,
             title=str(row.title or "untitled"),
             folder_id=row.folder_id,

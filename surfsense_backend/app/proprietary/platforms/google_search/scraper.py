@@ -17,6 +17,7 @@ from typing import Any
 
 from . import searxng
 from .fetch import fetch_serp_html
+from .goto import resolve_item_urls
 from .parsers import parse_ai_mode, parse_serp
 from .query_builder import (
     build_ai_mode_url,
@@ -105,6 +106,9 @@ async def _serp_page_flow(
         )
     if best is None:
         return await _searxng_page(term, input_model, page=page)
+    # Desktop result links are opaque google.com/goto redirects; turn them into
+    # the destinations callers expect before the item leaves the scraper.
+    await resolve_item_urls(best)
     best.searchQuery = _search_query_stamp(term, url, page, input_model)
     return best
 
@@ -180,6 +184,7 @@ async def _ai_mode_flow(
         logger.info("[google_search] AI Mode answer missing for %r", term)
         return
     item = SerpItem(aiModeResult=result)
+    await resolve_item_urls(item)
     if input_model.saveHtml:
         item.html = html
     item.searchQuery = _search_query_stamp(term, url, 1, input_model)

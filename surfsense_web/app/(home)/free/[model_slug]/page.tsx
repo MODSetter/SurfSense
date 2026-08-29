@@ -195,8 +195,8 @@ export default async function FreeModelPage({ params }: PageProps) {
 						<header className="mb-6">
 							<h1 className="text-2xl font-bold mb-2">Chat with {model.name} Free, No Login</h1>
 							<p className="text-sm text-muted-foreground leading-relaxed">
-								Use <strong>{model.name}</strong> free online without login or sign-up. No account, no
-								email, no password needed. Powered by SurfSense.
+								Use <strong>{model.name}</strong> free online without login or sign-up. No account,
+								no email, no password needed. Powered by SurfSense.
 							</p>
 						</header>
 

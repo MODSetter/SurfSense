@@ -22,28 +22,28 @@
 name: surfsense-e2e
 
 x-backend-env: &backend-env
-  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/surfsense_e2e
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/surfsense_e2e  # pragma: allowlist secret
   CELERY_BROKER_URL: redis://redis:6379/0
   CELERY_RESULT_BACKEND: redis://redis:6379/0
   REDIS_APP_URL: redis://redis:6379/0
   CELERY_TASK_DEFAULT_QUEUE: surfsense
-  SECRET_KEY: ci-test-secret-key-not-for-production
+  SECRET_KEY: ci-test-secret-key-not-for-production  # pragma: allowlist secret
   AUTH_TYPE: LOCAL
   REGISTRATION_ENABLED: "TRUE"
   ETL_SERVICE: DOCLING
   EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
   NEXT_FRONTEND_URL: http://host.docker.internal:3000
   # Sentinel keys — fakes never read them; turns leaked real calls into 401s.
-  COMPOSIO_API_KEY: e2e-deny-real-call-sentinel
+  COMPOSIO_API_KEY: e2e-deny-real-call-sentinel  # pragma: allowlist secret
   COMPOSIO_ENABLED: "TRUE"
-  OPENAI_API_KEY: e2e-deny-real-call-sentinel
-  ANTHROPIC_API_KEY: e2e-deny-real-call-sentinel
-  LITELLM_API_KEY: e2e-deny-real-call-sentinel
+  OPENAI_API_KEY: e2e-deny-real-call-sentinel  # pragma: allowlist secret
+  ANTHROPIC_API_KEY: e2e-deny-real-call-sentinel  # pragma: allowlist secret
+  LITELLM_API_KEY: e2e-deny-real-call-sentinel  # pragma: allowlist secret
   MICROSOFT_CLIENT_ID: fake-microsoft-client-id
-  MICROSOFT_CLIENT_SECRET: fake-microsoft-client-secret
+  MICROSOFT_CLIENT_SECRET: fake-microsoft-client-secret  # pragma: allowlist secret
   ONEDRIVE_REDIRECT_URI: http://localhost:8000/api/v1/auth/onedrive/connector/callback
   DROPBOX_APP_KEY: fake-dropbox-app-key
-  DROPBOX_APP_SECRET: fake-dropbox-app-secret
+  DROPBOX_APP_SECRET: fake-dropbox-app-secret  # pragma: allowlist secret
   DROPBOX_REDIRECT_URI: http://localhost:8000/api/v1/auth/dropbox/connector/callback
   # Defense-in-depth: even though L3 egress is denied for the worker via
   # `internal: true`, the backend still has a route via `ingress`. Setting
@@ -57,7 +57,7 @@ x-backend-env: &backend-env
   HF_HUB_OFFLINE: "1"
   TRANSFORMERS_OFFLINE: "1"
   # Test-only token-mint endpoint secret (see tests/e2e/run_backend.py).
-  E2E_MINT_SECRET: e2e-mint-secret-not-for-production
+  E2E_MINT_SECRET: e2e-mint-secret-not-for-production  # pragma: allowlist secret
 
 services:
   db:
@@ -69,7 +69,7 @@ services:
         -c max_replication_slots=10
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
       POSTGRES_DB: surfsense_e2e
     # Ephemeral storage — every CI run gets a clean DB, no volume cleanup needed.
     tmpfs:
@@ -154,13 +154,21 @@ services:
     depends_on:
       backend: { condition: service_healthy }
     healthcheck:
+      # Probe over the broker, not through the app. `-A app.celery_app` makes
+      # the CLI import the entire application before it can send a single
+      # ping -- embeddings, litellm, docling, the lot -- which takes ~40s in
+      # CI and can never finish inside `timeout`. Every probe was killed
+      # mid-import, so the worker was reported unhealthy while it was in fact
+      # up and serving. `-b` reaches the broadcast exchange directly and
+      # needs no import, so the probe costs ~3s.
       test:
         - CMD-SHELL
-        - "celery -A app.celery_app inspect ping --timeout 2 | grep -q pong"
+        - 'celery -b "$$CELERY_BROKER_URL" inspect ping --timeout 2 | grep -q pong'
       interval: 5s
-      timeout: 5s
+      timeout: 10s
       retries: 12
-      start_period: 20s
+      # The worker itself needs ~40s to import the app and report ready.
+      start_period: 45s
     networks: [internal]
 
 networks:

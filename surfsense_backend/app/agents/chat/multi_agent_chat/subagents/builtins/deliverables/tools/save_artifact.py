@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import shlex
 from dataclasses import asdict
@@ -12,7 +13,8 @@ from langchain_core.tools import tool
 
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
-from app.artifacts import ArtifactFileInput, save_artifact
+from app.artifacts import ArtifactFileInput, ArtifactFileStreamInput, save_artifact
+from app.artifacts.service import ArtifactInputFile
 from app.artifacts.verification.formats.registry import get_format_adapter
 from app.artifacts.verification.receipt import (
     artifact_path_lock,
@@ -79,6 +81,31 @@ async def _consume_verification(
         )
 
 
+async def _cleanup_video_workdir(session: SandboxSession, primary_path: str) -> None:
+    """Best-effort cleanup after the streamed MP4 is durably committed."""
+    sidecar_path = f"{primary_path}.segments.json"
+    try:
+        metadata = json.loads((await session.read_file(sidecar_path)).decode())
+        workdir = PurePosixPath(metadata["render_workdir"])
+        workspace = PurePosixPath("/workspace")
+        if (
+            workdir == workspace
+            or not workdir.is_absolute()
+            or not workdir.is_relative_to(workspace)
+        ):
+            raise ValueError("Invalid video render workdir")
+        result = await session.run_command(
+            f"rm -rf -- {shlex.quote(str(workdir))} "
+            f"{shlex.quote(sidecar_path)} {shlex.quote(primary_path)}"
+        )
+        if not result.ok:
+            raise RuntimeError("Sandbox cleanup command failed")
+    except (FileNotFoundError, KeyError, UnicodeDecodeError, ValueError):
+        logger.warning("Could not resolve video render workdir for cleanup")
+    except Exception:
+        logger.warning("Could not clean video render workdir", exc_info=True)
+
+
 def _public_error(exc: Exception) -> str:
     if isinstance(exc, FileNotFoundError):
         return (
@@ -123,7 +150,7 @@ def create_save_artifact_tool(workspace_id: int):
         try:
             if not markdown_representation or not markdown_representation.strip():
                 raise ValueError("markdown_representation must not be empty")
-            files: list[ArtifactFileInput] = []
+            files: list[ArtifactInputFile] = []
             extra_metadata = None
             if path is not None:
                 session = await (await get_registry()).get_session(
@@ -131,7 +158,6 @@ def create_save_artifact_tool(workspace_id: int):
                 )
                 lock = artifact_path_lock(session.session_id, path)
                 async with lock:
-                    primary = await _read_artifact_file(session, path, "primary")
                     verification = await read_receipt(
                         session,
                         app_config.SECRET_KEY,
@@ -143,13 +169,29 @@ def create_save_artifact_tool(workspace_id: int):
                         raise ValueError(
                             "The verification receipt names another artifact format"
                         )
-                    if verification.primary_path != path or (
-                        verification.primary_sha256 != sha256_bytes(primary.data)
-                    ):
+                    if verification.primary_path != path:
                         raise ValueError(
                             "The artifact changed after verification. Verify it "
                             "again, then save."
                         )
+                    primary: ArtifactInputFile
+                    if primary_adapter.name == "video":
+                        filename = PurePosixPath(path).name
+                        if not filename:
+                            raise ValueError(f"Artifact path must name a file: {path}")
+                        primary = ArtifactFileStreamInput(
+                            chunks=session.read_file_stream(path),
+                            filename=filename,
+                            mime_type=primary_adapter.mime_type,
+                            expected_sha256=verification.primary_sha256,
+                        )
+                    else:
+                        primary = await _read_artifact_file(session, path, "primary")
+                        if verification.primary_sha256 != sha256_bytes(primary.data):
+                            raise ValueError(
+                                "The artifact changed after verification. Verify it "
+                                "again, then save."
+                            )
                     preview = (
                         await _read_artifact_file(
                             session, verification.preview_path, "preview"
@@ -185,11 +227,14 @@ def create_save_artifact_tool(workspace_id: int):
                             artifact_id=artifact_id,
                             expected_generation=expected_generation,
                             extra_metadata=extra_metadata,
+                            format=verification.format,
                             committed_by_turn=True,
                         )
                     await _consume_verification(
                         session, path, verification.preview_path
                     )
+                    if primary_adapter.name == "video":
+                        await _cleanup_video_workdir(session, path)
             else:
                 async with shielded_async_session() as db_session:
                     saved = await save_artifact(

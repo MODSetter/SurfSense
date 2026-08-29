@@ -37,6 +37,11 @@ _REVISION_INSTRUCTIONS = {
         "Regenerate expected_output_path from markdown_path and current user "
         "context; do not reconstruct the PDF with vision."
     ),
+    "video": (
+        "Regenerate the video by re-authoring the deck from markdown_path plus "
+        "the user's new instruction, render to expected_output_path, then verify "
+        "it. Do not edit current.mp4; it is restored for reference only."
+    ),
     "markdown": "Edit markdown_path directly and save it as a Markdown-only revision.",
 }
 
@@ -105,8 +110,9 @@ def create_load_artifact_for_revision_tool(*, workspace_id: int) -> BaseTool:
 
         working_dir = f"/workspace/artifact-revisions/{artifact_id}/{uuid4().hex}"
         markdown_path = f"{working_dir}/context.md"
-        root_thread_id = resolve_root_thread_id(runtime)
-        sandbox = await (await get_registry()).get_session(root_thread_id, workspace_id)
+        sandbox = await (await get_registry()).get_session(
+            resolve_root_thread_id(runtime), workspace_id
+        )
         created = await sandbox.run_command(f"mkdir -p -- {shlex.quote(working_dir)}")
         if not created.ok:
             raise RuntimeError("Could not create the artifact revision workspace")

@@ -19,7 +19,6 @@ from app.knowledge_store.identities import user_identity
 from app.knowledge_store.index.converge import index_changes
 from app.knowledge_store.index.project import project_revision
 from app.knowledge_store.locks import workspace_index_lock
-from app.knowledge_store.paths import PATH_MARKER
 
 pytestmark = pytest.mark.integration
 
@@ -127,7 +126,7 @@ async def test_a_move_keeps_the_document_id(store, db_session, db_workspace):
     result = await db_session.execute(
         select(Document).where(Document.workspace_id == db_workspace.id)
     )
-    rows = {(d.document_metadata or {}).get(PATH_MARKER): d for d in result.scalars()}
+    rows = {d.path: d for d in result.scalars()}
     assert set(rows) == {"/documents/new.xml"}
     assert rows["/documents/new.xml"].id == before
 
