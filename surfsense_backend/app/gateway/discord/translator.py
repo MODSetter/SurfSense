@@ -10,7 +10,7 @@ from app.gateway.base.formatting import split_text_message
 from app.gateway.base.translator import BaseStreamTranslator, GatewayStreamEvent
 from app.gateway.discord.adapter import DiscordAdapter
 from app.gateway.ratelimit import wait_for_token
-from app.observability.metrics import (
+from app.observability.domains.gateway import (
     record_gateway_hitl_aborted,
     record_gateway_outbound,
     record_gateway_rate_limit_hit,

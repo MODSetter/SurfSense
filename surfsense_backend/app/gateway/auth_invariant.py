@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.db import ExternalChatBinding, Permission, User
 from app.gateway.bindings import suspend_binding
-from app.observability.metrics import record_gateway_auth_invariant_failure
+from app.observability.domains.gateway import record_gateway_auth_invariant_failure
 from app.utils.rbac import check_permission, check_workspace_access
 
 

@@ -41,7 +41,11 @@ class LiteLlmTextToSpeech(TextToSpeech):
         return _CONTAINER
 
     async def synthesize(self, request: SynthesisRequest) -> SynthesizedAudio:
+        import time
+
         from litellm import aspeech
+
+        from app.observability.domains import speech
 
         kwargs = {
             "model": self._model,
@@ -55,13 +59,24 @@ class LiteLlmTextToSpeech(TextToSpeech):
         if self._api_key:
             kwargs["api_key"] = self._api_key
 
-        try:
-            response = await aspeech(**kwargs)
-        except Exception as exc:
-            raise TextToSpeechError(f"{self._model} synthesis failed: {exc}") from exc
+        t0 = time.perf_counter()
+        with speech.synthesis_span(provider="litellm", model=self._model):
+            try:
+                try:
+                    response = await aspeech(**kwargs)
+                except Exception as exc:
+                    raise TextToSpeechError(
+                        f"{self._model} synthesis failed: {exc}"
+                    ) from exc
 
-        data = getattr(response, "content", None)
-        if not data:
-            raise TextToSpeechError(f"{self._model} returned no audio")
+                data = getattr(response, "content", None)
+                if not data:
+                    raise TextToSpeechError(f"{self._model} returned no audio")
 
-        return SynthesizedAudio(data=data, container=_CONTAINER)
+                return SynthesizedAudio(data=data, container=_CONTAINER)
+            finally:
+                speech.record_synthesis_duration(
+                    (time.perf_counter() - t0) * 1000,
+                    provider="litellm",
+                    model=self._model,
+                )

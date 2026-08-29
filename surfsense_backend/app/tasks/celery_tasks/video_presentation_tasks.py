@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import sys
+import time
 from contextlib import asynccontextmanager
 
 from sqlalchemy import select
@@ -12,7 +13,8 @@ from app.agents.video_presentation.state import State as VideoPresentationState
 from app.celery_app import celery_app
 from app.config import config as app_config
 from app.db import VideoPresentationRun, VideoPresentationStatus
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
+from app.observability.domains import media
 from app.services.billable_calls import (
     BillingSettlementError,
     QuotaInsufficientError,
@@ -51,8 +53,9 @@ def generate_video_presentation_task(
     Celery task to generate video presentation from source content.
     Updates existing video presentation record created by the tool.
     """
+    t0 = time.perf_counter()
     try:
-        return run_async_celery_task(
+        result = run_async_celery_task(
             lambda: _generate_video_presentation(
                 video_presentation_id,
                 source_content,
@@ -60,9 +63,18 @@ def generate_video_presentation_task(
                 user_prompt,
             )
         )
+        media.record_media_render(
+            time.perf_counter() - t0,
+            kind="video",
+            status=result.get("status", "ready"),
+        )
+        return result
     except Exception as e:
         error_text = str(e)
         logger.error(f"Error generating video presentation: {error_text}")
+        media.record_media_render(
+            time.perf_counter() - t0, kind="video", status="failed"
+        )
         # Mark FAILED in a fresh loop — the previous loop is closed.
         # Swallow secondary failures; the row will simply stay in
         # GENERATING and be flushed by the periodic stale cleanup.

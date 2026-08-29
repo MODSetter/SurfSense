@@ -11,6 +11,7 @@ The router is initialized from global LLM configs and provides both
 synchronous ChatLiteLLM-like interface and async methods.
 """
 
+import contextlib
 import logging
 import re
 import time
@@ -500,6 +501,30 @@ def _get_cached_context_profile(router: Router) -> dict | None:
     return _cached_context_profile
 
 
+def _record_router_gen_ai(span: Any, *, model: str, usage: Any, started_at: float) -> None:
+    """Emit gen_ai duration + token usage for a completed router call.
+
+    Chokepoint instrumentation: covers every LLM caller that isn't wrapped by
+    the agent's ``OtelSpanMiddleware`` (title-gen, vision, memory, podcast, ...).
+    """
+    from app.observability.domains import agent as _obs_agent
+
+    _obs_agent.record_model_call_duration(
+        (time.perf_counter() - started_at) * 1000, model=model, provider=None
+    )
+    input_tokens = getattr(usage, "prompt_tokens", None) if usage else None
+    output_tokens = getattr(usage, "completion_tokens", None) if usage else None
+    _obs_agent.record_model_token_usage(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        model=model,
+        provider=None,
+    )
+    with contextlib.suppress(Exception):
+        if span is not None:
+            span.set_attribute("gen_ai.response.model", str(model))
+
+
 class ChatLiteLLMRouter(BaseChatModel):
     """
     A LangChain-compatible chat model that uses LiteLLM Router for load balancing.
@@ -830,45 +855,63 @@ class ChatLiteLLMRouter(BaseChatModel):
         if self._tool_choice is not None:
             call_kwargs["tool_choice"] = self._tool_choice
 
-        try:
-            response = await self._router.acompletion(
-                model=self.model,
-                messages=formatted_messages,
-                stop=stop,
-                **call_kwargs,
-            )
-        except ContextWindowExceededError as e:
-            perf.warning(
-                "[llm_router] _agenerate CONTEXT_OVERFLOW msgs=%d in %.3fs",
-                msg_count,
-                time.perf_counter() - t0,
-            )
-            raise ContextOverflowError(str(e)) from e
-        except LiteLLMBadRequestError as e:
-            if _is_context_overflow_error(e):
+        # Chokepoint gen_ai span for callers without the agent middleware; when
+        # the middleware already opened one, defer to it (no double-counting).
+        from app.observability.domains import agent as _obs_agent
+
+        _instrument = not _obs_agent.model_call_active()
+        _span_cm = (
+            _obs_agent.model_call_span(model_id=self.model)
+            if _instrument
+            else contextlib.nullcontext()
+        )
+        with _span_cm as _sp:
+            try:
+                response = await self._router.acompletion(
+                    model=self.model,
+                    messages=formatted_messages,
+                    stop=stop,
+                    **call_kwargs,
+                )
+            except ContextWindowExceededError as e:
                 perf.warning(
                     "[llm_router] _agenerate CONTEXT_OVERFLOW msgs=%d in %.3fs",
                     msg_count,
                     time.perf_counter() - t0,
                 )
                 raise ContextOverflowError(str(e)) from e
-            raise
+            except LiteLLMBadRequestError as e:
+                if _is_context_overflow_error(e):
+                    perf.warning(
+                        "[llm_router] _agenerate CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                        msg_count,
+                        time.perf_counter() - t0,
+                    )
+                    raise ContextOverflowError(str(e)) from e
+                raise
 
-        elapsed = time.perf_counter() - t0
-        perf.info(
-            "[llm_router] _agenerate completed msgs=%d tools=%d in %.3fs",
-            msg_count,
-            len(self._bound_tools) if self._bound_tools else 0,
-            elapsed,
-        )
+            elapsed = time.perf_counter() - t0
+            perf.info(
+                "[llm_router] _agenerate completed msgs=%d tools=%d in %.3fs",
+                msg_count,
+                len(self._bound_tools) if self._bound_tools else 0,
+                elapsed,
+            )
 
-        # Convert response to ChatResult with potential tool calls
-        message = self._convert_response_to_message(
-            response.choices[0].message, response=response
-        )
-        generation = ChatGeneration(message=message)
+            # Convert response to ChatResult with potential tool calls
+            message = self._convert_response_to_message(
+                response.choices[0].message, response=response
+            )
+            if _instrument:
+                _record_router_gen_ai(
+                    _sp,
+                    model=getattr(response, "model", None) or self.model,
+                    usage=getattr(response, "usage", None),
+                    started_at=t0,
+                )
+            generation = ChatGeneration(message=message)
 
-        return ChatResult(generations=[generation])
+            return ChatResult(generations=[generation])
 
     def _stream(
         self,
@@ -947,61 +990,83 @@ class ChatLiteLLMRouter(BaseChatModel):
         if self._tool_choice is not None:
             call_kwargs["tool_choice"] = self._tool_choice
 
-        try:
-            response = await self._router.acompletion(
-                model=self.model,
-                messages=formatted_messages,
-                stop=stop,
-                stream=True,
-                stream_options={"include_usage": True},
-                **call_kwargs,
-            )
-        except ContextWindowExceededError as e:
-            perf.warning(
-                "[llm_router] _astream CONTEXT_OVERFLOW msgs=%d in %.3fs",
-                msg_count,
-                time.perf_counter() - t0,
-            )
-            raise ContextOverflowError(str(e)) from e
-        except LiteLLMBadRequestError as e:
-            if _is_context_overflow_error(e):
+        # Chokepoint gen_ai span for callers without the agent middleware; when
+        # the middleware already opened one, defer to it (no double-counting).
+        from app.observability.domains import agent as _obs_agent
+
+        _instrument = not _obs_agent.model_call_active()
+        _span_cm = (
+            _obs_agent.model_call_span(model_id=self.model)
+            if _instrument
+            else contextlib.nullcontext()
+        )
+        with _span_cm as _sp:
+            try:
+                response = await self._router.acompletion(
+                    model=self.model,
+                    messages=formatted_messages,
+                    stop=stop,
+                    stream=True,
+                    stream_options={"include_usage": True},
+                    **call_kwargs,
+                )
+            except ContextWindowExceededError as e:
                 perf.warning(
                     "[llm_router] _astream CONTEXT_OVERFLOW msgs=%d in %.3fs",
                     msg_count,
                     time.perf_counter() - t0,
                 )
                 raise ContextOverflowError(str(e)) from e
-            raise
+            except LiteLLMBadRequestError as e:
+                if _is_context_overflow_error(e):
+                    perf.warning(
+                        "[llm_router] _astream CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                        msg_count,
+                        time.perf_counter() - t0,
+                    )
+                    raise ContextOverflowError(str(e)) from e
+                raise
 
-        t_first_chunk = time.perf_counter()
-        perf.info(
-            "[llm_router] _astream connection established msgs=%d in %.3fs",
-            msg_count,
-            t_first_chunk - t0,
-        )
+            t_first_chunk = time.perf_counter()
+            perf.info(
+                "[llm_router] _astream connection established msgs=%d in %.3fs",
+                msg_count,
+                t_first_chunk - t0,
+            )
 
-        chunk_count = 0
-        first_chunk_logged = False
-        async for chunk in response:
-            if hasattr(chunk, "choices") and chunk.choices:
-                delta = chunk.choices[0].delta
-                chunk_msg = self._convert_delta_to_chunk(delta)
-                if chunk_msg:
-                    chunk_count += 1
-                    if not first_chunk_logged:
-                        perf.info(
-                            "[llm_router] _astream first chunk in %.3fs (total %.3fs from start)",
-                            time.perf_counter() - t_first_chunk,
-                            time.perf_counter() - t0,
-                        )
-                        first_chunk_logged = True
-                    yield ChatGenerationChunk(message=chunk_msg)
+            chunk_count = 0
+            first_chunk_logged = False
+            # ``include_usage`` sends a trailing choices-less chunk carrying usage.
+            usage = None
+            model_name = self.model
+            async for chunk in response:
+                if getattr(chunk, "usage", None):
+                    usage = chunk.usage
+                if chunk_model := getattr(chunk, "model", None):
+                    model_name = chunk_model
+                if hasattr(chunk, "choices") and chunk.choices:
+                    delta = chunk.choices[0].delta
+                    chunk_msg = self._convert_delta_to_chunk(delta)
+                    if chunk_msg:
+                        chunk_count += 1
+                        if not first_chunk_logged:
+                            perf.info(
+                                "[llm_router] _astream first chunk in %.3fs (total %.3fs from start)",
+                                time.perf_counter() - t_first_chunk,
+                                time.perf_counter() - t0,
+                            )
+                            first_chunk_logged = True
+                        yield ChatGenerationChunk(message=chunk_msg)
 
-        perf.info(
-            "[llm_router] _astream completed chunks=%d total=%.3fs",
-            chunk_count,
-            time.perf_counter() - t0,
-        )
+            perf.info(
+                "[llm_router] _astream completed chunks=%d total=%.3fs",
+                chunk_count,
+                time.perf_counter() - t0,
+            )
+            if _instrument:
+                _record_router_gen_ai(
+                    _sp, model=model_name, usage=usage, started_at=t0
+                )
 
     def _convert_messages(self, messages: list[BaseMessage]) -> list[dict]:
         """Convert LangChain messages to OpenAI format."""

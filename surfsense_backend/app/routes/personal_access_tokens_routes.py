@@ -8,7 +8,7 @@ from sqlalchemy.future import select
 from app.auth.context import AuthContext
 from app.config import config
 from app.db import PersonalAccessToken, get_async_session
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.schemas.pat import PATCreate, PATCreated, PATRead
 from app.users import require_session_context
 from app.utils.pat import generate_pat, hash_pat, token_prefix

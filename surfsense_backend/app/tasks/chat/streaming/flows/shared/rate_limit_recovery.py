@@ -18,7 +18,7 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat.multi_agent_chat.main_agent.middleware.busy_mutex import end_turn
-from app.observability import otel as ot
+from app.observability.signals import tracing
 from app.services.auto_model_pin_service import (
     mark_runtime_cooldown,
     resolve_or_get_pinned_llm_config_id,
@@ -99,7 +99,7 @@ def log_rate_limit_recovered(
     new_config_id: int,
 ) -> None:
     """Emit the OTEL event + structured ``[chat_stream_error]`` log line."""
-    ot.add_event(
+    tracing.add_event(
         "chat.rate_limit.recovered",
         {
             "recovery.reason": "provider_rate_limited",

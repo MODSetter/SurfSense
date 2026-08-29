@@ -22,7 +22,7 @@ from sqlalchemy import select
 from app.celery_app import celery_app
 from app.knowledge_store.migrate import MigrationReport, migrate_workspace
 from app.knowledge_store.settings import load_knowledge_store_settings
-from app.observability import metrics, otel
+from app.observability.domains import knowledge_store
 from app.tasks.celery_tasks.knowledge_store.index_tasks import reindex_knowledge_store
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ async def _check_flipped_workspaces() -> dict[str, int]:
 
     counts: dict[str, int] = {}
     repairs = 0
-    with otel.drift_sweep_span() as sweep:
+    with knowledge_store.drift_sweep_span() as sweep:
         for workspace_id in workspace_ids:
             # Fresh session per workspace, like the fleet runner: one workspace's
             # failure must not poison the next check.
@@ -73,14 +73,14 @@ async def _check_flipped_workspaces() -> dict[str, int]:
                 report = await migrate_workspace(session, workspace_id, dry_run=True)
             status = _status(report)
             counts[status] = counts.get(status, 0) + 1
-            with otel.drift_check_span(
+            with knowledge_store.drift_check_span(
                 workspace_id=workspace_id,
                 status=status,
                 missing=len(report.missing),
                 extra=len(report.extra),
                 mismatched=len(report.mismatched),
             ):
-                metrics.record_knowledge_store_drift_check(
+                knowledge_store.record_knowledge_store_drift_check(
                     workspace_id=workspace_id, status=status
                 )
             if status != "ok":

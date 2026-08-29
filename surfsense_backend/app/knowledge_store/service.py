@@ -419,7 +419,7 @@ class KnowledgeStore:
             build_path_index,
             to_store_path,
         )
-        from app.observability import metrics
+        from app.observability.domains import knowledge_store
 
         try:
             index = await build_path_index(
@@ -457,9 +457,9 @@ class KnowledgeStore:
                 document.path = virtual_path
                 await session.commit()
         except Exception as exc:
-            _record_failure(metrics, "editor_save", exc, self._workspace_id, doc_id)
+            _record_failure("editor_save", exc, self._workspace_id, doc_id)
             return Outcome(revision=None)
-        metrics.record_knowledge_store_record_outcome(
+        knowledge_store.record_knowledge_store_record_outcome(
             flow="editor_save", status="recorded" if revision else "noop"
         )
         return await self._outcome(revision)
@@ -473,7 +473,7 @@ class KnowledgeStore:
             build_path_index,
             to_store_path,
         )
-        from app.observability import metrics
+        from app.observability.domains import knowledge_store
 
         try:
             index = await build_path_index(
@@ -510,9 +510,9 @@ class KnowledgeStore:
                     doc.path = virtual_path
                 await session.commit()
         except Exception as exc:
-            _record_failure(metrics, "sync_batch", exc, self._workspace_id)
+            _record_failure("sync_batch", exc, self._workspace_id)
             return Outcome(revision=None)
-        metrics.record_knowledge_store_record_outcome(
+        knowledge_store.record_knowledge_store_record_outcome(
             flow="sync_batch", status="recorded" if revision else "noop"
         )
         return await self._outcome(revision)
@@ -531,7 +531,7 @@ class KnowledgeStore:
             return Outcome(revision=None)
         session = self._require_session()
         from app.knowledge_store.paths import build_path_index
-        from app.observability import metrics
+        from app.observability.domains import knowledge_store
 
         try:
             index = await build_path_index(session, self._workspace_id)
@@ -544,9 +544,9 @@ class KnowledgeStore:
                 files={}, message=_summary("delete", removes), removes=removes
             )
         except Exception as exc:
-            _record_failure(metrics, "delete", exc, self._workspace_id)
+            _record_failure("delete", exc, self._workspace_id)
             return Outcome(revision=None)
-        metrics.record_knowledge_store_record_outcome(
+        knowledge_store.record_knowledge_store_record_outcome(
             flow="delete", status="recorded" if revision else "noop"
         )
         return await self._outcome(revision)
@@ -565,7 +565,7 @@ class KnowledgeStore:
             return Outcome(revision=None)
         session = self._require_session()
         from app.knowledge_store.paths import build_path_index
-        from app.observability import metrics
+        from app.observability.domains import knowledge_store
 
         try:
             index = await build_path_index(
@@ -597,9 +597,9 @@ class KnowledgeStore:
                 for document, virtual_path in moved:
                     document.path = virtual_path
         except Exception as exc:
-            _record_failure(metrics, "move", exc, self._workspace_id)
+            _record_failure("move", exc, self._workspace_id)
             return Outcome(revision=None)
-        metrics.record_knowledge_store_record_outcome(
+        knowledge_store.record_knowledge_store_record_outcome(
             flow="move", status="recorded" if revision else "noop"
         )
         return await self._outcome(revision)
@@ -765,7 +765,8 @@ class KnowledgeStore:
         failed receipts. On success the returned :class:`Outcome` carries the
         projection so the caller can announce rows without re-reading them.
         """
-        from app.observability import metrics
+        from app.observability.core.errors import categorize_exception
+        from app.observability.domains import knowledge_store
 
         copy_id = thread_working_copy_id(thread_id)
         writes, removes = await self.diff_working_copy(copy_id)
@@ -785,15 +786,15 @@ class KnowledgeStore:
                 for path in removes:
                     tx.remove(path)
         except Exception as exc:
-            metrics.record_knowledge_store_record_outcome(
+            knowledge_store.record_knowledge_store_record_outcome(
                 flow="turn_commit",
                 status="failed",
-                error_category=metrics.categorize_exception(exc),
+                error_category=categorize_exception(exc),
             )
             raise
 
         await self.discard_working_copy(copy_id)
-        metrics.record_knowledge_store_record_outcome(
+        knowledge_store.record_knowledge_store_record_outcome(
             flow="turn_commit", status="recorded" if tx.revision else "noop"
         )
         if tx.revision is None:
@@ -877,7 +878,10 @@ def _summary(verb: str, paths: Sequence[str]) -> str:
     return f"docs: {verb} {len(paths)} documents"
 
 
-def _record_failure(metrics, flow: str, exc: Exception, workspace_id, doc_id=None):
+def _record_failure(flow: str, exc: Exception, workspace_id, doc_id=None):
+    from app.observability.core.errors import categorize_exception
+    from app.observability.domains import knowledge_store
+
     logger.warning(
         "Knowledge store recording failed (%s) in workspace %s%s",
         flow,
@@ -885,8 +889,8 @@ def _record_failure(metrics, flow: str, exc: Exception, workspace_id, doc_id=Non
         f" for document {doc_id}" if doc_id is not None else "",
         exc_info=True,
     )
-    metrics.record_knowledge_store_record_outcome(
-        flow=flow, status="failed", error_category=metrics.categorize_exception(exc)
+    knowledge_store.record_knowledge_store_record_outcome(
+        flow=flow, status="failed", error_category=categorize_exception(exc)
     )
 
 

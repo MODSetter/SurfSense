@@ -33,7 +33,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.spec import (
     SURF_CONTEXT_HINT_PROVIDER_KEY,
     ContextHintProvider,
 )
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.domains import agent
 from app.utils.perf import get_perf_logger
 
 from .config import (
@@ -769,7 +769,7 @@ def build_task_tool_with_parent_config(
             # Stop the parent's resume leaking into subagent interrupts via
             # langgraph's parent_scratchpad fallback.
             drain_parent_null_resume(runtime)
-            with ot.subagent_invoke_span(
+            with agent.subagent_invoke_span(
                 subagent_type=subagent_type, path=invoke_path
             ) as sp:
                 try:
@@ -781,13 +781,13 @@ def build_task_tool_with_parent_config(
                 except GraphInterrupt as gi:
                     invoke_outcome = "interrupted"
                     sp.set_attribute("subagent.outcome", invoke_outcome)
-                    ot_metrics.record_subagent_invoke_duration(
+                    agent.record_subagent_invoke_duration(
                         (time.perf_counter() - invoke_start) * 1000,
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
                     )
-                    ot_metrics.record_subagent_invoke_outcome(
+                    agent.record_subagent_invoke_outcome(
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
@@ -796,20 +796,20 @@ def build_task_tool_with_parent_config(
                 except Exception:
                     invoke_outcome = "error"
                     sp.set_attribute("subagent.outcome", invoke_outcome)
-                    ot_metrics.record_subagent_invoke_duration(
+                    agent.record_subagent_invoke_duration(
                         (time.perf_counter() - invoke_start) * 1000,
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
                     )
-                    ot_metrics.record_subagent_invoke_outcome(
+                    agent.record_subagent_invoke_outcome(
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
                     )
                     raise
         else:
-            with ot.subagent_invoke_span(
+            with agent.subagent_invoke_span(
                 subagent_type=subagent_type, path=invoke_path
             ) as sp:
                 try:
@@ -818,13 +818,13 @@ def build_task_tool_with_parent_config(
                 except GraphInterrupt as gi:
                     invoke_outcome = "interrupted"
                     sp.set_attribute("subagent.outcome", invoke_outcome)
-                    ot_metrics.record_subagent_invoke_duration(
+                    agent.record_subagent_invoke_duration(
                         (time.perf_counter() - invoke_start) * 1000,
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
                     )
-                    ot_metrics.record_subagent_invoke_outcome(
+                    agent.record_subagent_invoke_outcome(
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
@@ -833,26 +833,26 @@ def build_task_tool_with_parent_config(
                 except Exception:
                     invoke_outcome = "error"
                     sp.set_attribute("subagent.outcome", invoke_outcome)
-                    ot_metrics.record_subagent_invoke_duration(
+                    agent.record_subagent_invoke_duration(
                         (time.perf_counter() - invoke_start) * 1000,
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
                     )
-                    ot_metrics.record_subagent_invoke_outcome(
+                    agent.record_subagent_invoke_outcome(
                         subagent_type=subagent_type,
                         path=invoke_path,
                         outcome=invoke_outcome,
                     )
                     raise
         invoke_elapsed_ms = (time.perf_counter() - invoke_start) * 1000
-        ot_metrics.record_subagent_invoke_duration(
+        agent.record_subagent_invoke_duration(
             invoke_elapsed_ms,
             subagent_type=subagent_type,
             path=invoke_path,
             outcome=invoke_outcome,
         )
-        ot_metrics.record_subagent_invoke_outcome(
+        agent.record_subagent_invoke_outcome(
             subagent_type=subagent_type,
             path=invoke_path,
             outcome=invoke_outcome,
@@ -979,7 +979,7 @@ def build_task_tool_with_parent_config(
                 # Stop the parent's resume leaking into subagent interrupts via
                 # langgraph's parent_scratchpad fallback.
                 drain_parent_null_resume(runtime)
-                with ot.subagent_invoke_span(
+                with agent.subagent_invoke_span(
                     subagent_type=subagent_type, path=invoke_path
                 ) as sp:
                     try:
@@ -995,13 +995,13 @@ def build_task_tool_with_parent_config(
                     except SubagentInvokeTimeoutError as exc:
                         ainvoke_outcome = "timeout"
                         sp.set_attribute("subagent.outcome", ainvoke_outcome)
-                        ot_metrics.record_subagent_invoke_duration(
+                        agent.record_subagent_invoke_duration(
                             (time.perf_counter() - ainvoke_start) * 1000,
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
-                        ot_metrics.record_subagent_invoke_outcome(
+                        agent.record_subagent_invoke_outcome(
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
@@ -1017,13 +1017,13 @@ def build_task_tool_with_parent_config(
                     except GraphInterrupt as gi:
                         ainvoke_outcome = "interrupted"
                         sp.set_attribute("subagent.outcome", ainvoke_outcome)
-                        ot_metrics.record_subagent_invoke_duration(
+                        agent.record_subagent_invoke_duration(
                             (time.perf_counter() - ainvoke_start) * 1000,
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
-                        ot_metrics.record_subagent_invoke_outcome(
+                        agent.record_subagent_invoke_outcome(
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
@@ -1042,20 +1042,20 @@ def build_task_tool_with_parent_config(
                     except Exception:
                         ainvoke_outcome = "error"
                         sp.set_attribute("subagent.outcome", ainvoke_outcome)
-                        ot_metrics.record_subagent_invoke_duration(
+                        agent.record_subagent_invoke_duration(
                             (time.perf_counter() - ainvoke_start) * 1000,
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
-                        ot_metrics.record_subagent_invoke_outcome(
+                        agent.record_subagent_invoke_outcome(
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
                         raise
             else:
-                with ot.subagent_invoke_span(
+                with agent.subagent_invoke_span(
                     subagent_type=subagent_type, path=invoke_path
                 ) as sp:
                     try:
@@ -1068,13 +1068,13 @@ def build_task_tool_with_parent_config(
                     except SubagentInvokeTimeoutError as exc:
                         ainvoke_outcome = "timeout"
                         sp.set_attribute("subagent.outcome", ainvoke_outcome)
-                        ot_metrics.record_subagent_invoke_duration(
+                        agent.record_subagent_invoke_duration(
                             (time.perf_counter() - ainvoke_start) * 1000,
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
-                        ot_metrics.record_subagent_invoke_outcome(
+                        agent.record_subagent_invoke_outcome(
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
@@ -1090,13 +1090,13 @@ def build_task_tool_with_parent_config(
                     except GraphInterrupt as gi:
                         ainvoke_outcome = "interrupted"
                         sp.set_attribute("subagent.outcome", ainvoke_outcome)
-                        ot_metrics.record_subagent_invoke_duration(
+                        agent.record_subagent_invoke_duration(
                             (time.perf_counter() - ainvoke_start) * 1000,
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
-                        ot_metrics.record_subagent_invoke_outcome(
+                        agent.record_subagent_invoke_outcome(
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
@@ -1115,13 +1115,13 @@ def build_task_tool_with_parent_config(
                     except Exception:
                         ainvoke_outcome = "error"
                         sp.set_attribute("subagent.outcome", ainvoke_outcome)
-                        ot_metrics.record_subagent_invoke_duration(
+                        agent.record_subagent_invoke_duration(
                             (time.perf_counter() - ainvoke_start) * 1000,
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
                         )
-                        ot_metrics.record_subagent_invoke_outcome(
+                        agent.record_subagent_invoke_outcome(
                             subagent_type=subagent_type,
                             path=invoke_path,
                             outcome=ainvoke_outcome,
@@ -1147,13 +1147,13 @@ def build_task_tool_with_parent_config(
             merge_elapsed,
             time.perf_counter() - atask_start,
         )
-        ot_metrics.record_subagent_invoke_duration(
+        agent.record_subagent_invoke_duration(
             ainvoke_elapsed * 1000,
             subagent_type=subagent_type,
             path=invoke_path,
             outcome=ainvoke_outcome,
         )
-        ot_metrics.record_subagent_invoke_outcome(
+        agent.record_subagent_invoke_outcome(
             subagent_type=subagent_type,
             path=invoke_path,
             outcome=ainvoke_outcome,

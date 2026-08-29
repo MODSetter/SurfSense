@@ -15,7 +15,8 @@ from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,
 )
-from app.observability import metrics, otel
+from app.observability.domains import knowledge_store
+from app.observability.signals import tracing
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.tasks.celery_tasks.knowledge_store.index_tasks import (
     LOCK_RETRY_DELAY_SECONDS,
@@ -50,7 +51,7 @@ def push_lagging_workspace_remotes() -> int:
 
 
 async def _push(workspace_id: int) -> str | None:
-    with otel.remote_push_span(workspace_id=workspace_id) as sp:
+    with knowledge_store.remote_push_span(workspace_id=workspace_id) as sp:
         return await _push_head(workspace_id, sp)
 
 
@@ -79,7 +80,7 @@ async def _push_head(workspace_id: int, sp) -> str | None:
             )
             return None
         try:
-            with otel.span("knowledge_store.remote.credentials"):
+            with tracing.span("knowledge_store.remote.credentials"):
                 creds = await store.remotes.credentials()
             sha = await store.push(
                 url=target.url,
@@ -123,7 +124,7 @@ def _observe_push(
     sp.set_attribute("push.reason", reason)
     if provider:
         sp.set_attribute("remote.provider", provider)
-    metrics.record_knowledge_store_remote_push(status=status, provider=provider)
+    knowledge_store.record_knowledge_store_remote_push(status=status, provider=provider)
     logger.info(
         "Knowledge store remote push workspace=%s status=%s reason=%s provider=%s",
         workspace_id,
@@ -155,7 +156,7 @@ async def _sweep() -> int:
         stamps = dict(result.all())
 
     enqueued = 0
-    with otel.remote_sweep_span() as sweep:
+    with knowledge_store.remote_sweep_span() as sweep:
         for workspace_id, stamp in stamps.items():
             if enqueued >= SWEEP_ENQUEUE_CAP:
                 break

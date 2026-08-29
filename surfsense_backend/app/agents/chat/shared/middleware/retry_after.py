@@ -48,7 +48,8 @@ from langchain.agents.middleware.types import (
 from langchain_core.callbacks import adispatch_custom_event, dispatch_custom_event
 from langchain_core.messages import AIMessage
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.core.errors import categorize_exception
+from app.observability.signals import tracing
 from app.services.llm_error_adapter import LLMErrorCategory, adapt_llm_exception
 
 logger = logging.getLogger(__name__)
@@ -219,13 +220,13 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                 if not self._should_retry(exc) or attempt >= self.max_retries:
                     raise
                 delay = self._delay_for_attempt(attempt, exc)
-                ot.add_event(
+                tracing.add_event(
                     "model.retry.scheduled",
                     {
                         "retry.attempt": attempt + 1,
                         "retry.max": self.max_retries,
                         "retry.delay_ms": int(delay * 1000),
-                        "retry.reason": ot_metrics.categorize_exception(exc),
+                        "retry.reason": categorize_exception(exc),
                     },
                 )
                 try:
@@ -261,13 +262,13 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                 if not self._should_retry(exc) or attempt >= self.max_retries:
                     raise
                 delay = self._delay_for_attempt(attempt, exc)
-                ot.add_event(
+                tracing.add_event(
                     "model.retry.scheduled",
                     {
                         "retry.attempt": attempt + 1,
                         "retry.max": self.max_retries,
                         "retry.delay_ms": int(delay * 1000),
-                        "retry.reason": ot_metrics.categorize_exception(exc),
+                        "retry.reason": categorize_exception(exc),
                     },
                 )
                 try:

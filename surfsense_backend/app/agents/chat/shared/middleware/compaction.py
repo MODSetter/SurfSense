@@ -21,7 +21,7 @@ from deepagents.middleware.summarization import (
 )
 from langchain_core.messages import SystemMessage
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.domains import agent
 
 if TYPE_CHECKING:
     from deepagents.backends.protocol import BACKEND_TYPES
@@ -145,12 +145,12 @@ class SurfSenseCompactionMiddleware(SummarizationMiddleware):
         Also opens a ``compaction.run`` OTel span (no-op when OTel is off) here,
         since partitioning is the first call once summarization is decided.
         """
-        with ot.compaction_span(
+        with agent.compaction_span(
             reason="auto",
             messages_in=len(conversation_messages),
             extra={"compaction.cutoff_index": int(cutoff_index)},
         ):
-            ot_metrics.record_compaction_run(reason="auto")
+            agent.record_compaction_run(reason="auto")
             messages_to_summarize, preserved_messages = super()._partition_messages(
                 conversation_messages, cutoff_index
             )

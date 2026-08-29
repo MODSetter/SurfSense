@@ -31,7 +31,7 @@ from app.db import (
     get_default_roles_config,
     get_user_db,
 )
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
 from app.signup_credit.award import award_signup_credit
 from app.utils.pat import PAT_PREFIX, maybe_touch_last_used, resolve_pat

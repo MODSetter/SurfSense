@@ -51,8 +51,9 @@ from app.gateway.inbox_worker import (
     start_gateway_inbox_worker,
     stop_gateway_inbox_worker,
 )
-from app.observability import analytics as ph_analytics, metrics as ot_metrics
-from app.observability.bootstrap import init_otel, shutdown_otel
+from app.observability.analytics import posthog as ph_analytics
+from app.observability.domains import security
+from app.observability.setup.lifecycle import init_otel, shutdown_otel
 from app.rate_limiter import get_real_client_ip, limiter
 from app.routes import router as crud_router
 from app.routes.auth_routes import (
@@ -155,7 +156,7 @@ def _http_exception_handler(request: Request, exc: HTTPException) -> JSONRespons
     """
     rid = _get_request_id(request)
     if exc.status_code in {401, 403} and request.url.path.startswith("/auth"):
-        ot_metrics.record_auth_failure(reason=_status_to_code(exc.status_code))
+        security.record_auth_failure(reason=_status_to_code(exc.status_code))
     should_sanitize = exc.status_code == 500
 
     # Structured dict details (e.g. {"code": "CAPTCHA_REQUIRED", "message": "..."})
@@ -261,7 +262,7 @@ def _validation_error_handler(
 def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all: log full traceback, return sanitized 500."""
     rid = _get_request_id(request)
-    ot_metrics.record_auth_failure(reason="unhandled_exception")
+    security.record_auth_failure(reason="unhandled_exception")
     _error_logger.error(
         "[%s] Unhandled exception on %s %s",
         rid,
@@ -295,7 +296,7 @@ def _status_to_code(status_code: int, detail: str = "") -> str:
 def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     """Custom 429 handler that returns JSON matching our error envelope."""
     rid = _get_request_id(request)
-    ot_metrics.record_rate_limit_rejection(scope="slowapi")
+    security.record_rate_limit_rejection(scope="slowapi")
     retry_after = exc.detail.split("per")[-1].strip() if exc.detail else "60"
     return _build_error_response(
         429,
@@ -356,7 +357,7 @@ def _check_rate_limit_memory(
                 f"Rate limit exceeded (in-memory fallback) on {scope} for IP {client_ip} "
                 f"({len(timestamps)}/{max_requests} in {window_seconds}s)"
             )
-            ot_metrics.record_rate_limit_rejection(scope=scope)
+            security.record_rate_limit_rejection(scope=scope)
             raise HTTPException(
                 status_code=429,
                 detail="RATE_LIMIT_EXCEEDED",
@@ -400,7 +401,7 @@ def _check_rate_limit(
             f"Rate limit exceeded on {scope} for IP {client_ip} "
             f"({current_count}/{max_requests} in {window_seconds}s)"
         )
-        ot_metrics.record_rate_limit_rejection(scope=scope)
+        security.record_rate_limit_rejection(scope=scope)
         raise HTTPException(
             status_code=429,
             detail="RATE_LIMIT_EXCEEDED",

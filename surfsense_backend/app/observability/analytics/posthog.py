@@ -1,24 +1,20 @@
 """Server-side PostHog product analytics for SurfSense.
 
-Opt-in, mirroring the OpenTelemetry bootstrap contract: when
-``POSTHOG_API_KEY`` is unset every function here is a silent no-op, so it is
-safe to call from hot paths (including async request handlers) and from
-self-hosted installs that never configure telemetry.
+Opt-in, mirroring the OpenTelemetry contract: when ``POSTHOG_API_KEY`` is unset
+every function here is a silent no-op, so it is safe to call from hot paths
+(including async handlers) and from self-hosted installs without telemetry.
 
 Design notes:
-- The underlying ``posthog`` client enqueues events onto a background
-  consumer thread, so ``capture()`` is a non-blocking queue append; the only
-  network I/O happens off-thread. ``shutdown()`` flushes and joins that thread
-  and MUST run before a process exits or queued events are lost.
-- The client is created lazily on first use, never at import time. This keeps
-  it fork-safe under Celery's prefork pool: a client (and its consumer thread)
-  created in the parent would not survive ``fork()``, so each worker process
-  builds its own on first capture.
+- The ``posthog`` client enqueues onto a background consumer thread, so
+  ``capture()`` is a non-blocking queue append; network I/O happens off-thread.
+  ``shutdown()`` flushes and joins that thread and MUST run before a process
+  exits or queued events are lost.
+- The client is built lazily on first use, never at import time. This keeps it
+  fork-safe under Celery's prefork pool: each worker builds its own.
 - ``distinct_id`` is always ``str(user.id)`` so server events merge onto the
-  same PostHog persons the web frontend identifies (see
-  ``surfsense_web/components/providers/PostHogIdentify.tsx``).
-- Every event passes ``disable_geoip=True``; without it PostHog would resolve
-  the *server's* IP and overwrite each person's real (client-derived) location.
+  same PostHog persons the web frontend identifies.
+- Every event passes ``disable_geoip=True``; without it PostHog resolves the
+  *server's* IP and overwrites each person's real location.
 """
 
 from __future__ import annotations
@@ -38,16 +34,16 @@ _client: Any | None = None
 _init_attempted = False
 _lock = threading.Lock()
 
-# Stamped on every backend event so client-observed (frontend) and
-# server-truth events are always distinguishable in PostHog.
+# Stamped on every backend event so client (frontend) and server-truth events
+# are distinguishable in PostHog.
 _SOURCE = "backend"
 
 
 def _get_client() -> Any | None:
     """Return the process-local PostHog client, or ``None`` when disabled.
 
-    Lazy + fork-safe: built on first use inside whichever process (web worker
-    or Celery worker) calls it, never at import time.
+    Lazy + fork-safe: built on first use inside whichever process (web or
+    Celery worker) calls it, never at import time.
     """
     global _client, _init_attempted
 
@@ -61,17 +57,14 @@ def _get_client() -> Any | None:
 
         api_key = config.POSTHOG_API_KEY
         if not api_key:
-            # ponytail: opt-in like OTel — no key means telemetry is off, not
-            # a misconfiguration. Stay silent so self-hosters see no noise.
+            # ponytail: opt-in like OTel — no key means telemetry is off, not a
+            # misconfiguration. Stay silent so self-hosters see no noise.
             return None
 
         try:
             from posthog import Posthog
 
-            _client = Posthog(
-                project_api_key=api_key,
-                host=config.POSTHOG_HOST,
-            )
+            _client = Posthog(project_api_key=api_key, host=config.POSTHOG_HOST)
         except Exception:
             logger.warning("PostHog analytics init failed; disabling", exc_info=True)
             _client = None
@@ -85,7 +78,7 @@ def is_enabled() -> bool:
 
 
 def get_client() -> Any | None:
-    """Raw PostHog client for integrations that need it (e.g. the LLM handler)."""
+    """Raw PostHog client for integrations that need it."""
     return _get_client()
 
 
@@ -109,12 +102,7 @@ def capture(
     properties: dict[str, Any] | None = None,
     groups: dict[str, str] | None = None,
 ) -> None:
-    """Capture a product event. No-op (and never raises) when disabled.
-
-    Wrapped in try/except like the frontend ``safeCapture`` — analytics must
-    never break a request. ``posthog`` v6 signature is ``capture(event,
-    distinct_id=..., properties=...)`` (event first, distinct_id a kwarg).
-    """
+    """Capture a product event. No-op (and never raises) when disabled."""
     client = _get_client()
     if client is None:
         return
@@ -141,8 +129,7 @@ def capture_for(
     """Capture an event attributed to an ``AuthContext`` principal.
 
     Derives ``distinct_id`` from the user id and stamps ``auth_method`` and a
-    best-effort ``client`` so events are attributable to their surface
-    (web/desktop/pat/gateway/automation).
+    best-effort ``client`` so events are attributable to their surface.
     """
     if _get_client() is None:
         return

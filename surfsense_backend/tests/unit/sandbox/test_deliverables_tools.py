@@ -121,17 +121,17 @@ async def test_full_video_render_uses_gate_config_and_records_segments(monkeypat
     render_duration = []
     segment_counts = []
     monkeypatch.setattr(
-        sandbox_tools.ot_metrics,
+        sandbox_tools.media,
         "record_video_admission_wait",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        sandbox_tools.ot_metrics,
+        sandbox_tools.media,
         "record_video_render_duration",
         lambda seconds, **kwargs: render_duration.append((seconds, kwargs)),
     )
     monkeypatch.setattr(
-        sandbox_tools.ot_metrics,
+        sandbox_tools.media,
         "record_video_segment_count",
         segment_counts.append,
     )

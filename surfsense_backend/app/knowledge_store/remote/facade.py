@@ -16,7 +16,7 @@ from app.knowledge_store.remote.schemas import (
     RemoteStatus,
 )
 from app.knowledge_store.settings import knowledge_store_enabled_for
-from app.observability import metrics, otel
+from app.observability.domains import knowledge_store as ks_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class WorkspaceRemotes:
         return await self._rows.list_statuses(self._workspace_id)
 
     async def add(self, spec: RemoteSpec) -> RemoteStatus:
-        with otel.remote_connect_span(
+        with ks_telemetry.remote_connect_span(
             workspace_id=self._workspace_id, provider=spec.provider
         ) as sp:
             try:
@@ -52,7 +52,7 @@ class WorkspaceRemotes:
             except RemoteError as exc:
                 sp.set_attribute("connect.status", "rejected")
                 sp.set_attribute("connect.code", exc.code)
-                metrics.record_knowledge_store_remote_connect(
+                ks_telemetry.record_knowledge_store_remote_connect(
                     provider=spec.provider, status="rejected"
                 )
                 logger.info(
@@ -63,7 +63,7 @@ class WorkspaceRemotes:
                 )
                 raise
             sp.set_attribute("connect.status", "connected")
-            metrics.record_knowledge_store_remote_connect(
+            ks_telemetry.record_knowledge_store_remote_connect(
                 provider=spec.provider, status="connected"
             )
             logger.info(

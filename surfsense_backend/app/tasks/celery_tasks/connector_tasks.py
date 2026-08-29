@@ -9,11 +9,9 @@ from collections.abc import Awaitable, Callable
 from celery import current_task
 
 from app.celery_app import celery_app
-from app.observability import (
-    analytics as ph_analytics,
-    metrics as ot_metrics,
-    otel as ot,
-)
+from app.observability.analytics import posthog as ph_analytics
+from app.observability.core.errors import categorize_exception
+from app.observability.domains import indexing
 from app.tasks.celery_tasks import (
     get_celery_session_maker,
     run_async_celery_task as _run_async_celery_task,
@@ -39,23 +37,23 @@ def run_async_celery_task[T](
     status = "failed"
     error_category: str | None = None
     try:
-        with ot.connector_sync_span(connector_type=task_name) as sp:
+        with indexing.connector_sync_span(connector_type=task_name) as sp:
             try:
                 result = _run_async_celery_task(coro_factory)
                 sp.set_attribute("connector.status", "success")
             except Exception as exc:
-                error_category = ot_metrics.categorize_exception(exc)
+                error_category = categorize_exception(exc)
                 sp.set_attribute("connector.error.category", error_category)
                 raise
         status = "success"
         return result
     finally:
         elapsed_s = time.perf_counter() - t0
-        ot_metrics.record_connector_sync_duration(
+        indexing.record_connector_sync_duration(
             elapsed_s,
             connector_type=task_name,
         )
-        ot_metrics.record_connector_sync_outcome(
+        indexing.record_connector_sync_outcome(
             connector_type=task_name,
             status=status,
             error_category=error_category,

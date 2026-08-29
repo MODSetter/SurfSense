@@ -47,7 +47,7 @@ from app.gateway.inbox import (
 )
 from app.gateway.pairing import generate_pairing_code, pairing_expires_at
 from app.gateway.slack.adapter import slack_user_peer_id
-from app.observability.metrics import (
+from app.observability.domains.gateway import (
     record_gateway_inbox_write,
     record_gateway_webhook_parse_error,
 )

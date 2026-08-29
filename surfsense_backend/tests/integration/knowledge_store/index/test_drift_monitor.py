@@ -68,7 +68,7 @@ def drift_metrics(monkeypatch):
     recorded: list[tuple[int, str]] = []
 
     monkeypatch.setattr(
-        monitor.metrics,
+        monitor.knowledge_store,
         "record_knowledge_store_drift_check",
         lambda *, workspace_id, status: recorded.append((workspace_id, status)),
     )
@@ -91,7 +91,7 @@ def drift_spans(monkeypatch):
         recorded.append(kwargs)
         return contextlib.nullcontext()
 
-    monkeypatch.setattr(monitor.otel, "drift_check_span", fake_drift_check_span)
+    monkeypatch.setattr(monitor.knowledge_store, "drift_check_span", fake_drift_check_span)
     return recorded
 
 

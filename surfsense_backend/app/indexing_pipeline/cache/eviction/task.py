@@ -12,7 +12,7 @@ from app.etl_pipeline.cache.schemas import EvictionCandidate
 from app.indexing_pipeline.cache.persistence import CachedEmbeddingSetRepository
 from app.indexing_pipeline.cache.settings import load_embedding_cache_settings
 from app.indexing_pipeline.cache.storage import EmbeddingCacheStore
-from app.observability import metrics
+from app.observability.domains import indexing
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
@@ -64,5 +64,5 @@ async def _drop(
         with contextlib.suppress(Exception):
             await store.delete(candidate.storage_key)
     await index.delete_by_ids([candidate.id for candidate in candidates])
-    metrics.record_embedding_cache_eviction(len(candidates), phase=phase)
+    indexing.record_embedding_cache_eviction(len(candidates), phase=phase)
     logger.info("Evicted %d cached embedding sets (%s)", len(candidates), phase)

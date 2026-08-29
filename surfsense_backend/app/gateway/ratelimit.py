@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import redis.asyncio as aioredis
 
 from app.config import config
-from app.observability.metrics import record_gateway_redis_fallback
+from app.observability.domains.gateway import record_gateway_redis_fallback
 
 logger = logging.getLogger(__name__)
 

@@ -16,7 +16,7 @@ from app.db import (
 )
 from app.gateway.inbox import persist_inbound_event, telegram_event_dedupe_key
 from app.gateway.telegram.adapter import TelegramAdapter
-from app.observability.metrics import record_gateway_byo_longpoll_running_delta
+from app.observability.domains.gateway import record_gateway_byo_longpoll_running_delta
 
 logger = logging.getLogger(__name__)
 

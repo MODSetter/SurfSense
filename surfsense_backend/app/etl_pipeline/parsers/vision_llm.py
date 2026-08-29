@@ -1,8 +1,11 @@
 import asyncio
 import base64
 import os
+import time
 
 from langchain_core.messages import HumanMessage
+
+from app.observability.domains import agent
 
 # Single-shot prompt used by standalone image uploads (.png/.jpg/etc).
 # A standalone image IS the document, so we want everything: visual
@@ -76,9 +79,17 @@ async def _invoke_vision(llm, prompt: str, data_url: str, filename: str) -> str:
             {"type": "image_url", "image_url": {"url": data_url}},
         ]
     )
-    response = await asyncio.wait_for(
-        llm.ainvoke([message]), timeout=_INVOKE_TIMEOUT_SECONDS
-    )
+    model_id = getattr(llm, "model", None)
+    t0 = time.perf_counter()
+    with agent.model_call_span(model_id=model_id):
+        try:
+            response = await asyncio.wait_for(
+                llm.ainvoke([message]), timeout=_INVOKE_TIMEOUT_SECONDS
+            )
+        finally:
+            agent.record_model_call_duration(
+                (time.perf_counter() - t0) * 1000, model=model_id, provider=None
+            )
     text = response.content if hasattr(response, "content") else str(response)
     if not text or not text.strip():
         raise ValueError(f"Vision LLM returned empty content for {filename}")

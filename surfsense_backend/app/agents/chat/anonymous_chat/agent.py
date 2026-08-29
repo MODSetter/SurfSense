@@ -26,6 +26,9 @@ from langchain.agents.middleware import (
 from langchain_core.language_models import BaseChatModel
 from langgraph.types import Checkpointer
 
+from app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span import (
+    OtelSpanMiddleware,
+)
 from app.agents.chat.shared.context import SurfSenseContextSchema
 from app.agents.chat.shared.middleware import (
     RetryAfterMiddleware,
@@ -153,9 +156,13 @@ async def create_anonymous_chat_agent(
     # filesystem: the call limit guards against loops, compaction summarises
     # long histories into in-graph state, and retry handles provider rate
     # limits.
+    # OtelSpanMiddleware is the anon tier's only LLM telemetry (no product
+    # event here); placed before RetryAfter so each attempt is its own span,
+    # matching the main agent stack. No-op when OTel is unconfigured.
     middleware: list[Any] = [
         ModelCallLimitMiddleware(thread_limit=120, run_limit=80, exit_behavior="end"),
         create_surfsense_compaction_middleware(llm, StateBackend),
+        OtelSpanMiddleware(),
         RetryAfterMiddleware(max_retries=3),
     ]
 

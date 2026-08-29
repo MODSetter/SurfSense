@@ -7,7 +7,7 @@ import logging
 import redis
 
 from app.config import config
-from app.observability.metrics import record_gateway_thread_lock_contention
+from app.observability.domains.gateway import record_gateway_thread_lock_contention
 
 logger = logging.getLogger(__name__)
 

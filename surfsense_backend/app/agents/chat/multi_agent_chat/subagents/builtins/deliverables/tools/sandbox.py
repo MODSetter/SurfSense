@@ -15,7 +15,7 @@ from langchain_core.tools import BaseTool, tool
 
 from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
-from app.observability import metrics as ot_metrics
+from app.observability.domains import media
 from app.sandbox import ExecResult, SandboxSession, get_registry
 
 from .thread_resolver import resolve_root_thread_id
@@ -129,7 +129,7 @@ async def _run_bash(session: SandboxSession, command: str) -> ExecResult:
         await _VIDEO_RENDER_GATE.acquire()
     finally:
         _video_render_waiters -= 1
-    ot_metrics.record_video_admission_wait(
+    media.record_video_admission_wait(
         time.monotonic() - queued_at,
         queue_depth=queue_depth,
     )
@@ -138,11 +138,11 @@ async def _run_bash(session: SandboxSession, command: str) -> ExecResult:
         result = await session.run_command(command)
     finally:
         _VIDEO_RENDER_GATE.release()
-        ot_metrics.record_video_render_duration(time.monotonic() - started_at)
+        media.record_video_render_duration(time.monotonic() - started_at)
     match = _VIDEO_SEGMENTS_RE.search(result.output)
     for seconds in _VIDEO_SEGMENT_SECONDS_RE.findall(result.output):
-        ot_metrics.record_video_render_duration(float(seconds), scope="segment")
-    ot_metrics.record_video_segment_count(int(match.group(1)) if match else 1)
+        media.record_video_render_duration(float(seconds), scope="segment")
+    media.record_video_segment_count(int(match.group(1)) if match else 1)
     return result
 
 

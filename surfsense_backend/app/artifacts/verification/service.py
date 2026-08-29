@@ -11,7 +11,7 @@ from typing import Any
 from langchain_core.callbacks import dispatch_custom_event
 
 from app.config import config as app_config
-from app.observability import metrics as ot_metrics
+from app.observability.domains import media
 from app.sandbox import SandboxSession
 
 from .formats.base import FormatAdapter, StructuralCheckResult
@@ -106,7 +106,7 @@ async def verify_artifact(
         except Exception as exc:
             logger.warning("Artifact verification failed: %s", exc, exc_info=True)
             if primary_path.lower().endswith(".mp4"):
-                ot_metrics.record_video_verify_failure("structural")
+                media.record_video_verify_failure("structural")
             return VerificationResult(
                 verified=False,
                 findings=(_public_verification_error(exc),),
@@ -180,7 +180,7 @@ async def _verify_artifact(
                 if "segments" in text
                 else "structural"
             )
-            ot_metrics.record_video_verify_failure(reason)
+            media.record_video_verify_failure(reason)
         return VerificationResult(
             verified=False,
             findings=structural.findings,

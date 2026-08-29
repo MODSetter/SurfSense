@@ -1,7 +1,10 @@
 import logging
+import time
 from typing import Any, Optional
 
 from rerankers import Document as RerankerDocument
+
+from app.observability.domains import kb
 
 
 class RerankerService:
@@ -65,9 +68,17 @@ class RerankerService:
                 )
 
             # Rerank using the configured reranker
-            reranking_results = self.reranker_instance.rank(
-                query=query_text, docs=reranker_docs
-            )
+            t0 = time.perf_counter()
+            with kb.rerank_span(document_count=len(documents)):
+                try:
+                    reranking_results = self.reranker_instance.rank(
+                        query=query_text, docs=reranker_docs
+                    )
+                finally:
+                    kb.record_kb_rerank_duration(
+                        (time.perf_counter() - t0) * 1000,
+                        document_count=len(documents),
+                    )
 
             # Process the results from the reranker
             # Convert to serializable dictionaries while preserving full structure
