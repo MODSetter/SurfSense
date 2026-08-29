@@ -25,7 +25,6 @@ from daytona.common.errors import DaytonaError, DaytonaNotFoundError
 
 from app.config import config as app_config
 
-from ..file_stream import read_file_stream_via_commands
 from ..protocol import ExecResult
 
 logger = logging.getLogger(__name__)
@@ -93,11 +92,6 @@ class DaytonaSession:
         if data is None:
             raise FileNotFoundError(path)
         return data
-
-    def read_file_stream(self, path: str, *, chunk_size: int = 1024 * 1024):
-        return read_file_stream_via_commands(
-            self.run_command, path, chunk_size=chunk_size
-        )
 
     async def write_file(self, path: str, data: bytes) -> None:
         await asyncio.to_thread(self._sandbox.fs.upload_file, data, path)

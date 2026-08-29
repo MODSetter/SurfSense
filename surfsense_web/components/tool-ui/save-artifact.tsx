@@ -1,25 +1,19 @@
 "use client";
 
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { z } from "zod";
 import { artifactPanelAtom, openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
-import { Mp4VideoPlayer } from "@/components/tool-ui/video-presentation/mp4-player";
-import { Spinner } from "@/components/ui/spinner";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
-import {
-	artifactManifestQueryOptions,
-	invalidatePublishedArtifact,
-} from "@/features/artifacts/artifact-query";
+import { invalidatePublishedArtifact } from "@/features/artifacts/artifact-query";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
 import { extension } from "@/features/file-viewers/file-format";
-import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
 const SaveArtifactArgsSchema = z.object({
@@ -104,65 +98,6 @@ function ArtifactCard({
 	);
 }
 
-export function Mp4ArtifactCard({
-	artifactId,
-	title,
-	filename,
-	workspaceId,
-}: {
-	artifactId: number;
-	title: string;
-	filename: string;
-	workspaceId: number;
-}) {
-	const {
-		data: manifest,
-		error,
-		isPending,
-	} = useQuery(artifactManifestQueryOptions(workspaceId, artifactId));
-	const primary = manifest?.files.find((file) => file.role === "primary");
-	const videoSrc = primary?.mime_type === "video/mp4" ? buildBackendUrl(primary.content_url) : null;
-
-	return (
-		<div
-			className="my-4 w-full select-none overflow-hidden rounded-xl border bg-muted/30"
-			aria-busy={isPending}
-		>
-			<div className="flex items-center gap-3 p-4">
-				<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-					<ArtifactFormatIcon format="video" className="size-5 text-muted-foreground" />
-				</span>
-				<span className="min-w-0 flex-1">
-					<span className="block truncate text-sm font-medium">{title}</span>
-					<ArtifactFormatLabel format="video" className="mt-0.5 text-xs text-muted-foreground" />
-				</span>
-				<ArtifactDownloadButton
-					path={artifactDownloadPath(workspaceId, artifactId)}
-					filename={filename}
-					appearance="text"
-					className="h-9 shrink-0 rounded-md bg-popover px-3 text-sm font-normal text-foreground hover:bg-popover/80"
-				/>
-			</div>
-			<div className="border-t bg-black">
-				{isPending ? (
-					<div className="flex aspect-video items-center justify-center">
-						<Spinner size="lg" />
-					</div>
-				) : videoSrc ? (
-					<Mp4VideoPlayer src={videoSrc} />
-				) : (
-					<div
-						role="alert"
-						className="flex aspect-video items-center justify-center px-5 text-center text-sm text-white/70"
-					>
-						{error instanceof Error ? error.message : "Video preview is not available"}
-					</div>
-				)}
-			</div>
-		</div>
-	);
-}
-
 export const SaveArtifactToolUI = ({
 	args,
 	result,
@@ -184,30 +119,14 @@ export const SaveArtifactToolUI = ({
 
 	if (status.type !== "complete" || result?.status !== "saved" || !result.artifact_id) return null;
 	const primary = result.files?.find((file) => file.role === "primary");
-	const title = result.title || args.title || "Document";
-	const filename = primary?.filename ?? `${title}.md`;
-	if (
-		primary?.mime_type === "video/mp4" &&
-		!publicRoute &&
-		Number.isFinite(workspaceId) &&
-		workspaceId > 0
-	) {
-		return (
-			<Mp4ArtifactCard
-				artifactId={result.artifact_id}
-				title={title}
-				filename={filename}
-				workspaceId={workspaceId}
-			/>
-		);
-	}
 	const format = primary?.filename ? extension(primary.filename) : "file";
+	const title = result.title || args.title || "Document";
 	return (
 		<ArtifactCard
 			artifactId={result.artifact_id}
 			title={title}
 			format={format}
-			filename={filename}
+			filename={primary?.filename ?? `${title}.md`}
 			publicRoute={publicRoute}
 			toolCallId={toolCallId}
 		/>

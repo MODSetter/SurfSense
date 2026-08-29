@@ -33,10 +33,6 @@ class MemoryBackend(StorageBackend):
             raise RuntimeError("forced storage failure")
         self.data[key] = data
 
-    async def put_stream(self, key, chunks, *, content_type=None):
-        del content_type
-        self.data[key] = b"".join([chunk async for chunk in chunks])
-
     async def delete(self, key: str):
         self.data.pop(key, None)
 
@@ -48,12 +44,6 @@ class MemoryBackend(StorageBackend):
 
     def open_stream(self, key: str):
         return self._stream(key)
-
-    async def _range(self, key: str, start: int, end: int):
-        yield self.data[key][start : end + 1]
-
-    def open_range(self, key: str, start: int, end: int):
-        return self._range(key, start, end)
 
 
 @pytest.fixture

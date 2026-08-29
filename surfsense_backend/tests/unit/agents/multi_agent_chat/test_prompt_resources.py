@@ -87,7 +87,7 @@ def test_reports_and_resumes_default_to_pdf_without_format_clarification():
     assert "rather than substituting" in deliverables_prompt
     assert "a Markdown-only artifact or an inline draft" in deliverables_prompt
     assert (
-        '"artifact_type": "artifact" | "podcast" | "video_presentation" | "deliverable_job" | "image"'
+        '"artifact_type": "artifact" | "podcast" | "video_presentation" | "image"'
         in deliverables_prompt
     )
     assert 'Files saved through `save_artifact` use `type="artifact"`' in (

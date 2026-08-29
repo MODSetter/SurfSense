@@ -111,42 +111,6 @@ async def test_verify_tool_keeps_receipt_preview_path_backend_owned(monkeypatch)
     assert "preview_path" not in result
 
 
-async def test_full_video_render_uses_gate_config_and_records_segments(monkeypatch):
-    session = FakeSandboxSession(
-        command_handler=lambda _command: ExecResult(
-            "SURFSENSE_SEGMENT_SECONDS=1.25\nSURFSENSE_SEGMENT_COUNT=2",
-            0,
-        )
-    )
-    render_duration = []
-    segment_counts = []
-    monkeypatch.setattr(
-        sandbox_tools.ot_metrics,
-        "record_video_admission_wait",
-        lambda *_args, **_kwargs: None,
-    )
-    monkeypatch.setattr(
-        sandbox_tools.ot_metrics,
-        "record_video_render_duration",
-        lambda seconds, **kwargs: render_duration.append((seconds, kwargs)),
-    )
-    monkeypatch.setattr(
-        sandbox_tools.ot_metrics,
-        "record_video_segment_count",
-        segment_counts.append,
-    )
-
-    result = await sandbox_tools._run_bash(
-        session, "node render.mjs props.json /workspace/out.mp4"
-    )
-
-    assert result.ok
-    assert "VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT=" in session.commands[0]
-    assert "VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS=" in session.commands[0]
-    assert (1.25, {"scope": "segment"}) in render_duration
-    assert segment_counts == [2]
-
-
 def _patch_save_tool(monkeypatch, session: FakeSandboxSession) -> dict:
     """Point the save tool at a fake sandbox and capture what it persists."""
     captured: dict = {}
@@ -241,39 +205,6 @@ async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypa
     assert captured["extra_metadata"] == {
         "verification": {"verified": True, "reason": None}
     }
-    assert captured["format"] == "pdf"
-
-
-async def test_video_save_passes_a_stream_bound_to_receipt(monkeypatch):
-    path = "/workspace/out.mp4"
-    session = _sandbox(
-        {
-            path: b"large-video-bytes",
-            f"{path}.segments.json": (
-                b'{"render_workdir":"/workspace/video-render-1"}'
-            ),
-        }
-    )
-    await _add_receipt(session, path, format_name="video")
-    captured = _patch_save_tool(monkeypatch, session)
-
-    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
-    await tool.coroutine(
-        title="Video",
-        markdown_representation="# Video",
-        path=path,
-        runtime=_runtime(),
-    )
-
-    primary = captured["files"][0]
-    assert primary.mime_type == "video/mp4"
-    assert primary.expected_sha256 == sha256_bytes(b"large-video-bytes")
-    assert b"".join([chunk async for chunk in primary.chunks]) == b"large-video-bytes"
-    assert captured["format"] == "video"
-    assert any(
-        "/workspace/video-render-1" in command and path in command
-        for command in session.commands
-    )
 
 
 async def test_binary_save_uses_receipt_for_its_own_artifact(monkeypatch):
@@ -709,7 +640,9 @@ async def test_execute_python_uses_unique_one_shot_scripts_and_cleans_up(monkeyp
     assert "/tmp/.surfsense-exec-first.py" in execution_commands[0]
     assert "/tmp/.surfsense-exec-second.py" in execution_commands[1]
     assert all("cd -- /workspace" in command for command in execution_commands)
-    assert all("code-interpreter-env.sh" in command for command in execution_commands)
+    assert all(
+        "code-interpreter-env.sh" in command for command in execution_commands
+    )
     assert all(
         "timeout --signal=TERM --kill-after=5s" in command
         for command in execution_commands

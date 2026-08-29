@@ -22,11 +22,6 @@ surfsense_web/playwright-report/
 surfsense_web/test-results/
 surfsense_web/blob-report/
 
-# Local Remotion harness fixtures and tests
-docker/sandbox/remotion/fixtures/
-docker/sandbox/remotion/tests/
-docker/sandbox/remotion/progress.json
-
 content_research/
 automation-design-plan.md
 automation-frontend-builder-plan.md

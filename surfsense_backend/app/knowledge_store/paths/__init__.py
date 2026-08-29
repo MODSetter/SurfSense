@@ -40,7 +40,6 @@ from app.knowledge_store.paths.store_path import (
     PATH_MARKER,
     StorePath,
     StorePathError,
-    recorded_virtual_path,
 )
 
 __all__ = [
@@ -57,7 +56,6 @@ __all__ = [
     "normalize_filename",
     "parse_doc_id_suffix",
     "parse_documents_path",
-    "recorded_virtual_path",
     "safe_filename",
     "safe_folder_segment",
     "to_store_path",

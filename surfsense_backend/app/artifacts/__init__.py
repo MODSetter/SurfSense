@@ -2,7 +2,6 @@
 
 from .service import (
     ArtifactFileInput,
-    ArtifactFileStreamInput,
     ArtifactSaved,
     ArtifactSavedFile,
     persist_artifact,
@@ -11,7 +10,6 @@ from .service import (
 
 __all__ = [
     "ArtifactFileInput",
-    "ArtifactFileStreamInput",
     "ArtifactSaved",
     "ArtifactSavedFile",
     "persist_artifact",

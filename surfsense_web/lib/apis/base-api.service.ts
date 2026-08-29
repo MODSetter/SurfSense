@@ -97,7 +97,6 @@ function safeHost(url: string): string | null {
 
 export type RequestOptions = {
 	method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-	sameOrigin?: boolean;
 	headers?: Record<string, string>;
 	contentType?: "application/json" | "application/x-www-form-urlencoded";
 	signal?: AbortSignal;
@@ -171,7 +170,7 @@ class BaseApiService {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
-			const fullUrl = mergedOptions.sameOrigin ? url : buildBackendUrl(url);
+			const fullUrl = buildBackendUrl(url);
 
 			// Prepare fetch options
 			const fetchOptions: RequestInit = {

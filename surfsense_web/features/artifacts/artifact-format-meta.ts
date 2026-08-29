@@ -7,10 +7,9 @@ import {
 	ImageIcon,
 	Presentation,
 	Shapes,
-	Video,
 } from "lucide-react";
 
-export type ArtifactGroupKey = "files" | "podcasts" | "videos" | "presentations" | "images";
+export type ArtifactGroupKey = "files" | "podcasts" | "presentations" | "images";
 
 export type ArtifactViewingMode = "viewer" | "inline-media";
 
@@ -26,7 +25,6 @@ export interface ArtifactFormatMeta {
 export const ARTIFACT_GROUP_ORDER: readonly ArtifactGroupKey[] = [
 	"files",
 	"podcasts",
-	"videos",
 	"presentations",
 	"images",
 ];
@@ -102,11 +100,10 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		viewingMode: "inline-media",
 	},
 	video: {
-		icon: Video,
-		label: "Video",
-		detailLabel: "MP4",
-		groupKey: "videos",
-		groupLabel: "Videos",
+		icon: Presentation,
+		label: "Presentation",
+		groupKey: "presentations",
+		groupLabel: "Presentations",
 		viewingMode: "inline-media",
 	},
 	image: {

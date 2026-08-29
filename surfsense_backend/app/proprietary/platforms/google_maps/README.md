@@ -54,10 +54,8 @@ data brokers / the business's own website — out of scope for public-Maps-only)
 
 ```python
 from app.proprietary.scrapers.google_maps import (
-    GoogleMapsScrapeInput,
-    scrape_places,
-    GoogleMapsReviewsInput,
-    scrape_reviews,
+    GoogleMapsScrapeInput, scrape_places,
+    GoogleMapsReviewsInput, scrape_reviews,
 )
 
 # Places — search terms, direct URLs, and placeIds are all additive.

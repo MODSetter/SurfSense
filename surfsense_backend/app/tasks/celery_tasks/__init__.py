@@ -109,16 +109,6 @@ def _dispose_shared_checkpointer_pool(loop: asyncio.AbstractEventLoop) -> None:
         logger.warning("Shared checkpointer pool dispose() failed", exc_info=True)
 
 
-def _reset_shared_sandbox_registry() -> None:
-    """Drop SDK clients and locks retained from a previous task's closed loop."""
-    try:
-        from app.sandbox.registry import reset_registry_for_new_event_loop
-
-        reset_registry_for_new_event_loop()
-    except Exception:
-        logger.warning("Shared sandbox registry reset failed", exc_info=True)
-
-
 T = TypeVar("T")
 
 
@@ -155,7 +145,6 @@ def run_async_celery_task[T](coro_factory: Callable[[], Awaitable[T]]) -> T:
         # disposing. Idempotent — no-op if pool is already empty.
         _dispose_shared_db_engine(loop)
         _dispose_shared_checkpointer_pool(loop)
-        _reset_shared_sandbox_registry()
         return loop.run_until_complete(coro_factory())
     finally:
         # Drop any connections this task opened so they don't leak

@@ -547,10 +547,6 @@ class Config:
         "KNOWLEDGE_STORE_ROOT",
         os.path.join(FILE_STORAGE_LOCAL_PATH, "knowledge_store"),
     )
-    # GitHub App used to push a git-native workspace to the user's GitHub repo.
-    GITHUB_APP_ID = os.getenv("GITHUB_APP_ID", "")
-    GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
-    GITHUB_APP_SLUG = os.getenv("GITHUB_APP_SLUG", "")
 
     # Daytona sandbox (code execution / filesystem sandbox)
     DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")
@@ -581,19 +577,6 @@ class Config:
     )
     SANDBOX_MAX_SESSIONS_PER_WORKSPACE = int(
         os.getenv("SANDBOX_MAX_SESSIONS_PER_WORKSPACE", "5")
-    )
-    VIDEO_SANDBOX_RENDERING_ENABLED = (
-        os.getenv("VIDEO_SANDBOX_RENDERING_ENABLED", "FALSE").strip().upper() == "TRUE"
-    )
-    # Per API worker in v1; fleet capacity is workers x this value.
-    VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS = int(
-        os.getenv("VIDEO_SANDBOX_MAX_CONCURRENT_RENDERS", "1")
-    )
-    VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT = int(
-        os.getenv("VIDEO_SANDBOX_MAX_FRAMES_PER_SEGMENT", "1800")
-    )
-    VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS = int(
-        os.getenv("VIDEO_SANDBOX_RENDER_FRAME_TIMEOUT_MS", "7000")
     )
     ARTIFACT_MAX_FILE_BYTES = int(os.getenv("ARTIFACT_MAX_FILE_BYTES", "31457280"))
 

@@ -5,7 +5,6 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { artifactChatHref } from "@/features/chat-artifacts/lib/artifact-deep-link";
 import { useLibraryArtifacts } from "../hooks/use-library-artifacts";
-import { useLibraryDeliverableJobs } from "../hooks/use-library-deliverable-jobs";
 import { useLibraryPodcastRuns } from "../hooks/use-library-podcast-runs";
 import { useLibraryVideoRuns } from "../hooks/use-library-video-runs";
 import { ArtifactCard } from "./artifact-card";
@@ -61,16 +60,15 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 	const { artifacts, loading, error, refresh } = useLibraryArtifacts(workspaceId);
 	const liveVideoRuns = useLibraryVideoRuns(workspaceId);
 	const livePodcastRuns = useLibraryPodcastRuns(workspaceId);
-	const liveDeliverableJobs = useLibraryDeliverableJobs(workspaceId);
 
 	// Delivered media comes from the Artifact API (react-query); in-flight and
 	// failed runs arrive by push from Zero. Merge newest-first.
 	const merged = useMemo(
 		() =>
-			[...artifacts, ...liveVideoRuns, ...livePodcastRuns, ...liveDeliverableJobs].sort(
+			[...artifacts, ...liveVideoRuns, ...livePodcastRuns].sort(
 				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 			),
-		[artifacts, liveVideoRuns, livePodcastRuns, liveDeliverableJobs]
+		[artifacts, liveVideoRuns, livePodcastRuns]
 	);
 
 	return (
