@@ -17,7 +17,7 @@ from sqlalchemy.orm import joinedload
 
 from app.config import config
 from app.db import Chunk, Document, DocumentType
-from app.observability import metrics, otel
+from app.observability.domains import kb
 from app.utils.perf import get_perf_logger
 
 from .models import ChunkHit, DocumentHit, SearchScope
@@ -43,7 +43,7 @@ async def search_chunks(
     timing line. The fusion logic lives in :func:`_search`.
     """
     started = time.perf_counter()
-    with otel.kb_search_span(
+    with kb.kb_search_span(
         workspace_id=workspace_id,
         query_chars=len(query),
         extra={"search.surface": _SURFACE, "search.mode": "hybrid"},
@@ -59,7 +59,7 @@ async def search_chunks(
             )
         finally:
             elapsed_ms = (time.perf_counter() - started) * 1000
-            metrics.record_kb_search_duration(
+            kb.record_kb_search_duration(
                 elapsed_ms, workspace_id=workspace_id, surface=_SURFACE
             )
         span.set_attribute("result.count", len(documents))

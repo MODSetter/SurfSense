@@ -12,7 +12,7 @@ from app.etl_pipeline.cache.persistence import CachedParseRepository
 from app.etl_pipeline.cache.schemas import EvictionCandidate
 from app.etl_pipeline.cache.settings import load_etl_cache_settings
 from app.etl_pipeline.cache.storage import MarkdownCacheStore
-from app.observability import metrics
+from app.observability.domains import etl
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
@@ -64,5 +64,5 @@ async def _drop(
         with contextlib.suppress(Exception):
             await store.delete(candidate.storage_key)
     await index.delete_by_ids([candidate.id for candidate in candidates])
-    metrics.record_etl_cache_eviction(len(candidates), phase=phase)
+    etl.record_etl_cache_eviction(len(candidates), phase=phase)
     logger.info("Evicted %d cached parses (%s)", len(candidates), phase)

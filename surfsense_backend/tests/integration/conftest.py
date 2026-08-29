@@ -36,6 +36,22 @@ TEST_DATABASE_URL = importlib.import_module("tests.conftest").TEST_DATABASE_URL
 _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_knowledge_store_root(tmp_path_factory):
+    """Keep every test's git repos off the real ``KNOWLEDGE_STORE_ROOT``.
+
+    The store root is a shared on-disk path keyed by workspace id, and the test
+    schema is recreated per session, so test workspaces reuse low ids. A test
+    writing to the real root therefore overwrites the dev workspace repo with
+    the same id — which has silently clobbered local data before. Redirect to a
+    throwaway session dir; per-test fixtures may still narrow it further.
+    """
+    original = app_config.KNOWLEDGE_STORE_ROOT
+    app_config.KNOWLEDGE_STORE_ROOT = str(tmp_path_factory.mktemp("knowledge_store"))
+    yield
+    app_config.KNOWLEDGE_STORE_ROOT = original
+
+
 @pytest_asyncio.fixture(scope="session")
 async def async_engine():
     engine = create_async_engine(

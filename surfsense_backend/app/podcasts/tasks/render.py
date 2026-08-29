@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import logging
 import tempfile
+import time
 from pathlib import Path
 
 from sqlalchemy import select
 
 from app.celery_app import celery_app
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
+from app.observability.domains import media
 from app.podcasts.persistence import PodcastRepository, PodcastStatus
 from app.podcasts.rendering import PodcastRenderer
 from app.podcasts.service import (
@@ -35,10 +37,20 @@ _WORKDIR_BASE = Path(tempfile.gettempdir()) / "surfsense_podcasts"
 
 @celery_app.task(name="podcast.render_audio", bind=True)
 def render_audio_task(self, podcast_id: int) -> dict:
+    t0 = time.perf_counter()
     try:
-        return run_async_celery_task(lambda: _render_audio(podcast_id))
+        result = run_async_celery_task(lambda: _render_audio(podcast_id))
+        media.record_media_render(
+            time.perf_counter() - t0,
+            kind="podcast",
+            status=result.get("status", "ready"),
+        )
+        return result
     except Exception as exc:
         logger.error("Podcast %s render failed: %s", podcast_id, exc)
+        media.record_media_render(
+            time.perf_counter() - t0, kind="podcast", status="failed"
+        )
         message = str(exc)
         run_async_celery_task(lambda: mark_failed(podcast_id, message))
         return {"status": "failed", "podcast_id": podcast_id}

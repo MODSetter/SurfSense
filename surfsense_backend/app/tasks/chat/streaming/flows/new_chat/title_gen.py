@@ -21,11 +21,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.future import select
 
 from app.db import NewChatMessage, NewChatThread, shielded_async_session
+from app.observability.domains import agent
 from app.prompts import TITLE_GENERATION_PROMPT
 from app.services.new_streaming_service import VercelStreamingService
 
@@ -120,17 +122,29 @@ async def _generate_title(
         )
         messages = [{"role": "user", "content": prompt}]
 
-        if getattr(llm, "model", None) == "auto":
-            router = LLMRouterService.get_router()
-            response = await router.acompletion(model="auto", messages=messages)
-        else:
-            raw_model = getattr(llm, "model", "") or ""
-            response = await acompletion(
-                model=raw_model,
-                messages=messages,
-                api_key=getattr(llm, "api_key", None),
-                api_base=getattr(llm, "api_base", None),
-            )
+        # gen_ai span for a direct litellm/router call the agent middleware and
+        # the ChatLiteLLMRouter chokepoint never see (title gen runs off-agent).
+        _title_model = getattr(llm, "model", "") or ""
+        _t0 = time.perf_counter()
+        with agent.model_call_span(model_id=_title_model or None):
+            try:
+                if getattr(llm, "model", None) == "auto":
+                    router = LLMRouterService.get_router()
+                    response = await router.acompletion(model="auto", messages=messages)
+                else:
+                    raw_model = getattr(llm, "model", "") or ""
+                    response = await acompletion(
+                        model=raw_model,
+                        messages=messages,
+                        api_key=getattr(llm, "api_key", None),
+                        api_base=getattr(llm, "api_base", None),
+                    )
+            finally:
+                agent.record_model_call_duration(
+                    (time.perf_counter() - _t0) * 1000,
+                    model=_title_model or None,
+                    provider=None,
+                )
 
         usage_info = None
         usage = getattr(response, "usage", None)
@@ -147,6 +161,12 @@ async def _generate_title(
                 "completion_tokens": getattr(usage, "completion_tokens", 0) or 0,
                 "total_tokens": getattr(usage, "total_tokens", 0) or 0,
             }
+            agent.record_model_token_usage(
+                input_tokens=usage_info["prompt_tokens"],
+                output_tokens=usage_info["completion_tokens"],
+                model=model_name,
+                provider=None,
+            )
 
         raw_title = response.choices[0].message.content.strip()
         if raw_title and len(raw_title) <= 100:

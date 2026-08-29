@@ -16,7 +16,7 @@ tells the user what to change.
 from __future__ import annotations
 
 from app.agents.chat.runtime.llm_config import AgentConfig
-from app.observability import otel as ot
+from app.observability.signals import tracing
 
 
 def check_image_input_capability(
@@ -47,5 +47,5 @@ def check_image_input_capability(
     ):
         return None
 
-    ot.add_event("quota.denied", {"quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"})
+    tracing.add_event("quota.denied", {"quota.code": "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"})
     return "MODEL_DOES_NOT_SUPPORT_IMAGE_INPUT"

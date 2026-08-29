@@ -22,7 +22,7 @@ from app.db import (
 )
 from app.gateway.accounts import get_or_create_system_whatsapp_account
 from app.gateway.inbox import persist_inbound_event
-from app.observability.metrics import (
+from app.observability.domains.gateway import (
     record_gateway_inbox_write,
     record_gateway_outbound,
     record_gateway_webhook_parse_error,

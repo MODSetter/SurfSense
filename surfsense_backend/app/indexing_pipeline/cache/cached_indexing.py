@@ -26,7 +26,7 @@ from app.indexing_pipeline.document_chunker import (
     chunk_text_hybrid,
 )
 from app.indexing_pipeline.document_embedder import embed_texts
-from app.observability import metrics
+from app.observability.domains import indexing
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def build_chunk_embeddings(
 
     cached = await _recall(key)
     if cached is not None:
-        metrics.record_embedding_cache_lookup(
+        indexing.record_embedding_cache_lookup(
             embedding_model=key.embedding_model,
             chunker_kind=chunker_kind,
             outcome="hit",
@@ -90,7 +90,7 @@ async def build_chunk_embeddings(
             markdown, [(c.text, c.embedding) for c in cached.chunks]
         )
 
-    metrics.record_embedding_cache_lookup(
+    indexing.record_embedding_cache_lookup(
         embedding_model=key.embedding_model, chunker_kind=chunker_kind, outcome="miss"
     )
     summary_embedding, chunk_pairs = await _compute(

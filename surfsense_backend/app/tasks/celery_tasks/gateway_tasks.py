@@ -18,7 +18,7 @@ from app.db import (
 from app.gateway.inbox import persist_inbound_event, telegram_event_dedupe_key
 from app.gateway.registry import resolve_platform_bundle
 from app.gateway.telegram.adapter import TelegramAdapter
-from app.observability.metrics import (
+from app.observability.domains.gateway import (
     record_gateway_health_check_failure,
     record_gateway_inbound_reconciled,
 )

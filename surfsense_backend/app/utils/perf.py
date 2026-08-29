@@ -16,7 +16,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 
-from app.observability import metrics as ot_metrics
+from app.observability.signals import metrics as ot_metrics
 
 _perf_log: logging.Logger | None = None
 _last_rss_mb: float = 0.0

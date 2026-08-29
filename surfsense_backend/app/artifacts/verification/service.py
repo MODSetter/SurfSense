@@ -11,6 +11,7 @@ from typing import Any
 from langchain_core.callbacks import dispatch_custom_event
 
 from app.config import config as app_config
+from app.observability.domains import media
 from app.sandbox import SandboxSession
 
 from .formats.base import FormatAdapter, StructuralCheckResult
@@ -104,6 +105,8 @@ async def verify_artifact(
             )
         except Exception as exc:
             logger.warning("Artifact verification failed: %s", exc, exc_info=True)
+            if primary_path.lower().endswith(".mp4"):
+                media.record_video_verify_failure("structural")
             return VerificationResult(
                 verified=False,
                 findings=(_public_verification_error(exc),),
@@ -150,18 +153,34 @@ async def _verify_artifact(
 ) -> VerificationResult:
     adapter = get_format_adapter(primary_path)
     _progress("checking", "Checking document structure")
-    primary_data = await session.read_file(primary_path)
-    if len(primary_data) > app_config.ARTIFACT_MAX_FILE_BYTES:
-        return VerificationResult(
-            verified=False,
-            findings=(
-                f"Artifact is {len(primary_data)} bytes; limit is "
-                f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes",
-            ),
-        )
-
-    structural = adapter.check(primary_data)
+    primary_data: bytes | None = None
+    if adapter.sandbox_check is not None:
+        sandbox_result = await adapter.sandbox_check(session, primary_path)
+        structural = sandbox_result.structural
+        primary_sha256 = sandbox_result.primary_sha256
+    else:
+        primary_data = await session.read_file(primary_path)
+        if len(primary_data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            return VerificationResult(
+                verified=False,
+                findings=(
+                    f"Artifact is {len(primary_data)} bytes; limit is "
+                    f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes",
+                ),
+            )
+        structural = adapter.check(primary_data)
+        primary_sha256 = sha256_bytes(primary_data)
     if not structural.clean:
+        if adapter.name == "video":
+            text = " ".join(structural.findings).lower()
+            reason = (
+                "frame_sanity"
+                if "blank" in text or "single-color" in text
+                else "concat_duration"
+                if "segments" in text
+                else "structural"
+            )
+            media.record_video_verify_failure(reason)
         return VerificationResult(
             verified=False,
             findings=structural.findings,
@@ -188,7 +207,7 @@ async def _verify_artifact(
             session_id=session.session_id,
             format=adapter.name,
             primary_path=primary_path,
-            primary_sha256=sha256_bytes(primary_data),
+            primary_sha256=primary_sha256,
             preview_path=None,
             preview_sha256=None,
             page_count=None,
@@ -206,6 +225,8 @@ async def _verify_artifact(
             page_count=structural.page_count,
         )
 
+    if primary_data is None:
+        raise ValueError("Sandbox-checked artifacts cannot use visual verification")
     _progress(
         "converting" if adapter.convert_to_pdf else "preparing",
         "Converting document to PDF"

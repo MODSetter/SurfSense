@@ -53,6 +53,9 @@ export const cacheKeys = {
 		withQueryParams: (queries: GetWorkspacesRequest["queryParams"]) =>
 			["workspaces", ...stableEntries(queries)] as const,
 		detail: (workspaceId: string) => ["workspaces", workspaceId] as const,
+		gitRemotes: (workspaceId: number) => ["workspaces", workspaceId, "git-remotes"] as const,
+		githubRepos: (workspaceId: number, installationId: string) =>
+			["workspaces", workspaceId, "github-repos", installationId] as const,
 	},
 	user: {
 		current: () => ["user", "me"] as const,

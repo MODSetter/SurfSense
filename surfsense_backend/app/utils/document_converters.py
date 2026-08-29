@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import logging
 import threading
+import time
 import warnings
 
 import numpy as np
@@ -9,6 +10,7 @@ from litellm import get_model_info, token_counter
 
 from app.config import config
 from app.db import Chunk, DocumentType
+from app.observability.domains import embedding
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +62,19 @@ def embed_text(text: str) -> np.ndarray:
     """Truncate text to fit and embed it. Drop-in replacement for
     ``config.embedding_model_instance.embed(text)`` that never exceeds the
     model's context window."""
-    with _embedding_lock:
-        return config.embedding_model_instance.embed(truncate_for_embedding(text))
+    t0 = time.perf_counter()
+    with embedding.embedding_span(count=1, model=config.EMBEDDING_MODEL):
+        try:
+            with _embedding_lock:
+                return config.embedding_model_instance.embed(
+                    truncate_for_embedding(text)
+                )
+        finally:
+            embedding.record_embedding_duration(
+                (time.perf_counter() - t0) * 1000,
+                model=config.EMBEDDING_MODEL,
+                count=1,
+            )
 
 
 def embed_texts(texts: list[str]) -> list[np.ndarray]:
@@ -75,11 +88,22 @@ def embed_texts(texts: list[str]) -> list[np.ndarray]:
     """
     if not texts:
         return []
-    with _embedding_lock:
-        truncated = [truncate_for_embedding(t) for t in texts]
-        if config.is_local_embedding_model:
-            return [config.embedding_model_instance.embed(t) for t in truncated]
-        return config.embedding_model_instance.embed_batch(truncated)
+    t0 = time.perf_counter()
+    with embedding.embedding_span(count=len(texts), model=config.EMBEDDING_MODEL):
+        try:
+            with _embedding_lock:
+                truncated = [truncate_for_embedding(t) for t in texts]
+                if config.is_local_embedding_model:
+                    return [
+                        config.embedding_model_instance.embed(t) for t in truncated
+                    ]
+                return config.embedding_model_instance.embed_batch(truncated)
+        finally:
+            embedding.record_embedding_duration(
+                (time.perf_counter() - t0) * 1000,
+                model=config.EMBEDDING_MODEL,
+                count=len(texts),
+            )
 
 
 def get_model_context_window(model_name: str) -> int:

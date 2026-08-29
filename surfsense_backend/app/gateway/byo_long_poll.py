@@ -18,7 +18,7 @@ from app.gateway.accounts import account_token
 from app.gateway.inbox import persist_inbound_event
 from app.gateway.runner import _run_telegram_account
 from app.gateway.whatsapp.adapter_baileys import WhatsAppBaileysAdapter
-from app.observability.metrics import record_gateway_inbox_write
+from app.observability.domains.gateway import record_gateway_inbox_write
 
 logger = logging.getLogger(__name__)
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
+
+from app.sandbox import SandboxSession
 
 DEFAULT_RENDERED_MIN_CHARS = 20
 ReviewKind = Literal["document", "slides"]
@@ -22,6 +24,12 @@ class StructuralCheckResult:
 
 
 @dataclass(frozen=True, slots=True)
+class SandboxCheckResult:
+    structural: StructuralCheckResult
+    primary_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
 class FormatAdapter:
     name: str
     suffix: str
@@ -34,3 +42,6 @@ class FormatAdapter:
     # Orthogonal to convert_to_pdf: PDF keeps convert_to_pdf=False but still
     # needs eyes. Spreadsheets set this False and never enter the visual path.
     requires_visual_review: bool = True
+    sandbox_check: (
+        Callable[[SandboxSession, str], Awaitable[SandboxCheckResult]] | None
+    ) = None

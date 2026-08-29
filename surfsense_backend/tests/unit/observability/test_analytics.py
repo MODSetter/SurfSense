@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.observability import analytics
+from app.observability.analytics import posthog as analytics
 
 pytestmark = pytest.mark.unit
 

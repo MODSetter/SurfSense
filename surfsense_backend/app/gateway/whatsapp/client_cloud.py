@@ -9,7 +9,7 @@ import httpx
 from app.config import config
 from app.gateway.base.adapter import PlatformSendResult
 from app.gateway.ratelimit import wait_for_token
-from app.observability.metrics import record_gateway_rate_limit_hit
+from app.observability.domains.gateway import record_gateway_rate_limit_hit
 
 
 class WhatsAppCloudClient:

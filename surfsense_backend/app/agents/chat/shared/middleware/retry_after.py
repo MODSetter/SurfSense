@@ -16,7 +16,8 @@ Behaviour:
 - Extracts ``Retry-After`` / ``retry-after-ms`` from
   ``litellm.exceptions.RateLimitError.response.headers`` (or any exception
   exposing a similar shape).
-- Sleeps ``max(exponential_backoff, header_delay)`` between retries.
+- Sleeps ``max(exponential_backoff, header_delay)`` between retries,
+  capped at ``max_delay``.
 - Returns ``False`` from ``retry_on`` for context overflow so
   :class:`SurfSenseCompactionMiddleware` (or the LangChain summarization
   fallback path) handles it instead, and for the other categories a retry
@@ -33,7 +34,7 @@ import logging
 import random
 import re
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from langchain.agents.middleware.types import (
@@ -47,7 +48,8 @@ from langchain.agents.middleware.types import (
 from langchain_core.callbacks import adispatch_custom_event, dispatch_custom_event
 from langchain_core.messages import AIMessage
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.core.errors import categorize_exception
+from app.observability.signals import tracing
 from app.services.llm_error_adapter import LLMErrorCategory, adapt_llm_exception
 
 logger = logging.getLogger(__name__)
@@ -89,14 +91,18 @@ def _extract_retry_after_seconds(exc: BaseException) -> float | None:
     to a regex on the exception message for shapes like
     ``"Please retry after 30s"``.
     """
-    headers: dict[str, Any] | None = None
+    headers: Mapping[str, Any] | None = None
     response = getattr(exc, "response", None)
     if response is not None:
         headers = getattr(response, "headers", None)
     if headers is None:
         headers = getattr(exc, "headers", None)
 
-    if isinstance(headers, dict):
+    # ``Mapping``, not ``dict``: litellm rebuilds the error's ``response`` as an
+    # ``httpx.Response``, whose ``.headers`` is ``httpx.Headers`` -- a Mapping
+    # that is not a dict subclass. A ``dict`` check silently skips every real
+    # provider response.
+    if isinstance(headers, Mapping):
         # Normalize keys to lowercase for case-insensitive matching
         norm = {str(k).lower(): v for k, v in headers.items()}
         ms = norm.get("retry-after-ms")
@@ -197,7 +203,10 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
             jitter=self.jitter,
         )
         header = _extract_retry_after_seconds(exc) or 0.0
-        return max(backoff, header)
+        # ``max_delay`` caps the header hint as well as the backoff: this loop
+        # runs inside the live turn, holding the SSE stream, the thread's busy
+        # lock and the DB session for whatever it sleeps.
+        return min(max(backoff, header), self.max_delay)
 
     def wrap_model_call(  # type: ignore[override]
         self,
@@ -211,13 +220,13 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                 if not self._should_retry(exc) or attempt >= self.max_retries:
                     raise
                 delay = self._delay_for_attempt(attempt, exc)
-                ot.add_event(
+                tracing.add_event(
                     "model.retry.scheduled",
                     {
                         "retry.attempt": attempt + 1,
                         "retry.max": self.max_retries,
                         "retry.delay_ms": int(delay * 1000),
-                        "retry.reason": ot_metrics.categorize_exception(exc),
+                        "retry.reason": categorize_exception(exc),
                     },
                 )
                 try:
@@ -253,13 +262,13 @@ class RetryAfterMiddleware(AgentMiddleware[AgentState[ResponseT], ContextT, Resp
                 if not self._should_retry(exc) or attempt >= self.max_retries:
                     raise
                 delay = self._delay_for_attempt(attempt, exc)
-                ot.add_event(
+                tracing.add_event(
                     "model.retry.scheduled",
                     {
                         "retry.attempt": attempt + 1,
                         "retry.max": self.max_retries,
                         "retry.delay_ms": int(delay * 1000),
-                        "retry.reason": ot_metrics.categorize_exception(exc),
+                        "retry.reason": categorize_exception(exc),
                     },
                 )
                 try:

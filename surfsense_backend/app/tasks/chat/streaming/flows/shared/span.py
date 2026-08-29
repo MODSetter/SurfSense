@@ -6,7 +6,7 @@ import contextlib
 import sys
 from typing import Any, Literal
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.domains import chat
 
 
 def open_chat_request_span(
@@ -21,7 +21,7 @@ def open_chat_request_span(
     agent_mode: str,
 ) -> tuple[Any, Any]:
     """Open the per-request span; returns ``(span_cm, span)`` for finally-close."""
-    span_cm = ot.chat_request_span(
+    span_cm = chat.chat_request_span(
         chat_id=chat_id,
         workspace_id=workspace_id,
         flow=flow,
@@ -54,13 +54,13 @@ def close_chat_request_span(
     """Record metrics + close the span. Swallows errors (finally-block context)."""
     with contextlib.suppress(Exception):
         span.set_attribute("chat.outcome", chat_outcome)
-        ot_metrics.record_chat_request_duration(
+        chat.record_chat_request_duration(
             duration_seconds * 1000,
             flow=flow,
             outcome=chat_outcome,
             agent_mode=chat_agent_mode,
         )
-        ot_metrics.record_chat_request_outcome(
+        chat.record_chat_request_outcome(
             flow=flow,
             outcome=chat_outcome,
             agent_mode=chat_agent_mode,

@@ -14,7 +14,7 @@ from app.config import config
 from app.db import ExternalChatPlatform, async_session_maker
 from app.gateway.accounts import get_discord_account_by_guild
 from app.gateway.inbox import discord_message_dedupe_key, persist_inbound_event
-from app.observability.metrics import record_gateway_inbox_write
+from app.observability.domains.gateway import record_gateway_inbox_write
 
 logger = logging.getLogger(__name__)
 

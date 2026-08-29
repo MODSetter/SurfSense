@@ -15,7 +15,8 @@ from collections.abc import Iterator
 from typing import Any, Literal
 
 from app.agents.chat.runtime.errors import BusyError
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.core.errors import categorize_exception
+from app.observability.signals import tracing
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.streaming.errors.classifier import classify_stream_exception
 from app.tasks.chat.streaming.errors.emitter import emit_stream_terminal_error
@@ -59,14 +60,14 @@ def handle_terminal_exception(
         error_extra,
     ) = classify_stream_exception(exc, flow_label=flow_label)
     chat_outcome = error_code or error_kind or "error"
-    chat_error_category = ot_metrics.categorize_exception(exc)
+    chat_error_category = categorize_exception(exc)
     record_outcome_attrs(
         chat_span,
         chat_outcome=chat_outcome,
         chat_error_category=chat_error_category,
     )
     with __suppress():
-        ot.record_error(chat_span, exc)
+        tracing.record_error(chat_span, exc)
     error_message = f"Error during {flow_label}: {exc!s}"
     # Match the original behavior: log full traceback via ``print`` so it lands
     # in stderr regardless of the logger config.

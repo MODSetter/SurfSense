@@ -28,7 +28,7 @@ from app.db import (
     WorkspaceRole,
     get_async_session,
 )
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.schemas import (
     InviteAcceptRequest,
     InviteAcceptResponse,

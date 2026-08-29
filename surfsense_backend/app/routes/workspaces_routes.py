@@ -15,7 +15,7 @@ from app.db import (
     get_async_session,
     get_default_roles_config,
 )
-from app.observability import analytics as ph_analytics
+from app.observability.analytics import posthog as ph_analytics
 from app.routes.model_connections_routes import compute_llm_setup_status
 from app.schemas import (
     WorkspaceApiAccessUpdate,

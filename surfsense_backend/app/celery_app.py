@@ -40,10 +40,13 @@ def _record_queue_latency(task=None, **_kwargs):
     if task is None:
         return
     try:
-        from app.observability import metrics as ot_metrics
+        from app.observability.domains.celery import (
+            parse_celery_task_label,
+            record_celery_queue_latency,
+        )
 
         task_name = getattr(task, "name", None) or "unknown"
-        operation = ot_metrics.parse_celery_task_label(task_name)
+        operation = parse_celery_task_label(task_name)
         request = getattr(task, "request", None)
         delivery_info = getattr(request, "delivery_info", None) or {}
         queue = delivery_info.get("routing_key") or "unknown"
@@ -65,7 +68,7 @@ def _record_queue_latency(task=None, **_kwargs):
         with contextlib.suppress(Exception):
             request.surfsense_queue_latency_ms = elapsed_s * 1000
 
-        ot_metrics.record_celery_queue_latency(
+        record_celery_queue_latency(
             elapsed_s,
             task_name=task_name,
             queue=queue,
@@ -107,7 +110,7 @@ def init_worker(**kwargs):
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
     like agent workflows and image generation.
     """
-    from app.observability.bootstrap import init_otel
+    from app.observability.setup.lifecycle import init_otel
 
     init_otel(app=None, traces=True, metrics=True, logs=True)
 
@@ -131,7 +134,7 @@ def shutdown_worker(**kwargs):
     The analytics client init is lazy (fork-safe), so there is nothing to
     start here — only a flush to avoid dropping events captured by tasks.
     """
-    from app.observability import analytics as ph_analytics
+    from app.observability.analytics import posthog as ph_analytics
 
     ph_analytics.shutdown()
 
@@ -206,9 +209,11 @@ celery_app = Celery(
         "app.tasks.celery_tasks.knowledge_store.janitor_task",
         "app.tasks.celery_tasks.knowledge_store.index_tasks",
         "app.tasks.celery_tasks.knowledge_store.drift_monitor_task",
+        "app.tasks.celery_tasks.knowledge_store.push_task",
         "app.tasks.celery_tasks.auto_reload_task",
         "app.tasks.celery_tasks.gateway_tasks",
         "app.tasks.celery_tasks.model_compatibility_task",
+        "app.tasks.celery_tasks.deliverable_job_tasks",
         "app.etl_pipeline.cache.eviction.task",
         "app.indexing_pipeline.cache.eviction.task",
         "app.automations.tasks.execute_run",
@@ -327,6 +332,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="3", minute="17"),
         "options": {"expires": 600},
     },
+    "reconcile-queued-deliverables": {
+        "task": "deliverables.reconcile_queued",
+        "schedule": crontab(minute="*"),
+        "options": {"expires": 55},
+    },
     "purge-refresh-tokens": {
         "task": "purge_refresh_tokens",
         "schedule": crontab(hour="3", minute="41"),
@@ -357,6 +367,14 @@ celery_app.conf.beat_schedule = {
     "reindex-drifted-workspaces": {
         "task": "reindex_drifted_workspaces",
         "schedule": crontab(minute="20"),
+        "options": {"expires": 600},
+    },
+    # Re-drive remotes whose last-pushed stamp trails the store HEAD. Same
+    # hourly cadence as the index sweep: fire-and-forget push is the only
+    # recovery for a broker drop after a save.
+    "push-lagging-workspace-remotes": {
+        "task": "push_lagging_workspace_remotes",
+        "schedule": crontab(minute="25"),
         "options": {"expires": 600},
     },
     # Parity-check flipped workspaces against git by content address. Covers the

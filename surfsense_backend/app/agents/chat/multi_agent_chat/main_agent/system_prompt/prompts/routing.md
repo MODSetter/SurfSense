@@ -86,8 +86,8 @@ Explicit format requests still win: editable Word → DOCX, slides or a
 presentation → PPTX, and a workbook or spreadsheet → XLSX.
 
 **Video media.** Requests whose requested output is a video, animation, or
-narrated audiovisual presentation go to `task(deliverables, …)` with an
-explicit instruction to generate video media.
+narrated audiovisual presentation go to `task(deliverables, …)`. Completion
+appears asynchronously in the chat.
 
 **File-deliverable revisions are in place.** When the user asks to update,
 revise, redesign, expand, shorten, or otherwise change an existing file
@@ -254,13 +254,8 @@ user: "Make a 30-second podcast of this conversation."
     - **`status="failed"`**: surface the Receipt's `error` field
       verbatim. Do NOT silently re-dispatch — the backend already tried
       and reported a real error.
-  Video presentations differ: that Celery-backed call **waits for the
-  render to finish** before returning (possibly minutes — intentional,
-  not a hang) and ends with a terminal status. If a
-  `task(deliverables, ...)` invocation itself times out at the subagent
-  layer (separate from the Receipt), that's an operator-side problem
-  with the subagent invoke timeout, not a deliverable failure — pass
-  the message through and stop.
+  Video presentations return before completion. Point the user at the live
+  card and do not claim the video is ready.
 </example>
 
 <example>

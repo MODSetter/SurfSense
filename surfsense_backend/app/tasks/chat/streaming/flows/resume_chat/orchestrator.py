@@ -31,7 +31,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
 )
 from app.auth.context import AuthContext
 from app.db import ChatVisibility, async_session_maker
-from app.observability import otel as ot
+from app.observability.signals import tracing
 from app.services.chat_session_state_service import set_ai_responding
 from app.services.new_streaming_service import VercelStreamingService
 from app.tasks.chat.content_builder import AssistantContentBuilder
@@ -51,7 +51,6 @@ from app.tasks.chat.streaming.flows.resume_chat.runtime_context import (
     build_resume_chat_runtime_context,
 )
 from app.tasks.chat.streaming.flows.shared.analytics import (
-    build_llm_callback_handler,
     capture_chat_turn_completed,
 )
 from app.tasks.chat.streaming.flows.shared.assistant_finalize import (
@@ -194,7 +193,7 @@ async def stream_resume_chat(
                 selected_llm_config_id=llm_config_id,
             )
             llm_config_id = pinned.resolved_llm_config_id
-            ot.add_event(
+            tracing.add_event(
                 "model.pin.resolved",
                 {
                     "pin.requested_id": requested_llm_config_id,
@@ -232,7 +231,7 @@ async def stream_resume_chat(
                 user_id=user_id,  # type: ignore[arg-type]
             )
             if not premium_reservation.allowed:
-                ot.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
+                tracing.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
                 if requested_llm_config_id == 0:
                     try:
                         pinned_fb = await resolve_or_get_pinned_llm_config_id(
@@ -244,7 +243,7 @@ async def stream_resume_chat(
                             force_repin_free=True,
                         )
                         llm_config_id = pinned_fb.resolved_llm_config_id
-                        ot.add_event(
+                        tracing.add_event(
                             "model.repin",
                             {
                                 "repin.reason": "premium_quota_exhausted",
@@ -408,22 +407,6 @@ async def stream_resume_chat(
             "recursion_limit": 10_000,
         }
 
-        # PostHog LLM analytics — same trace as the original turn's
-        # conversation via ``$ai_session_id``. No-op when unconfigured.
-        _llm_handler = build_llm_callback_handler(
-            distinct_id=user_id,
-            trace_id=stream_result.turn_id,
-            properties={
-                "workspace_id": workspace_id,
-                "chat_id": chat_id,
-                "$ai_session_id": str(chat_id),
-                "flow": "resume",
-            },
-            groups={"workspace": str(workspace_id)},
-        )
-        if _llm_handler is not None:
-            config["callbacks"] = [_llm_handler]
-
         # --- First SSE frames ---
 
         for sse in iter_initial_frames(
@@ -584,7 +567,7 @@ async def stream_resume_chat(
         # --- Finalize ---
 
         if stream_result.is_interrupted:
-            ot.add_event("chat.interrupted", {"chat.flow": "resume"})
+            tracing.add_event("chat.interrupted", {"chat.flow": "resume"})
             for sse in iter_token_usage_frame(
                 streaming_service,
                 accumulator=accumulator,

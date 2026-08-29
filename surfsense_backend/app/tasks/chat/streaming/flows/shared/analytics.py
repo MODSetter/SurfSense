@@ -12,54 +12,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from app.config import config
-from app.observability import analytics
+from app.observability.analytics import posthog as ph_analytics
 
 if TYPE_CHECKING:
     from app.auth.context import AuthContext
     from app.services.token_tracking_service import TurnTokenAccumulator
 
 logger = logging.getLogger(__name__)
-
-
-def build_llm_callback_handler(
-    *,
-    distinct_id: str | None,
-    trace_id: str | None,
-    properties: dict[str, Any] | None = None,
-    groups: dict[str, str] | None = None,
-) -> Any | None:
-    """Build a PostHog LangChain ``CallbackHandler`` for a chat turn.
-
-    Attaching this to the LangGraph ``config["callbacks"]`` captures the full
-    agent trace tree ($ai_trace / $ai_span / $ai_generation) — every LLM call,
-    tool, subagent, and retriever — joined to the ``chat_turn_completed`` event
-    via ``trace_id`` (the turn id) and grouped per conversation via
-    ``$ai_session_id`` (in ``properties``).
-
-    Returns ``None`` when PostHog is disabled or the package/handler is
-    unavailable, so callers can simply skip attaching callbacks. ``privacy_mode``
-    (default on) suppresses prompt/completion bodies — chat content includes
-    users' private documents.
-    """
-    client_obj = analytics.get_client()
-    if client_obj is None or not distinct_id:
-        return None
-
-    try:
-        from posthog.ai.langchain import CallbackHandler
-
-        return CallbackHandler(
-            client=client_obj,
-            distinct_id=distinct_id,
-            trace_id=trace_id,
-            properties=properties or {},
-            privacy_mode=config.POSTHOG_AI_PRIVACY_MODE,
-            groups=groups,
-        )
-    except Exception:
-        logger.debug("PostHog LLM callback handler unavailable", exc_info=True)
-        return None
 
 
 def capture_chat_turn_completed(
@@ -80,7 +39,7 @@ def capture_chat_turn_completed(
     accumulator: TurnTokenAccumulator,
 ) -> None:
     """Capture ``chat_turn_completed``. Best-effort; never raises."""
-    if not analytics.is_enabled() or not user_id:
+    if not ph_analytics.is_enabled() or not user_id:
         return
 
     props: dict[str, Any] = {
@@ -105,9 +64,9 @@ def capture_chat_turn_completed(
     groups = {"workspace": str(workspace_id)}
 
     if auth_context is not None:
-        analytics.capture_for(auth_context, "chat_turn_completed", props, groups=groups)
+        ph_analytics.capture_for(auth_context, "chat_turn_completed", props, groups=groups)
     else:
-        analytics.capture(
+        ph_analytics.capture(
             "chat_turn_completed",
             distinct_id=user_id,
             properties=props,

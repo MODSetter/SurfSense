@@ -6,7 +6,7 @@ executions) with OTel spans, attaching low-cardinality span names and
 high-cardinality identifiers as attributes.
 
 This middleware is intentionally a thin adapter over
-:mod:`app.observability.otel`; when OTel is not configured all spans
+:mod:`app.observability.domains.agent`; when OTel is not configured all spans
 collapse to no-ops and the wrapper adds <1µs overhead per call. When
 OTel **is** configured (``OTEL_EXPORTER_OTLP_ENDPOINT`` set), every
 model and tool call gets a span with the standard attributes our
@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING, Any
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, ToolMessage
 
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.core import config
+from app.observability.domains import agent
 from app.utils.perf import get_perf_logger
 
 if TYPE_CHECKING:  # pragma: no cover — type-only
@@ -61,7 +62,7 @@ class OtelSpanMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse | AIMessage | Any]],
     ) -> ModelResponse | AIMessage | Any:
-        if not ot.is_enabled():
+        if not config.is_enabled():
             # Always emit a [PERF] line for the model step even when OTel is
             # disabled. This isolates provider/model latency from the agent's
             # pre-flight (before_agent KB-priority/memory/tree) work, which is
@@ -82,12 +83,12 @@ class OtelSpanMiddleware(AgentMiddleware):
 
         model_id, provider = _resolve_model_attrs(request)
         t0 = time.perf_counter()
-        with ot.model_call_span(model_id=model_id, provider=provider) as sp:
+        with agent.model_call_span(model_id=model_id, provider=provider) as sp:
             _annotate_model_request(sp, model_id=model_id, provider=provider)
             try:
                 result = await handler(request)
             except Exception:
-                ot_metrics.record_model_call_duration(
+                agent.record_model_call_duration(
                     (time.perf_counter() - t0) * 1000,
                     model=model_id,
                     provider=provider,
@@ -101,12 +102,12 @@ class OtelSpanMiddleware(AgentMiddleware):
                     model_id=model_id,
                     provider=provider,
                 )
-                ot_metrics.record_model_call_duration(
+                agent.record_model_call_duration(
                     (time.perf_counter() - t0) * 1000,
                     model=model_id,
                     provider=provider,
                 )
-                ot_metrics.record_model_token_usage(
+                agent.record_model_token_usage(
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     model=model_id,
@@ -123,30 +124,30 @@ class OtelSpanMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
-        if not ot.is_enabled():
+        if not config.is_enabled():
             return await handler(request)
 
         tool_name = _resolve_tool_name(request)
         input_size = _resolve_input_size(request)
 
         t0 = time.perf_counter()
-        with ot.tool_call_span(tool_name, input_size=input_size) as sp:
+        with agent.tool_call_span(tool_name, input_size=input_size) as sp:
             try:
                 result = await handler(request)
             except Exception:
-                ot_metrics.record_tool_call_duration(
+                agent.record_tool_call_duration(
                     (time.perf_counter() - t0) * 1000,
                     tool_name=tool_name,
                 )
-                ot_metrics.record_tool_call_error(tool_name=tool_name)
+                agent.record_tool_call_error(tool_name=tool_name)
                 raise
             errored = _annotate_tool_result(sp, result)
-            ot_metrics.record_tool_call_duration(
+            agent.record_tool_call_duration(
                 (time.perf_counter() - t0) * 1000,
                 tool_name=tool_name,
             )
             if errored:
-                ot_metrics.record_tool_call_error(tool_name=tool_name)
+                agent.record_tool_call_error(tool_name=tool_name)
             return result
 
 

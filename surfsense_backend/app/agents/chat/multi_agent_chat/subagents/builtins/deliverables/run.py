@@ -162,6 +162,7 @@ async def run_deliverable_subagent(
         "flags": get_flags(),
         "llm": llm,
         "image_gen_model_id_override": image_gen_model_id_override,
+        "created_by_id": created_by_id,
     }
     spec = build_deliverables_subagent(dependencies=dependencies, model=llm).spec
     agent = create_agent(

@@ -1,12 +1,15 @@
 ---
 title: Observability
-description: Configure backend traces and metrics for SurfSense
+description: Configure backend traces, metrics, and logs for SurfSense
 icon: Radar
 ---
 
-SurfSense uses OpenTelemetry for backend traces and metrics. Application logs
-include trace and span IDs so you can correlate logs with traces, but logs stay
-on the normal container stderr path.
+SurfSense instruments the backend with OpenTelemetry and exports **traces,
+metrics, and logs** over OTLP to a self-hosted [Grafana LGTM](https://github.com/grafana/docker-otel-lgtm)
+stack (Loki, Grafana, Tempo, Prometheus). Agent spans follow the OpenTelemetry
+[GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions/tree/main/docs/gen-ai)
+(`gen_ai.*`) and nest under the FastAPI server span, so one Tempo trace shows the
+HTTP request, its DB/Redis/LLM calls, and the agent steps together.
 
 ## Enable Locally
 
@@ -22,7 +25,7 @@ OTEL_RESOURCE_ATTRIBUTES=service.namespace=surfsense
 OTEL_METRIC_EXPORT_INTERVAL=300000
 ```
 
-Then start the development stack with the local LGTM backend:
+Then start the development stack with the bundled LGTM backend:
 
 ```bash
 docker compose -f docker/docker-compose.dev.yml up --build
@@ -30,106 +33,89 @@ docker compose -f docker/docker-compose.dev.yml up --build
 
 Grafana is exposed on `http://localhost:3001` by default.
 
-## Enable in Production Docker Compose
+## Enable in Production
 
-Production Docker Compose reads backend and collector settings from
-`docker/.env`. The API and Celery worker export telemetry to the bundled
-collector at `otel-collector:4317`; the collector is the only service that uses
-the Grafana Cloud credentials.
-
-Add these values to `docker/.env`:
+The app exports OTLP directly to a self-hosted LGTM instance — there is no
+separate app-managed collector to configure. Point the backend at your own
+Grafana LGTM (or the `grafana/otel-lgtm` all-in-one, which embeds a collector)
+and set:
 
 ```dotenv
 SURFSENSE_ENV=production
 SURFSENSE_ENABLE_OTEL=true
-OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+OTEL_EXPORTER_OTLP_ENDPOINT=http://<your-lgtm-host>:4317
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 OTEL_RESOURCE_ATTRIBUTES=service.namespace=surfsense
 OTEL_METRIC_EXPORT_INTERVAL=300000
-
-GRAFANA_CLOUD_OTLP_ENDPOINT=https://otlp-gateway-<region>.grafana.net/otlp
-GRAFANA_CLOUD_INSTANCE_ID=<stack instance id>
-GRAFANA_CLOUD_API_KEY=<cloud access policy token>
 ```
 
-Then start the stack:
+Telemetry is disabled unless an OTLP endpoint is set, so leaving
+`OTEL_EXPORTER_OTLP_ENDPOINT` unset is a safe no-op. `SURFSENSE_DISABLE_OTEL` /
+`OTEL_SDK_DISABLED` are emergency kill switches that override the endpoint.
 
-```bash
-docker compose -f docker/docker-compose.yml --profile observability up -d
-```
-
-The collector receives OTLP on `otel-collector:4317`, scrubs sensitive span
-attributes, applies the configured tail-sampling policy, batches exports,
-retries failures, and forwards traces and metrics to Grafana Cloud over OTLP
-HTTP.
-
-When deploying `surfsense_backend/Dockerfile` directly instead of production
-compose, use the same split: SurfSense containers export to a collector, and
-the collector owns the Grafana Cloud credentials.
+<Callout type="info">
+  The `grafana/otel-lgtm` all-in-one is single-node and ephemeral by default —
+  fine for dev and small deployments, but durable production trace/metric
+  storage (or Grafana Cloud) is a separate decision.
+</Callout>
 
 ## Automatic Traces
 
-When OpenTelemetry is enabled, the backend instruments:
+When OpenTelemetry is enabled, the backend auto-instruments:
 
 - FastAPI inbound requests.
-- SQLAlchemy queries from the main async engine and Celery task engine.
+- SQLAlchemy queries from the main async engine and the Celery task engine.
 - Raw psycopg calls used by the LangGraph checkpointer.
 - Redis commands.
-- HTTPX outbound requests.
+- HTTPX outbound requests (URLs stripped of query strings).
 - Celery producer and worker execution.
 
 ## Manual Spans
 
-SurfSense keeps project-specific spans behind `app.observability.otel`:
+Domain spans live under `app.observability.domains.*`, one module per concept.
+Names are low-cardinality; agent spans carry `gen_ai.*` attributes (and
+`SpanKind.CLIENT` for model calls):
 
-- `model.call`
-- `tool.call`
-- `chat.request`
-- `kb.search`
-- `kb.persist`
-- `connector.sync`
-- `subagent.invoke`
-- `etl.extract`
-- `etl.parse`
-- `etl.ocr`
-- `etl.picture.describe`
-- `etl.picture.ocr`
-- `compaction.run`
-- `permission.asked`
-- `interrupt.raised`
+- `model.call`, `tool.call`, `subagent.invoke`, `compaction.run`,
+  `permission.asked`, `interrupt.raised` (`domains.agent`)
+- `chat.request` (`domains.chat`)
+- `kb.search`, `kb.persist`, `kb.rerank` (`domains.kb`)
+- `embedding.generate` (`domains.embedding`)
+- `connector.sync` (`domains.indexing`)
+- `etl.extract`, `etl.parse`, `etl.ocr`, `etl.picture.describe`,
+  `etl.picture.ocr` (`domains.etl`)
 
-Keep span names and attributes low-cardinality. Do not attach user content,
-prompts, document titles, file paths, user-specific URLs, secrets, or raw
-queries as span attributes.
+`model.call` is emitted at the LLM-client chokepoint (`ChatLiteLLMRouter`), so
+every LLM caller — not just the chat agent — is covered (title generation,
+vision/OCR, memory rewrite, podcast/video generation, ...). The agent
+middleware still owns the span when it wraps a call; the chokepoint defers to it
+so chat is never double-counted.
+
+Never attach user content — prompts, document titles, file paths, user-specific
+URLs, secrets, or raw queries — as span attributes.
 
 ## Metrics
 
-The OpenTelemetry instrumentors provide HTTP, HTTPX, and Celery runtime
-metrics. SurfSense adds these project metrics from `app.observability.metrics`:
+The instrumentors provide HTTP, HTTPX, and Celery runtime metrics. SurfSense
+adds project metrics from `app.observability.domains.*` (generic timers from
+`app.observability.signals.metrics`):
 
-- `surfsense.model.call.duration`
-- `gen_ai.client.token.usage`
-- `surfsense.tool.call.duration`
-- `surfsense.tool.call.errors`
-- `surfsense.chat.request.duration`
-- `surfsense.chat.request.outcome`
-- `surfsense.kb.search.duration`
-- `surfsense.compaction.runs`
-- `surfsense.permission.asks`
-- `surfsense.interrupt.raised`
-- `surfsense.indexing.document.duration`
-- `surfsense.indexing.document.outcome`
-- `surfsense.connector.sync.duration`
-- `surfsense.connector.sync.outcome`
-- `surfsense.subagent.invoke.duration`
-- `surfsense.subagent.invoke.outcome`
-- `surfsense.etl.extract.duration`
-- `surfsense.etl.extract.outcome`
-- `surfsense.celery.heartbeat.refreshes`
-- `surfsense.celery.heartbeat.failures`
-- `surfsense.celery.queue.latency`
-- `surfsense.auth.failures`
-- `surfsense.rate_limit.rejections`
+- `surfsense.model.call.duration`, `gen_ai.client.token.usage`,
+  `surfsense.tool.call.duration`, `surfsense.tool.call.errors`
+- `surfsense.chat.request.duration`, `surfsense.chat.request.outcome`
+- `surfsense.kb.search.duration`, `surfsense.kb.rerank.duration`
+- `surfsense.embedding.duration`
+- `surfsense.media.render.duration`, `surfsense.media.render.outcome`
+  (podcast + video, keyed by `media.kind`)
+- `surfsense.compaction.runs`, `surfsense.permission.asks`,
+  `surfsense.interrupt.raised`
+- `surfsense.subagent.invoke.duration`, `surfsense.subagent.invoke.outcome`
+- `surfsense.indexing.document.duration`, `surfsense.indexing.document.outcome`
+- `surfsense.connector.sync.duration`, `surfsense.connector.sync.outcome`
+- `surfsense.etl.extract.duration`, `surfsense.etl.extract.outcome`
+- `surfsense.celery.heartbeat.refreshes`, `surfsense.celery.heartbeat.failures`,
+  `surfsense.celery.queue.latency`
+- `surfsense.auth.failures`, `surfsense.rate_limit.rejections`
 - `surfsense.perf.elapsed_ms`
 
 Runtime gauges include process RSS, CPU utilization, threads, open file
@@ -137,65 +123,65 @@ descriptors, asyncio tasks, and CPython GC counters.
 
 ## Logs
 
-`LoggingInstrumentor().instrument()` injects `otelTraceID` and `otelSpanID` into
-standard Python `LogRecord`s. The root log format writes them as
-`trace_id=... span_id=...`.
-
-SurfSense intentionally does not create an OpenTelemetry `LoggerProvider`,
-`LoggingHandler`, or `OTLPLogExporter`. Container stderr remains the log
-transport.
+Application logs are exported over OTLP to Loki. On init, the backend installs a
+`LoggerProvider` + `OTLPLogExporter` and attaches a `LoggingHandler` to the root
+logger; `LoggingInstrumentor` also stamps `otelTraceID` / `otelSpanID` onto each
+record so logs correlate with their trace even outside Loki. When OTel is
+disabled, logs stay on the normal container stderr path.
 
 ## Verification
 
 1. Hit a FastAPI endpoint and confirm an inbound server span appears in Grafana.
-2. Run a chat request and confirm `model.call` and `tool.call` child spans.
+2. Run a chat request and confirm `model.call` and `tool.call` child spans with
+   `gen_ai.*` attributes.
 3. Run a knowledge-base search and confirm `kb.search` spans and SQL child spans.
 4. Run connector indexing and confirm Celery producer/worker spans share a trace
    ID and connector sync metrics increment.
-5. Confirm `gen_ai.client.token.usage`, model/tool durations, request duration,
-   Celery runtime, and runtime gauges appear within one export interval.
-6. Confirm logs emitted inside a traced request show non-zero trace and span IDs.
+5. Confirm `gen_ai.client.token.usage`, durations, and runtime gauges appear
+   within one export interval.
+6. Confirm logs from a traced request appear in Loki with non-zero trace/span IDs.
+
+## Agent Tracing (LangSmith, dev-only)
+
+LangSmith remains available for local agent debugging via `LANGSMITH_TRACING`.
+It is **dev-only and off by default** — production agent telemetry goes to the
+self-hosted LGTM stack over OTLP. A dedicated LLM-observability backend
+(Langfuse / Phoenix) is deferred; because agent spans are already `gen_ai.*` over
+OTLP, adding one later is a collector/exporter change, not re-instrumentation.
 
 ## Product Analytics (PostHog)
 
-Separate from OpenTelemetry, the backend can emit server-side product events to
+Separate from OpenTelemetry, the backend emits server-side **product** events to
 PostHog. This is the authoritative source for outcome events (chats, document
 ingestion, connector indexing, billing, automations) because it captures traffic
 the browser never sees — MCP clients, personal-access-token scripts, and Celery
 background jobs. It is fully opt-in and mirrors the OTel contract: with
 `POSTHOG_API_KEY` unset, every capture is a silent no-op.
 
+PostHog carries product analytics only. LLM call cost/latency lives in the OTel
+`gen_ai.*` spans and metrics (LGTM), not in PostHog.
+
 Use the **same** project key as the frontend's `NEXT_PUBLIC_POSTHOG_KEY` so
-server events merge onto the same PostHog persons the web app identifies by user
-id. Add these to `surfsense_backend/.env` (local) or `docker/.env` (production);
-they reach the API, Celery worker, and beat services via `env_file`, so no
-compose changes are needed:
+server events merge onto the same persons the web app identifies by user id. Add
+these to `surfsense_backend/.env` (local) or `docker/.env` (production); they
+reach the API, Celery worker, and beat services via `env_file`:
 
 ```dotenv
 POSTHOG_API_KEY=phc_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 POSTHOG_HOST=https://us.i.posthog.com
-POSTHOG_AI_PRIVACY_MODE=true
 ```
 
-`POSTHOG_AI_PRIVACY_MODE` defaults to `true`; set it to `false` only if you want
-LLM prompt and completion bodies shipped to PostHog's AI observability views.
-
-Every backend event is stamped `source=backend` (so it is distinguishable from
-frontend captures), carries `auth_method` / `client` for surface attribution, and
-sends `disable_geoip=true` so the server IP never overwrites a person's real
-location. LangGraph chat turns additionally emit `$ai_generation` / `$ai_span`
-traces via the PostHog LangChain callback handler, keyed by turn and chat id.
+Every backend event is stamped `source=backend`, carries `auth_method` /
+`client` for surface attribution, and sends `disable_geoip=true` so the server IP
+never overwrites a person's real location.
 
 Keep event properties low-cardinality. Never attach user content — workspace
-names, connector titles, document titles, prompts, or raw queries — as event
-properties; they carry no aggregation value and are a privacy risk.
+names, connector titles, document titles, prompts, or raw queries.
 
 ## Out Of Scope
 
 - Frontend/browser OpenTelemetry.
-- OpenTelemetry log export.
 - Profiling.
-- Production backend selection.
-- Tail-sampling collector configuration.
-- Replacing LangSmith.
-- Vendor SDKs.
+- Durable production trace/metric storage (the all-in-one is ephemeral).
+- A dedicated LLM-observability backend and collector fan-out (deferred until
+  evals / prompt management are real needs).

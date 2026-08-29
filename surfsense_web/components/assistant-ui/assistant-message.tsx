@@ -92,6 +92,13 @@ const GenerateVideoPresentationToolUI = dynamic(
 		})),
 	{ ssr: false }
 );
+const EnqueueDeliverableJobToolUI = dynamic(
+	() =>
+		import("@/components/tool-ui/deliverable-job").then((m) => ({
+			default: m.EnqueueDeliverableJobToolUI,
+		})),
+	{ ssr: false }
+);
 const GenerateImageToolUI = dynamic(
 	() =>
 		import("@/components/tool-ui/generate-image").then((m) => ({ default: m.GenerateImageToolUI })),
@@ -419,6 +426,7 @@ const BODY_TOOLS = {
 	generate_resume: LegacyDeliverableToolUI,
 	generate_podcast: withArtifactAnchor(GeneratePodcastToolUI),
 	generate_video_presentation: withArtifactAnchor(GenerateVideoPresentationToolUI),
+	enqueue_deliverable_job: withArtifactAnchor(EnqueueDeliverableJobToolUI),
 	display_image: withArtifactAnchor(GenerateImageToolUI),
 	generate_image: withArtifactAnchor(GenerateImageToolUI),
 } as const;

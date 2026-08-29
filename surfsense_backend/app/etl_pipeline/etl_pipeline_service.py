@@ -13,7 +13,9 @@ from app.etl_pipeline.file_classifier import FileCategory, classify_file
 from app.etl_pipeline.parsers.audio import transcribe_audio
 from app.etl_pipeline.parsers.direct_convert import convert_file_directly
 from app.etl_pipeline.parsers.plaintext import read_plaintext
-from app.observability import metrics as ot_metrics, otel as ot
+from app.observability.core.errors import categorize_exception
+from app.observability.domains import etl
+from app.observability.signals import tracing
 
 
 def _file_extension(filename: str) -> str:
@@ -32,7 +34,7 @@ class EtlPipelineService:
         status = "success"
         error_category: str | None = None
         result: EtlResult | None = None
-        with ot.etl_extract_span(
+        with etl.etl_extract_span(
             content_type=category.value,
             file_extension=_file_extension(request.filename),
             processing_mode=request.processing_mode.value,
@@ -80,7 +82,7 @@ class EtlPipelineService:
                 return result
             except Exception as exc:
                 status = "error"
-                error_category = ot_metrics.categorize_exception(exc)
+                error_category = categorize_exception(exc)
                 raise
             finally:
                 with contextlib.suppress(Exception):
@@ -88,13 +90,13 @@ class EtlPipelineService:
                         sp.set_attribute("etl.service", result.etl_service)
                         sp.set_attribute("content.type", result.content_type)
                     sp.set_attribute("etl.status", status)
-                    ot_metrics.record_etl_extract_duration(
+                    etl.record_etl_extract_duration(
                         time.perf_counter() - start,
                         etl_service=result.etl_service if result else None,
                         content_type=result.content_type if result else category.value,
                         status=status,
                     )
-                    ot_metrics.record_etl_extract_outcome(
+                    etl.record_etl_extract_outcome(
                         etl_service=result.etl_service if result else None,
                         content_type=result.content_type if result else category.value,
                         status=status,
@@ -106,7 +108,7 @@ class EtlPipelineService:
             try:
                 from app.etl_pipeline.parsers.vision_llm import parse_with_vision_llm
 
-                with ot.etl_parse_span(
+                with etl.etl_parse_span(
                     etl_service="VISION_LLM",
                     content_type="image",
                     file_extension=_file_extension(request.filename),
@@ -139,12 +141,12 @@ class EtlPipelineService:
                         request.filename,
                         exc_info=True,
                     )
-                ot.add_event(
+                tracing.add_event(
                     "etl.fallback",
                     {
                         "fallback.from": "vision_llm",
                         "fallback.to": "document_parser",
-                        "fallback.reason": ot_metrics.categorize_exception(exc),
+                        "fallback.reason": categorize_exception(exc),
                     },
                 )
         else:
@@ -152,7 +154,7 @@ class EtlPipelineService:
                 "No vision LLM provided, falling back to document parser for %s",
                 request.filename,
             )
-            ot.add_event(
+            tracing.add_event(
                 "etl.fallback",
                 {
                     "fallback.from": "vision_llm",
@@ -162,7 +164,7 @@ class EtlPipelineService:
             )
 
         try:
-            with ot.etl_ocr_span(
+            with etl.etl_ocr_span(
                 etl_service=app_config.ETL_SERVICE,
                 file_extension=_file_extension(request.filename),
             ):
@@ -193,7 +195,7 @@ class EtlPipelineService:
                 f"File type {ext} is not supported by {etl_service}"
             )
 
-        with ot.etl_parse_span(
+        with etl.etl_parse_span(
             etl_service=etl_service,
             content_type="document",
             file_extension=ext,
@@ -252,7 +254,7 @@ class EtlPipelineService:
         async def _ocr_image(image_path: str, image_name: str) -> str:
             try:
                 sub = EtlPipelineService(vision_llm=None)
-                with ot.etl_picture_ocr_span(
+                with etl.etl_picture_ocr_span(
                     file_extension=_file_extension(image_name)
                 ) as sp:
                     ocr_result = await sub.extract(
@@ -267,11 +269,11 @@ class EtlPipelineService:
                 # Common case: the configured ETL service can't OCR
                 # this image format (or no service is configured at
                 # all). Don't spam warnings -- just no OCR for it.
-                ot.add_event(
+                tracing.add_event(
                     "etl.ocr.skipped",
                     {
                         "skip.reason": "unsupported_format",
-                        "error.category": ot_metrics.categorize_exception(exc),
+                        "error.category": categorize_exception(exc),
                     },
                 )
                 logging.debug("Skipping per-image OCR for %s: %s", image_name, exc)
@@ -279,7 +281,7 @@ class EtlPipelineService:
             return ocr_result.markdown_content
 
         try:
-            with ot.etl_picture_describe_span() as sp:
+            with etl.etl_picture_describe_span() as sp:
                 result = await describe_pictures(
                     request.file_path,
                     request.filename,
@@ -295,12 +297,12 @@ class EtlPipelineService:
         except Exception as exc:
             # Picture description is additive; never let it fail an
             # otherwise-successful document extraction.
-            ot.add_event(
+            tracing.add_event(
                 "etl.degraded",
                 {
                     "degraded.reason": "picture_describe_failed",
                     "degraded.action": "return_parser_output",
-                    "error.category": ot_metrics.categorize_exception(exc),
+                    "error.category": categorize_exception(exc),
                 },
             )
             logging.warning(
@@ -356,12 +358,12 @@ class EtlPipelineService:
                     request.file_path, processing_mode=mode_value
                 )
             except Exception as exc:
-                ot.add_event(
+                tracing.add_event(
                     "etl.fallback",
                     {
                         "fallback.from": "azure_di",
                         "fallback.to": "llamacloud",
-                        "fallback.reason": ot_metrics.categorize_exception(exc),
+                        "fallback.reason": categorize_exception(exc),
                     },
                 )
                 logging.warning(
