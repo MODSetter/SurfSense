@@ -16,6 +16,7 @@ from app.automations.api import router as automations_router
 from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
+from app.knowledge_store.remote.api import router as git_remotes_router
 from app.notifications.api import router as notifications_router
 from app.podcasts.api import router as podcasts_router
 
@@ -32,6 +33,7 @@ from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
 from .composio_routes import router as composio_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
+from .deliverable_jobs_routes import router as deliverable_jobs_router
 from .discord_add_connector_route import router as discord_add_connector_router
 from .document_files_routes import router as document_files_router
 from .documents_routes import router as documents_router
@@ -84,12 +86,14 @@ from .youtube_routes import router as youtube_router
 router = APIRouter()
 
 router.include_router(workspaces_router)
+router.include_router(git_remotes_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(export_router)
 router.include_router(documents_router)
 router.include_router(document_files_router)
 router.include_router(artifacts_router)
+router.include_router(deliverable_jobs_router)
 router.include_router(folders_router)
 _gateway_enabled_dep = [Depends(require_gateway_enabled)]
 router.include_router(gateway_config_router)

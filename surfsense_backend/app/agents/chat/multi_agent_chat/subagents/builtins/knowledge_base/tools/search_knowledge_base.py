@@ -11,6 +11,7 @@ subagent boundary (reducer-backed, forwarded by ``task``/``ask_knowledge_base``)
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Annotated, Any
 
@@ -31,6 +32,7 @@ from app.agents.chat.multi_agent_chat.shared.state.filesystem_state import (
 from app.agents.chat.runtime.references import referenced_document_ids
 from app.capabilities.core import ActivityDescriptor
 from app.db import shielded_async_session
+from app.services.reranker_service import RerankerService
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()
@@ -120,6 +122,7 @@ def create_search_knowledge_base_tool(
 
     _space_id = workspace_id
     _document_types = _search_types(available_connectors, available_document_types)
+    reranker = RerankerService.get_reranker_instance()
 
     async def _impl(
         query: Annotated[
@@ -154,7 +157,15 @@ def create_search_knowledge_base_tool(
                 scope=scope,
                 top_k=clamped_top_k,
             )
-            rendered = build_context(cleaned_query, hits, registry)
+
+            if reranker is not None:
+                rendered = await asyncio.to_thread(
+                    build_context, cleaned_query, hits, registry, reranker=reranker
+                )
+            else:
+                rendered = build_context(
+                    cleaned_query, hits, registry, reranker=reranker
+                )
 
         _perf_log.info(
             "[search_knowledge_base] tool query=%r sources=%d in %.3fs",

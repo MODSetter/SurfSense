@@ -9,7 +9,8 @@ Selectors are the current desktop layout's (verified live, Jul 2026):
 
 * organic result container ...... ``div.tF2Cxc``
 * title ......................... ``h3``
-* link .......................... first ``<a href>`` in the block
+* link .......................... first result anchor in the block, normalized
+  by :func:`_anchor_target` (see below)
 * displayed (green) URL ......... ``cite`` (first line, when it's a URL)
 * source/site name .............. ``.VuuXrf``
 * description ................... ``.VwiC3b``
@@ -24,6 +25,17 @@ Selectors are the current desktop layout's (verified live, Jul 2026):
 * AI Overview ................... ``#m-x-content`` widget; prose ``.n6owBd``
   + ``li.Z1qcYe``, sources ``li.h7wxwc``
 * result count .................. ``#result-stats``
+
+**Result links are redirects, not destinations.** Google rolled out
+``/goto?url=<blob>`` server-side redirects on the desktop SERP in Jul 2026 as
+an anti-scraping measure: every outbound result anchor now points at
+google.com and the destination is encrypted with a key only Google holds, so
+it cannot be recovered from the DOM. This module therefore emits the *redirect*
+URL and :mod:`.goto` turns it into the real one by following the 302. Anchors
+are read through :func:`_anchor_target`, which also handles the two older
+shapes still in circulation — a plain ``http`` href (Google's own properties
+are not wrapped) and ``/url?q=<target>`` (the mobile layout, target in the
+clear).
 
 ``ponytail:`` these class names are Google's obfuscated build hashes and will
 drift; each extractor degrades to ``None``/``[]`` rather than raising, so a
@@ -53,6 +65,9 @@ from .schemas import (
 )
 
 _GOOGLE = "https://www.google.com"
+# Google's opaque outbound-result redirect (see the module docstring). Public
+# because :mod:`.goto` resolves exactly the URLs carrying this prefix.
+GOTO_PREFIX = _GOOGLE + "/goto?"
 _RESULT_COUNT_RE = re.compile(r"[\d,]+")
 # Leading inline date Google prepends to a snippet, e.g. "Jul 2, 2025 · rest…".
 _DATE_PREFIX_RE = re.compile(r"^[A-Z][a-z]{2}\s+\d{1,2},\s+\d{4}\s*[·\u00b7]?\s*")
@@ -106,12 +121,58 @@ def parse_results_total(doc: Adaptor) -> int | None:
     return next((t for t in totals if t), totals[0])
 
 
-def _first_link(block) -> str | None:
-    for a in block.css("a"):
-        href = a.attrib.get("href")
-        if href and href.startswith("http"):
-            return href
+def _anchor_target(anchor) -> str | None:
+    """Destination of a result anchor, or ``None`` when it isn't one.
+
+    Three href shapes carry a result destination:
+
+    * ``https://…`` — a direct link. Rare now on desktop; Google leaves its own
+      properties (developers.google.com et al.) unwrapped.
+    * ``/url?q=<target>`` — the classic redirect, target in the clear. Still
+      what the mobile lightweight layout serves, so it's unwrapped for free.
+    * ``/goto?url=<blob>`` — the Jul-2026 desktop redirect. The blob is
+      encrypted server-side, so the best we can do here is return the absolute
+      Google URL; :func:`app.proprietary.platforms.google_search.goto.resolve_item_urls`
+      follows it to the real destination.
+
+    Everything else (``/search`` chrome, ``#`` anchors, ``javascript:``) is not
+    a result link and returns ``None``.
+    """
+    href = anchor.attrib.get("href") or ""
+    if href.startswith("http"):
+        return href
+    if href.startswith("/url?"):
+        return (parse_qs(urlsplit(href).query).get("q") or [None])[0]
+    if href.startswith("/goto?"):
+        return _GOOGLE + href
     return None
+
+
+def _first_result_anchor(node) -> tuple[object | None, str | None]:
+    """``(anchor, destination)`` of the first result link under ``node``."""
+    for a in node.css("a"):
+        target = _anchor_target(a)
+        if target:
+            return a, target
+    return None, None
+
+
+def _first_link(node) -> str | None:
+    return _first_result_anchor(node)[1]
+
+
+def _leaves_google(target: str | None) -> bool:
+    """True when ``target`` points off Google.
+
+    A ``/goto`` redirect is *always* an outbound result link even though its
+    URL is on google.com, so it passes; a plain google.com link is page chrome
+    ("About this result", support pages) and does not.
+    """
+    if not target:
+        return False
+    if target.startswith(GOTO_PREFIX):
+        return True
+    return "google.com" not in urlsplit(target).netloc
 
 
 def _displayed_url(block) -> str | None:
@@ -232,8 +293,8 @@ def parse_paid_results(
     for block in doc.css("div[data-text-ad]"):
         heading = _one(block, "div[role='heading']")
         title = _text(heading)
-        anchor = _one(block, "a.sVXRqc") or _one(block, "a[href^='http']")
-        url = anchor.attrib.get("href") if anchor is not None else None
+        anchor = _one(block, "a.sVXRqc")
+        url = _anchor_target(anchor) if anchor is not None else _first_link(block)
         if not title or not url:
             continue
         # The description shares the .Va3FIb class with the heading; pick the
@@ -273,7 +334,7 @@ def parse_paid_products(doc: Adaptor) -> list[PaidProduct]:
     for pla in doc.css("div.pla-unit"):
         title = _text(_one(pla, ".bXPcId"))
         anchor = _one(pla, "a.pla-unit-single-clickable-target")
-        url = anchor.attrib.get("href") if anchor is not None else None
+        url = _anchor_target(anchor) if anchor is not None else _first_link(pla)
         if not title or not url:
             continue
         prices: list[str] = []
@@ -350,11 +411,11 @@ def _paa_source(pair) -> tuple[str | None, str | None]:
     null url/title there. Google's ``#:~:text=`` highlight fragment is an
     artifact of the expansion click, not part of the source URL.
     """
-    for a in pair.css("a[href^='http']"):
-        href = a.attrib.get("href") or ""
+    for a in pair.css("a"):
+        target = _anchor_target(a)
         title = _text(_one(a, "h3"))
-        if href and title and "google.com" not in href:
-            return href.split("#:~:", 1)[0], title
+        if title and _leaves_google(target):
+            return target.split("#:~:", 1)[0], title
     return None, None
 
 
@@ -384,7 +445,7 @@ def parse_ai_overview(doc: Adaptor) -> AiOverviewResult | None:
 def _ai_sources(root) -> list[AiSource]:
     """Cited sources of an AI answer (AI Overview and AI Mode share the DOM).
 
-    ``li.h7wxwc`` list items: anchor ``a.NDNGvf`` carries the URL and a
+    ``li.h7wxwc`` list items: the citation anchor carries the URL and a
     "<title>. Opens in new tab." aria-label; ``.vhJ6Pe`` is the snippet and
     the thumbnail URL sits in the lazy image's ``data-src``. Google renders
     the list twice (collapsed rail + expanded sheet), so dedupe by URL.
@@ -392,11 +453,8 @@ def _ai_sources(root) -> list[AiSource]:
     sources: list[AiSource] = []
     seen: set[str] = set()
     for li in root.css("li.h7wxwc"):
-        anchor = _one(li, "a.NDNGvf") or _one(li, "a[href^='http']")
-        if anchor is None:
-            continue
-        url = anchor.attrib.get("href")
-        if not url or url in seen:
+        anchor, url = _first_result_anchor(li)
+        if anchor is None or url in seen:
             continue
         seen.add(url)
         title = (anchor.attrib.get("aria-label") or "").removesuffix(
@@ -485,13 +543,10 @@ _MOBILE_AIO_CHROME = (
     "Learn more",
 )
 
-
-def _mobile_target(anchor) -> str | None:
-    """Landing URL of a mobile redirect anchor (``/url?q=<target>&…``)."""
-    href = anchor.attrib.get("href") or ""
-    if href.startswith("/url?"):
-        return (parse_qs(urlsplit(href).query).get("q") or [None])[0]
-    return href if href.startswith("http") else None
+# Result anchors in this layout. Mobile still serves the plaintext ``/url?q=``
+# redirect (verified live, Aug 2026) while desktop moved to ``/goto``; both are
+# selected so the rollout reaching mobile is a no-op here.
+_MOBILE_ANCHOR_SEL = "a[href^='/url?'], a[href^='/goto?']"
 
 
 def _mobile_section(doc: Adaptor, header: str):
@@ -513,8 +568,8 @@ def _mobile_organic(doc: Adaptor) -> list[OrganicResult]:
     results: list[OrganicResult] = []
     for block in doc.css("div.Gx5Zad"):
         title = _text(_one(block, "h3"))
-        anchor = _one(block, "a[href^='/url?']")
-        url = _mobile_target(anchor) if anchor is not None else None
+        anchor = _one(block, _MOBILE_ANCHOR_SEL)
+        url = _anchor_target(anchor) if anchor is not None else None
         if not title or not url:
             continue
         raw_desc = _text(_one(block, ".H66NU"))
@@ -554,8 +609,8 @@ def _mobile_paa(doc: Adaptor) -> list[PeopleAlsoAskItem]:
         if not question:
             continue
         answer = _text(_one(accordion, ".hgMFsd"))
-        anchor = _one(accordion, "a[href^='/url?']")
-        url = _mobile_target(anchor) if anchor is not None else None
+        anchor = _one(accordion, _MOBILE_ANCHOR_SEL)
+        url = _anchor_target(anchor) if anchor is not None else None
         title = _text(_one(anchor, ".UFvD1")) if anchor is not None else None
         out.append(
             PeopleAlsoAskItem(question=question, answer=answer, url=url, title=title)
@@ -585,11 +640,11 @@ def _mobile_ai_overview(doc: Adaptor) -> AiOverviewResult | None:
         return None
     sources: list[AiSource] = []
     seen: set[str] = set()
-    for anchor in section.css("a[href^='/url?']"):
-        url = _mobile_target(anchor)
+    for anchor in section.css(_MOBILE_ANCHOR_SEL):
+        url = _anchor_target(anchor)
         title = _text(_one(anchor, ".UFvD1"))
         # google.com targets are widget chrome ("Learn more"), not citations.
-        if url and url not in seen and "google.com" not in url:
+        if url and url not in seen and _leaves_google(url):
             seen.add(url)
             sources.append(AiSource(title=title, url=url))
     return AiOverviewResult(content=content, sources=sources)

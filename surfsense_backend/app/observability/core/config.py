@@ -30,6 +30,7 @@ def is_configured() -> bool:
         os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
         or os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
         or os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
+        or os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
     )
 
 

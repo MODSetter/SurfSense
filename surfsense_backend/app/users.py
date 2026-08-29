@@ -43,6 +43,47 @@ logger = logging.getLogger(__name__)
 SECRET = config.SECRET_KEY
 
 
+async def create_default_workspace(session: AsyncSession, user: User) -> Workspace:
+    """Bootstrap a user's default workspace with its owner role and membership.
+
+    Born flipped when the global switch is on, matching ``POST /workspaces``; the
+    signup path used to skip this and default the column to legacy.
+    """
+    workspace = Workspace(
+        name="My Workspace",
+        description="Your personal workspace",
+        user_id=user.id,
+        knowledge_store_enabled=config.KNOWLEDGE_STORE_ENABLED,
+    )
+    session.add(workspace)
+    await session.flush()
+
+    owner_role_id = None
+    for role_config in get_default_roles_config():
+        db_role = WorkspaceRole(
+            name=role_config["name"],
+            description=role_config["description"],
+            permissions=role_config["permissions"],
+            is_default=role_config["is_default"],
+            is_system_role=role_config["is_system_role"],
+            workspace_id=workspace.id,
+        )
+        session.add(db_role)
+        await session.flush()
+        if role_config["name"] == "Owner":
+            owner_role_id = db_role.id
+
+    session.add(
+        WorkspaceMembership(
+            user_id=user.id,
+            workspace_id=workspace.id,
+            role_id=owner_role_id,
+            is_owner=True,
+        )
+    )
+    return workspace
+
+
 if config.AUTH_TYPE == "GOOGLE":
     from httpx_oauth.clients.google import GoogleOAuth2
 
@@ -162,42 +203,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 # identity marked as having taken a credit it never received.
                 granted = await award_signup_credit(session, user)
 
-                # Create default workspace
-                default_workspace = Workspace(
-                    name="My Workspace",
-                    description="Your personal workspace",
-                    user_id=user.id,
-                )
-                session.add(default_workspace)
-                await session.flush()  # Get the workspace ID
-
-                # Create default roles
-                default_roles = get_default_roles_config()
-                owner_role_id = None
-
-                for role_config in default_roles:
-                    db_role = WorkspaceRole(
-                        name=role_config["name"],
-                        description=role_config["description"],
-                        permissions=role_config["permissions"],
-                        is_default=role_config["is_default"],
-                        is_system_role=role_config["is_system_role"],
-                        workspace_id=default_workspace.id,
-                    )
-                    session.add(db_role)
-                    await session.flush()
-
-                    if role_config["name"] == "Owner":
-                        owner_role_id = db_role.id
-
-                # Create owner membership
-                owner_membership = WorkspaceMembership(
-                    user_id=user.id,
-                    workspace_id=default_workspace.id,
-                    role_id=owner_role_id,
-                    is_owner=True,
-                )
-                session.add(owner_membership)
+                default_workspace = await create_default_workspace(session, user)
 
                 for default in SYSTEM_PROMPT_DEFAULTS:
                     session.add(

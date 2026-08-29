@@ -12,6 +12,7 @@ import time
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from dulwich import porcelain
 from dulwich.diff_tree import (
@@ -24,6 +25,7 @@ from dulwich.diff_tree import (
 )
 from dulwich.object_store import iter_tree_contents, tree_lookup_path
 from dulwich.objects import Blob
+from dulwich.porcelain import DivergedBranches
 from dulwich.repo import Repo
 from dulwich.worktree import add_worktree, prune_worktrees, remove_worktree
 
@@ -34,6 +36,7 @@ from app.knowledge_store.engines.base import (
     VersionedContentEngine,
     WorkingCopy,
 )
+from app.knowledge_store.exceptions import GitPushError
 
 _CHANGE_KINDS = {
     CHANGE_ADD: "added",
@@ -177,6 +180,43 @@ class GitContentEngine(VersionedContentEngine):
             ]
         finally:
             repo.close()
+
+    def list_remote_branches(
+        self, *, url: str, username: str, password: str
+    ) -> dict[str, str]:
+        """Branch name → SHA on the remote. Empty if the remote has no branches."""
+        result = porcelain.ls_remote(
+            strip_credentials_in_url(url),
+            username=username or None,
+            password=password or None,
+        )
+        prefix = b"refs/heads/"
+        return {
+            ref[len(prefix) :].decode(): sha.decode()
+            for ref, sha in result.refs.items()
+            if sha is not None and ref.startswith(prefix)
+        }
+
+    def push(self, *, url: str, ref: str, username: str, password: str) -> str:
+        """Fast-forward ``HEAD`` to ``url`` at ``ref``. Returns the pushed SHA."""
+        self._ensure_exists()
+        sha = self.get_current_revision()
+        if sha is None:
+            raise GitPushError("nothing to push")
+        try:
+            porcelain.push(
+                str(self._path),
+                strip_credentials_in_url(url),
+                refspecs=[f"HEAD:{ref}"],
+                force=False,
+                username=username or None,
+                password=password or None,
+            )
+        except DivergedBranches as exc:
+            raise GitPushError("non-fast-forward") from exc
+        except Exception as exc:
+            raise GitPushError(str(exc)) from exc
+        return sha
 
     def get_current_revision(self) -> str | None:
         if not self._exists():
@@ -343,3 +383,20 @@ class GitContentEngine(VersionedContentEngine):
             message=commit.message.decode().strip(),
             created_at=datetime.fromtimestamp(commit.commit_time, tz=UTC),
         )
+
+
+def strip_credentials_in_url(url: str) -> str:
+    """``https://oauth2:PAT@gitlab.com/g/p.git`` → ``https://gitlab.com/g/p.git``.
+
+    Dulwich takes username/password as separate kwargs. If they stay in the
+    URL they can end up in ``.git/config`` (dulwich#1505). Persist-time
+    callers use the same helper so the remote row never stores a token in
+    ``url``. Local paths are left alone.
+    """
+    if "://" not in url:
+        return url
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    return urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))

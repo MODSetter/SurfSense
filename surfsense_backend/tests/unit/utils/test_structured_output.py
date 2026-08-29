@@ -58,6 +58,11 @@ async def test_extracts_json_embedded_in_prose():
     assert shape == _Shape(name="gamma", count=1)
 
 
+async def test_parses_literal_control_characters_inside_model_strings():
+    shape = await _parse('{"name": "first line\nsecond line", "count": 2}')
+    assert shape == _Shape(name="first line\nsecond line", count=2)
+
+
 async def test_raises_when_there_is_no_json_object():
     with pytest.raises(StructuredOutputError):
         await _parse("I could not produce that.")

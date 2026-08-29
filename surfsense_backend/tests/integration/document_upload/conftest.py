@@ -90,6 +90,20 @@ class InlineTaskDispatcher:
 app.dependency_overrides[get_task_dispatcher] = lambda: InlineTaskDispatcher()
 
 
+@pytest.fixture(autouse=True)
+def _force_legacy_indexing(monkeypatch):
+    """Pin the git-store master switch off for the upload-pipeline suite.
+
+    These tests exercise the upload pipeline (ETL, dedup, credits, limits,
+    search) on the Postgres-inline indexer, so they must not depend on the
+    process ``KNOWLEDGE_STORE_ENABLED`` — a dev ``.env`` that turns it on would
+    route uploads through the git store, whose async convergence no in-process
+    broker runs. Git-native indexing is covered by the knowledge_store and
+    artifacts suites.
+    """
+    monkeypatch.setattr(app_config, "KNOWLEDGE_STORE_ENABLED", False)
+
+
 # ---------------------------------------------------------------------------
 # Database setup (ASGITransport skips the app lifespan)
 # ---------------------------------------------------------------------------

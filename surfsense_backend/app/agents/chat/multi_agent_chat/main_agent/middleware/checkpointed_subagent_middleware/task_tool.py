@@ -9,6 +9,7 @@ re-raises any new pending interrupt back to the parent.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -312,7 +313,9 @@ def build_task_tool_with_parent_config(
             )
         return trace
 
-    def _return_command_with_state_update(result: dict, tool_call_id: str) -> Command:
+    def _return_command_with_state_update(
+        result: dict, tool_call_id: str, parent_receipts: Any
+    ) -> Command:
         if "messages" not in result:
             msg = (
                 "CompiledSubAgent must return a state containing a 'messages' key. "
@@ -322,6 +325,19 @@ def build_task_tool_with_parent_config(
             raise ValueError(msg)
 
         state_update = {k: v for k, v in result.items() if k not in EXCLUDED_STATE_KEYS}
+        receipts = result.get("receipts")
+        if isinstance(receipts, list):
+            new_receipts = list(receipts)
+            if isinstance(parent_receipts, list):
+                for prior in parent_receipts:
+                    with contextlib.suppress(ValueError):
+                        new_receipts.remove(prior)
+            if new_receipts:
+                state_update["receipts"] = new_receipts
+            else:
+                state_update.pop("receipts", None)
+        else:
+            new_receipts = []
         messages = result["messages"]
         if not messages:
             msg = (
@@ -340,6 +356,16 @@ def build_task_tool_with_parent_config(
                 "continuing without trace."
             )
             tool_trace = []
+        if new_receipts:
+            # Runtime state is ground truth; the subagent's final text may omit
+            # or miscopy a receipt that its tool actually emitted.
+            authoritative_receipts = json.dumps(
+                new_receipts, ensure_ascii=False, separators=(",", ":"), default=str
+            )
+            message_text = (
+                f"{message_text}\n\n<authoritative_receipts>\n"
+                f"{authoritative_receipts}\n</authoritative_receipts>"
+            )
         tool_msg = ToolMessage(message_text, tool_call_id=tool_call_id)
         if tool_trace:
             # surf_ prefix avoids collision with provider keys (e.g. cache_control).
@@ -831,7 +857,9 @@ def build_task_tool_with_parent_config(
             path=invoke_path,
             outcome=invoke_outcome,
         )
-        return _return_command_with_state_update(result, runtime.tool_call_id)
+        return _return_command_with_state_update(
+            result, runtime.tool_call_id, runtime.state.get("receipts")
+        )
 
     async def atask(
         description: Annotated[
@@ -1104,7 +1132,9 @@ def build_task_tool_with_parent_config(
             raise
 
         merge_start = time.perf_counter()
-        cmd = _return_command_with_state_update(result, runtime.tool_call_id)
+        cmd = _return_command_with_state_update(
+            result, runtime.tool_call_id, runtime.state.get("receipts")
+        )
         merge_elapsed = time.perf_counter() - merge_start
         _perf_log.info(
             "[hitl_route] atask EXIT subagent_type=%r path=%s outcome=%s "

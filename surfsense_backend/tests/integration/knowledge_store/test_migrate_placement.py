@@ -66,6 +66,30 @@ async def test_a_recorded_path_is_seeded_verbatim(
     assert await _seeded_paths(report) == {"documents/canary.md"}
 
 
+async def test_seed_honors_the_column_over_a_disagreeing_marker(
+    knowledge_root, db_session, db_workspace
+):
+    """Runtime pins a doc by its path column first, the legacy marker only as a
+    fallback (``recorded_virtual_path``). A legacy row can carry a marker and a
+    column that disagree; the seeder must resolve to the same column, or a re-seed
+    and a live re-sync write the document at two different paths and fork it.
+    """
+    document = await _add_document(
+        db_session,
+        db_workspace,
+        title="Whatever",
+        markdown="# Body",
+        marker="/documents/marker.md",
+    )
+    document.path = "/documents/column.md"
+    await db_session.flush()
+
+    report = await migrate_workspace(db_session, db_workspace.id)
+
+    assert report.ok, report
+    assert await _seeded_paths(report) == {"documents/column.md"}
+
+
 async def test_an_unmarked_row_is_authored_as_markdown(
     knowledge_root, db_session, db_workspace
 ):
@@ -103,12 +127,11 @@ async def test_seeding_records_the_path_it_wrote(
     document = await _add_document(
         db_session, db_workspace, title="Strategy", markdown="# Strategy"
     )
-    assert PATH_MARKER not in (document.document_metadata or {})
+    assert document.path is None
 
     await migrate_workspace(db_session, db_workspace.id)
 
     await db_session.refresh(document)
-    assert document.document_metadata[PATH_MARKER] == "/documents/Strategy.md"
     assert document.path == "/documents/Strategy.md"
 
 
@@ -120,7 +143,7 @@ async def test_a_dry_run_records_nothing(knowledge_root, db_session, db_workspac
     await migrate_workspace(db_session, db_workspace.id, dry_run=True)
 
     await db_session.refresh(document)
-    assert PATH_MARKER not in (document.document_metadata or {})
+    assert document.path is None
 
 
 async def test_a_re_seed_is_stable(knowledge_root, db_session, db_workspace):
