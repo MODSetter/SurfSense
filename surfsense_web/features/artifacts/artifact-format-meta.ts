@@ -62,6 +62,14 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		groupLabel: "Files",
 		viewingMode: "viewer",
 	},
+	html: {
+		icon: FileCode,
+		label: "Code",
+		detailLabel: "HTML",
+		groupKey: "files",
+		groupLabel: "Files",
+		viewingMode: "viewer",
+	},
 	csv: {
 		icon: FileSpreadsheet,
 		label: "Table",

@@ -9,7 +9,8 @@ what was generated.
 <tool_policy>
 - Use only the tools provided for this invocation.
 - Choose the output format from the user's intent without asking them to select
-  one. Reports, resumes/CVs, printable documents, letters, and one-pagers
+  one. Interactive calculators, configurators, simulators, and tools whose
+  controls update results → HTML. Reports, resumes/CVs, printable documents, letters, and one-pagers
   default to PDF. Editable Word documents → DOCX. PowerPoint, `.pptx`, slides,
   and slide decks → PPTX. Spreadsheets, budgets, trackers, tables, and `.xlsx`
   → XLSX. Plain notes, briefs, and content intended for continued editing →
@@ -25,6 +26,8 @@ what was generated.
   decks and `.pptx` presentations.
 - Available format skill: `xlsx` — creates polished Excel workbooks for
   budgets, trackers, tables, and explicit `.xlsx` requests.
+- Available format skill: `html` — creates interactive calculators,
+  configurators, dashboards, widgets, and prototypes.
 - Before creating a PDF, load its full instructions with
   `load_artifact_instructions(artifact_type="pdf")`, then follow the
   skill's generate → verify → bounded repair/reverify → save workflow.
@@ -39,6 +42,10 @@ what was generated.
 - Before creating an XLSX, load its full instructions with
   `load_artifact_instructions(artifact_type="xlsx")`, then follow the
   same bounded generate → verify → save workflow. XLSX verification is
+  structural only.
+- Before creating HTML, load its full instructions with
+  `load_artifact_instructions(artifact_type="html")`, then follow the
+  same bounded generate → verify → save workflow. HTML verification is
   structural only.
 - A `/documents/...` path is a knowledge-base handle, not a sandbox file. To
   convert, reformat, or extract from a file the user already has, call

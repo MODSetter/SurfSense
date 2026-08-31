@@ -177,7 +177,7 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
 
     @tool
     async def load_artifact_instructions(
-        artifact_type: Literal["pdf", "docx", "pptx", "xlsx", "video"],
+        artifact_type: Literal["pdf", "docx", "pptx", "xlsx", "html", "video"],
         runtime: ToolRuntime,
     ) -> str:
         """Load the trusted creation instructions for one artifact format."""

@@ -8,6 +8,8 @@ PROMPT_PATH = (
     / "deliverables/system_prompt.md"
 )
 SKILLS_ROOT = REPO_ROOT / "docker/sandbox/skills"
+FRONTEND_DESIGN_PATH = SKILLS_ROOT / "frontend-design/DESIGN.md"
+SANDBOX_DOCKERFILE = REPO_ROOT / "docker/sandbox/Dockerfile"
 
 
 def _prompt() -> str:
@@ -71,7 +73,7 @@ def test_deliverables_prompt_carries_revision_handles_without_vision_rebuild():
 
 
 def test_format_skills_share_pathless_verify_and_save_contract():
-    for name in ("pdf", "docx", "pptx", "xlsx"):
+    for name in ("pdf", "docx", "pptx", "xlsx", "html"):
         skill = _skill(name)
         assert "`load_artifact_for_revision`" in skill
         assert "`expected_output_path`" in skill
@@ -105,3 +107,25 @@ def test_format_skills_define_safe_revision_strategy():
     assert "Do not\nsilently rebuild from `markdown_path`" in docx
     assert "explicitly requested or accepted" in docx
     assert "do not fall back to a Markdown-only" in docx
+
+
+def test_deliverables_prompt_routes_interactive_requests_to_html_before_pdf_fallback():
+    prompt = _prompt()
+    html_route = "controls update results → HTML"
+    pdf_fallback = "prefer PDF for a finished deliverable"
+
+    assert html_route in prompt
+    assert '`load_artifact_instructions(artifact_type="html")`' in prompt
+    assert prompt.index(html_route) < prompt.index(pdf_fallback)
+
+
+def test_shared_frontend_design_is_composed_without_becoming_a_format_skill():
+    dockerfile = SANDBOX_DOCKERFILE.read_text()
+
+    assert FRONTEND_DESIGN_PATH.is_file()
+    assert not FRONTEND_DESIGN_PATH.with_name("SKILL.md").exists()
+    assert 'test -f "${skill}/SKILL.md" || continue' in dockerfile
+    assert (
+        "cat /tmp/surfsense-skills/frontend-design/DESIGN.md >> "
+        '"/opt/skills/${name}/SKILL.md"'
+    ) in dockerfile

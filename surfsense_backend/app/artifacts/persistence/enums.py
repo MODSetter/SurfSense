@@ -15,6 +15,7 @@ class ArtifactFormat(StrEnum):
     DOCX = "docx"
     PPTX = "pptx"
     XLSX = "xlsx"
+    HTML = "html"
     PDF = "pdf"
     PODCAST = "podcast"
     VIDEO = "video"

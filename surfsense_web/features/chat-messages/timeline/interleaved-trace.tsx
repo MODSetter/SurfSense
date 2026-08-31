@@ -41,6 +41,8 @@ import {
 	buildTurnRenderItems,
 	firstToolIndexByActivityId,
 	getToolActivityId,
+	getTraceLeafKind,
+	hasExpandableTraceDetails,
 	type TracePartLike,
 	type TurnRenderItem,
 } from "./grouping";
@@ -241,15 +243,33 @@ const TraceLeaf: FC<{
 	threadRunning: boolean;
 }> = ({ part, index, activities, firstActivityIndices, showReasoning, threadRunning }) => {
 	if (part.type === "reasoning") {
-		if (!showReasoning || part.text.length === 0) return null;
+		if (
+			getTraceLeafKind({
+				part,
+				index,
+				activities,
+				firstActivityIndices,
+				showReasoning,
+			}) !== "reasoning"
+		) {
+			return null;
+		}
 		return <ReasoningEpisode text={part.text} running={partIsRunning(part)} />;
 	}
-	if (part.type !== "tool-call") return null;
+	if (
+		getTraceLeafKind({
+			part,
+			index,
+			activities,
+			firstActivityIndices,
+			showReasoning,
+		}) !== "activity"
+	) {
+		return null;
+	}
 	const activityId = getToolActivityId(part);
 	const activity = activityId ? activities.get(activityId) : undefined;
-	return activity && firstActivityIndices.get(activity.id) === index ? (
-		<ActivityRow activity={activity} threadRunning={threadRunning} />
-	) : null;
+	return activity ? <ActivityRow activity={activity} threadRunning={threadRunning} /> : null;
 };
 
 const TraceLeafByIndex: FC<{
@@ -405,6 +425,13 @@ const TurnSegment: FC<{
 	const reducedMotion = useReducedMotion();
 	const { indices, phase, segmentId } = item;
 	const hasTrace = segmentId !== null;
+	const hasExpandableDetails = hasExpandableTraceDetails({
+		parts,
+		indices,
+		activities,
+		firstActivityIndices,
+		showReasoning,
+	});
 	const segmentActivities = indices.flatMap((index) => {
 		const activityId = getToolActivityId(parts[index] as TracePartLike);
 		const activity = activityId ? activities.get(activityId) : undefined;
@@ -441,7 +468,7 @@ const TurnSegment: FC<{
 		/>
 	);
 	const toggle = () => {
-		if (!hasTrace) return;
+		if (!hasExpandableDetails) return;
 		if (isMobile) {
 			onDrawerOpenChange(true);
 			trackActivityTraceInteraction("segment_expanded", {
@@ -470,12 +497,11 @@ const TurnSegment: FC<{
 			<Button
 				variant="ghost"
 				type="button"
-				onClick={hasTrace ? toggle : undefined}
-				aria-disabled={hasTrace ? undefined : true}
-				aria-expanded={hasTrace ? (isMobile ? drawerOpen : open) : undefined}
-				aria-controls={hasTrace ? id : undefined}
-				tabIndex={hasTrace ? undefined : -1}
-				className={TURN_HEADER_ROW_CLASS}
+				onClick={hasExpandableDetails ? toggle : undefined}
+				disabled={!hasExpandableDetails}
+				aria-expanded={hasExpandableDetails ? (isMobile ? drawerOpen : open) : undefined}
+				aria-controls={hasExpandableDetails ? id : undefined}
+				className={cn(TURN_HEADER_ROW_CLASS, "disabled:opacity-100")}
 			>
 				<TurnHeaderContent
 					active={active}
@@ -485,37 +511,35 @@ const TurnSegment: FC<{
 					swapKey={`${active}:${label}`}
 					turnTimingDisplay={turnTimingDisplay}
 					trailing={
-						<motion.span
-							className={cn(
-								"size-4 shrink-0 opacity-0 transition-opacity",
-								hasTrace &&
-									"group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
-							)}
-							animate={{ rotate: !isMobile && open ? 90 : 0 }}
-							transition={{
-								duration: reducedMotion ? 0 : 0.22,
-								ease: [0.22, 1, 0.36, 1],
-							}}
-							aria-hidden="true"
-						>
-							<ChevronRightIcon className="size-4" />
-						</motion.span>
+						hasExpandableDetails ? (
+							<motion.span
+								className="size-4 shrink-0 opacity-0 transition-opacity group-hover/trace:opacity-100 group-focus-visible/trace:opacity-100 max-md:opacity-100"
+								animate={{ rotate: !isMobile && open ? 90 : 0 }}
+								transition={{
+									duration: reducedMotion ? 0 : 0.22,
+									ease: [0.22, 1, 0.36, 1],
+								}}
+								aria-hidden="true"
+							>
+								<ChevronRightIcon className="size-4" />
+							</motion.span>
+						) : null
 					}
 				/>
 			</Button>
 			<div
 				id={id}
-				aria-hidden={!hasTrace}
+				aria-hidden={!hasExpandableDetails}
 				className={cn(
 					"hidden transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none md:grid",
-					hasTrace && open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+					hasExpandableDetails && open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
 				)}
 			>
 				<div className="overflow-hidden">
 					<div className="mt-3">{details}</div>
 				</div>
 			</div>
-			{isMobile && hasTrace ? (
+			{isMobile && hasExpandableDetails ? (
 				<Drawer
 					open={drawerOpen}
 					onOpenChange={(next) => {

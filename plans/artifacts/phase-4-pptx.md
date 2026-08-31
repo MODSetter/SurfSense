@@ -28,9 +28,9 @@ The adapter owns the presentation MIME and PDF rendered policy. The generic rece
 
 ## 3. Artifact flow
 
-PPTX persists as one `Artifact` with primary, preview, and private source `ArtifactFile` rows over one artifact `Document`. Its searchable Markdown is that document, under `/documents/**` and in `Chunk`; the deck bytes never enter document file persistence.
+PPTX persists as one `Artifact` with primary and preview `ArtifactFile` rows over one artifact `Document`. Its searchable Markdown is that document, under `/documents/**` and in `Chunk`; the deck bytes never enter document file persistence. Generation source remains a transient sandbox input.
 
-Create returns `artifact_id` and generation. Revision loads source by artifact ID and requires the expected generation. The manifest and immutable file URLs are artifact routes. Search results and citations are the document ones, with type routing the citation to the artifact panel.
+Create returns `artifact_id` and generation. Revision uses `load_artifact_for_revision` to restore the current primary plus Markdown context and requires the expected generation. The manifest and immutable file URLs are artifact routes. Search results and citations are the document ones, with type routing the citation to the artifact panel.
 
 ## 4. Rendering
 
@@ -43,7 +43,7 @@ PPTX generation is independent of the video-media pipeline; no PPTX exporter rem
 - Adapter fixtures for package/count/relationship/hidden-slide/geometry/crop defects.
 - Service checks for pre-conversion ceiling and dropped converted pages.
 - Slide/document review framing under one verdict contract.
-- Artifact create, stale-receipt refusal, private source, optimistic revision, stable path, and blob purge.
+- Artifact create, stale-receipt refusal, optimistic revision, stable path, and blob purge.
 - Live OpenSandbox generation, LibreOffice conversion, Poppler rasterization, receipt, and canonical MIME.
 
 ## 6. Exit criteria

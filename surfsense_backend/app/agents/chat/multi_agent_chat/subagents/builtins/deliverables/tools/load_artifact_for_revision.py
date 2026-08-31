@@ -37,6 +37,11 @@ _REVISION_INSTRUCTIONS = {
         "Regenerate expected_output_path from markdown_path and current user "
         "context; do not reconstruct the PDF with vision."
     ),
+    "html": (
+        "Edit primary_path directly, or regenerate the fragment from markdown_path "
+        "and the user's instruction, then write it to expected_output_path. Keep it "
+        "a self-contained fragment and do not reconstruct it with vision."
+    ),
     "video": (
         "Regenerate the video by re-authoring the deck from markdown_path plus "
         "the user's new instruction, render to expected_output_path, then verify "

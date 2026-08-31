@@ -1,6 +1,6 @@
 # Phase 1 — Artifact Foundation
 
-**Status:** In progress on this branch.
+**Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md), which is authoritative.
 **Goal:** Establish artifact-owned delivery metadata on top of the document corpus — one chunk table, one search leg, one citation namespace — plus the artifact APIs, panel contract, and read-only guards.
 
@@ -20,13 +20,13 @@ Sandbox generation and per-format verification/viewers belong to later phases.
 
 ## 2. Persistence
 
-`Document` with `document_type = ARTIFACT` stores the artifact's title, searchable Markdown, `/documents/Artifacts/<title>.md` path, content hash, folder, and indexing status. `document_metadata` carries `artifact_id` so a search hit or citation can route without a second query.
+`Document` with `document_type = ARTIFACT` stores the artifact's title, searchable Markdown, `/documents/<title>.md` path, content hash, folder, and indexing status. `document_metadata` carries `artifact_id` so a search hit or citation can route without a second query.
 
 `Artifact` stores adapter `format`, `generation`, workspace/thread/user provenance, originating tool-call ids, verification metadata, timestamps, and `document_id`. It stores no title, path, body, hash, or indexing state — those exist once, on the document.
 
-`ArtifactFile` stores immutable primary/preview/source blob metadata with one row per role. Source is private.
+`ArtifactFile` stores immutable primary/preview blob metadata with one row per role. Generation sources remain transient sandbox inputs.
 
-Markdown artifacts have no file rows. Binary shapes have primary + source and optionally preview. The schema is format-independent; service coverage includes the XLSX-shaped primary + source case without shipping XLSX generation.
+Markdown artifacts have no file rows. Binary shapes have primary and optionally preview. The schema is format-independent.
 
 ### Migration 178
 
@@ -39,7 +39,7 @@ There is no artifact chunk table to create and no artifact search index to build
 
 ### Create and revise
 
-- Create allocates a collision-safe `/documents/Artifacts/<title>.md` path through the shared allocator, inserts the document, then the artifact.
+- Create allocates a collision-safe `/documents/<title>.md` path through the shared allocator, inserts the document, then the artifact.
 - The document is constructed directly rather than through connector preparation, whose corpus-wide content-hash dedup would drop a deliverable whose Markdown matches an existing document.
 - Retitle updates the document title and leaves the path alone. A user rename or move goes through the ordinary document move and preserves the document id.
 - Revision row-locks the artifact and rejects a missing or stale `expected_generation`.
@@ -57,7 +57,7 @@ Full-tree convergence has exactly one root and one ownership map. An artifact do
 
 ## 4. API, rendering, and permissions
 
-Artifact APIs live under `/workspaces/{workspace_id}/artifacts`. They enforce `ARTIFACTS_READ` and `ARTIFACTS_DELETE`, workspace ownership, file/artifact ownership, source-file privacy, PDF-only inline disposition, immutable file ETags, and no-store current downloads.
+Artifact APIs live under `/workspaces/{workspace_id}/artifacts`. They enforce `ARTIFACTS_READ` and `ARTIFACTS_DELETE`, workspace ownership, file/artifact ownership, PDF/MP4-only inline disposition on immutable content routes, immutable file ETags, and attachment-only no-store current downloads.
 
 The manifest joins the document for title and Markdown and returns `artifact_id`, `document_id`, generation, format, and visible files. `DELETE /{artifact_id}` authorizes as an artifact operation and delegates to document deletion, which owns Git removal, chunk cascade, blob purge, and Zero-visible row state.
 
@@ -82,7 +82,7 @@ An artifact passage cites as a knowledge-base chunk. Resolution returns the docu
 - Git projection and convergence preserve `document_type` across incremental and full-tree runs.
 - Non-git indexing failure leaves a durable artifact with a failed document that reindex repairs.
 - Deleting the artifact removes the Git file, the document, its chunks, the artifact, its file rows, and every reachable blob including artifact roles.
-- Artifact route RBAC/isolation, ETag/304, no-store download, PDF-only inline, and source rejection.
+- Artifact route RBAC/isolation, ETag/304, no-store attachment download, and PDF/MP4-only inline content.
 - `save_document` refuses an artifact document; rename and move still succeed.
 - An artifact passage ranks in the same fusion as documents and its citation opens the artifact panel.
 - Frontend queries/cards/panel identity use `artifact_id`.

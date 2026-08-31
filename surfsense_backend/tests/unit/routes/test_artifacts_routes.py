@@ -300,6 +300,28 @@ async def test_file_uses_checksum_etag_and_pdf_inline_disposition(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_html_file_is_attachment_with_nosniff(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    record = _file(8, ArtifactFileRole.PRIMARY)
+    record.original_filename = "calculator.html"
+    record.mime_type = "text/html"
+    session = AsyncMock()
+    session.scalar.return_value = record
+    monkeypatch.setattr(
+        artifacts_routes,
+        "open_artifact_file_stream",
+        lambda _record: iter(()),
+    )
+
+    response = await artifacts_routes.stream_artifact_file(
+        2, 7, 8, _request(), session, SimpleNamespace()
+    )
+
+    assert response.headers["content-disposition"].startswith("attachment;")
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+@pytest.mark.asyncio
 async def test_file_honors_checksum_etag(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     session = AsyncMock()
