@@ -54,6 +54,7 @@ export function GitRemoteSettings({
 	const [gitlabUrl, setGitlabUrl] = useState("");
 	const [gitlabBranch, setGitlabBranch] = useState("main");
 	const [gitlabToken, setGitlabToken] = useState("");
+	const [sourcepath, setSourcepath] = useState("docs");
 	const [busy, setBusy] = useState(false);
 
 	const remote = remotesQuery.data?.[0];
@@ -85,6 +86,7 @@ export function GitRemoteSettings({
 				url,
 				branch: "main",
 				installation_id: githubInstallationId,
+				sourcepath: sourcepath.trim() || "docs",
 			});
 			toast.success(t("connected_repo_github_connected"));
 			await refresh();
@@ -105,6 +107,7 @@ export function GitRemoteSettings({
 				url: gitlabUrl.trim(),
 				branch: gitlabBranch.trim() || "main",
 				token: gitlabToken.trim(),
+				sourcepath: sourcepath.trim() || "docs",
 			});
 			toast.success(t("connected_repo_gitlab_connected"));
 			setGitlabToken("");
@@ -142,6 +145,19 @@ export function GitRemoteSettings({
 		}
 	};
 
+	const onResolve = async (direction: "from_remote" | "from_local") => {
+		setBusy(true);
+		try {
+			await gitRemotesApiService.resolve(workspaceId, direction);
+			toast.success(t("connected_repo_push_queued"));
+			await refresh();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t("connected_repo_resolve_error"));
+		} finally {
+			setBusy(false);
+		}
+	};
+
 	if (workspaceQuery.isLoading) {
 		return (
 			<div className="flex flex-col gap-4">
@@ -169,7 +185,24 @@ export function GitRemoteSettings({
 						</Badge>
 						<p className="text-sm break-all">{remote.url}</p>
 						<p className="text-xs text-muted-foreground">{t("connected_repo_branch", { branch: remote.branch })}</p>
+						{remote.sourcepath != null ? (
+							<p className="text-xs text-muted-foreground">
+								{t("connected_repo_sourcepath", { path: remote.sourcepath || "/" })}
+							</p>
+						) : null}
 					</div>
+					{remote.last_error_code === "conflict" || remote.last_error_code === "need_direction" ? (
+						<p className="text-xs text-destructive">
+							{remote.last_error_code === "need_direction"
+								? t("connected_repo_need_direction")
+								: t("connected_repo_conflict")}
+							{remote.last_conflict_paths ? ` ${remote.last_conflict_paths}` : ""}
+						</p>
+					) : remote.last_error_code ? (
+						<p className="text-xs text-destructive">{remote.last_error_code}</p>
+					) : remote.last_push_error ? (
+						<p className="text-xs text-destructive">{remote.last_push_error}</p>
+					) : null}
 					{remote.last_pushed_revision ? (
 						<p className="text-xs text-muted-foreground font-mono">
 							{t("connected_repo_last_pushed", {
@@ -182,13 +215,34 @@ export function GitRemoteSettings({
 					) : (
 						<p className="text-xs text-muted-foreground">{t("connected_repo_not_pushed")}</p>
 					)}
-					{remote.last_push_error ? (
-						<p className="text-xs text-destructive">{remote.last_push_error}</p>
-					) : null}
 					<div className="flex flex-wrap gap-2">
-						<Button type="button" variant="secondary" size="sm" disabled={busy} onClick={onRetry}>
-							{busy ? <Spinner size="sm" /> : t("connected_repo_retry")}
-						</Button>
+						{remote.last_error_code === "conflict" ||
+						remote.last_error_code === "need_direction" ? (
+							<>
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									disabled={busy}
+									onClick={() => onResolve("from_remote")}
+								>
+									{busy ? <Spinner size="sm" /> : t("connected_repo_use_remote")}
+								</Button>
+								<Button
+									type="button"
+									variant="secondary"
+									size="sm"
+									disabled={busy}
+									onClick={() => onResolve("from_local")}
+								>
+									{busy ? <Spinner size="sm" /> : t("connected_repo_use_local")}
+								</Button>
+							</>
+						) : (
+							<Button type="button" variant="secondary" size="sm" disabled={busy} onClick={onRetry}>
+								{busy ? <Spinner size="sm" /> : t("connected_repo_retry")}
+							</Button>
+						)}
 						<Button
 							type="button"
 							variant="outline"
@@ -203,6 +257,15 @@ export function GitRemoteSettings({
 			) : githubInstallationId ? (
 				<div className="flex flex-col gap-3 rounded-lg border p-4">
 					<p className="text-sm">{t("connected_repo_pick")}</p>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="github-sourcepath">{t("connected_repo_gitlab_sourcepath")}</Label>
+						<Input
+							id="github-sourcepath"
+							value={sourcepath}
+							onChange={(e) => setSourcepath(e.target.value)}
+							placeholder="docs"
+						/>
+					</div>
 					{reposQuery.isLoading ? (
 						<Skeleton className="h-10 w-full" />
 					) : (reposQuery.data ?? []).length === 0 ? (
@@ -280,6 +343,15 @@ export function GitRemoteSettings({
 										id="gitlab-branch"
 										value={gitlabBranch}
 										onChange={(e) => setGitlabBranch(e.target.value)}
+									/>
+								</div>
+								<div className="flex flex-col gap-2">
+									<Label htmlFor="gitlab-sourcepath">{t("connected_repo_gitlab_sourcepath")}</Label>
+									<Input
+										id="gitlab-sourcepath"
+										value={sourcepath}
+										onChange={(e) => setSourcepath(e.target.value)}
+										placeholder="docs"
 									/>
 								</div>
 								<div className="flex flex-col gap-2">

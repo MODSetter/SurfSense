@@ -7,6 +7,9 @@ export const gitRemote = z.object({
 	last_pushed_revision: z.string().nullable().optional(),
 	last_pushed_at: z.string().nullable().optional(),
 	last_push_error: z.string().nullable().optional(),
+	sourcepath: z.string().nullable().optional(),
+	last_error_code: z.string().nullable().optional(),
+	last_conflict_paths: z.string().nullable().optional(),
 });
 
 export const listGitRemotesResponse = z.array(gitRemote);
@@ -17,12 +20,16 @@ export const addGitRemoteRequest = z.discriminatedUnion("provider", [
 		url: z.string().url(),
 		installation_id: z.string().min(1),
 		branch: z.string().optional(),
+		sourcepath: z.string().optional(),
+		direction: z.enum(["from_remote", "from_local"]).nullable().optional(),
 	}),
 	z.object({
 		provider: z.literal("gitlab"),
 		url: z.string().url(),
 		token: z.string().min(1),
 		branch: z.string().optional(),
+		sourcepath: z.string().optional(),
+		direction: z.enum(["from_remote", "from_local"]).nullable().optional(),
 	}),
 ]);
 
@@ -39,6 +46,10 @@ export const listGithubReposResponse = z.array(githubRepo);
 
 export const retryGitRemotePushResponse = z.object({
 	status: z.string(),
+});
+
+export const resolveGitRemoteRequest = z.object({
+	direction: z.enum(["from_remote", "from_local"]),
 });
 
 export type GitRemote = z.infer<typeof gitRemote>;

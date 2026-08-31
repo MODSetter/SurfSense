@@ -35,8 +35,16 @@ class GitRemotesApiService {
 
 	retryPush = async (workspaceId: number) => {
 		return baseApiService.post(
-			`/api/v1/workspaces/${workspaceId}/git-remotes/push`,
+			`/api/v1/workspaces/${workspaceId}/git-remotes/sync`,
 			retryGitRemotePushResponse
+		);
+	};
+
+	resolve = async (workspaceId: number, direction: "from_remote" | "from_local") => {
+		return baseApiService.post(
+			`/api/v1/workspaces/${workspaceId}/git-remotes/resolve`,
+			retryGitRemotePushResponse,
+			{ body: { direction } }
 		);
 	};
 

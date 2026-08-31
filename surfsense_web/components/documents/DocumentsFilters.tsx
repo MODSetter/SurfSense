@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { FolderPlus, Github, ListFilter, Search, Upload, X } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -147,6 +148,7 @@ export function DocumentsFilters({
 	onCreateFolder,
 	onUploadClick,
 	isUploading = false,
+	connectRepoHref,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -156,6 +158,7 @@ export function DocumentsFilters({
 	onCreateFolder?: () => void;
 	onUploadClick?: () => void;
 	isUploading?: boolean;
+	connectRepoHref?: string;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -236,6 +239,19 @@ export function DocumentsFilters({
 					{isUploading ? <Spinner size="xs" /> : <Upload size={13} />}
 					<span>{isUploading ? t("uploading") : t("upload_files")}</span>
 				</Button>
+				{connectRepoHref ? (
+					<Button
+						asChild
+						variant="outline"
+						size="sm"
+						className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+					>
+						<Link href={connectRepoHref}>
+							<Github size={13} />
+							<span>{t("connect_repo")}</span>
+						</Link>
+					</Button>
+				) : null}
 
 				{/* New Folder + Filter Toggle Group */}
 				<ToggleGroup type="multiple" value={[]} className="shrink-0 overflow-visible">

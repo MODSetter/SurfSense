@@ -1071,6 +1071,7 @@ function AuthenticatedDocumentRightPanelBase({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
+						connectRepoHref={`/dashboard/${workspaceId}/workspace-settings/git-remote`}
 					/>
 				</div>
 
