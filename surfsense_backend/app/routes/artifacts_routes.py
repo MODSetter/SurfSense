@@ -20,6 +20,7 @@ from app.artifacts.storage import (
     open_artifact_file_range,
     open_artifact_file_stream,
 )
+from app.artifacts.verification.formats.registry import registered_suffix
 from app.auth.context import AuthContext
 from app.db import Document, Permission, get_async_session
 from app.users import get_auth_context
@@ -67,9 +68,11 @@ def _safe_filename_stem(title: str) -> str:
 
 
 def _artifact_filename(title: str, original_filename: str) -> str:
-    suffix = Path(original_filename).suffix.lower()
-    if not suffix[1:].isalnum() or len(suffix) > 16:
-        suffix = ""
+    suffix = registered_suffix(original_filename)
+    if suffix is None:
+        suffix = Path(original_filename).suffix.lower()
+        if not suffix[1:].isalnum() or len(suffix) > 16:
+            suffix = ""
     title_without_suffix = (
         title[: -len(suffix)] if suffix and title.lower().endswith(suffix) else title
     )
