@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 
 from .base import FormatAdapter
 from .docx import check_docx
+from .html import check_html
 from .pdf import check_pdf
 from .pptx import check_pptx
 from .video import check_video, reject_buffered_video_check
@@ -15,6 +16,7 @@ PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+HTML_MIME = "text/html"
 MP4_MIME = "video/mp4"
 
 _ADAPTERS = {
@@ -48,6 +50,14 @@ _ADAPTERS = {
         mime_type=XLSX_MIME,
         convert_to_pdf=False,
         check=check_xlsx,
+        requires_visual_review=False,
+    ),
+    ".html": FormatAdapter(
+        name="html",
+        suffix=".html",
+        mime_type=HTML_MIME,
+        convert_to_pdf=False,
+        check=check_html,
         requires_visual_review=False,
     ),
     ".mp4": FormatAdapter(
