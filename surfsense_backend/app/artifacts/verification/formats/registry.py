@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 from .base import FormatAdapter
 from .docx import check_docx
 from .html import check_html
+from .mindmap import check_mindmap_png
 from .pdf import check_pdf
 from .pptx import check_pptx
 from .video import check_video, reject_buffered_video_check
@@ -18,6 +19,7 @@ PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presen
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 HTML_MIME = "text/html"
 MP4_MIME = "video/mp4"
+PNG_MIME = "image/png"
 
 _ADAPTERS = {
     ".pdf": FormatAdapter(
@@ -69,14 +71,37 @@ _ADAPTERS = {
         requires_visual_review=False,
         sandbox_check=check_video,
     ),
+    ".mindmap.png": FormatAdapter(
+        name="mindmap",
+        suffix=".mindmap.png",
+        mime_type=PNG_MIME,
+        convert_to_pdf=False,
+        check=check_mindmap_png,
+        requires_visual_review=False,
+        requires_markdown_binding=True,
+    ),
 }
 
 
+def registered_suffix(path: str) -> str | None:
+    """Return the longest registered suffix matching ``path``."""
+    lowered = PurePosixPath(path).name.lower()
+    return next(
+        (
+            suffix
+            for suffix in sorted(_ADAPTERS, key=len, reverse=True)
+            if lowered.endswith(suffix)
+        ),
+        None,
+    )
+
+
 def get_format_adapter(path: str) -> FormatAdapter:
-    suffix = PurePosixPath(path).suffix.lower()
+    suffix = registered_suffix(path)
     try:
         return _ADAPTERS[suffix]
     except KeyError:
+        unknown_suffix = PurePosixPath(path).suffix.lower()
         raise ValueError(
-            f"Artifact verification does not support {suffix or 'this file'}"
+            f"Artifact verification does not support {unknown_suffix or 'this file'}"
         ) from None

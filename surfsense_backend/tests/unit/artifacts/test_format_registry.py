@@ -49,3 +49,16 @@ def test_format_adapters_own_rendering_policy(
     assert adapter.rendered_min_chars == rendered_min_chars
     assert adapter.expects_exact_page_count is expects_exact_page_count
     assert adapter.review_kind == review_kind
+
+
+def test_longest_case_insensitive_suffix_selects_mindmap_only():
+    adapter = get_format_adapter("/workspace/Strategy.MINDMAP.PNG")
+
+    assert adapter.name == "mindmap"
+    assert adapter.suffix == ".mindmap.png"
+    assert adapter.mime_type == "image/png"
+    assert adapter.requires_markdown_binding
+    assert not adapter.requires_visual_review
+
+    with pytest.raises(ValueError, match=r"\.png"):
+        get_format_adapter("/workspace/unrelated.png")

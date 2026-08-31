@@ -42,6 +42,7 @@ class FormatAdapter:
     # Orthogonal to convert_to_pdf: PDF keeps convert_to_pdf=False but still
     # needs eyes. Spreadsheets set this False and never enter the visual path.
     requires_visual_review: bool = True
+    requires_markdown_binding: bool = False
     sandbox_check: (
         Callable[[SandboxSession, str], Awaitable[SandboxCheckResult]] | None
     ) = None
