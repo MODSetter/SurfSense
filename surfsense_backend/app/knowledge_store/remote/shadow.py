@@ -144,14 +144,19 @@ class Shadow:
 def _clone(url: str, dest: Path, *, branch: str | None) -> None:
     """Clone `branch` when it exists; unborn remotes clone HEAD and point at `branch`."""
     try:
-        porcelain.clone(url, str(dest), branch=branch.encode() if branch else None)
+        porcelain.clone(
+            url,
+            str(dest),
+            branch=branch.encode() if branch else None,
+            depth=1,
+        )
         return
     except ValueError as exc:
         if "is not a valid branch or tag" not in str(exc):
             raise
         if dest.exists():
             shutil.rmtree(dest)
-        porcelain.clone(url, str(dest))
+        porcelain.clone(url, str(dest), depth=1)
         if not branch:
             return
         repo = Repo(str(dest))

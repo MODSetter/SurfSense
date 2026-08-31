@@ -63,3 +63,12 @@ def test_clone_of_empty_dest_with_named_branch_is_empty(tmp_path):
     shadow = Shadow.clone(str(dest._path), tmp_path / "shadow", branch="main")
     assert shadow.list_md("docs") == {}
     assert shadow.head_sha() is None
+
+
+def test_clone_keeps_the_tip_without_older_commits(tmp_path):
+    dest = GitContentEngine(tmp_path / "dest", tmp_path / "dest-wc")
+    dest.record(writes={"docs/a.md": b"v1"}, removes=[], message="one", author=AUTHOR)
+    dest.record(writes={"docs/a.md": b"v2"}, removes=[], message="two", author=AUTHOR)
+    shadow = Shadow.clone(str(dest._path), tmp_path / "shadow", branch="main")
+    assert shadow.read("docs/a.md") == b"v2"
+    assert (tmp_path / "shadow" / ".git" / "shallow").is_file()
