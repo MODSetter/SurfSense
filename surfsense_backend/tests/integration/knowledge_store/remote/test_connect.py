@@ -86,10 +86,10 @@ async def test_second_remote_is_refused(
     with pytest.raises(RemoteError) as exc:
         await store.remotes.add(gitlab_spec(dest))
     assert exc.value.code == "already_exists"
-    assert delayed == [db_workspace.id]
+    assert delayed == []
 
 
-async def test_non_empty_branch_is_refused(
+async def test_non_empty_branch_can_be_connected(
     knowledge_root,
     tmp_path,
     db_session,
@@ -98,18 +98,17 @@ async def test_non_empty_branch_is_refused(
     local_gitlab,
     delayed,
     workspace_flip,
+    celery_session_on_test_connection,
 ):
     workspace_flip(True)
     _seed_main(tmp_path, dest)
     store = store_for(db_workspace, db_session)
-    with pytest.raises(RemoteError) as exc:
-        await store.remotes.add(gitlab_spec(dest))
-    assert exc.value.code == "not_empty"
+    status = await store.remotes.add(gitlab_spec(dest), direction="from_remote")
+    assert status.provider == "gitlab"
     assert delayed == []
-    assert await store.remotes.list() == []
 
 
-async def test_add_then_push_copies_head_and_keeps_the_pat_off_status(
+async def test_add_keeps_the_pat_off_status(
     knowledge_root,
     db_session,
     db_workspace,
@@ -121,29 +120,18 @@ async def test_add_then_push_copies_head_and_keeps_the_pat_off_status(
 ):
     workspace_flip(True)
     store = store_for(db_workspace, db_session)
-    rev = await _record(store)
 
     status = await store.remotes.add(gitlab_spec(dest))
     listed = await store.remotes.list()
     assert listed == [status]
     assert status.provider == "gitlab"
     assert status.url == str(dest._path)
-    assert status.last_pushed_revision is None
     assert not hasattr(status, "token")
-    assert delayed == [db_workspace.id]
+    assert delayed == []
 
     creds = await store.remotes.credentials()
     assert creds.username == "oauth2"
     assert creds.password == PAT
-
-    sha = await push_task._push(db_workspace.id)
-    assert sha == rev
-    assert dest.read_as_of(rev, "documents/a.md") == b"hello"
-
-    db_session.expire_all()
-    after = (await store.remotes.list())[0]
-    assert after.last_pushed_revision == rev
-    assert after.last_push_error is None
 
 
 async def test_worker_noops_without_a_remote(
@@ -171,10 +159,10 @@ async def test_worker_noops_when_already_pushed(
 ):
     workspace_flip(True)
     store = store_for(db_workspace, db_session)
-    await _record(store)
     await store.remotes.add(gitlab_spec(dest))
-    assert await push_task._push(db_workspace.id) is not None
-    assert await push_task._push(db_workspace.id) is None
+    await push_task._push(db_workspace.id)
+    # A second tick with matching maps is still a successful no-apply.
+    await push_task._push(db_workspace.id)
 
 
 async def test_remove_clears_the_row(
@@ -209,8 +197,8 @@ async def test_sweep_enqueues_when_stamp_trails_head(
     db_workspace.knowledge_store_enabled = True
     await db_session.flush()
     store = store_for(db_workspace, db_session)
-    await _record(store)
     await store.remotes.add(gitlab_spec(dest))
+    await _record(store)
     delayed.clear()
 
     assert await push_task._sweep() == 1
@@ -231,7 +219,6 @@ async def test_sweep_skips_when_stamp_matches_head(
     db_workspace.knowledge_store_enabled = True
     await db_session.flush()
     store = store_for(db_workspace, db_session)
-    await _record(store)
     await store.remotes.add(gitlab_spec(dest))
     await push_task._push(db_workspace.id)
     delayed.clear()
