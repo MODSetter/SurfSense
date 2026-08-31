@@ -119,6 +119,30 @@ def test_deliverables_prompt_routes_interactive_requests_to_html_before_pdf_fall
     assert prompt.index(html_route) < prompt.index(pdf_fallback)
 
 
+def test_deliverables_prompt_routes_mindmaps_before_html_and_pdf_defaults():
+    prompt = _prompt()
+    mindmap_route = "show a concept\n  hierarchy → mindmap"
+    html_route = "controls update results → HTML"
+    pdf_fallback = "prefer PDF for a finished deliverable"
+
+    assert mindmap_route in prompt
+    assert '`load_artifact_instructions(artifact_type="mindmap")`' in prompt
+    assert prompt.index(mindmap_route) < prompt.index(html_route)
+    assert prompt.index(mindmap_route) < prompt.index(pdf_fallback)
+    assert "flowcharts, process flows, sequence\n  diagrams" in prompt
+
+
+def test_mindmap_skill_binds_markdown_to_the_png_without_custom_styling():
+    skill = _skill("mindmap")
+
+    assert "node /opt/remotion/render-mindmap.mjs" in skill
+    assert 'path="/workspace/<slug>.mindmap.png"' in skill
+    assert 'markdown_path="/workspace/<slug>.md"' in skill
+    assert "byte-for-byte the verified source" in skill
+    assert "do not author CSS, colors, HTML, SVG, renderer\noptions" in skill
+    assert "`markmap-cli`" in skill
+
+
 def test_shared_frontend_design_is_composed_without_becoming_a_format_skill():
     dockerfile = SANDBOX_DOCKERFILE.read_text()
 

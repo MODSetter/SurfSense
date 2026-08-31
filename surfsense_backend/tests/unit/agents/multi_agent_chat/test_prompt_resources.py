@@ -47,6 +47,7 @@ def test_deliverables_roster_advertises_file_artifacts():
         marker in description
         for marker in ("PDF", "Word", "DOCX", ".docx", "PowerPoint", "PPTX", ".pptx")
     )
+    assert all(marker in description for marker in ("mind maps", ".mindmap.png"))
 
 
 def test_presentation_routing_separates_pptx_from_video():
