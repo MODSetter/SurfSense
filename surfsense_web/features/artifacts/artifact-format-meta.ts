@@ -64,7 +64,7 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 	},
 	html: {
 		icon: FileCode,
-		label: "Interactive",
+		label: "Code",
 		detailLabel: "HTML",
 		groupKey: "files",
 		groupLabel: "Files",
