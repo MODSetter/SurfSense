@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 def enqueue_sync(workspace_id: int | str) -> None:
     """Ask a worker to mirror the connected folder, if any.
 
-    Fire-and-forget: a broker problem is logged and dropped. The hourly sweep
-    is the backstop.
+    Fire-and-forget: a broker problem is logged and dropped. Retry in
+    settings is the recovery until we have evidence drops need a sweep.
     """
     if not load_knowledge_store_settings().enabled:
         return
@@ -29,7 +29,7 @@ def enqueue_sync(workspace_id: int | str) -> None:
         push_knowledge_store_revision.delay(numeric)
     except Exception:
         logger.warning(
-            "Could not enqueue sync for workspace %s; the drift sweep will pick it up",
+            "Could not enqueue sync for workspace %s",
             workspace_id,
             exc_info=True,
         )

@@ -63,4 +63,5 @@ def test_a_broker_failure_does_not_reach_the_caller(monkeypatch, caplog):
         unreachable,
     )
     remote_queue.enqueue_push(7)
-    assert "drift sweep" in caplog.text
+    assert "Could not enqueue sync" in caplog.text
+    assert "sweep" not in caplog.text.lower()
