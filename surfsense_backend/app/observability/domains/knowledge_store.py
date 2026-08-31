@@ -34,10 +34,34 @@ def _remote_connect():
 
 
 @lru_cache(maxsize=1)
-def _remote_push():
+def _remote_sync():
     return m.get_meter().create_counter(
-        "surfsense.knowledge_store.remote.push",
-        description="Count of workspace git-remote push attempts per outcome.",
+        "surfsense.knowledge_store.remote.sync",
+        description="Count of folder-sync ticks per outcome.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _remote_resolve():
+    return m.get_meter().create_counter(
+        "surfsense.knowledge_store.remote.resolve",
+        description="Count of conflict/direction resolves per outcome.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _remote_disconnect():
+    return m.get_meter().create_counter(
+        "surfsense.knowledge_store.remote.disconnect",
+        description="Count of git-remote disconnects.",
+    )
+
+
+@lru_cache(maxsize=1)
+def _remote_enqueue():
+    return m.get_meter().create_counter(
+        "surfsense.knowledge_store.remote.enqueue",
+        description="Count of folder-sync enqueue attempts (queued or dropped).",
     )
 
 
@@ -65,11 +89,52 @@ def record_knowledge_store_remote_connect(*, provider: str, status: str) -> None
     m.add(_remote_connect(), 1, {"remote.provider": provider, "status": status})
 
 
+def record_knowledge_store_remote_sync(
+    *, status: str, provider: str | None = None, error_code: str | None = None
+) -> None:
+    """Record one sync tick.
+
+    ``status`` is ``mirrored``, ``conflict``, ``worktree_busy``,
+    ``reconnect_required``, ``blocked``, ``skipped``, or ``failed``.
+    """
+    attrs: dict[str, Any] = {
+        "remote.provider": provider or "none",
+        "status": status,
+    }
+    if error_code:
+        attrs["error.code"] = error_code
+    m.add(_remote_sync(), 1, attrs)
+
+
+def record_knowledge_store_remote_resolve(
+    *, direction: str, status: str, provider: str | None = None
+) -> None:
+    """Record one resolve. ``status`` is ``resolved`` or ``failed``."""
+    m.add(
+        _remote_resolve(),
+        1,
+        {
+            "remote.provider": provider or "none",
+            "remote.direction": direction,
+            "status": status,
+        },
+    )
+
+
+def record_knowledge_store_remote_disconnect(*, provider: str | None = None) -> None:
+    m.add(_remote_disconnect(), 1, {"remote.provider": provider or "none"})
+
+
+def record_knowledge_store_remote_enqueue(*, status: str) -> None:
+    """Record one enqueue attempt. ``status`` is ``queued`` or ``failed``."""
+    m.add(_remote_enqueue(), 1, {"status": status})
+
+
 def record_knowledge_store_remote_push(
     *, status: str, provider: str | None = None
 ) -> None:
-    """Record one push attempt. ``status`` is ``pushed``, ``noop``, or ``failed``."""
-    m.add(_remote_push(), 1, {"remote.provider": provider or "none", "status": status})
+    """Backward-compatible alias of :func:`record_knowledge_store_remote_sync`."""
+    record_knowledge_store_remote_sync(status=status, provider=provider)
 
 
 def drift_sweep_span(*, extra: dict[str, Any] | None = None):
@@ -102,17 +167,59 @@ def drift_check_span(
     )
 
 
-def remote_connect_span(*, workspace_id: int, provider: str):
+def remote_connect_span(
+    *, workspace_id: int, provider: str, extra: dict[str, Any] | None = None
+):
     """Span around attaching one git remote to a workspace."""
+    attrs: dict[str, Any] = {
+        "workspace.id": int(workspace_id),
+        "remote.provider": provider,
+    }
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.connect", attributes=attrs)
+
+
+def remote_sync_span(*, workspace_id: int, extra: dict[str, Any] | None = None):
+    """Span around one folder-sync tick (clone, plan, apply, pathspec-push)."""
+    attrs: dict[str, Any] = {"workspace.id": int(workspace_id)}
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.sync", attributes=attrs)
+
+
+def remote_resolve_span(
+    *, workspace_id: int, direction: str, extra: dict[str, Any] | None = None
+):
+    """Span around overwriting one side of the bijection."""
+    attrs: dict[str, Any] = {
+        "workspace.id": int(workspace_id),
+        "remote.direction": direction,
+    }
+    if extra:
+        attrs.update(extra)
+    return span("knowledge_store.remote.resolve", attributes=attrs)
+
+
+def remote_disconnect_span(*, workspace_id: int):
+    """Span around dropping the connected remote and its shadow clone."""
     return span(
-        "knowledge_store.remote.connect",
-        attributes={"workspace.id": int(workspace_id), "remote.provider": provider},
+        "knowledge_store.remote.disconnect",
+        attributes={"workspace.id": int(workspace_id)},
+    )
+
+
+def remote_shadow_span(*, workspace_id: int, operation: str):
+    """Span around clone/refresh/push of their forge checkout."""
+    return span(
+        "knowledge_store.remote.shadow",
+        attributes={
+            "workspace.id": int(workspace_id),
+            "shadow.operation": operation,
+        },
     )
 
 
 def remote_push_span(*, workspace_id: int, extra: dict[str, Any] | None = None):
-    """Span around one worker attempt to fast-forward HEAD to the remote."""
-    attrs: dict[str, Any] = {"workspace.id": int(workspace_id)}
-    if extra:
-        attrs.update(extra)
-    return span("knowledge_store.remote.push", attributes=attrs)
+    """Backward-compatible alias of :func:`remote_sync_span`."""
+    return remote_sync_span(workspace_id=workspace_id, extra=extra)
