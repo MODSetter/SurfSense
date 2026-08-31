@@ -1,14 +1,14 @@
-# Phase 7 — Public, Generic, and Hardened Artifacts
+# Phase 8 — Public, Generic, and Hardened Artifacts
 
 **Status:** Planned.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
-**Depends on:** phase 5 XLSX pipeline and phase 6 legacy demolition.
+**Depends on:** phase 5 XLSX pipeline and phase 7 legacy demolition.
 
 ## 1. Goal
 
 Complete the format-independent artifact contract by making artifacts available in public chat snapshots, accepting safe download-only formats through a generic adapter, and closing the remaining XLSX quality gaps.
 
-Phase 7 extends the existing artifact service and viewer registry. It does not introduce another persistence model, public artifact copy, panel, export system, or format-specific API.
+Phase 8 extends the existing artifact service and viewer registry. It does not introduce another persistence model, public artifact copy, panel, export system, or format-specific API.
 
 ## 2. Scope
 
@@ -58,7 +58,7 @@ A public share token grants access only when:
 
 Every public manifest, file, and download route applies the same authorization helper. Invalid tokens, cross-thread IDs, cross-workspace IDs, file IDs outside the artifact's visible primary/preview roles, and deleted artifacts return `404` without disclosing which check failed.
 
-Chat messages remain immutable snapshot data. Artifact IDs are live references to the artifact's current generation; phase 7 does not retain or expose historical artifact generations.
+Chat messages remain immutable snapshot data. Artifact IDs are live references to the artifact's current generation; phase 8 does not retain or expose historical artifact generations.
 
 ### 4.2 Routes
 
@@ -83,6 +83,7 @@ Public tool cards resolve artifact manifests with the share token and open the e
 - PDF uses the PDF viewer.
 - DOCX and PPTX use their receipt-bound PDF preview.
 - XLSX uses the native grid.
+- HTML uses the sandboxed iframe viewer (phase 6), served attachment-only with `nosniff` so it never executes on the app origin.
 - Markdown uses the Markdown viewer.
 - Unknown formats use the download fallback.
 

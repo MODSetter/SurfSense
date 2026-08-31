@@ -1,4 +1,4 @@
-# Phase 6 — Legacy Deliverable Demolition
+# Phase 7 — Legacy Deliverable Demolition
 
 **Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
@@ -61,7 +61,7 @@ There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile,
 
 The artifacts library lists `GET /workspaces/{workspace_id}/artifacts`. Format, generation, and file roles come from the artifact rows; they are never inferred from document metadata or file kinds.
 
-Phase 6 must not:
+Phase 7 must not:
 
 - convert legacy reports to artifacts;
 - reintroduce a parallel artifact corpus, chunk table, or search leg;

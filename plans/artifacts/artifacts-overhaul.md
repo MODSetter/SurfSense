@@ -1,6 +1,6 @@
 # Artifacts Overhaul — Authoritative Architecture
 
-**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, unified indexing/search, and phase 6 legacy demolition are implemented. Phase 7 will complete generic-format handling, public artifact access, and XLSX hardening.
+**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, unified indexing/search, and phase 7 legacy demolition are implemented. Phase 6 will add interactive HTML, and phase 8 will complete generic-format handling, public artifact access, and XLSX hardening.
 **Scope:** Generated deliverables. Media generation remains on its existing pipelines, while current image, podcast, and video flows may record artifact sidecars.
 **Shape:** [ADR 0003](../../docs/adr/0003-artifacts-as-documents.md) records why a deliverable's body is a document type rather than a second corpus, and the obligations that creates.
 
@@ -167,7 +167,7 @@ Persistence remains format-blind:
 - Generation sources remain transient sandbox inputs rather than a persistence role.
 - The manifest and viewer registry degrade unknown or unviewable formats to download.
 
-Shipped deliverable formats are Markdown, PDF, DOCX, PPTX, and XLSX. XLSX uses programmatic verification, primary-only persistence, no preview, and a native read-only grid. Image, podcast, and video flows can also record artifact sidecars through their existing media pipelines. Phase 7 adds the generic adapter for bounded unknown binaries and uses `application/octet-stream` with attachment-only delivery.
+Shipped deliverable formats are Markdown, PDF, DOCX, PPTX, and XLSX. XLSX uses programmatic verification, primary-only persistence, no preview, and a native read-only grid. Image, podcast, and video flows can also record artifact sidecars through their existing media pipelines. Phase 6 adds interactive HTML with programmatic verification and primary-only persistence, served attachment-only and rendered client-side in a sandboxed iframe. Phase 8 adds the generic adapter for bounded unknown binaries and uses `application/octet-stream` with attachment-only delivery.
 
 ## 8. Rendering and revision UX
 
@@ -177,6 +177,7 @@ The artifact panel and caches are keyed by `artifact_id`. It fetches the dedicat
 - PDF -> primary in the PDF viewer;
 - DOCX/PPTX -> receipt-bound PDF preview;
 - XLSX -> primary in the native grid;
+- HTML -> primary in a sandboxed iframe (phase 6);
 - unknown/missing preview/oversized/parse failure -> unviewable state with download.
 
 All viewers are read-only. Revisions return to the deliverables agent, which loads the current primary plus Markdown context and saves with `artifact_id + expected_generation`. The current manifest is the only product-visible generation; prior file rows/blobs are purged. Git may retain Markdown history, but it is not an artifact restoration mechanism.
@@ -190,16 +191,17 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 3 | Shipped | Backend verification service and DOCX |
 | 4 | Shipped | PPTX and format-general rendered verification |
 | 5 | Complete | XLSX skill, programmatic verification, persistence, and authenticated native grid |
-| 6 | Complete | Legacy report/resume/Typst demolition and library repoint |
-| 7 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
+| 6 | Planned | Interactive HTML skill, programmatic verification, and a sandboxed-iframe panel viewer |
+| 7 | Complete | Legacy report/resume/Typst demolition and library repoint |
+| 8 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
 
 ## 10. Completed demolition boundary
 
-Phase 6 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
+Phase 7 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
 
-## 11. Phase 7 boundary
+## 11. Phase 8 boundary
 
-Phase 7 completes access and fallback behavior around the existing model. A compatibility public primary-content route already serves current media cards; phase 7 adds token-scoped manifest, download, and per-file reads, not public artifact copies. It also adds a generic adapter, not persistence suffix branches, and XLSX hardening, not spreadsheet editing. Public snapshots allowlist artifact IDs and resolve the current generation. Generation sources remain transient and are never publicly readable.
+Phase 8 completes access and fallback behavior around the existing model. A compatibility public primary-content route already serves current media cards; phase 8 adds token-scoped manifest, download, and per-file reads, not public artifact copies. It also adds a generic adapter, not persistence suffix branches, and XLSX hardening, not spreadsheet editing. Public snapshots allowlist artifact IDs and resolve the current generation. Generation sources remain transient and are never publicly readable.
 
 ## 12. Required invariants
 
