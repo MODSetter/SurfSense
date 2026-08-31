@@ -14,7 +14,7 @@ Phase 5 added spreadsheet generation, structural verification, persistence, and 
 - Binary persistence uses the existing primary artifact role.
 - The artifact panel lazy-loads a native spreadsheet viewer for XLSX manifests.
 
-Generic unknown formats, public artifact viewing, and cross-format hardening are phase 8. Legacy report and Typst removal is documented separately in phase 7.
+Generic unknown formats, public artifact viewing, and cross-format hardening are phase 9. Legacy report and Typst removal is documented separately in phase 8.
 
 ## 2. Persistence
 

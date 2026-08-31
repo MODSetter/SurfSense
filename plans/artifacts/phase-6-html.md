@@ -1,9 +1,9 @@
 # Phase 6 — Interactive HTML Artifacts
 
-**Status:** Planned.
+**Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 1 foundation (schema, storage, panel, manifest), phase 3 verification service, and the phase 5 programmatic-verification precedent.
-**Independent of:** phase 8. Authenticated HTML rendering needs nothing from the public path; public HTML sharing is gated on phase 8 route hardening (§9).
+**Independent of:** phase 9. Authenticated HTML rendering needs nothing from the public path; public HTML sharing is gated on phase 9 route hardening (§9).
 
 ## 1. Goal
 
@@ -26,7 +26,7 @@ In:
 
 Out:
 
-- public artifact viewing of HTML (deferred to the phase 8 public path, see §9);
+- public artifact viewing of HTML (deferred to the phase 9 public path, see §9);
 - inline chat-card execution of HTML (panel-only; a card is a later option);
 - server-side HTML rendering, screenshotting, or PDF preview generation;
 - external application code, backends, or persisted state inside an artifact;
@@ -202,9 +202,9 @@ html: {
 
 ## 9. Public sharing boundary
 
-Public HTML is out of this phase. The current public content route (`public_chat_routes.py::stream_public_artifact_file`) streams the stored MIME with no `Content-Disposition` and no `nosniff`, which phase 8 §7.1 already commits to fixing for all formats. HTML must not be publicly served until that hardening lands, because a public content URL that omits attachment/`nosniff` is a route to executing agent HTML on a shared origin.
+Public HTML is out of this phase. The current public content route (`public_chat_routes.py::stream_public_artifact_file`) streams the stored MIME with no `Content-Disposition` and no `nosniff`, which phase 9 §7.1 already commits to fixing for all formats. HTML must not be publicly served until that hardening lands, because a public content URL that omits attachment/`nosniff` is a route to executing agent HTML on a shared origin.
 
-When public HTML does ship, it reuses the same story: bytes fetched via the token-scoped content route (attachment + `nosniff`), rendered in the same sandboxed `srcdoc` frame. The phase 8 public viewer list gains an HTML entry at that point. No public artifact copy, no second render path.
+When public HTML does ship, it reuses the same story: bytes fetched via the token-scoped content route (attachment + `nosniff`), rendered in the same sandboxed `srcdoc` frame. The phase 9 public viewer list gains an HTML entry at that point. No public artifact copy, no second render path.
 
 ## 10. Security invariants
 

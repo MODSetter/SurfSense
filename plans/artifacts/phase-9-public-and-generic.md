@@ -1,14 +1,14 @@
-# Phase 8 — Public, Generic, and Hardened Artifacts
+# Phase 9 — Public, Generic, and Hardened Artifacts
 
 **Status:** Planned.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
-**Depends on:** phase 5 XLSX pipeline and phase 7 legacy demolition.
+**Depends on:** phase 5 XLSX pipeline and phase 8 legacy demolition.
 
 ## 1. Goal
 
 Complete the format-independent artifact contract by making artifacts available in public chat snapshots, accepting safe download-only formats through a generic adapter, and closing the remaining XLSX quality gaps.
 
-Phase 8 extends the existing artifact service and viewer registry. It does not introduce another persistence model, public artifact copy, panel, export system, or format-specific API.
+Phase 9 extends the existing artifact service and viewer registry. It does not introduce another persistence model, public artifact copy, panel, export system, or format-specific API.
 
 ## 2. Scope
 
@@ -46,6 +46,11 @@ Unknown content is always served as an attachment. The backend must not infer an
 
 Generation-source handling is unchanged: source files remain transient sandbox inputs and are not persisted as artifact roles.
 
+The generic fallback runs only after longest-suffix matching for registered
+formats. In particular, phase 7's `.mindmap.png` resolves to `mindmap`; an
+unrelated `.png` remains generic and must not inherit mind-map verification,
+format metadata, or the interactive viewer.
+
 ## 4. Public artifact contract
 
 ### 4.1 Authorization
@@ -58,7 +63,7 @@ A public share token grants access only when:
 
 Every public manifest, file, and download route applies the same authorization helper. Invalid tokens, cross-thread IDs, cross-workspace IDs, file IDs outside the artifact's visible primary/preview roles, and deleted artifacts return `404` without disclosing which check failed.
 
-Chat messages remain immutable snapshot data. Artifact IDs are live references to the artifact's current generation; phase 8 does not retain or expose historical artifact generations.
+Chat messages remain immutable snapshot data. Artifact IDs are live references to the artifact's current generation; phase 9 does not retain or expose historical artifact generations.
 
 ### 4.2 Routes
 
@@ -78,12 +83,14 @@ Public routes require no session cookie and must not redirect to authentication.
 
 ## 5. Public viewer integration
 
-Public tool cards resolve artifact manifests with the share token and open the existing artifact panel. `ArtifactViewerContent` and the viewer registry remain the single rendering path for authenticated and public artifacts.
+Public tool cards resolve artifact manifests with the share token and open the existing artifact panel. `ArtifactViewerContent` and the viewer registries remain the single rendering path for authenticated and public artifacts.
 
 - PDF uses the PDF viewer.
 - DOCX and PPTX use their receipt-bound PDF preview.
 - XLSX uses the native grid.
 - HTML uses the sandboxed iframe viewer (phase 6), served attachment-only with `nosniff` so it never executes on the app origin.
+- Mind maps use the phase 7 format-level Markmap viewer backed by the
+  manifest's Markdown; download still returns only the allowlisted primary PNG.
 - Markdown uses the Markdown viewer.
 - Unknown formats use the download fallback.
 
@@ -120,7 +127,9 @@ Add a live LibreOffice smoke check that opens/recalculates a generated workbook 
 - empty and oversized payloads fail before persistence;
 - receipt binds the primary hash and contains no rendered fields;
 - manifest falls back to download-only viewing;
-- authenticated and public downloads force attachment disposition.
+- authenticated and public downloads force attachment disposition;
+- `.mindmap.png` resolves before the generic fallback while plain `.png` does
+  not resolve as mindmap.
 
 ### 7.2 Public access
 
@@ -128,6 +137,8 @@ Add a live LibreOffice smoke check that opens/recalculates a generated workbook 
 - another thread, workspace, token, or artifact ID receives `404`;
 - file IDs outside the artifact's visible primary/preview files are never listed and always receive `404`;
 - Markdown-only and binary primary downloads return correct bytes and filenames;
+- mind-map public download returns PNG while its panel uses the same canonical
+  Markdown and format-level viewer as the authenticated path;
 - deleted artifacts and stale file IDs fail closed;
 - public DOCX/PPTX preview and XLSX primary routes use the shared viewer registry.
 
@@ -144,7 +155,8 @@ Add a live LibreOffice smoke check that opens/recalculates a generated workbook 
 
 1. Add the generic adapter and focused verification tests.
 2. Centralize public artifact authorization and add token-scoped routes.
-3. Connect public tool cards and the existing panel to public manifest URLs.
+3. Connect public tool cards and the existing panel to public manifest URLs,
+   including the phase 7 format-level mind-map viewer.
 4. Add XLSX OOXML, parser, style, browser, and LibreOffice coverage.
 5. Run cross-format regression checks and update artifact documentation.
 
@@ -155,7 +167,9 @@ Each step leaves one format-neutral path. If public integration or XLSX hardenin
 1. Any bounded, non-empty unknown binary can verify, persist, and download safely without a format-specific code change.
 2. A public chat can view and download every allowlisted artifact format through token-scoped URLs.
 3. Public access cannot reveal files outside the visible primary/preview roles or artifacts outside the shared thread and workspace.
-4. Authenticated and public surfaces use the same manifest model, panel, and viewer registry.
-5. XLSX verification rejects hostile OOXML packages and the viewer preserves common formatting while remaining bounded.
-6. Real XlsxWriter output passes verification, persistence, LibreOffice smoke, and browser viewing.
-7. PDF, DOCX, PPTX, XLSX, Markdown, and unknown-format regressions remain green after the public path is enabled.
+4. Authenticated and public surfaces use the same manifest model, panel, and viewer registries.
+5. Mind maps remain interactive in the public panel and download only their
+   primary PNG without exposing transient generation files.
+6. XLSX verification rejects hostile OOXML packages and the viewer preserves common formatting while remaining bounded.
+7. Real XlsxWriter output passes verification, persistence, LibreOffice smoke, and browser viewing.
+8. PDF, DOCX, PPTX, XLSX, HTML, mindmap, Markdown, and unknown-format regressions remain green after the public path is enabled.
