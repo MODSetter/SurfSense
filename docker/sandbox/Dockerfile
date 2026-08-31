@@ -82,10 +82,12 @@ COPY skills /tmp/surfsense-skills
 RUN set -euo pipefail \
     && mkdir -p /opt/skills \
     && for skill in /tmp/surfsense-skills/*; do \
+        test -f "${skill}/SKILL.md" || continue; \
         name="${skill##*/}"; \
         rm -rf "/opt/skills/${name}"; \
         cp -a "${skill}" "/opt/skills/${name}"; \
         rm -rf "/opt/skills/${name}/scripts"; \
+        cat /tmp/surfsense-skills/frontend-design/DESIGN.md >> "/opt/skills/${name}/SKILL.md"; \
     done \
     && rm -rf /tmp/surfsense-skills
 
