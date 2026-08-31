@@ -16,7 +16,6 @@ from app.knowledge_store.settings import (
     load_knowledge_store_settings,
 )
 from app.observability.domains import knowledge_store
-from app.observability.signals import tracing
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.tasks.celery_tasks.knowledge_store.index_tasks import (
     LOCK_RETRY_DELAY_SECONDS,
@@ -68,35 +67,27 @@ async def _push_head(workspace_id: int, sp) -> str | None:
         if not remotes:
             _observe_push(sp, workspace_id, status="noop", reason="no_remote")
             return None
-        target = remotes[0]
-        head = await store.head()
-        if head is None or head == target.last_pushed_revision:
-            _observe_push(
-                sp,
-                workspace_id,
-                status="noop",
-                reason="already_pushed",
-                provider=target.provider,
-            )
-            return None
         try:
-            with tracing.span("knowledge_store.remote.credentials"):
-                creds = await store.remotes.credentials()
-            sha = await store.push(
-                url=target.url,
-                ref=f"refs/heads/{target.branch}",
-                username=creds.username,
-                password=creds.password,
-            )
-        except GitPushError as exc:
+            sha = await store.remotes.sync()
+        except Exception as exc:
             _observe_push(
                 sp,
                 workspace_id,
                 status="failed",
-                reason=_push_reason(exc),
-                provider=target.provider,
+                reason="forge",
+                provider=remotes[0].provider,
             )
             await store.remotes.record_push_failure(str(exc))
+            await session.commit()
+            return None
+        if sha is None:
+            _observe_push(
+                sp,
+                workspace_id,
+                status="noop",
+                reason="idle",
+                provider=remotes[0].provider,
+            )
             await session.commit()
             return None
         sp.set_attribute("git.revision", sha)
@@ -104,8 +95,8 @@ async def _push_head(workspace_id: int, sp) -> str | None:
             sp,
             workspace_id,
             status="pushed",
-            reason="head",
-            provider=target.provider,
+            reason="mirror",
+            provider=remotes[0].provider,
         )
         await store.remotes.record_push(sha)
         await session.commit()
@@ -134,21 +125,13 @@ def _observe_push(
     )
 
 
-def _push_reason(exc: GitPushError) -> str:
-    if exc.message == "non-fast-forward":
-        return "non_fast_forward"
-    if exc.message == "nothing to push":
-        return "empty"
-    return "send_pack"
-
-
 async def _sweep() -> int:
     session_maker = get_celery_session_maker()
     async with session_maker() as session:
         result = await session.execute(
             select(
                 WorkspaceGitRemotes.workspace_id,
-                WorkspaceGitRemotes.last_pushed_revision,
+                WorkspaceGitRemotes.last_local_revision,
             )
             .join(Workspace, Workspace.id == WorkspaceGitRemotes.workspace_id)
             .where(Workspace.knowledge_store_enabled.is_(True))
