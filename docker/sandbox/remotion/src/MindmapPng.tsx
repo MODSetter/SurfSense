@@ -9,7 +9,7 @@ import {
   delayRender,
 } from "remotion";
 
-export type MindmapStillProps = {
+export type MindmapPngProps = {
   markdown: string;
 };
 
@@ -22,7 +22,7 @@ const nextPaint = () =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
 
-export const MindmapStill: React.FC<MindmapStillProps> = ({markdown}) => {
+export const MindmapPng: React.FC<MindmapPngProps> = ({markdown}) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [renderHandle] = useState(() =>
     delayRender("Rendering mind map", {timeoutInMilliseconds: LAYOUT_TIMEOUT_MS}),

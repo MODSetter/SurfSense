@@ -2,7 +2,7 @@ import {parseMedia} from "@remotion/media-parser";
 import type React from "react";
 import {Composition, staticFile, Still} from "remotion";
 import {Deck, type DeckProps} from "./Deck";
-import {MindmapStill, type MindmapStillProps} from "./MindmapStill";
+import {MindmapPng, type MindmapPngProps} from "./MindmapPng";
 
 const defaultProps: DeckProps = {
   fps: 30,
@@ -11,7 +11,7 @@ const defaultProps: DeckProps = {
   sceneDurations: [],
 };
 
-const defaultMindmapProps: MindmapStillProps = {
+const defaultMindmapProps: MindmapPngProps = {
   markdown: "# Mind map\n\n- Branch\n  - Leaf",
 };
 
@@ -63,7 +63,7 @@ export const Root: React.FC = () => (
     />
     <Still
       id="Mindmap"
-      component={MindmapStill}
+      component={MindmapPng}
       width={2400}
       height={1600}
       defaultProps={defaultMindmapProps}
