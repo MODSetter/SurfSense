@@ -55,3 +55,4 @@ class GithubInstallRead(BaseModel):
 class GithubRepoRead(BaseModel):
     full_name: str
     url: str
+    default_branch: str = "main"

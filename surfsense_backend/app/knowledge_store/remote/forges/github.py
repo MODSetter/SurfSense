@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 import jwt
@@ -49,8 +49,123 @@ class GithubProvider(RemoteProvider):
             f"?state={quote(state, safe='')}"
         )
 
+    def oauth_authorize_url(self, *, state: str) -> str:
+        """User-to-server OAuth start; ``state`` round-trips to our callback.
+
+        The redirect target is *our* backend callback, so a reconnect never
+        depends on the App's global Setup URL. GitHub Apps carry permissions
+        on the installation, so no ``scope`` is requested.
+        """
+        client_id = (config.GITHUB_APP_CLIENT_ID or "").strip()
+        if not client_id:
+            raise RemoteError("forge", "GITHUB_APP_CLIENT_ID is not configured")
+        redirect_uri = (
+            f"{config.BACKEND_URL}/api/v1/workspaces/git-remotes/github/oauth/callback"
+        )
+        query = urlencode(
+            {"client_id": client_id, "redirect_uri": redirect_uri, "state": state}
+        )
+        return f"https://github.com/login/oauth/authorize?{query}"
+
+    async def exchange_user_code(self, code: str) -> str:
+        """Trade an OAuth ``code`` for a user-to-server access token."""
+        client_id = (config.GITHUB_APP_CLIENT_ID or "").strip()
+        client_secret = (config.GITHUB_APP_CLIENT_SECRET or "").strip()
+        if not client_id or not client_secret:
+            raise RemoteError(
+                "forge", "GITHUB_APP_CLIENT_ID / GITHUB_APP_CLIENT_SECRET not configured"
+            )
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://github.com/login/oauth/access_token",
+                headers={"Accept": "application/json"},
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                },
+            )
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise RemoteError("forge", "could not exchange GitHub code") from exc
+            return self._token_from_oauth_payload(response.json())
+
+    async def list_user_installations(self, user_token: str) -> list[dict[str, str]]:
+        """Installations of this App the signed-in user can access."""
+        installations: list[dict[str, str]] = []
+        url = f"{_GITHUB_API}/user/installations"
+        headers = {
+            "Authorization": f"Bearer {user_token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while url:
+                response = await client.get(url, headers=headers)
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    raise RemoteError(
+                        "forge", "could not list GitHub installations"
+                    ) from exc
+                installations.extend(
+                    self._installations_from_payload(response.json())
+                )
+                url = _next_link(response.headers.get("link"))
+        return installations
+
+    async def list_tree_folders(
+        self, *, installation_id: str, full_name: str, branch: str
+    ) -> list[str]:
+        """Folders under ``branch`` of ``full_name`` (owner/repo), recursive."""
+        token = await self._installation_token(installation_id)
+        url = f"{_GITHUB_API}/repos/{full_name}/git/trees/{quote(branch, safe='')}"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                url,
+                params={"recursive": "1"},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise RemoteError("forge", "could not list repository folders") from exc
+            return self._folders_from_tree(response.json())
+
+    @staticmethod
+    def _token_from_oauth_payload(payload: dict) -> str:
+        token = payload.get("access_token")
+        if not token:
+            raise RemoteError(
+                "forge",
+                f"GitHub OAuth failed: {payload.get('error', 'no access_token')}",
+            )
+        return token
+
+    @staticmethod
+    def _installations_from_payload(payload: dict) -> list[dict[str, str]]:
+        out: list[dict[str, str]] = []
+        for inst in payload.get("installations", []):
+            account = (inst.get("account") or {}).get("login") or ""
+            out.append({"id": str(inst.get("id") or ""), "account": account})
+        return out
+
+    @staticmethod
+    def _folders_from_tree(payload: dict) -> list[str]:
+        folders = {
+            entry["path"]
+            for entry in payload.get("tree", [])
+            if entry.get("type") == "tree" and entry.get("path")
+        }
+        return sorted(folders)
+
     async def list_repos(self, installation_id: str) -> list[dict[str, str]]:
-        """Repos this installation can write: ``full_name`` + clone ``url``."""
+        """Repos this installation can write: ``full_name``, clone ``url``, default branch."""
         token = await self._installation_token(installation_id)
         repos: list[dict[str, str]] = []
         url = f"{_GITHUB_API}/installation/repositories"
@@ -66,19 +181,52 @@ class GithubProvider(RemoteProvider):
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
                     raise RemoteError("forge", "could not list GitHub repositories") from exc
-                payload = response.json()
-                for repo in payload.get("repositories", []):
-                    clone = repo.get("clone_url") or ""
-                    if not clone:
-                        continue
-                    repos.append(
-                        {
-                            "full_name": repo.get("full_name") or "",
-                            "url": clone,
-                        }
-                    )
+                repos.extend(self._repos_from_payload(response.json()))
                 url = _next_link(response.headers.get("link"))
         return repos
+
+    async def list_branches(
+        self, *, installation_id: str, full_name: str
+    ) -> list[str]:
+        """Branch names on ``full_name`` (owner/repo), so branch is a real choice."""
+        token = await self._installation_token(installation_id)
+        branches: list[str] = []
+        url = f"{_GITHUB_API}/repos/{full_name}/branches?per_page=100"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while url:
+                response = await client.get(url, headers=headers)
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    raise RemoteError("forge", "could not list branches") from exc
+                branches.extend(self._branches_from_payload(response.json()))
+                url = _next_link(response.headers.get("link"))
+        return sorted(set(branches))
+
+    @staticmethod
+    def _repos_from_payload(payload: dict) -> list[dict[str, str]]:
+        out: list[dict[str, str]] = []
+        for repo in payload.get("repositories", []):
+            clone = repo.get("clone_url") or ""
+            if not clone:
+                continue
+            out.append(
+                {
+                    "full_name": repo.get("full_name") or "",
+                    "url": clone,
+                    "default_branch": repo.get("default_branch") or "main",
+                }
+            )
+        return out
+
+    @staticmethod
+    def _branches_from_payload(payload: list) -> list[str]:
+        return [b["name"] for b in payload if b.get("name")]
 
     async def _installation_token(self, installation_id: str) -> str:
         """POST /app/installations/{id}/access_tokens. Lives ~1 hour."""
