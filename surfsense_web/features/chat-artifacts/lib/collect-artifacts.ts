@@ -1,6 +1,6 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
+import { artifactFormatFromFilename } from "@/features/artifacts/artifact-filename";
 import type { ArtifactListItem } from "@/features/artifacts/model";
-import { extension } from "@/features/file-viewers/file-format";
 import { ARTIFACT_TOOL_KINDS, type ArtifactToolKind, type ChatArtifact } from "../model/artifact";
 
 interface ToolCallPart {
@@ -116,7 +116,7 @@ function fallbackMetadata(
 			const filename = text(primary?.filename) ?? text(args.path);
 			return {
 				title: text(result.title) ?? text(args.title) ?? "Artifact",
-				format: filename ? extension(filename) : "file",
+				format: filename ? artifactFormatFromFilename(filename) : "file",
 			};
 		}
 		case "podcast":

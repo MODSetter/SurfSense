@@ -11,6 +11,7 @@ import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms"
 import { Mp4VideoPlayer } from "@/components/tool-ui/video-presentation/mp4-player";
 import { Spinner } from "@/components/ui/spinner";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
+import { artifactFormatFromFilename } from "@/features/artifacts/artifact-filename";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
 import {
@@ -18,7 +19,6 @@ import {
 	invalidatePublishedArtifact,
 } from "@/features/artifacts/artifact-query";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
-import { extension } from "@/features/file-viewers/file-format";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
@@ -201,7 +201,7 @@ export const SaveArtifactToolUI = ({
 			/>
 		);
 	}
-	const format = primary?.filename ? extension(primary.filename) : "file";
+	const format = primary?.filename ? artifactFormatFromFilename(primary.filename) : "file";
 	return (
 		<ArtifactCard
 			artifactId={result.artifact_id}

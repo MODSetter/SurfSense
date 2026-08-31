@@ -3,6 +3,7 @@ import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
+import { artifactDownloadFilename } from "@/features/artifacts/artifact-filename";
 import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
 import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
@@ -58,7 +59,7 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 			{canDownload && artifact.artifactId != null ? (
 				<ArtifactDownloadButton
 					path={artifactDownloadPath(workspaceId, artifact.artifactId)}
-					filename={`${artifact.title}.${artifact.format}`}
+					filename={artifactDownloadFilename(artifact.title, artifact.format)}
 					className="relative z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
 				/>
 			) : null}
