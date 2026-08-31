@@ -17,7 +17,11 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools.save
     _read_artifact_file,
 )
 from app.artifacts.verification.formats.pdf import check_pdf
-from app.artifacts.verification.formats.registry import DOCX_MIME, PPTX_MIME
+from app.artifacts.verification.formats.registry import (
+    DOCX_MIME,
+    PPTX_MIME,
+    get_format_adapter,
+)
 from app.artifacts.verification.receipt import read_receipt
 from app.artifacts.verification.service import verify_artifact
 from app.config import config as app_config
@@ -188,7 +192,7 @@ presentation.save("/tmp/report.pptx")
         result = await verify_artifact(
             session,
             primary_path,
-            format="xlsx",
+            format=format_name,
             workspace_id=1,
             vision_llm=None,
             secret_key=secret,
@@ -203,6 +207,7 @@ presentation.save("/tmp/report.pptx")
             session,
             primary_path,
             "primary",
+            get_format_adapter(format_name),
         )
         pages = await session.run_command(
             "ls /tmp/surfsense-verify-*/page-*.jpg >/dev/null 2>&1"
