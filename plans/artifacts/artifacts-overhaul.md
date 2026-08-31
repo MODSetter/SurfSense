@@ -194,19 +194,20 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 4 | Shipped | PPTX and format-general rendered verification |
 | 5 | Complete | XLSX skill, programmatic verification, persistence, and authenticated native grid |
 | 6 | Complete | Interactive HTML skill, programmatic verification, and a sandboxed-iframe panel viewer |
-| 7 | Planned | Markdown-backed interactive mind maps with verified PNG downloads |
+| 7 | Complete | Markdown-backed interactive mind maps with verified PNG downloads |
 | 8 | Complete | Legacy report/resume/Typst demolition and library repoint |
 | 9 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
 
 ## 10. Phase 7 mind-map boundary
 
 Phase 7 stores a mind map's canonical hierarchy in the artifact document's
-Markdown and a deterministic `.mindmap.png` as its only primary file and user
-download. The right panel renders the Markdown through a format-level Markmap
-viewer; it does not render or reverse-engineer the PNG. Programmatic
-verification binds both Markdown and PNG hashes without a vision pass. The
-phase adds no editable graph model, source-file role, export route, or
-mindmap-specific persistence/API branch.
+Markdown and a deterministic `.png` as its only primary file and user download.
+Explicit `format="mindmap"` metadata selects verification and rendering; the
+physical filename does not carry semantic identity. The right panel renders
+the Markdown through a format-level Markmap viewer; it does not render or
+reverse-engineer the PNG. Programmatic verification binds format, Markdown,
+and PNG hashes without a vision pass. The phase adds no editable graph model,
+source-file role, export route, or mindmap-specific persistence/API branch.
 
 ## 11. Completed demolition boundary
 

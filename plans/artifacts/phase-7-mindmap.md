@@ -1,6 +1,6 @@
 # Phase 7 — Interactive Mind-Map Artifacts
 
-**Status:** Planned.
+**Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 1 foundation, phase 3 verification receipts, phase 5 programmatic-verification precedent, and the artifact-panel path used by phase 6.
 **Independent of:** phase 9 public sharing. Phase 7 ships the authenticated viewer and download; the same viewer becomes public only after phase 9 provides token-scoped manifests and files.
@@ -14,7 +14,7 @@ right-hand artifact panel through Markmap, and downloads as a static PNG.
 The user-visible contract is:
 
 - the panel supports pan, zoom, fit, and branch collapse/expand;
-- the download button returns `<title>.mindmap.png`, never Markdown or HTML;
+- the download button returns `<title>.png`, never Markdown or HTML;
 - the PNG is a static capture of the same default Markmap rendering users see
   in the panel, not a separately designed image;
 - the artifact remains searchable and citable through its ordinary document;
@@ -69,7 +69,7 @@ A mind map is:
 
 - one `Document(document_type=ARTIFACT)` containing canonical Markmap Markdown;
 - one `Artifact(format="mindmap")`;
-- one primary `<slug>.mindmap.png` file with MIME `image/png`;
+- one primary `<slug>.png` file with MIME `image/png`;
 - no preview file.
 
 `ArtifactFormat` may add `MINDMAP = "mindmap"` for typed callers and roster
@@ -77,17 +77,12 @@ clarity. The database column remains a string. The manifest shape, blob model,
 download route, indexing pipeline, citations, deletion, and optimistic revision
 contract do not change.
 
-The compound suffix is intentional. A plain `.png` is not necessarily a mind
-map, and phase 9's generic adapter must not classify every PNG as one.
-`get_format_adapter()` must select the longest registered filename suffix,
-case-insensitively, so `.mindmap.png` resolves to the mind-map adapter while an
-unrelated `.png` remains unknown/generic. Existing single-suffix behavior stays
-unchanged.
-
-`load_artifact_for_revision` must preserve the registered compound suffix when
-it creates `current.mindmap.png` and `revised.mindmap.png`; using only
-`PurePosixPath.suffix` would reduce both names to `.png` and lose format
-selection on re-verification.
+Semantic identity is explicit rather than encoded in the filename.
+`verify_artifact(format="mindmap", ...)`, the signed receipt,
+`Artifact.format`, and the manifest carry that identity. The `.png` extension
+and `image/png` MIME describe only the physical primary file. This keeps
+mind-map PNGs distinct from generated-image PNGs without compound-suffix
+dispatch.
 
 ## 4. Canonical Markdown contract
 
@@ -166,7 +161,7 @@ The export is deterministic:
 - the browser's ordinary opaque page background, with no custom export theme;
 - all branches expanded;
 - no toolbar or interaction chrome in the PNG;
-- output path supplied by the caller and ending in `.mindmap.png`.
+- output path supplied by the caller and ending in `.png`.
 
 The harness exits non-zero for parse errors, missing nodes, non-finite geometry,
 layout timeout, bounds outside the canvas, or a fitted scale below the readable
@@ -191,7 +186,7 @@ Mind maps use programmatic verification only:
 ```python
 FormatAdapter(
     name="mindmap",
-    suffix=".mindmap.png",
+    suffix=".png",
     mime_type="image/png",
     convert_to_pdf=False,
     check=check_mindmap_png,
@@ -240,7 +235,8 @@ The public tool call becomes:
 
 ```text
 verify_artifact(
-  path="/workspace/roadmap.mindmap.png",
+  path="/workspace/roadmap.png",
+  format="mindmap",
   markdown_path="/workspace/roadmap.md"
 )
 ```
@@ -257,8 +253,8 @@ The skill teaches the agent to:
 
 1. create one concise hierarchy in `/workspace/<slug>.md`;
 2. validate it locally against the documented limits;
-3. call the baked render command to create `<slug>.mindmap.png`;
-4. call `verify_artifact(path=..., markdown_path=...)`;
+3. call the baked render command to create `<slug>.png`;
+4. call `verify_artifact(path=..., format="mindmap", markdown_path=...)`;
 5. fix all blocking findings in one pass and reverify once;
 6. call `save_artifact` with the verified PNG and exact Markdown;
 7. stop and explain a persistent blocker rather than looping.
@@ -328,11 +324,11 @@ contain the SVG, but it must not restyle Markmap nodes or links.
 ### 8.3 Metadata and chat behavior
 
 `artifact-format-meta.ts` gains a `mindmap` entry with a mind-map/network icon,
-label `Mind map`, detail label `PNG`, group `Files`, and
+label `Interactive`, detail label `Mind map`, group `Files`, and
 `viewingMode: "viewer"`.
 
-While persisted metadata is converging, chat artifact collection recognizes a
-filename ending in `.mindmap.png` as format `mindmap` instead of plain `png`.
+The save result carries `format="mindmap"` so chat artifact collection never
+infers semantic identity from the `.png` filename.
 Clicking the card opens the ordinary artifact tab. No inline chat renderer or
 new panel state is introduced.
 
@@ -342,7 +338,7 @@ must be covered explicitly.
 ## 9. Download and serving contract
 
 The existing stable artifact download route returns the primary
-`<title>.mindmap.png` with `Content-Disposition: attachment`. It never falls
+`<title>.png` with `Content-Disposition: attachment`. It never falls
 back to the document Markdown because this artifact always has a primary file.
 
 Immutable PNG content remains attachment-only under the current route policy;
@@ -359,8 +355,8 @@ only the allowlisted primary PNG.
 `load_artifact_for_revision(artifact_id)` restores:
 
 - `context.md`, which is the canonical current mind-map source;
-- `current.mindmap.png`, for reference/download parity only;
-- `revised.mindmap.png` as the expected output path;
+- `current.png`, for reference/download parity only;
+- `revised.png` as the expected output path;
 - the existing `artifact_id` and `expected_generation`.
 
 The `mindmap` revision instruction is:
@@ -411,8 +407,8 @@ dimensions, duration, and failure category, but never dump full user content.
 
 ### 12.2 Verification and persistence
 
-- `.mindmap.png` selects the mindmap adapter by longest suffix while `.png`
-  does not;
+- explicit `format="mindmap"` selects the mindmap adapter for a `.png`, while
+  `format="image"` remains the semantic identity for generated images;
 - a valid PNG records `visual="not_required"`, no preview, and both primary and
   Markdown hashes;
 - corrupt, truncated, wrong-size, oversized, transparent, and blank PNGs fail;
@@ -420,8 +416,8 @@ dimensions, duration, and failure category, but never dump full user content.
 - save creates one document, one `Artifact(format="mindmap")`, and one
   `image/png` primary;
 - manifest exposes Markdown plus the PNG primary; download returns PNG bytes and
-  a safe `.mindmap.png` filename;
-- revision preserves the compound suffix, replaces both representations
+  a safe `.png` filename;
+- revision preserves the physical `.png` suffix, replaces both representations
   atomically, increments generation, and purges the superseded PNG blob.
 
 ### 12.3 Frontend
@@ -451,7 +447,7 @@ dimensions, duration, and failure category, but never dump full user content.
 
 1. Add the constrained Markdown parser/checker and deterministic render-harness
    fixtures.
-2. Add compound-suffix adapter selection, the mindmap PNG adapter, optional
+2. Add explicit format adapter selection, the mindmap PNG adapter, optional
    Markdown-hash receipt binding, and focused verification tests.
 3. Add the sandbox skill, baked render command, intent routing, roster entry,
    and one sandbox-to-save integration.
@@ -468,7 +464,7 @@ column, stop and repair the adapter/viewer boundary instead.
 ## 14. Exit criteria
 
 1. Mind-map intent generates bounded canonical Markdown and a deterministic,
-   verified `.mindmap.png` without vision review.
+   verified `.png` with explicit `format="mindmap"` and no vision review.
 2. The signed receipt binds the exact Markdown used by the panel to the exact
    PNG returned by download.
 3. Save and revision use the existing document-backed artifact model,
