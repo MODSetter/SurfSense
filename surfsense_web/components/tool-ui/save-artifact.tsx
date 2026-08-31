@@ -18,7 +18,6 @@ import {
 	invalidatePublishedArtifact,
 } from "@/features/artifacts/artifact-query";
 import { artifactDownloadPath } from "@/features/artifacts/download-file";
-import { extension } from "@/features/file-viewers/file-format";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
@@ -35,13 +34,21 @@ const ArtifactFileSchema = z.object({
 	size_bytes: z.number().nonnegative(),
 });
 
-const SaveArtifactResultSchema = z.object({
-	status: z.enum(["saved", "failed"]),
-	artifact_id: z.number().nullish(),
-	title: z.string().nullish(),
-	files: z.array(ArtifactFileSchema).optional(),
-	error: z.string().nullish(),
-});
+const SaveArtifactResultSchema = z.discriminatedUnion("status", [
+	z.object({
+		status: z.literal("saved"),
+		artifact_id: z.number(),
+		title: z.string().nullish(),
+		// Compatibility layer: historical saved results do not include format,
+		// and some early payloads may not include files.
+		format: z.string().optional(),
+		files: z.array(ArtifactFileSchema).optional(),
+	}),
+	z.object({
+		status: z.literal("failed"),
+		error: z.string(),
+	}),
+]);
 
 type SaveArtifactArgs = z.infer<typeof SaveArtifactArgsSchema>;
 type SaveArtifactResult = z.infer<typeof SaveArtifactResultSchema>;
@@ -53,6 +60,7 @@ function ArtifactCard({
 	filename,
 	publicRoute,
 	toolCallId,
+	metadataStatus = "ready",
 }: {
 	artifactId: number;
 	title: string;
@@ -60,6 +68,7 @@ function ArtifactCard({
 	filename: string;
 	publicRoute: boolean;
 	toolCallId: string;
+	metadataStatus?: "ready" | "loading" | "unavailable";
 }) {
 	const openPanel = useSetAtom(openArtifactPanelAtom);
 	const panelState = useAtomValue(artifactPanelAtom);
@@ -90,7 +99,15 @@ function ArtifactCard({
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm font-medium">{title}</span>
-				<ArtifactFormatLabel format={format} className="mt-0.5 text-xs text-muted-foreground" />
+				{metadataStatus === "ready" ? (
+					<ArtifactFormatLabel format={format} className="mt-0.5 text-xs text-muted-foreground" />
+				) : (
+					<span className="mt-0.5 block text-xs text-muted-foreground">
+						{metadataStatus === "loading"
+							? "Loading artifact metadata"
+							: "Artifact metadata unavailable"}
+					</span>
+				)}
 			</span>
 			{canDownload ? (
 				<ArtifactDownloadButton
@@ -101,6 +118,55 @@ function ArtifactCard({
 				/>
 			) : null}
 		</div>
+	);
+}
+
+function LegacySaveArtifactCompatibilityCard({
+	artifactId,
+	title,
+	filename,
+	publicRoute,
+	toolCallId,
+	workspaceId,
+}: {
+	artifactId: number;
+	title: string;
+	filename: string;
+	publicRoute: boolean;
+	toolCallId: string;
+	workspaceId: number;
+}) {
+	const canResolve = !publicRoute && Number.isFinite(workspaceId) && workspaceId > 0;
+	const { data: manifest, isPending } = useQuery({
+		...artifactManifestQueryOptions(workspaceId, artifactId),
+		enabled: canResolve,
+	});
+	const primary = manifest?.files.find((file) => file.role === "primary");
+	const resolvedFilename = primary?.filename ?? filename;
+
+	// Compatibility layer: only old save_artifact payloads reach this component.
+	// Resolve semantic format from the authorized persisted manifest, never from
+	// the physical filename.
+	if (primary?.mime_type === "video/mp4" && canResolve) {
+		return (
+			<Mp4ArtifactCard
+				artifactId={artifactId}
+				title={manifest?.title ?? title}
+				filename={resolvedFilename}
+				workspaceId={workspaceId}
+			/>
+		);
+	}
+	return (
+		<ArtifactCard
+			artifactId={artifactId}
+			title={manifest?.title ?? title}
+			format={manifest?.format ?? "file"}
+			filename={resolvedFilename}
+			publicRoute={publicRoute}
+			toolCallId={toolCallId}
+			metadataStatus={manifest ? "ready" : canResolve && isPending ? "loading" : "unavailable"}
+		/>
 	);
 }
 
@@ -182,10 +248,22 @@ export const SaveArtifactToolUI = ({
 		void invalidatePublishedArtifact(queryClient, workspaceId, savedArtifactId);
 	}, [queryClient, savedArtifactId, workspaceId]);
 
-	if (status.type !== "complete" || result?.status !== "saved" || !result.artifact_id) return null;
+	if (status.type !== "complete" || result?.status !== "saved") return null;
 	const primary = result.files?.find((file) => file.role === "primary");
 	const title = result.title || args.title || "Document";
 	const filename = primary?.filename ?? `${title}.md`;
+	if (!result.format) {
+		return (
+			<LegacySaveArtifactCompatibilityCard
+				artifactId={result.artifact_id}
+				title={title}
+				filename={filename}
+				publicRoute={publicRoute}
+				toolCallId={toolCallId}
+				workspaceId={workspaceId}
+			/>
+		);
+	}
 	if (
 		primary?.mime_type === "video/mp4" &&
 		!publicRoute &&
@@ -201,12 +279,11 @@ export const SaveArtifactToolUI = ({
 			/>
 		);
 	}
-	const format = primary?.filename ? extension(primary.filename) : "file";
 	return (
 		<ArtifactCard
 			artifactId={result.artifact_id}
 			title={title}
-			format={format}
+			format={result.format}
 			filename={filename}
 			publicRoute={publicRoute}
 			toolCallId={toolCallId}

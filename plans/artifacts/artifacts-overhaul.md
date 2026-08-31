@@ -1,6 +1,6 @@
 # Artifacts Overhaul — Authoritative Architecture
 
-**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, unified indexing/search, and phase 7 legacy demolition are implemented. Phase 6 will add interactive HTML, and phase 8 will complete generic-format handling, public artifact access, and XLSX hardening.
+**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, interactive HTML, unified indexing/search, and phase 8 legacy demolition are implemented. Phase 7 will add interactive mind maps with PNG downloads, and phase 9 will complete generic-format handling, public artifact access, and XLSX hardening.
 **Scope:** Generated deliverables. Media generation remains on its existing pipelines, while current image, podcast, and video flows may record artifact sidecars.
 **Shape:** [ADR 0003](../../docs/adr/0003-artifacts-as-documents.md) records why a deliverable's body is a document type rather than a second corpus, and the obligations that creates.
 
@@ -167,7 +167,7 @@ Persistence remains format-blind:
 - Generation sources remain transient sandbox inputs rather than a persistence role.
 - The manifest and viewer registry degrade unknown or unviewable formats to download.
 
-Shipped deliverable formats are Markdown, PDF, DOCX, PPTX, and XLSX. XLSX uses programmatic verification, primary-only persistence, no preview, and a native read-only grid. Image, podcast, and video flows can also record artifact sidecars through their existing media pipelines. Phase 6 adds interactive HTML with programmatic verification and primary-only persistence, served attachment-only and rendered client-side in a sandboxed iframe. Phase 8 adds the generic adapter for bounded unknown binaries and uses `application/octet-stream` with attachment-only delivery.
+Shipped deliverable formats are Markdown, PDF, DOCX, PPTX, XLSX, and interactive HTML. XLSX uses programmatic verification, primary-only persistence, no preview, and a native read-only grid. HTML uses programmatic verification and primary-only persistence, is served attachment-only, and renders client-side in a sandboxed iframe. Image, podcast, and video flows can also record artifact sidecars through their existing media pipelines. Phase 7 adds Markdown-backed hierarchical mind maps rendered interactively with Markmap and downloaded as a receipt-bound PNG. Phase 9 adds the generic adapter for bounded unknown binaries and uses `application/octet-stream` with attachment-only delivery.
 
 ## 8. Rendering and revision UX
 
@@ -178,6 +178,8 @@ The artifact panel and caches are keyed by `artifact_id`. It fetches the dedicat
 - DOCX/PPTX -> receipt-bound PDF preview;
 - XLSX -> primary in the native grid;
 - HTML -> primary in a sandboxed iframe (phase 6);
+- mindmap -> canonical Markdown in a format-level Markmap viewer, while the
+  primary PNG remains the download (phase 7);
 - unknown/missing preview/oversized/parse failure -> unviewable state with download.
 
 All viewers are read-only. Revisions return to the deliverables agent, which loads the current primary plus Markdown context and saves with `artifact_id + expected_generation`. The current manifest is the only product-visible generation; prior file rows/blobs are purged. Git may retain Markdown history, but it is not an artifact restoration mechanism.
@@ -191,19 +193,31 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 3 | Shipped | Backend verification service and DOCX |
 | 4 | Shipped | PPTX and format-general rendered verification |
 | 5 | Complete | XLSX skill, programmatic verification, persistence, and authenticated native grid |
-| 6 | Planned | Interactive HTML skill, programmatic verification, and a sandboxed-iframe panel viewer |
-| 7 | Complete | Legacy report/resume/Typst demolition and library repoint |
-| 8 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
+| 6 | Complete | Interactive HTML skill, programmatic verification, and a sandboxed-iframe panel viewer |
+| 7 | Complete | Markdown-backed interactive mind maps with verified PNG downloads |
+| 8 | Complete | Legacy report/resume/Typst demolition and library repoint |
+| 9 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
 
-## 10. Completed demolition boundary
+## 10. Phase 7 mind-map boundary
 
-Phase 7 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
+Phase 7 stores a mind map's canonical hierarchy in the artifact document's
+Markdown and a deterministic `.png` as its only primary file and user download.
+Explicit `format="mindmap"` metadata selects verification and rendering; the
+physical filename does not carry semantic identity. The right panel renders
+the Markdown through a format-level Markmap viewer; it does not render or
+reverse-engineer the PNG. Programmatic verification binds format, Markdown,
+and PNG hashes without a vision pass. The phase adds no editable graph model,
+source-file role, export route, or mindmap-specific persistence/API branch.
 
-## 11. Phase 8 boundary
+## 11. Completed demolition boundary
 
-Phase 8 completes access and fallback behavior around the existing model. A compatibility public primary-content route already serves current media cards; phase 8 adds token-scoped manifest, download, and per-file reads, not public artifact copies. It also adds a generic adapter, not persistence suffix branches, and XLSX hardening, not spreadsheet editing. Public snapshots allowlist artifact IDs and resolve the current generation. Generation sources remain transient and are never publicly readable.
+Phase 8 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
 
-## 12. Required invariants
+## 12. Phase 9 boundary
+
+Phase 9 completes access and fallback behavior around the existing model. A compatibility public primary-content route already serves current media cards; phase 9 adds token-scoped manifest, download, and per-file reads, not public artifact copies. It also adds a generic adapter, not persistence suffix branches, and XLSX hardening, not spreadsheet editing. Public snapshots allowlist artifact IDs and resolve the current generation. Generation sources remain transient and are never publicly readable.
+
+## 13. Required invariants
 
 1. One artifact is one document. `artifact.document_id` is non-null and unique, and no artifact operation creates a second row for the same deliverable.
 2. Title, path, Markdown, and indexing state live only on the document. Format, generation, roles, and receipts live only on the artifact.
@@ -218,3 +232,6 @@ Phase 8 completes access and fallback behavior around the existing model. A comp
 11. Generation sources are transient sandbox inputs and never become artifact blobs.
 12. New formats require an adapter and optional viewer, not a persistence or API schema change.
 13. Public artifact routes reuse the manifest model and expose only allowlisted primary/preview files.
+14. When a format renders one durable representation but downloads another,
+    verification binds both inputs so the panel and downloaded artifact cannot
+    silently diverge.

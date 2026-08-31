@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
+from typing import Literal
 
 from .base import FormatAdapter
 from .docx import check_docx
 from .html import check_html
+from .mindmap import check_mindmap_png
 from .pdf import check_pdf
 from .pptx import check_pptx
 from .video import check_video, reject_buffered_video_check
@@ -18,23 +20,27 @@ PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presen
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 HTML_MIME = "text/html"
 MP4_MIME = "video/mp4"
+PNG_MIME = "image/png"
+VerifiableArtifactFormat = Literal[
+    "pdf", "docx", "pptx", "xlsx", "html", "video", "mindmap"
+]
 
 _ADAPTERS = {
-    ".pdf": FormatAdapter(
+    "pdf": FormatAdapter(
         name="pdf",
         suffix=".pdf",
         mime_type=PDF_MIME,
         convert_to_pdf=False,
         check=check_pdf,
     ),
-    ".docx": FormatAdapter(
+    "docx": FormatAdapter(
         name="docx",
         suffix=".docx",
         mime_type=DOCX_MIME,
         convert_to_pdf=True,
         check=check_docx,
     ),
-    ".pptx": FormatAdapter(
+    "pptx": FormatAdapter(
         name="pptx",
         suffix=".pptx",
         mime_type=PPTX_MIME,
@@ -44,7 +50,7 @@ _ADAPTERS = {
         expects_exact_page_count=True,
         review_kind="slides",
     ),
-    ".xlsx": FormatAdapter(
+    "xlsx": FormatAdapter(
         name="xlsx",
         suffix=".xlsx",
         mime_type=XLSX_MIME,
@@ -52,7 +58,7 @@ _ADAPTERS = {
         check=check_xlsx,
         requires_visual_review=False,
     ),
-    ".html": FormatAdapter(
+    "html": FormatAdapter(
         name="html",
         suffix=".html",
         mime_type=HTML_MIME,
@@ -60,7 +66,7 @@ _ADAPTERS = {
         check=check_html,
         requires_visual_review=False,
     ),
-    ".mp4": FormatAdapter(
+    "video": FormatAdapter(
         name="video",
         suffix=".mp4",
         mime_type=MP4_MIME,
@@ -69,14 +75,34 @@ _ADAPTERS = {
         requires_visual_review=False,
         sandbox_check=check_video,
     ),
+    "mindmap": FormatAdapter(
+        name="mindmap",
+        suffix=".png",
+        mime_type=PNG_MIME,
+        convert_to_pdf=False,
+        check=check_mindmap_png,
+        requires_visual_review=False,
+        requires_markdown_binding=True,
+    ),
 }
 
 
-def get_format_adapter(path: str) -> FormatAdapter:
-    suffix = PurePosixPath(path).suffix.lower()
+def get_format_adapter(format_name: str) -> FormatAdapter:
+    """Return the verification policy for an explicit semantic format."""
+    normalized = format_name.strip().lower()
     try:
-        return _ADAPTERS[suffix]
+        return _ADAPTERS[normalized]
     except KeyError:
         raise ValueError(
-            f"Artifact verification does not support {suffix or 'this file'}"
+            f"Artifact verification does not support format {normalized or '(empty)'}"
         ) from None
+
+
+def validate_format_path(adapter: FormatAdapter, path: str) -> None:
+    """Reject a physical filename that does not match its declared format."""
+    suffix = PurePosixPath(path).suffix.lower()
+    if suffix != adapter.suffix:
+        raise ValueError(
+            f"{adapter.name} artifacts must use {adapter.suffix} files, got "
+            f"{suffix or 'no extension'}"
+        )

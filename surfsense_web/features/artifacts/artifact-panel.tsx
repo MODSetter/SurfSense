@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Dot, FileWarning, XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { artifactPanelAtom, closeArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
@@ -16,9 +17,19 @@ import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 import { artifactManifestQueryOptions } from "./artifact-query";
+import { getArtifactViewerDispatch } from "./artifact-viewer-dispatch";
 import { artifactDownloadPath } from "./download-file";
 import type { ArtifactManifest } from "./model";
 import { VIEWERS } from "./viewer-registry";
+
+const MindMapViewer = dynamic(() => import("./mindmap-viewer"), {
+	ssr: false,
+	loading: () => (
+		<div className="flex h-full items-center justify-center" aria-busy="true">
+			<Spinner size="lg" />
+		</div>
+	),
+});
 
 function artifactFilename(manifest: ArtifactManifest | undefined): string | null {
 	if (!manifest) return null;
@@ -116,6 +127,8 @@ export function ArtifactViewerContent({
 							Try again
 						</Button>
 					</div>
+				) : content?.format === "mindmap" ? (
+					<FileArtifact content={content} zoomControlsContainer={zoomControlsContainer} />
 				) : content && !primary ? (
 					<div className="h-full overflow-y-auto px-5 py-4">
 						<MarkdownViewer
@@ -169,10 +182,19 @@ function FileArtifact({
 	zoomControlsContainer: HTMLElement | null;
 }) {
 	const primary = content.files.find((file) => file.role === "primary");
+	const dispatch = getArtifactViewerDispatch(content.format, primary?.mime_type);
+	if (dispatch.kind === "mindmap") {
+		return (
+			<MindMapViewer
+				markdown={content.markdown_representation}
+				zoomControlsContainer={zoomControlsContainer}
+			/>
+		);
+	}
 	if (!primary) {
 		return <UnviewableFile message="This artifact has no primary file." />;
 	}
-	const Viewer = VIEWERS[primary.mime_type];
+	const Viewer = dispatch.kind === "mime" ? VIEWERS[dispatch.mimeType] : undefined;
 	return Viewer ? (
 		<Viewer primary={primary} files={content.files} zoomControlsContainer={zoomControlsContainer} />
 	) : (

@@ -35,7 +35,7 @@ def _docx(extra_body: str = "") -> bytes:
 
 def test_clean_docx_and_registry():
     result = check_docx(_docx())
-    adapter = get_format_adapter("/workspace/report.docx")
+    adapter = get_format_adapter("docx")
 
     assert result.clean
     assert adapter.name == "docx"

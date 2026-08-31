@@ -5,6 +5,10 @@ from __future__ import annotations
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
+from app.artifacts.verification.formats.registry import (
+    VerifiableArtifactFormat,
+    get_format_adapter,
+)
 from app.artifacts.verification.service import verify_artifact as verify
 from app.capabilities.core import ActivityDescriptor
 from app.db import shielded_async_session
@@ -18,30 +22,38 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
     @tool
     async def verify_artifact(
         path: str,
+        format: VerifiableArtifactFormat,
         runtime: ToolRuntime,
         description: str | None = None,
+        markdown_path: str | None = None,
     ) -> dict:
-        """Verify a sandbox-generated document or MP4 before saving it.
+        """Verify a sandbox-generated artifact before saving it.
 
         Returns actionable findings when the artifact needs changes. A clean
         result authorizes save_artifact to use the signed verification receipt.
-        Use description for a short user-facing step title.
+        Declare the artifact's semantic format independently of its physical
+        filename. Mind-map PNGs require markdown_path to bind their canonical
+        hierarchy. Use description for a short user-facing step title.
         """
         del description
         session = await (await get_registry()).get_session(
             resolve_root_thread_id(runtime), workspace_id
         )
-        async with shielded_async_session() as db_session:
-            vision_llm = await get_vision_llm(
-                db_session,
-                workspace_id,
-                usage_type="artifact_verification",
-            )
+        vision_llm = None
+        if get_format_adapter(format).requires_visual_review:
+            async with shielded_async_session() as db_session:
+                vision_llm = await get_vision_llm(
+                    db_session,
+                    workspace_id,
+                    usage_type="artifact_verification",
+                )
         result = await verify(
             session,
             path,
+            format=format,
             workspace_id=workspace_id,
             vision_llm=vision_llm,
+            markdown_path=markdown_path,
         )
         return {
             "status": "verified" if result.verified else "failed",

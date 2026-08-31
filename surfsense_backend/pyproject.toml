@@ -89,6 +89,7 @@ dependencies = [
     "dulwich>=0.22.0",
     "opensandbox==0.1.15",
     "opensandbox-code-interpreter==0.1.2",
+    "pillow>=12.1.1",
 ]
 
 [project.optional-dependencies]

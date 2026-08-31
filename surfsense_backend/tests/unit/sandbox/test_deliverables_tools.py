@@ -60,6 +60,7 @@ class Saved:
     artifact_id: int = 9
     generation: int = 1
     title: str = "Facts"
+    format: str = "pdf"
     files: list | None = None
 
 
@@ -104,11 +105,51 @@ async def test_verify_tool_keeps_receipt_preview_path_backend_owned(monkeypatch)
     assert tool.coroutine is not None
     result = await tool.coroutine(
         path="/workspace/report.docx",
+        format="docx",
         runtime=_runtime(),
     )
 
     assert result["status"] == "verified"
     assert "preview_path" not in result
+
+
+async def test_verify_tool_passes_mindmap_markdown_without_loading_vision(monkeypatch):
+    session = FakeSandboxSession()
+    captured = {}
+
+    async def get_registry():
+        return FakeRegistry(session)
+
+    async def verify(*_args, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            verified=True,
+            findings=(),
+            notes=(),
+            page_count=None,
+            unavailable_reason=None,
+        )
+
+    async def must_not_load_vision(*_args, **_kwargs):
+        raise AssertionError("mindmap requested a vision model")
+
+    monkeypatch.setattr(verify_tool, "get_registry", get_registry)
+    monkeypatch.setattr(verify_tool, "verify", verify)
+    monkeypatch.setattr(verify_tool, "get_vision_llm", must_not_load_vision)
+    monkeypatch.setattr(verify_tool, "resolve_root_thread_id", lambda *_args: 4)
+    tool = verify_tool.create_verify_artifact_tool(workspace_id=WORKSPACE_ID)
+
+    result = await tool.coroutine(
+        path="/workspace/map.png",
+        format="mindmap",
+        markdown_path="/workspace/map.md",
+        runtime=_runtime(),
+    )
+
+    assert result["status"] == "verified"
+    assert captured["markdown_path"] == "/workspace/map.md"
+    assert captured["format"] == "mindmap"
+    assert captured["vision_llm"] is None
 
 
 async def test_full_video_render_uses_gate_config_and_records_segments(monkeypatch):
@@ -177,6 +218,7 @@ async def _add_receipt(
     preview_path: str | None = None,
     unavailable_reason: str | None = None,
     format_name: str | None = None,
+    markdown_representation: str | None = None,
 ) -> None:
     await write_receipt(
         session,
@@ -186,6 +228,11 @@ async def _add_receipt(
             format=format_name or primary_path.rsplit(".", 1)[-1],
             primary_path=primary_path,
             primary_sha256=sha256_bytes(session.files[primary_path]),
+            markdown_representation_sha256=(
+                sha256_bytes(markdown_representation.encode("utf-8"))
+                if markdown_representation is not None
+                else None
+            ),
             preview_path=preview_path,
             preview_sha256=(
                 sha256_bytes(session.files[preview_path]) if preview_path else None
@@ -208,7 +255,7 @@ def test_thread_resolution_requires_live_runtime_identity():
         root_thread_id_from_config({})
 
 
-async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypatch):
+async def test_binary_save_reads_primary_and_preview_from_receipt_format(monkeypatch):
     session = _sandbox(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
@@ -320,6 +367,54 @@ async def test_binary_save_rejects_bytes_changed_after_verification(monkeypatch)
     assert "changed after verification" in str(result)
 
 
+async def test_mindmap_save_requires_exact_bound_markdown(monkeypatch):
+    path = "/workspace/map.png"
+    markdown = "# Root\n- Child"
+    session = _sandbox({path: b"verified-png"})
+    await _add_receipt(
+        session,
+        path,
+        format_name="mindmap",
+        markdown_representation=markdown,
+    )
+    captured = _patch_save_tool(monkeypatch, session)
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+
+    rejected = await tool.coroutine(
+        title="Map",
+        markdown_representation=f"{markdown}\n",
+        path=path,
+        runtime=_runtime(),
+    )
+    await tool.coroutine(
+        title="Map",
+        markdown_representation=markdown,
+        path=path,
+        runtime=_runtime(),
+    )
+
+    assert "Markdown changed after verification" in str(rejected)
+    assert captured["format"] == "mindmap"
+    assert captured["markdown_representation"] == markdown
+
+
+async def test_mindmap_save_rejects_receipt_without_markdown_hash(monkeypatch):
+    path = "/workspace/map.png"
+    session = _sandbox({path: b"verified-png"})
+    await _add_receipt(session, path, format_name="mindmap")
+    _patch_save_tool(monkeypatch, session)
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+
+    rejected = await tool.coroutine(
+        title="Map",
+        markdown_representation="# Root\n- Child",
+        path=path,
+        runtime=_runtime(),
+    )
+
+    assert "Verify this file again before presenting it" in str(rejected)
+
+
 async def test_binary_save_requires_a_signed_receipt(monkeypatch):
     session = _sandbox(
         {
@@ -428,7 +523,7 @@ async def test_receipt_must_name_the_saved_file(monkeypatch):
     assert "changed after verification" in str(rejected)
 
 
-async def test_receipt_must_name_the_saved_format(monkeypatch):
+async def test_receipt_format_governs_the_physical_extension(monkeypatch):
     session = _sandbox(
         {
             "/workspace/data.pdf": b"%PDF-1.4\n%%EOF",
@@ -445,7 +540,7 @@ async def test_receipt_must_name_the_saved_format(monkeypatch):
         runtime=_runtime(),
     )
 
-    assert "Verify this file again before presenting it" in str(rejected)
+    assert "docx artifacts must use .docx files, got .pdf" in str(rejected)
 
 
 async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
@@ -483,6 +578,7 @@ async def test_binary_save_enforces_file_cap(monkeypatch):
             _sandbox({"/workspace/out.pdf": b"%PDF"}),  # type: ignore[arg-type]
             "/workspace/out.pdf",
             "primary",
+            save_tool.get_format_adapter("pdf"),
         )
 
 
@@ -857,8 +953,9 @@ async def test_load_artifact_instructions_uses_the_structured_format(monkeypatch
         for tool in sandbox_tools.create_sandbox_tools(workspace_id=3)
         if tool.name == "load_artifact_instructions"
     )
+    assert "mindmap" in tool.args["artifact_type"]["enum"]
 
-    result = await tool.coroutine(artifact_type="pdf", runtime=_runtime())
+    result = await tool.coroutine(artifact_type="mindmap", runtime=_runtime())
 
-    assert commands == ["cat /opt/skills/pdf/SKILL.md"]
+    assert commands == ["cat /opt/skills/mindmap/SKILL.md"]
     assert result.startswith("trusted instructions")

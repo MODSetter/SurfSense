@@ -47,6 +47,11 @@ _REVISION_INSTRUCTIONS = {
         "the user's new instruction, render to expected_output_path, then verify "
         "it. Do not edit current.mp4; it is restored for reference only."
     ),
+    "mindmap": (
+        "Edit markdown_path, render it to expected_output_path with the mind-map "
+        "harness, verify both paths together, and save with the returned artifact "
+        "ID and generation. Do not edit or reconstruct the PNG."
+    ),
     "markdown": "Edit markdown_path directly and save it as a Markdown-only revision.",
 }
 

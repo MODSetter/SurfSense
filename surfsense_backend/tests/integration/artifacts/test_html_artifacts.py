@@ -89,6 +89,7 @@ async def test_html_tool_create_and_revise_primary_only(
     verified = await verify_service.verify_artifact(
         sandbox,
         primary_path,
+        format="html",
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,
@@ -112,6 +113,7 @@ async def test_html_tool_create_and_revise_primary_only(
     reverified = await verify_service.verify_artifact(
         sandbox,
         primary_path,
+        format="html",
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,
@@ -147,6 +149,7 @@ async def test_html_tool_create_and_revise_primary_only(
     revised_ok = await verify_service.verify_artifact(
         sandbox,
         revised_path,
+        format="html",
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,

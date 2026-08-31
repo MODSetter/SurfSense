@@ -15,8 +15,9 @@ from app.observability.domains import media
 from app.sandbox import SandboxSession
 
 from .formats.base import FormatAdapter, StructuralCheckResult
+from .formats.mindmap import check_mindmap_markdown
 from .formats.pdf import check_pdf
-from .formats.registry import get_format_adapter
+from .formats.registry import get_format_adapter, validate_format_path
 from .receipt import (
     VerificationReceipt,
     artifact_path_lock,
@@ -79,8 +80,10 @@ async def verify_artifact(
     session: SandboxSession,
     primary_path: str,
     *,
+    format: str,
     workspace_id: int,
     vision_llm: Any | None,
+    markdown_path: str | None = None,
     secret_key: str | None = None,
 ) -> VerificationResult:
     """Verify one artifact and issue a signed receipt only when it may be saved."""
@@ -99,13 +102,15 @@ async def verify_artifact(
             return await _verify_artifact(
                 session,
                 primary_path,
+                format=format,
                 workspace_id=workspace_id,
                 vision_llm=vision_llm,
+                markdown_path=markdown_path,
                 signing_key=signing_key,
             )
         except Exception as exc:
             logger.warning("Artifact verification failed: %s", exc, exc_info=True)
-            if primary_path.lower().endswith(".mp4"):
+            if format.strip().lower() == "video":
                 media.record_video_verify_failure("structural")
             return VerificationResult(
                 verified=False,
@@ -122,20 +127,26 @@ async def _invalidate_previous_verification(
 ) -> None:
     """Invalidate the receipt and any staged preview before a new attempt."""
     staged_paths = {preview_path(primary_path)}
-    try:
-        previous = await read_receipt(
-            session,
-            signing_key,
-            workspace_id=workspace_id,
-            primary_path=primary_path,
-            allow_expired=True,
-        )
-        if previous.preview_path:
-            staged_paths.add(previous.preview_path)
-    except ValueError:
-        pass
+    previous_receipt_path = receipt_path(primary_path)
+    receipt_probe = await session.run_command(
+        f"if test -s {shlex.quote(previous_receipt_path)}; "
+        "then printf 1; else printf 0; fi"
+    )
+    if receipt_probe.ok and receipt_probe.output.strip() == "1":
+        try:
+            previous = await read_receipt(
+                session,
+                signing_key,
+                workspace_id=workspace_id,
+                primary_path=primary_path,
+                allow_expired=True,
+            )
+            if previous.preview_path:
+                staged_paths.add(previous.preview_path)
+        except ValueError:
+            pass
 
-    await session.write_file(receipt_path(primary_path), b"")
+    await session.write_file(previous_receipt_path, b"")
     for path in staged_paths:
         await session.write_file(path, b"")
     await session.run_command(
@@ -147,12 +158,42 @@ async def _verify_artifact(
     session: SandboxSession,
     primary_path: str,
     *,
+    format: str,
     workspace_id: int,
     vision_llm: Any | None,
+    markdown_path: str | None,
     signing_key: str,
 ) -> VerificationResult:
-    adapter = get_format_adapter(primary_path)
+    adapter = get_format_adapter(format)
+    validate_format_path(adapter, primary_path)
     _progress("checking", "Checking document structure")
+    markdown_representation_sha256 = None
+    if adapter.requires_markdown_binding:
+        if markdown_path is None:
+            return VerificationResult(
+                verified=False,
+                findings=(
+                    "Mind-map verification requires markdown_path for its "
+                    "canonical hierarchy",
+                ),
+            )
+        markdown_data = await session.read_file(markdown_path)
+        if len(markdown_data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            return VerificationResult(
+                verified=False,
+                findings=(
+                    f"Mind-map Markdown is {len(markdown_data)} bytes; limit is "
+                    f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes",
+                ),
+            )
+        markdown_check = check_mindmap_markdown(markdown_data)
+        if not markdown_check.clean:
+            return VerificationResult(
+                verified=False,
+                findings=markdown_check.findings,
+            )
+        markdown_representation_sha256 = sha256_bytes(markdown_data)
+
     primary_data: bytes | None = None
     if adapter.sandbox_check is not None:
         sandbox_result = await adapter.sandbox_check(session, primary_path)
@@ -208,6 +249,7 @@ async def _verify_artifact(
             format=adapter.name,
             primary_path=primary_path,
             primary_sha256=primary_sha256,
+            markdown_representation_sha256=markdown_representation_sha256,
             preview_path=None,
             preview_sha256=None,
             page_count=None,
@@ -379,6 +421,7 @@ async def _verify_prepared_pdf(
         format=adapter.name,
         primary_path=primary_path,
         primary_sha256=sha256_bytes(primary_data),
+        markdown_representation_sha256=None,
         preview_path=staged_preview_path,
         preview_sha256=sha256_bytes(preview_data) if staged_preview_path else None,
         page_count=page_count,

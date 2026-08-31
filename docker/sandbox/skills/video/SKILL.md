@@ -89,7 +89,7 @@ globals. Import only what that scene uses.
 7. Run the full `node render.mjs props.json /workspace/out.mp4`. The harness
    measures narration with `parseMedia`, derives timing, segments long renders,
    and concatenates them. Do not hand-calculate audio frame counts.
-8. Call `verify_artifact(path="/workspace/out.mp4")`. If it reports a blocking
+8. Call `verify_artifact(path="/workspace/out.mp4", format="video")`. If it reports a blocking
    finding, make one final repair, then run preflight, still review, render, and
    verification once more. A second verification failure is terminal.
 9. Call `save_artifact` only after the exact MP4 verifies, passing the step-1

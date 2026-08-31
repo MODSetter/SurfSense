@@ -724,14 +724,14 @@ export default function NewChatPage() {
 	}, [buildCtx, pendingInterrupts, activeThreadId]);
 
 	// Surface the thread's deliverables to the layout-level artifacts sidebar.
-	const { artifacts: chatArtifacts, isLoading: isArtifactDataLoading } = useSyncChatArtifacts(
+	const { artifacts: chatArtifacts, isReady: isArtifactMetadataReady } = useSyncChatArtifacts(
 		runtimeMessages,
 		activeThreadId,
 		workspaceId
 	);
 	useArtifactDeepLink(
 		chatArtifacts,
-		!isThreadMessagesLoading && !isArtifactDataLoading,
+		!isThreadMessagesLoading && isArtifactMetadataReady,
 		`${workspaceId}:${activeThreadId ?? "new"}`
 	);
 

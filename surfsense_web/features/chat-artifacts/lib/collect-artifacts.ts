@@ -1,6 +1,5 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 import type { ArtifactListItem } from "@/features/artifacts/model";
-import { extension } from "@/features/file-viewers/file-format";
 import { ARTIFACT_TOOL_KINDS, type ArtifactToolKind, type ChatArtifact } from "../model/artifact";
 
 interface ToolCallPart {
@@ -44,7 +43,8 @@ export interface ArtifactCandidate {
 	artifactId?: number;
 	legacyEntityId?: number;
 	title: string;
-	format: string;
+	/** Missing only on pre-explicit-format save_artifact message results. */
+	format?: string;
 }
 
 /** Extracts persistence identity and status for a single deliverable tool call. */
@@ -102,21 +102,19 @@ function text(value: unknown): string | null {
 	return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function fallbackMetadata(
+function extractMetadataWithLegacyFormatCompatibility(
 	kind: ArtifactToolKind,
 	args: Record<string, unknown>,
 	result: Record<string, unknown>
 ): Pick<ArtifactCandidate, "title" | "format"> {
 	switch (kind) {
 		case "file": {
-			const files = Array.isArray(result.files) ? result.files : [];
-			const primary = files
-				.map(asRecord)
-				.find((file) => file.role === "primary" && text(file.filename));
-			const filename = text(primary?.filename) ?? text(args.path);
 			return {
 				title: text(result.title) ?? text(args.title) ?? "Artifact",
-				format: filename ? extension(filename) : "file",
+				// Compatibility layer: old saved tool results predate `format`.
+				// Keep their identity for persisted-row resolution; never infer
+				// semantic format from a filename.
+				format: text(result.format) ?? undefined,
 			};
 		}
 		case "podcast":
@@ -159,7 +157,7 @@ export function collectArtifacts(messages: readonly ThreadMessageLike[]): Artifa
 			const args = asRecord(part.args);
 			const { entityId, artifactId, legacyEntityId, failed } = describeArtifact(kind, result);
 			if (failed || entityId == null) continue;
-			const metadata = fallbackMetadata(kind, args, result);
+			const metadata = extractMetadataWithLegacyFormatCompatibility(kind, args, result);
 
 			const key = artifactId == null ? `${kind}:${entityId}` : `artifact:${artifactId}`;
 			byKey.set(key, {
@@ -201,8 +199,14 @@ function fromPersisted(row: ArtifactListItem, message: ArtifactCandidate): ChatA
 	};
 }
 
-/** Overlay persisted metadata without hiding successful message artifacts. */
-export function enrichArtifactRows(
+/**
+ * Resolve durable metadata and lazily upcast pre-explicit-format chat results.
+ *
+ * Compatibility is read-only: persisted Artifact rows supply missing formats,
+ * while unmatched historical results stay hidden instead of using filename
+ * inference. New results retain their optimistic message metadata.
+ */
+export function resolveArtifactRowsWithLegacyCompatibility(
 	messageArtifacts: readonly ArtifactCandidate[],
 	persisted: readonly ArtifactListItem[]
 ): ChatArtifact[] {
@@ -219,6 +223,7 @@ export function enrichArtifactRows(
 			byLegacy.get(`${message.toolKind}:${message.legacyEntityId ?? message.entityId}`);
 		if (row?.indexing_status === "deleting") return [];
 		if (row) return [fromPersisted(row, message)];
+		if (!message.format) return [];
 		return [
 			{
 				key: message.key,

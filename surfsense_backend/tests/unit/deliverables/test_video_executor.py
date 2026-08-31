@@ -208,6 +208,7 @@ async def test_executor_runs_explicit_stages_and_owns_sandbox(monkeypatch) -> No
             artifact_id=19,
             generation=1,
             title="Quarterly update",
+            format="video",
             files=[],
         )
 

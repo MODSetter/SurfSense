@@ -47,6 +47,7 @@ def test_deliverables_roster_advertises_file_artifacts():
         marker in description
         for marker in ("PDF", "Word", "DOCX", ".docx", "PowerPoint", "PPTX", ".pptx")
     )
+    assert all(marker in description for marker in ("mind maps", "static PNG"))
 
 
 def test_presentation_routing_separates_pptx_from_video():
@@ -124,6 +125,10 @@ def test_failed_verification_cannot_advance_to_save():
         deliverables_prompt
     )
     assert "stop without calling `save_artifact`" in deliverables_prompt
+    assert (
+        "Treat visual suggestions and placeholders as design direction, not visible"
+        in deliverables_prompt
+    )
 
 
 # Real fragments under the hardcoded main-agent prompts package, including a

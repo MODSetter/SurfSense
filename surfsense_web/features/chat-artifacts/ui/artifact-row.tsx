@@ -58,7 +58,7 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 			{canDownload && artifact.artifactId != null ? (
 				<ArtifactDownloadButton
 					path={artifactDownloadPath(workspaceId, artifact.artifactId)}
-					filename={`${artifact.title}.${artifact.format}`}
+					filename={artifact.title}
 					className="relative z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
 				/>
 			) : null}

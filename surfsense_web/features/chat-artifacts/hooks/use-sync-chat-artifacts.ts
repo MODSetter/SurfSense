@@ -7,8 +7,8 @@ import type { ArtifactListItem } from "@/features/artifacts/model";
 import {
 	type ArtifactCandidate,
 	collectArtifacts,
-	enrichArtifactRows,
 	matchesPersistedArtifact,
+	resolveArtifactRowsWithLegacyCompatibility,
 } from "../lib/collect-artifacts";
 import type { ChatArtifact } from "../model/artifact";
 import { chatArtifactsAtom } from "../state/artifacts-panel.atom";
@@ -64,14 +64,18 @@ export function useSyncChatArtifacts(
 	workspaceId: number
 ): {
 	artifacts: ChatArtifact[];
-	isLoading: boolean;
+	isReady: boolean;
 } {
 	const setArtifacts = useSetAtom(chatArtifactsAtom);
 	const messageArtifacts = useMemo(() => collectArtifacts(messages), [messages]);
 	const persistencePollStartedAt = useRef(new Map<string, number>());
 	const persistedKeys = useRef(new Set<string>());
 	const canLoadPersisted = threadId != null && workspaceId > 0;
-	const { data: persisted = [], isPending } = useQuery({
+	const {
+		data: persisted = [],
+		isError,
+		isPending,
+	} = useQuery({
 		...artifactListQueryOptions(workspaceId, threadId),
 		enabled: canLoadPersisted,
 		// ponytail: legacy media jobs return before Artifact persistence. Poll is
@@ -88,7 +92,7 @@ export function useSyncChatArtifacts(
 				: false,
 	});
 	const artifacts = useMemo(
-		() => enrichArtifactRows(messageArtifacts, persisted),
+		() => resolveArtifactRowsWithLegacyCompatibility(messageArtifacts, persisted),
 		[messageArtifacts, persisted]
 	);
 
@@ -98,5 +102,10 @@ export function useSyncChatArtifacts(
 
 	useEffect(() => () => setArtifacts([]), [setArtifacts]);
 
-	return { artifacts, isLoading: canLoadPersisted && isPending };
+	// Compatibility layer: a failed persisted-metadata read must not make deep
+	// links discard historical artifacts. React Query can retry on focus.
+	return {
+		artifacts,
+		isReady: !canLoadPersisted || (!isPending && !isError),
+	};
 }

@@ -28,6 +28,7 @@ class VerificationReceipt(BaseModel):
     format: str
     primary_path: str
     primary_sha256: str
+    markdown_representation_sha256: str | None = None
     preview_path: str | None = None
     preview_sha256: str | None = None
     page_count: int | None = None
@@ -62,19 +63,23 @@ def artifact_path_lock(session_id: str, primary_path: str) -> asyncio.Lock:
     return lock
 
 
-def _payload_bytes(receipt: VerificationReceipt) -> bytes:
+def _payload_bytes(payload: VerificationReceipt | dict[str, object]) -> bytes:
     return json.dumps(
-        receipt.model_dump(mode="json"),
+        payload.model_dump(mode="json")
+        if isinstance(payload, VerificationReceipt)
+        else payload,
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
 
 
-def _signature(receipt: VerificationReceipt, secret_key: str) -> str:
+def _signature(
+    payload: VerificationReceipt | dict[str, object], secret_key: str
+) -> str:
     if not secret_key:
         raise ValueError("SECRET_KEY is required for artifact verification")
     return hmac.new(
-        secret_key.encode(), _payload_bytes(receipt), hashlib.sha256
+        secret_key.encode(), _payload_bytes(payload), hashlib.sha256
     ).hexdigest()
 
 
@@ -112,13 +117,14 @@ async def read_receipt(
         envelope = json.loads(data.decode())
         if not isinstance(envelope, dict) or set(envelope) != {"payload", "signature"}:
             raise ValueError
-        receipt = VerificationReceipt.model_validate(envelope["payload"])
+        payload = envelope["payload"]
+        receipt = VerificationReceipt.model_validate(payload)
         signature = envelope["signature"]
     except (KeyError, TypeError, UnicodeDecodeError, ValidationError, ValueError):
         raise ValueError("Artifact verification receipt is unreadable") from None
 
     if not isinstance(signature, str) or not hmac.compare_digest(
-        signature, _signature(receipt, secret_key)
+        signature, _signature(payload, secret_key)
     ):
         raise ValueError("Artifact verification receipt has an invalid signature")
     if receipt.workspace_id != workspace_id or receipt.session_id != session.session_id:

@@ -41,6 +41,15 @@ def test_artifact_filename_is_title_based_and_does_not_duplicate_extension():
     )
 
 
+def test_artifact_filename_uses_physical_extension():
+    assert artifacts_routes._artifact_filename("Strategy.PNG", "revised.png") == (
+        "Strategy.png"
+    )
+    assert artifacts_routes._artifact_filename("Strategy", "revised.png") == (
+        "Strategy.png"
+    )
+
+
 @pytest.mark.parametrize(
     ("header", "expected"),
     [

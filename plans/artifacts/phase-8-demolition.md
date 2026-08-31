@@ -1,4 +1,4 @@
-# Phase 7 — Legacy Deliverable Demolition
+# Phase 8 — Legacy Deliverable Demolition
 
 **Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
@@ -61,7 +61,7 @@ There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile,
 
 The artifacts library lists `GET /workspaces/{workspace_id}/artifacts`. Format, generation, and file roles come from the artifact rows; they are never inferred from document metadata or file kinds.
 
-Phase 7 must not:
+Phase 8 must not:
 
 - convert legacy reports to artifacts;
 - reintroduce a parallel artifact corpus, chunk table, or search leg;
@@ -78,7 +78,7 @@ Phase 7 must not:
 - After the drop, no runtime `Report`, Typst, report API, or old tool references remain.
 - Old threads render the static card without network access.
 - Artifacts library and panel use only the artifact list/manifest/download routes.
-- Phase 1–5 artifact exit criteria remain green.
+- Phase 1–7 artifact exit criteria remain green.
 
 ## 6. Exit criteria
 

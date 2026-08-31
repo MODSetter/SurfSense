@@ -17,7 +17,7 @@ def test_clean_html_fragment_and_registry():
         b"<style>button{color:red}</style><button>Calculate</button>"
         b"<script>document.querySelector('button').onclick=()=>{}</script>"
     )
-    adapter = get_format_adapter("/workspace/calculator.html")
+    adapter = get_format_adapter("html")
 
     assert result.clean
     assert result.notes == ()
@@ -66,6 +66,7 @@ async def test_verify_html_skips_render_and_vision():
     result = await service.verify_artifact(
         session,
         path,
+        format="html",
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
         secret_key=SECRET,
@@ -95,6 +96,7 @@ async def test_verify_invalid_html_issues_no_receipt():
     result = await service.verify_artifact(
         session,
         path,
+        format="html",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,

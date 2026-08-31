@@ -47,7 +47,7 @@ unless the user explicitly asks for a separate copy.
 
 ## Verify and save
 
-Call `verify_artifact(path=output_path)`. HTML verification is structural only:
+Call `verify_artifact(path=output_path, format="html")`. HTML verification is structural only:
 there is no PDF preview or vision pass. Warnings identify resources the viewer
 will block and do not require regeneration. If verification reports blocking
 findings, fix all blockers together, regenerate once at the same output path,

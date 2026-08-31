@@ -20,4 +20,5 @@ class ArtifactSaved:
     artifact_id: int
     generation: int
     title: str
+    format: str
     files: list[ArtifactSavedFile]

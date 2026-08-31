@@ -17,6 +17,7 @@ class ArtifactFormat(StrEnum):
     XLSX = "xlsx"
     HTML = "html"
     PDF = "pdf"
+    MINDMAP = "mindmap"
     PODCAST = "podcast"
     VIDEO = "video"
     IMAGE = "image"

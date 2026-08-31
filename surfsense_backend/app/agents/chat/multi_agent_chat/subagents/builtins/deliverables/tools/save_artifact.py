@@ -15,7 +15,11 @@ from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receip
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.artifacts import ArtifactFileInput, ArtifactFileStreamInput, save_artifact
 from app.artifacts.service import ArtifactInputFile
-from app.artifacts.verification.formats.registry import get_format_adapter
+from app.artifacts.verification.formats.base import FormatAdapter
+from app.artifacts.verification.formats.registry import (
+    get_format_adapter,
+    validate_format_path,
+)
 from app.artifacts.verification.receipt import (
     artifact_path_lock,
     read_receipt,
@@ -33,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _read_artifact_file(
-    session: SandboxSession, path: str, role: str
+    session: SandboxSession, path: str, role: str, adapter: FormatAdapter
 ) -> ArtifactFileInput:
     filename = PurePosixPath(path).name
     if not filename:
@@ -47,7 +51,7 @@ async def _read_artifact_file(
             f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes"
         )
 
-    adapter = get_format_adapter(path)
+    validate_format_path(adapter, path)
     if role == "preview" and adapter.name != "pdf":
         raise ValueError("Artifact previews must be PDF files")
     if role not in {"primary", "preview"}:
@@ -164,16 +168,29 @@ def create_save_artifact_tool(workspace_id: int):
                         workspace_id=workspace_id,
                         primary_path=path,
                     )
-                    primary_adapter = get_format_adapter(path)
-                    if verification.format != primary_adapter.name:
-                        raise ValueError(
-                            "The verification receipt names another artifact format"
-                        )
+                    primary_adapter = get_format_adapter(verification.format)
+                    validate_format_path(primary_adapter, path)
                     if verification.primary_path != path:
                         raise ValueError(
                             "The artifact changed after verification. Verify it "
                             "again, then save."
                         )
+                    if primary_adapter.requires_markdown_binding:
+                        expected_markdown_hash = (
+                            verification.markdown_representation_sha256
+                        )
+                        if expected_markdown_hash is None:
+                            raise ValueError(
+                                "The verification receipt does not bind the "
+                                "mind-map Markdown"
+                            )
+                        if expected_markdown_hash != sha256_bytes(
+                            markdown_representation.encode("utf-8")
+                        ):
+                            raise ValueError(
+                                "The mind-map Markdown changed after verification. "
+                                "Verify both files again, then save."
+                            )
                     primary: ArtifactInputFile
                     if primary_adapter.name == "video":
                         filename = PurePosixPath(path).name
@@ -186,7 +203,9 @@ def create_save_artifact_tool(workspace_id: int):
                             expected_sha256=verification.primary_sha256,
                         )
                     else:
-                        primary = await _read_artifact_file(session, path, "primary")
+                        primary = await _read_artifact_file(
+                            session, path, "primary", primary_adapter
+                        )
                         if verification.primary_sha256 != sha256_bytes(primary.data):
                             raise ValueError(
                                 "The artifact changed after verification. Verify it "
@@ -194,7 +213,10 @@ def create_save_artifact_tool(workspace_id: int):
                             )
                     preview = (
                         await _read_artifact_file(
-                            session, verification.preview_path, "preview"
+                            session,
+                            verification.preview_path,
+                            "preview",
+                            get_format_adapter("pdf"),
                         )
                         if verification.preview_path is not None
                         else None

@@ -5,6 +5,7 @@ import {
 	FileSpreadsheet,
 	FileText,
 	ImageIcon,
+	Network,
 	Presentation,
 	Shapes,
 	Video,
@@ -46,6 +47,7 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 	md: { ...FILE_META, label: "Document", detailLabel: "Markdown" },
 	pdf: { ...FILE_META, label: "Document", detailLabel: "PDF" },
 	docx: { ...FILE_META, label: "Document", detailLabel: "DOCX" },
+	mindmap: { ...FILE_META, icon: Network, label: "Interactive", detailLabel: "Mind map" },
 	pptx: {
 		icon: Presentation,
 		label: "Presentation",
