@@ -16,7 +16,8 @@ The deliverable is a single self-contained page — inline CSS, inline JavaScrip
 In:
 
 - an `.html` structural `FormatAdapter` with MIME `text/html`;
-- a sandbox HTML authoring skill and deliverables-agent routing;
+- a sandbox HTML authoring skill (mechanics), and a shared design skill it defers to for aesthetics;
+- intent-based routing so interactive requests select HTML without the user naming a format;
 - programmatic verification: no conversion, rasterization, vision review, or preview file;
 - primary-only persistence through the existing artifact service;
 - a sandboxed-iframe viewer in the artifact panel, keyed off `text/html`;
@@ -73,6 +74,10 @@ Verification never rewrites or "sanitizes" the bytes. What the agent authored is
 
 ## 5. Generation skill
 
+Two layers author an HTML artifact, and they must stay separate: the **format skill** owns mechanics, and a **shared design skill** owns aesthetics. The HTML skill does not re-teach visual design; it defers to the design skill so PPTX, PDF, DOCX, and image generation can reuse the same design core rather than each carrying its own copy.
+
+### 5.1 HTML format skill (mechanics)
+
 `docker/sandbox/skills/html/SKILL.md` teaches the deliverables agent to author one self-contained interactive HTML **fragment** in `/workspace`, following the reference in `html-artifacts.md`:
 
 - emit a fragment only — no `<!DOCTYPE>`, `<html>`, `<head>`, or `<body>` wrapper; the panel wraps it in a shell (§6);
@@ -90,7 +95,30 @@ The generation flow mirrors the other skills:
 
 The Markdown representation summarizes the artifact's purpose, its interactive controls, and its key content for search and accessibility — not the raw HTML.
 
-Routing: the deliverables `system_prompt.md` and `description.md` gain an explicit rule that interactive requests (calculators, configurators, dashboards, interactive prototypes) route to the HTML skill, distinct from the PDF/DOCX/PPTX/XLSX/Markdown deliverable defaults. `load_artifact_instructions`' format `Literal` in `tools/sandbox.py` gains `"html"`, and the skill roster test (`tests/unit/sandbox/test_deliverables_skill_roster.py`) is updated so the installed skill appears in the prompt.
+### 5.2 Shared design skill (aesthetics)
+
+Visual quality is not duplicated across format skills.
+`docker/sandbox/skills/frontend-design/DESIGN.md` supplies general design
+guidance — subject grounding, a named palette, deliberate
+type pairing and scale, structural hierarchy, restraint, and copywriting.
+HTML keeps its web-only addendum (layout, motion, CSS specificity, responsive
+behavior, and reduced motion) in `html/SKILL.md`; other formats retain their
+own medium-specific rules.
+
+Because `load_artifact_instructions` simply `cat`s one
+`/opt/skills/<name>/SKILL.md`, the Docker skills-assembly step appends the
+shared guidance to every installed format `SKILL.md`. The `frontend-design` folder
+contains `DESIGN.md`, not `SKILL.md`, so it is neither advertised as an
+artifact format nor copied into `/opt/skills`. This also avoids replacing the
+base image's unrelated `frontend-design` skill.
+
+### 5.3 Intent routing — the user never has to say "HTML"
+
+Interactive intent, not the literal word "HTML", selects this format. `Create an interactive pricing calculator` produces an HTML artifact with no format hint from the user; this is the defining behavior of the format, matching the reference in `html-artifacts.md`.
+
+The deliverables `system_prompt.md` format policy currently ends with "otherwise, prefer PDF for a finished deliverable," which would swallow interactive requests into a static PDF. Phase 6 inserts an **interactive-intent branch ahead of that PDF default**: a request whose deliverable is something the user operates rather than reads — a calculator, configurator, estimator, simulator, interactive dashboard, live/interactive prototype, widget, or tool with controls — routes to HTML. The signal is interactivity (inputs, sliders, toggles, live-updating output), not the noun. A request for a static write-up, letter, report, deck, or sheet keeps its existing format; an explicit format request still overrides, as it does today.
+
+`description.md` advertises the interactive capability so the supervisor delegates these requests to the deliverables agent. `load_artifact_instructions`' format `Literal` in `tools/sandbox.py` gains `"html"`, and the roster test (`tests/unit/sandbox/test_deliverables_skill_roster.py`) is updated so the installed HTML skill is advertised. A routing test asserts that an interactive prompt with no format word selects HTML and does not fall through to PDF.
 
 ## 6. Sandboxed viewer and security model
 
@@ -206,7 +234,9 @@ When public HTML does ship, it reuses the same story: bytes fetched via the toke
 
 ### 11.3 Routing and serving
 
-- an interactive request routes to the HTML skill, and the skill appears in the deliverables prompt (roster test);
+- an interactive prompt with no format word (e.g. "create an interactive pricing calculator") selects HTML and does not fall through to the PDF default;
+- a static request (report, letter, deck, sheet) keeps its existing format, and an explicit format word still overrides;
+- the installed HTML skill appears in the deliverables prompt (roster test);
 - the authenticated content route serves `text/html` as `attachment` with `nosniff` (regression test beside the PDF/MP4 inline cases).
 
 ### 11.4 Browser
@@ -219,16 +249,17 @@ When public HTML does ship, it reuses the same story: bytes fetched via the toke
 ## 12. Delivery order
 
 1. Add the `.html` adapter, `check_html`, and focused verification tests.
-2. Add the sandbox HTML skill, extend `load_artifact_instructions`, wire prompt routing, and update the roster test.
-3. Add `HtmlFileViewer`, register `text/html`, and add format metadata.
-4. Add the attachment/`nosniff` serving regression test and the sandbox-to-save integration test.
-5. Run cross-format regression and update `artifacts-overhaul.md` §7–§9.
+2. Split `frontend-design/DESIGN.md` from HTML's web-runtime rules and compose the shared guidance into every installed format skill at image build.
+3. Add the sandbox HTML skill, extend `load_artifact_instructions`, insert the interactive-intent routing branch ahead of the PDF default, and update the roster and routing tests.
+4. Add `HtmlFileViewer`, register `text/html`, and add format metadata.
+5. Add the attachment/`nosniff` serving regression test and the sandbox-to-save integration test.
+6. Run cross-format regression and update `artifacts-overhaul.md` §7–§9.
 
 Each step leaves one format-neutral path. If any step needs a format-specific persistence or route branch, stop and repair the shared boundary instead.
 
 ## 13. Exit criteria
 
-1. Interactive requests route to the HTML skill and produce a self-contained fragment.
+1. Interactive requests route to HTML on intent alone — no format word required — ahead of the PDF default, and produce a self-contained fragment; static requests and explicit formats are unaffected.
 2. The fragment verifies programmatically with no preview or visual review.
 3. Save and revision use the same document-backed artifact model as PDF, DOCX, PPTX, and XLSX.
 4. The authenticated artifact panel renders the page in a sandboxed iframe with no same-origin power, and the header still downloads the original `.html`.
