@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.knowledge_store.identities import AGENT_IDENTITY
+from app.knowledge_store.index.queue import enqueue_index
 from app.knowledge_store.remote.paths import rel_from_local, to_local
 from app.knowledge_store.remote.planner import FileChange
 
@@ -21,6 +22,9 @@ async def apply_from_remote(
     ) as tx:
         for rel, content in files.items():
             tx.write(to_local(mount=mount, rel=rel), content)
+    # Index-only, not enqueue_sync: pulled content must not push straight back.
+    if tx.revision is not None:
+        enqueue_index(store.workspace_id)
 
 
 async def apply_changes(
@@ -35,6 +39,8 @@ async def apply_changes(
                 tx.remove(path)
             else:
                 tx.write(path, change.content)
+    if tx.revision is not None:
+        enqueue_index(store.workspace_id)
 
 
 async def md_under_mount(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.knowledge_store.remote.exceptions import RemoteError
@@ -147,11 +148,15 @@ class WorkspaceRemotes:
         dest = shadow_path(self._workspace_id, int(row.id))
         dest.parent.mkdir(parents=True, exist_ok=True)
         pending.rename(dest)
-        if remote_md and (direction is None or direction == "from_remote"):
+        pulled = bool(remote_md) and (direction is None or direction == "from_remote")
+        if pulled:
             await apply_from_remote(store, mount=prefix, files=remote_md)
         shadow = Shadow(dest)
+        head = await store.head()
         row.last_remote_sha = shadow.head_sha()
-        row.last_local_revision = await store.head()
+        row.last_local_revision = head
+        if pulled:
+            _mark_synced(row, head)
         await self._session.commit()
         return status
 
@@ -298,10 +303,12 @@ class WorkspaceRemotes:
                 sha = await asyncio.to_thread(_push)
         except GitPushError as exc:
             raise RemoteError("forge", str(exc)) from exc
+        head = await store.head()
         row.last_remote_sha = sha
-        row.last_local_revision = await store.head()
+        row.last_local_revision = head
         row.last_error_code = None
         row.last_conflict_paths = None
+        _mark_synced(row, head)
         await self._session.flush()
         _observe_sync(
             sp, self._workspace_id, status="mirrored", provider=spec.provider
@@ -315,6 +322,7 @@ class WorkspaceRemotes:
         ) as sp:
             try:
                 provider = await self._resolve(direction)
+                await self._session.commit()
             except RemoteError as exc:
                 sp.set_attribute("resolve.status", "failed")
                 sp.set_attribute("resolve.error_code", exc.code)
@@ -430,6 +438,19 @@ class WorkspaceRemotes:
 
     async def record_push_failure(self, error: str) -> None:
         await self._rows.record_push_failure(self._workspace_id, error)
+
+
+def _mark_synced(row, revision: str | None) -> None:
+    """Stamp the display marker the card reads (``last_pushed_*`` == last synced).
+
+    The 3-way base is ``last_local_revision``/``last_remote_sha``; these fields
+    are only what the UI shows, so a pull or a mirror both count as "synced".
+    """
+    if revision is None:
+        return
+    row.last_pushed_revision = revision
+    row.last_pushed_at = datetime.now(UTC)
+    row.last_push_error = None
 
 
 def _observe_sync(
