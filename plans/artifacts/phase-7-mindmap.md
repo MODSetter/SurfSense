@@ -15,6 +15,8 @@ The user-visible contract is:
 
 - the panel supports pan, zoom, fit, and branch collapse/expand;
 - the download button returns `<title>.mindmap.png`, never Markdown or HTML;
+- the PNG is a static capture of the same default Markmap rendering users see
+  in the panel, not a separately designed image;
 - the artifact remains searchable and citable through its ordinary document;
 - create and revise bind the Markdown used by the interactive viewer to the PNG
   produced from it, so the panel and download cannot silently diverge.
@@ -55,6 +57,11 @@ These exclusions keep Markdown a sufficient canonical model. A versioned graph
 schema becomes justified only when editing, arbitrary relationships, positions,
 or rich node metadata are real requirements. React Flow is therefore out of
 scope; Markmap is the smaller library for the hierarchy that exists now.
+
+Phase 7 also does not introduce a SurfSense mind-map theme. Node colors, link
+colors, typography, spacing, shapes, and other map visuals come from Markmap's
+built-in styles and default options. SurfSense supplies only the host container,
+panel controls, and capture dimensions required to run the renderer.
 
 ## 3. Persistence and format identity
 
@@ -135,7 +142,8 @@ Add `markmap-lib` and `markmap-view` to:
 
 Both lockfiles must resolve the same Markmap versions. Do not use a CDN,
 `markmap-cli`, or runtime package installation. The CLI's supported standalone
-output is HTML, while the product decision is PNG.
+output is HTML, while the product decision is PNG. Do not fork, copy, or
+override Markmap's visual CSS.
 
 ### 5.2 Harness
 
@@ -153,10 +161,9 @@ Add a dedicated mind-map still composition and command under the existing
 The export is deterministic:
 
 - fixed 2400×1600 output;
-- opaque neutral background suitable outside SurfSense;
-- baked system fonts only;
 - no network access or remote assets;
-- stable palette, spacing, line widths, and text sizes;
+- Markmap's built-in stylesheet and default visual options only;
+- the browser's ordinary opaque page background, with no custom export theme;
 - all branches expanded;
 - no toolbar or interaction chrome in the PNG;
 - output path supplied by the caller and ending in `.mindmap.png`.
@@ -165,10 +172,17 @@ The harness exits non-zero for parse errors, missing nodes, non-finite geometry,
 layout timeout, bounds outside the canvas, or a fitted scale below the readable
 minimum. It writes no HTML or SVG deliverable.
 
-The interactive viewer and PNG harness should share a small theme/options
-fixture where practical, but not a new cross-runtime package. Keep the options
-short and duplicate stable literals if sharing would couple the frontend build
-to the sandbox image.
+The interactive viewer and PNG harness must use the same resolved Markmap
+versions and the same rendering defaults. They may set only non-visual runtime
+behavior required by the surface: container dimensions, all-expanded initial
+state, fit, pan/zoom enablement, and reduced-motion duration. Do not add a
+shared theme fixture because there is no SurfSense-authored theme.
+
+“Same as the panel” means the PNG matches the panel's initial, all-expanded,
+fitted Markmap appearance. It cannot include viewport changes a user makes
+later, because the verified primary PNG is created before the user opens the
+panel. Exporting the user's current zoom or collapsed state would require a
+separate client-side export feature and is out of scope.
 
 ## 6. Verification and source binding
 
@@ -249,10 +263,11 @@ The skill teaches the agent to:
 6. call `save_artifact` with the verified PNG and exact Markdown;
 7. stop and explain a persistent blocker rather than looping.
 
-The shared frontend-design guidance supplies palette, hierarchy, typography,
-contrast, and restraint. The mind-map skill owns only map-specific mechanics:
+The shared frontend-design guidance may inform content hierarchy and label
+clarity, but it must not cause the agent to author CSS, colors, HTML, SVG, or
+renderer options. The mind-map skill owns only map-specific content mechanics:
 short labels, balanced branches, useful grouping, bounded depth, and no
-paragraph-shaped nodes.
+paragraph-shaped nodes. The agent authors Markdown, not the visual design.
 
 Intent routing adds a mind-map branch ahead of generic PDF/HTML defaults.
 Requests to “make a mind map,” “map this topic,” “show the concept hierarchy,”
@@ -287,12 +302,14 @@ teach the generic image viewer that `image/png` means mindmap.
 
 - transforms `markdown_representation` with `markmap-lib`;
 - renders into an owned SVG through `markmap-view`;
+- uses Markmap's built-in stylesheet and default visual options without
+  SurfSense-authored node, link, color, spacing, typography, or background
+  overrides;
 - enables pan, wheel/pinch zoom, and branch collapse/expand;
 - supplies fit/reset controls through the panel's existing
   `zoomControlsContainer`;
 - fits on first render and observes container resize without resetting a user's
   viewport after every resize;
-- responds to light/dark theme changes without mutating the stored source;
 - respects reduced motion by setting Markmap animation duration to zero;
 - cleans up observers, event handlers, and the Markmap instance on unmount;
 - exposes an accessible textual fallback/tree for screen readers;
@@ -305,7 +322,8 @@ and never pass artifact strings to `dangerouslySetInnerHTML` outside Markmap's
 bounded rendering contract.
 
 The primary PNG is not fetched to render the panel. It remains available through
-the ordinary artifact download action.
+the ordinary artifact download action. Required host layout CSS may size and
+contain the SVG, but it must not restyle Markmap nodes or links.
 
 ### 8.3 Metadata and chat behavior
 
@@ -383,6 +401,8 @@ dimensions, duration, and failure category, but never dump full user content.
   nodes/depth/label length, and raw HTML fail before rendering;
 - the harness renders a representative shallow, deep, wide, CJK, and long-label
   fixture to exact-size PNGs;
+- export fixtures use Markmap's built-in CSS and contain no custom map theme,
+  color callback, line-width callback, or style override;
 - no fixture requires network access;
 - layout timeout, non-finite bounds, clipping, and unreadably small fit fail
   closed;
@@ -408,7 +428,8 @@ dimensions, duration, and failure category, but never dump full user content.
 
 - format metadata reports `viewer` and the expected labels;
 - format-level dispatch wins over the primary `image/png` MIME;
-- pan, zoom, fit, branch toggle, resize, theme change, reduced motion, and
+- panel and PNG use the same Markmap version and default visual configuration;
+- pan, zoom, fit, branch toggle, resize, reduced motion, and
   unmount cleanup work in the desktop panel;
 - mobile drawer supports touch pan/pinch and fit;
 - malformed source shows the shared fallback with download preserved;
@@ -454,8 +475,9 @@ column, stop and repair the adapter/viewer boundary instead.
    optimistic generation check, blob lifecycle, indexing, search, and citations.
 4. The authenticated right panel renders the Markdown interactively with
    Markmap and supports pan, zoom, fit, and branch collapse/expand.
-5. The ordinary download route returns only the primary PNG; no Markdown, HTML,
-   SVG, JSON, or generation source is user-downloadable.
+5. The ordinary download route returns only the primary PNG, captured from the
+   same default Markmap rendering used by the panel; no custom map theme,
+   Markdown, HTML, SVG, JSON, or generation source is user-downloadable.
 6. Invalid, oversized, unsafe, unreadable, or mismatched maps fail before
    persistence, and frontend failures retain the verified PNG escape hatch.
 7. No mindmap-specific persistence schema, API route, panel state, search path,
