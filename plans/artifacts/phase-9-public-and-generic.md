@@ -32,7 +32,9 @@ Out:
 
 ## 3. Generic format adapter
 
-Unknown file suffixes resolve to one generic adapter instead of failing format lookup. The adapter:
+An explicit `format="file"` selection resolves to one generic adapter. The
+physical suffix is preserved for download naming but never selects policy. The
+adapter:
 
 - accepts bounded, non-empty bytes;
 - uses `application/octet-stream`;
@@ -46,10 +48,10 @@ Unknown content is always served as an attachment. The backend must not infer an
 
 Generation-source handling is unchanged: source files remain transient sandbox inputs and are not persisted as artifact roles.
 
-The generic fallback runs only after longest-suffix matching for registered
-formats. In particular, phase 7's `.mindmap.png` resolves to `mindmap`; an
-unrelated `.png` remains generic and must not inherit mind-map verification,
-format metadata, or the interactive viewer.
+Generic verification is selected explicitly by semantic format rather than by
+an unknown filename suffix. A `.png` with `format="mindmap"` receives mind-map
+and Markdown-binding checks; a generated image remains `format="image"`.
+Physical extensions never grant mind-map metadata or the interactive viewer.
 
 ## 4. Public artifact contract
 
@@ -123,13 +125,14 @@ Add a live LibreOffice smoke check that opens/recalculates a generated workbook 
 
 ### 7.1 Generic formats
 
-- unknown suffix verifies with `application/octet-stream`;
+- `format="file"` verifies bounded bytes with `application/octet-stream`
+  regardless of the physical suffix;
 - empty and oversized payloads fail before persistence;
 - receipt binds the primary hash and contains no rendered fields;
 - manifest falls back to download-only viewing;
 - authenticated and public downloads force attachment disposition;
-- `.mindmap.png` resolves before the generic fallback while plain `.png` does
-  not resolve as mindmap.
+- explicit `format="mindmap"` selects mind-map verification for a `.png`;
+  generated-image and generic formats never inherit mind-map checks.
 
 ### 7.2 Public access
 

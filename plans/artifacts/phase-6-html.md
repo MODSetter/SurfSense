@@ -90,7 +90,7 @@ Two layers author an HTML artifact, and they must stay separate: the **format sk
 The generation flow mirrors the other skills:
 
 1. author the fragment at an output path in the sandbox;
-2. call `verify_artifact(path=output_path)` — structural only, warnings advisory; fix all blockers together, regenerate once, reverify, and stop with an explanation rather than looping;
+2. call `verify_artifact(path=output_path, format="html")` — structural only, warnings advisory; fix all blockers together, regenerate once, reverify, and stop with an explanation rather than looping;
 3. call `save_artifact(path=output_path, title="...", markdown_representation="...")`.
 
 The Markdown representation summarizes the artifact's purpose, its interactive controls, and its key content for search and accessibility — not the raw HTML.
