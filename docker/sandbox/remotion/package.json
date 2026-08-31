@@ -14,6 +14,8 @@
 		"@remotion/media-parser": "4.0.514",
 		"@remotion/renderer": "4.0.514",
 		"esbuild": "0.28.2",
+		"markmap-lib": "^0.18.12",
+		"markmap-view": "^0.18.12",
 		"react": "19.2.3",
 		"react-dom": "19.2.3",
 		"remotion": "4.0.514"
