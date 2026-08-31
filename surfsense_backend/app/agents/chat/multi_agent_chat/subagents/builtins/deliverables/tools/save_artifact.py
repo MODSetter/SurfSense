@@ -174,6 +174,22 @@ def create_save_artifact_tool(workspace_id: int):
                             "The artifact changed after verification. Verify it "
                             "again, then save."
                         )
+                    if primary_adapter.requires_markdown_binding:
+                        expected_markdown_hash = (
+                            verification.markdown_representation_sha256
+                        )
+                        if expected_markdown_hash is None:
+                            raise ValueError(
+                                "The verification receipt does not bind the "
+                                "mind-map Markdown"
+                            )
+                        if expected_markdown_hash != sha256_bytes(
+                            markdown_representation.encode("utf-8")
+                        ):
+                            raise ValueError(
+                                "The mind-map Markdown changed after verification. "
+                                "Verify both files again, then save."
+                            )
                     primary: ArtifactInputFile
                     if primary_adapter.name == "video":
                         filename = PurePosixPath(path).name
