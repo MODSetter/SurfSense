@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import io
+
+from PIL import Image, ImageDraw
 
 from app.artifacts.verification import service
 from app.artifacts.verification.formats.base import (
@@ -12,6 +15,7 @@ from app.artifacts.verification.receipt import (
     preview_path,
     read_receipt,
     receipt_path,
+    sha256_bytes,
 )
 from app.artifacts.verification.render import ArtifactRenderError, PreparedPdf
 from app.artifacts.verification.vision import VisualReviewResult
@@ -19,6 +23,14 @@ from tests.utils.fake_sandbox import FakeSandboxSession
 
 SECRET = "test-secret"
 WORKSPACE_ID = 7
+
+
+def _mindmap_png() -> bytes:
+    image = Image.new("RGB", (2400, 1600), "white")
+    ImageDraw.Draw(image).rectangle((100, 100, 300, 300), fill="black")
+    output = io.BytesIO()
+    image.save(output, "PNG")
+    return output.getvalue()
 
 
 def test_public_verification_error_hides_internal_details():
@@ -119,6 +131,66 @@ async def test_video_probe_never_reads_the_mp4_into_backend_memory(monkeypatch):
         primary_path="/workspace/out.mp4",
     )
     assert receipt.primary_sha256 == "a" * 64
+
+
+async def test_mindmap_binds_markdown_without_visual_or_pdf_path(monkeypatch):
+    primary_path = "/workspace/map.mindmap.png"
+    markdown_path = "/workspace/map.md"
+    markdown = b"# Root\n- Child"
+    png = _mindmap_png()
+    session = FakeSandboxSession({primary_path: png, markdown_path: markdown})
+
+    async def must_not_render(*_args, **_kwargs):
+        raise AssertionError("mindmap entered the PDF path")
+
+    monkeypatch.setattr(service, "prepare_pdf", must_not_render)
+    result = await service.verify_artifact(
+        session,
+        primary_path,
+        markdown_path=markdown_path,
+        workspace_id=WORKSPACE_ID,
+        vision_llm=object(),
+        secret_key=SECRET,
+    )
+    receipt = await read_receipt(
+        session,
+        SECRET,
+        workspace_id=WORKSPACE_ID,
+        primary_path=primary_path,
+    )
+
+    assert result.verified
+    assert result.preview_path is None
+    assert receipt.visual == "not_required"
+    assert receipt.primary_sha256 == sha256_bytes(png)
+    assert receipt.markdown_representation_sha256 == sha256_bytes(markdown)
+
+
+async def test_mindmap_requires_valid_markdown_path():
+    primary_path = "/workspace/map.mindmap.png"
+    session = FakeSandboxSession({primary_path: _mindmap_png()})
+
+    missing = await service.verify_artifact(
+        session,
+        primary_path,
+        workspace_id=WORKSPACE_ID,
+        vision_llm=None,
+        secret_key=SECRET,
+    )
+    session.files["/workspace/map.md"] = b"# Root\nparagraph"
+    invalid = await service.verify_artifact(
+        session,
+        primary_path,
+        markdown_path="/workspace/map.md",
+        workspace_id=WORKSPACE_ID,
+        vision_llm=None,
+        secret_key=SECRET,
+    )
+
+    assert not missing.verified
+    assert "requires markdown_path" in missing.findings[0]
+    assert not invalid.verified
+    assert "unordered-list" in invalid.findings[0]
 
 
 async def test_page_ceiling_stops_before_rasterization(monkeypatch):

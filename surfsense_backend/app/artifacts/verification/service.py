@@ -15,6 +15,7 @@ from app.observability.domains import media
 from app.sandbox import SandboxSession
 
 from .formats.base import FormatAdapter, StructuralCheckResult
+from .formats.mindmap import check_mindmap_markdown
 from .formats.pdf import check_pdf
 from .formats.registry import get_format_adapter
 from .receipt import (
@@ -81,6 +82,7 @@ async def verify_artifact(
     *,
     workspace_id: int,
     vision_llm: Any | None,
+    markdown_path: str | None = None,
     secret_key: str | None = None,
 ) -> VerificationResult:
     """Verify one artifact and issue a signed receipt only when it may be saved."""
@@ -101,6 +103,7 @@ async def verify_artifact(
                 primary_path,
                 workspace_id=workspace_id,
                 vision_llm=vision_llm,
+                markdown_path=markdown_path,
                 signing_key=signing_key,
             )
         except Exception as exc:
@@ -149,10 +152,38 @@ async def _verify_artifact(
     *,
     workspace_id: int,
     vision_llm: Any | None,
+    markdown_path: str | None,
     signing_key: str,
 ) -> VerificationResult:
     adapter = get_format_adapter(primary_path)
     _progress("checking", "Checking document structure")
+    markdown_representation_sha256 = None
+    if adapter.requires_markdown_binding:
+        if markdown_path is None:
+            return VerificationResult(
+                verified=False,
+                findings=(
+                    "Mind-map verification requires markdown_path for its "
+                    "canonical hierarchy",
+                ),
+            )
+        markdown_data = await session.read_file(markdown_path)
+        if len(markdown_data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            return VerificationResult(
+                verified=False,
+                findings=(
+                    f"Mind-map Markdown is {len(markdown_data)} bytes; limit is "
+                    f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes",
+                ),
+            )
+        markdown_check = check_mindmap_markdown(markdown_data)
+        if not markdown_check.clean:
+            return VerificationResult(
+                verified=False,
+                findings=markdown_check.findings,
+            )
+        markdown_representation_sha256 = sha256_bytes(markdown_data)
+
     primary_data: bytes | None = None
     if adapter.sandbox_check is not None:
         sandbox_result = await adapter.sandbox_check(session, primary_path)
@@ -208,6 +239,7 @@ async def _verify_artifact(
             format=adapter.name,
             primary_path=primary_path,
             primary_sha256=primary_sha256,
+            markdown_representation_sha256=markdown_representation_sha256,
             preview_path=None,
             preview_sha256=None,
             page_count=None,
@@ -379,6 +411,7 @@ async def _verify_prepared_pdf(
         format=adapter.name,
         primary_path=primary_path,
         primary_sha256=sha256_bytes(primary_data),
+        markdown_representation_sha256=None,
         preview_path=staged_preview_path,
         preview_sha256=sha256_bytes(preview_data) if staged_preview_path else None,
         page_count=page_count,
