@@ -116,8 +116,3 @@ def remote_push_span(*, workspace_id: int, extra: dict[str, Any] | None = None):
     if extra:
         attrs.update(extra)
     return span("knowledge_store.remote.push", attributes=attrs)
-
-
-def remote_sweep_span(*, extra: dict[str, Any] | None = None):
-    """Parent span for one scheduled push of remotes whose stamp trails HEAD."""
-    return span("knowledge_store.remote.sweep", attributes=dict(extra or {}))

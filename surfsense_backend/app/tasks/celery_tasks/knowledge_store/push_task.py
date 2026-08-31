@@ -4,13 +4,9 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import select
-
 from app.celery_app import celery_app
-from app.db import Workspace
 from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.exceptions import GitPushError
-from app.knowledge_store.remote.persistence.models import WorkspaceGitRemotes
 from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,
@@ -20,7 +16,6 @@ from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_ta
 from app.tasks.celery_tasks.knowledge_store.index_tasks import (
     LOCK_RETRY_DELAY_SECONDS,
     LOCK_RETRY_LIMIT,
-    SWEEP_ENQUEUE_CAP,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,14 +34,6 @@ def push_knowledge_store_revision(self, workspace_id: int) -> str | None:
         return None
     except Exception as exc:
         raise self.retry(countdown=LOCK_RETRY_DELAY_SECONDS, exc=exc) from exc
-
-
-@celery_app.task(name="push_lagging_workspace_remotes")
-def push_lagging_workspace_remotes() -> int:
-    """Enqueue push where a remote's stamp trails the store HEAD."""
-    if not load_knowledge_store_settings().enabled:
-        return 0
-    return run_async_celery_task(_sweep)
 
 
 async def _push(workspace_id: int) -> str | None:
@@ -123,41 +110,3 @@ def _observe_push(
         reason,
         provider or "none",
     )
-
-
-async def _sweep() -> int:
-    session_maker = get_celery_session_maker()
-    async with session_maker() as session:
-        result = await session.execute(
-            select(
-                WorkspaceGitRemotes.workspace_id,
-                WorkspaceGitRemotes.last_local_revision,
-            )
-            .join(Workspace, Workspace.id == WorkspaceGitRemotes.workspace_id)
-            .where(Workspace.knowledge_store_enabled.is_(True))
-        )
-        stamps = dict(result.all())
-
-    enqueued = 0
-    with knowledge_store.remote_sweep_span() as sweep:
-        for workspace_id, stamp in stamps.items():
-            if enqueued >= SWEEP_ENQUEUE_CAP:
-                break
-            head = await KnowledgeStore.for_workspace(workspace_id).head()
-            if head is None or head == stamp:
-                continue
-            push_knowledge_store_revision.delay(workspace_id)
-            enqueued += 1
-        sweep.set_attributes(
-            {
-                "remote.candidates": len(stamps),
-                "remote.enqueued": enqueued,
-            }
-        )
-    if enqueued:
-        logger.info(
-            "Remote push sweep enqueued %d workspaces from %d candidates",
-            enqueued,
-            len(stamps),
-        )
-    return enqueued
