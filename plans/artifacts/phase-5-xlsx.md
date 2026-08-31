@@ -11,7 +11,7 @@ Phase 5 added spreadsheet generation, structural verification, persistence, and 
 - The sandbox ships an XLSX skill backed by preinstalled XlsxWriter.
 - `.xlsx` has a structural `FormatAdapter` with the canonical spreadsheet MIME.
 - Verification is programmatic: no conversion, rasterization, vision review, or preview file.
-- Binary persistence uses the existing primary + private source artifact roles.
+- Binary persistence uses the existing primary artifact role.
 - The artifact panel lazy-loads a native spreadsheet viewer for XLSX manifests.
 
 Generic unknown formats, public artifact viewing, and cross-format hardening are phase 7. Legacy report and Typst removal is documented separately in phase 6.
@@ -21,10 +21,9 @@ Generic unknown formats, public artifact viewing, and cross-format hardening are
 An XLSX artifact is one `Document(document_type=ARTIFACT)` plus one `Artifact(format="xlsx")`. Its files are:
 
 - a primary `.xlsx` file;
-- a private `.py` generation source;
 - no preview.
 
-The document owns searchable Markdown under `/documents/Artifacts/` and follows ordinary chunking, indexing, search, move, rename, and deletion behavior. Artifact revisions load the private source and save with `artifact_id + expected_generation`.
+The document owns searchable Markdown under `/documents/` and follows ordinary chunking, indexing, search, move, rename, and deletion behavior. Artifact revisions restore the current workbook plus Markdown context and save with `artifact_id + expected_generation`.
 
 XLSX required no migration, document subtype, chunk table, search branch, or format-specific artifact route.
 
@@ -48,10 +47,10 @@ The generation flow is:
 
 1. create the workbook and complete Python source in the sandbox;
 2. call `verify_artifact` on the workbook;
-3. call `save_artifact` with primary and source paths and no preview;
-4. for revisions, load the source by artifact ID and save with the returned generation.
+3. call `save_artifact` with the primary path and no preview;
+4. for revisions, call `load_artifact_for_revision`, edit the restored workbook with a format-aware library, and save with the returned generation.
 
-The Markdown representation summarizes sheets, columns, and key figures for search and accessibility.
+The Python generation source remains transient in the sandbox. The Markdown representation summarizes sheets, columns, and key figures for search and accessibility.
 
 ## 5. Native viewer
 
@@ -71,7 +70,7 @@ Charts, pivot tables, macros, editing, and full Excel emulation are outside the 
 
 - Unit coverage exercises clean workbooks, formula caches, missing caches, Excel errors, empty content, the cell ceiling, and receipt behavior.
 - Receipt tests prove XLSX never enters conversion, rasterization, or vision.
-- Integration coverage proves primary + private source persistence, post-verification mutation rejection, source loading, optimistic revision, and blob purge.
+- Integration coverage proves primary-only persistence, post-verification mutation rejection, restoration of the current primary, optimistic revision, and blob purge.
 - Parser tests cover formatted values, formula results, row truncation, oversized payloads, and corrupt workbooks.
 
 ## 7. Exit criteria

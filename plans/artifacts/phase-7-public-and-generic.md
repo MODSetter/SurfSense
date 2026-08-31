@@ -23,7 +23,7 @@ In:
 
 Out:
 
-- public access to generation source files;
+- persistence or public access for transient generation source files;
 - public artifact editing or revision;
 - retained historical artifact generations;
 - replacement of existing public image, podcast, or video-presentation delivery;
@@ -44,7 +44,7 @@ Unknown file suffixes resolve to one generic adapter instead of failing format l
 
 Unknown content is always served as an attachment. The backend must not infer an inline-safe MIME from untrusted bytes or add suffix checks to persistence. Existing size limits remain the trust boundary; the generic adapter does not introduce a second limit.
 
-Source requirements and privacy are unchanged. A generated binary still persists its complete generation source privately when the artifact contract requires one.
+Generation-source handling is unchanged: source files remain transient sandbox inputs and are not persisted as artifact roles.
 
 ## 4. Public artifact contract
 
@@ -56,7 +56,7 @@ A public share token grants access only when:
 2. the requested artifact ID is in that snapshot's artifact allowlist;
 3. the artifact belongs to the snapshot's workspace and originating thread.
 
-Every public manifest, file, and download route applies the same authorization helper. Invalid tokens, cross-thread IDs, cross-workspace IDs, source-file IDs, and deleted artifacts return `404` without disclosing which check failed.
+Every public manifest, file, and download route applies the same authorization helper. Invalid tokens, cross-thread IDs, cross-workspace IDs, file IDs outside the artifact's visible primary/preview roles, and deleted artifacts return `404` without disclosing which check failed.
 
 Chat messages remain immutable snapshot data. Artifact IDs are live references to the artifact's current generation; phase 7 does not retain or expose historical artifact generations.
 
@@ -68,7 +68,7 @@ Add token-scoped equivalents of the authenticated read surface:
 - `GET /public/{share_token}/artifacts/{artifact_id}/download`
 - `GET /public/{share_token}/artifacts/{artifact_id}/files/{file_id}/content`
 
-The public manifest uses the same artifact metadata and file-role shape as the authenticated manifest, but emits public URLs. It includes only `primary` and `preview` files. `source` is never serialized and cannot be fetched by guessing its ID.
+The public manifest uses the same artifact metadata and file-role shape as the authenticated manifest, but emits public URLs. It includes only `primary` and `preview` files; generation sources are not persisted.
 
 Download returns the real primary artifact with a safe filename and `Content-Disposition: attachment`. A Markdown-only artifact downloads the document's Markdown snapshot through the same route. File content supports only receipt-bound primary and preview files.
 
@@ -125,7 +125,7 @@ Add a live LibreOffice smoke check that opens/recalculates a generated workbook 
 
 - valid token can read only allowlisted artifact manifests and files;
 - another thread, workspace, token, or artifact ID receives `404`;
-- source file IDs are never listed and always receive `404`;
+- file IDs outside the artifact's visible primary/preview files are never listed and always receive `404`;
 - Markdown-only and binary primary downloads return correct bytes and filenames;
 - deleted artifacts and stale file IDs fail closed;
 - public DOCX/PPTX preview and XLSX primary routes use the shared viewer registry.
@@ -153,7 +153,7 @@ Each step leaves one format-neutral path. If public integration or XLSX hardenin
 
 1. Any bounded, non-empty unknown binary can verify, persist, and download safely without a format-specific code change.
 2. A public chat can view and download every allowlisted artifact format through token-scoped URLs.
-3. Public access cannot reveal source files or artifacts outside the shared thread and workspace.
+3. Public access cannot reveal files outside the visible primary/preview roles or artifacts outside the shared thread and workspace.
 4. Authenticated and public surfaces use the same manifest model, panel, and viewer registry.
 5. XLSX verification rejects hostile OOXML packages and the viewer preserves common formatting while remaining bounded.
 6. Real XlsxWriter output passes verification, persistence, LibreOffice smoke, and browser viewing.

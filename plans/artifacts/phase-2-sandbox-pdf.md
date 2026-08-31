@@ -18,19 +18,19 @@ The measured OpenSandbox spike passed: metadata rediscovery, timeout renewal, bi
 
 ## 2. Current PDF flow
 
-1. The deliverables agent loads `/opt/skills/pdf/SKILL.md`.
+1. The deliverables agent calls `load_artifact_instructions("pdf")` to load the sandbox skill.
 2. Source code generates a deliverable-named PDF in the sandbox.
 3. `verify_artifact(path)` performs the current phase-3 verification service.
-4. `save_artifact(path, source_path, title, markdown_representation, ...)` validates the signed receipt and persists the artifact.
+4. `save_artifact(path, title, markdown_representation, ...)` validates the signed receipt and persists the artifact.
 5. The result returns `artifact_id` and `generation`.
 6. The artifact panel fetches the dedicated manifest and renders the primary PDF.
 
-For revision, the agent calls `load_artifact_source(artifact_id)`, edits the returned source, and saves with the same `artifact_id` and returned `expected_generation`. Missing or stale generation is rejected.
+For revision, the agent calls `load_artifact_for_revision(artifact_id)`, which restores the current PDF for reference plus Markdown context. The PDF is regenerated and saved with the same `artifact_id` and returned `expected_generation`. Missing or stale generation is rejected.
 
 ## 3. Persistence and search assumptions
 
 - Metadata and blobs are durable in the save tool call.
-- Binary keys are under the artifact storage namespace; source is an `ArtifactFile` role and is not user-readable.
+- Binary keys are under the artifact storage namespace; generation source remains a transient sandbox input rather than an `ArtifactFile` role.
 - The searchable Markdown is the artifact's `Document`, committed under `/documents/**` and indexed asynchronously on Git-backed workspaces.
 - Non-git workspaces index it through the document pipeline inside the save; an indexing failure leaves a durable artifact with a failed document for reindex.
 - Search and citations are the document ones; the artifact document type routes the citation to the panel.
@@ -53,7 +53,7 @@ The phase-2 sentinel, mtime ledger, model-facing image inspection, and skill scr
 ## 6. Exit criteria
 
 1. PDF creation has no Typst dependency.
-2. Generated PDF bytes and source persist as artifact files.
+2. Generated PDF bytes persist as the primary artifact file; generation source is transient.
 3. The primary renders via the artifact API with immutable caching and downloads with its generated filename.
 4. The artifact becomes searchable according to Git/non-git indexing timing.
 5. Revision updates one artifact under optimistic generation rather than producing a second deliverable.

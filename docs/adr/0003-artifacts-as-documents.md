@@ -22,7 +22,7 @@ Shape 1 is the natural read of "artifacts are not documents", and it is what the
 
 **An artifact's searchable body is a `Document` with `document_type = ARTIFACT`. `Artifact`/`ArtifactFile` are sidecars.**
 
-- `Document` owns title, path (`documents/Artifacts/<title>.md`), Markdown, content hash, folder, and indexing status.
+- `Document` owns title, path (`documents/<title>.md`), Markdown, content hash, folder, and indexing status.
 - `Artifact` owns `format`, `generation`, provenance, verification metadata, and `document_id` — a non-null unique cascading key. It owns **no** title, path, body, hash, or indexing state.
 - `ArtifactFile` owns one immutable blob per durable role: `primary` or `preview`. Generation source files are transient sandbox inputs, not persisted artifact files. Binary bytes never enter git and never become `DocumentFile` rows.
 - One projected git root, one `Chunk` table, one search leg, one citation namespace.

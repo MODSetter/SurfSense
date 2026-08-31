@@ -14,15 +14,17 @@ Land in this order, keeping each change green:
 3. Remove agent/frontend/backend legacy code, including clone-time report handling.
 4. Drop legacy data/model and dependencies.
 
-Shared-thread cloning is the last live `Report` writer: historical `generate_report` parts currently cause clone-time report inserts. Remove that behavior before dropping the table.
+Shared-thread cloning was the last live `Report` writer: historical `generate_report` parts caused clone-time report inserts. That behavior was removed before the table was dropped.
 
 ## 2. Legacy behavior
 
 Old `generate_report`/`generate_resume` parts render a static card:
 
-> Generated with the previous artifact system — no longer available. Ask me to regenerate it.
+> **Content unavailable**
+>
+> This content can’t be opened. Ask me to regenerate it.
 
-The card performs no fetch and opens no panel. Release notes warn users to export old deliverables before upgrading.
+The card performs no fetch and opens no panel. The changelog explains that deliverables from the previous tools are unavailable and should be regenerated through the artifact system.
 
 There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile, or mapping to the artifact schema.
 
@@ -32,7 +34,7 @@ There is no backfill, `migrated_from_report_id`, lazy conversion, Typst compile,
 
 - Delete `generate_report` and `generate_resume` implementations, registrations, catalogs, prune names, and streaming handlers.
 - Delete the legacy report-writing skill and resume-specific tests.
-- Keep `save_artifact`, `verify_artifact`, and `load_artifact_source` as the format-oriented system.
+- Keep `save_artifact`, `verify_artifact`, and `load_artifact_for_revision` as the format-oriented system.
 
 ### Frontend
 
