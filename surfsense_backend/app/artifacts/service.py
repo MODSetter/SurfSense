@@ -67,6 +67,7 @@ class ArtifactSaved:
     artifact_id: int
     generation: int
     title: str
+    format: str
     files: list[ArtifactSavedFile]
 
 
@@ -366,6 +367,7 @@ async def save_artifact(
             artifact_id=artifact.id,
             generation=artifact.generation,
             title=document.title,
+            format=artifact.format,
             files=[
                 ArtifactSavedFile(
                     file_id=record.id,

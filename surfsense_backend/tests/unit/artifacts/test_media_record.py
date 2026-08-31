@@ -103,6 +103,7 @@ async def test_record_image_delivers_artifact_with_provenance(monkeypatch):
             artifact_id=5,
             generation=1,
             title=kwargs["title"],
+            format="image",
             files=[],
         )
 
@@ -126,6 +127,7 @@ async def test_record_image_delivers_artifact_with_provenance(monkeypatch):
     )
 
     assert saved.artifact_id == 5
+    assert saved.format == "image"
     assert captured["format"] is ArtifactFormat.IMAGE
     assert captured["files"][0].filename == "a sunset.png"
     assert captured["files"][0].mime_type == "image/png"
@@ -163,6 +165,7 @@ async def test_record_podcast_builds_legacy_metadata(monkeypatch):
             artifact_id=11,
             generation=1,
             title=payload.title,
+            format="podcast",
             files=[
                 ArtifactSavedFile(
                     file_id=1,
