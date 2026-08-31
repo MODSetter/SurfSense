@@ -17,7 +17,7 @@ from app.sandbox import SandboxSession
 from .formats.base import FormatAdapter, StructuralCheckResult
 from .formats.mindmap import check_mindmap_markdown
 from .formats.pdf import check_pdf
-from .formats.registry import get_format_adapter
+from .formats.registry import get_format_adapter, validate_format_path
 from .receipt import (
     VerificationReceipt,
     artifact_path_lock,
@@ -80,6 +80,7 @@ async def verify_artifact(
     session: SandboxSession,
     primary_path: str,
     *,
+    format: str,
     workspace_id: int,
     vision_llm: Any | None,
     markdown_path: str | None = None,
@@ -101,6 +102,7 @@ async def verify_artifact(
             return await _verify_artifact(
                 session,
                 primary_path,
+                format=format,
                 workspace_id=workspace_id,
                 vision_llm=vision_llm,
                 markdown_path=markdown_path,
@@ -108,7 +110,7 @@ async def verify_artifact(
             )
         except Exception as exc:
             logger.warning("Artifact verification failed: %s", exc, exc_info=True)
-            if primary_path.lower().endswith(".mp4"):
+            if format.strip().lower() == "video":
                 media.record_video_verify_failure("structural")
             return VerificationResult(
                 verified=False,
@@ -125,20 +127,26 @@ async def _invalidate_previous_verification(
 ) -> None:
     """Invalidate the receipt and any staged preview before a new attempt."""
     staged_paths = {preview_path(primary_path)}
-    try:
-        previous = await read_receipt(
-            session,
-            signing_key,
-            workspace_id=workspace_id,
-            primary_path=primary_path,
-            allow_expired=True,
-        )
-        if previous.preview_path:
-            staged_paths.add(previous.preview_path)
-    except ValueError:
-        pass
+    previous_receipt_path = receipt_path(primary_path)
+    receipt_probe = await session.run_command(
+        f"if test -s {shlex.quote(previous_receipt_path)}; "
+        "then printf 1; else printf 0; fi"
+    )
+    if receipt_probe.ok and receipt_probe.output.strip() == "1":
+        try:
+            previous = await read_receipt(
+                session,
+                signing_key,
+                workspace_id=workspace_id,
+                primary_path=primary_path,
+                allow_expired=True,
+            )
+            if previous.preview_path:
+                staged_paths.add(previous.preview_path)
+        except ValueError:
+            pass
 
-    await session.write_file(receipt_path(primary_path), b"")
+    await session.write_file(previous_receipt_path, b"")
     for path in staged_paths:
         await session.write_file(path, b"")
     await session.run_command(
@@ -150,12 +158,14 @@ async def _verify_artifact(
     session: SandboxSession,
     primary_path: str,
     *,
+    format: str,
     workspace_id: int,
     vision_llm: Any | None,
     markdown_path: str | None,
     signing_key: str,
 ) -> VerificationResult:
-    adapter = get_format_adapter(primary_path)
+    adapter = get_format_adapter(format)
+    validate_format_path(adapter, primary_path)
     _progress("checking", "Checking document structure")
     markdown_representation_sha256 = None
     if adapter.requires_markdown_binding:

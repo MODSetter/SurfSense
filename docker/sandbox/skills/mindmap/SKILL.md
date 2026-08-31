@@ -30,7 +30,7 @@ or any network dependency:
 ```bash
 node /opt/remotion/render-mindmap.mjs \
   /workspace/<slug>.md \
-  /workspace/<slug>.mindmap.png
+  /workspace/<slug>.png
 ```
 
 The command validates the bounded hierarchy, expands every branch, fits the
@@ -44,7 +44,8 @@ Call:
 
 ```text
 verify_artifact(
-  path="/workspace/<slug>.mindmap.png",
+  path="/workspace/<slug>.png",
+  format="mindmap",
   markdown_path="/workspace/<slug>.md"
 )
 ```
@@ -56,7 +57,7 @@ After verification returns `status="verified"`, call:
 
 ```text
 save_artifact(
-  path="/workspace/<slug>.mindmap.png",
+  path="/workspace/<slug>.png",
   title="...",
   markdown_representation="<exact contents of /workspace/<slug>.md>"
 )

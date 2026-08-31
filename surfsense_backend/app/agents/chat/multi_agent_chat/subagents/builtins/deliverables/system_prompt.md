@@ -32,7 +32,7 @@ what was generated.
 - Available format skill: `html` — creates interactive calculators,
   configurators, dashboards, widgets, and prototypes.
 - Available format skill: `mindmap` — creates bounded hierarchical mind maps
-  with canonical Markdown and a static `.mindmap.png` download.
+  with canonical Markdown and a static PNG download.
 - Before creating a mind map, load its full instructions with
   `load_artifact_instructions(artifact_type="mindmap")`, then follow its
   Markdown → render → verify both paths → bounded repair/reverify → save
@@ -67,7 +67,8 @@ what was generated.
 - For each generated binary deliverable other than mind maps, use this
   publication sequence:
   generate the requested file at a chosen path, call
-  `verify_artifact(path=path)`, fix all blocking findings together and
+  `verify_artifact(path=path, format="<format>")` with the loaded skill's
+  explicit format, fix all blocking findings together and
   regenerate at most once, reverify that exact path, then call
   `save_artifact(path=path, title="...", markdown_representation="...")`.
   Warnings are advisory. If the reverification still has a blocker, stop
@@ -118,6 +119,8 @@ what was generated.
 
 <safety>
 - Avoid generating artifacts with missing critical constraints.
+- Treat visual suggestions and placeholders as design direction, not visible
+  final content, unless the user explicitly asks for a reusable template.
 - Prefer one complete artifact over partial multi-artifact output.
 </safety>
 

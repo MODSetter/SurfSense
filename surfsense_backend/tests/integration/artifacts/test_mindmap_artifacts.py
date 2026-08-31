@@ -65,7 +65,7 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
 
     backend = MemoryBackend()
     markdown_path = "/workspace/roadmap.md"
-    primary_path = "/workspace/roadmap.mindmap.png"
+    primary_path = "/workspace/roadmap.png"
     first_markdown = "# Product roadmap\n\n- Research\n  - Customers\n- Delivery"
     sandbox = FakeSandboxSession(
         {
@@ -104,6 +104,7 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
     verified = await verify_service.verify_artifact(
         sandbox,
         primary_path,
+        format="mindmap",
         workspace_id=db_workspace.id,
         vision_llm=None,
         markdown_path=markdown_path,
@@ -125,6 +126,7 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
     first_blob_keys = set(backend.data)
 
     assert created["generation"] == 1
+    assert created["format"] == "mindmap"
     assert [(item["role"], item["mime_type"]) for item in created["files"]] == [
         ("primary", "image/png")
     ]
@@ -136,8 +138,8 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
     )
     loaded = await load_tool.coroutine(artifact_id=artifact_id, runtime=runtime)
     revision_dir = f"/workspace/artifact-revisions/{artifact_id}/mindmap-revision"
-    assert loaded["primary_path"] == f"{revision_dir}/current.mindmap.png"
-    assert loaded["expected_output_path"] == f"{revision_dir}/revised.mindmap.png"
+    assert loaded["primary_path"] == f"{revision_dir}/current.png"
+    assert loaded["expected_output_path"] == f"{revision_dir}/revised.png"
 
     revised_markdown = "# Product roadmap\n\n- Research\n  - Users\n- Delivery\n  - Launch"
     sandbox.files[loaded["markdown_path"]] = revised_markdown.encode()
@@ -145,6 +147,7 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
     revised_verified = await verify_service.verify_artifact(
         sandbox,
         loaded["expected_output_path"],
+        format="mindmap",
         workspace_id=db_workspace.id,
         vision_llm=None,
         markdown_path=loaded["markdown_path"],
@@ -163,6 +166,7 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
     revised = json.loads(revised_command.update["messages"][0].content)
 
     assert revised["generation"] == 2
+    assert revised["format"] == "mindmap"
     assert await db_session.scalar(
         select(func.count(Artifact.id)).where(Artifact.id == artifact_id)
     ) == 1
@@ -177,7 +181,7 @@ async def test_mindmap_create_and_revise_binds_source_and_replaces_blob(
         )
     ).one()
     assert stored.role is ArtifactFileRole.PRIMARY
-    assert stored.original_filename == "revised.mindmap.png"
+    assert stored.original_filename == "revised.png"
     document = await db_session.get(Document, artifact.document_id)
     assert document.source_markdown == revised_markdown
     assert len(backend.data) == 1

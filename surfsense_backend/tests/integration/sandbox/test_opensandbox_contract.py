@@ -188,6 +188,7 @@ presentation.save("/tmp/report.pptx")
         result = await verify_artifact(
             session,
             primary_path,
+            format="xlsx",
             workspace_id=1,
             vision_llm=None,
             secret_key=secret,

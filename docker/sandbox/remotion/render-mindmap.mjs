@@ -113,13 +113,13 @@ export function validateMindmapMarkdown(markdown) {
 export function parseArguments(argv) {
   if (argv.length !== 2) {
     throw new Error(
-      "Usage: node /opt/remotion/render-mindmap.mjs input.md output.mindmap.png",
+      "Usage: node /opt/remotion/render-mindmap.mjs input.md output.png",
     );
   }
   const markdownPath = path.resolve(argv[0]);
   const outputPath = path.resolve(argv[1]);
-  if (!outputPath.toLowerCase().endsWith(".mindmap.png")) {
-    throw new Error("Output path must end in .mindmap.png");
+  if (path.extname(outputPath).toLowerCase() !== ".png") {
+    throw new Error("Output path must end in .png");
   }
   return {markdownPath, outputPath};
 }
@@ -178,7 +178,7 @@ export async function renderMindmap(
   await mkdir(path.dirname(outputPath), {recursive: true});
   const stagedOutput = path.join(
     path.dirname(outputPath),
-    `.${path.basename(outputPath)}.${process.pid}.${Date.now()}.tmp.mindmap.png`,
+    `.${path.basename(outputPath)}.${process.pid}.${Date.now()}.tmp.png`,
   );
   const {cancelSignal, cancel} = makeCancelSignal();
   const requestCancel = () => cancel();

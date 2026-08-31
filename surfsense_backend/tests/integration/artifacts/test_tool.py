@@ -157,7 +157,7 @@ async def test_load_artifact_for_revision_restores_primary_and_markdown(
     assert sandbox.writes[f"{revision_dir}/context.md"] == b"# Restorable"
 
 
-async def test_mindmap_revision_preserves_compound_suffix(
+async def test_mindmap_revision_uses_png_extension(
     db_session, db_workspace, artifact_thread, patched_embed_texts, monkeypatch
 ):
     del patched_embed_texts
@@ -174,7 +174,7 @@ async def test_mindmap_revision_preserves_compound_suffix(
         title="Restorable map",
         markdown_representation="# Root\n- Child",
         files=[
-            ArtifactFileInput(b"PNG", "out.MINDMAP.PNG", "image/png"),
+            ArtifactFileInput(b"PNG", "out.PNG", "image/png"),
         ],
         format="mindmap",
     )
@@ -220,8 +220,8 @@ async def test_mindmap_revision_preserves_compound_suffix(
     )
     revision_dir = f"/workspace/artifact-revisions/{saved.artifact_id}/mindmap-revision"
 
-    assert loaded["primary_path"] == f"{revision_dir}/current.mindmap.png"
-    assert loaded["expected_output_path"] == f"{revision_dir}/revised.mindmap.png"
+    assert loaded["primary_path"] == f"{revision_dir}/current.png"
+    assert loaded["expected_output_path"] == f"{revision_dir}/revised.png"
     assert (
         loaded["revision_instruction"]
         == load_revision_tool._REVISION_INSTRUCTIONS["mindmap"]

@@ -60,6 +60,7 @@ class Saved:
     artifact_id: int = 9
     generation: int = 1
     title: str = "Facts"
+    format: str = "pdf"
     files: list | None = None
 
 
@@ -104,6 +105,7 @@ async def test_verify_tool_keeps_receipt_preview_path_backend_owned(monkeypatch)
     assert tool.coroutine is not None
     result = await tool.coroutine(
         path="/workspace/report.docx",
+        format="docx",
         runtime=_runtime(),
     )
 
@@ -138,13 +140,15 @@ async def test_verify_tool_passes_mindmap_markdown_without_loading_vision(monkey
     tool = verify_tool.create_verify_artifact_tool(workspace_id=WORKSPACE_ID)
 
     result = await tool.coroutine(
-        path="/workspace/map.mindmap.png",
+        path="/workspace/map.png",
+        format="mindmap",
         markdown_path="/workspace/map.md",
         runtime=_runtime(),
     )
 
     assert result["status"] == "verified"
     assert captured["markdown_path"] == "/workspace/map.md"
+    assert captured["format"] == "mindmap"
     assert captured["vision_llm"] is None
 
 
@@ -251,7 +255,7 @@ def test_thread_resolution_requires_live_runtime_identity():
         root_thread_id_from_config({})
 
 
-async def test_binary_save_reads_primary_and_preview_with_sniffed_roles(monkeypatch):
+async def test_binary_save_reads_primary_and_preview_from_receipt_format(monkeypatch):
     session = _sandbox(
         {
             "/workspace/out.pdf": b"%PDF-1.4\n%%EOF",
@@ -364,7 +368,7 @@ async def test_binary_save_rejects_bytes_changed_after_verification(monkeypatch)
 
 
 async def test_mindmap_save_requires_exact_bound_markdown(monkeypatch):
-    path = "/workspace/map.mindmap.png"
+    path = "/workspace/map.png"
     markdown = "# Root\n- Child"
     session = _sandbox({path: b"verified-png"})
     await _add_receipt(
@@ -395,7 +399,7 @@ async def test_mindmap_save_requires_exact_bound_markdown(monkeypatch):
 
 
 async def test_mindmap_save_rejects_receipt_without_markdown_hash(monkeypatch):
-    path = "/workspace/map.mindmap.png"
+    path = "/workspace/map.png"
     session = _sandbox({path: b"verified-png"})
     await _add_receipt(session, path, format_name="mindmap")
     _patch_save_tool(monkeypatch, session)
@@ -519,7 +523,7 @@ async def test_receipt_must_name_the_saved_file(monkeypatch):
     assert "changed after verification" in str(rejected)
 
 
-async def test_receipt_must_name_the_saved_format(monkeypatch):
+async def test_receipt_format_governs_the_physical_extension(monkeypatch):
     session = _sandbox(
         {
             "/workspace/data.pdf": b"%PDF-1.4\n%%EOF",
@@ -536,7 +540,7 @@ async def test_receipt_must_name_the_saved_format(monkeypatch):
         runtime=_runtime(),
     )
 
-    assert "Verify this file again before presenting it" in str(rejected)
+    assert "docx artifacts must use .docx files, got .pdf" in str(rejected)
 
 
 async def test_binary_save_accepts_unavailable_verification_reason(monkeypatch):
@@ -574,6 +578,7 @@ async def test_binary_save_enforces_file_cap(monkeypatch):
             _sandbox({"/workspace/out.pdf": b"%PDF"}),  # type: ignore[arg-type]
             "/workspace/out.pdf",
             "primary",
+            save_tool.get_format_adapter("pdf"),
         )
 
 

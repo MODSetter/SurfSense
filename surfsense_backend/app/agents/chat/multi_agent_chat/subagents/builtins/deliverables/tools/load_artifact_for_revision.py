@@ -12,7 +12,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.artifacts.persistence import Artifact, ArtifactFileRole
-from app.artifacts.verification.formats.registry import registered_suffix
 from app.capabilities.core import ActivityDescriptor
 from app.config import config as app_config
 from app.db import shielded_async_session
@@ -131,9 +130,7 @@ def create_load_artifact_for_revision_tool(*, workspace_id: int) -> BaseTool:
 
         primary_path: str | None = None
         if primary is not None:
-            suffix = registered_suffix(primary.original_filename)
-            if suffix is None:
-                suffix = PurePosixPath(primary.original_filename).suffix.lower()
+            suffix = PurePosixPath(primary.original_filename).suffix.lower()
             if not suffix:
                 raise ValueError("artifact primary filename has no extension")
             primary_path = f"{working_dir}/current{suffix}"

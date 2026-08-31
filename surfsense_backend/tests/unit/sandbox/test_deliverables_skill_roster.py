@@ -41,7 +41,7 @@ def test_deliverables_prompt_uses_pathless_publication_contract():
     prompt = _prompt()
 
     assert "generate the requested file at a chosen path" in prompt
-    assert "`verify_artifact(path=path)`" in prompt
+    assert '`verify_artifact(path=path, format="<format>")`' in prompt
     assert (
         '`save_artifact(path=path, title="...", markdown_representation="...")`'
         in prompt
@@ -72,12 +72,12 @@ def test_deliverables_prompt_carries_revision_handles_without_vision_rebuild():
     assert "`verify_artifact` may use vision" in prompt
 
 
-def test_format_skills_share_pathless_verify_and_save_contract():
+def test_format_skills_share_explicit_verify_and_save_contract():
     for name in ("pdf", "docx", "pptx", "xlsx", "html"):
         skill = _skill(name)
         assert "`load_artifact_for_revision`" in skill
         assert "`expected_output_path`" in skill
-        assert "`verify_artifact(path=output_path)`" in skill
+        assert f'`verify_artifact(path=output_path, format="{name}")`' in skill
         assert "`save_artifact(path=output_path, title=" in skill
         assert "matching filename stem" in skill
         assert "source_path=" not in skill
@@ -94,6 +94,13 @@ def test_format_skills_define_safe_revision_strategy():
     pptx = _skill("pptx")
     assert "Open\n`primary_path` with `python-pptx`" in pptx
     assert "edit that current deck directly" in pptx
+    assert "populate every\n  visible placeholder with final content" in pptx
+    assert "Never guess or hardcode a font-file path" in pptx
+    assert "`fc-match" in pptx
+    assert "delete obsolete elements before\n   adding replacements" in pptx
+    assert pptx.index("Run the local checks") < pptx.index(
+        '`verify_artifact(path=output_path, format="pptx")`'
+    )
 
     xlsx = _skill("xlsx")
     assert "Open\n`primary_path` with `openpyxl`" in xlsx
@@ -136,7 +143,8 @@ def test_mindmap_skill_binds_markdown_to_the_png_without_custom_styling():
     skill = _skill("mindmap")
 
     assert "node /opt/remotion/render-mindmap.mjs" in skill
-    assert 'path="/workspace/<slug>.mindmap.png"' in skill
+    assert 'path="/workspace/<slug>.png"' in skill
+    assert 'format="mindmap"' in skill
     assert 'markdown_path="/workspace/<slug>.md"' in skill
     assert "byte-for-byte the verified source" in skill
     assert "do not author CSS, colors, HTML, SVG, renderer\noptions" in skill

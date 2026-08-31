@@ -56,7 +56,7 @@ class ProbeSession:
 
 
 async def test_video_adapter_probes_in_sandbox_and_requires_audio():
-    adapter = get_format_adapter("/workspace/out.mp4")
+    adapter = get_format_adapter("video")
     assert adapter.name == "video"
     assert adapter.requires_visual_review is False
     assert adapter.sandbox_check is check_video

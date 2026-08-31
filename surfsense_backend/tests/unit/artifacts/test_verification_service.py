@@ -19,6 +19,7 @@ from app.artifacts.verification.receipt import (
 )
 from app.artifacts.verification.render import ArtifactRenderError, PreparedPdf
 from app.artifacts.verification.vision import VisualReviewResult
+from app.sandbox import ExecResult
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 SECRET = "test-secret"
@@ -42,16 +43,47 @@ def test_public_verification_error_hides_internal_details():
     )
 
 
+async def test_first_verification_does_not_read_a_missing_receipt():
+    path = "/workspace/report.pdf"
+    missing_receipt = receipt_path(path)
+
+    class TrackingSession(FakeSandboxSession):
+        def __init__(self):
+            super().__init__(
+                {path: b"pdf"}, command_handler=lambda _: ExecResult("0", 0)
+            )
+            self.reads: list[str] = []
+
+        async def read_file(self, file_path: str) -> bytes:
+            self.reads.append(file_path)
+            return await super().read_file(file_path)
+
+    session = TrackingSession()
+
+    await service._invalidate_previous_verification(
+        session,
+        path,
+        workspace_id=WORKSPACE_ID,
+        signing_key=SECRET,
+    )
+
+    assert missing_receipt not in session.reads
+    assert session.files[missing_receipt] == b""
+    assert session.commands[0].startswith("if test -s ")
+    assert "printf 0" in session.commands[0]
+
+
 def _adapter(
     result: StructuralCheckResult,
     *,
+    name: str = "pdf",
     convert_to_pdf: bool = False,
     expects_exact_page_count: bool = False,
     rendered_min_chars: int = 20,
 ) -> FormatAdapter:
     return FormatAdapter(
-        name="pdf",
-        suffix=".pdf",
+        name=name,
+        suffix=f".{name}",
         mime_type="application/pdf",
         convert_to_pdf=convert_to_pdf,
         check=lambda _data: result,
@@ -71,6 +103,7 @@ async def test_structural_failure_produces_no_receipt(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/report.pdf",
+        format="pdf",
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
         secret_key=SECRET,
@@ -117,6 +150,7 @@ async def test_video_probe_never_reads_the_mp4_into_backend_memory(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/out.mp4",
+        format="video",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -134,7 +168,7 @@ async def test_video_probe_never_reads_the_mp4_into_backend_memory(monkeypatch):
 
 
 async def test_mindmap_binds_markdown_without_visual_or_pdf_path(monkeypatch):
-    primary_path = "/workspace/map.mindmap.png"
+    primary_path = "/workspace/map.png"
     markdown_path = "/workspace/map.md"
     markdown = b"# Root\n- Child"
     png = _mindmap_png()
@@ -147,6 +181,7 @@ async def test_mindmap_binds_markdown_without_visual_or_pdf_path(monkeypatch):
     result = await service.verify_artifact(
         session,
         primary_path,
+        format="mindmap",
         markdown_path=markdown_path,
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
@@ -167,12 +202,13 @@ async def test_mindmap_binds_markdown_without_visual_or_pdf_path(monkeypatch):
 
 
 async def test_mindmap_requires_valid_markdown_path():
-    primary_path = "/workspace/map.mindmap.png"
+    primary_path = "/workspace/map.png"
     session = FakeSandboxSession({primary_path: _mindmap_png()})
 
     missing = await service.verify_artifact(
         session,
         primary_path,
+        format="mindmap",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -181,6 +217,7 @@ async def test_mindmap_requires_valid_markdown_path():
     invalid = await service.verify_artifact(
         session,
         primary_path,
+        format="mindmap",
         markdown_path="/workspace/map.md",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
@@ -217,6 +254,7 @@ async def test_page_ceiling_stops_before_rasterization(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/report.pdf",
+        format="pdf",
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
         secret_key=SECRET,
@@ -258,6 +296,7 @@ async def test_failing_visual_verdict_produces_no_receipt(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/report.pdf",
+        format="pdf",
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
         secret_key=SECRET,
@@ -303,6 +342,7 @@ async def test_visual_warnings_are_advisory(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/report.pdf",
+        format="pdf",
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
         secret_key=SECRET,
@@ -340,6 +380,7 @@ async def test_unavailable_vision_issues_receipt_with_reason(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/report.pdf",
+        format="pdf",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -370,6 +411,7 @@ async def test_conversion_failure_returns_failed_verdict(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/report.pdf",
+        format="pdf",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -393,6 +435,7 @@ async def test_converted_page_count_must_match_structural_count(monkeypatch):
         "get_format_adapter",
         lambda _path: _adapter(
             clean,
+            name="pptx",
             convert_to_pdf=True,
             expects_exact_page_count=True,
             rendered_min_chars=0,
@@ -417,6 +460,7 @@ async def test_converted_page_count_must_match_structural_count(monkeypatch):
     result = await service.verify_artifact(
         session,
         "/workspace/deck.pptx",
+        format="pptx",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -449,7 +493,9 @@ async def test_converted_preview_is_stable_and_temporary_files_are_cleaned(
     monkeypatch.setattr(
         service,
         "get_format_adapter",
-        lambda _path: _adapter(clean, convert_to_pdf=True, rendered_min_chars=0),
+        lambda _path: _adapter(
+            clean, name="docx", convert_to_pdf=True, rendered_min_chars=0
+        ),
     )
 
     async def prepare(*_args, **_kwargs):
@@ -466,6 +512,7 @@ async def test_converted_preview_is_stable_and_temporary_files_are_cleaned(
     result = await service.verify_artifact(
         session,
         path,
+        format="docx",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -509,12 +556,13 @@ async def test_failed_reverification_invalidates_receipt_and_preview(monkeypatch
     monkeypatch.setattr(
         service,
         "get_format_adapter",
-        lambda _path: _adapter(StructuralCheckResult(("broken",), 1)),
+        lambda _path: _adapter(StructuralCheckResult(("broken",), 1), name="docx"),
     )
 
     result = await service.verify_artifact(
         session,
         path,
+        format="docx",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,
@@ -554,6 +602,7 @@ async def test_verification_serializes_same_path_but_not_distinct_paths(monkeypa
         service.verify_artifact(
             session,
             "/workspace/a.pdf",
+            format="pdf",
             workspace_id=WORKSPACE_ID,
             vision_llm=None,
             secret_key=SECRET,
@@ -561,6 +610,7 @@ async def test_verification_serializes_same_path_but_not_distinct_paths(monkeypa
         service.verify_artifact(
             session,
             "/workspace/a.pdf",
+            format="pdf",
             workspace_id=WORKSPACE_ID,
             vision_llm=None,
             secret_key=SECRET,
@@ -568,6 +618,7 @@ async def test_verification_serializes_same_path_but_not_distinct_paths(monkeypa
         service.verify_artifact(
             session,
             "/workspace/b.pdf",
+            format="pdf",
             workspace_id=WORKSPACE_ID,
             vision_llm=None,
             secret_key=SECRET,
