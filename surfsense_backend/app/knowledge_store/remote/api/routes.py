@@ -17,10 +17,11 @@ from app.knowledge_store.remote.api.schemas import (
     GithubRepoRead,
     RemoteAddRequest,
     RemoteStatusRead,
+    ResolveRequest,
 )
 from app.knowledge_store.remote.exceptions import RemoteError
 from app.knowledge_store.remote.forges.github import GithubProvider
-from app.knowledge_store.remote.queue import enqueue_push
+from app.knowledge_store.remote.queue import enqueue_sync
 from app.knowledge_store.remote.schemas import GithubSpec, GitlabSpec
 from app.users import get_auth_context
 from app.utils.oauth_security import OAuthStateManager
@@ -35,6 +36,8 @@ _STATUS = {
     "invalid_spec": 400,
     "missing": 404,
     "forge": 503,
+    "need_direction": 409,
+    "unsafe_path": 400,
 }
 
 
@@ -77,6 +80,7 @@ async def add_git_remote(
             url=str(body.url),
             installation_id=body.installation_id,
             branch=body.branch,
+            sourcepath=body.sourcepath,
         )
         if body.provider == "github"
         else GitlabSpec(
@@ -84,10 +88,11 @@ async def add_git_remote(
             url=str(body.url),
             token=body.token,
             branch=body.branch,
+            sourcepath=body.sourcepath,
         )
     )
     try:
-        status = await store.remotes.add(spec)
+        status = await store.remotes.add(spec, direction=body.direction)
     except RemoteError as exc:
         raise _http(exc) from exc
     return RemoteStatusRead.model_validate(status, from_attributes=True)
@@ -105,15 +110,33 @@ async def remove_git_remote(
     await store.remotes.remove()
 
 
-@router.post("/workspaces/{workspace_id}/git-remotes/push", status_code=202)
-async def retry_git_remote_push(
+@router.post("/workspaces/{workspace_id}/git-remotes/sync", status_code=202)
+async def retry_git_remote_sync(
     workspace_id: int,
     session: AsyncSession = Depends(get_async_session),
     auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, str]:
     await check_workspace_access(session, auth, workspace_id)
     await check_permission(session, auth, workspace_id, Permission.SETTINGS_UPDATE.value)
-    enqueue_push(workspace_id)
+    enqueue_sync(workspace_id)
+    return {"status": "queued"}
+
+
+@router.post("/workspaces/{workspace_id}/git-remotes/resolve", status_code=202)
+async def resolve_git_remote(
+    workspace_id: int,
+    body: ResolveRequest,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, str]:
+    await check_workspace_access(session, auth, workspace_id)
+    await check_permission(session, auth, workspace_id, Permission.SETTINGS_UPDATE.value)
+    store = KnowledgeStore.for_workspace(workspace_id).with_session(session)
+    try:
+        await store.remotes.resolve(direction=body.direction)
+    except RemoteError as exc:
+        raise _http(exc) from exc
+    enqueue_sync(workspace_id)
     return {"status": "queued"}
 
 
