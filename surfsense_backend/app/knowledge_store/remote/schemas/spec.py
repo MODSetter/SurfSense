@@ -14,6 +14,7 @@ class GithubSpec:
     url: str
     installation_id: str
     branch: str = "main"
+    sourcepath: str = "docs"
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class GitlabSpec:
     url: str
     token: str
     branch: str = "main"
+    sourcepath: str = "docs"
 
 
 RemoteSpec = GithubSpec | GitlabSpec
