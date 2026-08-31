@@ -49,7 +49,12 @@ class WorkspaceRemotes:
         self, spec: RemoteSpec, *, direction: str | None = None
     ) -> RemoteStatus:
         with ks_telemetry.remote_connect_span(
-            workspace_id=self._workspace_id, provider=spec.provider
+            workspace_id=self._workspace_id,
+            provider=spec.provider,
+            extra={
+                "remote.sourcepath": spec.sourcepath or "",
+                "remote.direction": direction or "",
+            },
         ) as sp:
             try:
                 status = await self._add(spec, direction=direction)
@@ -118,9 +123,12 @@ class WorkspaceRemotes:
 
             shutil.rmtree(pending)
         try:
-            shadow = await asyncio.to_thread(
-                lambda: Shadow.clone(spec.url, pending, branch=spec.branch)
-            )
+            with ks_telemetry.remote_shadow_span(
+                workspace_id=self._workspace_id, operation="clone"
+            ):
+                shadow = await asyncio.to_thread(
+                    lambda: Shadow.clone(spec.url, pending, branch=spec.branch)
+                )
         except Exception as exc:
             raise RemoteError("forge", f"could not clone remote: {exc}") from exc
         remote_md = shadow.list_md(spec.sourcepath)
@@ -150,14 +158,48 @@ class WorkspaceRemotes:
     async def remove(self) -> None:
         import shutil
 
-        leftover = shadow_path(self._workspace_id, 0).parent
-        if leftover.exists():
-            shutil.rmtree(leftover)
-        await self._rows.clear(self._workspace_id)
-        await self._session.commit()
+        with ks_telemetry.remote_disconnect_span(
+            workspace_id=self._workspace_id
+        ) as sp:
+            remotes = await self.list()
+            provider = remotes[0].provider if remotes else None
+            if provider:
+                sp.set_attribute("remote.provider", provider)
+            leftover = shadow_path(self._workspace_id, 0).parent
+            if leftover.exists():
+                shutil.rmtree(leftover)
+            await self._rows.clear(self._workspace_id)
+            await self._session.commit()
+            ks_telemetry.record_knowledge_store_remote_disconnect(provider=provider)
+            logger.info(
+                "Git remote disconnected workspace=%s provider=%s",
+                self._workspace_id,
+                provider or "none",
+            )
 
     async def sync(self) -> str | None:
         """Fetch, 3-way, apply, pathspec-push. No-op when nothing is connected."""
+        with ks_telemetry.remote_sync_span(workspace_id=self._workspace_id) as sp:
+            try:
+                return await self._sync(sp)
+            except RemoteError as exc:
+                _observe_sync(
+                    sp,
+                    self._workspace_id,
+                    status="failed",
+                    error_code=exc.code,
+                )
+                raise
+            except Exception:
+                _observe_sync(
+                    sp,
+                    self._workspace_id,
+                    status="failed",
+                    error_code="forge",
+                )
+                raise
+
+    async def _sync(self, sp) -> str | None:
         from app.knowledge_store import KnowledgeStore
         from app.knowledge_store.identities import AGENT_IDENTITY
         from app.knowledge_store.exceptions import GitPushError
@@ -166,16 +208,28 @@ class WorkspaceRemotes:
 
         rows = await self._rows._rows(self._workspace_id)
         if not rows:
+            _observe_sync(sp, self._workspace_id, status="skipped")
             return None
         row = rows[0]
         if row.sourcepath is None:
             row.last_error_code = "reconnect_required"
             await self._session.flush()
+            _observe_sync(
+                sp, self._workspace_id, status="reconnect_required"
+            )
             return None
         spec = await self._rows.get_spec(self._workspace_id)
         if spec is None:
+            _observe_sync(sp, self._workspace_id, status="skipped")
             return None
         if row.last_error_code in {"conflict", "need_direction", "reconnect_required"}:
+            _observe_sync(
+                sp,
+                self._workspace_id,
+                status="blocked",
+                provider=spec.provider,
+                error_code=row.last_error_code,
+            )
             return None
         from app.knowledge_store.paths import workspace_working_copies_path
 
@@ -183,6 +237,12 @@ class WorkspaceRemotes:
         if copies.is_dir() and any(p.is_dir() for p in copies.iterdir()):
             row.last_error_code = "worktree_busy"
             await self._session.flush()
+            _observe_sync(
+                sp,
+                self._workspace_id,
+                status="worktree_busy",
+                provider=spec.provider,
+            )
             return None
         prefix = mount(
             provider=spec.provider,
@@ -193,9 +253,12 @@ class WorkspaceRemotes:
             self._session
         )
         shadow = Shadow(shadow_path(self._workspace_id, int(row.id)))
-        await asyncio.to_thread(
-            lambda: shadow.refresh(spec.url, branch=spec.branch)
-        )
+        with ks_telemetry.remote_shadow_span(
+            workspace_id=self._workspace_id, operation="refresh"
+        ):
+            await asyncio.to_thread(
+                lambda: shadow.refresh(spec.url, branch=spec.branch)
+            )
         local_md = await md_under_mount(store, prefix)
         remote_md = shadow.list_md(spec.sourcepath)
         base = await md_under_mount(
@@ -206,6 +269,12 @@ class WorkspaceRemotes:
             row.last_error_code = "conflict"
             row.last_conflict_paths = "\n".join(result.paths)
             await self._session.flush()
+            _observe_sync(
+                sp,
+                self._workspace_id,
+                status="conflict",
+                provider=spec.provider,
+            )
             return None
         if result.apply_local:
             await apply_changes(store, mount=prefix, changes=result.apply_local)
@@ -223,7 +292,10 @@ class WorkspaceRemotes:
             )
 
         try:
-            sha = await asyncio.to_thread(_push)
+            with ks_telemetry.remote_shadow_span(
+                workspace_id=self._workspace_id, operation="push"
+            ):
+                sha = await asyncio.to_thread(_push)
         except GitPushError as exc:
             raise RemoteError("forge", str(exc)) from exc
         row.last_remote_sha = sha
@@ -231,10 +303,51 @@ class WorkspaceRemotes:
         row.last_error_code = None
         row.last_conflict_paths = None
         await self._session.flush()
+        _observe_sync(
+            sp, self._workspace_id, status="mirrored", provider=spec.provider
+        )
         return sha
 
     async def resolve(self, *, direction: str) -> None:
         """Overwrite one side of the bijection, then stamp a new base."""
+        with ks_telemetry.remote_resolve_span(
+            workspace_id=self._workspace_id, direction=direction
+        ) as sp:
+            try:
+                provider = await self._resolve(direction)
+            except RemoteError as exc:
+                sp.set_attribute("resolve.status", "failed")
+                sp.set_attribute("resolve.error_code", exc.code)
+                ks_telemetry.record_knowledge_store_remote_resolve(
+                    direction=direction, status="failed"
+                )
+                logger.info(
+                    "Git remote resolve failed workspace=%s direction=%s code=%s",
+                    self._workspace_id,
+                    direction,
+                    exc.code,
+                )
+                raise
+            except Exception:
+                sp.set_attribute("resolve.status", "failed")
+                ks_telemetry.record_knowledge_store_remote_resolve(
+                    direction=direction, status="failed"
+                )
+                raise
+            sp.set_attribute("resolve.status", "resolved")
+            if provider:
+                sp.set_attribute("remote.provider", provider)
+            ks_telemetry.record_knowledge_store_remote_resolve(
+                direction=direction, status="resolved", provider=provider
+            )
+            logger.info(
+                "Git remote resolved workspace=%s direction=%s provider=%s",
+                self._workspace_id,
+                direction,
+                provider or "none",
+            )
+
+    async def _resolve(self, direction: str) -> str:
         from app.knowledge_store import KnowledgeStore
         from app.knowledge_store.identities import AGENT_IDENTITY
         from app.knowledge_store.remote.paths import to_local
@@ -260,7 +373,12 @@ class WorkspaceRemotes:
             self._session
         )
         shadow = Shadow(shadow_path(self._workspace_id, int(row.id)))
-        await asyncio.to_thread(lambda: shadow.refresh(spec.url, branch=spec.branch))
+        with ks_telemetry.remote_shadow_span(
+            workspace_id=self._workspace_id, operation="refresh"
+        ):
+            await asyncio.to_thread(
+                lambda: shadow.refresh(spec.url, branch=spec.branch)
+            )
         remote_md = shadow.list_md(spec.sourcepath)
         local_md = await md_under_mount(store, prefix)
         if direction == "from_remote":
@@ -288,7 +406,10 @@ class WorkspaceRemotes:
             from app.knowledge_store.exceptions import GitPushError
 
             try:
-                await asyncio.to_thread(_push_local)
+                with ks_telemetry.remote_shadow_span(
+                    workspace_id=self._workspace_id, operation="push"
+                ):
+                    await asyncio.to_thread(_push_local)
             except GitPushError as exc:
                 raise RemoteError("forge", str(exc)) from exc
         row.last_error_code = None
@@ -296,6 +417,7 @@ class WorkspaceRemotes:
         row.last_remote_sha = shadow.head_sha()
         row.last_local_revision = await store.head()
         await self._session.flush()
+        return spec.provider
 
     async def credentials(self) -> RemoteCredentials:
         spec = await self._rows.get_spec(self._workspace_id)
@@ -308,3 +430,27 @@ class WorkspaceRemotes:
 
     async def record_push_failure(self, error: str) -> None:
         await self._rows.record_push_failure(self._workspace_id, error)
+
+
+def _observe_sync(
+    sp,
+    workspace_id: int,
+    *,
+    status: str,
+    provider: str | None = None,
+    error_code: str | None = None,
+) -> None:
+    sp.set_attribute("sync.status", status)
+    if provider:
+        sp.set_attribute("remote.provider", provider)
+    if error_code:
+        sp.set_attribute("sync.error_code", error_code)
+    ks_telemetry.record_knowledge_store_remote_sync(
+        status=status, provider=provider, error_code=error_code
+    )
+    logger.info(
+        "Git remote sync workspace=%s status=%s provider=%s",
+        workspace_id,
+        status,
+        provider or "none",
+    )
