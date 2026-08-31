@@ -40,9 +40,14 @@ export const githubInstallResponse = z.object({
 export const githubRepo = z.object({
 	full_name: z.string(),
 	url: z.string(),
+	default_branch: z.string().default("main"),
 });
 
 export const listGithubReposResponse = z.array(githubRepo);
+
+export const listGithubFoldersResponse = z.array(z.string());
+
+export const listGithubBranchesResponse = z.array(z.string());
 
 export const retryGitRemotePushResponse = z.object({
 	status: z.string(),

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Github, Gitlab } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
 	Accordion,
@@ -16,6 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gitRemotesApiService } from "@/lib/apis/git-remotes-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
@@ -25,11 +32,15 @@ import { Spinner } from "../ui/spinner";
 interface GitRemoteSettingsProps {
 	workspaceId: number;
 	githubInstallationId?: string;
+	githubInstallations?: string;
+	githubError?: string;
 }
 
 export function GitRemoteSettings({
 	workspaceId,
 	githubInstallationId,
+	githubInstallations,
+	githubError,
 }: GitRemoteSettingsProps) {
 	const t = useTranslations("workspaceSettings");
 	const router = useRouter();
@@ -56,6 +67,56 @@ export function GitRemoteSettings({
 	const [gitlabToken, setGitlabToken] = useState("");
 	const [sourcepath, setSourcepath] = useState("docs");
 	const [busy, setBusy] = useState(false);
+	const [selectedRepo, setSelectedRepo] = useState<{
+		full_name: string;
+		url: string;
+		default_branch?: string;
+	} | null>(null);
+	const [branch, setBranch] = useState("main");
+
+	const branchesQuery = useQuery({
+		queryKey: cacheKeys.workspaces.githubBranches(
+			workspaceId,
+			githubInstallationId ?? "",
+			selectedRepo?.full_name ?? ""
+		),
+		queryFn: () =>
+			gitRemotesApiService.listGithubBranches(workspaceId, {
+				installationId: githubInstallationId ?? "",
+				fullName: selectedRepo?.full_name ?? "",
+			}),
+		enabled: gitNative && !!githubInstallationId && !!selectedRepo,
+	});
+
+	const foldersQuery = useQuery({
+		queryKey: cacheKeys.workspaces.githubFolders(
+			workspaceId,
+			githubInstallationId ?? "",
+			selectedRepo?.full_name ?? "",
+			branch
+		),
+		queryFn: () =>
+			gitRemotesApiService.listGithubFolders(workspaceId, {
+				installationId: githubInstallationId ?? "",
+				fullName: selectedRepo?.full_name ?? "",
+				branch,
+			}),
+		enabled: gitNative && !!githubInstallationId && !!selectedRepo,
+	});
+
+	const installations = (githubInstallations ?? "")
+		.split(",")
+		.filter(Boolean)
+		.map((pair) => {
+			const [id, ...rest] = pair.split(":");
+			return { id, account: rest.join(":") };
+		});
+
+	useEffect(() => {
+		if (githubError === "oauth_failed") {
+			toast.error(t("connected_repo_github_error"));
+		}
+	}, [githubError, t]);
 
 	const remote = remotesQuery.data?.[0];
 	const settingsPath = `/dashboard/${workspaceId}/workspace-settings/git-remote`;
@@ -69,6 +130,17 @@ export function GitRemoteSettings({
 	const onGithubConnect = async () => {
 		setBusy(true);
 		try {
+			const { url } = await gitRemotesApiService.githubAuthorizeUrl(workspaceId);
+			window.location.href = url;
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t("connected_repo_github_error"));
+			setBusy(false);
+		}
+	};
+
+	const onGithubInstall = async () => {
+		setBusy(true);
+		try {
 			const { url } = await gitRemotesApiService.githubInstallUrl(workspaceId);
 			window.location.href = url;
 		} catch (err) {
@@ -77,16 +149,16 @@ export function GitRemoteSettings({
 		}
 	};
 
-	const onPickGithubRepo = async (url: string) => {
-		if (!githubInstallationId) return;
+	const onConfirmGithub = async () => {
+		if (!githubInstallationId || !selectedRepo) return;
 		setBusy(true);
 		try {
 			await gitRemotesApiService.add(workspaceId, {
 				provider: "github",
-				url,
-				branch: "main",
+				url: selectedRepo.url,
+				branch: branch.trim() || "main",
 				installation_id: githubInstallationId,
-				sourcepath: sourcepath.trim() || "docs",
+				sourcepath: sourcepath.trim(),
 			});
 			toast.success(t("connected_repo_github_connected"));
 			await refresh();
@@ -179,18 +251,50 @@ export function GitRemoteSettings({
 				<Skeleton className="h-24 w-full" />
 			) : remote ? (
 				<div className="flex flex-col gap-4 rounded-lg border p-4">
-					<div className="flex flex-col gap-2">
-						<Badge variant="secondary" className="capitalize">
+					<div className="flex items-center justify-between gap-3">
+						<span className="inline-flex items-center gap-1.5 text-sm font-medium">
+							{remote.provider === "github" ? <Github size={15} /> : <Gitlab size={15} />}
 							{remote.provider === "github" ? "GitHub" : "GitLab"}
-						</Badge>
-						<p className="text-sm break-all">{remote.url}</p>
-						<p className="text-xs text-muted-foreground">{t("connected_repo_branch", { branch: remote.branch })}</p>
-						{remote.sourcepath != null ? (
-							<p className="text-xs text-muted-foreground">
-								{t("connected_repo_sourcepath", { path: remote.sourcepath || "/" })}
-							</p>
-						) : null}
+						</span>
+						{remote.last_error_code || remote.last_push_error ? (
+							<Badge variant="destructive">{t("connected_repo_status_error")}</Badge>
+						) : remote.last_pushed_revision ? (
+							<Badge variant="secondary">{t("connected_repo_status_synced")}</Badge>
+						) : (
+							<Badge variant="outline" className="text-muted-foreground">
+								{t("connected_repo_not_pushed")}
+							</Badge>
+						)}
 					</div>
+					<a
+						href={remote.url}
+						target="_blank"
+						rel="noreferrer"
+						className="font-mono text-sm break-all text-foreground hover:underline"
+					>
+						{remote.url}
+					</a>
+					<dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+						<dt className="text-muted-foreground">{t("connected_repo_branch_label")}</dt>
+						<dd className="font-medium">{remote.branch}</dd>
+						{remote.sourcepath != null ? (
+							<>
+								<dt className="text-muted-foreground">{t("connected_repo_sourcepath_label")}</dt>
+								<dd className="font-mono">{remote.sourcepath || "/"}</dd>
+							</>
+						) : null}
+						{remote.last_pushed_revision ? (
+							<>
+								<dt className="text-muted-foreground">{t("connected_repo_last_synced_label")}</dt>
+								<dd className="font-mono text-xs">
+									{remote.last_pushed_revision.slice(0, 12)}
+									{remote.last_pushed_at
+										? ` · ${new Date(remote.last_pushed_at).toLocaleString()}`
+										: ""}
+								</dd>
+							</>
+						) : null}
+					</dl>
 					{remote.last_error_code === "conflict" || remote.last_error_code === "need_direction" ? (
 						<p className="text-xs text-destructive">
 							{remote.last_error_code === "need_direction"
@@ -203,18 +307,6 @@ export function GitRemoteSettings({
 					) : remote.last_push_error ? (
 						<p className="text-xs text-destructive">{remote.last_push_error}</p>
 					) : null}
-					{remote.last_pushed_revision ? (
-						<p className="text-xs text-muted-foreground font-mono">
-							{t("connected_repo_last_pushed", {
-								sha: remote.last_pushed_revision.slice(0, 12),
-								when: remote.last_pushed_at
-									? ` · ${new Date(remote.last_pushed_at).toLocaleString()}`
-									: "",
-							})}
-						</p>
-					) : (
-						<p className="text-xs text-muted-foreground">{t("connected_repo_not_pushed")}</p>
-					)}
 					<div className="flex flex-wrap gap-2">
 						{remote.last_error_code === "conflict" ||
 						remote.last_error_code === "need_direction" ? (
@@ -254,18 +346,67 @@ export function GitRemoteSettings({
 						</Button>
 					</div>
 				</div>
-			) : githubInstallationId ? (
+			) : githubInstallationId && selectedRepo ? (
 				<div className="flex flex-col gap-3 rounded-lg border p-4">
-					<p className="text-sm">{t("connected_repo_pick")}</p>
+					<p className="text-sm font-medium">{selectedRepo.full_name}</p>
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="github-sourcepath">{t("connected_repo_gitlab_sourcepath")}</Label>
+						<Label htmlFor="github-branch">{t("connected_repo_branch_label")}</Label>
+						<Select value={branch} onValueChange={setBranch}>
+							<SelectTrigger id="github-branch">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{((branchesQuery.data ?? []).includes(branch)
+									? (branchesQuery.data ?? [])
+									: [branch, ...(branchesQuery.data ?? [])]
+								).map((name) => (
+									<SelectItem key={name} value={name}>
+										{name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="github-sourcepath">{t("connected_repo_sourcepath_label")}</Label>
 						<Input
 							id="github-sourcepath"
+							list="github-folder-options"
 							value={sourcepath}
 							onChange={(e) => setSourcepath(e.target.value)}
 							placeholder="docs"
 						/>
+						<datalist id="github-folder-options">
+							{(foldersQuery.data ?? []).map((folder) => (
+								<option key={folder} value={folder} />
+							))}
+						</datalist>
+						<p className="text-xs text-muted-foreground">
+							{foldersQuery.isLoading
+								? t("connected_repo_folders_loading")
+								: foldersQuery.isError
+									? t("connected_repo_folders_error")
+									: t("connected_repo_folder_hint")}
+						</p>
 					</div>
+					<div className="flex gap-2">
+						<Button type="button" size="sm" disabled={busy} onClick={onConfirmGithub}>
+							{busy ? <Spinner size="sm" /> : t("connected_repo_connect_cta")}
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							disabled={busy}
+							onClick={() => setSelectedRepo(null)}
+						>
+							{t("connected_repo_cancel")}
+						</Button>
+					</div>
+				</div>
+			) : githubInstallationId ? (
+				<div className="flex flex-col gap-3 rounded-lg border p-4">
+					<p className="text-sm">{t("connected_repo_pick")}</p>
 					{reposQuery.isLoading ? (
 						<Skeleton className="h-10 w-full" />
 					) : (reposQuery.data ?? []).length === 0 ? (
@@ -279,7 +420,10 @@ export function GitRemoteSettings({
 										variant="outline"
 										size="sm"
 										disabled={busy}
-										onClick={() => onPickGithubRepo(repo.url)}
+										onClick={() => {
+											setSelectedRepo(repo);
+											setBranch(repo.default_branch || "main");
+										}}
 									>
 										{repo.full_name}
 									</Button>
@@ -289,6 +433,45 @@ export function GitRemoteSettings({
 					)}
 					<Button type="button" variant="ghost" size="sm" onClick={clearGithubQuery} className="w-fit">
 						{t("connected_repo_cancel")}
+					</Button>
+				</div>
+			) : installations.length > 0 ? (
+				<div className="flex flex-col gap-3 rounded-lg border p-4">
+					<p className="text-sm">{t("connected_repo_choose_installation")}</p>
+					<ul className="flex flex-col gap-1">
+						{installations.map((inst) => (
+							<li key={inst.id}>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="gap-1.5"
+									onClick={() =>
+										router.replace(`${settingsPath}?github_installation_id=${inst.id}`)
+									}
+								>
+									<Github size={14} />
+									{inst.account || inst.id}
+								</Button>
+							</li>
+						))}
+					</ul>
+					<Button type="button" variant="ghost" size="sm" onClick={clearGithubQuery} className="w-fit">
+						{t("connected_repo_cancel")}
+					</Button>
+				</div>
+			) : githubError === "no_installation" ? (
+				<div className="flex flex-col gap-3 rounded-lg border p-4">
+					<p className="text-sm text-muted-foreground">{t("connected_repo_no_installation")}</p>
+					<Button
+						type="button"
+						variant="secondary"
+						size="sm"
+						disabled={busy}
+						onClick={onGithubInstall}
+						className="w-fit"
+					>
+						{busy ? <Spinner size="sm" /> : t("connected_repo_install_cta")}
 					</Button>
 				</div>
 			) : (

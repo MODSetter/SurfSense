@@ -4,6 +4,8 @@ import {
 	gitRemote,
 	githubInstallResponse,
 	listGitRemotesResponse,
+	listGithubBranchesResponse,
+	listGithubFoldersResponse,
 	listGithubReposResponse,
 	retryGitRemotePushResponse,
 } from "@/contracts/types/git-remote.types";
@@ -55,11 +57,47 @@ class GitRemotesApiService {
 		);
 	};
 
+	githubAuthorizeUrl = async (workspaceId: number) => {
+		return baseApiService.get(
+			`/api/v1/workspaces/${workspaceId}/git-remotes/github/authorize`,
+			githubInstallResponse
+		);
+	};
+
 	listGithubRepos = async (workspaceId: number, installationId: string) => {
 		const qs = new URLSearchParams({ installation_id: installationId }).toString();
 		return baseApiService.get(
 			`/api/v1/workspaces/${workspaceId}/git-remotes/github/repos?${qs}`,
 			listGithubReposResponse
+		);
+	};
+
+	listGithubFolders = async (
+		workspaceId: number,
+		params: { installationId: string; fullName: string; branch: string }
+	) => {
+		const qs = new URLSearchParams({
+			installation_id: params.installationId,
+			full_name: params.fullName,
+			branch: params.branch,
+		}).toString();
+		return baseApiService.get(
+			`/api/v1/workspaces/${workspaceId}/git-remotes/github/folders?${qs}`,
+			listGithubFoldersResponse
+		);
+	};
+
+	listGithubBranches = async (
+		workspaceId: number,
+		params: { installationId: string; fullName: string }
+	) => {
+		const qs = new URLSearchParams({
+			installation_id: params.installationId,
+			full_name: params.fullName,
+		}).toString();
+		return baseApiService.get(
+			`/api/v1/workspaces/${workspaceId}/git-remotes/github/branches?${qs}`,
+			listGithubBranchesResponse
 		);
 	};
 }
