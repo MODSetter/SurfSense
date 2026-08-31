@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from app.knowledge_store.settings import load_knowledge_store_settings
+from app.observability.domains import knowledge_store as ks_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,9 @@ def enqueue_sync(workspace_id: int | str) -> None:
             workspace_id,
             exc_info=True,
         )
+        ks_telemetry.record_knowledge_store_remote_enqueue(status="failed")
+        return
+    ks_telemetry.record_knowledge_store_remote_enqueue(status="queued")
 
 
 def enqueue_push(workspace_id: int | str) -> None:

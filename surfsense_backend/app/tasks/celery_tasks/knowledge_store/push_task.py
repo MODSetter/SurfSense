@@ -37,76 +37,38 @@ def push_knowledge_store_revision(self, workspace_id: int) -> str | None:
 
 
 async def _push(workspace_id: int) -> str | None:
-    with knowledge_store.remote_push_span(workspace_id=workspace_id) as sp:
-        return await _push_head(workspace_id, sp)
-
-
-async def _push_head(workspace_id: int, sp) -> str | None:
     if not await knowledge_store_enabled_for(workspace_id):
-        _observe_push(
-            sp, workspace_id, status="noop", reason="not_git_native"
-        )
+        with knowledge_store.remote_sync_span(workspace_id=workspace_id) as sp:
+            _observe_skip(sp, workspace_id, reason="not_git_native")
         return None
     session_maker = get_celery_session_maker()
     async with session_maker() as session:
         store = KnowledgeStore.for_workspace(workspace_id).with_session(session)
         remotes = await store.remotes.list()
         if not remotes:
-            _observe_push(sp, workspace_id, status="noop", reason="no_remote")
+            with knowledge_store.remote_sync_span(workspace_id=workspace_id) as sp:
+                _observe_skip(sp, workspace_id, reason="no_remote")
             return None
         try:
             sha = await store.remotes.sync()
         except Exception as exc:
-            _observe_push(
-                sp,
-                workspace_id,
-                status="failed",
-                reason="forge",
-                provider=remotes[0].provider,
-            )
             await store.remotes.record_push_failure(str(exc))
             await session.commit()
             return None
-        if sha is None:
-            _observe_push(
-                sp,
-                workspace_id,
-                status="noop",
-                reason="idle",
-                provider=remotes[0].provider,
-            )
-            await session.commit()
-            return None
-        sp.set_attribute("git.revision", sha)
-        _observe_push(
-            sp,
-            workspace_id,
-            status="pushed",
-            reason="mirror",
-            provider=remotes[0].provider,
-        )
-        await store.remotes.record_push(sha)
+        if sha is not None:
+            await store.remotes.record_push(sha)
         await session.commit()
         return sha
 
 
-def _observe_push(
-    sp,
-    workspace_id: int,
-    *,
-    status: str,
-    reason: str,
-    provider: str | None = None,
-) -> None:
-    sp.set_attribute("push.status", status)
-    sp.set_attribute("push.reason", reason)
-    if provider:
-        sp.set_attribute("remote.provider", provider)
-    knowledge_store.record_knowledge_store_remote_push(status=status, provider=provider)
+def _observe_skip(sp, workspace_id: int, *, reason: str) -> None:
+    sp.set_attribute("sync.status", "skipped")
+    sp.set_attribute("sync.error_code", reason)
+    knowledge_store.record_knowledge_store_remote_sync(
+        status="skipped", error_code=reason
+    )
     logger.info(
-        "Knowledge store remote push workspace=%s status=%s reason=%s provider=%s",
+        "Knowledge store remote sync workspace=%s status=skipped reason=%s",
         workspace_id,
-        status,
         reason,
-        provider or "none",
     )
