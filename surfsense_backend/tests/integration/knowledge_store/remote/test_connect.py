@@ -183,7 +183,7 @@ async def test_remove_clears_the_row(
     assert await push_task._push(db_workspace.id) is None
 
 
-async def test_sweep_enqueues_when_stamp_trails_head(
+async def test_remove_deletes_the_shadow_clone(
     knowledge_root,
     db_session,
     db_workspace,
@@ -194,34 +194,9 @@ async def test_sweep_enqueues_when_stamp_trails_head(
     celery_session_on_test_connection,
 ):
     workspace_flip(True)
-    db_workspace.knowledge_store_enabled = True
-    await db_session.flush()
     store = store_for(db_workspace, db_session)
     await store.remotes.add(gitlab_spec(dest))
-    await _record(store)
-    delayed.clear()
-
-    assert await push_task._sweep() == 1
-    assert delayed == [db_workspace.id]
-
-
-async def test_sweep_skips_when_stamp_matches_head(
-    knowledge_root,
-    db_session,
-    db_workspace,
-    dest,
-    local_gitlab,
-    delayed,
-    workspace_flip,
-    celery_session_on_test_connection,
-):
-    workspace_flip(True)
-    db_workspace.knowledge_store_enabled = True
-    await db_session.flush()
-    store = store_for(db_workspace, db_session)
-    await store.remotes.add(gitlab_spec(dest))
-    await push_task._push(db_workspace.id)
-    delayed.clear()
-
-    assert await push_task._sweep() == 0
-    assert delayed == []
+    shadow_root = knowledge_root / ".remotes" / str(db_workspace.id)
+    assert shadow_root.is_dir()
+    await store.remotes.remove()
+    assert not shadow_root.exists()

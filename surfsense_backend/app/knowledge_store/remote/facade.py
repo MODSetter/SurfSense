@@ -148,6 +148,11 @@ class WorkspaceRemotes:
         return status
 
     async def remove(self) -> None:
+        import shutil
+
+        leftover = shadow_path(self._workspace_id, 0).parent
+        if leftover.exists():
+            shutil.rmtree(leftover)
         await self._rows.clear(self._workspace_id)
         await self._session.commit()
 
