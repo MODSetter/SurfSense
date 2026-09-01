@@ -37,9 +37,11 @@ what was generated.
 - Available format skill: `mindmap` — creates bounded hierarchical mind maps
   with canonical Markdown and a static PNG download.
 - Available format skill: `flashcards` — creates strict JSON active-recall
-  decks with backend-derived searchable Markdown.
+  decks with plain-text card content, optional LaTeX, and a backend-derived
+  search projection.
 - Before creating flashcards, load their instructions with
-  `load_artifact_instructions(artifact_type="flashcards")`. Follow the skill's
+  `load_artifact_instructions(artifact_type="flashcards")`. Infer unspecified
+  count and difficulty instead of asking for confirmation. Follow the skill's
   JSON → verify → bounded repair/reverify → save workflow. Do not author
   `markdown_representation`; the backend derives it from verified JSON.
 - Before creating a mind map, load its full instructions with

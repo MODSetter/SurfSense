@@ -77,6 +77,22 @@ def _command_payload(command):
     return json.loads(command.update["messages"][0].content)
 
 
+def _flashcard_deck() -> bytes:
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "title": "Facts",
+            "cards": [
+                {
+                    "front_text": f"Question {index}",
+                    "back_text": f"Answer {index}",
+                }
+                for index in range(1, 16)
+            ],
+        }
+    ).encode()
+
+
 async def test_verify_tool_keeps_receipt_preview_path_backend_owned(monkeypatch):
     session = FakeSandboxSession({"/workspace/report.docx": b"docx"})
 
@@ -298,11 +314,7 @@ async def test_binary_save_reads_primary_and_preview_from_receipt_format(monkeyp
 
 async def test_flashcard_save_derives_markdown_from_verified_primary(monkeypatch):
     path = "/workspace/deck.json"
-    deck = (
-        b'{"schema_version":1,"title":"Facts","cards":['
-        b'{"front_markdown":"Question one","back_markdown":"Answer one"},'
-        b'{"front_markdown":"Question two","back_markdown":"Answer two"}]}'
-    )
+    deck = _flashcard_deck()
     session = _sandbox({path: deck})
     await _add_receipt(session, path, format_name="flashcards")
     captured = _patch_save_tool(monkeypatch, session)
@@ -320,21 +332,13 @@ async def test_flashcard_save_derives_markdown_from_verified_primary(monkeypatch
     assert captured["files"][0].data == deck
     assert captured["files"][0].mime_type == "application/json"
     assert captured["markdown_representation"].startswith(
-        "# Facts\n\n## Card 1\n\n### Front\n\nQuestion one"
+        "# Facts\n\n## Card 1\n\n### Front\n\nQuestion 1"
     )
 
 
 async def test_flashcard_save_rejects_competing_markdown(monkeypatch):
     path = "/workspace/deck.json"
-    session = _sandbox(
-        {
-            path: (
-                b'{"schema_version":1,"title":"Facts","cards":['
-                b'{"front_markdown":"One","back_markdown":"Answer one"},'
-                b'{"front_markdown":"Two","back_markdown":"Answer two"}]}'
-            )
-        }
-    )
+    session = _sandbox({path: _flashcard_deck()})
     await _add_receipt(session, path, format_name="flashcards")
     captured = _patch_save_tool(monkeypatch, session)
 

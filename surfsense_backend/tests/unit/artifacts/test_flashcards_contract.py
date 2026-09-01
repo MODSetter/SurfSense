@@ -7,6 +7,7 @@ import pytest
 from app.artifacts.verification import service
 from app.artifacts.verification.formats.flashcards import (
     FLASHCARDS_MAX_CARDS,
+    FLASHCARDS_MIN_CARDS,
     check_flashcards_json,
     flashcards_to_markdown,
     parse_flashcards_deck,
@@ -16,21 +17,28 @@ from app.artifacts.verification.receipt import read_receipt
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 
+def _cards(count=FLASHCARDS_MIN_CARDS, *, start=1):
+    return [
+        {
+            "front_text": f"Question {index}",
+            "back_text": f"Answer {index}",
+        }
+        for index in range(start, start + count)
+    ]
+
+
+def _padded_cards(*leading):
+    return [
+        *leading,
+        *_cards(FLASHCARDS_MIN_CARDS - len(leading), start=len(leading) + 1),
+    ]
+
+
 def _deck(**overrides):
     value = {
         "schema_version": 1,
         "title": "HTTP fundamentals",
-        "cards": [
-            {
-                "front_markdown": "What does **HTTP** stand for?",
-                "back_markdown": "Hypertext Transfer Protocol.",
-                "hint_markdown": "It begins with Hypertext.",
-            },
-            {
-                "front_markdown": "What is an idempotent method?",
-                "back_markdown": "Repeated identical requests have the same effect.",
-            },
-        ],
+        "cards": _cards(),
     }
     value.update(overrides)
     return json.dumps(value, ensure_ascii=False).encode()
@@ -40,25 +48,27 @@ def test_parses_closed_version_one_deck_and_projects_deterministic_markdown():
     data = _deck()
 
     deck = parse_flashcards_deck(data)
+    markdown = flashcards_to_markdown(data)
 
     assert deck.title == "HTTP fundamentals"
-    assert len(deck.cards) == 2
+    assert len(deck.cards) == FLASHCARDS_MIN_CARDS
     assert check_flashcards_json(data).clean
-    assert flashcards_to_markdown(data) == (
+    assert markdown.startswith(
         "# HTTP fundamentals\n\n"
         "## Card 1\n\n"
         "### Front\n\n"
-        "What does **HTTP** stand for?\n\n"
+        "Question 1\n\n"
         "### Back\n\n"
-        "Hypertext Transfer Protocol.\n\n"
-        "### Hint\n\n"
-        "It begins with Hypertext.\n\n"
-        "## Card 2\n\n"
-        "### Front\n\n"
-        "What is an idempotent method?\n\n"
-        "### Back\n\n"
-        "Repeated identical requests have the same effect.\n"
+        "Answer 1\n"
     )
+    assert markdown.endswith(
+        f"## Card {FLASHCARDS_MIN_CARDS}\n\n"
+        "### Front\n\n"
+        f"Question {FLASHCARDS_MIN_CARDS}\n\n"
+        "### Back\n\n"
+        f"Answer {FLASHCARDS_MIN_CARDS}\n"
+    )
+    assert markdown.count("## Card ") == FLASHCARDS_MIN_CARDS
 
 
 @pytest.mark.parametrize(
@@ -72,38 +82,71 @@ def test_parses_closed_version_one_deck_and_projects_deterministic_markdown():
         (_deck(schema_version=2), "schema_version"),
         (_deck(schema_version=True), "schema_version"),
         (_deck(extra=True), "Extra inputs"),
-        (_deck(cards=[]), "between 2 and 100"),
+        (
+            _deck(cards=_cards(FLASHCARDS_MIN_CARDS - 1)),
+            "between 15 and 100",
+        ),
         (
             _deck(
-                cards=[
-                    {"front_markdown": "Same", "back_markdown": "One"},
-                    {"front_markdown": "  SAME  ", "back_markdown": "Two"},
-                ]
+                cards=_padded_cards(
+                    {"front_text": "Same", "back_text": "One"},
+                    {"front_text": "  SAME  ", "back_text": "Two"},
+                )
             ),
             "duplicate fronts",
         ),
         (
             _deck(
-                cards=[
+                cards=_padded_cards(
                     {
-                        "front_markdown": "[unsafe](https://example.com)",
-                        "back_markdown": "One",
+                        "front_text": r"Calculate \(x",
+                        "back_text": "One",
                     },
-                    {"front_markdown": "Safe", "back_markdown": "Two"},
-                ]
+                )
             ),
-            "unsupported HTML, image, or link",
+            "unclosed LaTeX delimiter",
         ),
         (
             _deck(
-                cards=[
+                cards=_padded_cards(
+                    {"front_text": r"Calculate \(x\]", "back_text": "One"},
+                )
+            ),
+            "mismatched LaTeX delimiters",
+        ),
+        (
+            _deck(
+                cards=_padded_cards(
+                    {"front_text": r"Calculate \(\)", "back_text": "One"},
+                )
+            ),
+            "empty LaTeX expression",
+        ),
+        (
+            _deck(
+                cards=_padded_cards(
+                    {"front_text": r"Calculate \(x_{1\)", "back_text": "One"},
+                )
+            ),
+            "unbalanced LaTeX braces",
+        ),
+        (
+            _deck(
+                cards=_padded_cards(
+                    {"front_text": r"Calculate \(x \[y\]\)", "back_text": "One"},
+                )
+            ),
+            "nested LaTeX delimiters",
+        ),
+        (
+            _deck(
+                cards=_padded_cards(
                     {
-                        "front_markdown": "One",
-                        "back_markdown": "Answer",
-                        "hint_markdown": None,
+                        "front_text": "One",
+                        "back_text": "Answer",
+                        "hint_text": None,
                     },
-                    {"front_markdown": "Two", "back_markdown": "Answer"},
-                ]
+                )
             ),
             "must be omitted",
         ),
@@ -117,12 +160,27 @@ def test_rejects_invalid_or_unsafe_decks(data: bytes, message: str):
 
 
 def test_accepts_upper_card_bound():
-    cards = [
-        {"front_markdown": f"Question {index}", "back_markdown": f"Answer {index}"}
-        for index in range(FLASHCARDS_MAX_CARDS)
-    ]
+    cards = _cards(FLASHCARDS_MAX_CARDS)
 
     assert check_flashcards_json(_deck(cards=cards)).clean
+
+
+def test_plain_text_is_escaped_for_indexing_while_latex_is_preserved():
+    data = _deck(
+        cards=_padded_cards(
+            {
+                "front_text": r"What does \(T_a\) represent?",
+                "back_text": r"# Ambient [temperature] \(T_a\)",
+                "hint_text": r"Use \[T(t)=T_a+(T_0-T_a)e^{-kt}\]",
+            },
+        )
+    )
+
+    markdown = flashcards_to_markdown(data)
+
+    assert r"What does \(T_a\) represent?" in markdown
+    assert r"\# Ambient \[temperature\] \(T_a\)" in markdown
+    assert "\\[\nT(t)=T_a+(T_0-T_a)e^{-kt}\n\\]" in markdown
 
 
 async def test_flashcards_adapter_skips_render_and_vision():

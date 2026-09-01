@@ -3,7 +3,6 @@
 import { ArrowLeft, ArrowRight, Check, Eye, RotateCcw, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
@@ -11,6 +10,7 @@ import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
 import { FlashcardSurface } from "./flashcard-surface";
+import { FlashcardText } from "./flashcard-text";
 import {
 	FLASHCARDS_MAX_VIEWER_BYTES,
 	type FlashcardDeck,
@@ -224,11 +224,11 @@ export default function FlashcardsViewer({
 								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
 									Question
 								</p>
-								<MarkdownViewer content={card.front_markdown} className="text-base sm:text-lg" />
-								{card.hint_markdown ? (
+								<FlashcardText content={card.front_text} className="text-base sm:text-lg" />
+								{card.hint_text ? (
 									<div className="mt-6 border-[#d0d0d0] border-t pt-4 text-sm text-[#4a4a4a]">
 										<span className="font-medium">Hint: </span>
-										<MarkdownViewer content={card.hint_markdown} />
+										<FlashcardText content={card.hint_text} />
 									</div>
 								) : null}
 							</div>
@@ -238,7 +238,7 @@ export default function FlashcardsViewer({
 								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
 									Answer
 								</p>
-								<MarkdownViewer content={card.back_markdown} className="text-base sm:text-lg" />
+								<FlashcardText content={card.back_text} className="text-base sm:text-lg" />
 								{currentMark ? (
 									<p className="mt-6 text-xs font-medium text-[#4a4a4a]">
 										Current mark: {currentMark === "good" ? "Remembered" : "Needs review"}

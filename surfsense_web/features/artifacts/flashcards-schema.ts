@@ -1,11 +1,10 @@
 import { z } from "zod";
 
 export const FLASHCARDS_MAX_VIEWER_BYTES = 15 * 1024 * 1024;
-export const FLASHCARDS_MIN_CARDS = 2;
+// Published schema versions are immutable read contracts. Add a separate V2
+// schema and dispatch by schema_version for incompatible changes.
+export const FLASHCARDS_MIN_CARDS = 15;
 export const FLASHCARDS_MAX_CARDS = 100;
-
-const UNSUPPORTED_MARKDOWN =
-	/<[^>\n]+>|!\[[^\]]*\](?:\([^)]*\)|\[[^\]]*\])|(?<!!)\[[^\]]+\](?:\([^)]*\)|\[[^\]]*\])|^\s*\[[^\]]+\]:\s*\S+|^\s{0,3}#{1,6}(?:\s+|$)|^\s*(?:=+|-+)\s*$/m;
 
 function codePointLength(value: string): number {
 	return [...value].length;
@@ -27,20 +26,104 @@ function hasUnsupportedControlCharacter(value: string): boolean {
 	return false;
 }
 
+function isEscaped(value: string, index: number): boolean {
+	let precedingBackslashes = 0;
+	for (let cursor = index - 1; cursor >= 0 && value[cursor] === "\\"; cursor -= 1) {
+		precedingBackslashes += 1;
+	}
+	return precedingBackslashes % 2 === 1;
+}
+
+function hasBalancedLatexBraces(value: string): boolean {
+	let depth = 0;
+	for (let index = 0; index < value.length; index += 1) {
+		if (isEscaped(value, index)) continue;
+		if (value[index] === "{") depth += 1;
+		if (value[index] === "}") depth -= 1;
+		if (depth < 0) return false;
+	}
+	return depth === 0;
+}
+
+export type FlashcardTextSegment =
+	| { type: "text"; value: string; offset: number }
+	| { type: "math"; value: string; display: boolean; offset: number };
+
+export function parseFlashcardText(value: string): FlashcardTextSegment[] | null {
+	const segments: FlashcardTextSegment[] = [];
+	let textStart = 0;
+	let index = 0;
+	while (index < value.length) {
+		const delimiter = value.slice(index, index + 2);
+		if ((delimiter === "\\)" || delimiter === "\\]") && !isEscaped(value, index)) {
+			return null;
+		}
+		if ((delimiter !== "\\(" && delimiter !== "\\[") || isEscaped(value, index)) {
+			index += 1;
+			continue;
+		}
+
+		if (index > textStart) {
+			segments.push({ type: "text", value: value.slice(textStart, index), offset: textStart });
+		}
+		const openingOffset = index;
+		const display = delimiter === "\\[";
+		const closing = display ? "\\]" : "\\)";
+		const latexStart = index + 2;
+		index = latexStart;
+		while (index < value.length) {
+			const candidate = value.slice(index, index + 2);
+			if ((candidate === "\\(" || candidate === "\\[") && !isEscaped(value, index)) {
+				return null;
+			}
+			if ((candidate === "\\)" || candidate === "\\]") && !isEscaped(value, index)) {
+				if (candidate !== closing) return null;
+				const latex = value.slice(latexStart, index);
+				if (!latex.trim() || !hasBalancedLatexBraces(latex)) return null;
+				segments.push({ type: "math", value: latex, display, offset: openingOffset });
+				index += 2;
+				textStart = index;
+				break;
+			}
+			index += 1;
+		}
+		if (textStart !== index) return null;
+	}
+	if (textStart < value.length) {
+		segments.push({ type: "text", value: value.slice(textStart), offset: textStart });
+	}
+	return segments;
+}
+
 function boundedText(name: string, maximum: number) {
 	return z
 		.string()
 		.refine((value) => value.trim().length > 0, `${name} must not be empty`)
 		.refine((value) => codePointLength(value) <= maximum, `${name} is too long`)
 		.refine((value) => !hasUnsupportedControlCharacter(value), `${name} has control characters`)
-		.refine((value) => !UNSUPPORTED_MARKDOWN.test(value), `${name} has unsupported Markdown`);
+		.refine((value) => parseFlashcardText(value) !== null, `${name} has invalid LaTeX delimiters`);
+}
+
+function normalizeRecallTarget(value: string): string {
+	let normalized = "";
+	let pendingSpace = false;
+	for (const character of value.normalize("NFKC").toLocaleLowerCase().trim()) {
+		if (character.trim() === "") {
+			pendingSpace = normalized.length > 0;
+		} else {
+			if (pendingSpace) normalized += " ";
+			normalized += character;
+			pendingSpace = false;
+		}
+	}
+	return normalized;
 }
 
 export const FlashcardSchema = z
 	.object({
-		front_markdown: boundedText("Front", 4_000),
-		back_markdown: boundedText("Back", 12_000),
-		hint_markdown: boundedText("Hint", 2_000).optional(),
+		front_text: boundedText("Front", 4_000),
+		back_text: boundedText("Back", 12_000),
+		hint_text: boundedText("Hint", 2_000).optional(),
 	})
 	.strict();
 
@@ -53,10 +136,7 @@ export const FlashcardDeckSchema = z
 			.refine((value) => codePointLength(value) <= 200, "Title is too long")
 			.refine(
 				(value) =>
-					!value.includes("\n") &&
-					!value.includes("\r") &&
-					!hasUnsupportedControlCharacter(value) &&
-					!/<[^>\n]+>/.test(value),
+					!value.includes("\n") && !value.includes("\r") && !hasUnsupportedControlCharacter(value),
 				"Title contains unsupported content"
 			),
 		cards: z.array(FlashcardSchema).min(FLASHCARDS_MIN_CARDS).max(FLASHCARDS_MAX_CARDS),
@@ -65,15 +145,11 @@ export const FlashcardDeckSchema = z
 	.superRefine((deck, context) => {
 		const seen = new Set<string>();
 		deck.cards.forEach((card, index) => {
-			const normalized = card.front_markdown
-				.normalize("NFKC")
-				.toLocaleLowerCase()
-				.trim()
-				.replace(/\s+/g, " ");
+			const normalized = normalizeRecallTarget(card.front_text);
 			if (seen.has(normalized)) {
 				context.addIssue({
 					code: "custom",
-					path: ["cards", index, "front_markdown"],
+					path: ["cards", index, "front_text"],
 					message: "Duplicate card front",
 				});
 			}

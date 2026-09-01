@@ -151,6 +151,9 @@ def test_deliverables_prompt_routes_flashcards_and_skill_uses_universal_save():
     assert 'format="flashcards"' in skill
     assert 'save_artifact(path="/workspace/<slug>.json", title="...")' in skill
     assert "Do not pass `markdown_representation`" in skill
+    assert "Infer unspecified\n  count and difficulty instead of asking" in prompt
+    assert "Do not ask for confirmation." in skill
+    assert "Report insufficient material only after finding fewer than 15" in skill
     assert "separate" not in skill.lower() or "separate Markdown summary" in skill
 
 

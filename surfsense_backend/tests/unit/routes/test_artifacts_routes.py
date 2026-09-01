@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -8,6 +9,22 @@ from starlette.requests import Request
 from app.artifacts.persistence import ArtifactFileRole
 from app.db import Permission
 from app.routes import artifacts_routes
+
+
+def _flashcard_deck() -> bytes:
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "title": "Deck",
+            "cards": [
+                {
+                    "front_text": f"Question {index}",
+                    "back_text": f"Answer {index}",
+                }
+                for index in range(1, 16)
+            ],
+        }
+    ).encode()
 
 
 def _request(
@@ -155,11 +172,7 @@ async def test_flashcard_manifest_sanitizes_progress_and_varies_etag(monkeypatch
     primary = _file(1, ArtifactFileRole.PRIMARY)
     primary.original_filename = "deck.json"
     primary.mime_type = "application/json"
-    deck = (
-        b'{"schema_version":1,"title":"Deck","cards":['
-        b'{"front_markdown":"One","back_markdown":"Answer one"},'
-        b'{"front_markdown":"Two","back_markdown":"Answer two"}]}'
-    )
+    deck = _flashcard_deck()
 
     async def stream(_record):
         yield deck
@@ -173,7 +186,7 @@ async def test_flashcard_manifest_sanitizes_progress_and_varies_etag(monkeypatch
             "flashcards": {
                 "progress": {
                     "generation": 3,
-                    "marks": {"0": "good", "2": "again", "bad": "good"},
+                    "marks": {"0": "good", "15": "again", "bad": "good"},
                 }
             }
         },
@@ -210,11 +223,7 @@ async def test_flashcard_progress_patch_updates_bounded_namespace(monkeypatch):
     primary = _file(1, ArtifactFileRole.PRIMARY)
     primary.original_filename = "deck.json"
     primary.mime_type = "application/json"
-    deck = (
-        b'{"schema_version":1,"title":"Deck","cards":['
-        b'{"front_markdown":"One","back_markdown":"Answer one"},'
-        b'{"front_markdown":"Two","back_markdown":"Answer two"}]}'
-    )
+    deck = _flashcard_deck()
 
     async def stream(_record):
         yield deck

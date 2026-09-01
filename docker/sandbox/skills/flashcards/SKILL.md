@@ -18,22 +18,33 @@ Use exactly this closed version-one shape:
   "title": "Deck title",
   "cards": [
     {
-      "front_markdown": "One focused recall prompt",
-      "back_markdown": "A sufficient, concise answer",
-      "hint_markdown": "Optional hint"
+      "front_text": "One focused recall prompt",
+      "back_text": "A sufficient, concise answer",
+      "hint_text": "Optional hint with inline math: \\(x^2\\)"
     }
   ]
 }
 ```
 
-- Include 2–100 cards.
+- Include 15–100 cards. Use a requested count within that range; otherwise
+  choose 30–50 based on the source depth. Use mixed difficulty when unspecified.
+  Do not ask for confirmation.
+- Test one distinct recall target per card. Plan and deduplicate the targets
+  before writing JSON; do not repeat, paraphrase, reverse, or split the same
+  fact merely to reach the minimum.
+- Report insufficient material only after finding fewer than 15 distinct recall
+  targets in the available source and topic. Do not invent filler.
 - Title: 1–200 characters. Front: 1–4,000. Back: 1–12,000. Hint:
   1–2,000 when present.
 - Keep each front atomic and each back sufficient without testing multiple
   unrelated facts.
-- Omit `hint_markdown` when no useful hint exists; never use `null`.
+- Card fields are plain text. The only formatting syntax allowed is LaTeX:
+  use `\(...\)` for inline math or `\[...\]` for display math. Escape each
+  backslash as `\\` in JSON. Keep delimiters and braces balanced; do not nest
+  math delimiters.
+- Omit `hint_text` when no useful hint exists; never use `null`.
 - Do not add fields, change `schema_version`, duplicate fronts, or use raw
-  HTML, images, links, or headings in card content.
+  HTML or Markdown in card content.
 - Write UTF-8 JSON without comments or a byte-order mark.
 
 ## Verify and save
