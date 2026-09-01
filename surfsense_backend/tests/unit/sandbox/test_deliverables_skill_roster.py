@@ -139,6 +139,21 @@ def test_deliverables_prompt_routes_mindmaps_before_html_and_pdf_defaults():
     assert "flowcharts, process flows, sequence\n  diagrams" in prompt
 
 
+def test_deliverables_prompt_routes_flashcards_and_skill_uses_universal_save():
+    prompt = _prompt()
+    flashcards_route = "deck for recall practice → flashcards"
+    pdf_fallback = "prefer PDF for a finished deliverable"
+    skill = _skill("flashcards")
+
+    assert flashcards_route in prompt
+    assert '`load_artifact_instructions(artifact_type="flashcards")`' in prompt
+    assert prompt.index(flashcards_route) < prompt.index(pdf_fallback)
+    assert 'format="flashcards"' in skill
+    assert 'save_artifact(path="/workspace/<slug>.json", title="...")' in skill
+    assert "Do not pass `markdown_representation`" in skill
+    assert "separate" not in skill.lower() or "separate Markdown summary" in skill
+
+
 def test_mindmap_skill_binds_markdown_to_the_png_without_custom_styling():
     skill = _skill("mindmap")
 
