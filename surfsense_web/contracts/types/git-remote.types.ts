@@ -10,6 +10,8 @@ export const gitRemote = z.object({
 	sourcepath: z.string().nullable().optional(),
 	last_error_code: z.string().nullable().optional(),
 	last_conflict_paths: z.string().nullable().optional(),
+	// Backend-resolved mount folder; null until the indexer creates it.
+	mount_folder_id: z.number().nullable().optional(),
 });
 
 export const listGitRemotesResponse = z.array(gitRemote);
