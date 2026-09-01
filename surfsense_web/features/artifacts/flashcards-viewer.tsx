@@ -296,7 +296,7 @@ export default function FlashcardsViewer({
 						<Button
 							type="button"
 							size="sm"
-							className="h-8 bg-red-700 px-2 text-white hover:bg-red-800 sm:px-2.5"
+							className="h-8 bg-red-700 px-2 text-white hover:bg-red-800 disabled:bg-red-700 disabled:text-white disabled:opacity-100 sm:px-2.5"
 							disabled={markMutation.isPending || shuffleMutation.isPending}
 							onClick={() => void mark("again")}
 							aria-label={`Needs review, ${counts.missed} ${
@@ -310,7 +310,7 @@ export default function FlashcardsViewer({
 						<Button
 							type="button"
 							size="sm"
-							className="h-8 bg-emerald-700 px-2 text-white hover:bg-emerald-800 sm:px-2.5"
+							className="h-8 bg-emerald-700 px-2 text-white hover:bg-emerald-800 disabled:bg-emerald-700 disabled:text-white disabled:opacity-100 sm:px-2.5"
 							disabled={markMutation.isPending || shuffleMutation.isPending}
 							onClick={() => void mark("good")}
 							aria-label={`Got it, ${counts.remembered} ${
@@ -325,7 +325,7 @@ export default function FlashcardsViewer({
 							type="button"
 							variant="outline"
 							size="sm"
-							className="h-8 px-2 sm:px-2.5"
+							className="h-8 px-2 disabled:bg-background disabled:text-foreground disabled:opacity-100 sm:px-2.5"
 							disabled={markMutation.isPending || shuffleMutation.isPending}
 							onClick={() => void shuffle()}
 							aria-label="Shuffle cards"
