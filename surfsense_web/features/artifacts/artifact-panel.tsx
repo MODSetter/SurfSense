@@ -16,6 +16,7 @@ import { cannotPreviewMessage, extension } from "@/features/file-viewers/file-fo
 import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArtifactDownloadButton } from "./artifact-download-button";
+import { getArtifactFormatMeta } from "./artifact-format-meta";
 import { artifactManifestQueryOptions } from "./artifact-query";
 import { getArtifactViewerDispatch } from "./artifact-viewer-dispatch";
 import { artifactDownloadPath } from "./download-file";
@@ -57,7 +58,14 @@ export function ArtifactViewerContent({
 	});
 	const downloadFilename = artifactFilename(content);
 	const primary = content?.files.find((file) => file.role === "primary");
-	const artifactType = primary?.filename ?? (content ? "Markdown" : undefined);
+	const artifactType =
+		content?.format === "mindmap"
+			? getArtifactFormatMeta(content.format).detailLabel
+			: primary
+				? extension(primary.filename)
+				: content
+					? "Markdown"
+					: undefined;
 	const [zoomControlsContainer, setZoomControlsContainer] = useState<HTMLDivElement | null>(null);
 
 	return (
@@ -72,7 +80,7 @@ export function ArtifactViewerContent({
 							<>
 								<Dot className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
 								<span className="shrink-0 text-xs text-muted-foreground">
-									{primary ? extension(primary.filename) : artifactType}
+									{artifactType}
 								</span>
 							</>
 						) : null}
