@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Eye, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, RotateCcw, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -195,7 +195,7 @@ export default function FlashcardsViewer({
 		setAnnouncement(`Reviewing ${missed.length} missed cards`);
 	}
 
-	const faceClass = "mx-auto flex h-full max-w-md flex-col justify-center";
+	const faceClass = "relative mx-auto flex h-full max-w-md flex-col justify-center";
 	const progressValue = ((position + 1) / sequence.length) * 100;
 	return (
 		<div data-vaul-no-drag="" className="h-full min-h-0 overflow-y-auto bg-[#f7f7f8] p-4 sm:p-6">
@@ -231,6 +231,12 @@ export default function FlashcardsViewer({
 										<FlashcardText content={card.hint_text} />
 									</div>
 								) : null}
+								<p
+									aria-hidden="true"
+									className="absolute inset-x-0 -bottom-5 text-center text-xs text-[#a9a9a9]"
+								>
+									See answer
+								</p>
 							</div>
 						}
 						back={
@@ -312,20 +318,7 @@ export default function FlashcardsViewer({
 								Remembered
 							</Button>
 						</>
-					) : (
-						<Button
-							type="button"
-							size="sm"
-							className="bg-[#1c1b1e] text-white hover:bg-[#4a4a4a]"
-							onClick={() => {
-								setRevealed(true);
-								setAnnouncement("Answer revealed");
-							}}
-						>
-							<Eye data-icon="inline-start" />
-							Reveal answer
-						</Button>
-					)}
+					) : null}
 					<Button
 						type="button"
 						variant="ghost"
