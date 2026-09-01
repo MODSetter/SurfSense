@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from app.knowledge_store.identities import AGENT_IDENTITY
 from app.knowledge_store.index.queue import enqueue_index
-from app.knowledge_store.remote.paths import rel_from_local, to_local
+from app.knowledge_store.remote.paths import is_syncable, rel_from_local, to_local
 from app.knowledge_store.remote.planner import FileChange
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 async def apply_from_remote(
     store: KnowledgeStore, *, mount: str, files: dict[str, bytes]
 ) -> None:
-    """Replace markdown under ``mount`` with ``files`` (rel → bytes)."""
+    """Replace the synced documents under ``mount`` with ``files`` (rel → bytes)."""
     async with store.transaction(
         message="sync from remote", author=AGENT_IDENTITY
     ) as tx:
@@ -43,9 +43,10 @@ async def apply_changes(
         enqueue_index(store.workspace_id)
 
 
-async def md_under_mount(
+async def text_under_mount(
     store: KnowledgeStore, mount: str, *, revision: str | None = None
 ) -> dict[str, bytes]:
+    """The synced text documents under ``mount`` (rel → bytes), binaries skipped."""
     head = revision if revision is not None else await store.head()
     if head is None:
         return {}
@@ -53,7 +54,7 @@ async def md_under_mount(
     prefix = f"{mount}/"
     for tracked in await store.list_paths(head):
         path = tracked.path
-        if path.startswith(prefix) and path.endswith(".md"):
+        if path.startswith(prefix) and is_syncable(path):
             found[rel_from_local(mount=mount, path=path)] = await store.read_as_of(
                 head, path
             )

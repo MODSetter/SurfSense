@@ -12,7 +12,7 @@ from app.knowledge_store.remote.forges import provider_for
 from app.knowledge_store.remote.paths import full_name_from_url, mount
 from app.knowledge_store.remote.persistence import WorkspaceRemoteRepository
 from app.knowledge_store.remote.shadow import Shadow, shadow_path
-from app.knowledge_store.remote.sync import apply_from_remote, md_under_mount
+from app.knowledge_store.remote.sync import apply_from_remote, text_under_mount
 from app.knowledge_store.remote.schemas import (
     RemoteCredentials,
     RemoteSpec,
@@ -132,15 +132,15 @@ class WorkspaceRemotes:
                 )
         except Exception as exc:
             raise RemoteError("forge", f"could not clone remote: {exc}") from exc
-        remote_md = shadow.list_md(spec.sourcepath)
+        remote_docs = shadow.list_text(spec.sourcepath)
         store = KnowledgeStore.for_workspace(self._workspace_id).with_session(
             self._session
         )
-        local_md = await md_under_mount(store, prefix)
-        if remote_md and local_md and direction is None:
+        local_docs = await text_under_mount(store, prefix)
+        if remote_docs and local_docs and direction is None:
             raise RemoteError(
                 "need_direction",
-                "both the folder and the remote already have markdown",
+                "both the folder and the remote already have documents",
             )
         status = await self._rows.save(self._workspace_id, spec)
         await self._session.flush()
@@ -148,9 +148,9 @@ class WorkspaceRemotes:
         dest = shadow_path(self._workspace_id, int(row.id))
         dest.parent.mkdir(parents=True, exist_ok=True)
         pending.rename(dest)
-        pulled = bool(remote_md) and (direction is None or direction == "from_remote")
+        pulled = bool(remote_docs) and (direction is None or direction == "from_remote")
         if pulled:
-            await apply_from_remote(store, mount=prefix, files=remote_md)
+            await apply_from_remote(store, mount=prefix, files=remote_docs)
         shadow = Shadow(dest)
         head = await store.head()
         row.last_remote_sha = shadow.head_sha()
@@ -209,7 +209,7 @@ class WorkspaceRemotes:
         from app.knowledge_store.identities import AGENT_IDENTITY
         from app.knowledge_store.exceptions import GitPushError
         from app.knowledge_store.remote.planner import SyncConflict, plan
-        from app.knowledge_store.remote.sync import apply_changes, md_under_mount
+        from app.knowledge_store.remote.sync import apply_changes, text_under_mount
 
         rows = await self._rows._rows(self._workspace_id)
         if not rows:
@@ -264,12 +264,12 @@ class WorkspaceRemotes:
             await asyncio.to_thread(
                 lambda: shadow.refresh(spec.url, branch=spec.branch)
             )
-        local_md = await md_under_mount(store, prefix)
-        remote_md = shadow.list_md(spec.sourcepath)
-        base = await md_under_mount(
+        local_docs = await text_under_mount(store, prefix)
+        remote_docs = shadow.list_text(spec.sourcepath)
+        base = await text_under_mount(
             store, prefix, revision=row.last_local_revision
         )
-        result = plan(base=base, local=local_md, remote=remote_md)
+        result = plan(base=base, local=local_docs, remote=remote_docs)
         if isinstance(result, SyncConflict):
             row.last_error_code = "conflict"
             row.last_conflict_paths = "\n".join(result.paths)
@@ -283,11 +283,11 @@ class WorkspaceRemotes:
             return None
         if result.apply_local:
             await apply_changes(store, mount=prefix, changes=result.apply_local)
-            local_md = await md_under_mount(store, prefix)
+            local_docs = await text_under_mount(store, prefix)
         creds = await self.credentials()
 
         def _push() -> str | None:
-            shadow.replace_md(spec.sourcepath, local_md)
+            shadow.replace_text(spec.sourcepath, local_docs)
             shadow.commit(message="sync from SurfSense", author=AGENT_IDENTITY)
             return shadow.push(
                 url=spec.url,
@@ -359,7 +359,7 @@ class WorkspaceRemotes:
         from app.knowledge_store import KnowledgeStore
         from app.knowledge_store.identities import AGENT_IDENTITY
         from app.knowledge_store.remote.paths import to_local
-        from app.knowledge_store.remote.sync import md_under_mount
+        from app.knowledge_store.remote.sync import text_under_mount
 
         if direction not in {"from_remote", "from_local"}:
             raise RemoteError(
@@ -387,22 +387,22 @@ class WorkspaceRemotes:
             await asyncio.to_thread(
                 lambda: shadow.refresh(spec.url, branch=spec.branch)
             )
-        remote_md = shadow.list_md(spec.sourcepath)
-        local_md = await md_under_mount(store, prefix)
+        remote_docs = shadow.list_text(spec.sourcepath)
+        local_docs = await text_under_mount(store, prefix)
         if direction == "from_remote":
             async with store.transaction(
                 message="resolve from remote", author=AGENT_IDENTITY
             ) as tx:
-                for rel, content in remote_md.items():
+                for rel, content in remote_docs.items():
                     tx.write(to_local(mount=prefix, rel=rel), content)
-                for rel in local_md:
-                    if rel not in remote_md:
+                for rel in local_docs:
+                    if rel not in remote_docs:
                         tx.remove(to_local(mount=prefix, rel=rel))
         else:
             creds = await self.credentials()
 
             def _push_local() -> str:
-                shadow.replace_md(spec.sourcepath, local_md)
+                shadow.replace_text(spec.sourcepath, local_docs)
                 shadow.commit(message="resolve from SurfSense", author=AGENT_IDENTITY)
                 return shadow.push(
                     url=spec.url,
