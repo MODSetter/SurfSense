@@ -18,13 +18,16 @@ def upgrade() -> None:
     op.execute(
         """
         ALTER TABLE workspace_git_remotes
-            ADD COLUMN IF NOT EXISTS sourcepath VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS sourcepath VARCHAR(255) NOT NULL DEFAULT '',
             ADD COLUMN IF NOT EXISTS last_remote_sha VARCHAR(64),
             ADD COLUMN IF NOT EXISTS last_local_revision VARCHAR(64),
             ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ,
             ADD COLUMN IF NOT EXISTS last_error_code VARCHAR(32),
             ADD COLUMN IF NOT EXISTS last_conflict_paths TEXT
         """
+    )
+    op.execute(
+        "ALTER TABLE workspace_git_remotes ALTER COLUMN sourcepath DROP DEFAULT"
     )
 
 

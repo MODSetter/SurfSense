@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from app.knowledge_store.engines.git import GitContentEngine
-from app.knowledge_store.remote.exceptions import RemoteError
 from app.knowledge_store.remote.paths import full_name_from_url, mount
 from tests.integration.knowledge_store.remote.test_connect import (
     AUTHOR,
@@ -26,6 +25,18 @@ def _seed_docs(tmp_path, dest: GitContentEngine, writes: dict[str, bytes]) -> No
         username="oauth2",
         password=PAT,
     )
+
+
+def _remote_head_bytes(dest: GitContentEngine, path: str) -> bytes:
+    """Read a file at the remote's current main tip (proves what was pushed)."""
+    from dulwich.repo import Repo
+
+    repo = Repo(str(dest._path))
+    try:
+        sha = repo.refs[b"refs/heads/main"].decode()
+    finally:
+        repo.close()
+    return dest.read_as_of(sha, path)
 
 
 async def test_first_sync_from_remote_lands_under_the_mount(
@@ -116,7 +127,7 @@ async def test_text_formats_sync_and_binaries_are_skipped(
     assert dest.read_as_of(sha, "docs/report.pdf") == b"%PDF-1.4 binary"
 
 
-async def test_both_sides_with_markdown_need_direction(
+async def test_both_sides_with_content_defers_to_the_user(
     knowledge_root,
     tmp_path,
     db_session,
@@ -137,12 +148,23 @@ async def test_both_sides_with_markdown_need_direction(
     )
     async with store.transaction(message="local note", author=AUTHOR) as tx:
         tx.write(f"{prefix}/intro.md", b"ours")
-    with pytest.raises(RemoteError) as exc:
-        await store.remotes.add(gitlab_spec(dest))
-    assert exc.value.code == "need_direction"
+
+    # Connect succeeds but mirrors nothing; the row asks the user to pick a side.
+    status = await store.remotes.add(gitlab_spec(dest))
+    assert status.last_error_code == "need_direction"
+    assert (await store.remotes.list())[0].last_error_code == "need_direction"
+
+    # Neither side was overwritten while awaiting a decision.
     head = await store.head()
     assert await store.read_as_of(head, f"{prefix}/intro.md") == b"ours"
-    assert await store.remotes.list() == []
+    assert _remote_head_bytes(dest, "docs/intro.md") == b"theirs"
+
+    # Choosing "keep local" pushes our copy and clears the attention flag.
+    await store.remotes.resolve(direction="from_local")
+    resolved = (await store.remotes.list())[0]
+    assert resolved.last_error_code is None
+    assert resolved.last_pushed_revision is not None
+    assert _remote_head_bytes(dest, "docs/intro.md") == b"ours"
 
 
 async def test_a_save_under_the_mount_is_pushed(
@@ -400,39 +422,3 @@ async def test_open_worktree_defers_sync(
         )
     )
     assert row.last_error_code == "worktree_busy"
-
-
-async def test_legacy_row_requires_reconnect(
-    knowledge_root,
-    db_session,
-    db_workspace,
-    dest,
-    local_gitlab,
-    delayed,
-    workspace_flip,
-    celery_session_on_test_connection,
-):
-    workspace_flip(True)
-    store = store_for(db_workspace, db_session)
-    from app.knowledge_store.remote.persistence.models import WorkspaceGitRemotes
-
-    db_session.add(
-        WorkspaceGitRemotes(
-            workspace_id=db_workspace.id,
-            provider="gitlab",
-            url=str(dest._path),
-            branch="main",
-            token="cipher-not-used",
-            sourcepath=None,
-        )
-    )
-    await db_session.flush()
-    await store.remotes.sync()
-    from sqlalchemy import select
-
-    row = await db_session.scalar(
-        select(WorkspaceGitRemotes).where(
-            WorkspaceGitRemotes.workspace_id == db_workspace.id
-        )
-    )
-    assert row.last_error_code == "reconnect_required"

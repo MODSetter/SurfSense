@@ -95,7 +95,7 @@ def record_knowledge_store_remote_sync(
     """Record one sync tick.
 
     ``status`` is ``mirrored``, ``conflict``, ``worktree_busy``,
-    ``reconnect_required``, ``blocked``, ``skipped``, or ``failed``.
+    ``blocked``, ``skipped``, or ``failed``.
     """
     attrs: dict[str, Any] = {
         "remote.provider": provider or "none",

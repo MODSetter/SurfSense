@@ -99,6 +99,7 @@ class WorkspaceRemotes:
             spec,
             url=strip_credentials_in_url(spec.url.strip()),
             branch=(spec.branch or "main").strip() or "main",
+            sourcepath=(spec.sourcepath or "").strip("/"),
         )
         provider = provider_for(spec.provider)
         provider.validate(spec)
@@ -137,28 +138,33 @@ class WorkspaceRemotes:
             self._session
         )
         local_docs = await text_under_mount(store, prefix)
-        if remote_docs and local_docs and direction is None:
-            raise RemoteError(
-                "need_direction",
-                "both the folder and the remote already have documents",
-            )
-        status = await self._rows.save(self._workspace_id, spec)
+        # Both sides already hold documents and the caller named no winner: connect
+        # anyway, mirror nothing, and flag the row so the card asks which side to
+        # keep (resolve from_remote / from_local).
+        needs_direction = bool(remote_docs) and bool(local_docs) and direction is None
+        await self._rows.save(self._workspace_id, spec)
         await self._session.flush()
         row = (await self._rows._rows(self._workspace_id))[0]
         dest = shadow_path(self._workspace_id, int(row.id))
         dest.parent.mkdir(parents=True, exist_ok=True)
         pending.rename(dest)
-        pulled = bool(remote_docs) and (direction is None or direction == "from_remote")
+        pulled = (
+            bool(remote_docs)
+            and not needs_direction
+            and (direction is None or direction == "from_remote")
+        )
         if pulled:
             await apply_from_remote(store, mount=prefix, files=remote_docs)
         shadow = Shadow(dest)
         head = await store.head()
         row.last_remote_sha = shadow.head_sha()
         row.last_local_revision = head
-        if pulled:
+        if needs_direction:
+            row.last_error_code = "need_direction"
+        elif pulled:
             _mark_synced(row, head)
         await self._session.commit()
-        return status
+        return (await self.list())[0]
 
     async def remove(self) -> None:
         import shutil
@@ -216,18 +222,11 @@ class WorkspaceRemotes:
             _observe_sync(sp, self._workspace_id, status="skipped")
             return None
         row = rows[0]
-        if row.sourcepath is None:
-            row.last_error_code = "reconnect_required"
-            await self._session.flush()
-            _observe_sync(
-                sp, self._workspace_id, status="reconnect_required"
-            )
-            return None
         spec = await self._rows.get_spec(self._workspace_id)
         if spec is None:
             _observe_sync(sp, self._workspace_id, status="skipped")
             return None
-        if row.last_error_code in {"conflict", "need_direction", "reconnect_required"}:
+        if row.last_error_code in {"conflict", "need_direction"}:
             _observe_sync(
                 sp,
                 self._workspace_id,
@@ -423,7 +422,9 @@ class WorkspaceRemotes:
         row.last_error_code = None
         row.last_conflict_paths = None
         row.last_remote_sha = shadow.head_sha()
-        row.last_local_revision = await store.head()
+        head = await store.head()
+        row.last_local_revision = head
+        _mark_synced(row, head)
         await self._session.flush()
         return spec.provider
 

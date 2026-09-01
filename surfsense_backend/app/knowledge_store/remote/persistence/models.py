@@ -43,7 +43,7 @@ class WorkspaceGitRemotes(BaseModel, TimestampMixin):
     last_pushed_revision = Column(String(64), nullable=True)
     last_pushed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     last_push_error = Column(Text, nullable=True)
-    sourcepath = Column(String(255), nullable=True)
+    sourcepath = Column(String(255), nullable=False)
     last_remote_sha = Column(String(64), nullable=True)
     last_local_revision = Column(String(64), nullable=True)
     last_synced_at = Column(TIMESTAMP(timezone=True), nullable=True)
