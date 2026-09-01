@@ -74,6 +74,9 @@ interface FolderNodeProps {
 	onRescan?: (folder: FolderDisplay) => void | Promise<void>;
 	onStopWatching?: (folder: FolderDisplay) => void;
 	onExportFolder?: (folder: FolderDisplay) => void;
+	/** Folder is part of a connected git remote's synced tree — badge it. */
+	isGitSynced?: boolean;
+	gitSyncedTooltip?: string;
 }
 
 function getDropZone(
@@ -115,6 +118,8 @@ export const FolderNode = React.memo(function FolderNode({
 	onRescan,
 	onStopWatching,
 	onExportFolder,
+	isGitSynced,
+	gitSyncedTooltip,
 }: FolderNodeProps) {
 	const isMobile = useIsMobile();
 	const [renameValue, setRenameValue] = useState(folder.name);
@@ -333,6 +338,12 @@ export const FolderNode = React.memo(function FolderNode({
 								/>
 							</>
 						)}
+						{isGitSynced && processingState === "idle" ? (
+							<span
+								title={gitSyncedTooltip}
+								className="pointer-events-none absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-full bg-green-500 ring-2 ring-sidebar"
+							/>
+						) : null}
 					</span>
 
 					{isRenaming ? (

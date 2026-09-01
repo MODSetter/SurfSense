@@ -551,6 +551,11 @@ class Config:
     GITHUB_APP_ID = os.getenv("GITHUB_APP_ID", "")
     GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
     GITHUB_APP_SLUG = os.getenv("GITHUB_APP_SLUG", "")
+    # User-to-server OAuth on the same App: lets a signed-in user enumerate
+    # their own installations so connect/reconnect never depends on the
+    # global Setup-URL callback. Client ID/secret live on the App's General tab.
+    GITHUB_APP_CLIENT_ID = os.getenv("GITHUB_APP_CLIENT_ID", "")
+    GITHUB_APP_CLIENT_SECRET = os.getenv("GITHUB_APP_CLIENT_SECRET", "")
 
     # Daytona sandbox (code execution / filesystem sandbox)
     DAYTONA_API_KEY = os.getenv("DAYTONA_API_KEY", "")

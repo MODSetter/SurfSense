@@ -265,3 +265,27 @@ async def ensure_folder_hierarchy(
             await session.flush()
         parent_id = folder.id
     return parent_id
+
+
+async def resolve_folder_id_by_parts(
+    session: AsyncSession,
+    *,
+    workspace_id: int,
+    folder_parts: list[str],
+) -> int | None:
+    """Return the leaf id for an existing (sanitized) name chain, or ``None``."""
+    if not folder_parts:
+        return None
+    parent_id: int | None = None
+    for raw in folder_parts:
+        name = safe_folder_segment(str(raw))
+        query = select(Folder.id).where(
+            Folder.workspace_id == workspace_id,
+            Folder.name == name,
+            Folder.parent_id.is_(None) if parent_id is None else Folder.parent_id == parent_id,
+        )
+        folder_id = (await session.execute(query)).scalar_one_or_none()
+        if folder_id is None:
+            return None
+        parent_id = folder_id
+    return parent_id
