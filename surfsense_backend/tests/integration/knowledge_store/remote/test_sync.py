@@ -65,6 +65,57 @@ async def test_first_sync_from_remote_lands_under_the_mount(
     assert not any(path.endswith("app.ts") for path in paths)
 
 
+async def test_text_formats_sync_and_binaries_are_skipped(
+    knowledge_root,
+    tmp_path,
+    db_session,
+    db_workspace,
+    dest,
+    local_gitlab,
+    delayed,
+    workspace_flip,
+    celery_session_on_test_connection,
+):
+    workspace_flip(True)
+    _seed_docs(
+        tmp_path,
+        dest,
+        {
+            "docs/guide.txt": b"plain text",
+            "docs/spec.rst": b"restructured",
+            "docs/report.pdf": b"%PDF-1.4 binary",
+        },
+    )
+    store = store_for(db_workspace, db_session)
+    await store.remotes.add(gitlab_spec(dest))
+    prefix = mount(
+        provider="gitlab",
+        full_name=full_name_from_url(str(dest._path)),
+        sourcepath="docs",
+    )
+    # Pull: text documents land under the mount; the pdf stays a remote-only binary.
+    head = await store.head()
+    assert await store.read_as_of(head, f"{prefix}/guide.txt") == b"plain text"
+    assert await store.read_as_of(head, f"{prefix}/spec.rst") == b"restructured"
+    paths = {p.path for p in await store.list_paths(head)}
+    assert f"{prefix}/report.pdf" not in paths
+
+    # Push: a locally authored non-md text doc mirrors out; the pdf survives.
+    async with store.transaction(message="add notes", author=AUTHOR) as tx:
+        tx.write(f"{prefix}/notes.mdx", b"from us")
+    await store.remotes.sync()
+
+    from dulwich.repo import Repo
+
+    repo = Repo(str(dest._path))
+    try:
+        sha = repo.refs[b"refs/heads/main"].decode()
+    finally:
+        repo.close()
+    assert dest.read_as_of(sha, "docs/notes.mdx") == b"from us"
+    assert dest.read_as_of(sha, "docs/report.pdf") == b"%PDF-1.4 binary"
+
+
 async def test_both_sides_with_markdown_need_direction(
     knowledge_root,
     tmp_path,
@@ -201,7 +252,7 @@ async def test_conflict_stamps_and_writes_nothing(
     from app.knowledge_store.remote.shadow import Shadow
 
     editor = Shadow.clone(str(dest._path), tmp_path / "editor", branch="main")
-    editor.replace_md("docs", {"intro.md": b"theirs"})
+    editor.replace_text("docs", {"intro.md": b"theirs"})
     editor.commit(message="remote edit", author=AUTHOR)
     editor.push(url=str(dest._path), ref="refs/heads/main")
 
@@ -247,7 +298,7 @@ async def test_resolve_from_remote_takes_theirs(
     from app.knowledge_store.remote.shadow import Shadow
 
     editor = Shadow.clone(str(dest._path), tmp_path / "editor", branch="main")
-    editor.replace_md("docs", {"intro.md": b"theirs"})
+    editor.replace_text("docs", {"intro.md": b"theirs"})
     editor.commit(message="remote edit", author=AUTHOR)
     editor.push(url=str(dest._path), ref="refs/heads/main")
     await store.remotes.sync()
@@ -293,7 +344,7 @@ async def test_resolve_from_local_takes_ours(
     from app.knowledge_store.remote.shadow import Shadow
 
     editor = Shadow.clone(str(dest._path), tmp_path / "editor", branch="main")
-    editor.replace_md("docs", {"intro.md": b"theirs"})
+    editor.replace_text("docs", {"intro.md": b"theirs"})
     editor.commit(message="remote edit", author=AUTHOR)
     editor.push(url=str(dest._path), ref="refs/heads/main")
     await store.remotes.sync()
@@ -331,7 +382,7 @@ async def test_open_worktree_defers_sync(
     from app.knowledge_store.remote.shadow import Shadow
 
     editor = Shadow.clone(str(dest._path), tmp_path / "editor", branch="main")
-    editor.replace_md("docs", {"intro.md": b"theirs"})
+    editor.replace_text("docs", {"intro.md": b"theirs"})
     editor.commit(message="remote edit", author=AUTHOR)
     editor.push(url=str(dest._path), ref="refs/heads/main")
 
