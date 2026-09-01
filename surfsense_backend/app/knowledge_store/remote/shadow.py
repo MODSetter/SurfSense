@@ -14,7 +14,7 @@ from app.knowledge_store.engines.git import strip_credentials_in_url
 from app.knowledge_store.exceptions import GitPushError
 from app.knowledge_store.paths.layout import workspace_store_path
 from app.knowledge_store.remote.guards import check_staged
-from app.knowledge_store.remote.paths import to_remote
+from app.knowledge_store.remote.paths import is_syncable, to_remote
 
 
 def shadow_path(workspace_id: int | str, remote_id: int) -> Path:
@@ -44,19 +44,21 @@ class Shadow:
         file = self._path / path
         return file.read_bytes() if file.is_file() else None
 
-    def list_md(self, sourcepath: str) -> dict[str, bytes]:
+    def list_text(self, sourcepath: str) -> dict[str, bytes]:
         root = self._path / sourcepath.strip("/") if sourcepath.strip("/") else self._path
         if not root.is_dir():
             return {}
         found: dict[str, bytes] = {}
-        for file in root.rglob("*.md"):
+        for file in root.rglob("*"):
+            if not file.is_file() or not is_syncable(file.name):
+                continue
             if ".git" in file.relative_to(self._path).parts:
                 continue
             found[file.relative_to(root).as_posix()] = file.read_bytes()
         return found
 
-    def replace_md(self, sourcepath: str, files: dict[str, bytes]) -> None:
-        current = self.list_md(sourcepath)
+    def replace_text(self, sourcepath: str, files: dict[str, bytes]) -> None:
+        current = self.list_text(sourcepath)
         writes = []
         for rel, content in files.items():
             remote = to_remote(sourcepath=sourcepath, rel=rel)
