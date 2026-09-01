@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,10 +29,6 @@ type LoadState =
 	| { status: "error" }
 	| { status: "ready"; deck: FlashcardDeck };
 
-function cardSequence(cardCount: number, reviewQueue: number[] | null): number[] {
-	return reviewQueue ?? Array.from({ length: cardCount }, (_, index) => index);
-}
-
 export default function FlashcardsViewer({
 	workspaceId,
 	artifactId,
@@ -52,7 +48,6 @@ export default function FlashcardsViewer({
 	});
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [revealed, setRevealed] = useState(false);
-	const [reviewQueue, setReviewQueue] = useState<number[] | null>(null);
 	const [announcement, setAnnouncement] = useState("");
 	const manifestProgressRef = useRef(manifest.flashcard_progress);
 	manifestProgressRef.current = manifest.flashcard_progress;
@@ -62,7 +57,6 @@ export default function FlashcardsViewer({
 		const controller = new AbortController();
 		setLoadState({ status: "loading" });
 		setRevealed(false);
-		setReviewQueue(null);
 
 		if (primary.size_bytes > FLASHCARDS_MAX_VIEWER_BYTES) {
 			setLoadState({ status: "error" });
@@ -134,13 +128,10 @@ export default function FlashcardsViewer({
 	const card = deck.cards[currentIndex];
 	const counts = flashcardProgressCounts(progress, deck.cards.length);
 	const currentMark = progress.marks[String(currentIndex)];
-	const sequence = cardSequence(deck.cards.length, reviewQueue);
-	const position = sequence.indexOf(currentIndex);
 
 	function move(offset: number) {
-		const nextPosition = position + offset;
-		if (nextPosition < 0 || nextPosition >= sequence.length) return;
-		const next = sequence[nextPosition];
+		const next = currentIndex + offset;
+		if (next < 0 || next >= deck.cards.length) return;
 		setCurrentIndex(next);
 		setRevealed(false);
 		setAnnouncement(`Card ${next + 1} of ${deck.cards.length}`);
@@ -150,20 +141,14 @@ export default function FlashcardsViewer({
 		if (!revealed || progressMutation.isPending) return;
 		const previousProgress = progress;
 		const previousIndex = currentIndex;
-		const previousQueue = reviewQueue;
 		const marks = { ...progress.marks, [String(currentIndex)]: markValue };
 		setProgress({ generation: manifest.generation, marks });
 		setAnnouncement(markValue === "good" ? "Marked remembered" : "Marked needs review");
 
-		const nextPosition = position + 1;
-		if (reviewQueue && nextPosition >= sequence.length) {
-			setReviewQueue(null);
-			setRevealed(false);
-			setAnnouncement("Missed-card review complete");
-		} else if (nextPosition >= sequence.length) {
+		const next = currentIndex + 1;
+		if (next >= deck.cards.length) {
 			setAnnouncement("Deck complete");
 		} else {
-			const next = sequence[nextPosition];
 			setCurrentIndex(next);
 			setRevealed(false);
 		}
@@ -178,32 +163,18 @@ export default function FlashcardsViewer({
 		} catch {
 			setProgress(previousProgress);
 			setCurrentIndex(previousIndex);
-			setReviewQueue(previousQueue);
 			setRevealed(true);
 			setAnnouncement("Progress was not saved. Try again.");
 		}
 	}
 
-	function startMissedReview() {
-		const missed = deck.cards.flatMap((_item, index) =>
-			progress.marks[String(index)] === "again" ? [index] : []
-		);
-		if (missed.length === 0) return;
-		setReviewQueue(missed);
-		setCurrentIndex(missed[0]);
-		setRevealed(false);
-		setAnnouncement(`Reviewing ${missed.length} missed cards`);
-	}
-
 	const faceClass = "relative mx-auto flex h-full max-w-md flex-col justify-center";
-	const progressValue = ((position + 1) / sequence.length) * 100;
+	const progressValue = ((currentIndex + 1) / deck.cards.length) * 100;
 	return (
 		<div data-vaul-no-drag="" className="h-full min-h-0 overflow-y-auto bg-[#f7f7f8] p-4 sm:p-6">
 			<div className="mx-auto flex min-h-full w-full max-w-[640px] flex-col items-center justify-center gap-4">
 				<div className="flex w-full max-w-[560px] flex-wrap items-center justify-between gap-2 text-xs text-[#4a4a4a]">
-					<p>
-						{reviewQueue ? `Reviewing missed (${position + 1}/${sequence.length})` : deck.title}
-					</p>
+					<p>{deck.title}</p>
 					<section className="flex items-center gap-3" aria-label="Study progress">
 						<span>{counts.remembered} remembered</span>
 						<span>{counts.missed} missed</span>
@@ -221,6 +192,9 @@ export default function FlashcardsViewer({
 						reducedMotion={reducedMotion}
 						front={
 							<div className={faceClass}>
+								<p className="absolute top-0 left-0 text-xs text-[#a9a9a9] tabular-nums">
+									{currentIndex + 1} / {deck.cards.length}
+								</p>
 								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
 									Question
 								</p>
@@ -241,6 +215,9 @@ export default function FlashcardsViewer({
 						}
 						back={
 							<div className={faceClass}>
+								<p className="absolute top-0 left-0 text-xs text-[#a9a9a9] tabular-nums">
+									{currentIndex + 1} / {deck.cards.length}
+								</p>
 								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
 									Answer
 								</p>
@@ -265,70 +242,60 @@ export default function FlashcardsViewer({
 					aria-valuenow={Math.round(progressValue)}
 				/>
 
-				<div data-vaul-no-drag="" className="flex h-10 items-center justify-center gap-8">
+				<div
+					data-vaul-no-drag=""
+					className="grid w-full max-w-[560px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2"
+				>
 					<Button
 						type="button"
 						variant="ghost"
 						size="icon"
 						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e] disabled:text-[#a9a9a9] disabled:opacity-100"
-						disabled={position === 0}
+						disabled={currentIndex === 0}
 						onClick={() => move(-1)}
 						aria-label="Previous card"
 					>
 						<ArrowLeft />
 					</Button>
-					<p className="min-w-16 text-center text-sm text-[#4a4a4a] tabular-nums">
-						{currentIndex + 1} / {deck.cards.length}
-					</p>
+					<div className="flex min-w-0 items-center justify-center gap-2">
+						{revealed ? (
+							<>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="size-8 border-[#d0d0d0] bg-white px-0 text-[#1c1b1e] hover:bg-[#f0f0f0] hover:text-[#1c1b1e] sm:w-auto sm:px-2.5"
+									disabled={progressMutation.isPending}
+									onClick={() => void mark("again")}
+									aria-label="Needs review"
+								>
+									<X />
+									<span className="hidden sm:inline">Needs review</span>
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									className="size-8 bg-[#1c1b1e] px-0 text-white hover:bg-[#4a4a4a] sm:w-auto sm:px-2.5"
+									disabled={progressMutation.isPending}
+									onClick={() => void mark("good")}
+									aria-label="Remembered"
+								>
+									<Check />
+									<span className="hidden sm:inline">Remembered</span>
+								</Button>
+							</>
+						) : null}
+					</div>
 					<Button
 						type="button"
 						variant="ghost"
 						size="icon"
 						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e] disabled:text-[#a9a9a9] disabled:opacity-100"
-						disabled={position === sequence.length - 1}
+						disabled={currentIndex === deck.cards.length - 1}
 						onClick={() => move(1)}
 						aria-label="Next card"
 					>
 						<ArrowRight />
-					</Button>
-				</div>
-
-				<div data-vaul-no-drag="" className="flex flex-wrap items-center justify-center gap-2">
-					{revealed ? (
-						<>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="border-[#d0d0d0] bg-white text-[#1c1b1e] hover:bg-[#f0f0f0] hover:text-[#1c1b1e]"
-								disabled={progressMutation.isPending}
-								onClick={() => void mark("again")}
-							>
-								<X data-icon="inline-start" />
-								Needs review
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								className="bg-[#1c1b1e] text-white hover:bg-[#4a4a4a]"
-								disabled={progressMutation.isPending}
-								onClick={() => void mark("good")}
-							>
-								<Check data-icon="inline-start" />
-								Remembered
-							</Button>
-						</>
-					) : null}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e]"
-						disabled={counts.missed === 0}
-						onClick={startMissedReview}
-					>
-						<RotateCcw data-icon="inline-start" />
-						Review missed
 					</Button>
 				</div>
 				<output className="sr-only" aria-live="polite">
