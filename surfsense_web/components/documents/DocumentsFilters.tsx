@@ -149,6 +149,7 @@ export function DocumentsFilters({
 	onUploadClick,
 	isUploading = false,
 	connectRepoHref,
+	repoConnected = false,
 	syncNeedsAttention = false,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
@@ -160,6 +161,7 @@ export function DocumentsFilters({
 	onUploadClick?: () => void;
 	isUploading?: boolean;
 	connectRepoHref?: string;
+	repoConnected?: boolean;
 	syncNeedsAttention?: boolean;
 }) {
 	const t = useTranslations("documents");
@@ -252,7 +254,9 @@ export function DocumentsFilters({
 							>
 								<Link href={connectRepoHref}>
 									<Github size={13} className="shrink-0" />
-									<span className="truncate">{t("connect_repo")}</span>
+									<span className="truncate">
+										{repoConnected ? t("manage_repo") : t("connect_repo")}
+									</span>
 									{syncNeedsAttention ? (
 										<span
 											role="img"

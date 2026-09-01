@@ -326,6 +326,7 @@
 		"upload_files": "파일 업로드",
 		"connect_repo": "저장소 연결",
 		"connect_repo_attention": "동기화에 주의가 필요합니다",
+		"manage_repo": "저장소 설정",
 		"upload_success": "문서가 성공적으로 업로드되었습니다",
 		"upload_failed": "문서 업로드에 실패했습니다",
 		"loading": "문서 로딩 중",

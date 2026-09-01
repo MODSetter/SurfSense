@@ -326,6 +326,7 @@
 		"upload_files": "Subir archivos",
 		"connect_repo": "Conectar un repositorio",
 		"connect_repo_attention": "La sincronización requiere atención",
+		"manage_repo": "Configuración del repositorio",
 		"upload_success": "Documento subido correctamente",
 		"upload_failed": "Error al subir el documento",
 		"loading": "Cargando documentos",

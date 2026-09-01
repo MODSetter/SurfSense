@@ -326,6 +326,7 @@
 		"upload_files": "上传文件",
 		"connect_repo": "连接仓库",
 		"connect_repo_attention": "同步需要处理",
+		"manage_repo": "仓库设置",
 		"upload_success": "文档上传成功",
 		"upload_failed": "上传文档失败",
 		"loading": "正在加载文档...",
