@@ -324,7 +324,7 @@
 		"confirm_delete_desc": "Tem certeza de que deseja excluir {count} documento(s)? Esta ação não pode ser desfeita.",
 		"uploading": "Enviando",
 		"upload_files": "Enviar arquivos",
-		"connect_repo": "Conectar um repositório",
+		"connect_repo": "Conectar um repo",
 		"connect_repo_attention": "A sincronização precisa de atenção",
 		"manage_repo": "Configurações do repositório",
 		"upload_success": "Documento enviado com sucesso",

@@ -324,7 +324,7 @@
 		"confirm_delete_desc": "Are you sure you want to delete {count} document(s)? This action cannot be undone.",
 		"uploading": "Uploading",
 		"upload_files": "Upload files",
-		"connect_repo": "Connect a repository",
+		"connect_repo": "Connect a repo",
 		"connect_repo_attention": "Sync needs attention",
 		"manage_repo": "Repository settings",
 		"upload_success": "Document uploaded successfully",
