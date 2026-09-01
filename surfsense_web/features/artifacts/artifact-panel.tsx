@@ -105,11 +105,13 @@ export function ArtifactViewerContent({
 										manifest={content}
 									/>
 								) : null}
-								<ArtifactDownloadButton
-									path={artifactDownloadPath(workspaceId, artifactId)}
-									filename={downloadFilename ?? `artifact-${artifactId}`}
-									className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-								/>
+								{content?.format !== "flashcards" ? (
+									<ArtifactDownloadButton
+										path={artifactDownloadPath(workspaceId, artifactId)}
+										filename={downloadFilename ?? `artifact-${artifactId}`}
+										className="size-6 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+									/>
+								) : null}
 								<Separator
 									orientation="vertical"
 									className="mx-1.5 hidden bg-muted-foreground/20 data-[orientation=vertical]:h-4 data-[orientation=vertical]:w-px dark:bg-muted-foreground/25 lg:block"

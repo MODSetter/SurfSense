@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Shuffle, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { buildBackendUrl } from "@/lib/env-config";
+import { shuffledCardOrder } from "./flashcard-order";
 import { FlashcardSurface } from "./flashcard-surface";
 import { FlashcardText } from "./flashcard-text";
 import {
@@ -47,6 +48,7 @@ export default function FlashcardsViewer({
 		marks: {},
 	});
 	const [currentIndex, setCurrentIndex] = useState(0);
+	const [cardOrder, setCardOrder] = useState<number[] | null>(null);
 	const [revealed, setRevealed] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
 	const manifestProgressRef = useRef(manifest.flashcard_progress);
@@ -56,6 +58,7 @@ export default function FlashcardsViewer({
 	useEffect(() => {
 		const controller = new AbortController();
 		setLoadState({ status: "loading" });
+		setCardOrder(null);
 		setRevealed(false);
 
 		if (primary.size_bytes > FLASHCARDS_MAX_VIEWER_BYTES) {
@@ -125,9 +128,10 @@ export default function FlashcardsViewer({
 	}
 
 	const { deck } = loadState;
-	const card = deck.cards[currentIndex];
+	const cardIndex = cardOrder?.[currentIndex] ?? currentIndex;
+	const card = deck.cards[cardIndex];
 	const counts = flashcardProgressCounts(progress, deck.cards.length);
-	const currentMark = progress.marks[String(currentIndex)];
+	const currentMark = progress.marks[String(cardIndex)];
 
 	function move(offset: number) {
 		const next = currentIndex + offset;
@@ -137,12 +141,20 @@ export default function FlashcardsViewer({
 		setAnnouncement(`Card ${next + 1} of ${deck.cards.length}`);
 	}
 
+	function shuffle() {
+		if (progressMutation.isPending) return;
+		setCardOrder(shuffledCardOrder(deck.cards.length));
+		setCurrentIndex(0);
+		setRevealed(false);
+		setAnnouncement("Cards shuffled");
+	}
+
 	async function mark(markValue: FlashcardMark) {
 		if (progressMutation.isPending) return;
 		const previousProgress = progress;
-		const previousIndex = currentIndex;
+		const previousPosition = currentIndex;
 		const previousRevealed = revealed;
-		const marks = { ...progress.marks, [String(currentIndex)]: markValue };
+		const marks = { ...progress.marks, [String(cardIndex)]: markValue };
 		setProgress({ generation: manifest.generation, marks });
 		setAnnouncement(markValue === "good" ? "Marked as got it" : "Marked needs review");
 
@@ -156,14 +168,14 @@ export default function FlashcardsViewer({
 
 		try {
 			const authoritative = await progressMutation.mutateAsync({
-				cardIndex: previousIndex,
+				cardIndex,
 				mark: markValue,
 				cardCount: deck.cards.length,
 			});
 			setProgress(authoritative);
 		} catch {
 			setProgress(previousProgress);
-			setCurrentIndex(previousIndex);
+			setCurrentIndex(previousPosition);
 			setRevealed(previousRevealed);
 			setAnnouncement("Progress was not saved. Try again.");
 		}
@@ -172,7 +184,10 @@ export default function FlashcardsViewer({
 	const faceClass = "relative mx-auto flex h-full max-w-md flex-col justify-center";
 	const progressValue = ((currentIndex + 1) / deck.cards.length) * 100;
 	return (
-		<div data-vaul-no-drag="" className="h-full min-h-0 overflow-y-auto bg-[#f7f7f8] p-4 sm:p-6">
+		<div
+			data-vaul-no-drag=""
+			className="h-full min-h-0 select-none overflow-y-auto bg-[#f7f7f8] p-4 sm:p-6"
+		>
 			<div className="mx-auto flex min-h-full w-full max-w-[640px] flex-col items-center justify-center gap-4">
 				<div className="flex w-full max-w-[560px] flex-wrap items-center justify-between gap-2 text-xs text-[#4a4a4a]">
 					<p>{deck.title}</p>
@@ -288,6 +303,18 @@ export default function FlashcardsViewer({
 							<span className="tabular-nums">{counts.remembered}</span>
 							<Check />
 							<span className="hidden sm:inline">Got it</span>
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-8 px-2 sm:px-2.5"
+							disabled={progressMutation.isPending}
+							onClick={shuffle}
+							aria-label="Shuffle cards"
+						>
+							<Shuffle />
+							<span className="hidden sm:inline">Shuffle</span>
 						</Button>
 					</div>
 					<Button
