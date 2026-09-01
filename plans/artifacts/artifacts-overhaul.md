@@ -1,6 +1,6 @@
 # Artifacts Overhaul — Authoritative Architecture
 
-**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, interactive HTML, unified indexing/search, and phase 8 legacy demolition are implemented. Phase 7 will add interactive mind maps with PNG downloads, and phase 9 will complete generic-format handling, public artifact access, and XLSX hardening.
+**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, interactive HTML, mind maps, unified indexing/search, and phase 9 legacy removal are implemented. Phase 8 specifies interactive flashcards with persisted shared progress; phase 10 will complete fallback-format handling, public artifact access, and XLSX hardening.
 **Scope:** Generated deliverables. Media generation remains on its existing pipelines, while current image, podcast, and video flows may record artifact sidecars.
 **Shape:** [ADR 0003](../../docs/adr/0003-artifacts-as-documents.md) records why a deliverable's body is a document type rather than a second corpus, and the obligations that creates.
 
@@ -146,11 +146,17 @@ Dedicated routes are mounted under `/api/v1/workspaces/{workspace_id}/artifacts`
 - `GET /{artifact_id}/manifest`;
 - `GET /{artifact_id}/download`;
 - `GET /{artifact_id}/files/{file_id}/content`;
+- `PATCH /{artifact_id}/flashcard-progress` — phase 8's bounded,
+  generation-scoped interaction mutation;
 - `DELETE /{artifact_id}`.
 
 Citation context comes from the existing document chunk route, which already returns the document type and metadata the frontend needs to route an artifact citation. Artifacts need no chunk lookup of their own.
 
-Routes enforce workspace-scoped `ARTIFACTS_READ` or `ARTIFACTS_DELETE`. IDs must belong to the requested workspace and file IDs must belong to the requested artifact. Only durable primary/preview roles can exist on user-facing content routes.
+Routes enforce workspace-scoped artifact permissions. Reads use
+`ARTIFACTS_READ`, progress mutation uses `ARTIFACTS_UPDATE`, and deletion uses
+`ARTIFACTS_DELETE`. IDs must belong to the requested workspace and file IDs
+must belong to the requested artifact. Only durable primary/preview roles can
+exist on user-facing content routes.
 
 `DELETE /{artifact_id}` authorizes as an artifact operation and executes as a document deletion, so Git removal, chunk cascade, blob purge, and Zero-visible row state are handled once, by the code that already owns them.
 
@@ -167,7 +173,17 @@ Persistence remains format-blind:
 - Generation sources remain transient sandbox inputs rather than a persistence role.
 - The manifest and viewer registry degrade unknown or unviewable formats to download.
 
-Shipped deliverable formats are Markdown, PDF, DOCX, PPTX, XLSX, and interactive HTML. XLSX uses programmatic verification, primary-only persistence, no preview, and a native read-only grid. HTML uses programmatic verification and primary-only persistence, is served attachment-only, and renders client-side in a sandboxed iframe. Image, podcast, and video flows can also record artifact sidecars through their existing media pipelines. Phase 7 adds Markdown-backed hierarchical mind maps rendered interactively with Markmap and downloaded as a receipt-bound PNG. Phase 9 adds the generic adapter for bounded unknown binaries and uses `application/octet-stream` with attachment-only delivery.
+Shipped deliverable formats are Markdown, PDF, DOCX, PPTX, XLSX, interactive
+HTML, and mind maps. XLSX uses programmatic verification, primary-only
+persistence, no preview, and a native read-only grid. HTML uses programmatic
+verification and primary-only persistence, is served attachment-only, and
+renders client-side in a sandboxed iframe. Mind maps use canonical Markdown
+plus a receipt-bound PNG and a format-level Markmap viewer. Image, podcast, and
+video flows can also record artifact sidecars through their existing media
+pipelines. Phase 8 adds strict JSON flashcards, backend-derived searchable
+Markdown, a Motion-powered viewer, and shared generation-scoped marks. Phase 10
+adds the fallback adapter for bounded unknown binaries and uses
+`application/octet-stream` with attachment-only delivery.
 
 ## 8. Rendering and revision UX
 
@@ -180,6 +196,9 @@ The artifact panel and caches are keyed by `artifact_id`. It fetches the dedicat
 - HTML -> primary in a sandboxed iframe (phase 6);
 - mindmap -> canonical Markdown in a format-level Markmap viewer, while the
   primary PNG remains the download (phase 7);
+- flashcards -> verified primary JSON in a format-level interactive viewer,
+  while the document contains a trusted Markdown projection and artifact
+  metadata contains bounded shared marks (phase 8);
 - unknown/missing preview/oversized/parse failure -> unviewable state with download.
 
 All viewers are read-only. Revisions return to the deliverables agent, which loads the current primary plus Markdown context and saves with `artifact_id + expected_generation`. The current manifest is the only product-visible generation; prior file rows/blobs are purged. Git may retain Markdown history, but it is not an artifact restoration mechanism.
@@ -195,8 +214,9 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 5 | Complete | XLSX skill, programmatic verification, persistence, and authenticated native grid |
 | 6 | Complete | Interactive HTML skill, programmatic verification, and a sandboxed-iframe panel viewer |
 | 7 | Complete | Markdown-backed interactive mind maps with verified PNG downloads |
-| 8 | Complete | Legacy report/resume/Typst demolition and library repoint |
-| 9 | Planned | Generic formats, public artifact access, XLSX hardening, and end-to-end coverage |
+| 8 | Planned | Strict JSON flashcards, no-vision verification, Motion viewer, and shared tick/cross progress |
+| 9 | Complete | Legacy report/resume/Typst removal and library repoint |
+| 10 | Planned | Fallback formats, public artifact access, XLSX hardening, and end-to-end coverage |
 
 ## 10. Phase 7 mind-map boundary
 
@@ -209,15 +229,37 @@ reverse-engineer the PNG. Programmatic verification binds format, Markdown,
 and PNG hashes without a vision pass. The phase adds no editable graph model,
 source-file role, export route, or mindmap-specific persistence/API branch.
 
-## 11. Completed demolition boundary
+## 11. Phase 8 flashcard boundary
 
-Phase 8 removed legacy `Report`, report/resume tools, Typst routes, old panels, and historical report rows without migrating them into `Artifact` or into artifact documents. Old tool parts now render static unavailable cards. This remains independent of the artifact architecture above.
+Phase 8 stores a strict versioned JSON deck as the primary artifact and derives
+its searchable Markdown from those exact verified bytes in trusted backend
+code. Verification is structural and never enters conversion or vision. The
+authenticated format-level viewer uses Motion only for the front/back surface,
+shows the shared Spinner until fetch and validation complete, and mounts
+unchanged in the desktop panel and mobile Vaul drawer. Tick/cross marks are one
+generation-scoped shared map in existing artifact metadata; they do not revise
+content, write Git, or reindex. The phase adds no agent tool, database migration,
+FSRS state, or review-history model.
 
-## 12. Phase 9 boundary
+## 12. Completed legacy-removal boundary
 
-Phase 9 completes access and fallback behavior around the existing model. A compatibility public primary-content route already serves current media cards; phase 9 adds token-scoped manifest, download, and per-file reads, not public artifact copies. It also adds a generic adapter, not persistence suffix branches, and XLSX hardening, not spreadsheet editing. Public snapshots allowlist artifact IDs and resolve the current generation. Generation sources remain transient and are never publicly readable.
+Phase 9 removed legacy `Report`, report/resume tools, Typst routes, old panels,
+and historical report rows without migrating them into `Artifact` or into
+artifact documents. Old tool parts now render static unavailable cards. This
+remains independent of the artifact architecture above.
 
-## 13. Required invariants
+## 13. Phase 10 boundary
+
+Phase 10 completes access and fallback behavior around the existing model. A
+compatibility public primary-content route already serves current media cards;
+phase 10 adds token-scoped manifest, download, and per-file reads, not public
+artifact copies. It also adds a fallback adapter, not persistence suffix
+branches, and XLSX hardening, not spreadsheet editing. Public snapshots
+allowlist artifact IDs and resolve the current generation. Flashcards reuse the
+same viewer publicly but do not expose or mutate authenticated shared marks.
+Generation sources remain transient and are never publicly readable.
+
+## 14. Required invariants
 
 1. One artifact is one document. `artifact.document_id` is non-null and unique, and no artifact operation creates a second row for the same deliverable.
 2. Title, path, Markdown, and indexing state live only on the document. Format, generation, roles, and receipts live only on the artifact.
@@ -235,3 +277,7 @@ Phase 9 completes access and fallback behavior around the existing model. A comp
 14. When a format renders one durable representation but downloads another,
     verification binds both inputs so the panel and downloaded artifact cannot
     silently diverge.
+15. Adapter-owned Markdown projection is derived only from receipt-bound primary
+    bytes; the agent cannot provide a competing representation.
+16. Mutable artifact interaction state is bounded, generation-scoped, and
+    separate from content revision, Git projection, and indexing.

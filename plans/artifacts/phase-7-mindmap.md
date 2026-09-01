@@ -3,7 +3,9 @@
 **Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 1 foundation, phase 3 verification receipts, phase 5 programmatic-verification precedent, and the artifact-panel path used by phase 6.
-**Independent of:** phase 9 public sharing. Phase 7 ships the authenticated viewer and download; the same viewer becomes public only after phase 9 provides token-scoped manifests and files.
+**Independent of:** phase 10 public access. Phase 7 ships the authenticated
+viewer and download; the same viewer becomes public only after phase 10
+provides token-scoped manifests and files.
 
 ## 1. Goal
 
@@ -346,7 +348,7 @@ the panel does not need to fetch it. `X-Content-Type-Options: nosniff` remains
 present. Phase 7 adds no export endpoint, client-side canvas export, HTML
 download, or temporary signed URL.
 
-Public download and public interactive viewing remain phase 9 work. Phase 9
+Public download and public interactive viewing remain phase 10 work. Phase 10
 must include `mindmap` in its format-level viewer coverage and continue to serve
 only the allowlisted primary PNG.
 
@@ -441,7 +443,8 @@ dimensions, duration, and failure category, but never dump full user content.
 - roster and revision instructions advertise the new format;
 - PDF, DOCX, PPTX, XLSX, HTML, Markdown, media, and unknown-format behavior
   remains green;
-- phase 9 public/generic work cannot classify unrelated PNGs as mindmaps.
+- phase 8 flashcards cannot classify generic JSON or image content as mindmaps;
+- phase 10 public/fallback work cannot classify unrelated PNGs as mindmaps.
 
 ## 13. Delivery order
 
@@ -478,5 +481,5 @@ column, stop and repair the adapter/viewer boundary instead.
    persistence, and frontend failures retain the verified PNG escape hatch.
 7. No mindmap-specific persistence schema, API route, panel state, search path,
    citation kind, or editor path exists.
-8. Existing artifact formats and phase 9 generic/public assumptions remain
-   green.
+8. Existing artifact formats, phase 8 flashcards, and phase 10
+   public/fallback assumptions remain green.

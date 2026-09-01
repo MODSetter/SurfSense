@@ -49,6 +49,8 @@ The phase-2 sentinel, mtime ledger, model-facing image inspection, and skill scr
 - Later-turn revision preserves `artifact_id`, increments generation, and purges superseded blobs.
 - A second chat's roster cannot expose the first chat's artifact.
 - No prompt or active tool registration routes new work through legacy report/resume tools.
+- Phase 8 flashcards reuse the same load-instructions, execute, verify, and
+  save tools; they do not introduce a format-specific agent tool.
 
 ## 6. Exit criteria
 
@@ -57,3 +59,5 @@ The phase-2 sentinel, mtime ledger, model-facing image inspection, and skill scr
 3. The primary renders via the artifact API with immutable caching and downloads with its generated filename.
 4. The artifact becomes searchable according to Git/non-git indexing timing.
 5. Revision updates one artifact under optimistic generation rather than producing a second deliverable.
+6. Future programmatically verified formats can skip rendered review without
+   weakening the signed primary-byte receipt.

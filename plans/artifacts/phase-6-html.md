@@ -3,11 +3,12 @@
 **Status:** Complete.
 **Parent spec:** [`artifacts-overhaul.md`](./artifacts-overhaul.md).
 **Depends on:** phase 1 foundation (schema, storage, panel, manifest), phase 3 verification service, and the phase 5 programmatic-verification precedent.
-**Independent of:** phase 9. Authenticated HTML rendering needs nothing from the public path; public HTML sharing is gated on phase 9 route hardening (§9).
+**Independent of:** phase 10. Authenticated HTML rendering needs nothing from
+the public path; public HTML sharing is gated on phase 10 route hardening (§9).
 
 ## 1. Goal
 
-Add interactive, self-contained HTML as a first-class artifact format that renders in the existing right-hand artifact panel, without a schema, persistence, or API change. HTML is a new adapter plus a new viewer, exactly as invariant §12.12 requires. It is not a new artifact domain, panel, or route.
+Add interactive, self-contained HTML as a first-class artifact format that renders in the existing right-hand artifact panel, without a schema, persistence, or API change. HTML is a new adapter plus a new viewer, exactly as invariant §14.12 requires. It is not a new artifact domain, panel, or route.
 
 The deliverable is a single self-contained page — inline CSS, inline JavaScript, browser-local state — of the kind an "interactive pricing calculator" or dashboard prompt produces. The reference output is [`html-artifacts.md`](../../html-artifacts.md).
 
@@ -26,11 +27,11 @@ In:
 
 Out:
 
-- public artifact viewing of HTML (deferred to the phase 9 public path, see §9);
+- public artifact viewing of HTML (deferred to the phase 10 public path, see §9);
 - inline chat-card execution of HTML (panel-only; a card is a later option);
 - server-side HTML rendering, screenshotting, or PDF preview generation;
 - external application code, backends, or persisted state inside an artifact;
-- editing an HTML artifact in the document editor (artifacts stay read-only, invariant §12.10).
+- editing an HTML artifact in the document editor (artifacts stay read-only, invariant §14.10).
 
 ## 3. Persistence
 
@@ -202,9 +203,9 @@ html: {
 
 ## 9. Public sharing boundary
 
-Public HTML is out of this phase. The current public content route (`public_chat_routes.py::stream_public_artifact_file`) streams the stored MIME with no `Content-Disposition` and no `nosniff`, which phase 9 §7.1 already commits to fixing for all formats. HTML must not be publicly served until that hardening lands, because a public content URL that omits attachment/`nosniff` is a route to executing agent HTML on a shared origin.
+Public HTML is out of this phase. The current public content route (`public_chat_routes.py::stream_public_artifact_file`) streams the stored MIME with no `Content-Disposition` and no `nosniff`, which phase 10 §7.1 commits to fixing for all formats. HTML must not be publicly served until that hardening lands, because a public content URL that omits attachment/`nosniff` is a route to executing agent HTML on a shared origin.
 
-When public HTML does ship, it reuses the same story: bytes fetched via the token-scoped content route (attachment + `nosniff`), rendered in the same sandboxed `srcdoc` frame. The phase 9 public viewer list gains an HTML entry at that point. No public artifact copy, no second render path.
+When public HTML does ship, it reuses the same story: bytes fetched via the token-scoped content route (attachment + `nosniff`), rendered in the same sandboxed `srcdoc` frame. The phase 10 public viewer list gains an HTML entry at that point. No public artifact copy, no second render path.
 
 ## 10. Security invariants
 
@@ -245,6 +246,8 @@ When public HTML does ship, it reuses the same story: bytes fetched via the toke
 - the rendered iframe carries `sandbox="allow-scripts"` with no `allow-same-origin`, and is fed by `srcdoc`, not `src`;
 - the reference calculator's controls (plan toggle, sliders, checkboxes, reset) operate inside the frame;
 - oversized and corrupt payloads fall back to the shared unviewable state with download preserved.
+- phase 8's flashcard Motion viewer remains format-dispatched and cannot render
+  through the HTML iframe or execute artifact code.
 
 ## 12. Delivery order
 
@@ -265,4 +268,5 @@ Each step leaves one format-neutral path. If any step needs a format-specific pe
 4. The authenticated artifact panel renders the page in a sandboxed iframe with no same-origin power, and the header still downloads the original `.html`.
 5. `text/html` is attachment-only with `nosniff` on every backend route, and no artifact HTML executes on the SurfSense origin.
 6. No HTML-specific schema, persistence API, search path, or document-editor path exists.
-7. PDF, DOCX, PPTX, XLSX, Markdown, and unknown-format behavior remain green.
+7. PDF, DOCX, PPTX, XLSX, mindmap, flashcards, Markdown, and fallback-format
+   behavior remain green.
