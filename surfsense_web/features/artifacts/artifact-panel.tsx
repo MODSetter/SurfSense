@@ -32,6 +32,16 @@ const MindMapViewer = dynamic(() => import("./mindmap-viewer"), {
 	),
 });
 
+const FlashcardsViewer = dynamic(() => import("./flashcards-viewer"), {
+	ssr: false,
+	loading: () => (
+		<div className="flex h-full items-center justify-center" aria-busy="true">
+			<Spinner size="lg" />
+			<span className="sr-only">Loading flashcards</span>
+		</div>
+	),
+});
+
 function artifactFilename(manifest: ArtifactManifest | undefined): string | null {
 	if (!manifest) return null;
 	const primary = manifest.files.find((file) => file.role === "primary");
@@ -59,7 +69,7 @@ export function ArtifactViewerContent({
 	const downloadFilename = artifactFilename(content);
 	const primary = content?.files.find((file) => file.role === "primary");
 	const artifactType =
-		content?.format === "mindmap"
+		content && ["mindmap", "flashcards"].includes(content.format)
 			? getArtifactFormatMeta(content.format).detailLabel
 			: primary
 				? extension(primary.filename)
@@ -79,9 +89,7 @@ export function ArtifactViewerContent({
 						{artifactType ? (
 							<>
 								<Dot className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
-								<span className="shrink-0 text-xs text-muted-foreground">
-									{artifactType}
-								</span>
+								<span className="shrink-0 text-xs text-muted-foreground">{artifactType}</span>
 							</>
 						) : null}
 					</div>
@@ -135,8 +143,12 @@ export function ArtifactViewerContent({
 							Try again
 						</Button>
 					</div>
-				) : content?.format === "mindmap" ? (
-					<FileArtifact content={content} zoomControlsContainer={zoomControlsContainer} />
+				) : content && ["mindmap", "flashcards"].includes(content.format) ? (
+					<FileArtifact
+						content={content}
+						workspaceId={workspaceId}
+						zoomControlsContainer={zoomControlsContainer}
+					/>
 				) : content && !primary ? (
 					<div className="h-full overflow-y-auto px-5 py-4">
 						<MarkdownViewer
@@ -145,7 +157,11 @@ export function ArtifactViewerContent({
 						/>
 					</div>
 				) : content ? (
-					<FileArtifact content={content} zoomControlsContainer={zoomControlsContainer} />
+					<FileArtifact
+						content={content}
+						workspaceId={workspaceId}
+						zoomControlsContainer={zoomControlsContainer}
+					/>
 				) : null}
 			</div>
 		</div>
@@ -184,9 +200,11 @@ export function MobileArtifactDrawer() {
 
 function FileArtifact({
 	content,
+	workspaceId,
 	zoomControlsContainer,
 }: {
 	content: ArtifactManifest;
+	workspaceId: number;
 	zoomControlsContainer: HTMLElement | null;
 }) {
 	const primary = content.files.find((file) => file.role === "primary");
@@ -201,6 +219,16 @@ function FileArtifact({
 	}
 	if (!primary) {
 		return <UnviewableFile message="This artifact has no primary file." />;
+	}
+	if (dispatch.kind === "flashcards") {
+		return (
+			<FlashcardsViewer
+				workspaceId={workspaceId}
+				artifactId={content.artifact_id}
+				manifest={content}
+				primary={primary}
+			/>
+		);
 	}
 	const Viewer = dispatch.kind === "mime" ? VIEWERS[dispatch.mimeType] : undefined;
 	return Viewer ? (
