@@ -45,6 +45,9 @@ export interface FolderTreeViewProps {
 	onRescanFolder?: (folder: FolderDisplay) => void;
 	onStopWatchingFolder?: (folder: FolderDisplay) => void;
 	onExportFolder?: (folder: FolderDisplay) => void;
+	/** Folders to badge as part of a connected git remote (the forge root). */
+	gitSyncedFolderIds?: Set<number>;
+	gitSyncedTooltip?: string;
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | number): Record<string | number, T[]> {
@@ -81,6 +84,8 @@ export function FolderTreeView({
 	onRescanFolder,
 	onStopWatchingFolder,
 	onExportFolder,
+	gitSyncedFolderIds,
+	gitSyncedTooltip,
 }: FolderTreeViewProps) {
 	const foldersByParent = useMemo(() => groupBy(folders, (f) => f.parentId ?? "root"), [folders]);
 
@@ -238,6 +243,8 @@ export function FolderTreeView({
 					onRescan={onRescanFolder}
 					onStopWatching={onStopWatchingFolder}
 					onExportFolder={onExportFolder}
+					isGitSynced={gitSyncedFolderIds?.has(f.id)}
+					gitSyncedTooltip={gitSyncedTooltip}
 				/>
 			);
 
