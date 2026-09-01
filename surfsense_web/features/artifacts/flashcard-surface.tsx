@@ -63,7 +63,7 @@ export function FlashcardSurface({
 	}
 
 	return (
-		<div className="relative h-full [perspective:1000px]">
+		<div className="relative h-full [perspective:9000px]">
 			<motion.div
 				className="relative h-full rounded-2xl bg-transparent shadow-[0_0_2.5rem_0_rgb(0_0_0/0.16)] [transform-style:preserve-3d]"
 				animate={{ rotateY: revealed ? 180 : 0 }}

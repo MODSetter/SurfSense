@@ -138,7 +138,9 @@ export default function FlashcardsViewer({
 	const position = sequence.indexOf(currentIndex);
 
 	function move(offset: number) {
-		const next = sequence[(position + offset + sequence.length) % sequence.length];
+		const nextPosition = position + offset;
+		if (nextPosition < 0 || nextPosition >= sequence.length) return;
+		const next = sequence[nextPosition];
 		setCurrentIndex(next);
 		setRevealed(false);
 		setAnnouncement(`Card ${next + 1} of ${deck.cards.length}`);
@@ -158,8 +160,10 @@ export default function FlashcardsViewer({
 			setReviewQueue(null);
 			setRevealed(false);
 			setAnnouncement("Missed-card review complete");
+		} else if (nextPosition >= sequence.length) {
+			setAnnouncement("Deck complete");
 		} else {
-			const next = sequence[nextPosition % sequence.length];
+			const next = sequence[nextPosition];
 			setCurrentIndex(next);
 			setRevealed(false);
 		}
@@ -260,7 +264,8 @@ export default function FlashcardsViewer({
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e]"
+						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e] disabled:text-[#a9a9a9] disabled:opacity-100"
+						disabled={position === 0}
 						onClick={() => move(-1)}
 						aria-label="Previous card"
 					>
@@ -273,7 +278,8 @@ export default function FlashcardsViewer({
 						type="button"
 						variant="ghost"
 						size="icon"
-						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e]"
+						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e] disabled:text-[#a9a9a9] disabled:opacity-100"
+						disabled={position === sequence.length - 1}
 						onClick={() => move(1)}
 						aria-label="Next card"
 					>
