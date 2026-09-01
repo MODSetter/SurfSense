@@ -138,12 +138,13 @@ export default function FlashcardsViewer({
 	}
 
 	async function mark(markValue: FlashcardMark) {
-		if (!revealed || progressMutation.isPending) return;
+		if (progressMutation.isPending) return;
 		const previousProgress = progress;
 		const previousIndex = currentIndex;
+		const previousRevealed = revealed;
 		const marks = { ...progress.marks, [String(currentIndex)]: markValue };
 		setProgress({ generation: manifest.generation, marks });
-		setAnnouncement(markValue === "good" ? "Marked remembered" : "Marked needs review");
+		setAnnouncement(markValue === "good" ? "Marked as got it" : "Marked needs review");
 
 		const next = currentIndex + 1;
 		if (next >= deck.cards.length) {
@@ -163,7 +164,7 @@ export default function FlashcardsViewer({
 		} catch {
 			setProgress(previousProgress);
 			setCurrentIndex(previousIndex);
-			setRevealed(true);
+			setRevealed(previousRevealed);
 			setAnnouncement("Progress was not saved. Try again.");
 		}
 	}
@@ -175,11 +176,7 @@ export default function FlashcardsViewer({
 			<div className="mx-auto flex min-h-full w-full max-w-[640px] flex-col items-center justify-center gap-4">
 				<div className="flex w-full max-w-[560px] flex-wrap items-center justify-between gap-2 text-xs text-[#4a4a4a]">
 					<p>{deck.title}</p>
-					<section className="flex items-center gap-3" aria-label="Study progress">
-						<span>{counts.remembered} remembered</span>
-						<span>{counts.missed} missed</span>
-						<span>{counts.unseen} unseen</span>
-					</section>
+					<p>{counts.unseen} remaining</p>
 				</div>
 
 				<div className="aspect-[28/17] w-full max-w-[560px] shrink-0">
@@ -198,7 +195,10 @@ export default function FlashcardsViewer({
 								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
 									Question
 								</p>
-								<FlashcardText content={card.front_text} className="text-base sm:text-lg" />
+								<FlashcardText
+									content={card.front_text}
+									className="text-sm sm:text-base lg:text-lg"
+								/>
 								{card.hint_text ? (
 									<div className="mt-6 border-[#d0d0d0] border-t pt-4 text-sm text-[#4a4a4a]">
 										<span className="font-medium">Hint: </span>
@@ -221,10 +221,13 @@ export default function FlashcardsViewer({
 								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
 									Answer
 								</p>
-								<FlashcardText content={card.back_text} className="text-base sm:text-lg" />
+								<FlashcardText
+									content={card.back_text}
+									className="text-sm sm:text-base lg:text-lg"
+								/>
 								{currentMark ? (
 									<p className="mt-6 text-xs font-medium text-[#4a4a4a]">
-										Current mark: {currentMark === "good" ? "Remembered" : "Needs review"}
+										Current mark: {currentMark === "good" ? "Got it" : "Needs review"}
 									</p>
 								) : null}
 							</div>
@@ -244,7 +247,7 @@ export default function FlashcardsViewer({
 
 				<div
 					data-vaul-no-drag=""
-					className="grid w-full max-w-[560px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2"
+					className="flex w-full max-w-[560px] items-center justify-center gap-4 sm:gap-6"
 				>
 					<Button
 						type="button"
@@ -258,33 +261,34 @@ export default function FlashcardsViewer({
 						<ArrowLeft />
 					</Button>
 					<div className="flex min-w-0 items-center justify-center gap-2">
-						{revealed ? (
-							<>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="size-8 border-[#d0d0d0] bg-white px-0 text-[#1c1b1e] hover:bg-[#f0f0f0] hover:text-[#1c1b1e] sm:w-auto sm:px-2.5"
-									disabled={progressMutation.isPending}
-									onClick={() => void mark("again")}
-									aria-label="Needs review"
-								>
-									<X />
-									<span className="hidden sm:inline">Needs review</span>
-								</Button>
-								<Button
-									type="button"
-									size="sm"
-									className="size-8 bg-[#1c1b1e] px-0 text-white hover:bg-[#4a4a4a] sm:w-auto sm:px-2.5"
-									disabled={progressMutation.isPending}
-									onClick={() => void mark("good")}
-									aria-label="Remembered"
-								>
-									<Check />
-									<span className="hidden sm:inline">Remembered</span>
-								</Button>
-							</>
-						) : null}
+						<Button
+							type="button"
+							size="sm"
+							className="h-8 bg-red-700 px-2 text-white hover:bg-red-800 sm:px-2.5"
+							disabled={progressMutation.isPending}
+							onClick={() => void mark("again")}
+							aria-label={`Needs review, ${counts.missed} ${
+								counts.missed === 1 ? "card" : "cards"
+							}`}
+						>
+							<span className="tabular-nums">{counts.missed}</span>
+							<X />
+							<span className="hidden sm:inline">Needs review</span>
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							className="h-8 bg-emerald-700 px-2 text-white hover:bg-emerald-800 sm:px-2.5"
+							disabled={progressMutation.isPending}
+							onClick={() => void mark("good")}
+							aria-label={`Got it, ${counts.remembered} ${
+								counts.remembered === 1 ? "card" : "cards"
+							}`}
+						>
+							<span className="tabular-nums">{counts.remembered}</span>
+							<Check />
+							<span className="hidden sm:inline">Got it</span>
+						</Button>
 					</div>
 					<Button
 						type="button"
