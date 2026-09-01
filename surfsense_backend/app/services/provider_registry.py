@@ -89,6 +89,15 @@ REGISTRY: dict[str, ProviderSpec] = {
         "bearer",
         "Requesty",
     ),
+    "orcarouter": ProviderSpec(
+        Transport.OPENAI_COMPATIBLE,
+        "openai",
+        "openai_models",
+        "https://api.orcarouter.ai/v1",
+        False,
+        "bearer",
+        "OrcaRouter",
+    ),
     "openai_compatible": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
         "openai",
