@@ -29,12 +29,17 @@ def test_artifact_format_uses_markdown_or_primary_extension():
     assert _artifact_format(files) == "pdf"
 
 
-def test_flashcard_revision_resets_only_progress_metadata():
+def test_flashcard_revision_removes_all_user_study_state():
     current = {
         "verification": {"verified": True},
         "flashcards": {
-            "progress": {"generation": 1, "marks": {"0": "good"}},
-            "future_setting": "preserved",
+            "study_by_user": {
+                "11": {
+                    "generation": 1,
+                    "marks": {"0": "good"},
+                    "order": [1, 0],
+                }
+            },
         },
     }
 
@@ -46,6 +51,5 @@ def test_flashcard_revision_resets_only_progress_metadata():
 
     assert result == {
         "verification": {"verified": False},
-        "flashcards": {"future_setting": "preserved"},
     }
-    assert current["flashcards"]["progress"]["marks"] == {"0": "good"}
+    assert current["flashcards"]["study_by_user"]["11"]["marks"] == {"0": "good"}

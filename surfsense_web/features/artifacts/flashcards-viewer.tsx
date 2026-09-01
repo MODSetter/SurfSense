@@ -17,13 +17,13 @@ import {
 	type FlashcardDeck,
 	FlashcardDeckSchema,
 	type FlashcardMark,
-	type FlashcardProgress,
+	type FlashcardStudyState,
 	firstUnseenCard,
 	flashcardProgressCounts,
-	normalizeFlashcardProgress,
+	normalizeFlashcardStudyState,
 } from "./flashcards-schema";
 import type { ArtifactFile, ArtifactManifest } from "./model";
-import { useFlashcardProgress } from "./use-flashcard-progress";
+import { useMarkFlashcard, useShuffleFlashcards } from "./use-flashcard-study-state";
 
 type LoadState =
 	| { status: "loading" }
@@ -43,22 +43,22 @@ export default function FlashcardsViewer({
 }) {
 	const reducedMotion = useReducedMotion() ?? false;
 	const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
-	const [progress, setProgress] = useState<FlashcardProgress>({
+	const [studyState, setStudyState] = useState<FlashcardStudyState>({
 		generation: manifest.generation,
 		marks: {},
+		order: [],
 	});
 	const [currentIndex, setCurrentIndex] = useState(0);
-	const [cardOrder, setCardOrder] = useState<number[] | null>(null);
 	const [revealed, setRevealed] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
-	const manifestProgressRef = useRef(manifest.flashcard_progress);
-	manifestProgressRef.current = manifest.flashcard_progress;
-	const progressMutation = useFlashcardProgress(workspaceId, artifactId, manifest.generation);
+	const manifestStudyStateRef = useRef(manifest.flashcard_study_state);
+	manifestStudyStateRef.current = manifest.flashcard_study_state;
+	const markMutation = useMarkFlashcard(workspaceId, artifactId, manifest.generation);
+	const shuffleMutation = useShuffleFlashcards(workspaceId, artifactId, manifest.generation);
 
 	useEffect(() => {
 		const controller = new AbortController();
 		setLoadState({ status: "loading" });
-		setCardOrder(null);
 		setRevealed(false);
 
 		if (primary.size_bytes > FLASHCARDS_MAX_VIEWER_BYTES) {
@@ -85,13 +85,13 @@ export default function FlashcardsViewer({
 				const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 				const parsed = FlashcardDeckSchema.safeParse(JSON.parse(text));
 				if (!parsed.success) throw new Error("Invalid flashcard deck");
-				const normalized = normalizeFlashcardProgress(
-					manifestProgressRef.current,
+				const normalized = normalizeFlashcardStudyState(
+					manifestStudyStateRef.current,
 					manifest.generation,
 					parsed.data.cards.length
 				);
-				const initialIndex = firstUnseenCard(normalized, parsed.data.cards.length);
-				setProgress(normalized);
+				const initialIndex = firstUnseenCard(normalized);
+				setStudyState(normalized);
 				setCurrentIndex(initialIndex);
 				setLoadState({ status: "ready", deck: parsed.data });
 			} catch {
@@ -104,14 +104,14 @@ export default function FlashcardsViewer({
 
 	useEffect(() => {
 		if (loadState.status !== "ready") return;
-		setProgress(
-			normalizeFlashcardProgress(
-				manifest.flashcard_progress,
+		setStudyState(
+			normalizeFlashcardStudyState(
+				manifest.flashcard_study_state,
 				manifest.generation,
 				loadState.deck.cards.length
 			)
 		);
-	}, [loadState, manifest.flashcard_progress, manifest.generation]);
+	}, [loadState, manifest.flashcard_study_state, manifest.generation]);
 
 	if (loadState.status === "loading") {
 		return (
@@ -128,10 +128,10 @@ export default function FlashcardsViewer({
 	}
 
 	const { deck } = loadState;
-	const cardIndex = cardOrder?.[currentIndex] ?? currentIndex;
+	const cardIndex = studyState.order[currentIndex] ?? currentIndex;
 	const card = deck.cards[cardIndex];
-	const counts = flashcardProgressCounts(progress, deck.cards.length);
-	const currentMark = progress.marks[String(cardIndex)];
+	const counts = flashcardProgressCounts(studyState, deck.cards.length);
+	const currentMark = studyState.marks[String(cardIndex)];
 
 	function move(offset: number) {
 		const next = currentIndex + offset;
@@ -141,21 +141,38 @@ export default function FlashcardsViewer({
 		setAnnouncement(`Card ${next + 1} of ${deck.cards.length}`);
 	}
 
-	function shuffle() {
-		if (progressMutation.isPending) return;
-		setCardOrder(shuffledCardOrder(deck.cards.length));
+	async function shuffle() {
+		if (markMutation.isPending || shuffleMutation.isPending) return;
+		const previousState = studyState;
+		const previousIndex = currentIndex;
+		const previousRevealed = revealed;
+		const order = shuffledCardOrder(deck.cards.length);
+		setStudyState({ ...studyState, order });
 		setCurrentIndex(0);
 		setRevealed(false);
 		setAnnouncement("Cards shuffled");
+		try {
+			setStudyState(
+				await shuffleMutation.mutateAsync({
+					order,
+					cardCount: deck.cards.length,
+				})
+			);
+		} catch {
+			setStudyState(previousState);
+			setCurrentIndex(previousIndex);
+			setRevealed(previousRevealed);
+			setAnnouncement("Shuffle was not saved. Try again.");
+		}
 	}
 
 	async function mark(markValue: FlashcardMark) {
-		if (progressMutation.isPending) return;
-		const previousProgress = progress;
+		if (markMutation.isPending || shuffleMutation.isPending) return;
+		const previousStudyState = studyState;
 		const previousPosition = currentIndex;
 		const previousRevealed = revealed;
-		const marks = { ...progress.marks, [String(cardIndex)]: markValue };
-		setProgress({ generation: manifest.generation, marks });
+		const marks = { ...studyState.marks, [String(cardIndex)]: markValue };
+		setStudyState({ ...studyState, marks });
 		setAnnouncement(markValue === "good" ? "Marked as got it" : "Marked needs review");
 
 		const next = currentIndex + 1;
@@ -167,14 +184,14 @@ export default function FlashcardsViewer({
 		}
 
 		try {
-			const authoritative = await progressMutation.mutateAsync({
+			const authoritative = await markMutation.mutateAsync({
 				cardIndex,
 				mark: markValue,
 				cardCount: deck.cards.length,
 			});
-			setProgress(authoritative);
+			setStudyState(authoritative);
 		} catch {
-			setProgress(previousProgress);
+			setStudyState(previousStudyState);
 			setCurrentIndex(previousPosition);
 			setRevealed(previousRevealed);
 			setAnnouncement("Progress was not saved. Try again.");
@@ -280,7 +297,7 @@ export default function FlashcardsViewer({
 							type="button"
 							size="sm"
 							className="h-8 bg-red-700 px-2 text-white hover:bg-red-800 sm:px-2.5"
-							disabled={progressMutation.isPending}
+							disabled={markMutation.isPending || shuffleMutation.isPending}
 							onClick={() => void mark("again")}
 							aria-label={`Needs review, ${counts.missed} ${
 								counts.missed === 1 ? "card" : "cards"
@@ -294,7 +311,7 @@ export default function FlashcardsViewer({
 							type="button"
 							size="sm"
 							className="h-8 bg-emerald-700 px-2 text-white hover:bg-emerald-800 sm:px-2.5"
-							disabled={progressMutation.isPending}
+							disabled={markMutation.isPending || shuffleMutation.isPending}
 							onClick={() => void mark("good")}
 							aria-label={`Got it, ${counts.remembered} ${
 								counts.remembered === 1 ? "card" : "cards"
@@ -309,8 +326,8 @@ export default function FlashcardsViewer({
 							variant="outline"
 							size="sm"
 							className="h-8 px-2 sm:px-2.5"
-							disabled={progressMutation.isPending}
-							onClick={shuffle}
+							disabled={markMutation.isPending || shuffleMutation.isPending}
+							onClick={() => void shuffle()}
 							aria-label="Shuffle cards"
 						>
 							<Shuffle />

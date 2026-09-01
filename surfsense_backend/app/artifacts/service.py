@@ -99,16 +99,7 @@ def _revision_metadata(
     if artifact_format != "flashcards":
         return metadata
 
-    flashcards = metadata.get("flashcards")
-    if not isinstance(flashcards, dict):
-        metadata.pop("flashcards", None)
-        return metadata
-    flashcards = {**flashcards}
-    flashcards.pop("progress", None)
-    if flashcards:
-        metadata["flashcards"] = flashcards
-    else:
-        metadata.pop("flashcards", None)
+    metadata.pop("flashcards", None)
     return metadata
 
 

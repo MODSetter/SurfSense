@@ -14,11 +14,13 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.artifacts.flashcards import (
+    FlashcardOrderUpdate,
     FlashcardProgressUpdate,
     apply_flashcard_mark,
-    progress_digest,
+    apply_flashcard_order,
     reset_flashcard_progress,
-    sanitize_flashcard_progress,
+    sanitize_flashcard_study_state,
+    study_state_digest,
 )
 from app.artifacts.persistence import (
     Artifact,
@@ -275,27 +277,28 @@ async def get_artifact_manifest(
     if row is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
     artifact, document = row
-    flashcard_progress = None
+    flashcard_study_state = None
     if artifact.format == "flashcards":
         try:
             deck = await _read_flashcard_deck(artifact)
             card_count = len(deck.cards)
         except Exception:
             logger.warning(
-                "Could not normalize flashcard progress for artifact %s generation %s",
+                "Could not normalize flashcard state for artifact %s generation %s",
                 artifact.id,
                 artifact.generation,
                 exc_info=True,
             )
             card_count = 0
-        flashcard_progress = sanitize_flashcard_progress(
+        flashcard_study_state = sanitize_flashcard_study_state(
             artifact.artifact_metadata,
+            user_id=auth.user.id,
             generation=artifact.generation,
             card_count=card_count,
         )
     etag_suffix = (
-        f":{progress_digest(flashcard_progress)}"
-        if flashcard_progress is not None
+        f":{study_state_digest(flashcard_study_state)}"
+        if flashcard_study_state is not None
         else ""
     )
     etag = f'"{document.content_hash}:{artifact.generation}{etag_suffix}"'
@@ -321,9 +324,66 @@ async def get_artifact_manifest(
     legacy = _legacy_ref(artifact)
     if legacy is not None:
         payload["legacy"] = legacy
-    if flashcard_progress is not None:
-        payload["flashcard_progress"] = flashcard_progress
+    if flashcard_study_state is not None:
+        payload["flashcard_study_state"] = flashcard_study_state
     return payload
+
+
+async def _lock_flashcard_mutation(
+    session: AsyncSession,
+    workspace_id: int,
+    artifact_id: int,
+    expected_generation: int,
+) -> tuple[Artifact, int]:
+    source = await session.scalar(
+        select(Artifact)
+        .options(selectinload(Artifact.files))
+        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+    )
+    if source is None or source.format != "flashcards":
+        raise HTTPException(status_code=404, detail="Flashcard artifact not found")
+    if source.generation != expected_generation:
+        raise HTTPException(
+            status_code=409,
+            detail="Flashcard artifact generation changed; refresh before updating",
+        )
+    try:
+        card_count = len((await _read_flashcard_deck(source)).cards)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    # ponytail: One short artifact-row lock serializes bounded JSONB writes. Move
+    # study state to user-owned rows only if workspace contention becomes material.
+    artifact = await session.scalar(
+        select(Artifact)
+        .where(
+            Artifact.id == artifact_id,
+            Artifact.workspace_id == workspace_id,
+        )
+        .with_for_update()
+    )
+    if (
+        artifact is None
+        or artifact.format != "flashcards"
+        or artifact.generation != expected_generation
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Flashcard artifact changed; refresh before updating",
+        )
+    return artifact, card_count
+
+
+async def _commit_flashcard_state(
+    session: AsyncSession,
+    artifact: Artifact,
+    metadata: dict[str, object],
+) -> None:
+    content_updated_at = artifact.updated_at
+    artifact.artifact_metadata = metadata
+    artifact.updated_at = content_updated_at
+    flag_modified(artifact, "updated_at")
+    await session.commit()
 
 
 @router.patch("/workspaces/{workspace_id}/artifacts/{artifact_id}/flashcard-progress")
@@ -337,38 +397,27 @@ async def update_flashcard_progress(
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
     )
-    artifact = await session.scalar(
-        select(Artifact)
-        .options(selectinload(Artifact.files))
-        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
-        .with_for_update()
+    artifact, card_count = await _lock_flashcard_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        update.generation,
     )
-    if artifact is None or artifact.format != "flashcards":
-        raise HTTPException(status_code=404, detail="Flashcard artifact not found")
-    if artifact.generation != update.generation:
-        raise HTTPException(
-            status_code=409,
-            detail="Flashcard artifact generation changed; refresh before marking",
-        )
 
     try:
-        deck = await _read_flashcard_deck(artifact)
-        metadata, progress = apply_flashcard_mark(
+        metadata, state = apply_flashcard_mark(
             artifact.artifact_metadata,
+            user_id=auth.user.id,
             generation=artifact.generation,
-            card_count=len(deck.cards),
+            card_count=card_count,
             card_index=update.card_index,
             mark=update.mark,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
-    content_updated_at = artifact.updated_at
-    artifact.artifact_metadata = metadata
-    artifact.updated_at = content_updated_at
-    flag_modified(artifact, "updated_at")
-    await session.commit()
-    return progress
+    await _commit_flashcard_state(session, artifact, metadata)
+    return state
 
 
 @router.delete("/workspaces/{workspace_id}/artifacts/{artifact_id}/flashcard-progress")
@@ -382,32 +431,53 @@ async def reset_artifact_flashcard_progress(
     await _authorize_artifact(
         session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
     )
-    artifact = await session.scalar(
-        select(Artifact)
-        .where(
-            Artifact.id == artifact_id,
-            Artifact.workspace_id == workspace_id,
-        )
-        .with_for_update()
+    artifact, card_count = await _lock_flashcard_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        generation,
     )
-    if artifact is None or artifact.format != "flashcards":
-        raise HTTPException(status_code=404, detail="Flashcard artifact not found")
-    if artifact.generation != generation:
-        raise HTTPException(
-            status_code=409,
-            detail="Flashcard artifact generation changed; refresh before resetting",
-        )
 
-    metadata, progress = reset_flashcard_progress(
+    metadata, state = reset_flashcard_progress(
         artifact.artifact_metadata,
+        user_id=auth.user.id,
         generation=artifact.generation,
+        card_count=card_count,
     )
-    content_updated_at = artifact.updated_at
-    artifact.artifact_metadata = metadata
-    artifact.updated_at = content_updated_at
-    flag_modified(artifact, "updated_at")
-    await session.commit()
-    return progress
+    await _commit_flashcard_state(session, artifact, metadata)
+    return state
+
+
+@router.put("/workspaces/{workspace_id}/artifacts/{artifact_id}/flashcard-order")
+async def update_flashcard_order(
+    workspace_id: int,
+    artifact_id: int,
+    update: FlashcardOrderUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact, card_count = await _lock_flashcard_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        update.generation,
+    )
+    try:
+        metadata, state = apply_flashcard_order(
+            artifact.artifact_metadata,
+            user_id=auth.user.id,
+            generation=artifact.generation,
+            card_count=card_count,
+            order=update.order,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    await _commit_flashcard_state(session, artifact, metadata)
+    return state
 
 
 @router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/download")

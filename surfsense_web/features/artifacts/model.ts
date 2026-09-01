@@ -26,7 +26,7 @@ export const ArtifactManifestSchema = z.object({
 	files: z.array(ArtifactFileSchema),
 	updated_at: z.string().nullable(),
 	legacy: ArtifactLegacySchema,
-	flashcard_progress: z.unknown().optional(),
+	flashcard_study_state: z.unknown().optional(),
 });
 
 export const ArtifactListItemSchema = z.object({

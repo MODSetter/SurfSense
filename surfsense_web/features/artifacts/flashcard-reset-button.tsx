@@ -13,9 +13,9 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { FlashcardProgressResponseSchema } from "./flashcards-schema";
+import { FlashcardStudyStateSchema } from "./flashcards-schema";
 import type { ArtifactManifest } from "./model";
-import { useResetFlashcardProgress } from "./use-flashcard-progress";
+import { useResetFlashcardProgress } from "./use-flashcard-study-state";
 
 export function FlashcardResetButton({
 	workspaceId,
@@ -27,8 +27,8 @@ export function FlashcardResetButton({
 	manifest: ArtifactManifest;
 }) {
 	const reset = useResetFlashcardProgress(workspaceId, artifactId, manifest.generation);
-	const parsedProgress = FlashcardProgressResponseSchema.safeParse(manifest.flashcard_progress);
-	const hasProgress = parsedProgress.success && Object.keys(parsedProgress.data.marks).length > 0;
+	const parsedState = FlashcardStudyStateSchema.safeParse(manifest.flashcard_study_state);
+	const hasProgress = parsedState.success && Object.keys(parsedState.data.marks).length > 0;
 	const disabled = !hasProgress || reset.isPending;
 
 	return (
