@@ -12,6 +12,15 @@ _FORGE_ROOT = {
     "gitlab": "GitLab",
 }
 
+# The bijection round-trips text documents only. Binary formats (PDF, images)
+# are left untouched on the remote
+SYNCED_SUFFIXES = (".md", ".markdown", ".mdx", ".rst", ".txt")
+
+
+def is_syncable(name: str) -> bool:
+    """True for a path the folder sync round-trips (a tracked text document)."""
+    return name.lower().endswith(SYNCED_SUFFIXES)
+
 
 def mount(*, provider: str, full_name: str, sourcepath: str) -> str:
     """documents/{GitHub|GitLab}/{owner/repo}/{sourcepath}."""
@@ -52,8 +61,8 @@ def rel_from_local(*, mount: str, path: str) -> str:
 
 def _rel(rel: str) -> str:
     name = "/".join(_segments(rel))
-    if not name.endswith(".md"):
-        raise RemoteError("unsafe_path", "bijection is markdown only")
+    if not is_syncable(name):
+        raise RemoteError("unsafe_path", "sync is limited to text documents")
     return name
 
 

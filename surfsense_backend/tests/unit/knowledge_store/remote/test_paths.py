@@ -5,7 +5,13 @@ from __future__ import annotations
 import pytest
 
 from app.knowledge_store.remote.exceptions import RemoteError
-from app.knowledge_store.remote.paths import full_name_from_url, mount, to_local, to_remote
+from app.knowledge_store.remote.paths import (
+    full_name_from_url,
+    is_syncable,
+    mount,
+    to_local,
+    to_remote,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -62,7 +68,22 @@ def test_rel_parent_segments_are_rejected():
     assert exc.value.code == "unsafe_path"
 
 
-def test_non_markdown_rel_is_rejected():
+def test_binary_rel_is_rejected():
     with pytest.raises(RemoteError) as exc:
         to_remote(sourcepath="docs", rel="logo.png")
     assert exc.value.code == "unsafe_path"
+
+
+def test_text_formats_round_trip_through_the_bijection():
+    prefix = mount(provider="github", full_name="acme/app", sourcepath="docs")
+    for rel in ("a.md", "guide.mdx", "spec.rst", "notes.txt", "README.MD"):
+        assert to_local(mount=prefix, rel=rel) == f"{prefix}/{rel}"
+        assert to_remote(sourcepath="docs", rel=rel) == f"docs/{rel}"
+
+
+def test_is_syncable_covers_text_and_excludes_binaries():
+    assert is_syncable("notes.txt")
+    assert is_syncable("Guide.MD")  # case-insensitive
+    assert not is_syncable("logo.png")
+    assert not is_syncable("report.pdf")
+    assert not is_syncable("data.json")
