@@ -43,6 +43,7 @@ class FormatAdapter:
     # needs eyes. Spreadsheets set this False and never enter the visual path.
     requires_visual_review: bool = True
     requires_markdown_binding: bool = False
+    markdown_projection: Callable[[bytes], str] | None = None
     sandbox_check: (
         Callable[[SandboxSession, str], Awaitable[SandboxCheckResult]] | None
     ) = None

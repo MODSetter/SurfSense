@@ -7,6 +7,7 @@ from typing import Literal
 
 from .base import FormatAdapter
 from .docx import check_docx
+from .flashcards import check_flashcards_json, flashcards_to_markdown
 from .html import check_html
 from .mindmap import check_mindmap_png
 from .pdf import check_pdf
@@ -22,7 +23,7 @@ HTML_MIME = "text/html"
 MP4_MIME = "video/mp4"
 PNG_MIME = "image/png"
 VerifiableArtifactFormat = Literal[
-    "pdf", "docx", "pptx", "xlsx", "html", "video", "mindmap"
+    "pdf", "docx", "pptx", "xlsx", "html", "video", "mindmap", "flashcards"
 ]
 
 _ADAPTERS = {
@@ -83,6 +84,15 @@ _ADAPTERS = {
         check=check_mindmap_png,
         requires_visual_review=False,
         requires_markdown_binding=True,
+    ),
+    "flashcards": FormatAdapter(
+        name="flashcards",
+        suffix=".json",
+        mime_type="application/json",
+        convert_to_pdf=False,
+        check=check_flashcards_json,
+        requires_visual_review=False,
+        markdown_projection=flashcards_to_markdown,
     ),
 }
 
