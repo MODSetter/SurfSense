@@ -5,6 +5,7 @@ import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
 import { authenticatedFetch } from "@/lib/auth-fetch";
@@ -190,117 +191,151 @@ export default function FlashcardsViewer({
 		setAnnouncement(`Reviewing ${missed.length} missed cards`);
 	}
 
-	const faceClass = "mx-auto flex min-h-full max-w-2xl flex-col justify-center";
+	const faceClass = "mx-auto flex h-full max-w-md flex-col justify-center";
+	const progressValue = ((position + 1) / sequence.length) * 100;
 	return (
-		<div data-vaul-no-drag="" className="flex h-full min-h-0 flex-col bg-muted/20 p-3 sm:p-5">
-			<div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-				<p>
-					Card {currentIndex + 1} of {deck.cards.length}
-					{reviewQueue ? ` · Reviewing missed (${position + 1}/${sequence.length})` : ""}
-				</p>
-				<section className="flex items-center gap-3" aria-label="Study progress">
-					<span>{counts.remembered} remembered</span>
-					<span>{counts.missed} missed</span>
-					<span>{counts.unseen} unseen</span>
-				</section>
-			</div>
+		<div data-vaul-no-drag="" className="h-full min-h-0 overflow-y-auto bg-[#f7f7f8] p-4 sm:p-6">
+			<div className="mx-auto flex min-h-full w-full max-w-[640px] flex-col items-center justify-center gap-4">
+				<div className="flex w-full max-w-[560px] flex-wrap items-center justify-between gap-2 text-xs text-[#4a4a4a]">
+					<p>
+						{reviewQueue ? `Reviewing missed (${position + 1}/${sequence.length})` : deck.title}
+					</p>
+					<section className="flex items-center gap-3" aria-label="Study progress">
+						<span>{counts.remembered} remembered</span>
+						<span>{counts.missed} missed</span>
+						<span>{counts.unseen} unseen</span>
+					</section>
+				</div>
 
-			<div className="min-h-0 flex-1">
-				<FlashcardSurface
-					revealed={revealed}
-					onReveal={() => {
-						setRevealed(true);
-						setAnnouncement("Answer revealed");
-					}}
-					reducedMotion={reducedMotion}
-					front={
-						<div className={faceClass}>
-							<p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-								Question
-							</p>
-							<MarkdownViewer content={card.front_markdown} className="text-base sm:text-lg" />
-							{card.hint_markdown ? (
-								<div className="mt-6 border-t pt-4 text-sm text-muted-foreground">
-									<span className="font-medium">Hint: </span>
-									<MarkdownViewer content={card.hint_markdown} />
-								</div>
-							) : null}
-						</div>
-					}
-					back={
-						<div className={faceClass}>
-							<p className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-								Answer
-							</p>
-							<MarkdownViewer content={card.back_markdown} className="text-base sm:text-lg" />
-							{currentMark ? (
-								<p className="mt-6 text-xs font-medium text-muted-foreground">
-									Current mark: {currentMark === "good" ? "Remembered" : "Needs review"}
+				<div className="aspect-[28/17] w-full max-w-[560px] shrink-0">
+					<FlashcardSurface
+						revealed={revealed}
+						onFlip={() => {
+							setRevealed((current) => !current);
+							setAnnouncement(revealed ? "Question shown" : "Answer revealed");
+						}}
+						reducedMotion={reducedMotion}
+						front={
+							<div className={faceClass}>
+								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
+									Question
 								</p>
-							) : null}
-						</div>
-					}
-				/>
-			</div>
+								<MarkdownViewer content={card.front_markdown} className="text-base sm:text-lg" />
+								{card.hint_markdown ? (
+									<div className="mt-6 border-[#d0d0d0] border-t pt-4 text-sm text-[#4a4a4a]">
+										<span className="font-medium">Hint: </span>
+										<MarkdownViewer content={card.hint_markdown} />
+									</div>
+								) : null}
+							</div>
+						}
+						back={
+							<div className={faceClass}>
+								<p className="mb-4 text-xs font-medium uppercase tracking-wider text-[#4a4a4a]">
+									Answer
+								</p>
+								<MarkdownViewer content={card.back_markdown} className="text-base sm:text-lg" />
+								{currentMark ? (
+									<p className="mt-6 text-xs font-medium text-[#4a4a4a]">
+										Current mark: {currentMark === "good" ? "Remembered" : "Needs review"}
+									</p>
+								) : null}
+							</div>
+						}
+					/>
+				</div>
 
-			<div data-vaul-no-drag="" className="mt-3 flex flex-wrap items-center justify-center gap-2">
-				<Button type="button" variant="outline" size="sm" onClick={() => move(-1)}>
-					<ArrowLeft className="size-4" />
-					Previous
-				</Button>
-				{revealed ? (
-					<>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							disabled={progressMutation.isPending}
-							onClick={() => void mark("again")}
-						>
-							<X className="size-4" />
-							Needs review
-						</Button>
-						<Button
-							type="button"
-							size="sm"
-							disabled={progressMutation.isPending}
-							onClick={() => void mark("good")}
-						>
-							<Check className="size-4" />
-							Remembered
-						</Button>
-					</>
-				) : (
+				<Progress
+					value={progressValue}
+					className="h-1.5 w-4/5 max-w-md bg-[#d0d0d0] [&>div]:bg-[#4a4a4a]"
+					role="progressbar"
+					aria-label="Deck progress"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={Math.round(progressValue)}
+				/>
+
+				<div data-vaul-no-drag="" className="flex h-10 items-center justify-center gap-8">
 					<Button
 						type="button"
-						size="sm"
-						onClick={() => {
-							setRevealed(true);
-							setAnnouncement("Answer revealed");
-						}}
+						variant="ghost"
+						size="icon"
+						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e]"
+						onClick={() => move(-1)}
+						aria-label="Previous card"
 					>
-						<Eye className="size-4" />
-						Reveal answer
+						<ArrowLeft />
 					</Button>
-				)}
-				<Button type="button" variant="outline" size="sm" onClick={() => move(1)}>
-					Next
-					<ArrowRight className="size-4" />
-				</Button>
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					disabled={counts.missed === 0}
-					onClick={startMissedReview}
-				>
-					<RotateCcw className="size-4" />
-					Review missed
-				</Button>
+					<p className="min-w-16 text-center text-sm text-[#4a4a4a] tabular-nums">
+						{currentIndex + 1} / {deck.cards.length}
+					</p>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e]"
+						onClick={() => move(1)}
+						aria-label="Next card"
+					>
+						<ArrowRight />
+					</Button>
+				</div>
+
+				<div data-vaul-no-drag="" className="flex flex-wrap items-center justify-center gap-2">
+					{revealed ? (
+						<>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="border-[#d0d0d0] bg-white text-[#1c1b1e] hover:bg-[#f0f0f0] hover:text-[#1c1b1e]"
+								disabled={progressMutation.isPending}
+								onClick={() => void mark("again")}
+							>
+								<X data-icon="inline-start" />
+								Needs review
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								className="bg-[#1c1b1e] text-white hover:bg-[#4a4a4a]"
+								disabled={progressMutation.isPending}
+								onClick={() => void mark("good")}
+							>
+								<Check data-icon="inline-start" />
+								Remembered
+							</Button>
+						</>
+					) : (
+						<Button
+							type="button"
+							size="sm"
+							className="bg-[#1c1b1e] text-white hover:bg-[#4a4a4a]"
+							onClick={() => {
+								setRevealed(true);
+								setAnnouncement("Answer revealed");
+							}}
+						>
+							<Eye data-icon="inline-start" />
+							Reveal answer
+						</Button>
+					)}
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="text-[#1c1b1e] hover:bg-[#e8e8e8] hover:text-[#1c1b1e]"
+						disabled={counts.missed === 0}
+						onClick={startMissedReview}
+					>
+						<RotateCcw data-icon="inline-start" />
+						Review missed
+					</Button>
+				</div>
+				<output className="sr-only" aria-live="polite">
+					{announcement}
+				</output>
 			</div>
-			<output className="sr-only" aria-live="polite">
-				{announcement}
-			</output>
 		</div>
 	);
 }

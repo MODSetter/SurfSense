@@ -8,7 +8,7 @@ interface FlashcardSurfaceProps {
 	front: ReactNode;
 	back: ReactNode;
 	revealed: boolean;
-	onReveal: () => void;
+	onFlip: () => void;
 	reducedMotion: boolean;
 }
 
@@ -25,9 +25,12 @@ function Face({
 		<div
 			aria-hidden={hidden}
 			inert={hidden}
+			style={{
+				backfaceVisibility: "hidden",
+				WebkitBackfaceVisibility: "hidden",
+			}}
 			className={cn(
-				"absolute inset-0 overflow-y-auto px-6 py-8 sm:px-10 sm:py-12",
-				"[backface-visibility:hidden]",
+				"absolute inset-0 overflow-y-auto rounded-2xl bg-white px-6 py-8 text-black sm:px-10 sm:py-12",
 				className
 			)}
 		>
@@ -40,47 +43,43 @@ export function FlashcardSurface({
 	front,
 	back,
 	revealed,
-	onReveal,
+	onFlip,
 	reducedMotion,
 }: FlashcardSurfaceProps) {
 	if (reducedMotion) {
 		return (
-			<div className="relative h-full min-h-64 overflow-hidden rounded-xl border bg-card shadow-sm">
+			<div className="relative h-full overflow-hidden rounded-2xl bg-white text-black shadow-[0_0_2.5rem_0_rgb(0_0_0/0.16)]">
 				<div className="h-full overflow-y-auto px-6 py-8 sm:px-10 sm:py-12">
 					{revealed ? back : front}
 				</div>
-				{!revealed ? (
-					<button
-						type="button"
-						onClick={onReveal}
-						className="absolute inset-0 cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-						aria-label="Reveal answer"
-					/>
-				) : null}
+				<button
+					type="button"
+					onClick={onFlip}
+					className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					aria-label={revealed ? "Show question" : "Reveal answer"}
+				/>
 			</div>
 		);
 	}
 
 	return (
-		<div className="relative h-full min-h-64 [perspective:1200px]">
+		<div className="relative h-full [perspective:1000px]">
 			<motion.div
-				className="relative h-full rounded-xl border bg-card shadow-sm [transform-style:preserve-3d]"
+				className="relative h-full rounded-2xl bg-transparent shadow-[0_0_2.5rem_0_rgb(0_0_0/0.16)] [transform-style:preserve-3d]"
 				animate={{ rotateY: revealed ? 180 : 0 }}
-				transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+				transition={{ duration: 0.45, ease: "easeInOut" }}
 			>
 				<Face hidden={revealed}>{front}</Face>
 				<Face hidden={!revealed} className="[transform:rotateY(180deg)]">
 					{back}
 				</Face>
 			</motion.div>
-			{!revealed ? (
-				<button
-					type="button"
-					onClick={onReveal}
-					className="absolute inset-0 cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-					aria-label="Reveal answer"
-				/>
-			) : null}
+			<button
+				type="button"
+				onClick={onFlip}
+				className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+				aria-label={revealed ? "Show question" : "Reveal answer"}
+			/>
 		</div>
 	);
 }
