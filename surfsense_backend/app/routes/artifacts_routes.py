@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -10,7 +11,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
+from app.artifacts.flashcards import (
+    FlashcardProgressUpdate,
+    apply_flashcard_mark,
+    progress_digest,
+    sanitize_flashcard_progress,
+)
 from app.artifacts.persistence import (
     Artifact,
     ArtifactFile,
@@ -20,7 +28,12 @@ from app.artifacts.storage import (
     open_artifact_file_range,
     open_artifact_file_stream,
 )
+from app.artifacts.verification.formats.flashcards import (
+    FlashcardDeckV1,
+    parse_flashcards_deck,
+)
 from app.auth.context import AuthContext
+from app.config import config as app_config
 from app.db import Document, Permission, get_async_session
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
@@ -28,6 +41,7 @@ from app.utils.rbac import check_permission
 from .document_files_routes import _content_disposition, _is_inline
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _parse_range(value: str, size: int) -> tuple[int, int]:
@@ -101,6 +115,23 @@ def _visible_files(artifact: Artifact) -> list[ArtifactFile]:
         artifact.files,
         key=lambda item: (item.role is not ArtifactFileRole.PRIMARY, item.id),
     )
+
+
+async def _read_flashcard_deck(artifact: Artifact) -> FlashcardDeckV1:
+    primary = next(
+        (file for file in artifact.files if file.role is ArtifactFileRole.PRIMARY),
+        None,
+    )
+    if primary is None:
+        raise ValueError("Flashcard artifact has no primary file")
+    if primary.size_bytes > app_config.ARTIFACT_MAX_FILE_BYTES:
+        raise ValueError("Flashcard artifact exceeds the configured size limit")
+    data = bytearray()
+    async for chunk in open_artifact_file_stream(primary):
+        data.extend(chunk)
+        if len(data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            raise ValueError("Flashcard artifact exceeds the configured size limit")
+    return parse_flashcards_deck(bytes(data))
 
 
 def _file_manifest(
@@ -243,7 +274,30 @@ async def get_artifact_manifest(
     if row is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
     artifact, document = row
-    etag = f'"{document.content_hash}:{artifact.generation}"'
+    flashcard_progress = None
+    if artifact.format == "flashcards":
+        try:
+            deck = await _read_flashcard_deck(artifact)
+            card_count = len(deck.cards)
+        except Exception:
+            logger.warning(
+                "Could not normalize flashcard progress for artifact %s generation %s",
+                artifact.id,
+                artifact.generation,
+                exc_info=True,
+            )
+            card_count = 0
+        flashcard_progress = sanitize_flashcard_progress(
+            artifact.artifact_metadata,
+            generation=artifact.generation,
+            card_count=card_count,
+        )
+    etag_suffix = (
+        f":{progress_digest(flashcard_progress)}"
+        if flashcard_progress is not None
+        else ""
+    )
+    etag = f'"{document.content_hash}:{artifact.generation}{etag_suffix}"'
     cache_headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=cache_headers)
@@ -266,7 +320,54 @@ async def get_artifact_manifest(
     legacy = _legacy_ref(artifact)
     if legacy is not None:
         payload["legacy"] = legacy
+    if flashcard_progress is not None:
+        payload["flashcard_progress"] = flashcard_progress
     return payload
+
+
+@router.patch("/workspaces/{workspace_id}/artifacts/{artifact_id}/flashcard-progress")
+async def update_flashcard_progress(
+    workspace_id: int,
+    artifact_id: int,
+    update: FlashcardProgressUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact = await session.scalar(
+        select(Artifact)
+        .options(selectinload(Artifact.files))
+        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+        .with_for_update()
+    )
+    if artifact is None or artifact.format != "flashcards":
+        raise HTTPException(status_code=404, detail="Flashcard artifact not found")
+    if artifact.generation != update.generation:
+        raise HTTPException(
+            status_code=409,
+            detail="Flashcard artifact generation changed; refresh before marking",
+        )
+
+    try:
+        deck = await _read_flashcard_deck(artifact)
+        metadata, progress = apply_flashcard_mark(
+            artifact.artifact_metadata,
+            generation=artifact.generation,
+            card_count=len(deck.cards),
+            card_index=update.card_index,
+            mark=update.mark,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    content_updated_at = artifact.updated_at
+    artifact.artifact_metadata = metadata
+    artifact.updated_at = content_updated_at
+    flag_modified(artifact, "updated_at")
+    await session.commit()
+    return progress
 
 
 @router.get("/workspaces/{workspace_id}/artifacts/{artifact_id}/download")
