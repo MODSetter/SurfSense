@@ -1,4 +1,4 @@
-"""Staged paths must stay inside {sourcepath}/**/*.md."""
+"""Staged paths must stay inside {sourcepath} and be synced text documents."""
 
 from __future__ import annotations
 
@@ -10,8 +10,11 @@ from app.knowledge_store.remote.guards import check_staged
 pytestmark = pytest.mark.unit
 
 
-def test_markdown_under_sourcepath_is_allowed():
-    check_staged(sourcepath="docs", paths=("docs/intro.md", "docs/guides/a.md"))
+def test_text_documents_under_sourcepath_are_allowed():
+    check_staged(
+        sourcepath="docs",
+        paths=("docs/intro.md", "docs/guides/a.rst", "docs/notes.txt"),
+    )
 
 
 def test_a_png_under_sourcepath_is_refused():

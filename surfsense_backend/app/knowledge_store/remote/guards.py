@@ -1,16 +1,17 @@
-"""Refuse a staged set that is not {sourcepath}/**/*.md."""
+"""Refuse a staged set that is not synced text documents under {sourcepath}."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
 from app.knowledge_store.remote.exceptions import RemoteError
+from app.knowledge_store.remote.paths import is_syncable
 
 
 def check_staged(*, sourcepath: str, paths: Sequence[str]) -> None:
     prefix = sourcepath.strip("/")
     for path in paths:
-        if not path.endswith(".md") or not _under(prefix, path):
+        if not is_syncable(path) or not _under(prefix, path):
             raise RemoteError("would_delete_foreign", path)
 
 
