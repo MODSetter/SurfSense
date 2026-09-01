@@ -18,6 +18,7 @@ class RemoteStatusRead(BaseModel):
     sourcepath: str | None = None
     last_error_code: str | None = None
     last_conflict_paths: str | None = None
+    mount_folder_id: int | None = None
 
 
 class GithubAddRequest(BaseModel):

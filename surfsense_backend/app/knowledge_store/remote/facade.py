@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -11,15 +12,16 @@ from app.knowledge_store.remote.exceptions import RemoteError
 from app.knowledge_store.remote.forges import provider_for
 from app.knowledge_store.remote.paths import full_name_from_url, mount
 from app.knowledge_store.remote.persistence import WorkspaceRemoteRepository
-from app.knowledge_store.remote.shadow import Shadow, shadow_path
-from app.knowledge_store.remote.sync import apply_from_remote, text_under_mount
 from app.knowledge_store.remote.schemas import (
     RemoteCredentials,
     RemoteSpec,
     RemoteStatus,
 )
+from app.knowledge_store.remote.shadow import Shadow, shadow_path
+from app.knowledge_store.remote.sync import apply_from_remote, text_under_mount
 from app.knowledge_store.settings import knowledge_store_enabled_for
 from app.observability.domains import knowledge_store as ks_telemetry
+from app.services.folder_service import resolve_folder_id_by_parts
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +46,16 @@ class WorkspaceRemotes:
         self._rows = WorkspaceRemoteRepository(session)
 
     async def list(self) -> list[RemoteStatus]:
-        return await self._rows.list_statuses(self._workspace_id)
+        statuses = await self._rows.list_statuses(self._workspace_id)
+        return [
+            replace(
+                status,
+                mount_folder_id=await _mount_folder_id(
+                    self._session, self._workspace_id, status
+                ),
+            )
+            for status in statuses
+        ]
 
     async def add(
         self, spec: RemoteSpec, *, direction: str | None = None
@@ -212,8 +223,8 @@ class WorkspaceRemotes:
 
     async def _sync(self, sp) -> str | None:
         from app.knowledge_store import KnowledgeStore
-        from app.knowledge_store.identities import AGENT_IDENTITY
         from app.knowledge_store.exceptions import GitPushError
+        from app.knowledge_store.identities import AGENT_IDENTITY
         from app.knowledge_store.remote.planner import SyncConflict, plan
         from app.knowledge_store.remote.sync import apply_changes, text_under_mount
 
@@ -439,6 +450,24 @@ class WorkspaceRemotes:
 
     async def record_push_failure(self, error: str) -> None:
         await self._rows.record_push_failure(self._workspace_id, error)
+
+
+async def _mount_folder_id(
+    session: AsyncSession, workspace_id: int, status: RemoteStatus
+) -> int | None:
+    """Folder id the connected repo mounts onto, or ``None`` if not indexed yet."""
+    try:
+        path = mount(
+            provider=status.provider,
+            full_name=full_name_from_url(status.url),
+            sourcepath=status.sourcepath or "",
+        )
+    except (RemoteError, KeyError):
+        return None
+    parts = path.split("/")[1:]
+    return await resolve_folder_id_by_parts(
+        session, workspace_id=workspace_id, folder_parts=parts
+    )
 
 
 def _mark_synced(row, revision: str | None) -> None:
