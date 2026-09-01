@@ -20,6 +20,7 @@ import { getArtifactFormatMeta } from "./artifact-format-meta";
 import { artifactManifestQueryOptions } from "./artifact-query";
 import { getArtifactViewerDispatch } from "./artifact-viewer-dispatch";
 import { artifactDownloadPath } from "./download-file";
+import { FlashcardResetButton } from "./flashcard-reset-button";
 import type { ArtifactManifest } from "./model";
 import { VIEWERS } from "./viewer-registry";
 
@@ -97,6 +98,13 @@ export function ArtifactViewerContent({
 						<div ref={setZoomControlsContainer} className="flex items-center gap-1" />
 						{workspaceIsValid ? (
 							<>
+								{content?.format === "flashcards" ? (
+									<FlashcardResetButton
+										workspaceId={workspaceId}
+										artifactId={artifactId}
+										manifest={content}
+									/>
+								) : null}
 								<ArtifactDownloadButton
 									path={artifactDownloadPath(workspaceId, artifactId)}
 									filename={downloadFilename ?? `artifact-${artifactId}`}

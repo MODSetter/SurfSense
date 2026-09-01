@@ -7,6 +7,7 @@ from app.artifacts.flashcards import (
     FlashcardProgressUpdate,
     apply_flashcard_mark,
     progress_digest,
+    reset_flashcard_progress,
     sanitize_flashcard_progress,
 )
 
@@ -101,6 +102,24 @@ def test_progress_digest_is_order_independent_and_changes_with_marks():
 
     assert progress_digest(first) == progress_digest(reordered)
     assert progress_digest(first) != progress_digest(changed)
+
+
+def test_reset_progress_removes_only_progress_namespace():
+    metadata = {
+        "verification": {"verified": True},
+        "flashcards": {
+            "future": "preserve",
+            "progress": {"generation": 3, "marks": {"0": "good"}},
+        },
+    }
+
+    updated, progress = reset_flashcard_progress(metadata, generation=3)
+
+    assert updated == {
+        "verification": {"verified": True},
+        "flashcards": {"future": "preserve"},
+    }
+    assert progress == {"generation": 3, "marks": {}}
 
 
 def test_progress_request_is_closed_and_strict():

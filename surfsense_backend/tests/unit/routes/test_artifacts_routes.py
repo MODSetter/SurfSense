@@ -290,6 +290,50 @@ async def test_flashcard_progress_patch_rejects_stale_generation(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_flashcard_progress_reset_clears_marks_and_preserves_metadata(
+    monkeypatch,
+):
+    check = AsyncMock()
+    monkeypatch.setattr(artifacts_routes, "check_permission", check)
+    mark_updated_at = Mock()
+    monkeypatch.setattr(artifacts_routes, "flag_modified", mark_updated_at)
+    updated_at = object()
+    artifact = SimpleNamespace(
+        id=7,
+        format="flashcards",
+        generation=3,
+        artifact_metadata={
+            "verification": {"verified": True},
+            "flashcards": {
+                "future": "preserve",
+                "progress": {"generation": 3, "marks": {"0": "good"}},
+            },
+        },
+        updated_at=updated_at,
+    )
+    session = AsyncMock()
+    session.scalar.return_value = artifact
+
+    result = await artifacts_routes.reset_artifact_flashcard_progress(
+        2,
+        7,
+        3,
+        session,
+        SimpleNamespace(),
+    )
+
+    assert result == {"generation": 3, "marks": {}}
+    assert artifact.artifact_metadata == {
+        "verification": {"verified": True},
+        "flashcards": {"future": "preserve"},
+    }
+    assert artifact.updated_at is updated_at
+    mark_updated_at.assert_called_once_with(artifact, "updated_at")
+    session.commit.assert_awaited_once()
+    assert check.await_args.args[3] == Permission.ARTIFACTS_UPDATE.value
+
+
+@pytest.mark.asyncio
 async def test_list_reads_title_and_status_from_document(monkeypatch):
     monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
     artifact = SimpleNamespace(

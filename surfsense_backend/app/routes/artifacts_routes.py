@@ -17,6 +17,7 @@ from app.artifacts.flashcards import (
     FlashcardProgressUpdate,
     apply_flashcard_mark,
     progress_digest,
+    reset_flashcard_progress,
     sanitize_flashcard_progress,
 )
 from app.artifacts.persistence import (
@@ -362,6 +363,45 @@ async def update_flashcard_progress(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
+    content_updated_at = artifact.updated_at
+    artifact.artifact_metadata = metadata
+    artifact.updated_at = content_updated_at
+    flag_modified(artifact, "updated_at")
+    await session.commit()
+    return progress
+
+
+@router.delete("/workspaces/{workspace_id}/artifacts/{artifact_id}/flashcard-progress")
+async def reset_artifact_flashcard_progress(
+    workspace_id: int,
+    artifact_id: int,
+    generation: int,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact = await session.scalar(
+        select(Artifact)
+        .where(
+            Artifact.id == artifact_id,
+            Artifact.workspace_id == workspace_id,
+        )
+        .with_for_update()
+    )
+    if artifact is None or artifact.format != "flashcards":
+        raise HTTPException(status_code=404, detail="Flashcard artifact not found")
+    if artifact.generation != generation:
+        raise HTTPException(
+            status_code=409,
+            detail="Flashcard artifact generation changed; refresh before resetting",
+        )
+
+    metadata, progress = reset_flashcard_progress(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+    )
     content_updated_at = artifact.updated_at
     artifact.artifact_metadata = metadata
     artifact.updated_at = content_updated_at

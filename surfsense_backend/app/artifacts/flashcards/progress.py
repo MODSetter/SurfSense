@@ -83,3 +83,18 @@ def apply_flashcard_mark(
     flashcards["progress"] = progress
     updated["flashcards"] = flashcards
     return updated, progress
+
+
+def reset_flashcard_progress(
+    metadata: dict[str, Any] | None, *, generation: int
+) -> tuple[dict[str, Any], dict[str, object]]:
+    updated = dict(metadata) if isinstance(metadata, dict) else {}
+    flashcards = updated.get("flashcards")
+    if isinstance(flashcards, dict):
+        flashcards = dict(flashcards)
+        flashcards.pop("progress", None)
+        if flashcards:
+            updated["flashcards"] = flashcards
+        else:
+            updated.pop("flashcards", None)
+    return updated, {"generation": generation, "marks": {}}

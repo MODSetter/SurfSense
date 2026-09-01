@@ -86,3 +86,54 @@ export function useFlashcardProgress(workspaceId: number, artifactId: number, ge
 		},
 	});
 }
+
+export function useResetFlashcardProgress(
+	workspaceId: number,
+	artifactId: number,
+	generation: number
+) {
+	const queryClient = useQueryClient();
+	const queryKey = artifactManifestQueryKey(workspaceId, artifactId);
+
+	return useMutation<FlashcardProgress, Error, void, { previous: ArtifactManifest | undefined }>({
+		mutationFn: async () => {
+			const response = await authenticatedFetch(
+				buildBackendUrl(
+					`/api/v1/workspaces/${workspaceId}/artifacts/${artifactId}/flashcard-progress?generation=${generation}`
+				),
+				{ method: "DELETE" }
+			);
+			if (response.status === 409) {
+				throw new FlashcardGenerationConflictError("The flashcard deck was revised");
+			}
+			if (!response.ok) throw new Error("Flashcard progress could not be reset");
+			const parsed = FlashcardProgressResponseSchema.safeParse(await response.json());
+			if (!parsed.success) throw new Error("Flashcard progress response is invalid");
+			return parsed.data;
+		},
+		onMutate: async () => {
+			await queryClient.cancelQueries({ queryKey, exact: true });
+			const previous = queryClient.getQueryData<ArtifactManifest>(queryKey);
+			queryClient.setQueryData<ArtifactManifest>(queryKey, (current) =>
+				current?.generation === generation
+					? {
+							...current,
+							flashcard_progress: { generation, marks: {} },
+						}
+					: current
+			);
+			return { previous };
+		},
+		onError: (error, _variables, context) => {
+			if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+			if (error instanceof FlashcardGenerationConflictError) {
+				void queryClient.invalidateQueries({ queryKey, exact: true });
+			}
+		},
+		onSuccess: (progress) => {
+			queryClient.setQueryData<ArtifactManifest>(queryKey, (current) =>
+				current ? { ...current, flashcard_progress: progress } : current
+			);
+		},
+	});
+}
