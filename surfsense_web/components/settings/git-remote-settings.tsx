@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Github, Gitlab } from "lucide-react";
+import { Check, ChevronsUpDown, Folder, Github, Gitlab } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
 	Accordion,
@@ -14,8 +14,15 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Command,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -28,6 +35,9 @@ import { gitRemotesApiService } from "@/lib/apis/git-remotes-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Spinner } from "../ui/spinner";
+
+/** Cap rendered folder rows; deep repos can list thousands of directories. */
+const MAX_FOLDER_OPTIONS = 200;
 
 interface GitRemoteSettingsProps {
 	workspaceId: number;
@@ -153,14 +163,18 @@ export function GitRemoteSettings({
 		if (!githubInstallationId || !selectedRepo) return;
 		setBusy(true);
 		try {
-			await gitRemotesApiService.add(workspaceId, {
+			const created = await gitRemotesApiService.add(workspaceId, {
 				provider: "github",
 				url: selectedRepo.url,
 				branch: branch.trim() || "main",
 				installation_id: githubInstallationId,
 				sourcepath: sourcepath.trim(),
 			});
-			toast.success(t("connected_repo_github_connected"));
+			if (created.last_error_code === "need_direction") {
+				toast.info(t("connected_repo_need_direction"));
+			} else {
+				toast.success(t("connected_repo_github_connected"));
+			}
 			await refresh();
 			clearGithubQuery();
 		} catch (err) {
@@ -174,14 +188,18 @@ export function GitRemoteSettings({
 		e.preventDefault();
 		setBusy(true);
 		try {
-			await gitRemotesApiService.add(workspaceId, {
+			const created = await gitRemotesApiService.add(workspaceId, {
 				provider: "gitlab",
 				url: gitlabUrl.trim(),
 				branch: gitlabBranch.trim() || "main",
 				token: gitlabToken.trim(),
 				sourcepath: sourcepath.trim() || "docs",
 			});
-			toast.success(t("connected_repo_gitlab_connected"));
+			if (created.last_error_code === "need_direction") {
+				toast.info(t("connected_repo_need_direction"));
+			} else {
+				toast.success(t("connected_repo_gitlab_connected"));
+			}
 			setGitlabToken("");
 			await refresh();
 		} catch (err) {
@@ -369,25 +387,14 @@ export function GitRemoteSettings({
 					</div>
 					<div className="flex flex-col gap-2">
 						<Label htmlFor="github-sourcepath">{t("connected_repo_sourcepath_label")}</Label>
-						<Input
-							id="github-sourcepath"
-							list="github-folder-options"
+						<FolderPicker
 							value={sourcepath}
-							onChange={(e) => setSourcepath(e.target.value)}
-							placeholder="docs"
+							onChange={setSourcepath}
+							folders={foldersQuery.data ?? []}
+							loading={foldersQuery.isLoading}
+							error={foldersQuery.isError}
 						/>
-						<datalist id="github-folder-options">
-							{(foldersQuery.data ?? []).map((folder) => (
-								<option key={folder} value={folder} />
-							))}
-						</datalist>
-						<p className="text-xs text-muted-foreground">
-							{foldersQuery.isLoading
-								? t("connected_repo_folders_loading")
-								: foldersQuery.isError
-									? t("connected_repo_folders_error")
-									: t("connected_repo_folder_hint")}
-						</p>
+						<p className="text-xs text-muted-foreground">{t("connected_repo_folder_hint")}</p>
 					</div>
 					<div className="flex gap-2">
 						<Button type="button" size="sm" disabled={busy} onClick={onConfirmGithub}>
@@ -412,7 +419,7 @@ export function GitRemoteSettings({
 					) : (reposQuery.data ?? []).length === 0 ? (
 						<p className="text-xs text-muted-foreground">{t("connected_repo_no_repos")}</p>
 					) : (
-						<ul className="flex flex-col gap-1">
+						<ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
 							{(reposQuery.data ?? []).map((repo) => (
 								<li key={repo.full_name}>
 									<Button
@@ -424,8 +431,10 @@ export function GitRemoteSettings({
 											setSelectedRepo(repo);
 											setBranch(repo.default_branch || "main");
 										}}
+										className="w-full justify-start gap-2 font-normal"
 									>
-										{repo.full_name}
+										<Github size={14} className="shrink-0 text-muted-foreground" />
+										<span className="truncate">{repo.full_name}</span>
 									</Button>
 								</li>
 							))}
@@ -557,5 +566,112 @@ export function GitRemoteSettings({
 				</Accordion>
 			)}
 		</div>
+	);
+}
+
+function FolderPicker({
+	value,
+	onChange,
+	folders,
+	loading,
+	error,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+	folders: string[];
+	loading: boolean;
+	error: boolean;
+}) {
+	const t = useTranslations("workspaceSettings");
+	const [open, setOpen] = useState(false);
+	const [query, setQuery] = useState("");
+
+	const trimmed = query.trim();
+	const matches = useMemo(() => {
+		const q = trimmed.toLowerCase();
+		return q ? folders.filter((folder) => folder.toLowerCase().includes(q)) : folders;
+	}, [folders, trimmed]);
+	const shown = matches.slice(0, MAX_FOLDER_OPTIONS);
+	const hiddenCount = matches.length - shown.length;
+	const showCustom = trimmed.length > 0 && !folders.includes(trimmed);
+
+	const choose = (next: string) => {
+		onChange(next);
+		setQuery("");
+		setOpen(false);
+	};
+
+	return (
+		<Popover
+			open={open}
+			onOpenChange={(next) => {
+				setOpen(next);
+				if (!next) setQuery("");
+			}}
+		>
+			<PopoverTrigger asChild>
+				<Button
+					id="github-sourcepath"
+					type="button"
+					variant="outline"
+					role="combobox"
+					aria-expanded={open}
+					className="h-9 w-full justify-between gap-2 font-normal"
+				>
+					<span className="flex min-w-0 items-center gap-2">
+						<Folder size={14} className="shrink-0 text-muted-foreground" />
+						<span className="truncate">{value || t("connected_repo_folder_root")}</span>
+					</span>
+					<ChevronsUpDown size={14} className="shrink-0 opacity-50" />
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+				<Command shouldFilter={false}>
+					<CommandInput
+						value={query}
+						onValueChange={setQuery}
+						placeholder={t("connected_repo_folder_search")}
+					/>
+					<CommandList>
+						{loading ? (
+							<div className="flex items-center justify-center py-6">
+								<Spinner size="sm" />
+							</div>
+						) : error ? (
+							<div className="px-3 py-6 text-center text-xs text-destructive">
+								{t("connected_repo_folders_error")}
+							</div>
+						) : (
+							<>
+								<CommandItem value="__root__" onSelect={() => choose("")}>
+									<Folder size={14} className="text-muted-foreground" />
+									<span className="truncate">{t("connected_repo_folder_root")}</span>
+									{value === "" ? <Check size={14} className="ml-auto shrink-0" /> : null}
+								</CommandItem>
+								{shown.map((folder) => (
+									<CommandItem key={folder} value={folder} onSelect={() => choose(folder)}>
+										<Folder size={14} className="text-muted-foreground" />
+										<span className="truncate">{folder}</span>
+										{value === folder ? <Check size={14} className="ml-auto shrink-0" /> : null}
+									</CommandItem>
+								))}
+								{showCustom ? (
+									<CommandItem value={`__custom__${trimmed}`} onSelect={() => choose(trimmed)}>
+										<span className="truncate">
+											{t("connected_repo_folder_use")} “{trimmed}”
+										</span>
+									</CommandItem>
+								) : null}
+								{hiddenCount > 0 ? (
+									<p className="px-3 py-2 text-center text-[11px] text-muted-foreground">
+										{hiddenCount} {t("connected_repo_folder_more")}
+									</p>
+								) : null}
+							</>
+						)}
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
 	);
 }

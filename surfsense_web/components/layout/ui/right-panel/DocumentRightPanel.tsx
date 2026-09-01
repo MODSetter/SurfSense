@@ -64,6 +64,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
 import { downloadFile } from "@/features/file-viewers/download-file-button";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
+import { useGitRemoteStatus } from "@/hooks/use-git-remote-status";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
@@ -180,6 +181,7 @@ function AuthenticatedDocumentRightPanelBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const { needsAttention: syncNeedsAttention } = useGitRemoteStatus(workspaceId);
 	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
@@ -1072,6 +1074,7 @@ function AuthenticatedDocumentRightPanelBase({
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
 						connectRepoHref={`/dashboard/${workspaceId}/workspace-settings/git-remote`}
+						syncNeedsAttention={syncNeedsAttention}
 					/>
 				</div>
 

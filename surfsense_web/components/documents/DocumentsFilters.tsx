@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderPlus, Github, ListFilter, Search, Upload, X } from "lucide-react";
+import { FolderPlus, Github, ListFilter, Search, TriangleAlert, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -149,6 +149,7 @@ export function DocumentsFilters({
 	onUploadClick,
 	isUploading = false,
 	connectRepoHref,
+	syncNeedsAttention = false,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -159,6 +160,7 @@ export function DocumentsFilters({
 	onUploadClick?: () => void;
 	isUploading?: boolean;
 	connectRepoHref?: string;
+	syncNeedsAttention?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -240,17 +242,33 @@ export function DocumentsFilters({
 					<span>{isUploading ? t("uploading") : t("upload_files")}</span>
 				</Button>
 				{connectRepoHref ? (
-					<Button
-						asChild
-						variant="outline"
-						size="sm"
-						className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
-					>
-						<Link href={connectRepoHref}>
-							<Github size={13} />
-							<span>{t("connect_repo")}</span>
-						</Link>
-					</Button>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								asChild
+								variant="outline"
+								size="sm"
+								className="relative h-8 min-w-0 flex-1 gap-1.5 overflow-visible border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+							>
+								<Link href={connectRepoHref}>
+									<Github size={13} className="shrink-0" />
+									<span className="truncate">{t("connect_repo")}</span>
+									{syncNeedsAttention ? (
+										<span
+											role="img"
+											aria-label={t("connect_repo_attention")}
+											className="absolute -right-1.5 -top-1.5 flex items-center justify-center  rounded-full bg-yellow-400 text-red-400"
+										>
+											<TriangleAlert size={10} className="shrink-0 text-red-400" aria-hidden />
+										</span>
+									) : null}
+								</Link>
+							</Button>
+						</TooltipTrigger>
+						{syncNeedsAttention ? (
+							<TooltipContent>{t("connect_repo_attention")}</TooltipContent>
+						) : null}
+					</Tooltip>
 				) : null}
 
 				{/* New Folder + Filter Toggle Group */}
