@@ -5,15 +5,7 @@ import type { GitRemote } from "@/contracts/types/git-remote.types";
 import { gitRemotesApiService } from "@/lib/apis/git-remotes-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
-/**
- * The connected repo's sync status, plus whether it needs the user's attention
- * (a conflict, a failed push, or a stale connection). Shares the settings page's
- * cache key so visiting either surface warms the other.
- *
- * ponytail: refetch is focus-driven (TanStack default). A push error raised while
- * this tab stays focused surfaces on the next focus/refetch, not instantly. Add a
- * refetchInterval here if we ever need near-real-time visibility.
- */
+/** The connected repo's sync status and whether it needs the user's attention. */
 export function useGitRemoteStatus(workspaceId: number): {
 	remote: GitRemote | undefined;
 	needsAttention: boolean;
@@ -23,6 +15,12 @@ export function useGitRemoteStatus(workspaceId: number): {
 		queryFn: () => gitRemotesApiService.list(workspaceId),
 		enabled: Number.isFinite(workspaceId) && workspaceId > 0,
 		staleTime: 30_000,
+		// ponytail: polls every 8s until the mount folder resolves; an empty repo
+		// never resolves, so cap it or invalidate on tree changes if it matters.
+		refetchInterval: (query) => {
+			const remote = query.state.data?.[0];
+			return remote && remote.mount_folder_id == null ? 8_000 : false;
+		},
 	});
 	const remote = data?.[0];
 	const needsAttention = Boolean(remote && (remote.last_error_code || remote.last_push_error));
