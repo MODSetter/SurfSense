@@ -56,6 +56,10 @@ export const cacheKeys = {
 		gitRemotes: (workspaceId: number) => ["workspaces", workspaceId, "git-remotes"] as const,
 		githubRepos: (workspaceId: number, installationId: string) =>
 			["workspaces", workspaceId, "github-repos", installationId] as const,
+		githubFolders: (workspaceId: number, installationId: string, fullName: string, branch: string) =>
+			["workspaces", workspaceId, "github-folders", installationId, fullName, branch] as const,
+		githubBranches: (workspaceId: number, installationId: string, fullName: string) =>
+			["workspaces", workspaceId, "github-branches", installationId, fullName] as const,
 	},
 	user: {
 		current: () => ["user", "me"] as const,

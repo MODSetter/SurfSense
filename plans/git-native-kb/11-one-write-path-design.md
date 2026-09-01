@@ -365,39 +365,76 @@ Bottom line: **Deploy 1 makes git the sole write path for flipped workspaces
 without removing the fallback; the migration flips the frozen backlog with no
 downtime; Deploy 2 removes the unused fallback and its tables.**
 
-### 7.2 Lean Coolify runbook (concrete)
+### 7.2 Coolify runbook (grounded)
 
-1. **Deploy the new image to all services at once** — avoid a lingering old/new
-   split (marker-stamping writers racing column-only ones).
-2. **Migrate once** — `alembic upgrade head` as a single pre-deploy/release
-   command, not per-replica start (N replicas racing `alembic upgrade` collide on
-   the version table). Runs `189` (path backfill).
-3. **Born-flipped signup is live** — the unflipped set is now frozen; it can only
-   shrink.
-4. **Seed the frozen backlog in batches** — `python -m scripts.migrate_knowledge_store
-   --yes --workspace … --out reports.jsonl` (services up, one-off exec). This is the
-   PG→git write that authors every body-bearing doc a file and records its `path`;
-   parity per workspace lands in the JSONL. Dry-run first (drop `--yes`) to preview.
-   Resolve any `mismatched`/`error` row here, while nothing is flipped yet. **Do
-   not skip to flip:** a bare flip on an unseeded workspace serves PG-only bodies
-   with no git file, and the drift sweep's whole-tree reindex then prunes them —
-   the ws1 data-loss path.
-5. **Flip the seeded batches** — `python -m scripts.migrate_knowledge_store --yes
-   --flip --workspace …`. The re-seed is an idempotent no-op on a clean batch;
-   `_set_flip` fires only on a passing parity report and carries the store head as
-   `last_indexed_revision` (a NULL stamp would re-embed the whole tree). Watch drift
-   between batches; roll one back with `--unflip --workspace …` if needed.
-6. **Soak** — monitor the drift traces a few days. `missing` whose docs are non-KB
-   connector types is a known scope false positive (the desired set counts every
-   body-bearing row); it is closed at Deploy-2, not chased now.
-7. **Cutover (Deploy-2)** — delete the legacy PG-only writers, stop dual-read, drop
-   the marker column. Only after the fleet is 100% flipped and clean.
+Verified against `entrypoint.sh` (`SERVICE_ROLE`), `docker-compose.yml`, alembic
+head `190`, and config defaults — the concrete form of §7.1.
 
-Why 4 and 5 are separate even though `--flip` already seeds-then-flips per
-workspace: the split gives one fleet-wide checkpoint. Seeding is the heavy,
-irreversible PG→git write; flipping is a flag. Seeding the whole batch first and
-reading the aggregate JSONL lets a bad workspace be fixed before *any* flip, rather
-than discovering it half-way through a combined pass.
+**No maintenance window.** New code reads `path` then falls back to the marker, so
+it resolves backfilled and un-backfilled rows alike; `189` is one additive,
+idempotent `UPDATE` of NULL paths only. The real hazard is not downtime but
+**mixed-version overlap** — old code stamps/reads the marker, new code writes the
+column only, so during a rolling overlap a column-only row a new worker writes is
+invisible to an old worker still reading the marker. Mitigation is a coordinated
+restart (seconds): roll api + worker + beat to the new image together, then migrate.
+
+**Preconditions (env on every backend-image service):**
+- `KNOWLEDGE_STORE_ENABLED=TRUE` — the global master switch. Off (the default)
+  means nothing is git-native, born-flipped is inert, and the drift monitor
+  early-returns.
+- `KNOWLEDGE_STORE_ROOT` on a **persistent volume mounted by both `backend` and
+  `celery_worker`** (default `/app/.local_object_store/knowledge_store`, the shared
+  `object_store` volume). The seed writes repos here and the app serves from here;
+  seeding anywhere else is the ws1 data-loss path.
+- `OTEL_EXPORTER_OTLP_ENDPOINT` → the LGTM sink, so the drift spans/metrics export.
+- `DB_BOOTSTRAP_ON_STARTUP=FALSE` — alembic owns the schema. (The stale-unique-index
+  risk is already gone: `documents.content_hash` is a non-unique index per `133`;
+  this is just hygiene.)
+- Service roles are `migrate` / `api` / `worker` / `beat`, **not `all`**. This is what
+  makes "migrate once" true: only the `migrations` one-shot runs alembic; the rest
+  gate on `migrations: service_completed_successfully`, so no replica races the
+  version table.
+
+**Runbook:**
+1. **Deploy the new image to all services at once** — bump `SURFSENSE_VERSION`
+   (`scripts/bump-version.sh`), push, redeploy the stack. Services recreate together
+   (no old/new split); the `migrations` one-shot runs `alembic upgrade head` (→ `189`
+   backfill, `190` git-remotes) and verifies `zero_publication`; everything else waits
+   on it.
+2. **Verify** — `migrations` exited 0; `alembic current` = `190`; `backend` `/ready`
+   green; backfill took (`SELECT count(*) FROM documents WHERE path IS NOT NULL`).
+3. **Born-flipped is live → backlog frozen.** New signups carry
+   `knowledge_store_enabled=TRUE`; existing unflipped workspaces stay legacy, served by
+   the arm Deploy-1 kept. The unflipped set can only shrink from here.
+4. **Seed the frozen backlog in batches** — exec inside `celery_worker` (or `backend`),
+   which mount the store volume; **not** the `migrations` one-shot.
+   - Discover (writes nothing): `python -m scripts.migrate_knowledge_store --out
+     /app/.local_object_store/kb_reports.jsonl` — parity per workspace to JSONL; unflipped
+     read as `missing` pre-seed (expected). Batch from it, smallest first.
+   - Seed for real: `python -m scripts.migrate_knowledge_store --yes --workspace <id> …
+     --out /app/.local_object_store/kb_reports.jsonl`. Authors each body-bearing doc a git
+     file and records its `path`. Resolve any `mismatched`/`error` here — nothing flipped yet.
+5. **Flip the seeded batches** — `python -m scripts.migrate_knowledge_store --yes --flip
+   --workspace <id> …`. Re-seed is a no-op on a clean batch; `_set_flip` fires only on
+   passing parity and stamps `last_indexed_revision=<head>` (a NULL stamp would re-embed
+   the whole tree). Roll one back with `--unflip --workspace <id>`. Watch drift between
+   batches.
+6. **Soak** — drift spans (`knowledge_store.drift.sweep`/`.check`) + metric
+   `surfsense.knowledge_store.drift.check`; alert on `drift.status != ok`. Expected false
+   positive: a flipped workspace with live non-KB connectors reports `missing` because the
+   desired set counts every body-bearing row. Confirm per flagged `workspace.id`:
+   `SELECT document_type, count(*) FROM documents WHERE workspace_id=:ws AND path IS NULL
+   AND coalesce(source_markdown,content) NOT IN ('','Pending...') GROUP BY 1 ORDER BY 2 DESC;`
+   — all connector types = false positive (closed at cutover); a NOTE/FILE/Drive type = real drift.
+7. **Cutover (Deploy-2), later** — after the fleet is 100% flipped and clean: delete the
+   legacy PG-only writers, stop dual-read, drop the marker column, and scope the drift
+   desired-set to path-identified KB docs (kills the connector false positives). Pure
+   subtraction.
+
+Why 4 and 5 are separate even though `--flip` already seeds-then-flips per workspace: the
+split gives one fleet-wide checkpoint. Seeding is the heavy, irreversible PG→git write;
+flipping is a flag. Seeding the whole batch first and reading the JSONL lets a bad
+workspace be fixed before *any* flip.
 
 ## 8. Execution plan (smallest blast radius first)
 
