@@ -157,6 +157,20 @@ def test_deliverables_prompt_routes_flashcards_and_skill_uses_universal_save():
     assert "separate" not in skill.lower() or "separate Markdown summary" in skill
 
 
+def test_deliverables_prompt_routes_quizzes_and_skill_uses_universal_save():
+    prompt = _prompt()
+    skill = _skill("quiz")
+
+    assert "Use quiz for scored multiple-choice tests" in prompt
+    assert '`load_artifact_instructions(artifact_type="quiz")`' in prompt
+    assert "but not for surveys" in prompt
+    assert 'format="quiz"' in skill
+    assert 'save_artifact(path="/workspace/<slug>.json", title="...")' in skill
+    assert "5–30 questions" in skill
+    assert "otherwise create exactly 10" in skill
+    assert "exactly four distinct options" in skill
+
+
 def test_mindmap_skill_binds_markdown_to_the_png_without_custom_styling():
     skill = _skill("mindmap")
 

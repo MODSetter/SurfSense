@@ -58,6 +58,13 @@ _REVISION_INSTRUCTIONS = {
         "save it with the returned artifact ID and generation. Do not edit the "
         "derived Markdown or reconstruct the deck with vision."
     ),
+    "quiz": (
+        "Edit the restored JSON quiz without changing schema version one. Preserve "
+        "exactly four options and one correct option per question, write the "
+        "complete quiz to expected_output_path, verify it as quiz, and save it "
+        "with the returned artifact ID and generation. Do not edit the derived "
+        "Markdown or reconstruct the quiz with vision."
+    ),
     "markdown": "Edit markdown_path directly and save it as a Markdown-only revision.",
 }
 
