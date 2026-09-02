@@ -2,8 +2,8 @@ import type { ThreadMessageLike } from "@assistant-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
-import { artifactListQueryOptions } from "@/features/artifacts/artifact-query";
-import type { ArtifactListItem } from "@/features/artifacts/model";
+import { artifactListQueryOptions } from "@/features/artifacts/api/artifact-queries";
+import type { ArtifactListItem } from "@/features/artifacts/model/artifact";
 import {
 	type ArtifactCandidate,
 	collectArtifacts,

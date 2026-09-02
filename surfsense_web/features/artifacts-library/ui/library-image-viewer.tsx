@@ -1,7 +1,7 @@
 "use client";
 
 import { Image, ImageLoading } from "@/components/tool-ui/image";
-import { useArtifactImage } from "@/features/artifacts/use-artifact-image";
+import { useArtifactImage } from "@/features/artifacts/hooks/use-artifact-image";
 
 export function LibraryImageViewer({
 	artifactId,

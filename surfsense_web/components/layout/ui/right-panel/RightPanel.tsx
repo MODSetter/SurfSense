@@ -5,7 +5,6 @@ import { PanelRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { startTransition, useEffect } from "react";
-import { artifactPanelAtom, closeArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { citationPanelAtom, closeCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import {
 	closeDocumentViewerAtom,
@@ -20,6 +19,10 @@ import {
 } from "@/atoms/layout/right-panel.atom";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	artifactPanelAtom,
+	closeArtifactPanelAtom,
+} from "@/features/artifacts/state/artifact-panel.atom";
 import { artifactsPanelOpenAtom, closeArtifactsPanelAtom } from "@/features/chat-artifacts";
 import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/features/chat-messages/hitl";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -68,7 +71,7 @@ const HitlEditPanelContent = dynamic(
 
 const ArtifactViewerContent = dynamic(
 	() =>
-		import("@/features/artifacts").then((m) => ({
+		import("@/features/artifacts/ui/artifact-panel").then((m) => ({
 			default: m.ArtifactViewerContent,
 		})),
 	{ ssr: false, loading: () => null }

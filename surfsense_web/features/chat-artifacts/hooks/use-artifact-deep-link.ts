@@ -1,6 +1,6 @@
 import { useSetAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
+import { openArtifactPanelAtom } from "@/features/artifacts/state/artifact-panel.atom";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ARTIFACT_QUERY_PARAM, artifactIdFromSearch } from "../lib/artifact-deep-link";
 import { openChatArtifact } from "../lib/open-chat-artifact";

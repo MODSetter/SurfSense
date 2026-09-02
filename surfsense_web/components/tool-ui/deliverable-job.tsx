@@ -7,7 +7,7 @@ import { z } from "zod";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Mp4ArtifactCard } from "@/components/tool-ui/save-artifact";
 import { Button } from "@/components/ui/button";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
 import { type LiveDeliverableJob, useDeliverableJobLive } from "@/hooks/use-deliverable-job-live";
 import { deliverableJobsApiService } from "@/lib/apis/deliverable-jobs-api.service";
 

@@ -24,7 +24,7 @@ import {
 import { MentionIcon } from "@/components/assistant-ui/mention-icon";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
-import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { useArtifactsByDocument } from "@/features/artifacts/hooks/use-artifacts-by-document";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
