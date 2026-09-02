@@ -482,12 +482,14 @@ async def test_quiz_manifest_exposes_only_current_user_state_and_varies_etag(
                         "mode": "all",
                         "active_question_indices": [0, 1, 2, 3, 4],
                         "answers": {"0": 0},
+                        "skipped_question_indices": [2],
                     },
                     str(USER_2): {
                         "generation": 3,
                         "mode": "all",
                         "active_question_indices": [0, 1, 2, 3, 4],
                         "answers": {"1": 1},
+                        "skipped_question_indices": [],
                     },
                 }
             }
@@ -514,6 +516,7 @@ async def test_quiz_manifest_exposes_only_current_user_state_and_varies_etag(
     )
 
     assert result["quiz_state"]["answers"] == {"0": 0}
+    assert result["quiz_state"]["skipped_question_indices"] == [2]
     assert str(USER_2) not in json.dumps(result)
     assert response.headers["etag"].startswith('"hash:3:')
 
@@ -558,9 +561,42 @@ async def test_quiz_answer_updates_bounded_namespace_without_content_timestamp(
     )
 
     assert result["answers"] == {"1": 2}
+    assert result["skipped_question_indices"] == []
     assert artifact.artifact_metadata["verification"] == {"verified": True}
     assert artifact.updated_at is updated_at
     mark_updated_at.assert_called_once_with(artifact, "updated_at")
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_quiz_skip_updates_only_authenticated_user(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    monkeypatch.setattr(artifacts_routes, "flag_modified", Mock())
+    artifact = SimpleNamespace(
+        id=7,
+        format="quiz",
+        generation=3,
+        artifact_metadata=None,
+        updated_at=object(),
+    )
+    quiz = SimpleNamespace(questions=[object()] * 5)
+    monkeypatch.setattr(
+        artifacts_routes,
+        "_lock_quiz_mutation",
+        AsyncMock(return_value=(artifact, quiz)),
+    )
+    session = AsyncMock()
+
+    result = await artifacts_routes.skip_quiz_question(
+        2,
+        7,
+        artifacts_routes.QuizSkipUpdate(generation=3, question_index=1),
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result["skipped_question_indices"] == [1]
+    assert str(USER_1) in artifact.artifact_metadata["quiz"]["progress_by_user"]
     session.commit.assert_awaited_once()
 
 

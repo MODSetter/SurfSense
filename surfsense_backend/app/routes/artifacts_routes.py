@@ -30,8 +30,10 @@ from app.artifacts.persistence import (
 from app.artifacts.quiz import (
     QuizAnswerUpdate,
     QuizRetakeUpdate,
+    QuizSkipUpdate,
     apply_quiz_answer,
     apply_quiz_retake,
+    apply_quiz_skip,
     quiz_state_digest,
     sanitize_quiz_state,
 )
@@ -597,6 +599,40 @@ async def update_quiz_answer(
             question_count=len(quiz.questions),
             question_index=update.question_index,
             selected_option_index=update.selected_option_index,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    await _commit_interaction_state(session, artifact, metadata)
+    return state
+
+
+@router.put("/workspaces/{workspace_id}/artifacts/{artifact_id}/quiz-skip")
+async def skip_quiz_question(
+    workspace_id: int,
+    artifact_id: int,
+    update: QuizSkipUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact, quiz = await _lock_quiz_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        update.generation,
+    )
+    try:
+        metadata, state = apply_quiz_skip(
+            artifact.artifact_metadata,
+            user_id=auth.user.id,
+            generation=artifact.generation,
+            question_count=len(quiz.questions),
+            question_index=update.question_index,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
