@@ -18,7 +18,7 @@ import { MentionChip } from "@/components/assistant-ui/mention-chip";
 import { MentionIcon } from "@/components/assistant-ui/mention-icon";
 import { MessageTimestamp } from "@/components/assistant-ui/message-timestamp";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { useArtifactsByDocument } from "@/features/artifacts/hooks/use-artifacts-by-document";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { parseMentionSegments } from "@/lib/chat/parse-mention-segments";
 import { getWorkspaceIdNumber } from "@/lib/route-params";

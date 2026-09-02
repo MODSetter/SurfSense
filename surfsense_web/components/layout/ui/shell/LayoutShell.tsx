@@ -40,7 +40,7 @@ const DocumentTabContent = dynamic(
 );
 const MobileArtifactDrawer = dynamic(
 	() =>
-		import("@/features/artifacts").then((m) => ({
+		import("@/features/artifacts/ui/artifact-panel").then((m) => ({
 			default: m.MobileArtifactDrawer,
 		})),
 	{ ssr: false }

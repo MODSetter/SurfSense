@@ -31,7 +31,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isDownloadableDocumentType } from "@/lib/documents/document-download";
 import type { DocumentNodeDoc } from "@/lib/documents/document-tree-types";

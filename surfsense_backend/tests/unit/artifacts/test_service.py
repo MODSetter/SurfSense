@@ -53,3 +53,24 @@ def test_flashcard_revision_removes_all_user_study_state():
         "verification": {"verified": False},
     }
     assert current["flashcards"]["study_by_user"]["11"]["marks"] == {"0": "good"}
+
+
+def test_revision_removes_generation_scoped_quiz_state_across_format_switches():
+    current = {
+        "verification": {"verified": True},
+        "quiz": {
+            "progress_by_user": {
+                "00000000-0000-0000-0000-000000000001": {
+                    "generation": 1,
+                    "mode": "all",
+                    "active_question_indices": [0],
+                    "answers": {"0": 2},
+                }
+            }
+        },
+        "flashcards": {"study_by_user": {}},
+    }
+
+    assert _revision_metadata(current, None, artifact_format="pdf") == {
+        "verification": {"verified": True}
+    }

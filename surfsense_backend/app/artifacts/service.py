@@ -96,10 +96,10 @@ def _revision_metadata(
     artifact_format: str,
 ) -> dict[str, Any]:
     metadata = {**(current or {}), **(extra or {})}
-    if artifact_format != "flashcards":
-        return metadata
-
+    # Interaction state is generation-scoped and cannot survive any content
+    # revision, including a semantic format switch.
     metadata.pop("flashcards", None)
+    metadata.pop("quiz", None)
     return metadata
 
 

@@ -11,8 +11,8 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
-import { artifactManifestQueryOptions } from "@/features/artifacts/artifact-query";
-import type { ArtifactManifest } from "@/features/artifacts/model";
+import { artifactManifestQueryOptions } from "@/features/artifacts/api/artifact-queries";
+import type { ArtifactManifest } from "@/features/artifacts/model/artifact";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { authenticatedFetch } from "@/lib/auth-fetch";

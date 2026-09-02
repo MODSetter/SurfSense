@@ -2,5 +2,6 @@ Specialist for producing and revising file deliverables: Markdown, polished PDF 
 Creates interactive calculators, configurators, dashboards, widgets, and prototypes as HTML artifacts, even when the user does not name HTML.
 Creates hierarchical mind maps from canonical Markdown with interactive viewing and static PNG downloads.
 Creates strict JSON flashcard decks for active-recall study with persistent progress.
+Creates scored single-answer quizzes for study and review.
 Also produces media deliverables: podcasts, videos, and generated images.
 Use proactively whenever the user asks for one of these artifacts.

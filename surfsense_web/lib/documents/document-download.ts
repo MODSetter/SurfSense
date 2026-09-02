@@ -1,4 +1,4 @@
-import { artifactDownloadPath } from "@/features/artifacts/download-file";
+import { artifactDownloadPath } from "@/features/artifacts/api/artifact-download-path";
 
 interface DownloadableDoc {
 	id: number;

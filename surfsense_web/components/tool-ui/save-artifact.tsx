@@ -6,18 +6,21 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { z } from "zod";
-import { artifactPanelAtom, openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { Mp4VideoPlayer } from "@/components/tool-ui/video-presentation/mp4-player";
 import { Spinner } from "@/components/ui/spinner";
-import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
-import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
+import { artifactDownloadPath } from "@/features/artifacts/api/artifact-download-path";
 import {
 	artifactManifestQueryOptions,
 	invalidatePublishedArtifact,
-} from "@/features/artifacts/artifact-query";
-import { artifactDownloadPath } from "@/features/artifacts/download-file";
+} from "@/features/artifacts/api/artifact-queries";
+import {
+	artifactPanelAtom,
+	openArtifactPanelAtom,
+} from "@/features/artifacts/state/artifact-panel.atom";
+import { ArtifactDownloadButton } from "@/features/artifacts/ui/artifact-download-button";
+import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
+import { ArtifactFormatLabel } from "@/features/artifacts/ui/artifact-format-label";
 import { buildBackendUrl } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 

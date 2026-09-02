@@ -185,6 +185,7 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
             "html",
             "mindmap",
             "flashcards",
+            "quiz",
             "video",
         ],
         runtime: ToolRuntime,

@@ -31,6 +31,24 @@ def _flashcard_deck() -> bytes:
     ).encode()
 
 
+def _quiz() -> bytes:
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "title": "Quiz",
+            "questions": [
+                {
+                    "question_text": f"Question {index}",
+                    "options": [f"A {index}", f"B {index}", f"C {index}", f"D {index}"],
+                    "correct_option_index": index % 4,
+                    "explanation_text": f"Explanation {index}",
+                }
+                for index in range(5)
+            ],
+        }
+    ).encode()
+
+
 def _request(
     if_none_match: str | None = None, *, range_header: str | None = None
 ) -> Request:
@@ -436,6 +454,149 @@ async def test_flashcard_shuffle_updates_only_current_user(monkeypatch):
     users = artifact.artifact_metadata["flashcards"]["study_by_user"]
     assert users[str(USER_1)] == result
     assert users[str(USER_2)]["marks"] == {"1": "again"}
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_quiz_manifest_exposes_only_current_user_state_and_varies_etag(
+    monkeypatch,
+):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    primary = _file(1, ArtifactFileRole.PRIMARY)
+    primary.original_filename = "quiz.json"
+    primary.mime_type = "application/json"
+
+    async def stream(_record):
+        yield _quiz()
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_stream", stream)
+    artifact = SimpleNamespace(
+        id=7,
+        format="quiz",
+        generation=3,
+        artifact_metadata={
+            "quiz": {
+                "progress_by_user": {
+                    str(USER_1): {
+                        "generation": 3,
+                        "mode": "all",
+                        "active_question_indices": [0, 1, 2, 3, 4],
+                        "answers": {"0": 0},
+                        "skipped_question_indices": [2],
+                    },
+                    str(USER_2): {
+                        "generation": 3,
+                        "mode": "all",
+                        "active_question_indices": [0, 1, 2, 3, 4],
+                        "answers": {"1": 1},
+                        "skipped_question_indices": [],
+                    },
+                }
+            }
+        },
+        updated_at=None,
+        files=[primary],
+    )
+    document = SimpleNamespace(
+        id=9,
+        title="Quiz",
+        content_hash="hash",
+        source_markdown="# Quiz",
+        content="# Quiz",
+    )
+    response = Response()
+
+    result = await artifacts_routes.get_artifact_manifest(
+        2,
+        7,
+        _request(),
+        response,
+        _row_result((artifact, document)),
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result["quiz_state"]["answers"] == {"0": 0}
+    assert result["quiz_state"]["skipped_question_indices"] == [2]
+    assert str(USER_2) not in json.dumps(result)
+    assert response.headers["etag"].startswith('"hash:3:')
+
+
+@pytest.mark.asyncio
+async def test_quiz_answer_updates_bounded_namespace_without_content_timestamp(
+    monkeypatch,
+):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    mark_updated_at = Mock()
+    monkeypatch.setattr(artifacts_routes, "flag_modified", mark_updated_at)
+    primary = _file(1, ArtifactFileRole.PRIMARY)
+    primary.original_filename = "quiz.json"
+    primary.mime_type = "application/json"
+
+    async def stream(_record):
+        yield _quiz()
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_stream", stream)
+    updated_at = object()
+    artifact = SimpleNamespace(
+        id=7,
+        format="quiz",
+        generation=3,
+        artifact_metadata={"verification": {"verified": True}},
+        updated_at=updated_at,
+        files=[primary],
+    )
+    session = AsyncMock()
+    session.scalar.side_effect = [artifact, artifact]
+
+    result = await artifacts_routes.update_quiz_answer(
+        2,
+        7,
+        artifacts_routes.QuizAnswerUpdate(
+            generation=3,
+            question_index=1,
+            selected_option_index=2,
+        ),
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result["answers"] == {"1": 2}
+    assert result["skipped_question_indices"] == []
+    assert artifact.artifact_metadata["verification"] == {"verified": True}
+    assert artifact.updated_at is updated_at
+    mark_updated_at.assert_called_once_with(artifact, "updated_at")
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_quiz_skip_updates_only_authenticated_user(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    monkeypatch.setattr(artifacts_routes, "flag_modified", Mock())
+    artifact = SimpleNamespace(
+        id=7,
+        format="quiz",
+        generation=3,
+        artifact_metadata=None,
+        updated_at=object(),
+    )
+    quiz = SimpleNamespace(questions=[object()] * 5)
+    monkeypatch.setattr(
+        artifacts_routes,
+        "_lock_quiz_mutation",
+        AsyncMock(return_value=(artifact, quiz)),
+    )
+    session = AsyncMock()
+
+    result = await artifacts_routes.skip_quiz_question(
+        2,
+        7,
+        artifacts_routes.QuizSkipUpdate(generation=3, question_index=1),
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result["skipped_question_indices"] == [1]
+    assert str(USER_1) in artifact.artifact_metadata["quiz"]["progress_by_user"]
     session.commit.assert_awaited_once()
 
 

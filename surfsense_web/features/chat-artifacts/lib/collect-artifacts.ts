@@ -1,5 +1,5 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
-import type { ArtifactListItem } from "@/features/artifacts/model";
+import type { ArtifactListItem } from "@/features/artifacts/model/artifact";
 import { ARTIFACT_TOOL_KINDS, type ArtifactToolKind, type ChatArtifact } from "../model/artifact";
 
 interface ToolCallPart {

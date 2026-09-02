@@ -19,6 +19,7 @@ class ArtifactFormat(StrEnum):
     PDF = "pdf"
     MINDMAP = "mindmap"
     FLASHCARDS = "flashcards"
+    QUIZ = "quiz"
     PODCAST = "podcast"
     VIDEO = "video"
     IMAGE = "image"

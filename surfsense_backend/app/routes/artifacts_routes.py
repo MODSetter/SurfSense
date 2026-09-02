@@ -27,6 +27,16 @@ from app.artifacts.persistence import (
     ArtifactFile,
     ArtifactFileRole,
 )
+from app.artifacts.quiz import (
+    QuizAnswerUpdate,
+    QuizRetakeUpdate,
+    QuizSkipUpdate,
+    apply_quiz_answer,
+    apply_quiz_retake,
+    apply_quiz_skip,
+    quiz_state_digest,
+    sanitize_quiz_state,
+)
 from app.artifacts.storage import (
     open_artifact_file_range,
     open_artifact_file_stream,
@@ -35,6 +45,7 @@ from app.artifacts.verification.formats.flashcards import (
     FlashcardDeckV1,
     parse_flashcards_deck,
 )
+from app.artifacts.verification.formats.quiz import QuizV1, parse_quiz
 from app.auth.context import AuthContext
 from app.config import config as app_config
 from app.db import Document, Permission, get_async_session
@@ -135,6 +146,23 @@ async def _read_flashcard_deck(artifact: Artifact) -> FlashcardDeckV1:
         if len(data) > app_config.ARTIFACT_MAX_FILE_BYTES:
             raise ValueError("Flashcard artifact exceeds the configured size limit")
     return parse_flashcards_deck(bytes(data))
+
+
+async def _read_quiz(artifact: Artifact) -> QuizV1:
+    primary = next(
+        (file for file in artifact.files if file.role is ArtifactFileRole.PRIMARY),
+        None,
+    )
+    if primary is None:
+        raise ValueError("Quiz artifact has no primary file")
+    if primary.size_bytes > app_config.ARTIFACT_MAX_FILE_BYTES:
+        raise ValueError("Quiz artifact exceeds the configured size limit")
+    data = bytearray()
+    async for chunk in open_artifact_file_stream(primary):
+        data.extend(chunk)
+        if len(data) > app_config.ARTIFACT_MAX_FILE_BYTES:
+            raise ValueError("Quiz artifact exceeds the configured size limit")
+    return parse_quiz(bytes(data))
 
 
 def _file_manifest(
@@ -278,6 +306,7 @@ async def get_artifact_manifest(
         raise HTTPException(status_code=404, detail="Artifact not found")
     artifact, document = row
     flashcard_study_state = None
+    quiz_state = None
     if artifact.format == "flashcards":
         try:
             deck = await _read_flashcard_deck(artifact)
@@ -296,11 +325,29 @@ async def get_artifact_manifest(
             generation=artifact.generation,
             card_count=card_count,
         )
-    etag_suffix = (
-        f":{study_state_digest(flashcard_study_state)}"
-        if flashcard_study_state is not None
-        else ""
-    )
+    elif artifact.format == "quiz":
+        try:
+            quiz = await _read_quiz(artifact)
+            question_count = len(quiz.questions)
+        except Exception:
+            logger.warning(
+                "Could not normalize quiz state for artifact %s generation %s",
+                artifact.id,
+                artifact.generation,
+                exc_info=True,
+            )
+            question_count = 0
+        quiz_state = sanitize_quiz_state(
+            artifact.artifact_metadata,
+            user_id=auth.user.id,
+            generation=artifact.generation,
+            question_count=question_count,
+        )
+    etag_suffix = ""
+    if flashcard_study_state is not None:
+        etag_suffix = f":{study_state_digest(flashcard_study_state)}"
+    elif quiz_state is not None:
+        etag_suffix = f":{quiz_state_digest(quiz_state)}"
     etag = f'"{document.content_hash}:{artifact.generation}{etag_suffix}"'
     cache_headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
     if request.headers.get("if-none-match") == etag:
@@ -326,6 +373,8 @@ async def get_artifact_manifest(
         payload["legacy"] = legacy
     if flashcard_study_state is not None:
         payload["flashcard_study_state"] = flashcard_study_state
+    if quiz_state is not None:
+        payload["quiz_state"] = quiz_state
     return payload
 
 
@@ -374,7 +423,7 @@ async def _lock_flashcard_mutation(
     return artifact, card_count
 
 
-async def _commit_flashcard_state(
+async def _commit_interaction_state(
     session: AsyncSession,
     artifact: Artifact,
     metadata: dict[str, object],
@@ -416,7 +465,7 @@ async def update_flashcard_progress(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
-    await _commit_flashcard_state(session, artifact, metadata)
+    await _commit_interaction_state(session, artifact, metadata)
     return state
 
 
@@ -444,7 +493,7 @@ async def reset_artifact_flashcard_progress(
         generation=artifact.generation,
         card_count=card_count,
     )
-    await _commit_flashcard_state(session, artifact, metadata)
+    await _commit_interaction_state(session, artifact, metadata)
     return state
 
 
@@ -476,7 +525,155 @@ async def update_flashcard_order(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
-    await _commit_flashcard_state(session, artifact, metadata)
+    await _commit_interaction_state(session, artifact, metadata)
+    return state
+
+
+async def _lock_quiz_mutation(
+    session: AsyncSession,
+    workspace_id: int,
+    artifact_id: int,
+    expected_generation: int,
+) -> tuple[Artifact, QuizV1]:
+    source = await session.scalar(
+        select(Artifact)
+        .options(selectinload(Artifact.files))
+        .where(Artifact.id == artifact_id, Artifact.workspace_id == workspace_id)
+    )
+    if source is None or source.format != "quiz":
+        raise HTTPException(status_code=404, detail="Quiz artifact not found")
+    if source.generation != expected_generation:
+        raise HTTPException(
+            status_code=409,
+            detail="Quiz artifact generation changed; refresh before updating",
+        )
+    try:
+        quiz = await _read_quiz(source)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+    # ponytail: One short artifact-row lock is sufficient for bounded per-user
+    # state. Move progress to user-owned rows if contention becomes material.
+    artifact = await session.scalar(
+        select(Artifact)
+        .where(
+            Artifact.id == artifact_id,
+            Artifact.workspace_id == workspace_id,
+        )
+        .with_for_update()
+    )
+    if (
+        artifact is None
+        or artifact.format != "quiz"
+        or artifact.generation != expected_generation
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Quiz artifact changed; refresh before updating",
+        )
+    return artifact, quiz
+
+
+@router.put("/workspaces/{workspace_id}/artifacts/{artifact_id}/quiz-answer")
+async def update_quiz_answer(
+    workspace_id: int,
+    artifact_id: int,
+    update: QuizAnswerUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact, quiz = await _lock_quiz_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        update.generation,
+    )
+    try:
+        metadata, state = apply_quiz_answer(
+            artifact.artifact_metadata,
+            user_id=auth.user.id,
+            generation=artifact.generation,
+            question_count=len(quiz.questions),
+            question_index=update.question_index,
+            selected_option_index=update.selected_option_index,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    await _commit_interaction_state(session, artifact, metadata)
+    return state
+
+
+@router.put("/workspaces/{workspace_id}/artifacts/{artifact_id}/quiz-skip")
+async def skip_quiz_question(
+    workspace_id: int,
+    artifact_id: int,
+    update: QuizSkipUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact, quiz = await _lock_quiz_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        update.generation,
+    )
+    try:
+        metadata, state = apply_quiz_skip(
+            artifact.artifact_metadata,
+            user_id=auth.user.id,
+            generation=artifact.generation,
+            question_count=len(quiz.questions),
+            question_index=update.question_index,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    await _commit_interaction_state(session, artifact, metadata)
+    return state
+
+
+@router.post("/workspaces/{workspace_id}/artifacts/{artifact_id}/quiz-retake")
+async def retake_quiz(
+    workspace_id: int,
+    artifact_id: int,
+    update: QuizRetakeUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    await _authorize_artifact(
+        session, auth, workspace_id, Permission.ARTIFACTS_UPDATE, "update"
+    )
+    artifact, quiz = await _lock_quiz_mutation(
+        session,
+        workspace_id,
+        artifact_id,
+        update.generation,
+    )
+    try:
+        metadata, state = apply_quiz_retake(
+            artifact.artifact_metadata,
+            user_id=auth.user.id,
+            generation=artifact.generation,
+            correct_option_indices=[
+                question.correct_option_index for question in quiz.questions
+            ],
+            mode=update.mode,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+    await _commit_interaction_state(session, artifact, metadata)
     return state
 
 

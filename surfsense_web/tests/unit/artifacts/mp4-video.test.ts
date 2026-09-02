@@ -5,9 +5,8 @@ import { Mp4VideoPlayer } from "@/components/tool-ui/video-presentation/mp4-play
 import {
 	ARTIFACT_GROUP_ORDER,
 	getArtifactFormatMeta,
-} from "@/features/artifacts/artifact-format-meta";
-import { VIEWERS } from "@/features/artifacts/viewer-registry";
-import { FILE_VIEWERS } from "@/features/file-viewers/viewer-registry";
+} from "@/features/artifacts/lib/artifact-format-catalog";
+import { MIME_VIEWERS } from "@/features/artifacts/rendering/mime-viewer-registry";
 
 test("Mp4VideoPlayer uses lazy native video playback", () => {
 	const player = Mp4VideoPlayer({ src: "/video.mp4", poster: "/poster.jpg" });
@@ -33,6 +32,5 @@ test("video artifacts have a dedicated Video identity and group", () => {
 });
 
 test("artifact viewer registry supports MP4 files", () => {
-	assert.ok(VIEWERS["video/mp4"]);
-	assert.ok(FILE_VIEWERS["video/mp4"]);
+	assert.ok(MIME_VIEWERS["video/mp4"]);
 });

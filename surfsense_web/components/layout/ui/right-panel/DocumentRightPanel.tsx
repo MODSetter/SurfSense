@@ -22,7 +22,6 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
@@ -61,7 +60,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { useArtifactsByDocument } from "@/features/artifacts/hooks/use-artifacts-by-document";
+import { openArtifactPanelAtom } from "@/features/artifacts/state/artifact-panel.atom";
 import { downloadFile } from "@/features/file-viewers/download-file-button";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
 import { useGitRemoteStatus } from "@/hooks/use-git-remote-status";
