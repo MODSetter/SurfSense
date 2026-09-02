@@ -57,6 +57,9 @@ The viewer renders the preview and the stable download serves the current primar
 - Receipt round-trip, tampering, expiry, audience, and hash mismatch tests.
 - Mocked-sandbox DOCX save with primary/preview and stale receipt refusal.
 - One artifact document per save, with type preserved across projection.
+- Programmatic adapters such as XLSX, HTML, mindmap, and phase 8 flashcards
+  issue `visual="not_required"` receipts without entering conversion,
+  rasterization, or vision review.
 - Later-turn optimistic revision keeps the same artifact ID, increments generation, and uses the restored current primary plus Markdown context.
 - Live OpenSandbox conversion/rasterization and canonical MIME check.
 - Delete removes all reachable primary/preview blobs.
@@ -68,3 +71,5 @@ The viewer renders the preview and the stable download serves the current primar
 3. Revision restores the current primary and Markdown context without persisting generation source.
 4. Failed/stale revisions preserve the previous generation.
 5. Phase 4 can add PPTX as an adapter, skill, registry entry, and tests without changing persistence or API contracts.
+6. Later adapters may derive searchable Markdown from receipt-bound primary
+   bytes without introducing another verification service or save tool.

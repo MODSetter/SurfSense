@@ -324,7 +324,7 @@
 		"confirm_delete_desc": "¿Estás seguro de que deseas eliminar {count} documento(s)? Esta acción no se puede deshacer.",
 		"uploading": "Subiendo",
 		"upload_files": "Subir archivos",
-		"connect_repo": "Conectar un repositorio",
+		"connect_repo": "Conectar un repo",
 		"connect_repo_attention": "La sincronización requiere atención",
 		"manage_repo": "Configuración del repositorio",
 		"upload_success": "Documento subido correctamente",

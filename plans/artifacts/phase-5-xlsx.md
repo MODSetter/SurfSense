@@ -14,7 +14,9 @@ Phase 5 added spreadsheet generation, structural verification, persistence, and 
 - Binary persistence uses the existing primary artifact role.
 - The artifact panel lazy-loads a native spreadsheet viewer for XLSX manifests.
 
-Generic unknown formats, public artifact viewing, and cross-format hardening are phase 9. Legacy report and Typst removal is documented separately in phase 8.
+Fallback unknown formats, public artifact viewing, and cross-format hardening
+are phase 10. Flashcards are phase 8. Legacy report and Typst removal is
+documented separately in phase 9.
 
 ## 2. Persistence
 
@@ -72,6 +74,8 @@ Charts, pivot tables, macros, editing, and full Excel emulation are outside the 
 - Receipt tests prove XLSX never enters conversion, rasterization, or vision.
 - Integration coverage proves primary-only persistence, post-verification mutation rejection, restoration of the current primary, optimistic revision, and blob purge.
 - Parser tests cover formatted values, formula results, row truncation, oversized payloads, and corrupt workbooks.
+- Phase 8 flashcard JSON uses a separate closed schema while reusing XLSX's
+  programmatic-verification and primary-only persistence precedent.
 
 ## 7. Exit criteria
 
@@ -80,3 +84,5 @@ Charts, pivot tables, macros, editing, and full Excel emulation are outside the 
 3. Save and revision use the same document-backed artifact model as PDF, DOCX, and PPTX.
 4. The authenticated artifact panel renders the real workbook in a native grid and downloads the original `.xlsx`.
 5. No XLSX-specific schema, persistence API, search path, or document editor path exists.
+6. Phase 10 fallback/public hardening and phase 8 flashcards cannot weaken the
+   OOXML-specific trust boundary.

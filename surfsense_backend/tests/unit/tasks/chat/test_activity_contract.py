@@ -150,13 +150,13 @@ def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
         )
     ]
     started = next(frame for frame in start_frames if frame["type"] == "data-activity")
-    assert started["data"]["title"] == "Generating artifact draft"
+    assert started["data"]["title"] == "Generating artifact"
     assert started["data"] == {
         "id": "act_turn_1",
         "sequence": 1,
         "kind": "artifact.create",
         "status": "running",
-        "title": "Generating artifact draft",
+        "title": "Generating artifact",
         "category": "artifact",
         "iconKey": "square-terminal",
         "startedAt": started["data"]["startedAt"],
@@ -247,7 +247,7 @@ def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
     assert [
         (frame["data"]["title"], frame["data"]["status"]) for frame in thinking_frames
     ] == [
-        ("Generated artifact draft", "completed"),
+        ("Generated artifact", "completed"),
         ("Checking the artifact", "running"),
     ]
     list(
@@ -287,7 +287,7 @@ def test_backend_owns_activity_copy_and_phase_lifecycle() -> None:
     parts = builder.snapshot()
     activity_part = next(part for part in parts if part["type"] == "data-activities")
     persisted = activity_part["data"]["activities"][0]
-    assert persisted["title"] == "Generated artifact draft"
+    assert persisted["title"] == "Generated artifact"
     assert persisted["id"] == "act_turn_1"
     tool_part = next(part for part in parts if part["type"] == "tool-call")
     assert tool_part["metadata"]["activityId"] == "act_turn_1"

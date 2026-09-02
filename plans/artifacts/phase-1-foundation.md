@@ -83,6 +83,9 @@ An artifact passage cites as a knowledge-base chunk. Resolution returns the docu
 - Non-git indexing failure leaves a durable artifact with a failed document that reindex repairs.
 - Deleting the artifact removes the Git file, the document, its chunks, the artifact, its file rows, and every reachable blob including artifact roles.
 - Artifact route RBAC/isolation, ETag/304, no-store attachment download, and PDF/MP4-only inline content.
+- Later interaction-capable formats such as phase 8 flashcards keep bounded
+  mutable state in existing artifact metadata without creating another
+  document, artifact, file role, or chunk path.
 - `save_document` refuses an artifact document; rename and move still succeed.
 - An artifact passage ranks in the same fusion as documents and its citation opens the artifact panel.
 - Frontend queries/cards/panel identity use `artifact_id`.
@@ -95,3 +98,5 @@ An artifact passage cites as a knowledge-base chunk. Resolution returns the docu
 4. A stale revision cannot overwrite a newer generation.
 5. Delete removes the Git file, document/artifact/file rows, chunks, and reachable blobs in one operation.
 6. No artifact chunk table, artifact search leg, artifact citation kind, or `/artifacts` root exists anywhere in the codebase.
+7. Later format phases, including flashcards, extend adapters and viewers
+   without changing the one-document artifact identity established here.

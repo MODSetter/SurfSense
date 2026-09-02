@@ -178,7 +178,14 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
     @tool
     async def load_artifact_instructions(
         artifact_type: Literal[
-            "pdf", "docx", "pptx", "xlsx", "html", "mindmap", "video"
+            "pdf",
+            "docx",
+            "pptx",
+            "xlsx",
+            "html",
+            "mindmap",
+            "flashcards",
+            "video",
         ],
         runtime: ToolRuntime,
     ) -> str:

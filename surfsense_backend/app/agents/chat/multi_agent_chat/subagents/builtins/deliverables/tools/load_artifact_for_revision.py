@@ -52,6 +52,12 @@ _REVISION_INSTRUCTIONS = {
         "harness, verify both paths together, and save with the returned artifact "
         "ID and generation. Do not edit or reconstruct the PNG."
     ),
+    "flashcards": (
+        "Edit the restored JSON deck without changing its schema version, write "
+        "the complete deck to expected_output_path, verify it as flashcards, and "
+        "save it with the returned artifact ID and generation. Do not edit the "
+        "derived Markdown or reconstruct the deck with vision."
+    ),
     "markdown": "Edit markdown_path directly and save it as a Markdown-only revision.",
 }
 

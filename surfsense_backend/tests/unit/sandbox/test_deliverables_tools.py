@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -70,6 +71,26 @@ def _runtime():
         state={},
         config={"configurable": {"thread_id": "4::task:call-1"}},
     )
+
+
+def _command_payload(command):
+    return json.loads(command.update["messages"][0].content)
+
+
+def _flashcard_deck() -> bytes:
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "title": "Facts",
+            "cards": [
+                {
+                    "front_text": f"Question {index}",
+                    "back_text": f"Answer {index}",
+                }
+                for index in range(1, 16)
+            ],
+        }
+    ).encode()
 
 
 async def test_verify_tool_keeps_receipt_preview_path_backend_owned(monkeypatch):
@@ -289,6 +310,50 @@ async def test_binary_save_reads_primary_and_preview_from_receipt_format(monkeyp
         "verification": {"verified": True, "reason": None}
     }
     assert captured["format"] == "pdf"
+
+
+async def test_flashcard_save_derives_markdown_from_verified_primary(monkeypatch):
+    path = "/workspace/deck.json"
+    deck = _flashcard_deck()
+    session = _sandbox({path: deck})
+    await _add_receipt(session, path, format_name="flashcards")
+    captured = _patch_save_tool(monkeypatch, session)
+
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+    result = await tool.coroutine(
+        title="Facts",
+        path=path,
+        runtime=_runtime(),
+    )
+    payload = _command_payload(result)
+
+    assert payload["status"] == "saved"
+    assert captured["format"] == "flashcards"
+    assert captured["files"][0].data == deck
+    assert captured["files"][0].mime_type == "application/json"
+    assert captured["markdown_representation"].startswith(
+        "# Facts\n\n## Card 1\n\n### Front\n\nQuestion 1"
+    )
+
+
+async def test_flashcard_save_rejects_competing_markdown(monkeypatch):
+    path = "/workspace/deck.json"
+    session = _sandbox({path: _flashcard_deck()})
+    await _add_receipt(session, path, format_name="flashcards")
+    captured = _patch_save_tool(monkeypatch, session)
+
+    tool = save_tool.create_save_artifact_tool(WORKSPACE_ID)
+    result = await tool.coroutine(
+        title="Facts",
+        markdown_representation="# Untrusted alternative",
+        path=path,
+        runtime=_runtime(),
+    )
+    payload = _command_payload(result)
+
+    assert payload["status"] == "failed"
+    assert "cannot be overridden" in payload["error"]
+    assert not captured
 
 
 async def test_video_save_passes_a_stream_bound_to_receipt(monkeypatch):

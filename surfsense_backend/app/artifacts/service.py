@@ -89,6 +89,20 @@ def _validate_files(files: list[ArtifactInputFile]) -> None:
     _validated_files(files)
 
 
+def _revision_metadata(
+    current: dict[str, Any] | None,
+    extra: dict[str, Any] | None,
+    *,
+    artifact_format: str,
+) -> dict[str, Any]:
+    metadata = {**(current or {}), **(extra or {})}
+    if artifact_format != "flashcards":
+        return metadata
+
+    metadata.pop("flashcards", None)
+    return metadata
+
+
 def _artifact_format(
     files: list[tuple[ArtifactInputFile, ArtifactFileRole]],
     *,
@@ -300,10 +314,11 @@ async def save_artifact(
         artifact.generation += 1
         if tool_call_id is not None:
             artifact.updated_by_tool_call_id = tool_call_id
-        artifact.artifact_metadata = {
-            **(artifact.artifact_metadata or {}),
-            **(extra_metadata or {}),
-        }
+        artifact.artifact_metadata = _revision_metadata(
+            artifact.artifact_metadata,
+            extra_metadata,
+            artifact_format=artifact_format,
+        )
         artifact.updated_at = now
         document.title = title
         document.content = markdown_representation

@@ -45,6 +45,8 @@ PPTX generation is independent of the video-media pipeline; no PPTX exporter rem
 - Slide/document review framing under one verdict contract.
 - Artifact create, stale-receipt refusal, optimistic revision, stable path, and blob purge.
 - Live OpenSandbox generation, LibreOffice conversion, Poppler rasterization, receipt, and canonical MIME.
+- Phase 8 flashcards remain on the programmatic branch and cannot inherit
+  PPTX conversion, page-count, rasterization, or slide-review policy.
 
 ## 6. Exit criteria
 
@@ -53,3 +55,5 @@ PPTX generation is independent of the video-media pipeline; no PPTX exporter rem
 3. Slide-deck requests route to the PPTX skill.
 4. No document file model, document editor route, or media exporter participates.
 5. Phase 5 needs no persistence/API migration to add XLSX.
+6. Format policy remains adapter-owned, so later JSON artifacts can opt out of
+   every rendered-verification stage explicitly.

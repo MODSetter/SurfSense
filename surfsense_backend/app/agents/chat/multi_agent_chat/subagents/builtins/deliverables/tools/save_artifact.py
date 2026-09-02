@@ -36,6 +36,12 @@ from .thread_resolver import resolve_root_thread_id
 logger = logging.getLogger(__name__)
 
 
+def _required_markdown(value: str | None) -> str:
+    if value is None or not value.strip():
+        raise ValueError("markdown_representation must not be empty")
+    return value
+
+
 async def _read_artifact_file(
     session: SandboxSession, path: str, role: str, adapter: FormatAdapter
 ) -> ArtifactFileInput:
@@ -152,8 +158,6 @@ def create_save_artifact_tool(workspace_id: int):
         del description
         root_thread_id = resolve_root_thread_id(runtime)
         try:
-            if not markdown_representation or not markdown_representation.strip():
-                raise ValueError("markdown_representation must not be empty")
             files: list[ArtifactInputFile] = []
             extra_metadata = None
             if path is not None:
@@ -170,6 +174,10 @@ def create_save_artifact_tool(workspace_id: int):
                     )
                     primary_adapter = get_format_adapter(verification.format)
                     validate_format_path(primary_adapter, path)
+                    if primary_adapter.markdown_projection is None:
+                        markdown_representation = _required_markdown(
+                            markdown_representation
+                        )
                     if verification.primary_path != path:
                         raise ValueError(
                             "The artifact changed after verification. Verify it "
@@ -211,6 +219,19 @@ def create_save_artifact_tool(workspace_id: int):
                                 "The artifact changed after verification. Verify it "
                                 "again, then save."
                             )
+                        if primary_adapter.markdown_projection is not None:
+                            projected_markdown = primary_adapter.markdown_projection(
+                                primary.data
+                            )
+                            if (
+                                markdown_representation is not None
+                                and markdown_representation != projected_markdown
+                            ):
+                                raise ValueError(
+                                    "markdown_representation is derived from the "
+                                    "verified artifact and cannot be overridden"
+                                )
+                            markdown_representation = projected_markdown
                     preview = (
                         await _read_artifact_file(
                             session,
@@ -258,6 +279,7 @@ def create_save_artifact_tool(workspace_id: int):
                     if primary_adapter.name == "video":
                         await _cleanup_video_workdir(session, path)
             else:
+                markdown_representation = _required_markdown(markdown_representation)
                 async with shielded_async_session() as db_session:
                     saved = await save_artifact(
                         db_session,

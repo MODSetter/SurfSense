@@ -1,5 +1,7 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
+from uuid import UUID
 
 import pytest
 from fastapi import Response
@@ -8,6 +10,25 @@ from starlette.requests import Request
 from app.artifacts.persistence import ArtifactFileRole
 from app.db import Permission
 from app.routes import artifacts_routes
+
+USER_1 = UUID("00000000-0000-0000-0000-000000000001")
+USER_2 = UUID("00000000-0000-0000-0000-000000000002")
+
+
+def _flashcard_deck() -> bytes:
+    return json.dumps(
+        {
+            "schema_version": 1,
+            "title": "Deck",
+            "cards": [
+                {
+                    "front_text": f"Question {index}",
+                    "back_text": f"Answer {index}",
+                }
+                for index in range(1, 16)
+            ],
+        }
+    ).encode()
 
 
 def _request(
@@ -147,6 +168,275 @@ async def test_manifest_honors_generation_etag(monkeypatch):
 
     assert response.status_code == 304
     assert response.headers["cache-control"] == "private, no-cache"
+
+
+@pytest.mark.asyncio
+async def test_flashcard_manifest_sanitizes_progress_and_varies_etag(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    primary = _file(1, ArtifactFileRole.PRIMARY)
+    primary.original_filename = "deck.json"
+    primary.mime_type = "application/json"
+    deck = _flashcard_deck()
+
+    async def stream(_record):
+        yield deck
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_stream", stream)
+    artifact = SimpleNamespace(
+        id=7,
+        format="flashcards",
+        generation=3,
+        artifact_metadata={
+            "flashcards": {
+                "study_by_user": {
+                    str(USER_1): {
+                        "generation": 3,
+                        "marks": {"0": "good", "15": "again", "bad": "good"},
+                        "order": list(range(15)),
+                    },
+                    str(USER_2): {
+                        "generation": 3,
+                        "marks": {"1": "again"},
+                        "order": list(reversed(range(15))),
+                    },
+                }
+            }
+        },
+        updated_at=None,
+        files=[primary],
+    )
+    document = SimpleNamespace(
+        id=9,
+        title="Deck",
+        content_hash="hash",
+        source_markdown="# Deck",
+        content="# Deck",
+    )
+    session = _row_result((artifact, document))
+    response = Response()
+
+    result = await artifacts_routes.get_artifact_manifest(
+        2,
+        7,
+        _request(),
+        response,
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result["flashcard_study_state"] == {
+        "generation": 3,
+        "marks": {"0": "good"},
+        "order": list(range(15)),
+    }
+    assert response.headers["etag"].startswith('"hash:3:')
+
+
+@pytest.mark.asyncio
+async def test_flashcard_progress_patch_updates_bounded_namespace(monkeypatch):
+    check = AsyncMock()
+    monkeypatch.setattr(artifacts_routes, "check_permission", check)
+    mark_updated_at = Mock()
+    monkeypatch.setattr(artifacts_routes, "flag_modified", mark_updated_at)
+    primary = _file(1, ArtifactFileRole.PRIMARY)
+    primary.original_filename = "deck.json"
+    primary.mime_type = "application/json"
+    deck = _flashcard_deck()
+
+    async def stream(_record):
+        yield deck
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_stream", stream)
+    updated_at = object()
+    artifact = SimpleNamespace(
+        id=7,
+        format="flashcards",
+        generation=3,
+        artifact_metadata={"verification": {"verified": True}},
+        updated_at=updated_at,
+        files=[primary],
+    )
+    session = AsyncMock()
+    session.scalar.side_effect = [artifact, artifact]
+
+    result = await artifacts_routes.update_flashcard_progress(
+        2,
+        7,
+        artifacts_routes.FlashcardProgressUpdate(
+            generation=3,
+            card_index=1,
+            mark="again",
+        ),
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result == {
+        "generation": 3,
+        "marks": {"1": "again"},
+        "order": list(range(15)),
+    }
+    assert artifact.artifact_metadata["verification"] == {"verified": True}
+    assert (
+        artifact.artifact_metadata["flashcards"]["study_by_user"][str(USER_1)] == result
+    )
+    assert artifact.updated_at is updated_at
+    mark_updated_at.assert_called_once_with(artifact, "updated_at")
+    session.commit.assert_awaited_once()
+    assert check.await_args.args[3] == Permission.ARTIFACTS_UPDATE.value
+
+
+@pytest.mark.asyncio
+async def test_flashcard_progress_patch_rejects_stale_generation(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    session = AsyncMock()
+    session.scalar.return_value = SimpleNamespace(
+        id=7,
+        format="flashcards",
+        generation=4,
+        files=[],
+    )
+
+    with pytest.raises(artifacts_routes.HTTPException) as error:
+        await artifacts_routes.update_flashcard_progress(
+            2,
+            7,
+            artifacts_routes.FlashcardProgressUpdate(
+                generation=3,
+                card_index=0,
+                mark="good",
+            ),
+            session,
+            SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+        )
+
+    assert error.value.status_code == 409
+    session.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_flashcard_progress_reset_clears_marks_and_preserves_metadata(
+    monkeypatch,
+):
+    check = AsyncMock()
+    monkeypatch.setattr(artifacts_routes, "check_permission", check)
+    mark_updated_at = Mock()
+    monkeypatch.setattr(artifacts_routes, "flag_modified", mark_updated_at)
+    primary = _file(1, ArtifactFileRole.PRIMARY)
+    primary.original_filename = "deck.json"
+    primary.mime_type = "application/json"
+
+    async def stream(_record):
+        yield _flashcard_deck()
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_stream", stream)
+    updated_at = object()
+    artifact = SimpleNamespace(
+        id=7,
+        format="flashcards",
+        generation=3,
+        artifact_metadata={
+            "verification": {"verified": True},
+            "flashcards": {
+                "study_by_user": {
+                    str(USER_1): {
+                        "generation": 3,
+                        "marks": {"0": "good"},
+                        "order": list(reversed(range(15))),
+                    },
+                    str(USER_2): {
+                        "generation": 3,
+                        "marks": {"1": "again"},
+                        "order": list(range(15)),
+                    },
+                },
+            },
+        },
+        updated_at=updated_at,
+        files=[primary],
+    )
+    session = AsyncMock()
+    session.scalar.side_effect = [artifact, artifact]
+
+    result = await artifacts_routes.reset_artifact_flashcard_progress(
+        2,
+        7,
+        3,
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result == {
+        "generation": 3,
+        "marks": {},
+        "order": list(reversed(range(15))),
+    }
+    assert artifact.artifact_metadata == {
+        "verification": {"verified": True},
+        "flashcards": {
+            "study_by_user": {
+                str(USER_1): result,
+                str(USER_2): {
+                    "generation": 3,
+                    "marks": {"1": "again"},
+                    "order": list(range(15)),
+                },
+            }
+        },
+    }
+    assert artifact.updated_at is updated_at
+    mark_updated_at.assert_called_once_with(artifact, "updated_at")
+    session.commit.assert_awaited_once()
+    assert check.await_args.args[3] == Permission.ARTIFACTS_UPDATE.value
+
+
+@pytest.mark.asyncio
+async def test_flashcard_shuffle_updates_only_current_user(monkeypatch):
+    monkeypatch.setattr(artifacts_routes, "check_permission", AsyncMock())
+    monkeypatch.setattr(artifacts_routes, "flag_modified", Mock())
+    primary = _file(1, ArtifactFileRole.PRIMARY)
+    primary.original_filename = "deck.json"
+    primary.mime_type = "application/json"
+
+    async def stream(_record):
+        yield _flashcard_deck()
+
+    monkeypatch.setattr(artifacts_routes, "open_artifact_file_stream", stream)
+    artifact = SimpleNamespace(
+        id=7,
+        format="flashcards",
+        generation=3,
+        artifact_metadata={
+            "flashcards": {
+                "study_by_user": {
+                    str(USER_2): {
+                        "generation": 3,
+                        "marks": {"1": "again"},
+                        "order": list(range(15)),
+                    }
+                }
+            }
+        },
+        updated_at=None,
+        files=[primary],
+    )
+    session = AsyncMock()
+    session.scalar.side_effect = [artifact, artifact]
+    order = list(reversed(range(15)))
+
+    result = await artifacts_routes.update_flashcard_order(
+        2,
+        7,
+        artifacts_routes.FlashcardOrderUpdate(generation=3, order=order),
+        session,
+        SimpleNamespace(user=SimpleNamespace(id=USER_1)),
+    )
+
+    assert result == {"generation": 3, "marks": {}, "order": order}
+    users = artifact.artifact_metadata["flashcards"]["study_by_user"]
+    assert users[str(USER_1)] == result
+    assert users[str(USER_2)]["marks"] == {"1": "again"}
+    session.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
