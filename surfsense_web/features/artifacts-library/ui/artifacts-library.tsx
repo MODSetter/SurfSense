@@ -88,7 +88,7 @@ export function ArtifactsLibrary({ workspaceId }: { workspaceId: number }) {
 
 			{loading ? (
 				<LoadingState />
-			) : error ? (
+			) : error && merged.length === 0 ? (
 				<ErrorState onRetry={() => refresh()} />
 			) : merged.length === 0 ? (
 				<EmptyState />
