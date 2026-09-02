@@ -1444,7 +1444,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					className="hidden sm:inline-flex"
 				/>
 			</div>
-			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
+			<div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
 				<ChatHeader
 					workspaceId={workspaceId}
 					className="h-9 max-w-[44vw] px-2 sm:max-w-none sm:px-3"
