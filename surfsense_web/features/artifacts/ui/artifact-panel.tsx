@@ -2,9 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Dot, FileWarning, XIcon } from "lucide-react";
+import { Dot, FileWarning, TriangleAlert, XIcon } from "lucide-react";
 import { useState } from "react";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +26,38 @@ import { extension } from "@/features/file-viewers/file-format";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArtifactDownloadButton } from "./artifact-download-button";
 
+function ArtifactRefreshWarning({
+	isRefreshing,
+	onRetry,
+}: {
+	isRefreshing: boolean;
+	onRetry: () => void;
+}) {
+	return (
+		<div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-3">
+			<Alert
+				variant="warning"
+				className="pointer-events-auto w-fit max-w-full select-none items-center gap-x-2 border-0 bg-[oklch(0.32_0_0)] py-3 text-white shadow-[0_8px_32px_rgb(0_0_0/0.24),0_0_14px_rgb(0_0_0/0.12)] has-[>svg]:grid-cols-[auto_minmax(0,1fr)_auto] *:data-[slot=alert-description]:text-white [&>svg]:text-highlight sm:max-w-lg"
+			>
+				<TriangleAlert aria-hidden />
+				<AlertDescription className="col-start-2 block min-w-0 text-xs sm:text-sm">
+					Couldn't refresh this artifact. Showing the last loaded version.
+				</AlertDescription>
+				<Button
+					variant="outline"
+					size="sm"
+					className="relative col-start-3 h-7 shrink-0 border-0 bg-white px-2.5 text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
+					disabled={isRefreshing}
+					onClick={onRetry}
+				>
+					<span className={isRefreshing ? "opacity-0" : ""}>Retry</span>
+					{isRefreshing ? <Spinner size="sm" className="absolute" /> : null}
+				</Button>
+			</Alert>
+		</div>
+	);
+}
+
 export function ArtifactViewerContent({
 	artifactId,
 	onClose,
@@ -38,6 +71,9 @@ export function ArtifactViewerContent({
 		data: content,
 		error,
 		isPending: loading,
+		isLoadingError,
+		isRefetchError,
+		isFetching,
 		refetch,
 	} = useQuery({
 		...artifactManifestQueryOptions(workspaceId, artifactId),
@@ -104,12 +140,16 @@ export function ArtifactViewerContent({
 				</div>
 			</div>
 
-			<div className="min-h-0 flex-1 overflow-hidden" aria-busy={loading}>
+			<div className="relative min-h-0 flex-1 overflow-hidden" aria-busy={loading || isFetching}>
+				{isRefetchError ? (
+					<ArtifactRefreshWarning isRefreshing={isFetching} onRetry={() => void refetch()} />
+				) : null}
+
 				{loading ? (
 					<div className="flex h-full items-center justify-center px-5 py-4">
 						<Spinner size="lg" />
 					</div>
-				) : error ? (
+				) : isLoadingError ? (
 					<div
 						role="alert"
 						className="flex h-full flex-col items-center justify-center gap-3 px-5 py-4 text-center"
