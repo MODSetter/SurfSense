@@ -71,7 +71,6 @@ import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -88,7 +87,6 @@ import { Popover, PopoverAnchor } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
@@ -101,12 +99,10 @@ import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { canSubmitChat } from "@/lib/chat/can-submit-chat";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
-import { findPlatform, type PlaygroundPlatform } from "@/lib/playground/catalog";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import {
@@ -949,57 +945,6 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	);
 };
 
-/**
- * Full-color brand marks for the platform-native scraper APIs (web, Google
- * Search, Google Maps, Reddit, YouTube) available in this workspace, shown beside the
- * composer "+" so the user can see these native endpoints are connected. Laid
- * out as the same overlapping avatar group used by the connect-tools tray
- * from the composer actions. The capability registry is the source of truth;
- * icons are display-only with a status tooltip.
- */
-const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => {
-	const { data: capabilities } = useScraperCapabilities(workspaceId);
-
-	const platforms = useMemo<PlaygroundPlatform[]>(() => {
-		if (!capabilities?.length) return [];
-		const seen = new Set<string>();
-		const result: PlaygroundPlatform[] = [];
-		for (const cap of capabilities) {
-			const platformId = cap.name.split(".")[0];
-			if (seen.has(platformId)) continue;
-			seen.add(platformId);
-			const platform = findPlatform(platformId);
-			if (platform) result.push(platform);
-		}
-		return result;
-	}, [capabilities]);
-
-	if (platforms.length === 0) return null;
-
-	return (
-		<div className="hidden items-center gap-1 sm:flex">
-			<div aria-hidden className="h-5 w-px shrink-0 bg-border" />
-			<AvatarGroup className="shrink-0">
-				{platforms.map((platform, i) => {
-					const Icon = platform.icon;
-					return (
-						<Tooltip key={platform.id}>
-							<TooltipTrigger asChild>
-								<Avatar className="size-5" style={{ zIndex: platforms.length - i }}>
-									<AvatarFallback className="bg-popover text-[10px]">
-										<Icon className="size-3" />
-									</AvatarFallback>
-								</Avatar>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">{platform.label} scraper available</TooltipContent>
-						</Tooltip>
-					);
-				})}
-			</AvatarGroup>
-		</div>
-	);
-};
-
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
 	isLoadingMessages?: boolean;
@@ -1459,7 +1404,6 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
-				<ConnectedScraperIcons workspaceId={workspaceId} />
 			</div>
 			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
 				<ChatHeader
