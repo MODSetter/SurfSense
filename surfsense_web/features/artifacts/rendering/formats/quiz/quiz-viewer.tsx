@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
-import { useRetakeQuiz, useSubmitQuizAnswer } from "@/features/artifacts/hooks/use-quiz-state";
+import {
+	useRetakeQuiz,
+	useSkipQuizQuestion,
+	useSubmitQuizAnswer,
+} from "@/features/artifacts/hooks/use-quiz-state";
 import { selectPrimaryArtifactFile } from "@/features/artifacts/lib/artifact-selectors";
 import type { ArtifactRendererProps } from "@/features/artifacts/model/renderer";
 import { UnviewableFile } from "@/features/file-viewers/unviewable-file";
@@ -26,6 +30,7 @@ import {
 	quizResults,
 	quizRunComplete,
 	retakeLocalQuiz,
+	skipLocalQuestion,
 	submitLocalAnswer,
 } from "./state";
 
@@ -49,6 +54,7 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 	const [selectedOption, setSelectedOption] = useState<number | null>(null);
 	const [message, setMessage] = useState("");
 	const submitAnswer = useSubmitQuizAnswer(workspaceId, manifest.artifact_id, manifest.generation);
+	const skipQuestion = useSkipQuizQuestion(workspaceId, manifest.artifact_id, manifest.generation);
 	const retake = useRetakeQuiz(workspaceId, manifest.artifact_id, manifest.generation);
 	const persisted = manifest.quiz_state !== undefined;
 	const primaryContentUrl = primary?.content_url;
@@ -130,9 +136,10 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 	const submittedOption = quizState.answers[String(questionIndex)];
 	const answerRevealed = submittedOption !== undefined;
 	const isLastQuestion = currentPosition === quizState.active_question_indices.length - 1;
+	const savingQuestion = submitAnswer.isPending || skipQuestion.isPending;
 
 	async function selectAnswer(optionIndex: number) {
-		if (answerRevealed || submitAnswer.isPending) return;
+		if (answerRevealed || savingQuestion) return;
 		setSelectedOption(optionIndex);
 		setMessage("");
 		try {
@@ -149,14 +156,27 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 		}
 	}
 
-	function advance() {
-		if (!answerRevealed) return;
+	function moveForward() {
 		setSelectedOption(null);
 		if (isLastQuestion) {
 			setScreen("score");
 		} else {
 			setCurrentPosition((position) => position + 1);
 			requestAnimationFrame(() => headingRef.current?.focus());
+		}
+	}
+
+	async function skip() {
+		if (answerRevealed || savingQuestion) return;
+		setMessage("");
+		try {
+			const state = persisted
+				? await skipQuestion.mutateAsync({ question_index: questionIndex })
+				: skipLocalQuestion(quizState, questionIndex);
+			setQuizState(state);
+			moveForward();
+		} catch (error) {
+			setMessage(error instanceof Error ? error.message : "Question could not be skipped");
 		}
 	}
 
@@ -212,7 +232,7 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 						<RadioGroup
 							value={selectedOption === null ? "" : String(selectedOption)}
 							onValueChange={(value) => void selectAnswer(Number(value))}
-							disabled={answerRevealed || submitAnswer.isPending}
+							disabled={answerRevealed || savingQuestion}
 							aria-label={`Question ${questionIndex + 1} options`}
 							className="gap-3"
 						>
@@ -259,14 +279,14 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 						<div className="mt-6 flex justify-end">
 							<Button
 								type="button"
-								disabled={!answerRevealed || submitAnswer.isPending}
-								onClick={advance}
-								className="relative border-0 bg-white text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
+								disabled={savingQuestion}
+								onClick={answerRevealed ? moveForward : () => void skip()}
+								className="relative w-28 border-0 bg-white text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
 							>
-								<span className={submitAnswer.isPending ? "opacity-0" : ""}>
-									{isLastQuestion ? "View score" : "Next"}
+								<span className={savingQuestion ? "opacity-0" : ""}>
+									{answerRevealed ? (isLastQuestion ? "View score" : "Next") : "Skip"}
 								</span>
-								{submitAnswer.isPending ? <Spinner size="sm" className="absolute" /> : null}
+								{savingQuestion ? <Spinner size="sm" className="absolute" /> : null}
 							</Button>
 						</div>
 					</section>
@@ -275,6 +295,7 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 						quiz={quiz}
 						correct={results.correct}
 						missed={results.missed}
+						skipped={results.skipped}
 						percentage={results.percentage}
 						pending={retake.isPending}
 						onReview={(index) => {

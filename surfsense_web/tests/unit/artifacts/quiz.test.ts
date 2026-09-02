@@ -8,6 +8,7 @@ import {
 	quizResults,
 	quizRunComplete,
 	retakeLocalQuiz,
+	skipLocalQuestion,
 	submitLocalAnswer,
 } from "@/features/artifacts/rendering/formats/quiz/state";
 
@@ -46,6 +47,7 @@ test("quiz state normalizes, completes, scores, and retakes missed questions", (
 	assert.deepEqual(quizResults(deck, state), {
 		correct: 4,
 		missed: [1],
+		skipped: [],
 		total: 5,
 		percentage: 80,
 	});
@@ -54,6 +56,25 @@ test("quiz state normalizes, completes, scores, and retakes missed questions", (
 	assert.equal(missed.answers["1"], undefined);
 	const all = retakeLocalQuiz(deck, state, "all");
 	assert.deepEqual(all, emptyQuizState(2, 5));
+});
+
+test("skipped questions complete a run and join the missed retake scope", () => {
+	const deck = quiz();
+	let state = emptyQuizState(2, 5);
+	for (let index = 0; index < 4; index += 1) {
+		state = submitLocalAnswer(state, index, index % 4);
+	}
+	state = skipLocalQuestion(state, 4);
+
+	assert.equal(quizRunComplete(state), true);
+	assert.deepEqual(quizResults(deck, state), {
+		correct: 4,
+		missed: [],
+		skipped: [4],
+		total: 5,
+		percentage: 80,
+	});
+	assert.deepEqual(retakeLocalQuiz(deck, state, "missed").active_question_indices, [4]);
 });
 
 test("viewer keeps quiz interactions semantic, accessible, and local for public manifests", () => {
@@ -73,18 +94,24 @@ test("viewer keeps quiz interactions semantic, accessible, and local for public 
 	assert.match(source, /border-green-500/);
 	assert.match(source, /border-red-500/);
 	assert.match(source, /"View score" : "Next"/);
-	assert.match(source, /submitAnswer\.isPending \? "opacity-0"/);
+	assert.match(source, /useSkipQuizQuestion/);
+	assert.match(source, /skipLocalQuestion/);
+	assert.match(source, /: "Skip"/);
+	assert.match(source, /className="relative w-28/);
+	assert.match(source, /savingQuestion \? "opacity-0"/);
 	assert.match(source, /<Spinner size="sm" className="absolute"/);
 	assert.doesNotMatch(source, /Submit answer/);
 	assert.match(score, /Retake missed questions/);
 	assert.match(score, /Retake all questions/);
 	assert.match(score, /\{correct\} correct/);
 	assert.match(score, /\{missed\.length\} missed/);
+	assert.match(score, /\{skipped\.length\} skipped/);
 	assert.match(score, /<Dot/);
 	assert.match(score, /useState<ResultCategory>\("missed"\)/);
 	assert.match(score, /<Tabs[\s\S]*value=\{category\}/);
 	assert.match(score, /onClick=\{\(\) => setCategory\("correct"\)\}/);
 	assert.match(score, /onClick=\{\(\) => setCategory\("missed"\)\}/);
+	assert.match(score, /onClick=\{\(\) => setCategory\("skipped"\)\}/);
 	assert.match(score, /category === "correct" && "border-white"/);
 	assert.match(score, /category === "missed" && "border-white"/);
 	assert.match(score, /h-72 overflow-y-auto/);
@@ -92,6 +119,7 @@ test("viewer keeps quiz interactions semantic, accessible, and local for public 
 	assert.match(score, /value="missed"/);
 	assert.match(score, /title="Correct"/);
 	assert.match(score, /title="Missed"/);
+	assert.match(score, /title="Skipped"/);
 	assert.match(score, /onClick=\{\(\) => onReview\(index\)\}/);
 	assert.match(source, /setReviewIndex\(index\)/);
 	assert.match(score, /inline-flex items-center gap-2 opacity-0/);

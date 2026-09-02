@@ -16,7 +16,7 @@ import { StudyText } from "../study-text/study-text";
 import type { Quiz } from "./schema";
 import type { QuizRetakeMode } from "./state";
 
-type ResultCategory = "correct" | "missed";
+type ResultCategory = "correct" | "missed" | "skipped";
 
 function QuestionSection({
 	title,
@@ -64,6 +64,7 @@ export function ScoreScreen({
 	quiz,
 	correct,
 	missed,
+	skipped,
 	percentage,
 	pending,
 	onReview,
@@ -72,6 +73,7 @@ export function ScoreScreen({
 	quiz: Quiz;
 	correct: number;
 	missed: number[];
+	skipped: number[];
 	percentage: number;
 	pending: boolean;
 	onReview: (index: number) => void;
@@ -80,13 +82,14 @@ export function ScoreScreen({
 	const headingRef = useRef<HTMLHeadingElement>(null);
 	const [category, setCategory] = useState<ResultCategory>("missed");
 	useEffect(() => headingRef.current?.focus(), []);
-	const missedSet = new Set(missed);
+	const unresolved = new Set([...missed, ...skipped]);
 	const correctIndices = quiz.questions
 		.map((_, index) => index)
-		.filter((index) => !missedSet.has(index));
+		.filter((index) => !unresolved.has(index));
 	const selectCategory = (value: string) => {
-		if (value === "correct" || value === "missed") setCategory(value);
+		if (value === "correct" || value === "missed" || value === "skipped") setCategory(value);
 	};
+	const questionCount = quiz.questions.length;
 
 	return (
 		<section className="rounded-2xl border p-5 sm:p-7">
@@ -111,7 +114,7 @@ export function ScoreScreen({
 					Review
 				</Button>
 			</div>
-			<fieldset className="mt-7 flex h-5 overflow-hidden rounded-full bg-brand/25">
+			<fieldset className="mt-7 flex h-5 overflow-hidden rounded-full bg-muted">
 				<legend className="sr-only">Score breakdown</legend>
 				<button
 					type="button"
@@ -119,17 +122,31 @@ export function ScoreScreen({
 					onClick={() => setCategory("correct")}
 					className={cn(
 						"rounded-l-full border-2 border-transparent bg-brand transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+						missed.length === 0 && skipped.length === 0 && "rounded-r-full",
 						category === "correct" && "border-white"
 					)}
-					style={{ width: `${percentage}%` }}
+					style={{ width: `${(correct / questionCount) * 100}%` }}
 				/>
 				<button
 					type="button"
 					aria-label={`Show ${missed.length} missed questions`}
 					onClick={() => setCategory("missed")}
 					className={cn(
-						"min-w-0 flex-1 rounded-r-full border-2 border-transparent bg-brand/25 transition-colors hover:bg-brand/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+						"border-2 border-transparent bg-brand/25 transition-colors hover:bg-brand/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+						correct === 0 && "rounded-l-full",
+						skipped.length === 0 && "rounded-r-full",
 						category === "missed" && "border-white"
+					)}
+					style={{ width: `${(missed.length / questionCount) * 100}%` }}
+				/>
+				<button
+					type="button"
+					aria-label={`Show ${skipped.length} skipped questions`}
+					onClick={() => setCategory("skipped")}
+					className={cn(
+						"min-w-0 flex-1 rounded-r-full border-2 border-transparent bg-muted transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+						correct === 0 && missed.length === 0 && "rounded-l-full",
+						category === "skipped" && "border-white"
 					)}
 				/>
 			</fieldset>
@@ -149,6 +166,13 @@ export function ScoreScreen({
 						<Dot aria-hidden="true" className="size-5 text-brand/40" strokeWidth={8} />
 						{missed.length} missed
 					</TabsTrigger>
+					<TabsTrigger
+						value="skipped"
+						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
+					>
+						<Dot aria-hidden="true" className="size-5 text-muted-foreground" strokeWidth={8} />
+						{skipped.length} skipped
+					</TabsTrigger>
 				</TabsList>
 				<div className="mt-7 h-72 overflow-y-auto border-t pt-5 pr-2">
 					<TabsContent value="correct" className="mt-0">
@@ -161,6 +185,9 @@ export function ScoreScreen({
 					</TabsContent>
 					<TabsContent value="missed" className="mt-0">
 						<QuestionSection title="Missed" indices={missed} quiz={quiz} onReview={onReview} />
+					</TabsContent>
+					<TabsContent value="skipped" className="mt-0">
+						<QuestionSection title="Skipped" indices={skipped} quiz={quiz} onReview={onReview} />
 					</TabsContent>
 				</div>
 			</Tabs>
@@ -186,7 +213,10 @@ export function ScoreScreen({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem disabled={missed.length === 0} onSelect={() => onRetake("missed")}>
+						<DropdownMenuItem
+							disabled={missed.length + skipped.length === 0}
+							onSelect={() => onRetake("missed")}
+						>
 							Retake missed questions
 						</DropdownMenuItem>
 						<DropdownMenuItem onSelect={() => onRetake("all")}>
