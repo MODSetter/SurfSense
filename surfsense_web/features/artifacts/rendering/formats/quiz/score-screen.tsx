@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight, Dot, RotateCcw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { StudyText } from "../study-text/study-text";
 import type { Quiz } from "./schema";
 import type { QuizRetakeMode } from "./state";
+
+type ResultCategory = "correct" | "missed";
 
 function QuestionSection({
 	title,
@@ -75,11 +78,15 @@ export function ScoreScreen({
 	onRetake: (mode: QuizRetakeMode) => void;
 }) {
 	const headingRef = useRef<HTMLHeadingElement>(null);
+	const [category, setCategory] = useState<ResultCategory>("missed");
 	useEffect(() => headingRef.current?.focus(), []);
 	const missedSet = new Set(missed);
 	const correctIndices = quiz.questions
 		.map((_, index) => index)
 		.filter((index) => !missedSet.has(index));
+	const selectCategory = (value: string) => {
+		if (value === "correct" || value === "missed") setCategory(value);
+	};
 
 	return (
 		<section className="rounded-2xl border p-5 sm:p-7">
@@ -104,23 +111,42 @@ export function ScoreScreen({
 					Review
 				</Button>
 			</div>
-			<div className="mt-7 flex h-3 overflow-hidden rounded-full bg-muted">
-				<div className="bg-primary" style={{ width: `${percentage}%` }} aria-hidden="true" />
-			</div>
-			<Tabs defaultValue="missed" className="mt-4">
+			<fieldset className="mt-7 flex h-5 overflow-hidden rounded-full bg-brand/25">
+				<legend className="sr-only">Score breakdown</legend>
+				<button
+					type="button"
+					aria-label={`Show ${correct} correct questions`}
+					onClick={() => setCategory("correct")}
+					className={cn(
+						"rounded-l-full border-2 border-transparent bg-brand transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+						category === "correct" && "border-white"
+					)}
+					style={{ width: `${percentage}%` }}
+				/>
+				<button
+					type="button"
+					aria-label={`Show ${missed.length} missed questions`}
+					onClick={() => setCategory("missed")}
+					className={cn(
+						"min-w-0 flex-1 rounded-r-full border-2 border-transparent bg-brand/25 transition-colors hover:bg-brand/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+						category === "missed" && "border-white"
+					)}
+				/>
+			</fieldset>
+			<Tabs value={category} onValueChange={selectCategory} className="mt-4">
 				<TabsList className="h-auto justify-start gap-2 bg-transparent p-0">
 					<TabsTrigger
 						value="correct"
 						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
 					>
-						<Dot aria-hidden="true" className="size-5 text-green-500" strokeWidth={8} />
+						<Dot aria-hidden="true" className="size-5 text-brand" strokeWidth={8} />
 						{correct} correct
 					</TabsTrigger>
 					<TabsTrigger
 						value="missed"
 						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
 					>
-						<Dot aria-hidden="true" className="size-5 text-red-500" strokeWidth={8} />
+						<Dot aria-hidden="true" className="size-5 text-brand/40" strokeWidth={8} />
 						{missed.length} missed
 					</TabsTrigger>
 				</TabsList>

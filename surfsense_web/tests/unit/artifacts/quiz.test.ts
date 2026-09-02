@@ -81,7 +81,12 @@ test("viewer keeps quiz interactions semantic, accessible, and local for public 
 	assert.match(score, /\{correct\} correct/);
 	assert.match(score, /\{missed\.length\} missed/);
 	assert.match(score, /<Dot/);
-	assert.match(score, /<Tabs defaultValue="missed"/);
+	assert.match(score, /useState<ResultCategory>\("missed"\)/);
+	assert.match(score, /<Tabs[\s\S]*value=\{category\}/);
+	assert.match(score, /onClick=\{\(\) => setCategory\("correct"\)\}/);
+	assert.match(score, /onClick=\{\(\) => setCategory\("missed"\)\}/);
+	assert.match(score, /category === "correct" && "border-white"/);
+	assert.match(score, /category === "missed" && "border-white"/);
 	assert.match(score, /h-72 overflow-y-auto/);
 	assert.match(score, /value="correct"/);
 	assert.match(score, /value="missed"/);
