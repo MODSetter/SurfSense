@@ -22,6 +22,13 @@ class QuizAnswerUpdate(BaseModel):
     selected_option_index: QuizOptionIndex
 
 
+class QuizSkipUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    generation: int = Field(strict=True, gt=0)
+    question_index: QuizQuestionIndex
+
+
 class QuizRetakeUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -43,9 +50,14 @@ def _valid_state(
     mode = value.get("mode")
     raw_scope = value.get("active_question_indices")
     raw_answers = value.get("answers")
+    raw_skipped = value.get("skipped_question_indices")
     if mode not in ("all", "missed"):
         return None
-    if not isinstance(raw_scope, list) or not isinstance(raw_answers, dict):
+    if (
+        not isinstance(raw_scope, list)
+        or not isinstance(raw_answers, dict)
+        or not isinstance(raw_skipped, list)
+    ):
         return None
     if (
         not raw_scope
@@ -64,11 +76,19 @@ def _valid_state(
         answer = raw_answers.get(str(index))
         if type(answer) is int and 0 <= answer <= 3:
             answers[str(index)] = answer
+    if (
+        any(type(index) is not int for index in raw_skipped)
+        or raw_skipped != sorted(set(raw_skipped))
+        or any(not 0 <= index < question_count for index in raw_skipped)
+        or any(str(index) in answers for index in raw_skipped)
+    ):
+        return None
     return {
         "generation": generation,
         "mode": mode,
         "active_question_indices": list(raw_scope),
         "answers": answers,
+        "skipped_question_indices": list(raw_skipped),
     }
 
 
@@ -108,6 +128,7 @@ def empty_quiz_state(*, generation: int, question_count: int) -> dict[str, objec
         "mode": "all",
         "active_question_indices": _canonical_scope(question_count),
         "answers": {},
+        "skipped_question_indices": [],
     }
 
 
@@ -141,7 +162,11 @@ def quiz_state_digest(state: dict[str, object]) -> str:
 
 def quiz_run_complete(state: dict[str, object]) -> bool:
     answers = state["answers"]
-    return all(str(index) in answers for index in state["active_question_indices"])
+    skipped = state["skipped_question_indices"]
+    return all(
+        str(index) in answers or index in skipped
+        for index in state["active_question_indices"]
+    )
 
 
 def apply_quiz_answer(
@@ -169,11 +194,41 @@ def apply_quiz_answer(
 
     answers = dict(state["answers"])
     key = str(question_index)
+    if question_index in state["skipped_question_indices"]:
+        raise RuntimeError("question was already skipped; retake before answering it")
     existing = answers.get(key)
     if existing is not None and existing != selected_option_index:
         raise RuntimeError("question was already answered; retake before changing it")
     answers[key] = selected_option_index
     state = {**state, "answers": answers}
+    users[str(user_id)] = state
+    return _with_users(metadata, users), state
+
+
+def apply_quiz_skip(
+    metadata: dict[str, Any] | None,
+    *,
+    user_id: UUID,
+    generation: int,
+    question_count: int,
+    question_index: int,
+) -> tuple[dict[str, Any], dict[str, object]]:
+    users = _progress_by_user(
+        metadata,
+        generation=generation,
+        question_count=question_count,
+    )
+    state = users.get(str(user_id)) or empty_quiz_state(
+        generation=generation,
+        question_count=question_count,
+    )
+    if question_index not in state["active_question_indices"]:
+        raise ValueError("question_index is outside the active quiz run")
+    if str(question_index) in state["answers"]:
+        raise RuntimeError("question was already answered; retake before skipping it")
+
+    skipped = sorted({*state["skipped_question_indices"], question_index})
+    state = {**state, "skipped_question_indices": skipped}
     users[str(user_id)] = state
     return _with_users(metadata, users), state
 
@@ -200,8 +255,7 @@ def apply_quiz_retake(
         raise RuntimeError("complete the current quiz run before retaking it")
 
     answers = dict(state["answers"])
-    if len(answers) != question_count:
-        raise RuntimeError("complete the whole quiz before retaking it")
+    skipped = list(state["skipped_question_indices"])
     if mode == "missed":
         scope = [
             index
@@ -212,15 +266,18 @@ def apply_quiz_retake(
             raise RuntimeError("there are no missed questions to retake")
         for index in scope:
             answers.pop(str(index), None)
+        skipped = [index for index in skipped if index not in scope]
     else:
         scope = _canonical_scope(question_count)
         answers = {}
+        skipped = []
 
     state = {
         "generation": generation,
         "mode": mode,
         "active_question_indices": scope,
         "answers": answers,
+        "skipped_question_indices": skipped,
     }
     users[str(user_id)] = state
     return _with_users(metadata, users), state
