@@ -116,8 +116,9 @@ import {
 } from "../new-chat/document-mention-picker";
 import { ThreadMessagesSkeletonBody } from "./thread-messages-skeleton";
 
-const COMPOSER_PLACEHOLDER =
+const COMPOSER_PLACEHOLDER_LONG =
 	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
+const COMPOSER_PLACEHOLDER_SHORT = "Ask anything, use / or @";
 
 const SEARCH_SCOPE_OPTIONS = [
 	{
@@ -442,6 +443,8 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		useState<ComposerSuggestionAnchorPoint | null>(null);
 	const [isComposerInputEmpty, setIsComposerInputEmpty] = useState(true);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const inputWrapperRef = useRef<HTMLDivElement>(null);
+	const placeholderMeasureRef = useRef<HTMLSpanElement>(null);
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
@@ -472,7 +475,29 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	const { data: chatSetupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId ?? 0));
 	const isChatUnavailable = !!chatSetupStatus && chatSetupStatus.status !== "ready";
 
-	const currentPlaceholder = COMPOSER_PLACEHOLDER;
+	const [longPlaceholderFits, setLongPlaceholderFits] = useState(false);
+	useEffect(() => {
+		if (!isDesktop) {
+			setLongPlaceholderFits(false);
+			return;
+		}
+
+		const wrapper = inputWrapperRef.current;
+		const measure = placeholderMeasureRef.current;
+		const editor = wrapper?.querySelector<HTMLElement>('[contenteditable="true"]');
+		if (!editor || !measure) return;
+
+		const update = () => setLongPlaceholderFits(measure.scrollWidth <= editor.clientWidth);
+		update();
+
+		const observer = new ResizeObserver(update);
+		observer.observe(editor);
+		observer.observe(measure);
+		return () => observer.disconnect();
+	}, [isDesktop]);
+
+	const currentPlaceholder =
+		isDesktop && longPlaceholderFits ? COMPOSER_PLACEHOLDER_LONG : COMPOSER_PLACEHOLDER_SHORT;
 
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 	const { data: members } = useAtomValue(membersAtom);
@@ -939,7 +964,14 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDismiss={() => setClipboardInitialText(undefined)}
 						/>
 					)}
-					<div className="aui-composer-input-wrapper px-4 pt-3 pb-2 sm:pb-6">
+					<div ref={inputWrapperRef} className="aui-composer-input-wrapper relative px-4 py-2">
+						<span
+							ref={placeholderMeasureRef}
+							aria-hidden="true"
+							className="invisible absolute text-sm leading-6 font-normal whitespace-nowrap"
+						>
+							{COMPOSER_PLACEHOLDER_LONG}
+						</span>
 						<InlineMentionEditor
 							ref={editorRef}
 							placeholder={currentPlaceholder}
@@ -951,7 +983,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
-							className="min-h-[48px] sm:min-h-[24px] **:data-slate-placeholder:font-normal"
+							className="min-h-[24px] **:data-slate-placeholder:font-normal **:data-slate-placeholder:whitespace-nowrap"
 						/>
 					</div>
 					<ComposerAction
