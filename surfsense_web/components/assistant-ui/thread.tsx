@@ -84,6 +84,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -114,6 +115,16 @@ import { ThreadMessagesSkeletonBody } from "./thread-messages-skeleton";
 
 const COMPOSER_PLACEHOLDER =
 	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
+
+const SEARCH_SCOPE_OPTIONS = [
+	{ value: "documents", label: "Docs", ariaLabel: "Search through documents" },
+	{ value: "web", label: "Web", ariaLabel: "Search through web connectors" },
+	{
+		value: "all",
+		label: "All",
+		ariaLabel: "Search through documents and web connectors",
+	},
+] as const;
 
 type ComposerSuggestionAnchorPoint = {
 	left: number;
@@ -975,6 +986,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
+	const [searchScope, setSearchScope] = useState("documents");
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
@@ -1404,6 +1416,13 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
+				<SegmentedControl
+					value={searchScope}
+					options={SEARCH_SCOPE_OPTIONS}
+					onValueChange={setSearchScope}
+					ariaLabel="Search scope"
+					className="hidden sm:inline-flex"
+				/>
 			</div>
 			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
 				<ChatHeader
