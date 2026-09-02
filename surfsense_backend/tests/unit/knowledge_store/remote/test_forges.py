@@ -180,3 +180,62 @@ def test_token_from_oauth_payload_raises_on_error():
     assert (
         GithubProvider._token_from_oauth_payload({"access_token": "ghu_x"}) == "ghu_x"
     )
+
+
+def test_gitlab_projects_from_payload_stringifies_id_and_drops_cloneless():
+    payload = [
+        {
+            "id": 42,
+            "path_with_namespace": "grp/a",
+            "http_url_to_repo": "https://gitlab.com/grp/a.git",
+            "default_branch": "trunk",
+        },
+        {
+            "id": 43,
+            "path_with_namespace": "grp/b",
+            "http_url_to_repo": "https://gitlab.com/grp/b.git",
+        },
+        {"id": 44, "path_with_namespace": "grp/c", "http_url_to_repo": ""},
+    ]
+    assert GitlabProvider._projects_from_payload(payload) == [
+        {
+            "id": "42",
+            "full_name": "grp/a",
+            "url": "https://gitlab.com/grp/a.git",
+            "default_branch": "trunk",
+        },
+        {
+            "id": "43",
+            "full_name": "grp/b",
+            "url": "https://gitlab.com/grp/b.git",
+            "default_branch": "main",
+        },
+    ]
+
+
+def test_gitlab_folders_from_tree_keeps_only_dirs():
+    payload = [
+        {"path": "src", "type": "tree"},
+        {"path": "docs", "type": "tree"},
+        {"path": "docs/intro.md", "type": "blob"},
+        {"path": "docs/api", "type": "tree"},
+        {"path": "README.md", "type": "blob"},
+    ]
+    assert GitlabProvider._folders_from_tree(payload) == ["src", "docs", "docs/api"]
+
+
+def test_gitlab_branches_from_payload_keeps_names():
+    payload = [{"name": "main"}, {"name": "dev"}, {"protected": True}]
+    assert GitlabProvider._branches_from_payload(payload) == ["main", "dev"]
+
+
+def test_gitlab_next_link_parses_rel_next():
+    from app.knowledge_store.remote.forges.gitlab import _next_link
+
+    header = (
+        '<https://gitlab.com/api/v4/projects?page=2>; rel="next", '
+        '<https://gitlab.com/api/v4/projects?page=5>; rel="last"'
+    )
+    assert _next_link(header) == "https://gitlab.com/api/v4/projects?page=2"
+    assert _next_link(None) is None
+    assert _next_link('<https://x>; rel="last"') is None
