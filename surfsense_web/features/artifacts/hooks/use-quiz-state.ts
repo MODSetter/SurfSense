@@ -76,6 +76,16 @@ export function useSubmitQuizAnswer(workspaceId: number, artifactId: number, gen
 	});
 }
 
+export function useSkipQuizQuestion(workspaceId: number, artifactId: number, generation: number) {
+	return useQuizMutation<{ question_index: number }>({
+		workspaceId,
+		artifactId,
+		generation,
+		path: "quiz-skip",
+		method: "PUT",
+	});
+}
+
 export function useRetakeQuiz(workspaceId: number, artifactId: number, generation: number) {
 	return useQuizMutation<{ mode: QuizRetakeMode }>({
 		workspaceId,
