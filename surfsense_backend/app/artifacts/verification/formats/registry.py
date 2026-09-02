@@ -12,6 +12,7 @@ from .html import check_html
 from .mindmap import check_mindmap_png
 from .pdf import check_pdf
 from .pptx import check_pptx
+from .quiz import check_quiz_json, quiz_to_markdown
 from .video import check_video, reject_buffered_video_check
 from .xlsx import check_xlsx
 
@@ -23,7 +24,7 @@ HTML_MIME = "text/html"
 MP4_MIME = "video/mp4"
 PNG_MIME = "image/png"
 VerifiableArtifactFormat = Literal[
-    "pdf", "docx", "pptx", "xlsx", "html", "video", "mindmap", "flashcards"
+    "pdf", "docx", "pptx", "xlsx", "html", "video", "mindmap", "flashcards", "quiz"
 ]
 
 _ADAPTERS = {
@@ -93,6 +94,15 @@ _ADAPTERS = {
         check=check_flashcards_json,
         requires_visual_review=False,
         markdown_projection=flashcards_to_markdown,
+    ),
+    "quiz": FormatAdapter(
+        name="quiz",
+        suffix=".json",
+        mime_type="application/json",
+        convert_to_pdf=False,
+        check=check_quiz_json,
+        requires_visual_review=False,
+        markdown_projection=quiz_to_markdown,
     ),
 }
 
