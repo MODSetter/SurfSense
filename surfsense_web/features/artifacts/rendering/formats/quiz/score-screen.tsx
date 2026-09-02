@@ -1,0 +1,174 @@
+"use client";
+
+import { ChevronDown, ChevronRight, Dot, RotateCcw } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StudyText } from "../study-text/study-text";
+import type { Quiz } from "./schema";
+import type { QuizRetakeMode } from "./state";
+
+function QuestionSection({
+	title,
+	indices,
+	quiz,
+	onReview,
+}: {
+	title: string;
+	indices: number[];
+	quiz: Quiz;
+	onReview: (index: number) => void;
+}) {
+	return (
+		<section>
+			<h3 className="font-medium">
+				{title} ({indices.length})
+			</h3>
+			{indices.length > 0 ? (
+				<ol className="mt-2 space-y-1">
+					{indices.map((index) => (
+						<li key={index}>
+							<button
+								type="button"
+								onClick={() => onReview(index)}
+								aria-label={`Review question ${index + 1}`}
+								className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							>
+								<span className="font-medium text-foreground">{index + 1}.</span>
+								<span className="min-w-0 flex-1">
+									<StudyText content={quiz.questions[index].question_text} />
+								</span>
+								<ChevronRight aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+							</button>
+						</li>
+					))}
+				</ol>
+			) : (
+				<p className="mt-2 text-sm text-muted-foreground">None</p>
+			)}
+		</section>
+	);
+}
+
+export function ScoreScreen({
+	quiz,
+	correct,
+	missed,
+	percentage,
+	pending,
+	onReview,
+	onRetake,
+}: {
+	quiz: Quiz;
+	correct: number;
+	missed: number[];
+	percentage: number;
+	pending: boolean;
+	onReview: (index: number) => void;
+	onRetake: (mode: QuizRetakeMode) => void;
+}) {
+	const headingRef = useRef<HTMLHeadingElement>(null);
+	useEffect(() => headingRef.current?.focus(), []);
+	const missedSet = new Set(missed);
+	const correctIndices = quiz.questions
+		.map((_, index) => index)
+		.filter((index) => !missedSet.has(index));
+
+	return (
+		<section className="rounded-2xl border p-5 sm:p-7">
+			<div className="flex flex-wrap items-start justify-between gap-4">
+				<div>
+					<p className="text-sm text-muted-foreground">Your score</p>
+					<h2
+						ref={headingRef}
+						tabIndex={-1}
+						className="mt-1 text-4xl font-semibold tracking-tight outline-none"
+					>
+						{correct}/{quiz.questions.length}{" "}
+						<span className="text-muted-foreground">({percentage}%)</span>
+					</h2>
+				</div>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={() => onReview(0)}
+					className="border-0 bg-white text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
+				>
+					Review
+				</Button>
+			</div>
+			<div className="mt-7 flex h-3 overflow-hidden rounded-full bg-muted">
+				<div className="bg-primary" style={{ width: `${percentage}%` }} aria-hidden="true" />
+			</div>
+			<Tabs defaultValue="missed" className="mt-4">
+				<TabsList className="h-auto justify-start gap-2 bg-transparent p-0">
+					<TabsTrigger
+						value="correct"
+						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
+					>
+						<Dot aria-hidden="true" className="size-5 text-green-500" strokeWidth={8} />
+						{correct} correct
+					</TabsTrigger>
+					<TabsTrigger
+						value="missed"
+						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
+					>
+						<Dot aria-hidden="true" className="size-5 text-red-500" strokeWidth={8} />
+						{missed.length} missed
+					</TabsTrigger>
+				</TabsList>
+				<div className="mt-7 h-72 overflow-y-auto border-t pt-5 pr-2">
+					<TabsContent value="correct" className="mt-0">
+						<QuestionSection
+							title="Correct"
+							indices={correctIndices}
+							quiz={quiz}
+							onReview={onReview}
+						/>
+					</TabsContent>
+					<TabsContent value="missed" className="mt-0">
+						<QuestionSection title="Missed" indices={missed} quiz={quiz} onReview={onReview} />
+					</TabsContent>
+				</div>
+			</Tabs>
+			<div className="mt-7 flex justify-end border-t pt-5">
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={pending}
+							className="relative border-0 bg-white text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
+						>
+							<span
+								className={
+									pending
+										? "inline-flex items-center gap-2 opacity-0"
+										: "inline-flex items-center gap-2"
+								}
+							>
+								<RotateCcw /> Retake quiz <ChevronDown />
+							</span>
+							{pending ? <Spinner size="sm" className="absolute" /> : null}
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem disabled={missed.length === 0} onSelect={() => onRetake("missed")}>
+							Retake missed questions
+						</DropdownMenuItem>
+						<DropdownMenuItem onSelect={() => onRetake("all")}>
+							Retake all questions
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+		</section>
+	);
+}
