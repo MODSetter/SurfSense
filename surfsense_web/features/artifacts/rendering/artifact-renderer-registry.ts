@@ -36,6 +36,10 @@ const FlashcardActions = dynamic<ArtifactRendererActionsProps>(
 	() => import("./formats/flashcards/flashcard-actions"),
 	{ ssr: false }
 );
+const QuizViewer = dynamic<ArtifactRendererProps>(() => import("./formats/quiz/quiz-viewer"), {
+	ssr: false,
+	loading: RendererLoading,
+});
 
 export const SEMANTIC_RENDERERS: Readonly<Record<string, ArtifactRenderer>> = {
 	mindmap: { Viewer: MindMapViewer, downloadable: true },
@@ -44,6 +48,7 @@ export const SEMANTIC_RENDERERS: Readonly<Record<string, ArtifactRenderer>> = {
 		Actions: FlashcardActions,
 		downloadable: false,
 	},
+	quiz: { Viewer: QuizViewer, downloadable: false },
 };
 
 export const SEMANTIC_RENDERER_FORMATS = new Set(Object.keys(SEMANTIC_RENDERERS));

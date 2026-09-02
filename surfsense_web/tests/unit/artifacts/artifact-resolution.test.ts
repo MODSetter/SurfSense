@@ -7,7 +7,7 @@ import {
 } from "@/features/artifacts/lib/artifact-format-catalog";
 import { resolveArtifactRenderer } from "@/features/artifacts/lib/artifact-resolution";
 
-const semanticFormats = new Set(["flashcards", "mindmap"]);
+const semanticFormats = new Set(["flashcards", "mindmap", "quiz"]);
 const mimeTypes = new Set(["application/pdf", "video/mp4"]);
 
 function resolve(overrides: Partial<Parameters<typeof resolveArtifactRenderer>[0]> = {}) {
@@ -62,6 +62,13 @@ test("format normalization and metadata retain current semantic and media behavi
 			groupKey: "files",
 			viewingMode: "viewer",
 		}
+	);
+	const quiz = getArtifactFormatMeta("quiz");
+	assert.equal(quiz.label, "Interactive");
+	assert.equal(quiz.detailLabel, "Quiz");
+	assert.deepEqual(
+		resolve({ format: "quiz", primaryMimeType: "application/json", hasPrimary: true }),
+		{ kind: "semantic", key: "quiz" }
 	);
 
 	const podcast = getArtifactFormatMeta("podcast");

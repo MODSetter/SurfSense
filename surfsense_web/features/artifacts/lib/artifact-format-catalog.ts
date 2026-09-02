@@ -6,6 +6,7 @@ import {
 	FileText,
 	ImageIcon,
 	Layers3,
+	ListChecks,
 	Network,
 	Presentation,
 	Shapes,
@@ -52,6 +53,12 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		icon: Layers3,
 		label: "Interactive",
 		detailLabel: "Flashcards",
+	},
+	quiz: {
+		...FILE_META,
+		icon: ListChecks,
+		label: "Interactive",
+		detailLabel: "Quiz",
 	},
 	pptx: {
 		icon: Presentation,
