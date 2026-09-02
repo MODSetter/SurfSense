@@ -13,7 +13,10 @@ import {
 	Camera,
 	ChevronDown,
 	Clipboard,
+	Files,
+	Globe2,
 	LayoutGrid,
+	Layers3,
 	Plus,
 	Settings2,
 	SquareIcon,
@@ -122,18 +125,21 @@ const SEARCH_SCOPE_OPTIONS = [
 		label: "Docs",
 		ariaLabel: "Search through documents",
 		tooltip: "Search only documents saved in this workspace.",
+		icon: Files,
 	},
 	{
 		value: "web",
 		label: "Web",
 		ariaLabel: "Search through web connectors",
 		tooltip: "Search only sources available through your web connectors.",
+		icon: Globe2,
 	},
 	{
 		value: "all",
 		label: "All",
 		ariaLabel: "Search through documents and web connectors",
 		tooltip: "Search workspace documents and web connector sources together.",
+		icon: Layers3,
 	},
 ] as const;
 
@@ -1149,6 +1155,9 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						onToggleTool={toggleTool}
 						onToggleToolGroup={toggleToolGroup}
 						toolsLoading={!filteredTools?.length}
+						searchScope={searchScope}
+						searchScopeOptions={SEARCH_SCOPE_OPTIONS}
+						onSearchScopeChange={setSearchScope}
 					/>
 				) : (
 					<DropdownMenu
