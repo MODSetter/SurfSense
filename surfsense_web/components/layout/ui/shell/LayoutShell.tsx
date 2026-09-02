@@ -2,11 +2,12 @@
 
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
@@ -55,6 +56,9 @@ const MobileDocumentViewerPanel = dynamic(
 
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
 const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const DESKTOP_ICON_RAIL_WIDTH = 56;
+const DESKTOP_SHELL_HORIZONTAL_PADDING = 16;
+const MIN_CHAT_WORKSPACE_WIDTH = 840;
 
 function persistPlaygroundSidebarCollapsedCookie(isCollapsed: boolean) {
 	void window.cookieStore
@@ -340,12 +344,24 @@ export function LayoutShell({
 	const [isPlaygroundSidebarCollapsed, setIsPlaygroundSidebarCollapsed] = useState(
 		initialPlaygroundSidebarCollapsed
 	);
-	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const {
 		sidebarWidth,
 		handlePointerDown: onResizePointerDown,
 		isDragging: isResizing,
 	} = useSidebarResize();
+	const shouldCollapseSidebarForChat = useMediaQuery(
+		`(min-width: 768px) and (max-width: ${
+			DESKTOP_ICON_RAIL_WIDTH +
+			sidebarWidth +
+			MIN_CHAT_WORKSPACE_WIDTH +
+			DESKTOP_SHELL_HORIZONTAL_PADDING
+		}px)`
+	);
+	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
+
+	useEffect(() => {
+		if (isChatPage && shouldCollapseSidebarForChat) setIsCollapsed(true);
+	}, [isChatPage, setIsCollapsed, shouldCollapseSidebarForChat]);
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(
