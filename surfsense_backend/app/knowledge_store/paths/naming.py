@@ -38,7 +38,7 @@ def safe_folder_segment(value: str, *, fallback: str = "folder") -> str:
     """Sanitize one folder name into a path-safe segment."""
     name = _INVALID_FILENAME_CHARS.sub("_", value).strip()
     name = _WHITESPACE_RUN.sub(" ", name)
-    if not name:
+    if not name or name in (".", ".."):
         return fallback
     if len(name) > _MAX_SEGMENT_LEN:
         name = name[:_MAX_SEGMENT_LEN].rstrip()
