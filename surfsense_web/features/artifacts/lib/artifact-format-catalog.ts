@@ -140,8 +140,14 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 	},
 };
 
+const NON_DOWNLOADABLE_FORMATS = new Set(["flashcards", "quiz"]);
+
 export function normalizeArtifactFormat(format: string | null | undefined): string {
 	return format?.trim().toLowerCase() || "file";
+}
+
+export function isArtifactDownloadable(format: string | null | undefined): boolean {
+	return !NON_DOWNLOADABLE_FORMATS.has(normalizeArtifactFormat(format));
 }
 
 export function getArtifactFormatMeta(format: string | null | undefined): ArtifactFormatMeta {

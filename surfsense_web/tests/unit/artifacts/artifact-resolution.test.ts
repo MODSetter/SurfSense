@@ -3,6 +3,7 @@ import test from "node:test";
 import {
 	ARTIFACT_GROUP_ORDER,
 	getArtifactFormatMeta,
+	isArtifactDownloadable,
 	normalizeArtifactFormat,
 } from "@/features/artifacts/lib/artifact-format-catalog";
 import { resolveArtifactRenderer } from "@/features/artifacts/lib/artifact-resolution";
@@ -47,6 +48,9 @@ test("renderer resolution preserves semantic, MIME, and markdown precedence", ()
 test("format normalization and metadata retain current semantic and media behavior", () => {
 	assert.equal(normalizeArtifactFormat("  MiNdMaP "), "mindmap");
 	assert.equal(normalizeArtifactFormat(null), "file");
+	assert.equal(isArtifactDownloadable(" FlashCards "), false);
+	assert.equal(isArtifactDownloadable("quiz"), false);
+	assert.equal(isArtifactDownloadable("mindmap"), true);
 
 	const flashcards = getArtifactFormatMeta("flashcards");
 	assert.deepEqual(

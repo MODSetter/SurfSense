@@ -2,6 +2,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { artifactDownloadPath } from "@/features/artifacts/api/artifact-download-path";
+import { isArtifactDownloadable } from "@/features/artifacts/lib/artifact-format-catalog";
 import { openArtifactPanelAtom } from "@/features/artifacts/state/artifact-panel.atom";
 import { ArtifactDownloadButton } from "@/features/artifacts/ui/artifact-download-button";
 import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
@@ -17,7 +18,11 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const canOpen = artifact.artifactId != null;
-	const canDownload = canOpen && Number.isFinite(workspaceId) && workspaceId > 0;
+	const canDownload =
+		canOpen &&
+		Number.isFinite(workspaceId) &&
+		workspaceId > 0 &&
+		isArtifactDownloadable(artifact.format);
 
 	const handleOpen = () => {
 		const artifactId = artifact.artifactId;

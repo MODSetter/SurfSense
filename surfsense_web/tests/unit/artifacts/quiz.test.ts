@@ -93,11 +93,11 @@ test("viewer keeps quiz interactions semantic, accessible, and local for public 
 	assert.match(source, /selectedOption === null \? "" : String\(selectedOption\)/);
 	assert.match(source, /border-green-500/);
 	assert.match(source, /border-red-500/);
-	assert.match(source, /"View score" : "Next"/);
+	assert.match(source, /"Finish" : "Next"/);
 	assert.match(source, /useSkipQuizQuestion/);
 	assert.match(source, /skipLocalQuestion/);
 	assert.match(source, /: "Skip"/);
-	assert.match(source, /className="relative w-28/);
+	assert.match(source, /className="relative w-22/);
 	assert.match(source, /savingQuestion \? "opacity-0"/);
 	assert.match(source, /<Spinner size="sm" className="absolute"/);
 	assert.doesNotMatch(source, /Submit answer/);
@@ -124,6 +124,7 @@ test("viewer keeps quiz interactions semantic, accessible, and local for public 
 	assert.match(source, /setReviewIndex\(index\)/);
 	assert.match(score, /inline-flex items-center gap-2 opacity-0/);
 	assert.match(score, /<Spinner size="sm" className="absolute"/);
+	assert.match(score, /<DropdownMenuContent align="end" className="z-90"/);
 	assert.doesNotMatch(score, /Got it|Missed it/);
 	assert.doesNotMatch(`${source}\n${score}`, /shuffle|download|multi-select/i);
 });

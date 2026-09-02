@@ -151,26 +151,30 @@ export function ScoreScreen({
 				/>
 			</fieldset>
 			<Tabs value={category} onValueChange={selectCategory} className="mt-4">
-				<TabsList className="h-auto justify-start gap-2 bg-transparent p-0">
+				<TabsList className="h-auto justify-start gap-0.5 bg-transparent p-0 sm:gap-2">
 					<TabsTrigger
 						value="correct"
-						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
+						className="gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-border sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
 					>
-						<Dot aria-hidden="true" className="size-5 text-brand" strokeWidth={8} />
+						<Dot aria-hidden="true" className="size-3.5 text-brand sm:size-5" strokeWidth={8} />
 						{correct} correct
 					</TabsTrigger>
 					<TabsTrigger
 						value="missed"
-						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
+						className="gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-border sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
 					>
-						<Dot aria-hidden="true" className="size-5 text-brand/40" strokeWidth={8} />
+						<Dot aria-hidden="true" className="size-3.5 text-brand/40 sm:size-5" strokeWidth={8} />
 						{missed.length} missed
 					</TabsTrigger>
 					<TabsTrigger
 						value="skipped"
-						className="gap-1.5 rounded-full border border-transparent px-3 data-[state=active]:border-border"
+						className="gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-border sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
 					>
-						<Dot aria-hidden="true" className="size-5 text-muted-foreground" strokeWidth={8} />
+						<Dot
+							aria-hidden="true"
+							className="size-3.5 text-muted-foreground sm:size-5"
+							strokeWidth={8}
+						/>
 						{skipped.length} skipped
 					</TabsTrigger>
 				</TabsList>
@@ -212,7 +216,7 @@ export function ScoreScreen({
 							{pending ? <Spinner size="sm" className="absolute" /> : null}
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align="end" className="z-90">
 						<DropdownMenuItem
 							disabled={missed.length + skipped.length === 0}
 							onSelect={() => onRetake("missed")}

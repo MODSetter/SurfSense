@@ -281,10 +281,10 @@ export default function QuizViewer({ workspaceId, manifest }: ArtifactRendererPr
 								type="button"
 								disabled={savingQuestion}
 								onClick={answerRevealed ? moveForward : () => void skip()}
-								className="relative w-28 border-0 bg-white text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
+								className="relative w-22 border-0 bg-white px-2 text-black hover:bg-white/90 hover:text-black dark:bg-white dark:text-black dark:hover:bg-white/90 dark:hover:text-black"
 							>
 								<span className={savingQuestion ? "opacity-0" : ""}>
-									{answerRevealed ? (isLastQuestion ? "View score" : "Next") : "Skip"}
+									{answerRevealed ? (isLastQuestion ? "Finish" : "Next") : "Skip"}
 								</span>
 								{savingQuestion ? <Spinner size="sm" className="absolute" /> : null}
 							</Button>

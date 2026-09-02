@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { createElement } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Spinner } from "@/components/ui/spinner";
+import { isArtifactDownloadable } from "@/features/artifacts/lib/artifact-format-catalog";
 import type { ArtifactRendererResolution } from "@/features/artifacts/lib/artifact-resolution";
 import { selectPrimaryArtifactFile } from "@/features/artifacts/lib/artifact-selectors";
 import type {
@@ -42,13 +43,13 @@ const QuizViewer = dynamic<ArtifactRendererProps>(() => import("./formats/quiz/q
 });
 
 export const SEMANTIC_RENDERERS: Readonly<Record<string, ArtifactRenderer>> = {
-	mindmap: { Viewer: MindMapViewer, downloadable: true },
+	mindmap: { Viewer: MindMapViewer, downloadable: isArtifactDownloadable("mindmap") },
 	flashcards: {
 		Viewer: FlashcardsViewer,
 		Actions: FlashcardActions,
-		downloadable: false,
+		downloadable: isArtifactDownloadable("flashcards"),
 	},
-	quiz: { Viewer: QuizViewer, downloadable: false },
+	quiz: { Viewer: QuizViewer, downloadable: isArtifactDownloadable("quiz") },
 };
 
 export const SEMANTIC_RENDERER_FORMATS = new Set(Object.keys(SEMANTIC_RENDERERS));
