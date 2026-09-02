@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, Folder, Github, Gitlab } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	Accordion,
@@ -14,12 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Command,
-	CommandInput,
-	CommandItem,
-	CommandList,
-} from "@/components/ui/command";
+import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,6 +26,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { GitlabRepo } from "@/contracts/types/git-remote.types";
 import { gitRemotesApiService } from "@/lib/apis/git-remotes-api.service";
 import { workspacesApiService } from "@/lib/apis/workspaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -72,9 +68,11 @@ export function GitRemoteSettings({
 		enabled: gitNative && !!githubInstallationId,
 	});
 
-	const [gitlabUrl, setGitlabUrl] = useState("");
 	const [gitlabBranch, setGitlabBranch] = useState("main");
 	const [gitlabToken, setGitlabToken] = useState("");
+	// Bumped by "Load projects"; keeps the PAT out of the react-query cache key.
+	const [gitlabLoadNonce, setGitlabLoadNonce] = useState(0);
+	const [gitlabSelectedRepo, setGitlabSelectedRepo] = useState<GitlabRepo | null>(null);
 	const [sourcepath, setSourcepath] = useState("docs");
 	const [busy, setBusy] = useState(false);
 	const [selectedRepo, setSelectedRepo] = useState<{
@@ -112,6 +110,38 @@ export function GitRemoteSettings({
 				branch,
 			}),
 		enabled: gitNative && !!githubInstallationId && !!selectedRepo,
+	});
+
+	const gitlabTokenTrimmed = gitlabToken.trim();
+	const gitlabReposQuery = useQuery({
+		queryKey: cacheKeys.workspaces.gitlabRepos(workspaceId, gitlabLoadNonce),
+		queryFn: () => gitRemotesApiService.listGitlabRepos(workspaceId, gitlabTokenTrimmed),
+		enabled: gitNative && gitlabLoadNonce > 0 && !!gitlabTokenTrimmed,
+	});
+
+	const gitlabBranchesQuery = useQuery({
+		queryKey: cacheKeys.workspaces.gitlabBranches(workspaceId, gitlabSelectedRepo?.id ?? ""),
+		queryFn: () =>
+			gitRemotesApiService.listGitlabBranches(workspaceId, {
+				token: gitlabTokenTrimmed,
+				projectId: gitlabSelectedRepo?.id ?? "",
+			}),
+		enabled: gitNative && !!gitlabSelectedRepo && !!gitlabTokenTrimmed,
+	});
+
+	const gitlabFoldersQuery = useQuery({
+		queryKey: cacheKeys.workspaces.gitlabFolders(
+			workspaceId,
+			gitlabSelectedRepo?.id ?? "",
+			gitlabBranch
+		),
+		queryFn: () =>
+			gitRemotesApiService.listGitlabFolders(workspaceId, {
+				token: gitlabTokenTrimmed,
+				projectId: gitlabSelectedRepo?.id ?? "",
+				branch: gitlabBranch,
+			}),
+		enabled: gitNative && !!gitlabSelectedRepo && !!gitlabTokenTrimmed,
 	});
 
 	const installations = (githubInstallations ?? "")
@@ -184,16 +214,16 @@ export function GitRemoteSettings({
 		}
 	};
 
-	const onGitlabConnect = async (e: FormEvent) => {
-		e.preventDefault();
+	const onGitlabConnect = async () => {
+		if (!gitlabSelectedRepo) return;
 		setBusy(true);
 		try {
 			const created = await gitRemotesApiService.add(workspaceId, {
 				provider: "gitlab",
-				url: gitlabUrl.trim(),
+				url: gitlabSelectedRepo.url,
 				branch: gitlabBranch.trim() || "main",
-				token: gitlabToken.trim(),
-				sourcepath: sourcepath.trim() || "docs",
+				token: gitlabTokenTrimmed,
+				sourcepath: sourcepath.trim(),
 			});
 			if (created.last_error_code === "need_direction") {
 				toast.info(t("connected_repo_need_direction"));
@@ -201,6 +231,7 @@ export function GitRemoteSettings({
 				toast.success(t("connected_repo_gitlab_connected"));
 			}
 			setGitlabToken("");
+			setGitlabSelectedRepo(null);
 			await refresh();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : t("connected_repo_gitlab_add_error"));
@@ -440,7 +471,13 @@ export function GitRemoteSettings({
 							))}
 						</ul>
 					)}
-					<Button type="button" variant="ghost" size="sm" onClick={clearGithubQuery} className="w-fit">
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={clearGithubQuery}
+						className="w-fit"
+					>
 						{t("connected_repo_cancel")}
 					</Button>
 				</div>
@@ -465,7 +502,13 @@ export function GitRemoteSettings({
 							</li>
 						))}
 					</ul>
-					<Button type="button" variant="ghost" size="sm" onClick={clearGithubQuery} className="w-fit">
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={clearGithubQuery}
+						className="w-fit"
+					>
 						{t("connected_repo_cancel")}
 					</Button>
 				</div>
@@ -516,36 +559,8 @@ export function GitRemoteSettings({
 							</span>
 						</AccordionTrigger>
 						<AccordionContent>
-							<form onSubmit={onGitlabConnect} className="flex flex-col gap-3">
+							<div className="flex flex-col gap-3">
 								<p className="text-muted-foreground">{t("connected_repo_gitlab_blurb")}</p>
-								<div className="flex flex-col gap-2">
-									<Label htmlFor="gitlab-url">{t("connected_repo_gitlab_url")}</Label>
-									<Input
-										id="gitlab-url"
-										type="url"
-										placeholder="https://gitlab.com/group/project.git"
-										value={gitlabUrl}
-										onChange={(e) => setGitlabUrl(e.target.value)}
-										required
-									/>
-								</div>
-								<div className="flex flex-col gap-2">
-									<Label htmlFor="gitlab-branch">{t("connected_repo_gitlab_branch")}</Label>
-									<Input
-										id="gitlab-branch"
-										value={gitlabBranch}
-										onChange={(e) => setGitlabBranch(e.target.value)}
-									/>
-								</div>
-								<div className="flex flex-col gap-2">
-									<Label htmlFor="gitlab-sourcepath">{t("connected_repo_gitlab_sourcepath")}</Label>
-									<Input
-										id="gitlab-sourcepath"
-										value={sourcepath}
-										onChange={(e) => setSourcepath(e.target.value)}
-										placeholder="docs"
-									/>
-								</div>
 								<div className="flex flex-col gap-2">
 									<Label htmlFor="gitlab-token">{t("connected_repo_gitlab_token")}</Label>
 									<Input
@@ -554,13 +569,112 @@ export function GitRemoteSettings({
 										autoComplete="off"
 										value={gitlabToken}
 										onChange={(e) => setGitlabToken(e.target.value)}
-										required
 									/>
+									<p className="text-xs text-muted-foreground">
+										{t("connected_repo_gitlab_token_hint")}
+									</p>
 								</div>
-								<Button type="submit" variant="secondary" size="sm" disabled={busy} className="w-fit">
-									{busy ? <Spinner size="sm" /> : t("connected_repo_gitlab_cta")}
-								</Button>
-							</form>
+								{gitlabSelectedRepo ? (
+									<>
+										<p className="text-sm font-medium">{gitlabSelectedRepo.full_name}</p>
+										<div className="flex flex-col gap-2">
+											<Label htmlFor="gitlab-branch">{t("connected_repo_branch_label")}</Label>
+											<Select value={gitlabBranch} onValueChange={setGitlabBranch}>
+												<SelectTrigger id="gitlab-branch">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{((gitlabBranchesQuery.data ?? []).includes(gitlabBranch)
+														? (gitlabBranchesQuery.data ?? [])
+														: [gitlabBranch, ...(gitlabBranchesQuery.data ?? [])]
+													).map((name) => (
+														<SelectItem key={name} value={name}>
+															{name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										<div className="flex flex-col gap-2">
+											<Label htmlFor="gitlab-sourcepath">
+												{t("connected_repo_sourcepath_label")}
+											</Label>
+											<FolderPicker
+												id="gitlab-sourcepath"
+												value={sourcepath}
+												onChange={setSourcepath}
+												folders={gitlabFoldersQuery.data ?? []}
+												loading={gitlabFoldersQuery.isLoading}
+												error={gitlabFoldersQuery.isError}
+											/>
+											<p className="text-xs text-muted-foreground">
+												{t("connected_repo_folder_hint")}
+											</p>
+										</div>
+										<div className="flex gap-2">
+											<Button type="button" size="sm" disabled={busy} onClick={onGitlabConnect}>
+												{busy ? <Spinner size="sm" /> : t("connected_repo_connect_cta")}
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												disabled={busy}
+												onClick={() => setGitlabSelectedRepo(null)}
+											>
+												{t("connected_repo_cancel")}
+											</Button>
+										</div>
+									</>
+								) : (
+									<>
+										<Button
+											type="button"
+											variant="secondary"
+											size="sm"
+											disabled={busy || !gitlabTokenTrimmed}
+											onClick={() => setGitlabLoadNonce((n) => n + 1)}
+											className="w-fit"
+										>
+											{t("connected_repo_gitlab_load")}
+										</Button>
+										{gitlabLoadNonce > 0 ? (
+											gitlabReposQuery.isLoading ? (
+												<Skeleton className="h-10 w-full" />
+											) : gitlabReposQuery.isError ? (
+												<p className="text-xs text-destructive">
+													{t("connected_repo_gitlab_add_error")}
+												</p>
+											) : (gitlabReposQuery.data ?? []).length === 0 ? (
+												<p className="text-xs text-muted-foreground">
+													{t("connected_repo_no_repos")}
+												</p>
+											) : (
+												<ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+													{(gitlabReposQuery.data ?? []).map((repo) => (
+														<li key={repo.id}>
+															<Button
+																type="button"
+																variant="outline"
+																size="sm"
+																disabled={busy}
+																onClick={() => {
+																	setGitlabSelectedRepo(repo);
+																	setGitlabBranch(repo.default_branch || "main");
+																}}
+																className="w-full justify-start gap-2 font-normal"
+															>
+																<Gitlab size={14} className="shrink-0 text-muted-foreground" />
+																<span className="truncate">{repo.full_name}</span>
+															</Button>
+														</li>
+													))}
+												</ul>
+											)
+										) : null}
+									</>
+								)}
+							</div>
 						</AccordionContent>
 					</AccordionItem>
 				</Accordion>
@@ -570,12 +684,14 @@ export function GitRemoteSettings({
 }
 
 function FolderPicker({
+	id = "github-sourcepath",
 	value,
 	onChange,
 	folders,
 	loading,
 	error,
 }: {
+	id?: string;
 	value: string;
 	onChange: (value: string) => void;
 	folders: string[];
@@ -611,7 +727,7 @@ function FolderPicker({
 		>
 			<PopoverTrigger asChild>
 				<Button
-					id="github-sourcepath"
+					id={id}
 					type="button"
 					variant="outline"
 					role="combobox"

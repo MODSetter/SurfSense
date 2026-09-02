@@ -774,6 +774,8 @@
 		"connected_repo_gitlab_branch": "分支",
 		"connected_repo_gitlab_sourcepath": "GitHub/GitLab 上的文件夹",
 		"connected_repo_gitlab_token": "个人访问令牌",
+		"connected_repo_gitlab_token_hint": "在 GitLab 的“设置 → 访问令牌”中创建，并勾选 read_api 和 write_repository。",
+		"connected_repo_gitlab_load": "加载项目",
 		"connected_repo_gitlab_cta": "连接 GitLab",
 		"connected_repo_gitlab_connected": "已连接 GitLab 仓库",
 		"connected_repo_gitlab_add_error": "无法添加 GitLab 仓库",

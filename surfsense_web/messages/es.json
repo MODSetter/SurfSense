@@ -774,6 +774,8 @@
 		"connected_repo_gitlab_branch": "Rama",
 		"connected_repo_gitlab_sourcepath": "Carpeta en GitHub/GitLab",
 		"connected_repo_gitlab_token": "Token de acceso personal",
+		"connected_repo_gitlab_token_hint": "Créalo en GitLab en Configuración → Tokens de acceso con read_api y write_repository.",
+		"connected_repo_gitlab_load": "Cargar proyectos",
 		"connected_repo_gitlab_cta": "Conectar GitLab",
 		"connected_repo_gitlab_connected": "Repositorio de GitLab conectado",
 		"connected_repo_gitlab_add_error": "No se pudo añadir el repositorio de GitLab",

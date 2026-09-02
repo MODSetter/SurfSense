@@ -774,6 +774,8 @@
 		"connected_repo_gitlab_branch": "브랜치",
 		"connected_repo_gitlab_sourcepath": "GitHub/GitLab의 폴더",
 		"connected_repo_gitlab_token": "개인 액세스 토큰",
+		"connected_repo_gitlab_token_hint": "GitLab의 설정 → 액세스 토큰에서 read_api 및 write_repository 권한으로 생성하세요.",
+		"connected_repo_gitlab_load": "프로젝트 불러오기",
 		"connected_repo_gitlab_cta": "GitLab 연결",
 		"connected_repo_gitlab_connected": "GitLab 저장소가 연결되었습니다",
 		"connected_repo_gitlab_add_error": "GitLab 저장소를 추가할 수 없습니다",

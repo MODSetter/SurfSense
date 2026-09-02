@@ -15,12 +15,17 @@ from app.knowledge_store import KnowledgeStore
 from app.knowledge_store.remote.api.schemas import (
     GithubInstallRead,
     GithubRepoRead,
+    GitlabListBranchesRequest,
+    GitlabListFoldersRequest,
+    GitlabListReposRequest,
+    GitlabRepoRead,
     RemoteAddRequest,
     RemoteStatusRead,
     ResolveRequest,
 )
 from app.knowledge_store.remote.exceptions import RemoteError
 from app.knowledge_store.remote.forges.github import GithubProvider
+from app.knowledge_store.remote.forges.gitlab import GitlabProvider
 from app.knowledge_store.remote.queue import enqueue_sync
 from app.knowledge_store.remote.schemas import GithubSpec, GitlabSpec
 from app.users import get_auth_context
@@ -297,6 +302,68 @@ async def github_list_branches(
     try:
         return await GithubProvider().list_branches(
             installation_id=installation_id, full_name=full_name
+        )
+    except RemoteError as exc:
+        raise _http(exc) from exc
+
+
+# GitLab list endpoints take the PAT in the body (a secret), never the query string.
+@router.post(
+    "/workspaces/{workspace_id}/git-remotes/gitlab/repos",
+    response_model=list[GitlabRepoRead],
+)
+async def gitlab_list_repos(
+    workspace_id: int,
+    body: GitlabListReposRequest,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> list[GitlabRepoRead]:
+    await check_workspace_access(session, auth, workspace_id)
+    await check_permission(session, auth, workspace_id, Permission.SETTINGS_UPDATE.value)
+    try:
+        projects = await GitlabProvider().list_projects(body.token)
+    except RemoteError as exc:
+        raise _http(exc) from exc
+    return [
+        GitlabRepoRead(
+            id=p["id"],
+            full_name=p["full_name"],
+            url=p["url"],
+            default_branch=p.get("default_branch") or "main",
+        )
+        for p in projects
+    ]
+
+
+@router.post("/workspaces/{workspace_id}/git-remotes/gitlab/branches")
+async def gitlab_list_branches(
+    workspace_id: int,
+    body: GitlabListBranchesRequest,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> list[str]:
+    await check_workspace_access(session, auth, workspace_id)
+    await check_permission(session, auth, workspace_id, Permission.SETTINGS_UPDATE.value)
+    try:
+        return await GitlabProvider().list_branches(
+            token=body.token, project_id=body.project_id
+        )
+    except RemoteError as exc:
+        raise _http(exc) from exc
+
+
+@router.post("/workspaces/{workspace_id}/git-remotes/gitlab/folders")
+async def gitlab_list_folders(
+    workspace_id: int,
+    body: GitlabListFoldersRequest,
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> list[str]:
+    await check_workspace_access(session, auth, workspace_id)
+    await check_permission(session, auth, workspace_id, Permission.SETTINGS_UPDATE.value)
+    try:
+        return await GitlabProvider().list_tree_folders(
+            token=body.token, project_id=body.project_id, branch=body.branch
         )
     except RemoteError as exc:
         raise _http(exc) from exc

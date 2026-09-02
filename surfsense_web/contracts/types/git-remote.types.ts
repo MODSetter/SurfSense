@@ -51,6 +51,15 @@ export const listGithubFoldersResponse = z.array(z.string());
 
 export const listGithubBranchesResponse = z.array(z.string());
 
+export const gitlabRepo = z.object({
+	id: z.string(),
+	full_name: z.string(),
+	url: z.string(),
+	default_branch: z.string().default("main"),
+});
+
+export const listGitlabReposResponse = z.array(gitlabRepo);
+
 export const retryGitRemotePushResponse = z.object({
 	status: z.string(),
 });
@@ -62,3 +71,4 @@ export const resolveGitRemoteRequest = z.object({
 export type GitRemote = z.infer<typeof gitRemote>;
 export type AddGitRemoteRequest = z.infer<typeof addGitRemoteRequest>;
 export type GithubRepo = z.infer<typeof githubRepo>;
+export type GitlabRepo = z.infer<typeof gitlabRepo>;

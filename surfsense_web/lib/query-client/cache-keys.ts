@@ -56,10 +56,21 @@ export const cacheKeys = {
 		gitRemotes: (workspaceId: number) => ["workspaces", workspaceId, "git-remotes"] as const,
 		githubRepos: (workspaceId: number, installationId: string) =>
 			["workspaces", workspaceId, "github-repos", installationId] as const,
-		githubFolders: (workspaceId: number, installationId: string, fullName: string, branch: string) =>
-			["workspaces", workspaceId, "github-folders", installationId, fullName, branch] as const,
+		githubFolders: (
+			workspaceId: number,
+			installationId: string,
+			fullName: string,
+			branch: string
+		) => ["workspaces", workspaceId, "github-folders", installationId, fullName, branch] as const,
 		githubBranches: (workspaceId: number, installationId: string, fullName: string) =>
 			["workspaces", workspaceId, "github-branches", installationId, fullName] as const,
+		// The PAT is deliberately excluded from GitLab keys; a nonce forces a reload.
+		gitlabRepos: (workspaceId: number, nonce: number) =>
+			["workspaces", workspaceId, "gitlab-repos", nonce] as const,
+		gitlabBranches: (workspaceId: number, projectId: string) =>
+			["workspaces", workspaceId, "gitlab-branches", projectId] as const,
+		gitlabFolders: (workspaceId: number, projectId: string, branch: string) =>
+			["workspaces", workspaceId, "gitlab-folders", projectId, branch] as const,
 	},
 	user: {
 		current: () => ["user", "me"] as const,

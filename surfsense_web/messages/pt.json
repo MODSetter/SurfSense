@@ -774,6 +774,8 @@
 		"connected_repo_gitlab_branch": "Branch",
 		"connected_repo_gitlab_sourcepath": "Pasta no GitHub/GitLab",
 		"connected_repo_gitlab_token": "Token de acesso pessoal",
+		"connected_repo_gitlab_token_hint": "Crie um no GitLab em Configurações → Tokens de acesso com read_api e write_repository.",
+		"connected_repo_gitlab_load": "Carregar projetos",
 		"connected_repo_gitlab_cta": "Conectar GitLab",
 		"connected_repo_gitlab_connected": "Repositório GitLab conectado",
 		"connected_repo_gitlab_add_error": "Não foi possível adicionar o repositório GitLab",

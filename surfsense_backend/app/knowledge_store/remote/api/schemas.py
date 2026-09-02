@@ -57,3 +57,25 @@ class GithubRepoRead(BaseModel):
     full_name: str
     url: str
     default_branch: str = "main"
+
+
+class GitlabListReposRequest(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class GitlabListBranchesRequest(BaseModel):
+    token: str = Field(min_length=1)
+    project_id: str = Field(min_length=1)
+
+
+class GitlabListFoldersRequest(BaseModel):
+    token: str = Field(min_length=1)
+    project_id: str = Field(min_length=1)
+    branch: str = "main"
+
+
+class GitlabRepoRead(BaseModel):
+    id: str
+    full_name: str
+    url: str
+    default_branch: str = "main"
