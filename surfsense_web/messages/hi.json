@@ -774,6 +774,8 @@
 		"connected_repo_gitlab_branch": "ब्रांच",
 		"connected_repo_gitlab_sourcepath": "GitHub/GitLab पर फ़ोल्डर",
 		"connected_repo_gitlab_token": "पर्सनल एक्सेस टोकन",
+		"connected_repo_gitlab_token_hint": "GitLab में Settings → Access Tokens के तहत read_api और write_repository के साथ एक बनाएं।",
+		"connected_repo_gitlab_load": "प्रोजेक्ट लोड करें",
 		"connected_repo_gitlab_cta": "GitLab कनेक्ट करें",
 		"connected_repo_gitlab_connected": "GitLab रेपो कनेक्ट हो गया",
 		"connected_repo_gitlab_add_error": "GitLab रेपो जोड़ नहीं सके",
