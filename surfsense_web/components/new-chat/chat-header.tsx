@@ -14,7 +14,7 @@ export function ChatHeader({ workspaceId, className, onChatModelSelected }: Chat
 	const selectorClassName = cn(className, "sm:max-w-[180px] sm:min-w-0");
 
 	return (
-		<div className="flex min-w-0 shrink items-center gap-2 sm:max-w-[360px]">
+		<div className="flex min-w-0 shrink items-center gap-0 sm:max-w-[360px]">
 			<ModelSelector
 				workspaceId={workspaceId}
 				className={selectorClassName}

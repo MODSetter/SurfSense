@@ -2,12 +2,14 @@
 
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface SegmentedControlOption {
 	value: string;
 	label: string;
 	ariaLabel?: string;
+	tooltip?: string;
 	disabled?: boolean;
 }
 
@@ -81,21 +83,34 @@ export function SegmentedControl({
 				aria-label={ariaLabel}
 				className="relative flex items-center"
 			>
-				{options.map((option) => (
-					<RadioGroupPrimitive.Item
-						key={option.value}
-						ref={(node) => {
-							if (node) itemRefs.current.set(option.value, node);
-							else itemRefs.current.delete(option.value);
-						}}
-						value={option.value}
-						disabled={option.disabled}
-						aria-label={option.ariaLabel}
-						className="relative flex h-8 items-center justify-center rounded-full px-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 data-[state=checked]:text-primary-foreground"
-					>
-						{option.label}
-					</RadioGroupPrimitive.Item>
-				))}
+				{options.map((option) => {
+					const item = (
+						<RadioGroupPrimitive.Item
+							key={option.value}
+							ref={(node) => {
+								if (node) itemRefs.current.set(option.value, node);
+								else itemRefs.current.delete(option.value);
+							}}
+							value={option.value}
+							disabled={option.disabled}
+							aria-label={option.ariaLabel}
+							className="relative flex h-8 items-center justify-center rounded-full px-2.5 text-sm font-medium text-foreground/70 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 aria-checked:text-primary-foreground"
+						>
+							{option.label}
+						</RadioGroupPrimitive.Item>
+					);
+
+					if (!option.tooltip) return item;
+
+					return (
+						<Tooltip key={option.value}>
+							<TooltipTrigger asChild>{item}</TooltipTrigger>
+							<TooltipContent side="top" className="max-w-64">
+								{option.tooltip}
+							</TooltipContent>
+						</Tooltip>
+					);
+				})}
 			</RadioGroupPrimitive.Root>
 		</div>
 	);

@@ -117,12 +117,23 @@ const COMPOSER_PLACEHOLDER =
 	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
 
 const SEARCH_SCOPE_OPTIONS = [
-	{ value: "documents", label: "Docs", ariaLabel: "Search through documents" },
-	{ value: "web", label: "Web", ariaLabel: "Search through web connectors" },
+	{
+		value: "documents",
+		label: "Docs",
+		ariaLabel: "Search through documents",
+		tooltip: "Search only documents saved in this workspace.",
+	},
+	{
+		value: "web",
+		label: "Web",
+		ariaLabel: "Search through web connectors",
+		tooltip: "Search only sources available through your web connectors.",
+	},
 	{
 		value: "all",
 		label: "All",
 		ariaLabel: "Search through documents and web connectors",
+		tooltip: "Search workspace documents and web connector sources together.",
 	},
 ] as const;
 
