@@ -102,6 +102,11 @@ import {
 } from "@/contracts/enums/toolIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { isRetrievalScope, scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
+import {
+	isStructuredQuestionInterrupt,
+	StructuredQuestionPrompt,
+	usePendingInterrupt,
+} from "@/features/chat-messages/hitl";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -197,6 +202,7 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 				footer={
 					<>
 						<PremiumQuotaPinnedAlert />
+						<StructuredQuestionPrompt />
 						<Composer isLoadingMessages={isLoadingMessages} />
 					</>
 				}
@@ -457,6 +463,8 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	const workspaceId = getWorkspaceIdNumber(params);
 	const chat_id = params.chat_id;
 	const aui = useAui();
+	const pendingInterrupts = usePendingInterrupt()?.pendingInterrupts ?? [];
+	const isPausedForQuestion = pendingInterrupts.some(isStructuredQuestionInterrupt);
 	// Desktop-only auto-focus; on mobile, programmatic focus would
 	// summon the soft keyboard on every picker close / thread switch.
 	const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -793,7 +801,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	);
 
 	const handleSubmit = useCallback(() => {
-		if (isLoadingMessages || isThreadRunning || isBlockedByOtherUser) return;
+		if (isLoadingMessages || isThreadRunning || isBlockedByOtherUser || isPausedForQuestion) return;
 		if (showDocumentPopover || showPromptPicker) return;
 
 		if (clipboardInitialText) {
@@ -823,6 +831,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		isLoadingMessages,
 		isThreadRunning,
 		isBlockedByOtherUser,
+		isPausedForQuestion,
 		clipboardInitialText,
 		aui,
 		mentionedDocuments,
@@ -1003,6 +1012,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
+							disabled={isPausedForQuestion}
 							className="min-h-[24px] **:data-slate-placeholder:font-normal **:data-slate-placeholder:whitespace-nowrap"
 						/>
 					</div>
@@ -1010,7 +1020,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 						onSend={handleSubmit}
 						isBlockedByOtherUser={isBlockedByOtherUser}
 						isLoadingMessages={isLoadingMessages}
-						isThreadRunning={isThreadRunning}
+						isThreadRunning={isThreadRunning || isPausedForQuestion}
 						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>

@@ -39,7 +39,7 @@ import { Button } from "@/components/ui/button";
 import { useArtifactDeepLink } from "@/features/chat-artifacts/hooks/use-artifact-deep-link";
 import { useSyncChatArtifacts } from "@/features/chat-artifacts/hooks/use-sync-chat-artifacts";
 import {
-	type HitlDecision,
+	type HitlResponse,
 	PendingInterruptProvider,
 	type PendingInterruptState,
 } from "@/features/chat-messages/hitl";
@@ -156,7 +156,7 @@ export default function NewChatPage() {
 	// which point we batch them into one ``hitl-decision`` event in the same
 	// order as ``pendingInterrupts``. A ref because partial progress should not
 	// re-render the page.
-	const stagedDecisionsByInterruptIdRef = useRef<Map<string, HitlDecision[]>>(new Map());
+	const stagedDecisionsByInterruptIdRef = useRef<Map<string, HitlResponse[]>>(new Map());
 
 	const threadDetailQuery = useThreadDetail(activeThreadId);
 	const threadMessagesQuery = useThreadMessages(activeThreadId);
@@ -366,7 +366,10 @@ export default function NewChatPage() {
 							threadId,
 							assistantMsgId,
 							interruptData,
-							bundleToolCallIds: actionRequests.map((_a, i) => `reconstructed-${interruptId}-${i}`),
+							bundleToolCallIds:
+								interruptData.type === "structured_question"
+									? [interruptId]
+									: actionRequests.map((_a, i) => `reconstructed-${interruptId}-${i}`),
 						} satisfies PendingInterruptState;
 					})
 					.filter((p) => p.interruptId);
@@ -587,7 +590,7 @@ export default function NewChatPage() {
 	);
 
 	const handleApprovalSubmit = useCallback(
-		(interruptId: string, decisions: HitlDecision[]) => {
+		(interruptId: string, decisions: HitlResponse[]) => {
 			// Stage this card's decisions; only fire the resume once every pending
 			// card in the current turn has submitted, so the backend slicer sees a
 			// single concatenated decisions list.
@@ -595,7 +598,7 @@ export default function NewChatPage() {
 			if (stagedDecisionsByInterruptIdRef.current.size < pendingInterrupts.length) {
 				return;
 			}
-			const ordered: HitlDecision[] = [];
+			const ordered: HitlResponse[] = [];
 			for (const pi of pendingInterrupts) {
 				const staged = stagedDecisionsByInterruptIdRef.current.get(pi.interruptId);
 				if (!staged) {
@@ -643,11 +646,7 @@ export default function NewChatPage() {
 	useEffect(() => {
 		const handler = (e: Event) => {
 			const detail = (e as CustomEvent).detail as {
-				decisions: Array<{
-					type: string;
-					message?: string;
-					edited_action?: { name: string; args: Record<string, unknown> };
-				}>;
+				decisions: HitlResponse[];
 			};
 			if (!detail?.decisions || pendingInterrupts.length === 0) return;
 			const incoming = detail.decisions;
