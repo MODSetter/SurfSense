@@ -47,6 +47,7 @@ import {
 	clearPremiumAlertForThreadAtom,
 	premiumAlertByThreadAtom,
 } from "@/atoms/chat/premium-alert.atom";
+import { submittedRetrievalScopeAtom } from "@/atoms/chat/retrieval-scope.atom";
 import { importConnectorRequestAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -68,6 +69,7 @@ import {
 	type SuggestionAnchorRect,
 	type SuggestionTriggerInfo,
 } from "@/components/assistant-ui/inline-mention-editor";
+import { useRetrievalScope } from "@/components/assistant-ui/retrieval-scope-provider";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
@@ -99,6 +101,7 @@ import {
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { isRetrievalScope, scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -435,6 +438,8 @@ interface ComposerProps {
 const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePrompts = false }) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
+	const { scope: retrievalScope, setScope: setRetrievalScope } = useRetrievalScope();
+	const setSubmittedRetrievalScope = useSetAtom(submittedRetrievalScopeAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
@@ -801,6 +806,12 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		// Capture chips before the reset below clears the live atom, so
 		// the async ``onNew`` still sees them.
 		setSubmittedMentions(mentionedDocuments);
+		const effectiveScope = scopeForMentionKinds(
+			retrievalScope,
+			mentionedDocuments.map((mention) => mention.kind)
+		);
+		if (effectiveScope !== retrievalScope) setRetrievalScope(effectiveScope);
+		setSubmittedRetrievalScope(effectiveScope);
 
 		aui.composer().send();
 		editorRef.current?.clear();
@@ -815,7 +826,10 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		clipboardInitialText,
 		aui,
 		mentionedDocuments,
+		retrievalScope,
 		setSubmittedMentions,
+		setSubmittedRetrievalScope,
+		setRetrievalScope,
 		setMentionedDocuments,
 	]);
 
@@ -841,6 +855,12 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 
 	const handleDocumentsMention = useCallback(
 		(mentions: MentionedDocumentInfo[]) => {
+			setRetrievalScope(
+				scopeForMentionKinds(
+					retrievalScope,
+					[...mentionedDocuments, ...mentions].map((mention) => mention.kind)
+				)
+			);
 			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
@@ -860,7 +880,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 			setMentionQuery("");
 			setSuggestionAnchorPoint(null);
 		},
-		[workspaceId]
+		[mentionedDocuments, retrievalScope, setRetrievalScope, workspaceId]
 	);
 
 	useEffect(() => {
@@ -1035,7 +1055,13 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
-	const [searchScope, setSearchScope] = useState("documents");
+	const { scope: searchScope, setScope: setSearchScope } = useRetrievalScope();
+	const handleSearchScopeChange = useCallback(
+		(value: string) => {
+			if (isRetrievalScope(value)) setSearchScope(value);
+		},
+		[setSearchScope]
+	);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
@@ -1192,7 +1218,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						toolsLoading={!filteredTools?.length}
 						searchScope={searchScope}
 						searchScopeOptions={SEARCH_SCOPE_OPTIONS}
-						onSearchScopeChange={setSearchScope}
+						onSearchScopeChange={handleSearchScopeChange}
 					/>
 				) : (
 					<DropdownMenu
@@ -1475,7 +1501,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					<SegmentedControl
 						value={searchScope}
 						options={SEARCH_SCOPE_OPTIONS}
-						onValueChange={setSearchScope}
+						onValueChange={handleSearchScopeChange}
 						ariaLabel="Search scope"
 						className="inline-flex shrink-0"
 					/>
