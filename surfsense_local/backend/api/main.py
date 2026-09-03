@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from api.health.router import router as health_router
+from modules.health.router import router as health_router
 
 
 def create_app() -> FastAPI:
