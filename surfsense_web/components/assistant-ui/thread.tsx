@@ -964,7 +964,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDismiss={() => setClipboardInitialText(undefined)}
 						/>
 					)}
-					<div ref={inputWrapperRef} className="aui-composer-input-wrapper relative px-4 py-2">
+					<div ref={inputWrapperRef} className="aui-composer-input-wrapper relative mb-5 px-4 py-2">
 						<span
 							ref={placeholderMeasureRef}
 							aria-hidden="true"
