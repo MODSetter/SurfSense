@@ -36,18 +36,18 @@ An infographic artifact:
 - renders the question through one generic structured-question panel above the
   main composer;
 - pauses and resumes through the existing durable LangGraph checkpoint;
-- compiles the selected preset into detailed model-facing prompt directives;
+- appends the selected preset description to the image-model prompt;
 - stores one normalized PNG as its primary file;
 - binds a searchable Markdown representation to the exact verified PNG;
-- records selected style, resolved style, preset version, prompt-recipe
-  version, and image-model provenance;
+- records selected style, resolved style, preset version, and image-model
+  provenance;
 - renders in the ordinary artifact panel and mobile drawer;
 - downloads through the ordinary artifact download route;
 - revises through the ordinary optimistic-generation artifact workflow.
 
 This phase adds one semantic artifact format, one sandbox skill, one
 backend-internal image-generation stage inside the unified artifact invocation,
-one trusted preset catalog, one prompt compiler, one structured-question
+one trusted preset catalog, one prompt assembler, one structured-question
 interrupt variant, and one generic composer-level question UI.
 
 It does not add:
@@ -185,14 +185,14 @@ PDF/HTML defaults.
 ### 2.5 Image models create the visual, trusted code owns the workflow
 
 The selected preset affects the image-generation prompt; it is not merely
-frontend decoration. The browser submits only stable answer IDs. Trusted
-backend code resolves those IDs into versioned style directives and compiles
-the final prompt.
+frontend decoration. The browser submits only a stable answer ID. Trusted
+backend code resolves that ID to one versioned description and appends that
+description unchanged to the final image-model prompt.
 
 The agent may author the infographic's factual content outline and hierarchy,
 but it may not:
 
-- define or override preset prompt recipes;
+- define or override preset descriptions;
 - submit raw style prompt fragments from the UI;
 - reinterpret `kawaii` or another style differently per run;
 - replace the user's selected style;
@@ -261,14 +261,14 @@ Document + Artifact + ArtifactFile
 
 ### 3.2 Boundaries
 
-- **Preset catalog:** owns selectable styles, display metadata, recipe
-  versions, and model-facing directives.
+- **Preset catalog:** owns selectable styles, display metadata, immutable
+  versions, and the descriptions sent to the image model.
 - **Structured-question protocol:** owns bounded transport, durable interruption,
   response validation, and restoration; it knows nothing about infographics.
 - **Generic question UI:** owns selection interaction only; it renders server
   data and submits stable answer IDs.
-- **Prompt compiler:** owns conversion from factual content + resolved preset +
-  provider capabilities into an image-generation request.
+- **Prompt assembler:** owns combination of factual content + resolved preset
+  description + provider capabilities into an image-generation request.
 - **Image-generation service:** owns model resolution, billing, provider calls,
   temporary-URL fetching, MIME sniffing, and byte normalization.
 - **Infographic adapter:** owns image/Markdown verification policy and semantic
@@ -315,25 +315,25 @@ Add a discriminated interrupt payload:
         {
           "id": "kawaii",
           "label": "Kawaii",
-          "description": "Playful pastel illustration with rounded forms.",
+          "description": "Use a playful kawaii illustration style with rounded shapes, pastel colors, thick clean outlines, friendly expressive icons, generous spacing, and highly legible infographic labels.",
           "preview_asset": "infographic-style/kawaii"
         },
         {
           "id": "clay",
           "label": "Clay",
-          "description": "Soft three-dimensional clay forms.",
+          "description": "Use a tactile three-dimensional clay style with softly modeled forms, rounded edges, subtle handmade texture, gentle studio lighting, clear visual grouping, and highly legible infographic labels.",
           "preview_asset": "infographic-style/clay"
         },
         {
           "id": "sketch-note",
           "label": "Sketch Note",
-          "description": "Hand-drawn notes, arrows, and restrained color.",
+          "description": "Use a hand-drawn editorial sketchnote style with mostly black ink on a warm white background, one restrained accent color, simple icons, arrows, connectors, loose organic lines, generous whitespace, short hand-lettered headings, and highly legible labels. Avoid photorealism, dense paragraphs, decorative illegible handwriting, and watermarks.",
           "preview_asset": "infographic-style/sketch-note"
         },
         {
           "id": "anime",
           "label": "Anime",
-          "description": "Energetic cel-shaded illustration.",
+          "description": "Use a polished anime-inspired cel-shaded style with expressive characters or icons, clean linework, vivid controlled color, energetic composition, clear section hierarchy, and highly legible infographic labels.",
           "preview_asset": "infographic-style/anime"
         }
       ]
@@ -344,6 +344,12 @@ Add a discriminated interrupt payload:
 
 `origin` is created by trusted server code. It is not accepted from an agent,
 tool argument, or resume request.
+
+For each concrete style, `options[].description` is copied directly from the
+trusted preset catalog. It is both the UI description and the exact text later
+appended to the image-model prompt. There is no second hidden style
+instruction. `auto` resolves to a concrete preset first, after which that
+concrete preset's description is appended.
 
 ### 4.2 Bounds
 
@@ -356,7 +362,7 @@ Keep bounds in one backend schema and mirror them in the frontend parser:
 - description: at most 500 code points;
 - prompt: at most 500 code points;
 - option label: at most 80 code points;
-- option description: at most 240 code points;
+- option description: at most 600 code points;
 - no duplicate question or option IDs;
 - defaults must reference listed option IDs;
 - single-select questions have at most one default;
@@ -461,9 +467,9 @@ surfsense_backend/app/artifacts/infographic/
   generation.py
 ```
 
-`presets.py` is the source of truth for IDs, versions, display metadata,
-auto-selection eligibility, and prompt recipes. Do not place recipe definitions
-in:
+`presets.py` is the source of truth for IDs, versions, labels, preview assets,
+auto-selection eligibility, and descriptions. Do not duplicate preset
+descriptions in:
 
 - React components;
 - `SKILL.md`;
@@ -476,9 +482,9 @@ in:
 The sandbox skill explains how to consume a resolved style but does not define
 what a style means.
 
-### 5.2 Recipe model
+### 5.2 Preset model
 
-Each concrete style contains:
+Each concrete style contains only:
 
 ```python
 VisualStylePreset(
@@ -486,31 +492,30 @@ VisualStylePreset(
     version=1,
     label="Sketch Note",
     preview_asset="infographic-style/sketch-note",
-    prompt_directives=VisualStyleDirectives(
-        medium="hand-drawn editorial sketchnote illustration",
-        palette="mostly black ink on warm white with one restrained accent color",
-        shapes="simple icons, arrows, connectors, frames, and loose organic lines",
-        texture="subtle paper texture; no photographic texture",
-        lighting="flat illustration; no cinematic lighting",
-        composition="clear visual hierarchy with generous whitespace and grouped notes",
-        typography="short hand-lettered headings and highly legible labels",
-        avoid=(
-            "photorealism",
-            "dense paragraphs",
-            "decorative illegible handwriting",
-            "watermarks",
-        ),
+    description=(
+        "Use a hand-drawn editorial sketchnote style with mostly black ink "
+        "on a warm white background, one restrained accent color, simple "
+        "icons, arrows, connectors, loose organic lines, generous whitespace, "
+        "short hand-lettered headings, and highly legible labels. Avoid "
+        "photorealism, dense paragraphs, decorative illegible handwriting, "
+        "and watermarks."
     ),
 )
 ```
 
-Recipes describe medium, palette behavior, shapes, texture, lighting,
-composition, typography character, and exclusions. They must not contain user
-facts, source text, credentials, provider secrets, or model IDs.
+There is no structured medium, palette, shape, texture, lighting, composition,
+typography, negative-prompt, or provider-parameter object. `description` is the
+complete visual-style instruction. The exact same trusted description is shown
+in the preset UI and appended to the image-model prompt.
+
+Descriptions may mention visual characteristics and exclusions in ordinary
+prose. They must not contain user facts, source text, credentials, provider
+secrets, model IDs, template variables, executable code, or nested prompt
+fragments.
 
 ### 5.3 Auto selection
 
-`auto` is a selector, not a concrete prompt recipe. Resolve it before prompt
+`auto` is a selector, not a concrete preset description. Resolve it before prompt
 compilation to one concrete phase-12 style.
 
 Resolution is deterministic and bounded:
@@ -554,18 +559,18 @@ asset is accepted.
 Preview images are representative examples, not model guarantees. Their alt
 text is the option label plus description.
 
-## 6. Infographic prompt compiler
+## 6. Infographic prompt assembler
 
 ### 6.1 Inputs
 
-The compiler receives:
+The assembler receives:
 
 - normalized user intent;
 - grounded factual content and source references;
 - planned title, sections, labels, and hierarchy;
 - explicit user constraints such as audience or aspect ratio;
 - requested style ID;
-- resolved concrete style and recipe version;
+- resolved concrete style and preset version;
 - resolved image-model capabilities;
 - retry findings when performing the one allowed repair.
 
@@ -581,23 +586,24 @@ Compile the final prompt in a stable order:
    relationships, and ordering.
 3. **Information architecture:** state hierarchy, reading direction, grouping,
    whitespace, and section count.
-4. **Visual recipe:** apply the resolved style directives.
+4. **Visual style:** append the resolved preset's `description` unchanged.
 5. **Legibility:** require short readable text, strong contrast, and no tiny
    labels or paragraph blocks.
 6. **Output constraints:** aspect ratio, single canvas, no crop, no mockup
    frame, and no external branding.
-7. **Negative constraints:** watermarks, invented facts, duplicated sections,
-   unreadable text, clipped content, UI chrome, stock-template placeholders,
-   and recipe-specific exclusions.
+7. **General negative constraints:** watermarks, invented facts, duplicated
+   sections, unreadable text, clipped content, UI chrome, and stock-template
+   placeholders.
 8. **Repair guidance:** on the single retry, append consolidated verifier
    findings without discarding the original factual contract.
 
-The compiler returns a typed request plus a redacted provenance summary. It
-does not mutate the preset object.
+The assembler returns a typed request plus a redacted provenance summary. It
+does not parse, restructure, expand, summarize, or mutate the preset
+description.
 
 ### 6.3 Content bounds
 
-The skill and compiler should target:
+The skill and assembler should target:
 
 - one title;
 - 3–7 sections;
@@ -629,9 +635,9 @@ inside the shared image-generation service:
 - strip unneeded metadata;
 - record the actual model and normalized dimensions.
 
-Do not send a provider-native `style` parameter merely because another
-provider supports a similarly named value. Preset semantics are SurfSense
-semantics and must remain stable across models.
+Do not translate the description into a provider-native `style` parameter
+merely because a provider supports a similarly named value. The description is
+plain prompt text and remains identical across models.
 
 ## 7. Image generation inside the unified artifact invocation
 
@@ -768,7 +774,7 @@ The Markdown:
 
 - contains all factual statements and visible labels requested from the model;
 - preserves meaningful ordering and relationships;
-- includes the resolved style label but not raw prompt directives;
+- includes the resolved style label but not the preset description;
 - contains useful alt-text-level summary;
 - excludes provider secrets, model responses, hidden reasoning, and raw
   base64;
@@ -789,7 +795,6 @@ Persist format-owned metadata under a bounded namespace:
     "question_preset_version": 1,
     "requested_style_id": "auto",
     "resolved_style_id": "sketch-note",
-    "style_recipe_version": 1,
     "image_model_id": 42,
     "provider_model": "provider/model",
     "width": 1536,
@@ -798,8 +803,9 @@ Persist format-owned metadata under a bounded namespace:
 }
 ```
 
-Do not expose raw provider responses or complete prompts in the public
-manifest. Operational provenance may retain a bounded prompt hash and
+Do not expose raw provider responses or complete assembled prompts in the
+public manifest. The preset ID and version are sufficient to identify its
+description. Operational provenance may retain a bounded prompt hash and
 redacted request summary where existing policy permits.
 
 ### 8.3 Durable blob storage
@@ -929,7 +935,8 @@ The skill teaches the agent to:
 3. never ask the user for that style in ordinary chat;
 4. consume the resolved style returned after resume;
 5. create a concise factual hierarchy and Markdown representation;
-6. compile generation through the trusted backend prompt path;
+6. assemble generation through the trusted backend prompt path, appending the
+   selected preset description unchanged;
 7. stage one normalized PNG at the required workspace path;
 8. call `verify_artifact(path=..., format="infographic", markdown_path=...)`;
 9. repair all blocking findings together and regenerate at most once;
@@ -937,8 +944,8 @@ The skill teaches the agent to:
 11. call the existing `save_artifact` only after verified;
 12. stop after a persistent blocker.
 
-The skill must not define preset recipes. It refers to the resolved directives
-supplied by the workflow and prohibits overriding them.
+The skill must not define or paraphrase preset descriptions. It refers to the
+resolved selection supplied by the workflow and prohibits overriding it.
 
 ### 10.2 Routing updates
 
@@ -998,8 +1005,8 @@ The generic renderer branches only on protocol fields:
 - otherwise -> radio-group semantics;
 - `allow_other` -> bounded free-text field when later enabled.
 
-It contains no infographic IDs, labels, recipes, model logic, or special-case
-question text.
+It contains no hard-coded infographic IDs, labels, descriptions, model logic,
+or special-case question text.
 
 For the phase-12 preset:
 
@@ -1094,8 +1101,9 @@ The ordinary artifact manifest remains sufficient:
 ```
 
 If style metadata is exposed to authenticated clients, return a sanitized
-format-scoped view containing IDs, versions, and labels only. Do not return raw
-prompt recipes or provider response payloads.
+format-scoped view containing IDs, versions, and labels only. The pending
+question payload may carry the exact bounded description needed to render each
+option, but manifests do not repeat descriptions or provider response payloads.
 
 ### 12.2 Renderer
 
@@ -1147,7 +1155,7 @@ artifact page.
 Revision guidance:
 
 > Revise the factual Markdown and regenerate the complete infographic using the
-> artifact's resolved visual-style preset and recipe version unless the user
+> artifact's resolved visual-style preset and preset version unless the user
 > explicitly requests a different visual style. Verify the revised PNG and
 > Markdown together, then save with the returned artifact ID and generation.
 > Do not reconstruct factual content from the pixels.
@@ -1156,8 +1164,8 @@ Behavior:
 
 - ordinary content revisions do not show the preset gate again;
 - an explicit request to change visual style invokes the current trusted
-  visual-style preset and stores the newly selected recipe;
-- if the original recipe version remains installed, use it for ordinary
+  visual-style preset and stores the newly selected preset;
+- if the original preset version remains installed, use it for ordinary
   revisions;
 - if the original model is unavailable, resolve the current workspace image
   model and record the change;
@@ -1236,8 +1244,8 @@ Do not log:
 - Artifact staging requires active infographic workflow context.
 - Verification receipts bind semantic format, primary hash, Markdown hash,
   audience, and expiry.
-- Public artifact access reveals no pending questions, answers, prompt recipes,
-  or model credentials.
+- Public artifact access reveals no pending questions, answers, preset
+  descriptions, or model credentials.
 
 ## 16. Required checks
 
@@ -1248,11 +1256,12 @@ Do not log:
 - duplicate IDs, invalid defaults, unknown fields, overlong strings, excessive
   questions/options, invalid asset keys, and invalid cardinality fail;
 - preset version 1 is immutable;
-- all concrete styles contain complete bounded prompt directives;
-- `auto` is not accepted as a concrete recipe;
+- all concrete styles contain exactly one non-empty bounded description;
+- preset models contain no structured style-directive fields;
+- `auto` is not accepted as a concrete description;
 - auto-resolution is deterministic for every documented signal and fallback;
 - every preview asset key resolves to an app-owned asset;
-- no recipe is duplicated in frontend code or the sandbox skill.
+- no description is duplicated in frontend code or the sandbox skill.
 
 ### 16.2 Interrupt and resume
 
@@ -1271,9 +1280,10 @@ Do not log:
 - existing parallel approval routing remains green;
 - node re-execution does not duplicate billing, model calls, files, or rows.
 
-### 16.3 Prompt compiler and image generation
+### 16.3 Prompt assembly and image generation
 
-- every concrete style contributes its expected directives;
+- every concrete style contributes its exact stored description;
+- the assembler does not rewrite, expand, or split that description;
 - user facts remain unchanged across style selection;
 - selected style cannot inject arbitrary frontend text;
 - negative constraints and legibility requirements are always present;
@@ -1283,7 +1293,7 @@ Do not log:
 - staged infographic generation creates no standalone image artifact or inline
   image result;
 - normal image generation retains its existing persistence and UI behavior;
-- requested/resolved style, recipe version, actual model, and dimensions are
+- requested/resolved style, preset version, actual model, and dimensions are
   recorded;
 - provider, quota, decode, and staging failures create no artifact.
 
@@ -1362,7 +1372,7 @@ Do not log:
 ## 17. Delivery order
 
 1. Add the immutable preset/question schemas, visual-style catalog,
-   auto-resolution, and prompt-recipe tests.
+   auto-resolution, and exact-description tests.
 2. Generalize interrupt serialization and pending state into explicit approval
    and structured-question variants while preserving every existing approval
    test.
@@ -1380,7 +1390,8 @@ Do not log:
    unified artifact invocation, including sandbox staging, PNG normalization,
    billing, provenance, and provider response tests without changing the
    public `generate_image` schema.
-8. Add the infographic prompt compiler and one-regeneration verification loop.
+8. Add the infographic prompt assembler and one-regeneration verification
+   loop.
 9. Add `docker/sandbox/skills/infographic/SKILL.md`, intent routing,
    `load_artifact_instructions` support, roster/revision guidance, and
    standalone-image exclusions.
@@ -1405,9 +1416,9 @@ every PNG as an infographic, stop and repair the boundary.
    navigation, submits stable IDs, and supports cancellation and accessibility.
 4. No agent-facing `ask_user` tool or agent-authored question content exists.
 5. The response resumes the same durable LangGraph run and deterministically
-   resolves one immutable visual-style recipe.
-6. The selected recipe materially contributes to the model-facing infographic
-   prompt and cannot be overridden by frontend text.
+   resolves one immutable visual-style description.
+6. The exact selected description is appended to the model-facing infographic
+   prompt and cannot be rewritten or overridden by frontend text.
 7. The checkpointed unified artifact invocation uses the workspace image model
    internally to generate one normalized staged PNG without calling the
    standalone `generate_image` tool or creating its artifact/card.

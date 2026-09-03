@@ -228,7 +228,7 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 9 | Complete | Legacy report/resume/Typst removal and library repoint |
 | 10 | Planned | Fallback formats, public artifact access, XLSX hardening, and end-to-end coverage |
 | 11 | Planned | Strict JSON single-answer quizzes, trusted Markdown projection, per-user answers and retakes, and one shared authenticated/public viewer |
-| 12 | Planned | Preset-gated infographic generation, generic structured-question HITL UI, visual-style prompt recipes, receipt-bound PNG/Markdown verification, and universal artifact persistence |
+| 12 | Planned | Preset-gated infographic generation, generic structured-question HITL UI, visual-style prompt descriptions, receipt-bound PNG/Markdown verification, and universal artifact persistence |
 
 ## 10. Phase 7 mind-map boundary
 
@@ -301,8 +301,8 @@ appears above the composer and submits stable option IDs through the existing
 resume path. The agent neither authors nor chooses whether to ask these
 questions, and phase 12 registers no agent-facing `ask_user` tool.
 
-The resolved visual-style recipe is compiled into the image-model prompt by
-trusted backend code. Infographic generation reuses the lower-level workspace
+The resolved visual-style description is appended unchanged to the image-model
+prompt by trusted backend code. Infographic generation reuses the lower-level workspace
 image-model, billing, provider, and byte-normalization service, but it never
 calls the standalone image tool's persistence branch or creates an extra image
 artifact/card. The staged PNG proceeds through the universal
