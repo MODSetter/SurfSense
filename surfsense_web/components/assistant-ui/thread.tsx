@@ -893,6 +893,12 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	);
 
 	useEffect(() => {
+		const effectiveScope = scopeForMentionKinds(
+			retrievalScope,
+			mentionedDocuments.map((mention) => mention.kind)
+		);
+		if (effectiveScope !== retrievalScope) setRetrievalScope(effectiveScope);
+
 		const editor = editorRef.current;
 		const nextDocsMap = new Map(mentionedDocuments.map((doc) => [getMentionDocKey(doc), doc]));
 		const prevDocsMap = prevMentionedDocsRef.current;
@@ -921,7 +927,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		}
 
 		prevMentionedDocsRef.current = nextDocsMap;
-	}, [mentionedDocuments]);
+	}, [mentionedDocuments, retrievalScope, setRetrievalScope]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex min-w-0 w-full flex-col gap-2 rounded-2xl">
