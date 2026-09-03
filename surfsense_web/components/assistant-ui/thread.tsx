@@ -1471,13 +1471,15 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
-				<SegmentedControl
-					value={searchScope}
-					options={SEARCH_SCOPE_OPTIONS}
-					onValueChange={setSearchScope}
-					ariaLabel="Search scope"
-					className="inline-flex shrink-0"
-				/>
+				{isDesktop ? (
+					<SegmentedControl
+						value={searchScope}
+						options={SEARCH_SCOPE_OPTIONS}
+						onValueChange={setSearchScope}
+						ariaLabel="Search scope"
+						className="inline-flex shrink-0"
+					/>
+				) : null}
 			</div>
 			<div
 				data-composer-model-actions

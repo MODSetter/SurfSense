@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { ImageModelSelector } from "./image-model-selector";
 import { ModelSelector } from "./model-selector";
@@ -11,10 +12,20 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ workspaceId, className, onChatModelSelected }: ChatHeaderProps) {
-	const selectorClassName = cn(className, "min-w-0 max-w-[180px] basis-0 flex-1");
+	const isMobile = useIsMobile();
+	const selectorClassName = cn(
+		className,
+		"min-w-0",
+		isMobile ? "flex-none basis-auto" : "max-w-[180px] flex-initial shrink"
+	);
 
 	return (
-		<div className="flex min-w-0 max-w-[360px] flex-1 items-center justify-end gap-0">
+		<div
+			className={cn(
+				"flex min-w-0 items-center justify-end gap-0",
+				isMobile ? "w-auto flex-none" : "max-w-[360px] flex-1"
+			)}
+		>
 			<ModelSelector
 				workspaceId={workspaceId}
 				className={selectorClassName}
