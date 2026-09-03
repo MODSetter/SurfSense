@@ -62,6 +62,10 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 | **HTTP stack** | **FastAPI** + uvicorn | Same stack as cloud backend; native OpenAPI for frontend; SSE streaming for chat. PyInstaller risk is handled in [`api/00-spike.md`](api/00-spike.md) — not a reason to downgrade. |
 | **Retrieval** | **FTS5 + sqlite-vec hybrid (RRF)** | Semantic + keyword from day one. Embeddings on ingest must be queried properly — not keyword-only, not in-memory scan over BLOBs. |
 | **Embed provider** | Same Ollama / llama.cpp endpoint as chat | One local model server; embedding model name in `app_settings`. |
+| **Persistence** | SQLAlchemy 2.0 + Alembic, same as cloud | Models are the source of truth. `versions/` ships as PyInstaller data, resolved from the package's own `__file__` — de-risked in [`api/00-spike.md`](api/00-spike.md). |
+| **Migrations** | **Hand-written; autogenerate is off** | Autogenerate cannot see a rename — it emits drop + add, which deletes a column's data silently. The target database is one user's laptop, unbacked and uninspectable, so every revision is written and read by a person. `env.py` carries no `target_metadata`, so `--autogenerate` cannot be used by accident. Same call Open WebUI makes across all 58 of its SQLite revisions. |
+| **Schema owner** | Alembic only; **never** `create_all` | Cloud's `create_all`-on-startup races its own migrations and breaks releases. Local has one path to a schema, and a test fails if models and migrations drift. |
+| **Model layout** | One slice per feature: `modules/<slice>/models.py` | Vertical slices, as in cloud's `automations/`, `notifications/`. `tests/conftest.py` imports every slice's `models` so the drift test sees the whole schema; the app itself never imports them wholesale. |
 
 ## Open items
 

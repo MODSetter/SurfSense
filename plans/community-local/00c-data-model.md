@@ -161,7 +161,20 @@ No LangGraph checkpoint tables. Citations in assistant `content` / metadata JSON
 
 ### `artifacts` / `artifact_files` (Phase 4)
 
-Keep ADR-0003 idea when copying builders: `ARTIFACT` document + sidecar. Prefer cloud **concepts**, Local **clean table names** above.
+ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFACT`; `artifacts` is a sidecar owning no title, path, body or indexing state. Tables ship in the initial migration so Phase 4 adds behaviour, not schema.
+
+| Column | Local |
+|---|---|
+| `document_id` | FK, **unique** — one sidecar per document |
+| `workspace_id` | FK cascade |
+| `chat_thread_id` | FK **set null** — clearing chat must not delete deliverables; renamed from cloud `thread_id` |
+| `format` | TEXT, not an enum — suffix inference stores kinds `ArtifactFormat` has no member for |
+| `generation` | INTEGER, `CHECK > 0` |
+| `created_by_tool_call_id`, `updated_by_tool_call_id` | provenance |
+| `artifact_metadata` | JSON — cloud aliases this to a column literally named `metadata`; Local doesn't |
+| `created_by_id` | **omit** — no auth |
+
+`artifact_files` keeps one immutable blob per role (`primary` \| `preview`), unique on `(artifact_id, role)` and on `storage_key`, with `CHECK size_bytes > 0`. Cloud's `storage_backend` is **omitted**: Local has one backend, `data/workspaces/{id}/artifacts/{id}/`.
 
 ### Local-only
 
