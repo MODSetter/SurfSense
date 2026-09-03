@@ -4,8 +4,10 @@ version = "0.1.0"
 description = "SurfSense Community Local backend"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13,<1.19",
     "fastapi>=0.115.8",
     "pydantic-settings>=2.7.0",
+    "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.34.0",
 ]
 
@@ -22,7 +24,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["api*", "modules*"]
+include = ["api*", "modules*", "shared*", "alembic*"]
 
 [tool.ruff]
 line-length = 88
@@ -49,9 +51,11 @@ select = [
 # D103 is here to make tests state what they guarantee, not to gate app code.
 "api/**" = ["D103"]
 "modules/**" = ["D103"]
+"shared/**" = ["D103"]
+"alembic/**" = ["D103"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["api", "modules", "tests"]
+known-first-party = ["api", "modules", "shared", "tests"]
 
 [tool.ruff.format]
 quote-style = "double"
