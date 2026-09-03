@@ -102,6 +102,11 @@ import {
 } from "@/contracts/enums/toolIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { isRetrievalScope, scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
+import {
+	isStructuredQuestionInterrupt,
+	StructuredQuestionPrompt,
+	usePendingInterrupt,
+} from "@/features/chat-messages/hitl";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -197,6 +202,7 @@ const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 				footer={
 					<>
 						<PremiumQuotaPinnedAlert />
+						<StructuredQuestionPrompt />
 						<Composer isLoadingMessages={isLoadingMessages} />
 					</>
 				}
@@ -457,6 +463,8 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	const workspaceId = getWorkspaceIdNumber(params);
 	const chat_id = params.chat_id;
 	const aui = useAui();
+	const pendingInterrupts = usePendingInterrupt()?.pendingInterrupts ?? [];
+	const isPausedForQuestion = pendingInterrupts.some(isStructuredQuestionInterrupt);
 	// Desktop-only auto-focus; on mobile, programmatic focus would
 	// summon the soft keyboard on every picker close / thread switch.
 	const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -793,7 +801,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	);
 
 	const handleSubmit = useCallback(() => {
-		if (isLoadingMessages || isThreadRunning || isBlockedByOtherUser) return;
+		if (isLoadingMessages || isThreadRunning || isBlockedByOtherUser || isPausedForQuestion) return;
 		if (showDocumentPopover || showPromptPicker) return;
 
 		if (clipboardInitialText) {
@@ -823,6 +831,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		isLoadingMessages,
 		isThreadRunning,
 		isBlockedByOtherUser,
+		isPausedForQuestion,
 		clipboardInitialText,
 		aui,
 		mentionedDocuments,
@@ -884,6 +893,12 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	);
 
 	useEffect(() => {
+		const effectiveScope = scopeForMentionKinds(
+			retrievalScope,
+			mentionedDocuments.map((mention) => mention.kind)
+		);
+		if (effectiveScope !== retrievalScope) setRetrievalScope(effectiveScope);
+
 		const editor = editorRef.current;
 		const nextDocsMap = new Map(mentionedDocuments.map((doc) => [getMentionDocKey(doc), doc]));
 		const prevDocsMap = prevMentionedDocsRef.current;
@@ -912,7 +927,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		}
 
 		prevMentionedDocsRef.current = nextDocsMap;
-	}, [mentionedDocuments]);
+	}, [mentionedDocuments, retrievalScope, setRetrievalScope]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex min-w-0 w-full flex-col gap-2 rounded-2xl">
@@ -984,7 +999,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDismiss={() => setClipboardInitialText(undefined)}
 						/>
 					)}
-					<div ref={inputWrapperRef} className="aui-composer-input-wrapper relative mb-5 px-4 py-2">
+					<div ref={inputWrapperRef} className="aui-composer-input-wrapper relative px-4 py-2 sm:mb-5">
 						<span
 							ref={placeholderMeasureRef}
 							aria-hidden="true"
@@ -1003,6 +1018,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
+							disabled={isPausedForQuestion}
 							className="min-h-[24px] **:data-slate-placeholder:font-normal **:data-slate-placeholder:whitespace-nowrap"
 						/>
 					</div>
@@ -1010,7 +1026,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 						onSend={handleSubmit}
 						isBlockedByOtherUser={isBlockedByOtherUser}
 						isLoadingMessages={isLoadingMessages}
-						isThreadRunning={isThreadRunning}
+						isThreadRunning={isThreadRunning || isPausedForQuestion}
 						workspaceId={workspaceId ?? 0}
 						onChatModelSelected={handleChatModelSelected}
 					/>

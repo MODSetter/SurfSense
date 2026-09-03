@@ -23,3 +23,4 @@ class ArtifactFormat(StrEnum):
     PODCAST = "podcast"
     VIDEO = "video"
     IMAGE = "image"
+    INFOGRAPHIC = "infographic"

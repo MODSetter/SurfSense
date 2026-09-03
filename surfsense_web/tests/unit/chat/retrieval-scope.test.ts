@@ -47,6 +47,18 @@ test("composer snapshots scope before send", () => {
 	assert.ok(source.includes("scopeForMentionKinds("));
 });
 
+test("composer reconciles scope when mentions arrive outside the inline picker", () => {
+	const source = readFileSync(
+		new URL("../../../components/assistant-ui/thread.tsx", import.meta.url),
+		"utf8"
+	);
+	const scopeSync = source.lastIndexOf("const effectiveScope = scopeForMentionKinds(");
+	const mentionSync = source.indexOf("const nextDocsMap", scopeSync);
+
+	assert.notEqual(scopeSync, -1);
+	assert.notEqual(mentionSync, -1);
+});
+
 test("dashboard seeds scope from the server cookie before rendering chat", () => {
 	const layout = readFileSync(
 		new URL("../../../app/dashboard/[workspace_id]/layout.tsx", import.meta.url),

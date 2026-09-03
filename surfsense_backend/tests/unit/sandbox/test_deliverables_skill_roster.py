@@ -183,6 +183,17 @@ def test_mindmap_skill_binds_markdown_to_the_png_without_custom_styling():
     assert "`markmap-cli`" in skill
 
 
+def test_infographic_style_change_reopens_picker_without_new_artifact():
+    prompt = _prompt()
+    skill = _skill("infographic")
+
+    assert '`load_artifact_instructions(artifact_type="infographic"' in prompt
+    assert "`change_infographic_style=True` only if they asked" in prompt
+    assert "do not list presets" in prompt
+    assert "`change_infographic_style=True` only if the user asked" in skill
+    assert "Do not list presets." in skill
+
+
 def test_shared_frontend_design_is_composed_without_becoming_a_format_skill():
     dockerfile = SANDBOX_DOCKERFILE.read_text()
 

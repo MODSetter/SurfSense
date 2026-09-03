@@ -14,6 +14,7 @@ from langchain_core.tools import tool
 from app.agents.chat.multi_agent_chat.shared.receipts.command import with_receipt
 from app.agents.chat.multi_agent_chat.shared.receipts.receipt import make_receipt
 from app.artifacts import ArtifactFileInput, ArtifactFileStreamInput, save_artifact
+from app.artifacts.infographic.selection import generation_sidecar_path
 from app.artifacts.service import ArtifactInputFile
 from app.artifacts.verification.formats.base import FormatAdapter
 from app.artifacts.verification.formats.registry import (
@@ -116,6 +117,23 @@ async def _cleanup_video_workdir(session: SandboxSession, primary_path: str) -> 
         logger.warning("Could not clean video render workdir", exc_info=True)
 
 
+async def _cleanup_infographic_staging(
+    session: SandboxSession,
+    primary_path: str,
+) -> None:
+    markdown_path = str(PurePosixPath(primary_path).with_suffix(".md"))
+    sidecar_path = generation_sidecar_path(primary_path)
+    result = await session.run_command(
+        "rm -f -- "
+        + " ".join(
+            shlex.quote(path)
+            for path in (primary_path, markdown_path, sidecar_path)
+        )
+    )
+    if not result.ok:
+        logger.warning("Could not clean infographic staging files")
+
+
 def _public_error(exc: Exception) -> str:
     if isinstance(exc, FileNotFoundError):
         return (
@@ -190,13 +208,14 @@ def create_save_artifact_tool(workspace_id: int):
                         if expected_markdown_hash is None:
                             raise ValueError(
                                 "The verification receipt does not bind the "
-                                "mind-map Markdown"
+                                f"{primary_adapter.name} Markdown"
                             )
                         if expected_markdown_hash != sha256_bytes(
                             markdown_representation.encode("utf-8")
                         ):
                             raise ValueError(
-                                "The mind-map Markdown changed after verification. "
+                                f"The {primary_adapter.name} Markdown changed after "
+                                "verification. "
                                 "Verify both files again, then save."
                             )
                     primary: ArtifactInputFile
@@ -253,7 +272,12 @@ def create_save_artifact_tool(workspace_id: int):
                         "verification": {
                             "verified": verification.visual != "unavailable",
                             "reason": verification.unavailable_reason,
-                        }
+                        },
+                        **(
+                            {"generation": verification.provenance}
+                            if verification.provenance is not None
+                            else {}
+                        ),
                     }
                     files.append(primary)
                     if preview is not None:
@@ -278,6 +302,8 @@ def create_save_artifact_tool(workspace_id: int):
                     )
                     if primary_adapter.name == "video":
                         await _cleanup_video_workdir(session, path)
+                    elif primary_adapter.name == "infographic":
+                        await _cleanup_infographic_staging(session, path)
             else:
                 markdown_representation = _required_markdown(markdown_representation)
                 async with shielded_async_session() as db_session:

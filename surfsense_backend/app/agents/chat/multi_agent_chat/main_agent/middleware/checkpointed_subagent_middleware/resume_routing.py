@@ -143,6 +143,9 @@ def collect_pending_tool_calls(state: Any) -> list[tuple[str, int]]:
         if isinstance(action_requests, list):
             pending.append((tool_call_id, len(action_requests)))
             continue
+        if value.get("type") == "structured_question":
+            pending.append((tool_call_id, 1))
+            continue
         if "value" in value:
             pending.append((tool_call_id, 1))
             continue

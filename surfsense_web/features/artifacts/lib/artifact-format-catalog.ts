@@ -5,9 +5,9 @@ import {
 	FileSpreadsheet,
 	FileText,
 	ImageIcon,
-	Layers3,
 	ListChecks,
 	Network,
+	PlayingCardsFan,
 	Presentation,
 	Shapes,
 	Video,
@@ -50,7 +50,7 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 	mindmap: { ...FILE_META, icon: Network, label: "Interactive", detailLabel: "Mind map" },
 	flashcards: {
 		...FILE_META,
-		icon: Layers3,
+		icon: PlayingCardsFan,
 		label: "Interactive",
 		detailLabel: "Flashcards",
 	},
@@ -137,6 +137,14 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		groupKey: "images",
 		groupLabel: "Images",
 		viewingMode: "inline-media",
+	},
+	infographic: {
+		icon: ImageIcon,
+		label: "Infographic",
+		detailLabel: "PNG",
+		groupKey: "images",
+		groupLabel: "Images",
+		viewingMode: "viewer",
 	},
 };
 

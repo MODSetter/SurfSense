@@ -27,6 +27,7 @@ import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/u
 import { TimelineActivityIndicator } from "@/components/ui/timeline-activity-indicator";
 import {
 	HitlApprovalCard,
+	isStructuredQuestionInterrupt,
 	PendingInterruptProvider,
 	type PendingInterruptState,
 	usePendingInterrupt,
@@ -79,6 +80,7 @@ function PendingCards({ indices }: { indices: readonly number[] }) {
 	if (!value) return null;
 	const indexSet = new Set(indices);
 	const cards = value.pendingInterrupts.filter((interrupt) => {
+		if (isStructuredQuestionInterrupt(interrupt)) return false;
 		const index = interruptIndex(interrupt, parts);
 		return index !== null && indexSet.has(index);
 	});
@@ -101,7 +103,8 @@ function UnmatchedPendingCards() {
 	const parts = useAuiState(({ message }) => message.parts) as readonly TracePartLike[];
 	if (!value) return null;
 	const unmatched = value.pendingInterrupts.filter(
-		(interrupt) => interruptIndex(interrupt, parts) === null
+		(interrupt) =>
+			!isStructuredQuestionInterrupt(interrupt) && interruptIndex(interrupt, parts) === null
 	);
 	if (unmatched.length === 0) return null;
 	return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext } from "react";
-import type { HitlDecision } from "../types";
+import type { HitlResponse } from "../types";
 
 /** One in-flight HITL interrupt (one paused subagent). */
 export interface PendingInterruptState {
@@ -26,7 +26,7 @@ export interface PendingInterruptValue {
 	 * submitted, so the backend slicer sees a single concatenated decisions
 	 * list whose total matches the parent state's pending action count.
 	 */
-	onSubmit: (interruptId: string, decisions: HitlDecision[]) => void;
+	onSubmit: (interruptId: string, decisions: HitlResponse[]) => void;
 }
 
 const PendingInterruptContext = createContext<PendingInterruptValue | null>(null);
@@ -42,7 +42,7 @@ export function PendingInterruptProvider({
 	children,
 }: {
 	pendingInterrupts: PendingInterruptState[];
-	onSubmit: (interruptId: string, decisions: HitlDecision[]) => void;
+	onSubmit: (interruptId: string, decisions: HitlResponse[]) => void;
 	children: ReactNode;
 }) {
 	return (

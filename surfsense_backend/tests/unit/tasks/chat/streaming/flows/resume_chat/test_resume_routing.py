@@ -82,6 +82,35 @@ def _subagent_interrupt(interrupt_id: str, tool_call_id: str, action_count: int)
     )
 
 
+def _structured_question_interrupt(interrupt_id: str, tool_call_id: str):
+    return SimpleNamespace(
+        id=interrupt_id,
+        value={
+            "type": "structured_question",
+            "version": 1,
+            "title": "Choose a style",
+            "origin": {
+                "kind": "preset",
+                "preset_id": "infographic.visual-style",
+                "preset_version": 1,
+            },
+            "questions": [
+                {
+                    "id": "visual-style",
+                    "prompt": "Which visual style should be used?",
+                    "input_type": "single_select",
+                    "presentation": "visual_cards",
+                    "options": [
+                        {"id": "auto", "label": "Auto"},
+                        {"id": "kawaii", "label": "Kawaii"},
+                    ],
+                }
+            ],
+            "tool_call_id": tool_call_id,
+        },
+    )
+
+
 async def test_subagent_path_is_unchanged():
     """Regression guard: stamped subagent interrupts still route via the bridge."""
     decisions = [{"type": "approve"}, {"type": "reject"}]
@@ -120,6 +149,69 @@ async def test_id_stamped_decisions_route_by_identity_across_boundary():
         "i-A": {"decisions": [{"type": "approve", "tool_call_id": "tcid-A"}]},
         "i-B": {"decisions": [{"type": "reject", "tool_call_id": "tcid-B"}]},
     }
+
+
+async def test_structured_question_response_is_validated_and_routed():
+    response = {
+        "type": "respond",
+        "preset_id": "infographic.visual-style",
+        "preset_version": 1,
+        "answers": [{"question_id": "visual-style", "option_ids": ["kawaii"]}],
+    }
+    agent = _FakeAgent(
+        SimpleNamespace(
+            interrupts=(_structured_question_interrupt("i-style", "tcid-style"),)
+        )
+    )
+
+    routing = await build_resume_routing(agent, chat_id=1, decisions=[response])
+
+    expected = {"decisions": [response]}
+    assert routing.routed_resume_value == {"tcid-style": expected}
+    assert routing.lg_resume_map == {"i-style": expected}
+
+
+@pytest.mark.parametrize(
+    "response, match",
+    [
+        ({"type": "approve"}, "requires respond or cancel"),
+        (
+            {
+                "type": "respond",
+                "preset_id": "infographic.visual-style",
+                "preset_version": 2,
+                "answers": [
+                    {"question_id": "visual-style", "option_ids": ["kawaii"]}
+                ],
+            },
+            "stale preset",
+        ),
+    ],
+)
+async def test_structured_question_rejects_wrong_response(
+    response: dict, match: str
+):
+    agent = _FakeAgent(
+        SimpleNamespace(
+            interrupts=(_structured_question_interrupt("i-style", "tcid-style"),)
+        )
+    )
+
+    with pytest.raises(ValueError, match=match):
+        await build_resume_routing(agent, chat_id=1, decisions=[response])
+
+
+async def test_structured_response_without_pending_question_is_rejected():
+    agent = _FakeAgent(
+        SimpleNamespace(interrupts=(_subagent_interrupt("i-A", "tcid-A", 1),))
+    )
+
+    with pytest.raises(ValueError, match="No structured question is pending"):
+        await build_resume_routing(
+            agent,
+            chat_id=1,
+            decisions=[{"type": "cancel", "preset_id": "infographic.visual-style"}],
+        )
 
 
 async def test_mixed_parent_and_subagent_pauses_fail_loud():

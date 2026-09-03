@@ -15,6 +15,11 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from app.agents.chat.multi_agent_chat.subagents.shared.hitl.questions import (
+    STRUCTURED_QUESTION_RESPONSE_ADAPTER,
+    StructuredQuestionInterrupt,
+    validate_structured_response,
+)
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()
@@ -51,6 +56,7 @@ async def build_resume_routing(
     )
 
     parent_state = await agent.aget_state({"configurable": {"thread_id": str(chat_id)}})
+    _validate_structured_question_decisions(parent_state, decisions)
     pending = collect_pending_tool_calls(parent_state)
     parent_pending = collect_pending_parent_interrupts(parent_state)
     _perf_log.info(
@@ -86,3 +92,71 @@ async def build_resume_routing(
         lg_resume_map=lg_resume_map,
         pending_tool_call_ids=[tool_call_id for tool_call_id, _ in pending],
     )
+
+
+def _validate_structured_question_decisions(
+    state: Any,
+    decisions: list[dict[str, Any]],
+) -> None:
+    """Reject stale or approval-shaped answers before resuming a question."""
+    interrupts = list(getattr(state, "interrupts", ()) or ())
+    if not any(
+        isinstance(getattr(item, "value", None), dict)
+        and item.value.get("type") == "structured_question"
+        for item in interrupts
+    ):
+        if any(decision.get("type") in {"respond", "cancel"} for decision in decisions):
+            raise ValueError("No structured question is pending")
+        return
+
+    by_tool_call_id = {
+        str(item.value["tool_call_id"]): item
+        for item in interrupts
+        if isinstance(getattr(item, "value", None), dict)
+        if isinstance(item.value.get("tool_call_id"), str)
+    }
+    by_interrupt_id = {
+        str(item.id): item
+        for item in interrupts
+        if isinstance(getattr(item, "id", None), str)
+    }
+    positional: list[Any] = []
+    for item in interrupts:
+        value = getattr(item, "value", None)
+        if not isinstance(value, dict):
+            continue
+        requests = value.get("action_requests")
+        count = len(requests) if isinstance(requests, list) and requests else 1
+        positional.extend([item] * count)
+
+    for index, decision in enumerate(decisions):
+        tool_call_id = decision.get("tool_call_id")
+        interrupt_id = decision.get("interrupt_id")
+        item = (
+            by_tool_call_id.get(str(tool_call_id))
+            if tool_call_id
+            else by_interrupt_id.get(str(interrupt_id))
+            if interrupt_id
+            else positional[index]
+            if index < len(positional)
+            else None
+        )
+        if item is None:
+            if decision.get("type") in {"respond", "cancel"}:
+                raise ValueError("Structured-question response has no pending interrupt")
+            continue
+        value = getattr(item, "value", None)
+        is_structured = (
+            isinstance(value, dict) and value.get("type") == "structured_question"
+        )
+        if not is_structured:
+            if decision.get("type") in {"respond", "cancel"}:
+                raise ValueError("Structured-question response targets an approval")
+            continue
+        if decision.get("type") not in {"respond", "cancel"}:
+            raise ValueError("A structured question requires respond or cancel")
+        prompt = StructuredQuestionInterrupt.model_validate(
+            {key: field for key, field in value.items() if key != "tool_call_id"}
+        )
+        response = STRUCTURED_QUESTION_RESPONSE_ADAPTER.validate_python(decision)
+        validate_structured_response(prompt, response)

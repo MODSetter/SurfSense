@@ -112,6 +112,9 @@ def test_file_deliverable_revisions_are_in_place():
     assert "a changed title, filename,\n  or design does not create" in (
         deliverables_prompt
     )
+    assert "change visual style" in routing
+    assert "Do not list infographic style presets in chat" in routing
+    assert "`change_infographic_style=True` only if they asked" in deliverables_prompt
 
 
 def test_failed_verification_cannot_advance_to_save():

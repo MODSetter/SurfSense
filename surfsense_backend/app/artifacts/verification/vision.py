@@ -80,6 +80,7 @@ async def review_pages(
     page_images: tuple[PageImage, ...],
     *,
     review_kind: ReviewKind = "document",
+    reference_text: str | None = None,
     progress: Callable[[int, int], None] | None = None,
 ) -> VisualReviewResult:
     """Review consecutive rendered windows using format-appropriate framing."""
@@ -98,7 +99,12 @@ async def review_pages(
                 "text": (
                     f"{REVIEW_FRAMINGS[review_kind]}\n"
                     f"Files: {labels}\n"
-                    f"{VERDICT_INSTRUCTIONS}"
+                    + (
+                        f"Factual and generation contract:\n{reference_text[:20_000]}\n"
+                        if reference_text
+                        else ""
+                    )
+                    + VERDICT_INSTRUCTIONS
                 ),
             }
         ]
@@ -113,7 +119,11 @@ async def review_pages(
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": "data:image/jpeg;base64,"
+                            "url": (
+                                "data:image/png;base64,"
+                                if data.startswith(b"\x89PNG\r\n\x1a\n")
+                                else "data:image/jpeg;base64,"
+                            )
                             + base64.b64encode(data).decode("ascii")
                         },
                     },

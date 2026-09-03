@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
 import type { RightPanelTab } from "@/atoms/layout/right-panel.atom";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,13 @@ const RIGHT_PANEL_LAYOUT: Record<RightPanelTab, { ratio: string; maxWidth: strin
 	editor: { ratio: "50%", maxWidth: "640px" },
 	"hitl-edit": { ratio: "50%", maxWidth: "640px" },
 };
+
+/** Width tween from the pre-split RightPanel (`PANEL_SLIDE_TRANSITION.width`). */
+const PANEL_WIDTH_TRANSITION = { duration: 0.24, ease: [0.4, 0, 0.2, 1] } as const;
+
+function paneInnerSize(layout: { ratio: string; maxWidth: string }) {
+	return `min(${layout.ratio.replace("%", "cqw")}, ${layout.maxWidth})`;
+}
 
 export function hasHorizontalOverflow({
 	clientWidth,
@@ -45,36 +53,41 @@ export function WorkspaceSplit({
 	overlay,
 	className,
 }: WorkspaceSplitProps) {
+	const reduceMotion = useReducedMotion();
 	const layout = RIGHT_PANEL_LAYOUT[secondaryTab];
-	const secondaryTrack = secondaryVisible
-		? `minmax(0, min(${layout.ratio}, ${layout.maxWidth}))`
-		: "0px";
+	const innerSize = paneInnerSize(layout);
 
 	return (
 		<div
 			data-workspace-split
 			data-secondary-tab={secondaryTab}
 			data-secondary-visible={secondaryVisible}
-			className={cn("relative grid h-full min-h-0 min-w-0 w-full overflow-hidden", className)}
-			style={
-				{
-					gridTemplateColumns: `minmax(0, 1fr) ${secondaryTrack}`,
-				} satisfies CSSProperties
-			}
+			className={cn(
+				"@container relative flex h-full min-h-0 min-w-0 w-full overflow-hidden",
+				className
+			)}
 		>
 			<div
 				data-primary-pane
-				className="relative flex h-full min-h-0 min-w-0 w-full overflow-hidden"
+				className="relative flex h-full min-h-0 min-w-0 flex-1 overflow-hidden"
 			>
 				{primary}
 			</div>
-			<div
+			<motion.div
 				data-secondary-pane
 				aria-hidden={!secondaryVisible}
-				className="relative flex h-full min-h-0 min-w-0 w-full overflow-hidden"
+				initial={false}
+				animate={{
+					width: secondaryVisible ? layout.ratio : "0%",
+					maxWidth: secondaryVisible ? layout.maxWidth : "0px",
+				}}
+				transition={reduceMotion ? { duration: 0 } : PANEL_WIDTH_TRANSITION}
+				className="relative h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
 			>
-				{secondary}
-			</div>
+				<div className="flex h-full min-h-0 shrink-0 flex-col" style={{ width: innerSize }}>
+					{secondary}
+				</div>
+			</motion.div>
 			{overlay}
 		</div>
 	);

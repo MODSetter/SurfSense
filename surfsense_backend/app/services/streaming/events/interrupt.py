@@ -9,6 +9,8 @@ from .data import format_data
 
 
 def normalize_interrupt_payload(interrupt_value: dict[str, Any]) -> dict[str, Any]:
+    if interrupt_value.get("type") == "structured_question":
+        return dict(interrupt_value)
     if "action_requests" in interrupt_value and "review_configs" in interrupt_value:
         return interrupt_value
 

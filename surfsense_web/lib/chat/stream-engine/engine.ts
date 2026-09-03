@@ -18,7 +18,11 @@ import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/do
 import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
-import type { HitlDecision, PendingInterruptState } from "@/features/chat-messages/hitl";
+import type {
+	HitlDecision,
+	HitlResponse,
+	PendingInterruptState,
+} from "@/features/chat-messages/hitl";
 import {
 	applyActionLogSse,
 	applyActionLogUpdatedSse,
@@ -700,6 +704,9 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 						interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
 					);
 					if (interruptId) {
+						if (interruptData.type === "structured_question" && bundleToolCallIds.length === 0) {
+							bundleToolCallIds.push(interruptId);
+						}
 						const incoming: PendingInterruptState = {
 							interruptId,
 							threadId: streamThreadId,
@@ -840,15 +847,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 // Resume (HITL decisions)
 // ---------------------------------------------------------------------------
 
-export async function resumeChat(
-	ctx: EngineContext,
-	decisions: Array<{
-		type: string;
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-		tool_call_id?: string;
-	}>
-): Promise<void> {
+export async function resumeChat(ctx: EngineContext, decisions: HitlResponse[]): Promise<void> {
 	const { workspaceId, threadId } = ctx;
 	if (threadId == null) return;
 	const pendingInterrupts = chatStreamStore.getPendingInterrupts(threadId);
@@ -1063,6 +1062,9 @@ export async function resumeChat(
 							interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
 						);
 						if (interruptId) {
+							if (interruptData.type === "structured_question" && bundleToolCallIds.length === 0) {
+								bundleToolCallIds.push(interruptId);
+							}
 							const incoming: PendingInterruptState = {
 								interruptId,
 								threadId: resumeThreadId,
@@ -1127,6 +1129,14 @@ export async function resumeChat(
 	} catch (error) {
 		streamBatcher?.flush();
 		streamBatcher?.dispose();
+		if (!resumeAccepted) {
+			chatStreamStore.setPendingInterrupts(resumeThreadId, () => pendingInterrupts);
+			window.dispatchEvent(
+				new CustomEvent("hitl-resume-failed", {
+					detail: { interruptIds: pendingInterrupts.map((item) => item.interruptId) },
+				})
+			);
+		}
 		await handleStreamTerminalError({
 			error,
 			flow: "resume",

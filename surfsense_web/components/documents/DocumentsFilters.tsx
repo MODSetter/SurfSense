@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderPlus, Github, ListFilter, Search, TriangleAlert, Upload, X } from "lucide-react";
+import { IconBrandGithub } from "@tabler/icons-react";
+import { FolderPlus, ListFilter, Search, TriangleAlert, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -253,7 +254,7 @@ export function DocumentsFilters({
 								className="relative h-8 min-w-0 basis-36 flex-1 gap-1.5 overflow-visible border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
 							>
 								<Link href={connectRepoHref}>
-									<Github size={13} className="shrink-0" />
+									<IconBrandGithub size={13} className="shrink-0" />
 									<span className="truncate">
 										{repoConnected ? t("manage_repo") : t("connect_repo")}
 									</span>

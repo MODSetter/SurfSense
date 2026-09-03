@@ -298,11 +298,11 @@ export function RightPanel({
 			{isVisible ? (
 				<motion.aside
 					key="right-panel"
-					initial={reduceMotion ? false : { x: 12, opacity: 0 }}
-					animate={{ x: 0, opacity: 1 }}
-					exit={reduceMotion ? { opacity: 0 } : { x: 12, opacity: 0 }}
+					initial={reduceMotion ? false : { opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
 					transition={reduceMotion ? { duration: 0 } : PANEL_CONTENT_TRANSITION}
-					style={reduceMotion ? undefined : { willChange: "transform, opacity" }}
+					style={reduceMotion ? undefined : { willChange: "opacity" }}
 					className={cn(
 						"flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden border-l bg-panel text-sidebar-foreground",
 						showTopBorder && "border-t"
