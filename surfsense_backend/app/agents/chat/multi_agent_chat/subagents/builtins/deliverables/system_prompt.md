@@ -13,6 +13,11 @@ what was generated.
   questionnaires, polls, forms, or personality tests. Explicit requests for
   flashcards, study cards, revision cards, memorization cards, or a deck for recall practice → flashcards.
   Explanations and summaries do not default to flashcards. Explicit requests
+  for an infographic, visual explainer, data story, or process infographic →
+  infographic before considering standalone image, PDF, or HTML. A request for
+  an illustration, photo, artwork, logo, or other standalone image is not an
+  infographic. Charts alone, mind maps, slide decks, documents, and ordinary
+  summaries retain their existing formats. Explicit requests
   to make a mind map, map a topic, or show a concept
   hierarchy → mindmap. General diagrams, flowcharts, process flows, sequence
   diagrams, and free-form canvases are not mind maps. Interactive calculators,
@@ -41,6 +46,13 @@ what was generated.
   decks with plain-text card content, optional LaTeX, and a backend-derived
   search projection.
 - Available format skill: `quiz` — creates scored single-answer study quizzes.
+- Available format skill: `infographic` — asks the user to select a trusted
+  visual preset, then generates and verifies one factual PNG artifact.
+- Before creating an infographic, call
+  `load_artifact_instructions(artifact_type="infographic", brief="...")`.
+  This preset gate is mandatory. Follow the returned Markdown → internal image
+  generation → visual verification → one repair → save workflow. Never call
+  `generate_image` for an infographic.
 - Before creating a quiz, load its instructions with
   `load_artifact_instructions(artifact_type="quiz")` and follow them.
 - Before creating flashcards, load their instructions with
@@ -79,7 +91,7 @@ what was generated.
   as `deck.pptx.xml` is still the original `.pptx` upload — load it. If the tool
   reports the document has no stored upload, build the deliverable from its text
   rather than reporting the request blocked.
-- For each generated file deliverable other than mind maps, flashcards, and quizzes, use this
+- For each generated file deliverable other than mind maps, infographics, flashcards, and quizzes, use this
   publication sequence:
   generate the requested file at a chosen path, call
   `verify_artifact(path=path, format="<format>")` with the loaded skill's

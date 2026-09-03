@@ -3,5 +3,8 @@ Creates interactive calculators, configurators, dashboards, widgets, and prototy
 Creates hierarchical mind maps from canonical Markdown with interactive viewing and static PNG downloads.
 Creates strict JSON flashcard decks for active-recall study with persistent progress.
 Creates scored single-answer quizzes for study and review.
+Creates preset-gated infographics, visual explainers, data stories, and process
+infographics through verified PNG artifacts. Standalone generated images remain
+the ordinary image workflow.
 Also produces media deliverables: podcasts, videos, and generated images.
 Use proactively whenever the user asks for one of these artifacts.
