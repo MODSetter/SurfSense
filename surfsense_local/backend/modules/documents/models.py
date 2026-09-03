@@ -59,8 +59,8 @@ class Document(Base):
 
     workspace: Mapped[Workspace] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(
-        back_populates="document", cascade="all, delete-orphan"
+        back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )
     artifact: Mapped["Artifact | None"] = relationship(
-        back_populates="document", cascade="all, delete-orphan"
+        back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )

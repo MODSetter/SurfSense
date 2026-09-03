@@ -31,7 +31,7 @@ class ChatThread(Base):
 
     workspace: Mapped[Workspace] = relationship(back_populates="chat_threads")
     messages: Mapped[list["ChatMessage"]] = relationship(
-        back_populates="thread", cascade="all, delete-orphan"
+        back_populates="thread", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
