@@ -2,12 +2,11 @@
 
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useElectronAPI } from "@/hooks/use-platform";
 import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
@@ -22,11 +21,12 @@ import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { MobileDocumentsWorkspaceView } from "../right-panel/MobileDocumentsWorkspaceView";
-import { RightPanel, RightPanelToggleButton } from "../right-panel/RightPanel";
+import { RightPanel, RightPanelToggleButton, useRightPanelLayout } from "../right-panel/RightPanel";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } from "../sidebar";
 import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
 import { WorkspacePanel } from "./WorkspacePanel";
+import { WorkspaceSplit } from "./WorkspaceSplit";
 
 const DocumentTabContent = dynamic(
 	() => import("../tabs/DocumentTabContent").then((m) => ({ default: m.DocumentTabContent })),
@@ -56,9 +56,6 @@ const MobileDocumentViewerPanel = dynamic(
 
 const PLAYGROUND_SIDEBAR_COLLAPSED_COOKIE = "surfsense_playground_sidebar_collapsed";
 const PLAYGROUND_SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
-const DESKTOP_ICON_RAIL_WIDTH = 56;
-const DESKTOP_SHELL_HORIZONTAL_PADDING = 16;
-const MIN_CHAT_WORKSPACE_WIDTH = 840;
 
 function persistPlaygroundSidebarCollapsedCookie(isCollapsed: boolean) {
 	void window.cookieStore
@@ -216,7 +213,7 @@ function UntabbedMainContentPanel({
 		>
 			<div className="relative flex flex-1 flex-col bg-panel overflow-hidden min-w-0">
 				<Header />
-				<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+				<div className={cn("min-w-0 flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 					{children}
 				</div>
 			</div>
@@ -274,17 +271,13 @@ function TabbedMainContentPanel({
 						/>
 					</div>
 				) : (
-					<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+					<div className={cn("min-w-0 flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 						{children}
 					</div>
 				)}
 			</div>
 		</div>
 	);
-}
-
-function DesktopWorkspaceRegion({ children }: { children: React.ReactNode }) {
-	return <div className="relative flex h-full min-w-0 flex-1 -mr-2">{children}</div>;
 }
 
 export function LayoutShell({
@@ -349,19 +342,11 @@ export function LayoutShell({
 		handlePointerDown: onResizePointerDown,
 		isDragging: isResizing,
 	} = useSidebarResize();
-	const shouldCollapseSidebarForChat = useMediaQuery(
-		`(min-width: 768px) and (max-width: ${
-			DESKTOP_ICON_RAIL_WIDTH +
-			sidebarWidth +
-			MIN_CHAT_WORKSPACE_WIDTH +
-			DESKTOP_SHELL_HORIZONTAL_PADDING
-		}px)`
-	);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
-
-	useEffect(() => {
-		if (isChatPage && shouldCollapseSidebarForChat) setIsCollapsed(true);
-	}, [isChatPage, setIsCollapsed, shouldCollapseSidebarForChat]);
+	const rightPanelLayout = useRightPanelLayout(documentsPanel?.open ?? false);
+	const handlePrimaryOverflow = useCallback(() => {
+		if (isChatPage) setIsCollapsed(true);
+	}, [isChatPage, setIsCollapsed]);
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(
@@ -491,12 +476,9 @@ export function LayoutShell({
 							disableRightPanelToggle={useWorkspacePanel}
 						/>
 					) : null}
-					<div className="flex min-h-0 flex-1 w-full gap-2 px-2 py-0 overflow-hidden">
+					<div className="grid min-h-0 w-full flex-1 grid-cols-[auto_auto_auto_minmax(0,1fr)] overflow-hidden pl-2">
 						<div
-							className={cn(
-								"hidden md:flex overflow-hidden -mr-2 pr-2 bg-rail",
-								!isMacDesktop && "border-r"
-							)}
+							className={cn("hidden overflow-hidden bg-rail md:flex", !isMacDesktop && "border-r")}
 						>
 							<IconRail
 								workspaces={workspaces}
@@ -519,10 +501,10 @@ export function LayoutShell({
 							/>
 						</div>
 
-						{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content. Negative right margin closes the flex gap so the sidebar sits flush against the main panel, separated only by a border. */}
+						{/* Sidebar slide-outs remain overlays; the shell columns themselves are intrinsic grid tracks. */}
 						<div
 							className={cn(
-								"relative hidden md:flex shrink-0 z-20 -mr-2 bg-panel",
+								"relative z-20 hidden shrink-0 bg-panel md:flex",
 								isMacDesktop ? "rounded-tl-xl border-l border-t border-r" : "border-r"
 							)}
 						>
@@ -591,33 +573,30 @@ export function LayoutShell({
 							)}
 						</div>
 
-						{playgroundSidebar ? (
-							<div
-								aria-hidden={isPlaygroundSidebarCollapsed}
-								className={cn(
-									"hidden md:flex shrink-0 overflow-hidden -mr-2 bg-panel transition-[width,opacity] duration-200 ease-out",
-									isPlaygroundSidebarCollapsed
-										? "w-0 opacity-0 pointer-events-none"
-										: "w-[240px] opacity-100",
-									isMacDesktop && !isPlaygroundSidebarCollapsed && "border-t"
-								)}
-							>
-								<div className="w-[240px] shrink-0">{playgroundSidebar}</div>
-							</div>
-						) : null}
+						<div
+							aria-hidden={!playgroundSidebar || isPlaygroundSidebarCollapsed}
+							className={cn(
+								"hidden shrink-0 overflow-hidden bg-panel transition-[width,opacity] duration-200 ease-out md:flex",
+								!playgroundSidebar || isPlaygroundSidebarCollapsed
+									? "pointer-events-none w-0 opacity-0"
+									: "w-[240px] border-r opacity-100",
+								isMacDesktop && playgroundSidebar && !isPlaygroundSidebarCollapsed && "border-t"
+							)}
+						>
+							<div className="w-[240px] shrink-0">{playgroundSidebar}</div>
+						</div>
 
-						<DesktopWorkspaceRegion>
-							{useWorkspacePanel ? (
-								<WorkspacePanel
-									className={isMacDesktop ? "border-t" : undefined}
-									viewportClassName={workspacePanelViewportClassName}
-									contentClassName={workspacePanelContentClassName}
-								>
-									{children}
-								</WorkspacePanel>
-							) : (
-								<>
-									{/* Main content panel */}
+						{useWorkspacePanel ? (
+							<WorkspacePanel
+								className={isMacDesktop ? "border-t" : undefined}
+								viewportClassName={workspacePanelViewportClassName}
+								contentClassName={workspacePanelContentClassName}
+							>
+								{children}
+							</WorkspacePanel>
+						) : (
+							<WorkspaceSplit
+								primary={
 									<MainContentPanel
 										isChatPage={isChatPage}
 										onTabSwitch={onTabSwitch}
@@ -629,24 +608,31 @@ export function LayoutShell({
 									>
 										{children}
 									</MainContentPanel>
-
-									{/* Right panel — tabbed Documents/Report/Editor/Citations/Artifacts (desktop only) */}
+								}
+								secondary={
 									<RightPanel
+										layout={rightPanelLayout}
 										documentsPanel={documentsPanel}
 										reserveDocumentToggleSpace={!isMacDesktop}
 										showTopBorder={isMacDesktop}
 									/>
-									{!isMacDesktop && (
+								}
+								secondaryTab={rightPanelLayout.effectiveTab}
+								secondaryVisible={rightPanelLayout.isVisible}
+								sidebarCollapsed={isCollapsed}
+								onPrimaryOverflow={handlePrimaryOverflow}
+								overlay={
+									!isMacDesktop ? (
 										<div className="absolute right-2 top-2 z-30">
 											<RightPanelToggleButton documentsOnly />
 										</div>
-									)}
-								</>
-							)}
-						</DesktopWorkspaceRegion>
-						<MobileArtifactDrawer />
-						<MobileDocumentViewerPanel />
+									) : null
+								}
+							/>
+						)}
 					</div>
+					<MobileArtifactDrawer />
+					<MobileDocumentViewerPanel />
 				</div>
 			</TooltipProvider>
 		</SidebarProvider>

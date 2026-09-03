@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { Check, ChevronDown, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { UIEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { updateModelRolesMutationAtom } from "@/atoms/model-connections/model-connections-mutation.atoms";
 import {
 	globalModelConnectionsAtom,
@@ -128,19 +128,6 @@ export function ModelSelector({ workspaceId, className, onChatModelSelected }: M
 	const loading = globalLoading || connectionsLoading;
 	const hasSearchQuery = search.trim().length > 0;
 	const showIconOnlyTrigger = isMobile;
-	const triggerRef = useRef<HTMLButtonElement>(null);
-	const [hideTriggerLabel, setHideTriggerLabel] = useState(false);
-
-	useEffect(() => {
-		const trigger = triggerRef.current;
-		if (!trigger) return;
-
-		const update = () => setHideTriggerLabel(trigger.clientWidth < 96);
-		update();
-		const observer = new ResizeObserver(update);
-		observer.observe(trigger);
-		return () => observer.disconnect();
-	}, []);
 
 	function handleOpenChange(nextOpen: boolean) {
 		if (!nextOpen) setSearch("");
@@ -278,7 +265,6 @@ export function ModelSelector({ workspaceId, className, onChatModelSelected }: M
 
 	const trigger = (
 		<Button
-			ref={triggerRef}
 			type="button"
 			variant="ghost"
 			size="sm"
@@ -296,12 +282,7 @@ export function ModelSelector({ workspaceId, className, onChatModelSelected }: M
 				? getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
 				: getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })}
 			{showIconOnlyTrigger ? null : (
-				<span
-					className={cn(
-						"min-w-0 max-w-40 flex-1 truncate text-sm transition-opacity duration-300 ease-out motion-reduce:transition-none",
-						hideTriggerLabel && "opacity-0"
-					)}
-				>
+				<span className="min-w-0 max-w-40 flex-1 truncate text-sm">
 					{selected ? modelName(selected) : "Auto"}
 				</span>
 			)}

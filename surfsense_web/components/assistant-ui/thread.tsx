@@ -15,8 +15,8 @@ import {
 	Clipboard,
 	Files,
 	Globe2,
-	LayoutGrid,
 	Layers3,
+	LayoutGrid,
 	Plus,
 	Settings2,
 	SquareIcon,
@@ -184,7 +184,7 @@ export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return (
 		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container relative flex h-full min-h-0 flex-col bg-main-panel"
+			className="aui-root aui-thread-root @container relative flex h-full min-h-0 min-w-0 w-full flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "42rem",
 			}}
@@ -289,10 +289,10 @@ const ThreadWelcome: FC = () => {
 	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
 
 	return (
-		<div className="aui-thread-welcome-root flex min-h-0 flex-1">
-			<section className="mx-auto grid w-full max-w-(--thread-max-width) content-center gap-6 pt-8 pb-[clamp(5rem,16vh,12rem)]">
-				<div className="aui-thread-welcome-message flex flex-col items-center px-4 text-center">
-					<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
+		<div className="aui-thread-welcome-root flex min-h-0 min-w-0 w-full flex-1">
+			<section className="mx-auto grid h-full min-w-0 w-full max-w-(--thread-max-width) grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)] pt-8 pb-[clamp(5rem,16vh,12rem)]">
+				<div className="aui-thread-welcome-message flex flex-col items-center self-end px-4 pb-6 text-center">
+					<h1 className="aui-thread-welcome-message-inner min-w-0 w-full max-w-full break-words text-balance text-3xl select-none md:text-[2.625rem]">
 						{greeting}
 					</h1>
 				</div>
@@ -895,7 +895,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	}, [mentionedDocuments]);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2 rounded-2xl">
+		<ComposerPrimitive.Root className="aui-composer-root relative flex min-w-0 w-full flex-col gap-2 rounded-2xl">
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
@@ -944,7 +944,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 					</>
 				) : null}
 			</Popover>
-			<div className="relative flex w-full flex-col">
+			<div className="relative flex min-w-0 w-full flex-col">
 				{isChatUnavailable ? (
 					<ChatUnavailableNotice
 						workspaceId={workspaceId ?? 0}
@@ -953,7 +953,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 				) : null}
 				<div
 					className={cn(
-						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
+						"aui-composer-attachment-dropzone relative z-10 flex min-w-0 w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
 						isChatUnavailable && "shadow-none dark:shadow-none"
 					)}
 				>
@@ -1161,8 +1161,8 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				: "Send message";
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
-			<div className="flex items-center gap-1">
+		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex min-w-0 items-center">
+			<div data-composer-primary-actions className="flex shrink-0 items-center gap-1">
 				{!isDesktop ? (
 					<ComposerAddMenuDrawer
 						trigger={
@@ -1473,13 +1473,16 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					options={SEARCH_SCOPE_OPTIONS}
 					onValueChange={setSearchScope}
 					ariaLabel="Search scope"
-					className="hidden sm:inline-flex"
+					className="inline-flex shrink-0"
 				/>
 			</div>
-			<div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
+			<div
+				data-composer-model-actions
+				className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2"
+			>
 				<ChatHeader
 					workspaceId={workspaceId}
-					className="h-9 max-w-[44vw] px-2 sm:max-w-none sm:px-3"
+					className="h-9 px-2"
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
