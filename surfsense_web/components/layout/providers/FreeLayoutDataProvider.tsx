@@ -9,6 +9,7 @@ import { useLoginGate } from "@/contexts/login-gate";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
+import { readClientSidebarPreferences } from "../sidebar-preferences";
 import type { ChatItem, NavItem, PageUsage, Workspace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
 
@@ -32,6 +33,7 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 	const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
 	const [isDocsSidebarOpen, setIsDocsSidebarOpen] = useState(false);
+	const [initialSidebarPreferences] = useState(readClientSidebarPreferences);
 
 	// Keep the documents panel closed on mobile; auto-open only on desktop after hydration
 	useEffect(() => {
@@ -89,6 +91,8 @@ export function FreeLayoutDataProvider({ children }: FreeLayoutDataProviderProps
 		<LayoutShell
 			workspaces={[GUEST_SPACE]}
 			activeWorkspaceId={0}
+			initialSidebarCollapsed={initialSidebarPreferences.collapsed}
+			initialSidebarWidth={initialSidebarPreferences.width}
 			onWorkspaceSelect={handleWorkspaceSelect}
 			onWorkspaceSettings={gatedAction("workspace settings")}
 			onAddWorkspace={gatedAction("create workspaces")}

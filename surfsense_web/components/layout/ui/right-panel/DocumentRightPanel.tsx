@@ -491,14 +491,12 @@ function AuthenticatedDocumentRightPanelBase({
 	const gitRepoName = gitRemote ? gitRepoLabel(gitRemote) : "";
 	const gitMountFolderName = treeFolders.find((f) => f.id === gitMountId)?.name ?? "";
 	const folderPendingDeleteIsSynced =
-		folderPendingDelete != null &&
-		isSyncedContent(treeFolders, folderPendingDelete.id, gitMountId);
+		folderPendingDelete != null && isSyncedContent(treeFolders, folderPendingDelete.id, gitMountId);
 	const folderPendingDeleteContainsSynced =
 		folderPendingDelete != null &&
 		!folderPendingDeleteIsSynced &&
 		folderDeletionTouchesSync(treeFolders, folderPendingDelete.id, gitMountId);
-	const folderPendingDeleteInGit =
-		folderPendingDeleteIsSynced || folderPendingDeleteContainsSynced;
+	const folderPendingDeleteInGit = folderPendingDeleteIsSynced || folderPendingDeleteContainsSynced;
 
 	// Folder actions
 	const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -1117,7 +1115,7 @@ function AuthenticatedDocumentRightPanelBase({
 				</Button>
 			)}
 
-			<div className="flex-1 min-h-0 pt-0 flex flex-col">
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col pt-0">
 				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-8"}`}>
 					<DocumentsFilters
 						typeCounts={typeCounts}
@@ -1132,7 +1130,7 @@ function AuthenticatedDocumentRightPanelBase({
 					/>
 				</div>
 
-				<div className="relative flex-1 min-h-0 overflow-auto">
+				<div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
 					{deletableSelectedIds.length > 0 && (
 						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
 							<Button
@@ -1227,9 +1225,9 @@ function AuthenticatedDocumentRightPanelBase({
 					</h1>
 				</header>
 			) : (
-				<div className="shrink-0 flex h-12 items-center px-3">
-					<div className="flex w-full items-center justify-between">
-						<div className="flex items-center gap-3">
+				<div className="flex h-12 min-w-0 shrink-0 items-center px-3">
+					<div className="flex min-w-0 w-full items-center justify-between">
+						<div className="flex min-w-0 items-center gap-3">
 							{isMobile && (
 								<Button
 									variant="ghost"
@@ -1241,7 +1239,9 @@ function AuthenticatedDocumentRightPanelBase({
 									<span className="sr-only">{tSidebar("close") || "Close"}</span>
 								</Button>
 							)}
-							<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+							<h2 className="min-w-0 truncate text-lg font-semibold select-none">
+								{t("title") || "Documents"}
+							</h2>
 							{showFilesystemTabs && (
 								<Tabs
 									value={currentFilesystemTab}
@@ -1426,12 +1426,11 @@ function AuthenticatedDocumentRightPanelBase({
 						<AlertDialogDescription>
 							{folderPendingDeleteIsSynced ? (
 								<>
-									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span> is
-									synced with{" "}
-									<span className="font-medium text-foreground">{gitRepoName}</span>. Deleting it also
-									deletes its documents from{" "}
-									<span className="font-medium text-foreground">{gitRepoName}</span> on the next sync.
-									To remove only the local copy and keep the remote,{" "}
+									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span>{" "}
+									is synced with <span className="font-medium text-foreground">{gitRepoName}</span>.
+									Deleting it also deletes its documents from{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span> on the next
+									sync. To remove only the local copy and keep the remote,{" "}
 									<Link href={gitRemoteSettingsHref} className="font-medium underline">
 										disconnect the repository
 									</Link>{" "}
@@ -1445,10 +1444,10 @@ function AuthenticatedDocumentRightPanelBase({
 										{gitMountFolderName || "a synced folder"}
 									</span>
 									, which is synced with{" "}
-									<span className="font-medium text-foreground">{gitRepoName}</span>. Deleting it also
-									deletes those synced documents from{" "}
-									<span className="font-medium text-foreground">{gitRepoName}</span> on the next sync.
-									To remove only the local copy and keep the remote,{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span>. Deleting it
+									also deletes those synced documents from{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span> on the next
+									sync. To remove only the local copy and keep the remote,{" "}
 									<Link href={gitRemoteSettingsHref} className="font-medium underline">
 										disconnect the repository
 									</Link>{" "}
@@ -1456,8 +1455,8 @@ function AuthenticatedDocumentRightPanelBase({
 								</>
 							) : (
 								<>
-									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span> and
-									all of its contents will be permanently deleted. This action cannot be undone.
+									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span>{" "}
+									and all of its contents will be permanently deleted. This action cannot be undone.
 								</>
 							)}
 						</AlertDialogDescription>
@@ -1491,10 +1490,10 @@ function AuthenticatedDocumentRightPanelBase({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete a synced document?</AlertDialogTitle>
 						<AlertDialogDescription>
-							<span className="font-medium text-foreground">{docPendingDelete?.title}</span> is synced
-							with <span className="font-medium text-foreground">{gitRepoName}</span>. Deleting it here
-							also removes it from the remote on the next sync. To keep the remote and remove only the
-							local copy,{" "}
+							<span className="font-medium text-foreground">{docPendingDelete?.title}</span> is
+							synced with <span className="font-medium text-foreground">{gitRepoName}</span>.
+							Deleting it here also removes it from the remote on the next sync. To keep the remote
+							and remove only the local copy,{" "}
 							<Link href={gitRemoteSettingsHref} className="font-medium underline">
 								disconnect the repository
 							</Link>{" "}
@@ -1538,8 +1537,8 @@ function AuthenticatedDocumentRightPanelBase({
 								<>
 									{" "}
 									Some are synced with{" "}
-									<span className="font-medium text-foreground">{gitRepoName}</span> and will also be
-									removed from the remote on the next sync.
+									<span className="font-medium text-foreground">{gitRepoName}</span> and will also
+									be removed from the remote on the next sync.
 								</>
 							) : null}
 						</AlertDialogDescription>
@@ -1595,8 +1594,8 @@ function AuthenticatedDocumentRightPanelBase({
 			<div
 				className={
 					workspaceView
-						? "flex h-full min-h-0 flex-col bg-panel text-foreground"
-						: "flex h-full flex-col bg-sidebar text-sidebar-foreground"
+						? "@container flex h-full min-h-0 min-w-0 w-full flex-col bg-panel text-foreground"
+						: "@container flex h-full min-h-0 min-w-0 w-full flex-col bg-sidebar text-sidebar-foreground"
 				}
 			>
 				{documentsContent}

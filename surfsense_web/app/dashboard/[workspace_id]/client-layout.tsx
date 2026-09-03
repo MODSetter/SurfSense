@@ -9,9 +9,11 @@ import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.a
 import { llmSetupStatusAtomFamily } from "@/atoms/model-connections/model-connections-query.atoms";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
+import { RetrievalScopeProvider } from "@/components/assistant-ui/retrieval-scope-provider";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { RetrievalScope } from "@/contracts/types/retrieval-scope.types";
 import { useFolderSync } from "@/hooks/use-folder-sync";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { useElectronAPI } from "@/hooks/use-platform";
@@ -19,11 +21,17 @@ import { useElectronAPI } from "@/hooks/use-platform";
 export function DashboardClientLayout({
 	children,
 	workspaceId,
+	initialRetrievalScope,
+	initialSidebarCollapsed,
+	initialSidebarWidth,
 	initialPlaygroundSidebarCollapsed,
 	initialRightPanelCollapsed,
 }: {
 	children: React.ReactNode;
 	workspaceId: string;
+	initialRetrievalScope: RetrievalScope;
+	initialSidebarCollapsed: boolean;
+	initialSidebarWidth: number;
 	initialPlaygroundSidebarCollapsed: boolean;
 	initialRightPanelCollapsed: boolean;
 }) {
@@ -163,15 +171,23 @@ export function DashboardClientLayout({
 	}
 
 	return (
-		<DocumentUploadDialogProvider>
-			<OnboardingTour />
-			<LayoutDataProvider
-				workspaceId={workspaceId}
-				initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
-				initialRightPanelCollapsed={initialRightPanelCollapsed}
-			>
-				{children}
-			</LayoutDataProvider>
-		</DocumentUploadDialogProvider>
+		<RetrievalScopeProvider
+			key={workspaceId}
+			workspaceId={Number(workspaceId)}
+			initialScope={initialRetrievalScope}
+		>
+			<DocumentUploadDialogProvider>
+				<OnboardingTour />
+				<LayoutDataProvider
+					workspaceId={workspaceId}
+					initialSidebarCollapsed={initialSidebarCollapsed}
+					initialSidebarWidth={initialSidebarWidth}
+					initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
+					initialRightPanelCollapsed={initialRightPanelCollapsed}
+				>
+					{children}
+				</LayoutDataProvider>
+			</DocumentUploadDialogProvider>
+		</RetrievalScopeProvider>
 	);
 }

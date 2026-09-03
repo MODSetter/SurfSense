@@ -86,6 +86,7 @@ const ArtifactsPanelContent = dynamic(
 );
 
 interface RightPanelProps {
+	layout: RightPanelLayout;
 	documentsPanel?: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
@@ -101,15 +102,22 @@ interface RightPanelToggleButtonProps {
 	documentsOnly?: boolean;
 }
 
-export function RightPanelToggleButton({
-	className,
-	iconClassName,
-	disabled = false,
-	documentsOnly = false,
-}: RightPanelToggleButtonProps) {
-	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+export interface RightPanelLayout {
+	hasContent: boolean;
+	isVisible: boolean;
+	effectiveTab: RightPanelTab;
+	documentsOpen: boolean;
+	documentOpen: boolean;
+	artifactOpen: boolean;
+	editorOpen: boolean;
+	hitlEditOpen: boolean;
+	citationOpen: boolean;
+	artifactsOpen: boolean;
+}
+
+export function useRightPanelLayout(documentsOpen = false): RightPanelLayout {
 	const activeTab = useAtomValue(rightPanelTabAtom);
-	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
+	const collapsed = useAtomValue(rightPanelCollapsedAtom);
 	const artifactState = useAtomValue(artifactPanelAtom);
 	const documentState = useAtomValue(documentViewerAtom);
 	const editorState = useAtomValue(editorPanelAtom);
@@ -129,15 +137,7 @@ export function RightPanelToggleButton({
 		(editorState.kind === "memory" ? !!editorState.memoryScope : !!editorState.localFilePath);
 	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 	const citationOpen = citationState.isOpen && citationState.target != null;
-	const hasContent =
-		documentsOpen ||
-		documentOpen ||
-		artifactOpen ||
-		editorOpen ||
-		hitlEditOpen ||
-		citationOpen ||
-		artifactsOpen;
-	const effectiveTab = resolveEffectiveTab(activeTab, {
+	const openByTab: Record<RightPanelTab, boolean> = {
 		sources: documentsOpen,
 		document: documentOpen,
 		artifact: artifactOpen,
@@ -145,10 +145,35 @@ export function RightPanelToggleButton({
 		"hitl-edit": hitlEditOpen,
 		citation: citationOpen,
 		artifacts: artifactsOpen,
-	});
+	};
+	const hasContent = Object.values(openByTab).some(Boolean);
+
+	return {
+		hasContent,
+		isVisible: hasContent && !collapsed,
+		effectiveTab: resolveEffectiveTab(activeTab, openByTab),
+		documentsOpen,
+		documentOpen,
+		artifactOpen,
+		editorOpen,
+		hitlEditOpen,
+		citationOpen,
+		artifactsOpen,
+	};
+}
+
+export function RightPanelToggleButton({
+	className,
+	iconClassName,
+	disabled = false,
+	documentsOnly = false,
+}: RightPanelToggleButtonProps) {
+	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
+	const layout = useRightPanelLayout(documentsOpen);
 	const label = collapsed ? "Expand panel" : "Collapse panel";
 
-	if (!hasContent || (documentsOnly && effectiveTab !== "sources")) return null;
+	if (!layout.hasContent || (documentsOnly && layout.effectiveTab !== "sources")) return null;
 
 	return (
 		<Tooltip>
@@ -176,25 +201,7 @@ export function RightPanelToggleButton({
 	);
 }
 
-const PANEL_WIDTHS = {
-	sources: 420,
-	document: 640,
-	artifact: 640,
-	editor: 640,
-	"hitl-edit": 640,
-	citation: 560,
-	artifacts: 420,
-} as const;
-
-/**
- * Opacity finishes well before width so the panel is already invisible while the
- * remaining geometry settles — the width tween reflows the main content every
- * frame, and hiding it early is what keeps the collapse from reading as a fold.
- */
-const PANEL_SLIDE_TRANSITION = {
-	width: { duration: 0.24, ease: [0.4, 0, 0.2, 1] },
-	opacity: { duration: 0.15, ease: [0.4, 0, 0.2, 1] },
-} as const;
+const PANEL_CONTENT_TRANSITION = { duration: 0.15, ease: [0.4, 0, 0.2, 1] } as const;
 
 /**
  * Priority order used to fall back to another open surface when the active
@@ -220,11 +227,11 @@ function resolveEffectiveTab(
 }
 
 export function RightPanel({
+	layout,
 	documentsPanel,
 	reserveDocumentToggleSpace = true,
 	showTopBorder = false,
 }: RightPanelProps) {
-	const [activeTab] = useAtom(rightPanelTabAtom);
 	const artifactState = useAtomValue(artifactPanelAtom);
 	const closeArtifact = useSetAtom(closeArtifactPanelAtom);
 	const documentState = useAtomValue(documentViewerAtom);
@@ -235,25 +242,19 @@ export function RightPanel({
 	const closeHitlEdit = useSetAtom(closeHitlEditPanelAtom);
 	const citationState = useAtomValue(citationPanelAtom);
 	const closeCitation = useSetAtom(closeCitationPanelAtom);
-	const artifactsPanelOpen = useAtomValue(artifactsPanelOpenAtom);
 	const closeArtifacts = useSetAtom(closeArtifactsPanelAtom);
-	const collapsed = useAtomValue(rightPanelCollapsedAtom);
 	const reduceMotion = useReducedMotion();
-	const supportsArtifactPanel = useMediaQuery("(min-width: 1024px)");
-	const artifactsOpen = supportsArtifactPanel && artifactsPanelOpen;
-
-	const documentsOpen = documentsPanel?.open ?? false;
-	const artifactOpen = supportsArtifactPanel && artifactState.isOpen && !!artifactState.artifactId;
-	const documentOpen =
-		supportsArtifactPanel &&
-		documentState.isOpen &&
-		!!documentState.documentId &&
-		!!documentState.workspaceId;
-	const editorOpen =
-		editorState.isOpen &&
-		(editorState.kind === "memory" ? !!editorState.memoryScope : !!editorState.localFilePath);
-	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
-	const citationOpen = citationState.isOpen && citationState.target != null;
+	const {
+		isVisible,
+		effectiveTab,
+		documentsOpen,
+		artifactOpen,
+		documentOpen,
+		editorOpen,
+		hitlEditOpen,
+		citationOpen,
+		artifactsOpen,
+	} = layout;
 
 	useEffect(() => {
 		if (
@@ -292,45 +293,23 @@ export function RightPanel({
 		closeArtifacts,
 	]);
 
-	const isVisible =
-		(documentsOpen ||
-			documentOpen ||
-			artifactOpen ||
-			editorOpen ||
-			hitlEditOpen ||
-			citationOpen ||
-			artifactsOpen) &&
-		!collapsed;
-
-	const effectiveTab = resolveEffectiveTab(activeTab, {
-		sources: documentsOpen,
-		document: documentOpen,
-		artifact: artifactOpen,
-		editor: editorOpen,
-		"hitl-edit": hitlEditOpen,
-		citation: citationOpen,
-		artifacts: artifactsOpen,
-	});
-
-	const targetWidth = PANEL_WIDTHS[effectiveTab];
-
 	return (
 		<AnimatePresence initial={false}>
 			{isVisible ? (
 				<motion.aside
 					key="right-panel"
-					initial={reduceMotion ? { width: targetWidth } : { width: 0, opacity: 0 }}
-					animate={{ width: targetWidth, opacity: 1 }}
-					exit={reduceMotion ? { width: 0 } : { width: 0, opacity: 0 }}
-					transition={reduceMotion ? { duration: 0 } : PANEL_SLIDE_TRANSITION}
-					style={reduceMotion ? undefined : { willChange: "width, opacity" }}
+					initial={reduceMotion ? false : { x: 12, opacity: 0 }}
+					animate={{ x: 0, opacity: 1 }}
+					exit={reduceMotion ? { opacity: 0 } : { x: 12, opacity: 0 }}
+					transition={reduceMotion ? { duration: 0 } : PANEL_CONTENT_TRANSITION}
+					style={reduceMotion ? undefined : { willChange: "transform, opacity" }}
 					className={cn(
-						"flex h-full shrink-0 flex-col overflow-hidden border-l bg-panel text-sidebar-foreground",
+						"flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden border-l bg-panel text-sidebar-foreground",
 						showTopBorder && "border-t"
 					)}
 				>
-					<div style={{ width: targetWidth }} className="flex h-full min-h-0 flex-col">
-						<div className="relative flex-1 min-h-0 overflow-hidden">
+					<div className="flex h-full min-h-0 min-w-0 w-full flex-col">
+						<div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
 							{effectiveTab === "sources" && documentsOpen && documentsPanel && (
 								<div className="h-full">
 									<DocumentRightPanel
@@ -346,7 +325,7 @@ export function RightPanel({
 								</div>
 							)}
 							{effectiveTab === "artifact" && artifactOpen && (
-								<div className="h-full flex flex-col">
+								<div className="flex h-full min-w-0 flex-col">
 									<ArtifactViewerContent
 										artifactId={artifactState.artifactId as number}
 										onClose={closeArtifact}
@@ -357,7 +336,7 @@ export function RightPanel({
 								documentOpen &&
 								documentState.documentId &&
 								documentState.workspaceId && (
-									<div className="h-full flex flex-col">
+									<div className="flex h-full min-w-0 flex-col">
 										<DocumentViewerContent
 											documentId={documentState.documentId}
 											workspaceId={documentState.workspaceId}
@@ -367,7 +346,7 @@ export function RightPanel({
 									</div>
 								)}
 							{effectiveTab === "editor" && editorOpen && (
-								<div className="h-full flex flex-col">
+								<div className="flex h-full min-w-0 flex-col">
 									<EditorPanelContent
 										kind={editorState.kind}
 										localFilePath={editorState.localFilePath ?? undefined}
@@ -379,7 +358,7 @@ export function RightPanel({
 								</div>
 							)}
 							{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
-								<div className="h-full flex flex-col">
+								<div className="flex h-full min-w-0 flex-col">
 									<HitlEditPanelContent
 										title={hitlEditState.title}
 										content={hitlEditState.content}
@@ -392,7 +371,7 @@ export function RightPanel({
 								</div>
 							)}
 							{effectiveTab === "citation" && citationOpen && citationState.target && (
-								<div className="h-full flex flex-col">
+								<div className="flex h-full min-w-0 flex-col">
 									{citationState.target.kind === "run" ? (
 										<RunCitationPanelContent
 											runId={citationState.target.runId}
@@ -407,7 +386,7 @@ export function RightPanel({
 								</div>
 							)}
 							{effectiveTab === "artifacts" && artifactsOpen && (
-								<div className="h-full flex flex-col">
+								<div className="flex h-full min-w-0 flex-col">
 									<ArtifactsPanelContent onClose={closeArtifacts} />
 								</div>
 							)}

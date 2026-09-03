@@ -230,7 +230,7 @@ export function DocumentsFilters({
 				)}
 			</div>
 
-			<div className="flex items-center gap-2 w-full">
+			<div className="flex w-full flex-wrap items-center gap-2">
 				{/* Upload Button */}
 				<Button
 					data-joyride="upload-button"
@@ -238,10 +238,10 @@ export function DocumentsFilters({
 					disabled={isUploading}
 					variant="outline"
 					size="sm"
-					className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+					className="h-8 min-w-0 basis-36 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
 				>
 					{isUploading ? <Spinner size="xs" /> : <Upload size={13} />}
-					<span>{isUploading ? t("uploading") : t("upload_files")}</span>
+					<span className="truncate">{isUploading ? t("uploading") : t("upload_files")}</span>
 				</Button>
 				{connectRepoHref ? (
 					<Tooltip>
@@ -250,7 +250,7 @@ export function DocumentsFilters({
 								asChild
 								variant="outline"
 								size="sm"
-								className="relative h-8 min-w-0 flex-1 gap-1.5 overflow-visible border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+								className="relative h-8 min-w-0 basis-36 flex-1 gap-1.5 overflow-visible border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
 							>
 								<Link href={connectRepoHref}>
 									<Github size={13} className="shrink-0" />

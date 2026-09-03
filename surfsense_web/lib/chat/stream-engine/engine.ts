@@ -13,9 +13,11 @@ import {
 } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
+import { retrievalScopeAtom, submittedRetrievalScopeAtom } from "@/atoms/chat/retrieval-scope.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
 import type { HitlDecision, PendingInterruptState } from "@/features/chat-messages/hitl";
 import {
 	applyActionLogSse,
@@ -345,6 +347,12 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 	const mentionedDocuments = jotaiStore.get(mentionedDocumentsAtom);
 	const activeMentions = submittedSnapshot ?? mentionedDocuments;
 	const mentionPayload = deriveMentionedPayload(activeMentions);
+	const submittedRetrievalScope = jotaiStore.get(submittedRetrievalScopeAtom);
+	jotaiStore.set(submittedRetrievalScopeAtom, null);
+	const retrievalScope = scopeForMentionKinds(
+		submittedRetrievalScope ?? jotaiStore.get(retrievalScopeAtom),
+		activeMentions.map((mention) => mention.kind)
+	);
 	if (activeMentions.length > 0) {
 		jotaiStore.set(mentionedDocumentsAtom, []);
 	}
@@ -540,6 +548,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 					chat_id: streamThreadId,
 					user_query: userQuery.trim(),
 					workspace_id: workspaceId,
+					retrieval_scope: retrievalScope,
 					filesystem_mode: selection.filesystem_mode,
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
@@ -857,6 +866,7 @@ export async function resumeChat(
 	const localFilesystemEnabled =
 		jotaiStore.get(agentFlagsAtom).data?.enable_desktop_local_filesystem === true;
 	const disabledTools = jotaiStore.get(disabledToolsAtom);
+	const retrievalScope = jotaiStore.get(retrievalScopeAtom);
 
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
@@ -962,6 +972,7 @@ export async function resumeChat(
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					workspace_id: workspaceId,
+					retrieval_scope: retrievalScope,
 					decisions,
 					disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 					filesystem_mode: selection.filesystem_mode,
@@ -1169,6 +1180,7 @@ export async function regenerateChat(
 	const localFilesystemEnabled =
 		jotaiStore.get(agentFlagsAtom).data?.enable_desktop_local_filesystem === true;
 	const disabledTools = jotaiStore.get(disabledToolsAtom);
+	const requestedRetrievalScope = jotaiStore.get(retrievalScopeAtom);
 
 	// Extract the original user query BEFORE removing messages (reload mode).
 	let userQueryToDisplay: string | undefined;
@@ -1236,9 +1248,14 @@ export async function regenerateChat(
 		const regenerateThreadIds = sourceMentionedDocs
 			.filter((d) => d.kind === "thread")
 			.map((d) => d.id);
+		const retrievalScope = scopeForMentionKinds(
+			requestedRetrievalScope,
+			sourceMentionedDocs.map((mention) => mention.kind)
+		);
 
 		const requestBody: Record<string, unknown> = {
 			workspace_id: workspaceId,
+			retrieval_scope: retrievalScope,
 			user_query: newUserQuery,
 			disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 			filesystem_mode: selection.filesystem_mode,

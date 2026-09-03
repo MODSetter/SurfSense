@@ -258,6 +258,7 @@ export function ImageModelSelector({
 			type="button"
 			variant="ghost"
 			size="sm"
+			data-desktop-layout-overflow-boundary
 			aria-label="Select image model"
 			className={cn(
 				"h-8 min-w-0 gap-2 rounded-md px-3 text-muted-foreground transition-colors",
@@ -272,7 +273,7 @@ export function ImageModelSelector({
 				? getProviderIcon(selected.provider, { className: "size-4 shrink-0" })
 				: getProviderIcon(AUTO_PROVIDER_ICON_KEY, { className: "size-4 shrink-0" })}
 			{showIconOnlyTrigger ? null : (
-				<span className="min-w-0 flex-1 truncate text-sm">
+				<span className="min-w-0 max-w-40 flex-1 truncate text-sm">
 					{selected ? modelName(selected) : "Auto"}
 				</span>
 			)}

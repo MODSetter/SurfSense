@@ -14,6 +14,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 
 from app.agents.chat.multi_agent_chat.shared.permissions import (
+    Rule,
     Ruleset,
     build_permission_mw,
 )
@@ -25,6 +26,7 @@ from app.agents.chat.multi_agent_chat.subagents.shared.spec import (
     ContextHintProvider,
     SurfSenseSubagentSpec,
 )
+from app.agents.chat.retrieval_scope import RetrievalScope, denied_retrieval_tools
 from app.utils.perf import get_perf_logger
 
 logger = logging.getLogger(__name__)
@@ -106,7 +108,7 @@ def pack_subagent(
     """Pack the route-local pieces into one sub-agent spec + its Ruleset.
 
     Tool gating is uniformly performed by a per-subagent
-    :class:`PermissionMiddleware`. Three rule layers are evaluated
+    :class:`PermissionMiddleware`. Four rule layers are evaluated
     earliest-to-latest (last match wins):
 
     1. SurfSense defaults — single ``allow */*`` rule (added by
@@ -118,6 +120,8 @@ def pack_subagent(
        ``allow`` rules layered last override coded ``ask`` rules,
        implementing the "Always Allow" UX without re-asking on the
        next turn.
+    4. Retrieval-scope denies for the current turn. This final policy cannot
+       be overridden by a persisted user allow-list.
 
     The shared ``permission`` slot from ``middleware_stack`` is dropped
     so each subagent owns its own rule surface and cannot accidentally
@@ -137,6 +141,21 @@ def pack_subagent(
     subagent_rulesets: list[Ruleset] = [ruleset]
     if user_allowlist is not None:
         subagent_rulesets.append(user_allowlist)
+    scope_denied_tools = denied_retrieval_tools(
+        dependencies.get("retrieval_scope", RetrievalScope.DOCUMENTS),
+        subagent_name=name,
+        tools=tools,
+    )
+    if scope_denied_tools:
+        subagent_rulesets.append(
+            Ruleset(
+                origin="retrieval_scope",
+                rules=[
+                    Rule(permission=tool_name, pattern="*", action="deny")
+                    for tool_name in sorted(scope_denied_tools)
+                ],
+            )
+        )
     _t0 = _perf_time.perf_counter()
     per_subagent_perm = build_permission_mw(
         flags=flags,

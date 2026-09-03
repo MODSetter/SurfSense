@@ -1,12 +1,15 @@
 "use client";
 
 import {
+	Check,
 	ChevronLeft,
 	ChevronRight,
 	LayoutGrid,
 	LibraryBig,
+	ListFilter,
 	Settings2,
 	TriangleAlert,
+	type LucideIcon,
 	Unplug,
 	Upload,
 	Wrench,
@@ -44,6 +47,13 @@ export interface ToolGroupView {
 	connectorIcon?: string;
 }
 
+export interface SearchScopeOption {
+	value: string;
+	label: string;
+	tooltip: string;
+	icon: LucideIcon;
+}
+
 interface ComposerAddMenuDrawerProps {
 	/** The `+` button; rendered as the drawer trigger. */
 	trigger: ReactNode;
@@ -62,6 +72,9 @@ interface ComposerAddMenuDrawerProps {
 	onToggleToolGroup: (names: string[]) => void;
 	/** True while the tool list is still loading (shows a skeleton). */
 	toolsLoading: boolean;
+	searchScope: string;
+	searchScopeOptions: readonly SearchScopeOption[];
+	onSearchScopeChange: (value: string) => void;
 }
 
 /**
@@ -73,6 +86,7 @@ interface ComposerAddMenuDrawerProps {
  */
 type Screen =
 	| { kind: "root" }
+	| { kind: "searchScope" }
 	| { kind: "connectors" }
 	| { kind: "tools" }
 	| { kind: "toolGroup"; label: string };
@@ -93,6 +107,9 @@ export function ComposerAddMenuDrawer({
 	onToggleTool,
 	onToggleToolGroup,
 	toolsLoading,
+	searchScope,
+	searchScopeOptions,
+	onSearchScopeChange,
 }: ComposerAddMenuDrawerProps) {
 	const params = useParams();
 	const router = useRouter();
@@ -122,15 +139,19 @@ export function ComposerAddMenuDrawer({
 	}, []);
 
 	const close = useCallback(() => handleOpenChange(false), [handleOpenChange]);
+	const selectedSearchScope =
+		searchScopeOptions.find((option) => option.value === searchScope) ?? searchScopeOptions[0];
 
 	const title =
-		current.kind === "connectors"
-			? "MCP Connectors"
-			: current.kind === "tools"
-				? "Manage Tools"
-				: current.kind === "toolGroup"
-					? current.label
-					: "Add";
+		current.kind === "searchScope"
+			? "Search Scope"
+			: current.kind === "connectors"
+				? "MCP Connectors"
+				: current.kind === "tools"
+					? "Manage Tools"
+					: current.kind === "toolGroup"
+						? current.label
+						: "Add";
 
 	const renderToolRow = (name: string) => {
 		const isDisabled = disabledToolsSet.has(name);
@@ -186,8 +207,49 @@ export function ComposerAddMenuDrawer({
 						<span className="flex-1 text-left">Manage Tools</span>
 						<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
 					</button>
+					<button
+						type="button"
+						className={ROW}
+						onClick={() => push({ kind: "searchScope" })}
+					>
+						<ListFilter className="size-4 shrink-0 text-muted-foreground" />
+						<span className="flex-1 text-left">Search Scope</span>
+						{selectedSearchScope ? (
+							<span className="text-muted-foreground">{selectedSearchScope.label}</span>
+						) : null}
+						<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+					</button>
 				</>
 			);
+		}
+
+		if (current.kind === "searchScope") {
+			return searchScopeOptions.map((option) => {
+				const Icon = option.icon;
+				const isSelected = option.value === searchScope;
+
+				return (
+					<button
+						type="button"
+						key={option.value}
+						className={ROW}
+						onClick={() => {
+							onSearchScopeChange(option.value);
+							close();
+						}}
+						aria-pressed={isSelected}
+					>
+						<Icon className="size-4 shrink-0 text-muted-foreground" />
+						<span className="min-w-0 flex-1 text-left">
+							<span className="block font-medium">{option.label}</span>
+							<span className="mt-0.5 block text-xs text-muted-foreground">
+								{option.tooltip}
+							</span>
+						</span>
+						{isSelected ? <Check className="size-4 shrink-0" /> : null}
+					</button>
+				);
+			});
 		}
 
 		if (current.kind === "connectors") {

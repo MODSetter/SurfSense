@@ -13,6 +13,9 @@ import {
 	Camera,
 	ChevronDown,
 	Clipboard,
+	Files,
+	Globe2,
+	Layers3,
 	LayoutGrid,
 	Plus,
 	Settings2,
@@ -44,6 +47,7 @@ import {
 	clearPremiumAlertForThreadAtom,
 	premiumAlertByThreadAtom,
 } from "@/atoms/chat/premium-alert.atom";
+import { submittedRetrievalScopeAtom } from "@/atoms/chat/retrieval-scope.atom";
 import { importConnectorRequestAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -65,13 +69,13 @@ import {
 	type SuggestionAnchorRect,
 	type SuggestionTriggerInfo,
 } from "@/components/assistant-ui/inline-mention-editor";
+import { useRetrievalScope } from "@/components/assistant-ui/retrieval-scope-provider";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { ChatExamplePrompts } from "@/components/new-chat/chat-example-prompts";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ComposerSuggestionPopoverContent } from "@/components/new-chat/composer-suggestion-popup";
 import { PromptPicker, type PromptPickerRef } from "@/components/new-chat/prompt-picker";
-import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -85,10 +89,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	CONNECTOR_ICON_TO_TYPES,
@@ -97,16 +101,15 @@ import {
 	getToolIcon,
 } from "@/contracts/enums/toolIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { isRetrievalScope, scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI } from "@/hooks/use-platform";
-import { useScraperCapabilities } from "@/hooks/use-scraper-capabilities";
 import { canSubmitChat } from "@/lib/chat/can-submit-chat";
 import { captureDisplayToPngDataUrl } from "@/lib/chat/display-media-capture";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { slideoutOpenedTickAtom } from "@/lib/layout-events";
-import { findPlatform, type PlaygroundPlatform } from "@/lib/playground/catalog";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
 import {
@@ -116,8 +119,33 @@ import {
 } from "../new-chat/document-mention-picker";
 import { ThreadMessagesSkeletonBody } from "./thread-messages-skeleton";
 
-const COMPOSER_PLACEHOLDER =
+const COMPOSER_PLACEHOLDER_LONG =
 	"Research the live web, scrape platforms, automate briefs. Use / for prompts, @ for docs";
+const COMPOSER_PLACEHOLDER_SHORT = "Ask anything, use / or @";
+
+const SEARCH_SCOPE_OPTIONS = [
+	{
+		value: "documents",
+		label: "Docs",
+		ariaLabel: "Search through documents",
+		tooltip: "Search only documents saved in this workspace.",
+		icon: Files,
+	},
+	{
+		value: "web",
+		label: "Web",
+		ariaLabel: "Search through web connectors",
+		tooltip: "Search only sources available through your web connectors.",
+		icon: Globe2,
+	},
+	{
+		value: "all",
+		label: "All",
+		ariaLabel: "Search through documents and web connectors",
+		tooltip: "Search workspace documents and web connector sources together.",
+		icon: Layers3,
+	},
+] as const;
 
 type ComposerSuggestionAnchorPoint = {
 	left: number;
@@ -159,7 +187,7 @@ export const Thread: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMess
 const ThreadContent: FC<ThreadProps> = ({ hasActiveThread = false, isLoadingMessages = false }) => {
 	return (
 		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container relative flex h-full min-h-0 flex-col bg-main-panel"
+			className="aui-root aui-thread-root @container relative flex h-full min-h-0 min-w-0 w-full flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "42rem",
 			}}
@@ -264,10 +292,10 @@ const ThreadWelcome: FC = () => {
 	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
 
 	return (
-		<div className="aui-thread-welcome-root flex min-h-0 flex-1">
-			<section className="mx-auto grid w-full max-w-(--thread-max-width) content-center gap-6 pt-8 pb-[clamp(5rem,16vh,12rem)]">
-				<div className="aui-thread-welcome-message flex flex-col items-center px-4 text-center">
-					<h1 className="aui-thread-welcome-message-inner text-3xl md:text-[2.625rem] select-none">
+		<div className="aui-thread-welcome-root flex min-h-0 min-w-0 w-full flex-1">
+			<section className="mx-auto grid h-full min-w-0 w-full max-w-(--thread-max-width) grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)] pt-8 pb-[clamp(5rem,16vh,12rem)]">
+				<div className="aui-thread-welcome-message flex flex-col items-center self-end px-4 pb-6 text-center">
+					<h1 className="aui-thread-welcome-message-inner min-w-0 w-full max-w-full break-words text-balance text-3xl select-none md:text-[2.625rem]">
 						{greeting}
 					</h1>
 				</div>
@@ -410,6 +438,8 @@ interface ComposerProps {
 const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePrompts = false }) => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const setSubmittedMentions = useSetAtom(submittedMentionsAtom);
+	const { scope: retrievalScope, setScope: setRetrievalScope } = useRetrievalScope();
+	const setSubmittedRetrievalScope = useSetAtom(submittedRetrievalScopeAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [showPromptPicker, setShowPromptPicker] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
@@ -418,6 +448,8 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		useState<ComposerSuggestionAnchorPoint | null>(null);
 	const [isComposerInputEmpty, setIsComposerInputEmpty] = useState(true);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const inputWrapperRef = useRef<HTMLDivElement>(null);
+	const placeholderMeasureRef = useRef<HTMLSpanElement>(null);
 	const prevMentionedDocsRef = useRef<Map<string, MentionedDocumentInfo>>(new Map());
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const promptPickerRef = useRef<PromptPickerRef>(null);
@@ -448,7 +480,29 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	const { data: chatSetupStatus } = useAtomValue(llmSetupStatusAtomFamily(workspaceId ?? 0));
 	const isChatUnavailable = !!chatSetupStatus && chatSetupStatus.status !== "ready";
 
-	const currentPlaceholder = COMPOSER_PLACEHOLDER;
+	const [longPlaceholderFits, setLongPlaceholderFits] = useState(false);
+	useEffect(() => {
+		if (!isDesktop) {
+			setLongPlaceholderFits(false);
+			return;
+		}
+
+		const wrapper = inputWrapperRef.current;
+		const measure = placeholderMeasureRef.current;
+		const editor = wrapper?.querySelector<HTMLElement>('[contenteditable="true"]');
+		if (!editor || !measure) return;
+
+		const update = () => setLongPlaceholderFits(measure.scrollWidth <= editor.clientWidth);
+		update();
+
+		const observer = new ResizeObserver(update);
+		observer.observe(editor);
+		observer.observe(measure);
+		return () => observer.disconnect();
+	}, [isDesktop]);
+
+	const currentPlaceholder =
+		isDesktop && longPlaceholderFits ? COMPOSER_PLACEHOLDER_LONG : COMPOSER_PLACEHOLDER_SHORT;
 
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 	const { data: members } = useAtomValue(membersAtom);
@@ -752,6 +806,12 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		// Capture chips before the reset below clears the live atom, so
 		// the async ``onNew`` still sees them.
 		setSubmittedMentions(mentionedDocuments);
+		const effectiveScope = scopeForMentionKinds(
+			retrievalScope,
+			mentionedDocuments.map((mention) => mention.kind)
+		);
+		if (effectiveScope !== retrievalScope) setRetrievalScope(effectiveScope);
+		setSubmittedRetrievalScope(effectiveScope);
 
 		aui.composer().send();
 		editorRef.current?.clear();
@@ -766,7 +826,10 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 		clipboardInitialText,
 		aui,
 		mentionedDocuments,
+		retrievalScope,
 		setSubmittedMentions,
+		setSubmittedRetrievalScope,
+		setRetrievalScope,
 		setMentionedDocuments,
 	]);
 
@@ -792,6 +855,12 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 
 	const handleDocumentsMention = useCallback(
 		(mentions: MentionedDocumentInfo[]) => {
+			setRetrievalScope(
+				scopeForMentionKinds(
+					retrievalScope,
+					[...mentionedDocuments, ...mentions].map((mention) => mention.kind)
+				)
+			);
 			const editorMentionedDocs = editorRef.current?.getMentionedDocuments() ?? [];
 			const editorDocKeys = new Set(editorMentionedDocs.map((doc) => getMentionDocKey(doc)));
 
@@ -811,7 +880,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 			setMentionQuery("");
 			setSuggestionAnchorPoint(null);
 		},
-		[workspaceId]
+		[mentionedDocuments, retrievalScope, setRetrievalScope, workspaceId]
 	);
 
 	useEffect(() => {
@@ -846,7 +915,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 	}, [mentionedDocuments]);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2 rounded-2xl">
+		<ComposerPrimitive.Root className="aui-composer-root relative flex min-w-0 w-full flex-col gap-2 rounded-2xl">
 			<ChatSessionStatus
 				isAiResponding={isAiResponding}
 				respondingToUserId={respondingToUserId}
@@ -895,7 +964,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 					</>
 				) : null}
 			</Popover>
-			<div className="relative flex w-full flex-col">
+			<div className="relative flex min-w-0 w-full flex-col">
 				{isChatUnavailable ? (
 					<ChatUnavailableNotice
 						workspaceId={workspaceId ?? 0}
@@ -904,7 +973,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 				) : null}
 				<div
 					className={cn(
-						"aui-composer-attachment-dropzone relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input/60 focus-within:border-input/60 dark:shadow-black/10",
+						"aui-composer-attachment-dropzone relative z-10 flex min-w-0 w-full flex-col overflow-hidden rounded-3xl border border-input/20 bg-muted pt-2 shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-input focus-within:border-input dark:shadow-black/10",
 						isChatUnavailable && "shadow-none dark:shadow-none"
 					)}
 				>
@@ -915,7 +984,14 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDismiss={() => setClipboardInitialText(undefined)}
 						/>
 					)}
-					<div className="aui-composer-input-wrapper px-4 pt-3 pb-2 sm:pb-6">
+					<div ref={inputWrapperRef} className="aui-composer-input-wrapper relative mb-5 px-4 py-2">
+						<span
+							ref={placeholderMeasureRef}
+							aria-hidden="true"
+							className="invisible absolute text-sm leading-6 font-normal whitespace-nowrap"
+						>
+							{COMPOSER_PLACEHOLDER_LONG}
+						</span>
 						<InlineMentionEditor
 							ref={editorRef}
 							placeholder={currentPlaceholder}
@@ -927,7 +1003,7 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 							onDocumentRemove={handleDocumentRemove}
 							onSubmit={handleSubmit}
 							onKeyDown={handleKeyDown}
-							className="min-h-[48px] sm:min-h-[24px] **:data-slate-placeholder:font-normal"
+							className="min-h-[24px] **:data-slate-placeholder:font-normal **:data-slate-placeholder:whitespace-nowrap"
 						/>
 					</div>
 					<ComposerAction
@@ -946,57 +1022,6 @@ const Composer: FC<ComposerProps> = ({ isLoadingMessages = false, showExamplePro
 				) : null}
 			</div>
 		</ComposerPrimitive.Root>
-	);
-};
-
-/**
- * Full-color brand marks for the platform-native scraper APIs (web, Google
- * Search, Google Maps, Reddit, YouTube) available in this workspace, shown beside the
- * composer "+" so the user can see these native endpoints are connected. Laid
- * out as the same overlapping avatar group used by the connect-tools tray
- * from the composer actions. The capability registry is the source of truth;
- * icons are display-only with a status tooltip.
- */
-const ConnectedScraperIcons: FC<{ workspaceId: number }> = ({ workspaceId }) => {
-	const { data: capabilities } = useScraperCapabilities(workspaceId);
-
-	const platforms = useMemo<PlaygroundPlatform[]>(() => {
-		if (!capabilities?.length) return [];
-		const seen = new Set<string>();
-		const result: PlaygroundPlatform[] = [];
-		for (const cap of capabilities) {
-			const platformId = cap.name.split(".")[0];
-			if (seen.has(platformId)) continue;
-			seen.add(platformId);
-			const platform = findPlatform(platformId);
-			if (platform) result.push(platform);
-		}
-		return result;
-	}, [capabilities]);
-
-	if (platforms.length === 0) return null;
-
-	return (
-		<div className="hidden items-center gap-1 sm:flex">
-			<div aria-hidden className="h-5 w-px shrink-0 bg-border" />
-			<AvatarGroup className="shrink-0">
-				{platforms.map((platform, i) => {
-					const Icon = platform.icon;
-					return (
-						<Tooltip key={platform.id}>
-							<TooltipTrigger asChild>
-								<Avatar className="size-5" style={{ zIndex: platforms.length - i }}>
-									<AvatarFallback className="bg-popover text-[10px]">
-										<Icon className="size-3" />
-									</AvatarFallback>
-								</Avatar>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">{platform.label} scraper available</TooltipContent>
-						</Tooltip>
-					);
-				})}
-			</AvatarGroup>
-		</div>
 	);
 };
 
@@ -1030,6 +1055,13 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const [openConnectorSubmenu, setOpenConnectorSubmenu] = useState<string | null>(null);
+	const { scope: searchScope, setScope: setSearchScope } = useRetrievalScope();
+	const handleSearchScopeChange = useCallback(
+		(value: string) => {
+			if (isRetrievalScope(value)) setSearchScope(value);
+		},
+		[setSearchScope]
+	);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const pendingScreenImages = useAtomValue(pendingUserImageDataUrlsAtom);
@@ -1155,8 +1187,11 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				: "Send message";
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex items-center justify-between">
-			<div className="flex items-center gap-1">
+		<div
+			data-desktop-layout-constraint
+			className="aui-composer-action-wrapper relative mx-3 mb-3 flex min-w-0 items-center"
+		>
+			<div data-composer-primary-actions className="flex shrink-0 items-center gap-1">
 				{!isDesktop ? (
 					<ComposerAddMenuDrawer
 						trigger={
@@ -1181,6 +1216,9 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						onToggleTool={toggleTool}
 						onToggleToolGroup={toggleToolGroup}
 						toolsLoading={!filteredTools?.length}
+						searchScope={searchScope}
+						searchScopeOptions={SEARCH_SCOPE_OPTIONS}
+						onSearchScopeChange={handleSearchScopeChange}
 					/>
 				) : (
 					<DropdownMenu
@@ -1459,12 +1497,23 @@ const ComposerAction: FC<ComposerActionProps> = ({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				)}
-				<ConnectedScraperIcons workspaceId={workspaceId} />
+				{isDesktop ? (
+					<SegmentedControl
+						value={searchScope}
+						options={SEARCH_SCOPE_OPTIONS}
+						onValueChange={handleSearchScopeChange}
+						ariaLabel="Search scope"
+						className="inline-flex shrink-0"
+					/>
+				) : null}
 			</div>
-			<div className="ml-auto flex min-w-0 shrink items-center gap-2">
+			<div
+				data-composer-model-actions
+				className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2"
+			>
 				<ChatHeader
 					workspaceId={workspaceId}
-					className="h-9 max-w-[44vw] px-2 sm:max-w-none sm:px-3"
+					className="h-9 px-2"
 					onChatModelSelected={onChatModelSelected}
 				/>
 				<AuiIf condition={({ thread }) => !thread.isRunning}>
