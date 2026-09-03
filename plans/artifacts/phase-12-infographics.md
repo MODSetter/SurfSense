@@ -46,9 +46,9 @@ An infographic artifact:
 - revises through the ordinary optimistic-generation artifact workflow.
 
 This phase adds one semantic artifact format, one sandbox skill, one
-image-generation staging mode on the existing image-generation capability, one
-trusted preset catalog, one prompt compiler, one structured-question interrupt
-variant, and one generic composer-level question UI.
+backend-internal image-generation stage inside the unified artifact invocation,
+one trusted preset catalog, one prompt compiler, one structured-question
+interrupt variant, and one generic composer-level question UI.
 
 It does not add:
 
@@ -633,7 +633,7 @@ Do not send a provider-native `style` parameter merely because another
 provider supports a similarly named value. Preset semantics are SurfSense
 semantics and must remain stable across models.
 
-## 7. Image-generation execution and tool boundary
+## 7. Image generation inside the unified artifact invocation
 
 ### 7.1 Share a service, not standalone-image persistence
 
@@ -648,44 +648,61 @@ The current `generate_image` tool combines:
 - inline chat result construction.
 
 Extract or reuse the first five responsibilities through one shared
-image-generation service. Keep persistence and UI result construction in the
-standalone tool.
+image-generation service. Keep persistence and inline UI result construction
+in the standalone tool. The unified infographic workflow invokes only the
+shared service, then continues through universal artifact verification and
+save.
 
 ```text
 ImageGenerationService.generate(...)
   ├── generate_image tool
   │     -> record ordinary image artifact
   │     -> inline image card
-  └── infographic artifact staging
+  └── unified infographic artifact invocation
         -> write normalized PNG to sandbox path
         -> verify infographic
-        -> save universal artifact
+        -> save_artifact
+        -> configured artifact blob backend
 ```
 
 Calling the existing standalone `generate_image` behavior from the infographic
 workflow is prohibited because it would create an extra `format="image"`
 artifact and inline image card before the real infographic is saved.
 
-### 7.2 No new infographic tool
+### 7.2 One checkpointed unified-artifact invocation
 
-Do not register a new agent tool. Extend the existing deliverables generation
-capability only enough to stage image bytes into the current artifact workspace
-without persistence.
+Do not register a new infographic tool and do not add a staging mode to the
+public `generate_image` tool schema.
 
-The public agent surface must keep a clear default:
+The main agent delegates one infographic request to the existing deliverables
+route. That checkpointed deliverables invocation owns the complete lifecycle:
 
-- ordinary `generate_image(prompt, n)` retains its current standalone behavior;
-- the infographic skill receives an opaque workflow-scoped staging capability
-  after the preset resume;
-- staging requires the active infographic workflow context and an allowed
-  `/workspace/...png` destination;
-- requests outside that context fail closed;
-- staged output returns a path and provenance, not an artifact ID or standalone
-  image receipt.
+```text
+intent routing
+  -> load infographic instructions
+  -> preset interrupt
+  -> resume
+  -> compile factual + visual-style prompt
+  -> invoke shared image-generation service internally
+  -> stage normalized PNG and canonical Markdown in the sandbox
+  -> verify both exact files
+  -> save_artifact
+  -> return the save receipt
+```
 
-Do not expose a free `persist=false` switch that the agent can use in unrelated
-image requests. The active workflow context is the authorization boundary
-between standalone image generation and artifact staging.
+The model does not call `generate_image` anywhere in this path. Ordinary
+`generate_image(prompt, n)` retains its current standalone behavior and public
+schema. The infographic workflow reaches the provider through a trusted
+backend-internal operation scoped to the active deliverables invocation.
+
+The generated PNG may exist temporarily under an allowed `/workspace/...png`
+path so existing verification and `save_artifact` can consume it. That path is
+staging only: it is not a durable artifact location, is not returned as final
+output, and may disappear when the sandbox session ends.
+
+Do not expose `persist=false`, `artifact_mode`, a raw provider endpoint, or an
+arbitrary host-write capability to the agent. Workflow identity, workspace,
+thread, billing context, and destination are supplied by trusted runtime state.
 
 ### 7.3 Billing and retries
 
@@ -784,6 +801,45 @@ Persist format-owned metadata under a bounded namespace:
 Do not expose raw provider responses or complete prompts in the public
 manifest. Operational provenance may retain a bounded prompt hash and
 redacted request summary where existing policy permits.
+
+### 8.3 Durable blob storage
+
+`save_artifact` is the only durable storage boundary for the generated
+infographic. After receipt validation, it reads the exact verified PNG and
+passes it through the existing artifact service and
+`store_artifact_file`/`store_artifact_file_stream` path.
+
+The storage backend remains deployment-configured:
+
+```text
+save_artifact
+  -> artifact service
+  -> get_storage_backend()
+       -> AzureBlobBackend in Azure-backed deployments
+       -> LocalFileBackend in local/self-hosted deployments
+  -> ArtifactFile(storage_backend, storage_key, checksum_sha256, ...)
+```
+
+The infographic implementation must not:
+
+- upload directly to Azure;
+- store image bytes in PostgreSQL;
+- persist a provider URL;
+- treat the Docker/OpenSandbox filesystem as durable storage;
+- create a second infographic-specific upload route;
+- bypass artifact blob keys, checksums, rollback cleanup, or revision cleanup.
+
+In production, the primary PNG lives in the configured external Azure
+container when Azure is selected. In local Docker development, the same
+artifact API may resolve to the configured local storage root, which must use
+the deployment's persistent volume when durability across container recreation
+is required. `ArtifactFile` stores backend identity, immutable key, MIME, size,
+and checksum; the database does not store the PNG body.
+
+Only after blob storage and artifact/document persistence succeed may the tool
+return the ordinary `save_artifact` success receipt. The chat card, artifact
+panel, immutable content route, stable download route, public route, and
+artifact library all resolve the same stored primary through the manifest.
 
 ## 9. Verification
 
@@ -1246,6 +1302,15 @@ Do not log:
 - save creates one document, one `Artifact(format="infographic")`, one PNG
   primary, and no preview;
 - no `Artifact(format="image")` sidecar is created;
+- save delegates the primary to the configured artifact storage backend and
+  records its backend name, immutable key, size, MIME, and checksum;
+- Azure-backed tests prove one blob is written through `AzureBlobBackend`;
+- local-backend tests prove the same save contract without an Azure-specific
+  infographic branch;
+- deleting the temporary sandbox file after save does not affect manifest,
+  viewing, or download;
+- provider URLs and sandbox paths never appear as durable manifest content
+  URLs;
 - indexing, search, citations, Git projection, deletion, and blob purge use
   ordinary artifact paths;
 - revision atomically replaces PNG, Markdown, provenance, and generation.
@@ -1311,8 +1376,10 @@ Do not log:
    manifest metadata, and focused persistence tests.
 6. Extract the shared image-generation service from standalone image
    persistence without changing normal image behavior.
-7. Add workflow-gated sandbox staging, PNG normalization, billing, provenance,
-   and provider response tests.
+7. Add the backend-internal image-generation stage inside the checkpointed
+   unified artifact invocation, including sandbox staging, PNG normalization,
+   billing, provenance, and provider response tests without changing the
+   public `generate_image` schema.
 8. Add the infographic prompt compiler and one-regeneration verification loop.
 9. Add `docker/sandbox/skills/infographic/SKILL.md`, intent routing,
    `load_artifact_instructions` support, roster/revision guidance, and
@@ -1341,8 +1408,9 @@ every PNG as an infographic, stop and repair the boundary.
    resolves one immutable visual-style recipe.
 6. The selected recipe materially contributes to the model-facing infographic
    prompt and cannot be overridden by frontend text.
-7. The workspace image model generates one normalized staged PNG without
-   creating a standalone image artifact or inline image card.
+7. The checkpointed unified artifact invocation uses the workspace image model
+   internally to generate one normalized staged PNG without calling the
+   standalone `generate_image` tool or creating its artifact/card.
 8. Programmatic and visual verification bind the exact PNG and searchable
    Markdown; one consolidated regeneration is the maximum repair loop.
 9. Successful save creates one document-backed
@@ -1352,7 +1420,10 @@ every PNG as an infographic, stop and repair the boundary.
     tests.
 11. Viewing, download, public access, search, citations, revision, deletion,
     indexing, and blob lifecycle reuse the universal artifact architecture.
-12. No new database model, Alembic migration, artifact API family, panel,
+12. The verified PNG is persisted only by `save_artifact` through the configured
+    Azure or local artifact storage backend; sandbox files and provider URLs
+    are never durable output.
+13. No new database model, Alembic migration, artifact API family, panel,
     citation namespace, search leg, or dedicated infographic agent tool exists.
-13. Existing HITL approval flows, ordinary image generation, and every shipped
+14. Existing HITL approval flows, ordinary image generation, and every shipped
     artifact format remain green.
