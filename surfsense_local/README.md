@@ -15,8 +15,22 @@ Local-first desktop app for research over your own documents. Runs fully offline
 | | |
 |---|---|
 | Node.js | 18+ |
-| Python | 3.11+ |
+| Python | 3.12+ |
+| Local LLM | [Ollama](https://ollama.com) or `llama.cpp` on `127.0.0.1` |
 
+## Development
+
+The API runs on its own; the Electron shell, SPA, and worker land in later phases.
+
+```bash
+cd backend
+uv sync
+uv run main.py                # http://127.0.0.1:8000
+uv run pytest
+```
+
+Interactive docs at `/docs`, schema at `/openapi.json`. Host and port come from
+`SURFSENSE_LOCAL_HOST` and `SURFSENSE_LOCAL_PORT`.
 
 ## Architecture
 
