@@ -50,7 +50,7 @@ bump() {
 }
 
 bump "$LOCAL_ROOT/backend/pyproject.toml" "$TOML_FIELD" "version = \"$VERSION\""
-bump "$LOCAL_ROOT/web/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
+bump "$LOCAL_ROOT/frontend/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
 bump "$LOCAL_ROOT/electron/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
 
 echo ""

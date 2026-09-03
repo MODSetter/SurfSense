@@ -1,11 +1,13 @@
 [project]
 name = "surfsense-local-backend"
-version = "0.1.0"
+version = "0.0.1"
 description = "SurfSense Community Local backend"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13,<1.19",
     "fastapi>=0.115.8",
     "pydantic-settings>=2.7.0",
+    "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.34.0",
 ]
 
@@ -22,7 +24,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["api*"]
+include = ["api*", "modules*", "shared*", "alembic*"]
 
 [tool.ruff]
 line-length = 88
@@ -46,10 +48,14 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# D103 is here to make tests state what they guarantee, not to gate app code.
 "api/**" = ["D103"]
+"modules/**" = ["D103"]
+"shared/**" = ["D103"]
+"alembic/**" = ["D103"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["api", "tests"]
+known-first-party = ["api", "modules", "shared", "tests"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -59,4 +65,4 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-v --tb=short -ra"
+addopts = "-v --tb=short -ra --import-mode=importlib"

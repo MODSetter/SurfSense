@@ -6,10 +6,10 @@
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ Electron main                                                │
-│  • BrowserWindow → web/dist (workspace UI)                   │
-│  • spawn surfsense-api                                       │
-│  • spawn surfsense-worker                                    │
+│ Electron main                                               │
+│  • BrowserWindow → frontend/dist (workspace UI)             │
+│  • spawn surfsense-api                                      │
+│  • spawn surfsense-worker                                   │
 │  • on quit: SIGTERM workers, wait, exit                     │
 └─────────────────────────────────────────────────────────────┘
          │                              │
