@@ -305,7 +305,7 @@ function StructuredQuestionCard({
 										<label
 											key={option.id}
 											className={cn(
-												"flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md border px-2.5 py-1.5 text-left transition-colors motion-reduce:transition-none",
+												"relative flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md border px-2.5 py-1.5 text-left transition-colors motion-reduce:transition-none",
 												selected
 													? "border-primary bg-primary/8 ring-1 ring-inset ring-primary/30"
 													: "border-border hover:bg-muted"
@@ -332,7 +332,7 @@ function StructuredQuestionCard({
 														};
 													})
 												}
-												className="peer sr-only"
+												className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
 											/>
 											<span
 												aria-hidden="true"
