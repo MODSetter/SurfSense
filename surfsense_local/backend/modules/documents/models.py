@@ -1,12 +1,15 @@
 import enum
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Enum, ForeignKey, Index, func, text
+from sqlalchemy import JSON, ForeignKey, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from modules.workspaces.models import Workspace
-from shared.db import Base
+from shared.db import Base, text_enum
+
+if TYPE_CHECKING:
+    from modules.chunks.models import Chunk
 
 
 class DocumentType(enum.StrEnum):
@@ -20,18 +23,6 @@ class DocumentStatus(enum.StrEnum):
     PROCESSING = "processing"
     READY = "ready"
     FAILED = "failed"
-
-
-def _text_enum(members: type[enum.Enum]) -> Enum:
-    """SQLite has no enum type, so store the values behind a CHECK constraint."""
-    return Enum(
-        members,
-        native_enum=False,
-        # Off by default since SQLAlchemy 1.4, which would leave the column a
-        # bare VARCHAR that accepts anything.
-        create_constraint=True,
-        values_callable=lambda column: [member.value for member in column],
-    )
 
 
 class Document(Base):
@@ -52,9 +43,9 @@ class Document(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE")
     )
     title: Mapped[str]
-    document_type: Mapped[DocumentType] = mapped_column(_text_enum(DocumentType))
+    document_type: Mapped[DocumentType] = mapped_column(text_enum(DocumentType))
     status: Mapped[DocumentStatus] = mapped_column(
-        _text_enum(DocumentStatus), default=DocumentStatus.PENDING
+        text_enum(DocumentStatus), default=DocumentStatus.PENDING
     )
     content: Mapped[str | None]
     content_hash: Mapped[str | None]
@@ -66,3 +57,6 @@ class Document(Base):
     )
 
     workspace: Mapped[Workspace] = relationship(back_populates="documents")
+    chunks: Mapped[list["Chunk"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )

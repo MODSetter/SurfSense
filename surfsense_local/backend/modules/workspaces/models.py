@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from shared.db import Base
 
 if TYPE_CHECKING:
+    from modules.chat.models import ChatThread
     from modules.documents.models import Document
 
 
@@ -21,5 +22,8 @@ class Workspace(Base):
     )
 
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+    chat_threads: Mapped[list["ChatThread"]] = relationship(
         back_populates="workspace", cascade="all, delete-orphan"
     )
