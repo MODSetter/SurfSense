@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import json
 import time
-from typing import Literal
+from typing import Any, Literal
 from weakref import WeakValueDictionary
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -34,6 +34,7 @@ class VerificationReceipt(BaseModel):
     page_count: int | None = None
     visual: Literal["clean", "unavailable", "not_required"]
     unavailable_reason: str | None = None
+    provenance: dict[str, Any] | None = None
     issued_at: int
 
 

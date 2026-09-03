@@ -9,7 +9,8 @@ from .base import FormatAdapter
 from .docx import check_docx
 from .flashcards import check_flashcards_json, flashcards_to_markdown
 from .html import check_html
-from .mindmap import check_mindmap_png
+from .infographic import check_infographic_markdown, check_infographic_png
+from .mindmap import check_mindmap_markdown, check_mindmap_png
 from .pdf import check_pdf
 from .pptx import check_pptx
 from .quiz import check_quiz_json, quiz_to_markdown
@@ -24,7 +25,16 @@ HTML_MIME = "text/html"
 MP4_MIME = "video/mp4"
 PNG_MIME = "image/png"
 VerifiableArtifactFormat = Literal[
-    "pdf", "docx", "pptx", "xlsx", "html", "video", "mindmap", "flashcards", "quiz"
+    "pdf",
+    "docx",
+    "pptx",
+    "xlsx",
+    "html",
+    "video",
+    "mindmap",
+    "infographic",
+    "flashcards",
+    "quiz",
 ]
 
 _ADAPTERS = {
@@ -85,6 +95,18 @@ _ADAPTERS = {
         check=check_mindmap_png,
         requires_visual_review=False,
         requires_markdown_binding=True,
+        markdown_check=check_mindmap_markdown,
+    ),
+    "infographic": FormatAdapter(
+        name="infographic",
+        suffix=".png",
+        mime_type=PNG_MIME,
+        convert_to_pdf=False,
+        check=check_infographic_png,
+        review_kind="infographic",
+        visual_source="image",
+        requires_markdown_binding=True,
+        markdown_check=check_infographic_markdown,
     ),
     "flashcards": FormatAdapter(
         name="flashcards",

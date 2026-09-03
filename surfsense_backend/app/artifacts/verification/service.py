@@ -15,7 +15,6 @@ from app.observability.domains import media
 from app.sandbox import SandboxSession
 
 from .formats.base import FormatAdapter, StructuralCheckResult
-from .formats.mindmap import check_mindmap_markdown
 from .formats.pdf import check_pdf
 from .formats.registry import get_format_adapter, validate_format_path
 from .receipt import (
@@ -84,6 +83,8 @@ async def verify_artifact(
     workspace_id: int,
     vision_llm: Any | None,
     markdown_path: str | None = None,
+    visual_reference: str | None = None,
+    provenance: dict[str, Any] | None = None,
     secret_key: str | None = None,
 ) -> VerificationResult:
     """Verify one artifact and issue a signed receipt only when it may be saved."""
@@ -106,6 +107,8 @@ async def verify_artifact(
                 workspace_id=workspace_id,
                 vision_llm=vision_llm,
                 markdown_path=markdown_path,
+                visual_reference=visual_reference,
+                provenance=provenance,
                 signing_key=signing_key,
             )
         except Exception as exc:
@@ -162,19 +165,22 @@ async def _verify_artifact(
     workspace_id: int,
     vision_llm: Any | None,
     markdown_path: str | None,
+    visual_reference: str | None,
+    provenance: dict[str, Any] | None,
     signing_key: str,
 ) -> VerificationResult:
     adapter = get_format_adapter(format)
     validate_format_path(adapter, primary_path)
     _progress("checking", "Checking document structure")
     markdown_representation_sha256 = None
+    markdown_data: bytes | None = None
     if adapter.requires_markdown_binding:
         if markdown_path is None:
             return VerificationResult(
                 verified=False,
                 findings=(
-                    "Mind-map verification requires markdown_path for its "
-                    "canonical hierarchy",
+                    f"{adapter.name.capitalize()} verification requires "
+                    "markdown_path for its canonical content",
                 ),
             )
         markdown_data = await session.read_file(markdown_path)
@@ -182,11 +188,16 @@ async def _verify_artifact(
             return VerificationResult(
                 verified=False,
                 findings=(
-                    f"Mind-map Markdown is {len(markdown_data)} bytes; limit is "
+                    f"{adapter.name.capitalize()} Markdown is "
+                    f"{len(markdown_data)} bytes; limit is "
                     f"{app_config.ARTIFACT_MAX_FILE_BYTES} bytes",
                 ),
             )
-        markdown_check = check_mindmap_markdown(markdown_data)
+        if adapter.markdown_check is None:
+            raise ValueError(
+                f"{adapter.name} requires Markdown binding without a validator"
+            )
+        markdown_check = adapter.markdown_check(markdown_data)
         if not markdown_check.clean:
             return VerificationResult(
                 verified=False,
@@ -269,6 +280,21 @@ async def _verify_artifact(
 
     if primary_data is None:
         raise ValueError("Sandbox-checked artifacts cannot use visual verification")
+    if adapter.visual_source == "image":
+        return await _verify_image(
+            session,
+            primary_path,
+            primary_data,
+            workspace_id=workspace_id,
+            vision_llm=vision_llm,
+            signing_key=signing_key,
+            adapter=adapter,
+            structural=structural,
+            markdown_representation_sha256=markdown_representation_sha256,
+            reference_text=visual_reference
+            or (markdown_data.decode("utf-8") if markdown_data else None),
+            provenance=provenance,
+        )
     _progress(
         "converting" if adapter.convert_to_pdf else "preparing",
         "Converting document to PDF"
@@ -299,6 +325,92 @@ async def _verify_artifact(
             build_dir=prepared.build_dir,
             profile_dir=prepared.profile_dir,
         )
+
+
+async def _verify_image(
+    session: SandboxSession,
+    primary_path: str,
+    primary_data: bytes,
+    *,
+    workspace_id: int,
+    vision_llm: Any | None,
+    signing_key: str,
+    adapter: FormatAdapter,
+    structural: StructuralCheckResult,
+    markdown_representation_sha256: str | None,
+    reference_text: str | None,
+    provenance: dict[str, Any] | None,
+) -> VerificationResult:
+    """Visually review the exact image bytes without PDF conversion."""
+    if vision_llm is None:
+        return VerificationResult(
+            verified=False,
+            findings=(
+                "A vision-capable model is required to verify an infographic",
+            ),
+            notes=structural.notes,
+            page_count=1,
+            unavailable_reason="No vision-capable model is configured for this workspace",
+        )
+    _progress("reviewing", "Reviewing infographic", total=1)
+    visual = await review_pages(
+        vision_llm,
+        ((primary_path, primary_data),),
+        review_kind=adapter.review_kind,
+        reference_text=reference_text,
+        progress=lambda current, total: _progress(
+            "reviewing",
+            f"Inspecting image {current} of {total}",
+            current=current,
+            total=total,
+        ),
+    )
+    notes = (*structural.notes, *visual.warnings)
+    if visual.unavailable_reason:
+        return VerificationResult(
+            verified=False,
+            findings=(visual.unavailable_reason,),
+            notes=notes,
+            page_count=1,
+            unavailable_reason=visual.unavailable_reason,
+        )
+    if not visual.clean:
+        return VerificationResult(
+            verified=False,
+            findings=visual.findings,
+            notes=notes,
+            page_count=1,
+        )
+    if await session.read_file(primary_path) != primary_data:
+        return VerificationResult(
+            verified=False,
+            findings=("The artifact changed while it was being verified",),
+            notes=notes,
+            page_count=1,
+        )
+    receipt = VerificationReceipt(
+        workspace_id=workspace_id,
+        session_id=session.session_id,
+        format=adapter.name,
+        primary_path=primary_path,
+        primary_sha256=sha256_bytes(primary_data),
+        markdown_representation_sha256=markdown_representation_sha256,
+        preview_path=None,
+        preview_sha256=None,
+        page_count=1,
+        visual="clean",
+        unavailable_reason=None,
+        provenance=provenance,
+        issued_at=int(time.time()),
+    )
+    await write_receipt(session, receipt, signing_key)
+    _progress("complete", "Infographic verification complete")
+    return VerificationResult(
+        verified=True,
+        findings=(),
+        notes=notes,
+        page_count=1,
+    )
 
 
 async def _verify_prepared_pdf(

@@ -36,6 +36,13 @@ REVIEW_FRAMINGS: dict[ReviewKind, str] = {
         "unreadable text, blank or corrupt slides, missing content, and consistency "
         "of template, type scale, and palette across slides."
     ),
+    "infographic": (
+        "Review this infographic against the supplied factual contract. Block "
+        "missing or misspelled critical facts, changed numbers, contradictions, "
+        "clipping, unreadable text, duplicated or omitted sections, placeholder "
+        "copy, watermarks, unsafe content, a merely decorative scene instead of "
+        "an infographic, or failure to visibly follow the requested style."
+    ),
 }
 VERDICT_INSTRUCTIONS = (
     "Return only JSON with `blocking_findings` and `warnings`, both arrays of "
@@ -80,6 +87,7 @@ async def review_pages(
     page_images: tuple[PageImage, ...],
     *,
     review_kind: ReviewKind = "document",
+    reference_text: str | None = None,
     progress: Callable[[int, int], None] | None = None,
 ) -> VisualReviewResult:
     """Review consecutive rendered windows using format-appropriate framing."""
@@ -98,7 +106,12 @@ async def review_pages(
                 "text": (
                     f"{REVIEW_FRAMINGS[review_kind]}\n"
                     f"Files: {labels}\n"
-                    f"{VERDICT_INSTRUCTIONS}"
+                    + (
+                        f"Factual and generation contract:\n{reference_text[:20_000]}\n"
+                        if reference_text
+                        else ""
+                    )
+                    + VERDICT_INSTRUCTIONS
                 ),
             }
         ]
@@ -113,7 +126,11 @@ async def review_pages(
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": "data:image/jpeg;base64,"
+                            "url": (
+                                "data:image/png;base64,"
+                                if data.startswith(b"\x89PNG\r\n\x1a\n")
+                                else "data:image/jpeg;base64,"
+                            )
                             + base64.b64encode(data).decode("ascii")
                         },
                     },
