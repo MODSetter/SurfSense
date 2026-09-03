@@ -19,6 +19,24 @@ class StorageSettings(BaseSettings):
     def queue_path(self) -> Path:
         return self.data_dir / "huey.db"
 
+    def document_dir(self, workspace_id: int, document_id: int) -> Path:
+        """Where one document's bytes live: the original and anything derived.
+
+        Keyed by id rather than filename, so nothing a user types reaches the
+        filesystem.
+        """
+        return (
+            self.data_dir
+            / "data"
+            / "workspaces"
+            / str(workspace_id)
+            / "documents"
+            / str(document_id)
+        )
+
+    def workspace_dir(self, workspace_id: int) -> Path:
+        return self.data_dir / "data" / "workspaces" / str(workspace_id)
+
 
 class SearchSettings(BaseSettings):
     """The index's shape, which both ingest and search have to agree on."""

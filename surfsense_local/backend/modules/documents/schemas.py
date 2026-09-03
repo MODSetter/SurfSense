@@ -42,3 +42,21 @@ class DocumentDetail(DocumentRead):
     """One document, including the text that was extracted from it."""
 
     content: str | None
+
+
+class DuplicateRead(BaseModel):
+    """A file already held in this workspace, byte for byte."""
+
+    filename: str
+    document_id: int
+
+
+class UploadOutcome(BaseModel):
+    """One upload can be a dropped folder, so each file gets its own verdict.
+
+    Rejecting the whole batch over one duplicate would make the dropzone
+    unusable; the client reports the split.
+    """
+
+    created: list[DocumentRead]
+    duplicates: list[DuplicateRead]

@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Sequence
 
 from fastapi import APIRouter, Response, status
@@ -7,6 +8,7 @@ from api.dependencies import SessionDep
 from modules.workspaces.dependencies import WorkspaceDep
 from modules.workspaces.models import Workspace
 from modules.workspaces.schemas import WorkspaceCreate, WorkspaceRead, WorkspaceUpdate
+from shared.config import get_storage_settings
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -60,5 +62,11 @@ def update_workspace(workspace: WorkspaceDep, payload: WorkspaceUpdate) -> Works
     summary="Delete a workspace and everything in it",
 )
 def delete_workspace(workspace: WorkspaceDep, session: SessionDep) -> Response:
+    # One tree per workspace, removed after the commit a rollback would undo.
+    directory = get_storage_settings().workspace_dir(workspace.id)
+
     session.delete(workspace)
+    session.commit()
+
+    shutil.rmtree(directory, ignore_errors=True)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
