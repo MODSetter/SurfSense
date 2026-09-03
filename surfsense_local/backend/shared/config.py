@@ -15,6 +15,10 @@ class StorageSettings(BaseSettings):
     def database_path(self) -> Path:
         return self.data_dir / "surfsense.db"
 
+    @property
+    def queue_path(self) -> Path:
+        return self.data_dir / "huey.db"
+
 
 class SearchSettings(BaseSettings):
     """The index's shape, which both ingest and search have to agree on."""
