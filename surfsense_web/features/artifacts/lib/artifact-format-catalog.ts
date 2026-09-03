@@ -138,6 +138,14 @@ const FORMAT_META: Record<string, ArtifactFormatMeta> = {
 		groupLabel: "Images",
 		viewingMode: "inline-media",
 	},
+	infographic: {
+		icon: ImageIcon,
+		label: "Infographic",
+		detailLabel: "PNG",
+		groupKey: "images",
+		groupLabel: "Images",
+		viewingMode: "viewer",
+	},
 };
 
 const NON_DOWNLOADABLE_FORMATS = new Set(["flashcards", "quiz"]);

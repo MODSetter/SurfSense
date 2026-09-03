@@ -9,7 +9,7 @@ import {
 import { resolveArtifactRenderer } from "@/features/artifacts/lib/artifact-resolution";
 
 const semanticFormats = new Set(["flashcards", "mindmap", "quiz"]);
-const mimeTypes = new Set(["application/pdf", "video/mp4"]);
+const mimeTypes = new Set(["application/pdf", "image/png", "video/mp4"]);
 
 function resolve(overrides: Partial<Parameters<typeof resolveArtifactRenderer>[0]> = {}) {
 	return resolveArtifactRenderer({
@@ -77,10 +77,19 @@ test("format normalization and metadata retain current semantic and media behavi
 
 	const podcast = getArtifactFormatMeta("podcast");
 	const image = getArtifactFormatMeta("image");
+	const infographic = getArtifactFormatMeta("infographic");
 	assert.equal(podcast.groupKey, "podcasts");
 	assert.equal(podcast.viewingMode, "inline-media");
 	assert.equal(image.groupKey, "images");
 	assert.equal(image.viewingMode, "inline-media");
+	assert.equal(infographic.label, "Infographic");
+	assert.equal(infographic.detailLabel, "PNG");
+	assert.equal(infographic.groupKey, "images");
+	assert.equal(infographic.viewingMode, "viewer");
+	assert.deepEqual(
+		resolve({ format: "infographic", primaryMimeType: "image/png", hasPrimary: true }),
+		{ kind: "mime", key: "image/png" }
+	);
 	assert.deepEqual(ARTIFACT_GROUP_ORDER, [
 		"files",
 		"podcasts",
