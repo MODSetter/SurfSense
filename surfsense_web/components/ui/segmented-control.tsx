@@ -1,7 +1,6 @@
 "use client";
 
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -28,40 +27,11 @@ export function SegmentedControl({
 	ariaLabel,
 	className,
 }: SegmentedControlProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const itemRefs = useRef(new Map<string, HTMLButtonElement>());
-	const [indicator, setIndicator] = useState({ offset: 0, width: 0, visible: false });
-
-	const updateIndicator = useCallback(() => {
-		const activeItem = itemRefs.current.get(value);
-		if (!activeItem) {
-			setIndicator((current) =>
-				current.visible ? { ...current, visible: false } : current
-			);
-			return;
-		}
-
-		setIndicator({
-			offset: activeItem.offsetLeft,
-			width: activeItem.offsetWidth,
-			visible: true,
-		});
-	}, [value]);
-
-	useEffect(() => {
-		const frame = requestAnimationFrame(updateIndicator);
-		const observer = new ResizeObserver(updateIndicator);
-		if (containerRef.current) observer.observe(containerRef.current);
-
-		return () => {
-			cancelAnimationFrame(frame);
-			observer.disconnect();
-		};
-	}, [updateIndicator]);
+	const selectedIndex = options.findIndex((option) => option.value === value);
+	const segmentCount = Math.max(options.length, 1);
 
 	return (
 		<div
-			ref={containerRef}
 			data-slot="segmented-control"
 			className={cn(
 				"relative inline-flex h-9 w-fit rounded-full border border-primary/10 bg-secondary/50 p-px",
@@ -70,27 +40,26 @@ export function SegmentedControl({
 		>
 			<span
 				aria-hidden="true"
-				className="pointer-events-none absolute inset-y-px left-px rounded-full bg-primary transition-[width,transform,opacity] duration-250 ease-out motion-reduce:transition-none"
+				className="pointer-events-none absolute inset-y-px left-px rounded-full bg-primary transition-[transform,opacity] duration-250 ease-out motion-reduce:transition-none"
 				style={{
-					width: indicator.width,
-					transform: `translateX(${indicator.offset}px)`,
-					opacity: indicator.visible ? 1 : 0,
+					width: `calc((100% - 2px) / ${segmentCount})`,
+					transform: `translateX(${Math.max(selectedIndex, 0) * 100}%)`,
+					opacity: selectedIndex >= 0 ? 1 : 0,
 				}}
 			/>
 			<RadioGroupPrimitive.Root
 				value={value}
 				onValueChange={onValueChange}
 				aria-label={ariaLabel}
-				className="relative flex items-center"
+				className="relative grid items-center"
+				style={{
+					gridTemplateColumns: `repeat(${segmentCount}, minmax(0, 1fr))`,
+				}}
 			>
 				{options.map((option) => {
 					const item = (
 						<RadioGroupPrimitive.Item
 							key={option.value}
-							ref={(node) => {
-								if (node) itemRefs.current.set(option.value, node);
-								else itemRefs.current.delete(option.value);
-							}}
 							value={option.value}
 							disabled={option.disabled}
 							aria-label={option.ariaLabel}

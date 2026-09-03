@@ -59,3 +59,14 @@ test("dashboard seeds scope from the server cookie before rendering chat", () =>
 	assert.ok(layout.includes("initialRetrievalScope={initialRetrievalScope}"));
 	assert.ok(clientLayout.includes("initialScope={initialRetrievalScope}"));
 });
+
+test("segmented control renders its indicator position without client measurement", () => {
+	const source = readFileSync(
+		new URL("../../../components/ui/segmented-control.tsx", import.meta.url),
+		"utf8"
+	);
+	assert.ok(source.includes("const selectedIndex = options.findIndex"));
+	assert.ok(source.includes("Math.max(selectedIndex, 0) * 100"));
+	assert.ok(!source.includes("requestAnimationFrame"));
+	assert.ok(!source.includes("ResizeObserver"));
+});
