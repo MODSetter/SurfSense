@@ -29,6 +29,7 @@ from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemMode,
     FilesystemSelection,
 )
+from app.agents.chat.retrieval_scope import RetrievalScope
 from app.auth.context import AuthContext
 from app.db import ChatVisibility, async_session_maker
 from app.observability.signals import tracing
@@ -115,6 +116,7 @@ async def stream_resume_chat(
     request_id: str | None = None,
     disabled_tools: list[str] | None = None,
     auth_context: AuthContext | None = None,
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS,
 ) -> AsyncGenerator[str, None]:
     """Resume a paused HITL turn with the user's decisions.
 
@@ -231,7 +233,9 @@ async def stream_resume_chat(
                 user_id=user_id,  # type: ignore[arg-type]
             )
             if not premium_reservation.allowed:
-                tracing.add_event("quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"})
+                tracing.add_event(
+                    "quota.denied", {"quota.code": "PREMIUM_QUOTA_EXHAUSTED"}
+                )
                 if requested_llm_config_id == 0:
                     try:
                         pinned_fb = await resolve_or_get_pinned_llm_config_id(
@@ -355,6 +359,7 @@ async def stream_resume_chat(
             filesystem_selection=filesystem_selection,
             disabled_tools=disabled_tools,
             auth_context=auth_context,
+            retrieval_scope=retrieval_scope,
         )
         _perf_log.info(
             "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
@@ -510,6 +515,7 @@ async def stream_resume_chat(
                 filesystem_selection=filesystem_selection,
                 disabled_tools=disabled_tools,
                 auth_context=auth_context,
+                retrieval_scope=retrieval_scope,
             )
             _perf_log.info(
                 "[stream_resume] Runtime rate-limit recovery repinned "

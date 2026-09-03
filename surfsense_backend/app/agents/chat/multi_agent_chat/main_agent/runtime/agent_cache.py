@@ -12,6 +12,7 @@ from langgraph.types import Checkpointer
 
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.chat.retrieval_scope import RetrievalScope
 from app.db import ChatVisibility
 
 from ..graph.compile_graph_sync import build_compiled_agent_graph_sync
@@ -56,6 +57,7 @@ async def build_agent_with_cache(
     subagent_dependencies: dict[str, Any],
     mcp_tools_by_agent: dict[str, list[BaseTool]],
     disabled_tools: list[str] | None,
+    retrieval_scope: RetrievalScope,
     config_id: str | None,
     image_gen_model_id_override: int | None = None,
     knowledge_store_enabled: bool = False,
@@ -84,6 +86,7 @@ async def build_agent_with_cache(
             subagent_dependencies=subagent_dependencies,
             mcp_tools_by_agent=mcp_tools_by_agent,
             disabled_tools=disabled_tools,
+            retrieval_scope=retrieval_scope,
             knowledge_store_enabled=knowledge_store_enabled,
         )
 
@@ -120,6 +123,7 @@ async def build_agent_with_cache(
         system_prompt_hash(final_system_prompt),
         max_input_tokens,
         sorted(disabled_tools) if disabled_tools else None,
+        retrieval_scope.value,
         # Bound into the generate_image subagent tool at construction time, so it
         # must key the compiled-agent cache to avoid leaking one automation's
         # image model into another with the same config_id/workspace.

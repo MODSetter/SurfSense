@@ -72,6 +72,10 @@ from app.agents.chat.multi_agent_chat.subagents.middleware_stack import (
 from app.agents.chat.multi_agent_chat.subagents.shared.spec import (
     SURF_LAZY_SPEC_FACTORY_KEY,
 )
+from app.agents.chat.retrieval_scope import (
+    RetrievalScope,
+    excluded_retrieval_subagents,
+)
 from app.db import ChatVisibility
 from app.utils.perf import get_perf_logger
 
@@ -120,6 +124,7 @@ def build_main_agent_deepagent_middleware(
     checkpointer: Checkpointer,
     mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS,
     knowledge_store_enabled: bool = False,
 ) -> list[Any]:
     """Ordered middleware for ``create_agent`` (None entries already stripped)."""
@@ -176,7 +181,11 @@ def build_main_agent_deepagent_middleware(
         )
         return runnable
 
-    ask_kb_tool = build_ask_knowledge_base_tool(_compile_kb_readonly)
+    ask_kb_tool = (
+        build_ask_knowledge_base_tool(_compile_kb_readonly)
+        if retrieval_scope.allows_documents
+        else None
+    )
 
     def _build_kb_write_spec() -> dict[str, Any]:
         """Build the *write* knowledge_base subagent spec on first ``task`` use.
@@ -208,7 +217,11 @@ def build_main_agent_deepagent_middleware(
     # The write knowledge_base subagent is excluded from the eager build and
     # registered as a lazy descriptor (name + description cheap; spec built on
     # first ``task("knowledge_base")`` use) — see ``_build_kb_write_spec``.
-    exclude_names = [*get_subagents_to_exclude(available_connectors), KB_WRITE_NAME]
+    exclude_names = [
+        *get_subagents_to_exclude(available_connectors),
+        *excluded_retrieval_subagents(retrieval_scope),
+        KB_WRITE_NAME,
+    ]
     subagents: list[SubAgent] = build_subagents(
         dependencies=subagent_dependencies,
         model=llm,
@@ -236,13 +249,21 @@ def build_main_agent_deepagent_middleware(
         build_otel_mw(flags),
         build_todos_mw(system_prompt=""),
         memory_mw,
-        build_anonymous_doc_mw(
-            filesystem_mode=filesystem_mode, anon_session_id=anon_session_id
+        (
+            build_anonymous_doc_mw(
+                filesystem_mode=filesystem_mode, anon_session_id=anon_session_id
+            )
+            if retrieval_scope.allows_documents
+            else None
         ),
-        build_knowledge_tree_mw(
-            filesystem_mode=filesystem_mode,
-            workspace_id=workspace_id,
-            llm=llm,
+        (
+            build_knowledge_tree_mw(
+                filesystem_mode=filesystem_mode,
+                workspace_id=workspace_id,
+                llm=llm,
+            )
+            if retrieval_scope.allows_documents
+            else None
         ),
         build_kb_persistence_mw(
             filesystem_mode=filesystem_mode,
