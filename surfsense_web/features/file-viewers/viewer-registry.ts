@@ -29,6 +29,10 @@ const HtmlFileViewer = dynamic<FileViewerProps>(() => import("./html-file-viewer
 	ssr: false,
 	loading: FileViewerLoading,
 });
+const ImageFileViewer = dynamic<FileViewerProps>(() => import("./image-file-viewer"), {
+	ssr: false,
+	loading: FileViewerLoading,
+});
 
 /** Direct viewers render the file itself; domain-specific preview adapters remain with their owner. */
 export const FILE_VIEWERS: Readonly<Partial<Record<string, ComponentType<FileViewerProps>>>> = {
@@ -36,4 +40,7 @@ export const FILE_VIEWERS: Readonly<Partial<Record<string, ComponentType<FileVie
 	"video/mp4": Mp4FileViewer,
 	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": XlsxViewer,
 	"text/html": HtmlFileViewer,
+	"image/png": ImageFileViewer,
+	"image/jpeg": ImageFileViewer,
+	"image/webp": ImageFileViewer,
 };
