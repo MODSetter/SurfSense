@@ -21,8 +21,8 @@ Create concise canonical Markdown in memory:
   relationships over paragraphs.
 - Do not invent claims. Resolve conflicting or unsupported facts before
   generation.
-- Honor an explicit audience and aspect ratio; otherwise use a broadly readable
-  general-audience layout.
+- Honor an explicit audience; otherwise use a broadly readable general-audience
+  layout.
 
 ## Generate
 
