@@ -8,14 +8,19 @@ Long-lived consumer on same DB as API.
 
 ## Work
 
-- Huey `SqliteHuey` → `~/.surfsense/huey.db`.
-- `huey_consumer` entrypoint, **`-w 1`**.
+- `huey_consumer` entrypoint, **`-w 1`**, draining `shared.queue.huey`.
 - Shared SQLAlchemy models (API owns migrations).
-- Echo task for spike / integration test.
+
+**Already done, in [`../api/02-upload.md`](../api/02-upload.md):** `shared/queue.py`
+holds the `SqliteHuey` on `~/.surfsense/huey.db`, its own file so the consumer's
+polling does not contend for the write lock on the database serving requests.
+Uploads already enqueue `ingest_document`; nothing drains it, which is why an
+uploaded document sits at `pending`. No echo task is needed — a real one is
+waiting in the queue.
 
 ## Acceptance
 
-- API enqueues echo → worker completes.
+- Upload a file, start the worker → it picks the job up.
 - Worker restart → queue persists.
 
 ## Interface from API

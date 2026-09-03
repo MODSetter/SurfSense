@@ -170,14 +170,26 @@ behind it), `ARTIFACT` (Studio). No connector enum entries.
 | Column / index | Purpose |
 |---|---|
 | Table `chunks` | `document_id`, `content`, `embedding` BLOB (backup/export), `position`, `start_line`, `end_line` |
-| **`chunks_fts`** (FTS5) | `content` — BM25 keyword leg |
+| **`chunks_fts`** (FTS5, external content) | `content` — BM25 keyword leg; stores no text of its own, reading it from `chunks` |
 | **`chunk_vectors`** (sqlite-vec `vec0`) | `embedding float[D]` — cosine KNN leg; rowid = `chunks.id` |
 
-**Indexing (Phase 2):** on ingest, insert row → sync FTS5 → insert/update vec0 with same embedding used at query time.
+**Staying in sync:** three triggers on `chunks`. Insert and update mirror the
+text into `chunks_fts`; delete removes it from both tables. They fire on cascade
+as well, which is the only way a chunk is ever deleted — the user removes a
+document or a workspace. Nothing else can reach these two, since a virtual table
+takes no foreign key, so without the triggers the index would go on answering
+for documents that no longer exist.
+
+**Indexing (Phase 2):** ingest writes `chunks` and the `vec0` row. FTS follows on
+its own; the vector cannot, because only ingest holds the embedding.
 
 **Search (Phase 3):** embed query → FTS5 top‑K + vec0 top‑K → **RRF merge** (k=60) → dedupe by `chunk_id` → return hits with scores for citation ranking.
 
-**Embedding dimension `D`:** fixed per configured embedding model; migration fails fast if model change would change `D` without reindex.
+**Embedding dimension `D`:** `SURFSENSE_LOCAL_EMBEDDING_DIMENSION`, default 768
+for nomic-embed-text. A `vec0` table is fixed at the width it was created with,
+and vectors from another model are not the wrong shape but unrelated numbers, so
+startup compares the declared width against the setting and refuses to open a
+database that no longer matches.
 
 ### `chat_threads` / `chat_messages`
 
