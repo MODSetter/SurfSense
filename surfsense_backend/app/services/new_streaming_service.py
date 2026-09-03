@@ -530,6 +530,8 @@ class VercelStreamingService:
         Returns:
             dict: Normalized payload with action_requests, review_configs, and optional context/message
         """
+        if interrupt_value.get("type") == "structured_question":
+            return dict(interrupt_value)
         if "action_requests" in interrupt_value and "review_configs" in interrupt_value:
             return interrupt_value
 

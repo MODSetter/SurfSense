@@ -7,7 +7,7 @@ These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
 """
 
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -17,6 +17,7 @@ from app.db import ChatVisibility, NewChatMessageRole
 from app.utils.user_message_multimodal import decode_base64_image, to_data_url
 
 from .base import IDModel, TimestampModel
+from .structured_question import StructuredQuestionCancel, StructuredQuestionRespond
 
 # =============================================================================
 # Message Schemas
@@ -459,10 +460,16 @@ class ResumeDecision(BaseModel):
     tool_call_id: str | None = None
 
 
+ResumeInput = Annotated[
+    ResumeDecision | StructuredQuestionRespond | StructuredQuestionCancel,
+    Field(discriminator="type"),
+]
+
+
 class ResumeRequest(BaseModel):
     workspace_id: int
     retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS
-    decisions: list[ResumeDecision]
+    decisions: list[ResumeInput] = Field(min_length=1)
     # Mirrors ``NewChatRequest.disabled_tools`` so the resumed run sees the
     # same tool surface as the originating turn.
     disabled_tools: list[str] | None = None
