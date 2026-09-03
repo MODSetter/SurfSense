@@ -6,7 +6,7 @@
 
 | Workstream | Folder | Owns |
 |---|---|---|
-| **Frontend** | [`frontend/`](frontend/) | `surfsense_local/web/` |
+| **Frontend** | [`frontend/`](frontend/) | `surfsense_local/frontend/` |
 | **API** | [`api/`](api/) | `electron/`, `backend/api/`, migrations, packaging |
 | **Worker** | [`worker/`](worker/) | `backend/worker/`, ingest, `shared/search`, studio pipelines |
 

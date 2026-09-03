@@ -45,7 +45,7 @@ Vite SPA  ───> FastAPI                 Ollama / llama.cpp
 
 | Path | Contents |
 |---|---|
-| `web/` | Vite + React SPA |
+| `frontend/` | Vite + React SPA, shadcn/ui |
 | `electron/` | Main process, sidecar lifecycle |
 | `backend/api/` | FastAPI routes, migrations |
 | `backend/worker/` | Huey consumer, ingest and Studio pipelines |

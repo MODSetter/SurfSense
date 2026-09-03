@@ -1,6 +1,6 @@
 # Frontend — Phase 1: Shell
 
-> Owns: `surfsense_local/web/`. API contract: FastAPI **`/openapi.json`** ([`../api/01-skeleton.md`](../api/01-skeleton.md)).
+> Owns: `surfsense_local/frontend/`. API contract: FastAPI **`/openapi.json`** ([`../api/01-skeleton.md`](../api/01-skeleton.md)).
 > Copy from: `surfsense_web/` (strip Next/Zero/auth).
 
 ## Goal
