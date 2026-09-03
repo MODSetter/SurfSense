@@ -6,8 +6,11 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13,<1.19",
     "fastapi>=0.115.8",
+    "huey>=3.3.4",
     "pydantic-settings>=2.7.0",
+    "python-multipart>=0.0.32",
     "sqlalchemy>=2.0",
+    "sqlite-vec>=0.1.9",
     "uvicorn[standard]>=0.34.0",
 ]
 

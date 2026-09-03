@@ -11,6 +11,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
+from shared.config import get_search_settings
 
 revision: str = "0001"
 down_revision: str | Sequence[str] | None = None
@@ -29,6 +30,47 @@ def _timestamps() -> list[sa.Column]:
 
 def _enum(*values: str, name: str) -> sa.Enum:
     return sa.Enum(*values, name=name, native_enum=False, create_constraint=True)
+
+
+def _create_search_index() -> None:
+    """The two halves of hybrid search, and the triggers that keep them honest.
+
+    Neither is reached by a foreign key, so a deleted chunk would otherwise stay
+    searchable forever. Triggers fire on cascade too, which is how every real
+    delete arrives: the user removes a document or a workspace, never a chunk.
+    """
+    op.execute(
+        "CREATE VIRTUAL TABLE chunks_fts USING fts5("
+        "content, content='chunks', content_rowid='id')"
+    )
+    # Fixed at this width forever; upgrade_to_head refuses a database that
+    # no longer matches the setting.
+    op.execute(
+        "CREATE VIRTUAL TABLE chunk_vectors USING vec0("
+        f"embedding float[{get_search_settings().embedding_dimension}])"
+    )
+
+    op.execute("""
+        CREATE TRIGGER chunks_after_insert AFTER INSERT ON chunks BEGIN
+          INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+        END
+    """)
+    op.execute("""
+        CREATE TRIGGER chunks_after_delete AFTER DELETE ON chunks BEGIN
+          INSERT INTO chunks_fts(chunks_fts, rowid, content)
+            VALUES ('delete', old.id, old.content);
+          DELETE FROM chunk_vectors WHERE rowid = old.id;
+        END
+    """)
+    # External content keeps no copy, so the delete row has to carry the old
+    # text or the index goes on matching it.
+    op.execute("""
+        CREATE TRIGGER chunks_after_update AFTER UPDATE ON chunks BEGIN
+          INSERT INTO chunks_fts(chunks_fts, rowid, content)
+            VALUES ('delete', old.id, old.content);
+          INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
+        END
+    """)
 
 
 def upgrade() -> None:
@@ -103,6 +145,7 @@ def upgrade() -> None:
     op.create_index(
         "chunks_document_position", "chunks", ["document_id", "position"], unique=True
     )
+    _create_search_index()
 
     op.create_table(
         "chat_threads",
@@ -218,6 +261,12 @@ def downgrade() -> None:
     op.drop_table("artifacts")
     op.drop_table("chat_messages")
     op.drop_table("chat_threads")
+    # Dropping chunks would fire a trigger writing to a table already gone.
+    op.execute("DROP TRIGGER chunks_after_insert")
+    op.execute("DROP TRIGGER chunks_after_delete")
+    op.execute("DROP TRIGGER chunks_after_update")
+    op.execute("DROP TABLE chunk_vectors")
+    op.execute("DROP TABLE chunks_fts")
     op.drop_table("chunks")
     op.drop_table("documents")
     op.drop_table("workspaces")

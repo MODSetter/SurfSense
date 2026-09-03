@@ -4,6 +4,7 @@ import pkgutil
 from pathlib import Path
 from typing import Any
 
+import sqlite_vec
 from sqlalchemy import Connection, Engine, Enum, MetaData, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -52,6 +53,11 @@ def text_enum(members: type[enum.Enum]) -> Enum:
 def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     # pysqlite otherwise autocommits DDL, stranding a migration that dies midway.
     dbapi_connection.isolation_level = None
+
+    # Not built into SQLite: without it vec0 does not exist.
+    dbapi_connection.enable_load_extension(True)
+    sqlite_vec.load(dbapi_connection)
+    dbapi_connection.enable_load_extension(False)
 
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode = WAL")
