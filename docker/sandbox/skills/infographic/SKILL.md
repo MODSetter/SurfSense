@@ -34,7 +34,7 @@ execute(
   code_or_command="<exact canonical Markdown>",
   infographic_selection_token="<trusted token>",
   output_path="/workspace/<slug>.png",
-  output_constraints="<audience/aspect ratio when applicable>"
+  output_constraints="<audience constraints when applicable>"
 )
 ```
 
