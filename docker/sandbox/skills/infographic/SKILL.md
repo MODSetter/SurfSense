@@ -12,17 +12,11 @@ style.
 
 ## Author the factual contract
 
-Create concise canonical Markdown in memory:
-
-- Start with one H1 title and a short summary.
-- Add ordered H2 sections with every exact visible label, number, unit,
-  relationship, and source context the image must preserve.
-- Keep visible copy short. Prefer labels, short sentences, and explicit
-  relationships over paragraphs.
-- Do not invent claims. Resolve conflicting or unsupported facts before
-  generation.
-- Honor an explicit audience; otherwise use a broadly readable general-audience
-  layout.
+Create clear canonical Markdown with one H1 title and H2 headings as the factual
+source for the image model. Preserve factual accuracy, resolve conflicting or
+unsupported claims, and include the context that matters to the user. Let the
+image model decide how to summarize and compose the material in the selected
+visual style.
 
 ## Generate
 

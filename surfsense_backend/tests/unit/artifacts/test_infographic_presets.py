@@ -75,12 +75,14 @@ def test_prompt_appends_exact_description_once() -> None:
     prompt = assemble_infographic_prompt(
         factual_content="Title: Water cycle\n1. Evaporation\n2. Condensation",
         style=style,
-        output_constraints="Use a 4:3 canvas.",
+        output_constraints="Write for primary-school students.",
     )
 
     assert prompt.count(style.description) == 1
     assert "Title: Water cycle" in prompt
-    assert "Use a 4:3 canvas." in prompt
+    assert "Write for primary-school students." in prompt
+    assert "Summarize or omit secondary detail" in prompt
+    assert "fully visible within the canvas" in prompt
 
 
 def test_prompt_appends_repair_findings_without_replacing_facts() -> None:
