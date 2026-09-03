@@ -9,6 +9,7 @@ from modules.workspaces.models import Workspace
 from shared.db import Base, text_enum
 
 if TYPE_CHECKING:
+    from modules.artifacts.models import Artifact
     from modules.chunks.models import Chunk
 
 
@@ -58,5 +59,8 @@ class Document(Base):
 
     workspace: Mapped[Workspace] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
+    artifact: Mapped["Artifact | None"] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
