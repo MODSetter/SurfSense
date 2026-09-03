@@ -1,4 +1,6 @@
 import enum
+import importlib
+import pkgutil
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,20 @@ NAMING_CONVENTION = {
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+
+def import_models() -> None:
+    """Register every slice's models before the first mapper is configured.
+
+    Relationships name their target as a string, so a slice nobody imported is
+    a name SQLAlchemy cannot resolve, and every query against a table that
+    points at it fails at runtime.
+    """
+    import modules
+
+    for found in pkgutil.walk_packages(modules.__path__, f"{modules.__name__}."):
+        if found.name.endswith(".models"):
+            importlib.import_module(found.name)
 
 
 def text_enum(members: type[enum.Enum]) -> Enum:

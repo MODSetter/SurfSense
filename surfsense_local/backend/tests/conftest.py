@@ -1,5 +1,3 @@
-import importlib
-import pkgutil
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -7,20 +5,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine
 
-import modules
 from api.main import create_app
-from shared.db import create_db_engine
+from shared.db import create_db_engine, import_models
 from shared.migrations import upgrade_to_head
 
-
-def _import_every_model() -> None:
-    """A slice missing from Base.metadata is a slice the drift test cannot check."""
-    for found in pkgutil.walk_packages(modules.__path__, f"{modules.__name__}."):
-        if found.name.endswith(".models"):
-            importlib.import_module(found.name)
-
-
-_import_every_model()
+# A slice missing from Base.metadata is a slice the drift test cannot check.
+import_models()
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from modules.health.router import router as health_router
 from shared.config import get_storage_settings
-from shared.db import create_db_engine, create_session_factory
+from shared.db import create_db_engine, create_session_factory, import_models
 from shared.migrations import upgrade_to_head
 
 
@@ -23,6 +23,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     """Application factory; each call returns an app isolated from the others."""
+    import_models()
+
     app = FastAPI(title="SurfSense Community Local", lifespan=lifespan)
     app.include_router(health_router)
     return app
