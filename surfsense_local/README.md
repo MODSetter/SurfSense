@@ -29,8 +29,20 @@ uv run main.py                # http://127.0.0.1:8000
 uv run pytest
 ```
 
-Interactive docs at `/docs`, schema at `/openapi.json`. Host and port come from
-`SURFSENSE_LOCAL_HOST` and `SURFSENSE_LOCAL_PORT`.
+Interactive docs at `/docs`, schema at `/openapi.json`. `SURFSENSE_LOCAL_HOST`,
+`SURFSENSE_LOCAL_PORT`, and `SURFSENSE_LOCAL_DATA_DIR` override the defaults.
+
+Migrations run on startup and are written by hand — `--autogenerate` is switched
+off deliberately, because it renders a rename as a drop plus an add and the
+database it runs against is the user's only copy. After changing a model, write
+the revision yourself; a test fails if models and migration history disagree:
+
+```bash
+uv run alembic revision -m "add x to y"
+```
+
+Anything touching a table that already holds rows should read the live schema
+first (`op.get_bind()`, `sa.inspect`) rather than assuming its shape.
 
 ## Architecture
 
@@ -47,9 +59,11 @@ Vite SPA  ───> FastAPI                 Ollama / llama.cpp
 |---|---|
 | `frontend/` | Vite + React SPA, shadcn/ui |
 | `electron/` | Main process, sidecar lifecycle |
-| `backend/api/` | FastAPI routes, migrations |
+| `backend/api/` | App factory, session dependency |
+| `backend/modules/` | One folder per feature: models, schemas, routes |
 | `backend/worker/` | Huey consumer, ingest and Studio pipelines |
-| `backend/shared/` | Models, search, paths used by both |
+| `backend/shared/` | Engine, session, Alembic entrypoint |
+| `backend/alembic/` | Migration history; the only thing that creates schema |
 | `packaging/` | PyInstaller + electron-builder specs |
 
 ## Data directory
