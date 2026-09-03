@@ -1,7 +1,7 @@
 # Artifacts Overhaul — Authoritative Architecture
 
-**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, interactive HTML, mind maps, unified indexing/search, and phase 9 legacy removal are implemented. Phase 8 specifies interactive flashcards with persisted shared progress; phase 10 will complete fallback-format handling, public artifact access, and XLSX hardening.
-**Scope:** Generated deliverables. Media generation remains on its existing pipelines, while current image, podcast, and video flows may record artifact sidecars.
+**Status:** Sandbox generation, backend verification, PDF, DOCX, PPTX, XLSX, interactive HTML, mind maps, unified indexing/search, and phase 9 legacy removal are implemented. Phase 8 specifies interactive flashcards with persisted shared progress; phase 10 completes fallback-format handling, public artifact access, and XLSX hardening; phase 11 specifies interactive quiz artifacts; and phase 12 specifies preset-gated, image-model-generated infographic artifacts.
+**Scope:** Generated deliverables. Ordinary media generation remains on its existing pipelines, while current image, podcast, and video flows may record artifact sidecars. Phase 12 reuses the image-generation service to stage infographic bytes into the universal verify-and-save artifact workflow without invoking standalone-image persistence.
 **Shape:** [ADR 0003](../../docs/adr/0003-artifacts-as-documents.md) records why a deliverable's body is a document type rather than a second corpus, and the obligations that creates.
 
 This document describes the intended architecture. The phase documents record delivery scope and must not override these contracts.
@@ -183,7 +183,11 @@ video flows can also record artifact sidecars through their existing media
 pipelines. Phase 8 adds strict JSON flashcards, backend-derived searchable
 Markdown, a Motion-powered viewer, and shared generation-scoped marks. Phase 10
 adds the fallback adapter for bounded unknown binaries and uses
-`application/octet-stream` with attachment-only delivery.
+`application/octet-stream` with attachment-only delivery. Phase 11 adds strict
+JSON quizzes, trusted searchable Markdown projection, and per-user
+generation-scoped answer state. Phase 12 adds semantic infographic PNGs whose
+searchable Markdown is receipt-bound to the visually verified primary, plus a
+trusted preset-driven LangGraph interaction before billable generation.
 
 ## 8. Rendering and revision UX
 
@@ -199,6 +203,12 @@ The artifact panel and caches are keyed by `artifact_id`. It fetches the dedicat
 - flashcards -> verified primary JSON in a format-level interactive viewer,
   while the document contains a trusted Markdown projection and artifact
   metadata contains bounded shared marks (phase 8);
+- quiz -> verified primary JSON in a format-level interactive viewer, while the
+  document contains trusted projected Markdown and authenticated answer state
+  remains bounded and user-scoped (phase 11);
+- infographic -> visually verified primary PNG through the image viewer, while
+  receipt-bound Markdown supplies search, citations, accessibility context, and
+  revision input (phase 12);
 - unknown/missing preview/oversized/parse failure -> unviewable state with download.
 
 All viewers are read-only. Revisions return to the deliverables agent, which loads the current primary plus Markdown context and saves with `artifact_id + expected_generation`. The current manifest is the only product-visible generation; prior file rows/blobs are purged. Git may retain Markdown history, but it is not an artifact restoration mechanism.
@@ -217,6 +227,8 @@ All viewers are read-only. Revisions return to the deliverables agent, which loa
 | 8 | Planned | Strict JSON flashcards, no-vision verification, Motion viewer, and shared tick/cross progress |
 | 9 | Complete | Legacy report/resume/Typst removal and library repoint |
 | 10 | Planned | Fallback formats, public artifact access, XLSX hardening, and end-to-end coverage |
+| 11 | Planned | Strict JSON single-answer quizzes, trusted Markdown projection, per-user answers and retakes, and one shared authenticated/public viewer |
+| 12 | Planned | Preset-gated infographic generation, generic structured-question HITL UI, visual-style prompt recipes, receipt-bound PNG/Markdown verification, and universal artifact persistence |
 
 ## 10. Phase 7 mind-map boundary
 
@@ -259,7 +271,46 @@ allowlist artifact IDs and resolve the current generation. Flashcards reuse the
 same viewer publicly but do not expose or mutate authenticated shared marks.
 Generation sources remain transient and are never publicly readable.
 
-## 14. Required invariants
+## 14. Phase 11 quiz boundary
+
+Phase 11 stores one strict versioned quiz JSON file as the primary artifact and
+derives its searchable Markdown from those exact verified bytes in trusted
+backend code. Explicit `format="quiz"` selects quiz verification and rendering;
+generic JSON and flashcard JSON never acquire quiz semantics from MIME or
+suffix inference. The authenticated viewer persists only the current user's
+generation-scoped submitted answers and retake scope in bounded artifact
+metadata, while public interaction stays visit-local. Scoring, review, retake
+missed, and retake all derive from the verified answer key without an attempt
+history, persisted score, new table, public mutation API, or dedicated quiz
+agent tool.
+
+## 15. Phase 12 infographic boundary
+
+Phase 12 stores one normalized PNG as
+`Artifact(format="infographic")` and binds it through the verification receipt
+to the searchable Markdown containing its factual content and hierarchy.
+Physical `image/png` does not confer infographic behavior: ordinary generated
+images remain `format="image"` and mind-map downloads remain
+`format="mindmap"`.
+
+Before billable generation,
+`load_artifact_instructions(artifact_type="infographic")` deterministically
+emits a checkpointed `structured_question` interrupt backed by the immutable
+`infographic.visual-style.v1` preset. A generic non-modal question renderer
+appears above the composer and submits stable option IDs through the existing
+resume path. The agent neither authors nor chooses whether to ask these
+questions, and phase 12 registers no agent-facing `ask_user` tool.
+
+The resolved visual-style recipe is compiled into the image-model prompt by
+trusted backend code. Infographic generation reuses the lower-level workspace
+image-model, billing, provider, and byte-normalization service, but it never
+calls the standalone image tool's persistence branch or creates an extra image
+artifact/card. The staged PNG proceeds through the universal
+verify-then-`save_artifact` workflow with one bounded regeneration after visual
+verification findings. The phase adds no infographic-specific persistence
+model, save tool, panel, search leg, citation kind, or public route.
+
+## 16. Required invariants
 
 1. One artifact is one document. `artifact.document_id` is non-null and unique, and no artifact operation creates a second row for the same deliverable.
 2. Title, path, Markdown, and indexing state live only on the document. Format, generation, roles, and receipts live only on the artifact.
@@ -281,3 +332,11 @@ Generation sources remain transient and are never publicly readable.
     bytes; the agent cannot provide a competing representation.
 16. Mutable artifact interaction state is bounded, generation-scoped, and
     separate from content revision, Git projection, and indexing.
+17. Physical suffix and MIME never select semantic JSON or PNG behavior;
+    `Artifact.format` and its signed verification receipt do.
+18. Structured-question origin is server-owned metadata. Preset questions are
+    immutable and bounded, browser responses contain stable IDs only, and an
+    agent cannot claim preset origin.
+19. Infographic generation may reuse the lower-level image-generation service,
+    but it cannot invoke standalone-image persistence or create a second
+    `Artifact(format="image")`.
