@@ -9,7 +9,7 @@ from typing import Literal
 from app.sandbox import SandboxSession
 
 DEFAULT_RENDERED_MIN_CHARS = 20
-ReviewKind = Literal["document", "slides", "infographic"]
+ReviewKind = Literal["document", "slides"]
 VisualSource = Literal["pdf", "image"]
 
 

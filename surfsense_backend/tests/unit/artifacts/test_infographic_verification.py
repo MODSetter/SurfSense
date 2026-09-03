@@ -18,7 +18,6 @@ from app.artifacts.verification.formats.infographic import (
 )
 from app.artifacts.verification.formats.registry import get_format_adapter
 from app.artifacts.verification.receipt import read_receipt
-from app.artifacts.verification.vision import VisualReviewResult
 from tests.utils.fake_sandbox import FakeSandboxSession
 
 
@@ -35,13 +34,12 @@ def _png(*, transparent: bool = False, blank: bool = False) -> bytes:
     return output.getvalue()
 
 
-def test_infographic_adapter_owns_png_visual_and_markdown_policy() -> None:
+def test_infographic_adapter_owns_png_structural_and_markdown_policy() -> None:
     adapter = get_format_adapter("infographic")
 
     assert adapter.suffix == ".png"
     assert adapter.mime_type == "image/png"
-    assert adapter.requires_visual_review
-    assert adapter.visual_source == "image"
+    assert not adapter.requires_visual_review
     assert adapter.requires_markdown_binding
     assert adapter.markdown_check is check_infographic_markdown
 
@@ -110,19 +108,12 @@ def test_selection_token_is_bound_to_workspace_thread_and_expiry() -> None:
         )
 
 
-async def test_visual_verification_binds_hashes_and_sanitized_provenance(
-    monkeypatch,
-) -> None:
+async def test_structural_verification_binds_hashes_and_provenance() -> None:
     path = "/workspace/guide.png"
     markdown_path = "/workspace/guide.md"
     markdown = b"# Guide\n\n## First step\nDo the first thing."
     session = FakeSandboxSession({path: _png(), markdown_path: markdown})
 
-    async def clean_review(*_args, **_kwargs):
-        assert "First step" in _kwargs["reference_text"]
-        return VisualReviewResult(clean=True, findings=())
-
-    monkeypatch.setattr(service, "review_pages", clean_review)
     provenance = {
         "question_preset_id": QUESTION_PRESET_ID,
         "question_preset_version": 1,
@@ -139,9 +130,8 @@ async def test_visual_verification_binds_hashes_and_sanitized_provenance(
         path,
         format="infographic",
         workspace_id=7,
-        vision_llm=object(),
+        vision_llm=None,
         markdown_path=markdown_path,
-        visual_reference=markdown.decode(),
         provenance=provenance,
         secret_key="test-secret",
     )
@@ -154,28 +144,5 @@ async def test_visual_verification_binds_hashes_and_sanitized_provenance(
         primary_path=path,
     )
     assert receipt.markdown_representation_sha256 is not None
+    assert receipt.visual == "not_required"
     assert receipt.provenance == provenance
-
-
-async def test_infographic_fails_closed_without_visual_model() -> None:
-    path = "/workspace/guide.png"
-    markdown_path = "/workspace/guide.md"
-    session = FakeSandboxSession(
-        {
-            path: _png(),
-            markdown_path: b"# Guide\n\n## First step\nDo the first thing.",
-        }
-    )
-
-    result = await service.verify_artifact(
-        session,
-        path,
-        format="infographic",
-        workspace_id=7,
-        vision_llm=None,
-        markdown_path=markdown_path,
-        secret_key="test-secret",
-    )
-
-    assert not result.verified
-    assert "vision-capable model" in result.findings[0]

@@ -5,7 +5,6 @@ from __future__ import annotations
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, tool
 
-from app.artifacts.infographic.presets import get_visual_style
 from app.artifacts.infographic.selection import read_generation_state
 from app.artifacts.verification.formats.registry import (
     VerifiableArtifactFormat,
@@ -44,7 +43,6 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
             resolve_root_thread_id(runtime), workspace_id
         )
         vision_llm = None
-        visual_reference = None
         provenance = None
         if format == "infographic":
             if markdown_path is None:
@@ -69,12 +67,6 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
                 raise ValueError(
                     "The infographic Markdown changed after image generation"
                 )
-            style = get_visual_style(generation.resolved_style_id)
-            visual_reference = (
-                markdown_data.decode("utf-8")
-                + "\n\nREQUIRED VISUAL STYLE\n"
-                + style.description
-            )
             provenance = generation.manifest_provenance()
         if get_format_adapter(format).requires_visual_review:
             async with shielded_async_session() as db_session:
@@ -90,7 +82,6 @@ def create_verify_artifact_tool(*, workspace_id: int) -> BaseTool:
             workspace_id=workspace_id,
             vision_llm=vision_llm,
             markdown_path=markdown_path,
-            visual_reference=visual_reference,
             provenance=provenance,
         )
         return {

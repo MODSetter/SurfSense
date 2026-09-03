@@ -36,13 +36,6 @@ REVIEW_FRAMINGS: dict[ReviewKind, str] = {
         "unreadable text, blank or corrupt slides, missing content, and consistency "
         "of template, type scale, and palette across slides."
     ),
-    "infographic": (
-        "Review this infographic against the supplied factual contract. Block "
-        "missing or misspelled critical facts, changed numbers, contradictions, "
-        "clipping, unreadable text, duplicated or omitted sections, placeholder "
-        "copy, watermarks, unsafe content, a merely decorative scene instead of "
-        "an infographic, or failure to visibly follow the requested style."
-    ),
 }
 VERDICT_INSTRUCTIONS = (
     "Return only JSON with `blocking_findings` and `warnings`, both arrays of "

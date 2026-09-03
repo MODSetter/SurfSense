@@ -18,7 +18,6 @@ from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools impo
 from app.artifacts import service
 from app.artifacts.persistence import Artifact, ArtifactFile, ArtifactFileRole
 from app.artifacts.verification import service as verify_service
-from app.artifacts.verification.vision import VisualReviewResult
 from app.db import ChatVisibility, Document, NewChatThread
 from tests.utils.fake_sandbox import FakeSandboxSession
 
@@ -100,14 +99,10 @@ async def test_infographic_create_and_revise_preserves_provenance_and_blob(
     async def session_context():
         yield db_session
 
-    async def clean_visual_review(*_args, **_kwargs):
-        return VisualReviewResult(clean=True, findings=())
-
     monkeypatch.setattr(service, "get_storage_backend", lambda *_: backend)
     monkeypatch.setattr(
         service, "knowledge_store_enabled_for", AsyncMock(return_value=False)
     )
-    monkeypatch.setattr(verify_service, "review_pages", clean_visual_review)
     monkeypatch.setattr(save_artifact_tool, "get_registry", get_registry)
     monkeypatch.setattr(save_artifact_tool, "shielded_async_session", session_context)
     monkeypatch.setattr(save_artifact_tool.app_config, "SECRET_KEY", SECRET)

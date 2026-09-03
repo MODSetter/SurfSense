@@ -51,7 +51,7 @@ what was generated.
 - Before creating an infographic, call
   `load_artifact_instructions(artifact_type="infographic", brief="...")`.
   This preset gate is mandatory. Follow the returned Markdown → internal image
-  generation → visual verification → one repair → save workflow. Never call
+  generation → structural verification → one repair → save workflow. Never call
   `generate_image` for an infographic.
 - Before creating a quiz, load its instructions with
   `load_artifact_instructions(artifact_type="quiz")` and follow them.

@@ -266,6 +266,7 @@ async def _verify_artifact(
             page_count=None,
             visual="not_required",
             unavailable_reason=None,
+            provenance=provenance,
             issued_at=int(time.time()),
         )
         await write_receipt(session, receipt, signing_key)
