@@ -69,6 +69,8 @@ import { LayoutShell } from "../ui/shell";
 
 interface LayoutDataProviderProps {
 	workspaceId: string;
+	initialSidebarCollapsed: boolean;
+	initialSidebarWidth: number;
 	initialPlaygroundSidebarCollapsed: boolean;
 	initialRightPanelCollapsed: boolean;
 	children: React.ReactNode;
@@ -76,6 +78,8 @@ interface LayoutDataProviderProps {
 
 export function LayoutDataProvider({
 	workspaceId,
+	initialSidebarCollapsed,
+	initialSidebarWidth,
 	initialPlaygroundSidebarCollapsed,
 	initialRightPanelCollapsed,
 	children,
@@ -716,6 +720,8 @@ export function LayoutDataProvider({
 			<LayoutShell
 				workspaces={workspaces}
 				activeWorkspaceId={Number(workspaceId)}
+				initialSidebarCollapsed={initialSidebarCollapsed}
+				initialSidebarWidth={initialSidebarWidth}
 				onWorkspaceSelect={handleWorkspaceSelect}
 				onWorkspaceDelete={handleWorkspaceDeleteClick}
 				onWorkspaceSettings={handleWorkspaceSettings}

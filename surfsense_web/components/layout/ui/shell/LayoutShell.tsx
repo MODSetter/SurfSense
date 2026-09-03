@@ -12,11 +12,8 @@ import { useElectronAPI } from "@/hooks/use-platform";
 import { type ResolvedTab, useResolvedTabs } from "@/hooks/use-resolved-tabs";
 import { cn } from "@/lib/utils";
 import { SidebarProvider, useSidebarState } from "../../hooks";
-import {
-	SIDEBAR_MAX_WIDTH,
-	SIDEBAR_MIN_WIDTH,
-	useSidebarResize,
-} from "../../hooks/useSidebarResize";
+import { useSidebarResize } from "../../hooks/useSidebarResize";
+import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH } from "../../sidebar-preferences";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
@@ -134,7 +131,8 @@ interface LayoutShellProps {
 	pageUsage?: PageUsage;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
-	defaultCollapsed?: boolean;
+	initialSidebarCollapsed: boolean;
+	initialSidebarWidth: number;
 	isChatPage?: boolean;
 	isAllChatsPage?: boolean;
 	showTabs?: boolean;
@@ -312,7 +310,8 @@ export function LayoutShell({
 	pageUsage,
 	theme,
 	setTheme,
-	defaultCollapsed = false,
+	initialSidebarCollapsed,
+	initialSidebarWidth,
 	isChatPage = false,
 	isAllChatsPage = false,
 	showTabs = true,
@@ -341,8 +340,8 @@ export function LayoutShell({
 		sidebarWidth,
 		handlePointerDown: onResizePointerDown,
 		isDragging: isResizing,
-	} = useSidebarResize();
-	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
+	} = useSidebarResize(initialSidebarWidth);
+	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(initialSidebarCollapsed);
 	const rightPanelLayout = useRightPanelLayout(documentsPanel?.open ?? false);
 	const desktopLayoutRef = useRef<HTMLDivElement>(null);
 	const wasLayoutOverflowingRef = useRef(false);

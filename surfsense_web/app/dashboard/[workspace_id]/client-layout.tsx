@@ -19,11 +19,15 @@ import { useElectronAPI } from "@/hooks/use-platform";
 export function DashboardClientLayout({
 	children,
 	workspaceId,
+	initialSidebarCollapsed,
+	initialSidebarWidth,
 	initialPlaygroundSidebarCollapsed,
 	initialRightPanelCollapsed,
 }: {
 	children: React.ReactNode;
 	workspaceId: string;
+	initialSidebarCollapsed: boolean;
+	initialSidebarWidth: number;
 	initialPlaygroundSidebarCollapsed: boolean;
 	initialRightPanelCollapsed: boolean;
 }) {
@@ -167,6 +171,8 @@ export function DashboardClientLayout({
 			<OnboardingTour />
 			<LayoutDataProvider
 				workspaceId={workspaceId}
+				initialSidebarCollapsed={initialSidebarCollapsed}
+				initialSidebarWidth={initialSidebarWidth}
 				initialPlaygroundSidebarCollapsed={initialPlaygroundSidebarCollapsed}
 				initialRightPanelCollapsed={initialRightPanelCollapsed}
 			>
