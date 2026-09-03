@@ -6,6 +6,8 @@ from sqlalchemy import Engine, exc, insert
 from modules.chat.models import ChatMessage, ChatThread
 from modules.workspaces.models import Workspace
 
+pytestmark = pytest.mark.integration
+
 
 def test_chat_messages_reject_an_unknown_role(engine: Engine) -> None:
     """Roles drive prompt assembly, so an unknown one must never reach the db."""

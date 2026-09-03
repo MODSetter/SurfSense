@@ -8,6 +8,8 @@ from modules.chat.models import ChatThread
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.models import Workspace
 
+pytestmark = pytest.mark.integration
+
 
 def _artifact_document(connection: Connection, document_id: int) -> None:
     connection.execute(

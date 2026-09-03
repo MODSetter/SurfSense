@@ -10,6 +10,8 @@ from sqlalchemy import Engine, inspect, text
 from shared.db import Base, create_db_engine
 from shared.migrations import upgrade_to_head
 
+pytestmark = pytest.mark.integration
+
 
 def test_migrations_match_the_models(engine: Engine) -> None:
     """Guards the release bug where a model changes and no migration follows."""

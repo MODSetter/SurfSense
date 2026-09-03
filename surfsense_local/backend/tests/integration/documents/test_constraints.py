@@ -6,6 +6,8 @@ from sqlalchemy import Engine, exc, func, insert, select
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.models import Workspace
 
+pytestmark = pytest.mark.integration
+
 
 def test_documents_require_a_workspace(engine: Engine) -> None:
     """Foreign keys are off per connection in SQLite; the engine must enable them."""

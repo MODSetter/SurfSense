@@ -65,4 +65,8 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-v --tb=short -ra --import-mode=importlib"
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+markers = [
+    "unit: pure logic tests, no database or external services",
+    "integration: tests that run against a real SQLite database built by migrations",
+]
