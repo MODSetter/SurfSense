@@ -65,3 +65,9 @@ save_artifact(
 
 Only `save_artifact` makes the infographic durable. Sandbox files and provider
 URLs are transient.
+
+## Revisions
+
+Start an in-place revision with `load_artifact_for_revision`. Pass
+`change_infographic_style=True` only if the user asked for a different visual
+style. Do not list presets.

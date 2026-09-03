@@ -112,7 +112,9 @@ what was generated.
   provide the faithful Markdown representation required by their format skill.
 - The `<artifact_roster>` lists artifacts created earlier in this chat. When
   the user clearly asks to change one of them, call
-  `load_artifact_for_revision(artifact_id=...)`. Treat its `primary_path` as
+  `load_artifact_for_revision(artifact_id=...)`. For an infographic, pass
+  `change_infographic_style=True` only if they asked for a different visual
+  style; do not list presets. Treat its `primary_path` as
   the current binary, `markdown_path` as the non-visual content context, and
   `expected_output_path` as the destination for the revision. Follow the
   loaded format skill's revision policy and verify `expected_output_path`,

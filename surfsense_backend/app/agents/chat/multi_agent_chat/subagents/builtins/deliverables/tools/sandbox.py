@@ -297,8 +297,9 @@ def create_sandbox_tools(*, workspace_id: int) -> list[BaseTool]:
         Each Python call runs as a fresh process; carry state between calls in
         files, not interpreter variables. For an infographic, pass canonical
         factual Markdown as code_or_command, the trusted selection token from
-        load_artifact_instructions, and a .png output_path. A second infographic
-        call is allowed only with the verification findings for one repair.
+        load_artifact_instructions or load_artifact_for_revision, and a .png
+        output_path. A second infographic call is allowed only with the
+        verification findings for one repair.
         """
         session = await _get_session(workspace_id, runtime)
         if language == "infographic":

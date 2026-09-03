@@ -173,6 +173,8 @@ def create_load_artifact_for_revision_tool(*, workspace_id: int) -> BaseTool:
         restore their current primary plus Markdown context. Markdown artifacts
         restore only their editable context. Save the result with the returned
         artifact_id and expected_generation so the revision updates in place.
+        For infographics, set change_infographic_style only when the user asks
+        for a different visual style.
         """
         async with shielded_async_session() as db_session:
             artifact = await db_session.scalar(
