@@ -1,7 +1,8 @@
 "use client";
 
+import { IconBrandGithub, IconBrandGitlab } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, Folder, Github, Gitlab } from "lucide-react";
+import { Check, ChevronsUpDown, Folder } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
@@ -302,7 +303,11 @@ export function GitRemoteSettings({
 				<div className="flex flex-col gap-4 rounded-lg border p-4">
 					<div className="flex items-center justify-between gap-3">
 						<span className="inline-flex items-center gap-1.5 text-sm font-medium">
-							{remote.provider === "github" ? <Github size={15} /> : <Gitlab size={15} />}
+							{remote.provider === "github" ? (
+								<IconBrandGithub size={15} />
+							) : (
+								<IconBrandGitlab size={15} />
+							)}
 							{remote.provider === "github" ? "GitHub" : "GitLab"}
 						</span>
 						{remote.last_error_code || remote.last_push_error ? (
@@ -464,7 +469,7 @@ export function GitRemoteSettings({
 										}}
 										className="w-full justify-start gap-2 font-normal"
 									>
-										<Github size={14} className="shrink-0 text-muted-foreground" />
+										<IconBrandGithub size={14} className="shrink-0 text-muted-foreground" />
 										<span className="truncate">{repo.full_name}</span>
 									</Button>
 								</li>
@@ -496,7 +501,7 @@ export function GitRemoteSettings({
 										router.replace(`${settingsPath}?github_installation_id=${inst.id}`)
 									}
 								>
-									<Github size={14} />
+									<IconBrandGithub size={14} />
 									{inst.account || inst.id}
 								</Button>
 							</li>
@@ -531,7 +536,7 @@ export function GitRemoteSettings({
 					<AccordionItem value="github" className="px-4">
 						<AccordionTrigger className="hover:no-underline">
 							<span className="flex items-center gap-2">
-								<Github />
+								<IconBrandGithub />
 								GitHub
 							</span>
 						</AccordionTrigger>
@@ -554,7 +559,7 @@ export function GitRemoteSettings({
 					<AccordionItem value="gitlab" className="px-4">
 						<AccordionTrigger className="hover:no-underline">
 							<span className="flex items-center gap-2">
-								<Gitlab />
+								<IconBrandGitlab />
 								GitLab
 							</span>
 						</AccordionTrigger>
@@ -664,7 +669,7 @@ export function GitRemoteSettings({
 																}}
 																className="w-full justify-start gap-2 font-normal"
 															>
-																<Gitlab size={14} className="shrink-0 text-muted-foreground" />
+																<IconBrandGitlab size={14} className="shrink-0 text-muted-foreground" />
 																<span className="truncate">{repo.full_name}</span>
 															</Button>
 														</li>
