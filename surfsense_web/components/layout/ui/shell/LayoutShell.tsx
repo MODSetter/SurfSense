@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { activeTabIdAtom } from "@/atoms/tabs/tabs.atom";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,7 +26,7 @@ import { MobileSidebar, MobileSidebarTrigger, Sidebar, SidebarCollapseButton } f
 import type { NotificationsDropdownData } from "../sidebar/NotificationsDropdown";
 import { TabBar } from "../tabs/TabBar";
 import { WorkspacePanel } from "./WorkspacePanel";
-import { WorkspaceSplit } from "./WorkspaceSplit";
+import { hasHorizontalOverflow, shouldAutoCollapseSidebar, WorkspaceSplit } from "./WorkspaceSplit";
 
 const DocumentTabContent = dynamic(
 	() => import("../tabs/DocumentTabContent").then((m) => ({ default: m.DocumentTabContent })),
@@ -344,9 +344,75 @@ export function LayoutShell({
 	} = useSidebarResize();
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
 	const rightPanelLayout = useRightPanelLayout(documentsPanel?.open ?? false);
-	const handlePrimaryOverflow = useCallback(() => {
-		if (isChatPage) setIsCollapsed(true);
-	}, [isChatPage, setIsCollapsed]);
+	const desktopLayoutRef = useRef<HTMLDivElement>(null);
+	const wasLayoutOverflowingRef = useRef(false);
+
+	useEffect(() => {
+		const desktopLayout = desktopLayoutRef.current;
+		if (isMobile || !isChatPage || !desktopLayout) {
+			wasLayoutOverflowingRef.current = false;
+			return;
+		}
+
+		const constraints = new Set<HTMLElement>();
+		let frame = 0;
+		const update = () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				const isOverflowing =
+					hasHorizontalOverflow(desktopLayout) ||
+					Array.from(constraints).some(
+						(constraint) =>
+							hasHorizontalOverflow(constraint) ||
+							Array.from(
+								constraint.querySelectorAll<HTMLElement>("[data-desktop-layout-overflow-boundary]")
+							).some(hasHorizontalOverflow)
+					);
+				if (
+					!isCollapsed &&
+					shouldAutoCollapseSidebar(wasLayoutOverflowingRef.current, isOverflowing)
+				) {
+					setIsCollapsed(true);
+				}
+				wasLayoutOverflowingRef.current = isOverflowing;
+			});
+		};
+		const observer = new ResizeObserver(update);
+		const syncConstraints = () => {
+			const current = new Set(
+				desktopLayout.querySelectorAll<HTMLElement>("[data-desktop-layout-constraint]")
+			);
+			for (const constraint of constraints) {
+				if (!current.has(constraint)) {
+					observer.unobserve(constraint);
+					constraints.delete(constraint);
+				}
+			}
+			for (const constraint of current) {
+				if (!constraints.has(constraint)) {
+					constraints.add(constraint);
+					observer.observe(constraint);
+				}
+			}
+		};
+		observer.observe(desktopLayout);
+		for (const column of desktopLayout.children) {
+			observer.observe(column);
+		}
+		syncConstraints();
+		const mutationObserver = new MutationObserver(() => {
+			syncConstraints();
+			update();
+		});
+		mutationObserver.observe(desktopLayout, { childList: true, subtree: true });
+		update();
+
+		return () => {
+			cancelAnimationFrame(frame);
+			mutationObserver.disconnect();
+			observer.disconnect();
+		};
+	}, [isCollapsed, isChatPage, isMobile, setIsCollapsed]);
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(
@@ -476,7 +542,12 @@ export function LayoutShell({
 							disableRightPanelToggle={useWorkspacePanel}
 						/>
 					) : null}
-					<div className="grid min-h-0 w-full flex-1 grid-cols-[auto_auto_auto_minmax(0,1fr)] overflow-hidden pl-2">
+					<div
+						ref={desktopLayoutRef}
+						data-desktop-layout
+						data-sidebar-collapsed={isCollapsed}
+						className="grid min-h-0 w-full flex-1 grid-cols-[auto_auto_auto_minmax(0,1fr)] overflow-hidden pl-2"
+					>
 						<div
 							className={cn("hidden overflow-hidden bg-rail md:flex", !isMacDesktop && "border-r")}
 						>
@@ -619,8 +690,6 @@ export function LayoutShell({
 								}
 								secondaryTab={rightPanelLayout.effectiveTab}
 								secondaryVisible={rightPanelLayout.isVisible}
-								sidebarCollapsed={isCollapsed}
-								onPrimaryOverflow={handlePrimaryOverflow}
 								overlay={
 									!isMacDesktop ? (
 										<div className="absolute right-2 top-2 z-30">

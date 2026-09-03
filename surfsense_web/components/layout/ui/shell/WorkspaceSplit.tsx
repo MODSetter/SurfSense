@@ -1,7 +1,6 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef } from "react";
 import type { RightPanelTab } from "@/atoms/layout/right-panel.atom";
 import { cn } from "@/lib/utils";
 
@@ -22,19 +21,11 @@ export function hasHorizontalOverflow({
 	return scrollWidth > clientWidth + 1;
 }
 
-export function didHorizontalOverflowBegin(
-	wasOverflowing: boolean,
-	dimensions: Pick<HTMLElement, "clientWidth" | "scrollWidth">
-): boolean {
-	return !wasOverflowing && hasHorizontalOverflow(dimensions);
-}
-
 export function shouldAutoCollapseSidebar(
 	wasOverflowing: boolean,
-	suppressedByManualExpansion: boolean,
-	dimensions: Pick<HTMLElement, "clientWidth" | "scrollWidth">
+	isOverflowing: boolean
 ): boolean {
-	return !suppressedByManualExpansion && didHorizontalOverflowBegin(wasOverflowing, dimensions);
+	return !wasOverflowing && isOverflowing;
 }
 
 interface WorkspaceSplitProps {
@@ -42,9 +33,7 @@ interface WorkspaceSplitProps {
 	secondary: ReactNode;
 	secondaryTab: RightPanelTab;
 	secondaryVisible: boolean;
-	sidebarCollapsed: boolean;
 	overlay?: ReactNode;
-	onPrimaryOverflow?: () => void;
 	className?: string;
 }
 
@@ -53,58 +42,13 @@ export function WorkspaceSplit({
 	secondary,
 	secondaryTab,
 	secondaryVisible,
-	sidebarCollapsed,
 	overlay,
-	onPrimaryOverflow,
 	className,
 }: WorkspaceSplitProps) {
-	const primaryRef = useRef<HTMLDivElement>(null);
-	const wasOverflowingRef = useRef(false);
-	const previousSidebarCollapsedRef = useRef(sidebarCollapsed);
-	const suppressAutoCollapseRef = useRef(false);
 	const layout = RIGHT_PANEL_LAYOUT[secondaryTab];
 	const secondaryTrack = secondaryVisible
 		? `minmax(0, min(${layout.ratio}, ${layout.maxWidth}))`
 		: "0px";
-
-	useLayoutEffect(() => {
-		if (previousSidebarCollapsedRef.current && !sidebarCollapsed) {
-			suppressAutoCollapseRef.current = true;
-		}
-		previousSidebarCollapsedRef.current = sidebarCollapsed;
-	}, [sidebarCollapsed]);
-
-	useEffect(() => {
-		const primaryPane = primaryRef.current;
-		if (!primaryPane || !onPrimaryOverflow) return;
-
-		let frame = 0;
-		const update = () => {
-			cancelAnimationFrame(frame);
-			frame = requestAnimationFrame(() => {
-				const isOverflowing = hasHorizontalOverflow(primaryPane);
-				if (
-					shouldAutoCollapseSidebar(
-						wasOverflowingRef.current,
-						suppressAutoCollapseRef.current,
-						primaryPane
-					)
-				) {
-					onPrimaryOverflow();
-				}
-				if (!isOverflowing) suppressAutoCollapseRef.current = false;
-				wasOverflowingRef.current = isOverflowing;
-			});
-		};
-		const observer = new ResizeObserver(update);
-		observer.observe(primaryPane);
-		update();
-
-		return () => {
-			cancelAnimationFrame(frame);
-			observer.disconnect();
-		};
-	}, [onPrimaryOverflow]);
 
 	return (
 		<div
@@ -119,7 +63,6 @@ export function WorkspaceSplit({
 			}
 		>
 			<div
-				ref={primaryRef}
 				data-primary-pane
 				className="relative flex h-full min-h-0 min-w-0 w-full overflow-hidden"
 			>

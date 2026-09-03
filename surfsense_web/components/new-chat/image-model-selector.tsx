@@ -258,6 +258,7 @@ export function ImageModelSelector({
 			type="button"
 			variant="ghost"
 			size="sm"
+			data-desktop-layout-overflow-boundary
 			aria-label="Select image model"
 			className={cn(
 				"h-8 min-w-0 gap-2 rounded-md px-3 text-muted-foreground transition-colors",

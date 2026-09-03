@@ -1161,7 +1161,10 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				: "Send message";
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-3 mb-3 flex min-w-0 items-center">
+		<div
+			data-desktop-layout-constraint
+			className="aui-composer-action-wrapper relative mx-3 mb-3 flex min-w-0 items-center"
+		>
 			<div data-composer-primary-actions className="flex shrink-0 items-center gap-1">
 				{!isDesktop ? (
 					<ComposerAddMenuDrawer
