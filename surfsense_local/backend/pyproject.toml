@@ -1,0 +1,62 @@
+[project]
+name = "surfsense-local-backend"
+version = "0.1.0"
+description = "SurfSense Community Local backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.8",
+    "pydantic-settings>=2.7.0",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.0.0",
+    "ruff>=0.12.5",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["api*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM",  # flake8-simplify
+    "RUF",
+    "D103", # a test without a docstring does not say what it guarantees
+]
+
+[tool.ruff.lint.per-file-ignores]
+"api/**" = ["D103"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["api", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --tb=short -ra"
