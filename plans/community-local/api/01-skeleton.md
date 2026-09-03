@@ -12,14 +12,21 @@ Dev loop + workspace CRUD. FastAPI serves live OpenAPI for frontend.
 - Repo layout: `electron/`, `backend/api/`, `backend/worker/` (stub OK).
 - **FastAPI** app + uvicorn; pydantic request/response models on every route.
 - OpenAPI auto at **`/openapi.json`**; Swagger UI at **`/docs`** — no hand-maintained spec file.
-- SQLite migrations: `workspaces`, stub `documents`.
-- Routes: `POST/GET /workspaces`, `GET /workspaces/{id}/documents` (empty list OK).
+- SQLite migrations: every table Local ships with, in one hand-written revision.
+- Workspaces: `GET/POST /workspaces`, `GET/PATCH/DELETE /workspaces/{id}`.
+- Documents, everything that needs no file on disk: `GET/POST
+  /workspaces/{id}/documents`, `GET/PATCH/DELETE /workspaces/{id}/documents/{doc}`.
+  `POST` writes a `NOTE`; upload is [phase 2](02-upload.md).
+- List filters and paging per [`../00c-data-model.md`](../00c-data-model.md).
 - Electron dev script: Vite + `uvicorn` + worker together.
 - Data dir: `~/.surfsense/surfsense.db`, `huey.db`.
 
 ## Acceptance
 
 - Create workspace via API; persists restart.
+- Deleting a workspace takes its documents and their chunks with it.
+- A note's body is editable and returns the document to `pending`; a `FILE`
+  body is not.
 - Frontend can build against `/openapi.json` (or `/docs`) while API runs.
 
 ## Interface to worker

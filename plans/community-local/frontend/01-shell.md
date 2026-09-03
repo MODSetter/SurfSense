@@ -12,11 +12,16 @@ App opens with navigation and workspace screens.
 - Vite + React + router + Tailwind/shadcn.
 - Layout: sidebar, workspace switcher, routes Documents / Chat / Studio / Settings.
 - Workspace list + create → `GET/POST /workspaces`.
+- Switcher entries rename (`PATCH /workspaces/{id}`) and delete
+  (`DELETE /workspaces/{id}`). Deleting takes every document in it, so confirm first.
+- Deep link to a workspace → `GET /workspaces/{id}`; unknown id is a 404 page,
+  not an empty shell.
 - Placeholder pages for unfinished features.
 
 ## Acceptance
 
 - Dev: create workspace, refresh, still listed.
+- Rename shows the new name without a reload; delete removes it from the switcher.
 - Runs in browser against local API.
 
 ## Needs from API

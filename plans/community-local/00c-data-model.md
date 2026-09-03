@@ -27,7 +27,37 @@
 | Body text | `content` + `source_markdown` | **`content`** only | one markdown body field; cloud duplicated for Plate/BlockNote — Local drops editor legacy unless copied |
 | Artifact sidecar | `artifacts` | **`artifacts`** | keep (ADR-0003 shape when Studio ships) |
 
-**API routes (Local):** `/workspaces`, `/workspaces/{id}/documents`, `/workspaces/{id}/chat/threads`, … — no `/new_chat`.
+**API routes (Local):** the surface below is the whole contract for workspaces and
+documents. No `/new_chat`.
+
+| Method | Path | Phase |
+|---|---|---|
+| `GET` | `/workspaces` | 1 |
+| `POST` | `/workspaces` | 1 |
+| `GET` | `/workspaces/{id}` | 1 |
+| `PATCH` | `/workspaces/{id}` | 1 |
+| `DELETE` | `/workspaces/{id}` | 1 (rows) / 2 (files) |
+| `GET` | `/workspaces/{id}/documents` | 1 |
+| `POST` | `/workspaces/{id}/documents` | 1 — writes a `NOTE` |
+| `GET` | `/workspaces/{id}/documents/{doc}` | 1 |
+| `PATCH` | `/workspaces/{id}/documents/{doc}` | 1 |
+| `DELETE` | `/workspaces/{id}/documents/{doc}` | 1 (rows) / 2 (files, index) |
+| `POST` | `/workspaces/{id}/documents/upload` | 2 |
+| `POST` | `/workspaces/{id}/documents/{doc}/retry` | 2 |
+| `GET` | `/workspaces/{id}/documents/{doc}/original` | 2 |
+
+Later phases add `/workspaces/{id}/chat/threads` (3), `/settings` (3), and the
+Studio routes (4).
+
+**List semantics:** filters `?document_type=` and `?status=` (repeatable), paged
+with `?limit=` (default 50, max 200) and `?offset=`. ARTIFACT rows are included;
+the caller filters them out. The list carries no `content` — it is polled during
+ingest, and a body per row would ride along every time. `GET .../{doc}` adds it.
+
+**Editable:** a document's `title` always; its `content` only when
+`document_type = NOTE`, since anything else was extracted from bytes and an edit
+would vanish on re-ingest. Editing a note's content returns it to `pending`,
+because the indexed copy is now stale.
 
 **Copy rule:** paste module → rename per table below → Local ORM/SQLite only.
 
@@ -121,6 +151,7 @@ First launch may create one default workspace; schema allows many.
 |---|---|
 | `id`, `workspace_id`, `title`, `document_type` | yes |
 | `status` | TEXT enum (see above) |
+| `error_message` | TEXT null — why a `failed` ingest failed; cloud hid this in the JSONB status blob, and the documents view renders it |
 | `content` | markdown / extracted text |
 | `content_hash`, `dedup_key` | yes — dedup scoped per workspace |
 | `document_metadata` | JSON — file size, mime, page count |
@@ -129,7 +160,8 @@ First launch may create one default workspace; schema allows many.
 | `created_by_id`, `connector_id`, `path`, doc-level `embedding` | **omit** |
 | `blocknote_document`, `source_markdown`, `content_needs_reindexing` | **omit** unless editor copy forces it |
 
-**`document_type` subset:** `FILE`, `NOTE`, `ARTIFACT` (Studio). No connector enum entries.
+**`document_type` subset:** `FILE` (upload), `NOTE` (written in the app, no file
+behind it), `ARTIFACT` (Studio). No connector enum entries.
 
 **Unique:** `(workspace_id, dedup_key)` where dedup applies.
 
