@@ -48,6 +48,8 @@ class Document(Base):
     status: Mapped[DocumentStatus] = mapped_column(
         text_enum(DocumentStatus), default=DocumentStatus.PENDING
     )
+    # Set when status is failed, so the documents view can show the reason.
+    error_message: Mapped[str | None]
     content: Mapped[str | None]
     content_hash: Mapped[str | None]
     dedup_key: Mapped[str | None]

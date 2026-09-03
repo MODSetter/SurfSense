@@ -56,6 +56,9 @@ def upgrade() -> None:
             _enum("pending", "processing", "ready", "failed", name="documentstatus"),
             nullable=False,
         ),
+        # Set when status is failed: the documents view shows the reason, and
+        # cloud's JSONB status blob was the only place that carried it.
+        sa.Column("error_message", sa.String(), nullable=True),
         sa.Column("content", sa.String(), nullable=True),
         sa.Column("content_hash", sa.String(), nullable=True),
         sa.Column("dedup_key", sa.String(), nullable=True),
