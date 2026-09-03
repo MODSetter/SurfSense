@@ -21,13 +21,17 @@ Same phase number = integrate together.
 | Phase | [`frontend/`](frontend/) | [`api/`](api/) | [`worker/`](worker/) |
 |---|---|---|---|
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
-| **1** | [`01-shell.md`](frontend/01-shell.md) | [`01-skeleton.md`](api/01-skeleton.md) | [`01-boot.md`](worker/01-boot.md) |
+| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ◐ | [`01-boot.md`](worker/01-boot.md) |
 | **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) | [`02-ingest.md`](worker/02-ingest.md) |
 | **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) | [`03-search.md`](worker/03-search.md) |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
 | **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05-packaging.md`](api/05-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
 
 **Demo:** phase 3 all streams. **Ship:** phase 5.
+
+◐ started · ✓ done · unmarked not begun. Built: a Vite + shadcn shell reading
+`/health`, and on the API side the migrations, workspace CRUD and document CRUD.
+Phase 1 still owes both those screens, the Electron dev script, and the worker.
 
 ## Layer boundary
 
