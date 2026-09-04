@@ -8,6 +8,7 @@ dependencies = [
     "chonkie>=1.7.0",
     "docling>=2.125.0",
     "fastapi>=0.115.8",
+    "httpx>=0.28.1",
     "huey>=3.3.4",
     "onnxruntime>=1.20",
     "pydantic-settings>=2.7.0",
@@ -23,7 +24,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "pytest>=8.4.0",
     "pytest-asyncio>=1.0.0",
     "ruff>=0.12.5",

@@ -55,6 +55,16 @@ class SearchSettings(BaseSettings):
     embedding_dimension: int = 384
 
 
+class LLMSettings(BaseSettings):
+    """The generation runtime. Electron starts Ollama and passes its address."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    # Dev fallback for a bare `ollama serve`. The packaged app never hits this:
+    # Electron runs Ollama on a port it chose and sets the env var.
+    ollama_base_url: str = "http://127.0.0.1:11434"
+
+
 @lru_cache
 def get_storage_settings() -> StorageSettings:
     """Cached so the environment is parsed once, not per dependency call."""
@@ -64,3 +74,8 @@ def get_storage_settings() -> StorageSettings:
 @lru_cache
 def get_search_settings() -> SearchSettings:
     return SearchSettings()
+
+
+@lru_cache
+def get_llm_settings() -> LLMSettings:
+    return LLMSettings()

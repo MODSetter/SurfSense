@@ -32,6 +32,7 @@ def import_models() -> None:
     import modules.chat.models
     import modules.chunks.models
     import modules.documents.models
+    import modules.llm.models
     import modules.workspaces.models
 
 
