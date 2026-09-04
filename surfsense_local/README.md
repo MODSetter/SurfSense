@@ -20,12 +20,14 @@ Local-first desktop app for research over your own documents. Runs fully offline
 
 ## Development
 
-The API runs on its own; the Electron shell, SPA, and worker land in later phases.
+API and worker run as two processes, one terminal each. The Electron shell that
+starts them together lands in a later phase.
 
 ```bash
 cd backend
 uv sync
-uv run main.py                # http://127.0.0.1:8000
+uv run main.py                # API on http://127.0.0.1:8000
+uv run worker.py              # consumer; uploads stay pending without it
 uv run pytest
 ```
 
