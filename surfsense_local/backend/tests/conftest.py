@@ -23,7 +23,7 @@ from shared.db import (
 from shared.migrations import upgrade_to_head
 from shared.queue import huey
 
-# A slice missing from Base.metadata is a slice the drift test cannot check.
+# A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
 
 

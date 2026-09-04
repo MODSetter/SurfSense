@@ -51,6 +51,9 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# import_models and import_tasks import for the registration, never for a name.
+"shared/db.py" = ["F401"]
+"shared/queue.py" = ["F401"]
 # D103 is here to make tests state what they guarantee, not to gate app code.
 "api/**" = ["D103"]
 "modules/**" = ["D103"]

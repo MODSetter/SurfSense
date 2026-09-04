@@ -40,7 +40,7 @@ def test_the_app_starts_on_a_machine_it_has_never_run_on(tmp_path: Path) -> None
 
 
 def test_every_relationship_resolves() -> None:
-    """conftest imports every slice, so only a clean interpreter sees a missing one.
+    """conftest imports every feature, so only a clean interpreter sees a missing one.
 
     Without that, a relationship naming its target as a string stays unresolved
     and each route touching that table returns 500 to a user, while the suite
