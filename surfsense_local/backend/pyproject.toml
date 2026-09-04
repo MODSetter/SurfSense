@@ -5,12 +5,19 @@ description = "SurfSense Community Local backend"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13,<1.19",
+    "chonkie>=1.7.0",
+    "docling>=2.125.0",
     "fastapi>=0.115.8",
     "huey>=3.3.4",
+    "onnxruntime>=1.20",
     "pydantic-settings>=2.7.0",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.0",
     "sqlite-vec>=0.1.9",
+    # Docling's, named here only so the CPU build below can be chosen: a source
+    # applies to a dependency this project declares, not to one it inherits.
+    "torch>=2.2",
+    "torchvision>=0.17",
     "uvicorn[standard]>=0.34.0",
 ]
 
@@ -21,6 +28,18 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "ruff>=0.12.5",
 ]
+
+# Docling brings torch, and PyPI's Linux torch brings 3GB of CUDA wheels that
+# an installer would carry to machines that cannot use them. Elsewhere the
+# published wheels are already CPU-only.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -60,6 +79,8 @@ select = [
 "modules/**" = ["D103"]
 "shared/**" = ["D103"]
 "alembic/**" = ["D103"]
+# Dev tooling: it prints progress and reads its intent from the module docstring.
+"scripts/**" = ["D103", "T201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["api", "modules", "shared", "tests", "worker"]

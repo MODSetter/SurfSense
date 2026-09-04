@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,6 +11,12 @@ class StorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
 
     data_dir: Path = Path.home() / ".surfsense"
+
+    @property
+    def models_dir(self) -> Path:
+        # Overridable on its own so packaging can ship weights beside the app.
+        override = os.environ.get("SURFSENSE_LOCAL_MODELS_DIR")
+        return Path(override) if override else self.data_dir / "models"
 
     @property
     def database_path(self) -> Path:
@@ -44,8 +51,8 @@ class SearchSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
 
     # Schema, not preference: a vec0 table declares its width at creation.
-    # 768 is nomic-embed-text.
-    embedding_dimension: int = 768
+    # 384 is bge-small-en-v1.5, the bundled default.
+    embedding_dimension: int = 384
 
 
 @lru_cache
