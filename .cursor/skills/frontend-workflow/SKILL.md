@@ -1,6 +1,6 @@
 ---
 name: frontend-workflow
-description: Coordinates frontend and UI implementation, refactoring, and review using the project's React performance, shadcn/ui, animation vocabulary, and motion-review skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
+description: Coordinates frontend and UI implementation, refactoring, and review using the project's color system, React performance, shadcn/ui, animation vocabulary, and motion-review skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
 disable-model-invocation: true
 ---
 
@@ -19,6 +19,9 @@ Load only the skills relevant to the task:
 - **shadcn/ui components or a project with `components.json`:** read
   `../shadcn/SKILL.md` and follow its project-inspection, component-reuse,
   documentation, composition, styling, and accessibility workflow.
+- **Colors, themes, charts, or visual styling:** read
+  `../color-system/SKILL.md` and use its canonical palette and semantic-token
+  rules.
 - **A vaguely described motion effect:** read
   `../animation-vocabulary/SKILL.md` first to identify the exact term. This
   glossary names effects; it does not decide whether to build them.
