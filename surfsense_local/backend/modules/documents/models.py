@@ -48,6 +48,8 @@ class Document(Base):
     status: Mapped[DocumentStatus] = mapped_column(
         text_enum(DocumentStatus), default=DocumentStatus.PENDING
     )
+    # Set when status is failed, so the documents view can show the reason.
+    error_message: Mapped[str | None]
     content: Mapped[str | None]
     content_hash: Mapped[str | None]
     dedup_key: Mapped[str | None]
@@ -59,8 +61,8 @@ class Document(Base):
 
     workspace: Mapped[Workspace] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(
-        back_populates="document", cascade="all, delete-orphan"
+        back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )
     artifact: Mapped["Artifact | None"] = relationship(
-        back_populates="document", cascade="all, delete-orphan"
+        back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )

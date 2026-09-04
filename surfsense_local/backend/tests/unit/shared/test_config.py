@@ -1,6 +1,10 @@
 from ipaddress import ip_address
 
+import pytest
+
 from api.config import Settings
+
+pytestmark = pytest.mark.unit
 
 
 def test_default_host_is_loopback() -> None:

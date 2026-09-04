@@ -1,7 +1,10 @@
 import enum
+import importlib
+import pkgutil
 from pathlib import Path
 from typing import Any
 
+import sqlite_vec
 from sqlalchemy import Connection, Engine, Enum, MetaData, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -21,6 +24,20 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
+def import_models() -> None:
+    """Register every slice's models before the first mapper is configured.
+
+    Relationships name their target as a string, so a slice nobody imported is
+    a name SQLAlchemy cannot resolve, and every query against a table that
+    points at it fails at runtime.
+    """
+    import modules
+
+    for found in pkgutil.walk_packages(modules.__path__, f"{modules.__name__}."):
+        if found.name.endswith(".models"):
+            importlib.import_module(found.name)
+
+
 def text_enum(members: type[enum.Enum]) -> Enum:
     """SQLite has no enum type, so store the values behind a CHECK constraint."""
     return Enum(
@@ -36,6 +53,11 @@ def text_enum(members: type[enum.Enum]) -> Enum:
 def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     # pysqlite otherwise autocommits DDL, stranding a migration that dies midway.
     dbapi_connection.isolation_level = None
+
+    # Not built into SQLite: without it vec0 does not exist.
+    dbapi_connection.enable_load_extension(True)
+    sqlite_vec.load(dbapi_connection)
+    dbapi_connection.enable_load_extension(False)
 
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode = WAL")

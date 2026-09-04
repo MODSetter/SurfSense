@@ -10,13 +10,21 @@ Upload files and see ingest status.
 
 - Dropzone → `POST /workspaces/{id}/documents/upload`.
 - Document table: title, type, status badge (`pending` | `processing` | `ready` | `failed`).
-- Poll `GET /workspaces/{id}/documents` or SSE.
-- Show `failed` message from API.
+- Poll `GET /workspaces/{id}/documents` or SSE, passing `?limit=`/`?offset=`.
+- Show `failed` message from `error_message`, with a retry button →
+  `POST .../documents/{doc}/retry`.
+- Row actions: rename → `PATCH .../documents/{doc}`, delete → `DELETE` the same path.
+- The list returns ARTIFACT rows too. Filter with `?document_type=FILE&document_type=NOTE`
+  so Studio output does not appear as something the user uploaded.
+- Open a document → `GET .../documents/{doc}` for its extracted text; notes are
+  editable in place and go back to `pending` when saved.
 
 ## Acceptance
 
 - Upload PDF → `pending` → `ready` or `failed`.
 - Five files queued: list updates as worker finishes.
+- A failed document shows why, and retry puts it back in the queue.
+- A note can be written, edited and deleted without touching the filesystem.
 
 ## Needs from API
 

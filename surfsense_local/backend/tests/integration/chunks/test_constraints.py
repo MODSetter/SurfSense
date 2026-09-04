@@ -7,6 +7,8 @@ from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.models import Workspace
 
+pytestmark = pytest.mark.integration
+
 
 def test_deleting_a_document_takes_its_chunks(engine: Engine) -> None:
     """Chunks are derived data; leaving them behind would poison later searches."""

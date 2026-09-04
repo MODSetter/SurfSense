@@ -66,7 +66,7 @@ class Artifact(Base):
     workspace: Mapped[Workspace] = relationship()
     chat_thread: Mapped[ChatThread | None] = relationship()
     files: Mapped[list["ArtifactFile"]] = relationship(
-        back_populates="artifact", cascade="all, delete-orphan"
+        back_populates="artifact", cascade="all, delete-orphan", passive_deletes=True
     )
 
 

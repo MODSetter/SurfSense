@@ -1,4 +1,7 @@
+import pytest
 from httpx import AsyncClient
+
+pytestmark = pytest.mark.integration
 
 
 async def test_health_reports_ok(client: AsyncClient) -> None:

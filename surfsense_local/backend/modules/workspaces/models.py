@@ -22,8 +22,8 @@ class Workspace(Base):
     )
 
     documents: Mapped[list["Document"]] = relationship(
-        back_populates="workspace", cascade="all, delete-orphan"
+        back_populates="workspace", cascade="all, delete-orphan", passive_deletes=True
     )
     chat_threads: Mapped[list["ChatThread"]] = relationship(
-        back_populates="workspace", cascade="all, delete-orphan"
+        back_populates="workspace", cascade="all, delete-orphan", passive_deletes=True
     )
