@@ -21,7 +21,7 @@ Same phase number = integrate together.
 | Phase | [`frontend/`](frontend/) | [`api/`](api/) | [`worker/`](worker/) |
 |---|---|---|---|
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
-| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ◐ | [`01-boot.md`](worker/01-boot.md) ◐ |
+| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ◐ | [`01-boot.md`](worker/01-boot.md) ✓ |
 | **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ◐ |
 | **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) | [`03-search.md`](worker/03-search.md) |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
@@ -30,11 +30,13 @@ Same phase number = integrate together.
 **Demo:** phase 3 all streams. **Ship:** phase 5.
 
 ◐ started · ✓ done · unmarked not begun. Built: a Vite + shadcn shell reading
-`/health`, and the whole API surface for workspaces and documents — migrations,
-CRUD, upload, retry, and the search index with the triggers that keep it in step.
-Phase 1 still owes both screens and the Electron dev script. The queue exists and
-uploads enqueue into it, so what phase 2 waits on is a consumer: nothing drains
-the queue, which is why an uploaded document stays `pending`.
+`/health`, the whole API surface for workspaces and documents — migrations,
+CRUD, upload, retry, and the search index with the triggers that keep it in step
+— and a Huey consumer that runs what uploads enqueue. Phase 1 still owes both
+screens and the Electron dev script. An uploaded document now reaches the
+worker and fails there, because `ingest_document` is a stub: the body is
+[`worker/02-ingest.md`](worker/02-ingest.md), the one thing between here and a
+document you can actually search.
 
 ## Layer boundary
 
@@ -72,8 +74,8 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 | **Persistence** | SQLAlchemy 2.0 + Alembic, same as cloud | Models are the source of truth. `versions/` ships as PyInstaller data, resolved from the package's own `__file__` — de-risked in [`api/00-spike.md`](api/00-spike.md). |
 | **Migrations** | **Hand-written; autogenerate is off** | Autogenerate cannot see a rename — it emits drop + add, which deletes a column's data silently. The target database is one user's laptop, unbacked and uninspectable, so every revision is written and read by a person. `env.py` carries no `target_metadata`, so `--autogenerate` cannot be used by accident. Same call Open WebUI makes across all 58 of its SQLite revisions. |
 | **Schema owner** | Alembic only; **never** `create_all` | Cloud's `create_all`-on-startup races its own migrations and breaks releases. Local has one path to a schema, and a test fails if models and migrations drift. |
-| **Model layout** | One slice per feature: `modules/<slice>/models.py` | Vertical slices, as in cloud's `automations/`, `notifications/`. `shared.db.import_models()` registers all of them at app creation: relationships name their target as a string, so a slice nobody imported is a name SQLAlchemy cannot resolve, and every query against a table pointing at it fails at runtime. |
-| **Test layout** | `tests/unit/<slice>` and `tests/integration/<slice>`, marked per module | Mirrors cloud, down to `pytestmark = pytest.mark.integration` at the top of each file. Nothing is mocked: integration means a real SQLite file in `tmp_path` built by the migrations, which is what caught the unresolved relationship above. |
+| **Model layout** | One folder per feature: `modules/<feature>/models.py` | As in cloud's `automations/`, `notifications/`. `shared.db.import_models()` registers all of them at app creation: relationships name their target as a string, so a feature nobody imported is a name SQLAlchemy cannot resolve, and every query against a table pointing at it fails at runtime. |
+| **Test layout** | `tests/unit/<feature>` and `tests/integration/<feature>`, marked per module | Mirrors cloud, down to `pytestmark = pytest.mark.integration` at the top of each file. Nothing is mocked: integration means a real SQLite file in `tmp_path` built by the migrations, which is what caught the unresolved relationship above. |
 
 ## Open items
 
