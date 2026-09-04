@@ -74,6 +74,12 @@
       "sourceType": "github",
       "computedHash": "921a7e6e7ab45d1dfb4534d4ca445a94a95e7e01022b5f171690da2e40caf55f"
     },
+    "make-interfaces-feel-better": {
+      "source": "jakubkrehel/make-interfaces-feel-better",
+      "sourceType": "github",
+      "skillPath": "skills/make-interfaces-feel-better/SKILL.md",
+      "computedHash": "c8b15b529e088a318b2d3c17f0a97e15a7b1ce9ddab8bbdf9209e6ab7315cbde"
+    },
     "memory-management": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
@@ -83,6 +89,12 @@
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
       "computedHash": "4d88aa5adc17c1802f21c04162bbab6bd8c5965c35362a502ee6ccab76777a54"
+    },
+    "migrate-radix-to-base": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "skillPath": "skills/migrate-radix-to-base/SKILL.md",
+      "computedHash": "e1f2030ee5059be3dff0812ca0e4b995ee9fa3132176f049ebe6c90346a6755e"
     },
     "on-page-seo-auditor": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
@@ -98,12 +110,6 @@
       "source": "aaron-he-zhu/seo-geo-claude-skills",
       "sourceType": "github",
       "computedHash": "2d4c9a44056713d946481031cc00b3113b6055af6f4bea0cfd8dcb8a9d5abbf9"
-    },
-    "review-animations": {
-      "source": "emilkowalski/skills",
-      "sourceType": "github",
-      "skillPath": "skills/review-animations/SKILL.md",
-      "computedHash": "57c681344448379fbec8c11b45e355b70799998427240662318d017f292571bd"
     },
     "schema-markup-generator": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
@@ -123,7 +129,8 @@
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
-      "computedHash": "b1cc1defe03f0e8f78652b7d20e4d4e6421babc2b45835d4f361afe684dc47a2"
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
     },
     "technical-seo-checker": {
       "source": "aaron-he-zhu/seo-geo-claude-skills",
@@ -134,11 +141,6 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "computedHash": "3ff06f0712886f7c2660d6746856c22d3127bd6568ddde29ddad8b72dbaaa226"
-    },
-    "web-design-guidelines": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "computedHash": "d8e7d3afe37dcc8a97b99ffb5afdb4d0919ae0092ea8b68f44eb201f035e33ac"
     }
   }
 }

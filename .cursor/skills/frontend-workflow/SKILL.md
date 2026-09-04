@@ -1,6 +1,6 @@
 ---
 name: frontend-workflow
-description: Coordinates frontend and UI implementation, refactoring, and review using the project's color system, React performance, shadcn/ui, animation vocabulary, and motion-review skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
+description: Coordinates frontend and UI implementation, refactoring, and review using the project's color system, React performance, shadcn/ui, interface-polish, and animation-vocabulary skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
 disable-model-invocation: true
 ---
 
@@ -22,15 +22,15 @@ Load only the skills relevant to the task:
 - **Colors, themes, charts, or visual styling:** read
   `../color-system/SKILL.md` and use its canonical palette and semantic-token
   rules.
+- **UI polish, typography, surfaces, icons, interactions, or motion:** read
+  `../make-interfaces-feel-better/SKILL.md`, then load only the applicable
+  supporting reference files.
 - **A vaguely described motion effect:** read
   `../animation-vocabulary/SKILL.md` first to identify the exact term. This
   glossary names effects; it does not decide whether to build them.
-- **Animation or motion code added, changed, or explicitly reviewed:** after
-  implementation, read `../review-animations/SKILL.md` and perform its focused
-  motion review. Load `../review-animations/STANDARDS.md` only when exact
-  values or citations are needed.
 
-Do not load animation skills for frontend work that has no motion concern.
+Do not load animation vocabulary or animation references for frontend work
+that has no motion concern.
 
 ## Workflow
 
@@ -54,14 +54,15 @@ Do not load animation skills for frontend work that has no motion concern.
    - Run the smallest relevant lint, type, and test checks.
    - For visible interaction changes, verify the rendered behavior when a
      runnable frontend is available.
-   - If motion changed, run the animation review only after functional
-     implementation is complete and resolve blocking findings within scope.
+   - If visual details or motion changed, apply the interface-polish review
+     only after functional implementation is complete and resolve blocking
+     findings within scope.
 
 5. **Report**
    - Summarize the user-visible result, checks run, and unresolved risks.
-   - Use the animation review's required findings-and-verdict format only when
-     the user requested a review. For implementation tasks, report motion
-     findings as part of the normal completion summary.
+   - Use the interface-polish skill's review format only when the user
+     requested a review. For implementation tasks, include relevant visual or
+     motion findings in the normal completion summary.
 
 ## Precedence and Conflicts
 
@@ -70,9 +71,9 @@ Resolve conflicting guidance in this order:
 1. The user's explicit requirements.
 2. Correctness, security, and accessibility.
 3. Existing project conventions and configuration.
-4. shadcn/ui component and composition rules.
+4. The canonical color system and shadcn/ui composition rules.
 5. React and Next.js performance guidance.
-6. Motion polish.
+6. Interface and motion polish.
 
 Never sacrifice correctness or accessibility for visual polish or a
 micro-optimization. If a specialist rule conflicts with the installed library

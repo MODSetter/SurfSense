@@ -70,8 +70,8 @@ decision when no existing foreground token fits.
 - For shadcn/ui composition and styling, also use `../shadcn/SKILL.md`.
 - For React or Next.js implementation, also use
   `../vercel-react-best-practices/SKILL.md`.
-- For motion, color transitions, or reduced-motion behavior, use
-  `../review-animations/SKILL.md` after implementation.
+- For interface polish, color transitions, or reduced-motion behavior, use
+  `../make-interfaces-feel-better/SKILL.md` after implementation.
 
 ## Output
 
