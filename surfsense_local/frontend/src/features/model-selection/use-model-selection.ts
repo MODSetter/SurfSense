@@ -7,10 +7,12 @@ import {
   modelKey,
   setGenerationSelection,
   type ModelSelection,
+  type Provider,
   type SelectableModel,
 } from "./api"
 
 type LoadedState = {
+  providers: Provider[]
   selection: ModelSelection | null
   staleSelection: boolean
 }
@@ -86,6 +88,7 @@ async function fetchSelectionState(
       selection !== null &&
       models.some((model) => modelKey(model) === modelKey(selection))
     const loadedState = {
+      providers,
       selection,
       staleSelection: selection !== null && !selectionIsCurrent,
     }

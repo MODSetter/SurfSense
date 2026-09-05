@@ -1,5 +1,4 @@
 import {
-  BotOffIcon,
   BrainCircuitIcon,
   CheckIcon,
   CircleAlertIcon,
@@ -20,14 +19,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
-import {
   Field,
   FieldContent,
   FieldLabel,
@@ -41,10 +32,11 @@ import { Spinner } from "@/components/ui/spinner"
 
 import { modelKey } from "./api"
 import type { ModelSelection } from "./api"
+import { ModelCatalog } from "./model-catalog"
 import { useModelSelection } from "./use-model-selection"
 
-const capabilityLabel = (capability: string) =>
-  capability.charAt(0).toUpperCase() + capability.slice(1)
+const titleCase = (value: string) =>
+  value.charAt(0).toUpperCase() + value.slice(1)
 
 function LoadingModels() {
   return (
@@ -106,6 +98,12 @@ export function ModelSelectionPage({
   const hasChanges = draftKey !== null && draftKey !== persistedKey
   const isSaving = saveState.status === "saving"
   const isConnected = state.status === "ready" || state.status === "empty"
+  const healthyProviders = isConnected
+    ? state.providers.filter((provider) => provider.healthy)
+    : []
+  const downloadableProviders = healthyProviders
+    .filter((provider) => provider.can_download)
+    .map((provider) => provider.name)
   const canContinue =
     state.status === "ready" &&
     draftKey !== null &&
@@ -150,10 +148,24 @@ export function ModelSelectionPage({
             <CardAction>
               {state.status === "loading" ? (
                 <Skeleton className="h-5 w-20 rounded-full" />
+              ) : isConnected ? (
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {healthyProviders.map((provider) => (
+                    <Badge
+                      key={provider.name}
+                      variant="secondary"
+                      className="gap-1.5"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 rounded-full bg-green-500"
+                      />
+                      {titleCase(provider.name)}
+                    </Badge>
+                  ))}
+                </div>
               ) : (
-                <Badge variant={isConnected ? "secondary" : "destructive"}>
-                  {isConnected ? "Connected" : "Offline"}
-                </Badge>
+                <Badge variant="destructive">Offline</Badge>
               )}
             </CardAction>
           </CardHeader>
@@ -184,23 +196,19 @@ export function ModelSelectionPage({
             ) : null}
 
             {state.status === "empty" ? (
-              <Empty className="border">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <BotOffIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>No compatible models found</EmptyTitle>
-                  <EmptyDescription className="text-foreground">
-                    Install a text-generation model in your local provider, then
-                    refresh this list.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <code className="rounded-md bg-muted px-2 py-1 font-mono text-xs text-foreground">
-                    ollama pull &lt;model&gt;
-                  </code>
-                </EmptyContent>
-              </Empty>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <h2 className="text-sm font-medium">Download a model</h2>
+                  <p className="text-sm text-pretty text-muted-foreground">
+                    No compatible model is installed yet. Pick one to download —
+                    it stays on this machine.
+                  </p>
+                </div>
+                <ModelCatalog
+                  providers={downloadableProviders}
+                  onPulled={() => void refresh()}
+                />
+              </div>
             ) : null}
 
             {state.status === "ready" ? (
@@ -234,7 +242,7 @@ export function ModelSelectionPage({
                               <Badge variant="outline">{model.provider}</Badge>
                               {model.capabilities.map((capability) => (
                                 <Badge key={capability} variant="outline">
-                                  {capabilityLabel(capability)}
+                                  {titleCase(capability)}
                                 </Badge>
                               ))}
                             </div>
