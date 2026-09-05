@@ -88,7 +88,7 @@ async def send_message(
     selected = session.get(SelectedModel, ModelRole.GENERATION)
     if selected is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "no chat model selected")
-    generator = get_provider(selected.provider)
+    generator = get_provider(selected.provider, session)
     if generator is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"unknown provider: {selected.provider}"
