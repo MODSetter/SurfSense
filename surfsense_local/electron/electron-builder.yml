@@ -30,14 +30,40 @@ extraResources:
   - from: ollama
     to: ollama
 
+publish:
+  provider: github
+  owner: MODSetter
+  repo: SurfSense
+
 linux:
   target: [AppImage, deb]
   category: Office
+  icon: build/icon.png
+  executableName: surfsense-local
+  desktop:
+    entry:
+      Name: SurfSense Local
+      Comment: Local-first research over your own documents
+      Categories: Office;Utility;
+      StartupWMClass: SurfSense Local
 
 win:
   target: [nsis]
+  icon: build/icon.ico
 
 
 mac:
-  target: [dmg]
+  target:
+    - target: dmg
+      arch: [arm64]
   category: public.app-category.productivity
+  icon: build/icon.icns
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+  # Developer ID signing + notarization, reusing the org certs the cloud desktop
+  # app already uses (CI passes CSC_LINK/APPLE_* env). disable-library-validation
+  # lets the signed app spawn the bundled Ollama + frozen Python sidecars.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true
