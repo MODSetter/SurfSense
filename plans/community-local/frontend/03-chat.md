@@ -9,7 +9,9 @@ Grounded chat with citations; first-run wizard.
 ## Work
 
 - Wizard: path A/B/C + RAM tier → `PATCH /settings`.
-- Settings: model URL, model name.
+- Reuse the validated generation selection from
+  [`01-shell.md`](01-shell.md); Chat does not maintain a second model URL/name
+  setting.
 - Thread list, messages, composer.
 - Stream assistant reply (SSE or fetch stream).
 - Citation chips → source chunk/document.
