@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
@@ -18,16 +18,23 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+beforeEach(() => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  )
+  Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+    configurable: true,
+    value: vi.fn(),
+  })
+})
+
 describe("dashboard chat", () => {
   it("creates a thread only on first send and streams without a model field", async () => {
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      }
-    )
     let messageSent = false
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -161,5 +168,200 @@ describe("dashboard chat", () => {
     expect(JSON.parse(String(send?.[1]?.body))).toEqual({
       text: "What is indexed?",
     })
+  })
+
+  it("loads threads and sources for the selected workspace", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "ollama", healthy: true, can_download: true },
+        ])
+      }
+      if (path.includes("/chat/threads")) {
+        return Response.json([])
+      }
+      if (path.includes("/documents?")) {
+        return Response.json([])
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const secondWorkspace = { ...workspace, id: 2, name: "Second Workspace" }
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace, secondWorkspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByText("No chats yet")
+    await user.click(screen.getByRole("button", { name: "Second Workspace" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Second Workspace" })
+    ).toBeTruthy()
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/workspaces/2/chat/threads",
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/workspaces/2/documents?document_type=FILE&document_type=NOTE",
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+    })
+  })
+
+  it("surfaces a message request failure inside the conversation", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "Fail safely",
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return Response.json({ detail: "Provider crashed" }, { status: 500 })
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByText("No chats yet")
+    await user.type(
+      screen.getByRole("textbox", { name: "Message" }),
+      "Fail safely"
+    )
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(await screen.findByText("Provider crashed")).toBeTruthy()
+    expect(screen.getByText("Chat could not continue")).toBeTruthy()
+  })
+
+  it("aborts the active stream when stop is pressed", async () => {
+    const captured: { signal: AbortSignal | null } = { signal: null }
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "Stop this",
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          captured.signal = init.signal ?? null
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                captured.signal?.addEventListener("abort", () =>
+                  controller.error(new DOMException("Aborted", "AbortError"))
+                )
+              },
+            })
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByText("No chats yet")
+    await user.type(
+      screen.getByRole("textbox", { name: "Message" }),
+      "Stop this"
+    )
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Stop generating" })
+    )
+
+    expect(captured.signal?.aborted).toBe(true)
+    expect(
+      await screen.findByRole("button", { name: "Send message" })
+    ).toBeTruthy()
   })
 })

@@ -106,7 +106,20 @@ export function ModelSelectionPage({
   const hasChanges = draftKey !== null && draftKey !== persistedKey
   const isSaving = saveState.status === "saving"
   const isConnected = state.status === "ready" || state.status === "empty"
-  const handleSave = async () => {
+  const canContinue =
+    state.status === "ready" &&
+    draftKey !== null &&
+    (!state.staleSelection || hasChanges)
+  const handlePrimaryAction = async () => {
+    if (
+      !hasChanges &&
+      state.status === "ready" &&
+      state.selection !== null &&
+      !state.staleSelection
+    ) {
+      onSelected?.(state.selection)
+      return
+    }
     const selection = await save()
     if (selection) {
       onSelected?.(selection)
@@ -265,11 +278,15 @@ export function ModelSelectionPage({
             <Button
               type="button"
               className="min-h-10"
-              disabled={!hasChanges || isSaving || isRefreshing}
-              onClick={() => void handleSave()}
+              disabled={!canContinue || isSaving || isRefreshing}
+              onClick={() => void handlePrimaryAction()}
             >
               {isSaving ? <Spinner data-icon="inline-start" /> : null}
-              {isSaving ? "Saving..." : "Use this model"}
+              {isSaving
+                ? "Saving..."
+                : hasChanges
+                  ? "Use this model"
+                  : "Continue"}
             </Button>
           </CardFooter>
         </Card>

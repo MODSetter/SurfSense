@@ -138,6 +138,30 @@ describe("model selection", () => {
     expect(beta.getAttribute("aria-checked")).toBe("true")
   })
 
+  it("continues with an already selected model without writing it again", async () => {
+    const fetchMock = installApi({
+      models: [completionModel("llama3.2:1b")],
+      selected: { provider: "ollama", name: "llama3.2:1b" },
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const onSelected = vi.fn()
+
+    render(<ModelSelectionPage onSelected={onSelected} />)
+
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+
+    expect(onSelected).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "ollama", name: "llama3.2:1b" })
+    )
+    expect(
+      fetchMock.mock.calls.some(
+        ([path, init]) =>
+          path === "/llm/selection/generation" && init?.method === "PUT"
+      )
+    ).toBe(false)
+  })
+
   it("reports a persisted model that is no longer installed", async () => {
     vi.stubGlobal(
       "fetch",
@@ -155,7 +179,7 @@ describe("model selection", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "Use this model",
+          name: "Continue",
         }) as HTMLButtonElement
       ).disabled
     ).toBe(true)

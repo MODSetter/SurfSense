@@ -115,3 +115,28 @@ async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> 
     )
 
     assert reply.status_code == 409
+
+
+async def test_missing_embedding_assets_are_an_actionable_503(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A dev setup omission is reported before retrieval crashes with a generic 500."""
+    with create_session_factory(engine)() as session:
+        session.add(
+            SelectedModel(
+                role=ModelRole.GENERATION, provider="ollama", name="qwen3:1.7b"
+            )
+        )
+        session.commit()
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(client, workspace["id"])
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "hi"}
+    )
+
+    assert reply.status_code == 503
+    assert reply.json()["detail"] == (
+        "local embedding model is not installed; "
+        "run `uv run scripts/fetch_embedding_model.py`"
+    )
