@@ -53,8 +53,6 @@ win:
 
 
 mac:
-  # No arch pin: builds for the host (CI's Apple Silicon → arm64; an Intel Mac →
-  # x64). The frozen Python sidecar is host-arch, so it must match the app shell.
   target: [dmg]
   category: public.app-category.productivity
   icon: build/icon.icns
