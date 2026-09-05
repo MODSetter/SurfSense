@@ -236,6 +236,15 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "provider_credentials",
+        sa.Column("provider", sa.String(), nullable=False),
+        sa.Column("api_key", sa.String(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), server_default=NOW, nullable=False),
+        # One BYO key per provider; the provider name keys the row.
+        sa.PrimaryKeyConstraint("provider", name=op.f("pk_provider_credentials")),
+    )
+
+    op.create_table(
         "artifact_files",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("artifact_id", sa.Integer(), nullable=False),
@@ -267,6 +276,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop in dependency order; SQLite refuses to drop a referenced parent."""
+    op.drop_table("provider_credentials")
     op.drop_table("selected_models")
     op.drop_table("artifact_files")
     op.drop_table("artifacts")

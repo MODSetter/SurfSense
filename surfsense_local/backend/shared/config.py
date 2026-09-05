@@ -64,6 +64,10 @@ class LLMSettings(BaseSettings):
     # Electron runs Ollama on a port it chose and sets the env var.
     ollama_base_url: str = "http://127.0.0.1:11434"
 
+    # OpenRouter is the hosted, BYO-key option; the key lives in the database,
+    # not here. Overridable only so tests can point at a stub.
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
 
 @lru_cache
 def get_storage_settings() -> StorageSettings:

@@ -15,6 +15,7 @@ class OllamaProvider:
     """Ollama over its native API: it both answers and holds models on disk."""
 
     name = "ollama"
+    requires_key = False
 
     def __init__(self, base_url: str) -> None:
         self._base_url = base_url.rstrip("/")
