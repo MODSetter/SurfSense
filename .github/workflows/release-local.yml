@@ -1,11 +1,7 @@
 name: Local Desktop Release
 
 # Builds the community-local desktop app (surfsense_local) into per-OS installers
-# and attaches them to a GitHub Release. Separate from desktop-release.yml, which
-# ships the hosted/cloud desktop; this one is self-contained and unsigned.
-#
-# PyInstaller cannot cross-compile, so each OS freezes its own API + worker
-# binaries on a matching runner, then electron-builder packages them.
+# and attaches them to a GitHub Release.
 #
 # Trigger: push a tag like `local-v0.0.1`. Or run manually for a dry run.
 
@@ -124,6 +120,10 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
+      - name: Stage Ollama
+        working-directory: surfsense_local/electron
+        run: node scripts/fetch-ollama.mjs
+
       - name: Package installer
         working-directory: surfsense_local/electron
         env:
@@ -144,7 +144,7 @@ jobs:
           set -e
           export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-smoke"
           export SURFSENSE_LOCAL_PORT=8137
-          ./surfsense_local/electron/release/linux-unpacked/resources/api/api &
+          ./surfsense_local/electron/release/linux-unpacked/resources/backend/api/api &
           API=$!
           for i in $(seq 1 60); do
             if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
@@ -153,6 +153,21 @@ jobs:
             sleep 1
           done
           echo "::error::packaged API never became healthy"; kill $API; exit 1
+
+      - name: Smoke the bundled Ollama (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -e
+          export OLLAMA_HOST=127.0.0.1:11565
+          ./surfsense_local/electron/release/linux-unpacked/resources/ollama/bin/ollama serve &
+          OLL=$!
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:11565/" >/dev/null; then
+              echo "ollama OK"; kill $OLL; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::bundled ollama never responded"; kill $OLL; exit 1
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
