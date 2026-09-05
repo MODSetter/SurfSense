@@ -5,6 +5,8 @@ from fastapi import FastAPI
 
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
+from modules.events.broker import EventBroker
+from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.llm.router import router as llm_router
 from modules.workspaces.router import router as workspaces_router
@@ -30,9 +32,11 @@ def create_app() -> FastAPI:
     import_models()
 
     app = FastAPI(title="SurfSense Community Local", lifespan=lifespan)
+    app.state.broker = EventBroker() # No benefits from lifespan hooks.
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
     app.include_router(llm_router)
     app.include_router(chat_router)
+    app.include_router(events_router)
     return app
