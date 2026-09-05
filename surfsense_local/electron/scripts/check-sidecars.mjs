@@ -8,7 +8,8 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { getFreePort, waitForHealth } from "../src/main/net.ts"
-import { startSidecars, stopSidecars } from "../src/main/sidecars.ts"
+import { apiSpec, workerSpec } from "../src/main/sidecars/python.ts"
+import { startAll, stopAll } from "../src/main/sidecars/supervisor.ts"
 
 const here = fileURLToPath(new URL(".", import.meta.url))
 const backendDir = join(here, "..", "..", "backend")
@@ -24,22 +25,23 @@ const isAlive = (pid) => {
 
 const host = "127.0.0.1"
 const port = await getFreePort(host)
-const sidecars = startSidecars({
+const ctx = {
+  packaged: false,
   backendDir,
   binariesDir: "",
   host,
-  port,
+  apiPort: port,
   dataDir: mkdtempSync(join(tmpdir(), "surfsense-sidecar-check-")),
-  packaged: false,
-})
-const { pid: apiPid } = sidecars.api
-const { pid: workerPid } = sidecars.worker
+}
+const sidecars = startAll([apiSpec(ctx), workerSpec(ctx)])
+const apiPid = sidecars.get("api").pid
+const workerPid = sidecars.get("worker").pid
 
 try {
-  await waitForHealth(host, port, { child: sidecars.api })
+  await waitForHealth(host, port, { child: sidecars.get("api") })
   console.log(`health ok on ${host}:${port}`)
 } finally {
-  await stopSidecars(sidecars)
+  await stopAll(sidecars)
 }
 
 await new Promise((r) => setTimeout(r, 500)) // let the OS reap the groups
