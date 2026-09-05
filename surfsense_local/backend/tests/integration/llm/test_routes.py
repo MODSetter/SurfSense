@@ -61,7 +61,9 @@ async def test_pull_streams_progress(client: AsyncClient, ollama_server: str) ->
     assert steps[-1]["status"] == "success"
 
 
-async def test_the_selection_is_read_after_it_is_set(client: AsyncClient) -> None:
+async def test_the_selection_is_read_after_it_is_set(
+    client: AsyncClient, ollama_server: str
+) -> None:
     """Set persists the choice; read is how the rest of the app learns it."""
     assert (await client.get("/llm/selection/generation")).status_code == 404
 
@@ -76,7 +78,9 @@ async def test_the_selection_is_read_after_it_is_set(client: AsyncClient) -> Non
     assert read.json() == written.json()
 
 
-async def test_choosing_again_updates_in_place(client: AsyncClient) -> None:
+async def test_choosing_again_updates_in_place(
+    client: AsyncClient, ollama_server: str
+) -> None:
     """One row per role: the second choice replaces the first, not adds to it."""
     await client.put(
         "/llm/selection/generation", json={"provider": "ollama", "name": "qwen3:1.7b"}
@@ -94,6 +98,49 @@ async def test_a_selection_names_a_known_provider(client: AsyncClient) -> None:
         "/llm/selection/generation", json={"provider": "openai", "name": "gpt-4o"}
     )
     assert reply.status_code == 422
+
+
+async def test_a_selection_names_an_installed_model(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """A stale or invented model name is rejected before it reaches chat."""
+    reply = await client.put(
+        "/llm/selection/generation",
+        json={"provider": "ollama", "name": "does-not-exist"},
+    )
+
+    assert reply.status_code == 422
+    assert reply.json()["detail"] == "model is not installed: does-not-exist"
+    assert (await client.get("/llm/selection/generation")).status_code == 404
+
+
+async def test_a_generation_selection_requires_completion_capability(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An installed embedding model cannot be selected to answer chat."""
+
+    class EmbeddingOnly:
+        name = "embedding-only"
+
+        async def health(self) -> bool:
+            return True
+
+        async def models(self) -> list[Model]:
+            return [Model("embedder", installed=True, capabilities=("embedding",))]
+
+        def chat(self, model: str, messages: list[Message]):  # pragma: no cover
+            raise NotImplementedError
+
+    monkeypatch.setitem(registry.REGISTRY, "embedding-only", EmbeddingOnly)
+
+    reply = await client.put(
+        "/llm/selection/generation",
+        json={"provider": "embedding-only", "name": "embedder"},
+    )
+
+    assert reply.status_code == 422
+    assert reply.json()["detail"] == "model does not support generation: embedder"
+    assert (await client.get("/llm/selection/generation")).status_code == 404
 
 
 async def test_a_chat_only_provider_hides_the_catalog(
