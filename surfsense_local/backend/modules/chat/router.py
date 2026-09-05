@@ -119,10 +119,13 @@ async def send_message(
         try:
             async for delta in generator.chat(selected.name, messages):
                 parts.append(delta)
-                yield _event({"type": "delta", "text": delta})
+                yield _frame({"type": "delta", "text": delta})
         except Exception as exc:
-            # Surfaced to the client as an event, then the partial turn is stored.
-            yield _event({"type": "error", "message": str(exc)})
+            # Surfaced as an event; the partial turn is still stored below.
+            yield _frame({"type": "error", "message": str(exc)})
+
+        if cited:
+            yield _frame({"type": "citations", "items": cited})
 
         # Written as the stream closes; the request session commits it on exit.
         session.add(
@@ -132,10 +135,23 @@ async def send_message(
                 content={"text": "".join(parts), "citations": cited},
             )
         )
-        yield _event({"type": "done", "citations": cited})
+        yield _DONE
 
-    return StreamingResponse(stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        # Keep a proxy from buffering or caching a live stream into one late blob.
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
-def _event(payload: dict) -> bytes:
+def _frame(payload: dict) -> bytes:
+    """One SSE data frame: deltas, then a citations frame, then the sentinel."""
     return f"data: {json.dumps(payload)}\n\n".encode()
+
+
+_DONE = b"data: [DONE]\n\n"

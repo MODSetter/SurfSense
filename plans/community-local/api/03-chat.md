@@ -90,17 +90,27 @@ Threads are workspace-scoped; messages hang off a thread.
 
 `POST .../messages` does, in order:
 
-1. Persist the user turn.
-2. `retrieve()` on the user text → `Hit`s.
-3. Build the system message; assemble `[system, *trimmed history, user]`.
-4. Read `SelectedModel(role="chat")`; resolve its `Generator`. No model selected →
-   `409`, so the frontend can send the user to setup.
-5. Stream `Generator.chat` deltas as SSE `data:` events.
-6. On completion, emit a final event carrying the citation list, then persist the
-   assistant turn (text + citations) as one `ChatMessage`.
+1. Read `SelectedModel(role="generation")`; resolve its `Generator`. No model
+   selected → `409`, so the frontend can send the user to setup. This happens
+   before anything streams, so it stays a clean HTTP error.
+2. Persist the user turn.
+3. `retrieve()` on the user text → `Hit`s.
+4. Build the system message; assemble `[system, *trimmed history, user]`.
+5. Stream `Generator.chat` deltas as SSE.
+6. Emit the citation list, then persist the assistant turn (text + citations) as
+   one `ChatMessage`, written as the generator closes so the request session
+   commits it on exit.
 
-`after()`-style ordering isn't available without a response object we control end to
-end, so the assistant row is written as the generator closes, inside the stream.
+**The SSE frames** are `data: {json}\n\n`, ending on a `data: [DONE]\n\n` sentinel
+so a client tells completion apart from a dropped connection:
+
+- `{"type": "delta", "text": "..."}` — one per token chunk.
+- `{"type": "citations", "items": [...]}` — once, when there were hits.
+- `{"type": "error", "message": "..."}` — on a generator failure; the partial turn
+  still persists and the stream still ends on `[DONE]`.
+
+The response carries `Cache-Control: no-cache` and `X-Accel-Buffering: no` so a
+proxy streams it through rather than buffering it into one late blob.
 
 ## Not in this phase
 

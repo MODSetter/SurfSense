@@ -53,9 +53,17 @@ async def _send(client: AsyncClient, thread_id: int, text: str) -> list[dict]:
         "POST", f"/chat/threads/{thread_id}/messages", json={"text": text}
     ) as reply:
         assert reply.status_code == 200
+        assert reply.headers["content-type"].startswith("text/event-stream")
+        saw_done = False
         async for line in reply.aiter_lines():
-            if line.startswith("data: "):
-                events.append(json.loads(line[len("data: ") :]))
+            if not line.startswith("data: "):
+                continue
+            payload = line[len("data: ") :]
+            if payload == "[DONE]":
+                saw_done = True
+                break
+            events.append(json.loads(payload))
+    assert saw_done, "the stream must end with the [DONE] sentinel"
     return events
 
 
@@ -71,8 +79,8 @@ async def test_a_message_streams_a_grounded_reply(
     deltas = [event["text"] for event in events if event["type"] == "delta"]
     assert "".join(deltas) == "Revenue climbed after the launch [1]."
 
-    done = next(event for event in events if event["type"] == "done")
-    assert any(cite["document_id"] == doc_id for cite in done["citations"])
+    citations = next(event for event in events if event["type"] == "citations")
+    assert any(cite["document_id"] == doc_id for cite in citations["items"])
 
     stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
     assert [message["role"] for message in stored] == ["user", "assistant"]
