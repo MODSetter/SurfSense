@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
@@ -32,7 +33,15 @@ def create_app() -> FastAPI:
     import_models()
 
     app = FastAPI(title="SurfSense Community Local", lifespan=lifespan)
-    app.state.broker = EventBroker() # No benefits from lifespan hooks.
+    # The packaged renderer loads from file:// and calls the 127.0.0.1 sidecar,
+    # a cross-origin request; the API is loopback-only single-user, so allow any.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.state.broker = EventBroker()  # No benefits from lifespan hooks.
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
