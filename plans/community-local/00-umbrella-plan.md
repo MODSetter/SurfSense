@@ -21,7 +21,7 @@ Same phase number = integrate together.
 | Phase | [`frontend/`](frontend/) | [`api/`](api/) | [`worker/`](worker/) |
 |---|---|---|---|
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
-| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ◐ | [`01-boot.md`](worker/01-boot.md) ✓ |
+| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ✓ | [`01-boot.md`](worker/01-boot.md) ✓ |
 | **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
 | **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
@@ -44,8 +44,10 @@ leg, then rescores the union by cosine. **Chat now closes on all of it**
 ([`modules/chat/`](../../surfsense_local/backend/modules/chat/)): a thread's turn
 retrieves its own context, grounds a system prompt with citable `<source>` blocks,
 slides a window over history, and streams a cited reply over SSE while both turns
-persist. Phase 1 still owes both screens and
-the Electron dev script, and a PDF only converts on a machine that can reach
+persist. The Electron shell and dev loop now land too: [`electron/`](../../surfsense_local/electron/)
+spawns both Python sidecars, waits on `/health`, and loads the Vite SPA, reaping
+the sidecars on quit (guarded by `pnpm check:sidecars`). Phase 1 still owes both
+screens, and a PDF only converts on a machine that can reach
 Hugging Face until [`api/05-packaging.md`](api/05-packaging.md) ships the parser
 pack.
 
@@ -88,10 +90,11 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 | **Schema owner** | Alembic only; **never** `create_all` | Cloud's `create_all`-on-startup races its own migrations and breaks releases. Local has one path to a schema, and a test fails if models and migrations drift. |
 | **Model layout** | One folder per feature: `modules/<feature>/models.py` | As in cloud's `automations/`, `notifications/`. `shared.db.import_models()` registers all of them at app creation: relationships name their target as a string, so a feature nobody imported is a name SQLAlchemy cannot resolve, and every query against a table pointing at it fails at runtime. |
 | **Test layout** | `tests/unit/<feature>` and `tests/integration/<feature>`, marked per module | Mirrors cloud, down to `pytestmark = pytest.mark.integration` at the top of each file. Nothing is mocked: integration means a real SQLite file in `tmp_path` built by the migrations, which is what caught the unresolved relationship above. |
+| **UI freshness** | **TanStack Query on the client; SSE `/events` invalidation; no sync engine** | Zero gave cloud two things — cross-client sync and reactive queries. Local is one user, one SQLite file: nothing to sync between clients, so that half is deleted. The reactive half stays. The worker flips a row (`pending → ready`) in a *separate* process, so it POSTs a tiny `/internal/events` to the API, which fans out a named SSE event carrying only IDs; the client calls `queryClient.invalidateQueries`. Polling (`refetchInterval`) is the trivial fallback. No WebSockets, no local replica. Endpoints (`/events`, `/internal/events`) are a queued API slice; the client adopting TanStack Query is the frontend's. |
 
 ## Open items
 
-First Studio artifact type (summary vs podcast); model pack hosting (Phase 5 only); default workspace on first launch.
+First Studio artifact type (summary vs podcast); model pack hosting (Phase 5 only); default workspace on first launch. **Queued API slice:** the freshness push — `GET /workspaces/{id}/events` (SSE fan-out to the renderer) and `POST /internal/events` (worker → API notify on row change); consumed by the frontend via `queryClient.invalidateQueries` (see the UI freshness decision).
 
 ## Copy sources
 

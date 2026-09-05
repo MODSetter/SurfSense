@@ -18,7 +18,11 @@ Dev loop + workspace CRUD. FastAPI serves live OpenAPI for frontend.
   /workspaces/{id}/documents`, `GET/PATCH/DELETE /workspaces/{id}/documents/{doc}`.
   `POST` writes a `NOTE`; upload is [phase 2](02-upload.md).
 - List filters and paging per [`../00c-data-model.md`](../00c-data-model.md).
-- Electron dev script: Vite + `uvicorn` + worker together.
+- Electron dev script: Vite + `uvicorn` + worker together. ✓ `electron/` shell —
+  `pnpm dev` runs the frontend and Electron; Electron spawns both sidecars (so
+  quitting reaps them), waits on `/health`, then loads the SPA. `check:sidecars`
+  guards the lifecycle. Preload hands the API base URL to the renderer as
+  `window.surfsense.apiUrl`.
 - Data dir: `~/.surfsense/surfsense.db`, `huey.db`.
 
 ## Acceptance

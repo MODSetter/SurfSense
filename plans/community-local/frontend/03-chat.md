@@ -10,8 +10,10 @@ Grounded chat with citations; first-run wizard.
 
 - Wizard: path A/B/C + RAM tier → `PATCH /settings`.
 - Settings: model URL, model name.
-- Thread list, messages, composer.
-- Stream assistant reply (SSE or fetch stream).
+- Thread list, messages, composer — lists via `useQuery`.
+- Stream the assistant reply over the chat SSE endpoint ([`../api/03-chat.md`](../api/03-chat.md));
+  render `data:` deltas until `[DONE]`. This is the chat token stream, separate
+  from the `/events` freshness channel (see [`../00-umbrella-plan.md`](../00-umbrella-plan.md)).
 - Citation chips → source chunk/document.
 - Empty states: no model, no documents, ingest in progress.
 

@@ -20,8 +20,18 @@ Local-first desktop app for research over your own documents. Runs fully offline
 
 ## Development
 
-API and worker run as two processes, one terminal each. The Electron shell that
-starts them together lands in a later phase.
+One command brings the whole app up — Electron spawns the API and worker
+sidecars, waits on `/health`, and loads the Vite SPA, reaping the sidecars on
+quit:
+
+```bash
+cd electron
+pnpm install
+pnpm dev                      # frontend + Electron (spawns the Python sidecars)
+pnpm check:sidecars           # asserts the spawn/health/kill loop leaves no orphans
+```
+
+Or run the backend on its own, one process per terminal:
 
 ```bash
 cd backend

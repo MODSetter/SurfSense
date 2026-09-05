@@ -17,14 +17,28 @@ Packaged Electron spawns API + worker binaries; `/health`; clean quit.
   round-trips a vector. Recipe in
   [`05-packaging.md`](05-packaging.md#proven-the-frozen-binary-opens-its-database).
 - Electron spawn/kill sidecars from `extraResources`.
-- Document dev vs packaged binary paths.
-- Sidecar pattern — separate binaries, not threads in Electron.
+  ✓ Dev proven: `electron/src/main/sidecars.ts` spawns the API + worker in their
+  own process group, waits on `/health`, and reaps both on quit (SIGTERM →
+  SIGKILL; `taskkill /t` on Windows). `pnpm check:sidecars` asserts no orphans.
+  Packaged spawn from `extraResources` (frozen binaries) stays phase 5.
+  Shape borrowed from mature Electron+Python apps (modly `PythonBridge`,
+  OpenHands): readiness fails fast if a sidecar exits mid-startup rather than
+  polling the full timeout; `app.requestSingleInstanceLock()` stops a second
+  instance from fighting over the SQLite file and port; an unexpected sidecar
+  exit is flagged as a crash (`sidecar:crashed`), not a silent stop.
+- Document dev vs packaged binary paths. ✓ `sidecars.ts`: dev runs `uv run
+  main.py` / `worker.py`; packaged runs `resources/api` / `resources/worker`.
+- Sidecar pattern — separate binaries, not threads in Electron. ✓ Two child
+  processes, not threads.
 - Build per OS on that OS.
 
 ## Acceptance
 
 - VM without Python → app opens → `/health` OK → one Huey job runs → quit, no orphan processes.
+  ◐ Dev covers `/health` OK and quit-no-orphans (`pnpm check:sidecars`); the
+  packaged-on-a-clean-VM leg lands with the frozen binaries in phase 5.
 - The same binary creates its database and answers a query against `chunk_vectors`.
+  ✓ `tests/packaging/test_frozen_boot.py` (see above).
 
 ## Out of scope
 

@@ -10,6 +10,10 @@ App opens with navigation and workspace screens.
 ## Work
 
 - Vite + React + router + Tailwind/shadcn.
+- API base URL: read `window.surfsense.apiUrl` (exposed by the Electron preload;
+  falls back to `http://127.0.0.1:8000` in a bare browser). Electron picks the
+  port in the packaged app, so do not hard-code it.
+- Data fetching: TanStack Query client (freshness decision in [`../00-umbrella-plan.md`](../00-umbrella-plan.md)).
 - Layout: sidebar, workspace switcher, routes Documents / Chat / Studio / Settings.
 - Workspace list + create → `GET/POST /workspaces`.
 - Switcher entries rename (`PATCH /workspaces/{id}`) and delete
