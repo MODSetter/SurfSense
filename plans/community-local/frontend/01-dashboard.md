@@ -267,8 +267,15 @@ workspace, so do not render source-selection checkboxes.
   content can be retrieved.
 - Failed rows expose `error_message` and a Retry action using the existing
   retry endpoint.
-- Upload is the Phase 2 dropzone and calls the existing multipart upload
-  endpoint; dashboard structure reserves its header action now.
+- The header `Add` action opens a multiple-file picker and posts one
+  `multipart/form-data` request to the existing upload endpoint using the
+  repeated field name `files`.
+- Insert the upload response's `created` documents immediately so users see
+  their `pending` state without waiting for another list request. Report
+  `duplicates` separately; a duplicate is not an upload failure.
+- While any document is `pending` or `processing`, poll the workspace document
+  list. Stop when every document is `ready` or `failed`, and abort polling when
+  the workspace changes or the panel unmounts. Do not poll an idle workspace.
 - The latest assistant citation frame marks documents used in the answer and
   orders those references above the full source list.
 - Resolve citation `document_id` against the already loaded document list for
@@ -339,7 +346,7 @@ Rules:
 - Workspace creation failure: retryable blocking Alert.
 - No threads: local new-chat state with composer ready.
 - Messages loading: thread skeleton while the composer stays disabled.
-- No documents: Sources `Empty` with the future upload action location.
+- No documents: Sources `Empty` with the header upload action available.
 - API unavailable: blocking shell Alert with Retry.
 - Provider unavailable: dashboard may render historical messages and sources,
   but sending is disabled with a direct path to model setup.
@@ -386,6 +393,11 @@ Rules:
 ### Sources
 
 - Sources are scoped to the active workspace.
+- Add accepts multiple files and sends them under the backend's repeated
+  `files` multipart field.
+- Newly uploaded files appear immediately as pending; the panel updates them
+  through processing to ready or failed without a reload.
+- Duplicate filenames are reported without hiding successfully created files.
 - Pending, ready, and failed states are distinguishable.
 - Citations from the latest answer resolve to document titles and open the
   corresponding document preview.
@@ -397,7 +409,8 @@ Rules:
 - Unit tests cover the chunk-safe SSE parser and workspace bootstrap
   deduplication.
 - Component tests cover workspace switching, lazy thread creation, streaming
-  deltas, citation handoff, cancellation, and backend errors.
+  deltas, citation handoff, cancellation, backend errors, multipart upload,
+  and ingestion status polling.
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`, and `pnpm build` pass.
 - Browser verification covers the full desktop layout, keyboard navigation,
   light/dark themes, long workspace/thread/document names, empty states, and a

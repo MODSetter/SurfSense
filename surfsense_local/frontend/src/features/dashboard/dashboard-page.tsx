@@ -79,6 +79,8 @@ function WorkspaceDashboard({
         selectedCitation={selectedCitation}
         isLoading={sources.isLoading}
         isLoadingPreview={sources.isLoadingPreview}
+        isUploading={sources.isUploading}
+        uploadOutcome={sources.uploadOutcome}
         error={sources.error}
         onOpen={openSource}
         onBack={() => {
@@ -86,6 +88,8 @@ function WorkspaceDashboard({
           sources.closePreview()
         }}
         onRetry={(id) => void sources.retry(id)}
+        onUpload={(files) => void sources.upload(files)}
+        onDismissUploadOutcome={sources.dismissUploadOutcome}
       />
     </>
   )

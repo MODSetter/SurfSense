@@ -16,6 +16,11 @@ export type DocumentDetail = WorkspaceDocument & {
   content: string | null
 }
 
+export type UploadOutcome = {
+  created: WorkspaceDocument[]
+  duplicates: { filename: string; document_id: number }[]
+}
+
 export function listDocuments(
   workspaceId: number,
   signal?: AbortSignal
@@ -45,5 +50,20 @@ export function retryDocument(
   return requestJson<DocumentDetail>(
     `/workspaces/${workspaceId}/documents/${documentId}/retry`,
     { method: "POST", signal }
+  )
+}
+
+export function uploadDocuments(
+  workspaceId: number,
+  files: File[],
+  signal?: AbortSignal
+): Promise<UploadOutcome> {
+  const body = new FormData()
+  for (const file of files) {
+    body.append("files", file)
+  }
+  return requestJson<UploadOutcome>(
+    `/workspaces/${workspaceId}/documents/upload`,
+    { method: "POST", body, signal }
   )
 }

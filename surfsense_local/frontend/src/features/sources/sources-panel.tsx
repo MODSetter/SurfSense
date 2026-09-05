@@ -1,5 +1,7 @@
+import { useRef, type ChangeEvent } from "react"
 import {
   ArrowLeftIcon,
+  CheckCircle2Icon,
   FileIcon,
   FilePlus2Icon,
   NotebookTextIcon,
@@ -20,14 +22,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+  type UploadOutcome,
+  type DocumentDetail,
+  type WorkspaceDocument,
+} from "./api"
 import type { Citation } from "@/features/chat/sse"
+import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
-
-import type { DocumentDetail, WorkspaceDocument } from "./api"
 
 const statusVariant = {
   pending: "outline",
@@ -171,10 +173,14 @@ export function SourcesPanel({
   selectedCitation,
   isLoading,
   isLoadingPreview,
+  isUploading,
+  uploadOutcome,
   error,
   onOpen,
   onBack,
   onRetry,
+  onUpload,
+  onDismissUploadOutcome,
 }: {
   documents: WorkspaceDocument[]
   citations: Citation[]
@@ -182,11 +188,22 @@ export function SourcesPanel({
   selectedCitation: Citation | null
   isLoading: boolean
   isLoadingPreview: boolean
+  isUploading: boolean
+  uploadOutcome: UploadOutcome | null
   error: string | null
   onOpen: (documentId: number, citation?: Citation) => void
   onBack: () => void
   onRetry: (documentId: number) => void
+  onUpload: (files: File[]) => void
+  onDismissUploadOutcome: () => void
 }) {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const chooseFiles = () => fileInput.current?.click()
+  const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    onUpload(Array.from(event.target.files ?? []))
+    event.target.value = ""
+  }
+
   if (selectedDocument) {
     return (
       <aside
@@ -217,23 +234,61 @@ export function SourcesPanel({
     >
       <header className="flex h-14 items-center justify-between border-b px-4">
         <h2 className="text-sm font-semibold">Sources</h2>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button size="sm" variant="outline" disabled>
-                <FilePlus2Icon />
-                Add
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Source upload is coming next.</TooltipContent>
-        </Tooltip>
+        <Input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="sr-only"
+          aria-label="Upload source files"
+          disabled={isUploading}
+          onChange={uploadSelectedFiles}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={isUploading}
+          onClick={chooseFiles}
+        >
+          {isUploading ? <Spinner /> : <FilePlus2Icon />}
+          {isUploading ? "Uploading..." : "Add"}
+        </Button>
       </header>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-3 p-3">
+          {uploadOutcome ? (
+            <Alert>
+              <CheckCircle2Icon />
+              <AlertTitle>
+                {uploadOutcome.created.length > 0
+                  ? `${uploadOutcome.created.length} source${uploadOutcome.created.length === 1 ? "" : "s"} added`
+                  : "No new sources added"}
+              </AlertTitle>
+              <AlertDescription>
+                {uploadOutcome.created.length > 0 ? (
+                  <p>Ingestion is running in the background.</p>
+                ) : null}
+                {uploadOutcome.duplicates.length > 0 ? (
+                  <p>
+                    Already present:{" "}
+                    {uploadOutcome.duplicates
+                      .map((duplicate) => duplicate.filename)
+                      .join(", ")}
+                  </p>
+                ) : null}
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="mt-1 h-auto p-0"
+                  onClick={onDismissUploadOutcome}
+                >
+                  Dismiss
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {error ? (
             <Alert variant="destructive">
-              <AlertTitle>Sources unavailable</AlertTitle>
+              <AlertTitle>Source action failed</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
