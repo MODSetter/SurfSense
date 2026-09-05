@@ -153,9 +153,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROD: ${{ steps.sign.outputs.prod }}
-          # macOS Developer ID signing + notarization — the same org certs the
-          # cloud desktop app uses. Only the macOS runner consumes these, and
-          # electron-builder skips signing when the identity is absent (forks).
           CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
