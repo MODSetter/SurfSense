@@ -28,8 +28,17 @@ function installApi({
 
     if (path === "/llm/providers") {
       return Response.json([
-        { name: "ollama", healthy: true, can_download: true },
+        {
+          name: "ollama",
+          healthy: true,
+          can_download: true,
+          requires_key: false,
+          configured: true,
+        },
       ])
+    }
+    if (path === "/llm/providers/ollama/catalog") {
+      return Response.json([])
     }
     if (path === "/llm/providers/ollama/models") {
       return Response.json(models)
