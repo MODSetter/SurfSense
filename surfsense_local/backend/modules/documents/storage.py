@@ -6,11 +6,21 @@ from typing import NamedTuple
 
 from fastapi import HTTPException, UploadFile, status
 
+from modules.documents.models import Document
+from shared.config import get_storage_settings
+
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 READ_SIZE = 1024 * 1024
 
 # The only part of a client's filename allowed near a path.
 SAFE_SUFFIX = re.compile(r"\A\.[A-Za-z0-9]{1,16}\Z")
+
+
+def original_path(document: Document) -> Path:
+    """Where the upload was stored."""
+    suffix = (document.document_metadata or {}).get("suffix", "")
+    directory = get_storage_settings().document_dir(document.workspace_id, document.id)
+    return directory / f"original{suffix}"
 
 
 def title_of(upload: UploadFile) -> str:

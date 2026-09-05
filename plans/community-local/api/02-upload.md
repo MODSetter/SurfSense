@@ -18,6 +18,8 @@ Accept files, persist metadata, enqueue ingest.
 - Insert `documents`: `status=pending`, `dedup_key`, metadata.
 - One Huey job per file, enqueued **after** the commit. The worker is another
   process and would otherwise go looking for a row this request had not written.
+  Creating a note and editing one enqueue the same way: both were leaving a row
+  at `pending` that nothing would ever pick up.
 - A batch is split, not rejected: the response carries `created` and
   `duplicates`, so a dropped folder holding one known file keeps the rest.
 - `POST /workspaces/{id}/documents/{doc}/retry` — requeue a `failed` document.

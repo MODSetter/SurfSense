@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,6 +11,12 @@ class StorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
 
     data_dir: Path = Path.home() / ".surfsense"
+
+    @property
+    def models_dir(self) -> Path:
+        # Overridable on its own so packaging can ship weights beside the app.
+        override = os.environ.get("SURFSENSE_LOCAL_MODELS_DIR")
+        return Path(override) if override else self.data_dir / "models"
 
     @property
     def database_path(self) -> Path:
@@ -44,8 +51,18 @@ class SearchSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
 
     # Schema, not preference: a vec0 table declares its width at creation.
-    # 768 is nomic-embed-text.
-    embedding_dimension: int = 768
+    # 384 is bge-small-en-v1.5, the bundled default.
+    embedding_dimension: int = 384
+
+
+class LLMSettings(BaseSettings):
+    """The generation runtime. Electron starts Ollama and passes its address."""
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    # Dev fallback for a bare `ollama serve`. The packaged app never hits this:
+    # Electron runs Ollama on a port it chose and sets the env var.
+    ollama_base_url: str = "http://127.0.0.1:11434"
 
 
 @lru_cache
@@ -57,3 +74,8 @@ def get_storage_settings() -> StorageSettings:
 @lru_cache
 def get_search_settings() -> SearchSettings:
     return SearchSettings()
+
+
+@lru_cache
+def get_llm_settings() -> LLMSettings:
+    return LLMSettings()

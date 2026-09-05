@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
 from modules.health.router import router as health_router
+from modules.llm.router import router as llm_router
 from modules.workspaces.router import router as workspaces_router
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory, import_models
@@ -31,4 +33,6 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
+    app.include_router(llm_router)
+    app.include_router(chat_router)
     return app

@@ -17,7 +17,13 @@ from modules.documents.schemas import (
     NoteCreate,
     UploadOutcome,
 )
-from modules.documents.storage import StreamedUpload, stream_upload, suffix_of, title_of
+from modules.documents.storage import (
+    StreamedUpload,
+    original_path,
+    stream_upload,
+    suffix_of,
+    title_of,
+)
 from modules.documents.tasks import ingest_document
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
@@ -68,7 +74,9 @@ def create_note(
         content=payload.content,
     )
     session.add(note)
-    session.flush()
+    session.commit()
+
+    ingest_document(note.id)
     return note
 
 
@@ -155,21 +163,28 @@ def read_document(document: DocumentDep) -> Document:
     response_model=DocumentDetail,
     summary="Edit a document",
 )
-def update_document(document: DocumentDep, payload: DocumentUpdate) -> Document:
+def update_document(
+    document: DocumentDep, payload: DocumentUpdate, session: SessionDep
+) -> Document:
     if payload.title is not None:
         document.title = payload.title
 
-    if payload.content is not None:
-        if document.document_type is not DocumentType.NOTE:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "only a note's content is editable; the rest is extracted from a file",
-            )
-        document.content = payload.content
-        # The indexed copy is now stale, and search would keep returning the
-        # old text until the worker rebuilds it.
-        document.status = DocumentStatus.PENDING
+    if payload.content is None:
+        return document
 
+    if document.document_type is not DocumentType.NOTE:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "only a note's content is editable; the rest is extracted from a file",
+        )
+
+    document.content = payload.content
+    # The indexed copy is now stale, and search would keep returning the old
+    # text until the worker has rebuilt it.
+    document.status = DocumentStatus.PENDING
+    session.commit()
+
+    ingest_document(document.id)
     return document
 
 
@@ -199,11 +214,7 @@ def retry_document(document: DocumentDep, session: SessionDep) -> Document:
     summary="Download the uploaded file",
 )
 def read_original(document: DocumentDep) -> FileResponse:
-    suffix = (document.document_metadata or {}).get("suffix", "")
-    path = (
-        get_storage_settings().document_dir(document.workspace_id, document.id)
-        / f"original{suffix}"
-    )
+    path = original_path(document)
 
     if not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no file behind this document")

@@ -1,6 +1,4 @@
 import enum
-import importlib
-import pkgutil
 from pathlib import Path
 from typing import Any
 
@@ -25,17 +23,17 @@ class Base(DeclarativeBase):
 
 
 def import_models() -> None:
-    """Register every slice's models before the first mapper is configured.
+    """Import every model, before anything asks SQLAlchemy to map them.
 
-    Relationships name their target as a string, so a slice nobody imported is
-    a name SQLAlchemy cannot resolve, and every query against a table that
-    points at it fails at runtime.
+    A relationship names its target as a string, so an unimported model is a
+    name that cannot resolve.
     """
-    import modules
-
-    for found in pkgutil.walk_packages(modules.__path__, f"{modules.__name__}."):
-        if found.name.endswith(".models"):
-            importlib.import_module(found.name)
+    import modules.artifacts.models
+    import modules.chat.models
+    import modules.chunks.models
+    import modules.documents.models
+    import modules.llm.models
+    import modules.workspaces.models
 
 
 def text_enum(members: type[enum.Enum]) -> Enum:
