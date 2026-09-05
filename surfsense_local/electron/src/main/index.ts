@@ -22,6 +22,7 @@ async function bootSidecars(): Promise<string> {
   const packaged = app.isPackaged
   const port = packaged ? await getFreePort(host) : DEV_API_PORT
 
+  const dataDir = join(app.getPath("home"), ".surfsense")
   sidecars = startSidecars(
     {
       // dev: backend sits next to electron/; packaged: frozen binaries in resources/
@@ -29,7 +30,11 @@ async function bootSidecars(): Promise<string> {
       binariesDir: process.resourcesPath,
       host,
       port,
-      dataDir: join(app.getPath("home"), ".surfsense"),
+      dataDir,
+      // Packaged only: the shipped model is read-only in resources/, Docling's
+      // download needs somewhere writable. Dev leaves both at their defaults.
+      modelsDir: packaged ? join(process.resourcesPath, "models") : undefined,
+      hfHome: packaged ? join(dataDir, "hf") : undefined,
       packaged,
     },
     onSidecarCrash,

@@ -12,6 +12,10 @@ export interface SidecarConfig {
   host: string
   port: number
   dataDir: string
+  /** Read-only dir holding the shipped embedding model (packaged only). */
+  modelsDir?: string
+  /** Writable Hugging Face cache for Docling's first-run parser download. */
+  hfHome?: string
   /** Dev spawns `uv run`; packaged spawns the frozen binaries. */
   packaged: boolean
 }
@@ -46,6 +50,8 @@ function spawnSidecar(
       SURFSENSE_LOCAL_HOST: cfg.host,
       SURFSENSE_LOCAL_PORT: String(cfg.port),
       SURFSENSE_LOCAL_DATA_DIR: cfg.dataDir,
+      ...(cfg.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: cfg.modelsDir }),
+      ...(cfg.hfHome && { HF_HOME: cfg.hfHome }),
     },
   })
   child.stdout?.on("data", (b: Buffer) => process.stdout.write(`[${name}] ${b}`))
@@ -61,12 +67,15 @@ function spawnSidecar(
   return child
 }
 
+// onedir names the executable after the spec; PyInstaller adds .exe on Windows.
+const exe = (name: string): string => (isWindows ? `${name}.exe` : name)
+
 export function startSidecars(cfg: SidecarConfig, onCrash?: CrashHandler): Sidecars {
   const [apiCmd, apiArgs]: [string, string[]] = cfg.packaged
-    ? [join(cfg.binariesDir, "api", "api"), []]
+    ? [join(cfg.binariesDir, "backend", "api", exe("api")), []]
     : ["uv", ["run", "main.py"]]
   const [workerCmd, workerArgs]: [string, string[]] = cfg.packaged
-    ? [join(cfg.binariesDir, "worker", "worker"), []]
+    ? [join(cfg.binariesDir, "backend", "worker", exe("worker")), []]
     : ["uv", ["run", "worker.py"]]
   return {
     api: spawnSidecar("api", apiCmd, apiArgs, cfg, onCrash),
