@@ -6,6 +6,8 @@
 ## Goal
 
 App opens with model selection, then navigation and workspace screens.
+The desktop shell, workspace bootstrap, assistant-ui runtime, and three-panel
+dashboard are specified in [`01-dashboard.md`](01-dashboard.md).
 
 ## Work
 
@@ -27,8 +29,9 @@ App opens with model selection, then navigation and workspace screens.
   - Cover initial loading, API unavailable, provider unavailable, no compatible
     models, refreshing, saving, save failure, and saved states. A failed save
     keeps the user's draft so it can be retried.
-- Vite + React + router + Tailwind/shadcn.
-- Layout: sidebar, workspace switcher, routes Documents / Chat / Studio / Settings.
+- Vite + React + Tailwind/shadcn; assistant-ui owns conversation interaction.
+- Desktop layout: workspace rail, chat list, conversation, and sources panel —
+  [`01-dashboard.md`](01-dashboard.md).
 - Workspace list + create → `GET/POST /workspaces`.
 - Switcher entries rename (`PATCH /workspaces/{id}`) and delete
   (`DELETE /workspaces/{id}`). Deleting takes every document in it, so confirm first.
