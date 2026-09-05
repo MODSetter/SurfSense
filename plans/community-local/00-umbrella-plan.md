@@ -23,7 +23,7 @@ Same phase number = integrate together.
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
 | **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ◐ | [`01-boot.md`](worker/01-boot.md) ✓ |
 | **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
-| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) | [`03-search.md`](worker/03-search.md) ✓ |
+| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
 | **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05-packaging.md`](api/05-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
 
@@ -37,11 +37,14 @@ chunks, bundled bge-small embeds, both index tables written, `ready` or `failed`
 with a reason. The generation slice ([`modules/llm/`](../../surfsense_local/backend/modules/llm/))
 also lands ahead of its phase: list and pull Ollama models, a curated Qwen
 catalog, and a selectable model per role — everything
-[`api/03-chat.md`](api/03-chat.md) needs except the stream itself. Retrieval now
+[`api/03-chat.md`](api/03-chat.md) needs except the stream itself. Retrieval
 lands too ([`shared/search.py`](../../surfsense_local/backend/shared/search.py)):
 `retrieve()` scopes to a workspace, widens recall with a BM25 leg and a vector KNN
-leg, then rescores the union by cosine, so **all [`api/03-chat.md`](api/03-chat.md)
-has left is to call it and stream**. Phase 1 still owes both screens and
+leg, then rescores the union by cosine. **Chat now closes on all of it**
+([`modules/chat/`](../../surfsense_local/backend/modules/chat/)): a thread's turn
+retrieves its own context, grounds a system prompt with citable `<source>` blocks,
+slides a window over history, and streams a cited reply over SSE while both turns
+persist. Phase 1 still owes both screens and
 the Electron dev script, and a PDF only converts on a machine that can reach
 Hugging Face until [`api/05-packaging.md`](api/05-packaging.md) ships the parser
 pack.
