@@ -10,7 +10,9 @@ One Studio action end-to-end in UI.
 - One artifact type for v1.
 - Multi-select documents + optional prompt.
 - Submit → `POST /workspaces/{id}/studio/jobs`.
-- Poll `GET .../artifacts/{id}`.
+- Track the artifact with `useQuery` on `GET .../artifacts/{id}`; `invalidateQueries`
+  on the SSE `artifact.updated` event, `refetchInterval` while it runs as fallback
+  (freshness decision in [`../00-umbrella-plan.md`](../00-umbrella-plan.md)).
 - Viewer: summary / audio / download.
 
 ## Acceptance
