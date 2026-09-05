@@ -24,6 +24,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyinstaller>=6.22.2",
     "pytest>=8.4.0",
     "pytest-asyncio>=1.0.0",
     "ruff>=0.12.5",
@@ -93,8 +94,9 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib -m 'not packaging'"
 markers = [
     "unit: pure logic tests, no database or external services",
     "integration: tests that run against a real SQLite database built by migrations",
+    "packaging: freezes a binary to prove the packaged app boots; slow, opt-in",
 ]
