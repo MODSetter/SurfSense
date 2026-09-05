@@ -66,6 +66,30 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Detect release signing eligibility
+        id: sign
+        run: |
+          # Sign only on production tag pushes (local-v*), reusing the org certs.
+          # Contributor forks and dry runs lack the secrets and build unsigned.
+          if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF" == refs/tags/local-v* ]]; then
+            echo "prod=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prod=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify Apple notarization credentials
+        if: matrix.os == 'macos-14' && steps.sign.outputs.prod == 'true'
+        # Fails in seconds on bad secrets instead of after the full build.
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" > /dev/null
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -128,15 +152,39 @@ jobs:
         working-directory: surfsense_local/electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Unsigned for v1. To sign later, add the certs as secrets and pass them
-          # here: macOS wants CSC_LINK / CSC_KEY_PASSWORD / APPLE_ID /
-          # APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID; Windows wants its own
-          # CSC_LINK / CSC_KEY_PASSWORD. electron-builder picks them up per-OS.
+          PROD: ${{ steps.sign.outputs.prod }}
+          # macOS Developer ID signing + notarization — the same org certs the
+          # cloud desktop app uses. Only the macOS runner consumes these, and
+          # electron-builder skips signing when the identity is absent (forks).
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows Azure Trusted Signing — the service principal is only wired
+          # in on production tags (see the CLI flags below).
+          WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
+          AZURE_CODESIGN_ENDPOINT: ${{ vars.AZURE_CODESIGN_ENDPOINT }}
+          AZURE_CODESIGN_ACCOUNT: ${{ vars.AZURE_CODESIGN_ACCOUNT }}
+          AZURE_CODESIGN_PROFILE: ${{ vars.AZURE_CODESIGN_PROFILE }}
+          AZURE_TENANT_ID: ${{ steps.sign.outputs.prod == 'true' && secrets.AZURE_TENANT_ID || '' }}
+          AZURE_CLIENT_ID: ${{ steps.sign.outputs.prod == 'true' && secrets.AZURE_CLIENT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ steps.sign.outputs.prod == 'true' && secrets.AZURE_CLIENT_SECRET || '' }}
         run: |
-          pnpm exec electron-builder ${{ matrix.platform }} \
+          CMD=(pnpm exec electron-builder ${{ matrix.platform }} \
             --publish "${{ inputs.publish || 'always' }}" \
             -c.npmRebuild=false \
-            -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}"
+            -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}")
+
+          # Windows signing via Azure Trusted Signing, production tags only.
+          if [ "$PROD" = "true" ] && [ "$RUNNER_OS" = "Windows" ]; then
+            CMD+=(-c.win.azureSignOptions.publisherName="$WINDOWS_PUBLISHER_NAME")
+            CMD+=(-c.win.azureSignOptions.endpoint="$AZURE_CODESIGN_ENDPOINT")
+            CMD+=(-c.win.azureSignOptions.codeSigningAccountName="$AZURE_CODESIGN_ACCOUNT")
+            CMD+=(-c.win.azureSignOptions.certificateProfileName="$AZURE_CODESIGN_PROFILE")
+          fi
+
+          "${CMD[@]}"
 
       - name: Smoke the frozen API (Linux)
         if: matrix.os == 'ubuntu-latest'
