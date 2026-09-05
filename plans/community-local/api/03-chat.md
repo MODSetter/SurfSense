@@ -38,4 +38,4 @@ provider client.
 
 ## Interface to worker
 
-`search_workspace()` in [`../worker/03-search.md`](../worker/03-search.md). Synchronous call; no Huey for chat v1.
+`retrieve()` in [`../worker/03-search.md`](../worker/03-search.md). Synchronous call; no Huey for chat v1.

@@ -23,7 +23,7 @@ Same phase number = integrate together.
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
 | **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ◐ | [`01-boot.md`](worker/01-boot.md) ✓ |
 | **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
-| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) | [`03-search.md`](worker/03-search.md) |
+| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) | [`03-search.md`](worker/03-search.md) ✓ |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
 | **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05-packaging.md`](api/05-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
 
@@ -37,9 +37,11 @@ chunks, bundled bge-small embeds, both index tables written, `ready` or `failed`
 with a reason. The generation slice ([`modules/llm/`](../../surfsense_local/backend/modules/llm/))
 also lands ahead of its phase: list and pull Ollama models, a curated Qwen
 catalog, and a selectable model per role — everything
-[`api/03-chat.md`](api/03-chat.md) needs except the stream itself. A document is
-now searchable; **nothing searches it yet**, which is
-[`worker/03-search.md`](worker/03-search.md). Phase 1 still owes both screens and
+[`api/03-chat.md`](api/03-chat.md) needs except the stream itself. Retrieval now
+lands too ([`shared/search.py`](../../surfsense_local/backend/shared/search.py)):
+`retrieve()` scopes to a workspace, widens recall with a BM25 leg and a vector KNN
+leg, then rescores the union by cosine, so **all [`api/03-chat.md`](api/03-chat.md)
+has left is to call it and stream**. Phase 1 still owes both screens and
 the Electron dev script, and a PDF only converts on a machine that can reach
 Hugging Face until [`api/05-packaging.md`](api/05-packaging.md) ships the parser
 pack.
@@ -75,11 +77,11 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 | Decision | Choice | Why |
 |---|---|---|
 | **HTTP stack** | **FastAPI** + uvicorn | Same stack as cloud backend; native OpenAPI for frontend; SSE streaming for chat. PyInstaller risk is handled in [`api/00-spike.md`](api/00-spike.md) — not a reason to downgrade. |
-| **Retrieval** | **FTS5 + sqlite-vec hybrid (RRF)** | Semantic + keyword from day one. Embeddings on ingest must be queried properly — not keyword-only, not in-memory scan over BLOBs. |
+| **Retrieval** | **FTS5 + sqlite-vec hybrid, cosine rescore** | Semantic + keyword from day one: both legs widen recall, cosine orders. Embeddings on ingest must be queried properly — not keyword-only, not in-memory scan over BLOBs. |
 | **Embed provider** | Bundled bge-small-en-v1.5 int8, in-process on onnxruntime | 384-dim, ~66MB, runs offline on CPU with no model server. Docling parses, Chonkie chunks. Remote embedding is a later opt-in, not a launch dependency. |
 | **Generation provider** | Ollama default; curated Qwen catalog; provider `Protocol`s | `modules/llm/`. A `Generator` answers, a `ModelStore` downloads; a remote API satisfies only the first, so the download UI is gated by `isinstance`, not a provider name. Ollama has no library API, so the offered models are a curated Qwen list inside the Ollama provider. `SelectedModel(role)` holds the choice. Adding a provider is a folder plus one registry line. |
 | **Persistence** | SQLAlchemy 2.0 + Alembic, same as cloud | Models are the source of truth. `versions/` ships as PyInstaller data, resolved from the package's own `__file__` — de-risked in [`api/00-spike.md`](api/00-spike.md). |
-| **Migrations** | **Hand-written; autogenerate is off** | Autogenerate cannot see a rename — it emits drop + add, which deletes a column's data silently. The target database is one user's laptop, unbacked and uninspectable, so every revision is written and read by a person. `env.py` carries no `target_metadata`, so `--autogenerate` cannot be used by accident. Same call Open WebUI makes across all 58 of its SQLite revisions. |
+| **Migrations** | **Hand-written; autogenerate is off** | Autogenerate cannot see a rename — it emits drop + add, which deletes a column's data silently. The target database is one user's laptop, unbacked and uninspectable, so every revision is written and read by a person. `env.py` carries no `target_metadata`, so `--autogenerate` cannot be used by accident. Mature SQLite-backed apps make the same call — hand-written revisions throughout. |
 | **Schema owner** | Alembic only; **never** `create_all` | Cloud's `create_all`-on-startup races its own migrations and breaks releases. Local has one path to a schema, and a test fails if models and migrations drift. |
 | **Model layout** | One folder per feature: `modules/<feature>/models.py` | As in cloud's `automations/`, `notifications/`. `shared.db.import_models()` registers all of them at app creation: relationships name their target as a string, so a feature nobody imported is a name SQLAlchemy cannot resolve, and every query against a table pointing at it fails at runtime. |
 | **Test layout** | `tests/unit/<feature>` and `tests/integration/<feature>`, marked per module | Mirrors cloud, down to `pytestmark = pytest.mark.integration` at the top of each file. Nothing is mocked: integration means a real SQLite file in `tmp_path` built by the migrations, which is what caught the unresolved relationship above. |

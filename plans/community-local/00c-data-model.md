@@ -183,7 +183,7 @@ for documents that no longer exist.
 **Indexing (Phase 2):** ingest writes `chunks` and the `vec0` row. FTS follows on
 its own; the vector cannot, because only ingest holds the embedding.
 
-**Search (Phase 3):** embed query → FTS5 top‑K + vec0 top‑K → **RRF merge** (k=60) → dedupe by `chunk_id` → return hits with scores for citation ranking.
+**Search (Phase 3):** embed query → FTS5 top‑K + vec0 top‑K for recall → **cosine rescore** of the union (`vec_distance_cosine`) → top‑k hits with scores for citation ranking.
 
 **Embedding dimension `D`:** `SURFSENSE_LOCAL_EMBEDDING_DIMENSION`, default 384
 for the bundled bge-small-en-v1.5 int8. A `vec0` table is fixed at the width it
