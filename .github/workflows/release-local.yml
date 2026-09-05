@@ -37,7 +37,10 @@ jobs:
           - os: ubuntu-latest
             platform: --linux
             electron_cache: ~/.cache/electron
-          - os: macos-14
+          - os: macos-14 # Apple Silicon → arm64 dmg
+            platform: --mac
+            electron_cache: ~/Library/Caches/electron
+          - os: macos-13 # Intel → x64 dmg (the native backend can't cross-compile)
             platform: --mac
             electron_cache: ~/Library/Caches/electron
           - os: windows-latest
@@ -78,7 +81,7 @@ jobs:
           fi
 
       - name: Verify Apple notarization credentials
-        if: matrix.os == 'macos-14' && steps.sign.outputs.prod == 'true'
+        if: runner.os == 'macOS' && steps.sign.outputs.prod == 'true'
         # Fails in seconds on bad secrets instead of after the full build.
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
