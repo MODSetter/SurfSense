@@ -7,20 +7,20 @@ import {
   modelKey,
   setGenerationSelection,
   type ModelSelection,
+  type Provider,
   type SelectableModel,
 } from "./api"
-
-type LoadedState = {
-  selection: ModelSelection | null
-  staleSelection: boolean
-}
 
 export type ModelSelectionState =
   | { status: "loading" }
   | { status: "api-unavailable"; message: string }
-  | { status: "provider-unavailable"; message: string }
-  | ({ status: "empty" } & LoadedState)
-  | ({ status: "ready"; models: SelectableModel[] } & LoadedState)
+  | {
+      status: "ready"
+      providers: Provider[]
+      models: SelectableModel[]
+      selection: ModelSelection | null
+      staleSelection: boolean
+    }
 
 type SaveState =
   | { status: "idle" }
@@ -56,16 +56,9 @@ async function fetchSelectionState(
   }
 
   const healthyProviders = providers.filter((provider) => provider.healthy)
-  if (healthyProviders.length === 0) {
-    return {
-      status: "provider-unavailable",
-      message: "No local model provider is currently reachable.",
-    }
-  }
-
-  try {
-    const modelGroups = await Promise.all(
-      healthyProviders.map(async (provider) => {
+  const modelGroups = await Promise.all(
+    healthyProviders.map(async (provider) => {
+      try {
         const models = await getProviderModels(provider.name, signal)
         return models
           .filter(
@@ -73,31 +66,32 @@ async function fetchSelectionState(
               model.installed && model.capabilities.includes("completion")
           )
           .map((model) => ({ ...model, provider: provider.name }))
-      })
+      } catch (error) {
+        if (isAbort(error)) {
+          throw error
+        }
+        // A failing provider yields an empty tab, not a dead screen.
+        return []
+      }
+    })
+  )
+  const models = modelGroups
+    .flat()
+    .toSorted(
+      (left, right) =>
+        left.provider.localeCompare(right.provider) ||
+        left.name.localeCompare(right.name)
     )
-    const models = modelGroups
-      .flat()
-      .toSorted(
-        (left, right) =>
-          left.provider.localeCompare(right.provider) ||
-          left.name.localeCompare(right.name)
-      )
-    const selectionIsCurrent =
-      selection !== null &&
-      models.some((model) => modelKey(model) === modelKey(selection))
-    const loadedState = {
-      selection,
-      staleSelection: selection !== null && !selectionIsCurrent,
-    }
+  const selectionIsCurrent =
+    selection !== null &&
+    models.some((model) => modelKey(model) === modelKey(selection))
 
-    return models.length === 0
-      ? { status: "empty", ...loadedState }
-      : { status: "ready", models, ...loadedState }
-  } catch (error) {
-    if (isAbort(error)) {
-      throw error
-    }
-    return { status: "provider-unavailable", message: messageFrom(error) }
+  return {
+    status: "ready",
+    providers,
+    models,
+    selection,
+    staleSelection: selection !== null && !selectionIsCurrent,
   }
 }
 
@@ -128,8 +122,6 @@ export function useModelSelection() {
           ? modelKey(selection)
           : null
       })
-    } else if (next.status === "empty") {
-      setDraftKey(null)
     }
     setState(next)
   }, [])
@@ -156,11 +148,14 @@ export function useModelSelection() {
     setSaveState({ status: "idle" })
   }
 
-  const refresh = async () => {
+  // Silent reloads let the caller own the spinner; the footer Refresh stays idle.
+  const refresh = async (options?: { silent?: boolean }) => {
     loadController.current?.abort()
     const controller = new AbortController()
     loadController.current = controller
-    setIsRefreshing(true)
+    if (!options?.silent) {
+      setIsRefreshing(true)
+    }
     setSaveState({ status: "idle" })
 
     try {
@@ -169,9 +164,9 @@ export function useModelSelection() {
         acceptState(next)
       }
     } catch {
-      // A newer refresh or unmount deliberately aborts the stale request.
+      // Aborted by a newer refresh or unmount.
     } finally {
-      if (loadController.current === controller) {
+      if (!options?.silent && loadController.current === controller) {
         setIsRefreshing(false)
       }
     }

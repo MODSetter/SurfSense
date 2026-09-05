@@ -1,5 +1,4 @@
 import {
-  BotOffIcon,
   BrainCircuitIcon,
   CheckIcon,
   CircleAlertIcon,
@@ -8,43 +7,32 @@ import {
 } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
-import {
-  Field,
-  FieldContent,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-  FieldTitle,
-} from "@/components/ui/field"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-import { modelKey } from "./api"
-import type { ModelSelection } from "./api"
+import {
+  modelKey,
+  type ModelSelection,
+  type Provider,
+  type SelectableModel,
+} from "./api"
+import { ModelList } from "./model-list"
+import { ModelCatalog } from "./providers/ollama/catalog"
+import { OpenRouterPanel } from "./providers/openrouter/panel"
 import { useModelSelection } from "./use-model-selection"
 
-const capabilityLabel = (capability: string) =>
-  capability.charAt(0).toUpperCase() + capability.slice(1)
+const titleCase = (value: string) =>
+  value.charAt(0).toUpperCase() + value.slice(1)
 
 function LoadingModels() {
   return (
@@ -68,9 +56,7 @@ function OfflineState({
     <Alert variant="destructive">
       {apiIsOffline ? <ServerOffIcon /> : <CircleAlertIcon />}
       <AlertTitle>
-        {apiIsOffline
-          ? "Local backend unavailable"
-          : "Model provider unavailable"}
+        {apiIsOffline ? "Local backend unavailable" : "Ollama unavailable"}
       </AlertTitle>
       <AlertDescription>
         <p>{message}</p>
@@ -90,6 +76,115 @@ function OfflineState({
   )
 }
 
+function OllamaPanel({
+  provider,
+  models,
+  draftKey,
+  persistedKey,
+  onSelect,
+  disabled,
+  onPulled,
+}: {
+  provider: Provider
+  models: SelectableModel[]
+  draftKey: string | null
+  persistedKey: string | null
+  onSelect: (key: string) => void
+  disabled: boolean
+  onPulled: () => void
+}) {
+  if (!provider.healthy) {
+    return (
+      <OfflineState
+        kind="provider"
+        message="SurfSense couldn't reach Ollama on this machine."
+      />
+    )
+  }
+
+  const hasModels = models.length > 0
+  return (
+    <div className="flex flex-col gap-4">
+      {hasModels ? (
+        <ModelList
+          models={models}
+          draftKey={draftKey}
+          persistedKey={persistedKey}
+          onSelect={onSelect}
+          disabled={disabled}
+        />
+      ) : null}
+      <div className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-sm font-medium">
+            {hasModels ? "Download another model" : "Download a model"}
+          </h2>
+          <p className="text-sm text-pretty text-muted-foreground">
+            {hasModels
+              ? "Add more local models to choose from."
+              : "No compatible model is installed yet. Pick one to download — it stays on this machine."}
+          </p>
+        </div>
+        <ModelCatalog providers={[provider.name]} onPulled={onPulled} />
+      </div>
+    </div>
+  )
+}
+
+function ProviderTab({
+  provider,
+  models,
+  draftKey,
+  persistedKey,
+  onSelect,
+  disabled,
+  refresh,
+}: {
+  provider: Provider
+  models: SelectableModel[]
+  draftKey: string | null
+  persistedKey: string | null
+  onSelect: (key: string) => void
+  disabled: boolean
+  refresh: (options?: { silent?: boolean }) => Promise<void>
+}) {
+  if (provider.requires_key) {
+    return (
+      <OpenRouterPanel
+        provider={provider}
+        models={models}
+        draftKey={draftKey}
+        persistedKey={persistedKey}
+        onSelect={onSelect}
+        disabled={disabled}
+        onChanged={() => refresh({ silent: true })}
+      />
+    )
+  }
+  if (provider.can_download) {
+    return (
+      <OllamaPanel
+        provider={provider}
+        models={models}
+        draftKey={draftKey}
+        persistedKey={persistedKey}
+        onSelect={onSelect}
+        disabled={disabled}
+        onPulled={refresh}
+      />
+    )
+  }
+  return (
+    <ModelList
+      models={models}
+      draftKey={draftKey}
+      persistedKey={persistedKey}
+      onSelect={onSelect}
+      disabled={disabled}
+    />
+  )
+}
+
 export function ModelSelectionPage({
   onSelected,
 }: {
@@ -99,17 +194,24 @@ export function ModelSelectionPage({
     useModelSelection()
 
   const persistedKey =
-    (state.status === "ready" || state.status === "empty") &&
-    state.selection !== null
+    state.status === "ready" && state.selection !== null
       ? modelKey(state.selection)
       : null
   const hasChanges = draftKey !== null && draftKey !== persistedKey
   const isSaving = saveState.status === "saving"
-  const isConnected = state.status === "ready" || state.status === "empty"
+  const providers = state.status === "ready" ? state.providers : []
+  const healthyProviders = providers.filter((provider) => provider.healthy)
   const canContinue =
     state.status === "ready" &&
     draftKey !== null &&
     (!state.staleSelection || hasChanges)
+  const defaultTab =
+    state.status === "ready"
+      ? (state.selection?.provider ??
+        healthyProviders[0]?.name ??
+        providers[0]?.name)
+      : undefined
+
   const handlePrimaryAction = async () => {
     if (
       !hasChanges &&
@@ -139,23 +241,12 @@ export function ModelSelectionPage({
         <Card className="[--card-spacing:--spacing(6)]">
           <CardHeader>
             <CardTitle>
-              <h1 className="text-xl text-balance">
-                Choose your local AI model
-              </h1>
+              <h1 className="text-xl text-balance">Choose your AI model</h1>
             </CardTitle>
             <CardDescription className="max-w-lg text-pretty">
-              Pick the model that will answer questions about your documents.
-              Your data and inference stay on this machine.
+              Run a local model for full privacy, or bring your own OpenRouter
+              key for capable remote models.
             </CardDescription>
-            <CardAction>
-              {state.status === "loading" ? (
-                <Skeleton className="h-5 w-20 rounded-full" />
-              ) : (
-                <Badge variant={isConnected ? "secondary" : "destructive"}>
-                  {isConnected ? "Connected" : "Offline"}
-                </Badge>
-              )}
-            </CardAction>
           </CardHeader>
 
           <CardContent className="flex flex-col gap-4">
@@ -165,12 +256,7 @@ export function ModelSelectionPage({
               <OfflineState kind="api" message={state.message} />
             ) : null}
 
-            {state.status === "provider-unavailable" ? (
-              <OfflineState kind="provider" message={state.message} />
-            ) : null}
-
-            {(state.status === "ready" || state.status === "empty") &&
-            state.staleSelection ? (
+            {state.status === "ready" && state.staleSelection ? (
               <Alert>
                 <CircleAlertIcon />
                 <AlertTitle>
@@ -183,68 +269,39 @@ export function ModelSelectionPage({
               </Alert>
             ) : null}
 
-            {state.status === "empty" ? (
-              <Empty className="border">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <BotOffIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>No compatible models found</EmptyTitle>
-                  <EmptyDescription className="text-foreground">
-                    Install a text-generation model in your local provider, then
-                    refresh this list.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <code className="rounded-md bg-muted px-2 py-1 font-mono text-xs text-foreground">
-                    ollama pull &lt;model&gt;
-                  </code>
-                </EmptyContent>
-              </Empty>
-            ) : null}
-
             {state.status === "ready" ? (
-              <FieldSet>
-                <FieldLegend className="sr-only">
-                  Installed generation models
-                </FieldLegend>
-                <RadioGroup
-                  value={draftKey ?? ""}
-                  onValueChange={select}
-                  disabled={isSaving || isRefreshing}
-                  aria-label="Installed generation models"
-                >
-                  {state.models.map((model, index) => {
-                    const key = modelKey(model)
-                    const id = `model-${index}`
-                    return (
-                      <FieldLabel key={key} htmlFor={id}>
-                        <Field orientation="horizontal">
-                          <RadioGroupItem id={id} value={key} />
-                          <FieldContent>
-                            <div className="flex min-w-0 items-center justify-between gap-3">
-                              <FieldTitle className="truncate">
-                                {model.name}
-                              </FieldTitle>
-                              {key === persistedKey ? (
-                                <Badge variant="secondary">Current</Badge>
-                              ) : null}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              <Badge variant="outline">{model.provider}</Badge>
-                              {model.capabilities.map((capability) => (
-                                <Badge key={capability} variant="outline">
-                                  {capabilityLabel(capability)}
-                                </Badge>
-                              ))}
-                            </div>
-                          </FieldContent>
-                        </Field>
-                      </FieldLabel>
-                    )
-                  })}
-                </RadioGroup>
-              </FieldSet>
+              <Tabs defaultValue={defaultTab}>
+                <TabsList>
+                  {providers.map((provider) => (
+                    <TabsTrigger key={provider.name} value={provider.name}>
+                      <span
+                        aria-hidden="true"
+                        className={`size-1.5 rounded-full ${
+                          provider.healthy
+                            ? "bg-green-500"
+                            : "bg-muted-foreground/40"
+                        }`}
+                      />
+                      {titleCase(provider.name)}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {providers.map((provider) => (
+                  <TabsContent key={provider.name} value={provider.name}>
+                    <ProviderTab
+                      provider={provider}
+                      models={state.models.filter(
+                        (model) => model.provider === provider.name
+                      )}
+                      draftKey={draftKey}
+                      persistedKey={persistedKey}
+                      onSelect={select}
+                      disabled={isSaving || isRefreshing}
+                      refresh={refresh}
+                    />
+                  </TabsContent>
+                ))}
+              </Tabs>
             ) : null}
 
             <div className="min-h-5 text-sm" aria-live="polite">
@@ -266,7 +323,7 @@ export function ModelSelectionPage({
               variant="outline"
               className="min-h-10"
               disabled={isRefreshing || isSaving}
-              onClick={refresh}
+              onClick={() => void refresh()}
             >
               {isRefreshing ? (
                 <Spinner data-icon="inline-start" />

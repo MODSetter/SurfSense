@@ -4,6 +4,8 @@ export type Provider = {
   name: string
   healthy: boolean
   can_download: boolean
+  requires_key: boolean
+  configured: boolean
 }
 
 export type ProviderModel = {
