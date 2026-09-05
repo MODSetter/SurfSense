@@ -21,3 +21,16 @@ class SelectedModel(Base):
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+
+
+class ProviderCredential(Base):
+    __tablename__ = "provider_credentials"
+
+    # One key per provider (BYO); the provider name is the key.
+    # ponytail: plaintext — the db is one user's local file. Upgrade path: hold
+    # the secret in the OS keyring and keep only a presence flag here.
+    provider: Mapped[str] = mapped_column(primary_key=True)
+    api_key: Mapped[str]
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
