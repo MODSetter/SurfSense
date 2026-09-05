@@ -10,8 +10,9 @@
     "build": "electron-vite build",
     "build:frontend": "pnpm --dir ../frontend build",
     "build:binaries": "uv --directory ../backend run scripts/build_binaries.py",
-    "build:embedding-model": "uv --directory ../backend run scripts/fetch_embedding_model.py models",
-    "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build && electron-builder",
+    "build:model": "uv --directory ../backend run scripts/fetch_embedding_model.py models",
+    "build:ollama": "node scripts/fetch-ollama.mjs",
+    "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:ollama && pnpm build && electron-builder",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:sidecars": "node scripts/check-sidecars.mjs"
   },

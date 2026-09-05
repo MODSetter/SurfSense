@@ -2,3 +2,4 @@ node_modules/
 out/
 dist/
 release/
+ollama/

@@ -4,9 +4,10 @@ directories:
   output: release
   buildResources: build
 
-# The asar carries only the main + preload bundles. The renderer SPA and the two
-# frozen Python binaries ride alongside in resources/, where the main process
-# spawns them by path (sidecars.ts) and loads the SPA from disk (index.ts).
+# The asar carries only the main + preload bundles. The renderer SPA, the two
+# frozen Python binaries, and the Ollama server ride alongside in resources/,
+# where the main process spawns them by path (sidecars/) and loads the SPA from
+# disk (index.ts).
 files:
   - out/**/*
   - package.json
@@ -24,6 +25,10 @@ extraResources:
   # The Docling parser (~1.6GB) is not shipped; it downloads on first PDF.
   - from: ../backend/models
     to: models
+  # The Ollama server (fetch-ollama.mjs stages it here). Models are pulled by the
+  # user post-install into the writable data dir, not shipped.
+  - from: ollama
+    to: ollama
 
 linux:
   target: [AppImage]
