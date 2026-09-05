@@ -37,7 +37,7 @@ function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
-export function useModelCatalog(providers: string[], onPulled: () => void) {
+export function useCatalog(providers: string[], onPulled: () => void) {
   const [state, setState] = useState<CatalogState>({ status: "loading" })
   const [pulls, setPulls] = useState<Record<string, PullState>>({})
   const controllers = useRef(new Map<string, AbortController>())
@@ -47,7 +47,6 @@ export function useModelCatalog(providers: string[], onPulled: () => void) {
     const names = providerKey ? providerKey.split(",") : []
     const controller = new AbortController()
 
-    // Promise.all([]) resolves to no rows, so state is only set asynchronously.
     Promise.all(
       names.map(async (provider) => {
         const entries = await getProviderCatalog(provider, controller.signal)
@@ -94,8 +93,7 @@ export function useModelCatalog(providers: string[], onPulled: () => void) {
         },
       }))
 
-      // Ollama pulls a model as several layers, each starting at 0 bytes. Sum
-      // them by layer so the reported percent climbs once, never resetting.
+      // Sum bytes per layer so percent only climbs; Ollama streams layers from 0.
       const layers = new Map<string, { completed: number; total: number }>()
       const view = (progress: PullProgress): PullState => {
         if (progress.total > 0) {

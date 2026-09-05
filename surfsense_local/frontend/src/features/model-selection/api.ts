@@ -1,6 +1,4 @@
-import { ApiError, request, requestJson } from "@/lib/api"
-
-import { parsePullStream, type PullProgress } from "./pull-stream"
+import { ApiError, requestJson } from "@/lib/api"
 
 export type Provider = {
   name: string
@@ -12,13 +10,6 @@ export type ProviderModel = {
   name: string
   installed: boolean
   capabilities: string[]
-}
-
-export type CatalogEntry = {
-  name: string
-  label: string
-  size_gb: number
-  installed: boolean
 }
 
 export type ModelSelection = {
@@ -75,37 +66,4 @@ export function setGenerationSelection(
     body: JSON.stringify({ provider: model.provider, name: model.name }),
     signal,
   })
-}
-
-export function getProviderCatalog(
-  provider: string,
-  signal?: AbortSignal
-): Promise<CatalogEntry[]> {
-  return requestJson<CatalogEntry[]>(
-    `/llm/providers/${encodeURIComponent(provider)}/catalog`,
-    { signal }
-  )
-}
-
-export async function pullModel(
-  provider: string,
-  name: string,
-  onProgress: (progress: PullProgress) => void,
-  signal?: AbortSignal
-): Promise<void> {
-  const response = await request(
-    `/llm/providers/${encodeURIComponent(provider)}/pull`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-      signal,
-    }
-  )
-  if (!response.body) {
-    return
-  }
-  for await (const progress of parsePullStream(response.body)) {
-    onProgress(progress)
-  }
 }

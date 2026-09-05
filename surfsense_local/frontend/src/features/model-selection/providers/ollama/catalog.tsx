@@ -12,11 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 
-import {
-  useModelCatalog,
-  type CatalogRow,
-  type PullState,
-} from "./use-model-catalog"
+import { useCatalog, type CatalogRow, type PullState } from "./use-catalog"
 
 function PullProgressBar({
   pull,
@@ -100,7 +96,7 @@ export function ModelCatalog({
   providers: string[]
   onPulled: () => void
 }) {
-  const { state, pulls, pull, rowKey } = useModelCatalog(providers, onPulled)
+  const { state, pulls, pull, rowKey } = useCatalog(providers, onPulled)
 
   if (state.status === "loading") {
     return (

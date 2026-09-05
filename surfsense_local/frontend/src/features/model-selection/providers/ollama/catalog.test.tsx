@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import { ModelSelectionPage } from "./model-selection-page"
+import { ModelSelectionPage } from "../../model-selection-page"
 
 type InstalledModel = {
   name: string
@@ -34,7 +34,13 @@ function installApi() {
 
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          {
+            name: "ollama",
+            healthy: true,
+            can_download: true,
+            requires_key: false,
+            configured: true,
+          },
         ])
       }
       if (path === "/llm/providers/ollama/models") {
