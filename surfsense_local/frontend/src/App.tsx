@@ -1,7 +1,7 @@
-import { ModelSelectionPage } from "@/features/model-selection/model-selection-page"
+import { AppBootstrap } from "@/app/app-bootstrap"
 
 export function App() {
-  return <ModelSelectionPage />
+  return <AppBootstrap />
 }
 
 export default App

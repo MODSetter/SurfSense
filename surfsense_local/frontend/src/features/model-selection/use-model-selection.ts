@@ -179,13 +179,13 @@ export function useModelSelection() {
 
   const save = async () => {
     if (state.status !== "ready" || draftKey === null) {
-      return
+      return null
     }
     const model = state.models.find(
       (candidate) => modelKey(candidate) === draftKey
     )
     if (!model) {
-      return
+      return null
     }
 
     saveController.current?.abort()
@@ -201,10 +201,12 @@ export function useModelSelection() {
           : current
       )
       setSaveState({ status: "saved" })
+      return selection
     } catch (error) {
       if (!isAbort(error)) {
         setSaveState({ status: "error", message: messageFrom(error) })
       }
+      return null
     }
   }
 

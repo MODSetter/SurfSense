@@ -40,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 
 import { modelKey } from "./api"
+import type { ModelSelection } from "./api"
 import { useModelSelection } from "./use-model-selection"
 
 const capabilityLabel = (capability: string) =>
@@ -89,7 +90,11 @@ function OfflineState({
   )
 }
 
-export function ModelSelectionPage() {
+export function ModelSelectionPage({
+  onSelected,
+}: {
+  onSelected?: (selection: ModelSelection) => void
+}) {
   const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
     useModelSelection()
 
@@ -101,6 +106,12 @@ export function ModelSelectionPage() {
   const hasChanges = draftKey !== null && draftKey !== persistedKey
   const isSaving = saveState.status === "saving"
   const isConnected = state.status === "ready" || state.status === "empty"
+  const handleSave = async () => {
+    const selection = await save()
+    if (selection) {
+      onSelected?.(selection)
+    }
+  }
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/30 p-4 sm:p-8">
@@ -255,7 +266,7 @@ export function ModelSelectionPage() {
               type="button"
               className="min-h-10"
               disabled={!hasChanges || isSaving || isRefreshing}
-              onClick={() => void save()}
+              onClick={() => void handleSave()}
             >
               {isSaving ? <Spinner data-icon="inline-start" /> : null}
               {isSaving ? "Saving..." : "Use this model"}

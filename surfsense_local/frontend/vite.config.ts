@@ -15,6 +15,8 @@ export default defineConfig({
     proxy: {
       "/health": "http://127.0.0.1:8000",
       "/llm": "http://127.0.0.1:8000",
+      "/workspaces": "http://127.0.0.1:8000",
+      "/chat": "http://127.0.0.1:8000",
     },
   },
 })

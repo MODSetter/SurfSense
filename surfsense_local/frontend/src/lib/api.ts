@@ -30,16 +30,30 @@ async function responseError(response: Response): Promise<string> {
   return response.statusText || `Request failed with status ${response.status}`
 }
 
-export async function requestJson<T>(
+export async function request(
   input: RequestInfo | URL,
   init?: RequestInit
-): Promise<T> {
+): Promise<Response> {
   const response = await fetch(input, init)
   if (!response.ok) {
     throw new ApiError(response.status, await responseError(response))
   }
+  return response
+}
 
+export async function requestJson<T>(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<T> {
+  const response = await request(input, init)
   return response.json() as Promise<T>
+}
+
+export async function requestVoid(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<void> {
+  await request(input, init)
 }
 
 export async function getHealth(signal?: AbortSignal): Promise<Health> {
