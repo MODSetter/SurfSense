@@ -93,6 +93,15 @@ async def send_message(
         raise HTTPException(
             status.HTTP_409_CONFLICT, f"unknown provider: {selected.provider}"
         )
+    # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
+    from worker.ingestion.embedding import missing_embedding_files
+
+    if missing_embedding_files():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "local embedding model is not installed; "
+            "run `uv run scripts/fetch_embedding_model.py`",
+        )
 
     # History is the turns already stored; the new user turn is appended after.
     history = session.scalars(

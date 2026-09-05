@@ -19,6 +19,12 @@ def embedding_dir() -> Path:
     return get_storage_settings().models_dir / MODEL_DIR_NAME
 
 
+def missing_embedding_files() -> list[str]:
+    """Files a development install still needs before retrieval can run."""
+    directory = embedding_dir()
+    return [name for name in EMBEDDING_FILES if not (directory / name).is_file()]
+
+
 @lru_cache(maxsize=1)
 def tokenizer() -> Any:
     """The clean tokenizer, shared with the chunker for token counting."""

@@ -36,6 +36,7 @@ Or run the backend on its own, one process per terminal:
 ```bash
 cd backend
 uv sync
+uv run scripts/fetch_embedding_model.py  # one-time local retrieval model
 uv run main.py                # API on http://127.0.0.1:8000
 uv run worker.py              # consumer; uploads stay pending without it
 uv run pytest

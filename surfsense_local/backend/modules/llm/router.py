@@ -109,13 +109,29 @@ def read_selection(role: ModelRole, session: SessionDep) -> SelectedModel:
     response_model=SelectionRead,
     summary="Choose the model for a role",
 )
-def set_selection(
+async def set_selection(
     role: ModelRole, payload: SelectionWrite, session: SessionDep
 ) -> SelectedModel:
-    if get_provider(payload.provider) is None:
+    provider = get_provider(payload.provider)
+    if provider is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"unknown provider: {payload.provider}",
+        )
+
+    model = next(
+        (model for model in await provider.models() if model.name == payload.name),
+        None,
+    )
+    if model is None or not model.installed:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"model is not installed: {payload.name}",
+        )
+    if role is ModelRole.GENERATION and "completion" not in model.capabilities:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"model does not support generation: {payload.name}",
         )
 
     selected = session.get(SelectedModel, role)

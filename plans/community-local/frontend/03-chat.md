@@ -5,16 +5,22 @@
 ## Goal
 
 Grounded chat with citations; first-run wizard.
+The dashboard layout, backend-owned assistant-ui runtime, thread lifecycle, SSE
+parser, and Sources panel contract are specified in
+[`01-dashboard.md`](01-dashboard.md).
 
 ## Work
 
 - Wizard: path A/B/C + RAM tier → `PATCH /settings`.
-- Settings: model URL, model name.
-- Thread list, messages, composer — lists via `useQuery`.
-- Stream the assistant reply over the chat SSE endpoint ([`../api/03-chat.md`](../api/03-chat.md));
-  render `data:` deltas until `[DONE]`. This is the chat token stream, separate
-  from the `/events` freshness channel (see [`../00-umbrella-plan.md`](../00-umbrella-plan.md)).
-- Citation chips → source chunk/document.
+- Reuse the validated generation selection from
+  [`01-shell.md`](01-shell.md); Chat does not maintain a second model URL/name
+  setting.
+- Complete the thread list, assistant-ui messages, and composer specified in
+  [`01-dashboard.md`](01-dashboard.md); lists via `useQuery`.
+- Stream assistant replies through the chunk-safe SSE adapter; render `data:`
+  deltas until `[DONE]`. This is the chat token stream, separate from the
+  `/events` freshness channel (see [`../00-umbrella-plan.md`](../00-umbrella-plan.md)).
+- Citation controls update and open the dashboard Sources panel.
 - Empty states: no model, no documents, ingest in progress.
 
 ## Acceptance
