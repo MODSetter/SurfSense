@@ -3,3 +3,10 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+
+# PyInstaller onedir output (bundling/) — rebuilt per OS, never committed
+/dist/
+/build/
+
+# Embedding model staged for packaging (scripts/fetch_embedding_model.py models)
+/models/

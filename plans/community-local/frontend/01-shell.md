@@ -30,6 +30,10 @@ dashboard are specified in [`01-dashboard.md`](01-dashboard.md).
     models, refreshing, saving, save failure, and saved states. A failed save
     keeps the user's draft so it can be retried.
 - Vite + React + Tailwind/shadcn; assistant-ui owns conversation interaction.
+- API base URL: read `window.surfsense.apiUrl` (exposed by the Electron preload;
+  falls back to `http://127.0.0.1:8000` in a bare browser). Electron picks the
+  port in the packaged app, so do not hard-code it.
+- Data fetching: TanStack Query client (freshness decision in [`../00-umbrella-plan.md`](../00-umbrella-plan.md)).
 - Desktop layout: workspace rail, chat list, conversation, and sources panel —
   [`01-dashboard.md`](01-dashboard.md).
 - Workspace list + create → `GET/POST /workspaces`.

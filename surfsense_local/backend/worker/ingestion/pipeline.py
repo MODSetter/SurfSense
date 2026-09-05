@@ -6,6 +6,7 @@ from modules.documents.models import Document, DocumentStatus
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.ingestion import chunking, embedding, indexing, parsing
+from worker.notify import notify_document_updates
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def run(document_id: int) -> None:
 def _ingest(session: Session, document: Document) -> None:
     document.status = DocumentStatus.PROCESSING
     session.commit()
+    notify_document_updates(document)
 
     try:
         markdown = parsing.markdown_for(document)
@@ -44,9 +46,11 @@ def _ingest(session: Session, document: Document) -> None:
         document.status = DocumentStatus.READY
         document.error_message = None
         session.commit()
+        notify_document_updates(document)
     except Exception as failure:
         session.rollback()
         document.status = DocumentStatus.FAILED
         document.error_message = f"{type(failure).__name__}: {failure}"[:MESSAGE_CHARS]
         session.commit()
+        notify_document_updates(document)
         raise  # Huey retries; a later success clears the message.

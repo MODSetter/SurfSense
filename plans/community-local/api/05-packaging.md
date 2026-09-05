@@ -30,6 +30,35 @@ machine, per OS, at the end of the project.
 | bge-small ONNX + tokenizer | read by path from `models_dir` | Same: ingest cannot embed |
 | Docling parser models | downloaded or bundled data | Every ingest of a PDF fails |
 
+## Proven: the frozen binary opens its database
+
+An opt-in guard,
+[`tests/packaging/test_frozen_boot.py`](../../../surfsense_local/backend/tests/packaging/test_frozen_boot.py)
+(`pytest -m packaging`, off by default since it builds a binary), freezes a
+minimal entry and runs it: the frozen binary migrates a real database from
+bundled `versions/`, loads `vec0.so`, and round-trips a vector through
+`chunk_vectors` — on no source tree, `sys.frozen` true. A source-run test cannot
+catch a dropped `.so` or `versions/`; only a frozen one can. So a `sqlite-vec` /
+`alembic` / `pyinstaller` bump that breaks the freeze fails a test instead of a
+user's first launch. The flags it proves, to carry into the real specs:
+
+- **`--collect-all sqlite_vec`** — lands `vec0.so` under `_internal/sqlite_vec/`,
+  where `sqlite_vec.load()` finds it by the package's own path with no code
+  change.
+- **`--add-data alembic:alembic`** — ships the version scripts at the relative
+  path the app resolves (`migrations.py` walks up from its own `__file__`, which
+  PyInstaller sets correctly). `env.py` is data, not analyzed, so its imports
+  need naming as **hidden imports**: `alembic.context`,
+  `alembic.runtime.migration`, `alembic.runtime.environment`.
+- **`--paths <backend>`** so `import shared.*` resolves during analysis.
+
+Left for this phase: the real API spec adds `collect_submodules("uvicorn")` for
+the server it actually runs; the worker spec adds its heavy hidden imports
+([`../worker/05-packaging.md`](../worker/05-packaging.md)); then the Electron
+`extraResources` wiring and the per-OS clean-VM run. (One gotcha for those specs:
+a top-level dir named `packaging/` shadows the `packaging` PyPI package — name it
+anything else.)
+
 ## The model packs
 
 Two, both outside the exe:

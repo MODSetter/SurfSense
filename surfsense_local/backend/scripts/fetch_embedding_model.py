@@ -1,18 +1,26 @@
-"""Download the bundled embedding model for development and CI.
+"""Download the bundled embedding model for development, CI, and packaging.
 
-Run with `uv run scripts/fetch_embedding_model.py`. The packaged app ships it.
+`uv run scripts/fetch_embedding_model.py` places it where the app reads it in
+development; pass a models root (`... models`) to stage it for an installer,
+which electron-builder then copies into resources/models.
 """
 
 import sys
+from pathlib import Path
 
 import httpx
 
-from worker.ingestion.embedding import EMBEDDING_FILES, EMBEDDING_REPO, embedding_dir
+from worker.ingestion.embedding import (
+    EMBEDDING_FILES,
+    EMBEDDING_REPO,
+    MODEL_DIR_NAME,
+    embedding_dir,
+)
 
 BASE = "https://huggingface.co"
 
 
-def fetch(repo: str, files: list[str], into: object) -> None:
+def fetch(repo: str, files: list[str], into: Path) -> None:
     into.mkdir(parents=True, exist_ok=True)
     with httpx.Client(follow_redirects=True, timeout=120.0) as client:
         for name in files:
@@ -29,7 +37,9 @@ def fetch(repo: str, files: list[str], into: object) -> None:
 
 
 def main() -> int:
-    fetch(EMBEDDING_REPO, EMBEDDING_FILES, embedding_dir())
+    # Optional models root for staging an installer; defaults to the dev location.
+    into = Path(sys.argv[1]) / MODEL_DIR_NAME if len(sys.argv) > 1 else embedding_dir()
+    fetch(EMBEDDING_REPO, EMBEDDING_FILES, into)
     return 0
 
 

@@ -1,0 +1,180 @@
+name: Local Desktop Release
+
+# Builds the community-local desktop app (surfsense_local) into per-OS installers
+# and attaches them to a GitHub Release.
+#
+# Trigger: push a tag like `local-v0.0.1`. Or run manually for a dry run.
+
+on:
+  push:
+    tags:
+      - "local-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 0.0.1) for a dry run without a tag"
+        required: true
+        default: "0.0.0-test"
+      publish:
+        description: "Publish to GitHub Releases"
+        required: true
+        type: choice
+        options:
+          - never
+          - always
+        default: "never"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: --linux
+            electron_cache: ~/.cache/electron
+          - os: macos-14
+            platform: --mac
+            electron_cache: ~/Library/Caches/electron
+          - os: windows-latest
+            platform: --win
+            electron_cache: ~\AppData\Local\electron\Cache
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/local-v}"
+          fi
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Version '$VERSION' is not semver (expected X.Y.Z); fix the tag."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            surfsense_local/frontend/pnpm-lock.yaml
+            surfsense_local/electron/pnpm-lock.yaml
+
+      - name: Cache electron download
+        uses: actions/cache@v5
+        with:
+          path: ${{ matrix.electron_cache }}
+          key: electron-${{ runner.os }}-${{ hashFiles('surfsense_local/electron/pnpm-lock.yaml') }}
+
+      - name: Install backend deps
+        working-directory: surfsense_local/backend
+        run: uv sync
+
+      - name: Freeze API + worker binaries
+        working-directory: surfsense_local/backend
+        run: uv run scripts/build_binaries.py
+
+      - name: Stage embedding model
+        working-directory: surfsense_local/backend
+        run: uv run scripts/fetch_embedding_model.py models
+
+      - name: Build frontend SPA
+        working-directory: surfsense_local/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build Electron main + preload
+        working-directory: surfsense_local/electron
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Stage Ollama
+        working-directory: surfsense_local/electron
+        run: node scripts/fetch-ollama.mjs
+
+      - name: Package installer
+        working-directory: surfsense_local/electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unsigned for v1. To sign later, add the certs as secrets and pass them
+          # here: macOS wants CSC_LINK / CSC_KEY_PASSWORD / APPLE_ID /
+          # APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID; Windows wants its own
+          # CSC_LINK / CSC_KEY_PASSWORD. electron-builder picks them up per-OS.
+        run: |
+          pnpm exec electron-builder ${{ matrix.platform }} \
+            --publish "${{ inputs.publish || 'always' }}" \
+            -c.npmRebuild=false \
+            -c.extraMetadata.version="${{ steps.version.outputs.VERSION }}"
+
+      - name: Smoke the frozen API (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -e
+          export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-smoke"
+          export SURFSENSE_LOCAL_PORT=8137
+          ./surfsense_local/electron/release/linux-unpacked/resources/backend/api/api &
+          API=$!
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
+              echo "health OK"; kill $API; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::packaged API never became healthy"; kill $API; exit 1
+
+      - name: Smoke the bundled Ollama (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -e
+          export OLLAMA_HOST=127.0.0.1:11565
+          ./surfsense_local/electron/release/linux-unpacked/resources/ollama/bin/ollama serve &
+          OLL=$!
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:11565/" >/dev/null; then
+              echo "ollama OK"; kill $OLL; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::bundled ollama never responded"; kill $OLL; exit 1
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: surfsense-local-${{ matrix.os }}
+          path: |
+            surfsense_local/electron/release/*.AppImage
+            surfsense_local/electron/release/*.dmg
+            surfsense_local/electron/release/*.exe
+          if-no-files-found: ignore

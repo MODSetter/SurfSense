@@ -10,7 +10,10 @@ Upload files and see ingest status.
 
 - Dropzone → `POST /workspaces/{id}/documents/upload`.
 - Document table: title, type, status badge (`pending` | `processing` | `ready` | `failed`).
-- Poll `GET /workspaces/{id}/documents` or SSE, passing `?limit=`/`?offset=`.
+- List via `useQuery` on `GET /workspaces/{id}/documents`, passing `?limit=`/`?offset=`.
+  Freshness: subscribe to the SSE `/events` stream and `invalidateQueries` on
+  `document.updated`; a `refetchInterval` while any row is in flight is the fallback.
+  See the freshness decision in [`../00-umbrella-plan.md`](../00-umbrella-plan.md).
 - Show `failed` message from `error_message`, with a retry button →
   `POST .../documents/{doc}/retry`.
 - Row actions: rename → `PATCH .../documents/{doc}`, delete → `DELETE` the same path.
