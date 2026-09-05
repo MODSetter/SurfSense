@@ -31,7 +31,7 @@ extraResources:
     to: ollama
 
 linux:
-  target: [AppImage]
+  target: [AppImage, deb]
   category: Office
 
 win:

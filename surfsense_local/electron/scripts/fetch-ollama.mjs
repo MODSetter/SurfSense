@@ -11,14 +11,26 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const OUT = join(fileURLToPath(new URL(".", import.meta.url)), "..", "ollama")
-const BASE = "https://ollama.com/download"
+// Pinned to a release: ollama.com/download stopped serving stable archive URLs,
+// and a pinned runtime keeps the packaged build reproducible. Bump deliberately.
+const VERSION = "v0.33.3"
+const BASE = `https://github.com/ollama/ollama/releases/download/${VERSION}`
 
-// Full GPU-capable archives, one per host. arm64 desktop isn't a build target yet.
+// Full GPU-capable archives, one per host. Linux ships zstd tarballs now; macOS
+// stays gzip, Windows zip.
 const TARGETS = {
-  "linux-x64": { url: `${BASE}/ollama-linux-amd64.tgz`, kind: "tgz" },
+  "linux-x64": { url: `${BASE}/ollama-linux-amd64.tar.zst`, kind: "zst" },
+  "linux-arm64": { url: `${BASE}/ollama-linux-arm64.tar.zst`, kind: "zst" },
   "darwin-x64": { url: `${BASE}/ollama-darwin.tgz`, kind: "tgz" },
   "darwin-arm64": { url: `${BASE}/ollama-darwin.tgz`, kind: "tgz" },
   "win32-x64": { url: `${BASE}/ollama-windows-amd64.zip`, kind: "zip" },
+}
+
+// tar flags per archive kind (bsdtar reads zip on macOS/Windows).
+const TAR_FLAGS = {
+  tgz: ["-xzf"],
+  zst: ["--zstd", "-xf"],
+  zip: ["-xf"],
 }
 
 const binary = process.platform === "win32" ? "ollama.exe" : "ollama"
@@ -43,8 +55,7 @@ console.log(`downloading ${target.url}`)
 execFileSync("curl", ["-fSL", "--retry", "3", target.url, "-o", archive], { stdio: "inherit" })
 
 console.log(`extracting into ${OUT}`)
-// bsdtar (macOS/Windows) reads zip too; -z handles the gzip tarballs on posix.
-execFileSync("tar", [target.kind === "tgz" ? "-xzf" : "-xf", archive, "-C", OUT], {
+execFileSync("tar", [...TAR_FLAGS[target.kind], archive, "-C", OUT], {
   stdio: "inherit",
 })
 rmSync(archive, { force: true })

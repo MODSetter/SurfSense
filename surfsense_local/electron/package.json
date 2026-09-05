@@ -3,7 +3,11 @@
   "private": true,
   "version": "0.0.1",
   "description": "Electron shell: spawns the API + worker sidecars, loads the Vite SPA",
-  "author": "SurfSense",
+  "author": {
+    "name": "SurfSense",
+    "email": "noreply@surfsense.app"
+  },
+  "homepage": "https://github.com/MODSetter/SurfSense",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && electron-vite dev\"",
