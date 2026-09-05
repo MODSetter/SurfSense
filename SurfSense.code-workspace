@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "SurfSense",
+			"path": "."
+		},
+		{
+			"name": "local backend",
+			"path": "surfsense_local/backend"
+		}
+	],
+	"settings": {}
+}

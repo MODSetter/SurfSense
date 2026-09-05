@@ -226,6 +226,16 @@ def upgrade() -> None:
     op.create_index("artifacts_chat_thread", "artifacts", ["chat_thread_id"])
 
     op.create_table(
+        "selected_models",
+        sa.Column("role", _enum("generation", name="modelrole"), nullable=False),
+        sa.Column("provider", sa.String(), nullable=False),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), server_default=NOW, nullable=False),
+        # The role keys the row: one model per role, chosen again in place.
+        sa.PrimaryKeyConstraint("role", name=op.f("pk_selected_models")),
+    )
+
+    op.create_table(
         "artifact_files",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("artifact_id", sa.Integer(), nullable=False),
@@ -257,6 +267,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop in dependency order; SQLite refuses to drop a referenced parent."""
+    op.drop_table("selected_models")
     op.drop_table("artifact_files")
     op.drop_table("artifacts")
     op.drop_table("chat_messages")

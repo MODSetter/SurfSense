@@ -183,13 +183,13 @@ for documents that no longer exist.
 **Indexing (Phase 2):** ingest writes `chunks` and the `vec0` row. FTS follows on
 its own; the vector cannot, because only ingest holds the embedding.
 
-**Search (Phase 3):** embed query → FTS5 top‑K + vec0 top‑K → **RRF merge** (k=60) → dedupe by `chunk_id` → return hits with scores for citation ranking.
+**Search (Phase 3):** embed query → FTS5 top‑K + vec0 top‑K for recall → **cosine rescore** of the union (`vec_distance_cosine`) → top‑k hits with scores for citation ranking.
 
-**Embedding dimension `D`:** `SURFSENSE_LOCAL_EMBEDDING_DIMENSION`, default 768
-for nomic-embed-text. A `vec0` table is fixed at the width it was created with,
-and vectors from another model are not the wrong shape but unrelated numbers, so
-startup compares the declared width against the setting and refuses to open a
-database that no longer matches.
+**Embedding dimension `D`:** `SURFSENSE_LOCAL_EMBEDDING_DIMENSION`, default 384
+for the bundled bge-small-en-v1.5 int8. A `vec0` table is fixed at the width it
+was created with, and vectors from another model are not the wrong shape but
+unrelated numbers, so startup compares the declared width against the setting and
+refuses to open a database that no longer matches.
 
 ### `chat_threads` / `chat_messages`
 
@@ -220,12 +220,22 @@ ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFA
 
 `artifact_files` keeps one immutable blob per role (`primary` \| `preview`), unique on `(artifact_id, role)` and on `storage_key`, with `CHECK size_bytes > 0`. Cloud's `storage_backend` is **omitted**: Local has one backend, `data/workspaces/{id}/artifacts/{id}/`.
 
+### `selected_models`
+
+The chosen generation model, one row per `role` (the primary key, so choosing
+again updates in place). `provider` names an entry in the `modules/llm` registry
+(`ollama` for v1), `name` is that provider's model id (`qwen3:4b`). The offerable
+catalog and each model's capabilities are **not** stored — Ollama owns them, and
+a curated list inside the provider names what it can pull. Ships in the initial
+migration.
+
 ### Local-only
 
 | Store | Purpose |
 |---|---|
-| `app_settings` or `settings.json` | model URLs, onboarding path, parser pack |
+| `app_settings` or `settings.json` | onboarding path, parser pack, opt-in model overrides |
 | `huey.db` | Huey queue |
+| `selected_models` | chosen model per role (above) |
 
 ## Tables not in Local scope
 
@@ -237,7 +247,7 @@ ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFA
 |---|---|
 | 1 | `workspaces`, `documents` (stub) |
 | 2 | `documents` ingest + `chunks` |
-| 3 | `chat_threads`, `chat_messages`, settings |
+| 3 | `chat_threads`, `chat_messages`, settings; `selected_models` already in initial migration |
 | 4 | `artifacts` (+ `ARTIFACT` documents) |
 
 ## Open items
