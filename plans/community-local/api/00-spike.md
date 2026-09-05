@@ -9,11 +9,13 @@ Packaged Electron spawns API + worker binaries; `/health`; clean quit.
 ## Work
 
 - Minimal FastAPI `/health` + PyInstaller spec (`--onedir`).
-- **Open the database in the frozen binary**, which means migrations running from
-  bundled `alembic/versions/` and the sqlite-vec extension loading from
-  `sqlite_vec/vec0.so`. Neither is named by an import statement, so PyInstaller
-  drops both unless told, and the app then fails on its first connection. Cheap
-  to prove here; expensive to find in [phase 5](05-packaging.md).
+- **Open the database in the frozen binary** — migrations from bundled
+  `alembic/versions/` and the sqlite-vec extension from `sqlite_vec/vec0.so`,
+  neither named by an import statement, so PyInstaller drops both unless told.
+  ✓ Proven and kept as a guard: `tests/packaging/test_frozen_boot.py`
+  (`pytest -m packaging`) freezes a binary that migrates, loads `vec0`, and
+  round-trips a vector. Recipe in
+  [`05-packaging.md`](05-packaging.md#proven-the-frozen-binary-opens-its-database).
 - Electron spawn/kill sidecars from `extraResources`.
 - Document dev vs packaged binary paths.
 - Sidecar pattern — separate binaries, not threads in Electron.
