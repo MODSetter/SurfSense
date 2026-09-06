@@ -18,6 +18,12 @@ sys.path.insert(0, SPECPATH)
 from common import BACKEND, database_inputs
 
 datas, binaries, hiddenimports = database_inputs()
+datas.append(
+    (
+            str(BACKEND / "modules" / "llm" / "recommendations" / "curated-models.json"),
+        "modules/llm/recommendations",
+    )
+)
 
 # uvicorn loads its loop, protocol, and lifespan implementations by string.
 hiddenimports += collect_submodules("uvicorn")
