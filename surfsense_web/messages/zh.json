@@ -133,7 +133,7 @@
 		"delete_account_heading": "删除账户",
 		"delete_account_description": "删除账户会立即生效且无法撤销。",
 		"delete_account_title": "删除您的账户？",
-		"delete_account_consequences": "您拥有的所有工作区都将被删除，其中的聊天记录、文档、连接器和 API 密钥也会一并消失；与您共享这些工作区的成员同样会失去这些内容。剩余额度将失效且不予退款，使用此账户重新注册也不会再获得免费的欢迎额度。",
+		"delete_account_consequences": "您拥有的所有工作区都将被删除，其中的聊天记录、文档、连接器和 API 密钥也会一并消失；与您共享这些工作区的成员同样会失去这些内容。剩余额度将失效且不予退款，任何有效订阅需另行取消。",
 		"delete_account_confirm_label": "输入 {word} 以确认",
 		"delete_account_confirm": "删除我的账户",
 		"delete_account_cancel": "取消",

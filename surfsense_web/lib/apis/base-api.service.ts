@@ -12,6 +12,7 @@ import {
 	NotFoundError,
 	type ValidationFieldError,
 } from "../error";
+import { isPageUnloading, msSinceOnline } from "./network-capture-state";
 
 enum ResponseType {
 	JSON = "json",
@@ -62,7 +63,14 @@ function isDuplicateCapture(key: string): boolean {
  */
 function captureApiException(error: unknown, url: string, method?: RequestOptions["method"]): void {
 	const code = error instanceof AppError ? error.code : undefined;
-	if (code === "NETWORK_ERROR" && isDuplicateCapture(`${method ?? "GET"}:${url}`)) return;
+	if (code === "NETWORK_ERROR") {
+		// A fetch the browser cancels because the page is going away rejects as a
+		// TypeError, exactly like a real connection failure. The user has left, so
+		// the outcome cannot matter to them, and a genuine outage still reports
+		// from every request not caught mid-exit.
+		if (isPageUnloading()) return;
+		if (isDuplicateCapture(`${method ?? "GET"}:${url}`)) return;
+	}
 
 	import("posthog-js")
 		.then(({ default: posthog }) => {
@@ -74,6 +82,10 @@ function captureApiException(error: unknown, url: string, method?: RequestOption
 				api_host: safeHost(buildBackendUrl(url)),
 				client_platform: typeof window === "undefined" ? "web" : getClientPlatform(),
 				navigator_online: typeof navigator === "undefined" ? null : navigator.onLine,
+				// `navigator_online` alone cannot separate "our backend is down" from
+				// "this tab just reconnected and refetched everything too early",
+				// because both report true. A small value here means the latter.
+				ms_since_online: msSinceOnline(),
 				...(error instanceof AppError && {
 					status_code: error.status,
 					status_text: error.statusText,

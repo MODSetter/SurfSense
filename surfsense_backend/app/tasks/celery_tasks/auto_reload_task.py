@@ -26,6 +26,7 @@ from app.celery_app import celery_app
 from app.config import config
 from app.db import CreditPurchase, CreditPurchaseStatus, User
 from app.notifications.service import NotificationService
+from app.services.wallet_credit import funds_micros
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,9 @@ async def _auto_reload_credits(user_id: str) -> None:
         if not threshold or not amount:
             return
 
-        available = user.credit_micros_balance - user.credit_micros_reserved
+        # Allowance counts as available — same rule as the enqueue-side check
+        # in auto_reload_service, so the two cannot disagree about who is broke.
+        available = funds_micros(user) - user.credit_micros_reserved
         if available >= threshold:
             # Another reload (or a refund/grant) already restored the balance.
             return

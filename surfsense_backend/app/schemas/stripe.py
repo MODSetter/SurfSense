@@ -21,6 +21,33 @@ class CreateCreditCheckoutSessionResponse(BaseModel):
     checkout_url: str
 
 
+class CreateSubscriptionCheckoutSessionRequest(BaseModel):
+    """Request body for starting the Pro subscription checkout."""
+
+    workspace_id: int = Field(ge=1)
+
+
+class CreateSubscriptionCheckoutSessionResponse(BaseModel):
+    """Response containing the Stripe-hosted subscription checkout URL."""
+
+    checkout_url: str
+
+
+class PlanStatusResponse(BaseModel):
+    """The user's current plan and where they are in its allowance period.
+
+    ``*_micros`` fields are micro-USD (1_000_000 == $1.00). ``allowance_micros``
+    is what is left of this period's grant, not what the plan grants, so the UI
+    can show it draining.
+    """
+
+    plan: str
+    allowance_micros: int = 0
+    period_end: datetime | None = None
+    credit_micros_balance: int = 0
+    subscription_available: bool = False
+
+
 class CreditPurchaseRead(BaseModel):
     """Serialized credit purchase record.
 
@@ -49,14 +76,25 @@ class CreditPurchaseHistoryResponse(BaseModel):
 
 
 class CreditStripeStatusResponse(BaseModel):
-    """Response describing credit-buying availability and current balance.
+    """Response describing credit-buying availability and current funds.
 
-    ``credit_micros_balance`` is in micro-USD; the FE divides by 1_000_000
-    to display USD.
+    Both ``*_micros`` fields are in micro-USD; the FE divides by 1_000_000 to
+    display USD. They are reported separately rather than summed because they
+    behave differently — the allowance resets each period and the balance is
+    permanent — but the number a user recognises as "my credit" is the sum, so
+    a display that shows only one of them is wrong.
     """
 
     credit_buying_enabled: bool
     credit_micros_balance: int = 0
+    credit_micros_allowance: int = 0
+    # What the plan grants per period, as opposed to the field above, which is
+    # what is *left* of it. Both are needed to say "$2.40 of $6.00", and the
+    # frontend must not infer it from the plan name — the amounts are
+    # environment-overridable, so a hardcoded copy would drift silently.
+    allowance_granted_micros: int = 0
+    allowance_period_end: datetime | None = None
+    plan: str = "free"
 
 
 class PagePurchaseRead(BaseModel):

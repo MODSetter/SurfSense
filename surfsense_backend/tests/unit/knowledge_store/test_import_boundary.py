@@ -38,7 +38,11 @@ def _outside_module() -> list[Path]:
 def test_no_module_outside_the_store_reaches_its_internals():
     violations: list[str] = []
     for path in _outside_module():
-        for number, line in enumerate(path.read_text().splitlines(), start=1):
+        # Explicit encoding: source is UTF-8, but `read_text()` defaults to the
+        # locale one, so on a cp1252 Windows shell this guard died on the first
+        # file containing an em dash instead of checking any imports.
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for number, line in enumerate(lines, start=1):
             if _FORBIDDEN.search(line):
                 violations.append(f"{path.relative_to(_APP)}:{number}: {line.strip()}")
     assert not violations, "reach past the facade:\n" + "\n".join(violations)

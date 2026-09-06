@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { spendableMicros } from "@/contracts/types/stripe.types";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { AppError } from "@/lib/error";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
@@ -88,6 +89,8 @@ export function BuyCreditsContent() {
 	}
 
 	const balanceMicros = me?.creditMicrosBalance ?? creditStatus?.credit_micros_balance ?? 0;
+	const allowanceMicros = creditStatus?.credit_micros_allowance ?? 0;
+	const totalMicros = spendableMicros(allowanceMicros, balanceMicros);
 
 	return (
 		<div className="w-full space-y-5">
@@ -97,9 +100,18 @@ export function BuyCreditsContent() {
 
 			<div className="rounded-lg border bg-muted/20 p-3">
 				<div className="flex items-center justify-between text-sm">
-					<span className="text-muted-foreground">Current balance</span>
-					<span className="font-semibold tabular-nums">{formatUsd(balanceMicros)}</span>
+					<span className="text-muted-foreground">Available to spend</span>
+					<span className="font-semibold tabular-nums">{formatUsd(totalMicros)}</span>
 				</div>
+				{/* Broken out only when there is an allowance, because this is the
+				    page where money changes hands: someone should not buy credit
+				    believing an amount that expires at the period end is theirs. */}
+				{allowanceMicros > 0 ? (
+					<p className="mt-1.5 text-xs text-muted-foreground">
+						Includes {formatUsd(allowanceMicros)} of plan allowance, which resets each month. Credit
+						you buy never expires and is spent only after it.
+					</p>
+				) : null}
 			</div>
 
 			<div className="space-y-3">

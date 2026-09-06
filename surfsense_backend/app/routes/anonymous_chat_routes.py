@@ -45,6 +45,24 @@ _COOKIE_SECURE: bool = _IS_SECURE_CONTEXT
 # ---------------------------------------------------------------------------
 
 
+def _require_anon_chat() -> None:
+    """Refuse the no-login chat endpoints when the product is retired.
+
+    Deliberately narrower than ``NOLOGIN_MODE_ENABLED``, which still gates the
+    ``/models`` catalog. The ``/free/{slug}`` landing pages are built from that
+    catalog and draw roughly 19,600 visitors a month, so switching the chat off
+    must not take the pages down with it.
+    """
+    if not config.NOLOGIN_CHAT_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=(
+                "Free chat without an account has been retired. "
+                "Create a free SurfSense account to continue."
+            ),
+        )
+
+
 def _get_or_create_session_id(request: Request, response: Response) -> str:
     """Read the signed session cookie or create a new one."""
     session_id = request.cookies.get(ANON_COOKIE_NAME)
@@ -183,11 +201,7 @@ async def get_anonymous_quota(request: Request, response: Response):
     Reports the *stricter* of session and IP buckets so that opening a
     new browser on the same IP doesn't show a misleadingly fresh quota.
     """
-    if not config.NOLOGIN_MODE_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No-login mode is not enabled.",
-        )
+    _require_anon_chat()
 
     from app.services.token_quota_service import (
         TokenQuotaService,
@@ -230,11 +244,7 @@ async def stream_anonymous_chat(
     response: Response,
 ):
     """Stream a chat response for an anonymous user with quota enforcement."""
-    if not config.NOLOGIN_MODE_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No-login mode is not enabled.",
-        )
+    _require_anon_chat()
 
     from app.agents.chat.runtime.llm_config import (
         AgentConfig,
@@ -559,11 +569,7 @@ async def upload_anonymous_document(
     response: Response,
 ):
     """Upload a single document for anonymous chat (1-doc limit per session)."""
-    if not config.NOLOGIN_MODE_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No-login mode is not enabled.",
-        )
+    _require_anon_chat()
 
     session_id = _get_or_create_session_id(request, response)
 
@@ -645,11 +651,7 @@ async def upload_anonymous_document(
 @router.get("/document")
 async def get_anonymous_document(request: Request, response: Response):
     """Get metadata of the uploaded document for the anonymous session."""
-    if not config.NOLOGIN_MODE_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No-login mode is not enabled.",
-        )
+    _require_anon_chat()
 
     session_id = _get_or_create_session_id(request, response)
 

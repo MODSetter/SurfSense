@@ -133,7 +133,7 @@
 		"delete_account_heading": "Eliminar cuenta",
 		"delete_account_description": "Eliminar tu cuenta es inmediato y no se puede deshacer.",
 		"delete_account_title": "¿Eliminar tu cuenta?",
-		"delete_account_consequences": "Se eliminarán todos los espacios de trabajo de los que eres propietario, junto con sus chats, documentos, conectores y claves de API; quienes compartan uno contigo también perderán ese trabajo. El crédito restante se pierde y no se reembolsa, y si vuelves a registrarte con esta cuenta no incluirá el crédito de bienvenida gratuito.",
+		"delete_account_consequences": "Se eliminarán todos los espacios de trabajo de los que eres propietario, junto con sus chats, documentos, conectores y claves de API; quienes compartan uno contigo también perderán ese trabajo. El crédito restante se pierde y no se reembolsa, y cualquier suscripción activa debe cancelarse por separado.",
 		"delete_account_confirm_label": "Escribe {word} para confirmar",
 		"delete_account_confirm": "Eliminar mi cuenta",
 		"delete_account_cancel": "Cancelar",

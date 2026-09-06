@@ -1,8 +1,6 @@
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdUnit } from "@/components/ads/ad-unit";
-import { ADSENSE_SLOTS } from "@/components/ads/adsense-config";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -210,11 +208,6 @@ export default async function FreeHubPage() {
 
 				<Separator className="my-12 max-w-4xl mx-auto" />
 
-				{/* In-content ad: above the model table */}
-				<aside aria-label="Advertisement" className="max-w-4xl mx-auto mb-8 min-h-[100px]">
-					<AdUnit slot={ADSENSE_SLOTS.freeHubInContent} />
-				</aside>
-
 				{/* Model Table */}
 				{seoModels.length > 0 ? (
 					<section
@@ -333,11 +326,6 @@ export default async function FreeHubPage() {
 				</section>
 
 				<Separator className="my-12 max-w-4xl mx-auto" />
-
-				{/* In-content ad: after CTA, before FAQ */}
-				<aside aria-label="Advertisement" className="max-w-3xl mx-auto my-8 min-h-[100px]">
-					<AdUnit slot={ADSENSE_SLOTS.freeHubBeforeFaq} />
-				</aside>
 
 				{/* FAQ */}
 				<section className="max-w-3xl mx-auto">

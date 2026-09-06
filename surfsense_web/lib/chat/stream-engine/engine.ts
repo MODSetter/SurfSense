@@ -31,7 +31,11 @@ import {
 import { getAgentFilesystemSelection } from "@/lib/agent-filesystem";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { parseActivityJournalPart } from "@/lib/chat/activity-journal";
-import { type ChatFlow, classifyChatError } from "@/lib/chat/chat-error-classifier";
+import {
+	type ChatFlow,
+	classifyChatError,
+	providerDiagnosticsOf,
+} from "@/lib/chat/chat-error-classifier";
 import { tagPreAcceptSendFailure, toHttpResponseError } from "@/lib/chat/chat-request-errors";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { createStreamFlushHelpers } from "@/lib/chat/stream-flush";
@@ -191,6 +195,8 @@ async function handleChatFailure({
 		severity: normalized.severity,
 		is_expected: normalized.isExpected,
 		message: normalized.userMessage,
+		// Absent on failures that never reached a provider (offline, pre-accept).
+		...providerDiagnosticsOf(error),
 	};
 	if (normalized.telemetryEvent === "chat_blocked") {
 		trackChatBlocked(workspaceId, threadId, telemetryPayload);
