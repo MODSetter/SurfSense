@@ -6,6 +6,11 @@ import httpx
 
 from modules.llm.providers.ollama.catalog import OFFERINGS
 from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message, Model
+from modules.llm.recommendations.types import (
+    InstalledModel,
+    InstallPlan,
+    ScoredModel,
+)
 
 # A pull runs for minutes; a tag lookup is instant. Long read, short connect.
 TIMEOUT = httpx.Timeout(600.0, connect=5.0)
@@ -31,18 +36,56 @@ class OllamaProvider:
             return False
 
     async def models(self) -> list[Model]:
+        return [
+            Model(model.model_name, installed=True, capabilities=model.capabilities)
+            for model in await self.installed_models()
+        ]
+
+    async def installed_models(self) -> list[InstalledModel]:
         async with self._client() as client:
             reply = await client.get("/api/tags")
             reply.raise_for_status()
             names = [entry["name"] for entry in reply.json().get("models", [])]
-            capabilities = await asyncio.gather(
-                *(self._capabilities(client, name) for name in names)
+            details = await asyncio.gather(
+                *(self._details(client, name) for name in names)
             )
 
         return [
-            Model(name, installed=True, capabilities=caps)
-            for name, caps in zip(names, capabilities, strict=True)
+            InstalledModel(
+                runtime=self.name,
+                model_name=name,
+                capabilities=caps,
+                quantization=quantization,
+            )
+            for name, (caps, quantization) in zip(names, details, strict=True)
         ]
+
+    async def resolve(self, model: ScoredModel) -> InstallPlan | None:
+        if not model.ollama_name:
+            return None
+        expected_bytes = (
+            round(model.disk_size_gb * 1_000_000_000)
+            if model.disk_size_gb is not None
+            else None
+        )
+        quantization = model.ollama_quantization or (
+            model.best_quant
+            if model.best_quant
+            and model.best_quant.lower() in model.ollama_name.lower()
+            else None
+        )
+        return InstallPlan(
+            canonical_id=model.canonical_id,
+            runtime=self.name,
+            model_name=model.ollama_name,
+            expected_bytes=expected_bytes,
+            quantization=quantization,
+        )
+
+    def install(self, plan: InstallPlan) -> AsyncIterator[DownloadProgress]:
+        if plan.runtime != self.name:
+            raise ValueError(f"install plan belongs to {plan.runtime}, not {self.name}")
+        return self.pull(plan.model_name)
 
     def catalog(self) -> list[CatalogEntry]:
         return [
@@ -86,10 +129,21 @@ class OllamaProvider:
     async def _capabilities(
         self, client: httpx.AsyncClient, name: str
     ) -> tuple[str, ...]:
+        capabilities, _ = await self._details(client, name)
+        return capabilities
+
+    async def _details(
+        self, client: httpx.AsyncClient, name: str
+    ) -> tuple[tuple[str, ...], str | None]:
         reply = await client.post("/api/show", json={"model": name})
         if reply.status_code != 200:
-            return ()
-        return tuple(reply.json().get("capabilities", []))
+            return (), None
+        body = reply.json()
+        details = body.get("details", {})
+        quantization = (
+            details.get("quantization_level") if isinstance(details, dict) else None
+        )
+        return tuple(body.get("capabilities", [])), quantization
 
 
 def _progress(event: dict) -> DownloadProgress:
