@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { render } from "@/test-utils"
 import { ModelSelectionPage } from "../../model-selection-page"
 
 function installApi() {
@@ -30,9 +31,6 @@ function installApi() {
         ])
       }
       if (path === "/llm/providers/ollama/models") {
-        return Response.json([])
-      }
-      if (path === "/llm/providers/ollama/catalog") {
         return Response.json([])
       }
       if (path === "/llm/providers/openrouter/models") {
