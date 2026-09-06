@@ -29,8 +29,5 @@
     "typescript": "~6",
     "vite": "^7",
     "wait-on": "^9"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild"]
   }
 }
