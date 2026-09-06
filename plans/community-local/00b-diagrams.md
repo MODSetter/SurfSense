@@ -10,6 +10,7 @@
 │  • BrowserWindow → frontend/dist (workspace UI)             │
 │  • spawn surfsense-api                                      │
 │  • spawn surfsense-worker                                   │
+│  • packaged Ollama sidecar; bundled llmfit executable       │
 │  • on quit: SIGTERM workers, wait, exit                     │
 └─────────────────────────────────────────────────────────────┘
          │                              │
@@ -17,7 +18,10 @@
 ┌─────────────────┐          ┌─────────────────┐
 │ surfsense-api   │          │ surfsense-worker │
 │ FastAPI :8xxx   │          │ huey_consumer -w1│
-│ SQLite R/W      │          │ Docling + embed  │
+│ LLM catalog     │          │ Docling + embed  │
+│ runtime adapters│          │                 │
+│ llmfit JSON CLI │          │                 │
+│ SQLite R/W      │          │                 │
 └────────┬────────┘          └────────┬─────────┘
          │                            │
          └────────────┬───────────────┘
@@ -41,10 +45,38 @@
    │ full pack │      │ on-demand   │     │ Ollama/   │
    └───────────┘      └─────────────┘     └───────────┘
                              ▼
-                    RAM tier → model suggestion
+                    llmfit hardware scan
+                             ▼
+                 SurfSense Picks + Explore
+                             ▼
+                 one-click Download & Use
+                             ▼
+                    runtime install plan
+                    ├─ Ollama tag (v1)
+                    └─ verified GGUF (later)
                              ▼
               Create workspace → upload document
 ```
+
+## Generation model boundaries
+
+```text
+llmfit model catalog + fit estimates
+                  │
+                  ▼
+          SurfSense adapter
+                  │ canonical, normalized models
+                  ▼
+      Picks JSON + support policy
+                  │
+                  ▼
+       Runtime artifact resolver
+          ├── Ollama adapter ── pull tag ── chat
+          └── llama.cpp adapter (future) ── GGUF ── chat
+```
+
+llmfit never handles a SurfSense chat request. It can disappear and an already
+installed model still answers through its runtime adapter.
 
 ## Chat vs Studio
 

@@ -13,7 +13,9 @@ Installers for Paths A / B / C.
 - CI: win/mac/linux; smoke `/health`.
 - Models outside exe — shipped as `extraResources`, `SURFSENSE_LOCAL_MODELS_DIR`
   pointed at them; `scripts/fetch_embedding_model.py` fetches the same files for CI.
-- Manifest or routes for model pack URLs (frontend download UI).
+- A pinned official llmfit executable plus the versioned SurfSense Picks
+  manifest; normalized recommendation/install routes are specified in
+  [`05-model-recommendations.md`](05-model-recommendations.md).
 
 ## Files no import statement names
 
@@ -78,27 +80,61 @@ Docling loads, so nothing writes inside the bundle; packaging sets
 the CPU wheels ([`../worker/02-ingest.md`](../worker/02-ingest.md)); the CUDA
 build would have added 3GB to every installer.
 
-## The generation model — downloaded, not bundled
+## Generation recommendations and models — advisor bundled, weights downloaded
 
 The chat model is the one heavy file (1.4GB+), and bundling it would double the
 installer for something the app does not need to *start*. So it is not shipped.
 The installer carries only what runs offline — code, Docling/OCR weights, the
-bge embedder, the Ollama binary — and ingestion and search work the moment the
-app opens.
+bge embedder, the Ollama binary, the pinned llmfit binary, and
+`surfsense-picks.json` — and ingestion and search work the moment the app opens.
 
-The model arrives in first-run setup, in the UI, with progress, over the
-provider layer already built ([`03-chat.md`](./03-chat.md)):
+### llmfit executable
 
-- `GET /llm/{provider}/catalog` — the choices with their download sizes, a lite
-  Qwen as the pre-selected default. A default *selection*, not a shipped file.
-- `POST /llm/{provider}/pull` — streams download progress to a bar.
-- `POST /llm/selection` — records the choice in `selected_models`.
+- Pin one llmfit release and its SHA-256 checksums in the staging script; never
+  download "latest" during an app build.
+- Stage the official archive for each supported OS/architecture under
+  `resources/llmfit/`, retaining upstream license and notices.
+- The API receives an absolute `SURFSENSE_LOCAL_LLMFIT_PATH` from Electron.
+  Development may resolve `llmfit` from `PATH`; packaged builds must not.
+- Invoke the binary without a shell and with a bounded timeout. Its model
+  catalog is read-only inside application resources.
+- Code signing, notarization, and antivirus smoke tests include both llmfit and
+  Ollama. A missing or quarantined llmfit binary degrades recommendations but
+  must not prevent the API from starting.
+- CI verifies the staged checksum and runs `llmfit --json system` from the final
+  packaged resource path on a clean supported target.
+
+llmfit's license and model-license metadata are not permission to redistribute
+model weights. SurfSense ships no generation weights and the runtime downloads
+the artifact selected by the server-side install resolver.
+
+### First-run model download
+
+The generation model arrives in first-run setup with progress through the
+normalized catalog boundary
+([`05-model-recommendations.md`](05-model-recommendations.md)):
+
+- `GET /llm/system` — normalized local hardware and scan status.
+- `GET /llm/catalog` — hardware-ranked SurfSense Picks, Explore, and installed
+  entries with opaque catalog ids.
+- `POST /llm/install` — resolves the trusted runtime artifact server-side,
+  streams download progress, and optionally selects it.
+- `GET/PUT /llm/selection/generation` — reads or validates the selected
+  provider/runtime model.
 
 A fully offline machine keeps chat through an "import a local model" option on
 the same screen (a file, or a model already in Ollama), so airgapped is an opt-in
-path rather than a cost every installer pays. Packaging adds no backend here.
+path rather than a cost every installer pays. Import validates and moves the
+artifact atomically through the chosen runtime adapter; the renderer never
+provides an arbitrary download URL.
 
 ## Acceptance
 
 - Clean VM Path B: install → wizard → upload → chat.
+- Hardware-ranked catalog works without a separately installed llmfit.
+- Tampering with the staged llmfit archive fails checksum verification.
+- Removing llmfit after install leaves ingestion and an already selected model
+  operational, with recommendation UI degraded explicitly.
+- Download & Use resolves an Ollama artifact, completes, and selects the exact
+  installed model; no generation weights are present before that action.
 - Quit → no orphan `surfsense-*` processes.
