@@ -619,9 +619,24 @@ export type SSEEvent =
 				}>;
 				/** Some generation in the turn hit its output-token cap. */
 				truncated?: boolean;
+				/** The agent was stopped between steps for crossing its spend ceiling. */
+				cost_limited?: boolean;
 			};
 	  }
-	| { type: "error"; message: string; errorCode?: string; diagnostic?: string };
+	| {
+			type: "error";
+			message: string;
+			errorCode?: string;
+			diagnostic?: string;
+			/**
+			 * Provider diagnostics, emitted as top-level siblings by the backend
+			 * (`format_error` spreads its `extra` into the frame). Telemetry only —
+			 * never rendered, since they name upstream internals.
+			 */
+			provider_error_category?: string;
+			provider_status_code?: number;
+			provider_error_type?: string;
+	  };
 
 /**
  * Async generator that reads an SSE stream and yields parsed JSON objects.
