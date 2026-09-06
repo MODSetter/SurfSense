@@ -1,0 +1,14 @@
+{
+  "system": {
+    "cpu_name": "Apple M2 Max",
+    "cpu_cores": 12,
+    "total_ram_gb": 32.0,
+    "available_ram_gb": 24.5,
+    "has_gpu": true,
+    "gpu_name": "Apple M2 Max",
+    "gpu_vram_gb": 32.0,
+    "gpu_count": 1,
+    "backend": "Metal",
+    "unified_memory": true
+  }
+}
