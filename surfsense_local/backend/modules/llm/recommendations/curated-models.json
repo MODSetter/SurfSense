@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "advisor_providers": ["Alibaba"],
+  "models": [
+    {
+      "model_id": "Qwen/Qwen3-0.6B",
+      "family": "Qwen3",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {"ollama": {"name": "qwen3:0.6b", "quantization": "Q4_K_M"}}
+    },
+    {
+      "model_id": "Qwen/Qwen3-1.7B",
+      "family": "Qwen3",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {"ollama": {"name": "qwen3:1.7b", "quantization": "Q4_K_M"}}
+    },
+    {
+      "model_id": "Qwen/Qwen3-4B",
+      "family": "Qwen3",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {"ollama": {"name": "qwen3:4b", "quantization": "Q4_K_M"}}
+    },
+    {
+      "model_id": "Qwen/Qwen3-8B",
+      "family": "Qwen3",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {"ollama": {"name": "qwen3:8b", "quantization": "Q4_K_M"}}
+    },
+    {
+      "model_id": "Qwen/Qwen3-14B",
+      "family": "Qwen3",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {"ollama": {"name": "qwen3:14b", "quantization": "Q4_K_M"}}
+    },
+    {
+      "model_id": "Qwen/Qwen3-32B",
+      "family": "Qwen3",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {"ollama": {"name": "qwen3:32b", "quantization": "Q4_K_M"}}
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "family": "Qwen2.5 Coder",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {
+        "ollama": {"name": "qwen2.5-coder:7b", "quantization": "Q4_K_M"}
+      }
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-Coder-32B-Instruct",
+      "family": "Qwen2.5 Coder",
+      "minimum_fit": "good",
+      "minimum_context": 8192,
+      "allowed_quantizations": ["Q4_K_M"],
+      "artifacts": {
+        "ollama": {"name": "qwen2.5-coder:32b", "quantization": "Q4_K_M"}
+      }
+    }
+  ]
+}
