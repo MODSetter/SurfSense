@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from modules.llm.models import ModelRole
+from modules.llm.recommendations.types import FitLevel
 
 
 class ProviderRead(BaseModel):
@@ -69,3 +70,75 @@ class SelectionRead(BaseModel):
     provider: str
     name: str
     updated_at: datetime
+
+
+class RecommendationWarningRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: str
+    message: str
+
+
+class SystemProfileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    cpu_name: str | None
+    cpu_cores: int | None
+    total_ram_gb: float | None
+    available_ram_gb: float | None
+    has_gpu: bool
+    gpu_name: str | None
+    gpu_vram_gb: float | None
+    gpu_count: int
+    backend: str | None
+    unified_memory: bool
+
+
+class RecommendationSystemRead(BaseModel):
+    hardware: SystemProfileRead | None
+    llmfit_version: str | None
+    estimates_available: bool
+    warnings: list[RecommendationWarningRead]
+
+
+class RecommendationRowRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    catalog_id: str
+    canonical_id: str
+    family: str
+    label: str
+    publisher: str | None
+    parameter_count: str | None
+    fit: FitLevel
+    score: float | None
+    memory_required_gb: float | None
+    disk_size_gb: float | None
+    estimated_tps: float | None
+    prefill_tps: float | None
+    ttft_ms: float | None
+    effective_context_length: int | None
+    estimate_confidence: str | None
+    license: str | None
+    runtime: str
+    runtime_model: str
+    quantization: str | None
+    installed: bool
+    selected: bool
+    can_install: bool
+    warnings: list[str]
+
+
+class RecommendationCatalogRead(BaseModel):
+    hardware: SystemProfileRead | None
+    llmfit_version: str | None
+    recommended: list[RecommendationRowRead]
+    explore: list[RecommendationRowRead]
+    installed: list[RecommendationRowRead]
+    warnings: list[RecommendationWarningRead]
+    runtime_status: dict[str, bool]
+
+
+class InstallRequest(BaseModel):
+    catalog_id: str = Field(min_length=1, max_length=128)
+    select: bool = True

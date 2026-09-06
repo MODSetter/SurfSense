@@ -5,7 +5,9 @@
 
 ## Goal
 
-App opens with model selection, then navigation and workspace screens.
+App opens with installed-model selection, then navigation and workspace screens.
+Phase 5 upgrades this route to the hardware-ranked install catalog specified in
+[`05-install-ux.md`](05-install-ux.md).
 The desktop shell, workspace bootstrap, assistant-ui runtime, and three-panel
 dashboard are specified in [`01-dashboard.md`](01-dashboard.md).
 
@@ -74,8 +76,11 @@ available to assistive technology. Keep the primary action disabled until a
 compatible model is selected and while a save is in flight.
 
 Model download/catalog UI remains Phase 5. With no compatible installed model,
-this screen explains how to install one and offers Refresh; it does not start a
-pull.
+this screen explains that setup is incomplete and offers Refresh; it does not
+start a pull. Once Phase 5 lands, the same route loads `GET /llm/catalog`,
+renders SurfSense Recommended followed by Explore, and performs the one-action
+install/select flow. Keep the provider inventory calls here as the authoritative
+installed-state and validated-selection path.
 
 ## Acceptance
 
@@ -93,9 +98,12 @@ pull.
 - Dev: create workspace, refresh, still listed.
 - Rename shows the new name without a reload; delete removes it from the switcher.
 - Runs in browser against local API.
+- Phase 5: a fresh machine can continue from this route into the ranked catalog
+  without installing a model outside SurfSense.
 
 ## Needs from API
 
 Workspace routes — [`../api/01-skeleton.md`](../api/01-skeleton.md). Model
 provider inventory and validated generation selection —
-[`../api/03-chat.md`](../api/03-chat.md).
+[`../api/03-chat.md`](../api/03-chat.md). Ranked catalog and installation —
+[`../api/05-model-recommendations.md`](../api/05-model-recommendations.md).

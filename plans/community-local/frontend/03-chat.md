@@ -11,7 +11,10 @@ parser, and Sources panel contract are specified in
 
 ## Work
 
-- Wizard: path A/B/C + RAM tier → `PATCH /settings`.
+- Wizard: path A/B/C → `PATCH /settings`. Do not ask the user to self-report a
+  RAM tier. Until Phase 5, select only an already installed compatible model;
+  Phase 5 detects hardware with llmfit and inserts the ranked Download & Use
+  step from [`05-install-ux.md`](05-install-ux.md).
 - Reuse the validated generation selection from
   [`01-shell.md`](01-shell.md); Chat does not maintain a second model URL/name
   setting.

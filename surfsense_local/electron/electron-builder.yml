@@ -29,6 +29,9 @@ extraResources:
   # user post-install into the writable data dir, not shipped.
   - from: ollama
     to: ollama
+  # Pinned hardware advisor (fetch-llmfit.mjs verifies and stages it atomically).
+  - from: llmfit
+    to: llmfit
 
 publish:
   provider: github

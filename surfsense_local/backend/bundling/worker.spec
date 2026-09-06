@@ -23,6 +23,12 @@ for package in (
     "docling_ibm_models",
     "docling_parse",
     "rapidocr",
+    # Transformers exposes AutoImageProcessor through lazy imports, and
+    # torchvision loads native extensions dynamically. Neither edge is visible
+    # by following Docling's imports, so a source install works while the frozen
+    # worker fails only when its first PDF initializes the layout model.
+    "transformers",
+    "torchvision",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas
