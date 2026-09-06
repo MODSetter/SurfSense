@@ -15,7 +15,7 @@ both ranked for the current computer.
 
 The **Choose your AI model** page loads `GET /llm/catalog` and renders:
 
-1. **SurfSense Recommended** — exact configurations from the Picks manifest
+1. **SurfSense Recommended** — exact configurations from the curated-model manifest
    that fit this computer.
 2. **Explore more models** — remaining installable llmfit catalog entries.
 3. **Installed** — already available local models, including models that are no
@@ -24,7 +24,7 @@ The **Choose your AI model** page loads `GET /llm/catalog` and renders:
 Recommended entries are grouped visually by family (for example Qwen or Gemma),
 but each card remains an exact parameter/quantization/runtime configuration.
 Do not render every parameter size merely because its family is recommended.
-An entry appears once only: Picks are removed from Explore.
+An entry appears once only: Recommended models are removed from Explore.
 
 Each card shows:
 
@@ -104,7 +104,7 @@ except for runtime-specific explanatory copy.
 
 ## Acceptance
 
-- A clean supported machine sees hardware-ranked Picks above Explore.
+- A clean supported machine sees hardware-ranked Recommended models above Explore.
 - Gemma/Qwen family grouping does not create unsupported parameter-size cards.
 - Download & Use is one user action and ends with the exact installed runtime
   model selected.

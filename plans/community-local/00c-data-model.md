@@ -225,9 +225,9 @@ ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFA
 The chosen generation model, one row per `role` (the primary key, so choosing
 again updates in place). `provider` names an entry in the `modules/llm` registry
 (`ollama` for v1), `name` is that provider's model id (`qwen3:4b`). The offerable
-catalog, hardware profile, llmfit scores, install plans, and SurfSense Picks are
+catalog, hardware profile, llmfit scores, install plans, and curated models are
 **not** stored. They are recomputed from the packaged llmfit catalog, current
-hardware, enabled runtime adapters, and versioned Picks manifest. The selected
+hardware, enabled runtime adapters, and versioned curated-model manifest. The selected
 row stores the runtime identity, not llmfit's canonical catalog id. Ships in the
 initial migration.
 

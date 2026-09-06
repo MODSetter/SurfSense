@@ -24,7 +24,7 @@ llmfit catalog + hardware fit
       LlmfitAdvisor adapter
              │ normalized ScoredModel[]
              ▼
-     CatalogService + Picks JSON
+     CatalogService + curated models JSON
              │
              ▼
     runtime artifact resolution
@@ -32,12 +32,12 @@ llmfit catalog + hardware fit
        └── llama.cpp (future)
              │
              ▼
-       Picks + Explore API
+      Recommended + Explore API
 ```
 
 - **llmfit** answers which generation configurations fit this hardware. It is
   not an inference runtime and is never forked or modified by SurfSense.
-- **SurfSense Picks** names exact team-tested configurations. Family membership
+- **Curated models** name exact team-tested configurations. Family membership
   alone never grants support.
 - **Runtime adapters** answer whether a scored model has an artifact SurfSense
   can install, then own download, storage, process lifecycle, and inference.
@@ -122,14 +122,14 @@ the server and is never accepted from the renderer.
 A future adapter resolves a canonical model and quantization to a verified GGUF,
 downloads atomically, starts `llama-server`, and implements the existing
 `Generator` stream. Adding it changes the runtime registry and packaging, not
-the llmfit adapter, Picks policy, catalog service, or frontend response shape.
+  the llmfit adapter, curated-model policy, catalog service, or frontend response shape.
 
-## SurfSense Picks manifest
+## Curated models manifest
 
 Package:
 
 ```text
-backend/modules/llm/recommendations/surfsense-picks.json
+backend/modules/llm/recommendations/curated-models.json
 ```
 
 Shape:
@@ -167,19 +167,20 @@ For each llmfit generation model:
 2. Exclude embedding-only entries.
 3. Ask each enabled local runtime to resolve an install plan.
 4. Drop uninstalled entries with no resolvable trusted artifact.
-5. Overlay the Picks manifest.
+5. Overlay the curated-model manifest.
 6. Apply SurfSense's real context target and reserve memory for the OS,
    Electron, API, worker, parser, and fixed embedding model.
 7. Partition and rank:
-   - **Picks:** exact manifest entry, verified install plan, and `perfect` or
+   - **Recommended:** exact manifest entry, verified install plan, and `perfect` or
      `good` fit;
    - **Explore:** remaining installable `perfect`, `good`, or `marginal`
      entries;
    - **Installed:** always visible, including a warning when marginal or too
      tight.
 
-A Pick that does not fit moves to Explore with its fit warning; SurfSense never
-promises that team-tested means suitable for every computer. Picks are removed
+A curated model that does not fit moves to Explore with its fit warning;
+SurfSense never promises that team-tested means suitable for every computer.
+Recommended models are removed
 from Explore to avoid duplicates. Ranking is deterministic: fit class, llmfit
 score, then canonical id.
 
@@ -197,7 +198,7 @@ Returns:
 ```json
 {
   "hardware": {},
-  "picks": [],
+  "recommended": [],
   "explore": [],
   "installed": [],
   "warnings": []
@@ -245,7 +246,7 @@ during migration, but the final frontend calls the normalized install route.
 
 - Adapter fixtures cover system JSON, fit JSON, labels versus machine codes,
   nullable estimates, unknown fields, timeout, nonzero exit, and malformed JSON.
-- Catalog policy covers Picks/Explore partitioning, family grouping metadata,
+- Catalog policy covers Recommended/Explore partitioning, family grouping metadata,
   deterministic ranking, deduplication, memory reserve, and installed models
   that no longer fit.
 - Runtime resolution covers valid/absent Ollama mappings and prevents an
@@ -256,11 +257,11 @@ during migration, but the final frontend calls the normalized install route.
 
 ## Acceptance
 
-- A clean supported machine sees hardware-ranked Picks followed by Explore.
+- A clean supported machine sees hardware-ranked Recommended models followed by Explore.
 - Every enabled Download action resolves to a runtime artifact SurfSense can
   install.
 - One Download & Use action installs and selects a model.
 - llmfit being unavailable degrades recommendations without breaking installed
   model selection or chat.
 - Adding a fake llama.cpp runtime in tests requires no change to llmfit parsing,
-  Picks partitioning, or the frontend catalog schema.
+  Recommended partitioning, or the frontend catalog schema.

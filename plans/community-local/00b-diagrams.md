@@ -47,7 +47,7 @@
                              ▼
                     llmfit hardware scan
                              ▼
-                 SurfSense Picks + Explore
+                 Recommended + Explore
                              ▼
                  one-click Download & Use
                              ▼
@@ -67,7 +67,7 @@ llmfit model catalog + fit estimates
           SurfSense adapter
                   │ canonical, normalized models
                   ▼
-      Picks JSON + support policy
+      Curated models JSON + support policy
                   │
                   ▼
        Runtime artifact resolver

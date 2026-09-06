@@ -13,7 +13,7 @@ Installers for Paths A / B / C.
 - CI: win/mac/linux; smoke `/health`.
 - Models outside exe — shipped as `extraResources`, `SURFSENSE_LOCAL_MODELS_DIR`
   pointed at them; `scripts/fetch_embedding_model.py` fetches the same files for CI.
-- A pinned official llmfit executable plus the versioned SurfSense Picks
+- A pinned official llmfit executable plus the versioned curated-model
   manifest; normalized recommendation/install routes are specified in
   [`05-model-recommendations.md`](05-model-recommendations.md).
 
@@ -86,7 +86,7 @@ The chat model is the one heavy file (1.4GB+), and bundling it would double the
 installer for something the app does not need to *start*. So it is not shipped.
 The installer carries only what runs offline — code, Docling/OCR weights, the
 bge embedder, the Ollama binary, the pinned llmfit binary, and
-`surfsense-picks.json` — and ingestion and search work the moment the app opens.
+`curated-models.json` — and ingestion and search work the moment the app opens.
 
 ### llmfit executable
 
@@ -115,7 +115,7 @@ normalized catalog boundary
 ([`05-model-recommendations.md`](05-model-recommendations.md)):
 
 - `GET /llm/system` — normalized local hardware and scan status.
-- `GET /llm/catalog` — hardware-ranked SurfSense Picks, Explore, and installed
+- `GET /llm/catalog` — hardware-ranked Recommended, Explore, and installed
   entries with opaque catalog ids.
 - `POST /llm/install` — resolves the trusted runtime artifact server-side,
   streams download progress, and optionally selects it.
