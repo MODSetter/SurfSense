@@ -10,6 +10,7 @@
   "homepage": "https://github.com/MODSetter/SurfSense",
   "main": "./out/main/index.js",
   "scripts": {
+    "predev": "pnpm build:model",
     "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && electron-vite dev\"",
     "build": "electron-vite build",
     "build:frontend": "pnpm --dir ../frontend build",

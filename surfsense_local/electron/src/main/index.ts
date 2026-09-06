@@ -35,9 +35,10 @@ async function bootSidecars(): Promise<string> {
     host,
     apiPort,
     dataDir,
-    // Packaged only: the shipped model is read-only in resources/, Docling's
-    // download needs somewhere writable. Dev leaves both at their defaults.
-    modelsDir: packaged ? join(process.resourcesPath, "models") : undefined,
+    // Packaged: use the bundled model. Dev: reuse the model staged for builds.
+    modelsDir: packaged
+      ? join(process.resourcesPath, "models")
+      : join(app.getAppPath(), "..", "backend", "models"),
     hfHome: packaged ? join(dataDir, "hf") : undefined,
   }
   if (packaged) {
