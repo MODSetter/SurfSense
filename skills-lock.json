@@ -58,6 +58,12 @@
       "sourceType": "github",
       "computedHash": "ddd61f32254be1303ce4b7be5d507c932de4af53489a0ebb1309bf61de99018c"
     },
+    "humanizer": {
+      "source": "blader/humanizer",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "456120712f3020b0da940d57ca2b7840db0c83c6d2cf6d0dfa31296f3d29b31e"
+    },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
       "sourceType": "github",

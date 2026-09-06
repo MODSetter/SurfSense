@@ -19,6 +19,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from app.config import config
+from app.services.wallet_credit import funds_micros
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,9 @@ async def maybe_trigger_auto_reload(user_id: str) -> None:
         if not threshold or not amount:
             return
 
-        available = user.credit_micros_balance - user.credit_micros_reserved
+        # Counts the plan allowance too: a subscriber with included usage left
+        # is not out of credit, and charging their card would be wrong.
+        available = funds_micros(user) - user.credit_micros_reserved
         if available >= threshold:
             return
 

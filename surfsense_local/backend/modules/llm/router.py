@@ -14,6 +14,7 @@ from modules.llm.dependencies import ProviderDep, StoreDep
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers import get_provider, provider_names
 from modules.llm.providers.protocols import ModelStore
+from modules.llm.recommendations.router import router as recommendations_router
 from modules.llm.schemas import (
     CatalogEntryRead,
     CredentialStatus,
@@ -24,8 +25,10 @@ from modules.llm.schemas import (
     SelectionRead,
     SelectionWrite,
 )
+from modules.llm.selection import choose_model
 
 router = APIRouter(prefix="/llm", tags=["llm"])
+router.include_router(recommendations_router)
 
 
 @router.get("/providers", response_model=list[ProviderRead], summary="List providers")
@@ -158,37 +161,4 @@ def read_selection(role: ModelRole, session: SessionDep) -> SelectedModel:
 async def set_selection(
     role: ModelRole, payload: SelectionWrite, session: SessionDep
 ) -> SelectedModel:
-    provider = get_provider(payload.provider, session)
-    if provider is None:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"unknown provider: {payload.provider}",
-        )
-
-    model = next(
-        (model for model in await provider.models() if model.name == payload.name),
-        None,
-    )
-    if model is None or not model.installed:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"model is not installed: {payload.name}",
-        )
-    if role is ModelRole.GENERATION and "completion" not in model.capabilities:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"model does not support generation: {payload.name}",
-        )
-
-    selected = session.get(SelectedModel, role)
-    if selected is None:
-        selected = SelectedModel(
-            role=role, provider=payload.provider, name=payload.name
-        )
-        session.add(selected)
-    else:
-        selected.provider = payload.provider
-        selected.name = payload.name
-
-    session.flush()
-    return selected
+    return await choose_model(session, role, payload.provider, payload.name)

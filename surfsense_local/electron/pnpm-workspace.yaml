@@ -1,3 +1,5 @@
 allowBuilds:
-  electron-winstaller: true
+  electron: true
   esbuild: true
+  # Only used for the Squirrel.Windows target; electron-builder.yml ships nsis.
+  electron-winstaller: false

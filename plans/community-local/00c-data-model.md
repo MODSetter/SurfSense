@@ -225,9 +225,15 @@ ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFA
 The chosen generation model, one row per `role` (the primary key, so choosing
 again updates in place). `provider` names an entry in the `modules/llm` registry
 (`ollama` for v1), `name` is that provider's model id (`qwen3:4b`). The offerable
-catalog and each model's capabilities are **not** stored — Ollama owns them, and
-a curated list inside the provider names what it can pull. Ships in the initial
-migration.
+catalog, hardware profile, llmfit scores, install plans, and curated models are
+**not** stored. They are recomputed from the packaged llmfit catalog, current
+hardware, enabled runtime adapters, and versioned curated-model manifest. The selected
+row stores the runtime identity, not llmfit's canonical catalog id. Ships in the
+initial migration.
+
+Phase 5 therefore adds no recommendation tables and no migration. Persisting
+fit estimates would make them stale after a hardware, llmfit, runtime, or policy
+update.
 
 ### Local-only
 

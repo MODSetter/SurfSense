@@ -87,6 +87,46 @@ function getErrorCode(error: unknown): string | undefined {
 	return undefined;
 }
 
+/**
+ * Provider diagnostics the backend attaches to a terminal error frame.
+ *
+ * `MODEL_PROVIDER_UNAVAILABLE` is one code covering five upstream categories
+ * (timeout, provider unavailable, bad gateway, connection failed, server
+ * error), so the code alone cannot tell them apart. Carrying these through to
+ * telemetry is what makes the split visible without backend log access.
+ */
+export interface ProviderDiagnostics {
+	provider_error_category?: string;
+	provider_status_code?: number;
+	provider_error_type?: string;
+}
+
+/** Validate the three fields off an untrusted stream payload. */
+export function pickProviderDiagnostics(source: unknown): ProviderDiagnostics {
+	if (typeof source !== "object" || source === null) return {};
+	const { provider_error_category, provider_status_code, provider_error_type } = source as Record<
+		keyof ProviderDiagnostics,
+		unknown
+	>;
+	const picked: ProviderDiagnostics = {};
+	if (typeof provider_error_category === "string") {
+		picked.provider_error_category = provider_error_category;
+	}
+	if (typeof provider_status_code === "number") {
+		picked.provider_status_code = provider_status_code;
+	}
+	if (typeof provider_error_type === "string") {
+		picked.provider_error_type = provider_error_type;
+	}
+	return picked;
+}
+
+/** Read back what the stream pipeline attached to a terminal error. */
+export function providerDiagnosticsOf(error: unknown): ProviderDiagnostics {
+	if (typeof error !== "object" || error === null) return {};
+	return pickProviderDiagnostics((error as { providerDiagnostics?: unknown }).providerDiagnostics);
+}
+
 export function classifyChatError(input: RawChatErrorInput): NormalizedChatError {
 	const { error } = input;
 	const rawMessage = getErrorMessage(error);

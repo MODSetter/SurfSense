@@ -54,4 +54,5 @@ def build_subagent_middleware_stack(
         "fallback": resilience.fallback,
         "model_call_limit": resilience.model_call_limit,
         "tool_call_limit": resilience.tool_call_limit,
+        "run_cost_limit": resilience.run_cost_limit,
     }

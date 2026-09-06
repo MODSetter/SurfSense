@@ -37,6 +37,10 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
       ...pythonEnv(ctx),
       // chat generation reaches the bundled Ollama (packaged only)
       ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
+      ...(ctx.ollamaModelsDir && {
+        SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
+      }),
+      ...(ctx.llmfitPath && { SURFSENSE_LOCAL_LLMFIT_PATH: ctx.llmfitPath }),
     },
   }
 }

@@ -73,7 +73,7 @@ export function SoftwareApplicationJsonLd() {
 					price: "0",
 					priceCurrency: "USD",
 					description:
-						"Free self-hosted from the open-source repo; cloud starts with $5 of free credit, then pay as you go",
+						"Free self-hosted from the open-source repo; free cloud plan with a monthly usage allowance, or Pro at $15 per month",
 				},
 				description:
 					"SurfSense is an open-source NotebookLM alternative for AI agents. It researches the live web with platform-native connectors for Reddit, YouTube, TikTok, Amazon, Walmart, Google Maps, Google Search, and any page on the open web, through one API or MCP server.",

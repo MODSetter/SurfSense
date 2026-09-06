@@ -4,6 +4,7 @@ import { app, BrowserWindow } from "electron"
 
 import { getFreePort, waitForHealth } from "./net.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
+import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import { startAll, stopAll, type Sidecars } from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
@@ -35,10 +36,14 @@ async function bootSidecars(): Promise<string> {
     host,
     apiPort,
     dataDir,
-    // Packaged only: the shipped model is read-only in resources/, Docling's
-    // download needs somewhere writable. Dev leaves both at their defaults.
-    modelsDir: packaged ? join(process.resourcesPath, "models") : undefined,
+    // Packaged: use the bundled model. Dev: reuse the model staged for builds.
+    modelsDir: packaged
+      ? join(process.resourcesPath, "models")
+      : join(app.getAppPath(), "..", "backend", "models"),
     hfHome: packaged ? join(dataDir, "hf") : undefined,
+    llmfitPath: packaged
+      ? join(process.resourcesPath, "llmfit", exe("llmfit"))
+      : join(app.getAppPath(), "llmfit", exe("llmfit")),
   }
   if (packaged) {
     ctx.ollamaPort = await getFreePort(host)

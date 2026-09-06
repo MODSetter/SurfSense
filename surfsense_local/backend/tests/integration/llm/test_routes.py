@@ -1,10 +1,13 @@
 import json
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
 
 from modules.llm import providers as registry
 from modules.llm.providers.types import Message, Model
+from modules.llm.recommendations.dependencies import get_catalog_service
+from shared.config import get_llm_settings
 
 pytestmark = pytest.mark.integration
 
@@ -185,3 +188,119 @@ async def test_a_chat_only_provider_hides_the_catalog(
     assert echo["can_download"] is False
 
     assert (await client.get("/llm/providers/echo/catalog")).status_code == 409
+
+
+def _configure_llmfit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    system = {"system": {"available_ram_gb": 16, "total_ram_gb": 16}}
+    fit = {
+        "models": [
+            {
+                "name": "Qwen/Qwen3-8B",
+                "provider": "Qwen",
+                "parameter_count": "8B",
+                "use_case": "chat",
+                "fit_level": "good",
+                "score": 85,
+                "runtime": "llamacpp",
+                "run_mode": "gpu",
+                "best_quant": "Q4_K_M",
+                "memory_required_gb": 6,
+                "memory_available_gb": 16,
+                "disk_size_gb": 5.2,
+                "effective_context_length": 8192,
+                "capability_ids": ["tool_use"],
+                "ollama_name": "qwen3:8b",
+                "gguf_sources": [],
+            }
+        ]
+    }
+    executable = tmp_path / "llmfit"
+    executable.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys\n"
+        f"system = {json.dumps(system)!r}\n"
+        f"fit = {json.dumps(fit)!r}\n"
+        'print("llmfit 1.1.11" if "--version" in sys.argv '
+        'else system if "system" in sys.argv else fit)\n'
+    )
+    executable.chmod(0o755)
+    monkeypatch.setattr(get_llm_settings(), "llmfit_path", executable)
+    get_catalog_service.cache_clear()
+
+
+async def test_ranked_catalog_installs_and_selects_in_one_stream(
+    client: AsyncClient,
+    ollama_server: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The normalized route resolves an opaque id, installs, and persists selection."""
+    _configure_llmfit(tmp_path, monkeypatch)
+    catalog = (await client.get("/llm/catalog")).json()
+
+    assert [row["canonical_id"] for row in catalog["recommended"]] == ["Qwen/Qwen3-8B"]
+    catalog_id = catalog["recommended"][0]["catalog_id"]
+
+    events = []
+    async with client.stream(
+        "POST",
+        "/llm/install",
+        json={"catalog_id": catalog_id, "select": True},
+    ) as response:
+        assert response.status_code == 200
+        async for line in response.aiter_lines():
+            if line:
+                events.append(json.loads(line))
+
+    assert [event["type"] for event in events] == [
+        "starting",
+        "downloading",
+        "downloading",
+        "downloading",
+        "downloading",
+        "verifying",
+        "selecting",
+        "complete",
+    ]
+    assert events[-1]["selection"]["name"] == "qwen3:8b"
+    assert (await client.get("/llm/selection/generation")).json()["name"] == "qwen3:8b"
+    get_catalog_service.cache_clear()
+
+
+async def test_refresh_makes_old_catalog_ids_unusable(
+    client: AsyncClient,
+    ollama_server: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A refresh revokes prior artifact choices before download starts."""
+    _configure_llmfit(tmp_path, monkeypatch)
+    old_id = (await client.get("/llm/catalog")).json()["recommended"][0]["catalog_id"]
+    await client.get("/llm/catalog?refresh=true")
+
+    response = await client.post(
+        "/llm/install", json={"catalog_id": old_id, "select": True}
+    )
+
+    assert response.status_code == 422
+    get_catalog_service.cache_clear()
+
+
+async def test_missing_llmfit_keeps_installed_models_available(
+    client: AsyncClient,
+    ollama_server: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Recommendation failure cannot hide models that can still answer chat."""
+    monkeypatch.setattr(get_llm_settings(), "llmfit_path", tmp_path / "missing")
+    get_catalog_service.cache_clear()
+
+    catalog = (await client.get("/llm/catalog")).json()
+
+    assert {row["runtime_model"] for row in catalog["installed"]} == {
+        "qwen3:1.7b",
+        "qwen3:4b",
+    }
+    assert catalog["warnings"][0]["code"] == "missing"
+    get_catalog_service.cache_clear()

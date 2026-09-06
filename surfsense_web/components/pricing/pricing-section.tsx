@@ -14,11 +14,12 @@ const demoPlans = [
 		price: "0",
 		yearlyPrice: "0",
 		period: "",
-		billingText: "Open source. Run it on your own infrastructure",
+		billingText: "Self-host for free, or start free in the cloud",
 		features: [
 			"Full platform: connectors, agents, automations, and the MCP server",
-			"Unlimited scraping and crawling, you control billing",
+			"Self-hosted: unlimited scraping and crawling, you control billing",
 			"Bring your own keys for any model provider",
+			"Free cloud account includes $1 of premium model usage each month",
 			"Keep competitive research on your own infrastructure",
 			"Community support on Discord",
 		],
@@ -28,25 +29,25 @@ const demoPlans = [
 		isPopular: false,
 	},
 	{
-		name: "PAY AS YOU GO",
-		price: "5",
-		yearlyPrice: "5",
-		period: "to start",
-		billingText: "Your first $5 of credit is free. No subscription, ever",
+		name: "PRO",
+		price: "15",
+		yearlyPrice: "15",
+		period: "month",
+		billingText: "Billed monthly. Cancel any time",
 		features: [
-			"$5 of free credit to start, one balance for everything",
+			"$6 of premium model usage included every month",
 			"Platform connectors: Reddit, YouTube, TikTok, Amazon, Google Maps, Google Search, and the open web",
 			"Call every connector as a REST API with your key or through the MCP server",
 			"Pay per item returned and per page crawled. Failed calls are never billed",
 			"Premium models like GPT-5.5, Claude Sonnet 5, Gemini 3.1 Pro billed at provider cost",
 			"Scheduled and event-triggered agents for briefs, alerts, and monitoring",
 			"Write results back to Notion, Slack, Linear, and Jira",
-			"Add credit any time. $1 buys $1 of credit, with optional automatic refills",
+			"Need more? Top up credit any time. $1 buys $1, with optional automatic refills",
 			"Priority support on Discord",
 		],
 		description: "",
 		buttonText: "Get Started",
-		href: "/login",
+		href: "/register",
 		isPopular: true,
 	},
 	{
@@ -56,7 +57,7 @@ const demoPlans = [
 		period: "",
 		billingText: "",
 		features: [
-			"Everything in Pay As You Go",
+			"Everything in Pro",
 			"Custom connectors and agent workflows",
 			"On-prem or VPC deployment",
 			"Audit logs and compliance",
@@ -85,22 +86,32 @@ interface FAQSection {
 
 const faqData: FAQSection[] = [
 	{
-		title: "Credits & Pay As You Go",
+		title: "Plans & Credits",
 		items: [
 			{
 				question: "What are credits in SurfSense?",
 				answer:
-					"Credits are a single prepaid balance shown in dollars that powers everything in SurfSense: platform connector calls, web crawls, document processing, and premium AI models. New accounts start with $5 of free credit. There is one number to watch, and it only moves when you actually use the product.",
+					"Credits are a single balance shown in dollars that powers everything in SurfSense: platform connector calls, web crawls, document processing, and premium AI models. Your plan tops that balance up every month, and you can add more any time. There is one number to watch, and it only moves when you actually use the product.",
 			},
 			{
-				question: "How does Pay As You Go work?",
+				question: "What is included in the free plan?",
 				answer:
-					"There is no monthly subscription. Start with $5 of free credit, and when you need more, add any amount. $1 buys exactly $1 of credit, added to your balance immediately. You can enable automatic refills when your balance runs low, and turn them off any time.",
+					"A free cloud account includes $1 of premium model usage each month, which resets on your billing date. Free models, connectors that do not consume credit, and your knowledge base keep working regardless. Self-hosting stays free and unmetered.",
 			},
 			{
-				question: "What happens if I run out of credit?",
+				question: "What do I get with Pro?",
 				answer:
-					"SurfSense checks your balance before every billable call, so your wallet can never go negative. When credit runs out, connector calls, crawls, premium model requests, and document processing pause until you top up. Free models and connectors that do not consume credit keep working.",
+					"Pro is $15 per month and includes $6 of premium model usage, connector calls, and crawls each month, plus priority support. If you need more than the monthly allowance, you can top up credit at $1 for $1 and it is spent only after your allowance runs out.",
+			},
+			{
+				question: "What happens if I use up my monthly allowance?",
+				answer:
+					"Premium model requests, connector calls, crawls, and document processing pause until your allowance resets or you top up credit. Free models and connectors that do not consume credit keep working. Nothing is deleted and no overage is charged without you buying credit first.",
+			},
+			{
+				question: "I already bought credit. Does it still work?",
+				answer:
+					"Yes. Credit you purchased is yours and does not expire. It sits alongside your monthly allowance and is spent only after the allowance is used up, so a month you stay inside your plan costs you nothing from your balance.",
 			},
 			{
 				question: "Do failed scrapes or crawls cost anything?",
@@ -115,7 +126,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "How are platform connectors billed?",
 				answer:
-					"Each platform connector meters per item returned: a Reddit post or comment, a Google Search results page, a Google Maps place or review, a YouTube video or comment. Rates are fractions of a cent per item and are debited from your credit balance after the call succeeds, so your $5 of free credit covers hundreds of items.",
+					"Each platform connector meters per item returned: a Reddit post or comment, a Google Search results page, a Google Maps place or review, a YouTube video or comment. Rates are fractions of a cent per item and are debited after the call succeeds, so a single dollar covers hundreds of items.",
 			},
 			{
 				question: "How much does web crawling cost?",
@@ -185,7 +196,7 @@ const faqData: FAQSection[] = [
 			{
 				question: "What is the difference between self-hosted and cloud?",
 				answer:
-					"Both run the same platform: connectors, agents, automations, and the MCP server. Cloud is zero-setup with managed infrastructure and metered pay-as-you-go credit. Self-hosted runs on your machines with your own model keys, keeps competitive research fully in-house, and leaves billing under your control.",
+					"Both run the same platform: connectors, agents, automations, and the MCP server. Cloud is zero-setup with managed infrastructure and a monthly usage allowance. Self-hosted runs on your machines with your own model keys, keeps competitive research fully in-house, and leaves billing under your control.",
 			},
 		],
 	},
@@ -363,7 +374,7 @@ function PricingBasic() {
 			<Pricing
 				plans={demoPlans}
 				title="SurfSense Pricing"
-				description="Give your agents the live web. Self-host for free, or start with $5 of credit and pay as you go. No subscriptions."
+				description="Give your agents the live web. Self-host for free, start free in the cloud, or go Pro for $15 a month."
 			/>
 			<PricingFAQ />
 		</>

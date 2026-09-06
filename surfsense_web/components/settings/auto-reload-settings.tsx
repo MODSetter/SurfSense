@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { spendableMicros } from "@/contracts/types/stripe.types";
 import { stripeApiService } from "@/lib/apis/stripe-api.service";
 import { AppError } from "@/lib/error";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
@@ -47,7 +48,18 @@ export function AutoReloadSettings() {
 	const seededRef = useRef(false);
 
 	const [me] = useZeroQuery(queries.user.me({}));
-	const balanceMicros = me?.creditMicrosBalance ?? 0;
+	const { data: creditStatus } = useQuery({
+		queryKey: ["credit-status"],
+		queryFn: () => stripeApiService.getCreditStatus(),
+	});
+
+	// Must include the plan allowance: the threshold on this form is compared
+	// against `funds_micros` on the backend, so showing the balance alone would
+	// have someone set a threshold their credit never appears to cross.
+	const balanceMicros = spendableMicros(
+		creditStatus?.credit_micros_allowance ?? 0,
+		me?.creditMicrosBalance ?? 0
+	);
 
 	const { data: settings, isLoading } = useQuery({
 		queryKey: ["auto-reload-settings"],

@@ -25,6 +25,8 @@ export interface SidecarContext {
   modelsDir?: string
   /** Packaged: writable Hugging Face cache for Docling's first-run download. */
   hfHome?: string
+  /** Packaged: absolute path to the pinned llmfit executable. */
+  llmfitPath?: string
   /** Packaged: the bundled Ollama's port, model dir, and URL for the API. */
   ollamaPort?: number
   ollamaModelsDir?: string

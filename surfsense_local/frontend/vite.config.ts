@@ -14,6 +14,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: "127.0.0.1",
+    strictPort: true,
     proxy: {
       "/health": "http://127.0.0.1:8000",
       "/llm": "http://127.0.0.1:8000",

@@ -1,0 +1,49 @@
+{
+  "models": [
+    {
+      "name": "Qwen/Qwen3-8B",
+      "provider": "Qwen",
+      "parameter_count": "8B",
+      "params_b": 8.0,
+      "use_case": "Chat",
+      "fit_level": "Good",
+      "score": 86.5,
+      "runtime": "llama.cpp",
+      "run_mode": "GPU",
+      "best_quant": "Q4_K_M",
+      "memory_required_gb": 6.2,
+      "memory_available_gb": 24.5,
+      "utilization_pct": 25.3,
+      "disk_size_gb": 5.2,
+      "estimated_tps": 42.5,
+      "prefill_tps": null,
+      "ttft_ms": null,
+      "estimate_confidence": "estimated",
+      "estimate_basis": {"method": "roofline"},
+      "effective_context_length": 8192,
+      "capability_ids": ["tool_use"],
+      "license": "apache-2.0",
+      "ollama_name": "qwen3:8b",
+      "gguf_sources": [],
+      "notes": ["fixture"]
+    },
+    {
+      "name": "BAAI/bge-small-en-v1.5",
+      "provider": "BAAI",
+      "parameter_count": "33M",
+      "use_case": "Embedding",
+      "fit_level": "perfect",
+      "score": 99.0,
+      "runtime": "llamacpp",
+      "run_mode": "cpu",
+      "memory_required_gb": 0.2,
+      "memory_available_gb": 24.5,
+      "disk_size_gb": 0.1,
+      "effective_context_length": 512,
+      "capability_ids": ["embedding"],
+      "ollama_name": null,
+      "gguf_sources": [],
+      "future_field": "ignored"
+    }
+  ]
+}

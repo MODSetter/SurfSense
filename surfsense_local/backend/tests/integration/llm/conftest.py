@@ -29,10 +29,17 @@ class StubOllama(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         # Drain the request body so the client's connection can be reused.
-        self.rfile.read(int(self.headers["Content-Length"]))
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path == "/api/show":
-            self._json({"capabilities": ["completion", "tools"]})
+            self._json(
+                {
+                    "capabilities": ["completion", "tools"],
+                    "details": {"quantization_level": "Q4_K_M"},
+                }
+            )
         elif self.path == "/api/pull":
+            if body["model"] not in INSTALLED:
+                INSTALLED.append(body["model"])
             lines = "".join(json.dumps(step) + "\n" for step in PULL_STEPS)
             self._send(lines.encode())
         else:
@@ -54,6 +61,7 @@ class StubOllama(BaseHTTPRequestHandler):
 @pytest.fixture
 def ollama_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """A real Ollama stand-in on a real port, pointed to by settings."""
+    INSTALLED[:] = ["qwen3:1.7b", "qwen3:4b"]
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubOllama)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"

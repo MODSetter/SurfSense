@@ -14,7 +14,7 @@ Local-first desktop app for research over your own documents. Runs fully offline
 
 | | |
 |---|---|
-| Node.js | 18+ |
+| Node.js | 22.12+ (Electron 44 engine floor) |
 | Python | 3.12+ |
 | Local LLM | [Ollama](https://ollama.com) or `llama.cpp` on `127.0.0.1` |
 
@@ -27,6 +27,7 @@ quit:
 ```bash
 cd electron
 pnpm install
+pnpm --dir ../frontend install # the SPA is a separate pnpm project
 pnpm dev                      # frontend + Electron (spawns the Python sidecars)
 pnpm check:sidecars           # asserts the spawn/health/kill loop leaves no orphans
 ```
