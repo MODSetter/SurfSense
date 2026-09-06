@@ -46,6 +46,24 @@ async def test_an_unknown_provider_is_a_404(client: AsyncClient) -> None:
     assert (await client.get("/llm/providers/openai/models")).status_code == 404
 
 
+async def test_a_saved_key_lists_openrouter_models_right_away(
+    client: AsyncClient, openrouter_server: str
+) -> None:
+    """Saving the key then listing is the exact connect flow the UI runs."""
+    saved = await client.put(
+        "/llm/providers/openrouter/credentials", json={"api_key": "sk-or-test"}
+    )
+    assert saved.status_code == 200
+
+    listed = (await client.get("/llm/providers")).json()
+    openrouter = next(entry for entry in listed if entry["name"] == "openrouter")
+    assert openrouter["configured"] is True
+    assert openrouter["healthy"] is True
+
+    models = (await client.get("/llm/providers/openrouter/models")).json()
+    assert [model["name"] for model in models] == ["anthropic/claude-3.5-sonnet"]
+
+
 async def test_pull_streams_progress(client: AsyncClient, ollama_server: str) -> None:
     """The client needs progress, not one reply after minutes of silence."""
     steps = []
