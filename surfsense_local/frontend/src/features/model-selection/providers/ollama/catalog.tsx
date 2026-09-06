@@ -33,10 +33,8 @@ function PullProgressBar({
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full rounded-full bg-primary transition-[width] ${
-            percent === null ? "animate-pulse" : ""
-          }`}
-          style={{ width: percent === null ? "100%" : `${percent}%` }}
+          className="h-full rounded-full bg-primary transition-[width]"
+          style={{ width: `${percent ?? 0}%` }}
         />
       </div>
     </div>

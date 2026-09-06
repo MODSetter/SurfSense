@@ -143,9 +143,6 @@ export function WorkspaceRail({
       className="flex h-svh flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground"
       aria-label="Workspaces"
     >
-      <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-lg text-sidebar-primary-foreground">
-        S
-      </div>
       <ScrollArea className="min-h-0 w-full flex-1">
         <div className="flex flex-col items-center gap-2 px-1.5">
           {workspaces.map((workspace) => {

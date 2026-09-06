@@ -24,7 +24,8 @@ async function bootSidecars(): Promise<string> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
   const apiPort = packaged ? await getFreePort(host) : DEV_API_PORT
-  const dataDir = join(app.getPath("home"), ".surfsense")
+  // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
+  const dataDir = join(app.getPath("home"), packaged ? ".surfsense" : ".surfsense-dev")
 
   const ctx: SidecarContext = {
     packaged,

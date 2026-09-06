@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
@@ -10,6 +11,7 @@ from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.llm.router import router as llm_router
 from modules.workspaces.router import router as workspaces_router
+from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory, import_models
 from shared.migrations import upgrade_to_head
@@ -21,7 +23,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_db_engine(get_storage_settings().database_path)
     try:
         upgrade_to_head(engine)
-        app.state.session_factory = create_session_factory(engine)
+        session_factory = create_session_factory(engine)
+        with session_factory() as session:
+            ensure_default_workspace(session)
+            session.commit()
+        app.state.session_factory = session_factory
         yield
     finally:
         engine.dispose()
@@ -32,7 +38,15 @@ def create_app() -> FastAPI:
     import_models()
 
     app = FastAPI(title="SurfSense Community Local", lifespan=lifespan)
-    app.state.broker = EventBroker() # No benefits from lifespan hooks.
+    # The packaged renderer loads from file:// and calls the 127.0.0.1 sidecar,
+    # a cross-origin request; the API is loopback-only single-user, so allow any.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.state.broker = EventBroker()  # No benefits from lifespan hooks.
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)

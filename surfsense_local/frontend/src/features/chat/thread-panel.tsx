@@ -3,6 +3,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   BotIcon,
+  ChevronDownIcon,
   CircleStopIcon,
   Settings2Icon,
 } from "lucide-react"
@@ -80,16 +81,23 @@ export function ThreadPanel({
           <h1
             ref={headingRef}
             tabIndex={-1}
-            className="min-w-0 truncate font-serif text-lg font-medium outline-none"
+            className="min-w-0 truncate font-heading text-lg font-medium outline-none"
           >
             {thread?.title || "New chat"}
           </h1>
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onModelSetup}
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
+            title="Change model"
+            aria-label={`Model ${model.name} on ${model.provider}. Change model.`}
+          >
             <Badge variant="outline">{model.name}</Badge>
             <Badge variant={providerAvailable ? "secondary" : "destructive"}>
               {providerAvailable ? model.provider : "Provider offline"}
             </Badge>
-          </div>
+            <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+          </button>
         </header>
 
         {error ? (
@@ -125,7 +133,7 @@ export function ThreadPanel({
                     <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
                       <BotIcon className="size-5" />
                     </div>
-                    <h2 className="font-serif text-xl font-medium">
+                    <h2 className="font-heading text-xl font-medium">
                       Ask this workspace
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">

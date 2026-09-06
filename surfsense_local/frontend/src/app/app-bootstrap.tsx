@@ -9,8 +9,7 @@ import {
   type ModelSelection,
 } from "@/features/model-selection/api"
 import { ModelSelectionPage } from "@/features/model-selection/model-selection-page"
-import type { Workspace } from "@/features/workspaces/api"
-import { bootstrapWorkspaces } from "@/features/workspaces/bootstrap"
+import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
 const DashboardPage = lazy(() =>
   import("@/features/dashboard/dashboard-page").then((module) => ({
@@ -38,7 +37,7 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
     if (!selection) {
       return { status: "model-required" }
     }
-    const workspaces = await bootstrapWorkspaces()
+    const workspaces = await listWorkspaces()
     return { status: "ready", selection, workspaces }
   } catch (error) {
     return { status: "error", message: messageFrom(error) }
@@ -90,7 +89,7 @@ export function AppBootstrap() {
       <ModelSelectionPage
         onSelected={(selection) => {
           setState({ status: "loading" })
-          void bootstrapWorkspaces()
+          void listWorkspaces()
             .then((workspaces) =>
               setState({ status: "ready", selection, workspaces })
             )
