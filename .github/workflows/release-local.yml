@@ -131,6 +131,12 @@ jobs:
         working-directory: surfsense_local/backend
         run: uv run scripts/build_binaries.py
 
+      - name: Smoke the frozen Docling vision runtime
+        run: |
+          WORKER="./surfsense_local/backend/dist/worker/worker"
+          if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
+          "$WORKER" --check-vision-runtime
+
       - name: Stage embedding model
         working-directory: surfsense_local/backend
         run: uv run scripts/fetch_embedding_model.py models

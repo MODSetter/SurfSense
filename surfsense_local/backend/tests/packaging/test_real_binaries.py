@@ -81,8 +81,17 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
 
 
 def test_worker_binary_starts(tmp_path: Path) -> None:
-    """Freeze the worker and assert the binary boots without a dropped import."""
+    """Freeze the worker and assert its lazy vision imports and consumer boot."""
     binary = _freeze("worker.spec", tmp_path)
+    vision = subprocess.run(
+        [str(binary), "--check-vision-runtime"],
+        env=_env(tmp_path),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "vision imports OK" in vision.stdout
+
     proc = subprocess.Popen([str(binary)], env=_env(tmp_path))
     try:
         # A dropped hidden import crashes the consumer on startup; staying up for
