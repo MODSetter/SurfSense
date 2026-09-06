@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { CircleAlertIcon, XIcon } from "lucide-react"
+import { CircleAlertIcon, LayoutGridIcon, PlusIcon, XIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -95,6 +95,36 @@ function WorkspaceDashboard({
   )
 }
 
+function WorkspacesEmpty({
+  isMutating,
+  onCreate,
+}: {
+  isMutating: boolean
+  onCreate: (name: string) => Promise<boolean>
+}) {
+  return (
+    <main className="flex h-svh items-center justify-center bg-background p-8">
+      <div className="flex max-w-sm flex-col items-center text-center">
+        <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
+          <LayoutGridIcon className="size-5" />
+        </div>
+        <h1 className="font-heading text-xl font-medium">No workspaces</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          A workspace keeps a source library and its chats together.
+        </p>
+        <Button
+          className="mt-5"
+          disabled={isMutating}
+          onClick={() => void onCreate("My Workspace")}
+        >
+          <PlusIcon />
+          Create workspace
+        </Button>
+      </div>
+    </main>
+  )
+}
+
 export function DashboardPage({
   selection,
   initialWorkspaces,
@@ -121,6 +151,15 @@ export function DashboardPage({
       .catch(() => setProviderAvailable(false))
     return () => controller.abort()
   }, [selection.provider])
+
+  if (!workspaces.activeWorkspace) {
+    return (
+      <WorkspacesEmpty
+        isMutating={workspaces.isMutating}
+        onCreate={workspaces.create}
+      />
+    )
+  }
 
   return (
     <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden">

@@ -6,11 +6,10 @@ import {
   renameWorkspace,
   type Workspace,
 } from "./api"
-import { bootstrapWorkspaces } from "./bootstrap"
 
 const LAST_WORKSPACE_KEY = "surfsense-local:last-workspace:v1"
 
-function readLastWorkspaceId(workspaces: Workspace[]): number {
+function readLastWorkspaceId(workspaces: Workspace[]): number | null {
   try {
     const stored = Number(localStorage.getItem(LAST_WORKSPACE_KEY))
     if (workspaces.some((workspace) => workspace.id === stored)) {
@@ -19,7 +18,8 @@ function readLastWorkspaceId(workspaces: Workspace[]): number {
   } catch {
     // Storage can be disabled; the first workspace is a safe fallback.
   }
-  return workspaces[0].id
+  // Null when the list is empty, so nothing is active.
+  return workspaces[0]?.id ?? null
 }
 
 function rememberWorkspace(id: number) {
@@ -43,7 +43,7 @@ export function useWorkspaces(initialWorkspaces: Workspace[]) {
   const [isMutating, setIsMutating] = useState(false)
 
   const activeWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === activeId)!,
+    () => workspaces.find((workspace) => workspace.id === activeId),
     [activeId, workspaces]
   )
 
@@ -100,13 +100,12 @@ export function useWorkspaces(initialWorkspaces: Workspace[]) {
     try {
       await deleteWorkspace(id)
       const remaining = workspaces.filter((workspace) => workspace.id !== id)
-      const next =
-        remaining.length > 0 ? remaining : await bootstrapWorkspaces()
-      setWorkspaces(next)
+      setWorkspaces(remaining)
 
+      // Deleting the last one leaves nothing active; the empty state takes over.
       if (id === activeId) {
-        const nextId = next[0].id
-        rememberWorkspace(nextId)
+        const nextId = remaining[0]?.id ?? null
+        if (nextId !== null) rememberWorkspace(nextId)
         setActiveId(nextId)
       }
       return true

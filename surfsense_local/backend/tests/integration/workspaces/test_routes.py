@@ -4,8 +4,21 @@ from sqlalchemy import Engine, func, insert, select
 
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentType
+from modules.workspaces.models import Workspace
+from modules.workspaces.seed import ensure_default_workspace
+from shared.db import create_session_factory
 
 pytestmark = pytest.mark.integration
+
+
+def test_seeding_adds_one_workspace_only_when_none_exist(engine: Engine) -> None:
+    """Startup seeds a first workspace, but never a duplicate on later boots."""
+    factory = create_session_factory(engine)
+    with factory() as session:
+        ensure_default_workspace(session)
+        ensure_default_workspace(session)
+        session.commit()
+        assert session.scalar(select(func.count()).select_from(Workspace)) == 1
 
 
 async def test_a_created_workspace_is_listed(client: AsyncClient) -> None:

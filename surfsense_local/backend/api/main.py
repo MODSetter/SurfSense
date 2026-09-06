@@ -11,6 +11,7 @@ from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.llm.router import router as llm_router
 from modules.workspaces.router import router as workspaces_router
+from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory, import_models
 from shared.migrations import upgrade_to_head
@@ -22,7 +23,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_db_engine(get_storage_settings().database_path)
     try:
         upgrade_to_head(engine)
-        app.state.session_factory = create_session_factory(engine)
+        session_factory = create_session_factory(engine)
+        with session_factory() as session:
+            ensure_default_workspace(session)
+            session.commit()
+        app.state.session_factory = session_factory
         yield
     finally:
         engine.dispose()
