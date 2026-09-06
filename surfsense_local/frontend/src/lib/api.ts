@@ -35,10 +35,29 @@ async function responseError(response: Response): Promise<string> {
     if (
       typeof body === "object" &&
       body !== null &&
-      "detail" in body &&
-      typeof body.detail === "string"
+      "detail" in body
     ) {
-      return body.detail
+      if (typeof body.detail === "string") {
+        return body.detail
+      }
+      if (
+        typeof body.detail === "object" &&
+        body.detail !== null &&
+        "message" in body.detail &&
+        typeof body.detail.message === "string"
+      ) {
+        const required =
+          "required" in body.detail && typeof body.detail.required === "number"
+            ? body.detail.required
+            : null
+        const available =
+          "available" in body.detail && typeof body.detail.available === "number"
+            ? body.detail.available
+            : null
+        return required !== null && available !== null
+          ? `${body.detail.message} (${(required / 1e9).toFixed(1)} GB required, ${(available / 1e9).toFixed(1)} GB available)`
+          : body.detail.message
+      }
     }
   } catch {
     // The status text is the useful fallback for a non-JSON response.
