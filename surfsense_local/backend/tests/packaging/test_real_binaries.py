@@ -6,6 +6,7 @@ installer actually ships start: the API answers /health, the worker imports its
 tasks and stays up instead of crashing on a dropped hidden import.
 """
 
+import json
 import os
 import socket
 import subprocess
@@ -71,7 +72,14 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
                     f"http://127.0.0.1:{port}/health", timeout=1
                 ) as reply:
                     assert reply.status == 200
-                    return
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/llm/catalog", timeout=10
+                ) as reply:
+                    catalog = json.load(reply)
+                warning_codes = {warning["code"] for warning in catalog["warnings"]}
+                assert "missing" in warning_codes
+                assert "invalid_curated_models" not in warning_codes
+                return
             except (urllib.error.URLError, ConnectionError):
                 time.sleep(0.5)
         pytest.fail("api binary was not healthy within 90s")
