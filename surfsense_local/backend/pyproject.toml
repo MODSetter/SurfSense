@@ -10,9 +10,18 @@ dependencies = [
     "fastapi>=0.115.8",
     "httpx>=0.28.1",
     "huey>=3.3.4",
+    # The offline podcast voice (Studio). Rides the bundled onnxruntime; its ~340MB
+    # model is staged by scripts/fetch_kokoro_model.py, not carried in the wheel.
+    "kokoro-onnx>=0.4.9",
     "onnxruntime>=1.20",
     "pydantic-settings>=2.7.0",
+    "python-docx>=1.2.0",
     "python-multipart>=0.0.32",
+    "python-pptx>=1.0.2",
+    # Studio document formats: the model writes python-docx/pptx/xlsxwriter/
+    # reportlab code that the worker runs. reportlab renders the PDFs (pure
+    # Python, unlike WeasyPrint's native cairo/pango).
+    "reportlab>=4.2",
     "sqlalchemy>=2.0",
     "sqlite-vec>=0.1.9",
     # Docling's, named here only so the CPU build below can be chosen: a source
@@ -20,6 +29,7 @@ dependencies = [
     "torch>=2.2",
     "torchvision>=0.17",
     "uvicorn[standard]>=0.34.0",
+    "xlsxwriter>=3.2.9",
 ]
 
 [dependency-groups]

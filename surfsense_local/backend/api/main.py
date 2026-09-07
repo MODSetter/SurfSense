@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
 from modules.events.broker import EventBroker
@@ -52,5 +53,6 @@ def create_app() -> FastAPI:
     app.include_router(documents_router)
     app.include_router(llm_router)
     app.include_router(chat_router)
+    app.include_router(artifacts_router)
     app.include_router(events_router)
     return app

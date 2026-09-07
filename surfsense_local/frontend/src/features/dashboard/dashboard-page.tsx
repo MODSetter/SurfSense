@@ -17,6 +17,7 @@ import {
 } from "@/features/model-selection/api"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { StudioDialog } from "@/features/studio/studio-dialog"
 import type { Citation } from "@/features/chat/sse"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
@@ -100,6 +101,12 @@ function WorkspaceDashboard({
         onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
         onDismissUploadOutcome={sources.dismissUploadOutcome}
+        studioSlot={
+          <StudioDialog
+            workspaceId={workspace.id}
+            documents={sources.documents}
+          />
+        }
       />
     </section>
   )

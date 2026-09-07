@@ -10,7 +10,7 @@ from api.dependencies import SessionDep
 from modules.chat.dependencies import ThreadDep
 from modules.chat.history import build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
-from modules.chat.prompt import build_context
+from modules.chat.prompt import build_context, normalize_citations
 from modules.chat.schemas import (
     MessageCreate,
     MessageRead,
@@ -131,10 +131,9 @@ async def send_message(
     # are also the stable identities the client uses throughout the stream.
     session.commit()
 
-    cited = [asdict(citation) for citation in citations]
-
     async def stream() -> AsyncIterator[bytes]:
         parts: list[str] = []
+        cited: list[dict] = []
         yield _frame(
             {
                 "type": "accepted",
@@ -151,12 +150,14 @@ async def send_message(
                 # Surfaced as an event; the partial turn is still stored below.
                 yield _frame({"type": "error", "message": str(exc)})
         finally:
-            # A disconnect still preserves the partial answer. More importantly,
-            # receiving [DONE] now guarantees a subsequent read sees this turn.
-            assistant_message.content = {
-                "text": "".join(parts),
-                "citations": cited,
-            }
+            # Resolve the model's inline [n] against the sources it was given:
+            # invented citations are dropped and the survivors renumbered densely,
+            # so the stored turn and its listed sources agree. A disconnect still
+            # preserves this partial answer, and [DONE] guarantees a later read
+            # sees it.
+            answer, used = normalize_citations("".join(parts), citations)
+            cited = [asdict(citation) for citation in used]
+            assistant_message.content = {"text": answer, "citations": cited}
             session.commit()
 
         if cited:

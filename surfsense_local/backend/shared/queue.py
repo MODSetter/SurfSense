@@ -13,4 +13,5 @@ huey = SqliteHuey(filename=str(_settings.queue_path))
 
 def import_tasks() -> None:
     """Import every task; a job carries the name of one, not its code."""
+    import modules.artifacts.tasks
     import modules.documents.tasks

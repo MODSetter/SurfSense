@@ -44,6 +44,10 @@ class StorageSettings(BaseSettings):
     def workspace_dir(self, workspace_id: int) -> Path:
         return self.data_dir / "data" / "workspaces" / str(workspace_id)
 
+    def artifact_dir(self, workspace_id: int, artifact_id: int) -> Path:
+        """Where one artifact's rendered blobs live, keyed by id like documents."""
+        return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
+
 
 class SearchSettings(BaseSettings):
     """The index's shape, which both ingest and search have to agree on."""
@@ -68,6 +72,9 @@ class LLMSettings(BaseSettings):
     # OpenRouter is the hosted, BYO-key option; the key lives in the database,
     # not here. Overridable only so tests can point at a stub.
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    # The image model Studio's visual formats call over OpenRouter (BYO key).
+    openrouter_image_model: str = "google/gemini-2.5-flash-image-preview"
 
     # The packaged app passes an absolute resource path. Development resolves
     # the command from PATH and degrades recommendations when it is absent.

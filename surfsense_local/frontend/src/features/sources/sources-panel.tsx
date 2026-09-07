@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from "react"
+import { useRef, useState, type ChangeEvent, type ReactNode } from "react"
 import {
   ArrowLeftIcon,
   CheckCircle2Icon,
@@ -264,6 +264,7 @@ export function SourcesPanel({
   onSelectionChange,
   onUpload,
   onDismissUploadOutcome,
+  studioSlot,
 }: {
   documents: WorkspaceDocument[]
   citations: Citation[]
@@ -283,6 +284,7 @@ export function SourcesPanel({
   onSelectionChange: (documentId: number, selected: boolean) => void
   onUpload: (files: File[]) => void
   onDismissUploadOutcome: () => void
+  studioSlot?: ReactNode
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
@@ -333,15 +335,18 @@ export function SourcesPanel({
             disabled={isUploading}
             onChange={uploadSelectedFiles}
           />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={isUploading}
-            onClick={chooseFiles}
-          >
-            {isUploading ? <Spinner /> : <FilePlus2Icon />}
-            {isUploading ? "Uploading..." : "Add"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {studioSlot}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isUploading}
+              onClick={chooseFiles}
+            >
+              {isUploading ? <Spinner /> : <FilePlus2Icon />}
+              {isUploading ? "Uploading..." : "Add"}
+            </Button>
+          </div>
         </header>
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-3 p-3">
