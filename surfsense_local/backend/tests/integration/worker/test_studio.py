@@ -4,12 +4,13 @@ import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
+from modules.artifacts.formats import FORMATS
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from worker.studio import persist, run
+from worker.studio import office, persist, run
 from worker.studio.artifact import Built
 
 pytestmark = pytest.mark.integration
@@ -24,8 +25,10 @@ def session(engine: Engine) -> Iterator[Session]:
         yield opened
 
 
-def make_artifact(session: Session, *, source: str = "Saturn facts.") -> Artifact:
-    """A workspace with one ready source and a pending summary artifact over it."""
+def make_artifact(
+    session: Session, *, source: str = "Saturn facts.", fmt: str = "summary"
+) -> Artifact:
+    """A workspace with one ready source and a pending artifact over it."""
     workspace = Workspace(name="Saturn")
     session.add(workspace)
     session.flush()
@@ -42,7 +45,7 @@ def make_artifact(session: Session, *, source: str = "Saturn facts.") -> Artifac
 
     document = Document(
         workspace_id=workspace.id,
-        title="Summary",
+        title=fmt,
         document_type=DocumentType.ARTIFACT,
         status=DocumentStatus.PENDING,
     )
@@ -52,7 +55,7 @@ def make_artifact(session: Session, *, source: str = "Saturn facts.") -> Artifac
     artifact = Artifact(
         document_id=document.id,
         workspace_id=workspace.id,
-        format="summary",
+        format=fmt,
         artifact_metadata={"source_document_ids": [source_doc.id], "prompt": None},
     )
     session.add(artifact)
@@ -81,11 +84,11 @@ def test_a_summary_becomes_ready_and_searchable(
     assert keyword == 1
 
 
-def test_a_document_format_runs_generated_code_to_a_blob(
-    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A docx job runs the model's python-docx code in-process to a real file."""
-    generated = (
+# One canned model reply per format. Office formats get python source the runner
+# executes with the real library; builders and podcast get the JSON/markdown their
+# parser expects; visual formats are drawn by the image call faked below.
+_OFFICE_CODE = {
+    "docx": (
         "from io import BytesIO\n"
         "from docx import Document\n"
         "d = Document()\n"
@@ -94,44 +97,136 @@ def test_a_document_format_runs_generated_code_to_a_blob(
         "buf = BytesIO()\n"
         "d.save(buf)\n"
         "output_bytes = buf.getvalue()\n"
-        "title = 'Cassini'\n"
-        "summary = '# Cassini\\n\\nReached Saturn in 2004.'\n"
-    )
-    monkeypatch.setattr("worker.studio.generate.run_model", lambda *a, **k: generated)
-    artifact = make_artifact(session)
-    artifact.format = "docx"
-    session.commit()
+    ),
+    "pptx": (
+        "from io import BytesIO\n"
+        "from pptx import Presentation\n"
+        "p = Presentation()\n"
+        "p.slides.add_slide(p.slide_layouts[6])\n"
+        "buf = BytesIO()\n"
+        "p.save(buf)\n"
+        "output_bytes = buf.getvalue()\n"
+    ),
+    "xlsx": (
+        "from io import BytesIO\n"
+        "import xlsxwriter\n"
+        "buf = BytesIO()\n"
+        "wb = xlsxwriter.Workbook(buf)\n"
+        "wb.add_worksheet().write(0, 0, 'Cassini')\n"
+        "wb.close()\n"
+        "output_bytes = buf.getvalue()\n"
+    ),
+    "pdf": (
+        "from io import BytesIO\n"
+        "from reportlab.pdfgen import canvas\n"
+        "buf = BytesIO()\n"
+        "c = canvas.Canvas(buf)\n"
+        "c.drawString(72, 720, 'Cassini')\n"
+        "c.showPage()\n"
+        "c.save()\n"
+        "output_bytes = buf.getvalue()\n"
+    ),
+}
 
-    run(artifact.id)
+_BUILDER_RAW = {
+    "summary": "# Cassini\n\nReached Saturn in 2004.",
+    "html": '{"title": "Cassini", "sections": '
+    '[{"heading": "Mission", "paragraphs": ["Reached Saturn in 2004."]}]}',
+    "mindmap": '{"title": "Cassini", "nodes": '
+    '[{"label": "Mission", "children": [{"label": "2004"}]}]}',
+    "flashcards": '{"title": "Cassini", "cards": [{"front": "Arrival?", "back": "2004"}]}',
+    "quiz": '{"title": "Cassini", "questions": '
+    '[{"question": "Arrival?", "options": ["2004", "2010"], "answer": "2004"}]}',
+    "podcast": '{"title": "Cassini", "turns": '
+    '[{"speaker": "A", "text": "It reached Saturn in 2004."}, '
+    '{"speaker": "B", "text": "Remarkable."}]}',
+}
 
-    session.expire_all()
-    assert artifact.document.status is DocumentStatus.READY
-    assert artifact.document.title == "Cassini"
-    assert len(artifact.files) == 1
-    path = get_storage_settings().data_dir / artifact.files[0].storage_key
-    assert path.read_bytes().startswith(b"PK\x03\x04")
+_WAV = b"RIFF" + b"\x00" * 40  # stands in for Kokoro's output.
 
 
-def test_a_visual_format_routes_to_the_image_path(
-    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+def _openrouter_png() -> dict:
+    """An OpenRouter image reply carrying one PNG as a data URL."""
+    import base64
+
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+    url = "data:image/png;base64," + base64.b64encode(png).decode()
+    return {"choices": [{"message": {"images": [{"image_url": {"url": url}}]}}]}
+
+
+def _fake_model(fmt: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub the one external model each format reaches for, nothing more."""
+    if fmt in _OFFICE_CODE:
+        monkeypatch.setattr(
+            "worker.studio.generate.run_model", lambda *a, **k: _OFFICE_CODE[fmt]
+        )
+    elif fmt in {"image", "infographic"}:
+        monkeypatch.setattr(
+            "worker.studio.media.visual.read_provider_key", lambda *a, **k: "key"
+        )
+        monkeypatch.setattr(
+            "worker.studio.media.visual._request_image", lambda *a, **k: _openrouter_png()
+        )
+    elif fmt == "podcast":
+        monkeypatch.setattr(
+            "worker.studio.generate.generate", lambda *a, **k: _BUILDER_RAW["podcast"]
+        )
+        monkeypatch.setattr(
+            "worker.studio.media.podcast.tts.synthesize", lambda turns: _WAV
+        )
+    else:
+        monkeypatch.setattr(
+            "worker.studio.generate.generate", lambda *a, **k: _BUILDER_RAW[fmt]
+        )
+
+
+# Formats whose deliverable is only the searchable body, with no file blob.
+_BODY_ONLY = {"summary", "mindmap", "flashcards", "quiz"}
+
+
+def _expected_file(fmt: str) -> tuple[str, bytes] | None:
+    """The (mime, leading magic bytes) one file should carry, or None for body-only."""
+    if fmt in _BODY_ONLY:
+        return None
+    if fmt in office.OFFICE:
+        magic = b"%PDF" if fmt == "pdf" else b"PK\x03\x04"
+        return office.OFFICE[fmt].mime, magic
+    return {
+        "html": ("text/html", b"<!doctype"),
+        "image": ("image/png", b"\x89PNG"),
+        "infographic": ("image/png", b"\x89PNG"),
+        "podcast": ("audio/wav", b"RIFF"),
+    }[fmt]
+
+
+@pytest.mark.parametrize("fmt", [f.key for f in FORMATS], ids=lambda k: k)
+def test_every_format_generates_to_ready(
+    fmt: str, session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A visual format is drawn by the media seam's image model, not failed."""
-    drawn = Built(
-        title="Poster",
-        markdown="# Poster",
-        primary=b"\x89PNG bytes",
-        primary_mime="image/png",
-    )
-    monkeypatch.setattr("worker.studio.media.visual.render", lambda *a, **k: drawn)
-    artifact = make_artifact(session)
-    artifact.format = "image"
-    session.commit()
+    """Each catalogue format runs its real builder/code to a ready artifact.
+
+    Only the model (and podcast TTS / image API) is faked; the builders, the
+    office code runner and persistence all run for real.
+    """
+    _fake_model(fmt, monkeypatch)
+    artifact = make_artifact(session, fmt=fmt)
 
     run(artifact.id)
 
     session.expire_all()
-    assert artifact.document.status is DocumentStatus.READY
-    assert artifact.files[0].mime_type == "image/png"
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert artifact.document.content  # every format sets a searchable body
+
+    expected = _expected_file(fmt)
+    if expected is None:
+        assert artifact.files == []
+        return
+    mime, magic = expected
+    assert [file.mime_type for file in artifact.files] == [mime]
+    path = get_storage_settings().data_dir / artifact.files[0].storage_key
+    assert path.read_bytes().startswith(magic)
 
 
 def test_a_generation_failure_leaves_a_reason(
