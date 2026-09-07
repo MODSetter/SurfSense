@@ -1,4 +1,9 @@
-import { CheckIcon, CopyIcon, FileTextIcon } from "@/components/ui/icons"
+import {
+  CheckIcon,
+  CopyIcon,
+  DownloadIcon,
+  FileTextIcon,
+} from "@/components/ui/icons"
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -20,11 +25,13 @@ const streamdownPlugins = {
   code,
   math: createMathPlugin({ singleDollarTextMath: true }),
 }
+const streamdownIcons = { CheckIcon, CopyIcon, DownloadIcon }
 
 function MarkdownText() {
   return (
     <StreamdownTextPrimitive
       defer
+      icons={streamdownIcons}
       plugins={streamdownPlugins}
       linkSafety={{ enabled: true }}
       security={{
@@ -61,7 +68,7 @@ function MessageActions({
   return (
     <div
       className={cn(
-        "relative flex h-7 items-center gap-1 text-muted-foreground",
+        "relative flex h-7 items-center gap-2 text-muted-foreground",
         className
       )}
     >
@@ -149,8 +156,8 @@ export function AssistantMessage({
   onCitation: (citation: Citation) => void
 }) {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl flex-col items-start px-6 py-4">
-      <div className="min-w-0 text-sm leading-7">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
+      <div className="w-full max-w-full min-w-0 text-sm leading-7">
         <MessagePrimitive.Parts components={assistantMessageParts} />
       </div>
       <CitationLinks

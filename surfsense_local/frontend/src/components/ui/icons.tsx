@@ -34,11 +34,25 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 
 type IconData = React.ComponentProps<typeof HugeiconsIcon>["icon"]
-type IconProps = Omit<React.ComponentProps<typeof HugeiconsIcon>, "icon">
+type IconProps = Omit<
+  React.ComponentProps<typeof HugeiconsIcon>,
+  "icon" | "strokeWidth"
+> & {
+  strokeWidth?: React.SVGProps<SVGSVGElement>["strokeWidth"]
+}
 
 function createIcon(icon: IconData) {
-  return React.forwardRef<SVGSVGElement, IconProps>(function Icon(props, ref) {
-    return <HugeiconsIcon ref={ref} icon={icon} strokeWidth={2} {...props} />
+  return React.forwardRef<SVGSVGElement, IconProps>(function Icon(
+    { strokeWidth = 2, ...props },
+    ref
+  ) {
+    const width =
+      typeof strokeWidth === "number"
+        ? strokeWidth
+        : Number.parseFloat(strokeWidth) || 2
+    return (
+      <HugeiconsIcon ref={ref} icon={icon} strokeWidth={width} {...props} />
+    )
   })
 }
 
