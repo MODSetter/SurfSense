@@ -113,6 +113,7 @@ describe("normalized model catalog", () => {
     })
     expect(screen.getByRole("list", { name: "Qwen models" })).toBeTruthy()
     expect(screen.getByRole("listitem")).toBeTruthy()
+    expect(screen.getByText("5.1 GB")).toBeTruthy()
     await user.click(action)
 
     await waitFor(() => expect(onSelected).toHaveBeenCalledOnce())

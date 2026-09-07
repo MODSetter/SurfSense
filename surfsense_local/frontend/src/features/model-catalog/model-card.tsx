@@ -5,6 +5,9 @@ import type { CatalogRow } from "./api"
 import { InstallProgress } from "./install-progress"
 import type { InstallState } from "./use-model-catalog"
 
+const formatSize = (sizeGb: number) =>
+  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(sizeGb)} GB`
+
 export function ModelCard({
   row,
   installState,
@@ -34,9 +37,16 @@ export function ModelCard({
     (!row.can_install || row.fit === "too_tight" || !runtimeAvailable)
 
   return (
-    <article className="px-4 py-2.5 transition-colors hover:bg-muted/20">
+    <li className="px-4 py-2.5 transition-colors hover:bg-muted/20">
       <div className="flex min-h-10 items-center justify-between gap-4">
-        <p className="min-w-0 truncate text-sm font-medium">{row.label}</p>
+        <p className="min-w-0 truncate text-sm font-medium">
+          {row.label}
+          {row.disk_size_gb !== null ? (
+            <span className="ml-2 font-normal text-muted-foreground">
+              {formatSize(row.disk_size_gb)}
+            </span>
+          ) : null}
+        </p>
         <div className="shrink-0">
           {row.selected ? (
             <Button type="button" size="sm" variant="outline" disabled>
@@ -82,6 +92,6 @@ export function ModelCard({
           ) : null}
         </div>
       ) : null}
-    </article>
+    </li>
   )
 }

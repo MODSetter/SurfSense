@@ -1,9 +1,11 @@
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
 from modules.llm.providers.ollama.provider import OllamaProvider
 from modules.llm.recommendations.types import FitLevel, ScoredModel
+from shared.config import get_llm_settings
 
 pytestmark = pytest.mark.unit
 
@@ -66,3 +68,26 @@ async def test_ollama_rejects_another_runtimes_plan() -> None:
 
     with pytest.raises(ValueError):
         runtime.install(replace(plan, runtime="llamacpp"))
+
+
+async def test_cancel_cleanup_removes_only_partial_downloads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cancelling reclaims app-owned partial files without deleting shared blobs."""
+    blobs = tmp_path / "blobs"
+    blobs.mkdir()
+    complete = blobs / "sha256-complete"
+    partials = [
+        blobs / "sha256-first-partial",
+        blobs / "sha256-first-partial-0",
+        blobs / "sha256-second.tmp",
+    ]
+    complete.write_bytes(b"keep")
+    for partial in partials:
+        partial.write_bytes(b"discard")
+    monkeypatch.setattr(get_llm_settings(), "ollama_models_dir", tmp_path)
+
+    await OllamaProvider("http://127.0.0.1:1").cleanup_partial_downloads()
+
+    assert complete.exists()
+    assert not any(partial.exists() for partial in partials)
