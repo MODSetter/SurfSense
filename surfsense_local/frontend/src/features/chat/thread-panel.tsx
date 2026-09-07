@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ModelSelection } from "@/features/model-selection/api"
 import type { WorkspaceDocument } from "@/features/sources/api"
+import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
 import { AssistantMessage, UserMessage } from "./message"
@@ -113,48 +114,42 @@ export function ThreadPanel({
             ) : null}
 
             {!isLoading ? (
-              <>
-                <ThreadPrimitive.Empty>
-                  <div className="m-auto flex max-w-md flex-col items-center px-8 py-20 text-center">
-                    <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
-                      <BotIcon className="size-5" />
-                    </div>
-                    <h2 className="font-heading text-xl font-medium">
-                      Ask this workspace
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Answers use the sources indexed in this workspace.
-                    </p>
-                  </div>
-                </ThreadPrimitive.Empty>
-                <ThreadPrimitive.Messages>
-                  {({ message }) =>
-                    message.role === "user" ? (
-                      <UserMessage />
-                    ) : (
-                      <AssistantMessage
-                        citations={citationsFrom(message)}
-                        documents={documents}
-                        onCitation={onCitation}
-                      />
-                    )
-                  }
-                </ThreadPrimitive.Messages>
-              </>
+              <ThreadPrimitive.Messages>
+                {({ message }) =>
+                  message.role === "user" ? (
+                    <UserMessage />
+                  ) : (
+                    <AssistantMessage
+                      citations={citationsFrom(message)}
+                      documents={documents}
+                      onCitation={onCitation}
+                    />
+                  )
+                }
+              </ThreadPrimitive.Messages>
             ) : null}
 
-            <ThreadPrimitive.ViewportFooter className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-2">
+            <ThreadPrimitive.ViewportFooter
+              className={cn(
+                "absolute inset-x-0 z-20 px-4",
+                thread
+                  ? "bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-7 pb-2"
+                  : "top-1/2 -translate-y-1/2"
+              )}
+            >
               <div className="relative mx-auto max-w-3xl">
-                <ThreadPrimitive.ScrollToBottom asChild>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-background"
-                    aria-label="Scroll to latest message"
-                  >
-                    <ArrowDownIcon />
-                  </Button>
-                </ThreadPrimitive.ScrollToBottom>
+                {thread ? (
+                  <ThreadPrimitive.ScrollToBottom asChild>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-background disabled:invisible"
+                      aria-label="Scroll to latest message"
+                    >
+                      <ArrowDownIcon />
+                    </Button>
+                  </ThreadPrimitive.ScrollToBottom>
+                ) : null}
                 <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
                   <ComposerPrimitive.Input
                     className="max-h-44 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
