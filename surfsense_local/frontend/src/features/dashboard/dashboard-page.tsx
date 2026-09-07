@@ -87,6 +87,7 @@ function WorkspaceDashboard({
         isLoading={sources.isLoading}
         isLoadingPreview={sources.isLoadingPreview}
         isUploading={sources.isUploading}
+        isDeleting={sources.isDeleting}
         uploadOutcome={sources.uploadOutcome}
         error={sources.error}
         onOpen={openSource}
@@ -95,6 +96,7 @@ function WorkspaceDashboard({
           sources.closePreview()
         }}
         onRetry={(id) => void sources.retry(id)}
+        onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
         onDismissUploadOutcome={sources.dismissUploadOutcome}

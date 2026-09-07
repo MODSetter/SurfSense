@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import {
+  deleteDocument,
   listDocuments,
   readDocument,
   retryDocument,
@@ -42,6 +43,7 @@ export function useSources(workspaceId: number) {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [uploadOutcome, setUploadOutcome] = useState<UploadOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const listController = useRef<AbortController | null>(null)
@@ -54,7 +56,6 @@ export function useSources(workspaceId: number) {
   )
 
   useEffect(() => {
-    setSelectedDocumentIdSet(new Set())
     const controller = new AbortController()
     listController.current = controller
     void listDocuments(workspaceId, controller.signal)
@@ -237,6 +238,38 @@ export function useSources(workspaceId: number) {
     })
   }
 
+  const deleteSelected = async () => {
+    const ids = selectedDocumentIds
+    if (ids.length === 0 || isDeleting) {
+      return
+    }
+    setIsDeleting(true)
+    setError(null)
+    const results = await Promise.allSettled(
+      ids.map((documentId) => deleteDocument(workspaceId, documentId))
+    )
+    const deletedIds = new Set(
+      ids.filter((_id, index) => results[index].status === "fulfilled")
+    )
+    setDocuments((current) =>
+      current.filter((document) => !deletedIds.has(document.id))
+    )
+    setSelectedDocumentIdSet((current) => {
+      const next = new Set(current)
+      for (const id of deletedIds) {
+        next.delete(id)
+      }
+      return next
+    })
+    const failedCount = results.length - deletedIds.size
+    if (failedCount > 0) {
+      setError(
+        `${failedCount} selected source${failedCount === 1 ? "" : "s"} could not be deleted.`
+      )
+    }
+    setIsDeleting(false)
+  }
+
   return {
     documents,
     selectedDocumentIds,
@@ -244,6 +277,7 @@ export function useSources(workspaceId: number) {
     isLoading,
     isLoadingPreview,
     isUploading,
+    isDeleting,
     uploadOutcome,
     error,
     refresh,
@@ -254,6 +288,7 @@ export function useSources(workspaceId: number) {
       setIsLoadingPreview(false)
     },
     retry,
+    deleteSelected,
     setDocumentSelected,
     upload,
     dismissUploadOutcome: () => setUploadOutcome(null),

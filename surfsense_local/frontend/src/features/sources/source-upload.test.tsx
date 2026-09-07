@@ -27,11 +27,13 @@ function SourceHarness() {
       isLoading={sources.isLoading}
       isLoadingPreview={false}
       isUploading={sources.isUploading}
+      isDeleting={sources.isDeleting}
       uploadOutcome={sources.uploadOutcome}
       error={sources.error}
       onOpen={() => undefined}
       onBack={() => undefined}
       onRetry={(id) => void sources.retry(id)}
+      onDeleteSelected={() => void sources.deleteSelected()}
       onSelectionChange={sources.setDocumentSelected}
       onUpload={(files) => void sources.upload(files)}
       onDismissUploadOutcome={sources.dismissUploadOutcome}
@@ -119,5 +121,52 @@ describe("source upload", () => {
     await waitFor(() => expect(screen.getByText("ready")).toBeTruthy(), {
       timeout: 3000,
     })
+  })
+
+  it("deletes every selected source after confirmation", async () => {
+    const documents = [
+      {
+        ...pendingDocument,
+        id: 7,
+        title: "first.txt",
+        status: "ready" as const,
+      },
+      {
+        ...pendingDocument,
+        id: 8,
+        title: "second.txt",
+        status: "ready" as const,
+      },
+    ]
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "DELETE") {
+          return new Response(null, { status: 204 })
+        }
+        return Response.json(documents)
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<SourceHarness />)
+    await user.click(await screen.findByLabelText("Select first.txt"))
+    await user.click(screen.getByLabelText("Select second.txt"))
+    await user.click(screen.getByRole("button", { name: "Delete 2" }))
+
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete 2 sources?" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete sources" }))
+
+    await waitFor(() => {
+      expect(screen.queryByText("first.txt")).toBeNull()
+      expect(screen.queryByText("second.txt")).toBeNull()
+    })
+    expect(
+      fetchMock.mock.calls
+        .filter(([, init]) => init?.method === "DELETE")
+        .map(([path]) => path)
+    ).toEqual(["/workspaces/1/documents/7", "/workspaces/1/documents/8"])
   })
 })
