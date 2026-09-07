@@ -1,14 +1,17 @@
+import { useState } from "react"
+
 import {
   EllipsisIcon,
   MessageSquareIcon,
   PlusIcon,
   Trash2Icon,
-} from "lucide-react"
+} from "@/components/ui/icons"
 
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -42,8 +45,10 @@ export function ThreadList({
   onSelect: (id: number) => void
   onDelete: (id: number) => Promise<void>
 }) {
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
+
   return (
-    <aside className="flex h-svh min-w-0 flex-col border-r bg-sidebar/60">
+    <aside className="flex h-full min-w-0 flex-col border-r bg-sidebar/60">
       <header className="space-y-3 border-b p-3">
         <h2 className="truncate px-1 text-sm font-semibold">{workspaceName}</h2>
         <Button className="w-full justify-start" onClick={onNewChat}>
@@ -52,7 +57,7 @@ export function ThreadList({
         </Button>
       </header>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-1 p-2" aria-label="Chat threads">
+        <div className="space-y-1 p-2">
           {isLoading
             ? [0, 1, 2, 3].map((item) => (
                 <Skeleton key={item} className="h-11 w-full" />
@@ -75,11 +80,11 @@ export function ThreadList({
             const selected = thread.id === activeThreadId
             const title = thread.title || "New chat"
             return (
-              <div key={thread.id} className="group flex items-center">
+              <div key={thread.id} className="group relative">
                 <Button
                   variant="ghost"
                   className={cn(
-                    "h-auto min-w-0 flex-1 justify-start px-2.5 py-2.5 font-normal",
+                    "h-auto w-full min-w-0 justify-start px-2.5 py-2.5 pr-10 font-normal",
                     selected && "bg-sidebar-accent font-medium"
                   )}
                   aria-current={selected ? "page" : undefined}
@@ -87,27 +92,44 @@ export function ThreadList({
                 >
                   <span className="truncate">{title}</span>
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="-ml-8 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-                      aria-label={`Actions for ${title}`}
+                <div className="absolute inset-y-0 right-1 flex items-center">
+                  <DropdownMenu
+                    open={openDropdownId === thread.id}
+                    onOpenChange={(open) =>
+                      setOpenDropdownId(open ? thread.id : null)
+                    }
+                  >
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100"
+                        aria-label={`Actions for ${title}`}
+                      >
+                        <EllipsisIcon />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      sideOffset={8}
+                      className="w-36"
+                      onCloseAutoFocus={(event) => event.preventDefault()}
                     >
-                      <EllipsisIcon />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => void onDelete(thread.id)}
-                    >
-                      <Trash2Icon />
-                      Delete chat
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => {
+                            setOpenDropdownId(null)
+                            void onDelete(thread.id)
+                          }}
+                        >
+                          <Trash2Icon />
+                          Delete chat
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             )
           })}

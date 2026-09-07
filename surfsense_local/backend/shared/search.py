@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import bindparam, text
@@ -24,7 +25,11 @@ class Hit:
 
 
 def retrieve(
-    session: Session, workspace_id: int, query: str, top_k: int = 5
+    session: Session,
+    workspace_id: int,
+    query: str,
+    top_k: int = 5,
+    document_ids: Sequence[int] | None = None,
 ) -> list[Hit]:
     """Rank a workspace's chunks against a query.
 
@@ -32,8 +37,12 @@ def retrieve(
     each widen recall; their union is then rescored by cosine similarity to the
     query, so meaning decides the order and keyword matches only add reach.
     """
-    if not query.strip():
+    if not query.strip() or (document_ids is not None and not document_ids):
         return []
+
+    selected_document_ids = (
+        tuple(dict.fromkeys(document_ids)) if document_ids is not None else None
+    )
 
     # Lazy: pulls onnxruntime and the model, which only chat and ingest need.
     from sqlite_vec import serialize_float32
@@ -41,51 +50,79 @@ def retrieve(
     from worker.ingestion.embedding import embed
 
     vector = serialize_float32(embed([query])[0])
-    candidates = _keyword_leg(session, workspace_id, query) | _vector_leg(
-        session, workspace_id, vector
-    )
+    candidates = _keyword_leg(
+        session, workspace_id, query, selected_document_ids
+    ) | _vector_leg(session, workspace_id, vector, selected_document_ids)
     if not candidates:
         return []
 
     return _rank_by_similarity(session, candidates, vector, top_k)
 
 
-def _keyword_leg(session: Session, workspace_id: int, query: str) -> set[int]:
+def _keyword_leg(
+    session: Session,
+    workspace_id: int,
+    query: str,
+    document_ids: Sequence[int] | None,
+) -> set[int]:
     terms = _WORD.findall(query.lower())
     if not terms:
         return set()
 
     # Quote each term against FTS5's grammar; OR keeps recall wide.
     match = " OR ".join(f'"{term}"' for term in terms)
-    rows = session.execute(
-        text(
-            "SELECT c.id FROM chunks_fts "
-            "JOIN chunks c ON c.id = chunks_fts.rowid "
-            "JOIN documents d ON d.id = c.document_id "
-            "WHERE chunks_fts MATCH :match AND d.workspace_id = :ws "
-            "ORDER BY bm25(chunks_fts) LIMIT :k"
-        ),
-        {"match": match, "ws": workspace_id, "k": CANDIDATES},
+    sql = (
+        "SELECT c.id FROM chunks_fts "
+        "JOIN chunks c ON c.id = chunks_fts.rowid "
+        "JOIN documents d ON d.id = c.document_id "
+        "WHERE chunks_fts MATCH :match AND d.workspace_id = :ws "
     )
+    params: dict[str, object] = {
+        "match": match,
+        "ws": workspace_id,
+        "k": CANDIDATES,
+    }
+    if document_ids is not None:
+        sql += "AND c.document_id IN :document_ids "
+        params["document_ids"] = list(document_ids)
+    sql += "ORDER BY bm25(chunks_fts) LIMIT :k"
+    statement = text(sql)
+    if document_ids is not None:
+        statement = statement.bindparams(bindparam("document_ids", expanding=True))
+    rows = session.execute(statement, params)
     return {row[0] for row in rows}
 
 
-def _vector_leg(session: Session, workspace_id: int, vector: bytes) -> set[int]:
+def _vector_leg(
+    session: Session,
+    workspace_id: int,
+    vector: bytes,
+    document_ids: Sequence[int] | None,
+) -> set[int]:
     # KNN scans the whole index (its own CTE, as vec0 wants), then the workspace
     # filter applies. ponytail: fine for a few small local workspaces; widen k if
     # a workspace's hits start falling outside the global top CANDIDATES.
-    rows = session.execute(
-        text(
-            "WITH knn AS ("
-            "  SELECT rowid FROM chunk_vectors WHERE embedding MATCH :vector AND k = :k"
-            ") "
-            "SELECT c.id FROM knn "
-            "JOIN chunks c ON c.id = knn.rowid "
-            "JOIN documents d ON d.id = c.document_id "
-            "WHERE d.workspace_id = :ws"
-        ),
-        {"vector": vector, "k": CANDIDATES, "ws": workspace_id},
+    sql = (
+        "WITH knn AS ("
+        "  SELECT rowid FROM chunk_vectors WHERE embedding MATCH :vector AND k = :k"
+        ") "
+        "SELECT c.id FROM knn "
+        "JOIN chunks c ON c.id = knn.rowid "
+        "JOIN documents d ON d.id = c.document_id "
+        "WHERE d.workspace_id = :ws "
     )
+    params: dict[str, object] = {
+        "vector": vector,
+        "k": CANDIDATES,
+        "ws": workspace_id,
+    }
+    if document_ids is not None:
+        sql += "AND c.document_id IN :document_ids"
+        params["document_ids"] = list(document_ids)
+    statement = text(sql)
+    if document_ids is not None:
+        statement = statement.bindparams(bindparam("document_ids", expanding=True))
+    rows = session.execute(statement, params)
     return {row[0] for row in rows}
 
 

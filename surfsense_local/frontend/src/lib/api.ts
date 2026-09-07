@@ -4,7 +4,7 @@ export type Health = {
 
 declare global {
   interface Window {
-    surfsense?: { apiUrl: string }
+    surfsense?: { apiUrl: string; platform: string }
   }
 }
 

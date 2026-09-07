@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { CheckIcon, CircleAlertIcon, KeyRoundIcon } from "lucide-react"
+import { CheckIcon, CircleAlertIcon, KeyRoundIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"

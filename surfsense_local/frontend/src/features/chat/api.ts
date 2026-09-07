@@ -66,6 +66,7 @@ export function deleteThread(
 export async function streamMessage(
   threadId: number,
   text: string,
+  documentIds: number[] | undefined,
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
 ): Promise<void> {
@@ -75,7 +76,10 @@ export async function streamMessage(
       Accept: "text/event-stream",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({
+      text,
+      ...(documentIds ? { document_ids: documentIds } : {}),
+    }),
     signal,
   })
   if (!response.body) {

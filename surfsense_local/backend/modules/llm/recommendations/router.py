@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -12,6 +13,7 @@ from modules.llm.recommendations.catalog import (
     UnknownCatalogIdError,
 )
 from modules.llm.recommendations.dependencies import CatalogServiceDep
+from modules.llm.recommendations.protocols import CancelledDownloadCleaner
 from modules.llm.schemas import (
     InstallRequest,
     RecommendationCatalogRead,
@@ -21,6 +23,7 @@ from modules.llm.schemas import (
 from modules.llm.selection import choose_model
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/system", response_model=RecommendationSystemRead)
@@ -126,6 +129,11 @@ async def install_model(
                 selection=selection,
             )
         except asyncio.CancelledError:
+            if isinstance(runtime, CancelledDownloadCleaner):
+                try:
+                    await runtime.cleanup_cancelled_download()
+                except OSError:
+                    logger.exception("Could not remove cancelled model download")
             raise
         except Exception:
             yield _event(
