@@ -4,6 +4,7 @@ import {
   type AppendMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ApiError } from "@/lib/api"
 
@@ -16,6 +17,7 @@ import {
   type ChatMessage,
   type ChatThread,
 } from "./api"
+import { chatKeys } from "./query-keys"
 import type { Citation } from "./sse"
 
 function messageFrom(error: unknown) {
@@ -36,6 +38,66 @@ function submittedText(message: AppendMessage) {
 
 function threadTitle(text: string) {
   return (text.split(/\r?\n/, 1)[0].trim() || "New chat").slice(0, 80)
+}
+
+const EMPTY_THREADS: ChatThread[] = []
+const EMPTY_MESSAGES: ChatMessage[] = []
+
+function lastThreadKey(workspaceId: number) {
+  return `surfsense-local:last-thread:${workspaceId}:v1`
+}
+
+function rememberThread(workspaceId: number, threadId: number | null) {
+  try {
+    if (threadId === null) {
+      localStorage.removeItem(lastThreadKey(workspaceId))
+    } else {
+      localStorage.setItem(lastThreadKey(workspaceId), String(threadId))
+    }
+  } catch {
+    // Selection remains valid for this session when storage is unavailable.
+  }
+}
+
+function initialThreadId(workspaceId: number, threads: ChatThread[]) {
+  try {
+    const stored = Number(localStorage.getItem(lastThreadKey(workspaceId)))
+    if (threads.some((thread) => thread.id === stored)) {
+      return stored
+    }
+  } catch {
+    // The newest thread below is a safe fallback.
+  }
+  return threads[0]?.id ?? null
+}
+
+function latestCitations(messages: ChatMessage[]) {
+  return (
+    [...messages].reverse().find((message) => message.role === "assistant")
+      ?.content.citations ?? []
+  )
+}
+
+function hasCanonicalTurn(
+  messages: ChatMessage[],
+  userMessageId: number,
+  assistantMessageId: number
+) {
+  const ids = new Set(messages.map((message) => message.id))
+  return ids.has(userMessageId) && ids.has(assistantMessageId)
+}
+
+function areLiveMessagesPersisted(
+  liveMessages: ChatMessage[],
+  persistedMessages: ChatMessage[]
+) {
+  const persistedIds = new Set(
+    persistedMessages.map((message) => message.id)
+  )
+  return liveMessages.every(
+    (message) =>
+      typeof message.id === "number" && persistedIds.has(message.id)
+  )
 }
 
 function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
@@ -65,105 +127,108 @@ export function useChatRuntime({
   onCitations: (citations: Citation[]) => void
   onModelRequired: () => void
 }) {
-  const [threads, setThreads] = useState<ChatThread[]>([])
+  const queryClient = useQueryClient()
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [isLoadingThreads, setIsLoadingThreads] = useState(true)
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [liveMessages, setLiveMessages] = useState<ChatMessage[] | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const loadController = useRef<AbortController | null>(null)
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
+  const initializedSelection = useRef(false)
 
-  const acceptMessages = useCallback(
-    async (threadId: number, controller: AbortController, version: number) => {
-      try {
-        const next = await listMessages(threadId, controller.signal)
-        if (requestVersion.current === version) {
-          setMessages(next)
-          const citations =
-            [...next].reverse().find((message) => message.role === "assistant")
-              ?.content.citations ?? []
-          onCitations(citations)
-        }
-      } catch (cause) {
-        if (!isAbort(cause) && requestVersion.current === version) {
-          setError(messageFrom(cause))
-        }
-      } finally {
-        if (requestVersion.current === version) {
-          setIsLoadingMessages(false)
-        }
-      }
-    },
-    [onCitations]
-  )
+  const threadsQuery = useQuery({
+    queryKey: chatKeys.threads(workspaceId),
+    queryFn: ({ signal }) => listThreads(workspaceId, signal),
+  })
+  const threads = threadsQuery.data ?? EMPTY_THREADS
+
+  const messagesQuery = useQuery({
+    queryKey: [...chatKeys.all, "messages", activeThreadId] as const,
+    queryFn: ({ signal }) =>
+      activeThreadId === null
+        ? Promise.resolve(EMPTY_MESSAGES)
+        : listMessages(activeThreadId, signal),
+    enabled: activeThreadId !== null,
+  })
+  const persistedMessages = messagesQuery.data ?? EMPTY_MESSAGES
+  const usesLiveMessages =
+    liveMessages !== null &&
+    (isRunning || !areLiveMessagesPersisted(liveMessages, persistedMessages))
+  const messages = usesLiveMessages ? liveMessages : persistedMessages
+
+  const createThreadMutation = useMutation({
+    mutationFn: ({
+      title,
+      signal,
+    }: {
+      title: string
+      signal: AbortSignal
+    }) => createThread(workspaceId, title, signal),
+  })
+  const deleteThreadMutation = useMutation({
+    mutationFn: (threadId: number) => deleteThread(threadId),
+  })
+
+  useEffect(() => {
+    if (!threadsQuery.isSuccess || initializedSelection.current) {
+      return
+    }
+    initializedSelection.current = true
+    const threadId = initialThreadId(workspaceId, threads)
+    setActiveThreadId(threadId)
+    if (threadId !== null) {
+      rememberThread(workspaceId, threadId)
+    }
+  }, [threads, threadsQuery.isSuccess, workspaceId])
+
+  useEffect(() => {
+    if (!usesLiveMessages) {
+      onCitations(latestCitations(persistedMessages))
+    }
+  }, [onCitations, persistedMessages, usesLiveMessages])
 
   const selectThread = useCallback(
     (threadId: number) => {
+      if (threadId === activeThreadId) {
+        return
+      }
       streamController.current?.abort()
-      loadController.current?.abort()
-      const controller = new AbortController()
-      const version = ++requestVersion.current
-      loadController.current = controller
+      requestVersion.current += 1
       setActiveThreadId(threadId)
-      setMessages([])
+      rememberThread(workspaceId, threadId)
+      setLiveMessages(null)
       setError(null)
       setIsRunning(false)
-      setIsLoadingMessages(true)
       onCitations([])
-      void acceptMessages(threadId, controller, version)
     },
-    [acceptMessages, onCitations]
+    [activeThreadId, onCitations, workspaceId]
   )
 
   useEffect(() => {
-    const controller = new AbortController()
-    loadController.current = controller
-
-    void listThreads(workspaceId, controller.signal)
-      .then((next) => {
-        if (loadController.current !== controller) {
-          return
-        }
-        setThreads(next)
-        setIsLoadingThreads(false)
-        if (next[0]) {
-          selectThread(next[0].id)
-        }
-      })
-      .catch((cause: unknown) => {
-        if (!isAbort(cause) && loadController.current === controller) {
-          setError(messageFrom(cause))
-          setIsLoadingThreads(false)
-        }
-      })
-
     return () => {
-      loadController.current?.abort()
       streamController.current?.abort()
       requestVersion.current += 1
     }
-  }, [selectThread, workspaceId])
+  }, [])
 
-  const startNewChat = () => {
+  const startNewChat = useCallback(() => {
     streamController.current?.abort()
-    loadController.current?.abort()
     requestVersion.current += 1
+    initializedSelection.current = true
     setActiveThreadId(null)
-    setMessages([])
+    rememberThread(workspaceId, null)
+    setLiveMessages(null)
     setError(null)
-    setIsLoadingMessages(false)
     setIsRunning(false)
     onCitations([])
-  }
+  }, [onCitations, workspaceId])
 
   const removeThread = async (threadId: number) => {
     try {
-      await deleteThread(threadId)
+      await deleteThreadMutation.mutateAsync(threadId)
       const next = threads.filter((thread) => thread.id !== threadId)
-      setThreads(next)
+      queryClient.setQueryData(chatKeys.threads(workspaceId), next)
+      queryClient.removeQueries({ queryKey: chatKeys.messages(threadId) })
       if (activeThreadId === threadId) {
         if (next[0]) {
           selectThread(next[0].id)
@@ -191,26 +256,38 @@ export function useChatRuntime({
       setIsRunning(true)
 
       let threadId = activeThreadId
+      let userMessageId: number | null = null
+      let assistantMessageId: number | null = null
       try {
         if (threadId === null) {
-          const thread = await createThread(
-            workspaceId,
-            threadTitle(text),
-            controller.signal
-          )
+          const thread = await createThreadMutation.mutateAsync({
+            title: threadTitle(text),
+            signal: controller.signal,
+          })
           if (requestVersion.current !== version) {
             return
           }
           threadId = thread.id
-          setThreads((current) => [thread, ...current])
+          queryClient.setQueryData<ChatThread[]>(
+            chatKeys.threads(workspaceId),
+            (current = []) => [
+              thread,
+              ...current.filter((candidate) => candidate.id !== thread.id),
+            ]
+          )
+          queryClient.setQueryData(chatKeys.messages(thread.id), EMPTY_MESSAGES)
           setActiveThreadId(thread.id)
+          rememberThread(workspaceId, thread.id)
         }
 
         const timestamp = new Date().toISOString()
-        const userId = `optimistic-user-${version}`
-        const assistantId = `optimistic-assistant-${version}`
-        setMessages((current) => [
-          ...current,
+        let userId: number | string = `optimistic-user-${version}`
+        let assistantId: number | string = `optimistic-assistant-${version}`
+        const currentMessages =
+          queryClient.getQueryData<ChatMessage[]>(chatKeys.messages(threadId)) ??
+          EMPTY_MESSAGES
+        setLiveMessages([
+          ...currentMessages,
           {
             id: userId,
             role: "user",
@@ -234,10 +311,31 @@ export function useChatRuntime({
             if (requestVersion.current !== version) {
               return
             }
-            if (event.type === "delta") {
-              setMessages((current) =>
-                current.map((message) =>
-                  message.id === assistantId
+            if (event.type === "accepted") {
+              const previousUserId = userId
+              const previousAssistantId = assistantId
+              const nextUserId = event.user_message_id
+              const nextAssistantId = event.assistant_message_id
+              userMessageId = nextUserId
+              assistantMessageId = nextAssistantId
+              userId = nextUserId
+              assistantId = nextAssistantId
+              setLiveMessages((current) =>
+                current?.map((message) => {
+                  if (message.id === previousUserId) {
+                    return { ...message, id: nextUserId }
+                  }
+                  if (message.id === previousAssistantId) {
+                    return { ...message, id: nextAssistantId }
+                  }
+                  return message
+                }) ?? null
+              )
+            } else if (event.type === "delta") {
+              const targetId = assistantId
+              setLiveMessages((current) =>
+                current?.map((message) =>
+                  message.id === targetId
                     ? {
                         ...message,
                         content: {
@@ -246,13 +344,14 @@ export function useChatRuntime({
                         },
                       }
                     : message
-                )
+                ) ?? null
               )
             } else if (event.type === "citations") {
               onCitations(event.items)
-              setMessages((current) =>
-                current.map((message) =>
-                  message.id === assistantId
+              const targetId = assistantId
+              setLiveMessages((current) =>
+                current?.map((message) =>
+                  message.id === targetId
                     ? {
                         ...message,
                         content: {
@@ -261,7 +360,7 @@ export function useChatRuntime({
                         },
                       }
                     : message
-                )
+                ) ?? null
               )
             } else if (event.type === "error") {
               setError(event.message)
@@ -269,10 +368,30 @@ export function useChatRuntime({
           }
         )
 
-        if (requestVersion.current === version) {
-          const canonical = await listMessages(threadId, controller.signal)
-          if (requestVersion.current === version) {
-            setMessages(canonical)
+        if (
+          requestVersion.current === version &&
+          userMessageId !== null &&
+          assistantMessageId !== null
+        ) {
+          const completedThreadId = threadId
+          const canonical = await queryClient.fetchQuery({
+            queryKey: chatKeys.messages(completedThreadId),
+            queryFn: ({ signal }) => listMessages(completedThreadId, signal),
+            staleTime: 0,
+          })
+          if (
+            requestVersion.current === version &&
+            hasCanonicalTurn(
+              canonical,
+              userMessageId,
+              assistantMessageId
+            )
+          ) {
+            setLiveMessages(null)
+          } else {
+            void queryClient.invalidateQueries({
+              queryKey: chatKeys.messages(completedThreadId),
+            })
           }
         }
       } catch (cause) {
@@ -282,15 +401,9 @@ export function useChatRuntime({
           cause.message.includes("no chat model selected")
         ) {
           onModelRequired()
-        } else if (
-          isAbort(cause) &&
-          requestVersion.current === version &&
-          threadId !== null
-        ) {
-          void listMessages(threadId).then((canonical) => {
-            if (requestVersion.current === version) {
-              setMessages(canonical)
-            }
+        } else if (isAbort(cause) && threadId !== null) {
+          void queryClient.invalidateQueries({
+            queryKey: chatKeys.messages(threadId),
           })
         } else if (!isAbort(cause) && requestVersion.current === version) {
           setError(messageFrom(cause))
@@ -304,9 +417,11 @@ export function useChatRuntime({
     [
       activeThreadId,
       canSend,
+      createThreadMutation,
       isRunning,
       onCitations,
       onModelRequired,
+      queryClient,
       selectedDocumentIds,
       workspaceId,
     ]
@@ -317,6 +432,12 @@ export function useChatRuntime({
     setIsRunning(false)
   }, [])
 
+  const isLoadingThreads = threadsQuery.isPending
+  const isLoadingMessages =
+    activeThreadId !== null &&
+    !usesLiveMessages &&
+    messagesQuery.isPending
+  const queryError = threadsQuery.error ?? messagesQuery.error
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages,
     convertMessage: toRuntimeMessage,
@@ -337,7 +458,7 @@ export function useChatRuntime({
     activeThread,
     activeThreadId,
     messages,
-    error,
+    error: error ?? (queryError ? messageFrom(queryError) : null),
     isLoadingThreads,
     isLoadingMessages,
     isRunning,

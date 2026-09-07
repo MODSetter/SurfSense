@@ -116,37 +116,51 @@ async def send_message(
     context, citations = build_context(hits)
     messages = build_messages(context, history, payload.text)
 
-    session.add(
-        ChatMessage(
-            chat_thread_id=thread.id,
-            role=MessageRole.USER,
-            content={"text": payload.text},
-        )
+    user_message = ChatMessage(
+        chat_thread_id=thread.id,
+        role=MessageRole.USER,
+        content={"text": payload.text},
     )
+    assistant_message = ChatMessage(
+        chat_thread_id=thread.id,
+        role=MessageRole.ASSISTANT,
+        content={"text": "", "citations": []},
+    )
+    session.add_all((user_message, assistant_message))
+    # Do not hold a write transaction open while the model generates. The IDs
+    # are also the stable identities the client uses throughout the stream.
+    session.commit()
 
     cited = [asdict(citation) for citation in citations]
 
     async def stream() -> AsyncIterator[bytes]:
         parts: list[str] = []
+        yield _frame(
+            {
+                "type": "accepted",
+                "user_message_id": user_message.id,
+                "assistant_message_id": assistant_message.id,
+            }
+        )
         try:
-            async for delta in generator.chat(selected.name, messages):
-                parts.append(delta)
-                yield _frame({"type": "delta", "text": delta})
-        except Exception as exc:
-            # Surfaced as an event; the partial turn is still stored below.
-            yield _frame({"type": "error", "message": str(exc)})
+            try:
+                async for delta in generator.chat(selected.name, messages):
+                    parts.append(delta)
+                    yield _frame({"type": "delta", "text": delta})
+            except Exception as exc:
+                # Surfaced as an event; the partial turn is still stored below.
+                yield _frame({"type": "error", "message": str(exc)})
+        finally:
+            # A disconnect still preserves the partial answer. More importantly,
+            # receiving [DONE] now guarantees a subsequent read sees this turn.
+            assistant_message.content = {
+                "text": "".join(parts),
+                "citations": cited,
+            }
+            session.commit()
 
         if cited:
             yield _frame({"type": "citations", "items": cited})
-
-        # Written as the stream closes; the request session commits it on exit.
-        session.add(
-            ChatMessage(
-                chat_thread_id=thread.id,
-                role=MessageRole.ASSISTANT,
-                content={"text": "".join(parts), "citations": cited},
-            )
-        )
         yield _DONE
 
     return StreamingResponse(
@@ -162,7 +176,7 @@ async def send_message(
 
 
 def _frame(payload: dict) -> bytes:
-    """One SSE data frame: deltas, then a citations frame, then the sentinel."""
+    """One SSE data frame in the stream's accepted/delta/terminal protocol."""
     return f"data: {json.dumps(payload)}\n\n".encode()
 
 

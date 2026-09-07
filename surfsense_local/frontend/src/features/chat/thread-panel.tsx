@@ -7,6 +7,7 @@ import {
   CircleStopIcon,
   Settings2Icon,
 } from "@/components/ui/icons"
+
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -152,7 +153,10 @@ export function ThreadPanel({
                 ) : null}
                 <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
                   <ComposerPrimitive.Input
-                    className="max-h-44 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+                    className={cn(
+                      "max-h-44 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
+                      thread ? "min-h-10" : "min-h-28"
+                    )}
                     placeholder={
                       providerAvailable
                         ? "Ask SurfSense about anything"

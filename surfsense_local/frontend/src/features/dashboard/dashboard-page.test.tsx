@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { render } from "@/test-utils"
 
 import { DashboardPage } from "./dashboard-page"
 
@@ -19,6 +20,7 @@ afterEach(() => {
 })
 
 beforeEach(() => {
+  localStorage.clear()
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -36,6 +38,11 @@ beforeEach(() => {
 describe("dashboard chat", () => {
   it("creates a thread on first send and scopes retrieval to selected sources", async () => {
     let messageSent = false
+    let messageReads = 0
+    let resolveCanonical!: (response: Response) => void
+    const canonicalResponse = new Promise<Response>((resolve) => {
+      resolveCanonical = resolve
+    })
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
@@ -78,39 +85,42 @@ describe("dashboard chat", () => {
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           messageSent = true
           return new Response(
-            'data: {"type":"delta","text":"Grounded "}\n\ndata: {"type":"delta","text":"answer"}\n\ndata: {"type":"citations","items":[{"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: [DONE]\n\n',
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: {"type":"delta","text":"Grounded "}\n\ndata: {"type":"delta","text":"answer"}\n\ndata: {"type":"citations","items":[{"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: [DONE]\n\n',
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
         if (path === "/chat/threads/10/messages" && !init?.method) {
-          return Response.json(
-            messageSent
-              ? [
+          if (!messageSent) {
+            return Response.json([])
+          }
+          messageReads += 1
+          if (messageReads === 1) {
+            return canonicalResponse
+          }
+          return Response.json([
+            {
+              id: 100,
+              role: "user",
+              content: { text: "What is indexed?" },
+              created_at: "2026-09-05T00:00:00Z",
+            },
+            {
+              id: 101,
+              role: "assistant",
+              content: {
+                text: "Grounded answer",
+                citations: [
                   {
-                    id: 100,
-                    role: "user",
-                    content: { text: "What is indexed?" },
-                    created_at: "2026-09-05T00:00:00Z",
+                    chunk_id: 30,
+                    document_id: 20,
+                    start_line: 1,
+                    end_line: 2,
                   },
-                  {
-                    id: 101,
-                    role: "assistant",
-                    content: {
-                      text: "Grounded answer",
-                      citations: [
-                        {
-                          chunk_id: 30,
-                          document_id: 20,
-                          start_line: 1,
-                          end_line: 2,
-                        },
-                      ],
-                    },
-                    created_at: "2026-09-05T00:00:01Z",
-                  },
-                ]
-              : []
-          )
+                ],
+              },
+              created_at: "2026-09-05T00:00:01Z",
+            },
+          ])
         }
         return Response.json({ detail: `Unhandled ${path}` }, { status: 404 })
       }
@@ -156,6 +166,12 @@ describe("dashboard chat", () => {
     expect(
       screen.getByRole("button", { name: "Source 1: Guide.txt" })
     ).toBeTruthy()
+    resolveCanonical(Response.json([]))
+    await screen.findByRole("button", { name: "Send message" })
+    await waitFor(() => {
+      expect(messageReads).toBe(2)
+      expect(screen.getByText("Grounded answer")).toBeTruthy()
+    })
     await waitFor(() => {
       expect(
         fetchMock.mock.calls.filter(
