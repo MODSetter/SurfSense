@@ -8,6 +8,7 @@ import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import { startAll, stopAll, type Sidecars } from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
+import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -63,9 +64,9 @@ async function bootSidecars(): Promise<string> {
 }
 
 function createWindow(apiUrl: string): void {
+  const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    ...(savedState?.bounds ?? { width: 1280, height: 800 }),
     show: false,
     ...(process.platform === "darwin" && { titleBarStyle: "hiddenInset" }),
     webPreferences: {
@@ -74,7 +75,16 @@ function createWindow(apiUrl: string): void {
     },
   })
 
-  win.once("ready-to-show", () => win.show())
+  if (app.isPackaged) {
+    win.on("close", () => saveWindowState(win))
+  }
+
+  win.once("ready-to-show", () => {
+    if (app.isPackaged && (savedState?.maximized ?? true)) {
+      win.maximize()
+    }
+    win.show()
+  })
 
   if (app.isPackaged) {
     void win.loadFile(join(app.getAppPath(), "..", "frontend", "dist", "index.html"))
