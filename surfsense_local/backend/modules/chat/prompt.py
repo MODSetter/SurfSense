@@ -12,6 +12,8 @@ INSTRUCTION = (
     "- If the context does not hold the answer, say so, then answer from your own "
     "knowledge if you can.\n"
     "- Respond in the same language as the question.\n"
+    "- Label fenced code blocks with their language, such as python, typescript, "
+    "sql, or bash.\n"
     "- Do not repeat the source tags back in your answer.\n"
     'Example: "The method raised efficiency by 20% [1]."'
 )

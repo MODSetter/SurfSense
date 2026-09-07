@@ -28,6 +28,7 @@ export function ChatViewport({
 }) {
   return (
     <ThreadPrimitive.Viewport
+      turnAnchor="top"
       className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4"
       style={{ scrollbarGutter: "stable" }}
       autoScroll

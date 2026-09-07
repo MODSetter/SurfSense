@@ -2,14 +2,17 @@ import { FileTextIcon } from "@/components/ui/icons"
 import { MessagePrimitive } from "@assistant-ui/react"
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
 import { code } from "@streamdown/code"
-import { math } from "@streamdown/math"
+import { createMathPlugin } from "@streamdown/math"
 
 import { Button } from "@/components/ui/button"
 import type { WorkspaceDocument } from "@/features/sources/api"
 
 import type { Citation } from "./sse"
 
-const streamdownPlugins = { code, math }
+const streamdownPlugins = {
+  code,
+  math: createMathPlugin({ singleDollarTextMath: true }),
+}
 
 function MarkdownText() {
   return (

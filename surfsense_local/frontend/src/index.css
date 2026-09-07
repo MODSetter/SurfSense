@@ -172,3 +172,63 @@
 .electron-macos #root {
   padding-top: var(--titlebar-height);
 }
+
+[data-streamdown="code-block"] {
+  gap: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: calc(var(--radius) * 0.8);
+  background: var(--accent);
+  padding: 0;
+}
+
+[data-streamdown="code-block-header"] {
+  height: 2.5rem;
+  padding-inline: 1rem;
+  color: var(--accent-foreground);
+  font-weight: 600;
+}
+
+[data-streamdown="code-block-header"] > span {
+  margin-left: 0;
+}
+
+[data-streamdown="code-block-actions"] {
+  position: relative;
+  top: 0.25rem;
+  gap: 0.25rem;
+  border: 0;
+  background: transparent;
+  padding: 0 0.5rem;
+  backdrop-filter: none;
+}
+
+[data-streamdown="code-block-actions"] button {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--accent-foreground);
+}
+
+[data-streamdown="code-block-actions"] button:hover {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+[data-streamdown="code-block-actions"] button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+[data-streamdown="code-block-body"] {
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+}
+
+[data-streamdown="code-block-body"] pre {
+  background: transparent;
+}
