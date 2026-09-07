@@ -6,7 +6,8 @@ from pydantic import BaseModel
 class EventKind(enum.StrEnum):
     """The category of change, and the SSE event name the client listens for."""
 
-    DOCUMENTS = "documents"  # v1; artifacts join later
+    DOCUMENTS = "documents"
+    ARTIFACTS = "artifacts"
 
 
 class InternalEvent(BaseModel):

@@ -44,6 +44,10 @@ class StorageSettings(BaseSettings):
     def workspace_dir(self, workspace_id: int) -> Path:
         return self.data_dir / "data" / "workspaces" / str(workspace_id)
 
+    def artifact_dir(self, workspace_id: int, artifact_id: int) -> Path:
+        """Where one artifact's rendered blobs live, keyed by id like documents."""
+        return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
+
 
 class SearchSettings(BaseSettings):
     """The index's shape, which both ingest and search have to agree on."""
