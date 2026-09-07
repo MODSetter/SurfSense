@@ -36,6 +36,131 @@ beforeEach(() => {
 })
 
 describe("dashboard chat", () => {
+  it("keeps composer placement aligned with the conversation lifecycle", async () => {
+    let resolveThreads!: (response: Response) => void
+    let resolveCreate!: (response: Response) => void
+    const threadsResponse = new Promise<Response>((resolve) => {
+      resolveThreads = resolve
+    })
+    const createResponse = new Promise<Response>((resolve) => {
+      resolveCreate = resolve
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return threadsResponse
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return createResponse
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([
+            {
+              id: 100,
+              role: "user",
+              content: { text: "Start a chat" },
+              created_at: "2026-09-05T00:00:00Z",
+            },
+            {
+              id: 101,
+              role: "assistant",
+              content: { text: "", citations: [] },
+              created_at: "2026-09-05T00:00:01Z",
+            },
+          ])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
+
+    resolveThreads(Response.json([]))
+    const input = await screen.findByRole("textbox", { name: "Message" })
+    expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
+    expect(
+      screen.getByRole("region", { name: "Conversation" }).parentElement
+        ?.className
+    ).toContain("grid-rows-[minmax(0,1fr)]")
+
+    await user.type(input, "Start a chat")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() => {
+      const bottomComposer = screen
+        .getByRole("textbox", { name: "Message" })
+        .closest('[data-composer-placement="bottom"]')
+      expect(bottomComposer).toBeTruthy()
+      expect(bottomComposer?.closest("[data-chat-viewport]")).toBeNull()
+    })
+
+    resolveCreate(
+      Response.json(
+        {
+          id: 10,
+          workspace_id: 1,
+          title: "Start a chat",
+          created_at: "2026-09-05T00:00:00Z",
+          updated_at: "2026-09-05T00:00:00Z",
+        },
+        { status: 201 }
+      )
+    )
+    await screen.findByRole("heading", { name: "Start a chat" })
+    expect(
+      screen
+        .getByRole("textbox", { name: "Message" })
+        .closest('[data-composer-placement="bottom"]')
+    ).toBeTruthy()
+
+    const activeInput = await screen.findByRole("textbox", { name: "Message" })
+    await screen.findByRole("button", { name: "Send message" })
+    await user.type(activeInput, "Discard this draft")
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+
+    await waitFor(() => {
+      const resetInput = screen.getByRole("textbox", { name: "Message" })
+      expect(
+        resetInput.closest('[data-composer-placement="center"]')
+      ).toBeTruthy()
+      expect((resetInput as HTMLTextAreaElement).value).toBe("")
+    })
+  })
+
   it("creates a thread on first send and scopes retrieval to selected sources", async () => {
     let messageSent = false
     let messageReads = 0

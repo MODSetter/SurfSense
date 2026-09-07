@@ -91,12 +91,9 @@ function areLiveMessagesPersisted(
   liveMessages: ChatMessage[],
   persistedMessages: ChatMessage[]
 ) {
-  const persistedIds = new Set(
-    persistedMessages.map((message) => message.id)
-  )
+  const persistedIds = new Set(persistedMessages.map((message) => message.id))
   return liveMessages.every(
-    (message) =>
-      typeof message.id === "number" && persistedIds.has(message.id)
+    (message) => typeof message.id === "number" && persistedIds.has(message.id)
   )
 }
 
@@ -114,6 +111,12 @@ function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
   }
 }
 
+export type ConversationView =
+  | { status: "initializing" }
+  | { status: "new" }
+  | { status: "creating" }
+  | { status: "active"; threadId: number }
+
 export function useChatRuntime({
   workspaceId,
   canSend,
@@ -128,19 +131,32 @@ export function useChatRuntime({
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
-  const [activeThreadId, setActiveThreadId] = useState<number | null>(null)
+  const [selectedView, setConversationView] = useState<ConversationView | null>(
+    null
+  )
   const [liveMessages, setLiveMessages] = useState<ChatMessage[] | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
-  const initializedSelection = useRef(false)
 
   const threadsQuery = useQuery({
     queryKey: chatKeys.threads(workspaceId),
     queryFn: ({ signal }) => listThreads(workspaceId, signal),
   })
   const threads = threadsQuery.data ?? EMPTY_THREADS
+  const initialView = useMemo<ConversationView>(() => {
+    if (!threadsQuery.isSuccess) {
+      return { status: "initializing" }
+    }
+    const threadId = initialThreadId(workspaceId, threads)
+    return threadId === null
+      ? { status: "new" }
+      : { status: "active", threadId }
+  }, [threads, threadsQuery.isSuccess, workspaceId])
+  const conversationView = selectedView ?? initialView
+  const activeThreadId =
+    conversationView.status === "active" ? conversationView.threadId : null
 
   const messagesQuery = useQuery({
     queryKey: [...chatKeys.all, "messages", activeThreadId] as const,
@@ -157,29 +173,12 @@ export function useChatRuntime({
   const messages = usesLiveMessages ? liveMessages : persistedMessages
 
   const createThreadMutation = useMutation({
-    mutationFn: ({
-      title,
-      signal,
-    }: {
-      title: string
-      signal: AbortSignal
-    }) => createThread(workspaceId, title, signal),
+    mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
+      createThread(workspaceId, title, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
   })
-
-  useEffect(() => {
-    if (!threadsQuery.isSuccess || initializedSelection.current) {
-      return
-    }
-    initializedSelection.current = true
-    const threadId = initialThreadId(workspaceId, threads)
-    setActiveThreadId(threadId)
-    if (threadId !== null) {
-      rememberThread(workspaceId, threadId)
-    }
-  }, [threads, threadsQuery.isSuccess, workspaceId])
 
   useEffect(() => {
     if (!usesLiveMessages) {
@@ -194,7 +193,7 @@ export function useChatRuntime({
       }
       streamController.current?.abort()
       requestVersion.current += 1
-      setActiveThreadId(threadId)
+      setConversationView({ status: "active", threadId })
       rememberThread(workspaceId, threadId)
       setLiveMessages(null)
       setError(null)
@@ -214,8 +213,7 @@ export function useChatRuntime({
   const startNewChat = useCallback(() => {
     streamController.current?.abort()
     requestVersion.current += 1
-    initializedSelection.current = true
-    setActiveThreadId(null)
+    setConversationView({ status: "new" })
     rememberThread(workspaceId, null)
     setLiveMessages(null)
     setError(null)
@@ -244,7 +242,13 @@ export function useChatRuntime({
   const onNew = useCallback(
     async (appendMessage: AppendMessage) => {
       const text = submittedText(appendMessage)
-      if (!text || isRunning || !canSend) {
+      if (
+        !text ||
+        isRunning ||
+        !canSend ||
+        conversationView.status === "initializing" ||
+        conversationView.status === "creating"
+      ) {
         return
       }
 
@@ -255,11 +259,13 @@ export function useChatRuntime({
       setError(null)
       setIsRunning(true)
 
-      let threadId = activeThreadId
+      let threadId =
+        conversationView.status === "active" ? conversationView.threadId : null
       let userMessageId: number | null = null
       let assistantMessageId: number | null = null
       try {
         if (threadId === null) {
+          setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
             title: threadTitle(text),
             signal: controller.signal,
@@ -276,7 +282,7 @@ export function useChatRuntime({
             ]
           )
           queryClient.setQueryData(chatKeys.messages(thread.id), EMPTY_MESSAGES)
-          setActiveThreadId(thread.id)
+          setConversationView({ status: "active", threadId: thread.id })
           rememberThread(workspaceId, thread.id)
         }
 
@@ -284,8 +290,9 @@ export function useChatRuntime({
         let userId: number | string = `optimistic-user-${version}`
         let assistantId: number | string = `optimistic-assistant-${version}`
         const currentMessages =
-          queryClient.getQueryData<ChatMessage[]>(chatKeys.messages(threadId)) ??
-          EMPTY_MESSAGES
+          queryClient.getQueryData<ChatMessage[]>(
+            chatKeys.messages(threadId)
+          ) ?? EMPTY_MESSAGES
         setLiveMessages([
           ...currentMessages,
           {
@@ -320,47 +327,50 @@ export function useChatRuntime({
               assistantMessageId = nextAssistantId
               userId = nextUserId
               assistantId = nextAssistantId
-              setLiveMessages((current) =>
-                current?.map((message) => {
-                  if (message.id === previousUserId) {
-                    return { ...message, id: nextUserId }
-                  }
-                  if (message.id === previousAssistantId) {
-                    return { ...message, id: nextAssistantId }
-                  }
-                  return message
-                }) ?? null
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) => {
+                    if (message.id === previousUserId) {
+                      return { ...message, id: nextUserId }
+                    }
+                    if (message.id === previousAssistantId) {
+                      return { ...message, id: nextAssistantId }
+                    }
+                    return message
+                  }) ?? null
               )
             } else if (event.type === "delta") {
               const targetId = assistantId
-              setLiveMessages((current) =>
-                current?.map((message) =>
-                  message.id === targetId
-                    ? {
-                        ...message,
-                        content: {
-                          ...message.content,
-                          text: (message.content.text ?? "") + event.text,
-                        },
-                      }
-                    : message
-                ) ?? null
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            text: (message.content.text ?? "") + event.text,
+                          },
+                        }
+                      : message
+                  ) ?? null
               )
             } else if (event.type === "citations") {
               onCitations(event.items)
               const targetId = assistantId
-              setLiveMessages((current) =>
-                current?.map((message) =>
-                  message.id === targetId
-                    ? {
-                        ...message,
-                        content: {
-                          ...message.content,
-                          citations: event.items,
-                        },
-                      }
-                    : message
-                ) ?? null
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            citations: event.items,
+                          },
+                        }
+                      : message
+                  ) ?? null
               )
             } else if (event.type === "error") {
               setError(event.message)
@@ -381,11 +391,7 @@ export function useChatRuntime({
           })
           if (
             requestVersion.current === version &&
-            hasCanonicalTurn(
-              canonical,
-              userMessageId,
-              assistantMessageId
-            )
+            hasCanonicalTurn(canonical, userMessageId, assistantMessageId)
           ) {
             setLiveMessages(null)
           } else {
@@ -395,6 +401,9 @@ export function useChatRuntime({
           }
         }
       } catch (cause) {
+        if (threadId === null && requestVersion.current === version) {
+          setConversationView({ status: "new" })
+        }
         if (
           cause instanceof ApiError &&
           cause.status === 409 &&
@@ -415,8 +424,8 @@ export function useChatRuntime({
       }
     },
     [
-      activeThreadId,
       canSend,
+      conversationView,
       createThreadMutation,
       isRunning,
       onCitations,
@@ -434,9 +443,7 @@ export function useChatRuntime({
 
   const isLoadingThreads = threadsQuery.isPending
   const isLoadingMessages =
-    activeThreadId !== null &&
-    !usesLiveMessages &&
-    messagesQuery.isPending
+    activeThreadId !== null && !usesLiveMessages && messagesQuery.isPending
   const queryError = threadsQuery.error ?? messagesQuery.error
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages,
@@ -455,6 +462,7 @@ export function useChatRuntime({
   return {
     runtime,
     threads,
+    conversationView,
     activeThread,
     activeThreadId,
     messages,

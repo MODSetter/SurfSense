@@ -57,7 +57,7 @@ function WorkspaceDashboard({
   }
 
   return (
-    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
+    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
       <ThreadList
         workspaceName={workspace.name}
         threads={chat.threads}
@@ -70,6 +70,7 @@ function WorkspaceDashboard({
       <ThreadPanel
         runtime={chat.runtime}
         thread={chat.activeThread}
+        view={chat.conversationView}
         model={selection}
         documents={sources.documents}
         error={chat.error}
