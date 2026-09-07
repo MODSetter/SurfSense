@@ -85,12 +85,15 @@ export function RelativeTime({
       <TooltipTrigger asChild>
         <time
           dateTime={date.toISOString()}
-          className={cn("cursor-default text-xs", className)}
+          className={cn(
+            "inline-flex h-7 cursor-default items-center text-xs",
+            className
+          )}
         >
           {formatRelativeTime(date, currentTime)}
         </time>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{exactTime}</TooltipContent>
+      <TooltipContent>{exactTime}</TooltipContent>
     </Tooltip>
   )
 }

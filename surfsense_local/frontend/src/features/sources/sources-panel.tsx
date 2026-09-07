@@ -348,8 +348,8 @@ export function SourcesPanel({
             </Button>
           </div>
         </header>
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-3 p-3">
+        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:h-full">
+          <div className="flex min-h-full flex-col gap-3 p-3">
             {uploadOutcome ? (
               <Alert>
                 <CheckCircle2Icon />
@@ -452,7 +452,7 @@ export function SourcesPanel({
               </section>
             ) : null}
             {!isLoading && documents.length === 0 ? (
-              <Empty className="border-0 px-2 py-12">
+              <Empty className="min-h-0 border-0 px-2">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <FilePlus2Icon />

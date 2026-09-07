@@ -16,6 +16,11 @@ import { createMathPlugin } from "@streamdown/math"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
@@ -65,6 +70,7 @@ function MessageActions({
   className?: string
 }) {
   const timestamp = <MessageTimestamp />
+  const isCopied = useAuiState(({ message }) => message.isCopied)
   return (
     <div
       className={cn(
@@ -74,22 +80,28 @@ function MessageActions({
     >
       {timestampRight ? null : timestamp}
       <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
-        <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Copy message"
-            title="Copy message"
-          >
-            <AuiIf condition={({ message }) => message.isCopied}>
-              <CheckIcon />
-            </AuiIf>
-            <AuiIf condition={({ message }) => !message.isCopied}>
-              <CopyIcon />
-            </AuiIf>
-          </Button>
-        </ActionBarPrimitive.Copy>
+        <Tooltip>
+          <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={isCopied ? "Copied" : "Copy message"}
+              >
+                <AuiIf condition={({ message }) => message.isCopied}>
+                  <CheckIcon />
+                </AuiIf>
+                <AuiIf condition={({ message }) => !message.isCopied}>
+                  <CopyIcon />
+                </AuiIf>
+              </Button>
+            </TooltipTrigger>
+          </ActionBarPrimitive.Copy>
+          <TooltipContent>
+            {isCopied ? "Copied" : "Copy"}
+          </TooltipContent>
+        </Tooltip>
       </ActionBarPrimitive.Root>
       {timestampRight ? timestamp : null}
     </div>

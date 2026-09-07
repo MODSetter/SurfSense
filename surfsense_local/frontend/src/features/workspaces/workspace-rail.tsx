@@ -203,23 +203,23 @@ export function WorkspaceRail({
               </ContextMenu>
             )
           })}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-lg"
+                variant="ghost"
+                className="rounded-xl border border-dashed border-sidebar-border"
+                disabled={isMutating}
+                aria-label="Create workspace"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Create workspace</TooltipContent>
+          </Tooltip>
         </div>
       </ScrollArea>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon-lg"
-            variant="ghost"
-            className="mt-2 rounded-xl border border-dashed"
-            disabled={isMutating}
-            aria-label="Create workspace"
-            onClick={() => setCreateOpen(true)}
-          >
-            <PlusIcon />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right">Create workspace</TooltipContent>
-      </Tooltip>
 
       <WorkspaceNameDialog
         key={`create-${createOpen}`}
