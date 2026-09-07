@@ -95,11 +95,15 @@ function areLiveMessagesPersisted(
 }
 
 function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
+  // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
+  const timestamp = /(?:Z|[+-]\d{2}:\d{2})$/i.test(message.created_at)
+    ? message.created_at
+    : `${message.created_at}Z`
   return {
     id: String(message.id),
     role: message.role,
     content: [{ type: "text", text: message.content.text ?? "" }],
-    createdAt: new Date(message.created_at),
+    createdAt: new Date(timestamp),
     metadata: {
       custom: {
         citations: message.content.citations ?? [],

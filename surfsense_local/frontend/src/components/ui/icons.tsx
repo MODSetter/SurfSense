@@ -10,6 +10,7 @@ import {
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
+  Copy01Icon,
   Delete02Icon,
   DownloadIcon as DownloadIconData,
   EllipsisIcon as EllipsisIconData,
@@ -52,6 +53,7 @@ export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
+export const CopyIcon = createIcon(Copy01Icon)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const FileIcon = createIcon(FileIconData)

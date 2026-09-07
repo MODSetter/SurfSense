@@ -1,11 +1,18 @@
-import { FileTextIcon } from "@/components/ui/icons"
-import { MessagePrimitive } from "@assistant-ui/react"
+import { CheckIcon, CopyIcon, FileTextIcon } from "@/components/ui/icons"
+import {
+  ActionBarPrimitive,
+  AuiIf,
+  MessagePrimitive,
+  useAuiState,
+} from "@assistant-ui/react"
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
 import { code } from "@streamdown/code"
 import { createMathPlugin } from "@streamdown/math"
 
+import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import type { WorkspaceDocument } from "@/features/sources/api"
+import { cn } from "@/lib/utils"
 
 import type { Citation } from "./sse"
 
@@ -30,6 +37,57 @@ function MarkdownText() {
 }
 
 const assistantMessageParts = { Text: MarkdownText }
+
+function MessageTimestamp() {
+  const createdAt = useAuiState(({ message }) => message.createdAt)
+
+  if (!createdAt) {
+    return null
+  }
+
+  return <RelativeTime date={createdAt} />
+}
+
+function MessageActions({
+  hideWhenRunning = false,
+  timestampRight = false,
+  className,
+}: {
+  hideWhenRunning?: boolean
+  timestampRight?: boolean
+  className?: string
+}) {
+  const timestamp = <MessageTimestamp />
+  return (
+    <div
+      className={cn(
+        "relative flex h-7 items-center gap-1 text-muted-foreground",
+        className
+      )}
+    >
+      {timestampRight ? null : timestamp}
+      <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
+        <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Copy message"
+            title="Copy message"
+          >
+            <AuiIf condition={({ message }) => message.isCopied}>
+              <CheckIcon />
+            </AuiIf>
+            <AuiIf condition={({ message }) => !message.isCopied}>
+              <CopyIcon />
+            </AuiIf>
+          </Button>
+        </ActionBarPrimitive.Copy>
+      </ActionBarPrimitive.Root>
+      {timestampRight ? timestamp : null}
+    </div>
+  )
+}
 
 function CitationLinks({
   citations,
@@ -72,10 +130,11 @@ function CitationLinks({
 
 export function UserMessage() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl justify-end px-6 py-3">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl flex-col items-end px-6 py-3">
       <div className="max-w-[78%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-primary-foreground">
         <MessagePrimitive.Parts />
       </div>
+      <MessageActions className="top-1" />
     </MessagePrimitive.Root>
   )
 }
@@ -90,7 +149,7 @@ export function AssistantMessage({
   onCitation: (citation: Citation) => void
 }) {
   return (
-    <MessagePrimitive.Root className="mx-auto w-full max-w-xl px-6 py-4">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl flex-col items-start px-6 py-4">
       <div className="min-w-0 text-sm leading-7">
         <MessagePrimitive.Parts components={assistantMessageParts} />
       </div>
@@ -99,6 +158,7 @@ export function AssistantMessage({
         documents={documents}
         onCitation={onCitation}
       />
+      <MessageActions hideWhenRunning timestampRight className="top-0.5" />
     </MessagePrimitive.Root>
   )
 }
