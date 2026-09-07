@@ -4,8 +4,11 @@
 @import "@fontsource-variable/instrument-sans";
 @import "@fontsource-variable/newsreader";
 @import "@fontsource/ibm-plex-mono/400.css";
+@import "katex/dist/katex.min.css";
 
 @source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+@source "../node_modules/@streamdown/math/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 

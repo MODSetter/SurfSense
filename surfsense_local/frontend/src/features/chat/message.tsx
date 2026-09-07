@@ -1,16 +1,21 @@
 import { FileTextIcon } from "@/components/ui/icons"
 import { MessagePrimitive } from "@assistant-ui/react"
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
+import { code } from "@streamdown/code"
+import { math } from "@streamdown/math"
 
 import { Button } from "@/components/ui/button"
 import type { WorkspaceDocument } from "@/features/sources/api"
 
 import type { Citation } from "./sse"
 
+const streamdownPlugins = { code, math }
+
 function MarkdownText() {
   return (
     <StreamdownTextPrimitive
       defer
+      plugins={streamdownPlugins}
       linkSafety={{ enabled: true }}
       security={{
         allowedProtocols: ["http", "https", "mailto"],
@@ -39,25 +44,26 @@ function CitationLinks({
     documents.map((document) => [document.id, document.title])
   )
   return (
-    <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Citations">
+    <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Citations">
       {citations.map((citation, index) => {
         const title =
           titleById.get(citation.document_id) ??
           `Document ${citation.document_id}`
         return (
-          <Button
-            key={`${citation.chunk_id}-${index}`}
-            variant="outline"
-            size="xs"
-            aria-label={`Source ${index + 1}: ${title}`}
-            onClick={() => onCitation(citation)}
-          >
-            <FileTextIcon />
-            {index + 1}
-          </Button>
+          <li key={citation.chunk_id}>
+            <Button
+              variant="outline"
+              size="xs"
+              aria-label={`Source ${index + 1}: ${title}`}
+              onClick={() => onCitation(citation)}
+            >
+              <FileTextIcon />
+              {index + 1}
+            </Button>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }
 
