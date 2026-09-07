@@ -9,7 +9,6 @@ import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import { startAll, stopAll, type Sidecars } from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
 
-const DEV_API_PORT = 8000
 const DEV_RENDERER_URL = "http://localhost:5173"
 
 let sidecars: Sidecars | null = null
@@ -24,7 +23,7 @@ function onSidecarCrash(name: string, code: number | null): void {
 async function bootSidecars(): Promise<string> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
-  const apiPort = packaged ? await getFreePort(host) : DEV_API_PORT
+  const apiPort = await getFreePort(host)
   // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
   const dataDir = join(app.getPath("home"), packaged ? ".surfsense" : ".surfsense-dev")
 

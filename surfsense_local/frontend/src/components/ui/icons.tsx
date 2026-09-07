@@ -26,6 +26,7 @@ import {
   RefreshCwIcon as RefreshCwIconData,
   ServerOffIcon as ServerOffIconData,
   Settings02Icon,
+  SparklesIcon as SparklesIconData,
   StopCircleIcon,
   XIcon as XIconData,
 } from "@hugeicons/core-free-icons"
@@ -66,5 +67,6 @@ export const PlusIcon = createIcon(PlusIconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
+export const SparklesIcon = createIcon(SparklesIconData)
 export const Trash2Icon = createIcon(Delete02Icon)
 export const XIcon = createIcon(XIconData)

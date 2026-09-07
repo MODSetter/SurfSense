@@ -5,7 +5,7 @@ import {
   DownloadIcon,
   SparklesIcon,
   Trash2Icon,
-} from "lucide-react"
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -151,15 +151,16 @@ function Composer({
       <Button
         className="w-full"
         disabled={!canGenerate}
-        onClick={() =>
+        onClick={() => {
+          if (format === null) return
           onGenerate({
-            format: format!,
+            format,
             document_ids: [...selected],
             prompt: prompt.trim() || undefined,
           })
-        }
+        }}
       >
-        {isCreating ? <Spinner /> : <SparklesIcon />}
+        {isCreating ? <Spinner /> : <SparklesIcon data-icon="inline-start" />}
         Generate
       </Button>
     </div>
@@ -247,7 +248,7 @@ function Viewer({
         {artifact.files.map((file) => (
           <Button key={file.role} size="xs" variant="outline" asChild>
             <a href={fileUrl(artifact.id, file.role)} download>
-              <DownloadIcon />
+              <DownloadIcon data-icon="inline-start" />
               {file.role}
             </a>
           </Button>
@@ -270,6 +271,7 @@ function Preview({ artifact }: { artifact: ArtifactDetail }) {
 
   const src = fileUrl(artifact.id, primary.role)
   if (primary.mime_type.startsWith("audio/")) {
+    // biome-ignore lint/a11y/useMediaCaption: The generated transcript is rendered directly below the player.
     return <audio className="w-full p-4" controls src={src} />
   }
   if (primary.mime_type.startsWith("image/")) {
